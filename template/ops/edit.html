@@ -1,0 +1,22 @@
+##set Forms=True
+##extends "ops/index_custom.html"
+## from "dynaform.macro" import render_dynaform
+##block Content
+##set modulinfos=modulConfig[modulName()]
+
+<div class="headerlist">
+<img src="/resources/ops/{{modulinfos.icon}}" />
+<h1>{{modulinfos.name}} {{_("edit")}}</h1>
+</div>
+
+	<form name="bestform" action="{{ modulPath(  ) }}/edit" method="POST">
+		<table border="0" cellspacing="2" class="dftable" style="width: 540px;">
+			{{ render_dynaform( skel ) }}
+		</table>
+		<input style="margin-left: 420px;" type="submit" value="{{_('save')}}" />
+	</form>
+
+<div class="clear">&nbsp;</div>
+
+<br />
+##endblock

@@ -1,0 +1,2 @@
+{%- macro render_custombone( bone_name, bone, value ) -%}
+{%- endmacro -%}

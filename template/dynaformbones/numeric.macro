@@ -1,0 +1,60 @@
+{%- macro numericbone( bone_name,bone,value ) -%}
+<!-- ############################### Numeric ####################################### -->
+	{% if not bone.visible %}
+		<input type="hidden" name="{{ bone_name }}" value="{{ value }}" />
+	{% else %}
+		##set steps=(bone.max-bone.min)*(10**bone.precision)
+		{% if steps<=20 %}
+	<script>
+		$(function() {
+			$( "#slider_numeric{{bone_name}}" ).slider({
+				value:{%if value %}{{value}}{% else %}0{% endif %},
+				min: {{bone.min}},
+				max: {{bone.max}},
+				##if bone.precision==0				
+				step: 1,
+				##elif bone.precision<0
+				step: 1{{"0"*(bone.precision*(-1))}}
+				##else
+				step: 0.{{"0"*(bone.precision-1)}}1
+				##endif
+				slide: function( event, ui ) {
+					$( "#amount_numeric{{bone_name}}" ).val( ui.value );
+				}
+			});
+		});
+	</script>
+	
+	<div style="margin-top:5px;margin-bottom:5px;">
+	<p>
+		<label for="amount_numeric{{bone_name}}">{#{{ bone.descr }}#}</label>
+	</p>
+	</div>
+
+	<div id="slider_numeric{{bone_name}}"></div>
+		{% endif %}
+		
+		<input type="text"  id="amount_numeric{{bone_name}}" name="{{ bone_name }}" value="{{ value|default("0",true) }}"  class="viur_numericinput"/>
+		<script>
+		        $(function() {
+                         var numericspinnerobj{{bone_name}}={};
+                                ##if bone.min
+                                    numericspinnerobj{{bone_name}}.min= {{bone.min}};
+                                ##endif
+                                ##if bone.max
+                                    numericspinnerobj{{bone_name}}.max= {{bone.max}};
+                                ##endif
+				##if bone.precision==0
+                                    numericspinnerobj{{bone_name}}.step= 1;
+				##elif bone.precision<0
+                                    numericspinnerobj{{bone_name}}.step= 1{{"0"*(bone.precision*(-1))}};
+				##else
+                                    numericspinnerobj{{bone_name}}.step=0.{{"0"*(bone.precision-1)}}1;
+				##endif
+        $( "#amount_numeric{{bone_name}}" ).spinner(numericspinnerobj{{bone_name}});
+    });
+		</script>
+
+		
+	{% endif %}
+{%- endmacro -%}

@@ -1,0 +1,13 @@
+##extends "ops/index.html"
+
+##block message
+{% from "dynaform.macro" import render_dynaform %}
+
+<form action="/ops/user/login" method="POST">
+	<table border="0">
+		{{ render_dynaform( skel ) }}
+	</table>
+    <input type="submit" />
+</form>
+
+##endblock

@@ -1,0 +1,8 @@
+{%- macro stringbone( bone_name,bone,value ) -%}
+<!-- ############################### String ####################################### -->	
+	{% if not bone.visible %}
+		<input type="hidden" name="{{ bone_name }}" value="{{ value }}" />
+	{% else %}	
+			<input type="text" name="{{ bone_name }}" class="ui-widget ui-widget-content ui-corner-all ui-spinner-input viur_uielement viur_text" id="dynabone_{{ bone_name }}" value="{{ value|default("",true) }}" />
+	{% endif %}
+{%- endmacro -%}

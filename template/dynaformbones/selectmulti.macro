@@ -1,0 +1,13 @@
+{%- macro selectmultibone( bone_name,bone,value ) -%}
+<!-- ############################### Select Multi ####################################### -->
+	{% if not bone.visible %}
+		{% for val in value %}
+			<input type="hidden" name="{{ bone_name }}" value="{{val}}">
+		{%endfor%}
+	{% else %}
+					{%- for optionname in bone["values"].keys() -%}
+						<div class="df_checkboxcontainer" ><input type="checkbox" name="{{ bone_name }}" value="{{optionname}}" {% if optionname in value %}checked{% endif %}>&nbsp;<span class="viur_uielement viur_checkbox">{{bone["values"][optionname]}}<span></div>
+					{% endfor -%}
+					
+	{%endif%}
+{%- endmacro -%}

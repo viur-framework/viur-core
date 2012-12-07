@@ -1,0 +1,8 @@
+{% for dir in subdirs%}
+	<span>Dir: {{dir}}</span>
+{% endfor %}
+{% for entry in entries %}
+	<span>Name: {{entry.name}}</span>
+	<span>Key: {{entry.id}}</span>
+	<span>DlKey: {{entry.dlkey}}</span>
+{%endfor %}

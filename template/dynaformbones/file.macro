@@ -1,0 +1,196 @@
+{%- macro fileBone( bone_name, bone, value  ) -%}
+	{% set isUser = False %}{# The TreeView is not yet implemented#}
+	{% set boneKey = bone_name.encode("base64")|replace("\n","")|replace("=","")  %}
+
+	<!-- Begin: File Bone -->
+	{# execRequest("file/listrootnodes","") #}
+
+	<div id="fileBoneEntries_{{boneKey}}">
+	
+	</div>
+	<div id="fileBoneEntriesPreview_{{boneKey}}">
+
+	</div>
+
+
+	{% if isUser %}
+		<div id="fileBoneSelector_{{boneKey}}" style="width: 450px; height: 700px; position: absolute; display: none; background-color: #c0c0c0; z-index: 50;">
+			<span>
+				Repository <select name="fileBoneRepositorySelector_{{boneKey}}" id="fileBoneRepositorySelector_{{boneKey}}">
+				 	{% for repo in execRequest("file/getAvailableRootNodes","") %}<option value="{{repo.key}}">{{repo.name}}</option>{% endfor %}
+				</select>
+			</span>
+			<div id="fileBoneFileList_{{boneKey}}"></div>
+		</div>
+	{% endif %}
+	
+	<input id="fldata_{{boneKey}}" name="{{bone_name}}" type="hidden" value="" />
+	<script type="text/javascript" src="/resources/js/jquery.iframe-transport.js"></script>
+	<script type="text/javascript" src="/resources/js/jquery.fileupload.js"></script>
+	<script type="text/javascript">
+
+		var fileBoneMultiple_{{boneKey}} = {%if bone.multiple%}true;{%else%}false;{%endif%}
+		var fileBoneName_{{boneKey}} = "{{bone_name}}";
+		var fileBoneDescr_{{boneKey}} = "{{bone.descr}}";
+		var fileBoneData_{{boneKey}} = {% if bone.multiple %}new Array();{% else %}false;{%endif%}
+		var fileBoneIdx_{{boneKey}} = 0;
+		{% if isUser %}
+			var currentRepository_{{boneKey}} = false;
+			var currentPath_{{boneKey}} = "/";
+		{% endif %}
+		
+		{% if value %}
+			{% if bone.multiple %}
+				fileBoneData_{{boneKey}} = new Array();
+				{% for v in value %}
+					var tmp = new Object();
+					tmp.id = "{{v.id}}";
+					tmp.dlkey = "{{v.dlkey}}";
+					tmp.name = "{{v.name}}";
+					tmp.meta = "{{v.meta}}";
+					tmp.size = "{{v.size}}";
+					fileBoneData_{{boneKey}}.push( tmp );
+				{% endfor %}
+			{% else %}
+					fileBoneData_{{boneKey}} = new Object();
+					fileBoneData_{{boneKey}}.id = "{{value.id}}";
+					fileBoneData_{{boneKey}}.dlkey = "{{value.dlkey}}";
+					fileBoneData_{{boneKey}}.name = "{{value.name}}";
+					fileBoneData_{{boneKey}}.meta = "{{value.meta}}";
+					fileBoneData_{{boneKey}}.size = "{{value.size}}";
+			{% endif %}
+		{% endif %}
+
+		function newIdx_{{boneKey}}() {
+			return( ++fileBoneIdx_{{boneKey}} );
+		};
+		
+		function initUpload_{{boneKey}}( idx ) {
+			$('#fileupload_{{boneKey}}_'+idx).fileupload({
+				dataType: 'json',
+				done: function (e, data) {
+						prevres="";
+				    $.each(data.result, function (index, file) {
+							//$('<p/>').text(file.name).appendTo(document.body);
+							 for(attr in file) {
+								alert(attr+": "+file[attr]);
+							}
+							if (file.meta_mime=="image/jpeg" || file.meta_mime=="image/png") {
+								prevres+='<img src="/file/view/'+file.dlkey+'/'+file.name+'" width="100" height="100" id="{{boneKey}}img'+file.id+'" />'
+							}
+				    });
+						$('#fileBoneEntriesPreview_{{boneKey}}').html(prevres);
+				}
+			});
+			$('#fileupload_{{boneKey}}_'+idx).fileupload({
+				submit: function (e, data) {
+					var $this = $(this);
+					$("button[type=submit]").attr('disabled', 'disabled');
+					$.ajax({
+						url: "/file/getUploadURL",
+						context: document.body
+					}).done(function( res ) { 
+						data.url = res;
+						var jqXHR = $this.fileupload('send', data)
+							.error(function (result, textStatus, jqXHR) {
+								alert( "Fehler beim Upload!" );
+								$("button[type=submit]").removeAttr("disabled");
+							} )
+							.success(function (result ) {
+								if( fileBoneMultiple_{{boneKey}} ) {
+									fileBoneData_{{boneKey}}.push( result[0] );
+								} else {
+									fileBoneData_{{boneKey}} = result[0];
+								};
+								$("button[type=submit]").removeAttr("disabled");
+								fileBoneRebuild_{{boneKey}}();
+							} );
+							
+					} );	
+					return false;
+				} 
+			} );
+			$('#fileupload_{{boneKey}}_'+idx).bind('fileuploadprogress', function (e, data) { 
+				 var progress = parseInt(data.loaded / data.total * 100, 10);
+				 $('#fileupload_{{boneKey}}_progress').html("Upload: "+progress.toString()+"%");
+			 });
+		};
+
+		function fileBoneDel_{{boneKey}} ( id ) {
+			$('#{{boneKey}}img'+id).remove();
+			{% if bone.multiple %}
+				for (var i = 0; i < fileBoneData_{{boneKey}}.length; i++) {
+					var currentItem = fileBoneData_{{boneKey}}[ i ];
+					if( currentItem.id == id ) {
+						fileBoneData_{{boneKey}}.splice(i,1);
+						fileBoneRebuild_{{boneKey}}() ;
+						return;
+					};
+				};
+				
+			
+			{% else %}
+				fileBoneData_{{boneKey}} = false;
+			{% endif %}
+			fileBoneRebuild_{{boneKey}}();
+		};
+		{% if isUser %}
+			function fileBoneShowSelector_{{boneKey}}( ) {
+				$("#fileBoneSelector_{{boneKey}}").css( "display", "block");
+				currentRepository_{{boneKey}} = $('#fileBoneRepositorySelector_{{boneKey}}').val()
+				fileBoneReloadSelector_{{boneKey}}();
+			};
+			
+			function fileBoneReloadSelector_{{boneKey}}() {
+				$("#fileBoneFileList_{{boneKey}}").empty();
+				$.ajax({
+					type: "GET",
+					url: "/file/list",
+					data: { repository: currentRepository_{{boneKey}}, path: currentPath_{{boneKey}} },
+					cache: false
+				}).done(function( msg ) {
+					$("#fileBoneFileList_{{boneKey}}").append( msg );
+				});
+			};
+			
+		{% endif %}
+		
+		
+		function fileBoneRebuild_{{boneKey}}() {
+				$("#fileBoneEntries_{{boneKey}}").empty();
+				{% if bone.multiple %}
+					var tmpIDs = new Array();
+					for (var i = 0; i < fileBoneData_{{boneKey}}.length; i++) {
+						var currentItem = fileBoneData_{{boneKey}}[ i ];
+						$("#fileBoneEntries_{{boneKey}}").append( "<span class=\"fileBoneEntry\">"+currentItem.name+"&nbsp; &nbsp; &nbsp; <a href=\"javascript:fileBoneDel_{{boneKey}}('"+currentItem.id+"')\">{{_('delete')}}</a><br />");
+						tmpIDs.push( currentItem.id );
+					};
+					$("#fldata_{{boneKey}}").attr("value", tmpIDs.join("\n") );
+					var idx = newIdx_{{boneKey}}();
+					$("#fileBoneEntries_{{boneKey}}").append( "<input id=\"fileupload_{{boneKey}}_"+idx+"\" type=\"file\" name=\"files_{{boneKey}}\" data-url=\"#\" value=\""+fileBoneData_{{boneKey}}.name+"\"><span id=\"fileupload_{{boneKey}}_progress\"></span>" );
+					initUpload_{{boneKey}}( idx );
+					
+				{% else %}
+					var idx = newIdx_{{boneKey}}();
+					if( fileBoneData_{{boneKey}} ) {
+						$("#fileBoneEntries_{{boneKey}}").append( "<span class=\"fileBoneEntry\">"+fileBoneData_{{boneKey}}.name+"&nbsp; &nbsp; &nbsp; <a href=\"javascript:fileBoneDel_{{boneKey}}('"+fileBoneData_{{boneKey}}.id+"')\">{{_('delete')}}</a><br />");
+						$("#fldata_{{boneKey}}").attr("value", fileBoneData_{{boneKey}}.id );
+					} else {
+						{% if isUser %}
+							$("#fileBoneEntries_{{boneKey}}").append( "<a href=\"javascript:fileBoneShowSelector_{{boneKey}}()\">{{_('choose')}}</a>" );
+						{% else %}
+							$("#fileBoneEntries_{{boneKey}}").append( "<input id=\"fileupload_{{boneKey}}_"+idx+"\" type=\"file\" name=\"files_{{boneKey}}\" data-url=\"#\" value=\""+fileBoneData_{{boneKey}}.name+"\"><span id=\"fileupload_{{boneKey}}_progress\"></span>" );
+						{% endif %}
+						$("#fldata_{{boneKey}}").attr("value", "" );
+					};
+					initUpload_{{boneKey}}( idx );
+					
+				{% endif %}
+			};
+		
+		$(document).ready( fileBoneRebuild_{{boneKey}} );
+
+	</script>
+	    
+
+{% endmacro %}

@@ -1,0 +1,150 @@
+{%- macro hierarchy( bone_name, bone, value ) -%}
+	{% if not bone.visible %}
+	
+		{% if bone.multiple and value %}
+			<input type="hidden" name="{{ bone_name }}" value="{% for val in value %}{{val.id}}{%endfor%}" />
+		{% else %}
+			<input type="hidden" name="{{ bone_name }}" value="{{ value.id }}" />
+		{% endif %}
+	{% else %}
+		{% set boneKey = bone_name.encode("base64")|replace("\n","")|replace("=","")  %}
+		<!-- Begin: Relational Bone -->
+		<div id="relBoneEntries_{{boneKey}}">
+		
+		</div>
+		
+		<div id="relBoneSelector_{{boneKey}}" style="width: 450px; height: 700px; position: absolute; display: none;">
+			<span id="relBoneSelectorSearch_{{boneKey}}"><input type="text" class="viur_uielement viur_text" id="relBoneSelectorSearchInput_{{boneKey}}"><input type="submit" class="viur_uielement viur_submit"></span>
+			<div id="relBoneSelectorItems_{{boneKey}}"></div>
+			<span id="relBonePageControls"><a id="relBoneSelectorLinkPrev" href="javascript:relBoneSelectorPrevPage_{{boneKey}}()">Vorherige Seite</a> <a id="relBoneSelectorLinkNext" href="javascript:relBoneSelectorNextPage_{{boneKey}}()">Nächste Seite</a></span>
+		</div>
+		
+		<input type="hidden" value="{%if bone.multiple%}{%if value%}{%for v in value%}{{v.id}}{%endfor%}{%endif%}{%else%}{%if value%}{{value.id}}{%endif%}{%endif%}" id="relBoneValue_{{boneKey}}" name="{{bone_name}}">
+		
+		<script language="javascript">
+			{% if not bone.multiple %}
+				var relationalBoneData_{{boneKey}} = new Object( );
+				{% for k,v in value.items() %}
+					relationalBoneData_{{boneKey}}["{{k}}"] = "{{v}}";
+				{% endfor %}
+			{% else %}
+				var relationalBoneData_{{boneKey}} = new Array( );
+				{% for item in value %}
+					relationalBoneData_{{boneKey}}[ {{loop.index0}} ] = new Object();
+					{% set elemLoop = loop %}
+					{% for k,v in item.items() %}
+						relationalBoneData_{{boneKey}}[ {{elemLoop.index0}} ]["{{k}}"] = "{{v}}";
+					{% endfor %}
+				{% endfor %}
+			{% endif %}
+			var relationalBoneMultiple_{{boneKey}} = {%if bone.multiple%}true;{%else%}false;{%endif%}
+			var relationalBoneName_{{boneKey}} = "{{bone_name}}";
+			var relationalBoneDescr_{{boneKey}} = "{{bone.descr}}";
+			var relationalBoneKeyList_{{boneKey}} = new Array();
+			
+			function relBoneShowSelector_{{boneKey}}( ) {
+				var pCursor = "";
+				if( relationalBoneKeyList_{{boneKey}}.length>0 ) {
+					pCursor = relationalBoneKeyList_{{boneKey}}[ relationalBoneKeyList_{{boneKey}}.length -1 ];
+				};
+				var destModul = "{{bone.type|replace("relational.","")}}";
+				$.ajax({
+						type: "GET",
+						url: "/ops/"+destModul+"/list",
+						data: { style: "relationalselect", bonename: "{{bone_name}}", cursor: pCursor, amount:"3"},
+						cache: false
+					}).done(function( msg ) {
+						$("#relBoneSelectorItems_{{boneKey}}").empty();
+						$("#relBoneSelectorItems_{{boneKey}}").append( msg );
+						$("#relBoneSelector_{{boneKey}}").css( "display", "block");
+						if( relationalBoneKeyList_{{boneKey}}.length>0 ) {
+							$("#relBoneSelectorLinkPrev").css( "display", "block" );
+						} else {
+							$("#relBoneSelectorLinkPrev").css( "display", "none" );
+						};
+						var nextCursor = $("#relBoneNextCurosr_{{boneKey}}").text();
+						relationalBoneKeyList_{{boneKey}}.push( nextCursor );
+						if( nextCursor!="" ) {
+							$("#relBoneSelectorLinkNext").css( "display", "block" );
+							
+						} else {
+							$("#relBoneSelectorLinkNext").css( "display", "none" );
+						};
+					});
+			};
+			
+			function relBoneSelectorNextPage_{{boneKey}} () {
+				relBoneShowSelector_{{boneKey}}( );
+			};
+
+			function relBoneSelectorPrevPage_{{boneKey}} () {
+				if( relationalBoneKeyList_{{boneKey}}.length>1 ) {
+					relationalBoneKeyList_{{boneKey}}.pop();
+					relationalBoneKeyList_{{boneKey}}.pop();
+				};
+				relBoneShowSelector_{{boneKey}}( );
+			};
+			
+			function relBoneAddItem_{{boneKey}} ( id, name) {
+				$("#relBoneSelector_{{boneKey}}").css( "display", "none");
+				{% if bone.multiple %}
+					var tmp = new Object()
+					tmp["id"] = id;
+					tmp["name"] = name;
+					relationalBoneData_{{boneKey}}.push( tmp );
+					
+				{% else %}
+					relationalBoneData_{{boneKey}} = new Object();
+					relationalBoneData_{{boneKey}}["id"] = id;
+					relationalBoneData_{{boneKey}}["name"] = name
+				{% endif %}
+				relBoneRebuild_{{boneKey}}()
+			}
+			
+			function relBoneDel_{{boneKey}}( id ) {
+				{% if bone.multiple %}
+					for (var i = 0; i < relationalBoneData_{{boneKey}}.length; i++) {
+						var currentItem = relationalBoneData_{{boneKey}}[ i ];
+						if( currentItem.id == id ) {
+							relationalBoneData_{{boneKey}}.splice(i,1);
+							relBoneRebuild_{{boneKey}}() ;
+							return;
+						};
+					};
+					
+				
+				{% else %}
+					relationalBoneData_{{boneKey}} = false;
+				{% endif %}
+				relBoneRebuild_{{boneKey}}();
+			};
+			
+			function relBoneRebuild_{{boneKey}}() {
+				$("#relBoneEntries_{{boneKey}}").empty();
+				{% if bone.multiple %}
+					var tmpIDs = new Array();
+					for (var i = 0; i < relationalBoneData_{{boneKey}}.length; i++) {
+						var currentItem = relationalBoneData_{{boneKey}}[ i ];
+						$("#relBoneEntries_{{boneKey}}").append( "<span class=\"relBoneEntry\">"+currentItem.name+"&nbsp; &nbsp; &nbsp; <a href=\"javascript:relBoneDel_{{boneKey}}('"+currentItem.id+"')\">Entfernen</a><br />");
+						tmpIDs.push( currentItem.id );
+					};
+					$("#relBoneValue_{{boneKey}}").attr("value", tmpIDs.join("\n") );
+					$("#relBoneEntries_{{boneKey}}").append( "<a href=\"javascript:relBoneShowSelector_{{boneKey}}()\">Hinzufügen</a>" );
+
+					
+				{% else %}
+					if( relationalBoneData_{{boneKey}} ) {
+						$("#relBoneEntries_{{boneKey}}").append( "<span class=\"relBoneEntry\">"+relationalBoneData_{{boneKey}}.name+"&nbsp; &nbsp; &nbsp; <a href=\"javascript:relBoneDel_{{boneKey}}('"+relationalBoneData_{{boneKey}}.id+"')\">Entfernen</a> &nbsp; &nbsp; <a href=\"javascript:relBoneShowSelector_{{boneKey}}()\">Auswählen</a>");
+						$("#relBoneValue_{{boneKey}}").attr("value", relationalBoneData_{{boneKey}}.id );
+					} else {
+						$("#relBoneEntries_{{boneKey}}").append( "<a href=\"javascript:relBoneShowSelector_{{boneKey}}()\">Hinzufügen</a>" );
+						$("#relBoneValue_{{boneKey}}").attr("value", "" );
+					};
+					
+				{% endif %}
+			};
+			
+			relBoneRebuild_{{boneKey}}( );
+		</script>
+	{% endif %}
+{%- endmacro -%}

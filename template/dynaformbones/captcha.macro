@@ -1,0 +1,20 @@
+{%- macro captchabone( bone_name,bone,value ) -%}
+<!-- ############################### Captcha ####################################### -->
+	{% if not bone.visible %}
+		<input type="hidden" name="{{ bone_name }}" value="{{ value }}" />
+	{% else %}
+		</td></tr><tr><td colspan="2">
+		<div class="hiddenformfield">
+		  <script type="text/javascript"
+		     src="http://www.google.com/recaptcha/api/challenge?k={{value}}">
+		  </script>
+		  <noscript>
+		     <iframe  class="hiddenformfield" src="https://www.google.com/recaptcha/api/noscript?k={{value}}" height="300" width="326" frameborder="0"></iframe><br>
+		     <textarea name="recaptcha_challenge_field" rows="3" cols="40">
+		     </textarea>
+		     <input type="hidden" name="recaptcha_response_field" value="manual_challenge">
+		  </noscript>
+		  <input type="hidden" name="{{ bone_name }}" value="Good2Go">
+		</div>
+	{% endif %}
+{%- endmacro -%}

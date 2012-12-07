@@ -1,0 +1,15 @@
+{% extends "ops/index_custom.html" %}
+
+{% block Content %}
+##set modulinfos=modulConfig[modulName()]
+
+<div class="headerlist">
+<img src="/resources/ops/{{modulinfos.icon}}" />
+<h1>{{modulinfos.name}} {{_("delete")}}</h1>
+</div>
+
+{{hint("positive")}}
+
+{{_(modulName()+'_delete_item_sucess')}}
+##endblock
+

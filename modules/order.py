@@ -1,0 +1,758 @@
+# -*- coding: utf-8 -*-
+import server
+from server.applications.list import List
+from server.skeleton import Skeleton
+from server.bones import *
+from server import errors, session, conf, request
+from server.utils import generateExpandoClass, validateSecurityKey, callDefered
+import urllib
+import hashlib
+from google.appengine.ext import ndb
+from google.appengine.api import urlfetch
+import logging
+import re
+from server import request
+
+
+
+"""
+class PaymentProviderGoogleCheckout( object ):
+	"FIXME: CURRENTLY BROKEN "
+	
+	class GcController( gchecky.controller.Controller ):
+		def handle_new_order(self, message, order_id, context, order=None):
+			logging.debug( "Got a new GC Order")
+			logging.debug( message )
+			logging.error( order_id )
+			logging.error( context )
+			self.charge_order( order_id, 0.3 )
+			return gchecky.model.ok_t()
+		
+		def handle_order_state_change(self, message, order_id, context, order=None):
+			logging.debug( "GoogleCheckout order state change!")
+			logging.debug( "Order %s changed its status to %s" % ( order_id, message.new_financial_order_state ) )
+			if message.new_financial_order_state=="CHARGED":
+				logging.error("FIXME")
+			return gchecky.model.ok_t()
+		
+		def handle_risk_information(self, message, order_id, context, order=None):
+			logging.debug( "GC Order RISK INFO")
+			logging.debug( message )
+			logging.error( order_id )
+			logging.error( context )
+			return gchecky.model.ok_t()
+		
+	
+	def __init__(self, *args, **kwargs ):
+		super( PaymentProviderGoogleCheckout, self ).__init__( *args, **kwargs )
+		self._gcController = None
+	
+	def getGcController( self ):
+		if not self._gcController:
+			self._gcController = PaymentProviderGoogleCheckout.GcController(	vendor_id = conf["googleCheckout"]["merchantID"], 
+																	merchant_key = conf["googleCheckout"]["merchantKey"], 
+																	is_sandbox = conf["googleCheckout"]["isSandbox"], 
+																	currency = conf["googleCheckout"]["currency"] )
+		return( self._gcController )
+	
+	def paymentProvider_googlecheckout(self, step, orderID ):
+		paypal = PaymentProviderPayPal.PayPal()
+		order = ndb.Key( urlsafe = orderID ).get()
+		if not order:
+			assert False
+			return
+		cart =  gchecky.model.checkout_shopping_cart_t(
+			shopping_cart =  gchecky.model.shopping_cart_t(
+				items = [ gchecky.model.item_t(
+						name = 'Apple',
+						description = 'A Golden Apple for You, my dear',
+						unit_price =  gchecky.model.price_t(
+							value=0.15,
+							currency = "GBP"
+						),
+					quantity = 2
+					)
+				]
+			),
+			checkout_flow_support =  gchecky.model.checkout_flow_support_t(	), 
+			merchant_private_data = orderID
+		)
+		html_cart = self.getGcController().prepare_order(cart, order_id=orderID)
+		raise Order.ReturnHtml( html_cart.html() )
+
+	def doGC(self, *args, **kwargs ):
+		return( self.getGcController().receive_xml( request.current.get().request.body ) )
+	doGC.exposed = True
+
+"""
+class PaymentProviderPayPal:
+	"""
+	Provides payments via Paypal.
+	By default the sandbox is used, to change this to productionmode,
+	set the following vars in viur.conf:
+	
+	viur.conf["paypal"] = {	'USER' : '<your API username>', 
+						'PWD' : '<your API password>', 
+						'SIGNATURE' : '<your API signature>'
+	}
+	"""
+	
+	class PayPal:
+		""" #PayPal utility class"""
+		# by Mike Atlas, September 2007
+		# No License Expressed. Feel free to distribute, modify, 
+		# and use in any open or closed source project without credit to the author
+		
+		# Adapted for viur, Aug 2011
+
+		signature_values = {}
+		API_ENDPOINT = ""
+		PAYPAL_URL = ""
+		
+		def __init__(self, currency=u"EUR", returnurl=None, cancelurl=None):
+			if not "paypal" in conf.keys():
+				self.signature_values = { #Set Sandbox-Credentials
+					'USER' : 'sdk-three_api1.sdk.com', 
+					'PWD' : 'QFZCWN5HZM8VBG7Q', 
+					'SIGNATURE' : 'A-IzJhZZjhg29XQ2qnhapuwxIDzyAZQ92FRP5dqBzVesOkzbdUONzmOU', 
+					'VERSION' : '3.0',
+				}
+				self.API_ENDPOINT = 'https://api-3t.sandbox.paypal.com/nvp' # Sandbox URL, not production
+				self.PAYPAL_URL = 'https://www.sandbox.paypal.com/webscr&cmd=_express-checkout&token=' # Sandbox URL, not production
+				self.signature = urllib.urlencode(self.signature_values) + "&"
+			else:
+				self.signature_values = {'VERSION' : '3.0' }
+				self.signature_values.update( conf["paypal"] )
+				self.API_ENDPOINT = 'https://api-3t.paypal.com/nvp' # Production !
+				self.PAYPAL_URL = 'https://www.paypal.com/webscr&cmd=_express-checkout&token=' # Production !
+				self.signature = urllib.urlencode(self.signature_values) + "&"
+			url = request.current.get().request.url
+			host = url[ url.find("://")+3: url.find("/", url.find("://")+5) ]
+			self.returnurl = returnurl or "http://%s/order/doPayPal" % host
+			self.cancelurl = cancelurl or "http://%s/site/paypal_failed" % host
+			self.currency = currency
+		
+		def getPayURL(self, token):
+			if self.API_ENDPOINT != 'https://api-3t.paypal.com/nvp': #Sandbox
+				return "https://www.sandbox.paypal.com/webscr?cmd=_express-checkout&token=%s&RETURNURL=%s&CANCELURL=%s" % ( token, urllib.quote_plus( self.returnurl ), urllib.quote_plus( self.cancelurl ) )
+			else: # Live System!
+				return "https://www.paypal.com/webscr?cmd=_express-checkout&token=%s&RETURNURL=%s&CANCELURL=%s" % ( token, urllib.quote_plus( self.returnurl ), urllib.quote_plus( self.cancelurl ) )
+
+		# API METHODS
+		def SetExpressCheckout(self, amount):
+			params = {
+				'METHOD' : "SetExpressCheckout",
+				'NOSHIPPING' : 1,
+				'PAYMENTACTION' : 'Authorization',
+				'RETURNURL' : self.returnurl, 
+				'CANCELURL' : self.cancelurl, 
+				'AMT' : amount,
+				'CURRENCYCODE': self.currency
+			}
+			params_string = self.signature + urllib.urlencode(params)
+			response = urlfetch.fetch(self.API_ENDPOINT, params_string.encode("UTF-8"),"POST",deadline=10).content.decode("UTF-8")
+			response_token = ""
+			for token in response.split('&'):
+				if token.find("TOKEN=") != -1:
+					response_token = token[ (token.find("TOKEN=")+6):]
+			return response_token
+		
+		def GetExpressCheckoutDetails(self, token):
+			params = {
+				'METHOD' : "GetExpressCheckoutDetails",
+				'RETURNURL' : self.returnurl, 
+				'CANCELURL' : self.cancelurl, 
+				'TOKEN' : token,
+			}
+			params_string = self.signature + urllib.urlencode(params)
+			response = urllib.urlopen(self.API_ENDPOINT, params_string.encode("UTF-8")).read().decode("UTF-8")
+			response_tokens = {}
+			for token in response.split('&'):
+				response_tokens[token.split("=u")[0]] = token.split("=u")[1]
+			return response_tokens
+		
+		def DoExpressCheckoutPayment(self, token, payer_id, amt):
+			params = {
+				'METHOD' : "DoExpressCheckoutPayment",
+				'PAYMENTACTION' : 'Sale',
+				'RETURNURL' : self.returnurl, 
+				'CANCELURL' : self.cancelurl, 
+				'TOKEN' : token,
+				'AMT' : amt,
+				'PAYERID' : payer_id,
+				'CURRENCYCODE': self.currency, 
+			}
+			params_string = self.signature + urllib.urlencode(params)
+			response = urlfetch.fetch(self.API_ENDPOINT, params_string.encode("UTF-8"),"POST",deadline=10).content.decode("UTF-8")
+			response_tokens = {}
+			for token in response.split('&'):
+				response_tokens[token.split("=")[0]] = token.split("=")[1]
+			for key in list(response_tokens.keys()):
+					response_tokens[key] = urllib.unquote(response_tokens[key])
+			return response_tokens
+			
+		def GetTransactionDetails(self, tx_id):
+			params = {
+				'METHOD' : "GetTransactionDetails", 
+				'TRANSACTIONID' : tx_id,
+			}
+			params_string = self.signature + urllib.urlencode(params)
+			response = urllib.urlopen(self.API_ENDPOINT, params_string.encode("UTF-8")).read().decode("UTF-8")
+			response_tokens = {}
+			for token in response.split('&'):
+				response_tokens[token.split("=u")[0]] = token.split("=u")[1]
+			for key in list(response_tokens.keys()):
+					response_tokens[key] = urllib.unquote(response_tokens[key])
+			return response_tokens
+	
+	
+	def paymentProvider_paypal( self, step, orderID ):
+		paypal = PaymentProviderPayPal.PayPal()
+		order = ndb.Key( urlsafe=orderID ).get()
+		if not order:
+			return
+		token = paypal.SetExpressCheckout( "%.2f" % order.price )
+		order.paypal_token = urllib.unquote(token)
+		order.put()
+		raise( errors.Redirect( paypal.getPayURL( token ) ) )
+		
+	
+	def doPayPal( self, token, PayerID,  *args, **kwargs ):
+		order = generateExpandoClass( self.entityName ).query().filter( ndb.GenericProperty("paypal_token") == token).get()
+		if not order:
+			return("NO SUCH ORDER - PAYMENT ABORTED")
+		paypal = PaymentProviderPayPal.PayPal()
+		res = paypal.DoExpressCheckoutPayment( token, PayerID, "%.2f" % float(order.price) )
+		if res["ACK"].lower()==u"success":
+			self.setPayed( str( order.key.urlsafe() ) )
+			return self.render.getEnv().get_template( self.render.getTemplateFileName("paypal_okay") ).render()
+		else:
+			return self.render.getEnv().get_template( self.render.getTemplateFileName("paypal_failed") ).render()
+	doPayPal.exposed=True
+
+class PaymentProviderSofort:
+	"""
+	Provides payments via Sofort.com.
+	You must set the following variables before using this:
+	viur.conf["sofort"] = {	"userid":"<your userid>",
+						"projectid":"<project-id>",
+						"projectpassword":"<project-password>",
+						"notificationpassword":"<notificationpassword>" 
+						}
+	"""
+
+	def getSofortURL(self, orderID ):
+		order = ndb.Key( urlsafe=orderID ).get()
+		hashstr = "%s|%s|||||%.2f|EUR|%s||%s||||||%s" % (conf["sofort"]["userid"], conf["sofort"]["projectid"], float( order.price ), str(order.key.urlsafe()), str(order.key.urlsafe()), conf["sofort"]["projectpassword"] )
+		hash = hashlib.sha512(hashstr.encode("UTF-8")).hexdigest()
+		returnURL = "https://www.sofortueberweisung.de/payment/start?user_id=%s&project_id=%s&amount=%.2f&currency_id=EUR&reason_1=%s&user_variable_0=%s&hash=%s" % ( conf["sofort"]["userid"], conf["sofort"]["projectid"], float( order.price) , str(order.key.urlsafe()), str(order.key.urlsafe()), hash)
+		return( returnURL )
+
+	def paymentProvider_sofort(self, step, orderID ):
+		raise errors.Redirect( self.getSofortURL( orderID ) )
+
+	def sofortStatus(self, *args, **kwargs):
+		sortOrder = [	"transaction","user_id","project_id",
+			"sender_holder", "sender_account_number", "sender_bank_code",
+			"sender_bank_name", "sender_bank_bic", "sender_iban",
+			"sender_country_id", "recipient_holder", "recipient_account_number",
+			"recipient_bank_code", "recipient_bank_name", "recipient_bank_bic",
+			"recipient_iban", "recipient_country_id", "international_transaction",
+			"amount", "currency_id", "reason_1", "reason_2", "security_criteria",
+			"user_variable_0", "user_variable_1","user_variable_2", "user_variable_3",
+			"user_variable_4", "user_variable_5", "created"]
+		hashstr = "|".join( [ kwargs[key] for key in sortOrder ]+[conf["sofort"]["notificationpassword"]] )
+		if hashlib.sha512(hashstr.encode("utf-8")).hexdigest()!=kwargs["hash"]:
+			logging.error("RECIVED INVALID HASH FOR sofort (%s!=%s)" % ( hashlib.sha512(hashstr.encode("utf-8")).hexdigest(),kwargs["hash"] ) )
+			return("INVALID HASH")
+		order = ndb.Key( urlsafe=kwargs["user_variable_0"] ).get()
+		if not order:
+			logging.error("RECIVED UNKNOWN ORDER by sofort (%s)" % ( kwargs["user_variable_0"] ) )
+			return("UNKNOWN ORDER")
+		if ("%.2f" % order.price) != kwargs["amount"]:
+			logging.error("RECIVED INVALID AMOUNT PAYED sofort (%s!=%s)" % ( order.price,kwargs["amount"] ) )
+			return("INVALID AMOUNT")
+		self.setPayed( kwargs["user_variable_0"] )
+		return("OKAY")
+	sofortStatus.exposed=True
+	
+	def doSofort(self, *args, **kwargs ):
+		return self.render.getEnv().get_template( self.render.getTemplateFileName("sofort_okay") ).render()
+	doSofort.exposed=True
+
+	def sofortFailed(self, *args, **kwargs ):
+		return self.render.getEnv().get_template( self.render.getTemplateFileName("sofort_failed") ).render()
+	sofortFailed.exposed=True
+
+
+
+class Order( List ):
+	"""
+	Provides an unified orderingprocess with payment-handling.
+	This is encoded as a state machine.
+	"""
+
+
+	entityName = "order"
+	states = [	"complete", # The user completed all steps of the process, he might got redirected to a paymentprovider
+				"payed", #This oder has been payed
+				"rts", #Ready to Ship 
+				"send", # Goods got shipped
+				"closed",  #This order has been executed
+				"canceled" # Order got canceled
+				]
+	
+	class SkipStep( Exception ):
+		"""Raise this Exception to skip the current step"""
+		pass
+
+	class ReturnHtml( Exception ):
+		"""Raise this Exception to force the return of the given HTML inside a pre/post handler"""
+		def __init__(self, html ):
+			super( Order.ReturnHtml, self ).__init__()
+			self.html = html
+		
+	adminInfo = {
+		"name": "Orders", #Name of this modul, as shown in Apex (will be translated at runtime)
+		"handler": "list.order",  #Which handler to invoke
+		"icon": "icons/modules/cart.png", #Icon for this modul
+		"filter":{"orderby":"creationdate","orderdir":1,"state_complete":"1" }, 
+		"columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"],
+		"views" : [	{ "name": u"Not shipped", "filter":{"state_complete":"1", "state_send":"0","orderby":"creationdate","orderdir":1 }, "icon":"icons/status/unsend.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"]},
+					{ "name": u"Unpaid", "filter":{"state_complete":"1", "state_payed":"0","orderby":"creationdate","orderdir":1}, "icon":"icons/status/unpayed.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] },
+					{ "name": u"Paid","filter":{"state_complete":"1", "state_payed":"1","orderby":"creationdate","orderdir":1}, "icon":"icons/status/payed.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] },
+					{ "name": u"Shipped", "filter":{"state_complete":"1", "state_send":"1","orderby":"changedate","orderdir":1}, "icon":"icons/status/send.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] }
+			]
+		}
+
+	class billAddressSkel( Skeleton ):
+		entityName = "order"
+		bill_gender = selectOneBone( descr=u"Gender", required=True, values={"male":"Mr.", "female":"Mrs."} )
+		bill_firstname = stringBone( descr=u"First name", params={"searchable": True, "frontend_list_visible": True},required=True,unsharp=True )
+		bill_lastname = stringBone( descr=u"Last name", params={"searchable": True, "frontend_list_visible": True},required=True,unsharp=True )
+		bill_street = stringBone( descr=u"Street", params={"searchable": True, "frontend_list_visible": True},required=True )
+		bill_zip = stringBone( descr=u"Zipcode",required=True,unsharp=True )
+		bill_city = stringBone( descr=u"City",required=True )
+		bill_country = selectCountryBone(descr=u"Country", required=True, codes=selectCountryBone.ISO2, defaultvalue=u"de" )
+		bill_email = emailBone( descr=u"Email", required=True, unsharp=True )
+		useshippingaddress = booleanBone( descr=u"Use alternative Shipment-Address", required=True)
+
+	class shippingAddressSkel( Skeleton ):
+		entityName = "order"
+		extrashippingaddress = selectOneBone( descr=u"special shippingaddress", values={"0":"No","1":"Yes"}, required=True, defaultvalue=u"0", visible=False )
+		shipping_firstname = stringBone( descr=u"First name", params={"searchable": True, "frontend_list_visible": True},required=True,unsharp=True )
+		shipping_lastname = stringBone( descr=u"Last name", params={"searchable": True, "frontend_list_visible": True},required=True,unsharp=True )
+		shipping_street = stringBone( descr=u"Street", params={"searchable": True, "frontend_list_visible": True},required=True )
+		shipping_zip = stringBone( descr=u"Zipcode",required=True,unsharp=True )
+		shipping_city = stringBone( descr=u"City",required=True )
+		shipping_country = selectCountryBone(descr=u"Country", required=True, codes=selectCountryBone.ISO2, defaultvalue=u"de" )
+
+	class shipTypePayment( Skeleton ):
+		entityName = "order"
+		shipping_type = selectOneBone( descr=u"Type of shipment", values={"0":"uninsured", "1":"insured"} , required=True)
+		payment_type  = selectOneBone( descr=u"Type of payment", values={"prepaid":"Bank-transfer", "pod":"Pay on Deliver", "paypal":"Paypal", "sofort":"Sofort"} , required=True)
+
+	class listSkel( Skeleton ):
+		entityName = "order"
+		bill_gender = selectOneBone( descr=u"Bill-gender", required=True, values={"male":"Mr.", "female":"Mrs."} )
+		bill_firstname = stringBone( descr=u"Bill-first name", params={"searchable": True, "frontend_list_visible": True},required=True,unsharp=True )
+		bill_lastname = stringBone( descr=u"Bill-last name", params={"searchable": True, "frontend_list_visible": True},required=True,unsharp=True )
+		bill_street = stringBone( descr=u"Bill-street", params={"searchable": True, "frontend_list_visible": True},required=True )
+		bill_city = stringBone( descr=u"Bill-city",required=True )
+		bill_zip = stringBone( descr=u"Bill-zipcode",required=True,unsharp=True )
+		bill_country = selectCountryBone( descr=u"Bill-country", codes=selectCountryBone.ISO2, required=True)
+		bill_email = stringBone( descr=u"email", required=True, unsharp=True)
+		shipping_firstname = stringBone( descr=u"Shipping-first name", params={"searchable": True, "frontend_list_visible": True},required=True,unsharp=True )
+		shipping_lastname = stringBone( descr=u"Shipping-last name", params={"searchable": True, "frontend_list_visible": True},required=True,unsharp=True )
+		shipping_street = stringBone( descr=u"Shipping-street", params={"searchable": True, "frontend_list_visible": True},required=True )
+		shipping_city = stringBone( descr=u"Shipping-city",required=True )
+		shipping_zip = stringBone( descr=u"Shipping-zipcode",required=True,unsharp=True )
+		shipping_country = selectCountryBone( descr=u"Shipping-country", codes=selectCountryBone.ISO2, required=True )
+		price = numericBone( descr=u"Price", mode=u"float", required=True, readonly=True )
+		payment_type = selectOneBone( descr=u"type of payment", values = {"prepaid":"Bank-transfer", "pod":"Pay on Delivery", "paypal":"Paypal", "sofort":"Sofort"}, required=False, visible=False )
+		state_complete = selectOneBone( descr=u"Complete", values={"0":"No","1":"Yes"}, defaultvalue=0, readonly=True, required=True, visible=False )
+		state_payed = selectOneBone( descr=u"Paid", values={"0":"No","1":"Yes"}, defaultvalue=0, readonly=True, required=True, visible=False )
+		state_send = selectOneBone( descr=u"Send", values={"0":"No","1":"Yes"}, defaultvalue=0, readonly=True, required=True, visible=False )
+		state_canceled = selectOneBone( descr=u"Canceled", values={"0":"No","1":"Yes"}, defaultvalue=0, readonly=True, required=True, visible=False )
+		idx = numericBone( descr=u"Order-number", required=True, readonly=True, params={"searchable": True, "frontend_list_visible": True} )
+	viewSkel = listSkel
+
+	def setState( self, orderID, state, removeState=False ):
+		"""
+			Set an status on the given order.
+			
+			@param orderID: ID of the order
+			@type orderID: string
+			@param state: An state out of self.states
+			@type state: string
+			@param removeState: Should the state be removed instead of set
+			@type removeState: bool
+		"""
+		def txn( viewSkel, orderID, state, removeState ):
+			skel = viewSkel() #Fixme: Another NDB-Fuu
+			dbObj = ndb.Key( urlsafe=orderID ).get()
+			if not dbObj:
+				return
+			setattr( dbObj, "state_%s" % state, "1" if not removeState else "0" )
+			dbObj.put()
+		ndb.transaction( lambda: txn( self.viewSkel, orderID,  state, removeState ) )
+
+	def getStates(self, orderID ):
+		"""
+			Returns the states currently set for the given order
+			@param orderID: ID of the order
+			@type orderID: string
+			@returns: [string]
+		"""
+		skel = self.viewSkel()
+		dbObj = ndb.Key( urlsafe=orderID ).get()
+		if not dbObj:
+			return( [] )
+		res = []
+		for state in self.states:
+			stateName = "state_%s" % state
+			if stateName in dbObj._properties.keys() and str(getattr( dbObj, stateName ))=="1":
+				res.append( state )
+		return( res )
+
+	
+	def setComplete( self, orderID ):
+		"""
+		Marks an order as Complete
+		May be overriden to hook this event
+		
+		@type orderID: string
+		@param orderID: ID to mark completed
+		"""
+		order = Order.listSkel()
+		if not order.fromDB( str(orderID) ):
+			return( False )
+		self.setState( orderID, "complete")
+		if order.payment_type.value == "pod":
+			states = self.getStates( orderID )
+			if not any( [ x in states for x in ["canceled", "rts", "send"] ] ):
+				self.setRTS( orderID )
+		self.assignBillSequence( str(orderID) )
+		return( True )
+
+	def setRTS(self, orderID):
+		"""
+			Marks an order ready to send
+			May be overriden to hook this event
+			
+			@type orderID: string
+			@param orderID: ID to mark
+		"""
+		self.setState( orderID, "rts")
+
+
+	def setPayed(self, orderID):
+		"""
+		Marks an order as Payed
+		May be overriden to hook this event
+
+		@type orderID: string
+		@param orderID: ID to mark completed
+		"""
+		self.setState( orderID, "payed")
+		states = self.getStates( orderID )
+		if not any( [ x in states for x in ["rts", "send", "canceled", "closed"] ] ):
+			self.setState( orderID,"rts")
+		self.sendOrderPayedEmail( orderID )
+		return( True )
+
+	def setSend(self, orderID):
+		"""
+		Marks an order as Shiped
+		May be overriden to hook this event
+
+		@type orderID: string
+		@param orderID: ID to mark completed
+		"""
+		self.setState( orderID, "send" )
+		self.setState( orderID, "rts", True )
+		self.sendOrderShippedEmail( orderID )
+		return( True )
+
+	def sendOrderShippedEmail(self, orderID):
+		pass
+
+	def sendOrderCompleteEmail(self, orderID):
+		pass
+	
+	def sendOrderPayedEmail(self, orderID):
+		pass
+	
+	def sendOrderCanceledEMail(self, orderID):
+		pass
+	
+	def sendOrderClosedEmail(self, orderID):
+		pass
+
+	def markPayed( self, id, skey ):
+		if not self.canEdit( id ):
+			raise errors.Unauthorized()
+		if not validateSecurityKey( skey ):
+			raise errors.PreconditionFailed()
+		self.setPayed( id )
+		return("OKAY")
+	markPayed.exposed = True
+
+	def markSend( self, id, skey ):
+		if not self.canEdit( id ):
+			raise errors.Unauthorized()
+		if not validateSecurityKey( skey ):
+			raise errors.PreconditionFailed()
+		self.setSend( id )
+		return("OKAY")
+	markSend.exposed = True
+
+
+	def checkSkipShippingAddress( self, step, orderID, *args, **kwargs ):
+		"""
+		This step updates the current order copys the values from 
+		billAddressSkel to shippingAddressSkel if extrashippingaddress is False
+		
+		@type step: Int
+		@param step: Current step within the ordering process
+		@type orderID: string
+		@param orderID: ID to mark completed
+		"""
+		billSkel = Order.billAddressSkel()
+		billSkel.fromDB( orderID )
+		if str(billSkel.useshippingaddress.value)==u"0":
+			shippingSkel = Order.shippingAddressSkel()
+			keyMap = { 	"bill_firstname": "shipping_firstname", 
+						"bill_lastname" : "shipping_lastname", 
+						"bill_street": "shipping_street", 
+						"bill_city": "shipping_city", 
+						"bill_zip": "shipping_zip", 
+						"bill_country": "shipping_country" }
+			for srcKey, destKey in keyMap.items():
+				getattr( shippingSkel, destKey ).value = getattr( billSkel, srcKey ).value
+			shippingSkel.toDB( orderID )
+			raise Order.SkipStep()
+
+	def calcualteOrderSum( self, step, orderID, *args, **kwargs ):
+		"""
+		Calculates the final price for this order.
+		*Must* be called before any attempt is made to start a payment process
+		
+		@type step: Int
+		@param step: Current step within the ordering process
+		@type orderID: string
+		@param orderID: ID to calculate the price for
+		"""
+		price = sum( [x[3] for x in self.getBillItems( orderID ) ] )
+		orderObj = ndb.Key( urlsafe=str( orderID ) ).get()
+		orderObj.price = price
+		orderObj.put()
+
+	
+	def startPayment( self, step, orderID, *args, **kwargs ):
+		"""
+		Starts paymentprocessing for this order.
+		The order is marked completed, so no further changes can be made.
+		
+		@type step: Int
+		@param step: Current step within the ordering process
+		@type orderID: string
+		@param orderID: ID to mark completed
+		"""
+
+		order = Order.listSkel()
+		order.fromDB( orderID )
+		if not str(order.state_complete.value)=="1":
+			session.current["order_"+self.entityName] = None
+			session.current.markChanged() #Fixme
+			self.setComplete( orderID )
+			if "paymentProvider_%s" % order.payment_type.value in dir( self ):
+				getattr( self, "paymentProvider_%s" % order.payment_type.value )( step, orderID )
+	
+
+	def getBillItems(self, orderID ):
+		"""
+		Returns all Items for the given Order.
+		Must be overriden.
+
+		@type orderID: string
+		@param orderID: ID to mark completed
+		@return: [ ( Int Amount, Unicode Description , Float Price of one Item, Float Price of all Items (normaly Price of one Item*Amount), Float Included Tax )  ] 
+		"""
+
+		return( [] )
+	getBillItems.internalExposed = True
+	
+	def billSequenceAvailable( self, orderID ):
+		self.sendOrderCompleteEmail( orderID )
+	
+	
+	@callDefered
+	def assignBillSequence( self, orderID ):
+		"""Assigns an unique order-ID to the given Order """
+
+		def  getIDtxn( entityName, orderID ):
+			"""Generates and returns a new, unique ID"""
+			seqObj = generateExpandoClass( "viur_bill_sequences" ).get_or_insert( entityName, count=1000)
+			idx = seqObj.count
+			seqObj.count += 1
+			seqObj.put()
+			return( str(idx) )
+
+		def setIDtxn( orderID, skel, idx ):
+			"""Assigns the new orderID to the given order"""
+			dbObj = ndb.Key( urlsafe=orderID ).get()
+			if not dbObj:
+				return
+			dbObj.idx = idx
+			dbObj.put()
+		dbObj = ndb.Key( urlsafe=orderID ).get( )
+		if not dbObj:
+			return
+		idx = ndb.transaction( lambda: getIDtxn( self.entityName, orderID ) )
+		ndb.transaction( lambda: setIDtxn( orderID, self.viewSkel, idx  ) )
+		self.billSequenceAvailable( orderID )
+		
+		
+	steps = 	[	
+				{	
+					"mainHandler": {
+						"action": "edit", 
+						"skeleton": billAddressSkel, 
+						"template": "order_billaddress", 
+						"descr":u"Billinginformation"
+					}
+				}, 
+				{	
+					"preHandler": checkSkipShippingAddress, 
+					"mainHandler": {
+						"action": "edit", 
+						"skeleton": shippingAddressSkel, 
+						"template": "order_shipaddress", 
+						"descr":u"Shippinginformation"
+					}
+				}, 
+				{	
+					"mainHandler": {
+						"action": "edit", 
+						"skeleton": shipTypePayment, 
+						"template": "order_payment", 
+						"descr":u"Payment"
+					}, 
+					"postHandler": calcualteOrderSum
+				}, 
+				{	
+					"mainHandler": {
+						"action": "view", 
+						"skeleton": listSkel, 
+						"template": "order_verify", 
+						"descr":u"Overview"
+					}
+				}, 
+				{	
+					"preHandler": startPayment, 
+					"mainHandler": {
+						"action": "view", 
+						"skeleton": listSkel, 
+						"template": "order_complete",
+						"descr":u"Order completed"
+					}
+				}
+			]
+	
+	
+	
+	editSkel = listSkel
+	addSkel = listSkel
+	
+	def getSteps(self):
+		thesteps = []
+		for step in self.steps[:]:
+			step = step.copy()
+			step["mainHandler"] = step["mainHandler"].copy()
+			if step["mainHandler"]["descr"]:
+				step["mainHandler"].update({"descr": _(step["mainHandler"]["descr"])})
+			thesteps.append( step )
+		return (thesteps)
+	getSteps.internalExposed=True
+	
+	def checkout( self, step=None, id=None, skey=None, *args, **kwargs ):
+		logging.info("Starting new checkout process")
+		if( step==None ):
+
+			billObj = generateExpandoClass( self.entityName )()
+			billObj.idx = "0000000";
+			for state in self.states:
+				setattr( billObj, "state_%s" % state, "0" )
+			id = billObj.put().urlsafe()
+			#Try copying the Cart
+			cart = session.current.get("cart_products") or {}
+			s = self.amountSkel()
+			products = []
+			for prod, amt in cart.items():
+				for i in range(0,amt):
+					products.append( str(prod) )
+			s.fromClient( {"product": products} )
+			s.toDB( id )
+			session.current["order_"+self.entityName] = {"id": str( id ), "completedSteps": [] }
+			session.current.markChanged()
+			raise errors.Redirect("?step=0&id=%s" % str( id ) )
+		elif id:
+			try:
+				orderID = ndb.Key( urlsafe=id )
+				step = int( step )
+				assert( step>=0 )
+				assert( step < len( self.steps ) )
+			except:
+				raise errors.NotAcceptable()
+			sessionInfo = session.current.get("order_"+self.entityName)
+			if not sessionInfo or not sessionInfo.get("id") == str( orderID.urlsafe() ):
+				raise errors.Unauthorized()
+			if step in sessionInfo["completedSteps"]:
+				session.current["order_"+self.entityName]["completedSteps"] = [ x for x in sessionInfo["completedSteps"] if x<step ]
+				session.current.markChanged()
+			#Make sure that no steps can be skipped
+			if step != 0 and not step-1 in sessionInfo["completedSteps"]  :
+				raise errors.Redirect("?step=0&id=%s" % str( orderID.urlsafe() ) )
+			currentStep = self.steps[ step ]
+			res = ""
+			if "preHandler" in currentStep.keys():
+				try:
+					if isinstance( currentStep["preHandler"], list ):
+						for handler in currentStep["preHandler"]:
+							handler( self, step, str(orderID.urlsafe()), *args, **kwargs )
+					else:
+						currentStep["preHandler"]( self, step, str(orderID.urlsafe()), *args, **kwargs )
+				except Order.SkipStep:
+					session.current["order_"+self.entityName]["completedSteps"].append( step )
+					session.current.markChanged()
+					raise errors.Redirect("?step=%s&id=%s" % (str( step+1 ), str( orderID.urlsafe() ) ) )
+				except Order.ReturnHtml as e:
+					return( e.html )
+			if "requiresSecutityKey" in currentStep.keys() and currentStep["requiresSecutityKey"] :
+				validateSecurityKey()
+				pass
+			if "mainHandler" in currentStep.keys():
+				if currentStep["mainHandler"]["action"] == "edit":
+					skel = currentStep["mainHandler"]["skeleton"]()
+					skel.fromDB( str( orderID.urlsafe() ) )
+					if not len( kwargs.keys() ) or not skel.fromClient( kwargs ):
+						return( self.render.edit( skel, tpl=currentStep["mainHandler"]["template"], step=step ) )
+					skel.toDB( str( orderID.urlsafe() ) )
+				if currentStep["mainHandler"]["action"] == "view":
+					if not "complete" in kwargs or not kwargs["complete"]==u"1":
+						skel = currentStep["mainHandler"]["skeleton"]()
+						skel.fromDB( str( orderID.urlsafe() ) )
+						return( self.render.view( skel, tpl=currentStep["mainHandler"]["template"], step=step ) )
+				elif currentStep["mainHandler"]["action"] == "function":
+					res = currentStep["mainHandler"]["function"]( self, step, orderID.urlsafe(), *args, **kwargs )
+					if res:
+						return( res )
+			if "postHandler" in currentStep.keys():
+				currentStep["postHandler"]( self, step, str(orderID.urlsafe()), *args, **kwargs )
+			session.current["order_"+self.entityName]["completedSteps"].append( step )
+			session.current.markChanged()
+			raise errors.Redirect("?step=%s&id=%s" % (str( step+1 ), str( orderID.urlsafe() ) ) )
+	checkout.exposed=True
+
+order=Order

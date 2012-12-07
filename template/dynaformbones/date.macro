@@ -1,0 +1,98 @@
+{%-macro formatdate_only (value)-%}
+{%- if value and value|string!='None' -%}
+{{value.strftime("%d.%m.%Y")}}
+{%- else -%}
+00.00.0000
+{%- endif -%}
+{%-endmacro-%}
+
+{%-macro formattime_only (value)-%}
+{%- if value and value|string!='None' -%}
+{{value.strftime("%H:%M")}}
+{%- else -%}
+00:00
+{%- endif -%}
+{%-endmacro-%}
+
+{%-macro formattime_timestamp(value)-%}
+{%- if value and value|string!='None' -%}
+{{value.totimestamp()}}
+{%- else -%}
+0
+{%- endif -%}
+{%-endmacro-%}
+
+
+{%- macro datebone( bone_name,bone,value ) -%}
+<!-- ############################### Date ( Bonename:{{bone_name}} ) ####################################### -->
+	{% if not bone.visible %}
+		<input type="hidden" name="{{ bone_name }}" value="{{ value }}" />
+	{% else %}
+					<div style="float:left; padding:5px;">	
+	<script type="text/javascript">
+						$(function(){
+							$('#datepicker_{{ bone_name }}_date').datepicker({
+								inline: true,
+								changeMonth: true,
+								changeYear: true{%- if bone_name=="birthday" -%},
+								yearRange: '1908:2012'{%- endif -%}
+							});
+
+
+$('#datepicker_{{ bone_name }}_date').change(function(){
+      $(this).val(Globalize.format($(this).datepicker('getDate'), Globalize.culture().calendar.patterns.d)); /*d t*/
+    });
+							
+						});
+		
+						{%- if bone.date -%}
+							function refresh_{{bone_name}}() {
+								document.getElementById('{{ bone_name }}_mix').value = document.getElementById('datepicker_{{ bone_name }}_date').value+' '+document.getElementById('{{ bone_name }}_time').value
+							};
+						{%- else -%}
+							function refresh_{{bone_name}}() {
+								document.getElementById('{{ bone_name }}_mix').value = document.getElementById('{{ bone_name }}_time').value
+							};
+						{%- endif -%}
+					</script> 	
+					
+					{%- if bone.date -%}
+						{%- if not value or value|default("",true)|string=="" -%}
+				
+							<input name="{{ bone_name }}_date" class="ui-widget ui-widget-content ui-corner-all ui-spinner-input viur_uielement viur_datepickerinput" value="" type="text" id="datepicker_{{ bone_name }}_date" onchange="refresh_{{ bone_name }}()"/>
+						{%- else -%}
+							<input name="{{ bone_name }}_date" class="ui-widget ui-widget-content ui-corner-all ui-spinner-input viur_uielement viur_datepickerinput" value="{{ formatdate_only(value) }}" type="text" id="datepicker_{{ bone_name }}_date" onchange="refresh_{{ bone_name }}()"/>
+						{%- endif -%}
+					{%- else -%}
+						<input type="hidden" value="" id="{{ bone_name }}_date" />
+					{%- endif -%}
+					
+					{%- if bone.time -%} 
+						{%- if not bone.date -%}
+							<input name="{{ bone_name }}" class="viur_timespinner"  value="{{  formattime_only(value) }}" type="text" id="{{ bone_name }}_time" />
+						{%- else -%}
+							<input name="{{ bone_name }}_time" class="viur_timespinner" value="{{  formattime_only(value) }}" type="text" onchange="refresh_{{ bone_name }}()" id="{{ bone_name }}_time" />
+						{%- endif -%}
+
+                                                        <script type="text/javascript">
+								$(function() {
+									$( "#{{ bone_name }}_time" ).timespinner();
+									//Globalize.culture( "de-DE" );
+
+									$( "#{{ bone_name }}_time" ).timespinner( "value", "{{formattime_timestamp(value)}}")
+								});
+							</script>
+
+					{%- else -%}
+						<input type="hidden" value="00:00" id="{{ bone_name }}_time" /> 
+					{%- endif -%}
+										
+					</div>	
+					{%- if not bone.time or bone.date -%}
+						<input type="hidden" name="{{bone_name}}" value="{{ formatdate_only(value) }} {{ formattime_only(value) }}" id="{{ bone_name }}_mix" />
+					{%- endif -%}
+					
+{%endif%}
+<!-- ############################### END Date ####################################### |dtformat("%H:%M") -->
+
+{%- endmacro -%}

@@ -1,0 +1,87 @@
+# -*- coding: utf-8 -*-
+import sys, os
+
+#Fixing the path
+cwd = os.getcwd()
+prgc = sys.argv[0]
+
+if prgc.startswith("/") or prgc[1]==":":
+	path = os.path.dirname( prgc )
+else:
+	path = os.path.abspath( os.path.dirname( os.path.join( cwd, prgc ) ) )
+path = os.path.abspath( os.path.join( path , ".." ) ) 
+os.chdir( path )
+appid = path[ path.rfind( os.path.sep )+1: ].strip()
+
+print("This will initialize the application %s in %s.\nContinue [y/n]?" % (appid, path) )
+if not raw_input().lower() in ["y","yes"]:
+	sys.exit(0)
+
+subdirs = ["modules","html"]
+
+templates = {
+		"app.yaml":			"6170706c69636174696f6e3a207b7b61707069647d7d0a7665"+\
+							"7273696f6e3a20310a72756e74696d653a20707974686f6e32"+\
+							"370a6170695f76657273696f6e3a20310a7468726561647361"+\
+							"66653a20547275650a0a68616e646c6572733a0a2d2075726c"+\
+							"3a202f7374617469630a20207374617469635f6469723a2073"+\
+							"74617469630a2d2075726c3a202f7265736f75726365730a20"+\
+							"207374617469635f6469723a207365727665722f7265736f75"+\
+							"726365730a2d2075726c3a202f5f7461736b730a20206c6f67"+\
+							"696e3a2061646d696e0a20207363726970743a207b7b617070"+\
+							"69647d7d2e6170706c69636174696f6e0a2d2075726c3a202f"+\
+							"61646d696e2f757365722f676574417574684d6574686f640a"+\
+							"20207363726970743a207b7b61707069647d7d2e6170706c69"+\
+							"636174696f6e0a2d2075726c3a202f61646d696e2f75736572"+\
+							"2f6c6f67696e0a20207363726970743a207b7b61707069647d"+\
+							"7d2e6170706c69636174696f6e0a2d2075726c3a202f61646d"+\
+							"696e2f2e2a0a20206c6f67696e3a2061646d696e0a20207363"+\
+							"726970743a207b7b61707069647d7d2e6170706c6963617469"+\
+							"6f6e0a2d2075726c3a202f2e2a0a20207363726970743a207b"+\
+							"7b61707069647d7d2e6170706c69636174696f6e0a0a6c6962"+\
+							"7261726965733a0a2d206e616d653a206a696e6a6132200a20"+\
+							"2076657273696f6e3a206c61746573740a0a696e626f756e64"+\
+							"5f73657276696365733a0a2d207761726d75700a0a6275696c"+\
+							"74696e733a0a2d2064656665727265643a206f6e0a", 
+		"backends.yaml":		"6261636b656e64733a0a2d206e616d653a207461736b73710a"+\
+							"2020636c6173733a2042320a2020696e7374616e6365733a20"+\
+							"310a20206f7074696f6e733a2064796e616d69630a0a0a",
+		"cron.yaml":			"63726f6e3a0a2d206465736372697074696f6e3a205461736b"+\
+							"20747269676765720a202075726c3a202f5f7461736b730a20"+\
+							"207461726765743a207461736b73710a20207363686564756c"+\
+							"653a206576657279203420686f757273",
+		"index.yaml":			"696e64657865733a0a0a23204155544f47454e455241544544"+\
+							"0a",
+		"{{appid}}.py":		"23212f7573722f62696e2f707974686f6e0a23202d2a2d2063"+\
+							"6f64696e673a207574662d38202d2a2d0a696d706f7274206d"+\
+							"6f64756c65730a696d706f7274206c6f63616c650a696d706f"+\
+							"7274207365727665720a0a6170706c69636174696f6e203d20"+\
+							"7365727665722e736574757028206d6f64756c657320290a0a"+\
+							"0a646566206d61696e28293a0a097365727665722e72756e28"+\
+							"290a0a6966205f5f6e616d655f5f203d3d20275f5f6d61696e"+\
+							"5f5f273a0a096d61696e28290a", 
+		"modules/index.py":	"23202d2a2d20636f64696e673a207574662d38202d2a2d0a0a"+\
+							"636c61737320696e646578282020293a0a0964656620696e64"+\
+							"6578282073656c662c202a617267732c20202a2a6b77617267"+\
+							"7320293a0a090972657475726e202820752248656c6c6f2057"+\
+							"6f726c64212220290a09696e6465782e6578706f7365643d54"+\
+							"7275650a696e6465782e6a696e6a61323d547275650a",
+		"modules/__init__.py":	"66726f6d202e696e64657820696d706f727420696e646578", 
+
+		}
+
+for dir in subdirs:
+	if os.path.exists( os.path.join( path, dir ) ):
+		print( "Directory %s exists - skipped" % dir )
+		continue
+	print( "Creating directory %s" % dir )
+	os.mkdir( os.path.join( path, dir ) )
+
+for fname, content in templates.items():
+	fname = os.path.join( *fname.replace("{{appid}}", appid ).replace("{{path}}",path ).split("/") )
+	content = content.decode("hex").replace("{{appid}}", appid ).replace("{{path}}",path )
+	if os.path.exists( os.path.join( path, fname ) ):
+		print( "%s exists - skipped" % fname )
+		continue
+	print( "Creating %s" % fname )
+	open( fname, "w+" ).write( content )

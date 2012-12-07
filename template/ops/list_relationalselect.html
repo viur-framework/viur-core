@@ -1,0 +1,24 @@
+{% set colums = ["name","creationdate"] %}
+{% set boneKey = "undefined" %}
+{% if "bonename" in requestParams()%}
+	{% set boneKey = requestParams()["bonename"].encode("base64")|replace("\n","")|replace("=","")  %}
+{% endif %}
+<table class="list-relationalselect">
+	<thead>
+		<tr>
+			{% for col in colums %}
+				<td>{{ col }}</td>
+			{% endfor %}
+		</tr>
+	</thead>
+	{% for item in skellist %}
+		<tr>
+			{% for col in colums %}
+				<td>{{ item[ col ] }}</td>
+			{% endfor %}
+			<td><a href="javascript:relBoneAddItem_{{boneKey}}('{{item.id}}','{{item.name}}' );">Auswählen</a></td>
+		</tr>
+	{% endfor %}
+</table>
+<span style="display: none;" id="relBoneNextCurosr_{{boneKey}}">{%if skellist%}{{skellist.lastRequestObj.cursor()}}{%endif%}</span>
+
