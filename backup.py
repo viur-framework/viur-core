@@ -319,7 +319,7 @@ class TaskBackup( CallableTaskBase ):
 	id = "backupdatabase"
 	name = u"Create a Backup"
 	descr = u"Backups the Database, including uploaded files."
-	direct = True
+	direct = False
 	
 	def dataSkel(self):
 		fileRepo = None
@@ -347,7 +347,7 @@ class TaskRestore( CallableTaskBase ):
 	id = "restoredatabase"
 	name = u"Restore a Backup"
 	descr = u"Restores the Database, including uploaded files."
-	direct = True #FIXME: asd
+	direct = False
 	
 	def dataSkel(self):
 		fileRepo = None
