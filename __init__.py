@@ -65,6 +65,7 @@ def setDefaultDomainLanguage( domain, lang ):
 from server import session, errors, request
 from server.modules.file import UploadHandler,DownloadHandler
 from server.tasks import TaskHandler
+from server import backup
 
 def buildApp( config, renderers, default=None, *args, **kwargs ):
 	"""
@@ -168,7 +169,7 @@ class BrowseHandler(webapp.RequestHandler):
 		
 	def processRequest( self, path, *args, **kwargs ): #Bring up the enviroment for this request, handle errors
 		self.internalRequest = False
-		isDevServer = "Development" in os.environ['SERVER_SOFTWARE'] #Were running on development Server
+		self.isDevServer = "Development" in os.environ['SERVER_SOFTWARE'] #Were running on development Server
 		if sharedConf["viur.disabled"] and not (users.is_current_user_admin() or "HTTP_X_QUEUE_NAME".lower() in [x.lower() for x in os.environ.keys()] ): #FIXME: Validate this works
 			logging.error( os.environ.keys() )
 			self.response.set_status( 503 ) #Service unaviable
@@ -179,7 +180,7 @@ class BrowseHandler(webapp.RequestHandler):
 				msg = "This application is currently disabled or performing maintenance. Try again later."
 			self.response.out.write( tpl.safe_substitute( {"error_code": "503", "error_name": "Service unaviable", "error_descr": msg} ) )
 			return
-		if conf["viur.forceSSL"] and not isDevServer and not self.request.host_url.lower().startswith("https://"):
+		if conf["viur.forceSSL"] and not self.isDevServer and not self.request.host_url.lower().startswith("https://"):
 			#Redirect the user to the startpage (using ssl this time)
 			host = self.request.host_url.lower()
 			host = host[ host.find("://")+3: ].strip(" /") #strip http(s)://
@@ -215,7 +216,7 @@ class BrowseHandler(webapp.RequestHandler):
 			self.response.set_status( 500 )
 			tpl = Template( open("server/template/error.html", "r").read() )
 			descr = "The server encountered an unexpected error and is unable to process your request."
-			if isDevServer: #Were running on development Server
+			if self.isDevServer: #Were running on development Server
 				strIO = StringIO()
 				traceback.print_exc(file=strIO)
 				descr= strIO.getvalue()

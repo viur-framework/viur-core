@@ -4,6 +4,7 @@ from google.appengine.api import backends
 from server.update import checkUpdate
 from server.config import conf, sharedConf
 from google.appengine.api import users
+import json
 import logging
 
 
@@ -78,7 +79,10 @@ class TaskHandler:
 				task = _callableTasks[ currentTask.taskid ]()
 				tmpDict = {}
 				for k in currentTask._properties.keys():
-					tmpDict[ k ] = getattr( currentTask, k )
+					if k == "taskid":
+						continue
+					logging.error( getattr( currentTask, k ) )
+					tmpDict[ k ] = json.loads( getattr( currentTask, k ) )
 				try:
 					task.execute( **tmpDict )
 				except Exception as e:
@@ -121,7 +125,7 @@ class TaskHandler:
 		else:
 			dbObj = generateExpandoClass("server-tasks")()
 			for k, v in skel.getValues().items():
-				setattr( dbObj, k, v )
+				setattr( dbObj, k, json.dumps(v) )
 			dbObj.taskid = taskID
 			id = dbObj.put()
 		return self.render.addItemSuccess( None, skel )
