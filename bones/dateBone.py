@@ -66,7 +66,7 @@ class dateBone( baseBone ):
 		if not( date or time ):
 			raise ValueError("Attempt to create an empty datebone! Set date or time to True!")
 		if localize and not ( date and time ):
-			raise ValueError("Localizion is only possible with date and time!")
+			raise ValueError("Localization is only possible with date and time!")
 		self.date=date
 		self.time=time
 		self.localize = localize

@@ -32,7 +32,6 @@ class Hierarchy( object ):
 	adminInfo = {	"name": "BaseApplication", #Name of this modul, as shown in Apex (will be translated at runtime)
 			"handler": "hierarchy",  #Which handler to invoke
 			"icon": "", #Icon for this modul
-			"listfilters" : [ {"name":"All entrys", "searchobj":{}, "icon":"", "columns":["id"] } ] # List of predefined searches as dict {"name": (translated-later),"icon": (path to local icon), "searchobj": (dict of searchparams), columns: (list of bonekeys)}
 			#,"orderby":"changedate",
 			#"orderdir":1
 			}

@@ -23,7 +23,6 @@ class Tree( object ):
 	adminInfo = {	"name": "TreeApplication", #Name of this modul, as shown in Apex (will be translated at runtime)
 				"handler": "tree",  #Which handler to invoke
 				"icon": "", #Icon for this modul
-				"listfilters" : [ {"name":"All entrys", "searchobj":{}, "icon":"", "columns":["id"] } ] # List of predefined searches as dict {"name": (translated-later),"icon": (path to local icon), "searchobj": (dict of searchparams), columns: (list of bonekeys)}
 				#,"orderby":"changedate",
 				#"orderdir":1
 				}

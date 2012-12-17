@@ -37,7 +37,7 @@ class GoogleUser( List ):
 	viewSkel = editSkel
 	addSuccessTemplate = "user_add_success"
 
-	adminInfo = {	"name": "Benutzer", #Name of this modul, as shown in Apex (will be translated at runtime)
+	adminInfo = {	"name": "user", #Name of this modul, as shown in Apex (will be translated at runtime)
 			"handler": "base",  #Which handler to invoke
 			"icon": "icons/modules/user.png", #Icon for this modul
 			"columns":[ "name", "access"] # List of predefined searches as dict {"name": (translated-later),"icon": (path to local icon), "searchobj": (dict of searchparams), columns: (list of bonekeys)}

@@ -38,12 +38,23 @@ de = {
 	"const_month_10_long": u"Oktober",
 	"const_month_11_long": u"November",
 	"const_month_12_long": u"Dezember",
-	"const_datetimeformat": u"%a %d %b %Y %H:%M%:%S ", # Format: Datum mit Zeit 
-	"const_timeformat": u"%H:%M%:%S", # Format: Nur Zeit
+	"const_datetimeformat": u"%a %d %b %Y %H:%M:%S ", # Format: Datum mit Zeit 
+	"const_timeformat": u"%H:%M:%S", # Format: Nur Zeit
 	"const_dateformat": u"%D.%M.%Y", # Format: Nur Datum
-	"search":"Suche",
-        "my files":"Dateiverwaltung",
-        "Sites":"Seiten",
-	"list":"Liste"
-}
+	"search":u"Suche",
+	"my files":u"Dateiverwaltung",
+	"Sites":u"Seiten",
+	"list":u"Liste", 
+	"my files":u"Meine Dateien", 
+	"orders":u"Bestellungen", 
+	"sites":u"Seiten", 
+	"user":u"Benutzer", 
+	"no value entered":u"Kein Wert angegeben", 
+	"invalid emailaddress":u"Ungültige Emailadresse", 
+	"invalid value entered":u"Ungültiger Wert eingegeben", 
+	"invalid mode selected":u"Ungültiger Modus eingegeben", 
+	"no item selected":u"Kein Element ausgewählt", 
+	"no or invalid value selected":u"Kein oder ungültiger Wert ausgewählt", 
+	"invalid path supplied":u"Ungültiger Pfad angegeben"
+	}
 	
