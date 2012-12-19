@@ -126,7 +126,7 @@ class DefaultRender( object ):
 	def edit( self, skel, failed=False, listname="edit" ):
 		return( self.view( skel ) )
 
-	def list( self, skellist, listname="list", itemname="items", skelname="item" ):
+	def list( self, skellist, **kwargs ):
 		res = {}
 		skels = []
 		for skel in skellist:
