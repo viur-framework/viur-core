@@ -28,7 +28,7 @@ class DefaultRender( object ):
 							},
 						"item": {	"title": lambda skel: skel.name.value, 
 								"descr": lambda skel: skel.descr.value[ : 255], 
-								"link": lambda skel: "http://www.tws.de/calender/view/%s" % skel.id.value, 
+								"link": lambda skel: "http://example.com/calender/view/%s" % skel.id.value, 
 								"id": lambda skel: skel.id.value, 
 								"date": lambda skel: skel.creationdate.value
 								}

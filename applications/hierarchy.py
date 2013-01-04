@@ -93,8 +93,8 @@ class Hierarchy( object ):
 					parent = None
 				r = {"name": obj.name,
 					"id": str(obj.key.urlsafe()), 
-					"hrk": obj.hrk, 
 					"parent": parent,
+					"hrk": obj.hrk if "hrk" in obj._properties.keys() else None,
 					"active":(str(obj.key.urlsafe()) in keylist )}
 				if r["active"]:
 					r["children"] = lastChildren
