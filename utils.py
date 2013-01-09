@@ -228,13 +228,15 @@ def sendEMail( dests, name , skel, extraFiles=[] ):
 	else:
 		message = mail.EmailMessage()
 	#container['Date'] = datetime.today().strftime("%a, %d %b %Y %H:%M:%S %z")
-	mailfrom = "kontakt@mausbrand.de" 
+	mailfrom = "viur@%s.appspotmail.com" % app_identity.get_application_id()
 	if "subject" in headers.keys():
 		message.subject =  "=?utf-8?B?%s?=" % base64.b64encode( headers["subject"].encode("UTF-8") )
 	else:
 		message.subject = "No Subject"
 	if "from" in headers.keys():
 		mailfrom = headers["from"]
+	if conf["viur.emailSenderOverride"]:
+		mailfrom = conf["viur.emailSenderOverride"]
 	if isinstance( dests, list ):
 		message.to = ", ".join( dests )
 	else:
@@ -274,9 +276,9 @@ def markFileForDeletion( dlkey ):
 	"""
 	Adds a marker to the DB that the file might can be deleted.
 	Once the mark has been set, the db is checked four times (default: every 4 hours)
-	if the file is in use anywhere.	If it is, the mark gets deleted, otherwise
+	if the file is in use anywhere. If it is, the mark gets deleted, otherwise
 	the mark and the file are removed from the DB. These delayed checks are necessary
-	due to database inconsistency
+	due to database inconsistency.
 	
 	@type dlkey: String
 	@param dlkey: Downloadkey of the file
@@ -288,28 +290,4 @@ def markFileForDeletion( dlkey ):
 	fileObj = expurgeClass( itercount = 0, dlkey = str( dlkey ) )
 	fileObj.put()
 
-def execDeferedCall( funcPath, *args, **kwargs ):
-	"""
-		Catches the defered call and redirects it to its original function
-		Dont call directly, use the decorator below.
-	"""
-	caller = conf["viur.mainApp"]
-	pathlist = [ x for x in funcPath.split("/") if x]
-	for currpath in pathlist:
-		assert currpath in dir( caller )
-		caller = getattr( caller,currpath )
-	caller( *args, **kwargs )
-
-def callDefered( func ):
-	"""
-		This is a decorator, wich allways calls the function defered.
-		Unlike Googles implementation, this one works (with bound functions)
-	"""
-	def mkDefered( func, self, *args,  **kwargs ):
-		if "HTTP_X_APPENGINE_TASKRETRYCOUNT".lower() in [x.lower() for x in os.environ.keys()]: #This is the defered call
-			return( func( self, *args, **kwargs ) )
-		else:
-			funcPath = "%s/%s" % (self.modulPath, func.func_name )
-			deferred.defer( execDeferedCall, funcPath, *args, **kwargs )
-	return( lambda *args, **kwargs: mkDefered( func, *args, **kwargs) )
 

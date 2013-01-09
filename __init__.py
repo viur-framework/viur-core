@@ -343,3 +343,28 @@ def forceSSL( f ):
 	"""
 	f.forceSSL = True
 	return( f )
+
+def execDeferedCall( funcPath, *args, **kwargs ):
+	"""
+		Catches the defered call and redirects it to its original function
+		Dont call directly, use the decorator below.
+	"""
+	caller = conf["viur.mainApp"]
+	pathlist = [ x for x in funcPath.split("/") if x]
+	for currpath in pathlist:
+		assert currpath in dir( caller )
+		caller = getattr( caller,currpath )
+	caller( *args, **kwargs )
+
+def callDefered( func ):
+	"""
+		This is a decorator, wich allways calls the function defered.
+		Unlike Googles implementation, this one works (with bound functions)
+	"""
+	def mkDefered( func, self, *args,  **kwargs ):
+		if "HTTP_X_APPENGINE_TASKRETRYCOUNT".lower() in [x.lower() for x in os.environ.keys()]: #This is the defered call
+			return( func( self, *args, **kwargs ) )
+		else:
+			funcPath = "%s/%s" % (self.modulPath, func.func_name )
+			deferred.defer( execDeferedCall, funcPath, *args, **kwargs )
+	return( lambda *args, **kwargs: mkDefered( func, *args, **kwargs) )
