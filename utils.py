@@ -102,6 +102,7 @@ def buildDBFilter( skel, rawFilter ):
 			res = dbFilter.filter(  generateExpandoClass( dbFilter.kind )._key.IN( tmpRes ) )
 		else:
 			res = dbFilter.filter(  ndb.GenericProperty("_-Non-ExIstIng_-Property_-" ) == None )
+		res = res.order( skel._expando._key )
 		res.limit = limit
 		res.cursor = None
 		return( res )
