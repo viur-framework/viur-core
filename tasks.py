@@ -10,13 +10,16 @@ import logging
 
 _periodicTasks = {}
 _callableTasks = {}
+_periodicTaskID = 1L #Used to determine bound functions
 
 def PeriodicTask( intervall ):
 	"""Decorator to call a function periodic during maintenance.
 	The intervall-parameter is currently ignored"""
 	def mkDecorator( fn ):
-		global _periodicTasks
+		global _periodicTasks, _periodicTaskID
 		_periodicTasks[ fn ] = intervall
+		fn.periodicTaskID = _periodicTaskID
+		_periodicTaskID += 1
 		return( fn )
 	return( mkDecorator )
 
@@ -62,6 +65,36 @@ class TaskHandler:
 	def __init__(self, modulName, modulPath ):
 		pass
 	
+	def findBoundTask( self, task, obj=None, depth=0 ):
+		"""
+			Tries to locate the instance, this function belongs to.
+			If it succeeds in finding it, it returns the function and its instance (-> its "self").
+			Otherwise, None is returned.
+			@param task: A callable decorated with @PeriodicTask
+			@type task: callable
+			@param obj: Object, which will be scanned in the current iteration. None means start at conf["viur.mainApp"].
+			@type obj: object
+			@param depth: Current iteration depth.
+			@type depth: int
+		"""
+		if depth>3 or not "periodicTaskID" in dir( task ): #Limit the maximum amount of recursions
+			return( None )
+		obj = obj or conf["viur.mainApp"]
+		for attr in dir( obj ):
+			if attr.startswith("_"):
+				continue
+			try:
+				v = getattr( obj, attr )
+			except AttributeError:
+				continue
+			if callable( v ) and "periodicTaskID" in dir( v ) and str(v.periodicTaskID)==str(task.periodicTaskID):
+				return( v, obj )
+			if not isinstance( v, basestring ) and not callable( v ):
+				res = self.findBoundTask( task, v, depth+1 )
+				if res:
+					return( res )
+		return( None )
+	
 	def index(self, *args, **kwargs):
 		global _callableTasks, _periodicTasks
 		from server.utils import generateExpandoClass
@@ -71,7 +104,12 @@ class TaskHandler:
 		checkUpdate() #Let the update-module verify the database layout first
 		logging.debug("Updatecheck complete")
 		for task,intervall in _periodicTasks.items(): #Call all periodic tasks
-			task()
+			res = self.findBoundTask( task )
+			if res: #Its bound, call it this way :)
+				t, s = res
+				t( s )
+				continue
+			task() #It seems it wasnt bound - call it as a static method
 		logging.debug("Periodic tasks complete")
 		for currentTask in generateExpandoClass("server-tasks").query().iter(): #Look for queued tasks
 			currentTask.key.delete()
