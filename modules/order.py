@@ -3,8 +3,8 @@ import server
 from server.applications.list import List
 from server.skeleton import Skeleton
 from server.bones import *
-from server import errors, session, conf, request
-from server.utils import generateExpandoClass, validateSecurityKey, callDefered
+from server import errors, session, conf, request, callDefered
+from server.utils import generateExpandoClass, validateSecurityKey
 import urllib
 import hashlib
 from google.appengine.ext import ndb
@@ -12,8 +12,8 @@ from google.appengine.api import urlfetch
 import logging
 import re
 from server import request
-
-
+from datetime import datetime, timedelta
+from server.tasks import PeriodicTask
 
 """
 class PaymentProviderGoogleCheckout( object ):
@@ -232,7 +232,7 @@ class PaymentProviderPayPal:
 
 class PaymentProviderSofort:
 	"""
-	Provides payments via Sofort.com.
+	Provides payments via Sofort.com (SOFORT-Classic).
 	You must set the following variables before using this:
 	viur.conf["sofort"] = {	"userid":"<your userid>",
 						"projectid":"<project-id>",
@@ -292,14 +292,14 @@ class Order( List ):
 	This is encoded as a state machine.
 	"""
 
-
+	archiveDelay = timedelta( days=31 ) # Archive completed orders after 31 Days
 	entityName = "order"
 	states = [	"complete", # The user completed all steps of the process, he might got redirected to a paymentprovider
 				"payed", #This oder has been payed
 				"rts", #Ready to Ship 
 				"send", # Goods got shipped
-				"closed",  #This order has been executed
-				"canceled" # Order got canceled
+				"canceled",  # Order got canceled
+				"archived"  #This order has been executed
 				]
 	
 	class SkipStep( Exception ):
@@ -318,10 +318,13 @@ class Order( List ):
 		"icon": "icons/modules/cart.png", #Icon for this modul
 		"filter":{"orderby":"creationdate","orderdir":1,"state_complete":"1" }, 
 		"columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"],
-		"views" : [	{ "name": u"Not shipped", "filter":{"state_complete":"1", "state_send":"0","orderby":"creationdate","orderdir":1 }, "icon":"icons/status/unsend.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"]},
-					{ "name": u"Unpaid", "filter":{"state_complete":"1", "state_payed":"0","orderby":"creationdate","orderdir":1}, "icon":"icons/status/unpayed.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] },
-					{ "name": u"Paid","filter":{"state_complete":"1", "state_payed":"1","orderby":"creationdate","orderdir":1}, "icon":"icons/status/payed.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] },
-					{ "name": u"Shipped", "filter":{"state_complete":"1", "state_send":"1","orderby":"changedate","orderdir":1}, "icon":"icons/status/send.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] }
+		"views" : [	{ "name": u"Not shipped", "filter":{"state_archived": "0",  "state_complete":"1", "state_send":"0", "state_canceled":"0", "orderby":"creationdate","orderdir":1 }, "icon":"icons/status/unsend.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"]},
+					{ "name": u"Unpaid", "filter":{"state_archived": "0", "state_complete":"1", "state_payed":"0","state_canceled":"0", "orderby":"creationdate","orderdir":1}, "icon":"icons/status/unpayed.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] },
+					{ "name": u"Paid","filter":{"state_archived": "0", "state_complete":"1", "state_payed":"1", "state_canceled":"0", "orderby":"creationdate","orderdir":1}, "icon":"icons/status/payed.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] },
+					{ "name": u"Shipped", "filter":{"state_archived": "0", "state_complete":"1", "state_canceled":"0", "state_send":"1","orderby":"changedate","orderdir":1}, "icon":"icons/status/send.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] }, 
+					{ "name": u"Ready to ship", "filter":{"state_archived": "0","state_canceled":"0",  "state_complete":"1", "state_send":"0","state_rts":"1","orderby":"changedate","orderdir":1}, "icon":"icons/status/send.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] }, 
+					{ "name": u"Canceled", "filter":{"state_archived": "0", "state_canceled":"1", "state_complete":"1",  "orderby":"changedate","orderdir":1}, "icon":"icons/status/send.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] }, 
+					{ "name": u"Archived", "filter":{"state_archived": "1", "state_complete":"1", "orderby":"changedate","orderdir":1}, "icon":"icons/status/send.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] }
 			]
 		}
 
@@ -373,7 +376,9 @@ class Order( List ):
 		state_complete = selectOneBone( descr=u"Complete", values={"0":"No","1":"Yes"}, defaultvalue=0, readonly=True, required=True, visible=False )
 		state_payed = selectOneBone( descr=u"Paid", values={"0":"No","1":"Yes"}, defaultvalue=0, readonly=True, required=True, visible=False )
 		state_send = selectOneBone( descr=u"Send", values={"0":"No","1":"Yes"}, defaultvalue=0, readonly=True, required=True, visible=False )
+		state_rts = selectOneBone( descr=u"Ready to ship", values={"0":"No","1":"Yes"}, defaultvalue=0, readonly=True, required=True, visible=False )
 		state_canceled = selectOneBone( descr=u"Canceled", values={"0":"No","1":"Yes"}, defaultvalue=0, readonly=True, required=True, visible=False )
+		state_archived = selectOneBone( descr=u"Archived", values={"0":"No","1":"Yes"}, defaultvalue=0, readonly=True, required=True, visible=False )
 		idx = numericBone( descr=u"Order-number", required=True, readonly=True, params={"searchable": True, "frontend_list_visible": True} )
 	viewSkel = listSkel
 
@@ -394,6 +399,7 @@ class Order( List ):
 			if not dbObj:
 				return
 			setattr( dbObj, "state_%s" % state, "1" if not removeState else "0" )
+			dbObj.changedate = datetime.now()
 			dbObj.put()
 		ndb.transaction( lambda: txn( self.viewSkel, orderID,  state, removeState ) )
 
@@ -458,7 +464,7 @@ class Order( List ):
 		states = self.getStates( orderID )
 		if not any( [ x in states for x in ["rts", "send", "canceled", "closed"] ] ):
 			self.setState( orderID,"rts")
-		self.sendOrderPayedEmail( orderID )
+		self.sendOrderPayedEMail( orderID )
 		return( True )
 
 	def setSend(self, orderID):
@@ -471,22 +477,49 @@ class Order( List ):
 		"""
 		self.setState( orderID, "send" )
 		self.setState( orderID, "rts", True )
-		self.sendOrderShippedEmail( orderID )
+		self.sendOrderShippedEMail( orderID )
 		return( True )
 
-	def sendOrderShippedEmail(self, orderID):
+	def setCanceled(self, orderID):
+		"""
+		Marks an order as Canceled
+		May be overriden to hook this event
+
+		@type orderID: string
+		@param orderID: ID to mark completed
+		"""
+		self.setState( orderID, "canceled" )
+		self.setState( orderID, "rts", True )
+		self.sendOrderCanceledEMail( orderID )
+		return( True )
+	
+	def setArchived(self, orderID ):
+		"""
+		Marks an order as Archived
+		May be overriden to hook this event
+
+		@type orderID: string
+		@param orderID: ID to mark completed
+		"""
+		self.setState( orderID, "archived" )
+		self.setState( orderID, "rts", True )
+		self.sendOrderArchivedEMail( orderID )
+		return( True )
+
+
+	def sendOrderShippedEMail(self, orderID):
 		pass
 
-	def sendOrderCompleteEmail(self, orderID):
+	def sendOrderCompleteEMail(self, orderID):
 		pass
 	
-	def sendOrderPayedEmail(self, orderID):
+	def sendOrderPayedEMail(self, orderID):
 		pass
 	
 	def sendOrderCanceledEMail(self, orderID):
 		pass
 	
-	def sendOrderClosedEmail(self, orderID):
+	def sendOrderArchivedEMail(self, orderID):
 		pass
 
 	def markPayed( self, id, skey ):
@@ -506,6 +539,15 @@ class Order( List ):
 		self.setSend( id )
 		return("OKAY")
 	markSend.exposed = True
+	
+	def markCanceled( self, id, skey ):
+		if not self.canEdit( id ):
+			raise errors.Unauthorized()
+		if not validateSecurityKey( skey ):
+			raise errors.PreconditionFailed()
+		self.setCanceled( id )
+		return("OKAY")
+	markCanceled.exposed = True
 
 
 	def checkSkipShippingAddress( self, step, orderID, *args, **kwargs ):
@@ -569,6 +611,11 @@ class Order( List ):
 			if "paymentProvider_%s" % order.payment_type.value in dir( self ):
 				getattr( self, "paymentProvider_%s" % order.payment_type.value )( step, orderID )
 	
+	def paymentProvider_pod( self, step, orderID ):
+		"""
+			If Pay-On-Delivery is choosen, immediately mark this order as ready to ship
+		"""
+		self.setRTS( orderID )
 
 	def getBillItems(self, orderID ):
 		"""
@@ -584,7 +631,7 @@ class Order( List ):
 	getBillItems.internalExposed = True
 	
 	def billSequenceAvailable( self, orderID ):
-		self.sendOrderCompleteEmail( orderID )
+		self.sendOrderCompleteEMail( orderID )
 	
 	
 	@callDefered
@@ -677,23 +724,23 @@ class Order( List ):
 	getSteps.internalExposed=True
 	
 	def checkout( self, step=None, id=None, skey=None, *args, **kwargs ):
-		logging.info("Starting new checkout process")
 		if( step==None ):
-
+			logging.info("Starting new checkout process")
 			billObj = generateExpandoClass( self.entityName )()
 			billObj.idx = "0000000";
 			for state in self.states:
 				setattr( billObj, "state_%s" % state, "0" )
 			id = billObj.put().urlsafe()
 			#Try copying the Cart
-			cart = session.current.get("cart_products") or {}
-			s = self.amountSkel()
-			products = []
-			for prod, amt in cart.items():
-				for i in range(0,amt):
-					products.append( str(prod) )
-			s.fromClient( {"product": products} )
-			s.toDB( id )
+			if "amountSkel" in dir ( self ):
+				cart = session.current.get("cart_products") or {}
+				s = self.amountSkel()
+				products = []
+				for prod, amt in cart.items():
+					for i in range(0,amt):
+						products.append( str(prod) )
+				s.fromClient( {"product": products} )
+				s.toDB( id )
 			session.current["order_"+self.entityName] = {"id": str( id ), "completedSteps": [] }
 			session.current.markChanged()
 			raise errors.Redirect("?step=0&id=%s" % str( id ) )
@@ -755,4 +802,30 @@ class Order( List ):
 			raise errors.Redirect("?step=%s&id=%s" % (str( step+1 ), str( orderID.urlsafe() ) ) )
 	checkout.exposed=True
 
+	def archiveOrder(self, order ):
+		self.setState( order.key.urlsafe(), "archived" )
+		self.sendOrderArchivedEMail( order.key.urlsafe() )
+		logging.error("Order archived: "+str( order.key.urlsafe() ) )
+
+	@PeriodicTask(60*24)
+	def archiveOrdersTask( self, *args, **kwargs ):
+		logging.debug("Archiving old orders")
+		#Archive all payed,send and not canceled orders
+		orders = generateExpandoClass( self.viewSkel().entityName ).query()\
+				.filter( ndb.GenericProperty("changedate") < (datetime.now()-self.archiveDelay) )\
+				.filter( ndb.GenericProperty("state_archived") == "0" )\
+				.filter( ndb.GenericProperty("state_send") == "1" )\
+				.filter( ndb.GenericProperty("state_payed") == "1" )\
+				.filter( ndb.GenericProperty("state_canceled") == "0" ).iter()
+		for order in orders:
+			self.setArchived( order )
+		#Archive all canceled orders
+		orders = generateExpandoClass( self.viewSkel().entityName ).query()\
+				.filter( ndb.GenericProperty("changedate") < (datetime.now()-self.archiveDelay) )\
+				.filter( ndb.GenericProperty("state_archived") == "0" )\
+				.filter( ndb.GenericProperty("state_canceled") == "1" ).iter()
+		for order in orders:
+			self.setArchived( order )
+
+	
 order=Order
