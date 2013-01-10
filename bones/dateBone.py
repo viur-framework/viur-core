@@ -23,6 +23,12 @@ class ExtendedDateTime( datetime ):
 		@type format: string
 		@returns: string
 		"""
+		if "%c" in format:
+			format = format.replace("%c", _("const_datetimeformat") )
+		if "%x" in format:
+			format = format.replace("%x", _("const_dateformat") )
+		if "%X" in format:
+			format = format.replace("%X", _("const_timeformat") )
 		if "%a" in format:
 			format = format.replace( "%a", _("const_day_%s_short" % int( super( ExtendedDateTime, self ).strftime("%w") ) ) )
 		if "%A" in format:
@@ -31,12 +37,6 @@ class ExtendedDateTime( datetime ):
 			format = format.replace( "%b", _("const_month_%s_short" % int( super( ExtendedDateTime, self ).strftime("%m") ) ) )
 		if "%B" in format:
 			format = format.replace( "%B", _("const_month_%s_long" % int( super( ExtendedDateTime, self ).strftime("%m") ) ) )	
-		if "%c" in format:
-			format = format.replace("%c", _("const_datetimeformat") )
-		if "%x" in format:
-			format = format.replace("%x", _("const_dateformat") )
-		if "%X" in format:
-			format = format.replace("%X", _("const_timeformat") )
 		return( super( ExtendedDateTime, self ).strftime( format ) )
 
 class dateBone( baseBone ):
