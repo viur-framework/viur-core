@@ -3,34 +3,28 @@ from time import time
 from google.appengine.api import backends
 from server.update import checkUpdate
 from server.config import conf, sharedConf
+from server import errors, request
 from google.appengine.api import users
+from google.appengine.ext import db
+from google.appengine.api import taskqueue
+from google.appengine.ext.deferred import PermanentTaskFailure
 import json
 import logging
+import os
 
 
 _periodicTasks = {}
 _callableTasks = {}
 _periodicTaskID = 1L #Used to determine bound functions
 
-def PeriodicTask( intervall ):
-	"""Decorator to call a function periodic during maintenance.
-	The intervall-parameter is currently ignored"""
-	def mkDecorator( fn ):
-		global _periodicTasks, _periodicTaskID
-		_periodicTasks[ fn ] = intervall
-		fn.periodicTaskID = _periodicTaskID
-		_periodicTaskID += 1
-		return( fn )
-	return( mkDecorator )
 
-def CallableTask( fn ):
-	"""Marks a Class as representig a user-callabe Task.
-	It *should* extend CallableTaskBase and *must* provide
-	its API
+class _DeferredTaskEntity(db.Model):
+	"""Datastore representation of a deferred task.
+	
+	This is used in cases when the deferred task is too big to be included as
+	payload with the task queue entry.
 	"""
-	global _callableTasks
-	_callableTasks[ fn.id ] = fn
-	return( fn )
+	data = db.BlobProperty(required=True)
 
 class CallableTaskBase:
 	"""Base class for user-callable tasks.
@@ -94,6 +88,44 @@ class TaskHandler:
 				if res:
 					return( res )
 		return( None )
+	
+	def deferred(self, *args, **kwargs ):
+		"""
+			This catches one defered call and routes it to its destination
+		"""
+		req = request.current.get().request
+		if 'X-AppEngine-TaskName' not in req.headers:
+			logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
+			raise errors.Forbidden()
+		in_prod = ( not req.environ.get("SERVER_SOFTWARE").startswith("Devel") )
+		if in_prod and req.environ.get("REMOTE_ADDR") != "0.1.0.2":
+			logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
+			req.set_status(403)
+			raise errors.Forbidden()
+		headers = ["%s:%s" % (k, v) for k, v in req.headers.items() if k.lower().startswith("x-appengine-")]
+		cmd, data = json.loads( req.body )
+		dbObj = None
+		if cmd=="fromdb":
+			dbObj = _DeferredTaskEntity.get( data )
+			cmd, data = json.loads( dbObj.data )
+		if cmd=="rel":
+			funcPath, args, kwargs = data
+			caller = conf["viur.mainApp"]
+			pathlist = [ x for x in funcPath.split("/") if x]
+			for currpath in pathlist:
+				assert currpath in dir( caller )
+				caller = getattr( caller,currpath )
+			try:
+				caller( *args, **kwargs )
+			except PermanentTaskFailure:
+				if dbObj:
+					dbObj.delete()
+			except:
+				raise errors.RequestTimeout() #Task-API should retry
+			else:
+				if dbObj:
+					dbObj.delete()
+	deferred.exposed=True
 	
 	def index(self, *args, **kwargs):
 		global _callableTasks, _periodicTasks
@@ -171,6 +203,68 @@ class TaskHandler:
 	
 TaskHandler.admin = True	
 TaskHandler.jinja2 = True
+
+## Decorators ##
+
+def noRetry( f ):
+	"""Prevents a defered Function from beeing called a second time"""
+	@wraps( f )
+	def wrappedFunc( *args,  **kwargs ):
+		try:
+			f( *args,  **kwargs )
+		except:
+			raise deferred.PermanentTaskFailure()
+	return( wrappedFunc )
+
+def callDefered( func ):
+	"""
+		This is a decorator, wich allways calls the function defered.
+		Unlike Googles implementation, this one works (with bound functions)
+	"""
+	def mkDefered( func, self, *args,  **kwargs ):
+		if "HTTP_X_APPENGINE_TASKRETRYCOUNT".lower() in [x.lower() for x in os.environ.keys()]: #This is the defered call
+			return( func( self, *args, **kwargs ) )
+		else:
+			funcPath = "%s/%s" % (self.modulPath, func.func_name )
+			taskargs = dict((x, kwargs.pop(("_%s" % x), None))  for x in ("countdown", "eta", "name", "target", "retry_options"))
+			taskargs["url"] = "/_tasks/deferred"
+			transactional = kwargs.pop("_transactional", False)
+			taskargs["headers"] = {"Content-Type": "application/octet-stream"}
+			queue = "default"
+			pickled = json.dumps( ("rel", (funcPath, args, kwargs) ) )
+			try:
+				task = taskqueue.Task(payload=pickled, **taskargs)
+				return task.add(queue, transactional=transactional)
+			except taskqueue.TaskTooLargeError:
+				key = _DeferredTaskEntity(data=pickled).put()
+				pickled = json.dumps( ("fromdb", str(key) ) )
+				task = taskqueue.Task(payload=pickled, **taskargs)
+			return task.add(queue)
+	return( lambda *args, **kwargs: mkDefered( func, *args, **kwargs) )
+
+
+def PeriodicTask( intervall ):
+	"""Decorator to call a function periodic during maintenance.
+	The intervall-parameter is currently ignored"""
+	def mkDecorator( fn ):
+		global _periodicTasks, _periodicTaskID
+		_periodicTasks[ fn ] = intervall
+		fn.periodicTaskID = _periodicTaskID
+		_periodicTaskID += 1
+		return( fn )
+	return( mkDecorator )
+
+def CallableTask( fn ):
+	"""Marks a Class as representig a user-callabe Task.
+	It *should* extend CallableTaskBase and *must* provide
+	its API
+	"""
+	global _callableTasks
+	_callableTasks[ fn.id ] = fn
+	return( fn )
+
+
+## Tasks ##
 
 
 @CallableTask
