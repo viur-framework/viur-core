@@ -121,4 +121,4 @@ class baseBone(object): # One Bone:
 		return( [ search.TextField( name=name, value=unicode( self.value ) ) ] )
 
 	def translate(self):
-		self.descr = (self.descr)
+		self.descr = _(self.descr)
