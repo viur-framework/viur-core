@@ -252,6 +252,7 @@ class BrowseHandler(webapp.RequestHandler):
 		idx = 0 #Count how may items from *args we'd have consumed (so the rest can go into *args of the called func
 		for currpath in self.pathlist:
 			idx += 1
+			currpath = currpath.replace("-", "_").replace(".", "_")
 			if currpath in dir( caller ):
 				caller = getattr( caller,currpath )
 				if (("exposed" in dir( caller ) and caller.exposed) or ("internalExposed" in dir( caller ) and caller.internalExposed and self.internalRequest)) and hasattr(caller, '__call__'):
@@ -326,16 +327,6 @@ def run( ):
 	run_wsgi_app( conf["viur.wsgiApp"] )
 
 ## Decorators ##
-def noRetry( f ):
-	"""Prevents a defered Function from beeing called a second time"""
-	@wraps( f )
-	def wrappedFunc( *args,  **kwargs ):
-		try:
-			f( *args,  **kwargs )
-		except:
-			raise deferred.PermanentTaskFailure()
-	return( wrappedFunc )
-
 def forceSSL( f ):
 	"""
 		Forces usage of an encrypted Channel for a given Ressource.
@@ -343,28 +334,3 @@ def forceSSL( f ):
 	"""
 	f.forceSSL = True
 	return( f )
-
-def execDeferedCall( funcPath, *args, **kwargs ):
-	"""
-		Catches the defered call and redirects it to its original function
-		Dont call directly, use the decorator below.
-	"""
-	caller = conf["viur.mainApp"]
-	pathlist = [ x for x in funcPath.split("/") if x]
-	for currpath in pathlist:
-		assert currpath in dir( caller )
-		caller = getattr( caller,currpath )
-	caller( *args, **kwargs )
-
-def callDefered( func ):
-	"""
-		This is a decorator, wich allways calls the function defered.
-		Unlike Googles implementation, this one works (with bound functions)
-	"""
-	def mkDefered( func, self, *args,  **kwargs ):
-		if "HTTP_X_APPENGINE_TASKRETRYCOUNT".lower() in [x.lower() for x in os.environ.keys()]: #This is the defered call
-			return( func( self, *args, **kwargs ) )
-		else:
-			funcPath = "%s/%s" % (self.modulPath, func.func_name )
-			deferred.defer( execDeferedCall, funcPath, *args, **kwargs )
-	return( lambda *args, **kwargs: mkDefered( func, *args, **kwargs) )
