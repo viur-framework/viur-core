@@ -42,6 +42,10 @@ class NotAcceptable( HTTPException ):
 	def __init__( self, descr="The request cannot be processed due to missing or invalid parameters." ):
 		super( NotAcceptable, self ).__init__(  status=406, name = "Not Acceptable", descr=descr )
 
+class RequestTimeout( HTTPException ): #This must be used for the task api to indicate it should retry
+	def __init__( self, descr="The request has timed out." ):
+		super( RequestTimeout, self ).__init__(  status=408, name = "Request Timeout", descr=descr )
+
 class Gone( HTTPException ):
 	def __init__( self, descr="Gone" ):
 		super( Gone, self ).__init__(  status=410, name = "Gone", descr=descr )
