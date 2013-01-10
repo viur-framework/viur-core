@@ -3,8 +3,9 @@ import server
 from server.applications.list import List
 from server.skeleton import Skeleton
 from server.bones import *
-from server import errors, session, conf, request, callDefered
+from server import errors, session, conf, request
 from server.utils import generateExpandoClass, validateSecurityKey
+from server.tasks import callDefered
 import urllib
 import hashlib
 from google.appengine.ext import ndb
@@ -653,6 +654,7 @@ class Order( List ):
 				return
 			dbObj.idx = idx
 			dbObj.put()
+		self.viewSkel()
 		dbObj = ndb.Key( urlsafe=orderID ).get( )
 		if not dbObj:
 			return
