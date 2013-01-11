@@ -23,10 +23,18 @@ def generateAdminConfig( adminTree ):
 	for key in dir( adminTree ):
 		app = getattr( adminTree, key )
 		if "adminInfo" in dir( app ) and app.adminInfo:
-			res[ key ] = app.adminInfo
+			res[ key ] = app.adminInfo.copy()
+			res[ key ]["name"] = _(res[ key ]["name"])
+			res[ key ]["views"] = []
+			if "views" in app.adminInfo.keys():
+				for v in app.adminInfo["views"]:
+					tmp = v.copy()
+					tmp["name"] = _(tmp["name"])
+					res[ key ]["views"].append( tmp )
 	return( res )
 	
-def dumpConfig( adminConfig ):
+def dumpConfig( adminTree ):
+	adminConfig = generateAdminConfig( adminTree )
 	res = {	"capabilities": conf["viur.capabilities"], 
 			"modules": adminConfig, 
 			"configuration": {}
@@ -36,11 +44,11 @@ def dumpConfig( adminConfig ):
 			res["configuration"][ k[ 6: ] ] = v
 	return json.dumps( res )
 
+
 def _postProcessAppObj( obj ):
 	obj.skey = skey
 	obj.timestamp = timestamp
-	adminConfig = generateAdminConfig( obj )
-	tmp = lambda *args, **kwargs: dumpConfig( adminConfig )
+	tmp = lambda *args, **kwargs: dumpConfig( obj )
 	tmp.exposed=True
 	obj.config = tmp
 	return obj

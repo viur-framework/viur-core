@@ -119,6 +119,3 @@ class baseBone(object): # One Bone:
 	
 	def getSearchDocumentFields(self, name):
 		return( [ search.TextField( name=name, value=unicode( self.value ) ) ] )
-
-	def translate(self):
-		self.descr = _(self.descr)

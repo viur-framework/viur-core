@@ -64,7 +64,6 @@ class Skeleton( object ):
 		tmpList.sort( key=lambda x: x[1].idx )
 		for key, bone in tmpList:
 			bone = copy.copy( bone )
-			bone.translate()
 			setattr( self, key, bone )
 
 	def fromDB( self,  id ):
