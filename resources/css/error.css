@@ -65,7 +65,7 @@ a:active {text-decoration: none; color: #cc0000;}
 
 #error {
     position: relative;
-    padding-top: 8%;
+    padding-top: 50px;
     -webkit-animation-name: popin;
     -moz-animation-name: popin;
     -webkit-animation-duration: .8s;
@@ -87,9 +87,11 @@ a:active {text-decoration: none; color: #cc0000;}
 
 #content {
     position: relative;
-    margin: 0 auto 0 auto;
-    width: 600px;
-    background: white;
+    left: 50%;
+    margin-left: -400px;
+    width: 800px;
+    height: 560px;
+    background: #ffffff;
     border: solid 3px #f2f2f2;
     -moz-box-shadow: 0 0 0 1px #bfbfbf, 0 0 10px rgba(0,0,0,.10);
     -webkit-box-shadow: 0 0 0 1px #bfbfbf, 0 0 10px rgba(0,0,0,.10);
@@ -111,11 +113,14 @@ a:active {text-decoration: none; color: #cc0000;}
 #content p {
     position: relative;
     font-size: 13px;
-    line-height: 1.3em;
+    line-height: 1.5em;
     color: #8e8e8e;
+    overflow: auto;
+    height: 300px;
+    padding: 10px 0px;
 }
 
-.wrapper-buttons {padding: 30px0px; margin-top: 30px;}
+.wrapper-buttons {padding: 10px 0px; z-index: 999;}
 
 
 .button-red, .button-red:visited {
@@ -125,7 +130,7 @@ a:active {text-decoration: none; color: #cc0000;}
     margin-left: 10px;
     text-align: center;
     font-size: 16px !important;
-    padding: 10px 10px !important;
+    padding: 7px 10px !important;
     -moz-box-orient: vertical;
     background: #660000;
     background: -moz-linear-gradient(#d00f1c, #660000) repeat scroll 0 0 #660000;
@@ -147,4 +152,3 @@ a:active {text-decoration: none; color: #cc0000;}
                    background: -webkit-linear-gradient(#d00f1c, #990000) repeat scroll 0 0 #990000;
                    background: -o-linear-gradient(#d00f1c, #990000) repeat scroll 0 0 #990000;
                    background: linear-gradient(#d00f1c, #990000) repeat scroll 0 0 #990000;}
-
