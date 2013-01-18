@@ -18,7 +18,7 @@ from server.skellist import Skellist
 import logging
 from google.appengine.api import memcache, users
 from google.appengine.api.images import get_serving_url
-from urllib import urlencode
+from urllib import urlencode, quote_plus
 
 class Render( object ):
 	listTemplate = "list"
@@ -119,6 +119,8 @@ class Render( object ):
 			self.env.globals["modulName"] = lambda *args, **kwargs: self.parent.modulName
 			self.env.globals["modulPath"] = lambda *args, **kwargs: self.parent.modulPath
 			self.env.globals["_"] = _
+			self.env.filters["tr"] = _
+			self.env.filters["urlencode"] = quote_plus
 			if "jinjaEnv" in dir( self.parent ):
 				self.env = self.parent.jinjaEnv( self.env )
 		return( self.env )
