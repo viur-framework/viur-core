@@ -120,7 +120,7 @@ class Render( object ):
 			self.env.globals["modulPath"] = lambda *args, **kwargs: self.parent.modulPath
 			self.env.globals["_"] = _
 			self.env.filters["tr"] = _
-			self.env.filters["urlencode"] = quote_plus
+			self.env.filters["urlencode"] = self.quotePlus
 			if "jinjaEnv" in dir( self.parent ):
 				self.env = self.parent.jinjaEnv( self.env )
 		return( self.env )
@@ -306,6 +306,11 @@ class Render( object ):
 		for x in range(0, len( mylist ) ):
 			mylist.append( self.collectSkelData( mylist.pop(0) ) )
 		return( mylist )	
+	
+	def quotePlus(self, val ):
+		if isinstance( val, unicode ):
+			val = val.encode("UTF-8")
+		return( quote_plus( val ) )
 
 	def renderSkelStructure(self, skel ):
 		"""
