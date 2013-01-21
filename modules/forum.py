@@ -8,7 +8,7 @@ from server import session, errors
 from server.indexes import IndexMannager
 from google.appengine.ext import deferred
 from server.skellist import Skellist
-from server import utils, request
+from server import utils, request, tasks
 import logging
 
 class ForumSkel( HierarchySkel ):
@@ -193,7 +193,7 @@ class Forum( Hierarchy ):
 		return( self.render.deleteSuccess( skel ) )
 	deleteThread.exposed = True
 		
-	@utils.callDefered
+	@tasks.callDefered
 	def deleteStalePosts(self, thread ):
 		"""
 			Remove posts which belong to a thread we just deleted
@@ -202,7 +202,7 @@ class Forum( Hierarchy ):
 		for post in postSkel._expando().query().filter( ndb.GenericProperty("thread") == thread ).iter():
 			postSkel.delete( post.key.urlsafe() )
 
-	@utils.callDefered
+	@tasks.callDefered
 	def checkForEmptyThread(self, thread ): #Fixme: We still have a race-condition here...
 		post = self.postSkel()._expando().query().filter( ndb.GenericProperty("thread") == thread ).get()
 		if not post:
