@@ -90,6 +90,11 @@ class BackupFile(object):
 		else:
 			self.f.write( versionString )
 	
+	def reOpen(self):
+		assert self.filename.startswith("/gs/") and self.mode=="w"
+		self.gsFileObj = files.open( self.gsFile, 'a' )
+		self.f = gzip.GzipFile( mode=self.mode, fileobj=self.gsFileObj )
+	
 	def writeEntry(self, obj ):
 		r = {}
 		for k in obj._properties.keys():
@@ -105,17 +110,33 @@ class BackupFile(object):
 			r[ k ] = val
 			r["__id__"] = obj.key.urlsafe()
 			r["__kind__"] = obj._get_kind()
-		self.f.write( "!e %s\n" % json.dumps( r ).encode("hex") )
+		try:
+			self.f.write( "!e %s\n" % json.dumps( r ).encode("hex") )
+		except:
+			self.reOpen()
+			self.f.write( "!e %s\n" % json.dumps( r ).encode("hex") )
 	
 	def writeBlob( self, blobKey ):
 		blobReader = blobstore.BlobReader( blobKey )
 		blobInfo = blobstore.BlobInfo.get( blobKey )
-		self.f.write( "!f %s %s " % (blobKey, blobInfo.content_type ) )
+		try:
+			self.f.write( "!f %s %s " % (blobKey, blobInfo.content_type ) )
+		except:
+			self.reOpen()
+			self.f.write( "!f %s %s " % (blobKey, blobInfo.content_type ) )
 		data = blobReader.read(1024)
 		while data:
-			self.f.write( data.encode("hex") )
+			try:
+				self.f.write( data.encode("hex") )
+			except:
+				self.reOpen()
+				self.f.write( data.encode("hex") )
 			data = blobReader.read(1024)
-		self.f.write( "\n" )
+		try:
+			self.f.write( "\n" )
+		except:
+			self.reOpen()
+			self.f.write( "\n" )
 	
 	def fillBuffer( self, size ):
 		tmp = self.f.read( size )
@@ -128,8 +149,9 @@ class BackupFile(object):
 			Note: Assumed invariant is, that all entries form a contiguous block.
 			(i.e. there is no blob between two entries)
 		"""
+		logging.error("Startediter")
 		while 1:
-			if not self.buffer:
+			while not self.buffer or len( self.buffer ) < 2:
 				try:
 					self.fillBuffer( 1024 )
 				except AssertionError: #Were at the end of our file
