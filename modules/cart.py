@@ -29,7 +29,7 @@ class Cart( List ):
 					prods[ product ] = 1
 			session.current["cart_products"] = prods
 			session.current.markChanged()
-		raise( errors.Redirect( "/cart/view" ) )
+		raise( errors.Redirect( "/%s/view" % self.modulName ) )
 	add.exposed=True
 	
 	def view( self, *args, **kwargs ):
@@ -56,7 +56,7 @@ class Cart( List ):
 				del prods[ product ]
 		session.current["cart_products"] = prods
 		session.current.markChanged()
-		raise( errors.Redirect( "/cart/view" ) )
+		raise( errors.Redirect( "/%s/view" % self.modulName ) )
 	delete.exposed=True
 	
 	def entryCount( self ):
