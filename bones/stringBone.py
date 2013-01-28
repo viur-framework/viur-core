@@ -62,14 +62,14 @@ class stringBone( baseBone ):
 				dbFilter = dbFilter.filter( ndb.GenericProperty( name ) < unicode( rawFilter[name+"$lk"]+u"\ufffd" ) )
 		if name+"$gt" in rawFilter.keys(): #All entries after
 			if not self.caseSensitive:
-				dbFilter = dbFilter.filter( ndb.GenericProperty( name+"_idx" ) >= unicode( rawFilter[name+"$gt"] ).lower() )
+				dbFilter = dbFilter.filter( ndb.GenericProperty( name+"_idx" ) > unicode( rawFilter[name+"$gt"] ).lower() )
 			else:
-				dbFilter = dbFilter.filter( ndb.GenericProperty( name ) >= unicode( rawFilter[name+"$gt"] ) )
+				dbFilter = dbFilter.filter( ndb.GenericProperty( name ) > unicode( rawFilter[name+"$gt"] ) )
 		if name+"$lt" in rawFilter.keys(): #All entries before
 			if not self.caseSensitive:
-				dbFilter = dbFilter.filter( ndb.GenericProperty( name+"_idx" ) < unicode( rawFilter[name+"$lt"]+u"\ufffd" ).lower() )
+				dbFilter = dbFilter.filter( ndb.GenericProperty( name+"_idx" ) < unicode( rawFilter[name+"$lt"] ).lower() )
 			else:
-				dbFilter = dbFilter.filter( ndb.GenericProperty( name ) < unicode( rawFilter[name+"$lt"]+u"\ufffd" ) )
+				dbFilter = dbFilter.filter( ndb.GenericProperty( name ) < unicode( rawFilter[name+"$lt"] ) )
 		if name in rawFilter.keys(): #Normal, strict match
 			if not self.caseSensitive:
 				dbFilter = dbFilter.filter( ndb.GenericProperty( name+"_idx" ) == unicode( rawFilter[name] ).lower() )
