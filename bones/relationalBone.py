@@ -6,6 +6,7 @@ from server.utils import generateExpandoClass
 import json
 from server.tasks import PeriodicTask
 from time import time
+from datetime import datetime
 
 class relationalBone( baseBone ):
 	"""
@@ -111,7 +112,8 @@ class relationalBone( baseBone ):
 		parentValues = {}
 		for parentKey in self.parentKeys:
 			if parentKey in dir( skel ):
-				parentValues[ parentKey ] = unicode( getattr( skel, parentKey ).value )
+				val = getattr( skel, parentKey ).value
+				parentValues[ parentKey ] = unicode( val ) if not (isinstance( val, float ) or isinstance( val, int ) or isinstance( val, datetime ) ) else val
 		dbVals = expClass.query( ancestor = ndb.Key( urlsafe=id ) )
 		for dbObj in dbVals.iter():
 			if not getattr( dbObj, key+"_id" ) in [ x[key+"_id"] for x in values ]: #Relation has been removed
