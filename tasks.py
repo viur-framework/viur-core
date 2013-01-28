@@ -120,7 +120,8 @@ class TaskHandler:
 			except PermanentTaskFailure:
 				if dbObj:
 					dbObj.delete()
-			except:
+			except Exception as e:
+				logging.exception( e )
 				raise errors.RequestTimeout() #Task-API should retry
 			else:
 				if dbObj:
@@ -157,7 +158,7 @@ class TaskHandler:
 					task.execute( **tmpDict )
 				except Exception as e:
 					logging.error("Error executing Task")
-					logging.error( e )
+					logging.exception( e )
 		logging.debug("Scheduled tasks complete")
 	index.exposed=True
 	
