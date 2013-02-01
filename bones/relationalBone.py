@@ -113,7 +113,11 @@ class relationalBone( baseBone ):
 		for parentKey in self.parentKeys:
 			if parentKey in dir( skel ):
 				val = getattr( skel, parentKey ).value
-				parentValues[ parentKey ] = unicode( val ) if not (isinstance( val, float ) or isinstance( val, int ) or isinstance( val, datetime ) ) else val
+				if not ( isinstance( val, float ) or isinstance( val, int ) or isinstance( val, datetime ) or
+					(isinstance( val, list ) and all( [ (isinstance( x, basestring ) or isinstance( x, float ) or isinstance( x, int ) or isinstance( x, datetime )) for x in val] ) ) ):
+						#The value is neither a simple type (float,int,datetime) nor a list of these types) - force it to string
+						val = unicode( val )
+				parentValues[ parentKey ] = val
 		dbVals = expClass.query( ancestor = ndb.Key( urlsafe=id ) )
 		for dbObj in dbVals.iter():
 			if not getattr( dbObj, key+"_id" ) in [ x[key+"_id"] for x in values ]: #Relation has been removed
