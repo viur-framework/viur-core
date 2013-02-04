@@ -171,7 +171,6 @@ class BrowseHandler(webapp.RequestHandler):
 		self.internalRequest = False
 		self.isDevServer = "Development" in os.environ['SERVER_SOFTWARE'] #Were running on development Server
 		if sharedConf["viur.disabled"] and not (users.is_current_user_admin() or "HTTP_X_QUEUE_NAME".lower() in [x.lower() for x in os.environ.keys()] ): #FIXME: Validate this works
-			logging.error( os.environ.keys() )
 			self.response.set_status( 503 ) #Service unaviable
 			tpl = Template( open("server/template/error.html", "r").read() )
 			if isinstance( sharedConf["viur.disabled"], basestring ):
