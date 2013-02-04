@@ -18,6 +18,92 @@ import logging
 class BackupFile(object):
 	__fileFormatVersion__ = 1
 	
+	class ChunkFile( object ):
+		"""
+			Work-around for the *undocumented* 30-Seconds timelimit
+			when working with files on the gae.
+			This class splitts the data across several files, while offering
+			the api of a singe file.
+		"""
+		
+		__chunkSize__ = 1024*1000 #~1MB
+		def __init__(self, fileName, mode ):
+			super( BackupFile.ChunkFile, self ).__init__()
+			assert mode == "r" or mode == "w"
+			self.buffer = b""
+			self.currentIndex = 0L
+			self.fileName = fileName
+			self.mode = mode
+			logging.error( fileName )
+
+		def nextFileName(self):
+			self.currentIndex += 1
+			return( "%s-%s" % ( self.fileName, self.currentIndex ) )
+
+		def write(self, data ):
+			assert self.mode == "w"
+			self.buffer += data
+			if len( self.buffer ) > self.__chunkSize__:
+				self.close()
+
+		def read(self, amount):
+			filledOnce = False
+			while( len( self.buffer ) < amount ):
+				#Fill our buffer with the next file
+				if self.fileName.startswith("/gs/"):
+					try:
+						f = gzip.GzipFile( mode=mode, fileobj=files.open( self.nextFileName() ) )
+						self.buffer += f.read()
+					except:
+						if filledOnce:
+							return( self.buffer )
+						else:
+							raise StopIteration() #There are no more files to process
+					filledOnce = True
+			res = self.buffer[ : amount ]
+			self.buffer = self.buffer[ amount: ]
+			return( res )
+
+		def close(self):
+			"""
+				Writes all unsaved changes to a new file
+			"""
+			if not self.mode=="w":
+				return
+			currentFileName = self.nextFileName()
+			if self.fileName.startswith("/gs/"):
+				gsFile = files.gs.create( currentFileName , mime_type='application/octet-stream', acl='project-private')
+				gsFileObj = files.open( gsFile, 'a' )
+				f = gzip.GzipFile( mode="w", fileobj=gsFileObj )
+			elif self.fileName.startswith("/bs/"):
+				gsFile = files.blobstore.create(mime_type='application/octet-stream')
+				gsFileObj = files.open( gsFile, 'a' )
+				f = gzip.GzipFile( mode="w", fileobj=gsFileObj )
+			else:
+				raise( NotImplementedError() )
+			f.write( self.buffer )
+			self.buffer = b""
+			f.close()
+			gsFileObj.close()
+			files.finalize( gsFile )
+			if self.fileName.startswith("/bs/"): #Were writing to blobstore
+				newBlobKey = str(files.blobstore.get_blob_key( gsFile ))
+				utils.markFileForDeletion( newBlobKey )
+				repo, fileName = self.fileName[4:].split("/")
+				assert repo
+				lockObj = utils.generateExpandoClass( "file" )()
+				lockObj.name = currentFileName
+				lockObj.name_idx = currentFileName.lower()
+				lockObj.meta_mime = "application/octet-stream"
+				lockObj.dlkey = newBlobKey
+				lockObj.parentdir=repo 
+				lockObj.parentrepo=repo
+				lockObj.size = 0
+				lockObj.weak = False
+				lockObj.put()
+				logging.info("Backup DL-URL: /file/view/%s/%s" % (newBlobKey, fileName.replace("/", "_") ) )
+
+
 	class BlobReader( object ):
 		"""
 			This class allows reading the current blob from our backup-file.
@@ -49,7 +135,10 @@ class BackupFile(object):
 			if len( res ) % 2 == 1 and len( res )> 1: #We got an odd string length
 				self.f.buffer = res[-1]+self.f.buffer #Put the last char back onto the buffer
 				res = res[ : -1 ]
-			return( res.decode("hex") )
+			try:
+				return( res.decode("hex") )
+			except:
+				logging.error( res )
 		
 		def skipAll(self):
 			"""
@@ -60,40 +149,15 @@ class BackupFile(object):
 			while not self.finished:
 				self.read( 1024 )
 	
-	def __init__( self, filename, mode ):
+	def __init__( self, fileName, mode ):
 		super( BackupFile, self ).__init__()
-		assert mode == "r" or mode == "w"
-		if filename.startswith("/gs/"):
-			if mode == "w":
-				self.gsFile = files.gs.create(filename, mime_type='application/octet-stream', acl='project-private')
-				self.gsFileObj = files.open( self.gsFile, 'a' )
-				self.f = gzip.GzipFile( mode=mode, fileobj=self.gsFileObj )
-			else:
-				self.f = gzip.GzipFile( mode=mode, fileobj=files.open( filename ) )
-		elif filename.startswith("/bs/"):
-			if mode == "w":
-				self.gsFile = files.blobstore.create(mime_type='application/octet-stream')
-				self.gsFileObj = files.open( self.gsFile, 'a' )
-				self.f = gzip.GzipFile( mode=mode, fileobj=self.gsFileObj )
-			else:
-				self.f = gzip.GzipFile( mode=mode, fileobj=blobstore.BlobReader( filename[ 4: ] ) )
+		if mode=="w":
+			self.f = BackupFile.ChunkFile( fileName, mode )
 		else:
-			raise( NotImplementedError() )
-		self.mode = mode
-		self.filename = filename
+			assert fileName.startswith("/bs/")
+			self.f = gzip.GzipFile( mode=mode, fileobj=blobstore.BlobReader( fileName[ 4: ] ) )
 		self.buffer = b""
-		versionString = "!M ViUR-Backup %s\n" % self.__fileFormatVersion__
-		if mode == "r":
-			self.fillBuffer(1024)
-			assert self.buffer.startswith( versionString )
-			self.buffer = self.buffer[ len( versionString ): ]
-		else:
-			self.f.write( versionString )
 	
-	def reOpen(self):
-		assert self.filename.startswith("/gs/") and self.mode=="w"
-		self.gsFileObj = files.open( self.gsFile, 'a' )
-		self.f = gzip.GzipFile( mode=self.mode, fileobj=self.gsFileObj )
 	
 	def writeEntry(self, obj ):
 		r = {}
@@ -110,33 +174,17 @@ class BackupFile(object):
 			r[ k ] = val
 			r["__id__"] = obj.key.urlsafe()
 			r["__kind__"] = obj._get_kind()
-		try:
-			self.f.write( "!e %s\n" % json.dumps( r ).encode("hex") )
-		except:
-			self.reOpen()
-			self.f.write( "!e %s\n" % json.dumps( r ).encode("hex") )
+		self.f.write( "!e %s\n" % json.dumps( r ).encode("hex") )
 	
 	def writeBlob( self, blobKey ):
 		blobReader = blobstore.BlobReader( blobKey )
 		blobInfo = blobstore.BlobInfo.get( blobKey )
-		try:
-			self.f.write( "!f %s %s " % (blobKey, blobInfo.content_type ) )
-		except:
-			self.reOpen()
-			self.f.write( "!f %s %s " % (blobKey, blobInfo.content_type ) )
+		self.f.write( "!f %s %s " % (blobKey, blobInfo.content_type ) )
 		data = blobReader.read(1024)
 		while data:
-			try:
-				self.f.write( data.encode("hex") )
-			except:
-				self.reOpen()
-				self.f.write( data.encode("hex") )
+			self.f.write( data.encode("hex") )
 			data = blobReader.read(1024)
-		try:
-			self.f.write( "\n" )
-		except:
-			self.reOpen()
-			self.f.write( "\n" )
+		self.f.write( "\n" )
 	
 	def fillBuffer( self, size ):
 		tmp = self.f.read( size )
@@ -195,9 +243,8 @@ class BackupFile(object):
 			if not self.buffer.startswith( "!f " ):
 				raise( StopIteration() )
 			self.buffer = self.buffer[ 3: ]
-			if not " " in self.buffer:
+			while not "\n" in self.buffer:
 				self.fillBuffer( 1024 )
-			assert " " in self.buffer
 			blobKey = self.buffer[ : self.buffer.find(" ") ]
 			self.buffer = self.buffer[ self.buffer.find(" ")+1: ]
 			blobMime = self.buffer[ : self.buffer.find(" ") ]
@@ -210,28 +257,6 @@ class BackupFile(object):
 		if self.f:
 			self.f.close()
 			self.f = None
-		if self.gsFileObj:
-			self.gsFileObj.close()
-			self.gsFileObj = None
-		if self.gsFile:
-			files.finalize( self.gsFile )
-			if self.filename.startswith("/bs/"): #Were writing to blobstore
-				newBlobKey = str(files.blobstore.get_blob_key( self.gsFile ))
-				utils.markFileForDeletion( newBlobKey )
-				repo, filename = self.filename[4:].split("/")
-				assert repo
-				lockObj = utils.generateExpandoClass( "file" )()
-				lockObj.name = filename
-				lockObj.name_idx = filename.lower()
-				lockObj.meta_mime = "application/octet-stream"
-				lockObj.dlkey = newBlobKey
-				lockObj.parentdir=repo 
-				lockObj.parentrepo=repo
-				lockObj.size = 0
-				lockObj.weak = False
-				lockObj.put()
-				logging.info("Backup DL-URL: /file/view/%s/%s" % (newBlobKey, filename.replace("/", "_") ) )
-			self.gsFile = None
 
 ## Functions
 
@@ -264,8 +289,12 @@ def backup( fileName ):
 				for entry in utils.generateExpandoClass( entityName ).query().iter():
 					outFile.writeEntry( entry )
 	# Backup Blobs
-	for blob in blobstore.BlobInfo.all():
-		outFile.writeBlob( blob.key() )
+	qry = blobstore.BlobInfo.all()
+	blobKey = qry.fetch(1)
+	while blobKey:
+		outFile.writeBlob( blobKey[0].key() )
+		qry = blobstore.BlobInfo.all().with_cursor( qry.cursor() )
+		blobKey = qry.fetch(1)
 	outFile.close()
 	logging.info("Backup finished!")
 
