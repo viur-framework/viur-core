@@ -126,7 +126,7 @@ class Skeleton( object ):
 		if clearUpdateTag:
 			dbfields["viur_delayed_update_tag"] = 0 #Mark this entity as Up-to-date.
 		else:
-			dbfields["viur_delayed_update_tag"] = time() #Mark this entity as dirty, so the background will catch it up and update its references.
+			dbfields["viur_delayed_update_tag"] = time() #Mark this entity as dirty, so the background-task will catch it up and update its references.
 		if "preProcessSerializedData" in dir( self ):
 			dbfields = self.preProcessSerializedData( dbfields )
 		if id:
