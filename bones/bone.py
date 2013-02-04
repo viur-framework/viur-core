@@ -87,6 +87,11 @@ class baseBone(object): # One Bone:
 					dbFilter = dbFilter.filter( ndb.GenericProperty( tmpdata[0] ) == value )
 				else:
 					dbFilter = dbFilter.filter( ndb.GenericProperty( tmpdata[0] ) == value )
+				#Enforce a working sort-order
+				if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
+					dbFilter = dbFilter.order( -ndb.GenericProperty( tmpdata[0] ) )
+				else:
+					dbFilter = dbFilter.order( ndb.GenericProperty( tmpdata[0] ) )
 			else:
 				if isinstance( value, list ):
 					dbFilter = dbFilter.filter( ndb.GenericProperty( key ) in value )

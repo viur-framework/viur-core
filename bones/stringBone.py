@@ -53,6 +53,7 @@ class stringBone( baseBone ):
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
 		if not name in rawFilter.keys() and not any( [x.startswith(name+"$") for x in rawFilter.keys()] ):
 			return( super( stringBone, self ).buildDBFilter( name, skel, dbFilter, rawFilter ) )
+		hasInequalityFilter = False
 		if name+"$lk" in rawFilter.keys(): #Do a prefix-match
 			if not self.caseSensitive:
 				dbFilter = dbFilter.filter( ndb.GenericProperty( name+"_idx" ) >= unicode( rawFilter[name+"$lk"] ).lower() )
@@ -60,16 +61,31 @@ class stringBone( baseBone ):
 			else:
 				dbFilter = dbFilter.filter( ndb.GenericProperty( name ) >= unicode( rawFilter[name+"$lk"] ) )
 				dbFilter = dbFilter.filter( ndb.GenericProperty( name ) < unicode( rawFilter[name+"$lk"]+u"\ufffd" ) )
+			hasInequalityFilter = True
 		if name+"$gt" in rawFilter.keys(): #All entries after
 			if not self.caseSensitive:
 				dbFilter = dbFilter.filter( ndb.GenericProperty( name+"_idx" ) > unicode( rawFilter[name+"$gt"] ).lower() )
 			else:
 				dbFilter = dbFilter.filter( ndb.GenericProperty( name ) > unicode( rawFilter[name+"$gt"] ) )
+			hasInequalityFilter = True
 		if name+"$lt" in rawFilter.keys(): #All entries before
 			if not self.caseSensitive:
 				dbFilter = dbFilter.filter( ndb.GenericProperty( name+"_idx" ) < unicode( rawFilter[name+"$lt"] ).lower() )
 			else:
 				dbFilter = dbFilter.filter( ndb.GenericProperty( name ) < unicode( rawFilter[name+"$lt"] ) )
+			hasInequalityFilter = True
+		if hasInequalityFilter:
+			#Enforce a working sort-order
+			if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
+				if not self.caseSensitive:
+					dbFilter = dbFilter.order( -ndb.GenericProperty( name+"_idx" ) )
+				else:
+					dbFilter = dbFilter.order( -ndb.GenericProperty( name ) )
+			else:
+				if not self.caseSensitive:
+					dbFilter = dbFilter.order( ndb.GenericProperty( name+"_idx" ) )
+				else:
+					dbFilter = dbFilter.order( ndb.GenericProperty( name ) )
 		if name in rawFilter.keys(): #Normal, strict match
 			if not self.caseSensitive:
 				dbFilter = dbFilter.filter( ndb.GenericProperty( name+"_idx" ) == unicode( rawFilter[name] ).lower() )
