@@ -106,8 +106,18 @@ class GoogleUser( List ):
 		if not utils.validateSecurityKey( skey ):
 			raise( errors.Forbidden() )
 		raise( errors.Redirect( users.create_logout_url( self.modulPath+"/logout" ) ) )
-		
 	logout.exposed = True
+	
+	def view(self, id, *args, **kwargs):
+		"""
+			Allow a special id "self" to reference always the current user
+		"""
+		if id=="self":
+			user = self.getCurrentUser()
+			if user:
+				return( super( GoogleUser, self ).view( user["id"], *args, **kwargs ) )
+		return( super( GoogleUser, self ).view( id, *args, **kwargs ) )
+	view.exposed=True
 
 class CustomUser( List ): 
 	addTemplate = "user_add"
@@ -353,4 +363,13 @@ class CustomUser( List ):
 		skel.skey.value = skey
 		utils.sendEMail( [skel.name.value], self.passwordRecoveryMail, skel )
 
-
+	def view(self, id, *args, **kwargs):
+		"""
+			Allow a special id "self" to reference always the current user
+		"""
+		if id=="self":
+			user = self.getCurrentUser()
+			if user:
+				return( super( GoogleUser, self ).view( user["id"], *args, **kwargs ) )
+		return( super( GoogleUser, self ).view( id, *args, **kwargs ) )
+	view.exposed=True
