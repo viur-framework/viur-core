@@ -107,7 +107,7 @@ class Skeleton( object ):
 		def txnUpdate( id, dbfields ):
 			dbObj = ndb.Key( urlsafe=id ).get()
 			if not dbObj:
-				dbObj = self._expando( key=id, **dbfields )
+				dbObj = self._expando( key=ndb.Key( urlsafe=id ), **dbfields )
 			for k,v in dbfields.items():
 				setattr( dbObj, k, v )
 			dbObj.put()
