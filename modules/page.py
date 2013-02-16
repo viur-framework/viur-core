@@ -6,7 +6,7 @@ from server.bones import *
 from google.appengine.ext import ndb
 from server.utils import generateExpandoClass
 from server import session, errors
-from google.appengine.api import conversion
+#from google.appengine.api import conversion
 from server.plugins.text.youtube import YouTube
 import logging
 
