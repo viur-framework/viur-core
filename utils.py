@@ -77,6 +77,7 @@ def generateExpandoClass( className ):
 	@param className: Name of the collection
 	@returns: An Appengine Expando Class
 	"""
+	assert False
 	global classCache
 	if not className in classCache.keys():
 		classCache[ className ] = new.classobj( className, ( Expando,), {})
@@ -95,8 +96,9 @@ def buildDBFilter( skel, rawFilter ):
 	limit = 20
 	cursor = None
 	dbFilter = generateExpandoClass( skel.entityName ).query()
-	if skel.searchindex and "search" in rawFilter.keys(): #We perform a Search via Google API - all other parameters are ignored
-		searchRes = search.Index( name=skel.searchindex ).search( query=search.Query( query_string=rawFilter["search"], options=search.QueryOptions( limit=25 ) ) )
+##
+	if skel.searchIndex and "search" in rawFilter.keys(): #We perform a Search via Google API - all other parameters are ignored
+		searchRes = search.Index( name=skel.searchIndex ).search( query=search.Query( query_string=rawFilter["search"], options=search.QueryOptions( limit=25 ) ) )
 		tmpRes = [ ndb.Key(urlsafe=x.doc_id[ 2: ] ) for x in searchRes ]
 		if tmpRes: #Again.. Workaround for broken ndb API: Filtering IN using an empty list: exception instead of empty result
 			res = dbFilter.filter(  generateExpandoClass( dbFilter.kind )._key.IN( tmpRes ) )
@@ -132,6 +134,8 @@ def buildDBFilter( skel, rawFilter ):
 		dbFilter = skel.postProcessSearchFilter( dbFilter, rawFilter )
 	if not dbFilter.orders: #And another NDB fix
 		dbFilter = dbFilter.order( skel._expando._key )
+
+##
 	dbFilter.limit = limit
 	dbFilter.cursor = cursor
 	return( dbFilter )

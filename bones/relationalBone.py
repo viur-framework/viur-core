@@ -207,6 +207,9 @@ class relationalBone( baseBone ):
 		
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter ): #Fixme: Hm.... could be more...
 		myKeys = [ x for x in rawFilter.keys() if x.startswith( "%s." % name ) ]
+		if len( myKeys ) > 0 and not self.searchable:
+			logging.warning( "Invalid searchfilter! %s is not searchable!" % name )
+			raise RuntimeError()
 		if len( myKeys ) > 0: #We filter by some properties
 			#Create a new Filter based on our SubType and copy the parameters
 			origFilter = dbFilter.filters

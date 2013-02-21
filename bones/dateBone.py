@@ -189,10 +189,10 @@ class dateBone( baseBone ):
 		return( {name: res} )
 
 	def unserialize( self, name, expando ):
-		if not name in expando._properties.keys():
+		if not name in expando.keys():
 			self.value = None
 			return
-		self.value = getattr( expando, name )
+		self.value = expando[ name ]
 		if self.value and ( isinstance( self.value, float) or isinstance( self.value, int) ):
 			if self.date:
 				self.setLocalized( ExtendedDateTime.fromtimestamp( self.value ) )

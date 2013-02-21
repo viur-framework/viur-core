@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
 from server.config import conf
-from google.appengine.ext import ndb
+import logging
 
 class stringBone( baseBone ):
 	type = "str"
@@ -53,28 +53,31 @@ class stringBone( baseBone ):
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
 		if not name in rawFilter.keys() and not any( [x.startswith(name+"$") for x in rawFilter.keys()] ):
 			return( super( stringBone, self ).buildDBFilter( name, skel, dbFilter, rawFilter ) )
+		if not self.searchable:
+			logging.warning( "Invalid searchfilter! %s is not searchable!" % name )
+			raise RuntimeError()
 		hasInequalityFilter = False
 		if name+"$lk" in rawFilter.keys(): #Do a prefix-match
 			if not self.caseSensitive:
-				dbFilter = dbFilter.filter( ndb.GenericProperty( name+"_idx" ) >= unicode( rawFilter[name+"$lk"] ).lower() )
-				dbFilter = dbFilter.filter( ndb.GenericProperty( name+"_idx" ) < unicode( rawFilter[name+"$lk"]+u"\ufffd" ).lower() )
+				dbFilter[ name +"_idx >=" ] = unicode( rawFilter[name+"$lk"] ).lower()
+				dbFilter[ name +"_idx <" ] = unicode( rawFilter[name+"$lk"]+u"\ufffd" ).lower()
 			else:
-				dbFilter = dbFilter.filter( ndb.GenericProperty( name ) >= unicode( rawFilter[name+"$lk"] ) )
-				dbFilter = dbFilter.filter( ndb.GenericProperty( name ) < unicode( rawFilter[name+"$lk"]+u"\ufffd" ) )
+				dbFilter[ name + " >=" ] = unicode( rawFilter[name+"$lk"] )
+				dbFilter[ name + " < " ] = unicode( rawFilter[name+"$lk"]+u"\ufffd" )
 			hasInequalityFilter = True
 		if name+"$gt" in rawFilter.keys(): #All entries after
 			if not self.caseSensitive:
-				dbFilter = dbFilter.filter( ndb.GenericProperty( name+"_idx" ) > unicode( rawFilter[name+"$gt"] ).lower() )
+				dbFilter[ name +"_idx >" ] = unicode( rawFilter[name+"$gt"] ).lower()
 			else:
-				dbFilter = dbFilter.filter( ndb.GenericProperty( name ) > unicode( rawFilter[name+"$gt"] ) )
+				dbFilter[ name + " >"] =  unicode( rawFilter[name+"$gt"] )
 			hasInequalityFilter = True
 		if name+"$lt" in rawFilter.keys(): #All entries before
 			if not self.caseSensitive:
-				dbFilter = dbFilter.filter( ndb.GenericProperty( name+"_idx" ) < unicode( rawFilter[name+"$lt"] ).lower() )
+				dbFilter[ name +"_idx <" ] = unicode( rawFilter[name+"$lt"] ).lower()
 			else:
-				dbFilter = dbFilter.filter( ndb.GenericProperty( name ) < unicode( rawFilter[name+"$lt"] ) )
+				dbFilter[ name + " <" ] =  unicode( rawFilter[name+"$lt"] )
 			hasInequalityFilter = True
-		if hasInequalityFilter:
+		if 0 and hasInequalityFilter:
 			#Enforce a working sort-order
 			if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
 				if not self.caseSensitive:
@@ -88,21 +91,40 @@ class stringBone( baseBone ):
 					dbFilter = dbFilter.order( ndb.GenericProperty( name ) )
 		if name in rawFilter.keys(): #Normal, strict match
 			if not self.caseSensitive:
-				dbFilter = dbFilter.filter( ndb.GenericProperty( name+"_idx" ) == unicode( rawFilter[name] ).lower() )
+				dbFilter[ name+"_idx" ] = unicode( rawFilter[name] ).lower()
 			else:
-				dbFilter = dbFilter.filter( ndb.GenericProperty( name ) == unicode( rawFilter[name] ) )
+				dbFilter[ name ]= unicode( rawFilter[name] )
 		return( dbFilter )
 
 	def buildDBSort( self, name, skel, dbFilter, rawFilter ):
 		if "orderby" in list(rawFilter.keys()) and rawFilter["orderby"] == name:
+			if not self.searchable:
+				logging.warning( "Invalid ordering! %s is not searchable!" % name )
+				raise RuntimeError()
 			if self.caseSensitive:
-				prop = ndb.GenericProperty( name )
+				prop = name
 			else:
-				prop = ndb.GenericProperty( name+"_idx" )
+				prop = name+"_idx"
 			if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
-				dbFilter = dbFilter.order( -prop )
+				order = ( prop, dbFilter.DESCENDING )
 			else:
-				dbFilter = dbFilter.order( prop )
+				order = ( prop, dbFilter.ASCENDING )
+			logging.error("p1")
+			inEqFilter = [ x for x in dbFilter.keys() if (">" in x[ -3: ] or "<" in x[ -3: ] or "!=" in x[ -4: ] ) ]
+			if inEqFilter:
+				logging.error("p2")
+				inEqFilter = inEqFilter[ 0 ][ : inEqFilter[ 0 ].find(" ") ]
+				if inEqFilter != order[0]:
+					logging.error("p3")
+					logging.warning("I fixed you query! Impossible ordering changed to %s, %s" % (inEqFilter, order[0]) )
+					dbFilter.Order( inEqFilter, order )
+				else:
+					logging.error("p4")
+					dbFilter.Order( order )
+			else:
+				logging.error("p5")
+				logging.error( order )
+				dbFilter.Order( order )
 		return( dbFilter )
 
 		

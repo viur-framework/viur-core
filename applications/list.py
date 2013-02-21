@@ -71,12 +71,14 @@ class List( object ):
 			by calling the function listFilter, which updates the query-filter to contain only
 			elements which the user is allowed to view.
 		"""
-		mylist = Skellist( self.viewSkel )
-		queryObj = utils.buildDBFilter( self.viewSkel(), kwargs ) #Build the initial one
-		queryObj = self.listFilter( queryObj ) #Access control
-		if not queryObj:
-			raise( errors.Unauthorized() )
-		mylist.fromDB( queryObj )
+		query = self.viewSkel().all()
+		query.filter( kwargs )
+		mylist = query.fetch()
+		#queryObj = utils.buildDBFilter( self.viewSkel(), kwargs ) #Build the initial one
+		#queryObj = self.listFilter( queryObj ) #Access control
+		#if not queryObj:
+		#	raise( errors.Unauthorized() )
+		#mylist.fromDB( queryObj )
 		return( self.render.list( mylist ) )
 	list.exposed = True
 

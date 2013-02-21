@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-from google.appengine.ext import ndb
 from google.appengine.api import search
 from server.config import conf
+import logging
 
 class baseBone(object): # One Bone:
 	hasDBField = True
@@ -56,8 +56,8 @@ class baseBone(object): # One Bone:
 			return( {name: self.value } )
 
 	def unserialize( self, name, expando ):
-		if name in expando._properties.keys():
-			self.value = getattr( expando, name )
+		if name in expando.keys():
+			self.value = expando[ name ]
 		return( True )
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
@@ -73,6 +73,9 @@ class baseBone(object): # One Bone:
 		myKeys = [ key for key in rawFilter.keys() if key.startswith( name ) ] 
 		if len( myKeys ) == 0:
 			return( dbFilter )
+		if not self.searchable:
+			logging.warning( "Invalid searchfilter! %s is not searchable!" % name )
+			raise RuntimeError()
 		for key in myKeys:
 			value = rawFilter[ key ]
 			tmpdata = key.partition("$")
@@ -80,31 +83,44 @@ class baseBone(object): # One Bone:
 				if isinstance( value, list ):
 					continue
 				if tmpdata[2]=="lt":
-					dbFilter = dbFilter.filter( ndb.GenericProperty( tmpdata[0] ) < value )
+					dbFilter[ tmpdata[0] + " <" ] = value
 				elif tmpdata[2]=="gt":
-					dbFilter = dbFilter.filter( ndb.GenericProperty( tmpdata[0] ) > value )
+					dbFilter[ tmpdata[0] + " >" ] = value
 				elif tmpdata[2]=="lk":
-					dbFilter = dbFilter.filter( ndb.GenericProperty( tmpdata[0] ) == value )
+					dbFilter[ tmpdata[0] ] = value
 				else:
-					dbFilter = dbFilter.filter( ndb.GenericProperty( tmpdata[0] ) == value )
+					dbFilter[ tmpdata[0] ] = value
 				#Enforce a working sort-order
-				if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
-					dbFilter = dbFilter.order( -ndb.GenericProperty( tmpdata[0] ) )
-				else:
-					dbFilter = dbFilter.order( ndb.GenericProperty( tmpdata[0] ) )
+				#if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
+				#	dbFilter = dbFilter.order( -ndb.GenericProperty( tmpdata[0] ) )
+				#else:
+				#	dbFilter = dbFilter.order( ndb.GenericProperty( tmpdata[0] ) )
 			else:
 				if isinstance( value, list ):
 					dbFilter = dbFilter.filter( ndb.GenericProperty( key ) in value )
 				else:
-					dbFilter = dbFilter.filter( ndb.GenericProperty( key ) == value )
+					dbFilter[ key ] = value
 		return( dbFilter )
 
 	def buildDBSort( self, name, skel, dbFilter, rawFilter ):
 		if "orderby" in list(rawFilter.keys()) and rawFilter["orderby"] == name:
+			if not self.searchable:
+				logging.warning( "Invalid ordering! %s is not searchable!" % name )
+				raise RuntimeError()
 			if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
-				dbFilter = dbFilter.order( -ndb.GenericProperty( rawFilter["orderby"] ) )
+				order = ( rawFilter["orderby"], dbFilter.DESCENDING )
 			else:
-				dbFilter = dbFilter.order( ndb.GenericProperty( rawFilter["orderby"] ) )
+				order = ( rawFilter["orderby"], dbFilter.ASCENDING )
+			inEqFilter = [ x for x in dbFilter.keys() if (">" in x[ -3: ] or "<" in x[ -3: ] or "!=" in x[ -4: ] ) ]
+			if inEqFilter:
+				inEqFilter = inEqFilter[ 0 ][ : inEqFilter[ 0 ].find(" ") ]
+				if inEqFilter != order[0]:
+					logging.warning("I fixed you query! Impossible ordering changed to %s, %s" % (inEqFilter, order[0]) )
+					dbFilter.Order( inEqFilter, order )
+				else:
+					dbFilter.Order( order )
+			else:
+				dbFilter.Order( order )
 		return( dbFilter )
 
 

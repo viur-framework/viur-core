@@ -31,8 +31,8 @@ class selectMultiBone( baseBone ):
 			return( {name: self.value } )
 
 	def unserialize( self, name, expando ):
-		if name in expando._properties.keys():
-			self.value = getattr( expando, name )
+		if name in expando.keys():
+			self.value = expando[ name ]
 		if not self.value:
 			self.value = []
 		return( True )

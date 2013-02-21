@@ -130,6 +130,7 @@ class CustomUser( List ):
 		"""Create a new Admin user, if the userDB is empty
 		"""
 		super( CustomUser, self ).__init__(*args, **kwargs)
+		return
 		skel = self.loginSkel()
 		if not skel._expando.query().get():
 			pw = utils.generateRandomString( 13 )
