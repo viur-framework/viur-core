@@ -63,7 +63,7 @@ class Singleton( object ):
 		skel = self.viewSkel()
 		if not self.canView( ):
 			raise errors.Unauthorized()
-		id = self.getKey()
+		id = str( db.Key.from_path( self.editSkel().entityName, self.getKey() ) )
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
 		self.onItemViewed( skel )
