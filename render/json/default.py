@@ -2,6 +2,7 @@
 import json
 from server import bones
 from collections import OrderedDict
+from server import errors, request
 
 class DefaultRender( object ):
 	
@@ -88,6 +89,7 @@ class DefaultRender( object ):
 	def view( self, skel, listname="view", *args, **kwargs ):
 		res = {	"values": self.renderSkelValues( skel ), 
 				"structure": self.renderSkelStructure( skel ) }
+		request.current.get().response.headers['Content-Type'] = "application/json"
 		return( json.dumps( res ) )
 		
 	def add( self, skel, **kwargs ):
@@ -107,6 +109,7 @@ class DefaultRender( object ):
 		else:
 			res["structure"] = None
 		res["cursor"] = skellist.cursor
+		request.current.get().response.headers['Content-Type'] = "application/json"
 		return( json.dumps( res ) )
 
 	def editItemSuccess(self, *args, **kwargs ):
