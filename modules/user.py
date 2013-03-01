@@ -6,8 +6,7 @@ from server.bones import *
 from server import errors, conf
 #from cone.maintenance import maintenance
 from time import time
-from google.appengine.ext import ndb
-from server.utils import generateExpandoClass
+from server import db
 from hashlib import sha512
 from google.appengine.api import users
 import logging
@@ -57,12 +56,12 @@ class GoogleUser( List ):
 		mysha512 = sha512()
 		mysha512.update( str(uid)+conf["viur.salt"]  )
 		uidHash = mysha512.hexdigest()
-		user = ndb.Key( utils.generateExpandoClass(self.baseSkel.entityName),  "user-%s" % uidHash ).get()
+		user = db.Get( db.Key.from_path( self.baseSkel().entityName,  "user-%s" % uidHash ) )
 		if user:
 			res = {}
-			for k in user._properties.keys():
+			for k in user.keys():
 				res[ k ] = getattr( user, k )
-			res[ "id" ] = user.key.urlsafe()
+			res[ "id" ] = user.key()
 			if not res["access"]:
 				res["access"] = []
 			return( res )
@@ -76,24 +75,24 @@ class GoogleUser( List ):
 			mysha512 = sha512()
 			mysha512.update( str(uid)+conf["viur.salt"]  )
 			uidHash = mysha512.hexdigest()
-			user = generateExpandoClass( self.baseSkel().entityName ).get_or_insert( "user-%s" % uidHash, uid=uid, name=currentUser.email(), creationdate=datetime.datetime.now(), access=None  )
+			user = db.GetOrInsert( "user-%s" % uidHash, entityName=self.baseSkel().entityName, uid=uid, name=currentUser.email(), creationdate=datetime.datetime.now(), access=None  )
 			#Update the user
 			dt = datetime.datetime.now()
-			if (not "lastlogin" in user._properties.keys()) or (dt-user.lastlogin)>datetime.timedelta( minutes=30 ):
+			if (not "lastlogin" in user.keys()) or (dt-user.lastlogin)>datetime.timedelta( minutes=30 ):
 				#Save DB-Writes: Update the user max once in 30 Minutes
-				user.lastlogin = dt
+				user["lastlogin"] = dt
 				if users.is_current_user_admin():
 					try:
 						if not "root" in user.access:
-							user.access.append("root")
+							user["access"].append("root")
 					except:
-						user.access = ["root"]
-					user.gaeadmin = 1
+						user["access"] = ["root"]
+					user["gaeadmin"] = 1
 				else:
-					user.gaeadmin = 0
+					user["gaeadmin"] = 0
 				user.put()
 		if users.get_current_user():
-			ndb.transaction( updateCurrentUser )
+			db.RunInTransaction( updateCurrentUser )
 			return( self.render.loginSucceeded( ) )
 		else:
 			raise( errors.Redirect( users.create_login_url( self.modulPath+"/login") ) )
@@ -130,14 +129,12 @@ class CustomUser( List ):
 		"""Create a new Admin user, if the userDB is empty
 		"""
 		super( CustomUser, self ).__init__(*args, **kwargs)
-		return
-		skel = self.loginSkel()
-		if not skel._expando.query().get():
+		if not db.Query( self.loginSkel().entityName ).get():
 			pw = utils.generateRandomString( 13 )
 			user = self.addUser( "Admin", pw )
-			user.access = ["root"]
-			user.status = 10
-			user.put()
+			user["access"] = ["root"]
+			user["status"] = 10
+			db.Put( user )
 			logging.warn("Created a new adminuser for you! Username: Admin, Password: %s" % pw)
 			utils.sendEMailToAdmins( "Your new ViUR password", "ViUR created a new adminuser for you! Username: Admin, Password: %s" % pw )
 
@@ -145,7 +142,7 @@ class CustomUser( List ):
 		skel = self.loginSkel()
 		pwHash = sha512( password.encode("utf-8")+conf["viur.salt"] ).hexdigest()
 		uidHash = sha512( name.lower().encode("utf-8")+conf["viur.salt"] ).hexdigest()
-		return( skel._expando.get_or_insert( uidHash, name=name, name_idx=name.lower(), password=pwHash, creationdate=datetime.datetime.now() ) )
+		return( db.GetOrInsert( uidHash, entityName=skel.entityName, name=name, name_idx=name.lower(), password=pwHash, creationdate=datetime.datetime.now() ) )
 
 	def getAuthMethod( self, *args, **kwargs ):
 		"""Inform tools like Viur-Admin which authentication to use"""
@@ -164,7 +161,7 @@ class CustomUser( List ):
 		access = selectMultiBone( descr="Accessrights", values={"root": "Superuser"}, params={"searchable": True, "frontend_list_visible": True} )
 		status = selectOneBone( descr="Account status", values = {
 					1: "Waiting for EMail verification",
-					2: "Waiting for verification though admin",
+					2: "Waiting for verification through admin",
 					5: "Account disabled",
 					10: "Active" }, defaultValue="10")
 	
@@ -222,7 +219,7 @@ class CustomUser( List ):
 			return( True )
 		return( super( CustomUser, self ).canAdd() )
 
-	def add( self, *args, **kwargs ):
+	def add( self, *args, **kwargs ): #FIXME: NDB!!
 		"""
 			Override the add-function, as we must ensure that the usernames are unique
 		"""
@@ -237,7 +234,7 @@ class CustomUser( List ):
 			return( self.render.add( skel ) )
 		if not utils.validateSecurityKey( skey ):
 			raise errors.PreconditionFailed()
-		if skel._expando.query().filter( ndb.GenericProperty( "name_idx" ) == skel.name.value.lower() ).get(): #This username is already taken
+		if skel.all().filter( "name_idx =", skel.name.value.lower() ).get(): #This username is already taken
 			skel.errors["name"] = _("This name is already taken!")
 			return( self.render.add( skel ) )
 		newUser = self.addUser( skel.name.value, skel.password.value )
@@ -251,16 +248,16 @@ class CustomUser( List ):
 				isAdmin = True
 		if not isAdmin:
 			if self.registrationEmailVerificationRequired:
-				skel.status.value = 1
-				skey = utils.createSecurityKey( duration=60*60*24*7 , userid=newUser.key.urlsafe(), name=skel.name.value )
-				self.sendVerificationEmail( newUser.key.urlsafe(), skey )
+				newUser["status"] = 1
+				skey = utils.createSecurityKey( duration=60*60*24*7 , userid=str(newUser.key()), name=skel.name.value )
+				self.sendVerificationEmail( str(newUser.key()), skey )
 			elif self.registrationAdminVerificationRequired:
-				skel.status.value = 2
+				newUser["status"] = 2
 			else: #No further verification required
-				skel.status.value = 10
-		id = skel.toDB( newUser.key.urlsafe() )
-		self.onItemAdded( id, skel )
-		return self.render.addItemSuccess( id, skel )
+				newUser["status"] = 10
+		db.Put( newUser )
+		self.onItemAdded( str( newUser.key() ), skel )
+		return self.render.addItemSuccess( str( newUser.key() ), skel )
 	add.exposed = True
 	add.forceSSL = True
 
@@ -271,19 +268,19 @@ class CustomUser( List ):
 			return( self.render.login( self.loginSkel() ) )
 		mysha512 = sha512()
 		mysha512.update( password.encode("utf-8")+conf["viur.salt"] )
-		dbObj = utils.generateExpandoClass( self.viewSkel.entityName )
-		res  = dbObj.query().filter( ndb.GenericProperty("name_idx") == name.lower())\
-				.filter( ndb.GenericProperty("password") == mysha512.hexdigest())\
-				.filter( ndb.GenericProperty("status") >= 10).get()
+		query = db.Query( self.viewSkel().entityName )
+		res  = query.filter( "name_idx =", name.lower())\
+				.filter( "password =", mysha512.hexdigest())\
+				.filter( "status >=", 10).get()
 		if( not res ):
 			return( self.render.login( self.loginSkel(), loginFailed=(skey and name and password) )  )
 		else:
 			session.current['user'] = {}
 			for key in ["name", "status", "access"]:
 				try:
-					session.current['user'][ key ] = getattr( res, key )
+					session.current['user'][ key ] = res[ key ]
 				except: pass
-			session.current['user']["id"] = str( res.key.urlsafe() )
+			session.current['user']["id"] = str( res.key() )
 			if not "access" in session.current['user'].keys() or not session.current['user']["access"]:
 				session.current['user']["access"] = []
 			session.current.markChanged()
@@ -321,19 +318,19 @@ class CustomUser( List ):
 			skel = self.lostPasswordSkel()
 			if len(kwargs)==0 or not skel.fromClient( kwargs ):
 				return( self.render.passwdRecover( skel, tpl=self.lostPasswordTemplate ) )
-			user = self.viewSkel()._expando.query().filter( ndb.GenericProperty("name_idx")==skel.name.value.lower() ).get()
+			user = self.viewSkel().all().filter( "name_idx =", skel.name.value.lower() ).get()
 			if not user: #Unknown user
 				skel.errors["name"] = _("Unknown user")
 				return( self.render.passwdRecover( skel, tpl=self.lostPasswordTemplate ) )
 			try:
-				if user.changedate>datetime.datetime.now()-datetime.timedelta(days=1): #This user probably has already requested a password reset
+				if user["changedate"]>datetime.datetime.now()-datetime.timedelta(days=1): #This user probably has already requested a password reset
 					return( self.render.passwdRecoverInfo( "already_send", skel ) ) #within the last 24 hrs
 			except AttributeError: #Some newly generated user-objects dont have such a changedate yet
 				pass
-			user.changedate = datetime.datetime.now()
-			user.put()
-			key = utils.createSecurityKey( 60*60*24, userid=user.key.urlsafe(), password=skel.password.value )
-			self.sendPasswordRecoveryEmail( user.key.urlsafe(), key )
+			user["changedate"] = datetime.datetime.now()
+			db.Put( user )
+			key = utils.createSecurityKey( 60*60*24, userid=str( user.key() ), password=skel.password.value )
+			self.sendPasswordRecoveryEmail( str( user.key() ), key )
 			return( self.render.passwdRecoverInfo( "instructions_send", skel ) )
 	pwrecover.exposed = True
 	

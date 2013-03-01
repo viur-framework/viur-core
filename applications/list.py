@@ -54,11 +54,12 @@ class List( object ):
 			if not skel.fromDB( id ):
 				raise errors.NotFound()
 		else:
-			queryObj = utils.buildDBFilter( skel, {"id": id} )
+			queryObj = self.viewSkel().all().mergeExternalFilter( {"id":  id} )
 			queryObj = self.listFilter( queryObj ) #Access control
-			if not queryObj:
+			if queryObj is None:
 				raise errors.Unauthorized()
-			if not skel.fromDB( queryObj ):
+			skel = queryObj.get()
+			if not skel: #skel.fromDB( queryObj ):
 				raise errors.NotFound()
 		return( self.render.view( skel ) )
 	view.exposed = True
@@ -72,7 +73,7 @@ class List( object ):
 			elements which the user is allowed to view.
 		"""
 		query = self.viewSkel().all()
-		query.filter( kwargs )
+		query.mergeExternalFilter( kwargs )
 		mylist = query.fetch()
 		#queryObj = utils.buildDBFilter( self.viewSkel(), kwargs ) #Build the initial one
 		#queryObj = self.listFilter( queryObj ) #Access control

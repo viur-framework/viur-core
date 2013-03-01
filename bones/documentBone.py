@@ -41,13 +41,13 @@ class documentBone( textBone ):
 	
 	def unserialize( self, name, expando ):
 		self.value = None
-		if name in expando._properties.keys() \
-			and "%s-cache" % name in expando._properties.keys():
-				self.value =getattr( expando, name )
-				self.cache = getattr( expando, "%s-cache" % name )
-		elif name in expando._properties.keys():
-			self.value = getattr( expando, name )
-			self.value = getattr( expando, name )
+		if name in expando.keys() \
+			and "%s-cache" % name in expando.keys():
+				self.value = expando[ name ]
+				self.cache = expando[ "%s-cache" % name ]
+		elif name in expando.keys():
+			self.value = expando[ name ]
+			self.cache = expando[ name ] #FIXME: ???
 		return( True )
 
 	def fromClient( self, value ):

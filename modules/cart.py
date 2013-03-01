@@ -36,11 +36,10 @@ class Cart( List ):
 		prods = session.current.get("cart_products") or {}
 		mylist = Skellist( self.productSkel )
 		if prods:
-			queryObj = utils.buildDBFilter( self.productSkel(), {} ) #Build the initial one
-			queryObj = queryObj.filter(self.productSkel()._expando._key.IN( [ ndb.Key( urlsafe=x ) for x in list(prods.keys()) ] ) )
-			queryObj.limit = 10
-			queryObj.cursor = None
-			mylist.fromDB( queryObj )
+			queryObj = self.productSkel().all() #Build the initial one
+			queryObj = queryObj.mergeExternalFilter( {"id": list(prods.keys()) } )
+			queryObj.limit( 10 )
+			mylist = queryObj.fetch()
 		for skel in mylist:
 			skel.amt = numericBone( descr="Anzahl", defaultvalue=session.current["cart_products"][ str( skel.id.value ) ] )
 		return( self.render.list( mylist ) )

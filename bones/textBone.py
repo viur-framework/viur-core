@@ -2,7 +2,7 @@
 from server.bones import baseBone
 from time import time
 import HTMLParser, htmlentitydefs 
-from google.appengine.ext import ndb
+from server import db
 from server.utils import generateExpandoClass, markFileForDeletion
 from server.config import conf
  
@@ -130,9 +130,8 @@ class textBone( baseBone ):
 
 
 	def postSavedHandler( self, key, skel, id, dbfields ):
-		fileClass = generateExpandoClass("file")
 		lockInfo = "textBone/%s" % ( key )
-		oldFiles = fileClass.query(ancestor = ndb.Key( urlsafe=str(id) )).filter( ndb.GenericProperty("lockinfo") == lockInfo ).fetch(1000)
+		oldFiles = db.Query( "file" ).ancestor( db.Key( str(id) )).filter( "lockinfo =",  lockInfo ).run(100)
 		newFileKeys = []
 		if not self.value:
 			return
@@ -146,21 +145,20 @@ class textBone( baseBone ):
 			idx = self.value.find("/file/view/", seperatorIdx)
 		oldFileKeys = [ x.dlkey for x in oldFiles ]
 		for newFileKey in [ x for x in newFileKeys if not x in oldFileKeys]:
-			f = fileClass( parent=ndb.Key( urlsafe=str(id) ) )
-			f.lockinfo = lockInfo
-			f.dlkey = newFileKey
-			f.weak=False
-			f.put()
-		for oldFile in [ x for x in oldFiles if not x.dlkey in newFileKeys ]:
-			markFileForDeletion( oldFile.dlkey )
-			oldFile.key.delete()
+			f = db.Entity( "file", parent=db.Key( str(id) ) )
+			f["lockinfo"] = lockInfo
+			f["dlkey"] = newFileKey
+			f["weak"]=False
+			db.Put( f )
+		for oldFile in [ x for x in oldFiles if not x["dlkey"] in newFileKeys ]:
+			markFileForDeletion( oldFile["dlkey"] )
+			db.Delete( oldFile.key() )
 
 	def postDeletedHandler( self, skel, key, id ):
-		expClass = generateExpandoClass("file")
-		files = expClass.query( ancestor = ndb.Key( urlsafe=id ) ).iter()
+		files = db.Query( "file").ancestor( db.Key( id ) ).run()
 		for f in files:
-			markFileForDeletion( f.dlkey )
-			f.key.delete()
+			markFileForDeletion( f["dlkey"] )
+			db.Delete( f.key() )
 
 	def getTags(self):
 		res = []

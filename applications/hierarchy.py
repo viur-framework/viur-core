@@ -3,16 +3,16 @@ from server.bones import baseBone, numericBone
 from server.skeleton import Skeleton
 from server.skellist import Skellist
 from server import utils, errors, session, conf, request
-from google.appengine.ext import ndb
+from server import db
 from time import time
 from google.appengine.api import users
 from datetime import datetime
 import logging
 
 class HierarchySkel( Skeleton ):
-	parententry = baseBone( descr="Parent", visible=False, readOnly=True )
-	parentrepo = baseBone( descr="BaseRepo", visible=False, readonly=True )
-	sortindex = numericBone( descr="SortIndex", mode="float", visible=False, readOnly=True )
+	parententry = baseBone( descr="Parent", visible=False, searchable=True, readOnly=True )
+	parentrepo = baseBone( descr="BaseRepo", visible=False, searchable=True, readonly=True )
+	sortindex = numericBone( descr="SortIndex", mode="float", visible=False, searchable=True, readOnly=True )
 	
 	def preProcessSerializedData( self, dbfields ):
 		if not ("sortindex" in dbfields.keys() and dbfields["sortindex"] ):
@@ -80,32 +80,34 @@ class Hierarchy( object ):
 		if not self.canList( key ):
 			raise errors.Unauthorized()
 		res = []
-		entryClass = utils.generateExpandoClass( self.viewSkel.entityName )
 		lastChildren = []
 		for x in range(0,99):
-			entryObjs = entryClass.query().filter( ndb.GenericProperty("parententry") == str(key) ).order( ndb.GenericProperty("sortindex") ).fetch( 1000 )
+			q = db.Query( self.viewSkel().entityName )
+			q.filter( "parententry =", str(key) )
+			q.order( "sortindex" )
+			entryObjs = q.run( 100 )
 			lastChildren = res[ : ]
 			res = []
 			for obj in entryObjs:
-				if "parententry" in obj._properties.keys():
-					parent = str( obj.parententry ) 
+				if "parententry" in obj.keys():
+					parent = str( obj["parententry"] ) 
 				else:
 					parent = None
-				r = {"name": obj.name,
-					"id": str(obj.key.urlsafe()), 
+				r = {"name": obj["name"],
+					"id": str(obj.key()), 
 					"parent": parent,
-					"hrk": obj.hrk if "hrk" in obj._properties.keys() else None,
-					"active":(str(obj.key.urlsafe()) in keylist )}
+					"hrk": obj["hrk"] if "hrk" in obj.keys() else None,
+					"active":(str(obj.key()) in keylist )}
 				if r["active"]:
 					r["children"] = lastChildren
 				res.append( r )
 			if key in [ x["key"] for x in availableRepos]:
 				break
 			else:
-				item = ndb.Key( urlsafe=str( key ) ).get()
-				if item and "parententry" in item._properties.keys():
+				item = db.Get( str( key ) ).get()
+				if item and "parententry" in item.keys():
 					keylist.append( key )
-					key = item.parententry
+					key = item["parententry"]
 				else:
 					break
 		return( res )
@@ -119,10 +121,10 @@ class Hierarchy( object ):
 			@type entryKey: string
 			@returns: Entity
 		"""
-		repo = ndb.Key( urlsafe=entryKey ).get()
-		while repo and  "parententry" in repo._properties.keys():
-			repo = ndb.Key( urlsafe=repo.parententry ).get()
-		assert repo and repo.key.kind() == self.viewSkel.entityName+"_rootNode"
+		repo = db.Get( entryKey )
+		while repo and  "parententry" in repo.keys():
+			repo = db.Get( repo["parententry"] )
+		assert repo and repo.key().kind() == self.viewSkel().entityName+"_rootNode"
 		return( repo )
 
 	def isValidParent(self, parent ):
@@ -133,9 +135,8 @@ class Hierarchy( object ):
 		@type parent: String
 		@returns: bool
 		"""
-		repoClass = utils.generateExpandoClass( self.viewSkel.entityName+"_rootNode" )
 		try:
-			if ndb.Key( urlsafe=parent ).get():
+			if db.Get( parent ).get():
 				return( True )
 		except: #Might not be a rootNode -> wrong type
 			pass
@@ -166,7 +167,8 @@ class Hierarchy( object ):
 		thisuser = conf["viur.mainApp"].user.getCurrentUser()
 		if thisuser:
 			key = "rep_user_%s" % str( thisuser["id"] )
-			return( utils.generateExpandoClass( self.viewSkel.entityName+"_rootNode" ).get_or_insert( key, creationdate=datetime.now(), rootNode=1, user=str( thisuser["id"] ) ) )
+			entityName = self.viewSkel().entityName+"_rootNode"
+			return( db.GetOrInsert( key, entityName=entityName, creationdate=datetime.now(), rootNode=1, user=str( thisuser["id"] ) ) )
 
 
 	def ensureOwnModulRootNode( self ):
@@ -176,7 +178,8 @@ class Hierarchy( object ):
 			@returns: The Node-object (as ndb.Expando)
 		"""
 		key = "rep_modul_repo"
-		return( utils.generateExpandoClass( self.viewSkel.entityName+"_rootNode" ).get_or_insert( key, creationdate=datetime.now(), rootNode=1 ) )
+		entityName = self.viewSkel().entityName+"_rootNode"
+		return( db.GetOrInsert( key, entityName=entityName, creationdate=datetime.now(), rootNode=1 ) )
 
 
 	def isOwnUserRootNode( self, repo ):
@@ -216,10 +219,10 @@ class Hierarchy( object ):
 			raise errors.Unauthorized()
 		if not self.isValidParent( dest ):
 			raise errors.NotAcceptable()
-		fromItem = ndb.Key( urlsafe=item ).get()
-		fromItem.parententry = dest 
-		fromItem.parentrepo = str( self.getRootNode( dest ).key.urlsafe() )
-		fromItem.put()
+		fromItem = db.Get( item )
+		fromItem["parententry"] = dest 
+		fromItem["parentrepo"] = str( self.getRootNode( dest ).key() )
+		db.Put( fromItem )
 		return( self.render.reparentSuccess( obj=fromItem ) )
 	reparent.exposed = True
 	reparent.forceSSL = True
@@ -235,9 +238,9 @@ class Hierarchy( object ):
 		"""
 		if not self.canSetIndex( item, index ):
 			raise errors.Unauthorized()
-		fromItem = ndb.Key( urlsafe=item ).get()
-		fromItem.sortindex = float( index )
-		fromItem.put()
+		fromItem = db.Get( item )
+		fromItem["sortindex"] = float( index )
+		db.Put( fromItem )
 		return( self.render.setIndexSuccess( obj=fromItem ) )
 	setIndex.exposed = True
 	setIndex.forceSSL = True
@@ -259,11 +262,10 @@ class Hierarchy( object ):
 			Recursivly processes an delete request
 		"""
 		vs = self.viewSkel()
-		entryClass = utils.generateExpandoClass( self.viewSkel.entityName )
-		entrys = entryClass.query().filter( ndb.GenericProperty("parententry") == str(id) ).iter()
+		entrys = db.Query( self.viewSkel().entityName ).filter( "parententry", str(id) ).run()
 		for e in entrys:
-			self.deleteRecursive( str( e.key.urlsafe() ) )
-			vs.delete( str( e.key.urlsafe() ) )
+			self.deleteRecursive( str( e.key() ) )
+			vs.delete( str( e.key() ) )
 		vs.delete( id )
 
 	def view( self, *args, **kwargs ):
@@ -294,11 +296,11 @@ class Hierarchy( object ):
 		"""
 		if not parent or not self.canList( parent ):
 			raise errors.Unauthorized()
-		mylist = Skellist( self.viewSkel )
-		kwargs.update( **{ "parententry": parent } )
-		queryObj = utils.buildDBFilter( self.viewSkel(), kwargs ) #Build the initial one
-		mylist.fromDB( queryObj )
-		return( self.render.list( mylist, parent=parent ) )
+		query = self.viewSkel().all()
+		for k, v in kwargs.items():
+			query.filter( k, v )
+		query.filter( "parententry", parent )
+		return( self.render.list( query.fetch(), parent=parent ) )
 	list.exposed = True
 
 	def edit( self, *args, **kwargs ):
@@ -352,7 +354,7 @@ class Hierarchy( object ):
 		if not utils.validateSecurityKey( skey ):
 			raise errors.PreconditionFailed()
 		skel.parententry.value = str( parent )
-		skel.parentrepo.value = str( self.getRootNode( parent ).key.urlsafe() )
+		skel.parentrepo.value = str( self.getRootNode( parent ).key() )
 		id = skel.toDB( )
 		self.onItemAdded( id, skel )
 		return self.render.addItemSuccess( id, skel )

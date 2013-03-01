@@ -295,17 +295,15 @@ class Render( object ):
 		caller = getattr( conf["viur.mainApp"], modul)
 		if not skel in dir( caller ):
 				return( False )
-		else:
-			mylist = Skellist( getattr(caller, skel ) )
-		queryObj = utils.buildDBFilter( getattr(caller, skel )(), kwargs )
+		query = getattr(caller, skel )().all()
+		for k, v in kwargs.items():
+			query.filter( k, v )
 		if "listFilter" in dir( caller ):
-			queryObj = caller.listFilter( queryObj )
-		if not queryObj:
-			return( False )
-		mylist.fromDB( queryObj )
+			query = caller.listFilter( query )
+		mylist = query.fetch()
 		for x in range(0, len( mylist ) ):
 			mylist.append( self.collectSkelData( mylist.pop(0) ) )
-		return( mylist )	
+		return( mylist )
 	
 	def quotePlus(self, val ):
 		if isinstance( val, unicode ):

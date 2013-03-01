@@ -741,8 +741,8 @@ class selectCountryBone( selectOneBone ):
 		self.codes = codes
 		
 	def unserialize( self, name, expando ):
-		if name in expando._properties.keys():
-			value = getattr( expando, name )
+		if name in expando.keys():
+			value = expando[ name ]
 			if isinstance(value, basestring) and len(value)==3 and self.codes==self.ISO2: #We got an ISO3 code from the db, but are using ISO2
 				try:
 					self.value = ISO2TOISO3[ value ]

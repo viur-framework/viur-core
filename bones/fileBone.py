@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones import treeItemBone
 from server.utils import generateExpandoClass
-from google.appengine.ext import ndb
+from server import db
 from server.utils import generateExpandoClass, markFileForDeletion
 from google.appengine.api.images import get_serving_url
 
@@ -14,8 +14,6 @@ class fileBone( treeItemBone ):
 
 
 	def postSavedHandler( self, key, skel, id, dbfields ):
-		generateExpandoClass( self.type ) #Fixme: NDB...
-		expClass = generateExpandoClass( skel.entityName+"_"+self.type+"_"+key )
 		if not self.value:
 			values = []
 		elif isinstance( self.value, dict ):
@@ -26,53 +24,54 @@ class fileBone( treeItemBone ):
 		for parentKey in self.parentKeys:
 			if parentKey in dir( skel ):
 				parentValues[ parentKey ] = unicode( getattr( skel, parentKey ).value )
-		dbVals = expClass.query( ancestor = ndb.Key( urlsafe=id ) )
+		dbVals = db.Query( skel.entityName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) ).run()
 		for dbObj in dbVals:
-			if not getattr( dbObj, key+"_id" ) in [ x[key+"_id"] for x in values ]: #Relation has been removed
-				lockObjs = generateExpandoClass( "file" ).query(ancestor = dbObj.key ).fetch( 1000 )
+			if not dbObj[ key+"_id" ] in [ x[key+"_id"] for x in values ]: #Relation has been removed
+				lockObjs = db.Query( "file", ancestor = dbObj.key() ).run( 100 )
 				for lockObj in lockObjs:
-					markFileForDeletion( lockObj.dlkey )
-					lockObj.key.delete()
-				dbObj.key.delete()
+					markFileForDeletion( lockObj["dlkey"] )
+					db.Delete( lockObj.key() )
+				db.Delete( dbObj.key() )
 			else: # Relation: Updated
-				data = [ x for x in values if x[key+"_id"]==getattr( dbObj, key+"_id" ) ][0]
+				data = [ x for x in values if x[key+"_id"]==dbObj[ key+"_id" ] ][0]
 				for k,v in data.items():
-					setattr( dbObj, k, v )
+					dbObj[ k ] = v
 				for k,v in parentValues.items():
-					setattr( dbObj, k, v )
-				dbObj.put()
+					dbObj[ k ] = v
+				db.Put( dbObj )
 				values.remove( data )
 		# Add any new Relation
 		for val in values:
 			fileID = val[ key+"_id" ]
-			origFileObj = ndb.Key( urlsafe=fileID ).get()
-			if not origFileObj:
-				continue
-			if not "servingurl" in origFileObj._properties.keys() \
-			and "meta_mime" in origFileObj._properties.keys() \
-			and str(origFileObj.meta_mime).startswith("image/"):
-				origFileObj.servingurl = get_serving_url( origFileObj.dlkey )
-				origFileObj.put()
-			dbObj = expClass( parent=ndb.Key( urlsafe=id ) )
+			try:
+				origFileObj = db.Get( db.Key( fileID ) )
+				assert origFileObj
+			except:
+				pass
+			if not "servingurl" in origFileObj.keys() \
+			and "meta_mime" in origFileObj.keys() \
+			and str(origFileObj["meta_mime"]).startswith("image/"):
+				origFileObj["servingurl"] = get_serving_url( origFileObj["dlkey"] )
+				db.Put( origFileObj )
+			dbObj = db.Entity(skel.entityName+"_"+self.type+"_"+key, parent=db.Key( id ) )
 			for k, v in val.items():
-				setattr( dbObj, k, v )
+				dbObj[ k ] = v
 			for k,v in parentValues.items():
-				setattr( dbObj, k, v )
-			dbObj.put()
+				dbObj[ k ] = v
+			db.Put( dbObj )
 			#Duplicate the File Obj
-			lockObj = generateExpandoClass( "file" )( parent=dbObj.key )
-			for tmpKey in origFileObj._properties.keys():
-				setattr( lockObj, tmpKey, getattr( origFileObj, tmpKey ) )
-			lockObj.weak = False
-			lockObj.parentdir = None
-			lockObj.put()
+			lockObj = db.Entity( "file", parent=dbObj.key() )
+			for tmpKey in origFileObj.keys():
+				lockObj[ tmpKey ] = origFileObj[ tmpKey ]
+			lockObj["weak"] = False
+			lockObj["parentdir"] = None
+			db.Put( lockObj )
 
 	def postDeletedHandler( self, skel, key, id ):
-		expClass = generateExpandoClass( skel.entityName+"_"+self.type+"_"+key )
-		parentObjs = expClass.query( ancestor=ndb.Key( urlsafe=id )).iter()
+		parentObjs = db.Query( skel.entityName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) ).run()
 		for parentObj in parentObjs:
-			files = generateExpandoClass( "file" ).query( ancestor=parentObj.key ).iter()
+			files = db.Query( "file", ancestor=parentObj.key() ).run()
 			for f in files:
-				markFileForDeletion( f.dlkey )
-				f.key.delete()
-			parentObj.key.delete()
+				markFileForDeletion( f["dlkey"] )
+				db.Delete( f.key() )
+			db.Delete( parentObj.key() )

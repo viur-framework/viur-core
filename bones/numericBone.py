@@ -50,16 +50,16 @@ class numericBone( baseBone ):
 			return( {name:  self.value  } )
 		
 	def unserialize( self, name, expando ):
-		if not name in expando._properties.keys():
+		if not name in expando.keys():
 			self.value = None
 			return
-		if getattr( expando, name )==None or not str(getattr( expando, name )).replace(".", "", 1).lstrip("-").isdigit():
+		if expando[ name ]==None or not str(expando[ name ]).replace(".", "", 1).lstrip("-").isdigit():
 			self.value = None
 		else:
 			if not self.precision:
-				self.value = int( getattr( expando, name ) )
+				self.value = int( expando[ name ] )
 			else:
-				self.value = float( getattr( expando, name ) )
+				self.value = float( expando[ name ] )
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
 		if not self.precision:

@@ -4,15 +4,15 @@ from server.skeleton import Skeleton
 from server.skellist import Skellist
 from server import utils
 from server import errors, session, conf
-from google.appengine.ext import ndb
+from server import db
 from time import time
 from google.appengine.api import users
 from datetime import datetime
 import logging
 
 class TreeSkel( Skeleton ):
-	parentdir = baseBone( descr="Parent", visible=False, readonly=True )
-	parentrepo = baseBone( descr="BaseRepo", visible=False, readonly=True )
+	parentdir = baseBone( descr="Parent", visible=False, searchable=True, readonly=True )
+	parentrepo = baseBone( descr="BaseRepo", visible=False, searchable=True, readonly=True )
 
 
 class Tree( object ):
@@ -102,14 +102,13 @@ class Tree( object ):
 			@type path: String
 			@returns: The Node-object (as ndb.Expando) or None, if the path was invalid
 		"""
-		dbObj = utils.generateExpandoClass( self.viewSkel.entityName+"_rootNode" )
-		repo = ndb.Key( urlsafe=rootNode ).get()
+		repo = db.Get( rootNode )
 		for comp in path.split("/"):
 			if not repo:
 				return( None )
 			if not comp:
 				continue
-			repo = dbObj.query().filter( ndb.GenericProperty("parentdir") == str( repo.key.urlsafe() ) ).filter( ndb.GenericProperty("name") == comp).get()
+			repo = db.Query( self.viewSkel.entityName+"_rootNode" ).filter( "parentdir =", str( repo.key() ) ).filter( "name =", comp).get()
 		if not repo:
 			return( None )
 		else:
@@ -123,7 +122,7 @@ class Tree( object ):
 		thisuser = conf["viur.mainApp"].user.getCurrentUser()
 		if thisuser:
 			key = "rep_user_%s" % str( thisuser["id"] )
-			return( utils.generateExpandoClass( self.viewSkel.entityName+"_rootNode" ).get_or_insert( key, creationdate=datetime.now(), rootNode=1, user=str( thisuser["id"] ) ) )
+			return( db.GetOrInsert( key, self.viewSkel.entityName+"_rootNode", creationdate=datetime.now(), rootNode=1, user=str( thisuser["id"] ) ) )
 
 	def ensureOwnModulRootNode( self ):
 		"""
@@ -131,7 +130,7 @@ class Tree( object ):
 			@returns: The Node-object (as ndb.Expando)
 		"""
 		key = "rep_modul_repo"
-		return( utils.generateExpandoClass( self.viewSkel.entityName+"_rootNode" ).get_or_insert( key, creationdate=datetime.now(), rootNode=1 ) )
+		return( db.GetOrInsert( key, self.viewSkel.entityName+"_rootNode", creationdate=datetime.now(), rootNode=1 ) )
 
 	def getRootNode(self, subRepo):
 		"""
@@ -140,13 +139,12 @@ class Tree( object ):
 			@type subRepo: String
 			@returns: db.Expando
 		"""
-		dbObj = utils.generateExpandoClass( self.viewSkel.entityName+"_rootNode" )
-		repo = ndb.Key( urlsafe = subRepo ).get()
-		seenList = [str(repo.key.urlsafe())] #Prevent infinite Loops if something goes realy wrong
-		while "parentdir" in repo._properties.keys():
-			repo = ndb.Key( urlsafe=repo.parentdir ).get()
-			assert not str(repo.key.urlsafe()) in seenList
-			seenList.append( str(repo.key.urlsafe()) )
+		repo = db.Get( subRepo )
+		seenList = [str( repo.key()) ] #Prevent infinite Loops if something goes realy wrong
+		while "parentdir" in repo.keys():
+			repo = db.Get( repo["parentdir"] )
+			assert repo and not str( repo.key() ) in seenList
+			seenList.append( str( repo.key() ) )
 		return( repo )
 
 	def isOwnUserRootNode( self, repo ):
@@ -161,7 +159,7 @@ class Tree( object ):
 			return(False)
 		repo = self.getRootNode(  repo )
 		user_repo = self.ensureOwnUserRootNode()
-		if str( repo.key.urlsafe() ) == user_repo.key.urlsafe():
+		if str( repo.key() ) == str(user_repo.key()):
 			return( True )
 		return( False )
 
@@ -187,8 +185,10 @@ class Tree( object ):
 			raise errors.Unauthorized()
 		if not repo or "/" in dirname:
 			raise errors.PreconditionFailed()
-		dbObj = utils.generateExpandoClass( self.viewSkel.entityName+"_rootNode" )
-		dbObj( name=dirname, parentdir=str(repo.key.urlsafe()) ).put()
+		dbObj = db.Entity( self.viewSkel.entityName+"_rootNode" )
+		dbObj[ "name" ] = dirname
+		dbObj[ "parentdir" ] = str(repo.key() )
+		db.Put( dbObj )
 		return( self.render.addDirSuccess( rootNode,  path, dirname ) )
 	mkDir.exposed = True
 	mkDir.forceSSL = True
@@ -210,19 +210,19 @@ class Tree( object ):
 			raise errors.Unauthorized()
 		if not repo:
 			raise errors.PreconditionFailed()
-		fileRepoObj = utils.generateExpandoClass(self.viewSkel.entityName+"_rootNode").query()\
-					.filter( ndb.GenericProperty("parentdir") == str(repo.key.urlsafe()))\
-					.filter( ndb.GenericProperty("name") == src).get()
+		fileRepoObj = db.Query( self.viewSkel().entityName+"_rootNode" )\
+					.filter( "parentdir =", str(repo.key()))\
+					.filter( "name", src).get()
 		if fileRepoObj: #Check if we rename a Directory
-			fileRepoObj.name = dest
-			fileRepoObj.put()
+			fileRepoObj["name"] = dest
+			db.Put( fileRepoObj )
 		else: #we rename a File
-			fileObj = utils.generateExpandoClass(self.viewSkel.entityName).query()\
-					.filter( ndb.GenericProperty("parentdir") == str(repo.key.urlsafe()))\
-					.filter( ndb.GenericProperty("name") == src).get()
+			fileObj = db.Query( self.viewSkel().entityName )\
+					.filter( "parentdir =", str(repo.key()))\
+					.filter( "name", src).get()
 			if fileObj:
-				fileObj.name = dest
-				fileObj.put()
+				fileObj["name"] = dest
+				db.Put( fileObj )
 		return self.render.renameSuccess( rootNode, path, src, dest )
 	rename.exposed = True
 	rename.forceSSL = True
@@ -252,25 +252,26 @@ class Tree( object ):
 		if not all( [srcRepo, destRepo] ):
 			raise errors.PreconditionFailed()
 		if type=="entry":
-			fileRepoClass = utils.generateExpandoClass( self.viewSkel.entityName )
-			srcFileObj = fileRepoClass.query().filter( ndb.GenericProperty("parentdir") == str(srcRepo.key.urlsafe())).filter( ndb.GenericProperty("name") == name).get()
+			srcFileObj = db.Query( self.viewSkel().entityName ).filter( "parentdir =", str(srcRepo.key())).filter( "name =", name).get()
 			if srcFileObj:
-				destFileObj = fileRepoClass( parent=destRepo.key )
-				for key in srcFileObj._properties.keys():
-					setattr( destFileObj, key, getattr( srcFileObj, key ) )
-				destFileObj.parentdir = str( destRepo.key.urlsafe() )
-				destFileObj.put()
+				destFileObj = db.Entity( self.viewSkel().entityName )
+				for key in srcFileObj.keys():
+					destFileObj[ key ] =  srcFileObj[ key ]
+				destFileObj["parentdir"] = str( destRepo.key() )
+				db.Put( destFileObj )
 				if( deleteold=="1" ): # *COPY* an *DIRECTORY*
-					srcFileObj.key.delete()
+					db.Delete( srcFileObj.key() )
 		else:
-			newRepo = utils.generateExpandoClass(self.viewSkel.entityName+"_rootNode")( parentdir=str(destRepo.key.urlsafe()), name=name )
-			newRepo.put()
-			fromRepo = utils.generateExpandoClass(self.viewSkel.entityName+"_rootNode").query().filter( ndb.GenericProperty("parentdir") == str(srcRepo.key.urlsafe())).filter( ndb.GenericProperty("name") == name).get()
+			newRepo = db.Entity( self.viewSkel.entityName+"_rootNode" )
+			newRepo[ "parentdir" ] = str(destRepo.key() )
+			newRepo[ "name" ] = name
+			db.Put( newRepo )
+			fromRepo = db.Query( self.viewSkel().entityName+"_rootNode").filter( "parentdir =", str(srcRepo.key())).filter( "name",  name).get()
 			assert fromRepo
 			self.cloneDirecotyRecursive( fromRepo, newRepo )
 			if deleteold=="1":
-				self.deleteDirsRecursive( fromRepo.key.urlsafe() )
-				fromRepo.key.delete()
+				self.deleteDirsRecursive( fromRepo.key() )
+				db.Delete( fromRepo.key() )
 		return( self.render.copySuccess( srcrepo, srcpath, name, destrepo, destpath, type, deleteold ) )
 	copy.exposed = True
 	copy.forceSSL = True
@@ -279,24 +280,24 @@ class Tree( object ):
 		"""
 			Recursivly processes an copy/move request
 		"""
-		fileRepoClass = utils.generateExpandoClass(self.viewSkel.entityName)
-		dirRepoClass = utils.generateExpandoClass(self.viewSkel.entityName+"_rootNode")
-		subDirs = dirRepoClass.query().filter( ndb.GenericProperty("parentdir") ==  str(srcRepo.key.urlsafe())).fetch(1000)
-		subFiles = fileRepoClass.query().filter( ndb.GenericProperty("parentdir") == str(srcRepo.key.urlsafe())).fetch(1000)
-		destRootRepo = self.getRootNode( str(destRepo.key.urlsafe() ) )
-
+		entityTypeFile = self.viewSkel().entityName
+		entityTypeDir = entityTypeFile+"_rootNode"
+		subDirs = db.Query( entityTypeDir ).filter( "parentdir =", str(srcRepo.key())).run(100)
+		subFiles = db.Query( entityTypeFile ).filter( "parentdir", str(srcRepo.key())).run(100)
+		destRootRepo = self.getRootNode( str(destRepo.key() ) )
 		for subDir in subDirs:
-			newSubdir = dirRepoClass( parentdir=str(destRepo.key.urlsafe()), name=subDir.name )
-			newSubdir.put()
+			newSubdir = db.Entity( entityTypeDir )
+			newSubdir[ "parentdir" ] = str(destRepo.key())
+			newSubdir[ "name" ] = subDir["name"]
+			db.Put( newSubdir )
 			self.cloneDirecotyRecursive( subDir, newSubdir )
-
 		for subFile in subFiles:
-			newFile = fileRepoClass( parent=destRepo.key.urlsafe() )
-			for key in subFile._properties.keys():
-				setattr( newFile, key, getattr( subFile, key ) )
-			newFile.parentdir = str( destRepo.key.urlsafe() )
-			newFile.parentrepo = str( destRootRepo.key.urlsafe() )
-			newFile.put()
+			newFile = db.Entity( entityTypeFile )
+			for k, v in subFile.items():
+				newFile[ k ] = v
+			newFile[ "parentdir" ] = str( destRepo.key() )
+			newFile[ "parentrepo" ] = str( destRootRepo.key() )
+			db.Put( newFile )
 
 	def delete( self, rootNode, path, name, type ):
 		"""
@@ -316,15 +317,15 @@ class Tree( object ):
 		if not repo:
 			raise errors.PreconditionFailed()
 		if type=="entry":
-			fileEntry = utils.generateExpandoClass( self.viewSkel.entityName ).query().filter( ndb.GenericProperty("parentdir")  == str(repo.key.urlsafe()) ).filter( ndb.GenericProperty("name") == name).get() 
+			fileEntry = db.Query( self.viewSkel().entityName ).filter( "parentdir =", str(repo.key() ) ).filter( "name =", name).get() 
 			if fileEntry:
 				skel = self.viewSkel()
-				skel.delete( str( fileEntry.key.urlsafe() ) )
+				skel.delete( str( fileEntry.key() ) )
 		else:
-			delRepo = utils.generateExpandoClass( self.viewSkel.entityName+"_rootNode" ).query().filter( ndb.GenericProperty("parentdir") == str(repo.key.urlsafe()) ).filter( ndb.GenericProperty("name") == name).get() 
+			delRepo = db.Query( self.viewSkel.entityName+"_rootNode" ).filter( "parentdir =", str(repo.key() ) ).filter( "name =", name).get() 
 			if delRepo:
 				self.deleteDirsRecursive( delRepo )
-				delRepo.key.delete()
+				db.Delete( delRepo.key() )
 		self.onItemDeleted( rootNode, path, name, type )
 		return( self.render.deleteSuccess( rootNode, path, name, type ) )
 	delete.exposed = True
@@ -334,16 +335,14 @@ class Tree( object ):
 		"""
 			Recursivly processes an delete request
 		"""
-		fileClass = utils.generateExpandoClass( self.viewSkel.entityName )
-		dirClass = utils.generateExpandoClass( self.viewSkel.entityName+"_rootNode" )
-		files = fileClass.query().filter( ndb.GenericProperty("parentdir") == str(repo.key.urlsafe()) ).iter()
+		files = db.Query( self.viewSkel().entityName ).filter( "parentdir", str(repo.key()) ).run()
 		skel = self.viewSkel()
 		for f in files:
-			skel.delete( str( f.key.urlsafe() ) )
-		dirs = dirClass.query().filter( ndb.GenericProperty("parentdir") == str(repo.key.urlsafe()) ).iter()
+			skel.delete( str( f.key() ) )
+		dirs = db.Query( self.viewSkel().entityName+"_rootNode" ).filter( "parentdir", str(repo.key()) ).run()
 		for d in dirs:
 			self.deleteDirsRecursive( d )
-		ndb.delete_multi( [x.key for x in dirs ] )
+		db.Delete( [x.key() for x in dirs ] )
 
 	def view( self, *args, **kwargs ):
 		"""
@@ -377,21 +376,17 @@ class Tree( object ):
 		if not repo or not self.canList( repo, rootNode, path ):
 			raise errors.Unauthorized()
 		subdirs = []
-		dbObj = utils.generateExpandoClass( self.viewSkel().entityName+"_rootNode" )
-		for entry in dbObj.query().filter( ndb.GenericProperty("parentdir") == str(repo.key.urlsafe())).fetch( 100 ):
-			subdirs.append( entry.name )
-		dbObj = utils.generateExpandoClass( self.viewSkel().entityName )
-		entrys = Skellist( self.viewSkel )
+		for entry in db.Query( self.viewSkel().entityName+"_rootNode" ).filter( "parentdir =", str(repo.key()) ).run( 100 ):
+			subdirs.append( entry[ "name" ] )
 		if not path and kwargs: #Were searching for a particular entry
 			subdirs = [] #Dont list any directorys here
 			newArgs = kwargs.copy()
-			newArgs["parentrepo"] = str(repo.key.urlsafe())
-			queryObj = utils.buildDBFilter( self.viewSkel(), newArgs )
+			newArgs["parentrepo"] = str(repo.key())
+			#queryObj = db.Query(utils.buildDBFilter( self.viewSkel(), newArgs )
+			entrys = self.viewSkel().all().filter( newArgs ).fetch( 100 )
 		else:
-			queryObj = utils.buildDBFilter( self.viewSkel(), {"parentdir": str(repo.key.urlsafe())} )
-			queryObj.limit = 500
-		queryObj.skip = 0
-		entrys.fromDB( queryObj )
+			#queryObj = utils.buildDBFilter( self.viewSkel(), {"parentdir": str(repo.key.urlsafe())} )
+			entrys = self.viewSkel().all().filter( "parentdir =", str(repo.key()) ).fetch( 100 )
 		return( self.render.listRootNodeContents( subdirs, entrys, rootNode=rootNode, path=path ) )
 	list.exposed = True
 
@@ -447,7 +442,7 @@ class Tree( object ):
 		skel = self.addSkel()
 		if not skel.fromClient( kwargs ) or len(kwargs)==0 or skey=="" or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.add( skel ) )
-		skel.parentdir.value = str( repo.key.urlsafe() )
+		skel.parentdir.value = str( repo.key() )
 		skel.parentrepo.value = rootNode
 		if not utils.validateSecurityKey( skey ):
 			raise errors.PreconditionFailed()
@@ -534,6 +529,7 @@ class Tree( object ):
 			@returns: True, if hes allowed to do so, False otherwise.
 		"""
 		user = utils.getCurrentUser()
+		logging.error( user )
 		if not user:
 			return( False )
 		if user["access"] and "root" in user["access"]:

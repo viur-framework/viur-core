@@ -3,12 +3,12 @@ import copy
 from server.bones import baseBone,  dateBone
 from collections import OrderedDict
 from threading import local
-from google.appengine.ext import ndb
+from server import db
 from server.utils import generateExpandoClass
 from time import time
 from google.appengine.api import search
 from server.config import conf
-from server.bones import selectOneBone, baseBone
+from server.bones import selectOneBone, baseBone, relationalBone
 from server.tasks import CallableTask, CallableTaskBase
 from google.appengine.api import datastore, datastore_types, datastore_errors
 from google.appengine.api import memcache
@@ -21,108 +21,6 @@ class BoneCounter(local):
 		self.count = 0
 
 _boneCounter = BoneCounter()
-
-class Query( object ):
-	def __init__(self, skelClass):
-		super( Query, self ).__init__()
-		self.skelClass = skelClass
-		self.kind = skelClass().entityName
-		self.limit = 30
-		self.startCursor = None
-		self.endCursor = None
-		self.filters = {}
-		self.orders = []
-	
-	def toDatastoreQuery(self, keysOnly=False):
-		dbFilter = datastore.Query(kind=self.kind, keys_only=keysOnly)
-		skel = self.skelClass()
-		bones = [ getattr( skel, key ) for key in dir( skel ) if not "__" in key and isinstance( getattr( skel, key ) , baseBone ) ]
-		try:
-			#First, filter non-relational bones
-			for bone in [ x for x in bones if not isinstance( x, relationalBone ) ]:
-				dbFilter = bone.buildDBFilter( key, skel, dbFilter, self.filters )
-			#Second, process orderings of non-relational bones
-			for bone in [ x for x in bones if not isinstance( x, relationalBone ) ]:
-				dbFilter = bone.buildDBSort( key, skel, dbFilter, self.filters )
-			#Now filter relational bones
-			for bone in [ x for x in bones if isinstance( x, relationalBone ) ]:
-				dbFilter = bone.buildDBFilter( key, skel, dbFilter, self.filters )
-			#finally process orderings of nelational bones
-			for bone in [ x for x in bones if isinstance( x, relationalBone ) ]:
-				dbFilter = bone.buildDBSort( key, skel, dbFilter, self.filters )
-		except RuntimeError:
-			return( None )
-		if "search" in self.filters.keys():
-			if isinstance( self.filters["search"], list ):
-				taglist = [ "".join([y for y in unicode(x).lower() if y in conf["viur.searchValidChars"] ] ) for x in self.filters["search"] ]
-			else:
-				taglist = [ "".join([y for y in unicode(x).lower() if y in conf["viur.searchValidChars"] ]) for x in unicode(self.filters["search"]).split(" ")] 
-			assert not isinstance( dbFilter, datastore.MultiQuery )
-			origFilter = dbFilter
-			queries = []
-			for tag in taglist:
-				q = datastore.Query( kind=origFilter.kind() )
-				q[ "viur_tags" ] = tag
-				queries.append( q )
-			for k, v in origFilter.items():
-				dbFilter[ k ] = v
-		#if "cursor" in rawFilter.keys() and rawFilter["cursor"] and rawFilter["cursor"].lower()!="none":
-		#	cursor = ndb.Cursor( urlsafe=rawFilter["cursor"] )
-		#if "amount" in list(rawFilter.keys()) and str(rawFilter["amount"]).isdigit() and int( rawFilter["amount"] ) >0 and int( rawFilter["amount"] ) <= 50:
-		#	limit = int(rawFilter["amount"])
-		#if "postProcessSearchFilter" in dir( skel ):
-		#	dbFilter = skel.postProcessSearchFilter( dbFilter, rawFilter )
-		#if not dbFilter.orders: #And another NDB fix
-		#	dbFilter = dbFilter.order( skel._expando._key )
-		return( dbFilter )
-	
-	def filter( self, key, value=None ):
-		if isinstance( key, dict ):
-			self.filters.update( **key )
-		elif key and value!=None:
-			self.filters[ key ] = value
-		else:
-			assert False
-	
-	def fetch(self):
-		skel = self.skelClass()
-		if skel.searchIndex and "search" in rawFilter.keys(): #We perform a Search via Google API - all other parameters are ignored
-			searchRes = search.Index( name=skel.searchIndex ).search( query=search.Query( query_string=rawFilter["search"], options=search.QueryOptions( limit=25 ) ) )
-			tmpRes = [ ndb.Key(urlsafe=x.doc_id[ 2: ] ) for x in searchRes ]
-			if tmpRes: #Again.. Workaround for broken ndb API: Filtering IN using an empty list: exception instead of empty result
-				res = dbFilter.filter(  generateExpandoClass( dbFilter.kind )._key.IN( tmpRes ) )
-			else:
-				res = dbFilter.filter(  ndb.GenericProperty("_-Non-ExIstIng_-Property_-" ) == None )
-			res = res.order( skel._expando._key )
-			res.limit = limit
-			res.cursor = None
-			return( res )
-#
-		q = self.toDatastoreQuery( keysOnly=True )
-		if not q: #Invalid search-filter
-			return( Skellist( self.skelClass ) )
-		tmpList = list( q.Run() )
-		if not tmpList:
-			return( Skellist( self.skelClass ) )
-		logging.error( [ type(x) for x in tmpList ] )
-		if isinstance( tmpList[0], datastore_types.Key ): #Key-Only query
-			keyList = [ str(x) for x in tmpList ]
-			resultList = Skellist( self.skelClass )
-			while keyList: #Fetch in Batches of 30 entries, as the max size for bulk_get is limited to 32MB
-				currentBatch = keyList[ : 30]
-				keyList = keyList[ 30: ]
-				memcacheRes = memcache.get_multi( currentBatch, key_prefix="viur-db-cache:")
-				for k in currentBatch:
-					skel = self.skelClass()
-					if k in memcacheRes.keys() and memcacheRes[ k ]:
-						skel.setValues( memcacheRes[ k ] )
-					else:
-						skel.fromDB( k )
-					resultList.append( skel )
-		for r in q.Run():
-			logging.error( r )
-		return( resultList )
-	
 
 class Skeleton( object ):
 	""" 
@@ -145,8 +43,6 @@ class Skeleton( object ):
 		else:
 			del self.__dataDict__[key]
 
-
-	
 	def items(self):
 		return( self.__dataDict__.items() )
 	
@@ -158,7 +54,12 @@ class Skeleton( object ):
 	changedate = dateBone( readOnly=True, visible=False, updateMagic=True, searchable=True, descr="updated at" )
 
 	def __init__( self, entityName=None, *args,  **kwargs ):
-		"""Create a local copy from the global Skel-class."""
+		"""
+			Create a local copy from the global Skel-class.
+			
+			@param entityName: If set, override the entity kind were operating on.
+			@type entityName: String or None
+		"""
 		super(Skeleton, self).__init__(*args, **kwargs)
 		self.entityName = entityName or self.entityName
 		self._rawValues = {}
@@ -184,9 +85,14 @@ class Skeleton( object ):
 		return( self._rawValues[ name ] )
 
 	def all(self):
-		return( Query( type( self ) ) )
-
-	def fromDB( self,  id, defer=False ):
+		"""
+			Returns a db.Query object bound to this skeleton.
+			This query will operate on our entityName, and its valid
+			to use its special methods mergeExternalFilter and getSkel.
+		"""
+		return( db.Query( self.entityName, srcSkelClass=type( self ) ) )
+	
+	def fromDB( self,  id ):
 		"""
 			Populates the current instance with values read from the given DB-Key.
 			Its current (maybe unsaved data) is discarded.
@@ -195,50 +101,27 @@ class Skeleton( object ):
 			@type id: DB.Key, String or DB.Query
 			@returns: True on success; False if the key could not be found
 		"""
-		logging.error("fromDB")
 		if isinstance(id, basestring ):
-			try:
-				id = datastore_types.Key( encoded=id )
-			except datastore_errors.BadKeyError:
+			if 1:
+				id = datastore_types.Key( id )
+			else: #except datastore_errors.BadKeyError:
 				id = unicode( id )
-				if id.isdigit:
+				if id.isdigit():
 					id = long( id )
 				id = datastore_types.Key.from_path( self.entityName, id )
 		assert isinstance( id, datastore_types.Key )
-		self._pendingResult = datastore.GetAsync( id )
-		if not defer:
-			self.checkPending()
-		logging.error("FromDB  %s" % str( self ))
-		"""		
-				if isinstance( id, ndb.Query ):
-					res = id.get()
-				else:
-					try:
-						res = ndb.Key(urlsafe=id).get()
-					except:
-						return( False )
-		"""
-
-	def checkPending(self):
-		logging.error( "ChekPending %s" % str( self ) )
-		if self._pendingResult==None:
-			return
-		logging.error("Yes")
-		try:
-			res = self._pendingResult.get_result()
-			self._pendingResult = None
-		except:
-			logging.warning("Got stale result!")
-			return
-		self.setValues( res )
-		id = str( res.key() )
+		dbRes = datastore.Get( id )
+		if dbRes is None:
+			return( False )
+		self.setValues( dbRes )
+		id = str( dbRes.key() )
 		for key in dir( self ):
 			bone = getattr( self, key )
 			if not "__" in key and isinstance( bone , baseBone ):
 				if "postUnserialize" in dir( bone ):
 					bone.postUnserialize( key, self, id )
+		return( True )
 
-	
 	def toDB( self, id=False, clearUpdateTag=False ):
 		"""
 			Saves the current data of this instance into the database.
@@ -251,13 +134,15 @@ class Skeleton( object ):
 			@type clearUpdateTag: Bool
 			@returns String DB-Key
 		"""
-		def txnUpdate( id, dbfields ):
-			dbObj = ndb.Key( urlsafe=id ).get()
-			if not dbObj:
-				dbObj = self._expando( key=ndb.Key( urlsafe=id ), **dbfields )
+		def txnUpdate( id, dbfields, unindexedProperties ):
+			try:
+				dbObj = db.Get( db.Key( id ) )
+			except db.EntityNotFoundError:
+				dbObj = db.Entry( id=db.Key( id ) )
 			for k,v in dbfields.items():
-				setattr( dbObj, k, v )
-			dbObj.put()
+				dbObj[ k ] =  v
+			dbObj.set_unindexed_properties( unindexedProperties )
+			db.Put( dbObj )
 		dbfields = {}
 		tags = []
 		for key in dir( self ):
@@ -276,13 +161,14 @@ class Skeleton( object ):
 			dbfields["viur_delayed_update_tag"] = time() #Mark this entity as dirty, so the background-task will catch it up and update its references.
 		if "preProcessSerializedData" in dir( self ):
 			dbfields = self.preProcessSerializedData( dbfields )
+		unindexedProperties = [ x for x in dir( self ) if (isinstance( getattr( self, x ), baseBone ) and not getattr( self, x ).searchable) ]
 		if id:
-			ndb.transaction( lambda: txnUpdate( id, dbfields ) )
+			db.RunInTransaction( txnUpdate, id, dbfields, unindexedProperties )
 		else:
 			dbObj = datastore.Entity( self.entityName )
 			for k, v in dbfields.items():
 				dbObj[ k ] = v
-			dbObj.set_unindexed_properties( [ x for x in dir( self ) if (isinstance( getattr( self, x ), baseBone ) and not getattr( self, x ).searchable) ] )
+			dbObj.set_unindexed_properties( unindexedProperties )
 			id = str( datastore.Put( dbObj ) )
 		if self.searchIndex: #Add a Document to the index if specified
 			fields = []
@@ -305,7 +191,7 @@ class Skeleton( object ):
 		if "postProcessSerializedData" in dir( self ):
 			self.postProcessSerializedData( id,  dbfields )
 		return( id )
-			
+
 	def delete( self, id ):
 		"""
 			Deletes the specified entity from the database.
@@ -313,21 +199,22 @@ class Skeleton( object ):
 			@param id: DB.Key to delete
 			@type id: String 
 		"""
-		ndb.Key( urlsafe=id ).delete()
+		db.Delete( db.Key( id ) )
 		for key in dir( self ):
 			if "__" not in key:
 				_bone = getattr( self, key )
 				if( isinstance( _bone, baseBone )  ) and "postDeletedHandler" in dir( _bone ):
 					_bone.postDeletedHandler( self, key, id )
-		if self.searchindex:
+		if self.searchIndex:
 			try:
-				search.Index( name=self.searchindex ).remove( "s_"+str(id) )
+				search.Index( name=self.searchIndex ).remove( "s_"+str(id) )
 			except:
 				pass
 
 	def setValues( self, values ):
 		"""
 			Update the values of the current instance with the ones from the given dictionary.
+			Usually used to merge values fetched from the database into the current skeleton instance.
 			Warning: Performs no error-checking for invalid values! Its possible to set invalid values
 			which may break the serialize/deserialize function of the related bone!
 			If no bone could be found for a given key-name. this key is ignored.
@@ -349,7 +236,12 @@ class Skeleton( object ):
 	
 	def getValues(self):
 		"""
-			Returns the current values as dictionary
+			Returns the current values as dictionary.
+			This is *not* the inverse of setValues as its not
+			valid to save these values into the database yourself!
+			Doing so will result in an entity that might not appear
+			in searches and possibly break the deserializion of the whole
+			list if it does.
 			
 			@returns: dict
 		"""
@@ -397,33 +289,114 @@ class Skeleton( object ):
 			self.errors = {}
 		return( complete )
 	
-class Skellist( list ): # Our all-in-one lib
-	def __init__( self, viewSkel ):
+class Skellist( list ):
+	"""
+		Class to hold multiple skeletons along
+		other commonly used informations (cursors, etc)
+		of that result set.
+		
+		Usually created by calling skel.all(). ... .fetch()
+	"""
+
+	def __init__( self, viewSkel, queryRes=None ):
+		"""
+			@param viewSkel: The baseclass for all entries in this list
+			@type viewSkel: Class
+			@queryRes: An db.Query object. If set, this instance will fill itself the results of that query.
+						*Warning*: You *must* ensure that the amount of results that query will yield is limited"
+			@type queryRes: db.Query
+		"""
+		super( Skellist, self ).__init__()
 		self.viewSkel = viewSkel
 		self.cursor = None
 		self.hasMore = False
-		pass
+		self.cacheRes = None
+		self.future = None
+		self.keyList = None
+		if queryRes!=None:
+			self.keyList = list( queryRes )
+			if not self.keyList:
+				return
+			if isinstance( self.keyList[0], datastore_types.Key ): #Key-Only query
+				#Check Memcache first
+				self.cacheRes = {}
+				keyList = [ str(x) for x in self.keyList ]
+				while keyList: #Fetch in Batches of 30 entries, as the max size for bulk_get is limited to 32MB
+					currentBatch = keyList[ : 30]
+					keyList = keyList[ 30: ]
+					self.cacheRes.update( memcache.get_multi( currentBatch, key_prefix="viur-db-cache:") )
+				#Fetch the rest from DB
+				missigKeys = [ x for x in self.keyList if not str(x) in self.cacheRes.keys() ]
+				self.future = datastore.GetAsync( missigKeys )
+			else: #We got a full result set
+				for entry in self.keyList:
+					s = self.viewSkel()
+					s.setValues( entry )
+					self.append( s )
+				self.keyList = None
+
+	def mergeFuture(self):
+		"""
+			Ensures, that this instance is in a valid state if its accessed
+			(i.e. all requests made in the background have finished and merged)
+		"""
+		if self.future==None:
+			return
+		dbResults = list( self.future.get_result() )
+		for key in [ str( x ) for x in self.keyList ]:
+			skel = self.viewSkel()
+			if key in self.cacheRes.keys():
+				skel.setValues( self.cacheRes[ key ] )
+			else:
+				entity = None
+				for e in dbResults:
+					if str( e.key() ) == key:
+						entity = e
+						break
+				if not entity:
+					logging.warning("Ive missed an entry: %s" % key )
+				else:
+					skel.setValues( entity )
+			self.append( skel )
+		self.future = None
+		self.cacheRes = None
+		self.keyList = None
 	
-	def fromDB( self, queryObj ):
-		skel = self.viewSkel()
-		if isinstance( queryObj, ndb.query.Query ):
-			if queryObj.cursor:
-				res, cursor, more = queryObj.fetch_page( queryObj.limit, start_cursor=queryObj.cursor )
-			else:
-				res, cursor, more = queryObj.fetch_page( queryObj.limit )
-			if cursor:
-				self.cursor = cursor.urlsafe()
-			self.hasMore = more
-		else: #Hopefully this is a list of results or an interator
-			res = queryObj
-		for data in res:
-			_skel = self.viewSkel()
-			if data.key.kind()!=skel._expando._get_kind(): #The Class for this query has been changed (relation!)
-				_skel.fromDB( data.key.parent().urlsafe() )
-			else:
-				_skel.setValues( data )
-			self.append( _skel )
-		return
+	def __contains__( self, *args, **kwargs ):
+		self.mergeFuture()
+		return( super( Skellist, self ).__contains__( *args, **kwargs ) )
+
+	def __delitem__( self, *args, **kwargs ):
+		self.mergeFuture()
+		return( super( Skellist, self ).__delitem__( *args, **kwargs ) )
+
+	def __getitem__( self, *args, **kwargs ):
+		self.mergeFuture()
+		return( super( Skellist, self ).__getitem__( *args, **kwargs ) )
+
+	def __iter__( self, *args, **kwargs ):
+		self.mergeFuture()
+		return( super( Skellist, self ).__iter__( *args, **kwargs ) )
+
+	def __len__( self, *args, **kwargs ):
+		self.mergeFuture()
+		return( super( Skellist, self ).__len__( *args, **kwargs ) )
+
+	def count( self, *args, **kwargs ):
+		self.mergeFuture()
+		return( super( Skellist, self ).count( *args, **kwargs ) )
+
+	def index( self, *args, **kwargs ):
+		self.mergeFuture()
+		return( super( Skellist, self ).index( *args, **kwargs ) )
+
+	def reverse( self, *args, **kwargs ):
+		self.mergeFuture()
+		return( super( Skellist, self ).reverse( *args, **kwargs ) )
+		
+	def sort( self, *args, **kwargs ):
+		self.mergeFuture()
+		return( super( Skellist, self ).sort( *args, **kwargs ) )
 
 
 ### Tasks ###
@@ -431,9 +404,9 @@ class Skellist( list ): # Our all-in-one lib
 @CallableTask
 class TaskUpdateSeachIndex( CallableTaskBase ):
 	"""This tasks loads and saves *every* entity of the given modul.
-	This ensures an updated searchindex and verifies consistency of this data.
+	This ensures an updated searchIndex and verifies consistency of this data.
 	"""
-	id = "rebuildsearchindex"
+	id = "rebuildsearchIndex"
 	name = u"Rebuild a Searchindex"
 	descr = u"Needs to be called whenever a search-releated parameters are changed."
 	direct = False

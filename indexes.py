@@ -95,6 +95,7 @@ class IndexMannager:
 		@type page: int
 		@returns: String-Cursor or None if no cursor is appicable
 		"""
+		return( None )
 		page = int(page)
 		pages = self.getOrBuildIndex( query )
 		if page>0 and len( pages )>page:
@@ -108,6 +109,7 @@ class IndexMannager:
 			The first element is always None as the first page dosnt
 			have any start-cursor
 		"""
+		return( [None] )
 		return( self.getOrBuildIndex( query ) )
 		
 			
@@ -119,6 +121,7 @@ class IndexMannager:
 		@param query: Query for which the index should be refreshed
 		@type query: db.Query
 		"""
+		return
 		key = self.keyFromQuery( query )
 		index = generateExpandoClass( self._dbType ).get_by_id( key )
 		if index:

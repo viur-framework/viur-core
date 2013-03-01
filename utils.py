@@ -4,6 +4,7 @@ from google.appengine.ext import ndb, deferred
 import new, os
 from server.bones import baseBone
 from server.session import current
+from server import db
 import string, random, base64
 from google.appengine.api import search
 from server.config import conf
@@ -288,11 +289,12 @@ def markFileForDeletion( dlkey ):
 	@type dlkey: String
 	@param dlkey: Downloadkey of the file
 	"""
-	expurgeClass = generateExpandoClass( "viur-deleted-files" )
-	fileObj = expurgeClass.query().filter( ndb.GenericProperty("dlkey") == dlkey ).get()
+	fileObj = db.Query( "viur-deleted-files" ).filter( "dlkey", dlkey ).get()
 	if fileObj: #Its allready marked
 		return
-	fileObj = expurgeClass( itercount = 0, dlkey = str( dlkey ) )
-	fileObj.put()
+	fileObj = db.Entity( "viur-deleted-files" )
+	fileObj["itercount"] = 0
+	fileObj["dlkey"] = str( dlkey )
+	db.Put( fileObj )
 
 

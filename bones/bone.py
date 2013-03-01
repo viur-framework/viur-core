@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from google.appengine.api import search
 from server.config import conf
+from server import db
 import logging
 
 class baseBone(object): # One Bone:
@@ -64,11 +65,14 @@ class baseBone(object): # One Bone:
 		if name == "id" and "id" in rawFilter.keys():
 			from server import utils
 			if isinstance( rawFilter["id"], list ):
-				keyList = [ ndb.Key( urlsafe=key  ) for key in rawFilter["id"] ]
+				keyList = [ db.Key( key  ) for key in rawFilter["id"] ]
 				if keyList:
-					dbFilter =	 dbFilter.filter( utils.generateExpandoClass( dbFilter.kind )._key.IN( keyList ) )
+					origQuery = dbFilter.datastoreQuery
+					dbFilter.datastoreQuery = db.MultiQuery( [db.DatastoreQuery( dbFilter.getKind(), filters={ db.KEY_SPECIAL_PROPERTY: x } ) for x in keyList ], () )
+					for k, v in origQuery.items():
+						dbFilter.filter( k, v )
 			else:
-				dbFilter = dbFilter.filter( utils.generateExpandoClass( dbFilter.kind )._key == ndb.Key( urlsafe=rawFilter["id"] ) )
+				dbFilter.filter( db.KEY_SPECIAL_PROPERTY, db.Key( rawFilter["id"] ) )
 			return( dbFilter )
 		myKeys = [ key for key in rawFilter.keys() if key.startswith( name ) ] 
 		if len( myKeys ) == 0:
@@ -83,13 +87,13 @@ class baseBone(object): # One Bone:
 				if isinstance( value, list ):
 					continue
 				if tmpdata[2]=="lt":
-					dbFilter[ tmpdata[0] + " <" ] = value
+					dbFilter.filter( tmpdata[0] + " <" , value )
 				elif tmpdata[2]=="gt":
-					dbFilter[ tmpdata[0] + " >" ] = value
+					dbFilter.filter( tmpdata[0] + " >",  value )
 				elif tmpdata[2]=="lk":
-					dbFilter[ tmpdata[0] ] = value
+					dbFilter.filter( tmpdata[0],  value )
 				else:
-					dbFilter[ tmpdata[0] ] = value
+					dbFilter.filter( tmpdata[0],  value )
 				#Enforce a working sort-order
 				#if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
 				#	dbFilter = dbFilter.order( -ndb.GenericProperty( tmpdata[0] ) )
@@ -97,9 +101,9 @@ class baseBone(object): # One Bone:
 				#	dbFilter = dbFilter.order( ndb.GenericProperty( tmpdata[0] ) )
 			else:
 				if isinstance( value, list ):
-					dbFilter = dbFilter.filter( ndb.GenericProperty( key ) in value )
+					dbFilter.filter( ndb.GenericProperty( key ) in value )
 				else:
-					dbFilter[ key ] = value
+					dbFilter.filter( key, value )
 		return( dbFilter )
 
 	def buildDBSort( self, name, skel, dbFilter, rawFilter ):
@@ -108,19 +112,19 @@ class baseBone(object): # One Bone:
 				logging.warning( "Invalid ordering! %s is not searchable!" % name )
 				raise RuntimeError()
 			if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
-				order = ( rawFilter["orderby"], dbFilter.DESCENDING )
+				order = ( rawFilter["orderby"], db.DESCENDING )
 			else:
-				order = ( rawFilter["orderby"], dbFilter.ASCENDING )
-			inEqFilter = [ x for x in dbFilter.keys() if (">" in x[ -3: ] or "<" in x[ -3: ] or "!=" in x[ -4: ] ) ]
+				order = ( rawFilter["orderby"], db.ASCENDING )
+			inEqFilter = [ x for x in dbFilter.datastoreQuery.keys() if (">" in x[ -3: ] or "<" in x[ -3: ] or "!=" in x[ -4: ] ) ]
 			if inEqFilter:
 				inEqFilter = inEqFilter[ 0 ][ : inEqFilter[ 0 ].find(" ") ]
 				if inEqFilter != order[0]:
 					logging.warning("I fixed you query! Impossible ordering changed to %s, %s" % (inEqFilter, order[0]) )
-					dbFilter.Order( inEqFilter, order )
+					dbFilter.order( (inEqFilter, order) )
 				else:
-					dbFilter.Order( order )
+					dbFilter.order( order )
 			else:
-				dbFilter.Order( order )
+				dbFilter.order( order )
 		return( dbFilter )
 
 

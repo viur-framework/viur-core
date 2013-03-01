@@ -3,10 +3,9 @@ from server.skeleton import Skeleton
 from server import session, errors, conf
 from server.applications.tree import Tree, TreeSkel
 from server.bones import *
-from server import utils
+from server import utils, db
 from google.appengine.ext import blobstore
 from google.appengine.ext.webapp import blobstore_handlers
-from google.appengine.ext import ndb
 import json, urlparse
 from server.tasks import PeriodicTask
 import json
@@ -19,15 +18,14 @@ import logging
 
 
 def findPathInRootNode( rootNode, path):
-	dbObj = utils.generateExpandoClass( "file_rootNode" )
-	repo = ndb.Key( urlsafe=rootNode ).get()
+	repo = db.Get( rootNode )
 	for comp in path.split("/"):
 		if not repo:
 			return( None )
 		if not comp:
 			continue
-		repo = dbObj.query().filter( ndb.GenericProperty("parentdir") == str( repo.key.urlsafe() ) )\
-				.filter( ndb.GenericProperty("name") == comp).get()
+		repo = db.Query( "file_rootNode" ).filter( "parentdir =", str( repo.key() ) )\
+				.filter( "name =", comp).get()
 	if not repo:
 		return( None )
 	else:
@@ -52,7 +50,6 @@ class UploadHandler(blobstore_handlers.BlobstoreUploadHandler):
 		try:
 			session.current.load( self.request.cookies )
 			res = []
-			dbObj = utils.generateExpandoClass( "file" )
 			if "rootNode" in self.request.arguments() and self.request.get("rootNode") and "path" in self.request.arguments():
 				if not conf["viur.mainApp"].file.canUploadTo( self.request.get("rootNode"), self.request.get("path") ):
 					for upload in self.get_uploads():
@@ -67,12 +64,10 @@ class UploadHandler(blobstore_handlers.BlobstoreUploadHandler):
 					for upload in self.get_uploads():
 						filename = self.decodeFileName( upload.filename )
 						#Check if a file with this name already exists in this directory
-						oldFile = utils.generateExpandoClass( "file" ).query()\
-								.filter( ndb.GenericProperty("parentdir") == str(repo.key.urlsafe()))\
-								.filter( ndb.GenericProperty("name") == filename ).get()
+						oldFile = db.Query( "file" ).filter( "parentdir =", str(repo.key())).filter( "name =", filename ).get()
 						if oldFile: # Delete the old one (=>Overwrite this file)
-							utils.markFileForDeletion( oldFile.dlkey )
-							oldFile.key.delete()
+							utils.markFileForDeletion( oldFile["dlkey"] )
+							db.Delete( oldFile.key() )
 						if str( upload.content_type ).startswith("image/"):
 							try:
 								servingURL = get_serving_url( upload.key() )
@@ -80,23 +75,23 @@ class UploadHandler(blobstore_handlers.BlobstoreUploadHandler):
 								servingURL = ""
 						else:
 							servingURL = ""
-						fileObj = dbObj(	name= filename,
-										name_idx= filename.lower(), 
-										size=upload.size,
-										meta_mime=upload.content_type,
-										dlkey=str(upload.key()),
-										parentdir=str(repo.key.urlsafe()),
-										parentrepo=self.request.get("rootNode"), 
-										servingurl=servingURL, 
-										weak = False
-									)
-						fileObj.put()
+						fileObj = db.Entity(	"file" )
+						fileObj[ "name" ]= filename
+						fileObj[ "name_idx" ] = filename.lower()
+						fileObj[ "size" ]=upload.size
+						fileObj[ "meta_mime" ]=upload.content_type
+						fileObj[ "dlkey" ]=str(upload.key())
+						fileObj[ "parentdir" ]=str(repo.key())
+						fileObj[ "parentrepo" ]=self.request.get("rootNode")
+						fileObj[ "servingurl" ]=servingURL
+						fileObj[ "weak" ] = False
+						db.Put( fileObj )
 					#Fixme(): Bad things will happen if uploaded from Webbrowser
 					res.append( { "name": filename,
 								"size":float( upload.size ),
 								"meta_mime":str(upload.content_type),
 								"dlkey":str(upload.key()),
-								"parentdir":str( repo.key.urlsafe() ) } )
+								"parentdir":str( repo.key() ) } )
 			else:
 				#We got a anonymous upload (a file not registered in any rootNode yet)
 				if not conf["viur.mainApp"].file.canUploadTo( None, None ):
@@ -109,18 +104,20 @@ class UploadHandler(blobstore_handlers.BlobstoreUploadHandler):
 						servingURL = get_serving_url( upload.key() )
 					else:
 						servingURL = ""
-					fileObj = dbObj(	name= filename,
+					fileObj = db.Entity(	"file", 
+									name= filename,
 									size=upload.size,
 									meta_mime=upload.content_type,
 									dlkey=str(upload.key()),
 									servingurl=servingURL, 
 									weak=True #Ensure this entry vanishes
 									)
+					db.Put( fileObj )
 					res.append( { "name":filename,
 								"size":float( upload.size ),
 								"meta_mime":str(upload.content_type),
 								"dlkey":str(upload.key()), 
-								"id": str(fileObj.put().urlsafe()) } )
+								"id": str(fileObj.key()) } )
 			for r in res:
 				logging.info("Got a successfull upload: %s (%s)" % (r["name"], r["dlkey"] ) )
 			user = utils.getCurrentUser()
@@ -181,21 +178,20 @@ class File( Tree ):
 
 	def getAvailableRootNodes( self, name ):
 		thisuser = utils.getCurrentUser()
+		logging.error( thisuser )
 		if thisuser:
 			repo = self.ensureOwnUserRootNode()
-			res = [ { "name":_("Meine Datein"), "key": str(repo.key.urlsafe()) } ]
+			res = [ { "name":_("Meine Datein"), "key": str(repo.key()) } ]
 			if "root" in thisuser["access"]:
 				"""Add at least some repos from other users"""
-				dbObj = utils.generateExpandoClass( self.viewSkel.entityName+"_rootNode" )
-				userObj = utils.generateExpandoClass( "user" )
-				repos = dbObj.query().filter( ndb.GenericProperty("type") == "user").fetch(100)
+				repos = db.Query( self.viewSkel.entityName+"_rootNode" ).filter( "type =", "user").run(100)
 				for repo in repos:
-					if not "user" in repo.dynamic_properties():
+					if not "user" in repo.keys():
 						continue
-					user = userObj.all().filter("uid =", repo.user).get()
-					if not user or not "name" in user.dynamic_properties():
+					user = db.Query( "user" ).filter("uid =", repo.user).get()
+					if not user or not "name" in user.keys():
 						continue
-					res.append( { "name":user.name, "key": str(repo.key.urlsafe()) } )
+					res.append( { "name":user["name"], "key": str(repo.key()) } )
 			return( res )
 		return( [] )
 	getAvailableRootNodes.internalExposed=True
@@ -217,50 +213,48 @@ class File( Tree ):
 		if not repo:
 			raise errors.PreconditionFailed()
 		if type=="entry":
-			fileEntry = utils.generateExpandoClass( self.viewSkel.entityName ).query()\
-				.filter( ndb.GenericProperty("parentdir") == str(repo.key.urlsafe()) )\
-				.filter( ndb.GenericProperty("name") == name).get() 
+			fileEntry = db.Query( self.viewSkel.entityName )\
+				.filter( "parentdir =",  str(repo.key()) )\
+				.filter( "name =", name).get() 
 			if fileEntry:
-				utils.markFileForDeletion( fileEntry.dlkey )
-				fileEntry.key.delete()
+				utils.markFileForDeletion( fileEntry["dlkey"] )
+				db.Delete( fileEntry.key() )
 		else:
-			delRepo = utils.generateExpandoClass( self.viewSkel.entityName+"_rootNode" ).query()\
-				.filter( ndb.GenericProperty("parentdir") == str(repo.key.urlsafe()) )\
-				.filter( ndb.GenericProperty("name") == name).get() 
+			delRepo = db.Query( self.viewSkel.entityName+"_rootNode" )\
+				.filter( "parentdir = ", str(repo.key()) )\
+				.filter( "name", name).get()
 			if delRepo:
-				deferred.defer( self.deleteDirsRecursive, str(delRepo.key.urlsafe()) )
-				delRepo.key.delete()
+				deferred.defer( self.deleteDirsRecursive, str(delRepo.key()) )
+				db.Delete( delRepo.key() )
 		self.onItemDeleted( rootNode, path, name, type )
 		return( self.render.deleteSuccess() )
 	delete.exposed=True
 
 	def deleteDirsRecursive( self, parentKey ):
-		fileClass = utils.generateExpandoClass( self.viewSkel.entityName )
-		dirClass = utils.generateExpandoClass( self.viewSkel.entityName+"_rootNode" )
-		files = fileClass.query().filter( ndb.GenericProperty("parentdir") == parentKey  ).iter()
+		files = db.Query( self.viewSkel().entityName ).filter( "parentdir =", parentKey  ).run()
 		for fileEntry in files:
-			utils.markFileForDeletion( fileEntry.dlkey )
-			fileEntry.key.delete()
-		dirs = dirClass.query().filter( ndb.GenericProperty("parentdir") == parentKey ).iter()
+			utils.markFileForDeletion( fileEntry["dlkey"] )
+			db.Delete( fileEntry.key() )
+		dirs = db.Query( self.viewSkel.entityName+"_rootNode" ).filter( "parentdir", parentKey ).run()
 		for d in dirs:
-			deferred.defer( self.deleteDirsRecursive, str(d.key.urlsafe()) )
-			d.key.delete()
+			deferred.defer( self.deleteDirsRecursive, str(d.key()) )
+			db.Delete( d.key() )
 
 	def canViewRootNode( self, repo ):
 		user = utils.getCurrentUser()
 		return( self.isOwnUserRootNode( repo ) or (user and "root" in user["access"]) )
 
 	def canMkDir( self, repo, dirname ):
-		return( self.isOwnUserRootNode( repo.key.urlsafe() ) )
+		return( self.isOwnUserRootNode( str(repo.key() ) ) )
 		
 	def canRename( self, repo, src, dest ):
-		return( self.isOwnUserRootNode( repo.key.urlsafe() ) )
+		return( self.isOwnUserRootNode( str(repo.key() ) ) )
 
 	def canCopy( self, srcRepo, destRepo, type, deleteold ):
-		return( self.isOwnUserRootNode( srcRepo.key.urlsafe() ) and self.isOwnUserRootNode( destRepo.key.urlsafe() ) )
+		return( self.isOwnUserRootNode( str( srcRepo.key() ) ) and self.isOwnUserRootNode( str( destRepo.key() ) ) )
 		
 	def canDelete( self, repo, name, type ):
-		return( self.isOwnUserRootNode( repo.key.urlsafe() ) )
+		return( self.isOwnUserRootNode( str( repo.key() ) ) )
 
 	def canEdit( self, id ):
 		user = utils.getCurrentUser()
@@ -272,7 +266,7 @@ class File( Tree ):
 			return(False)
 		if not rootNode:
 			return( True )
-		key = ndb.Key( self.viewSkel.entityName+"_rootNode", "rep_user_%s" % str( thisuser["id"] ) ).urlsafe()
+		key = str( db.Key.from_path( self.viewSkel.entityName+"_rootNode", "rep_user_%s" % str( thisuser["id"] ) ) )
 		if str( rootNode ) == key:
 			return( True )
 		return( False )
@@ -286,8 +280,8 @@ def cleanup( ):
 	expurgeClass = utils.generateExpandoClass( "viur-deleted-files" )
 	fileClass = utils.generateExpandoClass( "file" )
 	for file in expurgeClass.query().iter():
-		if not "dlkey" in file._properties.keys():
-			file.key.delete()
+		if not "dlkey" in file.keys():
+			db.Delete( file.key() )
 		elif fileClass.query().filter(  ndb.GenericProperty("dlkey") == file.dlkey ).filter( ndb.GenericProperty("weak") == False ).get():
 			file.key.delete()
 		else:

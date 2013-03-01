@@ -1,0 +1,573 @@
+# -*- coding: utf-8 -*-
+from google.appengine.api import datastore, datastore_types, datastore_errors
+from google.appengine.datastore import datastore_query
+from google.appengine.api import memcache
+
+import logging
+
+"""
+	Tiny wrapper around google.appengine.api.datastore*.
+	This just ensures that operations issued directly through the database-api
+	dont interfere with our caching. If you need skeletons anyway, query the database
+	using skel.all(); its faster and is able to serve more requests from cache.
+"""
+__cacheLockTime__ = 42 #Prevent an entity from creeping into the cache for 42 Secs if it just has been altered.
+__cacheTime__ = 15*60 #15 Mins
+__CacheKeyPrefix__ ="viur-db-cache:" #Our Memcache-Namespace. Dont use that for other purposes
+
+def PutAsync( entities, **kwargs ):
+	"""
+		Asynchronously store one or more entities in the datastore.
+
+		Identical to db.Put() except returns an asynchronous object. Call
+		get_result() on the return value to block on the call and get the results.
+	"""
+	if isinstance( entities, datastore.Entity ): #Just one:
+		if entities.is_saved(): #Its an update
+			memcache.delete( str( entities.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
+	elif isinstance( entities, list ):
+		for entity in entities:
+			assert isinstance( entity, datastore.Entity )
+			if entity.is_saved(): #Its an update
+				memcache.delete( str( entity.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
+	return( datastore.PutAsync( entities, **kwargs ) )
+
+def Put( entities, **kwargs ):
+	"""
+		Store one or more entities in the datastore.
+
+		The entities may be new or previously existing. For new entities, Put() will
+		fill in the app id and key assigned by the datastore.
+
+		If the argument is a single Entity, a single Key will be returned. If the
+		argument is a list of Entity, a list of Keys will be returned.
+
+		Args:
+			entities: Entity or list of Entities
+			config: Optional Configuration to use for this request, must be specified
+			as a keyword argument.
+
+		Returns:
+			Key or list of Keys
+
+		Raises:
+			TransactionFailedError, if the Put could not be committed.
+	"""
+	if isinstance( entities, datastore.Entity ): #Just one:
+		if entities.is_saved(): #Its an update
+			memcache.delete( str( entities.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
+	elif isinstance( entities, list ):
+		for entity in entities:
+			assert isinstance( entity, datastore.Entity )
+			if entity.is_saved(): #Its an update
+				memcache.delete( str( entity.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
+	return( datastore.Put( entities, **kwargs ) )
+	
+def GetAsync( keys, **kwargs ):
+	"""
+		Asynchronously retrieves one or more entities from the datastore.
+		
+		Identical to datastore.Get() except returns an asynchronous object. Call
+		get_result() on the return value to block on the call and get the results.
+	"""
+	class AsyncResultWrapper:
+		"""
+			Wraps an result thats allready there into something looking
+			like an RPC-Object.
+		"""
+		def __init__( self, res ):
+			self.res = res
+		
+		def get_result( self ):
+			return( self.res )
+	if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
+		res = memcache.get( str(keys), namespace=__CacheKeyPrefix__ )
+		if res:
+			return( AsyncResultWrapper( res ) )
+	#Either the result wasnt found, or we got a list of keys to fetch;
+	# --> no caching possible
+	return( datastore.GetAsync( keys, **kwargs ) )
+	
+def Get( keys, **kwargs ):
+	"""
+		Retrieves one or more entities from the datastore.
+
+		Retrieves the entity or entities with the given key(s) from the datastore
+		and returns them as fully populated Entity objects, as defined below. If
+		there is an error, raises a subclass of datastore_errors.Error.
+
+		If keys is a single key or string, an Entity will be returned, or
+		EntityNotFoundError will be raised if no existing entity matches the key.
+
+		However, if keys is a list or tuple, a list of entities will be returned
+		that corresponds to the sequence of keys. It will include entities for keys
+		that were found and None placeholders for keys that were not found.
+
+		Args:
+			keys: Key or string or list of Keys or strings
+			config: Optional Configuration to use for this request, must be specified
+			as a keyword argument.
+
+		Returns:
+			Entity or list of Entity objects
+	"""
+	if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
+		res = memcache.get( str(keys), namespace=__CacheKeyPrefix__ )
+		if not res: #Not cached - fetch and cache it :)
+			res = datastore.Get( keys, **kwargs )
+			res[ "id" ] = str( res.key() )
+			memcache.set( str(res.key() ), res, time=__cacheTime__, namespace=__CacheKeyPrefix__ )
+		return( res )
+	#Either the result wasnt found, or we got a list of keys to fetch;
+	# --> no caching possible
+	return( datastore.Get( keys, **kwargs ) )
+
+def DeleteAsync(keys, **kwargs):
+	"""
+		Asynchronously deletes one or more entities from the datastore.
+
+		Identical to datastore.Delete() except returns an asynchronous object. Call
+		get_result() on the return value to block on the call.
+	"""
+	if isinstance( keys, datastore_types.Key ): #Just one:
+		memcache.delete( str( keys ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
+	elif isinstance( keys, list ):
+		for key in keys:
+			assert isinstance( key, datastore_types.Key ) or isinstance( key, basestring )
+			memcache.delete( str( key ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
+	return( datastore.DeleteAsync( keys, **kwargs ) )
+	
+def Delete(keys, **kwargs):
+	"""
+		Deletes one or more entities from the datastore. Use with care!
+
+		Deletes the given entity(ies) from the datastore. You can only delete
+		entities from your app. If there is an error, raises a subclass of
+		datastore_errors.Error.
+
+		Args:
+			# the primary key(s) of the entity(ies) to delete
+			keys: Key or string or list of Keys or strings
+			config: Optional Configuration to use for this request, must be specified
+			as a keyword argument.
+
+		Raises:
+			TransactionFailedError, if the Delete could not be committed.
+	"""
+	if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
+		memcache.delete( str( keys ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
+	elif isinstance( keys, list ):
+		for key in keys:
+			assert isinstance( key, datastore_types.Key ) or isinstance( key, basestring )
+			memcache.delete( str( key ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
+	return( datastore.Delete( keys, **kwargs ) )
+
+def GetOrInsert( key, entityName=None, parent=None, **kwargs ):
+	"""
+		Either creates a new entity with the given key, or returns the existing one.
+		Its guranteed that there is no race-condition here; it will never overwrite an
+		previously created entity. Extra keyword arguments passed to this function will be
+		used to populate the entity if it has to be created; otherwise they are ignored.
+		
+		@param key: The key which will be fetched/created. If key is a string, it will be used as the name for
+					the new entity, therefor the collectionName is required in this case.
+		@type key: db.Key or String
+		@param entityName: Kind to use for that entity. Ignored if key is a db.Key
+		@type entityName: String
+		@param parent: The parent entity of our entity.
+		@type parent: db.Key or None
+	"""
+
+	def txn( key, kwargs ):
+		try:
+			res = datastore.Get( key )
+		except datastore_errors.EntityNotFoundError:
+			res = datastore.Entity( kind=key.kind(), parent=key.parent(), name=key.name(), id=key.id() )
+			for k, v in kwargs.items():
+				res[ k ] = v
+			datastore.Put( res )
+		return( res )
+
+	if not isinstance( key, datastore_types.Key ):
+		try:
+			key = datastore_types.Key( encoded=key )
+		except:
+			assert entityName
+			key = datastore_types.Key.from_path( entityName, key, parent=parent )
+	if datastore.IsInTransaction():
+		return( txn(key, kwargs) )
+	else:
+		return( datastore.RunInTransaction( txn, key, kwargs ) )
+	
+class Query( object ):
+	"""
+		Thin wrapper around datastore.Query to provide a consitent
+		(camelCase) API.
+	"""
+	
+	def __init__(self, kind, srcSkelClass=None, *args, **kwargs ):
+		super( Query, self ).__init__( )
+		self.datastoreQuery = datastore.Query( kind, *args, **kwargs )
+		self.srcSkelClass = srcSkelClass
+		self.amount = 30
+	
+	def mergeExternalFilter(self, filters ):
+		"""
+			Safely processes filters according to the datamodel.
+			Its only valid to call this if the query has been created using skel.all().
+			Its safe to pass filters recieved from an external source (a user);
+			unknown/invalid filters will be ignored, so the query-object stayes in a 
+			valid state even after processing malformed data.
+			
+			If you need complex queries (ie filter by relations), youll also need to use
+			this function; the normal filter() cannot provide that.
+		"""
+		from server.bones import baseBone, relationalBone
+		if self.srcSkelClass is None:
+			raise NotImplementedError("This query has not been created using skel.all()")
+		if self.datastoreQuery is None: #This query is allready unsatifiable and adding more constrains to this wont change this
+			return( self )
+		skel = self.srcSkelClass()
+		if skel.searchIndex and "search" in filters.keys(): #We perform a Search via Google API - all other parameters are ignored
+			searchRes = search.Index( name=skel.searchIndex ).search( query=search.Query( query_string=filters["search"], options=search.QueryOptions( limit=25 ) ) )
+			tmpRes = [ datastore_types.Key( encoded=x.doc_id[ 2: ] ) for x in searchRes ]
+			if tmpRes:
+				filters = []
+				for x in tmpRes:
+					filters.append( datastore.Query(self.kind, { "%s =" % datastore_types.KEY_SPECIAL_PROPERTY: x } ) )
+				self.datastoreQuery = datastore.MultiQuery( filters, () )
+			else:
+				self.datastoreQuery = None
+			return( self )
+		bones = [ (getattr( skel, key ), key) for key in dir( skel ) if not "__" in key and isinstance( getattr( skel, key ) , baseBone ) ]
+		try:
+			#First, filter non-relational bones
+			for bone, key in [ x for x in bones if not isinstance( x, relationalBone ) ]:
+				bone.buildDBFilter( key, skel, self, filters )
+			#Second, process orderings of non-relational bones
+			for bone, key in [ x for x in bones if not isinstance( x, relationalBone ) ]:
+				bone.buildDBSort( key, skel, self, filters )
+			#Now filter relational bones
+			for bone, key in [ x for x in bones if isinstance( x, relationalBone ) ]:
+				bone.buildDBFilter( key, skel, self, filters )
+			#finally process orderings of nelational bones
+			for bone, key in [ x for x in bones if isinstance( x, relationalBone ) ]:
+				bone.buildDBSort( key, skel, self, filters )
+		except RuntimeError:
+			return( None )
+		if "search" in filters.keys():
+			if isinstance( filters["search"], list ):
+				taglist = [ "".join([y for y in unicode(x).lower() if y in conf["viur.searchValidChars"] ] ) for x in filters["search"] ]
+			else:
+				taglist = [ "".join([y for y in unicode(x).lower() if y in conf["viur.searchValidChars"] ]) for x in unicode(filters["search"]).split(" ")] 
+			assert not isinstance( self.datastoreQuery, datastore.MultiQuery )
+			origFilter = self.datastoreQuery
+			queries = []
+			for tag in taglist:
+				q = datastore.Query( kind=origFilter.kind() )
+				q[ "viur_tags" ] = tag
+				queries.append( q )
+			self.datastoreQuery = datastore.MultiQuery( queries, origFilter.__orderings )
+			for k, v in origFilter.items():
+				self.datastoreQuery[ k ] = v
+		if "cursor" in filters.keys() and filters["cursor"] and filters["cursor"].lower()!="none":
+			self.cursor( filters["cursor"] )
+		if "amount" in list(filters.keys()) and str(filters["amount"]).isdigit() and int( filters["amount"] ) >0 and int( filters["amount"] ) <= 50:
+			self.limit( int(filters["amount"]) )
+		if "postProcessSearchFilter" in dir( skel ):
+			skel.postProcessSearchFilter( self, filters )
+		return( self )
+	
+	def filter(self, filter, value=None ):
+		"""
+			Adds contrains to this query.
+			The following examples are equivalent:
+				filter( "name", "John" )
+				filter( {"name": "John"} )
+
+			@param key: A dictionary to read the filters from, or a string (name of that filter)
+			@type key: Dict or String
+			@param value: The value of that filter. Only valid, if key is a string.
+			@type value: Int, Long, Float, Bytes, String, List or DateTime
+		"""
+		if isinstance( filter, dict ):
+			for k, v in filter.items():
+				self.filter( k, v )
+		elif filter and value!=None:
+			self.datastoreQuery[ filter ] = value
+		else:
+			assert False
+		return( self )
+	
+	def order(self, *orderings):
+		"""
+			Specify how the query results should be sorted.
+
+			Result entities will be sorted by the first property argument, then by the
+			second, and so on. For example, this:
+
+			> query = Query('Person')
+			> query.Order('bday', ('age', Query.DESCENDING))
+
+			sorts everyone in order of their birthday, starting with January 1.
+			People with the same birthday are sorted by age, oldest to youngest.
+
+			The direction for each sort property may be provided; if omitted, it
+			defaults to ascending.
+
+			Order() may be called multiple times. Each call resets the sort order
+			from scratch.
+
+			If an inequality filter exists in this Query it must be the first property
+			passed to Order. Any number of sort orders may be used after the
+			inequality filter property. Without inequality filters, any number of
+			filters with different orders may be specified.
+
+			Entities with multiple values for an order property are sorted by their
+			lowest value.
+
+			Note that a sort order implies an existence filter! In other words,
+			Entities without the sort order property are filtered out, and *not*
+			included in the query results.
+
+			If the sort order property has different types in different entities - ie,
+			if bob['id'] is an int and fred['id'] is a string - the entities will be
+			grouped first by the property type, then sorted within type. No attempt is
+			made to compare property values across types.
+
+			Raises BadArgumentError if any argument is of the wrong format.
+
+			Args:
+			      # the properties to sort by, in sort order. each argument may be either a
+			      # string or (string, direction) 2-tuple.
+
+			Returns:
+				# this query
+		"""
+		self.datastoreQuery.Order( *orderings )
+		return( self )
+
+	def ancestor(self, ancestor):
+		"""
+			Sets an ancestor for this query.
+
+			This restricts the query to only return result entities that are descended
+			from a given entity. In other words, all of the results will have the
+			ancestor as their parent, or parent's parent, or etc.
+
+			Raises BadArgumentError or BadKeyError if parent is not an existing Entity
+			or Key in the datastore.
+
+			Args:
+				# the key must be complete
+				ancestor: Entity or Key
+
+			Returns:
+				# this query
+			Query
+		"""
+		self.datastoreQuery.Ancestor( ancestor )
+		return( self )
+	
+	def cursor( self, cursor ):
+		"""
+			Sets the start cursor for this query.
+			The result set will only include results after that cursor.
+			The cursor must be generated by an earlier query with exactly the same parameters.
+			Its safe to use client-suppied cursors, a cursor can't be abused to access entities which don't
+			match the current filters.
+		"""
+		if isinstance( cursor, basestring ):
+			cursor = datastore_query.Cursor( urlsafe=cursors )
+		elif instance( cursor, datastore_query.Cursor ) or cursor==None:
+			pass
+		else:
+			raise ValueError("Cursor must be String, datastore_query.Cursor or None")
+		qo = self.datastoreQuery.__query_options
+		self.datastoreQuery.__query_options = datastore_query.QueryOptions(	keys_only=qo.keys_only, 
+															produce_cursors=qo.produce_cursors,
+															start_cursor=cursor,
+															end_cursor=qo.end_cursor,
+															projection=qo.projection )
+		return( self )
+	
+	def limit( self, amount ):
+		"""
+			Limit this query to return at most #amount results.
+			Set to 0 to disable (use with care!).
+		"""
+		self.amount = amount
+	
+	def isKeysOnly(self):
+		"""
+			Returns True if this query is keys only, false otherwise.
+		"""
+		return( self.datastoreQuery.IsKeysOnly() )
+
+	def getQueryOptions(self):
+		"""
+			Returns a datastore_query.QueryOptions for the current instance.
+		"""
+		return( self.datastoreQuery.GetQueryOptions() )
+
+	def getQuery(self):
+		"""
+			Returns a datastore_query.Query for the current instance.
+		"""
+		return( self.datastoreQuery.GetQuery() )
+
+	def getOrder(self):
+		"""
+			Gets a datastore_query.Order for the current instance.
+
+			Returns:
+				datastore_query.Order or None if there are no sort orders set on the
+				current Query.
+		"""
+		return( self.datastoreQuery.GetOrder() )
+
+	def getCursor(self):
+		"""
+			Get the cursor from the last run of this query.
+
+			The source of this cursor varies depending on what the last call was:
+			- Run: A cursor that points immediately after the last result pulled off
+			  the returned iterator.
+			- Get: A cursor that points immediately after the last result in the
+			  returned list.
+			- Count: A cursor that points immediately after the last result counted.
+
+			Returns:
+				A datastore_query.Cursor object that can be used in subsequent query
+				requests.
+
+			Raises:
+				AssertionError: The query has not yet been run or cannot be compiled.
+		"""
+		return( self.datastoreQuery.GetCursor() )
+
+	def getKind(self):
+		return( self.datastoreQuery.__kind )
+		
+	def getAncestor(self):
+		return( self.datastoreQuery.ancestor )
+
+	def run(self, limit=-1, **kwargs):
+		"""
+			Runs this query.
+
+			If a filter string is invalid, raises BadFilterError. If a filter value is
+			invalid, raises BadValueError. If an IN filter is provided, and a sort
+			order on another property is provided, raises BadQueryError.
+
+			If you know in advance how many results you want, use limit=#. It's
+			more efficient.
+
+			Args:
+				kwargs: Any keyword arguments accepted by datastore_query.QueryOptions().
+
+			Returns:
+				# an iterator that provides access to the query results
+				Iterator
+		"""
+		if self.datastoreQuery is None:
+			return( None )
+		kwargs["limit"] = limit if limit!=-1 else self.amount
+		return( self.datastoreQuery.Run( **kwargs ) )
+	
+	def fetch(self, limit=-1, **kwargs ):
+		"""
+			Like run, but returns a skeleton.Skellist instance instead
+			of an result iterator. The query must be limited.
+		"""
+		if self.srcSkelClass is None:
+			raise NotImplementedError("This query has not been created using skel.all()")
+		if self.amount == 0:
+			raise NotImplementedError("This query is not limited! You must specify an upper bound using limit()")
+		from server.skeleton import Skellist
+		return( Skellist( self.srcSkelClass, self.run() ) )
+	
+	def get( self ):
+		"""
+			Returns the first entity of the current query or None if the result-set is empty.
+			
+			@returns: Dict or None if the result-set is empty
+		"""
+		try:
+			res = list( self.run( limit=1 ) )[0]
+			return( res )
+		except IndexError: #Empty result-set
+			return( None )
+	
+	def getSkel( self ):
+		"""
+			Like get, but returns an skeleton.Skeleton instance.
+			Its only valid to call this, if this query has been created using skel.all()
+			
+			@returns: skeleton.Skeleton or None if the result-set is empty
+		"""
+		if self.srcSkelClass is None:
+			raise NotImplementedError("This query has not been created using skel.all()")
+		res = self.get()
+		if not res:
+			return( None )
+		s = self.srcSkelClass()
+		s.setValues( res )
+		return( s )
+	
+	def count( self, limit=1000, **kwargs ):
+		"""
+			Returns the number of entities that this query matches.
+
+			Args:
+				limit, a number or None. If there are more results than this, stop short
+				and just return this number. Providing this argument makes the count
+				operation more efficient.
+				config: Optional Configuration to use for this request.
+
+			Returns:
+				The number of results.
+			"""
+		return( self.datastoreQuery.Count( limit, **kwargs ) )
+
+AllocateIdsAsync = datastore.AllocateIdsAsync
+AllocateIds = datastore.AllocateIds
+RunInTransaction = datastore.RunInTransaction
+RunInTransactionCustomRetries = datastore.RunInTransactionCustomRetries
+RunInTransactionOptions = datastore.RunInTransactionOptions
+
+Key = datastore_types.Key
+
+## Errors ##
+Error = datastore_errors.Error
+BadValueError = datastore_errors.BadValueError
+BadPropertyError = datastore_errors.BadPropertyError
+BadRequestError = datastore_errors.BadRequestError
+EntityNotFoundError = datastore_errors.EntityNotFoundError
+BadArgumentError = datastore_errors.BadArgumentError
+QueryNotFoundError = datastore_errors.QueryNotFoundError
+TransactionNotFoundError = datastore_errors.TransactionNotFoundError
+Rollback = datastore_errors.Rollback
+TransactionFailedError = datastore_errors.TransactionFailedError
+BadFilterError = datastore_errors.BadFilterError
+BadQueryError = datastore_errors.BadQueryError
+BadKeyError = datastore_errors.BadKeyError
+InternalError = datastore_errors.InternalError
+NeedIndexError = datastore_errors.NeedIndexError
+ReferencePropertyResolveError = datastore_errors.ReferencePropertyResolveError
+Timeout = datastore_errors.Timeout
+CommittedButStillApplying = datastore_errors.CommittedButStillApplying
+
+Entity = datastore.Entity
+DatastoreQuery = datastore.Query
+MultiQuery = datastore.MultiQuery
+
+#Consts
+KEY_SPECIAL_PROPERTY = datastore_types.KEY_SPECIAL_PROPERTY
+ASCENDING = datastore_query.PropertyOrder.ASCENDING
+DESCENDING = datastore_query.PropertyOrder.DESCENDING
+
+__all__ = [	PutAsync, Put, GetAsync, Get, DeleteAsync, Delete, AllocateIdsAsync, AllocateIds, RunInTransaction, RunInTransactionCustomRetries, RunInTransactionOptions, #
+		Error, BadValueError, BadPropertyError, BadRequestError, EntityNotFoundError, BadArgumentError, QueryNotFoundError, TransactionNotFoundError, Rollback, 
+		TransactionFailedError, BadFilterError, BadQueryError, BadKeyError, BadKeyError, InternalError, NeedIndexError, ReferencePropertyResolveError, Timeout, CommittedButStillApplying, 
+		Entity, Query, DatastoreQuery, MultiQuery, KEY_SPECIAL_PROPERTY, ASCENDING, DESCENDING ]

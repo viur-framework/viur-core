@@ -59,41 +59,29 @@ class stringBone( baseBone ):
 		hasInequalityFilter = False
 		if name+"$lk" in rawFilter.keys(): #Do a prefix-match
 			if not self.caseSensitive:
-				dbFilter[ name +"_idx >=" ] = unicode( rawFilter[name+"$lk"] ).lower()
-				dbFilter[ name +"_idx <" ] = unicode( rawFilter[name+"$lk"]+u"\ufffd" ).lower()
+				dbFilter.filter( name +"_idx >=", unicode( rawFilter[name+"$lk"] ).lower() )
+				dbFilter.filter( name +"_idx <", unicode( rawFilter[name+"$lk"]+u"\ufffd" ).lower() )
 			else:
-				dbFilter[ name + " >=" ] = unicode( rawFilter[name+"$lk"] )
-				dbFilter[ name + " < " ] = unicode( rawFilter[name+"$lk"]+u"\ufffd" )
+				dbFilter.filter( name + " >=", unicode( rawFilter[name+"$lk"] ) )
+				dbFilter.filter( name + " < ", unicode( rawFilter[name+"$lk"]+u"\ufffd" ) )
 			hasInequalityFilter = True
 		if name+"$gt" in rawFilter.keys(): #All entries after
 			if not self.caseSensitive:
-				dbFilter[ name +"_idx >" ] = unicode( rawFilter[name+"$gt"] ).lower()
+				dbFilter.filter( name +"_idx >", unicode( rawFilter[name+"$gt"] ).lower() )
 			else:
-				dbFilter[ name + " >"] =  unicode( rawFilter[name+"$gt"] )
+				dbFilter.filter( name + " >", unicode( rawFilter[name+"$gt"] ) )
 			hasInequalityFilter = True
 		if name+"$lt" in rawFilter.keys(): #All entries before
 			if not self.caseSensitive:
-				dbFilter[ name +"_idx <" ] = unicode( rawFilter[name+"$lt"] ).lower()
+				dbFilter.filter( name +"_idx <", unicode( rawFilter[name+"$lt"] ).lower() )
 			else:
-				dbFilter[ name + " <" ] =  unicode( rawFilter[name+"$lt"] )
+				dbFilter.filter( name + " <", unicode( rawFilter[name+"$lt"] ) )
 			hasInequalityFilter = True
-		if 0 and hasInequalityFilter:
-			#Enforce a working sort-order
-			if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
-				if not self.caseSensitive:
-					dbFilter = dbFilter.order( -ndb.GenericProperty( name+"_idx" ) )
-				else:
-					dbFilter = dbFilter.order( -ndb.GenericProperty( name ) )
-			else:
-				if not self.caseSensitive:
-					dbFilter = dbFilter.order( ndb.GenericProperty( name+"_idx" ) )
-				else:
-					dbFilter = dbFilter.order( ndb.GenericProperty( name ) )
 		if name in rawFilter.keys(): #Normal, strict match
 			if not self.caseSensitive:
-				dbFilter[ name+"_idx" ] = unicode( rawFilter[name] ).lower()
+				dbFilter.filter( name+"_idx", unicode( rawFilter[name] ).lower() )
 			else:
-				dbFilter[ name ]= unicode( rawFilter[name] )
+				dbFilter.filter( name, unicode( rawFilter[name] ) )
 		return( dbFilter )
 
 	def buildDBSort( self, name, skel, dbFilter, rawFilter ):
@@ -109,25 +97,19 @@ class stringBone( baseBone ):
 				order = ( prop, dbFilter.DESCENDING )
 			else:
 				order = ( prop, dbFilter.ASCENDING )
-			logging.error("p1")
 			inEqFilter = [ x for x in dbFilter.keys() if (">" in x[ -3: ] or "<" in x[ -3: ] or "!=" in x[ -4: ] ) ]
 			if inEqFilter:
-				logging.error("p2")
 				inEqFilter = inEqFilter[ 0 ][ : inEqFilter[ 0 ].find(" ") ]
 				if inEqFilter != order[0]:
-					logging.error("p3")
 					logging.warning("I fixed you query! Impossible ordering changed to %s, %s" % (inEqFilter, order[0]) )
 					dbFilter.Order( inEqFilter, order )
 				else:
-					logging.error("p4")
 					dbFilter.Order( order )
 			else:
-				logging.error("p5")
 				logging.error( order )
 				dbFilter.Order( order )
 		return( dbFilter )
 
-		
 	def getTags(self):
 		res = []
 		if not self.value:

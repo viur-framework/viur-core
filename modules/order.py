@@ -6,9 +6,9 @@ from server.bones import *
 from server import errors, session, conf, request
 from server.utils import generateExpandoClass, validateSecurityKey
 from server.tasks import callDefered
+from server import db
 import urllib
 import hashlib
-from google.appengine.ext import ndb
 from google.appengine.api import urlfetch
 import logging
 import re
@@ -209,23 +209,23 @@ class PaymentProviderPayPal:
 	
 	def paymentProvider_paypal( self, step, orderID ):
 		paypal = PaymentProviderPayPal.PayPal()
-		order = ndb.Key( urlsafe=orderID ).get()
+		order = db.Get( db.Key( orderID ) )
 		if not order:
 			return
-		token = paypal.SetExpressCheckout( "%.2f" % order.price )
-		order.paypal_token = urllib.unquote(token)
-		order.put()
+		token = paypal.SetExpressCheckout( "%.2f" % order["price"] )
+		order["paypal_token"] = urllib.unquote(token)
+		db.Put( order )
 		raise( errors.Redirect( paypal.getPayURL( token ) ) )
 		
 	
 	def doPayPal( self, token, PayerID,  *args, **kwargs ):
-		order = generateExpandoClass( self.entityName ).query().filter( ndb.GenericProperty("paypal_token") == token).get()
+		order = db.Query( self.entityName ).filter( "paypal_token =", token).get()
 		if not order:
 			return("NO SUCH ORDER - PAYMENT ABORTED")
 		paypal = PaymentProviderPayPal.PayPal()
-		res = paypal.DoExpressCheckoutPayment( token, PayerID, "%.2f" % float(order.price) )
+		res = paypal.DoExpressCheckoutPayment( token, PayerID, "%.2f" % float(order["price"]) )
 		if res["ACK"].lower()==u"success":
-			self.setPayed( str( order.key.urlsafe() ) )
+			self.setPayed( str( order.key() ) )
 			return self.render.getEnv().get_template( self.render.getTemplateFileName("paypal_okay") ).render()
 		else:
 			return self.render.getEnv().get_template( self.render.getTemplateFileName("paypal_failed") ).render()
@@ -243,10 +243,10 @@ class PaymentProviderSofort:
 	"""
 
 	def getSofortURL(self, orderID ):
-		order = ndb.Key( urlsafe=orderID ).get()
-		hashstr = "%s|%s|||||%.2f|EUR|%s||%s||||||%s" % (conf["sofort"]["userid"], conf["sofort"]["projectid"], float( order.price ), str(order.key.urlsafe()), str(order.key.urlsafe()), conf["sofort"]["projectpassword"] )
+		order = db.Get( db.Key( orderID ) )
+		hashstr = "%s|%s|||||%.2f|EUR|%s||%s||||||%s" % (conf["sofort"]["userid"], conf["sofort"]["projectid"], float( order["price"] ), str(order.key()), str(order.key()), conf["sofort"]["projectpassword"] )
 		hash = hashlib.sha512(hashstr.encode("UTF-8")).hexdigest()
-		returnURL = "https://www.sofortueberweisung.de/payment/start?user_id=%s&project_id=%s&amount=%.2f&currency_id=EUR&reason_1=%s&user_variable_0=%s&hash=%s" % ( conf["sofort"]["userid"], conf["sofort"]["projectid"], float( order.price) , str(order.key.urlsafe()), str(order.key.urlsafe()), hash)
+		returnURL = "https://www.sofortueberweisung.de/payment/start?user_id=%s&project_id=%s&amount=%.2f&currency_id=EUR&reason_1=%s&user_variable_0=%s&hash=%s" % ( conf["sofort"]["userid"], conf["sofort"]["projectid"], float( order["price"]) , str(order.key()), str(order.key()), hash)
 		return( returnURL )
 
 	def paymentProvider_sofort(self, step, orderID ):
@@ -266,12 +266,12 @@ class PaymentProviderSofort:
 		if hashlib.sha512(hashstr.encode("utf-8")).hexdigest()!=kwargs["hash"]:
 			logging.error("RECIVED INVALID HASH FOR sofort (%s!=%s)" % ( hashlib.sha512(hashstr.encode("utf-8")).hexdigest(),kwargs["hash"] ) )
 			return("INVALID HASH")
-		order = ndb.Key( urlsafe=kwargs["user_variable_0"] ).get()
+		order = db.Get( db.Key( kwargs["user_variable_0"] ) )
 		if not order:
 			logging.error("RECIVED UNKNOWN ORDER by sofort (%s)" % ( kwargs["user_variable_0"] ) )
 			return("UNKNOWN ORDER")
-		if ("%.2f" % order.price) != kwargs["amount"]:
-			logging.error("RECIVED INVALID AMOUNT PAYED sofort (%s!=%s)" % ( order.price,kwargs["amount"] ) )
+		if ("%.2f" % order["price"]) != kwargs["amount"]:
+			logging.error("RECIVED INVALID AMOUNT PAYED sofort (%s!=%s)" % ( order["price"], kwargs["amount"] ) )
 			return("INVALID AMOUNT")
 		self.setPayed( kwargs["user_variable_0"] )
 		return("OKAY")
@@ -284,7 +284,6 @@ class PaymentProviderSofort:
 	def sofortFailed(self, *args, **kwargs ):
 		return self.render.getEnv().get_template( self.render.getTemplateFileName("sofort_failed") ).render()
 	sofortFailed.exposed=True
-
 
 
 class Order( List ):
@@ -394,15 +393,14 @@ class Order( List ):
 			@param removeState: Should the state be removed instead of set
 			@type removeState: bool
 		"""
-		def txn( viewSkel, orderID, state, removeState ):
-			skel = viewSkel() #Fixme: Another NDB-Fuu
-			dbObj = ndb.Key( urlsafe=orderID ).get()
+		def txn( orderID, state, removeState ):
+			dbObj = db.Get( db.Key( orderID ) )
 			if not dbObj:
 				return
-			setattr( dbObj, "state_%s" % state, "1" if not removeState else "0" )
-			dbObj.changedate = datetime.now()
-			dbObj.put()
-		ndb.transaction( lambda: txn( self.viewSkel, orderID,  state, removeState ) )
+			dbObj[ "state_%s" % state ] = "1" if not removeState else "0"
+			dbObj["changedate"] = datetime.now()
+			db.Put( dbObj )
+		db.RunInTransaction( txn, orderID,  state, removeState )
 
 	def getStates(self, orderID ):
 		"""
@@ -411,14 +409,13 @@ class Order( List ):
 			@type orderID: string
 			@returns: [string]
 		"""
-		skel = self.viewSkel()
-		dbObj = ndb.Key( urlsafe=orderID ).get()
+		dbObj = db.Get( db.Key( orderID ) )
 		if not dbObj:
 			return( [] )
 		res = []
 		for state in self.states:
 			stateName = "state_%s" % state
-			if stateName in dbObj._properties.keys() and str(getattr( dbObj, stateName ))=="1":
+			if stateName in dbObj.keys() and str( dbObj[ stateName ] )=="1":
 				res.append( state )
 		return( res )
 
@@ -587,9 +584,9 @@ class Order( List ):
 		@param orderID: ID to calculate the price for
 		"""
 		price = sum( [x[3] for x in self.getBillItems( orderID ) ] )
-		orderObj = ndb.Key( urlsafe=str( orderID ) ).get()
-		orderObj.price = price
-		orderObj.put()
+		orderObj = db.Get( db.Key( str( orderID ) ) )
+		orderObj["price"] = price
+		db.Put( orderObj )
 
 	
 	def startPayment( self, step, orderID, *args, **kwargs ):
@@ -641,25 +638,24 @@ class Order( List ):
 
 		def  getIDtxn( entityName, orderID ):
 			"""Generates and returns a new, unique ID"""
-			seqObj = generateExpandoClass( "viur_bill_sequences" ).get_or_insert( entityName, count=1000)
-			idx = seqObj.count
-			seqObj.count += 1
-			seqObj.put()
+			seqObj = db.GetOrInsert( entityName," viur_bill_sequences", count=1000)
+			idx = seqObj["count"]
+			seqObj["count"] += 1
+			db.Put( seqObj )
 			return( str(idx) )
 
-		def setIDtxn( orderID, skel, idx ):
+		def setIDtxn( orderID, idx ):
 			"""Assigns the new orderID to the given order"""
-			dbObj = ndb.Key( urlsafe=orderID ).get()
+			dbObj = db.Get( db.Key( orderID ) )
 			if not dbObj:
 				return
-			dbObj.idx = idx
-			dbObj.put()
-		self.viewSkel()
-		dbObj = ndb.Key( urlsafe=orderID ).get( )
+			dbObj[ "idx" ] = idx
+			db.Put( dbObj )
+		dbObj = db.Get( db.Key( orderID ) )
 		if not dbObj:
 			return
-		idx = ndb.transaction( lambda: getIDtxn( self.entityName, orderID ) )
-		ndb.transaction( lambda: setIDtxn( orderID, self.viewSkel, idx  ) )
+		idx = db.RunInTransaction( getIDtxn, self.entityName, orderID )
+		db.RunInTransaction( setIDtxn, orderID, idx  )
 		self.billSequenceAvailable( orderID )
 		
 		
@@ -728,11 +724,12 @@ class Order( List ):
 	def checkout( self, step=None, id=None, skey=None, *args, **kwargs ):
 		if( step==None ):
 			logging.info("Starting new checkout process")
-			billObj = generateExpandoClass( self.entityName )()
-			billObj.idx = "0000000";
+			billObj = db.Entity( self.entityName )
+			billObj["idx"] = "0000000";
 			for state in self.states:
-				setattr( billObj, "state_%s" % state, "0" )
-			id = billObj.put().urlsafe()
+				billObj[ "state_%s" % state ] = "0"
+			db.Put( billObj )
+			id = str( billObj.key() )
 			#Try copying the Cart
 			if "amountSkel" in dir ( self ):
 				cart = session.current.get("cart_products") or {}
@@ -748,34 +745,34 @@ class Order( List ):
 			raise errors.Redirect("?step=0&id=%s" % str( id ) )
 		elif id:
 			try:
-				orderID = ndb.Key( urlsafe=id )
+				orderID = db.Key( id )
 				step = int( step )
 				assert( step>=0 )
 				assert( step < len( self.steps ) )
 			except:
 				raise errors.NotAcceptable()
 			sessionInfo = session.current.get("order_"+self.entityName)
-			if not sessionInfo or not sessionInfo.get("id") == str( orderID.urlsafe() ):
+			if not sessionInfo or not sessionInfo.get("id") == str( orderID ):
 				raise errors.Unauthorized()
 			if step in sessionInfo["completedSteps"]:
 				session.current["order_"+self.entityName]["completedSteps"] = [ x for x in sessionInfo["completedSteps"] if x<step ]
 				session.current.markChanged()
 			#Make sure that no steps can be skipped
 			if step != 0 and not step-1 in sessionInfo["completedSteps"]  :
-				raise errors.Redirect("?step=0&id=%s" % str( orderID.urlsafe() ) )
+				raise errors.Redirect("?step=0&id=%s" % str( str(orderID) ) )
 			currentStep = self.steps[ step ]
 			res = ""
 			if "preHandler" in currentStep.keys():
 				try:
 					if isinstance( currentStep["preHandler"], list ):
 						for handler in currentStep["preHandler"]:
-							handler( self, step, str(orderID.urlsafe()), *args, **kwargs )
+							handler( self, step, str(orderID), *args, **kwargs )
 					else:
-						currentStep["preHandler"]( self, step, str(orderID.urlsafe()), *args, **kwargs )
+						currentStep["preHandler"]( self, step, str(orderID), *args, **kwargs )
 				except Order.SkipStep:
 					session.current["order_"+self.entityName]["completedSteps"].append( step )
 					session.current.markChanged()
-					raise errors.Redirect("?step=%s&id=%s" % (str( step+1 ), str( orderID.urlsafe() ) ) )
+					raise errors.Redirect("?step=%s&id=%s" % (str( step+1 ), str( str(orderID) ) ) )
 				except Order.ReturnHtml as e:
 					return( e.html )
 			if "requiresSecutityKey" in currentStep.keys() and currentStep["requiresSecutityKey"] :
@@ -784,24 +781,24 @@ class Order( List ):
 			if "mainHandler" in currentStep.keys():
 				if currentStep["mainHandler"]["action"] == "edit":
 					skel = currentStep["mainHandler"]["skeleton"]()
-					skel.fromDB( str( orderID.urlsafe() ) )
+					skel.fromDB( str( orderID ) )
 					if not len( kwargs.keys() ) or not skel.fromClient( kwargs ):
 						return( self.render.edit( skel, tpl=currentStep["mainHandler"]["template"], step=step ) )
-					skel.toDB( str( orderID.urlsafe() ) )
+					skel.toDB( str( orderID ) )
 				if currentStep["mainHandler"]["action"] == "view":
 					if not "complete" in kwargs or not kwargs["complete"]==u"1":
 						skel = currentStep["mainHandler"]["skeleton"]()
-						skel.fromDB( str( orderID.urlsafe() ) )
+						skel.fromDB( str( orderID ) )
 						return( self.render.view( skel, tpl=currentStep["mainHandler"]["template"], step=step ) )
 				elif currentStep["mainHandler"]["action"] == "function":
-					res = currentStep["mainHandler"]["function"]( self, step, orderID.urlsafe(), *args, **kwargs )
+					res = currentStep["mainHandler"]["function"]( self, step, str(orderID), *args, **kwargs )
 					if res:
 						return( res )
 			if "postHandler" in currentStep.keys():
-				currentStep["postHandler"]( self, step, str(orderID.urlsafe()), *args, **kwargs )
+				currentStep["postHandler"]( self, step, str(orderID), *args, **kwargs )
 			session.current["order_"+self.entityName]["completedSteps"].append( step )
 			session.current.markChanged()
-			raise errors.Redirect("?step=%s&id=%s" % (str( step+1 ), str( orderID.urlsafe() ) ) )
+			raise errors.Redirect("?step=%s&id=%s" % (str( step+1 ), str( orderID ) ) )
 	checkout.exposed=True
 
 	def archiveOrder(self, order ):

@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
-from google.appengine.ext import ndb
+from server import db
 from google.appengine.api import search
-from server.utils import generateExpandoClass
 import json
 from server.tasks import PeriodicTask
 from time import time
@@ -57,8 +56,8 @@ class relationalBone( baseBone ):
 			self.parentKeys=parentKeys
 
 	def unserialize( self, name, expando ):
-		if name in expando._properties.keys():
-			val = getattr( expando, name )
+		if name in expando.keys():
+			val = expando[ name ]
 			if self.multiple:
 				self.value = []
 				if not val:
@@ -102,7 +101,6 @@ class relationalBone( baseBone ):
 		return( {key: None } )
 	
 	def postSavedHandler( self, key, skel, id, dbfields ):
-		expClass = generateExpandoClass( skel.entityName+"_"+self.type+"_"+key )
 		if not self.value:
 			values = []
 		elif isinstance( self.value, dict ):
@@ -118,32 +116,31 @@ class relationalBone( baseBone ):
 						#The value is neither a simple type (float,int,datetime) nor a list of these types) - force it to string
 						val = unicode( val )
 				parentValues[ parentKey ] = val
-		dbVals = expClass.query( ancestor = ndb.Key( urlsafe=id ) )
-		for dbObj in dbVals.iter():
-			if not getattr( dbObj, key+"_id" ) in [ x[key+"_id"] for x in values ]: #Relation has been removed
-				dbObj.key.delete()
+		dbVals = db.Query( skel.entityName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) )
+		for dbObj in dbVals.run():
+			if not dbObj[ key+"_id" ] in [ x[key+"_id"] for x in values ]: #Relation has been removed
+				db.Delete( dbObj.key() )
 			else: # Relation: Updated
-				data = [ x for x in values if x[key+"_id"]==getattr( dbObj, key+"_id" ) ][0]
+				data = [ x for x in values if x[key+"_id"]== dbObj[ key+"_id" ] ][0]
 				for k,v in data.items():
-					setattr( dbObj, k, v )
+					dbObj[ k ] = v
 				for k,v in parentValues.items():
-					setattr( dbObj, k, v )
-				setattr( dbObj, "viur_delayed_update_tag", time() )
-				dbObj.put()
+					dbObj[ k ] = v
+				dbObj[ "viur_delayed_update_tag" ] = time()
+				db.Put( dbObj )
 				values.remove( data )
 		# Add any new Relation
 		for val in values:
-			dbObj = expClass( parent=ndb.Key( urlsafe=id ) )
+			dbObj = db.Entity( skel.entityName+"_"+self.type+"_"+key, parent=db.Key( id ) )
 			for k, v in val.items():
-				setattr( dbObj, k, v )
+				dbObj[ k ] = v
 			for k,v in parentValues.items():
-				setattr( dbObj, k, v )
-			setattr( dbObj, "viur_delayed_update_tag", time() )
-			dbObj.put()
+				dbObj[ k ] = v
+			dbObj[ "viur_delayed_update_tag" ] = time()
+			db.Put( dbObj )
 		
 	def postDeletedHandler( self, skel, key, id ):
-		expClass = generateExpandoClass( skel.entityName+"_"+self.type+"_"+key )
-		ndb.delete_multi( [x for x in expClass.query( ancestor = ndb.Key( urlsafe=id )).iter(keys_only=True) ] ) #keys_only=True
+		db.Delete( [x for x in db.Query( skel.entityName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) ).run( keys_only=True ) ] ) #keys_only=True
 	
 	def rebuildData(self, *args, **kwargs ):
 		pass
@@ -181,24 +178,23 @@ class relationalBone( baseBone ):
 		
 		if len( res ) == 0:
 			return( "No value entered" )
-		expClass = generateExpandoClass( self.type )
 		for r in res:
 			try:
-				entry = ndb.Key( urlsafe=r ).get()
+				entry = db.Get( db.Key( r ) )
 			except: #Invalid key or something like that
 				if not self.multiple:
 					return( "Invalid entry selected" )
 				continue
-			if not entry or not entry.key.kind()==self.type: #Entry does not exist or has wrong type (is from another modul)
+			if not entry or not entry.key().kind()==self.type: #Entry does not exist or has wrong type (is from another modul)
 				continue
 			if not self.multiple:
 				#tmp = { k:v for k, v  in list(data.items()) if k in self.refKeys }
 				#tmp["id"] = str( data["_id"] )
-				self.value = { k:getattr(entry,k) for k in entry._properties.keys() if k in self.refKeys }
+				self.value = { k: entry[k] for k in entry.keys() if k in self.refKeys }
 				self.value["id"] = r
 				return( None )
 			else:
-				tmp = { k:getattr(entry,k) for k in entry._properties.keys() if k in self.refKeys }
+				tmp = { k: entry[k] for k in entry.keys() if k in self.refKeys }
 				tmp["id"] = r
 				self.value.append( tmp )
 		if not self.value:

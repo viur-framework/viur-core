@@ -3,7 +3,7 @@ from server.skeleton import Skeleton
 from server.applications.hierarchy import Hierarchy, HierarchySkel
 from server.applications.list import List
 from server.bones import *
-from google.appengine.ext import ndb
+from server import db
 from server import session, errors
 from server.indexes import IndexMannager
 from google.appengine.ext import deferred
@@ -23,14 +23,14 @@ class PostSkel( Skeleton ):
 	entityName = "forumpost"
 	name = stringBone( descr="Name", required=True )
 	descr = textBone( descr="Message", required=True )
-	thread = stringBone( descr="Thread", type="forumposts", visible=False, required=False )
+	thread = stringBone( descr="Thread", type="forumposts", visible=False, searchable=True, required=False )
 	user = userBone( descr="User", creationMagic=True, visible=False, required=False )
-	creationdate = dateBone( descr="created at", readOnly=True, visible=False, creationMagic=True, localize=True )
+	creationdate = dateBone( descr="created at", readOnly=True, visible=False, creationMagic=True, searchable=True, localize=True )
 
 class ThreadSkel( PostSkel ):
 	entityName = "forumthread"
 	forum = hierarchyBone( descr="Forum", type="forum",  visible=False, required=True )
-	fid = stringBone( descr="ForumID", visible=False, readonly=True )
+	fid = stringBone( descr="ForumID", visible=False, searchable=True, readonly=True )
 	thread = None
 
 	def preProcessSerializedData( self, dbfilter ):
@@ -87,19 +87,19 @@ class Forum( Hierarchy ):
 	
 	def index(self, *args, **kwargs):
 		repo = self.ensureOwnModulRootNode()
-		return( self.list( str(repo.key.urlsafe())) )
+		return( self.list( str(repo.key())) )
 	index.exposed=True
 
 	def getAvailableRootNodes( self, *args, **kwargs ):
 		repo = self.ensureOwnModulRootNode()
-		return( [{"name":u"Forum", "key": str(repo.key.urlsafe()) }] )
+		return( [{"name":u"Forum", "key": str(repo.key()) }] )
 	
 	def viewForum(self, forumid, page=0, *args, **kwargs ):
 		if not self.canView( forumid ):
 			raise( errors.Unauthorized() )
-		mylist = Skellist( self.threadSkel )
-		queryObj = utils.buildDBFilter( self.threadSkel() ,  { "fid": forumid, "amount":"10", "orderby":"creationdate", "orderdir":"1" }) #Build the initial one
-		mylist.fromDB( queryObj.fetch( queryObj.limit, start_cursor=self.indexMgr.cursorForQuery( queryObj, page ) ) )
+		queryObj = self.threadSkel().all().mergeExternalFilter( {"fid": forumid, "orderby":"creationdate", "orderdir":"1","amount": "10" })    #, "amount":"10", "orderby":"creationdate", "orderdir":"1"
+		start_cursor=self.indexMgr.cursorForQuery( queryObj, page )
+		mylist = queryObj.cursor( start_cursor ).fetch()
 		return( self.render.list( mylist, tpl=self.viewForumTemplate, pages=self.indexMgr.getPages( queryObj )  ) )
 	viewForum.exposed=True
 
@@ -107,11 +107,10 @@ class Forum( Hierarchy ):
 		thread = self.threadSkel()
 		if not thread.fromDB( threadid ) or not self.canView( thread.forum.value["id"] ):
 			raise( errors.Unauthorized() )
-		mylist = Skellist( self.postSkel )
-		queryObj = utils.buildDBFilter( self.postSkel() ,  {"thread":threadid, "amount":"10", "orderby":"creationdate", "orderdir":"0" }) #Build the initial one
+		queryObj =self.postSkel().all().mergeExternalFilter( {"thread":threadid, "amount":"10", "orderby":"creationdate", "orderdir":"0" } )
 		if not queryObj:
 			raise( errors.Unauthorized() )
-		mylist.fromDB( queryObj.fetch( queryObj.limit, start_cursor=self.indexMgr.cursorForQuery( queryObj, page ) ) )
+		mylist = queryObj.cursor( self.indexMgr.cursorForQuery( queryObj, page ) ).fetch()
 		return( self.render.list( mylist, tpl=self.viewThreadTemplate, pages=self.indexMgr.getPages( queryObj ) ) )
 	viewThread.exposed=True
 	
@@ -136,7 +135,7 @@ class Forum( Hierarchy ):
 		postSkel.fromClient( tmp )
 		postSkel.toDB()
 		#Refresh the index
-		queryObj = utils.buildDBFilter( self.threadSkel() ,  { "fid": skel.forum.value["id"], "amount":"10" }) #Build the initial one
+		queryObj = self.threadSkel().all().filter("fid", skel.forum.value["id"]).filter( "amount","10" )  #Build the initial one
 		self.indexMgr.refreshIndex( queryObj )
 		self.onItemAdded( id, skel )
 		return self.render.addItemSuccess( id, skel )
@@ -158,7 +157,7 @@ class Forum( Hierarchy ):
 			raise errors.PreconditionFailed()
 		id = skel.toDB( )
 		#Refresh the index
-		queryObj = utils.buildDBFilter( self.postSkel() ,  {"thread":skel.thread.value, "amount":"10", "orderby":"creationdate", "orderdir":"0" }) 
+		queryObj = db.Query( self.postSkel().entityName ).filter( "thread", skel.thread.value).order( "creationdate") 
 		self.indexMgr.refreshIndex( queryObj )
 		self.onItemAdded( id, skel )
 		return self.render.addItemSuccess( id, skel )
@@ -199,19 +198,20 @@ class Forum( Hierarchy ):
 			Remove posts which belong to a thread we just deleted
 		"""
 		postSkel = self.postSkel()
-		for post in postSkel._expando().query().filter( ndb.GenericProperty("thread") == thread ).iter():
-			postSkel.delete( post.key.urlsafe() )
+		for post in db.Query( postSkel.entityName ).filter( "thread", thread ).iter():
+			postSkel.delete( str( post.key() ) )
 
 	@tasks.callDefered
 	def checkForEmptyThread(self, thread ): #Fixme: We still have a race-condition here...
-		post = self.postSkel()._expando().query().filter( ndb.GenericProperty("thread") == thread ).get()
+		post = db.Query( self.postSkel() ).filter( "thread", thread ).get()
 		if not post:
 			skel = self.threadSkel()
 			if not skel.fromDB( thread ):
 				return
 			skel.delete( thread )
 			#Refresh the index
-			queryObj = utils.buildDBFilter( self.threadSkel() ,  { "fid": skel.forum.value["id"], "amount":"10" }) #Build the initial one
+			queryObj = db.Query( self.threadSkel().entityName )
+			queryObj[ "fid" ] = skel.forum.value["id"] #Build the initial one
 			self.indexMgr.refreshIndex( queryObj )
 	
 	def editThread(self, id, skey="",  *args, **kwargs ):
