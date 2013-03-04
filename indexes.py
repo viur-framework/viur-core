@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
-from google.appengine.ext import ndb
 import logging
 import json
 from datetime import datetime
-from server.utils import generateExpandoClass
 from hashlib import sha256
 
 

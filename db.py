@@ -162,7 +162,7 @@ def Delete(keys, **kwargs):
 			memcache.delete( str( key ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
 	return( datastore.Delete( keys, **kwargs ) )
 
-def GetOrInsert( key, entityName=None, parent=None, **kwargs ):
+def GetOrInsert( key, kindName=None, parent=None, **kwargs ):
 	"""
 		Either creates a new entity with the given key, or returns the existing one.
 		Its guranteed that there is no race-condition here; it will never overwrite an
@@ -172,8 +172,8 @@ def GetOrInsert( key, entityName=None, parent=None, **kwargs ):
 		@param key: The key which will be fetched/created. If key is a string, it will be used as the name for
 					the new entity, therefor the collectionName is required in this case.
 		@type key: db.Key or String
-		@param entityName: Kind to use for that entity. Ignored if key is a db.Key
-		@type entityName: String
+		@param kindName: Kind to use for that entity. Ignored if key is a db.Key
+		@type kindName: String
 		@param parent: The parent entity of our entity.
 		@type parent: db.Key or None
 	"""
@@ -192,8 +192,8 @@ def GetOrInsert( key, entityName=None, parent=None, **kwargs ):
 		try:
 			key = datastore_types.Key( encoded=key )
 		except:
-			assert entityName
-			key = datastore_types.Key.from_path( entityName, key, parent=parent )
+			assert kindName
+			key = datastore_types.Key.from_path( kindName, key, parent=parent )
 	if datastore.IsInTransaction():
 		return( txn(key, kwargs) )
 	else:

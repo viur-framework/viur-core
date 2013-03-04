@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones import treeItemBone
-from server.utils import generateExpandoClass
 from server import db
-from server.utils import generateExpandoClass, markFileForDeletion
+from server.utils import markFileForDeletion
 from google.appengine.api.images import get_serving_url
 
 class fileBone( treeItemBone ):
@@ -11,7 +10,6 @@ class fileBone( treeItemBone ):
 	
 	def __init__(self, format="$(name)",*args, **kwargs ):
 		super( fileBone, self ).__init__( format=format, *args, **kwargs )
-
 
 	def postSavedHandler( self, key, skel, id, dbfields ):
 		if not self.value:
@@ -24,7 +22,7 @@ class fileBone( treeItemBone ):
 		for parentKey in self.parentKeys:
 			if parentKey in dir( skel ):
 				parentValues[ parentKey ] = unicode( getattr( skel, parentKey ).value )
-		dbVals = db.Query( skel.entityName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) ).run()
+		dbVals = db.Query( skel.kindName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) ).run()
 		for dbObj in dbVals:
 			if not dbObj[ key+"_id" ] in [ x[key+"_id"] for x in values ]: #Relation has been removed
 				lockObjs = db.Query( "file", ancestor = dbObj.key() ).run( 100 )
@@ -53,7 +51,7 @@ class fileBone( treeItemBone ):
 			and str(origFileObj["meta_mime"]).startswith("image/"):
 				origFileObj["servingurl"] = get_serving_url( origFileObj["dlkey"] )
 				db.Put( origFileObj )
-			dbObj = db.Entity(skel.entityName+"_"+self.type+"_"+key, parent=db.Key( id ) )
+			dbObj = db.Entity(skel.kindName+"_"+self.type+"_"+key, parent=db.Key( id ) )
 			for k, v in val.items():
 				dbObj[ k ] = v
 			for k,v in parentValues.items():
@@ -68,7 +66,7 @@ class fileBone( treeItemBone ):
 			db.Put( lockObj )
 
 	def postDeletedHandler( self, skel, key, id ):
-		parentObjs = db.Query( skel.entityName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) ).run()
+		parentObjs = db.Query( skel.kindName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) ).run()
 		for parentObj in parentObjs:
 			files = db.Query( "file", ancestor=parentObj.key() ).run()
 			for f in files:

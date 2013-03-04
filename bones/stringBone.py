@@ -53,8 +53,8 @@ class stringBone( baseBone ):
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
 		if not name in rawFilter.keys() and not any( [x.startswith(name+"$") for x in rawFilter.keys()] ):
 			return( super( stringBone, self ).buildDBFilter( name, skel, dbFilter, rawFilter ) )
-		if not self.searchable:
-			logging.warning( "Invalid searchfilter! %s is not searchable!" % name )
+		if not self.indexed:
+			logging.warning( "Invalid searchfilter! %s is not indexed!" % name )
 			raise RuntimeError()
 		hasInequalityFilter = False
 		if name+"$lk" in rawFilter.keys(): #Do a prefix-match
@@ -86,8 +86,8 @@ class stringBone( baseBone ):
 
 	def buildDBSort( self, name, skel, dbFilter, rawFilter ):
 		if "orderby" in list(rawFilter.keys()) and rawFilter["orderby"] == name:
-			if not self.searchable:
-				logging.warning( "Invalid ordering! %s is not searchable!" % name )
+			if not self.indexed:
+				logging.warning( "Invalid ordering! %s is not indexed!" % name )
 				raise RuntimeError()
 			if self.caseSensitive:
 				prop = name

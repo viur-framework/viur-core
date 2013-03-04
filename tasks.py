@@ -34,7 +34,7 @@ class CallableTaskBase:
 	name = None
 	descr = None
 	direct = False #If true, this task will be called instantly (60 sec timelimit!), else it will be defered to the backend
-	entityName = "server-task"
+	kindName = "server-task"
 	
 	def canCall( self ):
 		"""Checks wherever the current user can execute this task
@@ -277,7 +277,7 @@ class DisableApplicationTask( CallableTaskBase ):
 	name = "Enable or disable the application"
 	descr = "This will enable or disable the application."
 	direct = True #If true, this task will be called instantly (60 sec timelimit!), else it will be defered to the backend
-	entityName = "server-task"
+	kindName = "server-task"
 	
 	def canCall( self ):
 		"""
@@ -289,7 +289,7 @@ class DisableApplicationTask( CallableTaskBase ):
 	def dataSkel( self ):
 		from server.bones import booleanBone, stringBone
 		from server.skeleton import Skeleton
-		skel = Skeleton( self.entityName )
+		skel = Skeleton( self.kindName )
 		skel.active = booleanBone( descr="Application active", required=True )
 		skel.descr = stringBone( descr="Reason for disabling", required=False )
 		return( skel )

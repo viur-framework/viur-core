@@ -151,12 +151,12 @@ class DownloadHandler(blobstore_handlers.BlobstoreDownloadHandler):
 
 
 class fileBaseSkel( TreeSkel ):
-	entityName = "file"
-	size = stringBone( descr="Size", params={"searchable": True,  "frontend_list_visible": True}, readonly=True )
-	dlkey = stringBone( descr="Download-Key", params={"searchable": True,  "frontend_list_visible": True}, readonly=True )
-	name = stringBone( descr="Filename", params={"searchable": True,  "frontend_list_visible": True}, readonly=True, caseSensitive=False )
-	meta_mime = stringBone( descr="Mime-Info", params={"searchable": True,  "frontend_list_visible": True}, readonly=True )
-	#testData = stringBone( descr="TestData", params={"searchable": True,  "frontend_list_visible": True} )
+	kindName = "file"
+	size = stringBone( descr="Size", params={"indexed": True,  "frontend_list_visible": True}, readOnly=True )
+	dlkey = stringBone( descr="Download-Key", params={"indexed": True,  "frontend_list_visible": True}, readOnly=True )
+	name = stringBone( descr="Filename", params={"indexed": True,  "frontend_list_visible": True}, readOnly=True, caseSensitive=False )
+	meta_mime = stringBone( descr="Mime-Info", params={"indexed": True,  "frontend_list_visible": True}, readOnly=True )
+	#testData = stringBone( descr="TestData", params={"indexed": True,  "frontend_list_visible": True} )
 	
 class File( Tree ):
 	viewSkel = fileBaseSkel
@@ -184,7 +184,7 @@ class File( Tree ):
 			res = [ { "name":_("Meine Datein"), "key": str(repo.key()) } ]
 			if "root" in thisuser["access"]:
 				"""Add at least some repos from other users"""
-				repos = db.Query( self.viewSkel.entityName+"_rootNode" ).filter( "type =", "user").run(100)
+				repos = db.Query( self.viewSkel.kindName+"_rootNode" ).filter( "type =", "user").run(100)
 				for repo in repos:
 					if not "user" in repo.keys():
 						continue
@@ -213,14 +213,14 @@ class File( Tree ):
 		if not repo:
 			raise errors.PreconditionFailed()
 		if type=="entry":
-			fileEntry = db.Query( self.viewSkel.entityName )\
+			fileEntry = db.Query( self.viewSkel.kindName )\
 				.filter( "parentdir =",  str(repo.key()) )\
 				.filter( "name =", name).get() 
 			if fileEntry:
 				utils.markFileForDeletion( fileEntry["dlkey"] )
 				db.Delete( fileEntry.key() )
 		else:
-			delRepo = db.Query( self.viewSkel.entityName+"_rootNode" )\
+			delRepo = db.Query( self.viewSkel.kindName+"_rootNode" )\
 				.filter( "parentdir = ", str(repo.key()) )\
 				.filter( "name", name).get()
 			if delRepo:
@@ -231,11 +231,11 @@ class File( Tree ):
 	delete.exposed=True
 
 	def deleteDirsRecursive( self, parentKey ):
-		files = db.Query( self.viewSkel().entityName ).filter( "parentdir =", parentKey  ).run()
+		files = db.Query( self.viewSkel().kindName ).filter( "parentdir =", parentKey  ).run()
 		for fileEntry in files:
 			utils.markFileForDeletion( fileEntry["dlkey"] )
 			db.Delete( fileEntry.key() )
-		dirs = db.Query( self.viewSkel.entityName+"_rootNode" ).filter( "parentdir", parentKey ).run()
+		dirs = db.Query( self.viewSkel.kindName+"_rootNode" ).filter( "parentdir", parentKey ).run()
 		for d in dirs:
 			deferred.defer( self.deleteDirsRecursive, str(d.key()) )
 			db.Delete( d.key() )
@@ -266,7 +266,7 @@ class File( Tree ):
 			return(False)
 		if not rootNode:
 			return( True )
-		key = str( db.Key.from_path( self.viewSkel.entityName+"_rootNode", "rep_user_%s" % str( thisuser["id"] ) ) )
+		key = str( db.Key.from_path( self.viewSkel.kindName+"_rootNode", "rep_user_%s" % str( thisuser["id"] ) ) )
 		if str( rootNode ) == key:
 			return( True )
 		return( False )

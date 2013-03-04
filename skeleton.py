@@ -4,7 +4,6 @@ from server.bones import baseBone,  dateBone
 from collections import OrderedDict
 from threading import local
 from server import db
-from server.utils import generateExpandoClass
 from time import time
 from google.appengine.api import search
 from server.config import conf
@@ -25,7 +24,7 @@ _boneCounter = BoneCounter()
 class Skeleton( object ):
 	""" 
 		Container-object which holds informations about one entity.
-		It must be subclassed where informations about the entityName and its
+		It must be subclassed where informations about the kindName and its
 		attributes (Bones) are specified.
 		
 		Its an hacked Object that stores it members in a OrderedDict-Instance so the Order stays constant
@@ -46,22 +45,22 @@ class Skeleton( object ):
 	def items(self):
 		return( self.__dataDict__.items() )
 	
-	entityName = ""
+	kindName = ""
 	searchIndex = None
 
 	id = baseBone( readOnly=True, visible=False, descr="ID")
-	creationdate = dateBone( readOnly=True, visible=False, creationMagic=True, searchable=True, descr="created at" )
-	changedate = dateBone( readOnly=True, visible=False, updateMagic=True, searchable=True, descr="updated at" )
+	creationdate = dateBone( readOnly=True, visible=False, creationMagic=True, indexed=True, descr="created at" )
+	changedate = dateBone( readOnly=True, visible=False, updateMagic=True, indexed=True, descr="updated at" )
 
-	def __init__( self, entityName=None, *args,  **kwargs ):
+	def __init__( self, kindName=None, *args,  **kwargs ):
 		"""
 			Create a local copy from the global Skel-class.
 			
-			@param entityName: If set, override the entity kind were operating on.
-			@type entityName: String or None
+			@param kindName: If set, override the entity kind were operating on.
+			@type kindName: String or None
 		"""
 		super(Skeleton, self).__init__(*args, **kwargs)
-		self.entityName = entityName or self.entityName
+		self.kindName = kindName or self.kindName
 		self._rawValues = {}
 		self._pendingResult = None
 		self.errors = {}
@@ -87,10 +86,10 @@ class Skeleton( object ):
 	def all(self):
 		"""
 			Returns a db.Query object bound to this skeleton.
-			This query will operate on our entityName, and its valid
+			This query will operate on our kindName, and its valid
 			to use its special methods mergeExternalFilter and getSkel.
 		"""
-		return( db.Query( self.entityName, srcSkelClass=type( self ) ) )
+		return( db.Query( self.kindName, srcSkelClass=type( self ) ) )
 	
 	def fromDB( self,  id ):
 		"""
@@ -108,7 +107,7 @@ class Skeleton( object ):
 				id = unicode( id )
 				if id.isdigit():
 					id = long( id )
-				id = datastore_types.Key.from_path( self.entityName, id )
+				id = datastore_types.Key.from_path( self.kindName, id )
 		assert isinstance( id, datastore_types.Key )
 		dbRes = datastore.Get( id )
 		if dbRes is None:
@@ -151,7 +150,7 @@ class Skeleton( object ):
 				if( isinstance( _bone, baseBone )  ):
 					data = _bone.serialize( key ) 
 					dbfields.update( data )
-					if _bone.searchable:
+					if _bone.indexed:
 						tags += [ tag for tag in _bone.getTags() if (tag not in tags and len(tag)<400) ]
 		if tags:
 			dbfields["viur_tags"] = tags
@@ -161,11 +160,11 @@ class Skeleton( object ):
 			dbfields["viur_delayed_update_tag"] = time() #Mark this entity as dirty, so the background-task will catch it up and update its references.
 		if "preProcessSerializedData" in dir( self ):
 			dbfields = self.preProcessSerializedData( dbfields )
-		unindexedProperties = [ x for x in dir( self ) if (isinstance( getattr( self, x ), baseBone ) and not getattr( self, x ).searchable) ]
+		unindexedProperties = [ x for x in dir( self ) if (isinstance( getattr( self, x ), baseBone ) and not getattr( self, x ).indexed) ]
 		if id:
 			db.RunInTransaction( txnUpdate, id, dbfields, unindexedProperties )
 		else:
-			dbObj = datastore.Entity( self.entityName )
+			dbObj = datastore.Entity( self.kindName )
 			for k, v in dbfields.items():
 				dbObj[ k ] = v
 			dbObj.set_unindexed_properties( unindexedProperties )
@@ -175,7 +174,7 @@ class Skeleton( object ):
 			for key in dir( self ):
 				if "__" not in key:
 					_bone = getattr( self, key )
-					if( isinstance( _bone, baseBone )  ) and _bone.searchable:
+					if( isinstance( _bone, baseBone )  ) and _bone.indexed:
 						fields.extend( _bone.getSearchDocumentFields(key ) )
 			if fields:
 				try:
@@ -417,7 +416,7 @@ class TaskUpdateSeachIndex( CallableTaskBase ):
 			modul = getattr( conf["viur.mainApp"], modulName )
 			if "editSkel" in dir( modul ) and not modulName in modules:
 				modules.append( modulName )
-		skel = Skeleton( self.entityName )
+		skel = Skeleton( self.kindName )
 		skel.modul = selectOneBone( descr="Modul", values={ x: x for x in modules}, required=True )
 		return( skel )
 
@@ -429,7 +428,7 @@ class TaskUpdateSeachIndex( CallableTaskBase ):
 		if not Skel:
 			logging.error("TaskUpdateSeachIndex: Invalid modul")
 			return
-		subscriptionClass = generateExpandoClass( Skel.entityName )
+		subscriptionClass = generateExpandoClass( Skel.kindName )
 		for sub in subscriptionClass.query().iter():
 			try:
 				skel = Skel()

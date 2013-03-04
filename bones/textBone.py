@@ -3,7 +3,7 @@ from server.bones import baseBone
 from time import time
 import HTMLParser, htmlentitydefs 
 from server import db
-from server.utils import generateExpandoClass, markFileForDeletion
+from server.utils import markFileForDeletion
 from server.config import conf
  
 

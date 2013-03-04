@@ -12,7 +12,7 @@ from server import utils, request, tasks
 import logging
 
 class ForumSkel( HierarchySkel ):
-	entityName = "forum"
+	kindName = "forum"
 	name = stringBone( descr="Name", required=True )
 	descr = textBone( descr="Descriptions", required=True )
 	readaccess = selectOneBone( descr="Read-Access", values={"admin":"Admin only", "users":"Registered users", "all":"everyone" } )
@@ -20,17 +20,17 @@ class ForumSkel( HierarchySkel ):
 	
 	
 class PostSkel( Skeleton ):
-	entityName = "forumpost"
+	kindName = "forumpost"
 	name = stringBone( descr="Name", required=True )
 	descr = textBone( descr="Message", required=True )
-	thread = stringBone( descr="Thread", type="forumposts", visible=False, searchable=True, required=False )
+	thread = stringBone( descr="Thread", type="forumposts", visible=False, indexed=True, required=False )
 	user = userBone( descr="User", creationMagic=True, visible=False, required=False )
-	creationdate = dateBone( descr="created at", readOnly=True, visible=False, creationMagic=True, searchable=True, localize=True )
+	creationdate = dateBone( descr="created at", readOnly=True, visible=False, creationMagic=True, indexed=True, localize=True )
 
 class ThreadSkel( PostSkel ):
-	entityName = "forumthread"
+	kindName = "forumthread"
 	forum = hierarchyBone( descr="Forum", type="forum",  visible=False, required=True )
-	fid = stringBone( descr="ForumID", visible=False, searchable=True, readonly=True )
+	fid = stringBone( descr="ForumID", visible=False, indexed=True, readOnly=True )
 	thread = None
 
 	def preProcessSerializedData( self, dbfilter ):
@@ -157,7 +157,7 @@ class Forum( Hierarchy ):
 			raise errors.PreconditionFailed()
 		id = skel.toDB( )
 		#Refresh the index
-		queryObj = db.Query( self.postSkel().entityName ).filter( "thread", skel.thread.value).order( "creationdate") 
+		queryObj = db.Query( self.postSkel().kindName ).filter( "thread", skel.thread.value).order( "creationdate") 
 		self.indexMgr.refreshIndex( queryObj )
 		self.onItemAdded( id, skel )
 		return self.render.addItemSuccess( id, skel )
@@ -198,7 +198,7 @@ class Forum( Hierarchy ):
 			Remove posts which belong to a thread we just deleted
 		"""
 		postSkel = self.postSkel()
-		for post in db.Query( postSkel.entityName ).filter( "thread", thread ).iter():
+		for post in db.Query( postSkel.kindName ).filter( "thread", thread ).iter():
 			postSkel.delete( str( post.key() ) )
 
 	@tasks.callDefered
@@ -210,7 +210,7 @@ class Forum( Hierarchy ):
 				return
 			skel.delete( thread )
 			#Refresh the index
-			queryObj = db.Query( self.threadSkel().entityName )
+			queryObj = db.Query( self.threadSkel().kindName )
 			queryObj[ "fid" ] = skel.forum.value["id"] #Build the initial one
 			self.indexMgr.refreshIndex( queryObj )
 	

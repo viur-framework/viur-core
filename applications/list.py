@@ -58,7 +58,7 @@ class List( object ):
 			queryObj = self.listFilter( queryObj ) #Access control
 			if queryObj is None:
 				raise errors.Unauthorized()
-			skel = queryObj.get()
+			skel = queryObj.getSkel()
 			if not skel: #skel.fromDB( queryObj ):
 				raise errors.NotFound()
 		return( self.render.view( skel ) )

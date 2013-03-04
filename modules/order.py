@@ -4,7 +4,7 @@ from server.applications.list import List
 from server.skeleton import Skeleton
 from server.bones import *
 from server import errors, session, conf, request
-from server.utils import generateExpandoClass, validateSecurityKey
+from server.utils import validateSecurityKey
 from server.tasks import callDefered
 from server import db
 import urllib
@@ -219,7 +219,7 @@ class PaymentProviderPayPal:
 		
 	
 	def doPayPal( self, token, PayerID,  *args, **kwargs ):
-		order = db.Query( self.entityName ).filter( "paypal_token =", token).get()
+		order = db.Query( self.kindName ).filter( "paypal_token =", token).get()
 		if not order:
 			return("NO SUCH ORDER - PAYMENT ABORTED")
 		paypal = PaymentProviderPayPal.PayPal()
@@ -293,7 +293,7 @@ class Order( List ):
 	"""
 
 	archiveDelay = timedelta( days=31 ) # Archive completed orders after 31 Days
-	entityName = "order"
+	kindName = "order"
 	states = [	"complete", # The user completed all steps of the process, he might got redirected to a paymentprovider
 				"payed", #This oder has been payed
 				"rts", #Ready to Ship 
@@ -329,57 +329,57 @@ class Order( List ):
 		}
 
 	class billAddressSkel( Skeleton ):
-		entityName = "order"
+		kindName = "order"
 		bill_gender = selectOneBone( descr=u"Gender", required=True, values={"male":"Mr.", "female":"Mrs."} )
-		bill_firstname = stringBone( descr=u"First name", params={"searchable": True, "frontend_list_visible": True},required=True,unsharp=True )
-		bill_lastname = stringBone( descr=u"Last name", params={"searchable": True, "frontend_list_visible": True},required=True,unsharp=True )
-		bill_street = stringBone( descr=u"Street", params={"searchable": True, "frontend_list_visible": True},required=True )
+		bill_firstname = stringBone( descr=u"First name", params={"indexed": True, "frontend_list_visible": True},required=True,unsharp=True )
+		bill_lastname = stringBone( descr=u"Last name", params={"indexed": True, "frontend_list_visible": True},required=True,unsharp=True )
+		bill_street = stringBone( descr=u"Street", params={"indexed": True, "frontend_list_visible": True},required=True )
 		bill_zip = stringBone( descr=u"Zipcode",required=True,unsharp=True )
 		bill_city = stringBone( descr=u"City",required=True )
-		bill_country = selectCountryBone(descr=u"Country", required=True, codes=selectCountryBone.ISO2, defaultvalue=u"de" )
+		bill_country = selectCountryBone(descr=u"Country", required=True, codes=selectCountryBone.ISO2, defaultValue=u"de" )
 		bill_email = emailBone( descr=u"Email", required=True, unsharp=True )
 		useshippingaddress = booleanBone( descr=u"Use alternative Shipment-Address", required=True)
 
 	class shippingAddressSkel( Skeleton ):
-		entityName = "order"
-		extrashippingaddress = selectOneBone( descr=u"special shippingaddress", values={"0":"No","1":"Yes"}, required=True, defaultvalue=u"0", visible=False )
-		shipping_firstname = stringBone( descr=u"First name", params={"searchable": True, "frontend_list_visible": True},required=True,unsharp=True )
-		shipping_lastname = stringBone( descr=u"Last name", params={"searchable": True, "frontend_list_visible": True},required=True,unsharp=True )
-		shipping_street = stringBone( descr=u"Street", params={"searchable": True, "frontend_list_visible": True},required=True )
+		kindName = "order"
+		extrashippingaddress = selectOneBone( descr=u"special shippingaddress", values={"0":"No","1":"Yes"}, required=True, defaultValue=u"0", visible=False )
+		shipping_firstname = stringBone( descr=u"First name", params={"indexed": True, "frontend_list_visible": True},required=True,unsharp=True )
+		shipping_lastname = stringBone( descr=u"Last name", params={"indexed": True, "frontend_list_visible": True},required=True,unsharp=True )
+		shipping_street = stringBone( descr=u"Street", params={"indexed": True, "frontend_list_visible": True},required=True )
 		shipping_zip = stringBone( descr=u"Zipcode",required=True,unsharp=True )
 		shipping_city = stringBone( descr=u"City",required=True )
-		shipping_country = selectCountryBone(descr=u"Country", required=True, codes=selectCountryBone.ISO2, defaultvalue=u"de" )
+		shipping_country = selectCountryBone(descr=u"Country", required=True, codes=selectCountryBone.ISO2, defaultValue=u"de" )
 
 	class shipTypePayment( Skeleton ):
-		entityName = "order"
+		kindName = "order"
 		shipping_type = selectOneBone( descr=u"Type of shipment", values={"0":"uninsured", "1":"insured"} , required=True)
 		payment_type  = selectOneBone( descr=u"Type of payment", values={"prepaid":"Bank-transfer", "pod":"Pay on Deliver", "paypal":"Paypal", "sofort":"Sofort"} , required=True)
 
 	class listSkel( Skeleton ):
-		entityName = "order"
+		kindName = "order"
 		bill_gender = selectOneBone( descr=u"Bill-gender", required=True, values={"male":"Mr.", "female":"Mrs."} )
-		bill_firstname = stringBone( descr=u"Bill-first name", params={"searchable": True, "frontend_list_visible": True},required=True,unsharp=True )
-		bill_lastname = stringBone( descr=u"Bill-last name", params={"searchable": True, "frontend_list_visible": True},required=True,unsharp=True )
-		bill_street = stringBone( descr=u"Bill-street", params={"searchable": True, "frontend_list_visible": True},required=True )
+		bill_firstname = stringBone( descr=u"Bill-first name", params={"indexed": True, "frontend_list_visible": True},required=True,unsharp=True )
+		bill_lastname = stringBone( descr=u"Bill-last name", params={"indexed": True, "frontend_list_visible": True},required=True,unsharp=True )
+		bill_street = stringBone( descr=u"Bill-street", params={"indexed": True, "frontend_list_visible": True},required=True )
 		bill_city = stringBone( descr=u"Bill-city",required=True )
 		bill_zip = stringBone( descr=u"Bill-zipcode",required=True,unsharp=True )
 		bill_country = selectCountryBone( descr=u"Bill-country", codes=selectCountryBone.ISO2, required=True)
 		bill_email = stringBone( descr=u"email", required=True, unsharp=True)
-		shipping_firstname = stringBone( descr=u"Shipping-first name", params={"searchable": True, "frontend_list_visible": True},required=True,unsharp=True )
-		shipping_lastname = stringBone( descr=u"Shipping-last name", params={"searchable": True, "frontend_list_visible": True},required=True,unsharp=True )
-		shipping_street = stringBone( descr=u"Shipping-street", params={"searchable": True, "frontend_list_visible": True},required=True )
+		shipping_firstname = stringBone( descr=u"Shipping-first name", params={"indexed": True, "frontend_list_visible": True},required=True,unsharp=True )
+		shipping_lastname = stringBone( descr=u"Shipping-last name", params={"indexed": True, "frontend_list_visible": True},required=True,unsharp=True )
+		shipping_street = stringBone( descr=u"Shipping-street", params={"indexed": True, "frontend_list_visible": True},required=True )
 		shipping_city = stringBone( descr=u"Shipping-city",required=True )
 		shipping_zip = stringBone( descr=u"Shipping-zipcode",required=True,unsharp=True )
 		shipping_country = selectCountryBone( descr=u"Shipping-country", codes=selectCountryBone.ISO2, required=True )
-		price = numericBone( descr=u"Price", mode=u"float", required=True, readonly=True )
+		price = numericBone( descr=u"Price", mode=u"float", required=True, readOnly=True )
 		payment_type = selectOneBone( descr=u"type of payment", values = {"prepaid":"Bank-transfer", "pod":"Pay on Delivery", "paypal":"Paypal", "sofort":"Sofort"}, required=False, visible=False )
-		state_complete = selectOneBone( descr=u"Complete", values={"0":"No","1":"Yes"}, defaultvalue=0, readonly=True, required=True, visible=False )
-		state_payed = selectOneBone( descr=u"Paid", values={"0":"No","1":"Yes"}, defaultvalue=0, readonly=True, required=True, visible=False )
-		state_send = selectOneBone( descr=u"Send", values={"0":"No","1":"Yes"}, defaultvalue=0, readonly=True, required=True, visible=False )
-		state_rts = selectOneBone( descr=u"Ready to ship", values={"0":"No","1":"Yes"}, defaultvalue=0, readonly=True, required=True, visible=False )
-		state_canceled = selectOneBone( descr=u"Canceled", values={"0":"No","1":"Yes"}, defaultvalue=0, readonly=True, required=True, visible=False )
-		state_archived = selectOneBone( descr=u"Archived", values={"0":"No","1":"Yes"}, defaultvalue=0, readonly=True, required=True, visible=False )
-		idx = numericBone( descr=u"Order-number", required=True, readonly=True, params={"searchable": True, "frontend_list_visible": True} )
+		state_complete = selectOneBone( descr=u"Complete", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False )
+		state_payed = selectOneBone( descr=u"Paid", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False )
+		state_send = selectOneBone( descr=u"Send", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False )
+		state_rts = selectOneBone( descr=u"Ready to ship", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False )
+		state_canceled = selectOneBone( descr=u"Canceled", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False )
+		state_archived = selectOneBone( descr=u"Archived", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False )
+		idx = numericBone( descr=u"Order-number", required=True, readOnly=True, params={"indexed": True, "frontend_list_visible": True} )
 	viewSkel = listSkel
 
 	def setState( self, orderID, state, removeState=False ):
@@ -603,7 +603,7 @@ class Order( List ):
 		order = Order.listSkel()
 		order.fromDB( orderID )
 		if not str(order.state_complete.value)=="1":
-			session.current["order_"+self.entityName] = None
+			session.current["order_"+self.kindName] = None
 			session.current.markChanged() #Fixme
 			self.setComplete( orderID )
 			if "paymentProvider_%s" % order.payment_type.value in dir( self ):
@@ -636,9 +636,9 @@ class Order( List ):
 	def assignBillSequence( self, orderID ):
 		"""Assigns an unique order-ID to the given Order """
 
-		def  getIDtxn( entityName, orderID ):
+		def  getIDtxn( kindName, orderID ):
 			"""Generates and returns a new, unique ID"""
-			seqObj = db.GetOrInsert( entityName," viur_bill_sequences", count=1000)
+			seqObj = db.GetOrInsert( kindName," viur_bill_sequences", count=1000)
 			idx = seqObj["count"]
 			seqObj["count"] += 1
 			db.Put( seqObj )
@@ -654,7 +654,7 @@ class Order( List ):
 		dbObj = db.Get( db.Key( orderID ) )
 		if not dbObj:
 			return
-		idx = db.RunInTransaction( getIDtxn, self.entityName, orderID )
+		idx = db.RunInTransaction( getIDtxn, self.kindName, orderID )
 		db.RunInTransaction( setIDtxn, orderID, idx  )
 		self.billSequenceAvailable( orderID )
 		
@@ -724,7 +724,7 @@ class Order( List ):
 	def checkout( self, step=None, id=None, skey=None, *args, **kwargs ):
 		if( step==None ):
 			logging.info("Starting new checkout process")
-			billObj = db.Entity( self.entityName )
+			billObj = db.Entity( self.kindName )
 			billObj["idx"] = "0000000";
 			for state in self.states:
 				billObj[ "state_%s" % state ] = "0"
@@ -740,7 +740,7 @@ class Order( List ):
 						products.append( str(prod) )
 				s.fromClient( {"product": products} )
 				s.toDB( id )
-			session.current["order_"+self.entityName] = {"id": str( id ), "completedSteps": [] }
+			session.current["order_"+self.kindName] = {"id": str( id ), "completedSteps": [] }
 			session.current.markChanged()
 			raise errors.Redirect("?step=0&id=%s" % str( id ) )
 		elif id:
@@ -751,11 +751,11 @@ class Order( List ):
 				assert( step < len( self.steps ) )
 			except:
 				raise errors.NotAcceptable()
-			sessionInfo = session.current.get("order_"+self.entityName)
+			sessionInfo = session.current.get("order_"+self.kindName)
 			if not sessionInfo or not sessionInfo.get("id") == str( orderID ):
 				raise errors.Unauthorized()
 			if step in sessionInfo["completedSteps"]:
-				session.current["order_"+self.entityName]["completedSteps"] = [ x for x in sessionInfo["completedSteps"] if x<step ]
+				session.current["order_"+self.kindName]["completedSteps"] = [ x for x in sessionInfo["completedSteps"] if x<step ]
 				session.current.markChanged()
 			#Make sure that no steps can be skipped
 			if step != 0 and not step-1 in sessionInfo["completedSteps"]  :
@@ -770,7 +770,7 @@ class Order( List ):
 					else:
 						currentStep["preHandler"]( self, step, str(orderID), *args, **kwargs )
 				except Order.SkipStep:
-					session.current["order_"+self.entityName]["completedSteps"].append( step )
+					session.current["order_"+self.kindName]["completedSteps"].append( step )
 					session.current.markChanged()
 					raise errors.Redirect("?step=%s&id=%s" % (str( step+1 ), str( str(orderID) ) ) )
 				except Order.ReturnHtml as e:
@@ -796,7 +796,7 @@ class Order( List ):
 						return( res )
 			if "postHandler" in currentStep.keys():
 				currentStep["postHandler"]( self, step, str(orderID), *args, **kwargs )
-			session.current["order_"+self.entityName]["completedSteps"].append( step )
+			session.current["order_"+self.kindName]["completedSteps"].append( step )
 			session.current.markChanged()
 			raise errors.Redirect("?step=%s&id=%s" % (str( step+1 ), str( orderID ) ) )
 	checkout.exposed=True
@@ -810,7 +810,7 @@ class Order( List ):
 	def archiveOrdersTask( self, *args, **kwargs ):
 		logging.debug("Archiving old orders")
 		#Archive all payed,send and not canceled orders
-		orders = generateExpandoClass( self.viewSkel().entityName ).query()\
+		orders = generateExpandoClass( self.viewSkel().kindName ).query()\
 				.filter( ndb.GenericProperty("changedate") < (datetime.now()-self.archiveDelay) )\
 				.filter( ndb.GenericProperty("state_archived") == "0" )\
 				.filter( ndb.GenericProperty("state_send") == "1" )\
@@ -819,7 +819,7 @@ class Order( List ):
 		for order in orders:
 			self.setArchived( order )
 		#Archive all canceled orders
-		orders = generateExpandoClass( self.viewSkel().entityName ).query()\
+		orders = generateExpandoClass( self.viewSkel().kindName ).query()\
 				.filter( ndb.GenericProperty("changedate") < (datetime.now()-self.archiveDelay) )\
 				.filter( ndb.GenericProperty("state_archived") == "0" )\
 				.filter( ndb.GenericProperty("state_canceled") == "1" ).iter()

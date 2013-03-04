@@ -2,7 +2,7 @@
 import json
 from server import bones
 from collections import OrderedDict
-
+import logging
 class DefaultRender( object ):
 	
 	def __init__(self, parent=None, *args, **kwargs ):

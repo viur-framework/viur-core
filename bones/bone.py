@@ -7,13 +7,12 @@ import logging
 class baseBone(object): # One Bone:
 	hasDBField = True
 	type = "hidden"
-	def __init__( self, descr="", defaultValue=None, required=False, params=None, multiple=False, searchable=False, vfunc=None,  readOnly=False,  visible=True, **kwargs ):
+	def __init__( self, descr="", defaultValue=None, required=False, params=None, multiple=False, indexed=False, vfunc=None,  readOnly=False,  visible=True, **kwargs ):
 		from server.skeleton import _boneCounter
 		#Fallbacks for old non-CamelCase API
-		if "defaultvalue" in kwargs.keys():
-			defaultValue = kwargs["defaultvalue"]
-		if "readonly" in kwargs.keys():
-			readOnly = kwargs["readonly"]
+		for x in ["defaultvalue", "readonly", "searchable"]:
+			if x in kwargs.keys():
+				raise NotImplementedError("%s is not longer supported" % x )
 		self.descr = descr
 		self.required = required
 		self.params = params
@@ -30,7 +29,7 @@ class baseBone(object): # One Bone:
 		else:
 			if "defaultValue" in dir(self) and callable( self.defaultValue ):
 				self.value = self.defaultValue()
-		self.searchable = searchable
+		self.indexed = indexed
 		if vfunc:
 			self.canUse = vfunc
 		self.readOnly = readOnly
@@ -77,8 +76,8 @@ class baseBone(object): # One Bone:
 		myKeys = [ key for key in rawFilter.keys() if key.startswith( name ) ] 
 		if len( myKeys ) == 0:
 			return( dbFilter )
-		if not self.searchable:
-			logging.warning( "Invalid searchfilter! %s is not searchable!" % name )
+		if not self.indexed:
+			logging.warning( "Invalid searchfilter! %s is not indexed!" % name )
 			raise RuntimeError()
 		for key in myKeys:
 			value = rawFilter[ key ]
@@ -108,8 +107,8 @@ class baseBone(object): # One Bone:
 
 	def buildDBSort( self, name, skel, dbFilter, rawFilter ):
 		if "orderby" in list(rawFilter.keys()) and rawFilter["orderby"] == name:
-			if not self.searchable:
-				logging.warning( "Invalid ordering! %s is not searchable!" % name )
+			if not self.indexed:
+				logging.warning( "Invalid ordering! %s is not indexed!" % name )
 				raise RuntimeError()
 			if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
 				order = ( rawFilter["orderby"], db.DESCENDING )

@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
 from server import utils
-from google.appengine.ext import ndb
-from server.utils import generateExpandoClass
+from server import db
 
 class treeDirBone( baseBone ):
 	def __init__( self, type, multiple=False, *args, **kwargs ):
@@ -12,15 +11,15 @@ class treeDirBone( baseBone ):
 
 	
 	def findPathInRepository( self, repository, path ):
-		dbObj = utils.generateExpandoClass( self.type+"_repository" )
-		repo = ndb.Key( urlsafe=repository ).get()
+		dbObj = utils.generateExpandoClass(  )
+		repo = db.Get( db.Key( repository ) )
 		for comp in path.split("/"):
 			if not repo:
 				return( None )
 			if not comp:
 				continue			
-			repo = dbObj.query().filter( ndb.GenericProperty("parentdir" ) == repo.key.urlsafe() )\
-					.filter( ndb.GenericProperty("name" ) == comp ).get()
+			repo = db.Query( self.type+"_repository").filter( "parentdir =", str(repo.key()))\
+					.filter( "name =", comp ).get()
 		if not repo:
 			return( None )
 		else:

@@ -279,14 +279,14 @@ def backup( fileName ):
 				skel = getattr( modul, key )
 				try:
 					assert issubclass( skel, Skeleton )
-					entityName = skel().entityName
-					assert entityName
+					kindName = skel().kindName
+					assert kindName
 				except:
 					continue
-				if "%s %s" % ( modulName, entityName ) in kinds:
+				if "%s %s" % ( modulName, kindName ) in kinds:
 					continue
-				kinds.append("%s %s" % ( modulName, entityName ))
-				for entry in utils.generateExpandoClass( entityName ).query().iter():
+				kinds.append("%s %s" % ( modulName, kindName ))
+				for entry in utils.generateExpandoClass( kindName ).query().iter():
 					outFile.writeEntry( entry )
 	# Backup Blobs
 	qry = blobstore.BlobInfo.all()
@@ -375,7 +375,7 @@ class TaskBackup( CallableTaskBase ):
 	def dataSkel(self):
 		fileRepo = None
 		fileRepo = getattr( conf["viur.mainApp"], "file" ).getAvailableRootNodes("")[0]["key"]
-		skel = Skeleton( self.entityName )
+		skel = Skeleton( self.kindName )
 		skel.dest = selectOneBone( descr="Backup target", required=True, values={"gs":"Google Storage", "file": "File" } )
 		skel.filename = stringBone( descr="Filename", required=True )
 		skel.filerepo = baseBone( descr="Dest File Repo", readOnly=True, defaultValue=fileRepo, visible=False )
@@ -403,7 +403,7 @@ class TaskRestore( CallableTaskBase ):
 	def dataSkel(self):
 		fileRepo = None
 		fileRepo = getattr( conf["viur.mainApp"], "file" ).getAvailableRootNodes("")[0]["key"]
-		skel = Skeleton( self.entityName )
+		skel = Skeleton( self.kindName )
 		skel.dest = selectOneBone( descr="Backup source", required=True, values={"gs":"Google Storage", "file": "File" } )
 		skel.filename = stringBone( descr="GS Filename", required=False )
 		skel.filerel = fileBone( descr="File", required=False )

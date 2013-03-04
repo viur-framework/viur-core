@@ -10,9 +10,9 @@ from datetime import datetime
 import logging
 
 class HierarchySkel( Skeleton ):
-	parententry = baseBone( descr="Parent", visible=False, searchable=True, readOnly=True )
-	parentrepo = baseBone( descr="BaseRepo", visible=False, searchable=True, readonly=True )
-	sortindex = numericBone( descr="SortIndex", mode="float", visible=False, searchable=True, readOnly=True )
+	parententry = baseBone( descr="Parent", visible=False, indexed=True, readOnly=True )
+	parentrepo = baseBone( descr="BaseRepo", visible=False, indexed=True, readOnly=True )
+	sortindex = numericBone( descr="SortIndex", mode="float", visible=False, indexed=True, readOnly=True )
 	
 	def preProcessSerializedData( self, dbfields ):
 		if not ("sortindex" in dbfields.keys() and dbfields["sortindex"] ):
@@ -82,7 +82,7 @@ class Hierarchy( object ):
 		res = []
 		lastChildren = []
 		for x in range(0,99):
-			q = db.Query( self.viewSkel().entityName )
+			q = db.Query( self.viewSkel().kindName )
 			q.filter( "parententry =", str(key) )
 			q.order( "sortindex" )
 			entryObjs = q.run( 100 )
@@ -124,7 +124,7 @@ class Hierarchy( object ):
 		repo = db.Get( entryKey )
 		while repo and  "parententry" in repo.keys():
 			repo = db.Get( repo["parententry"] )
-		assert repo and repo.key().kind() == self.viewSkel().entityName+"_rootNode"
+		assert repo and repo.key().kind() == self.viewSkel().kindName+"_rootNode"
 		return( repo )
 
 	def isValidParent(self, parent ):
@@ -167,8 +167,8 @@ class Hierarchy( object ):
 		thisuser = conf["viur.mainApp"].user.getCurrentUser()
 		if thisuser:
 			key = "rep_user_%s" % str( thisuser["id"] )
-			entityName = self.viewSkel().entityName+"_rootNode"
-			return( db.GetOrInsert( key, entityName=entityName, creationdate=datetime.now(), rootNode=1, user=str( thisuser["id"] ) ) )
+			kindName = self.viewSkel().kindName+"_rootNode"
+			return( db.GetOrInsert( key, kindName=kindName, creationdate=datetime.now(), rootNode=1, user=str( thisuser["id"] ) ) )
 
 
 	def ensureOwnModulRootNode( self ):
@@ -178,8 +178,8 @@ class Hierarchy( object ):
 			@returns: The Node-object (as ndb.Expando)
 		"""
 		key = "rep_modul_repo"
-		entityName = self.viewSkel().entityName+"_rootNode"
-		return( db.GetOrInsert( key, entityName=entityName, creationdate=datetime.now(), rootNode=1 ) )
+		kindName = self.viewSkel().kindName+"_rootNode"
+		return( db.GetOrInsert( key, kindName=kindName, creationdate=datetime.now(), rootNode=1 ) )
 
 
 	def isOwnUserRootNode( self, repo ):
@@ -262,7 +262,7 @@ class Hierarchy( object ):
 			Recursivly processes an delete request
 		"""
 		vs = self.viewSkel()
-		entrys = db.Query( self.viewSkel().entityName ).filter( "parententry", str(id) ).run()
+		entrys = db.Query( self.viewSkel().kindName ).filter( "parententry", str(id) ).run()
 		for e in entrys:
 			self.deleteRecursive( str( e.key() ) )
 			vs.delete( str( e.key() ) )

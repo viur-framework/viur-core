@@ -11,8 +11,8 @@ from datetime import datetime
 import logging
 
 class TreeSkel( Skeleton ):
-	parentdir = baseBone( descr="Parent", visible=False, searchable=True, readonly=True )
-	parentrepo = baseBone( descr="BaseRepo", visible=False, searchable=True, readonly=True )
+	parentdir = baseBone( descr="Parent", visible=False, indexed=True, readOnly=True )
+	parentrepo = baseBone( descr="BaseRepo", visible=False, indexed=True, readOnly=True )
 
 
 class Tree( object ):
@@ -108,7 +108,7 @@ class Tree( object ):
 				return( None )
 			if not comp:
 				continue
-			repo = db.Query( self.viewSkel.entityName+"_rootNode" ).filter( "parentdir =", str( repo.key() ) ).filter( "name =", comp).get()
+			repo = db.Query( self.viewSkel.kindName+"_rootNode" ).filter( "parentdir =", str( repo.key() ) ).filter( "name =", comp).get()
 		if not repo:
 			return( None )
 		else:
@@ -122,7 +122,7 @@ class Tree( object ):
 		thisuser = conf["viur.mainApp"].user.getCurrentUser()
 		if thisuser:
 			key = "rep_user_%s" % str( thisuser["id"] )
-			return( db.GetOrInsert( key, self.viewSkel.entityName+"_rootNode", creationdate=datetime.now(), rootNode=1, user=str( thisuser["id"] ) ) )
+			return( db.GetOrInsert( key, self.viewSkel.kindName+"_rootNode", creationdate=datetime.now(), rootNode=1, user=str( thisuser["id"] ) ) )
 
 	def ensureOwnModulRootNode( self ):
 		"""
@@ -130,7 +130,7 @@ class Tree( object ):
 			@returns: The Node-object (as ndb.Expando)
 		"""
 		key = "rep_modul_repo"
-		return( db.GetOrInsert( key, self.viewSkel.entityName+"_rootNode", creationdate=datetime.now(), rootNode=1 ) )
+		return( db.GetOrInsert( key, self.viewSkel.kindName+"_rootNode", creationdate=datetime.now(), rootNode=1 ) )
 
 	def getRootNode(self, subRepo):
 		"""
@@ -185,7 +185,7 @@ class Tree( object ):
 			raise errors.Unauthorized()
 		if not repo or "/" in dirname:
 			raise errors.PreconditionFailed()
-		dbObj = db.Entity( self.viewSkel.entityName+"_rootNode" )
+		dbObj = db.Entity( self.viewSkel.kindName+"_rootNode" )
 		dbObj[ "name" ] = dirname
 		dbObj[ "parentdir" ] = str(repo.key() )
 		db.Put( dbObj )
@@ -210,14 +210,14 @@ class Tree( object ):
 			raise errors.Unauthorized()
 		if not repo:
 			raise errors.PreconditionFailed()
-		fileRepoObj = db.Query( self.viewSkel().entityName+"_rootNode" )\
+		fileRepoObj = db.Query( self.viewSkel().kindName+"_rootNode" )\
 					.filter( "parentdir =", str(repo.key()))\
 					.filter( "name", src).get()
 		if fileRepoObj: #Check if we rename a Directory
 			fileRepoObj["name"] = dest
 			db.Put( fileRepoObj )
 		else: #we rename a File
-			fileObj = db.Query( self.viewSkel().entityName )\
+			fileObj = db.Query( self.viewSkel().kindName )\
 					.filter( "parentdir =", str(repo.key()))\
 					.filter( "name", src).get()
 			if fileObj:
@@ -252,9 +252,9 @@ class Tree( object ):
 		if not all( [srcRepo, destRepo] ):
 			raise errors.PreconditionFailed()
 		if type=="entry":
-			srcFileObj = db.Query( self.viewSkel().entityName ).filter( "parentdir =", str(srcRepo.key())).filter( "name =", name).get()
+			srcFileObj = db.Query( self.viewSkel().kindName ).filter( "parentdir =", str(srcRepo.key())).filter( "name =", name).get()
 			if srcFileObj:
-				destFileObj = db.Entity( self.viewSkel().entityName )
+				destFileObj = db.Entity( self.viewSkel().kindName )
 				for key in srcFileObj.keys():
 					destFileObj[ key ] =  srcFileObj[ key ]
 				destFileObj["parentdir"] = str( destRepo.key() )
@@ -262,11 +262,11 @@ class Tree( object ):
 				if( deleteold=="1" ): # *COPY* an *DIRECTORY*
 					db.Delete( srcFileObj.key() )
 		else:
-			newRepo = db.Entity( self.viewSkel.entityName+"_rootNode" )
+			newRepo = db.Entity( self.viewSkel.kindName+"_rootNode" )
 			newRepo[ "parentdir" ] = str(destRepo.key() )
 			newRepo[ "name" ] = name
 			db.Put( newRepo )
-			fromRepo = db.Query( self.viewSkel().entityName+"_rootNode").filter( "parentdir =", str(srcRepo.key())).filter( "name",  name).get()
+			fromRepo = db.Query( self.viewSkel().kindName+"_rootNode").filter( "parentdir =", str(srcRepo.key())).filter( "name",  name).get()
 			assert fromRepo
 			self.cloneDirecotyRecursive( fromRepo, newRepo )
 			if deleteold=="1":
@@ -280,7 +280,7 @@ class Tree( object ):
 		"""
 			Recursivly processes an copy/move request
 		"""
-		entityTypeFile = self.viewSkel().entityName
+		entityTypeFile = self.viewSkel().kindName
 		entityTypeDir = entityTypeFile+"_rootNode"
 		subDirs = db.Query( entityTypeDir ).filter( "parentdir =", str(srcRepo.key())).run(100)
 		subFiles = db.Query( entityTypeFile ).filter( "parentdir", str(srcRepo.key())).run(100)
@@ -317,12 +317,12 @@ class Tree( object ):
 		if not repo:
 			raise errors.PreconditionFailed()
 		if type=="entry":
-			fileEntry = db.Query( self.viewSkel().entityName ).filter( "parentdir =", str(repo.key() ) ).filter( "name =", name).get() 
+			fileEntry = db.Query( self.viewSkel().kindName ).filter( "parentdir =", str(repo.key() ) ).filter( "name =", name).get() 
 			if fileEntry:
 				skel = self.viewSkel()
 				skel.delete( str( fileEntry.key() ) )
 		else:
-			delRepo = db.Query( self.viewSkel.entityName+"_rootNode" ).filter( "parentdir =", str(repo.key() ) ).filter( "name =", name).get() 
+			delRepo = db.Query( self.viewSkel.kindName+"_rootNode" ).filter( "parentdir =", str(repo.key() ) ).filter( "name =", name).get() 
 			if delRepo:
 				self.deleteDirsRecursive( delRepo )
 				db.Delete( delRepo.key() )
@@ -335,11 +335,11 @@ class Tree( object ):
 		"""
 			Recursivly processes an delete request
 		"""
-		files = db.Query( self.viewSkel().entityName ).filter( "parentdir", str(repo.key()) ).run()
+		files = db.Query( self.viewSkel().kindName ).filter( "parentdir", str(repo.key()) ).run()
 		skel = self.viewSkel()
 		for f in files:
 			skel.delete( str( f.key() ) )
-		dirs = db.Query( self.viewSkel().entityName+"_rootNode" ).filter( "parentdir", str(repo.key()) ).run()
+		dirs = db.Query( self.viewSkel().kindName+"_rootNode" ).filter( "parentdir", str(repo.key()) ).run()
 		for d in dirs:
 			self.deleteDirsRecursive( d )
 		db.Delete( [x.key() for x in dirs ] )
@@ -376,7 +376,7 @@ class Tree( object ):
 		if not repo or not self.canList( repo, rootNode, path ):
 			raise errors.Unauthorized()
 		subdirs = []
-		for entry in db.Query( self.viewSkel().entityName+"_rootNode" ).filter( "parentdir =", str(repo.key()) ).run( 100 ):
+		for entry in db.Query( self.viewSkel().kindName+"_rootNode" ).filter( "parentdir =", str(repo.key()) ).run( 100 ):
 			subdirs.append( entry[ "name" ] )
 		if not path and kwargs: #Were searching for a particular entry
 			subdirs = [] #Dont list any directorys here

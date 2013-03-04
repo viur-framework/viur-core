@@ -8,10 +8,10 @@ from server import session, errors
 import urllib
 
 class GeoSkel( Skeleton ):
-	name = stringBone( descr="Name", searchable=True, required=True )
-	address = stringBone( descr="Street and House Number", searchable=True, required=True )
-	zipcode = stringBone( descr="Zipcode", searchable=True, required=True )
-	city = stringBone( descr="City", searchable=True, required=True)
+	name = stringBone( descr="Name", indexed=True, required=True )
+	address = stringBone( descr="Street and House Number", indexed=True, required=True )
+	zipcode = stringBone( descr="Zipcode", indexed=True, required=True )
+	city = stringBone( descr="City", indexed=True, required=True)
 	country = selectCountryBone( descr="Country", codes=selectCountryBone.ISO2, required=True )
 	latitude = numericBone( descr="Latitude", required=False, mode="float" )
 	longitude = numericBone( descr="Longitude", required=False, mode="float" )

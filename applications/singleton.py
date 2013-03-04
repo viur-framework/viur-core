@@ -30,7 +30,7 @@ class Singleton( object ):
 			
 			@returns String
 		"""
-		return( "%s-modulkey" % self.editSkel().entityName )
+		return( "%s-modulkey" % self.editSkel().kindName )
 
 	def __init__( self, modulName, modulPath, *args, **kwargs ):
 		self.modulName = modulName
@@ -81,7 +81,7 @@ class Singleton( object ):
 		skel = self.editSkel()
 		if not self.canEdit( ):
 			raise errors.Unauthorized()
-		id = str( db.Key.from_path( self.editSkel().entityName, self.getKey() ) )
+		id = str( db.Key.from_path( self.editSkel().kindName, self.getKey() ) )
 		skel.fromDB( id )
 		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel ) )
@@ -103,7 +103,7 @@ class Singleton( object ):
 			return( False )
 		if user["access"] and "root" in user["access"]:
 			return( True )
-		if user["access"] and "%s-edit" % self.viewSkel.entityName in user["access"]:
+		if user["access"] and "%s-edit" % self.viewSkel.kindName in user["access"]:
 			return( True )
 		return( False )
 

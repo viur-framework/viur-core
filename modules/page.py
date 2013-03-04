@@ -3,17 +3,16 @@ from server.skeleton import Skeleton
 from server.applications.hierarchy import Hierarchy, HierarchySkel
 from server.bones import *
 from server import db
-from server.utils import generateExpandoClass
 from server import session, errors
 from server.plugins.text.youtube import YouTube
 import logging
 
 class pageSkel( HierarchySkel ):
-	entityName="page"
+	kindName="page"
 	searchindex = "page"
-	name = stringBone( descr="Name", searchable=True, required=True )
-	descr = documentBone( descr="Content",searchable=True, required=True, extensions=[YouTube] )
-	hrk = baseBone( descr="Human readable key", visible=False, required=False, searchable=True, readOnly=True )
+	name = stringBone( descr="Name", indexed=True, required=True )
+	descr = documentBone( descr="Content",indexed=True, required=True, extensions=[YouTube] )
+	hrk = baseBone( descr="Human readable key", visible=False, required=False, indexed=True, readOnly=True )
 	
 	def postProcessSerializedData( self, id,  dbfields ): #Build our human readable key
 		obj = db.Get( db.Key( id ) )
@@ -43,7 +42,7 @@ class Page( Hierarchy ):
 	def view( self, id=None, *args, **kwargs ):
 		if unicode(id).startswith("!"): #This is a human readable key
 			repo = str(self.getAvailableRootNodes()[0]["key"])
-			query = db.Query(  self.viewSkel().entityName )
+			query = db.Query(  self.viewSkel().kindName )
 			query.filter( "parentrepo =", repo )
 			query.filter( "hrk =", id )
 			entry = query.get()
@@ -55,7 +54,7 @@ class Page( Hierarchy ):
 	def pathToKey( self, key=None ):
 		if unicode(key).startswith("!"): #This is a human readable key
 			repo = str(self.getAvailableRootNodes()[0]["key"])
-			query = db.Query(  self.viewSkel().entityName )
+			query = db.Query(  self.viewSkel().kindName )
 			query.filter( "parentrepo =", repo )
 			query.filter( "hrk =", id )
 			entry = query.get()

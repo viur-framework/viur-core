@@ -116,7 +116,7 @@ class relationalBone( baseBone ):
 						#The value is neither a simple type (float,int,datetime) nor a list of these types) - force it to string
 						val = unicode( val )
 				parentValues[ parentKey ] = val
-		dbVals = db.Query( skel.entityName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) )
+		dbVals = db.Query( skel.kindName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) )
 		for dbObj in dbVals.run():
 			if not dbObj[ key+"_id" ] in [ x[key+"_id"] for x in values ]: #Relation has been removed
 				db.Delete( dbObj.key() )
@@ -131,7 +131,7 @@ class relationalBone( baseBone ):
 				values.remove( data )
 		# Add any new Relation
 		for val in values:
-			dbObj = db.Entity( skel.entityName+"_"+self.type+"_"+key, parent=db.Key( id ) )
+			dbObj = db.Entity( skel.kindName+"_"+self.type+"_"+key, parent=db.Key( id ) )
 			for k, v in val.items():
 				dbObj[ k ] = v
 			for k,v in parentValues.items():
@@ -140,7 +140,7 @@ class relationalBone( baseBone ):
 			db.Put( dbObj )
 		
 	def postDeletedHandler( self, skel, key, id ):
-		db.Delete( [x for x in db.Query( skel.entityName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) ).run( keys_only=True ) ] ) #keys_only=True
+		db.Delete( [x for x in db.Query( skel.kindName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) ).run( keys_only=True ) ] ) #keys_only=True
 	
 	def rebuildData(self, *args, **kwargs ):
 		pass
@@ -203,13 +203,13 @@ class relationalBone( baseBone ):
 		
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter ): #Fixme: Hm.... could be more...
 		myKeys = [ x for x in rawFilter.keys() if x.startswith( "%s." % name ) ]
-		if len( myKeys ) > 0 and not self.searchable:
-			logging.warning( "Invalid searchfilter! %s is not searchable!" % name )
+		if len( myKeys ) > 0 and not self.indexed:
+			logging.warning( "Invalid searchfilter! %s is not indexed!" % name )
 			raise RuntimeError()
 		if len( myKeys ) > 0: #We filter by some properties
 			#Create a new Filter based on our SubType and copy the parameters
 			origFilter = dbFilter.filters
-			dbFilter = generateExpandoClass( skel.entityName+"_"+self.type+"_"+name ).query()
+			dbFilter = generateExpandoClass( skel.kindName+"_"+self.type+"_"+name ).query()
 			if origFilter:
 				dbFilter = dbFilter.filter( origFilter )
 			for key in myKeys:
@@ -242,7 +242,7 @@ class relationalBone( baseBone ):
 			#Create a new Filter based on our SubType and copy the parameters
 			origFilter = dbFilter.filters
 			origOrders = dbFilter.orders
-			dbFilter = generateExpandoClass( skel.entityName+"_"+self.type+"_"+name ).query() #FIXME: Keys only!
+			dbFilter = generateExpandoClass( skel.kindName+"_"+self.type+"_"+name ).query() #FIXME: Keys only!
 			if origFilter:
 				dbFilter = dbFilter.filter( origFilter )
 			if origOrders:
@@ -269,7 +269,7 @@ def findRelations( currentObj, depth=0, rels={} ):
 		return( rels )
 	try:
 		if issubclass( currentObj, Skeleton ):
-			if not currentObj.entityName:
+			if not currentObj.kindName:
 				return( rels )
 			for key in dir( currentObj ):
 				if key.startswith("__"):
@@ -278,7 +278,7 @@ def findRelations( currentObj, depth=0, rels={} ):
 				if isinstance( bone, relationalBone ):
 					if not bone.type in rels.keys():
 						rels[ bone.type ] = []
-					data = ( currentObj.entityName, key, currentObj )
+					data = ( currentObj.kindName, key, currentObj )
 					if not data in rels[ bone.type ]:
 						rels[ bone.type ].append( data )
 			return( rels )

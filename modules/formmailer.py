@@ -3,7 +3,7 @@ from server.skeleton import Skeleton
 from server import errors, utils
 
 class MailSkel(Skeleton):
-	entityName="Ignored"
+	kindName="Ignored"
 
 class Formmailer(object): #fixme
 	adminInfo = None

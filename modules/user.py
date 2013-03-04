@@ -16,11 +16,11 @@ class GoogleUser( List ):
 	modulList = None #Cache this list of avaiable modules on this instance
 	
 	class baseSkel( Skeleton ):
-		entityName = "user"
-		uid = stringBone( descr="Google's UserID", params={"searchable": True, "frontend_list_visible": True}, required=True, readOnly=True )
+		kindName = "user"
+		uid = stringBone( descr="Google's UserID", params={"indexed": True, "frontend_list_visible": True}, required=True, readOnly=True )
 		gaeadmin = selectOneBone( descr="Is GAE Admin", values={0:"No", 1:"Yes"}, defaultValue=0, readOnly=True )
-		name = stringBone( descr="E-Mail", params={"searchable": True, "frontend_list_visible": True}, required=True )
-		access = selectMultiBone( descr="Accessrights", values={}, params={"searchable": True, "frontend_list_visible": True} )
+		name = stringBone( descr="E-Mail", params={"indexed": True, "frontend_list_visible": True}, required=True )
+		access = selectMultiBone( descr="Accessrights", values={}, params={"indexed": True, "frontend_list_visible": True} )
 		lastlogin = dateBone( descr="Last Login", readOnly=True )
 	
 	addSkel = None #You cannot add users directly - they need to sign up with google and log into the application once
@@ -56,11 +56,11 @@ class GoogleUser( List ):
 		mysha512 = sha512()
 		mysha512.update( str(uid)+conf["viur.salt"]  )
 		uidHash = mysha512.hexdigest()
-		user = db.Get( db.Key.from_path( self.baseSkel().entityName,  "user-%s" % uidHash ) )
+		user = db.Get( db.Key.from_path( self.baseSkel().kindName,  "user-%s" % uidHash ) )
 		if user:
 			res = {}
 			for k in user.keys():
-				res[ k ] = getattr( user, k )
+				res[ k ] = user[ k ]
 			res[ "id" ] = user.key()
 			if not res["access"]:
 				res["access"] = []
@@ -75,10 +75,10 @@ class GoogleUser( List ):
 			mysha512 = sha512()
 			mysha512.update( str(uid)+conf["viur.salt"]  )
 			uidHash = mysha512.hexdigest()
-			user = db.GetOrInsert( "user-%s" % uidHash, entityName=self.baseSkel().entityName, uid=uid, name=currentUser.email(), creationdate=datetime.datetime.now(), access=None  )
+			user = db.GetOrInsert( "user-%s" % uidHash, kindName=self.baseSkel().kindName, uid=uid, name=currentUser.email(), creationdate=datetime.datetime.now(), access=None  )
 			#Update the user
 			dt = datetime.datetime.now()
-			if (not "lastlogin" in user.keys()) or (dt-user.lastlogin)>datetime.timedelta( minutes=30 ):
+			if (not "lastlogin" in user.keys()) or (dt-user["lastlogin"])>datetime.timedelta( minutes=30 ):
 				#Save DB-Writes: Update the user max once in 30 Minutes
 				user["lastlogin"] = dt
 				if users.is_current_user_admin():
@@ -90,7 +90,7 @@ class GoogleUser( List ):
 					user["gaeadmin"] = 1
 				else:
 					user["gaeadmin"] = 0
-				user.put()
+				db.Put( user )
 		if users.get_current_user():
 			db.RunInTransaction( updateCurrentUser )
 			return( self.render.loginSucceeded( ) )
@@ -129,7 +129,7 @@ class CustomUser( List ):
 		"""Create a new Admin user, if the userDB is empty
 		"""
 		super( CustomUser, self ).__init__(*args, **kwargs)
-		if not db.Query( self.loginSkel().entityName ).get():
+		if not db.Query( self.loginSkel().kindName ).get():
 			pw = utils.generateRandomString( 13 )
 			user = self.addUser( "Admin", pw )
 			user["access"] = ["root"]
@@ -142,7 +142,7 @@ class CustomUser( List ):
 		skel = self.loginSkel()
 		pwHash = sha512( password.encode("utf-8")+conf["viur.salt"] ).hexdigest()
 		uidHash = sha512( name.lower().encode("utf-8")+conf["viur.salt"] ).hexdigest()
-		return( db.GetOrInsert( uidHash, entityName=skel.entityName, name=name, name_idx=name.lower(), password=pwHash, creationdate=datetime.datetime.now() ) )
+		return( db.GetOrInsert( uidHash, kindName=skel.kindName, name=name, name_idx=name.lower(), password=pwHash, creationdate=datetime.datetime.now() ) )
 
 	def getAuthMethod( self, *args, **kwargs ):
 		"""Inform tools like Viur-Admin which authentication to use"""
@@ -150,15 +150,15 @@ class CustomUser( List ):
 	getAuthMethod.exposed = True	
 	
 	class loginSkel( Skeleton ):
-		entityName = "user"
+		kindName = "user"
 		id = None
-		name = emailBone( descr="E-Mail", params={"searchable": True, "frontend_list_visible": True}, required=True )
-		password = passwordBone( descr="Passwort", params={"searchable": True, "frontend_list_visible": True,"justinput":True}, required=True )
+		name = emailBone( descr="E-Mail", params={"indexed": True, "frontend_list_visible": True}, required=True )
+		password = passwordBone( descr="Passwort", params={"indexed": True, "frontend_list_visible": True,"justinput":True}, required=True )
 
 	class baseSkel( Skeleton ):
-		entityName = "user"
-		name = emailBone( descr="E-Mail", params={"searchable": True, "frontend_list_visible": True}, required=True )
-		access = selectMultiBone( descr="Accessrights", values={"root": "Superuser"}, params={"searchable": True, "frontend_list_visible": True} )
+		kindName = "user"
+		name = emailBone( descr="E-Mail", params={"indexed": True, "frontend_list_visible": True}, required=True )
+		access = selectMultiBone( descr="Accessrights", values={"root": "Superuser"}, params={"indexed": True, "frontend_list_visible": True} )
 		status = selectOneBone( descr="Account status", values = {
 					1: "Waiting for EMail verification",
 					2: "Waiting for verification through admin",
@@ -196,7 +196,7 @@ class CustomUser( List ):
 		return( skel )
 
 	class lostPasswordSkel( Skeleton ):
-		entityName = "user"
+		kindName = "user"
 		name = stringBone( descr="Name", required=True )
 		password = passwordBone( descr="New Password", required=True )
 	
@@ -268,7 +268,7 @@ class CustomUser( List ):
 			return( self.render.login( self.loginSkel() ) )
 		mysha512 = sha512()
 		mysha512.update( password.encode("utf-8")+conf["viur.salt"] )
-		query = db.Query( self.viewSkel().entityName )
+		query = db.Query( self.viewSkel().kindName )
 		res  = query.filter( "name_idx =", name.lower())\
 				.filter( "password =", mysha512.hexdigest())\
 				.filter( "status >=", 10).get()
