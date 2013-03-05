@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
+from math import pow
 
 class numericBone( baseBone ):
 	"""
@@ -10,7 +11,7 @@ class numericBone( baseBone ):
 		
 	type = "numeric"
 
-	def __init__(self, precision=0, min=-100000000000, max=100000000000,   *args,  **kwargs ):
+	def __init__(self, precision=0, min=-int( pow(2, 30) ), max=int( pow(2, 30) ),   *args,  **kwargs ):
 		"""
 		Initializes a new NumericBone.
 		@param precision: How may decimal places should be saved. Zero casts the value to int instead of float.
