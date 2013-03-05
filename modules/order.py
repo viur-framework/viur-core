@@ -6,7 +6,7 @@ from server.bones import *
 from server import errors, session, conf, request
 from server.utils import validateSecurityKey
 from server.tasks import callDefered
-from server import db
+from server import db, request
 import urllib
 import hashlib
 from google.appengine.api import urlfetch
@@ -599,7 +599,6 @@ class Order( List ):
 		@type orderID: string
 		@param orderID: ID to mark completed
 		"""
-
 		order = Order.listSkel()
 		order.fromDB( orderID )
 		if not str(order.state_complete.value)=="1":
@@ -720,6 +719,66 @@ class Order( List ):
 			thesteps.append( step )
 		return (thesteps)
 	getSteps.internalExposed=True
+	
+	def getBillPdf(self, orderID):
+		"""
+			Should be overriden to return the Bill (as pdf) for the given order.
+			
+			@param orderID: Order, for which the the bill should be generated.
+			@type orderID: String
+			@returns: Bytes or None
+		"""
+		return( None )
+
+	def getDeliveryNotePdf(self, orderID ):
+		"""
+			Should be overriden to return the delivery note (as pdf) for the given order.
+			
+			@param orderID: Order, for which the the bill of delivery should be generated.
+			@type orderID: String
+			@returns: Bytes or None
+		"""
+		return( None )
+	
+	def getBill(self, id, *args, **kwargs):
+		"""
+			Returns the Bill for the given order.
+		"""
+		skel = self.viewSkel()
+		if "canView" in dir( self ):
+			if not self.canView( id ):
+				raise errors.Unauthorized()
+		else:
+			queryObj = self.viewSkel().all().mergeExternalFilter( {"id":  id} )
+			queryObj = self.listFilter( queryObj ) #Access control
+			if queryObj is None:
+				raise errors.Unauthorized()
+		bill = self.getBillPdf( id )
+		if not bill:
+			raise errors.NotFound()
+		request.current.get().response.headers['Content-Type'] = "application/pdf"
+		return( bill )
+	getBill.exposed=True
+
+	def getDeliveryNote(self, id, *args, **kwargs):
+		"""
+			Returns the delivery note for the given order.
+		"""
+		skel = self.viewSkel()
+		if "canView" in dir( self ):
+			if not self.canView( id ):
+				raise errors.Unauthorized()
+		else:
+			queryObj = self.viewSkel().all().mergeExternalFilter( {"id":  id} )
+			queryObj = self.listFilter( queryObj ) #Access control
+			if queryObj is None:
+				raise errors.Unauthorized()
+		bill = self.getDeliveryNotePdf( id )
+		if not bill:
+			raise errors.NotFound()
+		request.current.get().response.headers['Content-Type'] = "application/pdf"
+		return( bill )
+	getDeliveryNote.exposed=True
 	
 	def checkout( self, step=None, id=None, skey=None, *args, **kwargs ):
 		if( step==None ):
