@@ -208,10 +208,10 @@ class relationalBone( baseBone ):
 			raise RuntimeError()
 		if len( myKeys ) > 0: #We filter by some properties
 			#Create a new Filter based on our SubType and copy the parameters
-			origFilter = dbFilter.filters
-			dbFilter = generateExpandoClass( skel.kindName+"_"+self.type+"_"+name ).query()
+			origFilter = dbFilter.datastoreQuery
+			dbFilter.datastoreQuery = type( dbFilter.datastoreQuery )( skel.kindName+"_"+self.type+"_"+name )
 			if origFilter:
-				dbFilter = dbFilter.filter( origFilter )
+				dbFilter.filter( origFilter )
 			for key in myKeys:
 				value = rawFilter[ key ]
 				tmpdata = key.split("$")
@@ -220,21 +220,21 @@ class relationalBone( baseBone ):
 					if isinstance( value, list ):
 						continue
 					if tmpdata[1]=="lt":
-						dbFilter = dbFilter.filter( ndb.GenericProperty( tmpdata[0] ) < value )
+						dbFilter.filter( "%s <" % tmpdata[0], value )
 					elif tmpdata[1]=="gt":
-						dbFilter = dbFilter.filter( ndb.GenericProperty( tmpdata[0] ) > value )
+						dbFilter.filter( "%s >" % tmpdata[0], value )
 					elif tmpdata[1]=="lk":
-						dbFilter = dbFilter.filter( ndb.GenericProperty( tmpdata[0] ) == value )
+						dbFilter.filter( "%s =", tmpdata[0], value )
 					else:
-						dbFilter = dbFilter.filter( ndb.GenericProperty( tmpdata[0] ) == value )
+						dbFilter.filter( "%s =", tmpdata[0], value )
 				else:
 					if isinstance( value, list ):
 						if value:
-							dbFilter = dbFilter.filter( ndb.GenericProperty( tmpdata[0] ).IN( value ) )
+							dbFilter.filter( ndb.GenericProperty( tmpdata[0] ).IN( value ) )
 					else:
-						dbFilter = dbFilter.filter( ndb.GenericProperty( tmpdata[0] ) == value )
+						dbFilter.filter( "%s =" % tmpdata[0], value )
 		elif name in rawFilter.keys() and rawFilter[ name ].lower()=="none":
-			dbFilter = dbFilter.filter( ndb.GenericProperty( name ) == None )
+			dbFilter = dbFilter.filter( "%s =" % name, None )
 		return( dbFilter )
 
 	def buildDBSort( self, name, skel, dbFilter, rawFilter ):

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
 from server.config import conf
+from server import db
 import logging
 
 class stringBone( baseBone ):
@@ -94,20 +95,19 @@ class stringBone( baseBone ):
 			else:
 				prop = name+"_idx"
 			if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
-				order = ( prop, dbFilter.DESCENDING )
+				order = ( prop, db.DESCENDING )
 			else:
-				order = ( prop, dbFilter.ASCENDING )
-			inEqFilter = [ x for x in dbFilter.keys() if (">" in x[ -3: ] or "<" in x[ -3: ] or "!=" in x[ -4: ] ) ]
+				order = ( prop, db.ASCENDING )
+			inEqFilter = [ x for x in dbFilter.datastoreQuery.keys() if (">" in x[ -3: ] or "<" in x[ -3: ] or "!=" in x[ -4: ] ) ]
 			if inEqFilter:
 				inEqFilter = inEqFilter[ 0 ][ : inEqFilter[ 0 ].find(" ") ]
 				if inEqFilter != order[0]:
 					logging.warning("I fixed you query! Impossible ordering changed to %s, %s" % (inEqFilter, order[0]) )
-					dbFilter.Order( inEqFilter, order )
+					dbFilter.order( inEqFilter, order )
 				else:
-					dbFilter.Order( order )
+					dbFilter.order( order )
 			else:
-				logging.error( order )
-				dbFilter.Order( order )
+				dbFilter.order( order )
 		return( dbFilter )
 
 	def getTags(self):

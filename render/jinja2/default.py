@@ -294,10 +294,9 @@ class Render( object ):
 			return False
 		caller = getattr( conf["viur.mainApp"], modul)
 		if not skel in dir( caller ):
-				return( False )
+			return( False )
 		query = getattr(caller, skel )().all()
-		for k, v in kwargs.items():
-			query.filter( k, v )
+		query.mergeExternalFilter( kwargs )
 		if "listFilter" in dir( caller ):
 			query = caller.listFilter( query )
 		mylist = query.fetch()

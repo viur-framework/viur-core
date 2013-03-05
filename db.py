@@ -509,7 +509,7 @@ class Query( object ):
 		if self.srcSkelClass is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
 		res = self.get()
-		if not res:
+		if res is None:
 			return( None )
 		s = self.srcSkelClass()
 		s.setValues( res )
