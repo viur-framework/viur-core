@@ -106,7 +106,7 @@ class GaeSession:
 		self.key = None
 		self.session = {}
 		if cookie:
-			data = memcache.get( "session-"+str(cookie).strip("\"") )
+			data = None #memcache.get( "session-"+str(cookie).strip("\"") )
 			if data: #Loaded successfully from Memcache
 				try:
 					lastseen, self.session = data
@@ -147,7 +147,7 @@ class GaeSession:
 				dbSession.put()
 			except OverQuotaError, CapabilityDisabledError:
 				pass
-			memcache.set( "session-"+self.key, (time(), self.session), self.lifeTime)
+			#memcache.set( "session-"+self.key, (time(), self.session), self.lifeTime)
 			return( str(self.key) )
 		else:
 			if self.key:
