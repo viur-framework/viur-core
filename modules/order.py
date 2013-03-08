@@ -371,15 +371,15 @@ class Order( List ):
 		shipping_city = stringBone( descr=u"Shipping-city",required=True )
 		shipping_zip = stringBone( descr=u"Shipping-zipcode",required=True,unsharp=True )
 		shipping_country = selectCountryBone( descr=u"Shipping-country", codes=selectCountryBone.ISO2, required=True )
-		price = numericBone( descr=u"Price", mode=u"float", required=True, readOnly=True )
+		price = numericBone( descr=u"Grand total", precision=2, required=True, readOnly=True, indexed=True )
 		payment_type = selectOneBone( descr=u"type of payment", values = {"prepaid":"Bank-transfer", "pod":"Pay on Delivery", "paypal":"Paypal", "sofort":"Sofort"}, required=False, visible=False )
-		state_complete = selectOneBone( descr=u"Complete", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False )
-		state_payed = selectOneBone( descr=u"Paid", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False )
-		state_send = selectOneBone( descr=u"Send", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False )
-		state_rts = selectOneBone( descr=u"Ready to ship", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False )
-		state_canceled = selectOneBone( descr=u"Canceled", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False )
-		state_archived = selectOneBone( descr=u"Archived", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False )
-		idx = numericBone( descr=u"Order-number", required=True, readOnly=True, params={"indexed": True, "frontend_list_visible": True} )
+		state_complete = selectOneBone( descr=u"Complete", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False, indexed=True )
+		state_payed = selectOneBone( descr=u"Paid", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False, indexed=True )
+		state_send = selectOneBone( descr=u"Send", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False, indexed=True )
+		state_rts = selectOneBone( descr=u"Ready to ship", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False, indexed=True )
+		state_canceled = selectOneBone( descr=u"Canceled", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False, indexed=True )
+		state_archived = selectOneBone( descr=u"Archived", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False, indexed=True )
+		idx = numericBone( descr=u"Order-number", required=True, readOnly=True, params={"indexed": True, "frontend_list_visible": True}, indexed=True )
 	viewSkel = listSkel
 
 	def setState( self, orderID, state, removeState=False ):
