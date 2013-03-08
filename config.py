@@ -14,7 +14,6 @@ conf = {	"viur.mainApp": None,  #Reference to our prebuild Application-Instance
 		"viur.maxPostParamsCount": 250, #Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks
 		"viur.forceSSL": False,  #If true, all requests must be encrypted (ignored on development server)
 		"viur.emailSenderOverride": False, #If set, this sender will be used, regardless of what the templates advertise as sender
-		"admin.analyticsKey": None, #Tell the admin wich analytics-account to use
 		"bugsnag.apiKey": None #If set, ViUR will report Errors to bugsnag
 	}
 
