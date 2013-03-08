@@ -259,10 +259,10 @@ class Render( object ):
 			return False
 		obj = getattr( conf["viur.mainApp"], modul)
 		if skel in dir( obj ):
-		    skel = getattr( obj , skel)()
-		    if isinstance( obj, Singleton ) and not id:
-			#We fetching the entry from a singleton - No id needed
-			id = str( db.Key.from_path( skel.entityName, obj.getKey() ) )
+			skel = getattr( obj , skel)()
+			if isinstance( obj, Singleton ) and not id:
+				#We fetching the entry from a singleton - No id needed
+				id = str( db.Key.from_path( skel.entityName, obj.getKey() ) )
 			if isinstance( skel,  Skeleton ):
 				skel.fromDB( id )
 				return( self.collectSkelData( skel ) )
