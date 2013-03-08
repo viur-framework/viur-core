@@ -55,6 +55,14 @@ de = {
 	"invalid mode selected":u"Ungültiger Modus eingegeben", 
 	"no item selected":u"Kein Element ausgewählt", 
 	"no or invalid value selected":u"Kein oder ungültiger Wert ausgewählt", 
-	"invalid path supplied":u"Ungültiger Pfad angegeben"
+	"invalid path supplied":u"Ungültiger Pfad angegeben", 
+	"grand total": u"Gesamtpreis", 
+	"archived": u"Archiviert", 
+	"not shipped":u"Nicht versendet", 
+	"ready to ship":u"Versandbereit", 
+	"shipped": u"Versendet", 
+	"unpaid": u"Unbezahlt", 
+	"created at": u"Erstellt am", 
+	"changed at": u"Geändert am", 
 	}
 	
