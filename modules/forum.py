@@ -135,7 +135,7 @@ class Forum( Hierarchy ):
 		postSkel.fromClient( tmp )
 		postSkel.toDB()
 		#Refresh the index
-		queryObj = self.threadSkel().all().filter("fid", skel.forum.value["id"]).filter( "amount","10" )  #Build the initial one
+		queryObj = self.threadSkel().all().mergeExternalFilter( {"fid": skel.forum.value["id"],"orderby":"creationdate", "orderdir":"1", "amount":"10"} )  #Build the initial one
 		self.indexMgr.refreshIndex( queryObj )
 		self.onItemAdded( id, skel )
 		return self.render.addItemSuccess( id, skel )
@@ -157,7 +157,7 @@ class Forum( Hierarchy ):
 			raise errors.PreconditionFailed()
 		id = skel.toDB( )
 		#Refresh the index
-		queryObj = db.Query( self.postSkel().kindName ).filter( "thread", skel.thread.value).order( "creationdate") 
+		queryObj = self.postSkel().all().mergeExternalFilter( {"thread":skel.thread.value, "amount":"10", "orderby":"creationdate", "orderdir":"0" } )
 		self.indexMgr.refreshIndex( queryObj )
 		self.onItemAdded( id, skel )
 		return self.render.addItemSuccess( id, skel )
