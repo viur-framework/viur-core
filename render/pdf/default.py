@@ -96,7 +96,7 @@ class Render( default ):
 		except:
 			name = "export"
 		name = "".join( [ x for x in name.lower() if x in "abcdefghijklmnopqrstuvwxyz1234567890 "] )
-		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.ext\"" % name
+		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.pdf\"" % name
 		request.current.get().response.headers['Content-Type'] = "application/pdf"
 		return( result.getvalue() )
 		
@@ -120,7 +120,7 @@ class Render( default ):
 		except:
 			name = "export"
 		name = "".join( [ x for x in name.lower() if x in "abcdefghijklmnopqrstuvwxyz1234567890 "] )
-		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.ext\"" % name
+		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.pdf\"" % name
 		request.current.get().response.headers['Content-Type'] = "application/pdf"
 		return( result.getvalue() )
 	
@@ -140,7 +140,7 @@ class Render( default ):
 		except:
 			name = "export"
 		name = "".join( [ x for x in name.lower() if x in "abcdefghijklmnopqrstuvwxyz1234567890 "] )
-		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.ext\"" % name
+		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.pdf\"" % name
 		request.current.get().response.headers['Content-Type'] = "application/pdf"
 		return( result.getvalue() )
 
@@ -158,7 +158,7 @@ class Render( default ):
 		except:
 			name = "export"
 		name = "".join( [ x for x in name.lower() if x in "abcdefghijklmnopqrstuvwxyz1234567890 "] )
-		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.ext\"" % name
+		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.pdf\"" % name
 		request.current.get().response.headers['Content-Type'] = "application/pdf"
 		return( result.getvalue() )
 	
@@ -176,7 +176,7 @@ class Render( default ):
 		except:
 			name = "export"
 		name = "".join( [ x for x in name.lower() if x in "abcdefghijklmnopqrstuvwxyz1234567890 "] )
-		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.ext\"" % name
+		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.pdf\"" % name
 		request.current.get().response.headers['Content-Type'] = "application/pdf"
 		return( result.getvalue() )
 	
@@ -196,7 +196,7 @@ class Render( default ):
 		except:
 			name = "export"
 		name = "".join( [ x for x in name.lower() if x in "abcdefghijklmnopqrstuvwxyz1234567890 "] )
-		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.ext\"" % name
+		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.pdf\"" % name
 		request.current.get().response.headers['Content-Type'] = "application/pdf"
 		return( result.getvalue() )
 	
@@ -216,7 +216,7 @@ class Render( default ):
 		except:
 			name = "export"
 		name = "".join( [ x for x in name.lower() if x in "abcdefghijklmnopqrstuvwxyz1234567890 "] )
-		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.ext\"" % name
+		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.pdf\"" % name
 		request.current.get().response.headers['Content-Type'] = "application/pdf"
 		return( result.getvalue() )
 	
@@ -236,7 +236,7 @@ class Render( default ):
 		except:
 			name = "export"
 		name = "".join( [ x for x in name.lower() if x in "abcdefghijklmnopqrstuvwxyz1234567890 "] )
-		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.ext\"" % name
+		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.pdf\"" % name
 		request.current.get().response.headers['Content-Type'] = "application/pdf"
 		return( result.getvalue() )
 	
@@ -260,7 +260,7 @@ class Render( default ):
 		except:
 			name = "export"
 		name = "".join( [ x for x in name.lower() if x in "abcdefghijklmnopqrstuvwxyz1234567890 "] )
-		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.ext\"" % name
+		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.pdf\"" % name
 		request.current.get().response.headers['Content-Type'] = "application/pdf"
 		return( result.getvalue() )
 
@@ -283,7 +283,7 @@ class Render( default ):
 		except:
 			name = "export"
 		name = "".join( [ x for x in name.lower() if x in "abcdefghijklmnopqrstuvwxyz1234567890 "] )
-		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.ext\"" % name
+		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.pdf\"" % name
 		request.current.get().response.headers['Content-Type'] = "application/pdf"
 		return( result.getvalue() )
 
@@ -308,7 +308,7 @@ class Render( default ):
 		except:
 			name = "export"
 		name = "".join( [ x for x in name.lower() if x in "abcdefghijklmnopqrstuvwxyz1234567890 "] )
-		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.ext\"" % name
+		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.pdf\"" % name
 		request.current.get().response.headers['Content-Type'] = "application/pdf"
 		return( result.getvalue() )
 
@@ -338,7 +338,7 @@ class Render( default ):
 		except:
 			name = "export"
 		name = "".join( [ x for x in name.lower() if x in "abcdefghijklmnopqrstuvwxyz1234567890 "] )
-		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.ext\"" % name
+		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.pdf\"" % name
 		request.current.get().response.headers['Content-Type'] = "application/pdf"
 		return( result.getvalue() )
 
@@ -359,7 +359,7 @@ class Render( default ):
 		except:
 			name = "export"
 		name = "".join( [ x for x in name.lower() if x in "abcdefghijklmnopqrstuvwxyz1234567890 "] )
-		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.ext\"" % name
+		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.pdf\"" % name
 		request.current.get().response.headers['Content-Type'] = "application/pdf"
 		return( result.getvalue() )
 
@@ -379,7 +379,7 @@ class Render( default ):
 		except:
 			name = "export"
 		name = "".join( [ x for x in name.lower() if x in "abcdefghijklmnopqrstuvwxyz1234567890 "] )
-		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.ext\"" % name
+		request.current.get().response.headers['Content-Disposition'] = "attachment; filename=\"%s.pdf\"" % name
 		request.current.get().response.headers['Content-Type'] = "application/pdf"
 		return( result.getvalue() )
 
