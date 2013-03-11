@@ -4,6 +4,7 @@ from string import Template
 from server import bones, utils, request, session, conf, errors
 from server.skeleton import Skeleton
 from server.bones import *
+from server.applications.singleton import Singleton
 import string
 import codecs
 from jinja2 import Environment, FileSystemLoader, ChoiceLoader
@@ -19,6 +20,7 @@ import logging
 from google.appengine.api import memcache, users
 from google.appengine.api.images import get_serving_url
 from urllib import urlencode, quote_plus
+from google.appengine.ext import db
 
 class Render( object ):
 	listTemplate = "list"
@@ -239,7 +241,7 @@ class Render( object ):
 		session.current["JinjaSpace"]= sessionData
 		session.current.markChanged()
 	
-	def getEntry(self,  modul, id, skel="viewSkel"  ):
+	def getEntry(self,  modul, id=None, skel="viewSkel"  ):
 		"""
 			Fetch an entry from a given modul, and return
 			the data as dict (prepared for direct use in the output).
@@ -258,6 +260,9 @@ class Render( object ):
 		obj = getattr( conf["viur.mainApp"], modul)
 		if skel in dir( obj ):
 			skel = getattr( obj , skel)()
+			if isinstance( obj, Singleton ) and not id:
+				#We fetching the entry from a singleton - No id needed
+				id = str( db.Key.from_path( skel.kindName, obj.getKey() ) )
 			if isinstance( skel,  Skeleton ):
 				skel.fromDB( id )
 				return( self.collectSkelData( skel ) )

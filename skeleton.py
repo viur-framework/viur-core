@@ -101,15 +101,18 @@ class Skeleton( object ):
 			@returns: True on success; False if the key could not be found
 		"""
 		if isinstance(id, basestring ):
-			if 1:
+			try:
 				id = datastore_types.Key( id )
-			else: #except datastore_errors.BadKeyError:
+			except datastore_errors.BadKeyError:
 				id = unicode( id )
 				if id.isdigit():
 					id = long( id )
 				id = datastore_types.Key.from_path( self.kindName, id )
 		assert isinstance( id, datastore_types.Key )
-		dbRes = datastore.Get( id )
+		try:
+			dbRes = datastore.Get( id )
+		except db.EntityNotFoundError:
+			return( False )
 		if dbRes is None:
 			return( False )
 		self.setValues( dbRes )
@@ -137,7 +140,8 @@ class Skeleton( object ):
 			try:
 				dbObj = db.Get( db.Key( id ) )
 			except db.EntityNotFoundError:
-				dbObj = db.Entry( id=db.Key( id ) )
+				k = db.Key( id )
+				dbObj = db.Entity( k.kind(), id=k.id(), name=k.name() )
 			for k,v in dbfields.items():
 				dbObj[ k ] =  v
 			dbObj.set_unindexed_properties( unindexedProperties )

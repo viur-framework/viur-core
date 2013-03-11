@@ -67,11 +67,17 @@ class baseBone(object): # One Bone:
 				keyList = [ db.Key( key  ) for key in rawFilter["id"] ]
 				if keyList:
 					origQuery = dbFilter.datastoreQuery
-					dbFilter.datastoreQuery = db.MultiQuery( [db.DatastoreQuery( dbFilter.getKind(), filters={ db.KEY_SPECIAL_PROPERTY: x } ) for x in keyList ], () )
+					try:
+						dbFilter.datastoreQuery = db.MultiQuery( [db.DatastoreQuery( dbFilter.getKind(), filters={ db.KEY_SPECIAL_PROPERTY: x } ) for x in keyList ], () )
+					except db.BadKeyError: #This cant work
+						raise RuntimeError()
 					for k, v in origQuery.items():
 						dbFilter.filter( k, v )
 			else:
-				dbFilter.filter( db.KEY_SPECIAL_PROPERTY, db.Key( rawFilter["id"] ) )
+				try:
+					dbFilter.filter( db.KEY_SPECIAL_PROPERTY, db.Key( rawFilter["id"] ) )
+				except db.BadKeyError: #This cant work
+					raise RuntimeError()
 			return( dbFilter )
 		myKeys = [ key for key in rawFilter.keys() if key.startswith( name ) ] 
 		if len( myKeys ) == 0:
