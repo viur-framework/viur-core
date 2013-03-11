@@ -3,7 +3,7 @@ import logging
 import json
 from datetime import datetime
 from hashlib import sha256
-
+from server import db
 
 class IndexMannager:
 	"""Allows efficient pagination for a small specified set of querys.
@@ -31,14 +31,13 @@ class IndexMannager:
 		@type query: DB.Query
 		@returns: string
 		"""
-		#origFilter = [ (x, y) for x, y in query._get_query().items() ]
-		#for k, v in query._Query__orderings:
-		#	origFilter.append( ("__%s ="%k, v) )
-		#origFilter.sort( key=lambda x: x[0] )
-		#filterKey = "".join( ["%s%s" % (x, y) for x, y in origFilter ] )
-		## FIXME: this is currently unrelieable due to the switch to NDB
-		## TODO: figure out a safe way to implement this; this is currently a bad hack
-		filterKey = str( query.filters )+str( query.orders )
+		
+		assert isinstance( query, db.Query )
+		origFilter = [ (x, y) for x, y in query.getFilter().items() ]
+		for k, v in query.getOrders():
+			origFilter.append( ("__%s ="%k, v) )
+		origFilter.sort( key=lambda x: x[0] )
+		filterKey = "".join( ["%s%s" % (x, y) for x, y in origFilter ] )
 		return( sha256( filterKey ).hexdigest() )
 
 	def getOrBuildIndex(self, origQuery ):
@@ -56,28 +55,32 @@ class IndexMannager:
 		if key in self._cache.keys(): #We have it cached
 			return( self._cache[ key ] )
 		#We dont have it cached - try to load it from DB
-		index = generateExpandoClass( self._dbType ).get_by_id( key )
-		if index: #This index was allready there
-			res = json.loads( index.data )
+		try:
+			index = db.Get( db.Key.from_path( self._dbType, key ) )
+			res = json.loads( index["data"] )
 			self._cache[ key ] = res
 			return( res )
+		except db.EntityNotFoundError: #Its not in the datastore, too
+			pass
 		#We dont have this index yet.. Build it
 		#Clone the original Query
-		query = generateExpandoClass( origQuery._Query__kind ).query()
-		if origQuery.filters:
-			query = query.filter( origQuery.filters )
-		if origQuery.orders:
-			query = query.order( origQuery.orders )
+		queryRes = origQuery.clone( keysOnly=True ).run( limit=self.maxPages*self.pageSize )
 		#Build-Up the index
-		items, cursor, more = query.fetch_page(self.pageSize)
-		res = [ None ] #The first page donst have any cursor
-		while( more ):
-			if len( res ) > self.maxPages:
-				break
-			if more:
-				res.append( cursor.urlsafe() )
-			items, cursor, more = query.fetch_page(self.pageSize, start_cursor=cursor)
-		generateExpandoClass( self._dbType ).get_or_insert( key, data=json.dumps( res ), creationdate=datetime.now() )
+		res = [ ] 
+		i = 0
+		previousCursor = None #The first page dosnt have any cursor
+		for discardedKey in queryRes:
+			if i%self.pageSize==0:
+				res.append( previousCursor )
+			if i%self.pageSize==(self.pageSize-1) and i>1:
+				previousCursor = str( queryRes.cursor().urlsafe() )
+			i += 1
+		if len( res ) == 0: # Ensure that the first page exists
+			res.append( None )
+		entry = db.Entity( self._dbType, name=key )
+		entry[ "data" ] = json.dumps( res )
+		entry[ "creationdate" ] = datetime.now() 
+		db.Put( entry )
 		return( res )
 
 	def cursorForQuery(self, query, page ):
@@ -93,11 +96,10 @@ class IndexMannager:
 		@type page: int
 		@returns: String-Cursor or None if no cursor is appicable
 		"""
-		return( None )
 		page = int(page)
 		pages = self.getOrBuildIndex( query )
 		if page>0 and len( pages )>page:
-			return( ndb.Cursor( urlsafe=pages[ page ] ) )
+			return( db.Cursor( urlsafe=pages[ page ] ) )
 		else:
 			return( None )
 	
@@ -107,7 +109,6 @@ class IndexMannager:
 			The first element is always None as the first page dosnt
 			have any start-cursor
 		"""
-		return( [None] )
 		return( self.getOrBuildIndex( query ) )
 		
 			
@@ -119,10 +120,10 @@ class IndexMannager:
 		@param query: Query for which the index should be refreshed
 		@type query: db.Query
 		"""
-		return
 		key = self.keyFromQuery( query )
-		index = generateExpandoClass( self._dbType ).get_by_id( key )
-		if index:
-			index.key.delete()
+		try:
+			db.Delete( db.Key.from_path( self._dbType, key ) )
+		except db.EntityNotFoundError:
+			pass
 		if key in self._cache.keys():
 			del self._cache[ key ]
