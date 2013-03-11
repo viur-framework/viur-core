@@ -379,7 +379,7 @@ class Query( object ):
 		"""
 		if isinstance( cursor, basestring ):
 			cursor = datastore_query.Cursor( urlsafe=cursors )
-		elif instance( cursor, datastore_query.Cursor ) or cursor==None:
+		elif isinstance( cursor, datastore_query.Cursor ) or cursor==None:
 			pass
 		else:
 			raise ValueError("Cursor must be String, datastore_query.Cursor or None")
@@ -425,6 +425,23 @@ class Query( object ):
 				current Query.
 		"""
 		return( self.datastoreQuery.GetOrder() )
+	
+	def getFilter(self):
+		"""
+			Returns the filters applied to the current query as dictionary.
+		"""
+		return( { k:v for (k, v) in self.datastoreQuery.items() } )
+	
+	def getOrders(self):
+		"""
+			Returns a list of orders applied to this query.
+			Each element in the list returned (if any),
+			is a tuple (property,direction).
+			Property is the name of the property used to sort,
+			direction a Bool (false => ascending, True => descending )
+		"""
+		order = self.datastoreQuery.__orderings
+		return( [ (prop, dir) for (prop, dir) in order ] )
 
 	def getCursor(self):
 		"""
@@ -529,6 +546,24 @@ class Query( object ):
 				The number of results.
 			"""
 		return( self.datastoreQuery.Count( limit, **kwargs ) )
+	
+	def clone(self, keysOnly=None):
+		"""
+			Returns a deep copy of the current query
+		"""
+		if keysOnly is None:
+			keysOnly = self.keysOnly()
+		res = Query( self.getKind(), self.srcSkelClass, keys_only=keysOnly )
+		res.limit( self.amount )
+		for k, v in self.getFilter().items():
+			res.filter( k, v )
+		orders = self.getOrders()
+		if len( orders )==1:
+			res.order( orders[0] )
+		elif len( orders ) > 1:
+			res.order( tuple( orders ) )
+		return( res )
+
 
 AllocateIdsAsync = datastore.AllocateIdsAsync
 AllocateIds = datastore.AllocateIds
@@ -561,6 +596,7 @@ CommittedButStillApplying = datastore_errors.CommittedButStillApplying
 Entity = datastore.Entity
 DatastoreQuery = datastore.Query
 MultiQuery = datastore.MultiQuery
+Cursor = datastore_query.Cursor
 
 #Consts
 KEY_SPECIAL_PROPERTY = datastore_types.KEY_SPECIAL_PROPERTY
@@ -570,4 +606,4 @@ DESCENDING = datastore_query.PropertyOrder.DESCENDING
 __all__ = [	PutAsync, Put, GetAsync, Get, DeleteAsync, Delete, AllocateIdsAsync, AllocateIds, RunInTransaction, RunInTransactionCustomRetries, RunInTransactionOptions, #
 		Error, BadValueError, BadPropertyError, BadRequestError, EntityNotFoundError, BadArgumentError, QueryNotFoundError, TransactionNotFoundError, Rollback, 
 		TransactionFailedError, BadFilterError, BadQueryError, BadKeyError, BadKeyError, InternalError, NeedIndexError, ReferencePropertyResolveError, Timeout, CommittedButStillApplying, 
-		Entity, Query, DatastoreQuery, MultiQuery, KEY_SPECIAL_PROPERTY, ASCENDING, DESCENDING ]
+		Entity, Query, DatastoreQuery, MultiQuery, Cursor, KEY_SPECIAL_PROPERTY, ASCENDING, DESCENDING ]
