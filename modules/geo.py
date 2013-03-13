@@ -3,7 +3,6 @@ from server.skeleton import Skeleton
 from server.applications.list import List
 from server.bones import *
 from google.appengine.ext import db
-from server.utils import generateExpandoClass
 from server import session, errors
 import urllib
 
@@ -13,8 +12,8 @@ class GeoSkel( Skeleton ):
 	zipcode = stringBone( descr="Zipcode", indexed=True, required=True )
 	city = stringBone( descr="City", indexed=True, required=True)
 	country = selectCountryBone( descr="Country", codes=selectCountryBone.ISO2, required=True )
-	latitude = numericBone( descr="Latitude", required=False, mode="float" )
-	longitude = numericBone( descr="Longitude", required=False, mode="float" )
+	latitude = numericBone( descr="Latitude", required=False, precision=8 )
+	longitude = numericBone( descr="Longitude", required=False, precision=8 )
 	
 	def fromClient( self, data ):
 		"""

@@ -75,7 +75,7 @@ class GoogleUser( List ):
 			mysha512 = sha512()
 			mysha512.update( str(uid)+conf["viur.salt"]  )
 			uidHash = mysha512.hexdigest()
-			user = db.GetOrInsert( "user-%s" % uidHash, kindName=self.baseSkel().kindName, uid=uid, name=currentUser.email(), creationdate=datetime.datetime.now(), access=None  )
+			user = db.GetOrInsert( "user-%s" % uidHash, kindName=self.baseSkel().kindName, uid=uid, name=currentUser.email(), creationdate=datetime.datetime.now(), access=None )
 			#Update the user
 			dt = datetime.datetime.now()
 			if (not "lastlogin" in user.keys()) or (dt-user["lastlogin"])>datetime.timedelta( minutes=30 ):
