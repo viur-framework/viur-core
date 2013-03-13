@@ -41,7 +41,7 @@ class Cart( List ):
 			queryObj.limit( 10 )
 			mylist = queryObj.fetch()
 		for skel in mylist:
-			skel.amt = numericBone( descr="Anzahl", defaultvalue=session.current["cart_products"][ str( skel.id.value ) ] )
+			skel.amt = numericBone( descr="Anzahl", defaultValue=session.current["cart_products"][ str( skel.id.value ) ] )
 		return( self.render.list( mylist ) )
 	view.exposed=True
 	

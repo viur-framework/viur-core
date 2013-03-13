@@ -119,7 +119,39 @@ def Get( keys, **kwargs ):
 			memcache.set( str(res.key() ), res, time=__cacheTime__, namespace=__CacheKeyPrefix__ )
 		return( res )
 	#Either the result wasnt found, or we got a list of keys to fetch;
-	# --> no caching possible
+	elif isinstance( keys,list ):
+		#Check Memcache first
+		cacheRes = {}
+		tmpRes = []
+		keyList = [ str(x) for x in keys ]
+		while keyList: #Fetch in Batches of 30 entries, as the max size for bulk_get is limited to 32MB
+			currentBatch = keyList[ : 30]
+			keyList = keyList[ 30: ]
+			cacheRes.update( memcache.get_multi( currentBatch, key_prefix=__CacheKeyPrefix__) )
+		#Fetch the rest from DB
+		missigKeys = [ x for x in keys if not str(x) in cacheRes.keys() ]
+		dbRes = datastore.Get( missigKeys )
+		#Cache what we had fetched
+		cacheMap = {}
+		for res in dbRes:
+			cacheMap[ str(res.key() ) ] = res
+			if len( str( cacheMap ) ) > 800000:
+				#Were approaching the 1MB limit
+				memcache.set_multi( cacheMap, time=__cacheTime__ ,key_prefix=__CacheKeyPrefix__ )
+				cacheMap = {}
+		if cacheMap:
+			# Cache the remaining entries
+			memcache.set_multi( cacheMap, time=__cacheTime__ ,key_prefix=__CacheKeyPrefix__ )
+		for key in [ str(x) for x in keys ]:
+			if key in cacheRes.keys():
+				tmpRes.append( cacheRes[ key ] )
+			else:
+				for e in dbRes:
+					if str( e.key() ) == key:
+						tmpRes.append ( e )
+						break
+		logging.debug( "Fetched a result-set from Datastore: %s total, %s from cache, %s from datastore" % (len(tmpRes),len( cacheRes.keys()), len( dbRes ) ) )
+		return( tmpRes )
 	return( datastore.Get( keys, **kwargs ) )
 
 def DeleteAsync(keys, **kwargs):
@@ -210,6 +242,7 @@ class Query( object ):
 		self.datastoreQuery = datastore.Query( kind, *args, **kwargs )
 		self.srcSkelClass = srcSkelClass
 		self.amount = 30
+		self.origKind = kind
 	
 	def mergeExternalFilter(self, filters ):
 		"""
@@ -469,7 +502,7 @@ class Query( object ):
 	def getAncestor(self):
 		return( self.datastoreQuery.ancestor )
 
-	def run(self, limit=-1, **kwargs):
+	def run(self, limit=-1, keysOnly=False, **kwargs):
 		"""
 			Runs this query.
 
@@ -490,7 +523,31 @@ class Query( object ):
 		if self.datastoreQuery is None:
 			return( None )
 		kwargs["limit"] = limit if limit!=-1 else self.amount
-		return( self.datastoreQuery.Run( **kwargs ) )
+		if not isinstance( self.datastoreQuery, datastore.MultiQuery ):
+			internalKeysOnly = True
+		else:
+			internalKeysOnly = False
+		res = list( self.datastoreQuery.Run( keys_only=internalKeysOnly, **kwargs ) )
+		if keysOnly and not internalKeysOnly: #Wanted key-only, but this wasnt directly possible
+			if len(res)>0 and res[0].key().kind()!=self.origKind and res[0].key().parent().kind()==self.origKind:
+				#Fixing the kind - it has been changed (probably by quering an relation)
+				res = [ x.key().parent() for x in res ]
+			return( [x.key() for x in res] )
+		elif keysOnly and internalKeysOnly: #Keys-only requested and we did it
+			if len(res)>0 and res[0].kind()!=self.origKind and res[0].parent().kind()==self.origKind:
+				#Fixing the kind - it has been changed (probably by quering an relation)
+				res = [ x.parent() for x in res ]
+			return( res )
+		elif not keysOnly and not internalKeysOnly: #Full query requested and we did it
+			if len(res)>0 and res[0].key().kind()!=self.origKind and res[0].key().parent().kind()==self.origKind:
+				#Fixing the kind - it has been changed (probably by quering an relation)
+				res = Get( [ x.key().parent() for x in res ] )
+			return( res )
+		else: #Well.. Full results requested, but we did keys-only
+			if len(res)>0 and res[0].kind()!=self.origKind and res[0].parent().kind()==self.origKind:
+				#Fixing the kind - it has been changed (probably by quering an relation)
+				res = [ x.parent() for x in res ]
+			return( Get( res ) )
 	
 	def fetch(self, limit=-1, **kwargs ):
 		"""
@@ -499,10 +556,17 @@ class Query( object ):
 		"""
 		if self.srcSkelClass is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
-		if self.amount == 0:
-			raise NotImplementedError("This query is not limited! You must specify an upper bound using limit()")
+		amount = limit if limit!=-1 else self.amount
+		if amount < 1 or amount > 100:
+			raise NotImplementedError("This query is not limited! You must specify an upper bound using limit() between 1 and 100")
 		from server.skeleton import Skellist
-		return( Skellist( self.srcSkelClass, self.run() ) )
+		res = Skellist( self.srcSkelClass )
+		dbRes = self.run( )
+		for e in dbRes:
+			s = self.srcSkelClass()
+			s.setValues( e) 
+			res.append( s )
+		return( res )
 	
 	def get( self ):
 		"""

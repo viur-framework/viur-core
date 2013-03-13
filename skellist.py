@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
-from server.bones import baseBone
 from server import utils
-from google.appengine.ext import ndb
-from google.appengine.api import memcache
 import logging
 
 class Skellist( list ): # Our all-in-one lib

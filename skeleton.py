@@ -301,105 +301,14 @@ class Skellist( list ):
 		Usually created by calling skel.all(). ... .fetch()
 	"""
 
-	def __init__( self, viewSkel, queryRes=None ):
+	def __init__( self, baseSkel ):
 		"""
-			@param viewSkel: The baseclass for all entries in this list
-			@type viewSkel: Class
-			@queryRes: An db.Query object. If set, this instance will fill itself the results of that query.
-						*Warning*: You *must* ensure that the amount of results that query will yield is limited"
-			@type queryRes: db.Query
+			@param baseSkel: The baseclass for all entries in this list
 		"""
 		super( Skellist, self ).__init__()
-		self.viewSkel = viewSkel
+		logging.error("skellist up %s" % self )
+		self.baseSkel = baseSkel
 		self.cursor = None
-		self.hasMore = False
-		self.cacheRes = None
-		self.future = None
-		self.keyList = None
-		if queryRes!=None:
-			self.keyList = list( queryRes )
-			if not self.keyList:
-				return
-			if isinstance( self.keyList[0], datastore_types.Key ): #Key-Only query
-				#Check Memcache first
-				self.cacheRes = {}
-				keyList = [ str(x) for x in self.keyList ]
-				while keyList: #Fetch in Batches of 30 entries, as the max size for bulk_get is limited to 32MB
-					currentBatch = keyList[ : 30]
-					keyList = keyList[ 30: ]
-					self.cacheRes.update( memcache.get_multi( currentBatch, key_prefix="viur-db-cache:") )
-				#Fetch the rest from DB
-				missigKeys = [ x for x in self.keyList if not str(x) in self.cacheRes.keys() ]
-				self.future = datastore.GetAsync( missigKeys )
-			else: #We got a full result set
-				for entry in self.keyList:
-					s = self.viewSkel()
-					s.setValues( entry )
-					self.append( s )
-				self.keyList = None
-
-	def mergeFuture(self):
-		"""
-			Ensures, that this instance is in a valid state if its accessed
-			(i.e. all requests made in the background have finished and merged)
-		"""
-		if self.future==None:
-			return
-		dbResults = list( self.future.get_result() )
-		for key in [ str( x ) for x in self.keyList ]:
-			skel = self.viewSkel()
-			if key in self.cacheRes.keys():
-				skel.setValues( self.cacheRes[ key ] )
-			else:
-				entity = None
-				for e in dbResults:
-					if str( e.key() ) == key:
-						entity = e
-						break
-				if not entity:
-					logging.warning("Ive missed an entry: %s" % key )
-				else:
-					skel.setValues( entity )
-			self.append( skel )
-		self.future = None
-		self.cacheRes = None
-		self.keyList = None
-	
-	def __contains__( self, *args, **kwargs ):
-		self.mergeFuture()
-		return( super( Skellist, self ).__contains__( *args, **kwargs ) )
-
-	def __delitem__( self, *args, **kwargs ):
-		self.mergeFuture()
-		return( super( Skellist, self ).__delitem__( *args, **kwargs ) )
-
-	def __getitem__( self, *args, **kwargs ):
-		self.mergeFuture()
-		return( super( Skellist, self ).__getitem__( *args, **kwargs ) )
-
-	def __iter__( self, *args, **kwargs ):
-		self.mergeFuture()
-		return( super( Skellist, self ).__iter__( *args, **kwargs ) )
-
-	def __len__( self, *args, **kwargs ):
-		self.mergeFuture()
-		return( super( Skellist, self ).__len__( *args, **kwargs ) )
-
-	def count( self, *args, **kwargs ):
-		self.mergeFuture()
-		return( super( Skellist, self ).count( *args, **kwargs ) )
-
-	def index( self, *args, **kwargs ):
-		self.mergeFuture()
-		return( super( Skellist, self ).index( *args, **kwargs ) )
-
-	def reverse( self, *args, **kwargs ):
-		self.mergeFuture()
-		return( super( Skellist, self ).reverse( *args, **kwargs ) )
-		
-	def sort( self, *args, **kwargs ):
-		self.mergeFuture()
-		return( super( Skellist, self ).sort( *args, **kwargs ) )
 
 
 ### Tasks ###
