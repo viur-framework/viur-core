@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone, numericBone
 from server.skeleton import Skeleton
-from server.skellist import Skellist
 from server import utils, errors, session, conf, request
 from server import db
 from time import time

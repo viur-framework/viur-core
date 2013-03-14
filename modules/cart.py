@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 from server.applications.list import List
-from server.skellist import Skellist
+from server.skeleton import SkelList
 from server.bones import *
 from server import errors, session, conf, request
 from server import utils
-from google.appengine.ext import ndb
 
 
 class Cart( List ):
@@ -34,7 +33,7 @@ class Cart( List ):
 	
 	def view( self, *args, **kwargs ):
 		prods = session.current.get("cart_products") or {}
-		mylist = Skellist( self.productSkel )
+		mylist = SkelList( self.productSkel )
 		if prods:
 			queryObj = self.productSkel().all() #Build the initial one
 			queryObj = queryObj.mergeExternalFilter( {"id": list(prods.keys()) } )

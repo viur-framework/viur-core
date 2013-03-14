@@ -292,7 +292,7 @@ class Skeleton( object ):
 			self.errors = {}
 		return( complete )
 	
-class Skellist( list ):
+class SkelList( list ):
 	"""
 		Class to hold multiple skeletons along
 		other commonly used informations (cursors, etc)
@@ -305,8 +305,7 @@ class Skellist( list ):
 		"""
 			@param baseSkel: The baseclass for all entries in this list
 		"""
-		super( Skellist, self ).__init__()
-		logging.error("skellist up %s" % self )
+		super( SkelList, self ).__init__()
 		self.baseSkel = baseSkel
 		self.cursor = None
 
