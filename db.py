@@ -591,6 +591,26 @@ class Query( object ):
 			res.append( s )
 		return( res )
 	
+	def iter(self, keysOnly=False):
+		"""
+			Returns an iterator for the results.
+			Advantage: Its possible to iterate over a large result-set,
+			as it hasn't have to be pulled in advance from the datastore.
+			Disadvantage: No Caching (yet)
+			Note: This intentionally ignores the limit set by self.limt() -
+			it yields *all* results.
+			@param keysOnly: Set to true if you just want the keys
+			@type keysOnly: Bool
+		"""
+		if self.datastoreQuery is None: #Noting to pull here
+			raise StopIteration()
+		if isinstance( self.datastoreQuery, datastore.MultiQuery ) and keysOnly:
+			# Wantet KeysOnly, but MultiQuery is unable to give us that.
+			for res in self.datastoreQuery.Run():
+				yield res.key()
+		for res in self.datastoreQuery.Run( keys_only=keysOnly ): #The standard-case
+			yield res
+	
 	def get( self ):
 		"""
 			Returns the first entity of the current query or None if the result-set is empty.
