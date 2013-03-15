@@ -102,8 +102,10 @@ class textBone( baseBone ):
 
 	type = "text"
 
-	def __init__( self, validHtml=__undefinedC__, *args, **kwargs ):
+	def __init__( self, validHtml=__undefinedC__, indexed=False, *args, **kwargs ):
 		baseBone.__init__( self,  *args, **kwargs )
+		if indexed:
+			raise NotImplementedError("indexed=True is not supported on textBones")
 		if validHtml==textBone.__undefinedC__:
 			global _defaultTags
 			validHtml = _defaultTags

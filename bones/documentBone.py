@@ -30,8 +30,10 @@ class ExtensionParser( HtmlSerializer ):
 class documentBone( textBone ):
 	type = "document"
 	
-	def __init__(self, extensions=[], *args, **kwargs ):
+	def __init__(self, extensions=[], indexed=False, *args, **kwargs ):
 		super( documentBone, self ).__init__( *args, **kwargs )
+		if indexed:
+			raise NotImplementedError("indexed=True is not supported on textBones")
 		self.extensions = extensions
 		self.cache = ""
 
