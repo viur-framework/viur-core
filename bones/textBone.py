@@ -143,12 +143,12 @@ class textBone( baseBone ):
 			if not fk in newFileKeys:
 				newFileKeys.append( fk )
 			idx = self.value.find("/file/view/", seperatorIdx)
-		oldFileKeys = [ x.dlkey for x in oldFiles ]
+		oldFileKeys = [ x["dlkey"] for x in oldFiles ]
 		for newFileKey in [ x for x in newFileKeys if not x in oldFileKeys]:
 			f = db.Entity( "file", parent=db.Key( str(id) ) )
 			f["lockinfo"] = lockInfo
 			f["dlkey"] = newFileKey
-			f["weak"]=False
+			f["weak"] = False
 			db.Put( f )
 		for oldFile in [ x for x in oldFiles if not x["dlkey"] in newFileKeys ]:
 			markFileForDeletion( oldFile["dlkey"] )
