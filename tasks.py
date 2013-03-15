@@ -1,13 +1,13 @@
-from google.appengine.ext import db
 from time import time
+from datetime import datetime, timedelta
 from google.appengine.api import backends
 from server.update import checkUpdate
 from server.config import conf, sharedConf
 from server import errors, request
 from google.appengine.api import users
-from google.appengine.ext import db
 from google.appengine.api import taskqueue
 from google.appengine.ext.deferred import PermanentTaskFailure
+from server import db
 import json
 import logging
 import os
@@ -15,16 +15,9 @@ import os
 
 _periodicTasks = {}
 _callableTasks = {}
+_deferedTasks = {}
 _periodicTaskID = 1L #Used to determine bound functions
 
-
-class _DeferredTaskEntity(db.Model):
-	"""Datastore representation of a deferred task.
-	
-	This is used in cases when the deferred task is too big to be included as
-	payload with the task queue entry.
-	"""
-	data = db.BlobProperty(required=True)
 
 class CallableTaskBase:
 	"""Base class for user-callable tasks.
@@ -93,6 +86,7 @@ class TaskHandler:
 		"""
 			This catches one defered call and routes it to its destination
 		"""
+		global _deferedTasks
 		req = request.current.get().request
 		if 'X-AppEngine-TaskName' not in req.headers:
 			logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
@@ -126,34 +120,63 @@ class TaskHandler:
 			else:
 				if dbObj:
 					dbObj.delete()
+		elif cmd=="unb":
+			funcPath, args, kwargs = data
+			if not funcPath in _deferedTasks.keys():
+				logging.error("Ive missed a defered task! %s(%s,%s)" % (funcPath,str(args),str(kwargs)))
+				if dbObj:
+					dbObj.delete()
+			try:
+				_deferedTasks[ funcPath]( *args, **kwargs )
+			except PermanentTaskFailure:
+				if dbObj:
+					dbObj.delete()
+			except Exception as e:
+				logging.exception( e )
+				raise errors.RequestTimeout() #Task-API should retry
+			else:
+				if dbObj:
+					dbObj.delete()
 	deferred.exposed=True
 	
 	def index(self, *args, **kwargs):
 		global _callableTasks, _periodicTasks
-		from server.utils import generateExpandoClass
 		#if not backends.get_backend(): #Assert this only runs on a backend server (No Timelimit)
 		#	return
 		logging.debug("Starting maintenance-run")
 		checkUpdate() #Let the update-module verify the database layout first
 		logging.debug("Updatecheck complete")
 		for task,intervall in _periodicTasks.items(): #Call all periodic tasks
+			if intervall: #Ensure this task dosn't get called to often
+				try:
+					lastCall = db.Get( db.Key.from_path( "viur-task-interval", task.periodicTaskName ) )
+					if lastCall["date"] > datetime.now()-timedelta( minutes=intervall ):
+						logging.debug("Skipping task %s - Has already run recently." % task.periodicTaskName )
+						continue
+				except db.EntityNotFoundError:
+					pass
 			res = self.findBoundTask( task )
 			if res: #Its bound, call it this way :)
 				t, s = res
 				t( s )
 				continue
 			task() #It seems it wasnt bound - call it as a static method
+			logging.debug("Successfully called task %s" % task.periodicTaskName )
+			if intervall:
+				# Update its last-call timestamp
+				entry = db.Entity( "viur-task-interval", name=task.periodicTaskName )
+				entry["date"] = datetime.now()
+				db.Put( entry )
 		logging.debug("Periodic tasks complete")
-		for currentTask in generateExpandoClass("server-tasks").query().iter(): #Look for queued tasks
-			currentTask.key.delete()
-			if currentTask.taskid in _callableTasks.keys():
-				task = _callableTasks[ currentTask.taskid ]()
+		for currentTask in db.Query("viur-queued-tasks").iter(): #Look for queued tasks
+			db.Delete( currentTask.key() )
+			if currentTask["taskid"] in _callableTasks.keys():
+				task = _callableTasks[ currentTask["taskid"] ]()
 				tmpDict = {}
-				for k in currentTask._properties.keys():
+				for k in currentTask.keys():
 					if k == "taskid":
 						continue
-					logging.error( getattr( currentTask, k ) )
-					tmpDict[ k ] = json.loads( getattr( currentTask, k ) )
+					tmpDict[ k ] = json.loads( currentTask[ k ] )
 				try:
 					task.execute( **tmpDict )
 				except Exception as e:
@@ -175,7 +198,7 @@ class TaskHandler:
 	def execute(self, taskID, *args, **kwargs ):
 		"""Queues a specific task for the next maintenance run"""
 		global _callableTasks
-		from server.utils import validateSecurityKey, generateExpandoClass
+		from server.utils import validateSecurityKey
 		if taskID in _callableTasks.keys():
 			task = _callableTasks[ taskID ]()
 		else:
@@ -194,11 +217,12 @@ class TaskHandler:
 		if task.direct:
 			task.execute( **skel.getValues() )
 		else:
-			dbObj = generateExpandoClass("server-tasks")()
+			dbObj = db.Entity("viur-queued-tasks")
 			for k, v in skel.getValues().items():
-				setattr( dbObj, k, json.dumps(v) )
-			dbObj.taskid = taskID
-			id = dbObj.put()
+				dbObj[ k ] =  json.dumps(v)
+			dbObj["taskid"] = taskID
+			db.Put( dbObj )
+			id = str( dbObj.key() )
 		return self.render.addItemSuccess( None, skel )
 	execute.exposed = True
 	
@@ -222,17 +246,25 @@ def callDefered( func ):
 		This is a decorator, wich allways calls the function defered.
 		Unlike Googles implementation, this one works (with bound functions)
 	"""
-	def mkDefered( func, self, *args,  **kwargs ):
+	__undefinedFlag_ = object()
+	def mkDefered( func, self=__undefinedFlag_, *args,  **kwargs ):
 		if "HTTP_X_APPENGINE_TASKRETRYCOUNT".lower() in [x.lower() for x in os.environ.keys()]: #This is the defered call
 			return( func( self, *args, **kwargs ) )
 		else:
-			funcPath = "%s/%s" % (self.modulPath, func.func_name )
+			try:
+				funcPath = "%s/%s" % (self.modulPath, func.func_name )
+				command = "rel"
+			except:
+				funcPath = "%s.%s" % ( func.__name__, func.__module__ )
+				if self!=__undefinedFlag_:
+					args = (self,)+args #Reappend self to args, as this function is (hopefully) unbound
+				command = "unb"
 			taskargs = dict((x, kwargs.pop(("_%s" % x), None))  for x in ("countdown", "eta", "name", "target", "retry_options"))
 			taskargs["url"] = "/_tasks/deferred"
 			transactional = kwargs.pop("_transactional", False)
 			taskargs["headers"] = {"Content-Type": "application/octet-stream"}
 			queue = "default"
-			pickled = json.dumps( ("rel", (funcPath, args, kwargs) ) )
+			pickled = json.dumps( (command, (funcPath, args, kwargs) ) )
 			try:
 				task = taskqueue.Task(payload=pickled, **taskargs)
 				return task.add(queue, transactional=transactional)
@@ -241,16 +273,25 @@ def callDefered( func ):
 				pickled = json.dumps( ("fromdb", str(key) ) )
 				task = taskqueue.Task(payload=pickled, **taskargs)
 			return task.add(queue)
+	global _deferedTasks
+	_deferedTasks[ "%s.%s" % ( func.__name__, func.__module__ ) ] = func
 	return( lambda *args, **kwargs: mkDefered( func, *args, **kwargs) )
 
 
 def PeriodicTask( intervall ):
-	"""Decorator to call a function periodic during maintenance.
-	The intervall-parameter is currently ignored"""
+	"""
+		Decorator to call a function periodic during maintenance.
+		Intervall defines a lower bound for the call-frequency for this task;
+		it will not be called faster than each intervall minutes.
+		(Note that the actual delay between two sequent might be much larger)
+		@param intervall: Call at most every intervall minutes. 0 means call as often as possible.
+		@type intervall: Int
+	"""
 	def mkDecorator( fn ):
 		global _periodicTasks, _periodicTaskID
 		_periodicTasks[ fn ] = intervall
 		fn.periodicTaskID = _periodicTaskID
+		fn.periodicTaskName = "%s.%s" % ( fn.__module__, fn.__name__ )
 		_periodicTaskID += 1
 		return( fn )
 	return( mkDecorator )

@@ -184,7 +184,7 @@ class GaeSession:
 			self.changed = True
 		return( self.key )
 	
-@PeriodicTask( 60*60*4 )
+@PeriodicTask( 60 )
 def cleanup( ):
 	oldSessions = GaeSession.SessionData.all().filter("lastseen <", time()-GaeSession.lifeTime ).fetch(1000)
 	while( oldSessions ):

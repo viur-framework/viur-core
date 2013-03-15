@@ -7,7 +7,6 @@ from server import db
 from server import session, errors
 from server.indexes import IndexMannager
 from google.appengine.ext import deferred
-from server.skellist import Skellist
 from server import utils, request, tasks
 import logging
 

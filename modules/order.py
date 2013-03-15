@@ -869,21 +869,19 @@ class Order( List ):
 	def archiveOrdersTask( self, *args, **kwargs ):
 		logging.debug("Archiving old orders")
 		#Archive all payed,send and not canceled orders
-		orders = generateExpandoClass( self.viewSkel().kindName ).query()\
-				.filter( ndb.GenericProperty("changedate") < (datetime.now()-self.archiveDelay) )\
-				.filter( ndb.GenericProperty("state_archived") == "0" )\
-				.filter( ndb.GenericProperty("state_send") == "1" )\
-				.filter( ndb.GenericProperty("state_payed") == "1" )\
-				.filter( ndb.GenericProperty("state_canceled") == "0" ).iter()
+		orders = self.viewSkel().all()\
+				.filter( "changedate <", (datetime.now()-self.archiveDelay) )\
+				.filter( "state_archived =", "0" )\
+				.filter( "state_send = ", "1" )\
+				.filter( "state_payed =", "1" )\
+				.filter( "state_canceled =", "0" ).iter()
 		for order in orders:
 			self.setArchived( order )
 		#Archive all canceled orders
-		orders = generateExpandoClass( self.viewSkel().kindName ).query()\
-				.filter( ndb.GenericProperty("changedate") < (datetime.now()-self.archiveDelay) )\
-				.filter( ndb.GenericProperty("state_archived") == "0" )\
-				.filter( ndb.GenericProperty("state_canceled") == "1" ).iter()
+		orders = self.viewSkel().all()\
+				.filter( "changedate <", (datetime.now()-self.archiveDelay) )\
+				.filter( "state_archived =", "0" )\
+				.filter( "state_canceled =", "1" ).iter()
 		for order in orders:
 			self.setArchived( order )
 
-	
-order=Order

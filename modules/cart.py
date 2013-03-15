@@ -44,7 +44,6 @@ class Cart( List ):
 		return( self.render.list( mylist ) )
 	view.exposed=True
 	
-	
 	def delete( self, product , all="0" ):
 		prods = session.current.get("cart_products") or {}
 		if product in prods.keys():
