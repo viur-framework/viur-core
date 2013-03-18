@@ -179,7 +179,7 @@ class Render( object ):
 	
 	def getHostUrl(self, *args,  **kwargs):
 		"""
-			Returns the hostname, including the currently used Protocoll.
+			Returns the hostname, including the currently used Protocol.
 			Eg: http://www.example.com
 			@returns: String
 		"""
