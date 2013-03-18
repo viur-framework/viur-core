@@ -103,7 +103,7 @@ class Hierarchy( object ):
 			if key in [ x["key"] for x in availableRepos]:
 				break
 			else:
-				item = db.Get( str( key ) ).get()
+				item = db.Get( str( key ) )
 				if item and "parententry" in item.keys():
 					keylist.append( key )
 					key = item["parententry"]
