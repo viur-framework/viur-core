@@ -6,6 +6,7 @@ import json
 from server.tasks import PeriodicTask
 from time import time
 from datetime import datetime
+import logging
 
 class relationalBone( baseBone ):
 	"""
@@ -186,6 +187,8 @@ class relationalBone( baseBone ):
 					return( "Invalid entry selected" )
 				continue
 			if not entry or not entry.key().kind()==self.type: #Entry does not exist or has wrong type (is from another modul)
+				if entry:
+					logging.error("I got an id, which kind doesn't match my type! (Got: %s, my type %s)" % ( entry.key().kind(), self.type ) )
 				continue
 			if not self.multiple:
 				#tmp = { k:v for k, v  in list(data.items()) if k in self.refKeys }
