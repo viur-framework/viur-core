@@ -56,7 +56,7 @@ class Page( Hierarchy ):
 			repo = str(self.getAvailableRootNodes()[0]["key"])
 			query = db.Query(  self.viewSkel().kindName )
 			query.filter( "parentrepo =", repo )
-			query.filter( "hrk =", id )
+			query.filter( "hrk =", key )
 			entry = query.get()
 			if entry:
 				return( super( Page, self ).pathToKey( str( entry.key() ) ) )
