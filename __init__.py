@@ -241,7 +241,7 @@ class BrowseHandler(webapp.RequestHandler):
 				strIO = StringIO()
 				traceback.print_exc(file=strIO)
 				descr= strIO.getvalue()
-				descr = descr.replace(" ", "&nbsp;").replace("\n", "<br />")
+				descr = descr.replace("<","&lt;").replace(">","&gt;").replace(" ", "&nbsp;").replace("\n", "<br />")
 			self.response.out.write( tpl.safe_substitute( {"error_code": "500", "error_name":"Internal Server Error", "error_descr": descr} ) )
 			if bugsnag and conf["bugsnag.apiKey" ]:
 				bugsnag.configure( api_key=conf["bugsnag.apiKey" ] )
