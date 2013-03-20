@@ -131,7 +131,7 @@ def Get( keys, **kwargs ):
 			while keyList: #Fetch in Batches of 30 entries, as the max size for bulk_get is limited to 32MB
 				currentBatch = keyList[ : 30]
 				keyList = keyList[ 30: ]
-				cacheRes.update( memcache.get_multi( currentBatch, key_prefix=__CacheKeyPrefix__) )
+				cacheRes.update( memcache.get_multi( currentBatch, namespace=__CacheKeyPrefix__) )
 			#Fetch the rest from DB
 			missigKeys = [ x for x in keys if not str(x) in cacheRes.keys() ]
 			dbRes = datastore.Get( missigKeys )
@@ -142,14 +142,14 @@ def Get( keys, **kwargs ):
 				if len( str( cacheMap ) ) > 800000:
 					#Were approaching the 1MB limit
 					try:
-						memcache.set_multi( cacheMap, time=__cacheTime__ ,key_prefix=__CacheKeyPrefix__ )
+						memcache.set_multi( cacheMap, time=__cacheTime__ , namespace=__CacheKeyPrefix__ )
 					except:
 						pass
 					cacheMap = {}
 			if cacheMap:
 				# Cache the remaining entries
 				try:
-					memcache.set_multi( cacheMap, time=__cacheTime__ ,key_prefix=__CacheKeyPrefix__ )
+					memcache.set_multi( cacheMap, time=__cacheTime__ , namespace=__CacheKeyPrefix__ )
 				except:
 					pass
 			for key in [ str(x) for x in keys ]:
