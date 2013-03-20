@@ -50,7 +50,9 @@ class relationalBone( baseBone ):
 		self.multiple = multiple
 		self.format = format
 		if type:
-			self.type=type
+			self.type = type
+		if self.type is None:
+			raise NotImplementedError("Type of relationalbone's must not be None")
 		if refKeys:
 			self.refKeys=refKeys
 		if parentKeys:
