@@ -589,6 +589,10 @@ class Query( object ):
 			s = self.srcSkelClass()
 			s.setValues( e) 
 			res.append( s )
+		try:
+			res.cusor = self.datastoreQuery.GetCursor()
+		except AssertionError: #No Cursors avaiable on MultiQueries ( in or != )
+			res.cursor = None
 		return( res )
 	
 	def iter(self, keysOnly=False):
