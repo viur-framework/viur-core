@@ -3,6 +3,7 @@ from server.applications.list import List
 from server.skeleton import Skeleton
 from server import utils, session
 from server.bones import *
+from server.bones.passwordBone import pbkdf2
 from server import errors, conf
 #from cone.maintenance import maintenance
 from time import time
@@ -143,9 +144,16 @@ class CustomUser( List ):
 
 	def addUser(self, name, password ):
 		skel = self.loginSkel()
-		pwHash = sha512( password.encode("utf-8")+conf["viur.salt"] ).hexdigest()
+		salt = utils.generateRandomString(13)
+		pwHash = pbkdf2( password, salt )
 		uidHash = sha512( name.lower().encode("utf-8")+conf["viur.salt"] ).hexdigest()
-		return( db.GetOrInsert( uidHash, kindName=skel.kindName, name=name, name_idx=name.lower(), password=pwHash, creationdate=datetime.datetime.now() ) )
+		return( db.GetOrInsert( uidHash,
+					kindName=skel.kindName,
+					name=name,
+					name_idx=name.lower(),
+					password=pwHash,
+					password_salt = salt,
+					creationdate=datetime.datetime.now() ) )
 
 	def getAuthMethod( self, *args, **kwargs ):
 		"""Inform tools like Viur-Admin which authentication to use"""
@@ -160,7 +168,7 @@ class CustomUser( List ):
 
 	class baseSkel( Skeleton ):
 		kindName = "user"
-		name = emailBone( descr="E-Mail", params={"indexed": True, "frontend_list_visible": True}, required=True )
+		name = emailBone( descr="E-Mail", params={"indexed": True, "frontend_list_visible": True}, required=True, readOnly=True, caseSensitive=False )
 		access = selectMultiBone( descr="Accessrights", values={"root": "Superuser"}, params={"indexed": True, "frontend_list_visible": True} )
 		status = selectOneBone( descr="Account status", values = {
 					1: "Waiting for EMail verification",
@@ -269,15 +277,29 @@ class CustomUser( List ):
 			return( self.render.loginSucceeded( ) )
 		if not name or not password or not utils.validateSecurityKey( skey ):
 			return( self.render.login( self.loginSkel() ) )
-		mysha512 = sha512()
-		mysha512.update( password.encode("utf-8")+conf["viur.salt"] )
 		query = db.Query( self.viewSkel().kindName )
-		res  = query.filter( "name_idx =", name.lower())\
-				.filter( "password =", mysha512.hexdigest())\
-				.filter( "status >=", 10).get()
-		if( not res ):
+		res  = query.filter( "name_idx >=", name.lower()).get()
+				#.filter( "password =", mysha512.hexdigest())\
+				#.filter( "status >=", 10).get()
+		if "password_salt" in res.keys(): #Its the new, more secure passwd
+			passwd = pbkdf2( password, res["password_salt"] )
+		else:
+			passwd = sha512( password.encode("UTF-8")+conf["viur.salt"] ).hexdigest()
+		isOkay = True
+		# We do this exactly that way to avoid timing attacks
+		if res["password"] != passwd:
+			isOkay = False
+		if res["status"] < 10:
+			isOkay = False
+		if res[ "name_idx" ] != name.lower():
+			isOkay = False
+		if( not isOkay ):
 			return( self.render.login( self.loginSkel(), loginFailed=(skey and name and password) )  )
 		else:
+			if not "password_salt" in res.keys(): #Update the password to the new, more secure format
+				res[ "password_salt" ] = utils.generateRandomString( 13 )
+				res[ "password" ] = pbkdf2( password, res["password_salt"] )
+				db.Put( res )
 			session.current.reset()
 			session.current['user'] = {}
 			for key in ["name", "status", "access"]:
