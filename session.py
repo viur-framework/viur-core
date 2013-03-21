@@ -7,6 +7,7 @@ import string, random
 from time import time
 from server.tasks import PeriodicTask
 from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError, OverQuotaError
+import logging
 
 """
 	Provides a fast and reliable Session-Implementation for the GAE.
@@ -28,12 +29,10 @@ class SessionWrapper( threading.local ):
 		super( SessionWrapper, self ).__init__( *args, **kwargs )
 		self.factory = sessionFactory
 	
-	def load( self, coockie ):
+	def load( self, req ):
 		if not "session" in dir( self ):
 			self.session = self.factory()
-		if coockie and self.cookieName in coockie.keys():
-			return( self.session.load( coockie[ self.cookieName ] ) )
-		return( self.session.load( None ) )
+		return( self.session.load( req ) )
 	
 	def __contains__( self, key ):
 		try:
@@ -63,9 +62,9 @@ class SessionWrapper( threading.local ):
 		except AttributeError:
 			pass
 	
-	def save(self):
+	def save(self, req):
 		try:
-			return( self.session.save())
+			return( self.session.save( req ))
 		except AttributeError:
 			return( None )
 	
@@ -75,9 +74,9 @@ class SessionWrapper( threading.local ):
 		except AttributeError:
 			pass
 	
-	def forceInitializion(self):
+	def reset(self):
 		try:
-			return( self.session.forceInitializion() )
+			return( self.session.reset() )
 		except AttributeError:
 			pass
 
@@ -97,15 +96,26 @@ class SessionWrapper( threading.local ):
 
 class GaeSession:
 	lifeTime = 60*60 #60 Minutes
+	plainCookieName = "viurHttpCookie"
+	sslCookieName = "viurSSLCookie"
+	
 	class SessionData( db.Expando ):
 		pass
 
 	"""Store Sessions inside the Big Table/Memcache"""
-	def load( self, cookie=None ):
+	def load( self, req ):
+		"""
+			Initializes the Session.
+			If the client supplied a valid Cookie,
+			the session is read from the memcache/datastore,
+			otherwise a new, empty session is initialized.
+		"""
 		self.changed = False
 		self.key = None
+		self.sslKey = None
 		self.session = {}
-		if cookie:
+		if self.plainCookieName in req.request.cookies.keys():
+			cookie = req.request.cookies[ self.plainCookieName ]
 			data = None #memcache.get( "session-"+str(cookie).strip("\"") )
 			if data: #Loaded successfully from Memcache
 				try:
@@ -121,6 +131,7 @@ class GaeSession:
 					data = None
 				if data:
 					self.session = json.loads( data.data )
+					self.sslKey = data.sslkey
 					if isinstance( self.session, list ): #We seem to have a bug here...
 						self.session = {}
 					try:
@@ -129,6 +140,10 @@ class GaeSession:
 							self.changed = True
 					except:
 						pass
+			if req.isSSLConnection and not (self.sslCookieName in req.request.cookies.keys() and req.request.cookies[ self.sslCookieName ] == self.sslKey):
+				if self.sslKey:
+					logging.warning("Possible session hijack attempt! Session dropped.")
+				self.reset()
 			if self.session:
 				self.key = str( cookie )
 				return( True )
@@ -136,53 +151,101 @@ class GaeSession:
 				self.session = {}
 				return( False )
 	
-	def save(self):
+	def save(self, req):
+		"""
+			Writes the session to the memcache/datastore.
+			Does nothing, if the session hasn't been changed
+			in the current request.
+		"""
 		if self.session and self.changed:
 			if not self.key:
 				self.key = ''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase + string.digits) for x in range(42))
+				if req.isSSLConnection:
+					self.sslKey = ''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase + string.digits) for x in range(42))
+				else:
+					self.sslKey = ""
 			try:
 				dbSession = GaeSession.SessionData( key_name=self.key )
 				dbSession.data = db.Text( json.dumps( self.session ) )
+				dbSession.sslkey = self.sslKey
 				dbSession.lastseen = time()
 				dbSession.put()
 			except OverQuotaError, CapabilityDisabledError:
 				pass
 			#memcache.set( "session-"+self.key, (time(), self.session), self.lifeTime)
-			return( str(self.key) )
-		else:
-			if self.key:
-				return( self.key )
-			return( None )
+			req.response.headers.add_header( "Set-Cookie", bytes( "%s=%s; Max-Age=99999; Path=/; HttpOnly" % ( self.plainCookieName, self.key ) ) )
+			if req.isSSLConnection:
+				req.response.headers.add_header( "Set-Cookie", bytes( "%s=%s; Max-Age=99999; Path=/; Secure; HttpOnly" % ( self.sslCookieName, self.sslKey ) ) )
+
 
 	def __contains__( self, key ):
+		"""
+			Returns True if the given key is set in
+			the current session.
+		"""
 		return( key in self.session ) 
 	
 	def __delitem__(self, key ):
+		"""
+			Removes a key from the session.
+			This key must exist.
+		"""
 		del self.session[key]
 		self.changed = True
 	
 	def __getitem__( self, key ):
+		"""
+			Returns the value stored under the
+			given key. The key must exist.
+		"""
 		return( self.session[ key ] )
 	
 	def get( self, key ): 
+		"""
+			Returns the value stored under the
+			given key. Returns None if the key
+			dosnt exist.
+		"""
 		if( key in self.session.keys() ):
 			return( self.session[ key ] )
 		else:
 			return( None )
 		
 	def __setitem__( self, key, item ):
+		"""
+			Stores a new value under the given key.
+			If that key exists before, its value is
+			overwritten.
+		"""
 		self.session[ key ] = item
 		self.changed = True
 	
 	def markChanged(self):
+		"""
+			Explicitly mark the current session as changed.
+			This will force save() to write into the memcache /
+			datastore, even if it belives that this session had
+			not changed.
+		"""
 		self.changed = True
 		
-	def forceInitializion(self):
-		if not self.key:
-			self.key = ''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase + string.digits) for x in range(42))
-			self.session["_forceInit"] = True
-			self.changed = True
-		return( self.key )
+	def reset(self):
+		"""
+			Invalids the current session and starts a new one.
+			Especially usefull on login, where we might need to
+			create an ssl-capable Session.
+			Warning: Everything (except the current language)
+			is flushed.
+		"""
+		try:
+			lang = self.session[ "language" ]
+		except:
+			lang = None
+		self.key = None
+		self.sslKey = None
+		self.session = {}
+		if lang:
+			self.session[ "language" ] = lang
 	
 @PeriodicTask( 60 )
 def cleanup( ):

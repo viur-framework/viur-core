@@ -67,7 +67,7 @@ class GoogleUser( List ):
 			return( res )
 		else:
 			return( None )
-		
+	
 	def login( self, skey="", *args, **kwargs ):
 		def updateCurrentUser():
 			currentUser = users.get_current_user()
@@ -92,11 +92,13 @@ class GoogleUser( List ):
 					user["gaeadmin"] = 0
 				db.Put( user )
 		if users.get_current_user():
+			session.current.reset()
 			db.RunInTransaction( updateCurrentUser )
 			return( self.render.loginSucceeded( ) )
 		else:
 			raise( errors.Redirect( users.create_login_url( self.modulPath+"/login") ) )
 	login.exposed = True
+	login.forceSSL = True
 
 	def logout( self,  skey="", *args,  **kwargs ): #fixme
 		user = users.get_current_user()
@@ -106,6 +108,7 @@ class GoogleUser( List ):
 			raise( errors.Forbidden() )
 		raise( errors.Redirect( users.create_logout_url( self.modulPath+"/logout" ) ) )
 	logout.exposed = True
+	logout.forceSSL = True
 	
 	def view(self, id, *args, **kwargs):
 		"""
@@ -275,6 +278,7 @@ class CustomUser( List ):
 		if( not res ):
 			return( self.render.login( self.loginSkel(), loginFailed=(skey and name and password) )  )
 		else:
+			session.current.reset()
 			session.current['user'] = {}
 			for key in ["name", "status", "access"]:
 				try:
@@ -286,6 +290,7 @@ class CustomUser( List ):
 			session.current.markChanged()
 			return( self.render.loginSucceeded( ) )
 	login.exposed = True
+	login.forceSSL = True
 	
 	def logout( self,  skey="", *args,  **kwargs ): #fixme
 		user = session.current.get("user")
@@ -296,6 +301,7 @@ class CustomUser( List ):
 		session.current["user"] = None
 		return self.render.logoutSuccess( )
 	logout.exposed = True
+	login.forceSSL = True
 
 	def edit( self,  *args,  **kwargs ):
 		if len( args ) == 0 and not "id" in kwargs and session.current.get("user"):

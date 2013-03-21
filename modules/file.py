@@ -9,6 +9,7 @@ from google.appengine.ext.webapp import blobstore_handlers
 import json, urlparse
 from server.tasks import PeriodicTask
 import json
+import os
 from google.appengine.api.images import get_serving_url
 from quopri import decodestring
 import email.header
@@ -47,8 +48,11 @@ class UploadHandler(blobstore_handlers.BlobstoreUploadHandler):
 			return( name )
 			
 	def post(self):
+		self.internalRequest = False
+		self.isDevServer = "Development" in os.environ['SERVER_SOFTWARE'] #Were running on development Server
+		self.isSSLConnection = self.request.host_url.lower().startswith("https://") #We have an encrypted channel
 		try:
-			session.current.load( self.request.cookies )
+			session.current.load( self )
 			res = []
 			if "rootNode" in self.request.arguments() and self.request.get("rootNode") and "path" in self.request.arguments():
 				if not conf["viur.mainApp"].file.canUploadTo( self.request.get("rootNode"), self.request.get("path") ):
