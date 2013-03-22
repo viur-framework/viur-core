@@ -22,6 +22,12 @@ def PutAsync( entities, **kwargs ):
 		Identical to db.Put() except returns an asynchronous object. Call
 		get_result() on the return value to block on the call and get the results.
 	"""
+	if isinstance( entities, Entity ):
+		entities._fixUnindexedProperties()
+	elif isinstance( entities, List ):
+		for entity in entities:
+			assert isinstance( entity, Entity )
+			entity._fixUnindexedProperties()
 	if conf["viur.db.caching" ]>0:
 		if isinstance( entities, Entity ): #Just one:
 			if entities.is_saved(): #Its an update
@@ -54,6 +60,12 @@ def Put( entities, **kwargs ):
 		Raises:
 			TransactionFailedError, if the Put could not be committed.
 	"""
+	if isinstance( entities, Entity ):
+		entities._fixUnindexedProperties()
+	elif isinstance( entities, List ):
+		for entity in entities:
+			assert isinstance( entity, Entity )
+			entity._fixUnindexedProperties()
 	if conf["viur.db.caching" ]>0:
 		if isinstance( entities, Entity ): #Just one:
 			if entities.is_saved(): #Its an update
@@ -732,20 +744,6 @@ class Entity( datastore.Entity ):
 			But you'll save one db-write op per property listed here.
 		"""
 		self.set_unindexed_properties( unindexed_properties )
-		self._fixUnindexedProperties()
-	
-	
-	
-	def update(self, other):
-		"""
-			Updates this entity's properties from the values in other.
-
-			If any property name is the empty string or not a string, raises
-			BadPropertyError. If any value is not a supported type, raises
-			BadValueError.
-		"""
-		super( Entity, self ).update( other )
-		self._fixUnindexedProperties()
 
 	def __setitem__(self, name, value):
 		"""
@@ -756,7 +754,6 @@ class Entity( datastore.Entity ):
 			BadValueError.
 		"""
 		super( Entity, self ).__setitem__( name, value )
-		self._fixUnindexedProperties()
 	
 	def set( self, key, value, indexed=True ):
 		"""
@@ -780,8 +777,7 @@ class Entity( datastore.Entity ):
 				name=entity.key().name(), id=entity.key().id(),
 				unindexed_properties=entity.unindexed_properties(),
 				namespace=entity.namespace() )
-		for k,v in entity.items():
-			res[ k ] = v
+		res.update( entity )
 		return( res )
 
 
