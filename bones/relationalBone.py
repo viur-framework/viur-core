@@ -143,7 +143,7 @@ class relationalBone( baseBone ):
 			db.Put( dbObj )
 		
 	def postDeletedHandler( self, skel, key, id ):
-		db.Delete( [x for x in db.Query( skel.kindName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) ).run( keys_only=True ) ] ) #keys_only=True
+		db.Delete( [x for x in db.Query( skel.kindName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) ).run( keysOnly=True ) ] )
 	
 	def rebuildData(self, *args, **kwargs ):
 		pass
