@@ -164,12 +164,12 @@ class CustomUser( List ):
 	class loginSkel( Skeleton ):
 		kindName = "user"
 		id = None
-		name = emailBone( descr="E-Mail", params={"indexed": True, "frontend_list_visible": True}, required=True )
+		name = emailBone( descr="E-Mail", params={"indexed": True, "frontend_list_visible": True}, required=True, caseSensitive=False, indexed=True )
 		password = passwordBone( descr="Passwort", params={"indexed": True, "frontend_list_visible": True,"justinput":True}, required=True )
 
 	class baseSkel( Skeleton ):
 		kindName = "user"
-		name = emailBone( descr="E-Mail", params={"indexed": True, "frontend_list_visible": True}, required=True, readOnly=True, caseSensitive=False )
+		name = emailBone( descr="E-Mail", params={"indexed": True, "frontend_list_visible": True}, required=True, readOnly=True, caseSensitive=False, indexed=True )
 		access = selectMultiBone( descr="Accessrights", values={"root": "Superuser"}, params={"indexed": True, "frontend_list_visible": True} )
 		status = selectOneBone( descr="Account status", values = {
 					1: "Waiting for EMail verification",
@@ -282,6 +282,8 @@ class CustomUser( List ):
 		res  = query.filter( "name_idx >=", name.lower()).get()
 				#.filter( "password =", mysha512.hexdigest())\
 				#.filter( "status >=", 10).get()
+		if res is None:
+			res = {"password":"", "status":0, "name":"","name_idx":"" }
 		if "password_salt" in res.keys(): #Its the new, more secure passwd
 			passwd = pbkdf2( password, res["password_salt"] )
 		else:

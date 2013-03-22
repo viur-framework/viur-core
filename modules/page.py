@@ -10,8 +10,8 @@ import logging
 class pageSkel( HierarchySkel ):
 	kindName="page"
 	searchindex = "page"
-	name = stringBone( descr="Name", indexed=True, required=True )
-	descr = documentBone( descr="Content", required=True, extensions=[YouTube] )
+	name = stringBone( descr="Name", indexed=True, searchable=True, required=True )
+	descr = documentBone( descr="Content", required=True, searchable=True, extensions=[YouTube] )
 	hrk = baseBone( descr="Human readable key", visible=False, required=False, indexed=True, readOnly=True )
 	
 	def postProcessSerializedData( self, id,  dbfields ): #Build our human readable key
