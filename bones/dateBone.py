@@ -180,13 +180,14 @@ class dateBone( baseBone ):
 			res = utc.normalize( res.astimezone( utc ) )
 		return( res )
 
-	def serialize( self, name ):
+	def serialize( self, name, entity ):
 		res = self.value
 		if (self.creationMagic and not self.value) or self.updateMagic:
 			res  = datetime.now() #This is UTC - Nothing to do here
 		elif res:
 			res = self.readLocalized( datetime.now().strptime( res.strftime( "%d.%m.%Y %H:%M:%S" ), "%d.%m.%Y %H:%M:%S"  ) )
-		return( {name: res} )
+		entity.set( name, res, self.indexed )
+		return( entity )
 
 	def unserialize( self, name, expando ):
 		if not name in expando.keys():

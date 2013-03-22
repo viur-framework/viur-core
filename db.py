@@ -23,12 +23,12 @@ def PutAsync( entities, **kwargs ):
 		get_result() on the return value to block on the call and get the results.
 	"""
 	if conf["viur.db.caching" ]>0:
-		if isinstance( entities, datastore.Entity ): #Just one:
+		if isinstance( entities, Entity ): #Just one:
 			if entities.is_saved(): #Its an update
 				memcache.delete( str( entities.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
 		elif isinstance( entities, list ):
 			for entity in entities:
-				assert isinstance( entity, datastore.Entity )
+				assert isinstance( entity, Entity )
 				if entity.is_saved(): #Its an update
 					memcache.delete( str( entity.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
 	return( datastore.PutAsync( entities, **kwargs ) )
@@ -55,12 +55,12 @@ def Put( entities, **kwargs ):
 			TransactionFailedError, if the Put could not be committed.
 	"""
 	if conf["viur.db.caching" ]>0:
-		if isinstance( entities, datastore.Entity ): #Just one:
+		if isinstance( entities, Entity ): #Just one:
 			if entities.is_saved(): #Its an update
 				memcache.delete( str( entities.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
 		elif isinstance( entities, list ):
 			for entity in entities:
-				assert isinstance( entity, datastore.Entity )
+				assert isinstance( entity, Entity )
 				if entity.is_saved(): #Its an update
 					memcache.delete( str( entity.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
 	return( datastore.Put( entities, **kwargs ) )
@@ -118,7 +118,7 @@ def Get( keys, **kwargs ):
 		if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
 			res = memcache.get( str(keys), namespace=__CacheKeyPrefix__ )
 			if not res: #Not cached - fetch and cache it :)
-				res = datastore.Get( keys, **kwargs )
+				res = Entity.FromDatastoreEntity( datastore.Get( keys, **kwargs ) )
 				res[ "id" ] = str( res.key() )
 				memcache.set( str(res.key() ), res, time=__cacheTime__, namespace=__CacheKeyPrefix__ )
 			return( res )
@@ -134,7 +134,7 @@ def Get( keys, **kwargs ):
 				cacheRes.update( memcache.get_multi( currentBatch, namespace=__CacheKeyPrefix__) )
 			#Fetch the rest from DB
 			missigKeys = [ x for x in keys if not str(x) in cacheRes.keys() ]
-			dbRes = datastore.Get( missigKeys )
+			dbRes = [ Entity.FromDatastoreEntity(x) for x in datastore.Get( missigKeys ) ]
 			#Cache what we had fetched
 			cacheMap = {}
 			for res in dbRes:
@@ -162,7 +162,10 @@ def Get( keys, **kwargs ):
 							break
 			logging.debug( "Fetched a result-set from Datastore: %s total, %s from cache, %s from datastore" % (len(tmpRes),len( cacheRes.keys()), len( dbRes ) ) )
 			return( tmpRes )
-	return( datastore.Get( keys, **kwargs ) )
+	if isinstance( keys, list ):
+		return( [ Entity.FromDatastoreEntity(x) for x in datastore.Get( keys, **kwargs ) ] )
+	else:
+		return( Entity.FromDatastoreEntity( datastore.Get( keys, **kwargs ) ) )
 
 def DeleteAsync(keys, **kwargs):
 	"""
@@ -226,7 +229,7 @@ def GetOrInsert( key, kindName=None, parent=None, **kwargs ):
 		try:
 			res = datastore.Get( key )
 		except datastore_errors.EntityNotFoundError:
-			res = datastore.Entity( kind=key.kind(), parent=key.parent(), name=key.name(), id=key.id() )
+			res = Entity( kind=key.kind(), parent=key.parent(), name=key.name(), id=key.id() )
 			for k, v in kwargs.items():
 				res[ k ] = v
 			datastore.Put( res )
@@ -299,7 +302,8 @@ class Query( object ):
 			for bone, key in [ x for x in bones if isinstance( x, relationalBone ) ]:
 				bone.buildDBSort( key, skel, self, filters )
 		except RuntimeError:
-			return( None )
+			self.datastoreQuery = None
+			return( self )
 		if "search" in filters.keys():
 			if isinstance( filters["search"], list ):
 				taglist = [ "".join([y for y in unicode(x).lower() if y in conf["viur.searchValidChars"] ] ) for x in filters["search"] ]
@@ -309,7 +313,7 @@ class Query( object ):
 			origFilter = self.datastoreQuery
 			queries = []
 			for tag in taglist:
-				q = datastore.Query( kind=origFilter.kind() )
+				q = datastore.Query( kind=origFilter.__kind )
 				q[ "viur_tags" ] = tag
 				queries.append( q )
 			self.datastoreQuery = datastore.MultiQuery( queries, origFilter.__orderings )
@@ -585,6 +589,8 @@ class Query( object ):
 		from server.skeleton import SkelList
 		res = SkelList( self.srcSkelClass )
 		dbRes = self.run( )
+		if dbRes is None:
+			return( res )
 		for e in dbRes:
 			s = self.srcSkelClass()
 			s.setValues( e) 
@@ -676,6 +682,109 @@ class Query( object ):
 		return( res )
 
 
+class Entity( datastore.Entity ):
+	"""
+		Wraps datastore.Entity to prevent
+		trying adding a string>500 chars
+		to an index and providing a camelCase-API.
+	"""
+	def _fixUnindexedProperties( self ):
+		"""
+			Ensures that no property with strlen > 500 makes it into the index.
+		"""
+		unindexed = list( self.getUnindexedProperties() )
+		for k,v in self.items():
+			if isinstance( v, basestring ) and len( v )>=500 and not k in unindexed:
+				logging.warning("Your property %s cant be indexed!" % k)
+				unindexed.append( k )
+			elif isinstance( v, list ) or isinstance( v, tuple() ):
+				if any( [ isinstance(x,basestring) and len(x)>=500 for x in v] ) and not k in unindexed:
+					logging.warning("Your property %s cant be indexed!" % k)
+					unindexed.append( k )
+		self.set_unindexed_properties( unindexed )
+
+	def isSaved(self):
+		"""
+			Returns True if this entity has been saved to the datastore.
+		"""
+		return( self.is_saved() )
+	
+	def entityGroup(self):
+		"""
+			Returns this entity's entity group as a Key.
+
+			Note that the returned Key will be incomplete if this is a a root entity
+			and its key is incomplete.
+		"""
+		return( self.entity_group() )
+
+	def getUnindexedProperties(self):
+		"""
+			Returns this entity's unindexed properties, as a frozenset of strings.
+		"""
+		return( self.unindexed_properties() )
+	
+	def setUnindexedProperties(self, unindexed_properties):
+		"""
+			Sets the list of unindexed properties.
+			Properties listed here are *not* saved in an index;
+			its impossible to use them in a query filter / sort.
+			But you'll save one db-write op per property listed here.
+		"""
+		self.set_unindexed_properties( unindexed_properties )
+		self._fixUnindexedProperties()
+	
+	
+	
+	def update(self, other):
+		"""
+			Updates this entity's properties from the values in other.
+
+			If any property name is the empty string or not a string, raises
+			BadPropertyError. If any value is not a supported type, raises
+			BadValueError.
+		"""
+		super( Entity, self ).update( other )
+		self._fixUnindexedProperties()
+
+	def __setitem__(self, name, value):
+		"""
+			Implements the [] operator. Used to set property value(s).
+
+			If the property name is the empty string or not a string, raises
+			BadPropertyError. If the value is not a supported type, raises
+			BadValueError.
+		"""
+		super( Entity, self ).__setitem__( name, value )
+		self._fixUnindexedProperties()
+	
+	def set( self, key, value, indexed=True ):
+		"""
+			Sets key to value.
+		"""
+		if not indexed:
+			unindexed = list( self.getUnindexedProperties() )
+			if not key in unindexed:
+				self.setUnindexedProperties( unindexed+[key] )
+		self[ key ] = value
+
+	@staticmethod
+	def FromDatastoreEntity( entity ):
+		"""
+			Converts a datastore.Entity into this class.
+			Required, as datastore.Get always returns a
+			datastore.Entity (and it seems that currently
+			there is no valid way to change that).
+		"""
+		res = Entity(	entity.kind(), parent=entity.key().parent(), _app=entity.key().app(),
+				name=entity.key().name(), id=entity.key().id(),
+				unindexed_properties=entity.unindexed_properties(),
+				namespace=entity.namespace() )
+		for k,v in entity.items():
+			res[ k ] = v
+		return( res )
+
+
 AllocateIdsAsync = datastore.AllocateIdsAsync
 AllocateIds = datastore.AllocateIds
 RunInTransaction = datastore.RunInTransaction
@@ -704,7 +813,6 @@ ReferencePropertyResolveError = datastore_errors.ReferencePropertyResolveError
 Timeout = datastore_errors.Timeout
 CommittedButStillApplying = datastore_errors.CommittedButStillApplying
 
-Entity = datastore.Entity
 DatastoreQuery = datastore.Query
 MultiQuery = datastore.MultiQuery
 Cursor = datastore_query.Cursor

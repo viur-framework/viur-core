@@ -61,8 +61,6 @@ class Skeleton( object ):
 		"""
 		super(Skeleton, self).__init__(*args, **kwargs)
 		self.kindName = kindName or self.kindName
-		self._rawValues = {}
-		self._pendingResult = None
 		self.errors = {}
 		tmpList = []
 		self.__dataDict__ = OrderedDict()
@@ -76,12 +74,22 @@ class Skeleton( object ):
 			setattr( self, key, bone )
 
 	def __setitem__(self, name, value):
-		self.checkPending()
-		self._rawValues[ name ] = value
+		try:
+			bone = getattr( self, name )
+		except:
+			bone = None
+		if not isinstance( bone, baseBone ):
+			raise KeyError("%s is no valid Bone!" % name )
+		bone.value = value
 	
 	def __getitem__(self, name ):
-		self.checkPending()
-		return( self._rawValues[ name ] )
+		try:
+			bone = getattr( self, name )
+		except:
+			bone = None
+		if not isinstance( bone, baseBone ):
+			raise KeyError("%s is no valid Bone!" % name )
+		return( bone.value )
 
 	def all(self):
 		"""
@@ -91,7 +99,7 @@ class Skeleton( object ):
 		"""
 		return( db.Query( self.kindName, srcSkelClass=type( self ) ) )
 	
-	def fromDB( self,  id ):
+	def fromDB( self, id ):
 		"""
 			Populates the current instance with values read from the given DB-Key.
 			Its current (maybe unsaved data) is discarded.
@@ -136,44 +144,35 @@ class Skeleton( object ):
 			@type clearUpdateTag: Bool
 			@returns String DB-Key
 		"""
-		def txnUpdate( id, dbfields, unindexedProperties ):
-			try:
-				dbObj = db.Get( db.Key( id ) )
-			except db.EntityNotFoundError:
-				k = db.Key( id )
-				dbObj = db.Entity( k.kind(), id=k.id(), name=k.name() )
-			for k,v in dbfields.items():
-				dbObj[ k ] =  v
-			dbObj.set_unindexed_properties( unindexedProperties )
+		def txnUpdate( id, skel, clearUpdateTag ):
+			if not id:
+				dbObj = db.Entity( skel.kindName )
+			else:
+				try:
+					dbObj = db.Get( db.Key( id ) )
+				except db.EntityNotFoundError:
+					k = db.Key( id )
+					dbObj = db.Entity( k.kind(), id=k.id(), name=k.name(), parent=k.parent() )
+			tags = []
+			for key in dir( skel ):
+				if "__" not in key:
+					_bone = getattr( skel, key )
+					if( isinstance( _bone, baseBone )  ):
+						dbObj = _bone.serialize( key, dbObj ) 
+						if _bone.searchable and not skel.searchIndex:
+							tags += [ tag for tag in _bone.getSearchTags() if (tag not in tags and len(tag)<400) ]
+			if tags:
+				dbObj["viur_tags"] = tags
+			if clearUpdateTag:
+				dbObj["viur_delayed_update_tag"] = 0 #Mark this entity as Up-to-date.
+			else:
+				dbObj["viur_delayed_update_tag"] = time() #Mark this entity as dirty, so the background-task will catch it up and update its references.
+			if "preProcessSerializedData" in dir( self ):
+				dbObj = self.preProcessSerializedData( dbObj )
 			db.Put( dbObj )
-		dbfields = {}
-		tags = []
-		for key in dir( self ):
-			if "__" not in key:
-				_bone = getattr( self, key )
-				if( isinstance( _bone, baseBone )  ):
-					data = _bone.serialize( key ) 
-					dbfields.update( data )
-					if _bone.indexed:
-						tags += [ tag for tag in _bone.getTags() if (tag not in tags and len(tag)<400) ]
-		if tags:
-			dbfields["viur_tags"] = tags
-		if clearUpdateTag:
-			dbfields["viur_delayed_update_tag"] = 0 #Mark this entity as Up-to-date.
-		else:
-			dbfields["viur_delayed_update_tag"] = time() #Mark this entity as dirty, so the background-task will catch it up and update its references.
-		if "preProcessSerializedData" in dir( self ):
-			dbfields = self.preProcessSerializedData( dbfields )
-		unindexedProperties = [ x for x in dir( self ) if (isinstance( getattr( self, x ), baseBone ) and not getattr( self, x ).indexed) ]
-		if id:
-			db.RunInTransaction( txnUpdate, id, dbfields, unindexedProperties )
-		else:
-			dbObj = datastore.Entity( self.kindName )
-			for k, v in dbfields.items():
-				dbObj[ k ] = v
-			dbObj.set_unindexed_properties( unindexedProperties )
-			id = str( datastore.Put( dbObj ) )
-		if self.searchIndex: #Add a Document to the index if specified
+			return( str( dbObj.key() ), dbObj )
+		id, dbObj = db.RunInTransaction( txnUpdate, id, self, clearUpdateTag )
+		if self.searchIndex: #Add a Document to the index if an index specified
 			fields = []
 			for key in dir( self ):
 				if "__" not in key:
@@ -189,11 +188,12 @@ class Skeleton( object ):
 		for key in dir( self ):
 			if "__" not in key:
 				_bone = getattr( self, key )
-				if( isinstance( _bone, baseBone )  ) and "postSavedHandler" in dir( _bone ):
-					_bone.postSavedHandler( key, self, id, dbfields )
+				if( isinstance( _bone, baseBone ) ) and "postSavedHandler" in dir( _bone ):
+					_bone.postSavedHandler( key, self, id, dbObj )
 		if "postProcessSerializedData" in dir( self ):
-			self.postProcessSerializedData( id,  dbfields )
+			self.postProcessSerializedData( id,  dbObj )
 		return( id )
+
 
 	def delete( self, id ):
 		"""
@@ -234,9 +234,7 @@ class Skeleton( object ):
 						_bone.value = str( values.key() )
 					else:
 						_bone.unserialize( key, values )
-		self._rawValues.update( values )
-		
-	
+
 	def getValues(self):
 		"""
 			Returns the current values as dictionary.

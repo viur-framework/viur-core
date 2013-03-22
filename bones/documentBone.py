@@ -37,9 +37,10 @@ class documentBone( textBone ):
 		self.extensions = extensions
 		self.cache = ""
 
-	def serialize( self, name ):
-		return( {	"%s" % name: self.value, 
-					"%s-cache" % name: self.cache } )
+	def serialize( self, name, entity ):
+		entity.set( name, self.value, False )
+		entity.set( "%s-cache" % name, self.cache, False )
+		return( entity )
 	
 	def unserialize( self, name, expando ):
 		self.value = None

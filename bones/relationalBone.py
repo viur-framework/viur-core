@@ -91,17 +91,18 @@ class relationalBone( baseBone ):
 			self.value = None
 		return( True )
 	
-	def serialize(self, key ):
+	def serialize(self, key, entity ):
 		if not self.value:
-			return( {key:None } )
-		if self.multiple:
-			res = []
-			for val in self.value:
-				res.append( json.dumps( val ) )
-			return( {key: res } )
+			entity.set( key, None, False )
 		else:
-			return( {key: json.dumps( self.value ) } )
-		return( {key: None } )
+			if self.multiple:
+				res = []
+				for val in self.value:
+					res.append( json.dumps( val ) )
+				entity.set( key, res, False )
+			else:
+				entity.set( key, json.dumps( self.value ), False )
+		return( entity )
 	
 	def postSavedHandler( self, key, skel, id, dbfields ):
 		if not self.value:

@@ -111,11 +111,10 @@ class textBone( baseBone ):
 			validHtml = _defaultTags
 		self.validHtml = validHtml
 
-	def serialize( self, name ):
-		if name == "id":
-			return( { } )
-		else:
-			return( {name:  self.value } )
+	def serialize( self, name, entity ):
+		if name != "id":
+			entity.set( name, self.value, self.indexed )
+		return( entity )
 	
 	def fromClient( self, value ):
 		if not value:
@@ -162,7 +161,7 @@ class textBone( baseBone ):
 			markFileForDeletion( f["dlkey"] )
 			db.Delete( f.key() )
 
-	def getTags(self):
+	def getSearchTags(self):
 		res = []
 		if not self.value:
 			return( res )

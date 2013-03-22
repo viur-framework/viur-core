@@ -48,12 +48,13 @@ class passwordBone( stringBone ):
 	type = "password"
 	saltLenth = 13
 	
-	def serialize( self, name ):
+	def serialize( self, name, entity ):
 		if self.value and self.value != "":
 			salt = ''.join( [ random.choice(string.ascii_lowercase+string.ascii_uppercase + string.digits) for x in range(self.saltLenth) ] )
 			passwd = pbkdf2( self.value, salt )
-			return( {name: passwd, "%s_salt" % name: salt} )
-		return( {} )
+			entity.set( name, passwd, self.indexed )
+			entity.set( "%s_salt" % name, salt, self.indexed )
+		return( entity )
 
 	def unserialize( self, name, values ):
 		return( {name: ""} )
