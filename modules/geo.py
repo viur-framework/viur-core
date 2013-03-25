@@ -3,7 +3,6 @@ from server.skeleton import Skeleton
 from server.applications.list import List
 from server.bones import *
 from google.appengine.ext import db
-from server.utils import generateExpandoClass
 from server import session, errors
 import urllib
 
