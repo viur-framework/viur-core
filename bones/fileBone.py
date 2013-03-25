@@ -25,7 +25,7 @@ class fileBone( treeItemBone ):
 		dbVals = db.Query( skel.kindName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) ).run()
 		for dbObj in dbVals:
 			if not dbObj[ key+"_id" ] in [ x[key+"_id"] for x in values ]: #Relation has been removed
-				lockObjs = db.Query( "file", ancestor = dbObj.key() ).run( 100 )
+				lockObjs = db.Query( "file" ).ancestor( dbObj.key() ).run( 100 )
 				for lockObj in lockObjs:
 					markFileForDeletion( lockObj["dlkey"] )
 					db.Delete( lockObj.key() )

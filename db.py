@@ -2,13 +2,13 @@
 from google.appengine.api import datastore, datastore_types, datastore_errors
 from google.appengine.datastore import datastore_query
 from google.appengine.api import memcache
-
+from server.config import conf
 import logging
 
 """
 	Tiny wrapper around google.appengine.api.datastore*.
 	This just ensures that operations issued directly through the database-api
-	dont interfere with our caching. If you need skeletons anyway, query the database
+	dosn't interfere with our caching. If you need skeletons anyway, query the database
 	using skel.all(); its faster and is able to serve more requests from cache.
 """
 __cacheLockTime__ = 42 #Prevent an entity from creeping into the cache for 42 Secs if it just has been altered.
@@ -22,14 +22,21 @@ def PutAsync( entities, **kwargs ):
 		Identical to db.Put() except returns an asynchronous object. Call
 		get_result() on the return value to block on the call and get the results.
 	"""
-	if isinstance( entities, datastore.Entity ): #Just one:
-		if entities.is_saved(): #Its an update
-			memcache.delete( str( entities.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
-	elif isinstance( entities, list ):
+	if isinstance( entities, Entity ):
+		entities._fixUnindexedProperties()
+	elif isinstance( entities, List ):
 		for entity in entities:
-			assert isinstance( entity, datastore.Entity )
-			if entity.is_saved(): #Its an update
-				memcache.delete( str( entity.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
+			assert isinstance( entity, Entity )
+			entity._fixUnindexedProperties()
+	if conf["viur.db.caching" ]>0:
+		if isinstance( entities, Entity ): #Just one:
+			if entities.is_saved(): #Its an update
+				memcache.delete( str( entities.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
+		elif isinstance( entities, list ):
+			for entity in entities:
+				assert isinstance( entity, Entity )
+				if entity.is_saved(): #Its an update
+					memcache.delete( str( entity.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
 	return( datastore.PutAsync( entities, **kwargs ) )
 
 def Put( entities, **kwargs ):
@@ -53,14 +60,21 @@ def Put( entities, **kwargs ):
 		Raises:
 			TransactionFailedError, if the Put could not be committed.
 	"""
-	if isinstance( entities, datastore.Entity ): #Just one:
-		if entities.is_saved(): #Its an update
-			memcache.delete( str( entities.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
-	elif isinstance( entities, list ):
+	if isinstance( entities, Entity ):
+		entities._fixUnindexedProperties()
+	elif isinstance( entities, List ):
 		for entity in entities:
-			assert isinstance( entity, datastore.Entity )
-			if entity.is_saved(): #Its an update
-				memcache.delete( str( entity.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
+			assert isinstance( entity, Entity )
+			entity._fixUnindexedProperties()
+	if conf["viur.db.caching" ]>0:
+		if isinstance( entities, Entity ): #Just one:
+			if entities.is_saved(): #Its an update
+				memcache.delete( str( entities.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
+		elif isinstance( entities, list ):
+			for entity in entities:
+				assert isinstance( entity, Entity )
+				if entity.is_saved(): #Its an update
+					memcache.delete( str( entity.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
 	return( datastore.Put( entities, **kwargs ) )
 	
 def GetAsync( keys, **kwargs ):
@@ -80,10 +94,11 @@ def GetAsync( keys, **kwargs ):
 		
 		def get_result( self ):
 			return( self.res )
-	if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
-		res = memcache.get( str(keys), namespace=__CacheKeyPrefix__ )
-		if res:
-			return( AsyncResultWrapper( res ) )
+	if conf["viur.db.caching" ]>0:
+		if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
+			res = memcache.get( str(keys), namespace=__CacheKeyPrefix__ )
+			if res:
+				return( AsyncResultWrapper( res ) )
 	#Either the result wasnt found, or we got a list of keys to fetch;
 	# --> no caching possible
 	return( datastore.GetAsync( keys, **kwargs ) )
@@ -111,16 +126,58 @@ def Get( keys, **kwargs ):
 		Returns:
 			Entity or list of Entity objects
 	"""
-	if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
-		res = memcache.get( str(keys), namespace=__CacheKeyPrefix__ )
-		if not res: #Not cached - fetch and cache it :)
-			res = datastore.Get( keys, **kwargs )
-			res[ "id" ] = str( res.key() )
-			memcache.set( str(res.key() ), res, time=__cacheTime__, namespace=__CacheKeyPrefix__ )
-		return( res )
-	#Either the result wasnt found, or we got a list of keys to fetch;
-	# --> no caching possible
-	return( datastore.Get( keys, **kwargs ) )
+	if conf["viur.db.caching" ]>0:
+		if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
+			res = memcache.get( str(keys), namespace=__CacheKeyPrefix__ )
+			if not res: #Not cached - fetch and cache it :)
+				res = Entity.FromDatastoreEntity( datastore.Get( keys, **kwargs ) )
+				res[ "id" ] = str( res.key() )
+				memcache.set( str(res.key() ), res, time=__cacheTime__, namespace=__CacheKeyPrefix__ )
+			return( res )
+		#Either the result wasnt found, or we got a list of keys to fetch;
+		elif isinstance( keys,list ):
+			#Check Memcache first
+			cacheRes = {}
+			tmpRes = []
+			keyList = [ str(x) for x in keys ]
+			while keyList: #Fetch in Batches of 30 entries, as the max size for bulk_get is limited to 32MB
+				currentBatch = keyList[ : 30]
+				keyList = keyList[ 30: ]
+				cacheRes.update( memcache.get_multi( currentBatch, namespace=__CacheKeyPrefix__) )
+			#Fetch the rest from DB
+			missigKeys = [ x for x in keys if not str(x) in cacheRes.keys() ]
+			dbRes = [ Entity.FromDatastoreEntity(x) for x in datastore.Get( missigKeys ) ]
+			#Cache what we had fetched
+			cacheMap = {}
+			for res in dbRes:
+				cacheMap[ str(res.key() ) ] = res
+				if len( str( cacheMap ) ) > 800000:
+					#Were approaching the 1MB limit
+					try:
+						memcache.set_multi( cacheMap, time=__cacheTime__ , namespace=__CacheKeyPrefix__ )
+					except:
+						pass
+					cacheMap = {}
+			if cacheMap:
+				# Cache the remaining entries
+				try:
+					memcache.set_multi( cacheMap, time=__cacheTime__ , namespace=__CacheKeyPrefix__ )
+				except:
+					pass
+			for key in [ str(x) for x in keys ]:
+				if key in cacheRes.keys():
+					tmpRes.append( cacheRes[ key ] )
+				else:
+					for e in dbRes:
+						if str( e.key() ) == key:
+							tmpRes.append ( e )
+							break
+			logging.debug( "Fetched a result-set from Datastore: %s total, %s from cache, %s from datastore" % (len(tmpRes),len( cacheRes.keys()), len( dbRes ) ) )
+			return( tmpRes )
+	if isinstance( keys, list ):
+		return( [ Entity.FromDatastoreEntity(x) for x in datastore.Get( keys, **kwargs ) ] )
+	else:
+		return( Entity.FromDatastoreEntity( datastore.Get( keys, **kwargs ) ) )
 
 def DeleteAsync(keys, **kwargs):
 	"""
@@ -129,12 +186,13 @@ def DeleteAsync(keys, **kwargs):
 		Identical to datastore.Delete() except returns an asynchronous object. Call
 		get_result() on the return value to block on the call.
 	"""
-	if isinstance( keys, datastore_types.Key ): #Just one:
-		memcache.delete( str( keys ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
-	elif isinstance( keys, list ):
-		for key in keys:
-			assert isinstance( key, datastore_types.Key ) or isinstance( key, basestring )
-			memcache.delete( str( key ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
+	if conf["viur.db.caching" ]>0:
+		if isinstance( keys, datastore_types.Key ): #Just one:
+			memcache.delete( str( keys ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
+		elif isinstance( keys, list ):
+			for key in keys:
+				assert isinstance( key, datastore_types.Key ) or isinstance( key, basestring )
+				memcache.delete( str( key ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
 	return( datastore.DeleteAsync( keys, **kwargs ) )
 	
 def Delete(keys, **kwargs):
@@ -154,12 +212,13 @@ def Delete(keys, **kwargs):
 		Raises:
 			TransactionFailedError, if the Delete could not be committed.
 	"""
-	if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
-		memcache.delete( str( keys ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
-	elif isinstance( keys, list ):
-		for key in keys:
-			assert isinstance( key, datastore_types.Key ) or isinstance( key, basestring )
-			memcache.delete( str( key ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
+	if conf["viur.db.caching" ]>0:
+		if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
+			memcache.delete( str( keys ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
+		elif isinstance( keys, list ):
+			for key in keys:
+				assert isinstance( key, datastore_types.Key ) or isinstance( key, basestring )
+				memcache.delete( str( key ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
 	return( datastore.Delete( keys, **kwargs ) )
 
 def GetOrInsert( key, kindName=None, parent=None, **kwargs ):
@@ -170,7 +229,7 @@ def GetOrInsert( key, kindName=None, parent=None, **kwargs ):
 		used to populate the entity if it has to be created; otherwise they are ignored.
 		
 		@param key: The key which will be fetched/created. If key is a string, it will be used as the name for
-					the new entity, therefor the collectionName is required in this case.
+			the new entity, therefor the collectionName is required in this case.
 		@type key: db.Key or String
 		@param kindName: Kind to use for that entity. Ignored if key is a db.Key
 		@type kindName: String
@@ -182,7 +241,7 @@ def GetOrInsert( key, kindName=None, parent=None, **kwargs ):
 		try:
 			res = datastore.Get( key )
 		except datastore_errors.EntityNotFoundError:
-			res = datastore.Entity( kind=key.kind(), parent=key.parent(), name=key.name(), id=key.id() )
+			res = Entity( kind=key.kind(), parent=key.parent(), name=key.name(), id=key.id() )
 			for k, v in kwargs.items():
 				res[ k ] = v
 			datastore.Put( res )
@@ -210,6 +269,7 @@ class Query( object ):
 		self.datastoreQuery = datastore.Query( kind, *args, **kwargs )
 		self.srcSkelClass = srcSkelClass
 		self.amount = 30
+		self.origKind = kind
 	
 	def mergeExternalFilter(self, filters ):
 		"""
@@ -254,7 +314,8 @@ class Query( object ):
 			for bone, key in [ x for x in bones if isinstance( x, relationalBone ) ]:
 				bone.buildDBSort( key, skel, self, filters )
 		except RuntimeError:
-			return( None )
+			self.datastoreQuery = None
+			return( self )
 		if "search" in filters.keys():
 			if isinstance( filters["search"], list ):
 				taglist = [ "".join([y for y in unicode(x).lower() if y in conf["viur.searchValidChars"] ] ) for x in filters["search"] ]
@@ -264,7 +325,7 @@ class Query( object ):
 			origFilter = self.datastoreQuery
 			queries = []
 			for tag in taglist:
-				q = datastore.Query( kind=origFilter.kind() )
+				q = datastore.Query( kind=origFilter.__kind )
 				q[ "viur_tags" ] = tag
 				queries.append( q )
 			self.datastoreQuery = datastore.MultiQuery( queries, origFilter.__orderings )
@@ -285,8 +346,8 @@ class Query( object ):
 				filter( "name", "John" )
 				filter( {"name": "John"} )
 
-			@param key: A dictionary to read the filters from, or a string (name of that filter)
-			@type key: Dict or String
+			@param filter: A dictionary to read the filters from, or a string (name of that filter)
+			@type filter: Dict or String
 			@param value: The value of that filter. Only valid, if key is a string.
 			@type value: Int, Long, Float, Bytes, String, List or DateTime
 		"""
@@ -385,10 +446,10 @@ class Query( object ):
 			raise ValueError("Cursor must be String, datastore_query.Cursor or None")
 		qo = self.datastoreQuery.__query_options
 		self.datastoreQuery.__query_options = datastore_query.QueryOptions(	keys_only=qo.keys_only, 
-															produce_cursors=qo.produce_cursors,
-															start_cursor=cursor,
-															end_cursor=qo.end_cursor,
-															projection=qo.projection )
+											produce_cursors=qo.produce_cursors,
+											start_cursor=cursor,
+											end_cursor=qo.end_cursor,
+											projection=qo.projection )
 		return( self )
 	
 	def limit( self, amount ):
@@ -464,12 +525,20 @@ class Query( object ):
 		return( self.datastoreQuery.GetCursor() )
 
 	def getKind(self):
+		"""
+			Returns the kind of our query.
+			@returns String
+		"""
 		return( self.datastoreQuery.__kind )
 		
 	def getAncestor(self):
+		"""
+			Returns the ancestor of this query (if any)
+			@returns String or None
+		"""
 		return( self.datastoreQuery.ancestor )
 
-	def run(self, limit=-1, **kwargs):
+	def run(self, limit=-1, keysOnly=False, **kwargs):
 		"""
 			Runs this query.
 
@@ -490,7 +559,34 @@ class Query( object ):
 		if self.datastoreQuery is None:
 			return( None )
 		kwargs["limit"] = limit if limit!=-1 else self.amount
-		return( self.datastoreQuery.Run( **kwargs ) )
+		if not isinstance( self.datastoreQuery, datastore.MultiQuery ):
+			internalKeysOnly = True
+		else:
+			internalKeysOnly = False
+		if conf["viur.db.caching" ]<2:
+			# Query-Caching is disabled, make this query keys-only if (and only if) explicitly requested for this query
+			internalKeysOnly = keysOnly
+		res = list( self.datastoreQuery.Run( keys_only=internalKeysOnly, **kwargs ) )
+		if keysOnly and not internalKeysOnly: #Wanted key-only, but this wasnt directly possible
+			if len(res)>0 and res[0].key().kind()!=self.origKind and res[0].key().parent().kind()==self.origKind:
+				#Fixing the kind - it has been changed (probably by quering an relation)
+				res = [ x.key().parent() for x in res ]
+			return( [x.key() for x in res] )
+		elif keysOnly and internalKeysOnly: #Keys-only requested and we did it
+			if len(res)>0 and res[0].kind()!=self.origKind and res[0].parent().kind()==self.origKind:
+				#Fixing the kind - it has been changed (probably by quering an relation)
+				res = [ x.parent() for x in res ]
+			return( res )
+		elif not keysOnly and not internalKeysOnly: #Full query requested and we did it
+			if len(res)>0 and res[0].key().kind()!=self.origKind and res[0].key().parent().kind()==self.origKind:
+				#Fixing the kind - it has been changed (probably by quering an relation)
+				res = Get( [ x.key().parent() for x in res ] )
+			return( res )
+		else: #Well.. Full results requested, but we did keys-only
+			if len(res)>0 and res[0].kind()!=self.origKind and res[0].parent().kind()==self.origKind:
+				#Fixing the kind - it has been changed (probably by quering an relation)
+				res = [ x.parent() for x in res ]
+			return( Get( res ) )
 	
 	def fetch(self, limit=-1, **kwargs ):
 		"""
@@ -499,10 +595,43 @@ class Query( object ):
 		"""
 		if self.srcSkelClass is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
-		if self.amount == 0:
-			raise NotImplementedError("This query is not limited! You must specify an upper bound using limit()")
-		from server.skeleton import Skellist
-		return( Skellist( self.srcSkelClass, self.run() ) )
+		amount = limit if limit!=-1 else self.amount
+		if amount < 1 or amount > 100:
+			raise NotImplementedError("This query is not limited! You must specify an upper bound using limit() between 1 and 100")
+		from server.skeleton import SkelList
+		res = SkelList( self.srcSkelClass )
+		dbRes = self.run( )
+		if dbRes is None:
+			return( res )
+		for e in dbRes:
+			s = self.srcSkelClass()
+			s.setValues( e) 
+			res.append( s )
+		try:
+			res.cusor = self.datastoreQuery.GetCursor()
+		except AssertionError: #No Cursors avaiable on MultiQueries ( in or != )
+			res.cursor = None
+		return( res )
+	
+	def iter(self, keysOnly=False):
+		"""
+			Returns an iterator for the results.
+			Advantage: Its possible to iterate over a large result-set,
+			as it hasn't have to be pulled in advance from the datastore.
+			Disadvantage: No Caching (yet)
+			Note: This intentionally ignores the limit set by self.limt() -
+			it yields *all* results.
+			@param keysOnly: Set to true if you just want the keys
+			@type keysOnly: Bool
+		"""
+		if self.datastoreQuery is None: #Noting to pull here
+			raise StopIteration()
+		if isinstance( self.datastoreQuery, datastore.MultiQuery ) and keysOnly:
+			# Wantet KeysOnly, but MultiQuery is unable to give us that.
+			for res in self.datastoreQuery.Run():
+				yield res.key()
+		for res in self.datastoreQuery.Run( keys_only=keysOnly ): #The standard-case
+			yield res
 	
 	def get( self ):
 		"""
@@ -565,6 +694,93 @@ class Query( object ):
 		return( res )
 
 
+class Entity( datastore.Entity ):
+	"""
+		Wraps datastore.Entity to prevent
+		trying adding a string>500 chars
+		to an index and providing a camelCase-API.
+	"""
+	def _fixUnindexedProperties( self ):
+		"""
+			Ensures that no property with strlen > 500 makes it into the index.
+		"""
+		unindexed = list( self.getUnindexedProperties() )
+		for k,v in self.items():
+			if isinstance( v, basestring ) and len( v )>=500 and not k in unindexed:
+				logging.warning("Your property %s cant be indexed!" % k)
+				unindexed.append( k )
+			elif isinstance( v, list ) or isinstance( v, tuple() ):
+				if any( [ isinstance(x,basestring) and len(x)>=500 for x in v] ) and not k in unindexed:
+					logging.warning("Your property %s cant be indexed!" % k)
+					unindexed.append( k )
+		self.set_unindexed_properties( unindexed )
+
+	def isSaved(self):
+		"""
+			Returns True if this entity has been saved to the datastore.
+		"""
+		return( self.is_saved() )
+	
+	def entityGroup(self):
+		"""
+			Returns this entity's entity group as a Key.
+
+			Note that the returned Key will be incomplete if this is a a root entity
+			and its key is incomplete.
+		"""
+		return( self.entity_group() )
+
+	def getUnindexedProperties(self):
+		"""
+			Returns this entity's unindexed properties, as a frozenset of strings.
+		"""
+		return( self.unindexed_properties() )
+	
+	def setUnindexedProperties(self, unindexed_properties):
+		"""
+			Sets the list of unindexed properties.
+			Properties listed here are *not* saved in an index;
+			its impossible to use them in a query filter / sort.
+			But you'll save one db-write op per property listed here.
+		"""
+		self.set_unindexed_properties( unindexed_properties )
+
+	def __setitem__(self, name, value):
+		"""
+			Implements the [] operator. Used to set property value(s).
+
+			If the property name is the empty string or not a string, raises
+			BadPropertyError. If the value is not a supported type, raises
+			BadValueError.
+		"""
+		super( Entity, self ).__setitem__( name, value )
+	
+	def set( self, key, value, indexed=True ):
+		"""
+			Sets key to value.
+		"""
+		if not indexed:
+			unindexed = list( self.getUnindexedProperties() )
+			if not key in unindexed:
+				self.setUnindexedProperties( unindexed+[key] )
+		self[ key ] = value
+
+	@staticmethod
+	def FromDatastoreEntity( entity ):
+		"""
+			Converts a datastore.Entity into this class.
+			Required, as datastore.Get always returns a
+			datastore.Entity (and it seems that currently
+			there is no valid way to change that).
+		"""
+		res = Entity(	entity.kind(), parent=entity.key().parent(), _app=entity.key().app(),
+				name=entity.key().name(), id=entity.key().id(),
+				unindexed_properties=entity.unindexed_properties(),
+				namespace=entity.namespace() )
+		res.update( entity )
+		return( res )
+
+
 AllocateIdsAsync = datastore.AllocateIdsAsync
 AllocateIds = datastore.AllocateIds
 RunInTransaction = datastore.RunInTransaction
@@ -593,7 +809,6 @@ ReferencePropertyResolveError = datastore_errors.ReferencePropertyResolveError
 Timeout = datastore_errors.Timeout
 CommittedButStillApplying = datastore_errors.CommittedButStillApplying
 
-Entity = datastore.Entity
 DatastoreQuery = datastore.Query
 MultiQuery = datastore.MultiQuery
 Cursor = datastore_query.Cursor
@@ -603,7 +818,7 @@ KEY_SPECIAL_PROPERTY = datastore_types.KEY_SPECIAL_PROPERTY
 ASCENDING = datastore_query.PropertyOrder.ASCENDING
 DESCENDING = datastore_query.PropertyOrder.DESCENDING
 
-__all__ = [	PutAsync, Put, GetAsync, Get, DeleteAsync, Delete, AllocateIdsAsync, AllocateIds, RunInTransaction, RunInTransactionCustomRetries, RunInTransactionOptions, #
+__all__ = [	PutAsync, Put, GetAsync, Get, DeleteAsync, Delete, AllocateIdsAsync, AllocateIds, RunInTransaction, RunInTransactionCustomRetries, RunInTransactionOptions,
 		Error, BadValueError, BadPropertyError, BadRequestError, EntityNotFoundError, BadArgumentError, QueryNotFoundError, TransactionNotFoundError, Rollback, 
 		TransactionFailedError, BadFilterError, BadQueryError, BadKeyError, BadKeyError, InternalError, NeedIndexError, ReferencePropertyResolveError, Timeout, CommittedButStillApplying, 
 		Entity, Query, DatastoreQuery, MultiQuery, Cursor, KEY_SPECIAL_PROPERTY, ASCENDING, DESCENDING ]

@@ -12,6 +12,7 @@ from google.appengine.api import files
 from google.appengine.ext import ndb
 from google.appengine.ext import blobstore
 from google.appengine.api.images import get_serving_url
+from server import db
 import logging
 
 
@@ -91,16 +92,16 @@ class BackupFile(object):
 				utils.markFileForDeletion( newBlobKey )
 				repo, fileName = self.fileName[4:].split("/")
 				assert repo
-				lockObj = utils.generateExpandoClass( "file" )()
-				lockObj.name = currentFileName
-				lockObj.name_idx = currentFileName.lower()
-				lockObj.meta_mime = "application/octet-stream"
-				lockObj.dlkey = newBlobKey
-				lockObj.parentdir=repo 
-				lockObj.parentrepo=repo
-				lockObj.size = 0
-				lockObj.weak = False
-				lockObj.put()
+				lockObj = db.Entity( "file" )
+				lockObj["name"] = currentFileName
+				lockObj["name_idx"] = currentFileName.lower()
+				lockObj["meta_mime"] = "application/octet-stream"
+				lockObj["dlkey"] = newBlobKey
+				lockObj["parentdir"] = repo 
+				lockObj["parentrepo"] = repo
+				lockObj["size"] = 0
+				lockObj["weak"] = False
+				db.Put( lockObj )
 				logging.info("Backup DL-URL: /file/view/%s/%s" % (newBlobKey, fileName.replace("/", "_") ) )
 
 
@@ -225,12 +226,10 @@ class BackupFile(object):
 					elif "dict"  in v.keys():
 						v = v["dict"]
 				resDict[k] = v
-			obj = utils.generateExpandoClass( str(kind) )()
+			tmpKey = db.Key( urlsafe=id )
+			obj = db.Entity( str(kind), parent=tmpKey.parent(), id=tmpKey.id(), name=tmpKey.name() )
 			for k, v in resDict.items():
-				setattr( obj, k, v )
-			newKey = ndb.Key(urlsafe=id)
-			obj._key = newKey
-			obj.key = newKey
+				obj[ k ] = v
 			yield obj
 	
 	def iterBlobs(self):
@@ -286,7 +285,7 @@ def backup( fileName ):
 				if "%s %s" % ( modulName, kindName ) in kinds:
 					continue
 				kinds.append("%s %s" % ( modulName, kindName ))
-				for entry in utils.generateExpandoClass( kindName ).query().iter():
+				for entry in db.Query( kindName ).iter():
 					outFile.writeEntry( entry )
 	# Backup Blobs
 	qry = blobstore.BlobInfo.all()
@@ -316,8 +315,8 @@ def restore( fileName ):
 		if entry.key.integer_id() and entry.key.integer_id()> maxIDs[ str(kind) ]:
 			maxIDs[ str(kind) ] = entry.key.integer_id()
 	#Ensure that the used id-ranges are blocked
-	for k, v in maxIDs.items(): 
-		utils.generateExpandoClass( str(k) ).allocate_ids( max=v )
+	for k, v in maxIDs.items():
+		db.AllocateIds( max=v )
 	# Restore BlobKeys
 	blobMap = {}
 	for blobKey, blobMime, reader in inFile.iterBlobs():

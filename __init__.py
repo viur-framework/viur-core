@@ -192,6 +192,7 @@ class BrowseHandler(webapp.RequestHandler):
 	def processRequest( self, path, *args, **kwargs ): #Bring up the enviroment for this request, handle errors
 		self.internalRequest = False
 		self.isDevServer = "Development" in os.environ['SERVER_SOFTWARE'] #Were running on development Server
+		self.isSSLConnection = self.request.host_url.lower().startswith("https://") #We have an encrypted channel
 		if sharedConf["viur.disabled"] and not (users.is_current_user_admin() or "HTTP_X_QUEUE_NAME".lower() in [x.lower() for x in os.environ.keys()] ): #FIXME: Validate this works
 			self.response.set_status( 503 ) #Service unaviable
 			tpl = Template( open("server/template/error.html", "r").read() )
@@ -201,13 +202,13 @@ class BrowseHandler(webapp.RequestHandler):
 				msg = "This application is currently disabled or performing maintenance. Try again later."
 			self.response.out.write( tpl.safe_substitute( {"error_code": "503", "error_name": "Service unaviable", "error_descr": msg} ) )
 			return
-		if conf["viur.forceSSL"] and not self.isDevServer and not self.request.host_url.lower().startswith("https://"):
+		if conf["viur.forceSSL"] and not self.isDevServer and not self.isSSLConnection:
 			#Redirect the user to the startpage (using ssl this time)
 			host = self.request.host_url.lower()
 			host = host[ host.find("://")+3: ].strip(" /") #strip http(s)://
 			self.redirect( "https://%s/" % host )
 		try:
-			session.current.load( self.request.cookies )
+			session.current.load( self ) # self.request.cookies )
 			if not session.current.getLanguage():
 				host = self.request.host_url.lower()
 				host = host[ host.find("://")+3: ].strip(" /") #strip http(s)://
@@ -241,11 +242,10 @@ class BrowseHandler(webapp.RequestHandler):
 				strIO = StringIO()
 				traceback.print_exc(file=strIO)
 				descr= strIO.getvalue()
-				descr = descr.replace(" ", "&nbsp;").replace("\n", "<br />")
+				descr = descr.replace("<","&lt;").replace(">","&gt;").replace(" ", "&nbsp;").replace("\n", "<br />")
 			self.response.out.write( tpl.safe_substitute( {"error_code": "500", "error_name":"Internal Server Error", "error_descr": descr} ) )
 			if bugsnag and conf["bugsnag.apiKey" ]:
 				bugsnag.configure( api_key=conf["bugsnag.apiKey" ] )
-				logging.error( conf["bugsnag.apiKey" ] )
 				try: 
 					user = conf["viur.mainApp"].user.getCurrentUser()
 				except:
@@ -257,7 +257,7 @@ class BrowseHandler(webapp.RequestHandler):
 				bugsnag.configure_request( context=path, user_id=user, session_data=sessData )
 				bugsnag.notify( e )
 		finally:
-			self.saveSession()
+			self.saveSession( )
 	
 
 	def findAndCall( self, path, *args, **kwargs ): #Do the actual work: process the request
@@ -329,9 +329,10 @@ class BrowseHandler(webapp.RequestHandler):
 		self.response.out.write( caller( *self.args, **self.kwargs ) )
 
 	def saveSession(self):
-		sessionData = session.current.save()
-		if sessionData:
-			self.response.headers.add_header("Set-Cookie", "viurCookie=%s; Max-Age: 99999; Path=/" % ( sessionData ) )
+		session.current.save( self )
+		#sessionData = session.current.save()
+		#if sessionData:
+		#	self.response.headers.add_header("Set-Cookie", "viurCookie=%s; Max-Age: 99999; Path=/" % ( sessionData ) )
 
 def setup( modules, render=None, default="jinja2" ):
 	"""

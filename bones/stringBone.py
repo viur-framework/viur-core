@@ -9,18 +9,19 @@ class stringBone( baseBone ):
 	
 	def __init__(self, caseSensitive = True, multiple=False, *args, **kwargs ):
 		super( stringBone, self ).__init__( *args, **kwargs )
+		if not caseSensitive and not self.indexed:
+			raise ValueError("Creating a case-insensitive index without actually writing the index is nonsense.")
 		self.caseSensitive = caseSensitive
 		self.multiple = multiple
 
-	def serialize( self, name ):
+	def serialize( self, name, entity ):
 		if self.caseSensitive:
-			return( super( stringBone, self ).serialize( name ) )
+			return( super( stringBone, self ).serialize( name, entity ) )
 		else:
-			if name == "id":
-				return( { } )
-			else:
-				return( {	name: self.value, 
-						name+"_idx": unicode( self.value ).lower() } )
+			if name != "id":
+				entity.set( name, self.value, self.indexed )
+				entity.set( name+"_idx", unicode( self.value ).lower(), self.indexed )
+		return( entity )
 
 	def fromClient( self, value ):
 		if self.multiple:
@@ -110,7 +111,7 @@ class stringBone( baseBone ):
 				dbFilter.order( order )
 		return( dbFilter )
 
-	def getTags(self):
+	def getSearchTags(self):
 		res = []
 		if not self.value:
 			return( res )

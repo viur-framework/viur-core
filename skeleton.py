@@ -61,8 +61,6 @@ class Skeleton( object ):
 		"""
 		super(Skeleton, self).__init__(*args, **kwargs)
 		self.kindName = kindName or self.kindName
-		self._rawValues = {}
-		self._pendingResult = None
 		self.errors = {}
 		tmpList = []
 		self.__dataDict__ = OrderedDict()
@@ -76,12 +74,22 @@ class Skeleton( object ):
 			setattr( self, key, bone )
 
 	def __setitem__(self, name, value):
-		self.checkPending()
-		self._rawValues[ name ] = value
+		try:
+			bone = getattr( self, name )
+		except:
+			bone = None
+		if not isinstance( bone, baseBone ):
+			raise KeyError("%s is no valid Bone!" % name )
+		bone.value = value
 	
 	def __getitem__(self, name ):
-		self.checkPending()
-		return( self._rawValues[ name ] )
+		try:
+			bone = getattr( self, name )
+		except:
+			bone = None
+		if not isinstance( bone, baseBone ):
+			raise KeyError("%s is no valid Bone!" % name )
+		return( bone.value )
 
 	def all(self):
 		"""
@@ -91,7 +99,7 @@ class Skeleton( object ):
 		"""
 		return( db.Query( self.kindName, srcSkelClass=type( self ) ) )
 	
-	def fromDB( self,  id ):
+	def fromDB( self, id ):
 		"""
 			Populates the current instance with values read from the given DB-Key.
 			Its current (maybe unsaved data) is discarded.
@@ -136,44 +144,35 @@ class Skeleton( object ):
 			@type clearUpdateTag: Bool
 			@returns String DB-Key
 		"""
-		def txnUpdate( id, dbfields, unindexedProperties ):
-			try:
-				dbObj = db.Get( db.Key( id ) )
-			except db.EntityNotFoundError:
-				k = db.Key( id )
-				dbObj = db.Entity( k.kind(), id=k.id(), name=k.name() )
-			for k,v in dbfields.items():
-				dbObj[ k ] =  v
-			dbObj.set_unindexed_properties( unindexedProperties )
+		def txnUpdate( id, skel, clearUpdateTag ):
+			if not id:
+				dbObj = db.Entity( skel.kindName )
+			else:
+				try:
+					dbObj = db.Get( db.Key( id ) )
+				except db.EntityNotFoundError:
+					k = db.Key( id )
+					dbObj = db.Entity( k.kind(), id=k.id(), name=k.name(), parent=k.parent() )
+			tags = []
+			for key in dir( skel ):
+				if "__" not in key:
+					_bone = getattr( skel, key )
+					if( isinstance( _bone, baseBone )  ):
+						dbObj = _bone.serialize( key, dbObj ) 
+						if _bone.searchable and not skel.searchIndex:
+							tags += [ tag for tag in _bone.getSearchTags() if (tag not in tags and len(tag)<400) ]
+			if tags:
+				dbObj["viur_tags"] = tags
+			if clearUpdateTag:
+				dbObj["viur_delayed_update_tag"] = 0 #Mark this entity as Up-to-date.
+			else:
+				dbObj["viur_delayed_update_tag"] = time() #Mark this entity as dirty, so the background-task will catch it up and update its references.
+			if "preProcessSerializedData" in dir( self ):
+				dbObj = self.preProcessSerializedData( dbObj )
 			db.Put( dbObj )
-		dbfields = {}
-		tags = []
-		for key in dir( self ):
-			if "__" not in key:
-				_bone = getattr( self, key )
-				if( isinstance( _bone, baseBone )  ):
-					data = _bone.serialize( key ) 
-					dbfields.update( data )
-					if _bone.indexed:
-						tags += [ tag for tag in _bone.getTags() if (tag not in tags and len(tag)<400) ]
-		if tags:
-			dbfields["viur_tags"] = tags
-		if clearUpdateTag:
-			dbfields["viur_delayed_update_tag"] = 0 #Mark this entity as Up-to-date.
-		else:
-			dbfields["viur_delayed_update_tag"] = time() #Mark this entity as dirty, so the background-task will catch it up and update its references.
-		if "preProcessSerializedData" in dir( self ):
-			dbfields = self.preProcessSerializedData( dbfields )
-		unindexedProperties = [ x for x in dir( self ) if (isinstance( getattr( self, x ), baseBone ) and not getattr( self, x ).indexed) ]
-		if id:
-			db.RunInTransaction( txnUpdate, id, dbfields, unindexedProperties )
-		else:
-			dbObj = datastore.Entity( self.kindName )
-			for k, v in dbfields.items():
-				dbObj[ k ] = v
-			dbObj.set_unindexed_properties( unindexedProperties )
-			id = str( datastore.Put( dbObj ) )
-		if self.searchIndex: #Add a Document to the index if specified
+			return( str( dbObj.key() ), dbObj )
+		id, dbObj = db.RunInTransaction( txnUpdate, id, self, clearUpdateTag )
+		if self.searchIndex: #Add a Document to the index if an index specified
 			fields = []
 			for key in dir( self ):
 				if "__" not in key:
@@ -189,11 +188,12 @@ class Skeleton( object ):
 		for key in dir( self ):
 			if "__" not in key:
 				_bone = getattr( self, key )
-				if( isinstance( _bone, baseBone )  ) and "postSavedHandler" in dir( _bone ):
-					_bone.postSavedHandler( key, self, id, dbfields )
+				if( isinstance( _bone, baseBone ) ) and "postSavedHandler" in dir( _bone ):
+					_bone.postSavedHandler( key, self, id, dbObj )
 		if "postProcessSerializedData" in dir( self ):
-			self.postProcessSerializedData( id,  dbfields )
+			self.postProcessSerializedData( id,  dbObj )
 		return( id )
+
 
 	def delete( self, id ):
 		"""
@@ -234,9 +234,7 @@ class Skeleton( object ):
 						_bone.value = str( values.key() )
 					else:
 						_bone.unserialize( key, values )
-		self._rawValues.update( values )
-		
-	
+
 	def getValues(self):
 		"""
 			Returns the current values as dictionary.
@@ -292,7 +290,7 @@ class Skeleton( object ):
 			self.errors = {}
 		return( complete )
 	
-class Skellist( list ):
+class SkelList( list ):
 	"""
 		Class to hold multiple skeletons along
 		other commonly used informations (cursors, etc)
@@ -301,105 +299,13 @@ class Skellist( list ):
 		Usually created by calling skel.all(). ... .fetch()
 	"""
 
-	def __init__( self, viewSkel, queryRes=None ):
+	def __init__( self, baseSkel ):
 		"""
-			@param viewSkel: The baseclass for all entries in this list
-			@type viewSkel: Class
-			@queryRes: An db.Query object. If set, this instance will fill itself the results of that query.
-						*Warning*: You *must* ensure that the amount of results that query will yield is limited"
-			@type queryRes: db.Query
+			@param baseSkel: The baseclass for all entries in this list
 		"""
-		super( Skellist, self ).__init__()
-		self.viewSkel = viewSkel
+		super( SkelList, self ).__init__()
+		self.baseSkel = baseSkel
 		self.cursor = None
-		self.hasMore = False
-		self.cacheRes = None
-		self.future = None
-		self.keyList = None
-		if queryRes!=None:
-			self.keyList = list( queryRes )
-			if not self.keyList:
-				return
-			if isinstance( self.keyList[0], datastore_types.Key ): #Key-Only query
-				#Check Memcache first
-				self.cacheRes = {}
-				keyList = [ str(x) for x in self.keyList ]
-				while keyList: #Fetch in Batches of 30 entries, as the max size for bulk_get is limited to 32MB
-					currentBatch = keyList[ : 30]
-					keyList = keyList[ 30: ]
-					self.cacheRes.update( memcache.get_multi( currentBatch, key_prefix="viur-db-cache:") )
-				#Fetch the rest from DB
-				missigKeys = [ x for x in self.keyList if not str(x) in self.cacheRes.keys() ]
-				self.future = datastore.GetAsync( missigKeys )
-			else: #We got a full result set
-				for entry in self.keyList:
-					s = self.viewSkel()
-					s.setValues( entry )
-					self.append( s )
-				self.keyList = None
-
-	def mergeFuture(self):
-		"""
-			Ensures, that this instance is in a valid state if its accessed
-			(i.e. all requests made in the background have finished and merged)
-		"""
-		if self.future==None:
-			return
-		dbResults = list( self.future.get_result() )
-		for key in [ str( x ) for x in self.keyList ]:
-			skel = self.viewSkel()
-			if key in self.cacheRes.keys():
-				skel.setValues( self.cacheRes[ key ] )
-			else:
-				entity = None
-				for e in dbResults:
-					if str( e.key() ) == key:
-						entity = e
-						break
-				if not entity:
-					logging.warning("Ive missed an entry: %s" % key )
-				else:
-					skel.setValues( entity )
-			self.append( skel )
-		self.future = None
-		self.cacheRes = None
-		self.keyList = None
-	
-	def __contains__( self, *args, **kwargs ):
-		self.mergeFuture()
-		return( super( Skellist, self ).__contains__( *args, **kwargs ) )
-
-	def __delitem__( self, *args, **kwargs ):
-		self.mergeFuture()
-		return( super( Skellist, self ).__delitem__( *args, **kwargs ) )
-
-	def __getitem__( self, *args, **kwargs ):
-		self.mergeFuture()
-		return( super( Skellist, self ).__getitem__( *args, **kwargs ) )
-
-	def __iter__( self, *args, **kwargs ):
-		self.mergeFuture()
-		return( super( Skellist, self ).__iter__( *args, **kwargs ) )
-
-	def __len__( self, *args, **kwargs ):
-		self.mergeFuture()
-		return( super( Skellist, self ).__len__( *args, **kwargs ) )
-
-	def count( self, *args, **kwargs ):
-		self.mergeFuture()
-		return( super( Skellist, self ).count( *args, **kwargs ) )
-
-	def index( self, *args, **kwargs ):
-		self.mergeFuture()
-		return( super( Skellist, self ).index( *args, **kwargs ) )
-
-	def reverse( self, *args, **kwargs ):
-		self.mergeFuture()
-		return( super( Skellist, self ).reverse( *args, **kwargs ) )
-		
-	def sort( self, *args, **kwargs ):
-		self.mergeFuture()
-		return( super( Skellist, self ).sort( *args, **kwargs ) )
 
 
 ### Tasks ###

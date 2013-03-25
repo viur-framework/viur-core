@@ -7,10 +7,48 @@ import logging
 class baseBone(object): # One Bone:
 	hasDBField = True
 	type = "hidden"
-	def __init__( self, descr="", defaultValue=None, required=False, params=None, multiple=False, indexed=False, vfunc=None,  readOnly=False,  visible=True, **kwargs ):
+	def __init__(	self, descr="", defaultValue=None, required=False, params=None, multiple=False,
+			indexed=False, searchable=False, vfunc=None, readOnly=False, visible=True, **kwargs ):
+		"""
+			Initializes a new Bone.
+			@param descr: Textual, human-readable description of that bone. Will be translated.
+			@type descr: String
+			@param defaultValue: If set, this bone will be preinitialized with this value
+			@type defaultValue: mixed
+			@param required: If True, the user must enter a valid value for this bone
+				(the server refuses to save the skeleton otherwise)
+			@type required: Bool
+			@param params: Optional dictionary of custom values to pass along with this bone.
+				This dictionary will be avaiable in the admin aswell as templates rendered
+				by the jinja2-render. Can be used to specifiy project-depended informations
+				used to configure the apperance of this bone.
+			@type params: Dict or None
+			@param multiple: If True, multiple values can be given. (ie. n:m relations instead of n:1)
+				Note: This flag is not supported by all bones (fe. selectOneBone)
+			@type multiple: Bool
+			@param indexed: If True, this bone will be included in indexes. This is needed if you
+				want to run queries against this bone. If False, it will save datastore write-ops.
+			@type indexed: Bool
+			@param searchable: If True, this bone will be included in the fulltext search. Can be used
+				without the need of also been indexed.
+			@type searchable: Bool
+			@param vfunc: If given, a callable validating the user-supplied value for this bone. This
+				callable must return None if the value is valid, a String containing an meaningfull
+				error-message for the user otherwise.
+			@type vfunc: Callable
+			@param readOnly: If True, the user is unable to change the value of this bone. If a value for
+				this bone is given along the POST-Request during Add/Edit, this value will be ignored.
+				Its still possible for the developer to modify this value by assigning skel.bone.value.
+			@type readOnly: Bool
+			@param visible: If False, the value of this bone should be hidden from the user. This does *not*
+				protect the value from beeing exposed in a template, nor from being transfered to the
+				client (ie to the admin or as hidden-value in html-forms)
+				Again: This is just a hint. It cannot be used as a security precaution.
+			@type visible: Bool
+		"""
 		from server.skeleton import _boneCounter
 		#Fallbacks for old non-CamelCase API
-		for x in ["defaultvalue", "readonly", "searchable"]:
+		for x in ["defaultvalue", "readonly"]:
 			if x in kwargs.keys():
 				raise NotImplementedError("%s is not longer supported" % x )
 		self.descr = descr
@@ -30,6 +68,7 @@ class baseBone(object): # One Bone:
 			if "defaultValue" in dir(self) and callable( self.defaultValue ):
 				self.value = self.defaultValue()
 		self.indexed = indexed
+		self.searchable = searchable
 		if vfunc:
 			self.canUse = vfunc
 		self.readOnly = readOnly
@@ -38,6 +77,14 @@ class baseBone(object): # One Bone:
 		_boneCounter.count += 1
 		
 	def fromClient( self, value ):
+		"""
+			Reads a value from the client.
+			If this value is valis for this bone,
+			store this value and return None.
+			Otherwise our previous value is
+			left unchanged and an error-message
+			is returned.
+		"""
 		err = self.canUse( value )
 		if not err:
 			self.value = value
@@ -46,21 +93,59 @@ class baseBone(object): # One Bone:
 			return( err )
 
 	def canUse( self, value ):
+		"""
+			Returns None if the value would be valid for
+			this bone, an error-message otherwise.
+		"""
 		if value==None:
 			return( "No value entered" )
 
-	def serialize( self, name ):
-		if name == "id":
-			return( { } )
-		else:
-			return( {name: self.value } )
+	def serialize( self, name, entity ):
+		"""
+			Serializes this bone into something we
+			can write into the datastore.
+			
+			@param name: The property-name this bone has in its Skeleton (not the description!)
+			@type name: String
+			@returns: Dict
+		"""
+		if name != "id":
+			entity.set( name, self.value, self.indexed )
+		return( entity )
 
 	def unserialize( self, name, expando ):
+		"""
+			Inverse of serialize. Evaluates whats
+			read from the datastore and populates
+			this bone accordingly.
+			@param name: The property-name this bone has in its Skeleton (not the description!)
+			@type name: String
+			@param expando: An instance of the dictionary-like db.Entity class
+			@type expando: db.Entity
+		"""
 		if name in expando.keys():
 			self.value = expando[ name ]
 		return( True )
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
+		"""
+			Parses the searchfilter a client specified in his Request into
+			something understood by the datastore.
+			This function must:
+				- Ignore all filters not targeting this bone
+				- Safely handle malformed data in rawFilter 
+				(this parameter is directly controlled by the client)
+			
+			@param name: The property-name this bone has in its Skeleton (not the description!)
+			@type name: String
+			@param skel: The skeleton this bone is part of
+			@type skel: Skeleton
+			@param dbFilter: The current db.Query instance the filters should be applied to
+			@type db.Query
+			@param rawFilter: The dictionary of filters the client wants to have applied
+			@type rawFilter: Dict
+			@returns: The modified dbFilter
+		"""
 		if name == "id" and "id" in rawFilter.keys():
 			from server import utils
 			if isinstance( rawFilter["id"], list ):
@@ -99,11 +184,6 @@ class baseBone(object): # One Bone:
 					dbFilter.filter( tmpdata[0],  value )
 				else:
 					dbFilter.filter( tmpdata[0],  value )
-				#Enforce a working sort-order
-				#if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
-				#	dbFilter = dbFilter.order( -ndb.GenericProperty( tmpdata[0] ) )
-				#else:
-				#	dbFilter = dbFilter.order( ndb.GenericProperty( tmpdata[0] ) )
 			else:
 				if isinstance( value, list ):
 					dbFilter.filter( ndb.GenericProperty( key ) in value )
@@ -112,6 +192,22 @@ class baseBone(object): # One Bone:
 		return( dbFilter )
 
 	def buildDBSort( self, name, skel, dbFilter, rawFilter ):
+		"""
+			Same as buildDBFilter, but this time its not about filtering
+			the results, but by sorting them.
+			Again: rawFilter is controlled by the client, so you *must* expect and safely hande
+			malformed data!
+			
+			@param name: The property-name this bone has in its Skeleton (not the description!)
+			@type name: String
+			@param skel: The skeleton this bone is part of
+			@type skel: Skeleton
+			@param dbFilter: The current db.Query instance the filters should be applied to
+			@type db.Query
+			@param rawFilter: The dictionary of filters the client wants to have applied
+			@type rawFilter: Dict
+			@returns: The modified dbFilter
+		"""
 		if "orderby" in list(rawFilter.keys()) and rawFilter["orderby"] == name:
 			if not self.indexed:
 				logging.warning( "Invalid ordering! %s is not indexed!" % name )
@@ -133,10 +229,17 @@ class baseBone(object): # One Bone:
 		return( dbFilter )
 
 
-	def getDBProperty( self, skel ):
-		return( ndb.StringProperty() )
-
-	def getTags(self):
+	def getSearchTags(self):
+		"""
+			Returns a list of Strings which will be included in the
+			fulltext-index for this bone.
+			Note: This function gets only called, if the ViUR internal
+			fulltext-search is used. If you enable the search-API
+			by setting a searchIndex on the skeleton, getSearchDocumentFields
+			is called instead.
+			
+			@returns: List of Strings
+		"""
 		res = []
 		if not self.value:
 			return( res )
@@ -148,4 +251,7 @@ class baseBone(object): # One Bone:
 		return( res )
 	
 	def getSearchDocumentFields(self, name):
+		"""
+			Returns a list of search-fields (GAE search API) for this bone.
+		"""
 		return( [ search.TextField( name=name, value=unicode( self.value ) ) ] )

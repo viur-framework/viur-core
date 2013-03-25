@@ -44,11 +44,12 @@ class numericBone( baseBone ):
 			self.value = None
 			return( "Invalid value entered" )
 	
-	def serialize( self, name ):
+	def serialize( self, name, entity ):
 		if isinstance( self.value,  float ) and self.value!= self.value: # NaN
-			return( {name: None } )
+			entity.set( name, None, self.indexed )
 		else:
-			return( {name:  self.value  } )
+			entity.set( name, self.value, self.indexed )
+		return( entity )
 		
 	def unserialize( self, name, expando ):
 		if not name in expando.keys():

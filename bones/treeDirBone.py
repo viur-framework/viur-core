@@ -71,10 +71,6 @@ class treeDirBone( baseBone ):
 			return( "Invalid path supplied" )
 		return( None )
 		
-	def serialize(self, key ):
-		if not self.value:
-			return( {key:None } )
-		return( {key: self.value } )
 	
 	def unserialize( self, name, expando ):
 		super( treeDirBone, self ).unserialize( name, expando )

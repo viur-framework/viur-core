@@ -102,18 +102,19 @@ class textBone( baseBone ):
 
 	type = "text"
 
-	def __init__( self, validHtml=__undefinedC__, *args, **kwargs ):
+	def __init__( self, validHtml=__undefinedC__, indexed=False, *args, **kwargs ):
 		baseBone.__init__( self,  *args, **kwargs )
+		if indexed:
+			raise NotImplementedError("indexed=True is not supported on textBones")
 		if validHtml==textBone.__undefinedC__:
 			global _defaultTags
 			validHtml = _defaultTags
 		self.validHtml = validHtml
 
-	def serialize( self, name ):
-		if name == "id":
-			return( { } )
-		else:
-			return( {name:  self.value } )
+	def serialize( self, name, entity ):
+		if name != "id":
+			entity.set( name, self.value, self.indexed )
+		return( entity )
 	
 	def fromClient( self, value ):
 		if not value:
@@ -143,12 +144,12 @@ class textBone( baseBone ):
 			if not fk in newFileKeys:
 				newFileKeys.append( fk )
 			idx = self.value.find("/file/view/", seperatorIdx)
-		oldFileKeys = [ x.dlkey for x in oldFiles ]
+		oldFileKeys = [ x["dlkey"] for x in oldFiles ]
 		for newFileKey in [ x for x in newFileKeys if not x in oldFileKeys]:
 			f = db.Entity( "file", parent=db.Key( str(id) ) )
 			f["lockinfo"] = lockInfo
 			f["dlkey"] = newFileKey
-			f["weak"]=False
+			f["weak"] = False
 			db.Put( f )
 		for oldFile in [ x for x in oldFiles if not x["dlkey"] in newFileKeys ]:
 			markFileForDeletion( oldFile["dlkey"] )
@@ -160,7 +161,7 @@ class textBone( baseBone ):
 			markFileForDeletion( f["dlkey"] )
 			db.Delete( f.key() )
 
-	def getTags(self):
+	def getSearchTags(self):
 		res = []
 		if not self.value:
 			return( res )

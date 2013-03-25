@@ -6,6 +6,7 @@ import json
 from server.tasks import PeriodicTask
 from time import time
 from datetime import datetime
+import logging
 
 class relationalBone( baseBone ):
 	"""
@@ -49,7 +50,9 @@ class relationalBone( baseBone ):
 		self.multiple = multiple
 		self.format = format
 		if type:
-			self.type=type
+			self.type = type
+		if self.type is None:
+			raise NotImplementedError("Type of relationalbone's must not be None")
 		if refKeys:
 			self.refKeys=refKeys
 		if parentKeys:
@@ -88,17 +91,18 @@ class relationalBone( baseBone ):
 			self.value = None
 		return( True )
 	
-	def serialize(self, key ):
+	def serialize(self, key, entity ):
 		if not self.value:
-			return( {key:None } )
-		if self.multiple:
-			res = []
-			for val in self.value:
-				res.append( json.dumps( val ) )
-			return( {key: res } )
+			entity.set( key, None, False )
 		else:
-			return( {key: json.dumps( self.value ) } )
-		return( {key: None } )
+			if self.multiple:
+				res = []
+				for val in self.value:
+					res.append( json.dumps( val ) )
+				entity.set( key, res, False )
+			else:
+				entity.set( key, json.dumps( self.value ), False )
+		return( entity )
 	
 	def postSavedHandler( self, key, skel, id, dbfields ):
 		if not self.value:
@@ -140,7 +144,7 @@ class relationalBone( baseBone ):
 			db.Put( dbObj )
 		
 	def postDeletedHandler( self, skel, key, id ):
-		db.Delete( [x for x in db.Query( skel.kindName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) ).run( keys_only=True ) ] ) #keys_only=True
+		db.Delete( [x for x in db.Query( skel.kindName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) ).run( keysOnly=True ) ] )
 	
 	def rebuildData(self, *args, **kwargs ):
 		pass
@@ -186,6 +190,8 @@ class relationalBone( baseBone ):
 					return( "Invalid entry selected" )
 				continue
 			if not entry or not entry.key().kind()==self.type: #Entry does not exist or has wrong type (is from another modul)
+				if entry:
+					logging.error("I got an id, which kind doesn't match my type! (Got: %s, my type %s)" % ( entry.key().kind(), self.type ) )
 				continue
 			if not self.multiple:
 				#tmp = { k:v for k, v  in list(data.items()) if k in self.refKeys }
@@ -290,18 +296,18 @@ def findRelations( currentObj, depth=0, rels={} ):
 		rels = findRelations( getattr( currentObj, key ), depth+1, rels )
 	return( rels )
 
-@PeriodicTask(60*60*24)
+@PeriodicTask(60*24)
 def updateRelations():
 	from server import conf
 	for modul, referers in findRelations( conf["viur.mainApp"] ).items():
-		for entry in generateExpandoClass( modul ).query().filter( ndb.GenericProperty("viur_delayed_update_tag") > 0).iter():
+		for entry in db.Query( modul ).filter( "viur_delayed_update_tag >", 0).iter():
 			for refTable, refKey, skel in referers:
-				oldRelations = generateExpandoClass( refTable+"_"+modul+"_"+refKey ).query()\
-					.filter( ndb.GenericProperty("%s_id" % refKey ) == str( entry.key.urlsafe() ) )\
-					.filter( ndb.GenericProperty("viur_delayed_update_tag") < entry.viur_delayed_update_tag  ).iter()
+				oldRelations = db.Query( refTable+"_"+modul+"_"+refKey )\
+					.filter( "%s_id =" % refKey, str( entry.key() ) )\
+					.filter( "viur_delayed_update_tag <", entry["viur_delayed_update_tag"] ).iter()
 				for oldRelation in oldRelations:
 					tmp = skel()
-					tmp.fromDB( str(oldRelation.key.parent().urlsafe()) )
+					tmp.fromDB( str(oldRelation.key.parent()) )
 					for key in dir( tmp ):
 						if not key.startswith("__") and isinstance( getattr( tmp, key ), relationalBone ):
 							bone = getattr( tmp, key )
@@ -310,8 +316,8 @@ def updateRelations():
 									bone.fromClient( [ x["id"] for x in bone.value] )
 								else:
 									bone.fromClient( bone.value["id"] )
-					tmp.toDB( str(oldRelation.key.parent().urlsafe()), clearUpdateTag=True )
-			tmp = entry.key.get() #Reset its modified tag
-			tmp.viur_delayed_update_tag = 0
-			tmp.put()
+					tmp.toDB( str(oldRelation.key.parent()), clearUpdateTag=True )
+			tmp = db.Get( entry.key() ) #Reset its modified tag
+			tmp["viur_delayed_update_tag"] = 0
+			db.Put( tmp )
 

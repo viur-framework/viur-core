@@ -15,7 +15,6 @@ from collections import OrderedDict
 import threading
 from server import conf
 from server.skeleton import Skeleton
-from server.skellist import Skellist
 import logging
 from google.appengine.api import memcache, users
 from google.appengine.api.images import get_serving_url
@@ -180,7 +179,7 @@ class Render( object ):
 	
 	def getHostUrl(self, *args,  **kwargs):
 		"""
-			Returns the hostname, including the currently used Protocoll.
+			Returns the hostname, including the currently used Protocol.
 			Eg: http://www.example.com
 			@returns: String
 		"""

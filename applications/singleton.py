@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
 from server.skeleton import Skeleton
-from server.skellist import Skellist
 from server import utils, session,  errors, conf
 from google.appengine.api import users
 from google.appengine.ext import db

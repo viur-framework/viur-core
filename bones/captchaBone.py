@@ -15,8 +15,8 @@ class captchaBone( bone.baseBone ):
 		self.required = True
 		self.hasDBField = False
 	
-	def serialize( self, name ):
-		return( {} )
+	def serialize( self, name, entity ):
+		return( entity )
 
 	def unserialize( self, name, values ):
 		return( {name: ""} )

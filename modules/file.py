@@ -9,6 +9,7 @@ from google.appengine.ext.webapp import blobstore_handlers
 import json, urlparse
 from server.tasks import PeriodicTask
 import json
+import os
 from google.appengine.api.images import get_serving_url
 from quopri import decodestring
 import email.header
@@ -47,8 +48,11 @@ class UploadHandler(blobstore_handlers.BlobstoreUploadHandler):
 			return( name )
 			
 	def post(self):
+		self.internalRequest = False
+		self.isDevServer = "Development" in os.environ['SERVER_SOFTWARE'] #Were running on development Server
+		self.isSSLConnection = self.request.host_url.lower().startswith("https://") #We have an encrypted channel
 		try:
-			session.current.load( self.request.cookies )
+			session.current.load( self )
 			res = []
 			if "rootNode" in self.request.arguments() and self.request.get("rootNode") and "path" in self.request.arguments():
 				if not conf["viur.mainApp"].file.canUploadTo( self.request.get("rootNode"), self.request.get("path") ):
@@ -153,8 +157,8 @@ class DownloadHandler(blobstore_handlers.BlobstoreDownloadHandler):
 class fileBaseSkel( TreeSkel ):
 	kindName = "file"
 	size = stringBone( descr="Size", params={"indexed": True,  "frontend_list_visible": True}, readOnly=True )
-	dlkey = stringBone( descr="Download-Key", params={"indexed": True,  "frontend_list_visible": True}, readOnly=True )
-	name = stringBone( descr="Filename", params={"indexed": True,  "frontend_list_visible": True}, readOnly=True, caseSensitive=False )
+	dlkey = stringBone( descr="Download-Key", params={"indexed": True,  "frontend_list_visible": True}, readOnly=True, indexed=True )
+	name = stringBone( descr="Filename", params={"indexed": True,  "frontend_list_visible": True}, readOnly=True, caseSensitive=False, indexed=True )
 	meta_mime = stringBone( descr="Mime-Info", params={"indexed": True,  "frontend_list_visible": True}, readOnly=True )
 	#testData = stringBone( descr="TestData", params={"indexed": True,  "frontend_list_visible": True} )
 	
@@ -274,22 +278,20 @@ class File( Tree ):
 File.json=True
 File.jinja2=True
 
-@PeriodicTask( 60*60*4 )
+@PeriodicTask( 60*4 )
 def cleanup( ):
 	maxIterCount = 2 #How often a file will be checked for deletion
-	expurgeClass = utils.generateExpandoClass( "viur-deleted-files" )
-	fileClass = utils.generateExpandoClass( "file" )
-	for file in expurgeClass.query().iter():
+	for file in db.Query( "viur-deleted-files" ).iter():
 		if not "dlkey" in file.keys():
 			db.Delete( file.key() )
-		elif fileClass.query().filter(  ndb.GenericProperty("dlkey") == file.dlkey ).filter( ndb.GenericProperty("weak") == False ).get():
-			file.key.delete()
+		elif db.Query( "file" ).filter( "dlkey =", file["dlkey"] ).filter( "weak =", False ).get():
+			db.Delete( file.key() )
 		else:
-			if file.itercount > maxIterCount:
-				blobstore.delete( file.dlkey )
-				file.key.delete()
-				for f in fileClass.query().filter( ndb.GenericProperty("dlkey") == file.dlkey).fetch(1000,  keys_only=True): #There should be exactly 1 or 0 of these
-					f.key.delete()
+			if file["itercount"] > maxIterCount:
+				blobstore.delete( file["dlkey"] )
+				db.Delete( file.key() )
+				for f in db.Query( "file").filter( "dlkey =", file["dlkey"]).iter( keysOnly=True ): #There should be exactly 1 or 0 of these
+					db.Delete( f )
 			else:
-				file.itercount = file.itercount+1
-				file.put()
+				file["itercount"] += 1
+				db.Put( file )
