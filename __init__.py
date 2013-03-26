@@ -181,7 +181,7 @@ class BrowseHandler(webapp.RequestHandler):
 	"""
 	
 	def get(self, path="/", *args, **kwargs): #Accept a HTTP-GET request
-		if path=="_ah/start": #Warmup request
+		if path=="_ah/start" or path=="_ah/warmup": #Warmup request
 			self.response.out.write("OK")
 			return
 		self.processRequest( path, *args, **kwargs )
