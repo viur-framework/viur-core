@@ -307,7 +307,7 @@ def updateRelations():
 					.filter( "viur_delayed_update_tag <", entry["viur_delayed_update_tag"] ).iter()
 				for oldRelation in oldRelations:
 					tmp = skel()
-					tmp.fromDB( str(oldRelation.key.parent()) )
+					tmp.fromDB( str(oldRelation.key().parent()) )
 					for key in dir( tmp ):
 						if not key.startswith("__") and isinstance( getattr( tmp, key ), relationalBone ):
 							bone = getattr( tmp, key )
