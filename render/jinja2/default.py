@@ -292,17 +292,21 @@ class Render( object ):
 			@type modul: String
 			@param skel: Name to the skeleton to fetch the list from
 			@type skel: String
-			@returns: List
+			@returns: List or None
 		"""
 		if not modul in dir ( conf["viur.mainApp"] ):
-			return False
+			logging.error("Jinja2-Render can't fetch a list from an unknown modul %s!" % modul)
+			return( False )
 		caller = getattr( conf["viur.mainApp"], modul)
 		if not skel in dir( caller ):
+			logging.error("Jinja2-Render can't fetch a list with an unknown skeleton %s!" % skel)
 			return( False )
 		query = getattr(caller, skel )().all()
 		query.mergeExternalFilter( kwargs )
 		if "listFilter" in dir( caller ):
 			query = caller.listFilter( query )
+		if query is None:
+			return( None )
 		mylist = query.fetch()
 		for x in range(0, len( mylist ) ):
 			mylist.append( self.collectSkelData( mylist.pop(0) ) )
