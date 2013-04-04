@@ -351,6 +351,9 @@ class Query( object ):
 			@param value: The value of that filter. Only valid, if key is a string.
 			@type value: Int, Long, Float, Bytes, String, List or DateTime
 		"""
+		if self.datastoreQuery is None:
+			#This query is allready unsatifiable and adding more constrains to this won't change this
+			return( self )
 		if isinstance( filter, dict ):
 			for k, v in filter.items():
 				self.filter( k, v )
@@ -439,7 +442,7 @@ class Query( object ):
 			match the current filters.
 		"""
 		if isinstance( cursor, basestring ):
-			cursor = datastore_query.Cursor( urlsafe=cursors )
+			cursor = datastore_query.Cursor( urlsafe=cursor )
 		elif isinstance( cursor, datastore_query.Cursor ) or cursor==None:
 			pass
 		else:
