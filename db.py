@@ -611,7 +611,11 @@ class Query( object ):
 			s.setValues( e) 
 			res.append( s )
 		try:
-			res.cusor = self.datastoreQuery.GetCursor()
+			c = self.datastoreQuery.GetCursor()
+			if c:
+				res.cursor = c.urlsafe()
+			else:
+				res.cursor = None
 		except AssertionError: #No Cursors avaiable on MultiQueries ( in or != )
 			res.cursor = None
 		return( res )
