@@ -3,6 +3,8 @@ import json
 from server import bones
 from collections import OrderedDict
 from xml.dom import minidom
+from datetime import datetime, date, time
+import logging
 
 def serializeXML( data ):
 	def recursiveSerializer( data, element ):
@@ -23,15 +25,26 @@ def serializeXML( data ):
 				element.setAttribute('ViurDataType', 'numeric')
 			elif isinstance( data, str ) or isinstance( data, unicode ):
 				element.setAttribute('ViurDataType', 'string')
-				if isinstance( data, unicode ):
-					data = data.encode("utf8")
-			element.appendChild( doc.createTextNode( str(data) ) )
+			elif isinstance( data, datetime ) or isinstance( data, date ) or isinstance( data, time ):
+				if isinstance( data, datetime ):
+					element.setAttribute('ViurDataType', 'datetime')
+				elif isinstance( data, date ):
+					element.setAttribute('ViurDataType', 'date')
+				else:
+					element.setAttribute('ViurDataType', 'time')
+				data = data.isoformat()
+			elif data is None:
+				element.setAttribute('ViurDataType', 'none')
+				data = ""
+			else:
+				raise NotImplementedError("Type %s is not supported!" % type(data))
+			element.appendChild( doc.createTextNode( unicode(data) ) )
 		return element
 
 	dom = minidom.getDOMImplementation()
-	doc = dom.createDocument(None, "ViurResult", None)
+	doc = dom.createDocument(None, u"ViurResult", None)
 	elem = doc.childNodes[0]
-	return( recursiveSerializer( data, elem ).toprettyxml() )
+	return( recursiveSerializer( data, elem ).toprettyxml(encoding="UTF-8") )
 
 class DefaultRender( object ):
 	
@@ -78,7 +91,7 @@ class DefaultRender( object ):
 						res[key]["time"] = _bone.time
 						res[key]["date"] = _bone.date
 					if( isinstance( _bone, bones.textBone ) ):
-						res[key]["plaintext"] = _bone.plainText
+						res[key]["validHtml"] = _bone.validHtml
 					if( isinstance( _bone, bones.stringBone ) ):
 						res[key]["multiple"] = _bone.multiple
 					if( isinstance( _bone, bones.numericBone )):
@@ -136,7 +149,7 @@ class DefaultRender( object ):
 			res["structure"] = self.renderSkelStructure( skellist[0] )
 		else:
 			res["structure"] = None
-		res["cursor"] = skellist.cursor()
+		res["cursor"] = skellist.cursor
 		return( serializeXML( res ) )
 
 	def editItemSuccess(self, *args, **kwargs ):
