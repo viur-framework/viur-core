@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from google.appengine.api import datastore, datastore_types, datastore_errors
-from google.appengine.datastore import datastore_query
+from google.appengine.datastore import datastore_query, datastore_rpc
 from google.appengine.api import memcache
 from server.config import conf
 import logging
@@ -760,6 +760,12 @@ class Entity( datastore.Entity ):
 			BadPropertyError. If the value is not a supported type, raises
 			BadValueError.
 		"""
+		if isinstance(value,list) or isinstance(value,tuple):
+			# We cant store an empty list, so we catch any attempts
+			# and store None. As "does not exists" queries aren't
+			# possible anyway, this makes no difference
+			if len( value ) == 0:
+				value = None
 		super( Entity, self ).__setitem__( name, value )
 	
 	def set( self, key, value, indexed=True ):
@@ -793,6 +799,7 @@ AllocateIds = datastore.AllocateIds
 RunInTransaction = datastore.RunInTransaction
 RunInTransactionCustomRetries = datastore.RunInTransactionCustomRetries
 RunInTransactionOptions = datastore.RunInTransactionOptions
+TransactionOptions = datastore_rpc.TransactionOptions
 
 Key = datastore_types.Key
 
@@ -825,7 +832,7 @@ KEY_SPECIAL_PROPERTY = datastore_types.KEY_SPECIAL_PROPERTY
 ASCENDING = datastore_query.PropertyOrder.ASCENDING
 DESCENDING = datastore_query.PropertyOrder.DESCENDING
 
-__all__ = [	PutAsync, Put, GetAsync, Get, DeleteAsync, Delete, AllocateIdsAsync, AllocateIds, RunInTransaction, RunInTransactionCustomRetries, RunInTransactionOptions,
+__all__ = [	PutAsync, Put, GetAsync, Get, DeleteAsync, Delete, AllocateIdsAsync, AllocateIds, RunInTransaction, RunInTransactionCustomRetries, RunInTransactionOptions, TransactionOptions,
 		Error, BadValueError, BadPropertyError, BadRequestError, EntityNotFoundError, BadArgumentError, QueryNotFoundError, TransactionNotFoundError, Rollback, 
-		TransactionFailedError, BadFilterError, BadQueryError, BadKeyError, BadKeyError, InternalError, NeedIndexError, ReferencePropertyResolveError, Timeout, CommittedButStillApplying, 
-		Entity, Query, DatastoreQuery, MultiQuery, Cursor, KEY_SPECIAL_PROPERTY, ASCENDING, DESCENDING ]
+		TransactionFailedError, BadFilterError, BadQueryError, BadKeyError, BadKeyError, InternalError, NeedIndexError, ReferencePropertyResolveError, Timeout,
+		CommittedButStillApplying, Entity, Query, DatastoreQuery, MultiQuery, Cursor, KEY_SPECIAL_PROPERTY, ASCENDING, DESCENDING ]
