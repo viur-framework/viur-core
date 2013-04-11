@@ -73,12 +73,10 @@ class List( object ):
 		"""
 		query = self.viewSkel().all()
 		query.mergeExternalFilter( kwargs )
+		query = self.listFilter( query ) #Access control
+		if query is None:
+			raise( errors.Unauthorized() )
 		mylist = query.fetch()
-		#queryObj = utils.buildDBFilter( self.viewSkel(), kwargs ) #Build the initial one
-		#queryObj = self.listFilter( queryObj ) #Access control
-		#if not queryObj:
-		#	raise( errors.Unauthorized() )
-		#mylist.fromDB( queryObj )
 		return( self.render.list( mylist ) )
 	list.exposed = True
 
