@@ -68,7 +68,7 @@ class fileBone( treeItemBone ):
 	def postDeletedHandler( self, skel, key, id ):
 		parentObjs = db.Query( skel.kindName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) ).run()
 		for parentObj in parentObjs:
-			files = db.Query( "file", ancestor=parentObj.key() ).run()
+			files = db.Query( "file").ancestor( parentObj.key() ).run()
 			for f in files:
 				markFileForDeletion( f["dlkey"] )
 				db.Delete( f.key() )
