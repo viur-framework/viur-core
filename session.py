@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import threading
-from google.appengine.ext import db
-from google.appengine.api import memcache
-import json
+import json, pickle
+import base64
 import string, random
 from time import time
 from server.tasks import PeriodicTask
+from server import db
 from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError, OverQuotaError
 import logging
 
@@ -98,10 +98,8 @@ class GaeSession:
 	lifeTime = 60*60 #60 Minutes
 	plainCookieName = "viurHttpCookie"
 	sslCookieName = "viurSSLCookie"
+	kindName = "viur-session"
 	
-	class SessionData( db.Expando ):
-		pass
-
 	"""Store Sessions inside the Big Table/Memcache"""
 	def load( self, req ):
 		"""
@@ -116,30 +114,18 @@ class GaeSession:
 		self.session = {}
 		if self.plainCookieName in req.request.cookies.keys():
 			cookie = req.request.cookies[ self.plainCookieName ]
-			data = None #memcache.get( "session-"+str(cookie).strip("\"") )
+			try:
+				data = db.Get( db.Key.from_path( self.kindName, cookie ) )
+			except:
+				return
 			if data: #Loaded successfully from Memcache
-				try:
-					lastseen, self.session = data
-					if lastseen < time()-5*60: #Refresh every 5 Minutes
-						self.changed = True
-				except:
-					self.session = {}
-			if not self.session: #Load from Memcache failed
-				try:
-					data = GaeSession.SessionData.get_by_key_name( str(cookie).strip("\"") )
-				except OverQuotaError, CapabilityDisabledError:
-					data = None
-				if data:
-					self.session = json.loads( data.data )
-					self.sslKey = data.sslkey
-					if isinstance( self.session, list ): #We seem to have a bug here...
-						self.session = {}
-					try:
-						if not "lastseen" in data.dynamic_properties() or data.lastseen<time()-5*60:
-							"""Ensure the session gets updated at least each 5 minutes"""
-							self.changed = True
-					except:
-						pass
+				if data["lastseen"] < time()-self.lifeTime :
+					# This session is too old
+					return
+				self.session = pickle.loads( base64.b64decode(data["data"]) )
+				self.sslKey = data["sslkey"]
+				if data["lastseen"] < time()-5*60: #Refresh every 5 Minutes
+					self.changed = True
 			if req.isSSLConnection and not (self.sslCookieName in req.request.cookies.keys() and req.request.cookies[ self.sslCookieName ] == self.sslKey):
 				if self.sslKey:
 					logging.warning("Possible session hijack attempt! Session dropped.")
@@ -158,6 +144,11 @@ class GaeSession:
 			in the current request.
 		"""
 		if self.session and self.changed:
+			serialized = base64.b64encode( pickle.dumps(self.session, protocol=pickle.HIGHEST_PROTOCOL ) )
+			if len(serialized)>620000 and len(serialized)<=920000:
+				logging.warning("Your session is very large (%s bytes)! It cannot be larger than 900KB!" % len( serialized ) )
+			elif len(serialized)>920000:
+				logging.critical("Your session stores too much data! Expect failure!")
 			if not self.key:
 				self.key = ''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase + string.digits) for x in range(42))
 				if req.isSSLConnection:
@@ -165,14 +156,13 @@ class GaeSession:
 				else:
 					self.sslKey = ""
 			try:
-				dbSession = GaeSession.SessionData( key_name=self.key )
-				dbSession.data = db.Text( json.dumps( self.session ) )
-				dbSession.sslkey = self.sslKey
-				dbSession.lastseen = time()
-				dbSession.put()
+				dbSession = db.Entity( self.kindName, name=self.key )
+				dbSession["data"] = str( serialized )
+				dbSession["sslkey"] = self.sslKey
+				dbSession["lastseen"] = time()
+				db.Put( dbSession )
 			except OverQuotaError, CapabilityDisabledError:
 				pass
-			#memcache.set( "session-"+self.key, (time(), self.session), self.lifeTime)
 			req.response.headers.add_header( "Set-Cookie", bytes( "%s=%s; Max-Age=99999; Path=/; HttpOnly" % ( self.plainCookieName, self.key ) ) )
 			if req.isSSLConnection:
 				req.response.headers.add_header( "Set-Cookie", bytes( "%s=%s; Max-Age=99999; Path=/; Secure; HttpOnly" % ( self.sslCookieName, self.sslKey ) ) )
