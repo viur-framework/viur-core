@@ -7,6 +7,7 @@ from server import db
 from time import time
 from google.appengine.api import search
 from server.config import conf
+from server import utils
 from server.bones import selectOneBone, baseBone, relationalBone
 from server.tasks import CallableTask, CallableTaskBase
 from google.appengine.api import datastore, datastore_types, datastore_errors
@@ -14,6 +15,7 @@ from google.appengine.api import memcache
 from google.appengine.api import search
 from copy import deepcopy
 import logging
+
 
 class BoneCounter(local):
 	def __init__(self):
@@ -319,7 +321,14 @@ class TaskUpdateSeachIndex( CallableTaskBase ):
 	name = u"Rebuild a Searchindex"
 	descr = u"Needs to be called whenever a search-releated parameters are changed."
 	direct = False
-	
+
+	def canCall( self ):
+		"""Checks wherever the current user can execute this task
+		@returns bool
+		"""
+		user = utils.getCurrentUser()
+		return( user is not None and "root" in user["access"] )
+
 	def dataSkel(self):
 		modules = []
 		for modulName in dir( conf["viur.mainApp"] ):

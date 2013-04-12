@@ -33,7 +33,7 @@ class CallableTaskBase:
 		"""Checks wherever the current user can execute this task
 		@returns bool
 		"""
-		return( users.is_current_user_admin() )
+		return( False )
 		
 	def dataSkel(self):
 		return( None )
