@@ -673,6 +673,8 @@ class Query( object ):
 			return( res )
 		except IndexError: #Empty result-set
 			return( None )
+		except TypeError: #Also Empty result-set
+			return( None )
 	
 	def getSkel( self ):
 		"""

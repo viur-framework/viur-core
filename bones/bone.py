@@ -154,7 +154,9 @@ class baseBone(object): # One Bone:
 					origQuery = dbFilter.datastoreQuery
 					try:
 						dbFilter.datastoreQuery = db.MultiQuery( [db.DatastoreQuery( dbFilter.getKind(), filters={ db.KEY_SPECIAL_PROPERTY: x } ) for x in keyList ], () )
-					except db.BadKeyError: #This cant work
+					except db.BadKeyError: #Invalid key
+						raise RuntimeError()
+					except UnicodeEncodeError: # Also invalid key
 						raise RuntimeError()
 					for k, v in origQuery.items():
 						dbFilter.filter( k, v )
@@ -162,6 +164,8 @@ class baseBone(object): # One Bone:
 				try:
 					dbFilter.filter( db.KEY_SPECIAL_PROPERTY, db.Key( rawFilter["id"] ) )
 				except db.BadKeyError: #This cant work
+					raise RuntimeError()
+				except UnicodeEncodeError: # Also invalid key
 					raise RuntimeError()
 			return( dbFilter )
 		myKeys = [ key for key in rawFilter.keys() if key.startswith( name ) ] 
