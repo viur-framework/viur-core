@@ -45,6 +45,9 @@ class SessionWrapper( threading.local ):
 	
 	def __getitem__( self, key ):
 		try:
+			if key=="skeys":
+				r = self.session.get( key )
+				assert r is None or isinstance(r,list)
 			return( self.session[ key ] )
 		except AttributeError:
 			return( None )
@@ -52,12 +55,17 @@ class SessionWrapper( threading.local ):
 	def get( self, key ):#fixme
 		"""For compatibility with cherrypy"""
 		try:
+			if key=="skeys":
+				r = self.session.get( key )
+				assert r is None or isinstance(r,list)
 			return( self.session.get( key ) )
 		except AttributeError:
 			return( None )
 		
 	def __setitem__( self, key, item ):
 		try:
+			if key=="skeys":
+				assert item is None or isinstance(item,list)
 			self.session[ key ] = item
 		except AttributeError:
 			pass
@@ -130,6 +138,8 @@ class GaeSession:
 				if self.sslKey:
 					logging.warning("Possible session hijack attempt! Session dropped.")
 				self.reset()
+			r = self.get( "skeys" )
+			assert r is None or isinstance(r,list)
 			if self.session:
 				self.key = str( cookie )
 				return( True )
@@ -156,8 +166,10 @@ class GaeSession:
 				else:
 					self.sslKey = ""
 			try:
+				r = self.get( "skeys" )
+				assert r is None or isinstance(r,list)
 				dbSession = db.Entity( self.kindName, name=self.key )
-				dbSession["data"] = str( serialized )
+				dbSession["data"] = serialized
 				dbSession["sslkey"] = self.sslKey
 				dbSession["lastseen"] = time()
 				db.Put( dbSession )
@@ -239,6 +251,7 @@ class GaeSession:
 	
 @PeriodicTask( 60 )
 def cleanup( ):
+	return() #FIXME
 	oldSessions = GaeSession.SessionData.all().filter("lastseen <", time()-GaeSession.lifeTime ).fetch(1000)
 	while( oldSessions ):
 		db.delete( oldSessions )

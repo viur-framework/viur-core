@@ -37,7 +37,6 @@ def createSecurityKey( duration=None, **kwargs ):
 		or a skey consumed by one of these requests become avaiable again
 	"""
 	key = generateRandomString()
-	return( key )
 	if duration: #Create a longterm key in the datastore
 		dbObj = db.Entity("viur_security_keys" )
 		for k, v in kwargs.items():
@@ -74,7 +73,6 @@ def validateSecurityKey( key, isLongTermKey=False ):
 			db.Delete( dbObj.key() )
 			return( res )
 	else:
-		return( True )
 		keys = current.get( "skeys" )
 		if keys and key in keys:
 			keys.remove( key )
