@@ -168,7 +168,7 @@ class baseBone(object): # One Bone:
 				except UnicodeEncodeError: # Also invalid key
 					raise RuntimeError()
 			return( dbFilter )
-		myKeys = [ key for key in rawFilter.keys() if key.startswith( name ) ] 
+		myKeys = [ key for key in rawFilter.keys() if (key==name or key.startswith( name+"$" )) ] 
 		if len( myKeys ) == 0:
 			return( dbFilter )
 		if not self.indexed:
