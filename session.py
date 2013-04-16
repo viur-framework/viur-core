@@ -172,6 +172,7 @@ class GaeSession:
 				dbSession["data"] = serialized
 				dbSession["sslkey"] = self.sslKey
 				dbSession["lastseen"] = time()
+				dbSession.set_unindexed_properties( ["data","sslkey" ] )
 				db.Put( dbSession )
 			except OverQuotaError, CapabilityDisabledError:
 				pass

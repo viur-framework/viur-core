@@ -156,11 +156,16 @@ class Skeleton( object ):
 					k = db.Key( id )
 					dbObj = db.Entity( k.kind(), id=k.id(), name=k.name(), parent=k.parent() )
 			tags = []
+			unindexed_properties = []
 			for key in dir( skel ):
 				if "__" not in key:
 					_bone = getattr( skel, key )
 					if( isinstance( _bone, baseBone )  ):
+						tmpKeys = dbObj.keys()
 						dbObj = _bone.serialize( key, dbObj ) 
+						newKeys = [ x for x in dbObj.keys() if not x in tmpKeys ] #These are the ones that the bone added
+						if not _bone.indexed:
+							unindexed_properties += newKeys
 						if _bone.searchable and not skel.searchIndex:
 							tags += [ tag for tag in _bone.getSearchTags() if (tag not in tags and len(tag)<400) ]
 			if tags:
@@ -169,6 +174,7 @@ class Skeleton( object ):
 				dbObj["viur_delayed_update_tag"] = 0 #Mark this entity as Up-to-date.
 			else:
 				dbObj["viur_delayed_update_tag"] = time() #Mark this entity as dirty, so the background-task will catch it up and update its references.
+			dbObj.set_unindexed_properties( unindexed_properties )
 			if "preProcessSerializedData" in dir( self ):
 				dbObj = self.preProcessSerializedData( dbObj )
 			db.Put( dbObj )
