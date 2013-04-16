@@ -146,7 +146,7 @@ def Get( keys, **kwargs ):
 				cacheRes.update( memcache.get_multi( currentBatch, namespace=__CacheKeyPrefix__) )
 			#Fetch the rest from DB
 			missigKeys = [ x for x in keys if not str(x) in cacheRes.keys() ]
-			dbRes = [ Entity.FromDatastoreEntity(x) for x in datastore.Get( missigKeys ) ]
+			dbRes = [ Entity.FromDatastoreEntity(x) for x in datastore.Get( missigKeys ) if x is not None ]
 			#Cache what we had fetched
 			cacheMap = {}
 			for res in dbRes:
