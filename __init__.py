@@ -279,6 +279,8 @@ class BrowseHandler(webapp.RequestHandler):
 				else:
 					kwargs[key] = [ kwargs[key] ] + tmpArgs[key]
 		del tmpArgs
+		if "self" in kwargs.keys(): #self is reserved for bound methods
+			raise errors.BadRequest()
 		#Parse the URL
 		path = urlparse.urlparse( path ).path
 		self.pathlist = [ urlparse.unquote( x ) for x in path.strip("/").split("/") ]
