@@ -6,7 +6,6 @@ from server.bones import baseBone
 from server.session import current
 from server import db
 import string, random, base64
-from google.appengine.api import search
 from server.config import conf
 from datetime import datetime, timedelta
 import logging

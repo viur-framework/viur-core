@@ -5,7 +5,7 @@ import HTMLParser, htmlentitydefs
 from server import db
 from server.utils import markFileForDeletion
 from server.config import conf
- 
+from google.appengine.api import search
 
 _attrsMargins = ["margin","margin-left","margin-right","margin-top","margin-bottom"]
 _attrsSpacing = ["spacing","spacing-left","spacing-right","spacing-top","spacing-bottom"]
@@ -172,3 +172,12 @@ class textBone( baseBone ):
 				if key and key not in res and len(key)>3:
 					res.append( key.lower() )
 		return( res )
+		
+	def getSearchDocumentFields(self, name):
+		"""
+			Returns a list of search-fields (GAE search API) for this bone.
+		"""
+		if self.validHtml:
+			return( [ search.HtmlField( name=name, value=unicode( self.value ) ) ] )
+		else:
+			return( [ search.TextField( name=name, value=unicode( self.value ) ) ] )

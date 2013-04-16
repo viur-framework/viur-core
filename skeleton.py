@@ -189,12 +189,12 @@ class Skeleton( object ):
 			for key in dir( self ):
 				if "__" not in key:
 					_bone = getattr( self, key )
-					if( isinstance( _bone, baseBone )  ) and _bone.indexed:
+					if( isinstance( _bone, baseBone )  ) and _bone.searchable:
 						fields.extend( _bone.getSearchDocumentFields(key ) )
 			if fields:
 				try:
 					doc = search.Document(doc_id="s_"+str(id), fields= fields )
-					search.Index(name=self.searchIndex).add( doc )
+					search.Index(name=self.searchIndex).put( doc )
 				except:
 					pass
 		for key in dir( self ):

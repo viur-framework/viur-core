@@ -2,6 +2,7 @@
 from google.appengine.api import datastore, datastore_types, datastore_errors
 from google.appengine.datastore import datastore_query, datastore_rpc
 from google.appengine.api import memcache
+from google.appengine.api import search
 from server.config import conf
 import logging
 
@@ -294,7 +295,7 @@ class Query( object ):
 			if tmpRes:
 				filters = []
 				for x in tmpRes:
-					filters.append( datastore.Query(self.kind, { "%s =" % datastore_types.KEY_SPECIAL_PROPERTY: x } ) )
+					filters.append( datastore.Query( self.getKind(), { "%s =" % datastore_types.KEY_SPECIAL_PROPERTY: x } ) )
 				self.datastoreQuery = datastore.MultiQuery( filters, () )
 			else:
 				self.datastoreQuery = None
