@@ -39,9 +39,9 @@ class GoogleUser( List ):
 	addSuccessTemplate = "user_add_success"
 
 	adminInfo = {	"name": "user", #Name of this modul, as shown in Apex (will be translated at runtime)
-			"handler": "base",  #Which handler to invoke
+			"handler": "list",  #Which handler to invoke
 			"icon": "icons/modules/user.png", #Icon for this modul
-			"columns":[ "name", "access"] # List of predefined searches as dict {"name": (translated-later),"icon": (path to local icon), "searchobj": (dict of searchparams), columns: (list of bonekeys)}
+			"columns":[ "name", "access"] # List of default-visible columns
 			}
 
 	def getAuthMethod( self, *args, **kwargs ):
