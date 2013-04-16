@@ -244,7 +244,6 @@ class relationalBone( baseBone ):
 				value = rawFilter[ key ]
 				tmpdata = key.split("$")
 				#Ensure that the relational-filter is in refKeys
-				logging.error( tmpdata[0] )
 				if not tmpdata[0].split(".")[1] in self.refKeys:
 					logging.warning( "Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (tmpdata[0].split(".")[1],name) )
 					raise RuntimeError()
