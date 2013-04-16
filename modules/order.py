@@ -656,6 +656,21 @@ class Order( List ):
 		idx = db.RunInTransaction( getIDtxn, self.kindName, orderID )
 		db.RunInTransaction( setIDtxn, orderID, idx  )
 		self.billSequenceAvailable( orderID )
+
+	@callDefered
+	def rebuildSeachIndex(self, step, orderID, *args, **kwargs ):
+		"""
+			This rewrites the order after its complete.
+			As each step has its own (tiny) skeleton, the searchIndex
+			saved is incomplete.
+			This loads the order using the (hopefully complete)
+			viewSkel and saves it back; ensuring a complete
+			searchIndex
+		"""
+		skel = self.viewSkel()
+		if not skel.fromDB( orderID ):
+			raise AssertionError()
+		skel.toDB( orderID )
 		
 		
 	steps = 	[	
@@ -694,7 +709,7 @@ class Order( List ):
 					}
 				}, 
 				{	
-					"preHandler": startPayment, 
+					"preHandler": [rebuildSeachIndex,startPayment], 
 					"mainHandler": {
 						"action": "view", 
 						"skeleton": listSkel, 
