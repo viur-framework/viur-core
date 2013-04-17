@@ -82,10 +82,11 @@ try:
 		appVersion = "-error-"
 		releaseStage = "production"
 	bugsnag.configure(	use_ssl=True,
-					release_stage = releaseStage,
-					auto_notify = False,
-					app_version=appVersion
-					)
+				release_stage = releaseStage,
+				auto_notify = False,
+				app_version=appVersion,
+				notify_release_stages = ["production"]
+				)
 except:
 	bugsnag = None
 
