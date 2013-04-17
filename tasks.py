@@ -223,6 +223,11 @@ class TaskHandler:
 			dbObj["taskid"] = taskID
 			db.Put( dbObj )
 			id = str( dbObj.key() )
+			if conf["viur.tasks.startBackendOnDemand"]:
+				if request.current.get().isDevServer:
+					conf["viur.mainApp"]._tasks.index()
+				else:
+					taskqueue.add( url="/_tasks", target="tasksq" )
 		return self.render.addItemSuccess( None, skel )
 	execute.exposed = True
 	
