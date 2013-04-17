@@ -52,6 +52,9 @@ class Render( object ):
 		
 		def __repr__( self ):
 			return( unicode( self.key ) )
+		
+		def __eq__( self, other ):
+			return( self.key == other )
 	
 	def __init__(self, parent=None, *args, **kwargs ):
 		super( Render, self ).__init__(*args, **kwargs)
@@ -365,7 +368,7 @@ class Render( object ):
 						res[key]["type"] = boneType
 						res[key]["multiple"]=_bone.multiple
 						res[key]["format"] = _bone.format
-					if( isinstance( _bone, bones.selectOneBone ) or  isinstance( _bone, bones.selectMultiBone ) ):
+					if( isinstance( _bone, bones.selectOneBone ) or isinstance( _bone, bones.selectMultiBone ) ):
 						res[key]["values"] = dict( [(k,_(v)) for (k,v) in _bone.values.items() ] )
 					if( isinstance( _bone, bones.dateBone ) ):
 						res[key]["time"] = _bone.time
