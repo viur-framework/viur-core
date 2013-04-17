@@ -8,7 +8,7 @@ from time import time
 from google.appengine.api import search
 from server.config import conf
 from server import utils
-from server.bones import selectOneBone, baseBone, relationalBone
+from server.bones import selectOneBone, baseBone, relationalBone, stringBone
 from server.tasks import CallableTask, CallableTaskBase
 from google.appengine.api import datastore, datastore_types, datastore_errors
 from google.appengine.api import memcache
@@ -347,9 +347,14 @@ class TaskUpdateSeachIndex( CallableTaskBase ):
 				modules.append( modulName )
 		skel = Skeleton( self.kindName )
 		skel.modul = selectOneBone( descr="Modul", values={ x: x for x in modules}, required=True )
+		def verifyCompact( val ):
+			if not val or val.lower()=="no" or val=="YES":
+				return( None )
+			return("Must be \"No\" or uppercase \"YES\" (very dangerous!)")
+		skel.compact = stringBone( descr="Recreate Entities", vfunc=verifyCompact, required=False, defaultValue="NO" )
 		return( skel )
 
-	def execute( self, modul=None, *args, **kwargs ):
+	def execute( self, modul=None, compact="", *args, **kwargs ):
 		Skel = None
 		if modul in dir( conf["viur.mainApp"] ):
 			if "editSkel" in dir( getattr( conf["viur.mainApp"], modul ) ):
@@ -357,12 +362,13 @@ class TaskUpdateSeachIndex( CallableTaskBase ):
 		if not Skel:
 			logging.error("TaskUpdateSeachIndex: Invalid modul")
 			return
-		subscriptionClass = generateExpandoClass( Skel.kindName )
-		for sub in subscriptionClass.query().iter():
+		for sub in db.Query( Skel.kindName ).iter():
 			try:
 				skel = Skel()
-				skel.fromDB( str(sub.key.urlsafe()) )
-				skel.toDB( str(sub.key.urlsafe()) )
+				skel.fromDB( str(sub.key()) )
+				if compact=="YES":
+					skel.delete(str(sub.key()) )
+				skel.toDB( str(sub.key()) )
 			except Exception as e:
-				logging.error("Updating %s failed" % str(sub.key.urlsafe()) )
+				logging.error("Updating %s failed" % str(sub.key()) )
 				logging.error( e )
