@@ -162,8 +162,8 @@ class BackupFile(object):
 	
 	def writeEntry(self, obj ):
 		r = {}
-		for k in obj._properties.keys():
-			val = getattr( obj, k )
+		for k in obj.keys():
+			val = obj[ k ]
 			if isinstance( val, datetime ):
 				val = {"datetime" : val.strftime("%d.%m.%Y %H:%M:%S") }
 			elif isinstance( val, time ):
@@ -173,8 +173,8 @@ class BackupFile(object):
 			elif isinstance( val, dict ): #Should not happen, but..
 				val = {"dict": val }
 			r[ k ] = val
-			r["__id__"] = obj.key.urlsafe()
-			r["__kind__"] = obj._get_kind()
+			r["__id__"] = str(obj.key)
+			r["__kind__"] = obj.kind()
 		self.f.write( "!e %s\n" % json.dumps( r ).encode("hex") )
 	
 	def writeBlob( self, blobKey ):
