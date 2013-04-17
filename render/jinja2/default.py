@@ -35,6 +35,23 @@ class Render( object ):
 	renameSuccessTemplate = "rename_success"
 	copySuccessTemplate = "copy_success"
 	
+	class KeyValueWrapper:
+		"""
+			This holds one Key-Value pair for
+			selectOne/selectMulti Bones.
+			It allows to directly treat the key as string,
+			but still makes the translated description of that
+			key avaiable.
+		"""
+		def __init__( self, key, descr ):
+			self.key = key
+			self.descr = _( descr )
+
+		def __str__( self ):
+			return( unicode( self.key ) )
+		
+		def __repr__( self ):
+			return( unicode( self.key ) )
 	
 	def __init__(self, parent=None, *args, **kwargs ):
 		super( Render, self ).__init__(*args, **kwargs)
@@ -372,7 +389,14 @@ class Render( object ):
 			if "__" not in key:
 				_bone = getattr( skel, key )
 				if( isinstance( _bone, bones.documentBone ) ): #We flip source-html and parsed (cached) html for a more natural use
-						res[key] = _bone.cache
+					res[key] = _bone.cache
+				elif isinstance( _bone, selectOneBone ):
+					if _bone.value in _bone.values.keys():
+						res[ key ] = Render.KeyValueWrapper( _bone.value, _bone.values[ _bone.value ] )
+					else:
+						res[ key ] = _bone.value
+				elif isinstance( _bone, selectMultiBone ):
+					res[ key ] = [ (Render.KeyValueWrapper( val, _bone.values[ val ] ) if val in _bone.values.keys() else val)  for val in _bone.value ]
 				elif( isinstance( _bone, bones.baseBone ) ):
 					res[ key ] = _bone.value
 		return( res )
