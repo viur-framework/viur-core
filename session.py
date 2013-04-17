@@ -252,11 +252,10 @@ class GaeSession:
 	
 @PeriodicTask( 60 )
 def cleanup( ):
-	return() #FIXME
-	oldSessions = GaeSession.SessionData.all().filter("lastseen <", time()-GaeSession.lifeTime ).fetch(1000)
+	oldSessions = db.Query(GaeSession.kindName).filter("lastseen <", time()-GaeSession.lifeTime ).run(limit=1000,keysOnly=True)
 	while( oldSessions ):
-		db.delete( oldSessions )
-		oldSessions = GaeSession.SessionData.all().filter("lastseen <", time()-GaeSession.lifeTime ).fetch(1000)
+		db.Delete( oldSessions )
+		oldSessions = db.Query(GaeSession.kindName).filter("lastseen <", time()-GaeSession.lifeTime ).run(limit=1000,keysOnly=True)
 
 
 current = SessionWrapper( GaeSession )
