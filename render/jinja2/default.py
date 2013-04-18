@@ -55,6 +55,9 @@ class Render( object ):
 		
 		def __eq__( self, other ):
 			return( self.key == other )
+			
+		def __trunc__( self ):
+			return( self.key.__trunc__() )
 	
 	def __init__(self, parent=None, *args, **kwargs ):
 		super( Render, self ).__init__(*args, **kwargs)
