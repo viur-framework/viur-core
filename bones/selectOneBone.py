@@ -18,9 +18,9 @@ class selectOneBone( baseBone ):
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
 		mode="str"
 		if all( [ isinstance( val, int ) for val in self.values.keys() ] ):
-			filter = dict( [ ( k, int( v ) ) for k,v in rawFilter.items() if k.startswith( name ) ] )
+			filter = dict( [ ( k, int( v ) ) for k,v in rawFilter.items() if k==name or k.startswith("%s$" % name ) ] )
 		elif all( [ isinstance( val, float ) for val in self.values.keys() ] ):
-			filter = dict( [ ( k, float( v ) ) for k,v in rawFilter.items() if k.startswith( name ) ] )
+			filter = dict( [ ( k, float( v ) ) for k,v in rawFilter.items() if k==name or k.startswith("%s$" % name ) ] )
 		else:
 			filter=rawFilter
 		return( super( selectOneBone, self ).buildDBFilter( name, skel, dbFilter, filter ) )
