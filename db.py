@@ -303,16 +303,16 @@ class Query( object ):
 		bones = [ (getattr( skel, key ), key) for key in dir( skel ) if not "__" in key and isinstance( getattr( skel, key ) , baseBone ) ]
 		try:
 			#First, filter non-relational bones
-			for bone, key in [ x for x in bones if not isinstance( x, relationalBone ) ]:
+			for bone, key in [ x for x in bones if not isinstance( x[0], relationalBone ) ]:
 				bone.buildDBFilter( key, skel, self, filters )
 			#Second, process orderings of non-relational bones
-			for bone, key in [ x for x in bones if not isinstance( x, relationalBone ) ]:
+			for bone, key in [ x for x in bones if not isinstance( x[0], relationalBone ) ]:
 				bone.buildDBSort( key, skel, self, filters )
 			#Now filter relational bones
-			for bone, key in [ x for x in bones if isinstance( x, relationalBone ) ]:
+			for bone, key in [ x for x in bones if isinstance( x[0], relationalBone ) ]:
 				bone.buildDBFilter( key, skel, self, filters )
 			#finally process orderings of nelational bones
-			for bone, key in [ x for x in bones if isinstance( x, relationalBone ) ]:
+			for bone, key in [ x for x in bones if isinstance( x[0], relationalBone ) ]:
 				bone.buildDBSort( key, skel, self, filters )
 		except RuntimeError:
 			self.datastoreQuery = None
@@ -383,7 +383,7 @@ class Query( object ):
 		elif filter and value!=None:
 			self.datastoreQuery[ filter ] = value
 		else:
-			assert False
+			raise NotImplementedError("Incorrect call to query.filter()!")
 		return( self )
 	
 	def order(self, *orderings):
