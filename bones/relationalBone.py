@@ -132,6 +132,7 @@ class relationalBone( baseBone ):
 			try:
 				if not dbObj[ key+".id" ] in [ x[key+".id"] for x in values ]: #Relation has been removed
 					db.Delete( dbObj.key() )
+					continue
 			except: #This entry is corrupt
 				db.Delete( dbObj.key() )
 			else: # Relation: Updated
