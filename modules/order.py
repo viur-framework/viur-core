@@ -671,7 +671,15 @@ class Order( List ):
 		if not skel.fromDB( orderID ):
 			raise AssertionError()
 		skel.toDB( orderID )
-		
+	
+	def resetCart(self, step, orderID, *args, **kwargs ):
+		"""
+			Clears the cart (if any) after the checkout
+			process is finished.
+		"""
+		session.current["cart_products"] = None
+		session.current.markChanged()
+	
 		
 	steps = 	[	
 				{	
@@ -709,7 +717,7 @@ class Order( List ):
 					}
 				}, 
 				{	
-					"preHandler": [rebuildSeachIndex,startPayment], 
+					"preHandler": [rebuildSeachIndex,resetCart,startPayment], 
 					"mainHandler": {
 						"action": "view", 
 						"skeleton": listSkel, 
