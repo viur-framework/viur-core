@@ -375,16 +375,14 @@ class Tree( object ):
 		if not repo or not self.canList( repo, rootNode, path ):
 			raise errors.Unauthorized()
 		subdirs = []
-		for entry in db.Query( self.viewSkel().kindName+"_rootNode" ).filter( "parentdir =", str(repo.key()) ).run( 100 ):
-			subdirs.append( entry[ "name" ] )
 		if not path and kwargs: #Were searching for a particular entry
-			subdirs = [] #Dont list any directorys here
 			newArgs = kwargs.copy()
 			newArgs["parentrepo"] = str(repo.key())
 			#queryObj = db.Query(utils.buildDBFilter( self.viewSkel(), newArgs )
 			entrys = self.viewSkel().all().filter( newArgs ).fetch( 100 )
 		else:
-			#queryObj = utils.buildDBFilter( self.viewSkel(), {"parentdir": str(repo.key.urlsafe())} )
+			for entry in db.Query( self.viewSkel().kindName+"_rootNode" ).filter( "parentdir =", str(repo.key()) ).run( 100 ):
+				subdirs.append( entry[ "name" ] )
 			entrys = self.viewSkel().all().filter( "parentdir =", str(repo.key()) ).fetch( 100 )
 		return( self.render.listRootNodeContents( subdirs, entrys, rootNode=rootNode, path=path ) )
 	list.exposed = True
