@@ -626,7 +626,7 @@ class Query( object ):
 			raise NotImplementedError("This query is not limited! You must specify an upper bound using limit() between 1 and 100")
 		from server.skeleton import SkelList
 		res = SkelList( self.srcSkelClass )
-		dbRes = self.run( )
+		dbRes = self.run( amount )
 		if dbRes is None:
 			return( res )
 		for e in dbRes:
