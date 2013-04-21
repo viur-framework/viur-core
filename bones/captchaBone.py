@@ -21,14 +21,28 @@ class captchaBone( bone.baseBone ):
 	def unserialize( self, name, values ):
 		return( {name: ""} )
 		
-	def fromClient( self, value ): #fixme
-		reqData = request.current.get().kwargs
-		if not "recaptcha_challenge_field" in reqData.keys() or not "recaptcha_response_field" in reqData.keys():
+	def fromClient( self, name, data ):
+		"""
+			Reads a value from the client.
+			If this value is valis for this bone,
+			store this value and return None.
+			Otherwise our previous value is
+			left unchanged and an error-message
+			is returned.
+			
+			@param name: Our name in the skeleton
+			@type name: String
+			@param data: *User-supplied* request-data
+			@type data: Dict
+			@returns: None or String
+		"""
+		data = request.current.get().kwargs
+		if not "recaptcha_challenge_field" in data.keys() or not "recaptcha_response_field" in data.keys():
 			return( False )
 		data = { 	"privatekey": self.privateKey,
 				"remoteip": request.current.get().request.remote_addr,
-				"challenge": reqData["recaptcha_challenge_field"],
-				"response": reqData["recaptcha_response_field"]
+				"challenge": data["recaptcha_challenge_field"],
+				"response": data["recaptcha_response_field"]
 			}
 		response = urlfetch.fetch(	url="http://www.google.com/recaptcha/api/verify",
 						payload=urllib.urlencode( data ),

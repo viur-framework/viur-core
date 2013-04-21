@@ -382,6 +382,8 @@ class Render( object ):
 						res[key]["max"] = _bone.max
 					if( isinstance( _bone, bones.textBone ) ):
 						res[key]["validHtml"] = _bone.validHtml
+					if( isinstance( _bone, bones.textBone ) ) or ( isinstance( _bone, bones.stringBone ) ):
+						res[key]["languages"] = _bone.languages 
 		return( res )
 	
 	def collectSkelData( self, skel ):

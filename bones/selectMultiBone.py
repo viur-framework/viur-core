@@ -7,7 +7,25 @@ class selectMultiBone( baseBone ):
 		super( selectMultiBone, self ).__init__( defaultValue=defaultValue, *args, **kwargs )
 		self.values = values
 
-	def fromClient( self, values ):
+	def fromClient( self, name, data ):
+		"""
+			Reads a value from the client.
+			If this value is valis for this bone,
+			store this value and return None.
+			Otherwise our previous value is
+			left unchanged and an error-message
+			is returned.
+			
+			@param name: Our name in the skeleton
+			@type name: String
+			@param data: *User-supplied* request-data
+			@type data: Dict
+			@returns: None or String
+		"""
+		if name in data.keys():
+			values = data[ name ]
+		else:
+			values = None
 		self.value = []
 		if not values:
 			return( "No item selected" )

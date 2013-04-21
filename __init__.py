@@ -283,6 +283,8 @@ class BrowseHandler(webapp.RequestHandler):
 		if "self" in kwargs.keys(): #self is reserved for bound methods
 			raise errors.BadRequest()
 		#Parse the URL
+		import logging
+		logging.error( kwargs )
 		path = urlparse.urlparse( path ).path
 		self.pathlist = [ urlparse.unquote( x ) for x in path.strip("/").split("/") ]
 		caller = conf["viur.mainApp"]

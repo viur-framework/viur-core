@@ -100,6 +100,9 @@ class DefaultRender( object ):
 						res[key]["max"] = _bone.max
 					if( isinstance( _bone, bones.documentBone ) ):
 						res[key]["extensions"] = [ self.renderTextExtension( x ) for x in _bone.extensions ]
+					if( isinstance( _bone, bones.textBone ) ) or ( isinstance( _bone, bones.stringBone ) ):
+						res[key]["languages"] = _bone.languages 
+
 		return( [ (key, val) for key, val in res.items()] )
 	
 	def renderTextExtension(self, ext ):

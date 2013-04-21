@@ -287,17 +287,10 @@ class Skeleton( object ):
 				if( isinstance( _bone, baseBone ) ):
 					if _bone.readOnly:
 						continue
-					if key in data:
-						error = _bone.fromClient( data[ key ] )
-						self.errors[ key ] = error
-						if error  and _bone.required:
-							complete = False
-							
-					else:
-						error = _bone.fromClient( None ) 
-						self.errors[ key ] = error
-						if _bone.required:
-							complete = False
+					error = _bone.fromClient( key, data )
+					self.errors[ key ] = error
+					if error  and _bone.required:
+						complete = False
 		if( len( data )==0 or (len(data)==1 and "id" in data) or ("nomissing" in data.keys() and str(data["nomissing"])=="1") ):
 			self.errors = {}
 		return( complete )
