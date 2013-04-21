@@ -95,7 +95,10 @@ class stringBone( baseBone ):
 			self.value = LanguageWrapper( self.languages )
 			for lang in self.languages:
 				if "%s.%s" % ( name, lang ) in expando.keys():
-					self.value[ lang ] = expando[ "%s.%s" % ( name, lang ) ]
+					val = expando[ "%s.%s" % ( name, lang ) ]
+					if isinstance( val, list ) and not self.multiple:
+						val = ", ".join( val )
+					self.value[ lang ] = val
 			if not self.value.keys(): #Got nothing
 				if name in expando.keys(): #Old (non-multi-lang) format
 					self.value[ self.languages[0] ] = expando[ name ]
