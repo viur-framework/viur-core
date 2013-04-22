@@ -28,7 +28,7 @@ class LanguageWrapper( dict ):
 			for lang in self.languages:
 				if lang in self.keys() and self[ lang ]:
 					return( self[ lang ] )
-		return( None )
+		return( "" )
 
 class stringBone( baseBone ):
 	type = "str"
