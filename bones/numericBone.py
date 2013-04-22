@@ -28,7 +28,25 @@ class numericBone( baseBone ):
 		self.min = min
 		self.max = max
 
-	def fromClient( self, value ):
+	def fromClient( self, name, data ):
+		"""
+			Reads a value from the client.
+			If this value is valis for this bone,
+			store this value and return None.
+			Otherwise our previous value is
+			left unchanged and an error-message
+			is returned.
+			
+			@param name: Our name in the skeleton
+			@type name: String
+			@param data: *User-supplied* request-data
+			@type data: Dict
+			@returns: None or String
+		"""
+		if name in data.keys():
+			value = data[ name ]
+		else:
+			value = None
 		try:
 			value = str( value ).replace(",", ".", 1)
 		except:
