@@ -437,7 +437,7 @@ class Tree( object ):
 		if not self.canAdd( ):
 			raise errors.Unauthorized()
 		skel = self.addSkel()
-		if not skel.fromClient( kwargs ) or len(kwargs)==0 or skey=="" or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
+		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.add( skel ) )
 		skel.parentdir.value = str( repo.key() )
 		skel.parentrepo.value = rootNode
