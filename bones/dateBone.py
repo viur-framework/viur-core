@@ -235,6 +235,6 @@ class dateBone( baseBone ):
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
 		for key in [ x for x in rawFilter.keys() if x.startswith(name) ]:
-			if not self.fromClient( rawFilter[ key ] ): #Parsing succeeded
+			if not self.fromClient( key, rawFilter ): #Parsing succeeded
 				super( dateBone, self ).buildDBFilter( name, skel, dbFilter, {key:datetime.now().strptime( self.value.strftime( "%d.%m.%Y %H:%M:%S" ), "%d.%m.%Y %H:%M:%S"  )} )
 		return( dbFilter )
