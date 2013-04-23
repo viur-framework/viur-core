@@ -17,10 +17,14 @@ class pageSkel( HierarchySkel ):
 	def postProcessSerializedData( self, id,  dbfields ): #Build our human readable key
 		obj = db.Get( db.Key( id ) )
 		nr = db.Key( id ).id_or_name()
-		hrk = "!%s-%s" % ( str( "".join( [ x for x in obj["name"].lower() if x in "0123456789 abcdefghijklmnopqrstuvwxyz"] ) ).replace(" ", "_"), nr )
+		try:
+			name = unicode( self.name.value )
+		except:
+			name = ""
+		hrk = "!%s-%s" % ( str( "".join( [ x for x in name.lower() if x in "0123456789 abcdefghijklmnopqrstuvwxyz"] ) ).replace(" ", "_"), nr )
 		obj["hrk"] = hrk
 		db.Put( obj )
-		
+
 class Page( Hierarchy ): 
 	adminInfo = {	"name": "Sites", #Name of this modul, as shown in Apex (will be translated at runtime)
 				"handler": "hierarchy",  #Which handler to invoke

@@ -407,6 +407,10 @@ class Render( object ):
 					res[ key ] = [ (Render.KeyValueWrapper( val, _bone.values[ val ] ) if val in _bone.values.keys() else val)  for val in _bone.value ]
 				elif( isinstance( _bone, bones.baseBone ) ):
 					res[ key ] = _bone.value
+		try:
+			res["id"] = db.Key( encoded=res["id"] )
+		except:
+			pass
 		return( res )
 
 	def add( self, skel, tpl=None,*args,**kwargs ):

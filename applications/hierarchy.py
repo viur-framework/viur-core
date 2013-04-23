@@ -92,8 +92,8 @@ class Hierarchy( object ):
 					parent = str( obj["parententry"] ) 
 				else:
 					parent = None
-				r = {"name": obj["name"],
-					"id": str(obj.key()), 
+				r = {	"name": obj["name"],
+					"id": obj.key(), 
 					"parent": parent,
 					"hrk": obj["hrk"] if "hrk" in obj.keys() else None,
 					"active":(str(obj.key()) in keylist )}
