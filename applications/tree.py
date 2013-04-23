@@ -262,11 +262,13 @@ class Tree( object ):
 					db.Delete( srcFileObj.key() )
 		else:
 			newRepo = db.Entity( self.viewSkel.kindName+"_rootNode" )
+			fromRepo = db.Query( self.viewSkel().kindName+"_rootNode").filter( "parentdir =", str(srcRepo.key())).filter( "name",  name).get()
+			assert fromRepo
+			if str(fromRepo.key())==str(destRepo.key()): #We cant move an directory into itself
+				raise errors.NotAcceptable()
 			newRepo[ "parentdir" ] = str(destRepo.key() )
 			newRepo[ "name" ] = name
 			db.Put( newRepo )
-			fromRepo = db.Query( self.viewSkel().kindName+"_rootNode").filter( "parentdir =", str(srcRepo.key())).filter( "name",  name).get()
-			assert fromRepo
 			self.cloneDirecotyRecursive( fromRepo, newRepo )
 			if deleteold=="1":
 				self.deleteDirsRecursive( fromRepo.key() )
