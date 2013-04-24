@@ -46,6 +46,9 @@ def translate( key, **kwargs ):
 		langDict = getattr(servertrans,lang)
 		if key.lower() in langDict.keys():
 			return( langDict[ key.lower() ] )
+	if conf["viur.logMissingTranslations"]:
+		from server import db
+		db.GetOrInsert( key="%s-%s" % (key, str(lang)), kindName="viur-missing-translations", langkey=key, lang=lang )
 	for k, v in kwargs.items():
 		key = key.replace("{{%s}}"%k, v )
 	return( key )

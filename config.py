@@ -16,6 +16,7 @@ conf = {	"viur.mainApp": None,  #Reference to our prebuild Application-Instance
 		"viur.emailSenderOverride": False, #If set, this sender will be used, regardless of what the templates advertise as sender
 		"viur.db.caching" : 2, #Cache strategy used by the database. 2: Aggressive, 1: Safe, 0: Off
 		"viur.tasks.startBackendOnDemand": True, #If true, allows the task modul to start a backend immediately (instead of waiting for the cronjob)
+		"viur.logMissingTranslations": False, #If true, ViUR will log missing translations in the datastore
 		"bugsnag.apiKey": None #If set, ViUR will report Errors to bugsnag
 	}
 
