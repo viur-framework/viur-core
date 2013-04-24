@@ -67,6 +67,20 @@ class Hierarchy( object ):
 			@type key: String:
 			@returns: An nested dictionary with Informations about all nodes in the path from Root to the given Node
 		"""
+		def getName( obj ):
+			"""
+				Tries to return a suitable name for the given object
+			"""
+			if "name " in obj.keys():
+				return( obj["name"] )
+			skel = self.viewSkel()
+			if "name" in dir( skel ):
+				nameBone = skel.name
+				if isinstance( nameBone, baseBone ) and "languages" in dir( nameBone ) and nameBone.languages:
+					skel.setValues( obj )
+					return( unicode( skel.name.value ) )
+			return( None )
+			
 		availableRepos = self.getAvailableRootNodes()
 		if not key:
 			try:
@@ -92,8 +106,8 @@ class Hierarchy( object ):
 					parent = str( obj["parententry"] ) 
 				else:
 					parent = None
-				r = {	"name": obj["name"],
-					"id": obj.key(), 
+				r = {	"name": getName( obj ),
+					"id": str(obj.key()), 
 					"parent": parent,
 					"hrk": obj["hrk"] if "hrk" in obj.keys() else None,
 					"active":(str(obj.key()) in keylist )}
