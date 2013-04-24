@@ -58,7 +58,7 @@ class Render( object ):
 			
 		def __trunc__( self ):
 			return( self.key.__trunc__() )
-	
+
 	def __init__(self, parent=None, *args, **kwargs ):
 		super( Render, self ).__init__(*args, **kwargs)
 		self.parent = parent
@@ -145,6 +145,7 @@ class Render( object ):
 			self.env.globals["_"] = _
 			self.env.filters["tr"] = _
 			self.env.filters["urlencode"] = self.quotePlus
+			self.env.filters["shortKey"] = self.shortKey
 			if "jinjaEnv" in dir( self.parent ):
 				self.env = self.parent.jinjaEnv( self.env )
 		return( self.env )
@@ -340,6 +341,13 @@ class Render( object ):
 			val = val.encode("UTF-8")
 		return( quote_plus( val ) )
 
+	def shortKey( self, val ):
+		try:
+			k = db.Key( encoded=unicode( val ) )
+			return( k.id_or_name() )
+		except: 
+			return( None )
+
 	def renderSkelStructure(self, skel ):
 		"""
 			Dumps the Structure of a Skeleton.
@@ -407,10 +415,6 @@ class Render( object ):
 					res[ key ] = [ (Render.KeyValueWrapper( val, _bone.values[ val ] ) if val in _bone.values.keys() else val)  for val in _bone.value ]
 				elif( isinstance( _bone, bones.baseBone ) ):
 					res[ key ] = _bone.value
-		try:
-			res["id"] = db.Key( encoded=res["id"] )
-		except:
-			pass
 		return( res )
 
 	def add( self, skel, tpl=None,*args,**kwargs ):
