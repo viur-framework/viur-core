@@ -212,7 +212,7 @@ class stringBone( baseBone ):
 			if self.caseSensitive:
 				prop = name
 			else:
-				prop = name+"_idx"
+				prop = name+".idx"
 			if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
 				order = ( prop, db.DESCENDING )
 			else:
