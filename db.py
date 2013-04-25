@@ -334,7 +334,7 @@ class Query( object ):
 				self.datastoreQuery[ k ] = v
 		if "cursor" in filters.keys() and filters["cursor"] and filters["cursor"].lower()!="none":
 			self.cursor( filters["cursor"] )
-		if "amount" in list(filters.keys()) and str(filters["amount"]).isdigit() and int( filters["amount"] ) >0 and int( filters["amount"] ) <= 50:
+		if "amount" in list(filters.keys()) and str(filters["amount"]).isdigit() and int( filters["amount"] ) >0 and int( filters["amount"] ) <= 99:
 			self.limit( int(filters["amount"]) )
 		if "postProcessSearchFilter" in dir( skel ):
 			skel.postProcessSearchFilter( self, filters )
