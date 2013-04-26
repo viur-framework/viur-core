@@ -191,6 +191,8 @@ class Skeleton( object ):
 					_bone = getattr( self, key )
 					if( isinstance( _bone, baseBone )  ) and _bone.searchable:
 						fields.extend( _bone.getSearchDocumentFields(key ) )
+			if "getSearchDocumentFields" in dir( self ):
+				fields = self.getSearchDocumentFields( fields )
 			if fields:
 				try:
 					doc = search.Document(doc_id="s_"+str(id), fields= fields )
@@ -220,6 +222,8 @@ class Skeleton( object ):
 				_bone = getattr( self, key )
 				if( isinstance( _bone, baseBone )  ) and "postDeletedHandler" in dir( _bone ):
 					_bone.postDeletedHandler( self, key, id )
+		if "postDeletedHandler" in dir( self ):
+			self.postDeletedHandler( key, id )
 		if self.searchIndex:
 			try:
 				search.Index( name=self.searchIndex ).remove( "s_"+str(id) )
