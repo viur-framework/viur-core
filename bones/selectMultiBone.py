@@ -3,8 +3,20 @@ from server.bones import baseBone
 
 class selectMultiBone( baseBone ):
 	type = "selectmulti"
-	def __init__( self, defaultValue=[],  values = {}, *args, **kwargs ):
+	def __init__( self, defaultValue=[],  values = {}, sortBy="keys", *args, **kwargs ):
+		"""
+			Creates a new SelectMultiBone
+			@param defaultValue: List of keys which will be checked by default
+			@type defaultValue: List
+			@param values: Dict of key->value pairs from which the user can choose from. Values will be translated
+			@type values: Dict
+			@param sortBy: Either "keys" or "values". Sorts the values on clientside either by keys or by (translated) values
+			@type sortBy: String
+		"""
 		super( selectMultiBone, self ).__init__( defaultValue=defaultValue, *args, **kwargs )
+		if not sortBy in ["keys","values"]:
+			raise ValueError( "sortBy must be \"keys\" or \"values\"" )
+		self.sortBy = sortBy
 		self.values = values
 
 	def fromClient( self, name, data ):
