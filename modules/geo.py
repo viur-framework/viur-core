@@ -5,9 +5,10 @@ from server.bones import *
 from google.appengine.ext import db
 from server import session, errors
 import urllib
+from google.appengine.api import search
 
 class GeoSkel( Skeleton ):
-	name = stringBone( descr="Name", indexed=True, required=True )
+	name = stringBone( descr="Name", indexed=True, required=True, searchable=True )
 	address = stringBone( descr="Street and House Number", indexed=True, required=True )
 	zipcode = stringBone( descr="Zipcode", indexed=True, required=True )
 	city = stringBone( descr="City", indexed=True, required=True)
@@ -38,8 +39,10 @@ class GeoSkel( Skeleton ):
 			except:
 				pass
 		return( res )
-		
 	
+	def getSearchDocumentFields( self, fields ):
+		fields.append( search.GeoField(name='latlong', value=search.GeoPoint(self.latitude.value, self.longitude.value)) )
+		return( fields )
 
 class Geo( List ): 
 	adminInfo = {	"name": "Geo", #Name of this modul, as shown in Apex (will be translated at runtime)
