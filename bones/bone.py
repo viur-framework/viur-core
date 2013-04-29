@@ -156,10 +156,21 @@ class baseBone(object): # One Bone:
 			@type rawFilter: Dict
 			@returns: The modified dbFilter
 		"""
+		def fromShortKey( key ):
+			if isinstance(key, basestring ):
+				try:
+					key = db.Key( encoded=key )
+				except:
+					key = unicode( key )
+					if key.isdigit():
+						key = long( key )
+					key = db.Key.from_path( skel.kindName, key )
+			assert isinstance( key, db.Key )
+			return( key )
 		if name == "id" and "id" in rawFilter.keys():
 			from server import utils
 			if isinstance( rawFilter["id"], list ):
-				keyList = [ db.Key( key  ) for key in rawFilter["id"] ]
+				keyList = [ fromShortKey( key  ) for key in rawFilter["id"] ]
 				if keyList:
 					origQuery = dbFilter.datastoreQuery
 					try:
@@ -172,7 +183,7 @@ class baseBone(object): # One Bone:
 						dbFilter.filter( k, v )
 			else:
 				try:
-					dbFilter.filter( db.KEY_SPECIAL_PROPERTY, db.Key( rawFilter["id"] ) )
+					dbFilter.filter( db.KEY_SPECIAL_PROPERTY, fromShortKey( rawFilter["id"] ) )
 				except db.BadKeyError: #This cant work
 					raise RuntimeError()
 				except UnicodeEncodeError: # Also invalid key
