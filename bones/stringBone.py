@@ -171,37 +171,52 @@ class stringBone( baseBone ):
 				return( err )
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
-		if not name in rawFilter.keys() and not any( [x.startswith(name+"$") for x in rawFilter.keys()] ):
+		if not name in rawFilter.keys() and not any( [(x.startswith(name+"$") or x.startswith(name+".")) for x in rawFilter.keys()] ):
 			return( super( stringBone, self ).buildDBFilter( name, skel, dbFilter, rawFilter ) )
 		if not self.indexed:
 			logging.warning( "Invalid searchfilter! %s is not indexed!" % name )
 			raise RuntimeError()
 		hasInequalityFilter = False
-		if name+"$lk" in rawFilter.keys(): #Do a prefix-match
+		if not self.languages:
+			namefilter = name
+		else:
+			lang = None
+			for key in rawFilter.keys():
+				if key.startswith( "%s." % name ):
+					langStr = key.replace( "%s." % name, "" )
+					if langStr in self.languages:
+						lang = langStr
+						break
+			if not lang:
+				lang = currentSession.getLanguage()
+				if not lang or not lang in self.languages:
+					lang = self.languages[ 0 ]
+			namefilter = "%s.%s" % (name, lang)
+		if namefilter+"$lk" in rawFilter.keys(): #Do a prefix-match
 			if not self.caseSensitive:
-				dbFilter.filter( name +"_idx >=", unicode( rawFilter[name+"$lk"] ).lower() )
-				dbFilter.filter( name +"_idx <", unicode( rawFilter[name+"$lk"]+u"\ufffd" ).lower() )
+				dbFilter.filter( namefilter +".idx >=", unicode( rawFilter[namefilter+"$lk"] ).lower() )
+				dbFilter.filter( namefilter +".idx <", unicode( rawFilter[namefilter+"$lk"]+u"\ufffd" ).lower() )
 			else:
-				dbFilter.filter( name + " >=", unicode( rawFilter[name+"$lk"] ) )
-				dbFilter.filter( name + " < ", unicode( rawFilter[name+"$lk"]+u"\ufffd" ) )
+				dbFilter.filter( namefilter + " >=", unicode( rawFilter[namefilter+"$lk"] ) )
+				dbFilter.filter( namefilter + " < ", unicode( rawFilter[namefilter+"$lk"]+u"\ufffd" ) )
 			hasInequalityFilter = True
-		if name+"$gt" in rawFilter.keys(): #All entries after
+		if namefilter+"$gt" in rawFilter.keys(): #All entries after
 			if not self.caseSensitive:
-				dbFilter.filter( name +"_idx >", unicode( rawFilter[name+"$gt"] ).lower() )
+				dbFilter.filter( namefilter +".idx >", unicode( rawFilter[namefilter+"$gt"] ).lower() )
 			else:
-				dbFilter.filter( name + " >", unicode( rawFilter[name+"$gt"] ) )
+				dbFilter.filter( namefilter + " >", unicode( rawFilter[namefilter+"$gt"] ) )
 			hasInequalityFilter = True
-		if name+"$lt" in rawFilter.keys(): #All entries before
+		if namefilter+"$lt" in rawFilter.keys(): #All entries before
 			if not self.caseSensitive:
-				dbFilter.filter( name +"_idx <", unicode( rawFilter[name+"$lt"] ).lower() )
+				dbFilter.filter( namefilter +".idx <", unicode( rawFilter[namefilter+"$lt"] ).lower() )
 			else:
-				dbFilter.filter( name + " <", unicode( rawFilter[name+"$lt"] ) )
+				dbFilter.filter( namefilter + " <", unicode( rawFilter[namefilter+"$lt"] ) )
 			hasInequalityFilter = True
-		if name in rawFilter.keys(): #Normal, strict match
+		if namefilter in rawFilter.keys(): #Normal, strict match
 			if not self.caseSensitive:
-				dbFilter.filter( name+"_idx", unicode( rawFilter[name] ).lower() )
+				dbFilter.filter( namefilter+".idx", unicode( rawFilter[namefilter] ).lower() )
 			else:
-				dbFilter.filter( name, unicode( rawFilter[name] ) )
+				dbFilter.filter( namefilter, unicode( rawFilter[namefilter] ) )
 		return( dbFilter )
 
 	def buildDBSort( self, name, skel, dbFilter, rawFilter ):
