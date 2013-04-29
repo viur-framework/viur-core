@@ -110,7 +110,7 @@ class relationalBone( baseBone ):
 				#Copy attrs of our referenced entity in
 				if self.indexed:
 					for k, v in self.value.items():
-						if k in self.refKeys:
+						if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ):
 							entity[ "%s.%s" % (key,k) ] = v
 		return( entity )
 	
@@ -223,13 +223,11 @@ class relationalBone( baseBone ):
 					logging.error("I got an id, which kind doesn't match my type! (Got: %s, my type %s)" % ( entry.key().kind(), self.type ) )
 				continue
 			if not self.multiple:
-				#tmp = { k:v for k, v  in list(data.items()) if k in self.refKeys }
-				#tmp["id"] = str( data["_id"] )
-				self.value = { k: entry[k] for k in entry.keys() if k in self.refKeys }
+				self.value = { k: entry[k] for k in entry.keys() if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ) }
 				self.value["id"] = r
 				return( None )
 			else:
-				tmp = { k: entry[k] for k in entry.keys() if k in self.refKeys }
+				tmp = { k: entry[k] for k in entry.keys() if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ) }
 				tmp["id"] = r
 				self.value.append( tmp )
 		if not self.value:
