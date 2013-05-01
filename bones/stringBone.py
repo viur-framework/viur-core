@@ -224,10 +224,19 @@ class stringBone( baseBone ):
 			if not self.indexed:
 				logging.warning( "Invalid ordering! %s is not indexed!" % name )
 				raise RuntimeError()
-			if self.caseSensitive:
-				prop = name
+			if self.languages:
+				lang = currentSession.getLanguage()
+				if not lang or not lang in self.languages:
+					lang = self.languages[ 0 ]
+				if self.caseSensitive:
+					prop = "%s.%s" % (name, lang)
+				else:
+					prop = "%s.%s.idx" % (name, lang)
 			else:
-				prop = name+".idx"
+				if self.caseSensitive:
+					prop = name
+				else:
+					prop = name+".idx"
 			if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
 				order = ( prop, db.DESCENDING )
 			else:
