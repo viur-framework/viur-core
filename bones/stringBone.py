@@ -3,6 +3,7 @@ from server.bones import baseBone
 from server.config import conf
 from server import db
 from server.session import current as currentSession
+from google.appengine.api import search
 import logging
 
 
@@ -263,4 +264,18 @@ class stringBone( baseBone ):
 				key = "".join( [ c for c in key if c.lower() in conf["viur.searchValidChars"] ] )
 				if key and key not in res and len(key)>3:
 					res.append( key.lower() )
+		return( res )
+
+	def getSearchDocumentFields(self, name):
+		"""
+			Returns a list of search-fields (GAE search API) for this bone.
+		"""
+		res = []
+		if self.languages:
+			if self.value is not None:
+				for lang in self.languages:
+					if lang in self.value.keys():
+						res.append( search.TextField( name=name, value=unicode( self.value[lang]), language=lang ) ) 
+		else:
+			res.append( search.TextField( name=name, value=unicode( self.value ) ) )
 		return( res )
