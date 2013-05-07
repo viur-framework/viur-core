@@ -365,9 +365,9 @@ def updateRelations():
 							bone = getattr( tmp, key )
 							if bone.value:
 								if isinstance( bone.value, list ):
-									bone.fromClient( [ x["id"] for x in bone.value] )
+									bone.fromClient( "relbone", { "relbone":[ x["id"] for x in bone.value]} )
 								else:
-									bone.fromClient( bone.value["id"] )
+									bone.fromClient( "relbone", { "relbone": bone.value["id"]} )
 					tmp.toDB( str(oldRelation.key().parent()), clearUpdateTag=True )
 			tmp = db.Get( entry.key() ) #Reset its modified tag
 			tmp["viur_delayed_update_tag"] = 0
