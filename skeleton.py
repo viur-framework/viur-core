@@ -359,7 +359,7 @@ class TaskUpdateSeachIndex( CallableTaskBase ):
 		if not Skel:
 			logging.error("TaskUpdateSeachIndex: Invalid modul")
 			return
-		for sub in db.Query( Skel.kindName ).iter():
+		for sub in db.Query( Skel().kindName ).iter():
 			try:
 				skel = Skel()
 				skel.fromDB( str(sub.key()) )
