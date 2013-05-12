@@ -14,7 +14,7 @@ from functools import wraps
 """
 
 
-__kindName__ = "cache"
+viurCacheName = "viur-cache"
 
 
 	
@@ -94,7 +94,7 @@ def wrapCallable(f, urls, userSensitive, languageSensitive, evaluatedArgs, maxCa
 			# Letz call f, but we knew already that this will clash
 			return( f( self, *args, **kwargs ) )
 		try:
-			dbRes = db.Get( db.Key.from_path( __kindName__, key ) )
+			dbRes = db.Get( db.Key.from_path( viurCacheName, key ) )
 		except db.EntityNotFoundError:
 			dbRes = None
 		if dbRes:
@@ -106,7 +106,7 @@ def wrapCallable(f, urls, userSensitive, languageSensitive, evaluatedArgs, maxCa
 				return( dbRes["data"] )
 		# If we made it this far, the request wasnt cached or too old; we need to rebuild it
 		res = f( self, *args, **kwargs )
-		dbEntity = db.Entity( __kindName__, name=key )
+		dbEntity = db.Entity( viurCacheName, name=key )
 		dbEntity[ "data" ] = res
 		dbEntity[ "creationtime" ] = datetime.now()
 		dbEntity[ "path" ] = path
@@ -159,11 +159,11 @@ def flushCache( prefix="/*" ):
 			and "/page/view/*" only that specific subset of the page-modul.
 		@type prefix: String
 	"""
-	items = db.Query( __kindName__ ).filter( "path =", prefix.rstrip("*") ).datastoreQuery.Run( keysOnly=True )
+	items = db.Query( viurCacheName ).filter( "path =", prefix.rstrip("*") ).run( keysOnly=True )
 	for item in items:
 		db.Delete( item )
 	if prefix.endswith("*"):
-		items = db.Query( __kindName__ ).filter( "path >", prefix.rstrip("*") ).filter( "path <", prefix.rstrip("*")+u"\ufffd").datastoreQuery.Run( keysOnly=True )
+		items = db.Query( viurCacheName ).filter( "path >", prefix.rstrip("*") ).filter( "path <", prefix.rstrip("*")+u"\ufffd").run( keysOnly=True )
 		for item in items:
 			db.Delete( item )
 	logging.debug("Flushing cache succeeded. Everything matching \"%s\" is gone." % prefix )
