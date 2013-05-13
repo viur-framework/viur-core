@@ -134,10 +134,11 @@ class GaeSession:
 				self.sslKey = data["sslkey"]
 				if data["lastseen"] < time()-5*60: #Refresh every 5 Minutes
 					self.changed = True
-			if req.isSSLConnection and not (self.sslCookieName in req.request.cookies.keys() and req.request.cookies[ self.sslCookieName ] == self.sslKey):
+			if req.isSSLConnection and not (self.sslCookieName in req.request.cookies.keys() and req.request.cookies[ self.sslCookieName ] == self.sslKey and self.sslKey ):
 				if self.sslKey:
 					logging.warning("Possible session hijack attempt! Session dropped.")
 				self.reset()
+				return
 			r = self.get( "skeys" )
 			assert r is None or isinstance(r,list)
 			if self.session:
@@ -246,6 +247,7 @@ class GaeSession:
 			lang = None
 		self.key = None
 		self.sslKey = None
+		self.changed = True
 		self.session = {}
 		if lang:
 			self.session[ "language" ] = lang
