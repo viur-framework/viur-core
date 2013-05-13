@@ -657,7 +657,6 @@ class Order( List ):
 		db.RunInTransaction( setIDtxn, orderID, idx  )
 		self.billSequenceAvailable( orderID )
 
-	@callDefered
 	def rebuildSeachIndex(self, step, orderID, *args, **kwargs ):
 		"""
 			This rewrites the order after its complete.
@@ -665,7 +664,8 @@ class Order( List ):
 			saved is incomplete.
 			This loads the order using the (hopefully complete)
 			viewSkel and saves it back; ensuring a complete
-			searchIndex
+			searchIndex.
+			Not a transaction, do not defer!
 		"""
 		skel = self.viewSkel()
 		if not skel.fromDB( orderID ):
