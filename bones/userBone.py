@@ -41,6 +41,6 @@ class userBone( relationalBone ):
 				return( super( userBone, self).fromClient( name, {name: str(user["id"]) } ) )
 			else:
 				return( super( userBone, self).fromClient( None ) )
-		return( relationalBone.fromClient( self, value ) )
+		return( relationalBone.fromClient( self, name, data ) )
 		
 
