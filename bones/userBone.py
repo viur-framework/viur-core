@@ -38,7 +38,7 @@ class userBone( relationalBone ):
 		if self.updateMagic or (self.creationMagic and not self.value):
 			user = conf["viur.mainApp"].user.getCurrentUser()
 			if user:
-				return( super( userBone, self).fromClient( str(user["id"]) ) )
+				return( super( userBone, self).fromClient( name, {name: str(user["id"]) } ) )
 			else:
 				return( super( userBone, self).fromClient( None ) )
 		return( relationalBone.fromClient( self, value ) )
