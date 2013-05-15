@@ -77,7 +77,7 @@ def validateSecurityKey( key, isLongTermKey=False ):
 			keys.remove( key )
 			current["skeys"] = keys
 			current.markChanged()
-		return( True )
+			return( True )
 	return( False )
 	
 def sendEMail( dests, name , skel, extraFiles=[] ):
