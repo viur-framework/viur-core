@@ -4,7 +4,7 @@ from server.skeleton import Skeleton
 from server import utils, session
 from server.bones import *
 from server.bones.passwordBone import pbkdf2
-from server import errors, conf
+from server import errors, conf, securitykey
 #from cone.maintenance import maintenance
 from time import time
 from server import db
@@ -106,7 +106,7 @@ class GoogleUser( List ):
 		user = users.get_current_user()
 		if not user:
 			return( self.render.logoutSuccess( ) )
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise( errors.Forbidden() )
 		raise( errors.Redirect( users.create_logout_url( self.modulPath+"/logout" ) ) )
 	logout.exposed = True
@@ -244,7 +244,7 @@ class CustomUser( List ):
 		skel = self.addSkel()
 		if not skel.fromClient( kwargs ) or len(kwargs)==0 or skey=="" or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.add( skel ) )
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		if skel.all().filter( "name_idx =", skel.name.value.lower() ).get(): #This username is already taken
 			skel.errors["name"] = _("This name is already taken!")
@@ -261,7 +261,7 @@ class CustomUser( List ):
 		if not isAdmin:
 			if self.registrationEmailVerificationRequired:
 				newUser["status"] = 1
-				skey = utils.createSecurityKey( duration=60*60*24*7 , userid=str(newUser.key()), name=skel.name.value )
+				skey = securitykey.create( duration=60*60*24*7 , userid=str(newUser.key()), name=skel.name.value )
 				self.sendVerificationEmail( str(newUser.key()), skey )
 			elif self.registrationAdminVerificationRequired:
 				newUser["status"] = 2
@@ -276,7 +276,7 @@ class CustomUser( List ):
 	def login( self, name=None, password=None, skey="", *args, **kwargs ):
 		if self.getCurrentUser(): #Were already loggedin
 			return( self.render.loginSucceeded( ) )
-		if not name or not password or not utils.validateSecurityKey( skey ):
+		if not name or not password or not securitykey.validate( skey ):
 			return( self.render.login( self.loginSkel() ) )
 		query = db.Query( self.viewSkel().kindName )
 		res  = query.filter( "name_idx >=", name.lower()).get()
@@ -325,7 +325,7 @@ class CustomUser( List ):
 		user = session.current.get("user")
 		if not user:
 			raise errors.Unauthorized()
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		session.current["user"] = None
 		return self.render.logoutSuccess( )
@@ -340,7 +340,7 @@ class CustomUser( List ):
 
 	def pwrecover( self, authtoken=None, skey=None, *args, **kwargs ):
 		if authtoken:
-			data = utils.validateSecurityKey( authtoken, True )
+			data = securitykey.validate( authtoken )
 			if data and isinstance( data, dict ) and "userid" in data.keys() and "password" in data.keys():
 				skel = self.editSkel()
 				assert skel.fromDB( data["userid"] )
@@ -364,13 +364,13 @@ class CustomUser( List ):
 				pass
 			user["changedate"] = datetime.datetime.now()
 			db.Put( user )
-			key = utils.createSecurityKey( 60*60*24, userid=str( user.key() ), password=skel.password.value )
+			key = securitykey.create( 60*60*24, userid=str( user.key() ), password=skel.password.value )
 			self.sendPasswordRecoveryEmail( str( user.key() ), key )
 			return( self.render.passwdRecoverInfo( "instructions_send", skel ) )
 	pwrecover.exposed = True
 	
 	def verify(self,  skey,  *args,  **kwargs ):
-		data = utils.validateSecurityKey( skey, True )
+		data = securitykey.validate( skey )
 		skel = self.editSkel()
 		if not data or not isinstance( data,  dict ) or not "userid" in data or not skel.fromDB( data["userid"] ):
 			return self.render.verifyFailed()

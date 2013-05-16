@@ -4,7 +4,7 @@ from server.applications.list import List
 from server.skeleton import Skeleton
 from server.bones import *
 from server import errors, session, conf, request
-from server.utils import validateSecurityKey
+from server import securitykey
 from server.tasks import callDefered
 from server import db, request
 import urllib
@@ -523,7 +523,7 @@ class Order( List ):
 	def markPayed( self, id, skey ):
 		if not self.canEdit( id ):
 			raise errors.Unauthorized()
-		if not validateSecurityKey( skey ):
+		if not securitykey.verify( skey ):
 			raise errors.PreconditionFailed()
 		self.setPayed( id )
 		return("OKAY")
@@ -532,7 +532,7 @@ class Order( List ):
 	def markSend( self, id, skey ):
 		if not self.canEdit( id ):
 			raise errors.Unauthorized()
-		if not validateSecurityKey( skey ):
+		if not securitykey.verify( skey ):
 			raise errors.PreconditionFailed()
 		self.setSend( id )
 		return("OKAY")
@@ -541,7 +541,7 @@ class Order( List ):
 	def markCanceled( self, id, skey ):
 		if not self.canEdit( id ):
 			raise errors.Unauthorized()
-		if not validateSecurityKey( skey ):
+		if not securitykey.verify( skey ):
 			raise errors.PreconditionFailed()
 		self.setCanceled( id )
 		return("OKAY")
@@ -858,7 +858,8 @@ class Order( List ):
 				except Order.ReturnHtml as e:
 					return( e.html )
 			if "requiresSecutityKey" in currentStep.keys() and currentStep["requiresSecutityKey"] :
-				validateSecurityKey()
+				if not securitykey.verify( skey ):
+					raise errors.PreconditionFailed()
 				pass
 			if "mainHandler" in currentStep.keys():
 				if currentStep["mainHandler"]["action"] == "edit":

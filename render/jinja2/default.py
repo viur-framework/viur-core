@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import time
 from string import Template
-from server import bones, utils, request, session, conf, errors
+from server import bones, utils, request, session, conf, errors, securitykey
 from server.skeleton import Skeleton
 from server.bones import *
 from server.applications.singleton import Singleton
@@ -133,7 +133,7 @@ class Render( object ):
 			self.env.globals["getSkel"] = self.getSkel
 			self.env.globals["getEntry"] = self.getEntry
 			self.env.globals["getList"] = self.fetchList
-			self.env.globals["getSecurityKey"] = utils.createSecurityKey
+			self.env.globals["getSecurityKey"] = securitykey.create
 			self.env.globals["getCurrentUser"] = self.getCurrentUser
 			self.env.globals["getResizedURL"] = get_serving_url
 			self.env.globals["updateURL"] = self.updateURL
@@ -434,7 +434,7 @@ class Render( object ):
 			tpl = self.parent.addTemplate
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		skeybone = bones.baseBone( descr="SecurityKey",  readOnly=True, visible=False )
-		skeybone.value = utils.createSecurityKey()
+		skeybone.value = securitykey.create()
 		skel.skey = skeybone
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
 			skel.errors = {}
@@ -456,7 +456,7 @@ class Render( object ):
 			tpl = self.parent.editTemplate
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		skeybone = bones.baseBone( descr="SecurityKey",  readOnly=True, visible=False )
-		skeybone.value = utils.createSecurityKey()
+		skeybone.value = securitykey.create()
 		skel.skey = skeybone
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
 			skel.errors = {}

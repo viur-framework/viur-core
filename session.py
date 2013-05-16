@@ -75,7 +75,13 @@ class SessionWrapper( threading.local ):
 			return( self.session.save( req ))
 		except AttributeError:
 			return( None )
-	
+
+	def getSessionKey(self, req=None):
+		try:
+			return( self.session.getSessionKey( req ) )
+		except AttributeError:
+			return( None )
+
 	def markChanged(self):
 		try:
 			self.session.markChanged()
@@ -139,8 +145,6 @@ class GaeSession:
 					logging.warning("Possible session hijack attempt! Session dropped.")
 				self.reset()
 				return
-			r = self.get( "skeys" )
-			assert r is None or isinstance(r,list)
 			if self.session:
 				self.key = str( cookie )
 				return( True )
@@ -154,21 +158,14 @@ class GaeSession:
 			Does nothing, if the session hasn't been changed
 			in the current request.
 		"""
-		if self.session and self.changed:
+		if self.changed:
 			serialized = base64.b64encode( pickle.dumps(self.session, protocol=pickle.HIGHEST_PROTOCOL ) )
 			if len(serialized)>620000 and len(serialized)<=920000:
 				logging.warning("Your session is very large (%s bytes)! It cannot be larger than 900KB!" % len( serialized ) )
 			elif len(serialized)>920000:
 				logging.critical("Your session stores too much data! Expect failure!")
-			if not self.key:
-				self.key = ''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase + string.digits) for x in range(42))
-				if req.isSSLConnection:
-					self.sslKey = ''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase + string.digits) for x in range(42))
-				else:
-					self.sslKey = ""
+			self.getSessionKey( req )
 			try:
-				r = self.get( "skeys" )
-				assert r is None or isinstance(r,list)
 				dbSession = db.Entity( self.kindName, name=self.key )
 				dbSession["data"] = serialized
 				dbSession["sslkey"] = self.sslKey
@@ -251,6 +248,24 @@ class GaeSession:
 		self.session = {}
 		if lang:
 			self.session[ "language" ] = lang
+			
+	def getSessionKey( self, req=None ):
+		"""
+			Ensures that the current session is initialized
+			and returns its session-key
+		"""
+		self.changed = True
+		if self.key: # We are already initialized
+			return( self.key )
+		if req is None:
+			from server.request import current
+			req = current.get()
+		self.key = ''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase + string.digits) for x in range(42))
+		if req.isSSLConnection:
+			self.sslKey = ''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase + string.digits) for x in range(42))
+		else:
+			self.sslKey = ""
+		return( self.key )
 	
 @PeriodicTask( 60 )
 def cleanup( ):

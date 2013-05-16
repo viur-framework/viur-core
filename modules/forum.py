@@ -7,7 +7,7 @@ from server import db
 from server import session, errors
 from server.indexes import IndexMannager
 from google.appengine.ext import deferred
-from server import utils, request, tasks
+from server import utils, request, tasks, securitykey
 import logging
 
 class ForumSkel( HierarchySkel ):
@@ -124,7 +124,7 @@ class Forum( Hierarchy ):
 		kwargs["forum"] = forum
 		if not skel.fromClient( kwargs ) or len(kwargs)==0 or skey=="" or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.add( skel, tpl=self.addThreadTemplate ) )
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		id = skel.toDB( )
 		#Now add the first post to this thread
@@ -152,7 +152,7 @@ class Forum( Hierarchy ):
 		if not skel.fromClient( kwargs ) or len(kwargs)==0 or skey=="" or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.add( skel, tpl=self.addPostTemplate ) )
 		threadSkel = self.threadSkel()
-		if not utils.validateSecurityKey( skey ) or not self.threadSkel().fromDB( skel.thread.value ): #Maybe stale thread
+		if not securitykey.validate( skey ) or not self.threadSkel().fromDB( skel.thread.value ): #Maybe stale thread
 			raise errors.PreconditionFailed()
 		id = skel.toDB( )
 		#Refresh the index
@@ -166,7 +166,7 @@ class Forum( Hierarchy ):
 		if not self.canDeletePost( post ):
 			raise errors.Unauthorized()
 		skel = self.postSkel()
-		if not utils.validateSecurityKey( skey ) or not skel.fromDB( post ):
+		if not securitykey.validate( skey ) or not skel.fromDB( post ):
 			raise errors.PreconditionFailed()
 		skel.delete( post )
 		#Refresh the index
@@ -181,7 +181,7 @@ class Forum( Hierarchy ):
 		if not self.canDeleteThread( thread ):
 			raise errors.Unauthorized()
 		skel = self.threadSkel()
-		if not utils.validateSecurityKey( skey ) or not skel.fromDB( thread ):
+		if not securitykey.validate( skey ) or not skel.fromDB( thread ):
 			raise errors.PreconditionFailed()
 		skel.delete( thread )
 		#Refresh the index
@@ -221,7 +221,7 @@ class Forum( Hierarchy ):
 			raise errors.PreconditionFailed()
 		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel, tpl=self.editThreadTemplate ) )
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel.toDB( id )
 		self.onItemEdited( id, skel )
@@ -236,7 +236,7 @@ class Forum( Hierarchy ):
 			raise errors.PreconditionFailed()
 		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel, tpl=self.editPostTemplate ) )
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel.toDB( id )
 		self.onItemEdited( id, skel )

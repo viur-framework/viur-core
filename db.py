@@ -95,7 +95,7 @@ def GetAsync( keys, **kwargs ):
 		
 		def get_result( self ):
 			return( self.res )
-	if conf["viur.db.caching" ]>0:
+	if conf["viur.db.caching" ]>0 and not datastore.IsInTransaction():
 		if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
 			res = memcache.get( str(keys), namespace=__CacheKeyPrefix__ )
 			if res:
@@ -127,7 +127,7 @@ def Get( keys, **kwargs ):
 		Returns:
 			Entity or list of Entity objects
 	"""
-	if conf["viur.db.caching" ]>0:
+	if conf["viur.db.caching" ]>0  and not datastore.IsInTransaction():
 		if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
 			res = memcache.get( str(keys), namespace=__CacheKeyPrefix__ )
 			if not res: #Not cached - fetch and cache it :)

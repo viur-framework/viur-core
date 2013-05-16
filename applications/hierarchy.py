@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone, numericBone
 from server.skeleton import Skeleton
-from server import utils, errors, session, conf, request
+from server import utils, errors, session, conf, request, securitykey
 from server import db
 from time import time
 from google.appengine.api import users
@@ -164,7 +164,7 @@ class Hierarchy( object ):
 		"""
 		if not self.canPreview( ):
 			raise errors.Unauthorized()
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.verify( skey ):
 			raise errors.PreconditionFailed()
 		skel = self.viewSkel()
 		skel.fromClient( kwargs )
@@ -339,7 +339,7 @@ class Hierarchy( object ):
 			raise errors.NotAcceptable()
 		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel ) )
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel.toDB( id )
 		self.onItemAdded( id, skel )
@@ -364,7 +364,7 @@ class Hierarchy( object ):
 		skel = self.addSkel()
 		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.add( skel ) )
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel.parententry.value = str( parent )
 		skel.parentrepo.value = str( self.getRootNode( parent ).key() )
