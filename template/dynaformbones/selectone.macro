@@ -4,6 +4,9 @@
 		<input type="hidden" name="{{ bone_name }}" value="{{ value }}" />
 	{% else %}
 			<select name="{{ bone_name }}">
+	{% if not bone.required %}					
+					<option value="None" {% if not value %}selected="selected"{% endif%}></option>
+	{%endif%}				
 					{%- for key,descr in bone["values"]|dictsort(by="value") %}
 						<option value="{{key}}" {% if key|string==value|string %}selected="selected"{% endif%}>{{descr}}</option>
 					{% endfor -%}
