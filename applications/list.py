@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
 from server.skeleton import Skeleton
-from server import utils, session,  errors, conf
+from server import utils, session,  errors, conf, securitykey
 from google.appengine.api import users
 import logging
 
@@ -29,7 +29,7 @@ class List( object ):
 		"""
 		if not self.canPreview( ):
 			raise errors.Unauthorized()
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel = self.viewSkel()
 		skel.fromClient( kwargs )
@@ -103,7 +103,7 @@ class List( object ):
 			raise errors.NotAcceptable()
 		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel ) )
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel.toDB( id )
 		self.onItemEdited( id, skel )
@@ -124,7 +124,7 @@ class List( object ):
 		skel = self.addSkel()
 		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.add( skel ) )
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		id = skel.toDB( )
 		self.onItemAdded( id, skel )
@@ -141,7 +141,7 @@ class List( object ):
 		skel = self.editSkel()
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel.delete( id )
 		self.onItemDeleted( id, skel )

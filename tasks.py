@@ -198,7 +198,7 @@ class TaskHandler:
 	def execute(self, taskID, *args, **kwargs ):
 		"""Queues a specific task for the next maintenance run"""
 		global _callableTasks
-		from server.utils import validateSecurityKey
+		from server import securitykey
 		if taskID in _callableTasks.keys():
 			task = _callableTasks[ taskID ]()
 		else:
@@ -212,7 +212,7 @@ class TaskHandler:
 			skey = ""
 		if not skel.fromClient( kwargs ) or len(kwargs)==0 or skey=="" or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.add( skel ) )
-		if not validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		if task.direct:
 			task.execute( **skel.getValues() )

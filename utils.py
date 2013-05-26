@@ -3,11 +3,9 @@ from google.appengine.api import memcache, app_identity, mail
 from google.appengine.ext import deferred
 import new, os
 from server.bones import baseBone
-from server.session import current
 from server import db
 import string, random, base64
 from server.config import conf
-from datetime import datetime, timedelta
 import logging
 
 
@@ -21,64 +19,6 @@ def generateRandomString( length=13 ):
 	"""
 	return(  ''.join( [ random.choice(string.ascii_lowercase+string.ascii_uppercase + string.digits) for x in range(13) ] ) )
 
-def createSecurityKey( duration=None, **kwargs ):
-	"""
-		Creates a new onetime Securitykey for the current session
-		If duration is not set, this key is valid only for the current session.
-		Otherwise, the key and its data is serialized and saved inside the datastore
-		for up to duration-seconds
-		@param duration: Make this key valid for a fixed timeframe (and independend of the current session)
-		@type duration: Int or None
-		@returns: The new onetime key
-		
-		Fixme: We have a race-condition here.
-		If the user issues two requests at the same time, its possible that a freshly generated skey is lost
-		or a skey consumed by one of these requests become avaiable again
-	"""
-	key = generateRandomString()
-	if duration: #Create a longterm key in the datastore
-		dbObj = db.Entity("viur_security_keys" )
-		for k, v in kwargs.items():
-			dbObj[ k ] = v
-		dbObj["until"] = datetime.now()+timedelta( seconds=duration )
-		dbObj["skey"] = key
-		dbObj.set_unindexed_properties( [x for x in dbObj.keys() if not x in ["skey", "until"] ] )
-		db.Put( dbObj )
-	else: #Create an session-dependet key
-		keys = current.get( "skeys" )
-		if not keys:
-			keys = []
-		keys.append( key )
-		if len( keys )> 100:
-			keys = keys[ -100: ]
-		current["skeys"] = keys
-		current.markChanged()
-	return( key )
-	
-def validateSecurityKey( key, isLongTermKey=False ):
-	""" Validates a onetime securitykey for the current session
-	
-	@type key: String
-	@param key: The key to validate
-	@param isLongTermKey: Must be true, if the key was created with a fixed validationtime ,false otherwise
-	@returns: If not isLongTermKey: True on success, False otherwise. If isLongTermKey, the stored data will be returned as dict on success
-	"""
-	if isLongTermKey:
-		dbObj = db.Query("viur_security_keys" ).filter( "skey =", key ).get()
-		if dbObj:
-			res ={}
-			for k in dbObj.keys():
-				res[ k ] = dbObj[ k ]
-			db.Delete( dbObj.key() )
-			return( res )
-	else:
-		keys = current.get( "skeys" )
-		if keys and key in keys:
-			keys.remove( key )
-			current["skeys"] = keys
-			current.markChanged()
-		return( True )
-	return( False )
 	
 def sendEMail( dests, name , skel, extraFiles=[] ):
 	"""Sends an EMail

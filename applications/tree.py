@@ -2,7 +2,7 @@
 from server.bones import baseBone, numericBone
 from server.skeleton import Skeleton
 from server import utils
-from server import errors, session, conf
+from server import errors, session, conf, securitykey
 from server import db
 from time import time
 from google.appengine.api import users
@@ -85,7 +85,7 @@ class Tree( object ):
 		"""
 		if not self.canPreview( ):
 			raise errors.Unauthorized()
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel = self.viewSkel()
 		skel.fromClient( kwargs )
@@ -412,7 +412,7 @@ class Tree( object ):
 			raise errors.NotAcceptable()
 		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel ) )
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel.toDB( id )
 		self.onItemEdited( id, skel )
@@ -443,7 +443,7 @@ class Tree( object ):
 			return( self.render.add( skel ) )
 		skel.parentdir.value = str( repo.key() )
 		skel.parentrepo.value = rootNode
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		id = skel.toDB( )
 		self.onItemAdded( id, skel )

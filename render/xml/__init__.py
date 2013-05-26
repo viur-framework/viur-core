@@ -4,15 +4,15 @@ from .default import DefaultRender as default, serializeXML
 from .user import UserRender as user
 from .file import FileRender as file
 from server import conf
-from server.utils import createSecurityKey
+from server import securitykey
 import datetime
 
 
 __all__=[ default ]
 
-def skey( *args,  **kwargs ):
-	return json.dumps( createSecurityKey() ) 
-skey.exposed=True
+def genSkey( *args,  **kwargs ):
+	return( "<securityKey>%s</securityKey>" % securitykey.create() )
+genSkey.exposed=True
 
 def timestamp( *args, **kwargs):
 	d = datetime.datetime.now()
@@ -34,7 +34,7 @@ def dumpConfig( adminConfig ):
 		} )
 
 def _postProcessAppObj( obj ):
-	obj.skey = skey
+	obj.skey = genSkey
 	obj.timestamp = timestamp
 	adminConfig = generateAdminConfig( obj )
 	tmp = lambda *args, **kwargs: dumpConfig( adminConfig )

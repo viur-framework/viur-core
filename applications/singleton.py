@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
 from server.skeleton import Skeleton
-from server import utils, session,  errors, conf
+from server import utils, session,  errors, conf, securitykey
 from google.appengine.api import users
 from google.appengine.ext import db
 import logging
@@ -48,7 +48,7 @@ class Singleton( object ):
 		"""
 		if not self.canPreview( ):
 			raise errors.Unauthorized()
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel = self.viewSkel()
 		skel.fromClient( kwargs )
@@ -84,7 +84,7 @@ class Singleton( object ):
 		skel.fromDB( id )
 		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel ) )
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel.toDB( id )
 		self.onItemEdited( skel )
