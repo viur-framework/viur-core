@@ -43,7 +43,7 @@ def keyFromArgs( f, userSensitive, languageSensitive, evaluatedArgs, path, *args
 	argsOrder = list( f.__code__.co_varnames )[ 1 : f.__code__.co_argcount ]
 	# Map default values in
 	reversedArgsOrder = argsOrder[ : : -1]
-	for defaultValue in list( f.func_defaults )[ : : -1]:
+	for defaultValue in list( f.func_defaults or [] )[ : : -1]:
 		res[ reversedArgsOrder.pop( 0 ) ] = defaultValue
 	del reversedArgsOrder
 	# Map args in
