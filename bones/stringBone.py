@@ -2,6 +2,7 @@
 from server.bones import baseBone
 from server.config import conf
 from server import db
+from server import request
 from server.session import current as currentSession
 from google.appengine.api import search
 import logging
@@ -20,7 +21,7 @@ class LanguageWrapper( dict ):
 		self.languages = languages
 	
 	def __str__( self ):
-		lang = currentSession.getLanguage()
+		lang = request.current.get().language # currentSession.getLanguage()
 		if not lang:
 			lang = self.languages[ 0 ]
 		if lang in self.keys(): #The users language is avaiable :)
@@ -189,7 +190,7 @@ class stringBone( baseBone ):
 						lang = langStr
 						break
 			if not lang:
-				lang = currentSession.getLanguage()
+				lang = request.current.get().language #currentSession.getLanguage()
 				if not lang or not lang in self.languages:
 					lang = self.languages[ 0 ]
 			namefilter = "%s.%s" % (name, lang)
@@ -226,7 +227,7 @@ class stringBone( baseBone ):
 				logging.warning( "Invalid ordering! %s is not indexed!" % name )
 				raise RuntimeError()
 			if self.languages:
-				lang = currentSession.getLanguage()
+				lang = request.current.get().language #currentSession.getLanguage()
 				if not lang or not lang in self.languages:
 					lang = self.languages[ 0 ]
 				if self.caseSensitive:

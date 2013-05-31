@@ -63,7 +63,7 @@ def keyFromArgs( f, userSensitive, languageSensitive, evaluatedArgs, path, *args
 		else:
 			res[ "__user" ] = None
 	if languageSensitive:
-		res[ "__lang" ] = session.current.getLanguage()
+		res[ "__lang" ] = request.current.get().language
 	res[ "__path" ] = path #Different path might have different output (html,xml,..)
 	# Last check, that every parameter is satisfied:
 	if not all ( [ x in res.keys() for x in argsOrder ] ):

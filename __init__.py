@@ -14,6 +14,7 @@ for lib in os.listdir( os.path.join("server", "libs") ):
 		continue
 	sys.path.insert(0, os.path.join( "server", "libs", lib ) )
 from server.config import conf, sharedConf
+from server import request
 import server.languages as servertrans
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp.util import run_wsgi_app
@@ -34,7 +35,7 @@ except: #The Project doesnt use Multi-Language features
 
 def translate( key, **kwargs ):
 	try:
-		lang = session.current.getLanguage()
+		lang = request.current.get().language
 	except:
 		return( key )
 	lang = lang or conf["viur.defaultLanguage"]
@@ -65,7 +66,7 @@ def setDefaultDomainLanguage( domain, lang ):
 
 ### Multi-Language Part: END 
 
-from server import session, errors, request
+from server import session, errors
 from server.modules.file import UploadHandler,DownloadHandler
 from server.tasks import TaskHandler
 from server import backup
@@ -188,15 +189,61 @@ class BrowseHandler(webapp.RequestHandler):
 		if path=="_ah/start" or path=="_ah/warmup": #Warmup request
 			self.response.out.write("OK")
 			return
+		self.isPostRequest = False
 		self.processRequest( path, *args, **kwargs )
-		
+
+
 	def post(self, path="/", *args, **kwargs): #Accept a HTTP-POST request
+		self.isPostRequest = True
 		self.processRequest( path, *args, **kwargs )
-		
+
+
+	def selectLanguage( self, path ):
+		"""
+			Tries to select the best language for the current request.
+		"""
+		if translations is None:
+			# This project doesn't use the multi-language feature, nothing to do here
+			return( path )
+		if conf["viur.languageMethod"] == "session":
+			# We store the language inside the session, try to load it from there
+			if not session.current.getLanguage():
+				if "X-Appengine-Country" in self.request.headers.keys():
+					lng = self.request.headers["X-Appengine-Country"].lower()
+					if lng in (list( dir( translations ) ) ):
+						session.current.setLanguage( lng )
+						self.language = lng
+					else:
+						session.current.setLanguage( conf["viur.defaultLanguage"] )
+			else:
+				self.language = session.current.getLanguage()
+		elif conf["viur.languageMethod"] == "domain":
+			host = self.request.host_url.lower()
+			host = host[ host.find("://")+3: ].strip(" /") #strip http(s)://
+			if host.startswith("www."):
+				host = host[ 4: ]
+			if host in conf["viur.domainLanguageMapping"].keys():
+				self.language = conf["viur.domainLanguageMapping"][ host ]
+			else: # We have no language configured for this domain, try to read it from session
+				if session.current.getLanguage():
+					self.language = session.current.getLanguage()
+		elif conf["viur.languageMethod"] == "url":
+			tmppath = urlparse.urlparse( path ).path
+			tmppath = [ urlparse.unquote( x ) for x in tmppath.lower().strip("/").split("/") ]
+			if len( tmppath )>0 and tmppath[0] in (list( dir( translations ) ) ):
+				self.language = tmppath[0]
+				return( path[ len( tmppath[0])+1: ] ) #Return the path stripped by its language segment
+			else: # This URL doesnt contain an language prefix, try to read it from session
+				if session.current.getLanguage():
+					self.language = session.current.getLanguage()
+		return( path )
+
+
 	def processRequest( self, path, *args, **kwargs ): #Bring up the enviroment for this request, handle errors
 		self.internalRequest = False
 		self.isDevServer = "Development" in os.environ['SERVER_SOFTWARE'] #Were running on development Server
 		self.isSSLConnection = self.request.host_url.lower().startswith("https://") #We have an encrypted channel
+		self.language = conf["viur.defaultLanguage"]
 		if sharedConf["viur.disabled"] and not (users.is_current_user_admin() or "HTTP_X_QUEUE_NAME".lower() in [x.lower() for x in os.environ.keys()] ): #FIXME: Validate this works
 			self.response.set_status( 503 ) #Service unaviable
 			tpl = Template( open("server/template/error.html", "r").read() )
@@ -213,21 +260,7 @@ class BrowseHandler(webapp.RequestHandler):
 			self.redirect( "https://%s/" % host )
 		try:
 			session.current.load( self ) # self.request.cookies )
-			if not session.current.getLanguage():
-				host = self.request.host_url.lower()
-				host = host[ host.find("://")+3: ].strip(" /") #strip http(s)://
-				if host.startswith("www."):
-					host = host[ 4: ]
-				if host in conf["viur.domainLanguageMapping"].keys():
-					session.current.setLanguage( conf["viur.domainLanguageMapping"][ host ] )
-				elif "X-Appengine-Country" in self.request.headers.keys():
-					lng = self.request.headers["X-Appengine-Country"].lower()
-					if lng in (list( dir( translations ) ) + list( dir( servertrans ) )):
-						session.current.setLanguage( lng )
-					else:
-						session.current.setLanguage( conf["viur.defaultLanguage"] )
-				elif "server.defaultLanguage" in conf.keys():
-					session.current.setLanguage( conf["viur.defaultLanguage"] )
+			path = self.selectLanguage( path )
 			self.findAndCall( path, *args, **kwargs )
 		except errors.Redirect as e :
 			self.redirect( e.url.encode("UTF-8") )
@@ -315,12 +348,16 @@ class BrowseHandler(webapp.RequestHandler):
 					caller = caller.index
 			else:
 				raise( errors.MethodNotAllowed() )
+		# Check for forceSSL flag
 		if not self.internalRequest \
 			and "forceSSL" in dir( caller ) \
 			and caller.forceSSL \
 			and not self.request.host_url.lower().startswith("https://") \
 			and not "Development" in os.environ['SERVER_SOFTWARE']:
 				raise( errors.PreconditionFailed("You must use SSL to access this ressource!") )
+		# Check for forcePost flag
+		if "forcePost" in dir( caller ) and caller.forcePost and not self.isPostRequest:
+			raise( errors.MethodNotAllowed("You must use POST to access this ressource!") )
 		self.args = []
 		for arg in args:
 			if isinstance( x, unicode):
@@ -333,6 +370,7 @@ class BrowseHandler(webapp.RequestHandler):
 		self.kwargs = kwargs
 		request.current.setRequest( self )
 		self.response.out.write( caller( *self.args, **self.kwargs ) )
+
 
 	def saveSession(self):
 		session.current.save( self )
@@ -374,4 +412,28 @@ def forceSSL( f ):
 		Has no effect on the development-server.
 	"""
 	f.forceSSL = True
+	return( f )
+
+def forcePost( f ):
+	"""
+		Forces usage of an http post request.
+	"""
+	f.forcePost = True
+	return( f )
+
+def exposed( f ):
+	"""
+		Marks an function as exposed.
+		Only exposed functions are callable by http-requests.
+	"""
+	f.exposed = True
+	return( f )
+
+def internalExposed( f ):
+	"""
+		Marks an function as internal exposed.
+		Internal exposed functions are not callable by external http-requests,
+		but can be called by templates using execRequest
+	"""
+	f.internalExposed = True
 	return( f )

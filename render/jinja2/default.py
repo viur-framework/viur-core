@@ -86,7 +86,7 @@ class Render( object ):
 				stylePostfix = "_"+request.current.get().kwargs["style"]
 		else:
 			stylePostfix = ""
-		lang = session.current.getLanguage()
+		lang = request.current.get().language #session.current.getLanguage()
 		fnames = [ template+stylePostfix+".html", template+".html" ]
 		if lang:
 			fnames = [ 	os.path.join(  lang, template+stylePostfix+".html"),
@@ -139,7 +139,7 @@ class Render( object ):
 			self.env.globals["updateURL"] = self.updateURL
 			self.env.globals["execRequest"] = self.execRequest
 			self.env.globals["getHostUrl" ] = self.getHostUrl
-			self.env.globals["getLanguage" ] = lambda *args, **kwargs: session.current.getLanguage()
+			self.env.globals["getLanguage" ] = lambda *args, **kwargs: request.current.get().language #session.current.getLanguage()
 			self.env.globals["modulName"] = lambda *args, **kwargs: self.parent.modulName
 			self.env.globals["modulPath"] = lambda *args, **kwargs: self.parent.modulPath
 			self.env.globals["_"] = _
