@@ -131,11 +131,11 @@ class GaeSession:
 			try:
 				data = db.Get( db.Key.from_path( self.kindName, cookie ) )
 			except:
-				return
+				return( False )
 			if data: #Loaded successfully from Memcache
 				if data["lastseen"] < time()-self.lifeTime :
 					# This session is too old
-					return
+					return( False )
 				self.session = pickle.loads( base64.b64decode(data["data"]) )
 				self.sslKey = data["sslkey"]
 				if data["lastseen"] < time()-5*60: #Refresh every 5 Minutes
@@ -144,13 +144,9 @@ class GaeSession:
 				if self.sslKey:
 					logging.warning("Possible session hijack attempt! Session dropped.")
 				self.reset()
-				return
-			if self.session:
-				self.key = str( cookie )
-				return( True )
-			else:
-				self.session = {}
 				return( False )
+			self.key = str( cookie )
+			return( True )
 	
 	def save(self, req):
 		"""
