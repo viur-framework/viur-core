@@ -184,6 +184,7 @@ class Skeleton( object ):
 			db.Put( dbObj )
 			return( str( dbObj.key() ), dbObj )
 		id, dbObj = db.RunInTransactionOptions( db.TransactionOptions(xg="preProcessSerializedData" in dir( self )), txnUpdate, id, self, clearUpdateTag )
+		self.id.value = str(id)
 		if self.searchIndex: #Add a Document to the index if an index specified
 			fields = []
 			for key in dir( self ):
