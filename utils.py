@@ -2,7 +2,6 @@
 from google.appengine.api import memcache, app_identity, mail
 from google.appengine.ext import deferred
 import new, os
-from server.bones import baseBone
 from server import db
 import string, random, base64
 from server.config import conf
