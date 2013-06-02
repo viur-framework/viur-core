@@ -90,17 +90,22 @@ class DefaultRender( object ):
 					res[key] = _bone.value
 		return res
 		
-	def view( self, skel, listname="view", *args, **kwargs ):
+	def renderEntry( self, skel, actionName ):
 		res = {	"values": self.renderSkelValues( skel ), 
-				"structure": self.renderSkelStructure( skel ) }
+			"structure": self.renderSkelStructure( skel ),
+			"action": actionName }
 		request.current.get().response.headers['Content-Type'] = "application/json"
 		return( json.dumps( res ) )
+
+	
+	def view( self, skel, listname="view", *args, **kwargs ):
+		return( self.renderEntry( skel, "view" ) )
 		
 	def add( self, skel, **kwargs ):
-		return( self.view( skel ) )
+		return( self.renderEntry( skel, "add" ) )
 
 	def edit( self, skel, **kwargs ):
-		return( self.view( skel ) )
+		return( self.renderEntry( skel, "edit" ) )
 
 	def list( self, skellist, **kwargs ):
 		res = {}
@@ -113,17 +118,18 @@ class DefaultRender( object ):
 		else:
 			res["structure"] = None
 		res["cursor"] = skellist.cursor
+		res["action"] = "list"
 		request.current.get().response.headers['Content-Type'] = "application/json"
 		return( json.dumps( res ) )
 
-	def editItemSuccess(self, *args, **kwargs ):
-		return( json.dumps("OKAY") )
+	def editItemSuccess(self, skel, **kwargs ):
+		return( self.renderEntry( skel, "editSuccess" ) )
 		
-	def addItemSuccess(self, *args, **kwargs ):
-		return( json.dumps("OKAY") )
+	def addItemSuccess(self, skel, **kwargs ):
+		return( self.renderEntry( skel, "addSuccess" ) )
 		
-	def deleteItemSuccess(self, *args, **kwargs ):
-		return( json.dumps("OKAY") )
+	def deleteItemSuccess(self, skel, **kwargs ):
+		return( self.renderEntry( skel, "deleteSuccess" ) )
 
 	def addDirSuccess(self, *args, **kwargs ):
 		return( json.dumps( "OKAY") )
