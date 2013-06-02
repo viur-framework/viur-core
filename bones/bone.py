@@ -184,9 +184,7 @@ class baseBone(object): # One Bone:
 			else:
 				try:
 					dbFilter.filter( db.KEY_SPECIAL_PROPERTY, fromShortKey( rawFilter["id"] ) )
-				except db.BadKeyError: #This cant work
-					raise RuntimeError()
-				except UnicodeEncodeError: # Also invalid key
+				except: #Invalid key or something
 					raise RuntimeError()
 			return( dbFilter )
 		myKeys = [ key for key in rawFilter.keys() if (key==name or key.startswith( name+"$" )) ] 
