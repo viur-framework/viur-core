@@ -142,7 +142,7 @@ class stringBone( baseBone ):
 				return( "No value entered" )
 			else:
 				return( None )
-		if self.multiple and not self.languages:
+		elif self.multiple and not self.languages:
 			self.value = []
 			if not value:
 				return( "No value entered" )
@@ -158,9 +158,22 @@ class stringBone( baseBone ):
 				return( "No valid value entered" )
 		elif not self.multiple and self.languages:
 			self.value = LanguageWrapper( self.languages )
+			err = None
 			for lang in self.languages:
 				if "%s.%s" % ( name, lang ) in data.keys():
-					self.value[ lang ] = escapeValue( data["%s.%s" % ( name, lang )] )
+					val = data["%s.%s" % ( name, lang )]
+					tmpErr = self.canUse( val )
+					if not tmpErr:
+						self.value[ lang ] = escapeValue( val )
+					else:
+						err = tmpErr
+			if err:
+				return( err )
+			else:
+				if len( self.value.keys() )==0: #No valid value
+					return( "No value entered" )
+			return( None )
+			
 		else:
 			err = self.canUse( value )
 			if not err:
