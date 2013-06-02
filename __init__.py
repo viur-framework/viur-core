@@ -67,7 +67,6 @@ def setDefaultDomainLanguage( domain, lang ):
 ### Multi-Language Part: END 
 
 from server import session, errors
-from server.modules.file import UploadHandler,DownloadHandler
 from server.tasks import TaskHandler
 from server import backup
 
@@ -318,12 +317,17 @@ class BrowseHandler(webapp.RequestHandler):
 		del tmpArgs
 		if "self" in kwargs.keys(): #self is reserved for bound methods
 			raise errors.BadRequest()
+		request.current.setRequest( self )
 		#Parse the URL
 		path = urlparse.urlparse( path ).path
 		self.pathlist = [ urlparse.unquote( x ) for x in path.strip("/").split("/") ]
 		caller = conf["viur.mainApp"]
 		idx = 0 #Count how may items from *args we'd have consumed (so the rest can go into *args of the called func
 		for currpath in self.pathlist:
+			if "canAccess" in dir( caller ) and not caller.canAccess():
+				# We have a canAccess function guarding that object,
+				# and it returns False...
+				raise( errors.Unauthorized() )
 			idx += 1
 			currpath = currpath.replace("-", "_").replace(".", "_")
 			if currpath in dir( caller ):
@@ -368,7 +372,6 @@ class BrowseHandler(webapp.RequestHandler):
 				except:
 					pass
 		self.kwargs = kwargs
-		request.current.setRequest( self )
 		self.response.out.write( caller( *self.args, **self.kwargs ) )
 
 
@@ -388,13 +391,14 @@ def setup( modules, render=None, default="jinja2" ):
 		@param default: Which render should be the default. Its modules wont get a prefix (i.e /user instead of /renderBaseName/user )
 		@type default: String
 	"""
+	from server.modules.file import UploadHandler,DownloadHandler
 	if not render:
 		import server.render
 		render = server.render
 	conf["viur.mainApp"] = buildApp( modules, render, default )
 	renderPrefix = [ "/%s" % x for x in dir( render ) if (not x.startswith("_") and x!=default) ]+[""]
 	conf["viur.wsgiApp"] = webapp.WSGIApplication(	[(r"%s/file/upload" %x ,UploadHandler) for x in renderPrefix ]+ #Upload handler
-											[(r"%s/file/view/(.*)" %x,DownloadHandler) for x in renderPrefix]+ #Download handler
+											[(r"%s/file/download/(.*)" %x,DownloadHandler) for x in renderPrefix]+ #Download handler
 											[(r'/(.*)', BrowseHandler)] )
 	return( conf["viur.wsgiApp"] )
 	
