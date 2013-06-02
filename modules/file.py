@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.skeleton import Skeleton
 from server import session, errors, conf
-from server.applications.tree import Tree, TreeSkel
+from server.applications.tree import Tree, TreeNodeSkel, TreeLeafSkel
 from server.bones import *
 from server import utils, db
 from google.appengine.ext import blobstore
@@ -31,7 +31,8 @@ def findPathInRootNode( rootNode, path):
 		return( None )
 	else:
 		return( repo )
-		
+
+
 class UploadHandler(blobstore_handlers.BlobstoreUploadHandler):
 	# http://code.google.com/p/googleappengine/issues/detail?id=2749
 	# Open since Sept. 2010, claimed to be fixed in Version 1.7.2 (September 18, 2012)
@@ -54,21 +55,22 @@ class UploadHandler(blobstore_handlers.BlobstoreUploadHandler):
 		try:
 			session.current.load( self )
 			res = []
-			if "rootNode" in self.request.arguments() and self.request.get("rootNode") and "path" in self.request.arguments():
-				if not conf["viur.mainApp"].file.canUploadTo( self.request.get("rootNode"), self.request.get("path") ):
-					for upload in self.get_uploads():
-						upload.delete()
-					return
+			if "node" in self.request.arguments() and self.request.get("node"):
+				#if not conf["viur.mainApp"].file.canUploadTo( self.request.get("rootNode"), self.request.get("path") ):
+				#	for upload in self.get_uploads():
+				#		upload.delete()
+				#	return
 				# The file is uploaded into a rootNode
-				repo = findPathInRootNode( self.request.get("rootNode"), self.request.get("path") )
-				if not repo:
+				node = self.request.get("node")
+				nodeSkel = conf["viur.mainApp"].file.editNodeSkel()
+				if not nodeSkel.fromDB( node ):
 					for upload in self.get_uploads():
 						upload.delete()
 				else:
 					for upload in self.get_uploads():
 						filename = self.decodeFileName( upload.filename )
 						#Check if a file with this name already exists in this directory
-						oldFile = db.Query( "file" ).filter( "parentdir =", str(repo.key())).filter( "name =", filename ).get()
+						oldFile = db.Query( "file" ).filter( "parentdir =", str(node)).filter( "name =", filename ).get()
 						if oldFile: # Delete the old one (=>Overwrite this file)
 							utils.markFileForDeletion( oldFile["dlkey"] )
 							db.Delete( oldFile.key() )
@@ -79,23 +81,23 @@ class UploadHandler(blobstore_handlers.BlobstoreUploadHandler):
 								servingURL = ""
 						else:
 							servingURL = ""
-						fileObj = db.Entity(	"file" )
+						fileObj = db.Entity( "file" )
 						fileObj[ "name" ]= filename
 						fileObj[ "name_idx" ] = filename.lower()
 						fileObj[ "size" ]=upload.size
 						fileObj[ "meta_mime" ]=upload.content_type
 						fileObj[ "dlkey" ]=str(upload.key())
-						fileObj[ "parentdir" ]=str(repo.key())
-						fileObj[ "parentrepo" ]=self.request.get("rootNode")
+						fileObj[ "parentdir" ]=str(node)
+						fileObj[ "parentrepo" ]= nodeSkel.parentrepo.value
 						fileObj[ "servingurl" ]=servingURL
 						fileObj[ "weak" ] = False
 						db.Put( fileObj )
 					#Fixme(): Bad things will happen if uploaded from Webbrowser
-					res.append( { "name": filename,
-								"size":float( upload.size ),
-								"meta_mime":str(upload.content_type),
-								"dlkey":str(upload.key()),
-								"parentdir":str( repo.key() ) } )
+					res.append( {	"name": filename,
+							"size":float( upload.size ),
+							"meta_mime":str(upload.content_type),
+							"dlkey":str(upload.key()),
+							"parentdir":str( node ) } )
 			else:
 				#We got a anonymous upload (a file not registered in any rootNode yet)
 				if not conf["viur.mainApp"].file.canUploadTo( None, None ):
@@ -154,17 +156,25 @@ class DownloadHandler(blobstore_handlers.BlobstoreDownloadHandler):
 		return( self.get( dlkey, fileName, *args, **kwargs ) )
 
 
-class fileBaseSkel( TreeSkel ):
+class fileBaseSkel( TreeNodeSkel ):
 	kindName = "file"
 	size = stringBone( descr="Size", params={"indexed": True,  "frontend_list_visible": True}, readOnly=True )
 	dlkey = stringBone( descr="Download-Key", params={"indexed": True,  "frontend_list_visible": True}, readOnly=True, indexed=True )
 	name = stringBone( descr="Filename", params={"indexed": True,  "frontend_list_visible": True}, readOnly=True, caseSensitive=False, indexed=True )
 	meta_mime = stringBone( descr="Mime-Info", params={"indexed": True,  "frontend_list_visible": True}, readOnly=True )
 	#testData = stringBone( descr="TestData", params={"indexed": True,  "frontend_list_visible": True} )
-	
+
+
+class fileNodeSkel( TreeLeafSkel ):
+	kindName = "file_rootNode"
+	name = stringBone( descr="Name", required=True )
+
 class File( Tree ):
-	viewSkel = fileBaseSkel
-	editSkel = fileBaseSkel
+	viewLeafSkel = fileBaseSkel
+	editLeafSkel = fileBaseSkel
+	
+	viewNodeSkel = fileNodeSkel
+	editNodeSkel = fileNodeSkel
 	
 	maxuploadsize = None
 	uploadHandler = []
@@ -201,45 +211,45 @@ class File( Tree ):
 	getAvailableRootNodes.internalExposed=True
 
 
-	def view( self, dlkey, filename="file.dat", *args, **kwargs ):
-		assert False #This should never be reached
-	view.exposed = True
+	#def view( self, dlkey, filename="file.dat", *args, **kwargs ):
+	#	assert False #This should never be reached
+	#view.exposed = True
 	
-	def add( self, *args, **kwargs ):
+	def ad1d( self, *args, **kwargs ):
 		raise errors.NotAcceptable()
-	add.exposed = True
+	ad1d.exposed = True
 
-	def delete( self, rootNode, path, name, type ):
+	def delete( self, id, skelType ):
 		"""Our timestamp-based update approach dosnt work here, so we'll do another trick"""
-		repo = self.findPathInRootNode( rootNode, path )
-		if not self.canDelete( repo, name, type ):
-			raise errors.Unauthorized()
-		if not repo:
-			raise errors.PreconditionFailed()
-		if type=="entry":
-			fileEntry = db.Query( self.viewSkel.kindName )\
-				.filter( "parentdir =",  str(repo.key()) )\
-				.filter( "name =", name).get() 
-			if fileEntry:
-				utils.markFileForDeletion( fileEntry["dlkey"] )
-				db.Delete( fileEntry.key() )
+		if skelType=="node":
+			skel = self.editNodeSkel
+		elif skelType=="leaf":
+			skel = self.editLeafSkel
 		else:
-			delRepo = db.Query( self.viewSkel.kindName+"_rootNode" )\
-				.filter( "parentdir = ", str(repo.key()) )\
-				.filter( "name", name).get()
-			if delRepo:
-				deferred.defer( self.deleteDirsRecursive, str(delRepo.key()) )
-				db.Delete( delRepo.key() )
-		self.onItemDeleted( rootNode, path, name, type )
-		return( self.render.deleteSuccess() )
+			assert False
+		repo = skel()
+		if not repo.fromDB( id ):
+			raise errors.NotFound()
+		if not self.canDelete( repo, id, skelType ):
+			raise errors.Unauthorized()
+		if skelType=="leaf":
+			utils.markFileForDeletion( repo.dlkey.value )
+			repo.delete( id )
+		else:
+			deferred.defer( self.deleteDirsRecursive, str(id) )
+			repo.delete( id )
+		self.onItemDeleted( id, skelType, repo )
+		return( self.render.deleteSuccess( repo ) )
 	delete.exposed=True
 
 	def deleteDirsRecursive( self, parentKey ):
-		files = db.Query( self.viewSkel().kindName ).filter( "parentdir =", parentKey  ).run()
+		files = db.Query( self.editLeafSkel().kindName ).filter( "parentdir =", parentKey  ).run()
 		for fileEntry in files:
+			import logging
+			logging.error( fileEntry )
 			utils.markFileForDeletion( fileEntry["dlkey"] )
 			db.Delete( fileEntry.key() )
-		dirs = db.Query( self.viewSkel.kindName+"_rootNode" ).filter( "parentdir", parentKey ).run()
+		dirs = db.Query( self.editNodeSkel().kindName ).filter( "parentdir", parentKey ).run()
 		for d in dirs:
 			deferred.defer( self.deleteDirsRecursive, str(d.key()) )
 			db.Delete( d.key() )
