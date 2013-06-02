@@ -58,7 +58,11 @@ class GoogleUser( List ):
 		mysha512 = sha512()
 		mysha512.update( str(uid)+conf["viur.salt"]  )
 		uidHash = mysha512.hexdigest()
-		user = db.Get( db.Key.from_path( self.baseSkel().kindName,  "user-%s" % uidHash ) )
+		try:
+			user = db.Get( db.Key.from_path( self.baseSkel().kindName,  "user-%s" % uidHash ) )
+		except db.EntityNotFoundError:
+			#This user is known to the appengine, but not to us yet (he didnt use /user/login)
+			return( None )
 		if user:
 			res = {}
 			for k in user.keys():
