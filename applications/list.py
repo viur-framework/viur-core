@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
 from server.skeleton import Skeleton
-from server import utils, session,  errors, conf, securitykey
+from server import utils, session,  errors, conf, securitykey, request
+from server import forcePost, forceSSL, exposed, internalExposed
 from google.appengine.api import users
 import logging
 
@@ -22,6 +23,10 @@ class List( object ):
 				if not rightName in conf["viur.accessRights"]:
 					conf["viur.accessRights"].append( rightName )
 
+## External exposed functions
+
+	@exposed
+	@forcePost
 	def preview( self, skey, *args, **kwargs ):
 		"""
 			Renders the viewTemplate with the values given.
@@ -34,8 +39,9 @@ class List( object ):
 		skel = self.viewSkel()
 		skel.fromClient( kwargs )
 		return( self.render.view( skel ) )
-	preview.exposed = True
-	
+
+
+	@exposed
 	def view( self, *args, **kwargs ):
 		"""
 			Prepares and renders a single entry for viewing
@@ -61,8 +67,9 @@ class List( object ):
 			if not skel: #skel.fromDB( queryObj ):
 				raise errors.NotFound()
 		return( self.render.view( skel ) )
-	view.exposed = True
-	
+
+
+	@exposed
 	def list( self, *args, **kwargs ):
 		"""
 			Renders a list of entries.
@@ -78,8 +85,9 @@ class List( object ):
 			raise( errors.Unauthorized() )
 		mylist = query.fetch()
 		return( self.render.list( mylist ) )
-	list.exposed = True
 
+	@forceSSL
+	@exposed
 	def edit( self, *args, **kwargs ):
 		"""
 			Edit the entry with the given id
@@ -101,16 +109,17 @@ class List( object ):
 			raise errors.Unauthorized()
 		if not skel.fromDB( id ):
 			raise errors.NotAcceptable()
-		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
+		if len(kwargs)==0 or skey=="" or not request.current.get().isPostRequest or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel ) )
 		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel.toDB( id )
-		self.onItemEdited( id, skel )
+		self.onItemEdited( skel )
 		return self.render.editItemSuccess( skel )
-	edit.exposed = True
-	edit.forceSSL = True
-	
+
+
+	@forceSSL
+	@exposed
 	def add( self, *args, **kwargs ):
 		"""
 			Add a new entry.
@@ -122,16 +131,18 @@ class List( object ):
 		if not self.canAdd( ):
 			raise errors.Unauthorized()
 		skel = self.addSkel()
-		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
+		if len(kwargs)==0 or skey=="" or not request.current.get().isPostRequest or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.add( skel ) )
 		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		id = skel.toDB( )
-		self.onItemAdded( id, skel )
-		return self.render.addItemSuccess( id, skel )
-	add.exposed = True
-	add.forceSSL = True
-	
+		self.onItemAdded( skel )
+		return self.render.addItemSuccess( skel )
+
+
+	@forceSSL
+	@forcePost
+	@exposed
 	def delete( self, id, skey, *args, **kwargs ):
 		"""
 			Delete an entry.
@@ -146,8 +157,8 @@ class List( object ):
 		skel.delete( id )
 		self.onItemDeleted( id, skel )
 		return self.render.deleteSuccess( skel )
-	delete.exposed = True
-	delete.forceSSL = True
+
+## Default accesscontrol functions 
 
 	def listFilter( self, filter ):
 		"""
@@ -156,14 +167,9 @@ class List( object ):
 			@type filter: ndb.query
 			@return: altered ndb.query
 		"""
-		user = users.get_current_user() #Check the GAE API
-		if users.is_current_user_admin():
+		user = utils.getCurrentUser()
+		if user and ("%s-view" % self.modulName in user["access"] or "root" in user["access"] ):
 			return( filter )
-		if "user" in dir( conf["viur.mainApp"] ): #Check for our custom user-api
-			user = conf["viur.mainApp"].user.getCurrentUser()
-			if user and user["access"] \
-				and ("%s-view" % self.modulName in user["access"] or "root" in user["access"] ) :
-					return( filter )
 		return( None )
 
 	def canAdd( self ):
@@ -224,8 +230,10 @@ class List( object ):
 		if user and user["access"] and "%s-delete" % self.modulName in user["access"]:
 			return( True )
 		return( False )
-		
-	def onItemAdded( self, id, skel ):
+
+## Overridable eventhooks
+
+	def onItemAdded( self, skel ):
 		"""
 			Hook. Can be overriden to hook the onItemAdded-Event
 			@param id: Urlsafe-key of the entry added
@@ -233,12 +241,12 @@ class List( object ):
 			@param skel: Skeleton with the data which has been added
 			@type skel: Skeleton
 		"""
-		logging.info("Entry added: %s" % id )
+		logging.info("Entry added: %s" % skel.id.value )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
 	
-	def onItemEdited( self, id, skel ):
+	def onItemEdited( self, skel ):
 		"""
 			Hook. Can be overriden to hook the onItemEdited-Event
 			@param id: Urlsafe-key of the entry edited

@@ -3,6 +3,7 @@ from server.bones import baseBone, numericBone
 from server.skeleton import Skeleton
 from server import utils, errors, session, conf, request, securitykey
 from server import db
+from server import forcePost, forceSSL, exposed, internalExposed
 from time import time
 from google.appengine.api import users
 from datetime import datetime
@@ -17,9 +18,7 @@ class HierarchySkel( Skeleton ):
 		if not ("sortindex" in dbfields.keys() and dbfields["sortindex"] ):
 			dbfields[ "sortindex" ] = time()
 		return( dbfields )
-	
-class CategorySkel( HierarchySkel ):
-	pass
+
 
 class Hierarchy( object ):
 	""" 
@@ -28,7 +27,7 @@ class Hierarchy( object ):
 	"""
 	
 	
-	adminInfo = {	"name": "BaseApplication", #Name of this modul, as shown in Apex (will be translated at runtime)
+	adminInfo = {	"name": "BaseApplication", #Name of this modul, as shown in Admin (will be translated at runtime)
 			"handler": "hierarchy",  #Which handler to invoke
 			"icon": "", #Icon for this modul
 			#,"orderby":"changedate",
@@ -60,6 +59,95 @@ class Hierarchy( object ):
 		env.globals["canReparent"] = self.canReparent
 		return( env )
 
+
+	def getRootNode(self, entryKey ):
+		"""
+			Returns the root for a given child.
+			
+			@parm entryKey: URL-Safe Key of thechild entry
+			@type entryKey: string
+			@returns: Entity
+		"""
+		repo = db.Get( entryKey )
+		while repo and  "parententry" in repo.keys():
+			repo = db.Get( repo["parententry"] )
+		assert repo and repo.key().kind() == self.viewSkel().kindName+"_rootNode"
+		return( repo )
+
+	def isValidParent(self, parent ):
+		"""
+		Checks wherever a given parent is valid.
+		
+		@param parent: Parent to test
+		@type parent: String
+		@returns: bool
+		"""
+		try:
+			if db.Get( parent ).get():
+				return( True )
+		except: #Might not be a rootNode -> wrong type
+			pass
+		if self.viewSkel().fromDB( parent ):
+			return( True )
+		return( False )
+
+
+	def ensureOwnUserRootNode( self ):
+		"""
+			Ensures, that an rootNode for the current user exists.
+			
+			@returns: The Node-object (as ndb.Expando) or None, if this was request was made by a guest
+		"""
+		thisuser = conf["viur.mainApp"].user.getCurrentUser()
+		if thisuser:
+			key = "rep_user_%s" % str( thisuser["id"] )
+			kindName = self.viewSkel().kindName+"_rootNode"
+			return( db.GetOrInsert( key, kindName=kindName, creationdate=datetime.now(), rootNode=1, user=str( thisuser["id"] ) ) )
+
+
+	def ensureOwnModulRootNode( self ):
+		"""
+			Ensures that the modul-global rootNode exists.
+			
+			@returns: The Node-object (as ndb.Expando)
+		"""
+		key = "rep_modul_repo"
+		kindName = self.viewSkel().kindName+"_rootNode"
+		return( db.GetOrInsert( key, kindName=kindName, creationdate=datetime.now(), rootNode=1 ) )
+
+
+	def isOwnUserRootNode( self, repo ):
+		"""
+			Checks, if the given rootNode is owned by the current user
+			
+			@param repo: Urlsafe-key of the rootNode
+			@type repo: String
+			@returns: True if the user owns this rootNode, False otherwise
+		"""
+		thisuser = user.get_current_user()
+		if not thisuser:
+			return(False)
+		repo = self.getRootNode( repo )
+		user_repo = self.ensureOwnUserRootNode()
+		if str( repo.key.urlsafe() ) == user_repo.key.urlsafe():
+			return( True )
+		return( False )
+
+
+	def deleteRecursive( self, key ):
+		"""
+			Recursivly processes an delete request
+		"""
+		vs = self.viewSkel()
+		entrys = db.Query( self.viewSkel().kindName ).filter( "parententry", str(key) ).run()
+		for e in entrys:
+			self.deleteRecursive( str( e.key() ) )
+			vs.delete( str( e.key() ) )
+		vs.delete( key )
+
+## Internal exposed functions
+
+	@internalExposed
 	def pathToKey( self, key=None ):
 		"""
 			Returns the recursively expaned Path through the Hierarchy from the RootNode to the given Node
@@ -124,39 +212,18 @@ class Hierarchy( object ):
 				else:
 					break
 		return( res )
-	pathToKey.internalExposed=True
 
-	def getRootNode(self, entryKey ):
-		"""
-			Returns the root for a given child.
-			
-			@parm entryKey: URL-Safe Key of thechild entry
-			@type entryKey: string
-			@returns: Entity
-		"""
-		repo = db.Get( entryKey )
-		while repo and  "parententry" in repo.keys():
-			repo = db.Get( repo["parententry"] )
-		assert repo and repo.key().kind() == self.viewSkel().kindName+"_rootNode"
-		return( repo )
+## External exposed functions
 
-	def isValidParent(self, parent ):
+	@exposed
+	def listRootNodes(self, *args, **kwargs ):
 		"""
-		Checks wherever a given parent is valid.
+			Renders a list of all available repositories for the current user
+		"""
+		return( self.render.listRootNodes( self.getAvailableRootNodes( *args, **kwargs ) ) )
 		
-		@param parent: Parent to test
-		@type parent: String
-		@returns: bool
-		"""
-		try:
-			if db.Get( parent ).get():
-				return( True )
-		except: #Might not be a rootNode -> wrong type
-			pass
-		if self.viewSkel().fromDB( parent ):
-			return( True )
-		return( False )
 
+	@exposed
 	def preview( self, skey, *args, **kwargs ):
 		"""
 			Renders the viewTemplate with the values given.
@@ -169,56 +236,11 @@ class Hierarchy( object ):
 		skel = self.viewSkel()
 		skel.fromClient( kwargs )
 		return( self.render.view( skel ) )
-	preview.exposed = True
-
-	def ensureOwnUserRootNode( self ):
-		"""
-			Ensures, that an rootNode for the current user exists.
-			
-			@returns: The Node-object (as ndb.Expando) or None, if this was request was made by a guest
-		"""
-		thisuser = conf["viur.mainApp"].user.getCurrentUser()
-		if thisuser:
-			key = "rep_user_%s" % str( thisuser["id"] )
-			kindName = self.viewSkel().kindName+"_rootNode"
-			return( db.GetOrInsert( key, kindName=kindName, creationdate=datetime.now(), rootNode=1, user=str( thisuser["id"] ) ) )
 
 
-	def ensureOwnModulRootNode( self ):
-		"""
-			Ensures that the modul-global rootNode exists.
-			
-			@returns: The Node-object (as ndb.Expando)
-		"""
-		key = "rep_modul_repo"
-		kindName = self.viewSkel().kindName+"_rootNode"
-		return( db.GetOrInsert( key, kindName=kindName, creationdate=datetime.now(), rootNode=1 ) )
-
-
-	def isOwnUserRootNode( self, repo ):
-		"""
-			Checks, if the given rootNode is owned by the current user
-			
-			@param repo: Urlsafe-key of the rootNode
-			@type repo: String
-			@returns: True if the user owns this rootNode, False otherwise
-		"""
-		thisuser = user.get_current_user()
-		if not thisuser:
-			return(False)
-		repo = self.getRootNode( repo )
-		user_repo = self.ensureOwnUserRootNode()
-		if str( repo.key.urlsafe() ) == user_repo.key.urlsafe():
-			return( True )
-		return( False )
-
-	def listRootNodes(self, *args, **kwargs ):
-		"""
-			Renders a list of all available repositories for the current user
-		"""
-		return( self.render.listRootNodes( self.getAvailableRootNodes( *args, **kwargs ) ) )
-	listRootNodes.exposed=True
-	
+	@forceSSL
+	@forcePost
+	@exposed
 	def reparent( self, item, dest, skey, *args, **kwargs ):
 		"""
 			Moves an entry (and everything beneath) to another parent-node.
@@ -228,6 +250,8 @@ class Hierarchy( object ):
 			@param dest: Urlsafe-key of the new parent for this item
 			@type dest: String
 		"""
+		if not securitykey.validate( skey ):
+			raise errors.PreconditionFailed()
 		if not self.canReparent( item, dest ):
 			raise errors.Unauthorized()
 		if not self.isValidParent( dest ):
@@ -237,10 +261,11 @@ class Hierarchy( object ):
 		fromItem["parentrepo"] = str( self.getRootNode( dest ).key() )
 		db.Put( fromItem )
 		return( self.render.reparentSuccess( obj=fromItem ) )
-	reparent.exposed = True
-	reparent.forceSSL = True
-	
 
+	
+	@forceSSL
+	@forcePost
+	@exposed
 	def setIndex( self, item, index, skey, *args, **kwargs ):
 		"""
 			Changes the order of the elements in the current level by changing the index of this item.
@@ -249,38 +274,33 @@ class Hierarchy( object ):
 			@param index: New index for this item. Must be castable to float
 			@type index: String
 		"""
+		if not securitykey.validate( skey ):
+			raise errors.PreconditionFailed()
 		if not self.canSetIndex( item, index ):
 			raise errors.Unauthorized()
 		fromItem = db.Get( item )
 		fromItem["sortindex"] = float( index )
 		db.Put( fromItem )
 		return( self.render.setIndexSuccess( obj=fromItem ) )
-	setIndex.exposed = True
-	setIndex.forceSSL = True
 
+
+	@forceSSL
+	@forcePost
+	@exposed
 	def delete( self, id, skey ):
 		"""
 			Delete an entry.
 		"""
+		if not securitykey.validate( skey ):
+			raise errors.PreconditionFailed()
 		if not self.canDelete( id ):
 			raise errors.Unauthorized()
 		self.deleteRecursive( id )
 		self.onItemDeleted( id )
 		return( self.render.deleteSuccess( id ) )
-	delete.exposed = True
-	delete.forceSSL = True
 
-	def deleteRecursive( self, id ):
-		"""
-			Recursivly processes an delete request
-		"""
-		vs = self.viewSkel()
-		entrys = db.Query( self.viewSkel().kindName ).filter( "parententry", str(id) ).run()
-		for e in entrys:
-			self.deleteRecursive( str( e.key() ) )
-			vs.delete( str( e.key() ) )
-		vs.delete( id )
 
+	@exposed
 	def view( self, *args, **kwargs ):
 		"""
 			Prepares and renders a single entry for viewing
@@ -299,8 +319,9 @@ class Hierarchy( object ):
 				raise errors.NotFound()
 		self.onItemViewed( id, skel )
 		return( self.render.view( skel ) )
-	view.exposed = True
-	
+
+
+	@exposed
 	def list( self, parent, *args, **kwargs ):
 		"""
 			List the entries which are direct childs of the given parent
@@ -314,8 +335,10 @@ class Hierarchy( object ):
 			query.filter( k, v )
 		query.filter( "parententry", parent )
 		return( self.render.list( query.fetch(), parent=parent ) )
-	list.exposed = True
 
+
+	@forceSSL
+	@exposed
 	def edit( self, *args, **kwargs ):
 		"""
 			Edit the entry with the given id
@@ -325,28 +348,27 @@ class Hierarchy( object ):
 		else:
 			skey = ""
 		if( len( args ) == 1 ):
-			id= args[0]
+			id = args[0]
 		elif "id" in kwargs:
 			id = kwargs["id"]
 		else:
 			raise errors.NotAcceptable()
 		skel = self.editSkel()
-		if id == "0":
-			return( self.render.edit( skel ) )
 		if  not self.canEdit( id ):
 			raise errors.Unauthorized()
 		if not skel.fromDB( id ):
 			raise errors.NotAcceptable()
-		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
+		if len(kwargs)==0 or skey=="" or not request.current.get().isPostRequest or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel ) )
 		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel.toDB( id )
-		self.onItemAdded( id, skel )
+		self.onItemEdited( skel )
 		return self.render.editItemSuccess( skel )
-	edit.exposed = True
-	edit.forceSSL = True
 
+
+	@forceSSL
+	@exposed
 	def add( self, parent, *args, **kwargs ):
 		"""
 			Add a new entry with the given parent
@@ -362,17 +384,17 @@ class Hierarchy( object ):
 		if not self.canAdd( parent ):
 			raise errors.Unauthorized()
 		skel = self.addSkel()
-		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
+		if len(kwargs)==0 or skey=="" or not request.current.get().isPostRequest or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.add( skel ) )
 		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel.parententry.value = str( parent )
 		skel.parentrepo.value = str( self.getRootNode( parent ).key() )
-		id = skel.toDB( )
-		self.onItemAdded( id, skel )
-		return self.render.addItemSuccess( id, skel )
-	add.exposed = True
-	add.forceSSL = True
+		key = skel.toDB( )
+		self.onItemAdded( skel )
+		return self.render.addItemSuccess( skel )
+
+## Default accesscontrol functions 
 
 	def canAdd( self, parent ):
 		"""
@@ -404,7 +426,7 @@ class Hierarchy( object ):
 			return( True )
 		return( False )
 	
-	def canEdit( self, id ):
+	def canEdit( self, key ):
 		"""
 			Checks if the current user has the right to edit the given entry
 			@param id: Urlsafe-key of the entry
@@ -420,7 +442,7 @@ class Hierarchy( object ):
 			return( True )
 		return( False )
 		
-	def canView( self, id ):
+	def canView( self, key ):
 		"""
 			Checks if the current user has the right to view the given entry
 			@param id: Urlsafe-key of the entry
@@ -436,7 +458,7 @@ class Hierarchy( object ):
 			return( True )
 		return( False )
 		
-	def canDelete( self, id ):
+	def canDelete( self, key ):
 		"""
 			Checks if the current user has the right to delete the given entry (and everything below)
 			@param id: Urlsafe-key of the entry
@@ -504,7 +526,9 @@ class Hierarchy( object ):
 			return( True )
 		return( False )
 
-	def onItemAdded( self, id, skel ):
+## Overridable eventhooks
+
+	def onItemAdded( self, skel ):
 		"""
 			Hook. Can be overriden to hook the onItemAdded-Event
 			@param id: Urlsafe-key of the entry added
@@ -512,12 +536,12 @@ class Hierarchy( object ):
 			@param skel: Skeleton with the data which has been added
 			@type skel: Skeleton
 		"""
-		logging.info("Entry added: %s" % id )
+		logging.info("Entry added: %s" % skel.id.value )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
 	
-	def onItemEdited( self, id, skel ):
+	def onItemEdited( self, skel ):
 		"""
 			Hook. Can be overriden to hook the onItemEdited-Event
 			@param id: Urlsafe-key of the entry added
@@ -525,12 +549,12 @@ class Hierarchy( object ):
 			@param skel: Skeleton with the data which has been edited
 			@type skel: Skeleton
 		"""
-		logging.info("Entry changed: %s" % id )
+		logging.info("Entry changed: %s" % skel.id.value )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
 		
-	def onItemViewed( self, id, skel ):
+	def onItemViewed( self, key, skel ):
 		"""
 			Hook. Can be overriden to hook the onItemViewed-Event
 			@param id: Urlsafe-key of the entry added
@@ -540,14 +564,14 @@ class Hierarchy( object ):
 		"""
 		pass
 	
-	def onItemDeleted( self, id ):
+	def onItemDeleted( self, key ):
 		"""
 			Hook. Can be overriden to hook the onItemDeleted-Event
 			Note: Saving the skeleton again will undo the deletion.
 			@param id: Urlsafe-key of the entry deleted
 			@type id: Skeleton
 		"""
-		logging.info("Entry deleted: %s" % id )
+		logging.info("Entry deleted: %s" % key )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
