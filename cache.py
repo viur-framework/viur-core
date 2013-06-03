@@ -159,11 +159,11 @@ def flushCache( prefix="/*" ):
 			and "/page/view/*" only that specific subset of the page-modul.
 		@type prefix: String
 	"""
-	items = db.Query( viurCacheName ).filter( "path =", prefix.rstrip("*") ).run( keysOnly=True )
+	items = db.Query( viurCacheName ).filter( "path =", prefix.rstrip("*") ).iter( keysOnly=True )
 	for item in items:
 		db.Delete( item )
 	if prefix.endswith("*"):
-		items = db.Query( viurCacheName ).filter( "path >", prefix.rstrip("*") ).filter( "path <", prefix.rstrip("*")+u"\ufffd").run( keysOnly=True )
+		items = db.Query( viurCacheName ).filter( "path >", prefix.rstrip("*") ).filter( "path <", prefix.rstrip("*")+u"\ufffd").iter( keysOnly=True )
 		for item in items:
 			db.Delete( item )
 	logging.debug("Flushing cache succeeded. Everything matching \"%s\" is gone." % prefix )
