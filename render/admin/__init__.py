@@ -3,6 +3,7 @@
 from server.render.json.default import DefaultRender as default
 from server.render.json.user import UserRender as user
 from server.render.json.file import FileRender as file
+from server.skeleton import Skeleton
 from server import conf
 from server import securitykey
 from server import utils
@@ -20,22 +21,29 @@ def timestamp( *args, **kwargs):
 	return( json.dumps( d.strftime("%Y-%m-%dT%H-%M-%S") ) )
 timestamp.exposed=True
 
-def getStructure( adminTree, modul, stype ):
+def getStructure( adminTree, modul ):
 	if not modul in dir( adminTree ) \
 	  or not "adminInfo" in dir( getattr( adminTree, modul ) )\
 	  or not getattr( adminTree, modul ).adminInfo: 
 		# Modul not known or no adminInfo for that modul
 		return( json.dumps( None ) )
-	if not stype in ["view","edit","add"]: #Unknown skel type
-		return( json.dumps( None ) )
-	modulObj = getattr( adminTree, modul )
+	res = {}
 	try:
-		skel = getattr( modulObj, "%sSkel" % stype )
-	except AttributeError:
-		skel = None
-	if skel is None:
+		modulObj = getattr( adminTree, modul )
+	except:
+		return( None )
+	for stype in ["viewSkel","editSkel","addSkel", "viewLeafSkel", "viewNodeSkel", "editNodeSkel", "editLeafSkel", "addNodeSkel", "addLeafSkel"]: #Unknown skel type
+		if stype in dir( modulObj ):
+			try:
+				skel = getattr( modulObj, stype )()
+			except:
+				continue
+			if isinstance( skel, Skeleton ):
+				res[ stype ] = default().renderSkelStructure( skel )
+	if res:
+		return( json.dumps( res ) )
+	else:
 		return( json.dumps( None ) )
-	return( json.dumps( default().renderSkelStructure( skel() ) ) )
 	
 
 def generateAdminConfig( adminTree ):
