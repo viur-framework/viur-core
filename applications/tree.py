@@ -240,8 +240,8 @@ class Tree( object ):
 		if not srcSkel.fromDB( id ) or not destSkel.fromDB( destNode ):
 			# Could not find one of the entities
 			raise errors.NotFound()
-		srcSkel.parentdir = str( destNode )
-		srcSkel.parentrepo = destNode.parentrepo #Fixme: Need to rekursive fixing to parentrepo?
+		srcSkel.parentdir.value = str( destNode )
+		srcSkel.parentrepo.value = destSkel.parentrepo.value #Fixme: Need to rekursive fixing to parentrepo?
 		srcSkel.toDB( id )
 		return( self.render.editItemSuccess( srcSkel, skelType=skelType, action="move", destNode = destSkel ) )
 
