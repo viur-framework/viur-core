@@ -206,7 +206,7 @@ class File( Tree ):
 	def add( self, node, skelType, *args, **kwargs ):
 		if skelType != "node": #We can't add files directly (they need to be uploaded
 			raise errors.NotAcceptable()
-		return( super( file, self ).add( node, skelType, *args, **kwargs ) )
+		return( super( File, self ).add( node, skelType, *args, **kwargs ) )
 
 	@exposed
 	@forceSSL
