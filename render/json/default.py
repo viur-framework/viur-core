@@ -91,8 +91,14 @@ class DefaultRender( object ):
 		return res
 		
 	def renderEntry( self, skel, actionName ):
-		res = {	"values": self.renderSkelValues( skel ), 
-			"structure": self.renderSkelStructure( skel ),
+		if isinstance( skel, list ):
+			vals = [ self.renderSkelValues( x ) for x in skel ]
+			struct = self.renderSkelStructure( skel[0] )
+		else:
+			vals = self.renderSkelValues( skel )
+			struct = self.renderSkelStructure( skel )
+		res = {	"values": vals, 
+			"structure": struct,
 			"action": actionName }
 		request.current.get().response.headers['Content-Type'] = "application/json"
 		return( json.dumps( res ) )
