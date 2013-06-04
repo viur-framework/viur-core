@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from server.skeleton import Skeleton
-from server import session, errors, conf
+from server import session, errors, conf, request
 from server.applications.tree import Tree, TreeNodeSkel, TreeLeafSkel
+from server import forcePost, forceSSL, exposed, internalExposed
 from server.bones import *
 from server import utils, db
 from google.appengine.ext import blobstore
@@ -15,178 +16,71 @@ from quopri import decodestring
 import email.header
 from base64 import b64decode
 from google.appengine.ext import deferred
+import collections
 import logging
+import cgi
 
-
-def findPathInRootNode( rootNode, path):
-	repo = db.Get( rootNode )
-	for comp in path.split("/"):
-		if not repo:
-			return( None )
-		if not comp:
-			continue
-		repo = db.Query( "file_rootNode" ).filter( "parentdir =", str( repo.key() ) )\
-				.filter( "name =", comp).get()
-	if not repo:
-		return( None )
-	else:
-		return( repo )
-
-
-class UploadHandler(blobstore_handlers.BlobstoreUploadHandler):
-	# http://code.google.com/p/googleappengine/issues/detail?id=2749
-	# Open since Sept. 2010, claimed to be fixed in Version 1.7.2 (September 18, 2012)
-	# and still totally broken
-	def decodeFileName(self, name):
-		try:
-			if name.startswith("=?"): #RFC 2047
-				return( unicode( email.Header.make_header( email.Header.decode_header(name+"\n") ) ) )
-			elif "=" in name and not name.endswith("="): #Quoted Printable
-				return( decodestring( name.encode("ascii") ).decode("UTF-8") )
-			else: #Maybe base64 encoded
-				return( b64decode( name.encode("ascii") ).decode("UTF-8") )
-		except: #Sorry - I cant guess whats happend here
-			return( name )
-			
-	def post(self):
-		self.internalRequest = False
-		self.isDevServer = "Development" in os.environ['SERVER_SOFTWARE'] #Were running on development Server
-		self.isSSLConnection = self.request.host_url.lower().startswith("https://") #We have an encrypted channel
-		try:
-			session.current.load( self )
-			res = []
-			if "node" in self.request.arguments() and self.request.get("node"):
-				#if not conf["viur.mainApp"].file.canUploadTo( self.request.get("rootNode"), self.request.get("path") ):
-				#	for upload in self.get_uploads():
-				#		upload.delete()
-				#	return
-				# The file is uploaded into a rootNode
-				node = self.request.get("node")
-				nodeSkel = conf["viur.mainApp"].file.editNodeSkel()
-				if not nodeSkel.fromDB( node ):
-					for upload in self.get_uploads():
-						upload.delete()
-				else:
-					for upload in self.get_uploads():
-						filename = self.decodeFileName( upload.filename )
-						#Check if a file with this name already exists in this directory
-						oldFile = db.Query( "file" ).filter( "parentdir =", str(node)).filter( "name =", filename ).get()
-						if oldFile: # Delete the old one (=>Overwrite this file)
-							utils.markFileForDeletion( oldFile["dlkey"] )
-							db.Delete( oldFile.key() )
-						if str( upload.content_type ).startswith("image/"):
-							try:
-								servingURL = get_serving_url( upload.key() )
-							except:
-								servingURL = ""
-						else:
-							servingURL = ""
-						fileObj = db.Entity( "file" )
-						fileObj[ "name" ]= filename
-						fileObj[ "name_idx" ] = filename.lower()
-						fileObj[ "size" ]=upload.size
-						fileObj[ "meta_mime" ]=upload.content_type
-						fileObj[ "dlkey" ]=str(upload.key())
-						fileObj[ "parentdir" ]=str(node)
-						fileObj[ "parentrepo" ]= nodeSkel.parentrepo.value
-						fileObj[ "servingurl" ]=servingURL
-						fileObj[ "weak" ] = False
-						db.Put( fileObj )
-					#Fixme(): Bad things will happen if uploaded from Webbrowser
-					res.append( {	"name": filename,
-							"size":float( upload.size ),
-							"meta_mime":str(upload.content_type),
-							"dlkey":str(upload.key()),
-							"parentdir":str( node ) } )
-			else:
-				#We got a anonymous upload (a file not registered in any rootNode yet)
-				if not conf["viur.mainApp"].file.canUploadTo( None, None ):
-					for upload in self.get_uploads():
-						upload.delete()
-					return
-				for upload in self.get_uploads():
-					filename = self.decodeFileName( upload.filename )
-					if str( upload.content_type ).startswith("image/"):
-						servingURL = get_serving_url( upload.key() )
-					else:
-						servingURL = ""
-					fileObj = db.Entity(	"file", 
-									name= filename,
-									size=upload.size,
-									meta_mime=upload.content_type,
-									dlkey=str(upload.key()),
-									servingurl=servingURL, 
-									weak=True #Ensure this entry vanishes
-									)
-					db.Put( fileObj )
-					res.append( { "name":filename,
-								"size":float( upload.size ),
-								"meta_mime":str(upload.content_type),
-								"dlkey":str(upload.key()), 
-								"id": str(fileObj.key()) } )
-			for r in res:
-				logging.info("Got a successfull upload: %s (%s)" % (r["name"], r["dlkey"] ) )
-			user = utils.getCurrentUser()
-			if user:
-				logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
-			self.response.write( json.dumps( res ) )
-		except Exception as e: #Something got wrong - delete all uploads
-			logging.error( e )
-			for upload in self.get_uploads():
-				upload.delete()
-		
-
-class DownloadHandler(blobstore_handlers.BlobstoreDownloadHandler):
-	def get(self, dlkey, fileName="file.dat", *args, **kwargs ):
-		dlkey = urlparse.unquote( dlkey )
-		if "/" in dlkey:
-			try:
-				dlkey, fileName = dlkey.split("/")
-			except ValueError: #There are too much /
-				self.error(404)
-		if "download" in kwargs and kwargs["download"]=="1":
-			fname = "".join( [ c for c in fileName if c in string.ascii_lowercase+string.ascii_uppercase + string.digits+[".","-","_"] ] )
-			self.response.headers.add_header( "Content-disposition", "attachment; filename=%s" % ( fname ) )
-		if not blobstore.get(dlkey):
-			self.error(404)
-		else:
-			self.send_blob(dlkey)
-
-	def post(self, dlkey, fileName="file.dat", *args, **kwargs ):
-		return( self.get( dlkey, fileName, *args, **kwargs ) )
 
 
 class fileBaseSkel( TreeNodeSkel ):
 	kindName = "file"
-	size = stringBone( descr="Size", params={"indexed": True,  "frontend_list_visible": True}, readOnly=True )
-	dlkey = stringBone( descr="Download-Key", params={"indexed": True,  "frontend_list_visible": True}, readOnly=True, indexed=True )
-	name = stringBone( descr="Filename", params={"indexed": True,  "frontend_list_visible": True}, readOnly=True, caseSensitive=False, indexed=True )
-	meta_mime = stringBone( descr="Mime-Info", params={"indexed": True,  "frontend_list_visible": True}, readOnly=True )
-	#testData = stringBone( descr="TestData", params={"indexed": True,  "frontend_list_visible": True} )
+	size = stringBone( descr="Size", params={"indexed": True, "frontend_list_visible": True}, readOnly=True, indexed=True, searchable=True )
+	dlkey = stringBone( descr="Download-Key", params={"frontend_list_visible": True}, readOnly=True, indexed=True )
+	name = stringBone( descr="Filename", params={"frontend_list_visible": True}, caseSensitive=False, indexed=True, searchable=True )
+	meta_mime = stringBone( descr="Mime-Info", params={"frontend_list_visible": True}, readOnly=True, indexed=True, )
+	weak = booleanBone( descr="Is a weak Reference?", indexed=True, readOnly=True, visible=False )
 
 
 class fileNodeSkel( TreeLeafSkel ):
 	kindName = "file_rootNode"
-	name = stringBone( descr="Name", required=True )
+	name = stringBone( descr="Name", required=True, indexed=True, searchable=True )
 
 class File( Tree ):
 	viewLeafSkel = fileBaseSkel
 	editLeafSkel = fileBaseSkel
+	addLeafSkel = fileBaseSkel
 	
 	viewNodeSkel = fileNodeSkel
 	editNodeSkel = fileNodeSkel
+	addNodeSkel = fileNodeSkel
 	
 	maxuploadsize = None
 	uploadHandler = []
 	
 	rootNodes = {"personal":"my files"}
-	adminInfo = {"name": "my files", #Name of this modul, as shown in Apex (will be translated at runtime)
-				"handler": "tree.file",  #Which handler to invoke
-				"icon": "icons/modules/folder.png", #Icon for this modul
-				}
+	adminInfo = {	"name": "my files", #Name of this modul, as shown in Admin (will be translated at runtime)
+			"handler": "tree.file",  #Which handler to invoke
+			"icon": "icons/modules/folder.png", #Icon for this modul
+			}
+
+	def getUploads(self, field_name=None):
+		"""
+			Get uploads sent to this handler.
+			Cheeky borrowed from blobstore_handlers.py - © 2007 Google Inc.
+
+			Args:
+				field_name: Only select uploads that were sent as a specific field.
+
+			Returns:
+				A list of BlobInfo records corresponding to each upload.
+				Empty list if there are no blob-info records for field_name.
+			
+		"""
+		uploads = collections.defaultdict(list)
+		for key, value in request.current.get().request.params.items():
+			if isinstance(value, cgi.FieldStorage):
+				if 'blob-key' in value.type_options:
+					uploads[key].append(blobstore.parse_blob_info(value))
+		if field_name:
+			return list(uploads.get(field_name, []))
+		else:
+			results = []
+			for uploads in uploads.itervalues():
+				results.extend(uploads)
+			return results
 
 	def getUploadURL( self, *args, **kwargs ):
-		return( blobstore.create_upload_url('/file/upload') )
+		return( blobstore.create_upload_url( "%s/upload" % self.modulPath ) )
 	getUploadURL.exposed=True
 
 
@@ -210,15 +104,113 @@ class File( Tree ):
 		return( [] )
 	getAvailableRootNodes.internalExposed=True
 
-
-	#def view( self, dlkey, filename="file.dat", *args, **kwargs ):
-	#	assert False #This should never be reached
-	#view.exposed = True
 	
-	def ad1d( self, *args, **kwargs ):
-		raise errors.NotAcceptable()
-	ad1d.exposed = True
+	@exposed
+	def upload( self, node=None, *args, **kwargs ):
+		try:
+			canAdd = self.canAdd( node, "leaf" )
+		except:
+			canAdd = False
+		if not canAdd:
+			for upload in self.get_uploads():
+				upload.delete()
+			raise errors.Forbidden()
+		if 1:
+			res = []
+			if node:
+				# The file is uploaded into a rootNode
+				nodeSkel = self.editNodeSkel()
+				if not nodeSkel.fromDB( node ):
+					for upload in self.getUploads():
+						upload.delete()
+				else:
+					for upload in self.getUploads():
+						fileName = upload.filename
+						if str( upload.content_type ).startswith("image/"):
+							try:
+								servingURL = get_serving_url( upload.key() )
+							except:
+								servingURL = ""
+						else:
+							servingURL = ""
+						fileSkel = self.addLeafSkel()
+						fileSkel.setValues( {	"name": fileName,
+									"size": upload.size,
+									"meta_mime": upload.content_type,
+									"dlkey": str(upload.key()),
+									"servingurl": servingURL,
+									"parentdir": str(node),
+									"parentrepo": nodeSkel.parentrepo.value,
+									"weak": False } )
+						fileSkel.toDB()
+						res.append( fileSkel )
+			else:
+				#We got a anonymous upload (a file not registered in any rootNode yet)
+				for upload in self.get_uploads():
+					filename = upload.filename
+					if str( upload.content_type ).startswith("image/"):
+						try:
+							servingURL = get_serving_url( upload.key() )
+						except:
+							servingURL = ""
+					else:
+						servingURL = ""
 
+					fileSkel = self.addLeafSkel()
+					fileSkel.setValues( {	"name": fileName,
+								"size": upload.size,
+								"meta_mime": upload.content_type,
+								"dlkey": str(upload.key()),
+								"servingurl": servingURL,
+								"parentdir": None,
+								"parentrepo": None,
+								"weak": True } )
+					fileSkel.toDB()
+					res.append( fileSkel )
+			for r in res:
+				logging.info("Got a successfull upload: %s (%s)" % (r.name.value, r.dlkey.value ) )
+			user = utils.getCurrentUser()
+			if user:
+				logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
+			logging.error( self.render )
+			logging.error( self.render.add )
+			logging.error( res )
+			return( self.render.addItemSuccess( res ) )
+			#self.response.write( json.dumps( res ) )
+
+	@exposed
+	def download( self, blobKey, fileName="", download="", *args, **kwargs ):
+		if download == "1":
+			fname = "".join( [ c for c in fileName if c in string.ascii_lowercase+string.ascii_uppercase + string.digits+[".","-","_"] ] )
+			request.current.get().response.headers.add_header( "Content-disposition", "attachment; filename=%s" % ( fname ) )
+		info = blobstore.get(blobKey)
+		if not info:
+			raise errors.NotFound()
+		request.current.get().response.clear()
+		request.current.get().response.headers['Content-Type'] = str(info.content_type)
+		request.current.get().response.headers[blobstore.BLOB_KEY_HEADER] = str(blobKey)
+		return("")
+		
+	@exposed
+	def view( self, *args, **kwargs ):
+		try:
+			return( super(File, self).view( *args, **kwargs ) )
+		except (errors.NotFound, errors.NotAcceptable) as e:
+			if len(args)>0 and blobstore.get( args[0] ):
+				raise( errors.Redirect( "%s/download/%s" % (self.modulPath, args[0]) ) )
+			raise( e )
+
+	@exposed
+	@forceSSL
+	@forcePost
+	def add( self, node, skelType, *args, **kwargs ):
+		if skelType != "node": #We can't add files directly (they need to be uploaded
+			raise errors.NotAcceptable()
+		return( super( file, self ).add( node, skelType, *args, **kwargs ) )
+
+	@exposed
+	@forceSSL
+	@forcePost
 	def delete( self, id, skelType ):
 		"""Our timestamp-based update approach dosnt work here, so we'll do another trick"""
 		if skelType=="node":
@@ -230,7 +222,7 @@ class File( Tree ):
 		repo = skel()
 		if not repo.fromDB( id ):
 			raise errors.NotFound()
-		if not self.canDelete( repo, id, skelType ):
+		if not self.canDelete( repo, skelType ):
 			raise errors.Unauthorized()
 		if skelType=="leaf":
 			utils.markFileForDeletion( repo.dlkey.value )
@@ -267,23 +259,16 @@ class File( Tree ):
 	def canCopy( self, srcRepo, destRepo, type, deleteold ):
 		return( self.isOwnUserRootNode( str( srcRepo.key() ) ) and self.isOwnUserRootNode( str( destRepo.key() ) ) )
 		
-	def canDelete( self, repo, name, type ):
-		return( self.isOwnUserRootNode( str( repo.key() ) ) )
+	def canDelete( self, skel, skelType ):
+		user = utils.getCurrentUser()
+		if user and "root" in user["access"]:
+			return( True )
+		return( self.isOwnUserRootNode( str( skel.id.value ) ) )
 
-	def canEdit( self, id ):
+	def canEdit( self, skel ):
 		user = utils.getCurrentUser()
 		return( user and "root" in user["access"] )
 	
-	def canUploadTo( self, rootNode, path ):
-		thisuser = conf["viur.mainApp"].user.getCurrentUser()
-		if not thisuser:
-			return(False)
-		if not rootNode:
-			return( True )
-		key = str( db.Key.from_path( self.viewSkel.kindName+"_rootNode", "rep_user_%s" % str( thisuser["id"] ) ) )
-		if str( rootNode ) == key:
-			return( True )
-		return( False )
 		
 File.json=True
 File.jinja2=True

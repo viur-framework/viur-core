@@ -391,15 +391,12 @@ def setup( modules, render=None, default="jinja2" ):
 		@param default: Which render should be the default. Its modules wont get a prefix (i.e /user instead of /renderBaseName/user )
 		@type default: String
 	"""
-	from server.modules.file import UploadHandler,DownloadHandler
 	if not render:
 		import server.render
 		render = server.render
 	conf["viur.mainApp"] = buildApp( modules, render, default )
 	renderPrefix = [ "/%s" % x for x in dir( render ) if (not x.startswith("_") and x!=default) ]+[""]
-	conf["viur.wsgiApp"] = webapp.WSGIApplication(	[(r"%s/file/upload" %x ,UploadHandler) for x in renderPrefix ]+ #Upload handler
-											[(r"%s/file/download/(.*)" %x,DownloadHandler) for x in renderPrefix]+ #Download handler
-											[(r'/(.*)', BrowseHandler)] )
+	conf["viur.wsgiApp"] = webapp.WSGIApplication( [(r'/(.*)', BrowseHandler)] )
 	return( conf["viur.wsgiApp"] )
 	
 
