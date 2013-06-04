@@ -62,6 +62,38 @@ class Tree( object ):
 		return( db.GetOrInsert( key, self.viewLeafSkel().kindName+"_rootNode", creationdate=datetime.now(), rootNode=1 ) )
 
 
+	def getRootNode(self, subRepo):
+		"""
+			Returns the root-rootNode for a given (sub)-repo
+			@param subRepo: RootNode-Key
+			@type subRepo: String
+			@returns: db.Entity or None
+		"""
+		repo = db.Get( subRepo )
+		if "parentrepo" in repo.keys():
+			return( db.Get( repo["parentrepo"] ) )
+		elif "rootNode" in repo.keys() and str(repo["rootNode"])=="1":
+			return( repo )
+		else:
+			return( None )
+
+
+	def isOwnUserRootNode( self, repo ):
+		"""
+			Checks, if the given rootNode is owned by the current user
+			@param repo: Urlsafe-key of the rootNode
+			@type repo: String
+			@returns: True if the user owns this rootNode, False otherwise
+		"""
+		thisuser = conf["viur.mainApp"].user.getCurrentUser()
+		if not thisuser:
+			return(False)
+		repo = self.getRootNode( repo )
+		user_repo = self.ensureOwnUserRootNode()
+		if str( repo.key() ) == str(user_repo.key()):
+			return( True )
+		return( False )
+
 	def deleteRecursive( self, nodeKey ):
 		"""
 			Recursivly processes an delete request
@@ -102,7 +134,11 @@ class Tree( object ):
 			raise errors.NotAcceptable()
 		if not self.canList( node, skelType ):
 			raise errors.Unauthorized()
-		query = skel.all().filter( "parentdir =", str(node) )
+		query = skel.all()
+		if "search" in kwargs.keys() and kwargs["search"]:
+			query.filter( "parentrepo =", str(node) )
+		else:
+			query.filter( "parentdir =", str(node) )
 		query.mergeExternalFilter( kwargs )
 		res = query.fetch( )
 		return( self.render.list( res, ) )
@@ -137,12 +173,15 @@ class Tree( object ):
 			skel = self.viewLeafSkel()
 		else:
 			raise errors.NotAcceptable()
+		parentNodeSkel = self.editNodeSkel()
+		if not parentNodeSkel.fromDB( node ):
+			raise errors.NotFound()
 		if not self.canAdd( node, skelType ):
 			raise errors.Unauthorized()
 		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.add( skel ) )
 		skel.parentdir.value = str( node )
-		skel.parentrepo.value = node
+		skel.parentrepo.value = parentNodeSkel.parentrepo.value or str( node )
 		id = skel.toDB( )
 		self.onItemAdded( skel, skelType )
 		return self.render.addItemSuccess( skel )
@@ -159,10 +198,10 @@ class Tree( object ):
 			skel = self.viewLeafSkel()
 		else:
 			raise( errors.NotAcceptable() )
-		if not self.canEdit( id, skelType ):
-			raise errors.Unauthorized()
 		if not skel.fromDB( id ):
-			raise errors.NotAcceptable()
+			raise errors.NotFound()
+		if not self.canEdit( skel ):
+			raise errors.Unauthorized()
 		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel ) )
 		if not securitykey.validate( skey ):
