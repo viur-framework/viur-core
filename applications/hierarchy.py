@@ -82,13 +82,13 @@ class Hierarchy( object ):
 		@type parent: String
 		@returns: bool
 		"""
-		try:
-			if db.Get( parent ).get():
-				return( True )
-		except: #Might not be a rootNode -> wrong type
-			pass
-		if self.viewSkel().fromDB( parent ):
+		if self.viewSkel().fromDB( parent ): #Its a normal node
 			return( True )
+		try:
+			assert self.getRootNode( parent )
+			return( True ) #Its a rootNode :)
+		except:
+			pass
 		return( False )
 
 
