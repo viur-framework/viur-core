@@ -129,6 +129,9 @@ class Skeleton( object ):
 			return( False )
 		if dbRes is None:
 			return( False )
+		if dbRes.kind() != self.kindName:
+			# Wrong Kind
+			return( False )
 		self.setValues( dbRes )
 		id = str( dbRes.key() )
 		for key in dir( self ):
@@ -248,7 +251,15 @@ class Skeleton( object ):
 				_bone = getattr( self, key )
 				if isinstance( _bone, baseBone ):
 					if key=="id":
-						_bone.value = str( values.key() )
+						try:
+							# Reading the value from db.Entity
+							_bone.value = str( values.key() ) 
+						except:
+							# Is it in the dict?
+							if "id" in values.keys():
+								_bone.value = str( values["id"] )
+							else: #Ingore the key value
+								pass
 					else:
 						_bone.unserialize( key, values )
 
