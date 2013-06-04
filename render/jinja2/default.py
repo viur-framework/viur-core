@@ -462,7 +462,7 @@ class Render( object ):
 			skel.errors = {}
 		return( template.render( skel={"structure":self.renderSkelStructure(skel),"errors":skel.errors, "value":self.collectSkelData(skel) },  **kwargs) )
 	
-	def addItemSuccess (self, id, skel, *args, **kwargs ):
+	def addItemSuccess (self, skel, *args, **kwargs ):
 		"""
 			Render an page, informing that the entry has been successfully created.
 			@param id: Urlsafe key of the new entry
@@ -475,7 +475,7 @@ class Render( object ):
 			tpl = self.parent.addSuccessTemplate
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		res = self.collectSkelData( skel )
-		return( template.render( {"id":id, "skel":res} ) )
+		return( template.render( { "skel":res } ) )
 
 	def editItemSuccess (self, skel, *args, **kwargs ):
 		"""
