@@ -159,7 +159,7 @@ class Tree( object ):
 			raise errors.Unauthorized()
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
-		self.onItemViewed( skel, skelType )
+		self.onItemViewed( skel )
 		return( self.render.view( skel ) )
 
 	
@@ -183,7 +183,7 @@ class Tree( object ):
 		skel.parentdir.value = str( node )
 		skel.parentrepo.value = parentNodeSkel.parentrepo.value or str( node )
 		id = skel.toDB( )
-		self.onItemAdded( skel, skelType )
+		self.onItemAdded( skel )
 		return self.render.addItemSuccess( skel )
 
 	@exposed
@@ -207,7 +207,7 @@ class Tree( object ):
 		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel.toDB( id )
-		self.onItemEdited( skel, skelType )
+		self.onItemEdited( skel )
 		return self.render.editItemSuccess( skel )
 
 	@exposed
@@ -240,7 +240,7 @@ class Tree( object ):
 		else:
 			self.deleteRecursive( id )
 			skel.delete( id )
-		self.onItemDeleted( skel, skelType )
+		self.onItemDeleted( skel )
 		return( self.render.deleteSuccess( skel, skelType=skelType ) )
 
 	@exposed
@@ -372,7 +372,7 @@ class Tree( object ):
 
 ## Overridable eventhooks
 
-	def onItemAdded( self, skel, skelType ):
+	def onItemAdded( self, skel ):
 		"""
 			Hook. Can be overriden to hook the onItemAdded-Event
 			@param skel: Skeleton with the data which has been added
@@ -383,7 +383,7 @@ class Tree( object ):
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
 	
-	def onItemEdited( self, skel, skelType ):
+	def onItemEdited( self, skel ):
 		"""
 			Hook. Can be overriden to hook the onItemEdited-Event
 			@param skel: Skeleton with the data which has been edited
@@ -394,7 +394,7 @@ class Tree( object ):
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
 		
-	def onItemViewed( self, skel, skelType ):
+	def onItemViewed( self, skel ):
 		"""
 			Hook. Can be overriden to hook the onItemViewed-Event
 			@param skel: Skeleton with the data which has been viewed
@@ -403,13 +403,13 @@ class Tree( object ):
 		pass
 	
 
-	def onItemDeleted( self, skel, skelType ): #Fixme: Fix Docstring
+	def onItemDeleted( self, skel ): #Fixme: Fix Docstring
 		"""
 			Hook. Can be overriden to hook the onItemDeleted-Event
 			Note: Saving the skeleton again will undo the deletion
 			(if the skeleton was a leaf or a node with no childen).
 		"""
-		logging.info("Entry deleted: %s (%s)" % ( skel.id.value, skelType ) )
+		logging.info("Entry deleted: %s (%s)" % ( skel.id.value, type(skel) ) )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )

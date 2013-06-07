@@ -230,7 +230,7 @@ class File( Tree ):
 		else:
 			deferred.defer( self.deleteDirsRecursive, str(id) )
 			repo.delete( id )
-		self.onItemDeleted( id, skelType, repo )
+		self.onItemDeleted( repo )
 		return( self.render.deleteSuccess( repo ) )
 	delete.exposed=True
 
