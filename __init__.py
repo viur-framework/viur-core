@@ -30,9 +30,9 @@ import logging
 ### Multi-Language Part
 try:
 	import translations
+	conf["viur.avaiableLanguages"].extend( [x for x in dir( translations ) if (len(x)==2 and not x.startswith("_")) ] )
 except: #The Project doesnt use Multi-Language features
 	translations = None
-
 def translate( key, **kwargs ):
 	try:
 		lang = request.current.get().language
