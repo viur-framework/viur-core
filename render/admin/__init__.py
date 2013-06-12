@@ -8,6 +8,7 @@ from server import conf
 from server import securitykey
 from server import utils
 from server import request
+from server import session
 import datetime, json
 
 __all__=[ default ]
@@ -44,7 +45,16 @@ def getStructure( adminTree, modul ):
 		return( json.dumps( res ) )
 	else:
 		return( json.dumps( None ) )
-	
+
+
+def setLanguage( lang, skey):
+	if not securitykey.validate( skey ):
+		return( )
+	if lang in conf["viur.avaiableLanguages"]:
+		session.current.setLanguage( lang )
+	return( )
+setLanguage.exposed=True
+
 
 def generateAdminConfig( adminTree ):
 	res = {}
@@ -93,4 +103,5 @@ def _postProcessAppObj( obj ):
 	obj.getStructure = lambda *args, **kwargs: getStructure( obj, *args, **kwargs )
 	obj.getStructure.exposed = True
 	obj.canAccess = canAccess
+	obj.setLanguage = setLanguage
 	return obj
