@@ -196,7 +196,10 @@ class BrowseHandler(webapp.RequestHandler):
 		self.isPostRequest = True
 		self.processRequest( path, *args, **kwargs )
 
-
+	def head(self, path="/", *args, **kwargs): #Accept a HTTP-HEAD request
+		self.isPostRequest = False
+		self.processRequest( path, *args, **kwargs )
+		
 	def selectLanguage( self, path ):
 		"""
 			Tries to select the best language for the current request.
@@ -377,9 +380,7 @@ class BrowseHandler(webapp.RequestHandler):
 
 	def saveSession(self):
 		session.current.save( self )
-		#sessionData = session.current.save()
-		#if sessionData:
-		#	self.response.headers.add_header("Set-Cookie", "viurCookie=%s; Max-Age: 99999; Path=/" % ( sessionData ) )
+
 
 def setup( modules, render=None, default="jinja2" ):
 	"""
