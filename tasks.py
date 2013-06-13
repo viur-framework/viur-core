@@ -228,7 +228,7 @@ class TaskHandler:
 					conf["viur.mainApp"]._tasks.index()
 				else:
 					taskqueue.add( url="/_tasks", target="tasksq" )
-		return self.render.addItemSuccess( None, skel )
+		return self.render.addItemSuccess( skel )
 	execute.exposed = True
 	
 TaskHandler.admin = True	
