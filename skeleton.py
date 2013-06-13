@@ -36,10 +36,13 @@ class Skeleton( object ):
 	def __setattr__(self, key, value):
 		if not "__dataDict__" in dir( self ):
 			super( Skeleton, self ).__setattr__( "__dataDict__", OrderedDict() )
-		if not "__" in key and isinstance( value , baseBone ):
-			if key.lower() in self.__reservedKeywords__:
-				raise AttributeError("Your bone cannot have any of the following names: %s" % str(self.__reservedKeywords__) )
-			self.__dataDict__[ key ] =  value 
+		if not "__" in key:
+			if isinstance( value , baseBone ):
+				if key.lower() in self.__reservedKeywords__:
+					raise AttributeError("Your bone cannot have any of the following names: %s" % str(self.__reservedKeywords__) )
+				self.__dataDict__[ key ] =  value 
+			elif key in self.__dataDict__.keys(): #Allow setting a bone to None again
+				self.__dataDict__[ key ] =  value 
 		super( Skeleton, self ).__setattr__( key, value )
 
 	def __delattr__(self, key):
