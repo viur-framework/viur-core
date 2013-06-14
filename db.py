@@ -651,6 +651,11 @@ class Query( object ):
 			Disadvantage: No Caching (yet)
 			Note: This intentionally ignores the limit set by self.limt() -
 			it yields *all* results.
+			
+			Warning: If iterating over a large result set, make sure the query
+			supports cursors. Otherwise, it might not return all results as the
+			appengine doesn't maintain the view for a query for more than ~30 seconds.
+			
 			@param keysOnly: Set to true if you just want the keys
 			@type keysOnly: Bool
 		"""
@@ -660,8 +665,29 @@ class Query( object ):
 			# Wantet KeysOnly, but MultiQuery is unable to give us that.
 			for res in self.datastoreQuery.Run():
 				yield res.key()
-		for res in self.datastoreQuery.Run( keys_only=keysOnly ): #The standard-case
-			yield res
+		else: #The standard-case
+			stopYield = False
+			lastCursor = None
+			while not stopYield:
+				try:
+					for res in self.datastoreQuery.Run( keys_only=keysOnly ): 
+						yield res
+						try:
+							lastCursor = self.datastoreQuery.GetCursor()
+						except Exception as e:
+							pass
+					stopYield = True # No more results to yield
+				except:
+					if lastCursor is None:
+						stopYield = True
+						logging.warning("Cannot this continue this query - it has no cursors")
+						logging.warning("Not all results have been yielded!")
+					else:
+						logging.debug("Continuing iter() on fresh a query")
+						q = self.clone()
+						q.cursor( lastCursor )
+						self.datastoreQuery = q.datastoreQuery
+						lastCursor = None
 	
 	def get( self ):
 		"""
@@ -713,7 +739,7 @@ class Query( object ):
 			Returns a deep copy of the current query
 		"""
 		if keysOnly is None:
-			keysOnly = self.keysOnly()
+			keysOnly = self.isKeysOnly()
 		res = Query( self.getKind(), self.srcSkelClass, keys_only=keysOnly )
 		res.limit( self.amount )
 		for k, v in self.getFilter().items():
