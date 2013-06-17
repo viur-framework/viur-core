@@ -265,14 +265,14 @@ class CustomUser( List ):
 				isAdmin = True
 		if not isAdmin:
 			if self.registrationEmailVerificationRequired:
-				newUser["status"] = 1
+				skel.status.value = 1
 				skey = securitykey.create( duration=60*60*24*7 , userid=str(newUser.key()), name=skel.name.value )
 				self.sendVerificationEmail( str(newUser.key()), skey )
 			elif self.registrationAdminVerificationRequired:
-				newUser["status"] = 2
+				skel.status.value = 2
 			else: #No further verification required
-				newUser["status"] = 10
-		db.Put( newUser )
+				skel.status.value = 10
+		skel.toDB( str(newUser.key() ) )
 		self.onItemAdded( skel )
 		return self.render.addItemSuccess( str( newUser.key() ), skel )
 	add.exposed = True
