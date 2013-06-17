@@ -199,7 +199,7 @@ class CustomUser( List ):
 			for right in conf["viur.accessRights"]:
 				accessRights[ right ] = _( right )
 			skel.access.values = accessRights
-		skel.name.readOnly = Fals #Dont enforce readonly name in user/add
+		skel.name.readOnly = False #Dont enforce readonly name in user/add
 		skel.password = passwordBone( descr="Password", required=True )
 		return( skel )
 
