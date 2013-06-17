@@ -273,7 +273,7 @@ class CustomUser( List ):
 			else: #No further verification required
 				newUser["status"] = 10
 		db.Put( newUser )
-		self.onItemAdded( str( newUser.key() ), skel )
+		self.onItemAdded( skel )
 		return self.render.addItemSuccess( str( newUser.key() ), skel )
 	add.exposed = True
 	add.forceSSL = True
