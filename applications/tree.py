@@ -42,7 +42,42 @@ class Tree( object ):
 				if not rightName in conf["viur.accessRights"]:
 					conf["viur.accessRights"].append( rightName )
 
-			
+
+	def jinjaEnv(self, env ):
+		"""
+			Provide some additional Functions to the template
+		"""
+		env.globals["getPathToKey"] = self.pathToKey
+		return( env )
+
+
+## Internal exposed functions
+
+	@internalExposed
+	def pathToKey( self, key ):
+		"""
+			Returns the recursively expaned Path through the Hierarchy from the RootNode to the given Node
+			@param key: URlsafe Key of the destination node
+			@type key: String:
+			@returns: An nested dictionary with Informations about all nodes in the path from Root to the given Node
+		"""
+		nodeSkel = self.viewNodeSkel()
+		if not nodeSkel.fromDB( key ):
+			raise errors.NotFound()
+		if not self.canList( "node", key ):
+			raise errors.Unauthorized()
+		res = [ self.render.collectSkelData( nodeSkel ) ]
+		for x in range(0,99):
+			if not nodeSkel.parentdir.value:
+				break
+			parentdir = nodeSkel.parentdir.value
+			nodeSkel = self.viewNodeSkel()
+			if not nodeSkel.fromDB( parentdir ):
+				break
+			res.append( self.render.collectSkelData( nodeSkel ) )
+		return( res[ : : -1 ] )
+
+
 	def ensureOwnUserRootNode( self ):
 		"""
 			Ensures, that an rootNode for the current user exists
@@ -118,7 +153,7 @@ class Tree( object ):
 
 	
 	@exposed
-	def list( self, node, skelType, *args, **kwargs ):
+	def list( self, skelType, node, *args, **kwargs ):
 		"""
 			List the entries and directorys of the given rootNode under the given path
 			@param rootNode: Urlsafe-key of the rootNode
@@ -132,20 +167,23 @@ class Tree( object ):
 			skel = self.viewLeafSkel()
 		else:
 			raise errors.NotAcceptable()
-		if not self.canList( node, skelType ):
+		if not self.canList( skelType, node ):
 			raise errors.Unauthorized()
+		nodeSkel = self.viewNodeSkel()
+		if not nodeSkel.fromDB( node ):
+			raise errors.NotFound()
 		query = skel.all()
 		if "search" in kwargs.keys() and kwargs["search"]:
-			query.filter( "parentrepo =", str(node) )
+			query.filter( "parentrepo =", str(nodeSkel.id.value) )
 		else:
-			query.filter( "parentdir =", str(node) )
+			query.filter( "parentdir =", str(nodeSkel.id.value) )
 		query.mergeExternalFilter( kwargs )
 		res = query.fetch( )
-		return( self.render.list( res, ) )
+		return( self.render.list( res, node=str(nodeSkel.id.value) ) )
 	
 	
 	@exposed
-	def view( self, id, skelType, *args, **kwargs ):
+	def view( self, skelType, id, *args, **kwargs ):
 		"""
 			Prepares and renders a single entry for viewing
 		"""
@@ -165,7 +203,7 @@ class Tree( object ):
 	
 	@exposed
 	@forceSSL
-	def add( self, node, skelType, skey="", *args, **kwargs ):
+	def add( self, skelType, node, skey="", *args, **kwargs ):
 		assert skelType in ["node","leaf"]
 		if skelType == "node":
 			skel = self.viewNodeSkel()
@@ -176,7 +214,7 @@ class Tree( object ):
 		parentNodeSkel = self.editNodeSkel()
 		if not parentNodeSkel.fromDB( node ):
 			raise errors.NotFound()
-		if not self.canAdd( node, skelType ):
+		if not self.canAdd( skelType, node ):
 			raise errors.Unauthorized()
 		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.add( skel ) )
@@ -188,7 +226,7 @@ class Tree( object ):
 
 	@exposed
 	@forceSSL
-	def edit( self, id, skelType, skey="", *args, **kwargs ):
+	def edit( self, skelType, id, skey="", *args, **kwargs ):
 		"""
 			Edit the entry with the given id
 		"""
@@ -213,7 +251,7 @@ class Tree( object ):
 	@exposed
 	@forceSSL
 	@forcePost
-	def delete( self, id, skelType ):
+	def delete( self, skelType, id ):
 		"""
 			Deletes an entry or an directory (including its contents)
 			@param rootNode: Urlsafe-key of the rootNode
@@ -246,7 +284,7 @@ class Tree( object ):
 	@exposed
 	@forceSSL
 	@forcePost
-	def move( self, id, skelType, destNode ):
+	def move( self, skelType, id, destNode ):
 		"""
 			Move an node or a leaf to another node  (including its contents).
 			@param srcrepo: RootNode-key from which has been copied/moved
@@ -286,7 +324,7 @@ class Tree( object ):
 
 ## Default accesscontrol functions 
 
-	def canList( self, node, skelType ):
+	def canList( self, skelType, node ):
 		"""
 			Checks if the current user has the right to list a node
 			@returns: True, if hes allowed to do so, False otherwise.
@@ -300,7 +338,7 @@ class Tree( object ):
 			return( True )
 		return( False )
 		
-	def canView( self, node, skelType ):
+	def canView( self, skelType, node ):
 		"""
 			Checks if the current user has the right to view an entry
 			@returns: True, if hes allowed to do so, False otherwise.
@@ -314,7 +352,7 @@ class Tree( object ):
 			return( True )
 		return( False )
 		
-	def canAdd( self, node, skelType ):
+	def canAdd( self, skelType, node ):
 		"""
 			Checks if the current user has the right to add a new entry
 			@returns: True, if hes allowed to do so, False otherwise.
@@ -328,7 +366,7 @@ class Tree( object ):
 			return( True )
 		return( False )
 		
-	def canEdit( self, node, skelType ):
+	def canEdit( self, skelType, node ):
 		"""
 			Checks if the current user has the right to edit an entry
 			@returns: True, if hes allowed to do so, False otherwise.
@@ -342,7 +380,7 @@ class Tree( object ):
 			return( True )
 		return( False )
 		
-	def canDelete( self, node, skelType ):
+	def canDelete( self, skelType, node ):
 		"""
 			Checks if the current user has the right to delete an entry
 			@returns: True, if hes allowed to do so, False otherwise.
@@ -356,7 +394,7 @@ class Tree( object ):
 			return( True )
 		return( False )
 
-	def canMove( self, node, skelType, destNode ):
+	def canMove( self, skelType, node, destNode ):
 		"""
 			Checks if the current user has the right to add move an entry
 			@returns: True, if hes allowed to do so, False otherwise.

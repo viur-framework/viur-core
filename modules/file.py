@@ -198,6 +198,8 @@ class File( Tree ):
 		except (errors.NotFound, errors.NotAcceptable) as e:
 			if len(args)>0 and blobstore.get( args[0] ):
 				raise( errors.Redirect( "%s/download/%s" % (self.modulPath, args[0]) ) )
+			elif len(args)>1 and blobstore.get( args[1] ):
+				raise( errors.Redirect( "%s/download/%s" % (self.modulPath, args[1]) ) )
 			raise( e )
 
 	@exposed
