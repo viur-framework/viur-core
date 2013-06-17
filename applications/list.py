@@ -54,10 +54,11 @@ class List( object ):
 			raise errors.NotAcceptable()
 		skel = self.viewSkel()
 		if "canView" in dir( self ):
-			if not self.canView( id ):
-				raise errors.Unauthorized()
 			if not skel.fromDB( id ):
 				raise errors.NotFound()
+			if not self.canView( skel ):
+				raise errors.Unauthorized()
+
 		else:
 			queryObj = self.viewSkel().all().mergeExternalFilter( {"id":  id} )
 			queryObj = self.listFilter( queryObj ) #Access control
@@ -103,12 +104,10 @@ class List( object ):
 		else:
 			raise errors.NotAcceptable()
 		skel = self.editSkel()
-		if id == "0":
-			return( self.render.edit( skel ) )
-		if not self.canEdit( id ):
-			raise errors.Unauthorized()
 		if not skel.fromDB( id ):
 			raise errors.NotAcceptable()
+		if not self.canEdit( skel ):
+			raise errors.Unauthorized()
 		if len(kwargs)==0 or skey=="" or not request.current.get().isPostRequest or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel ) )
 		if not securitykey.validate( skey ):
@@ -147,11 +146,11 @@ class List( object ):
 		"""
 			Delete an entry.
 		"""
-		if not self.canDelete( id ):
-			raise errors.Unauthorized()
 		skel = self.editSkel()
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
+		if not self.canDelete( skel ):
+			raise errors.Unauthorized()
 		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel.delete( id )
@@ -199,7 +198,7 @@ class List( object ):
 		if user and  user["access"] and ("%s-add" % self.modulName in user["access"] or  "%s-edit" % self.modulName in user["access"] ):
 			return( True )
 
-	def canEdit( self, id ):
+	def canEdit( self, skel ):
 		"""
 			Checks if the current user has the right to edit the given entry
 			@param id: Urlsafe-key of the entry
@@ -215,7 +214,7 @@ class List( object ):
 			return( True )
 		return( False )
 
-	def canDelete( self, id ):
+	def canDelete( self, skel ):
 		"""
 			Checks if the current user has the right to delete the given entry
 			@param id: Urlsafe-key of the entry
