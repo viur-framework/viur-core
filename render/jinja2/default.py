@@ -429,9 +429,9 @@ class Render( object ):
 			@param tpl: Name of an different template, which should be used instead of the default one
 			@param: tpl: String
 		"""
-		tpl = tpl or self.addTemplate
-		if "addTemplate" in dir( self.parent ):
+		if not tpl and "addTemplate" in dir( self.parent ):
 			tpl = self.parent.addTemplate
+		tpl = tpl or self.addTemplate
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		skeybone = bones.baseBone( descr="SecurityKey",  readOnly=True, visible=False )
 		skeybone.value = securitykey.create()
@@ -451,9 +451,9 @@ class Render( object ):
 			@param tpl: Name of an different template, which should be used instead of the default one
 			@param: tpl: String
 		"""
-		tpl = tpl or self.editTemplate
-		if "editTemplate" in dir( self.parent ):
+		if not tpl and "editTemplate" in dir( self.parent ):
 			tpl = self.parent.editTemplate
+		tpl = tpl or self.editTemplate
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		skeybone = bones.baseBone( descr="SecurityKey",  readOnly=True, visible=False )
 		skeybone.value = securitykey.create()
@@ -510,10 +510,9 @@ class Render( object ):
 			@param tpl: Name of an different template, which should be used instead of the default one
 			@param: tpl: String
 		"""
-		if "listTemplate" in dir( self.parent ):
-			tpl = tpl or self.parent.listTemplate
-		if not tpl:
-			tpl = self.listTemplate
+		if not tpl and "listTemplate" in dir( self.parent ):
+			tpl = self.parent.listTemplate
+		tpl = tpl or self.listTemplate
 		try:
 			fn = self.getTemplateFileName( tpl )
 		except errors.HTTPException as e: #Not found - try default fallbacks FIXME: !!!
@@ -550,10 +549,9 @@ class Render( object ):
 			@param tpl: Name of an different template, which should be used instead of the default one
 			@param: tpl: String
 		"""
-		if "viewTemplate" in dir( self.parent ):
-			tpl = tpl or self.parent.viewTemplate
-		else:
-			tpl = tpl or self.viewTemplate
+		if not tpl and "viewTemplate" in dir( self.parent ):
+			tpl = self.parent.viewTemplate
+		tpl = tpl or self.viewTemplate
 		template= self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		if isinstance( skel, Skeleton ):
 			res = self.collectSkelData( skel )
