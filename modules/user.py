@@ -179,7 +179,7 @@ class CustomUser( List ):
 					1: "Waiting for EMail verification",
 					2: "Waiting for verification through admin",
 					5: "Account disabled",
-					10: "Active" }, defaultValue="10")
+					10: "Active" }, defaultValue="10", required=True )
 	
 	def addSkel( self ):
 		admin=False
