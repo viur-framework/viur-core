@@ -363,7 +363,8 @@ class Render( object ):
 							"type": _bone.type,
 							"required":_bone.required,
 							"params":_bone.params,
-							"visible": _bone.visible
+							"visible": _bone.visible,
+							"readOnly": _bone.readOnly
 							}
 					if key in skel.errors.keys():
 						res[ key ][ "error" ] = skel.errors[ key ]
