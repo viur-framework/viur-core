@@ -54,8 +54,9 @@ class Skeleton( object ):
 	def items(self):
 		return( self.__dataDict__.items() )
 	
-	kindName = ""
-	searchIndex = None
+	kindName = "" # To which kind we save our data to
+	searchIndex = None # If set, use this name as the index-name for the GAE search API
+	enforceUniqueValuesFor = None # If set, enforce that the values of that bone are unique.
 
 	id = baseBone( readOnly=True, visible=False, descr="ID")
 	creationdate = dateBone( readOnly=True, visible=False, creationMagic=True, indexed=True, descr="created at" )
@@ -81,6 +82,8 @@ class Skeleton( object ):
 		for key, bone in tmpList:
 			bone = copy.copy( bone )
 			setattr( self, key, bone )
+		if self.enforceUniqueValuesFor and not self.enforceUniqueValuesFor in [ key for (key,bone) in tmpList ]:
+			raise( ValueError("Cant enforce unique variables for unknown bone %s" % self.enforceUniqueValuesFor ) )
 
 	def __setitem__(self, name, value):
 		try:
@@ -165,6 +168,11 @@ class Skeleton( object ):
 				except db.EntityNotFoundError:
 					k = db.Key( id )
 					dbObj = db.Entity( k.kind(), id=k.id(), name=k.name(), parent=k.parent() )
+			if self.enforceUniqueValuesFor:
+				if "%s.uniqueIndexValue" % self.enforceUniqueValuesFor in dbObj.keys():
+					oldUniquePropertyValue = dbObj[ "%s.uniqueIndexValue" % self.enforceUniqueValuesFor ]
+				else:
+					oldUniquePropertyValue = None
 			tags = []
 			unindexed_properties = []
 			for key in dir( skel ):
@@ -187,9 +195,33 @@ class Skeleton( object ):
 			dbObj.set_unindexed_properties( unindexed_properties )
 			if "preProcessSerializedData" in dir( self ):
 				dbObj = self.preProcessSerializedData( dbObj )
+			if self.enforceUniqueValuesFor:
+				# Check if the property is really unique
+				newVal = getattr( self, self.enforceUniqueValuesFor ).getUniquePropertyIndexValue()
+				try:
+					lockObj = db.Get( db.Key.from_path( "%s_uniquePropertyIndex" % self.kindName, newVal ) )
+					try:
+						ourKey = str( dbObj.key() )
+					except: #Its not an update but an insert, no key yet
+						ourKey = None
+					if lockObj["references"] != ourKey: #This value has been claimed, and that not by us
+						raise ValueError("The value of property %s has been recently claimed!" % self.enforceUniqueValuesFor )
+				except db.EntityNotFoundError: #No lockObj found for that value, we can use that
+					pass
+				if newVal is not None:
+					dbObj[ "%s.uniqueIndexValue" % self.enforceUniqueValuesFor ] = newVal
 			db.Put( dbObj )
+			if self.enforceUniqueValuesFor:
+				# Now update/create/delte the lock-object
+				if newVal != oldUniquePropertyValue:
+					if oldUniquePropertyValue is not None:
+						db.Delete( db.Key.from_path( "%s_uniquePropertyIndex" % self.kindName, oldUniquePropertyValue ) )
+					if newVal is not None:
+						newLockObj = db.Entity( "%s_uniquePropertyIndex" % self.kindName, name=newVal )
+						newLockObj["references"] = str( dbObj.key() )
+						db.Put( newLockObj )
 			return( str( dbObj.key() ), dbObj )
-		id, dbObj = db.RunInTransactionOptions( db.TransactionOptions(xg="preProcessSerializedData" in dir( self )), txnUpdate, id, self, clearUpdateTag )
+		id, dbObj = db.RunInTransactionOptions( db.TransactionOptions(xg=True), txnUpdate, id, self, clearUpdateTag )
 		self.id.value = str(id)
 		if self.searchIndex: #Add a Document to the index if an index specified
 			fields = []
@@ -223,6 +255,14 @@ class Skeleton( object ):
 			@param id: DB.Key to delete
 			@type id: String 
 		"""
+		if self.enforceUniqueValuesFor:
+			#Ensure that we delete any lock objects remaining for this entry
+			try:
+				dbObj = db.Get( db.Key( id ) )
+				if  "%s.uniqueIndexValue" % self.enforceUniqueValuesFor in dbObj.keys():
+					db.Delete( db.Key.from_path( "%s_uniquePropertyIndex" % self.kindName, dbObj[ "%s.uniqueIndexValue" % self.enforceUniqueValuesFor ] ) )
+			except db.EntityNotFoundError:
+				pass
 		db.Delete( db.Key( id ) )
 		for key in dir( self ):
 			if "__" not in key:
@@ -310,6 +350,16 @@ class Skeleton( object ):
 					self.errors[ key ] = error
 					if error  and _bone.required:
 						complete = False
+		if self.enforceUniqueValuesFor:
+			newVal = getattr( self, self.enforceUniqueValuesFor ).getUniquePropertyIndexValue()
+			if newVal is not None:
+				try:
+					dbObj = db.Get( db.Key.from_path( "%s_uniquePropertyIndex" % self.kindName, newVal  ) )
+					if dbObj["references"] != self.id.value: #This valus is taken (sadly, not by us)
+						complete = False
+						self.errors[ self.enforceUniqueValuesFor ] = _("This value is not avaiable")
+				except db.EntityNotFoundError:
+					pass
 		if( len( data )==0 or (len(data)==1 and "id" in data) or ("nomissing" in data.keys() and str(data["nomissing"])=="1") ):
 			self.errors = {}
 		return( complete )

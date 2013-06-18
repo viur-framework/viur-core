@@ -3,6 +3,7 @@ from google.appengine.api import search
 from server.config import conf
 from server import db
 import logging
+import hashlib
 
 class baseBone(object): # One Bone:
 	hasDBField = True
@@ -278,3 +279,19 @@ class baseBone(object): # One Bone:
 			Returns a list of search-fields (GAE search API) for this bone.
 		"""
 		return( [ search.TextField( name=name, value=unicode( self.value ) ) ] )
+	
+	def getUniquePropertyIndexValue( self ):
+		"""
+			Returns an hash for our current value, used to store in the uniqueProptertyValue index.
+		"""
+		if self.value is None:
+			return( None )
+		h = hashlib.sha256()
+		h.update( unicode( self.value ).encode("UTF-8") )
+		res = h.hexdigest()
+		if isinstance( self.value, int ) or isinstance( self.value, float ) or isinstance( self.value, long ):
+			return("I-%s" % res )
+		elif isinstance( self.value, str ) or isinstance( self.value, unicode ):
+			return("S-%s" % res )
+		raise NotImplementedError("Type %s can't be safely used in an uniquePropertyIndex" % type( self.value) )
+
