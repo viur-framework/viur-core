@@ -205,15 +205,15 @@ class File( Tree ):
 	@exposed
 	@forceSSL
 	@forcePost
-	def add( self, node, skelType, *args, **kwargs ):
+	def add( self, skelType, node, *args, **kwargs ):
 		if skelType != "node": #We can't add files directly (they need to be uploaded
 			raise errors.NotAcceptable()
-		return( super( File, self ).add( node, skelType, *args, **kwargs ) )
+		return( super( File, self ).add( skelType, node, *args, **kwargs ) )
 
 	@exposed
 	@forceSSL
 	@forcePost
-	def delete( self, id, skelType ):
+	def delete( self, skelType, id  ):
 		"""Our timestamp-based update approach dosnt work here, so we'll do another trick"""
 		if skelType=="node":
 			skel = self.editNodeSkel
