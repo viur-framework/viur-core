@@ -92,6 +92,17 @@ class Singleton( object ):
 	edit.exposed = True
 	edit.forceSSL = True
 
+
+	def getContents( self ):
+		"""
+			Returns the data of this singleton application as viewSkel.
+		"""
+		skel = self.viewSkel()
+		id = str( db.Key.from_path( self.viewSkel().kindName, self.getKey() ) )
+		if not skel.fromDB( id ):
+			return( None )
+		return( skel )
+
 	def canPreview( self ):
 		"""
 			Checks if the current user has the right to use the preview function
