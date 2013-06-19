@@ -198,18 +198,21 @@ class Skeleton( object ):
 			if self.enforceUniqueValuesFor:
 				# Check if the property is really unique
 				newVal = getattr( self, self.enforceUniqueValuesFor ).getUniquePropertyIndexValue()
-				try:
-					lockObj = db.Get( db.Key.from_path( "%s_uniquePropertyIndex" % self.kindName, newVal ) )
-					try:
-						ourKey = str( dbObj.key() )
-					except: #Its not an update but an insert, no key yet
-						ourKey = None
-					if lockObj["references"] != ourKey: #This value has been claimed, and that not by us
-						raise ValueError("The value of property %s has been recently claimed!" % self.enforceUniqueValuesFor )
-				except db.EntityNotFoundError: #No lockObj found for that value, we can use that
-					pass
 				if newVal is not None:
+					try:
+						lockObj = db.Get( db.Key.from_path( "%s_uniquePropertyIndex" % self.kindName, newVal ) )
+						try:
+							ourKey = str( dbObj.key() )
+						except: #Its not an update but an insert, no key yet
+							ourKey = None
+						if lockObj["references"] != ourKey: #This value has been claimed, and that not by us
+							raise ValueError("The value of property %s has been recently claimed!" % self.enforceUniqueValuesFor )
+					except db.EntityNotFoundError: #No lockObj found for that value, we can use that
+						pass
 					dbObj[ "%s.uniqueIndexValue" % self.enforceUniqueValuesFor ] = newVal
+				else:
+					if "%s.uniqueIndexValue" % self.enforceUniqueValuesFor in dbObj.keys():
+						del dbObj[ "%s.uniqueIndexValue" % self.enforceUniqueValuesFor ]
 			db.Put( dbObj )
 			if self.enforceUniqueValuesFor:
 				# Now update/create/delte the lock-object
