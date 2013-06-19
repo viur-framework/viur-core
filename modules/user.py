@@ -10,7 +10,7 @@ from time import time
 from server import db
 from hashlib import sha512
 from itertools import izip
-from google.appengine.api import users
+from google.appengine.api import users, app_identity
 import logging
 import datetime
 
@@ -139,13 +139,20 @@ class CustomUser( List ):
 		"""
 		super( CustomUser, self ).__init__(*args, **kwargs)
 		if not db.Query( self.loginSkel().kindName ).get():
+			l = self.baseSkel()
+			l.password = passwordBone( descr="Password", required=True )
+			uname = "admin@%s.appspot.com" % app_identity.get_application_id()
 			pw = utils.generateRandomString( 13 )
-			user = self.addUser( "Admin", pw )
-			user["access"] = ["root"]
-			user["status"] = 10
-			db.Put( user )
-			logging.warn("Created a new adminuser for you! Username: Admin, Password: %s" % pw)
-			utils.sendEMailToAdmins( "Your new ViUR password", "ViUR created a new adminuser for you! Username: Admin, Password: %s" % pw )
+			l.setValues( {	"name":uname,
+					"status": 10,
+					"access": ["root"] } )
+			l.password.value = pw
+			try:
+				l.toDB()
+			except:
+				return
+			logging.warn("Created a new adminuser for you! Username: %s, Password: %s" % (uname,pw) )
+			utils.sendEMailToAdmins( "Your new ViUR password", "ViUR created a new adminuser for you! Username: %s, Password: %s" % (uname,pw) )
 
 	def addUser(self, name, password ):
 		skel = self.loginSkel()
@@ -173,6 +180,7 @@ class CustomUser( List ):
 
 	class baseSkel( Skeleton ):
 		kindName = "user"
+		enforceUniqueValuesFor = "name" #Important! Duplicate usernames will cause trouble!
 		name = emailBone( descr="E-Mail", params={"indexed": True, "frontend_list_visible": True}, required=True, readOnly=True, caseSensitive=False, indexed=True )
 		access = selectMultiBone( descr="Accessrights", values={"root": "Superuser"}, params={"indexed": True, "frontend_list_visible": True} )
 		status = selectOneBone( descr="Account status", values = {
@@ -192,7 +200,15 @@ class CustomUser( List ):
 			if user and user["access"] and ("%s-add" % self.modulName in user["access"] or "root" in user["access"] ):
 				admin=True
 		if not admin:
-			skel.status = baseBone( defaultValue=10, readOnly=True, visible=False )
+			if self.registrationEmailVerificationRequired:
+				defaultStatusValue = 1
+				#skey = securitykey.create( duration=60*60*24*7 , userid=str(newUser.key()), name=skel.name.value )
+				#self.sendVerificationEmail( str(newUser.key()), skey )
+			elif self.registrationAdminVerificationRequired:
+				defaultStatusValue = 2
+			else: #No further verification required
+				defaultStatusValue = 10
+			skel.status = baseBone( defaultValue=defaultStatusValue, readOnly=True, visible=False )
 			skel.access = baseBone( defaultValue=[], readOnly=True, visible=False )
 		else:
 			accessRights = skel.access.values.copy()
@@ -236,47 +252,6 @@ class CustomUser( List ):
 			return( True )
 		return( super( CustomUser, self ).canAdd() )
 
-	def add( self, *args, **kwargs ): #FIXME: NDB!!
-		"""
-			Override the add-function, as we must ensure that the usernames are unique
-		"""
-		if "skey" in kwargs:
-			skey = kwargs["skey"]
-		else:
-			skey = ""
-		if not self.canAdd( ):
-			raise errors.Unauthorized()
-		skel = self.addSkel()
-		if not skel.fromClient( kwargs ) or len(kwargs)==0 or skey=="" or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
-			return( self.render.add( skel ) )
-		if not securitykey.validate( skey ):
-			raise errors.PreconditionFailed()
-		if skel.all().filter( "name_idx =", skel.name.value.lower() ).get(): #This username is already taken
-			skel.errors["name"] = _("This name is already taken!")
-			return( self.render.add( skel ) )
-		newUser = self.addUser( skel.name.value, skel.password.value )
-		isAdmin = False #He can add & activate a user directly
-		user = users.get_current_user()  #Check the GAE API
-		if users.is_current_user_admin():
-			isAdmin = True
-		if "user" in dir( conf["viur.mainApp"] ): #Check for our custom user-api
-			user = conf["viur.mainApp"].user.getCurrentUser()
-			if user and user["access"] and ("%s-add" % self.modulName in user["access"] or "root" in user["access"] ):
-				isAdmin = True
-		if not isAdmin:
-			if self.registrationEmailVerificationRequired:
-				skel.status.value = 1
-				skey = securitykey.create( duration=60*60*24*7 , userid=str(newUser.key()), name=skel.name.value )
-				self.sendVerificationEmail( str(newUser.key()), skey )
-			elif self.registrationAdminVerificationRequired:
-				skel.status.value = 2
-			else: #No further verification required
-				skel.status.value = 10
-		skel.toDB( str(newUser.key() ) )
-		self.onItemAdded( skel )
-		return self.render.addItemSuccess( str( newUser.key() ), skel )
-	add.exposed = True
-	add.forceSSL = True
 
 	def login( self, name=None, password=None, skey="", *args, **kwargs ):
 		if self.getCurrentUser(): #Were already loggedin
@@ -284,7 +259,7 @@ class CustomUser( List ):
 		if not name or not password or not securitykey.validate( skey ):
 			return( self.render.login( self.loginSkel() ) )
 		query = db.Query( self.viewSkel().kindName )
-		res  = query.filter( "name_idx >=", name.lower()).get()
+		res  = query.filter( "name.idx >=", name.lower()).get()
 				#.filter( "password =", mysha512.hexdigest())\
 				#.filter( "status >=", 10).get()
 		if res is None:
@@ -303,7 +278,7 @@ class CustomUser( List ):
 					isOkay = False
 		if res["status"] < 10:
 			isOkay = False
-		if res[ "name_idx" ] != name.lower():
+		if res[ "name.idx" ] != name.lower():
 			isOkay = False
 		if( not isOkay ):
 			return( self.render.login( self.loginSkel(), loginFailed=(skey and name and password) )  )
@@ -411,3 +386,12 @@ class CustomUser( List ):
 				return( super( GoogleUser, self ).view( user["id"], *args, **kwargs ) )
 		return( super( GoogleUser, self ).view( id, *args, **kwargs ) )
 	view.exposed=True
+	
+	def onItemAdded( self, skel ):
+		"""
+			Ensure that the verifyEmailAddressMail get's send if needed.
+		"""
+		super( CustomUser, self ).onItemAdded( skel )
+		if self.registrationEmailVerificationRequired and str(skel.status.value)=="1":
+			skey = securitykey.create( duration=60*60*24*7 , userid=str(skel.id.value), name=skel.name.value )
+			self.sendVerificationEmail( str(skel.id.value), skey )
