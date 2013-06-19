@@ -13,6 +13,19 @@ import logging
 class TreeLeafSkel( Skeleton ):
 	parentdir = baseBone( descr="Parent", visible=False, indexed=True, readOnly=True )
 	parentrepo = baseBone( descr="BaseRepo", visible=False, indexed=True, readOnly=True )
+	
+	def fromDB( self, *args, **kwargs ):
+		res = super( TreeLeafSkel, self ).fromDB( *args, **kwargs )
+		# Heal missing parent-repo values
+		if not self.parentrepo.value:
+			dbObj = db.Get( self.id.value )
+			if not "parentdir" in dbObj.keys(): #RootNode
+				return( res )
+			while( "parentdir" in dbObj.keys() and dbObj["parentdir"] ):
+				dbObj = db.Get( dbObj[ "parentdir" ] )
+			self.parentrepo.value = str( dbObj.key() )
+			self.toDB( self.id.value )
+		return( res )
 
 class TreeNodeSkel( TreeLeafSkel ):
 	pass
