@@ -181,13 +181,13 @@ class CustomUser( List ):
 	class baseSkel( Skeleton ):
 		kindName = "user"
 		enforceUniqueValuesFor = "name" #Important! Duplicate usernames will cause trouble!
-		name = emailBone( descr="E-Mail", params={"indexed": True, "frontend_list_visible": True}, required=True, readOnly=True, caseSensitive=False, indexed=True )
-		access = selectMultiBone( descr="Accessrights", values={"root": "Superuser"}, params={"indexed": True, "frontend_list_visible": True} )
+		name = emailBone( descr="E-Mail", required=True, readOnly=True, caseSensitive=False, indexed=True )
+		access = selectMultiBone( descr="Accessrights", values={"root": "Superuser"}, indexed=True )
 		status = selectOneBone( descr="Account status", values = {
 					1: "Waiting for EMail verification",
 					2: "Waiting for verification through admin",
 					5: "Account disabled",
-					10: "Active" }, defaultValue="10", required=True )
+					10: "Active" }, defaultValue="10", required=True, indexed=True )
 	
 	def addSkel( self ):
 		admin=False
@@ -263,7 +263,7 @@ class CustomUser( List ):
 				#.filter( "password =", mysha512.hexdigest())\
 				#.filter( "status >=", 10).get()
 		if res is None:
-			res = {"password":"", "status":0, "name":"","name_idx":"" }
+			res = {"password":"", "status":0, "name":"","name.idx":"" }
 		if "password_salt" in res.keys(): #Its the new, more secure passwd
 			passwd = pbkdf2( password, res["password_salt"] )
 		else:
