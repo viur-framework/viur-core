@@ -55,7 +55,10 @@ class stringBone( baseBone ):
 			else:
 				if name != "id":
 					entity.set( name, self.value, self.indexed )
-					entity.set( name+".idx", unicode( self.value ).lower(), self.indexed )
+					if self.value is None:
+						entity.set( name+".idx", None, self.indexed )
+					else:
+						entity.set( name+".idx", unicode( self.value ).lower(), self.indexed )
 		else: #Write each language separately
 			if not self.value:
 				return( entity )
