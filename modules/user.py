@@ -230,7 +230,7 @@ class CustomUser( List ):
 
 	class lostPasswordSkel( Skeleton ):
 		kindName = "user"
-		name = stringBone( descr="Name", required=True )
+		name = stringBone( descr="username", required=True )
 		password = passwordBone( descr="New Password", required=True )
 	
 	viewSkel = baseSkel
