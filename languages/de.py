@@ -40,7 +40,7 @@ de = {
 	"const_month_12_long": u"Dezember",
 	"const_datetimeformat": u"%a %d %b %Y %H:%M:%S ", # Format: Datum mit Zeit 
 	"const_timeformat": u"%H:%M:%S", # Format: Nur Zeit
-	"const_dateformat": u"%D.%M.%Y", # Format: Nur Datum
+	"const_dateformat": u"%d.%m.%Y", # Format: Nur Datum
 	"search":u"Suche",
 	"my files":u"Dateiverwaltung",
 	"Sites":u"Seiten",
