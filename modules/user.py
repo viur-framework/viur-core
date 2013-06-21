@@ -333,7 +333,7 @@ class CustomUser( List ):
 			skel = self.lostPasswordSkel()
 			if len(kwargs)==0 or not skel.fromClient( kwargs ):
 				return( self.render.passwdRecover( skel, tpl=self.lostPasswordTemplate ) )
-			user = self.viewSkel().all().filter( "name_idx =", skel.name.value.lower() ).get()
+			user = self.viewSkel().all().filter( "name.idx =", skel.name.value.lower() ).get()
 			if not user: #Unknown user
 				skel.errors["name"] = _("Unknown user")
 				return( self.render.passwdRecover( skel, tpl=self.lostPasswordTemplate ) )
