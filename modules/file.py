@@ -22,16 +22,17 @@ import cgi
 
 
 
-class fileBaseSkel( TreeNodeSkel ):
+class fileBaseSkel( TreeLeafSkel ):
 	kindName = "file"
 	size = stringBone( descr="Size", params={"indexed": True, "frontend_list_visible": True}, readOnly=True, indexed=True, searchable=True )
 	dlkey = stringBone( descr="Download-Key", params={"frontend_list_visible": True}, readOnly=True, indexed=True )
 	name = stringBone( descr="Filename", params={"frontend_list_visible": True}, caseSensitive=False, indexed=True, searchable=True )
 	meta_mime = stringBone( descr="Mime-Info", params={"frontend_list_visible": True}, readOnly=True, indexed=True, )
 	weak = booleanBone( descr="Is a weak Reference?", indexed=True, readOnly=True, visible=False )
+	servingurl = stringBone( descr="Serving URL", params={"frontend_list_visible": True}, readOnly=True )
 
 
-class fileNodeSkel( TreeLeafSkel ):
+class fileNodeSkel( TreeNodeSkel ):
 	kindName = "file_rootNode"
 	name = stringBone( descr="Name", required=True, indexed=True, searchable=True )
 
