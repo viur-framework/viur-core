@@ -107,7 +107,7 @@ class File( Tree ):
 			res = [ { "name":_("Meine Datein"), "key": str(repo.key()) } ]
 			if "root" in thisuser["access"]:
 				"""Add at least some repos from other users"""
-				repos = db.Query( self.viewSkel.kindName+"_rootNode" ).filter( "type =", "user").run(100)
+				repos = db.Query( self.viewNodeSkel.kindName+"_rootNode" ).filter( "type =", "user").run(100)
 				for repo in repos:
 					if not "user" in repo.keys():
 						continue
