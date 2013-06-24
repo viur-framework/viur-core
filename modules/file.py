@@ -5,6 +5,7 @@ from server.applications.tree import Tree, TreeNodeSkel, TreeLeafSkel
 from server import forcePost, forceSSL, exposed, internalExposed
 from server.bones import *
 from server import utils, db
+from server.tasks import callDefered
 from google.appengine.ext import blobstore
 from google.appengine.ext.webapp import blobstore_handlers
 import json, urlparse
@@ -80,6 +81,19 @@ class File( Tree ):
 				results.extend(uploads)
 			return results
 
+
+	@callDefered
+	def deleteDirsRecursive( self, parentKey ):
+		files = db.Query( self.editLeafSkel().kindName ).filter( "parentdir =", parentKey  ).iter()
+		for fileEntry in files:
+			utils.markFileForDeletion( fileEntry["dlkey"] )
+			self.editLeafSkel().delete( str( fileEntry.key() ) )
+		dirs = db.Query( self.editNodeSkel().kindName ).filter( "parentdir", parentKey ).iter( keysOnly=True )
+		for d in dirs:
+			self.deleteDirsRecursive( str( d ) )
+			self.editNodeSkel().delete( str( d ) )
+
+
 	def getUploadURL( self, *args, **kwargs ):
 		return( blobstore.create_upload_url( "%s/upload" % self.modulPath ) )
 	getUploadURL.exposed=True
@@ -116,7 +130,7 @@ class File( Tree ):
 			for upload in self.get_uploads():
 				upload.delete()
 			raise errors.Forbidden()
-		if 1:
+		try:
 			res = []
 			if node:
 				# The file is uploaded into a rootNode
@@ -173,11 +187,13 @@ class File( Tree ):
 			user = utils.getCurrentUser()
 			if user:
 				logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
-			logging.error( self.render )
-			logging.error( self.render.add )
-			logging.error( res )
 			return( self.render.addItemSuccess( res ) )
-			#self.response.write( json.dumps( res ) )
+		except:
+			for upload in self.getUploads():
+				upload.delete()
+				utils.markFileForDeletion( str(upload.key() ) )
+			raise( errors.InternalServerError() )
+			
 
 	@exposed
 	def download( self, blobKey, fileName="", download="", *args, **kwargs ):
@@ -196,7 +212,7 @@ class File( Tree ):
 	def view( self, *args, **kwargs ):
 		try:
 			return( super(File, self).view( *args, **kwargs ) )
-		except (errors.NotFound, errors.NotAcceptable) as e:
+		except (errors.NotFound, TypeError) as e:
 			if len(args)>0 and blobstore.get( args[0] ):
 				raise( errors.Redirect( "%s/download/%s" % (self.modulPath, args[0]) ) )
 			elif len(args)>1 and blobstore.get( args[1] ):
@@ -231,23 +247,12 @@ class File( Tree ):
 			utils.markFileForDeletion( repo.dlkey.value )
 			repo.delete( id )
 		else:
-			deferred.defer( self.deleteDirsRecursive, str(id) )
+			self.deleteDirsRecursive( str(id) )
 			repo.delete( id )
 		self.onItemDeleted( repo )
 		return( self.render.deleteSuccess( repo ) )
 	delete.exposed=True
 
-	def deleteDirsRecursive( self, parentKey ):
-		files = db.Query( self.editLeafSkel().kindName ).filter( "parentdir =", parentKey  ).run()
-		for fileEntry in files:
-			import logging
-			logging.error( fileEntry )
-			utils.markFileForDeletion( fileEntry["dlkey"] )
-			db.Delete( fileEntry.key() )
-		dirs = db.Query( self.editNodeSkel().kindName ).filter( "parentdir", parentKey ).run()
-		for d in dirs:
-			deferred.defer( self.deleteDirsRecursive, str(d.key()) )
-			db.Delete( d.key() )
 
 	def canViewRootNode( self, repo ):
 		user = utils.getCurrentUser()
