@@ -39,6 +39,8 @@ def translate( key, **kwargs ):
 	except:
 		return( key )
 	lang = lang or conf["viur.defaultLanguage"]
+	if lang in conf["viur.languageAliasMap"].keys():
+		lang = conf["viur.languageAliasMap"][ lang ]
 	if lang and lang in dir( translations ):
 		langDict = getattr(translations,lang)
 		if key.lower() in langDict.keys():
@@ -212,7 +214,7 @@ class BrowseHandler(webapp.RequestHandler):
 			if not session.current.getLanguage():
 				if "X-Appengine-Country" in self.request.headers.keys():
 					lng = self.request.headers["X-Appengine-Country"].lower()
-					if lng in (list( dir( translations ) ) ):
+					if lng in conf["viur.avaiableLanguages"]+list( conf["viur.languageAliasMap"].keys() ):
 						session.current.setLanguage( lng )
 						self.language = lng
 					else:
@@ -232,7 +234,7 @@ class BrowseHandler(webapp.RequestHandler):
 		elif conf["viur.languageMethod"] == "url":
 			tmppath = urlparse.urlparse( path ).path
 			tmppath = [ urlparse.unquote( x ) for x in tmppath.lower().strip("/").split("/") ]
-			if len( tmppath )>0 and tmppath[0] in (list( dir( translations ) ) ):
+			if len( tmppath )>0 and tmppath[0] in conf["viur.avaiableLanguages"]+list( conf["viur.languageAliasMap"].keys() ):
 				self.language = tmppath[0]
 				return( path[ len( tmppath[0])+1: ] ) #Return the path stripped by its language segment
 			else: # This URL doesnt contain an language prefix, try to read it from session

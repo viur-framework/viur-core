@@ -24,6 +24,9 @@ class LanguageWrapper( dict ):
 		lang = request.current.get().language # currentSession.getLanguage()
 		if not lang:
 			lang = self.languages[ 0 ]
+		else:
+			if lang in conf["viur.languageAliasMap"].keys():
+				lang = conf["viur.languageAliasMap"][ lang ]
 		if lang in self.keys(): #The users language is avaiable :)
 			return( self[ lang ] )
 		else: #We need to select another lang for him
