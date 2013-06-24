@@ -222,9 +222,6 @@ class dateBone( baseBone ):
 			else:
 				self.value = time( hour=int(self.value/60), minute=int(self.value%60) )
 		elif isinstance( self.value, datetime ):
-			ExtendedDateTime.now()
-			self.value.strftime( "%d.%m.%Y %H:%M:%S" )
-			ExtendedDateTime.now().strptime( self.value.strftime( "%d.%m.%Y %H:%M:%S" ), "%d.%m.%Y %H:%M:%S")
 			self.setLocalized( ExtendedDateTime.now().strptime( self.value.strftime( "%d.%m.%Y %H:%M:%S" ), "%d.%m.%Y %H:%M:%S") )
 		return
 	
