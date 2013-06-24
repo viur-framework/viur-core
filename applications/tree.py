@@ -6,6 +6,7 @@ from server import errors, session, conf, securitykey
 from server import db
 from server import forcePost, forceSSL, exposed, internalExposed
 from time import time
+from server.tasks import callDefered
 from google.appengine.api import users
 from datetime import datetime
 import logging
@@ -62,6 +63,49 @@ class Tree( object ):
 		"""
 		env.globals["getPathToKey"] = self.pathToKey
 		return( env )
+
+	@callDefered
+	def deleteRecursive( self, nodeKey ):
+		"""
+			Recursivly processes an delete request
+		"""
+		skel = self.viewLeafSkel()
+		for f in db.Query( self.viewLeafSkel().kindName ).filter( "parentdir", str(nodeKey) ).iter( keysOnly=True ):
+			skel.delete( str( f ) )
+		skel = self.viewNodeSkel()
+		for d in db.Query( self.viewNodeSkel().kindName ).filter( "parentdir", str(repo.key()) ).iter( keysOnly=True ):
+			self.deleteDirsRecursive( d )
+			skel.delete( d )
+		#db.Delete( [x.key() for x in dirs ] )
+	
+	@callDefered
+	def updateParentRepo( self, parentNode, newRepoKey, depth=0 ):
+		"""
+			Recursivly fixes the parentrepo key after a move operation
+			@param parentNode: Key of the node wich children should be fixed
+			@type parentNode: String
+			@param newNode: Key of the new repository
+			@type newNode: String
+			@param depth: Safety precation preventing infinitive loops
+			@type depth: Int
+		"""
+		if depth>99:
+			logging.critical("Maximum recursion depth reached in server.applications.tree/fixParentRepo")
+			logging.critical("Your data is corrupt!")
+			logging.critical("Params: parentNode: %s, newRepoKey: %s" % (parentNode, newRepoKey ) )
+			return
+		def fixTxn( nodeKey, newRepoKey ):
+			node = db.Get( nodeKey )
+			node["parentrepo"] = newRepoKey
+			db.Put( node )
+		# Fix all nodes
+		for repo in db.Query( self.viewNodeSkel().kindName ).filter( "parentdir =", parentNode ).iter( keysOnly=True ):
+			self.updateParentRepo( str( repo ), newRepoKey, depth=depth+1 )
+			db.RunInTransaction( fixTxn, str( repo ), newRepoKey )
+		# Fix the leafs on this level
+		for repo in db.Query( self.viewLeafSkel().kindName ).filter( "parentdir =", parentNode ).iter( keysOnly=True ):
+			db.RunInTransaction( fixTxn, str( repo ), newRepoKey )
+
 
 
 ## Internal exposed functions
@@ -141,19 +185,6 @@ class Tree( object ):
 		if str( repo.key() ) == str(user_repo.key()):
 			return( True )
 		return( False )
-
-	def deleteRecursive( self, nodeKey ):
-		"""
-			Recursivly processes an delete request
-		"""
-		skel = self.viewLeafSkel()
-		for f in db.Query( self.viewLeafSkel().kindName ).filter( "parentdir", str(nodeKey) ).iter( keysOnly=True ):
-			skel.delete( str( f ) )
-		skel = self.viewNodeSkel()
-		for d in db.Query( self.viewNodeSkel().kindName ).filter( "parentdir", str(repo.key()) ).iter( keysOnly=True ):
-			self.deleteDirsRecursive( d )
-			skel.delete( d )
-		#db.Delete( [x.key() for x in dirs ] )
 
 ## External exposed functions
 
@@ -333,6 +364,7 @@ class Tree( object ):
 		srcSkel.parentdir.value = str( destNode )
 		srcSkel.parentrepo.value = destSkel.parentrepo.value #Fixme: Need to rekursive fixing to parentrepo?
 		srcSkel.toDB( id )
+		self.updateParentRepo( id, destSkel.parentrepo.value )
 		return( self.render.editItemSuccess( srcSkel, skelType=skelType, action="move", destNode = destSkel ) )
 
 ## Default accesscontrol functions 
