@@ -10,6 +10,10 @@ except:
 	pytz = None
 
 
+## Workaround for Python Bug #7980 - time.strptime not thread safe
+datetime.now().strptime("2010%02d%02d"%(1,1),"%Y%m%d")
+datetime.now().strftime("%Y%m%d")
+
 class ExtendedDateTime( datetime ):
 	def totimestamp( self ):
 		"""Converts this DateTime-Object back into Unixtime"""
