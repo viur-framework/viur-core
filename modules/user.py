@@ -351,7 +351,7 @@ class CustomUser( List ):
 	
 	def verify(self,  skey,  *args,  **kwargs ):
 		data = securitykey.validate( skey )
-		skel = self.editSkel()
+		skel = self.baseSkel()
 		if not data or not isinstance( data,  dict ) or not "userid" in data or not skel.fromDB( data["userid"] ):
 			return self.render.verifyFailed()
 		if self.registrationAdminVerificationRequired:
