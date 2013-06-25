@@ -191,7 +191,7 @@ class Forum( Hierarchy ):
 		return( self.render.deleteSuccess( skel ) )
 	deleteThread.exposed = True
 		
-	@tasks.callDefered
+	@tasks.callDeferred
 	def deleteStalePosts(self, thread ):
 		"""
 			Remove posts which belong to a thread we just deleted
@@ -200,7 +200,7 @@ class Forum( Hierarchy ):
 		for post in db.Query( postSkel.kindName ).filter( "thread", thread ).iter():
 			postSkel.delete( str( post.key() ) )
 
-	@tasks.callDefered
+	@tasks.callDeferred
 	def checkForEmptyThread(self, thread ): #Fixme: We still have a race-condition here...
 		post = db.Query( self.postSkel() ).filter( "thread", thread ).get()
 		if not post:

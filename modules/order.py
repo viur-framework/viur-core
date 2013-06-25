@@ -5,7 +5,7 @@ from server.skeleton import Skeleton
 from server.bones import *
 from server import errors, session, conf, request
 from server import securitykey
-from server.tasks import callDefered
+from server.tasks import callDeferred
 from server import db, request
 import urllib
 import hashlib
@@ -631,7 +631,7 @@ class Order( List ):
 		self.sendOrderCompleteEMail( orderID )
 	
 	
-	@callDefered
+	@callDeferred
 	def assignBillSequence( self, orderID ):
 		"""Assigns an unique order-ID to the given Order """
 

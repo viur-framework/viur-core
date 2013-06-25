@@ -6,7 +6,7 @@ from server import errors, session, conf, securitykey
 from server import db
 from server import forcePost, forceSSL, exposed, internalExposed
 from time import time
-from server.tasks import callDefered
+from server.tasks import callDeferred
 from google.appengine.api import users
 from datetime import datetime
 import logging
@@ -64,7 +64,7 @@ class Tree( object ):
 		env.globals["getPathToKey"] = self.pathToKey
 		return( env )
 
-	@callDefered
+	@callDeferred
 	def deleteRecursive( self, nodeKey ):
 		"""
 			Recursivly processes an delete request
@@ -78,7 +78,7 @@ class Tree( object ):
 			skel.delete( d )
 		#db.Delete( [x.key() for x in dirs ] )
 	
-	@callDefered
+	@callDeferred
 	def updateParentRepo( self, parentNode, newRepoKey, depth=0 ):
 		"""
 			Recursivly fixes the parentrepo key after a move operation

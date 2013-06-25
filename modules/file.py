@@ -5,7 +5,7 @@ from server.applications.tree import Tree, TreeNodeSkel, TreeLeafSkel
 from server import forcePost, forceSSL, exposed, internalExposed
 from server.bones import *
 from server import utils, db
-from server.tasks import callDefered
+from server.tasks import callDeferred
 from google.appengine.ext import blobstore
 from google.appengine.ext.webapp import blobstore_handlers
 import json, urlparse
@@ -82,7 +82,7 @@ class File( Tree ):
 			return results
 
 
-	@callDefered
+	@callDeferred
 	def deleteDirsRecursive( self, parentKey ):
 		files = db.Query( self.editLeafSkel().kindName ).filter( "parentdir =", parentKey  ).iter()
 		for fileEntry in files:

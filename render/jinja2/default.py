@@ -687,6 +687,8 @@ class Render( object ):
 		user = session.current.get("user")
 		if isinstance( skel, Skeleton ):
 			res = self.collectSkelData( skel )
+		elif isinstance( skel, list ) and all( [isinstance(x,Skeleton) for x in skel] ):
+			res = [ self.collectSkelData( x ) for x in skel ]
 		else:
 			res = skel
 		if len(tpl)<101:

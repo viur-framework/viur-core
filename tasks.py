@@ -246,7 +246,7 @@ def noRetry( f ):
 			raise deferred.PermanentTaskFailure()
 	return( wrappedFunc )
 
-def callDefered( func ):
+def callDeferred( func ):
 	"""
 		This is a decorator, wich allways calls the function defered.
 		Unlike Googles implementation, this one works (with bound functions)

@@ -149,7 +149,7 @@ def enableCache( urls, userSensitive=False, languageSensitive=False, evaluatedAr
 	"""
 	return lambda f: wrapCallable( f, urls, userSensitive, languageSensitive, evaluatedArgs, maxCacheTime )
 
-@tasks.callDefered
+@tasks.callDeferred
 def flushCache( prefix="/*" ):
 	"""
 		Flushes the cache. Its possible the flush only a part of the cache by spefifing
