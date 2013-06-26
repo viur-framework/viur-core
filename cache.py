@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from server import db, utils, request, tasks, session
+from server.config import conf
 from hashlib import sha512
 from datetime import datetime, timedelta
 import logging
@@ -58,10 +59,13 @@ def keyFromArgs( f, userSensitive, languageSensitive, evaluatedArgs, path, *args
 			res[ k ] = v
 	if userSensitive:
 		user = utils.getCurrentUser()
-		if user:
-			res[ "__user" ] = user["id"]
-		else:
-			res[ "__user" ] = None
+		if userSensitive==1 and user: #We dont cache requests for each user seperately
+			return( None )
+		elif userSensitive==2:
+			if user:
+				res[ "__user" ] = user["id"]
+			else:
+				res[ "__user" ] = None
 	if languageSensitive:
 		res[ "__lang" ] = request.current.get().language
 	res[ "__path" ] = path #Different path might have different output (html,xml,..)
@@ -84,6 +88,10 @@ def wrapCallable(f, urls, userSensitive, languageSensitive, evaluatedArgs, maxCa
 	
 	@wraps(f)
 	def wrapF( self, *args, **kwargs ):
+		if conf["viur.disableCache"]:
+			# Caching disabled
+			logging.debug( "Caching is disabled by config" )
+			return( f( self, *args, **kwargs ) )
 		path = "/"+"/".join( request.current.get().pathlist[ : -len( request.current.get().args) ] )
 		if not path in urls:
 			# This path (possibly a sub-render) should not be cached
@@ -117,7 +125,7 @@ def wrapCallable(f, urls, userSensitive, languageSensitive, evaluatedArgs, maxCa
 		return( res )
 	return wrapF
 
-def enableCache( urls, userSensitive=False, languageSensitive=False, evaluatedArgs=[], maxCacheTime=None  ):
+def enableCache( urls, userSensitive=0, languageSensitive=False, evaluatedArgs=[], maxCacheTime=None  ):
 	"""
 		Decorator to mark a function cacheable.
 		Only functions decorated with enableCache are considered cacheable; 
@@ -128,10 +136,11 @@ def enableCache( urls, userSensitive=False, languageSensitive=False, evaluatedAr
 			A function can have serveral urls (eg. /page/view or /pdf/page/view), and it 
 			might should not be cached under all urls (eg. /admin/page/view).
 		@type urls: List
-		@param userSensitive: If true, signals that the output of f depends on the current user.
-			If true, the result of that function is cached for each individual users seperately,
-			otherwise all users will be served with the same content.
-		@type userSensitive: Bool
+		@param userSensitive: Signals whereever the output of f depends on the current user.
+			0 means independed of whereever the user is a guest or know, all will get the same content.
+			1 means cache only for guests, no cache will be performed if the user is logged-in.
+			2 will cache the result of that function for each individual users seperately.
+		@type userSensitive: Int
 		@param languageSensitive: If true, signals that the output of f might got translated.
 			If true, the result of that function is cached seperately for each language.
 		@type languageSensitive: Bool

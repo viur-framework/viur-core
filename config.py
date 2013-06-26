@@ -20,6 +20,7 @@ conf = {	"viur.mainApp": None,  #Reference to our prebuild Application-Instance
 		"viur.db.caching" : 2, #Cache strategy used by the database. 2: Aggressive, 1: Safe, 0: Off
 		"viur.tasks.startBackendOnDemand": True, #If true, allows the task modul to start a backend immediately (instead of waiting for the cronjob)
 		"viur.logMissingTranslations": False, #If true, ViUR will log missing translations in the datastore
+		"viur.disableCache": False, #If set to true, the decorator @enableCache from server.cache has no effect
 		"bugsnag.apiKey": None #If set, ViUR will report Errors to bugsnag
 	}
 
