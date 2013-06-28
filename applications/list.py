@@ -154,7 +154,7 @@ class List( object ):
 		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel.delete( id )
-		self.onItemDeleted( id, skel )
+		self.onItemDeleted( skel )
 		return self.render.deleteSuccess( skel )
 
 ## Default accesscontrol functions 
@@ -258,7 +258,7 @@ class List( object ):
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
 		
-	def onItemViewed( self, id, skel ):
+	def onItemViewed( self, skel ):
 		"""
 			Hook. Can be overriden to hook the onItemViewed-Event
 			@param id: Urlsafe-key of the entry viewed
@@ -268,7 +268,7 @@ class List( object ):
 		"""
 		pass
 	
-	def onItemDeleted( self, id, skel ):
+	def onItemDeleted( self, skel ):
 		"""
 			Hook. Can be overriden to hook the onItemDeleted-Event
 			Note: Saving the skeleton again will undo the deletion.
@@ -277,7 +277,7 @@ class List( object ):
 			@param skel: Skeleton with the data which has been deleted
 			@type skel: Skeleton
 		"""
-		logging.info("Entry deleted: %s" % id )
+		logging.info("Entry deleted: %s" % skel.id.value )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
