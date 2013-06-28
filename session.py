@@ -4,8 +4,8 @@ import json, pickle
 import base64
 import string, random
 from time import time
-from server.tasks import PeriodicTask
-from server import db
+from server.tasks import PeriodicTask, callDeferred
+from server import db, conf
 from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError, OverQuotaError
 import logging
 
@@ -105,7 +105,6 @@ class SessionWrapper( threading.local ):
 			self.session[ "language" ] = lang
 		except AttributeError:
 			pass
-		
 
 
 class GaeSession:
@@ -161,14 +160,22 @@ class GaeSession:
 			elif len(serialized)>920000:
 				logging.critical("Your session stores too much data! Expect failure!")
 			self.getSessionKey( req )
+			# Get the current user id
+			userid = None
+			try:
+				if "user" in dir( conf["viur.mainApp"] ): #Check for our custom user-api
+					userid = conf["viur.mainApp"].user.getCurrentUser()["id"]
+			except:
+				pass
 			try:
 				dbSession = db.Entity( self.kindName, name=self.key )
 				dbSession["data"] = serialized
 				dbSession["sslkey"] = self.sslKey
 				dbSession["lastseen"] = time()
+				dbSession["user"] = str(userid) or "guest" #Store the userid inside the sessionobj, so we can kill specific sessions if needed
 				dbSession.set_unindexed_properties( ["data","sslkey" ] )
 				db.Put( dbSession )
-			except OverQuotaError, CapabilityDisabledError:
+			except (OverQuotaError, CapabilityDisabledError):
 				pass
 			req.response.headers.add_header( "Set-Cookie", bytes( "%s=%s; Max-Age=99999; Path=/; HttpOnly" % ( self.plainCookieName, self.key ) ) )
 			if req.isSSLConnection:
@@ -263,6 +270,24 @@ class GaeSession:
 			self.sslKey = ""
 		return( self.key )
 	
+
+
+@callDeferred
+def killSessionByUser( user=None ):
+	"""
+		Invalidates all sessions for the given userid.
+		This means that this user is instantly logged out.
+		If no user is given, it tries to invalidate *all* sessions.
+		Use "guest" to kill all sessions not associated with an user.
+	"""
+	logging.error("Invalidating all sessions for %s" % user )
+	query = db.Query( GaeSession.kindName )
+	if user is not None:
+		query.filter( "user =", str(user) )
+	for key in query.iter(keysOnly=True):
+		db.Delete( key )
+	
+
 @PeriodicTask( 60 )
 def cleanup( ):
 	oldSessions = db.Query(GaeSession.kindName).filter("lastseen <", time()-GaeSession.lifeTime ).run(limit=1000,keysOnly=True)

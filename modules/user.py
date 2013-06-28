@@ -260,8 +260,6 @@ class CustomUser( List ):
 			return( self.render.login( self.loginSkel() ) )
 		query = db.Query( self.viewSkel().kindName )
 		res  = query.filter( "name.idx >=", name.lower()).get()
-				#.filter( "password =", mysha512.hexdigest())\
-				#.filter( "status >=", 10).get()
 		if res is None:
 			res = {"password":"", "status":0, "name":"","name.idx":"" }
 		if "password_salt" in res.keys(): #Its the new, more secure passwd
@@ -395,3 +393,10 @@ class CustomUser( List ):
 		if self.registrationEmailVerificationRequired and str(skel.status.value)=="1":
 			skey = securitykey.create( duration=60*60*24*7 , userid=str(skel.id.value), name=skel.name.value )
 			self.sendVerificationEmail( str(skel.id.value), skey )
+	
+	def onItemDeleted( self, skel ):
+		"""
+			Invalidate all sessions of that user
+		"""
+		super( CustomUser, self ).onItemDeleted( skel )
+		session.killSessionByUser( str( skel.id.value ) )
