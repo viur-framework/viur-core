@@ -49,6 +49,7 @@ class relationalBone( baseBone ):
 		baseBone.__init__( self, *args, **kwargs )
 		self.multiple = multiple
 		self.format = format
+		self._dbValue = None #Store the original result fetched from the db here so we have that information in case a referenced entity has been deleted
 		if type:
 			self.type = type
 		if self.type is None:
@@ -94,6 +95,12 @@ class relationalBone( baseBone ):
 
 		else:
 			self.value = None
+		if isinstance( self.value, list ):
+			self._dbValue = self.value[ : ]
+		elif isinstance( self.value, dict ):
+			self._dbValue = dict( self.value.items() )
+		else:
+			self._dbValue = None
 		return( True )
 	
 	def serialize(self, key, entity ):
@@ -212,13 +219,25 @@ class relationalBone( baseBone ):
 		if len( res ) == 0:
 			return( "No value entered" )
 		for r in res:
+			isEntryFromBackup = False #If the referenced entry has been deleted, restore information from 
 			try:
 				entry = db.Get( db.Key( r ) )
 			except: #Invalid key or something like that
-				if not self.multiple:
-					return( "Invalid entry selected" )
-				continue
-			if not entry or not entry.key().kind()==self.type: #Entry does not exist or has wrong type (is from another modul)
+				if isinstance(self._dbValue, dict):
+					if self._dbValue["id"]==str(r):
+						entry = self._dbValue
+						isEntryFromBackup = True
+				elif  isinstance(self._dbValue, list):
+					for dbVal in self._dbValue:
+						if dbVal["id"]==str(r):
+							entry = dbVal
+							isEntryFromBackup = True
+				if not isEntryFromBackup:
+					if not self.multiple: #We can stop here :/
+						return( "Invalid entry selected" )
+					else:
+						continue
+			if not entry or (not isEntryFromBackup and not entry.key().kind()==self.type): #Entry does not exist or has wrong type (is from another modul)
 				if entry:
 					logging.error("I got an id, which kind doesn't match my type! (Got: %s, my type %s)" % ( entry.key().kind(), self.type ) )
 				continue
