@@ -64,5 +64,10 @@ de = {
 	"unpaid": u"Unbezahlt", 
 	"created at": u"Erstellt am", 
 	"changed at": u"Geändert am", 
+	
+	"waiting for email verification":u"wartet auf Bestätigung der E-Mailadresse",
+	"waiting for verification through admin":u"warte auf Freischaltung durch Administrator",
+	"account disabled":u"deaktiviert",
+	"active":u"aktiv"
 	}
 	
