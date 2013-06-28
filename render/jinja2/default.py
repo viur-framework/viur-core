@@ -165,6 +165,8 @@ class Render( object ):
 			del( kwargs["cachetime"] )
 		else:
 			cachetime=0
+		if conf["viur.disableCache"]: #Caching disabled by config
+			cachetime=0
 		if cachetime:
 			cacheKey = str(path)+str(args)+str(kwargs)
 			res = memcache.get( cacheKey )
