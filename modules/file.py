@@ -212,7 +212,7 @@ class File( Tree ):
 	def view( self, *args, **kwargs ):
 		try:
 			return( super(File, self).view( *args, **kwargs ) )
-		except (errors.NotFound, TypeError) as e:
+		except (errors.NotFound, errors.NotAcceptable, TypeError) as e:
 			if len(args)>0 and blobstore.get( args[0] ):
 				raise( errors.Redirect( "%s/download/%s" % (self.modulPath, args[0]) ) )
 			elif len(args)>1 and blobstore.get( args[1] ):
