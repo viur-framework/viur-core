@@ -5,6 +5,7 @@ from server import bones, utils, request, session, conf, errors, securitykey
 from server.skeleton import Skeleton
 from server.bones import *
 from server.applications.singleton import Singleton
+from server.bones.stringBone import escapeValue
 import string
 import codecs
 from jinja2 import Environment, FileSystemLoader, ChoiceLoader
@@ -238,10 +239,14 @@ class Render( object ):
 	def getRequestParams(self):
 		"""
 			Allows accessing the request-parameters from the template
-			Warning: They where not santinized!
+			We escape these values here, as users tend to use these in an
+			unsafe manner.
 			@returns: Dict
 		"""
-		return request.current.get().kwargs
+		res = {}
+		for k, v in request.current.get().kwargs.items():
+			res[ escapeValue( k ) ] = escapeValue( v )
+		return res
 	
 	def getSession(self):
 		"""

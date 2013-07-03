@@ -35,6 +35,13 @@ class LanguageWrapper( dict ):
 					return( self[ lang ] )
 		return( "" )
 
+def escapeValue( val, maxLength=254 ):
+	val = unicode(val).strip().replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;")
+	if maxLength:
+		return( val[0:254] )
+	else:
+		return( val )
+
 class stringBone( baseBone ):
 	type = "str"
 	
@@ -127,8 +134,6 @@ class stringBone( baseBone ):
 			@type data: Dict
 			@returns: None or String
 		"""
-		def escapeValue( val ):
-			return( unicode(val).strip().replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")[0:254] )
 		if name in data.keys():
 			value = data[ name ]
 		else:
