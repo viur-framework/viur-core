@@ -11,10 +11,10 @@
 {%- from "dynaformbones/hierarchy.macro"  import hierarchy -%} 
 {%- from "dynaformbones/file.macro"  import fileBone -%} 
       
-{%- macro render_dynaform(Skel) -%}
+{%- macro render_dynaform(Skel,hiddenfields=[]) -%}
 ##set debug=False 
 	{%- for bone_name, bone in Skel["structure"].items() -%}     
-		{% if bone.type == "hidden" %}     
+		{% if bone.type == "hidden" or bone_name in hiddenfields %}     
 	
 				<input type="hidden" name="{{ bone_name }}" value="{{Skel.value[bone_name] }}" />   
 	
