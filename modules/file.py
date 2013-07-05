@@ -20,6 +20,7 @@ from google.appengine.ext import deferred
 import collections
 import logging
 import cgi
+import string
 
 
 
