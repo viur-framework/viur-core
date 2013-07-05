@@ -138,7 +138,7 @@ class Hierarchy( object ):
 		"""
 			Recursivly processes an delete request
 		"""
-		vs = self.viewSkel()
+		vs = self.editSkel()
 		entrys = db.Query( self.viewSkel().kindName ).filter( "parententry", str(key) ).run()
 		for e in entrys:
 			self.deleteRecursive( str( e.key() ) )
@@ -293,10 +293,13 @@ class Hierarchy( object ):
 		"""
 		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
+		skel = self.editSkel()
+		if not skel.fromDB( id ):
+			raise errors.NotFound()
 		if not self.canDelete( id ):
 			raise errors.Unauthorized()
 		self.deleteRecursive( id )
-		self.onItemDeleted( id )
+		self.onItemDeleted( skel )
 		return( self.render.deleteSuccess( id ) )
 
 
@@ -314,9 +317,8 @@ class Hierarchy( object ):
 		skel = self.viewSkel()
 		if not self.canView( id ):
 			raise errors.Unauthorized()
-		if str(id)!="0":
-			if not skel.fromDB( id ):
-				raise errors.NotFound()
+		if not skel.fromDB( id ):
+			raise errors.NotFound()
 		self.onItemViewed( id, skel )
 		return( self.render.view( skel ) )
 
@@ -330,11 +332,13 @@ class Hierarchy( object ):
 		"""
 		if not parent or not self.canList( parent ):
 			raise errors.Unauthorized()
+		parentSkel = self.viewSkel()
+		if not parentSkel.fromDB( parent ):
+			raise errors.NotFound()
 		query = self.viewSkel().all()
-		for k, v in kwargs.items():
-			query.filter( k, v )
+		query.mergeExternalFilter( kwargs )
 		query.filter( "parententry", parent )
-		return( self.render.list( query.fetch(), parent=parent ) )
+		return( self.render.list( query.fetch(), parent=parentSkel ) )
 
 
 	@forceSSL
@@ -564,14 +568,14 @@ class Hierarchy( object ):
 		"""
 		pass
 	
-	def onItemDeleted( self, key ):
+	def onItemDeleted( self, skel ):
 		"""
 			Hook. Can be overriden to hook the onItemDeleted-Event
 			Note: Saving the skeleton again will undo the deletion.
 			@param id: Urlsafe-key of the entry deleted
 			@type id: Skeleton
 		"""
-		logging.info("Entry deleted: %s" % key )
+		logging.info("Entry deleted: %s" % skel.id.value )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
