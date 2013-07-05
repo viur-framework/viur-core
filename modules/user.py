@@ -67,7 +67,7 @@ class GoogleUser( List ):
 			res = {}
 			for k in user.keys():
 				res[ k ] = user[ k ]
-			res[ "id" ] = user.key()
+			res[ "id" ] = str( user.key() )
 			if not res["access"]:
 				res["access"] = []
 			return( res )
