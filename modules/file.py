@@ -199,8 +199,8 @@ class File( Tree ):
 	@exposed
 	def download( self, blobKey, fileName="", download="", *args, **kwargs ):
 		if download == "1":
-			fname = "".join( [ c for c in fileName if c in string.ascii_lowercase+string.ascii_uppercase + string.digits+[".","-","_"] ] )
-			request.current.get().response.headers.add_header( "Content-disposition", "attachment; filename=%s" % ( fname ) )
+			fname = "".join( [ c for c in fileName if c in string.ascii_lowercase+string.ascii_uppercase + string.digits+".-_" ] )
+			request.current.get().response.headers.add_header( "Content-disposition", ("attachment; filename=%s" % ( fname )).encode("UTF-8") )
 		info = blobstore.get(blobKey)
 		if not info:
 			raise errors.NotFound()
