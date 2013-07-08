@@ -332,13 +332,17 @@ class Hierarchy( object ):
 		"""
 		if not parent or not self.canList( parent ):
 			raise errors.Unauthorized()
-		#parentSkel = self.viewSkel()
-		#if not parentSkel.fromDB( parent ):
-		#	raise errors.NotFound()
+		parentSkel = self.viewSkel()
+		if not parentSkel.fromDB( parent ):
+			if not str(parent) in [str(x["key"]) for x in self.getAvailableRootNodes()]:
+				#It isn't a rootNode either
+				raise errors.NotFound()
+			else:
+				parentSkel = None
 		query = self.viewSkel().all()
 		query.mergeExternalFilter( kwargs )
 		query.filter( "parententry", parent )
-		return( self.render.list( query.fetch(), parent=parent ) )
+		return( self.render.list( query.fetch(), parent=parent, parentSkel=parentSkel ) )
 
 
 	@forceSSL
