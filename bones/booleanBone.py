@@ -2,6 +2,7 @@
 from server.bones import baseBone
 
 class booleanBone( baseBone ):
+	type = "bool"
 	trueStrs = [ str(True), "1", "yes" ]
 	
 	def __init__( self, defaultValue=False, *args, **kwargs ):
