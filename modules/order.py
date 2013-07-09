@@ -208,13 +208,19 @@ class PaymentProviderPayPal:
 	
 	
 	def paymentProvider_paypal( self, step, orderID ):
+		def setTokenTxn( key, token ):
+			order = db.Get( key )
+			if not order:
+				return
+			order["paypal_token"] = urllib.unquote(token)
+			db.Put( order )
 		paypal = PaymentProviderPayPal.PayPal()
-		order = db.Get( db.Key( orderID ) )
+		key = db.Key( orderID )
+		order = db.Get( key )
 		if not order:
 			return
 		token = paypal.SetExpressCheckout( "%.2f" % order["price"] )
-		order["paypal_token"] = urllib.unquote(token)
-		db.Put( order )
+		db.RunInTransaction( setTokenTxn, key, token )
 		raise( errors.Redirect( paypal.getPayURL( token ) ) )
 		
 	
@@ -523,7 +529,7 @@ class Order( List ):
 	def markPayed( self, id, skey ):
 		if not self.canEdit( id ):
 			raise errors.Unauthorized()
-		if not securitykey.verify( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		self.setPayed( id )
 		return("OKAY")
@@ -532,7 +538,7 @@ class Order( List ):
 	def markSend( self, id, skey ):
 		if not self.canEdit( id ):
 			raise errors.Unauthorized()
-		if not securitykey.verify( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		self.setSend( id )
 		return("OKAY")
@@ -541,7 +547,7 @@ class Order( List ):
 	def markCanceled( self, id, skey ):
 		if not self.canEdit( id ):
 			raise errors.Unauthorized()
-		if not securitykey.verify( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		self.setCanceled( id )
 		return("OKAY")
@@ -560,7 +566,7 @@ class Order( List ):
 		"""
 		billSkel = Order.billAddressSkel()
 		billSkel.fromDB( orderID )
-		if str(billSkel.useshippingaddress.value)==u"0":
+		if not billSkel.useshippingaddress.value:
 			shippingSkel = Order.shippingAddressSkel()
 			keyMap = { 	"bill_firstname": "shipping_firstname", 
 						"bill_lastname" : "shipping_lastname", 
@@ -858,7 +864,7 @@ class Order( List ):
 				except Order.ReturnHtml as e:
 					return( e.html )
 			if "requiresSecutityKey" in currentStep.keys() and currentStep["requiresSecutityKey"] :
-				if not securitykey.verify( skey ):
+				if not securitykey.validate( skey ):
 					raise errors.PreconditionFailed()
 				pass
 			if "mainHandler" in currentStep.keys():

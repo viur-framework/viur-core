@@ -7,6 +7,9 @@ http://www.gnu.org/licenses/lgpl-3.0
 
 http://www.viur.is
 """
+
+__version__ = (0,9,1)
+
 import sys, traceback, os
 #All (optional) 3rd-party modules in our libs-directory
 for lib in os.listdir( os.path.join("server", "libs") ):
