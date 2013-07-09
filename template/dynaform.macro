@@ -4,6 +4,7 @@
 {%- from "dynaformbones/password.macro"  import passwordbone -%}
 {%- from "dynaformbones/selectmulti.macro"  import selectmultibone -%}
 {%- from "dynaformbones/selectone.macro"  import selectonebone -%}
+{%- from "dynaformbones/bool.macro"  import booleanbone -%}
 {%- from "dynaformbones/string.macro"  import stringbone -%}    
 {%- from "dynaformbones/text.macro"  import textbone -%}
 {%- from "dynaformbones/date.macro"  import datebone -%}
@@ -71,11 +72,13 @@
 				{%- elif bone.type == "selectone" or bone.type.startswith("selectone.")%}
 					{{ selectonebone( bone_name,bone,Skel.value[bone_name] ) }}
 				{%- elif bone.type == "selectmulti" or bone.type.startswith("selectmulti.") %}     
-					{{ selectmultibone( bone_name,bone,Skel.value[bone_name] ) or bone.type.startswith("treeitem.") }}
+					{{ selectmultibone( bone_name,bone,Skel.value[bone_name] ) }}
+				{%- elif bone.type == "bool" or bone.type.startswith("bool.") %}     
+					{{ booleanbone( bone_name,bone,Skel.value[bone_name] ) }}
 				{%- elif bone.type == "text" or bone.type.startswith("text.") -%}
-					{{ textbone( bone_name,bone,Skel.value[bone_name] ) or bone.type.startswith("treeitem.") }}
+					{{ textbone( bone_name,bone,Skel.value[bone_name] ) }}
 				{%- elif bone.type.startswith("treeitem.file") -%}
-					{{ fileBone( bone_name, bone, Skel.value[bone_name] ) or bone.type.startswith("treeitem.") }}
+					{{ fileBone( bone_name, bone, Skel.value[bone_name] )  }}
 				{%- elif bone.type=="relational" or bone.type.startswith("relational.") -%}
 					{{ relational( bone_name, bone, Skel.value[bone_name] ) }}
 				{%- elif bone.type == "hierarchy" or bone.type.startswith("hierarchy.") %}
