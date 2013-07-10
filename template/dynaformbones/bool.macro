@@ -1,0 +1,13 @@
+{%- macro booleanbone( bone_name,bone,value ) -%}
+<!-- ############################### Select One ####################################### -->
+	{% if not bone.visible %}
+		<input type="hidden" name="{{ bone_name }}" value="{{ value }}" />
+	{% else %}
+			<select name="{{ bone_name }}">
+				<option value="0" {% if not value %}selected="selected"{% endif%}>{{_("No")}}</option>
+				<option value="1" {% if value %}selected="selected"{% endif%}>{{_("Yes")}}</option>
+			</select>
+	{%endif%}
+
+
+{%- endmacro -%}
