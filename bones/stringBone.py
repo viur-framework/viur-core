@@ -80,6 +80,12 @@ class stringBone( baseBone ):
 						entity.set( "%s.%s.idx" % (name, lang), self.value.lower(), self.indexed )
 					else:
 						entity.set( "%s.%s.idx" % (name, lang), [x.lower for x in self.value], self.indexed )
+				# Fill in None for all remaining languages (needed for sort!)
+				if self.indexed:
+					for lang in self.languages[ 1: ]:
+						entity.set( "%s.%s" % (name, lang), "", self.indexed )
+						if self.caseSensitive:
+							entity.set( "%s.%s.idx" % (name, lang), "", self.indexed )
 			else:
 				assert isinstance( self.value, dict)
 				for lang in self.languages:
@@ -91,6 +97,12 @@ class stringBone( baseBone ):
 								entity.set( "%s.%s.idx" % (name, lang), val.lower(), self.indexed )
 							else:
 								entity.set( "%s.%s.idx" % (name, lang), [x.lower for x in val], self.indexed )
+					else:
+						# Fill in None for all remaining languages (needed for sort!)
+						if self.indexed:
+							entity.set( "%s.%s" % (name, lang), "", self.indexed )
+							if self.caseSensitive:
+								entity.set( "%s.%s.idx" % (name, lang), "", self.indexed )
 		return( entity )
 		
 	def unserialize( self, name, expando ):
