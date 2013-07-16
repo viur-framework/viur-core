@@ -16,31 +16,11 @@ class userBone( relationalBone ):
 		self.updateMagic = updateMagic
 
 
-	def fromClient( self, name, data ):
-		"""
-			Reads a value from the client.
-			If this value is valis for this bone,
-			store this value and return None.
-			Otherwise our previous value is
-			left unchanged and an error-message
-			is returned.
-			
-			@param name: Our name in the skeleton
-			@type name: String
-			@param data: *User-supplied* request-data
-			@type data: Dict
-			@returns: None or String
-		"""
-		if name in data.keys():
-			value = data[ name ]
-		else:
-			value = None
-		if self.updateMagic or (self.creationMagic and not self.value):
+	def performMagic( self, isAdd ):
+		if self.updateMagic or (self.creationMagic and isAdd):
 			user = conf["viur.mainApp"].user.getCurrentUser()
 			if user:
-				return( super( userBone, self).fromClient( name, {name: str(user["id"]) } ) )
+				return( self.fromClient( name, {name: str(user["id"]) } ) )
 			else:
-				return( super( userBone, self).fromClient( None ) )
-		return( relationalBone.fromClient( self, name, data ) )
+				return( self.fromClient( None ) )
 		
-

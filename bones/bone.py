@@ -295,3 +295,10 @@ class baseBone(object): # One Bone:
 			return("S-%s" % res )
 		raise NotImplementedError("Type %s can't be safely used in an uniquePropertyIndex" % type( self.value) )
 
+	def performMagic( self, isAdd ):
+		"""
+			This function applies "magically" functionality which f.e. inserts the current Date or the current user.
+			@param isAdd: Signals whereever this is an add or edit operation.
+			@type isAdd: Bool
+		"""
+		pass #We do nothing by default

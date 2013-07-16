@@ -224,7 +224,15 @@ class Skeleton( object ):
 						newLockObj["references"] = str( dbObj.key() )
 						db.Put( newLockObj )
 			return( str( dbObj.key() ), dbObj )
+		# Allow bones to perform outstanding "magic" operations before saving to db
+		for key in dir( self ):
+			if "__" not in key:
+				_bone = getattr( self, key )
+				if( isinstance( _bone, baseBone ) ):
+					_bone.performMagic( isAdd=(id==False) )
+		# Run our SaveTxn
 		id, dbObj = db.RunInTransactionOptions( db.TransactionOptions(xg=True), txnUpdate, id, self, clearUpdateTag )
+		# Perform post-save operations (postProcessSerializedData Hook, Searchindex, ..)
 		self.id.value = str(id)
 		if self.searchIndex: #Add a Document to the index if an index specified
 			fields = []

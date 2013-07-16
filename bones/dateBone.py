@@ -46,7 +46,7 @@ class ExtendedDateTime( datetime ):
 class dateBone( baseBone ):
 	type = "date"
 	
-	def __init__( self,  creationMagic=False, updateMagic=False, date=True, time=True,  localize=False, *args,  **kwargs ):
+	def __init__( self,  creationMagic=False, updateMagic=False, date=True, time=True, localize=False, *args,  **kwargs ):
 		"""
 			Initializes a new dateBone.
 			
@@ -204,9 +204,7 @@ class dateBone( baseBone ):
 
 	def serialize( self, name, entity ):
 		res = self.value
-		if (self.creationMagic and not self.value) or self.updateMagic:
-			res  = datetime.now() #This is UTC - Nothing to do here
-		elif res:
+		if res:
 			res = self.readLocalized( datetime.now().strptime( res.strftime( "%d.%m.%Y %H:%M:%S" ), "%d.%m.%Y %H:%M:%S"  ) )
 		entity.set( name, res, self.indexed )
 		return( entity )
@@ -242,3 +240,7 @@ class dateBone( baseBone ):
 			if not self.fromClient( key, rawFilter ): #Parsing succeeded
 				super( dateBone, self ).buildDBFilter( name, skel, dbFilter, {key:datetime.now().strptime( self.value.strftime( "%d.%m.%Y %H:%M:%S" ), "%d.%m.%Y %H:%M:%S"  )} )
 		return( dbFilter )
+
+	def performMagic( self, isAdd ):
+		if (self.creationMagic and isAdd) or self.updateMagic:
+			self.setLocalized( datetime.now() )
