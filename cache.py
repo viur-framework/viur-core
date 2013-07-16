@@ -137,7 +137,7 @@ def enableCache( urls, userSensitive=0, languageSensitive=False, evaluatedArgs=[
 			might should not be cached under all urls (eg. /admin/page/view).
 		@type urls: List
 		@param userSensitive: Signals whereever the output of f depends on the current user.
-			0 means independed of whereever the user is a guest or know, all will get the same content.
+			0 means independed of whereever the user is a guest or known, all will get the same content.
 			1 means cache only for guests, no cache will be performed if the user is logged-in.
 			2 will cache the result of that function for each individual users seperately.
 		@type userSensitive: Int
