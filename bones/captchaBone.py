@@ -3,6 +3,7 @@ from server.bones import bone
 from server import request
 import urllib
 from google.appengine.api import urlfetch 
+import logging
 
 #Fixme: Read the global dict
 class captchaBone( bone.baseBone ):
@@ -36,9 +37,10 @@ class captchaBone( bone.baseBone ):
 			@type data: Dict
 			@returns: None or String
 		"""
-		data = request.current.get().kwargs
+		if request.current.get().isDevServer: #We dont enforce captchas on dev server
+			return( None )
 		if not "recaptcha_challenge_field" in data.keys() or not "recaptcha_response_field" in data.keys():
-			return( False )
+			return( u"No Captcha given!" )
 		data = { 	"privatekey": self.privateKey,
 				"remoteip": request.current.get().request.remote_addr,
 				"challenge": data["recaptcha_challenge_field"],
@@ -49,6 +51,6 @@ class captchaBone( bone.baseBone ):
 						method=urlfetch.POST,
 						headers={"Content-Type": "application/x-www-form-urlencoded"} )
 		if str(response.content).strip().lower().startswith("true"):
-			return( False )
+			return( None )
 		return( u"Invalid Captcha" )
 
