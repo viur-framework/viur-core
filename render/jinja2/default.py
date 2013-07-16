@@ -385,6 +385,7 @@ class Render( object ):
 						else:
 							boneType = "relational."+_bone.type
 						res[key]["type"] = boneType
+						res[key]["modul"] = _bone.modul
 						res[key]["multiple"]=_bone.multiple
 						res[key]["format"] = _bone.format
 					if( isinstance( _bone, bones.selectOneBone ) or isinstance( _bone, bones.selectMultiBone ) ):

@@ -37,6 +37,7 @@ class DefaultRender( object ):
 						else:
 							boneType = "relational"
 						res[key]["type"]="%s.%s" % (boneType,_bone.type)
+						res[key]["modul"] = _bone.modul
 						res[key]["multiple"]=_bone.multiple
 						res[key]["format"] = _bone.format
 					if( isinstance( _bone, bones.treeDirBone ) ):

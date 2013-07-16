@@ -29,13 +29,16 @@ class relationalBone( baseBone ):
 	
 	
 	type = None
+	modul = None
 	refKeys = ["id","name"]
 	parentKeys = ["id","name"]
 
-	def __init__( self, type=None, refKeys=None, parentKeys=None, multiple=False, format="$(name)",  *args,**kwargs):
+	def __init__( self, type=None, modul=None, refKeys=None, parentKeys=None, multiple=False, format="$(name)",  *args,**kwargs):
 		"""
 			Initialize a new relationalBone.
-			@param type: Type of the referenced property. The this type must also match the modulname!
+			@param type: KindName of the referenced property. 
+			@type type: String
+			@param modul: Name of the modul which should be used to select entities of kind "type". If not set, the value of "type" will be used (the kindName must match the modulName)
 			@type type: String
 			@param refKeys: A list of properties to include from the referenced property. These properties will be avaiable in the template without having to fetch the referenced property. Filtering is also only possible by properties named here!
 			@type refKeys: List of Strings
@@ -52,8 +55,12 @@ class relationalBone( baseBone ):
 		self._dbValue = None #Store the original result fetched from the db here so we have that information in case a referenced entity has been deleted
 		if type:
 			self.type = type
-		if self.type is None:
-			raise NotImplementedError("Type of relationalbone's must not be None")
+		if modul:
+			self.modul = modul
+		elif self.type:
+			self.modul = self.type
+		if self.type is None or self.modul is None:
+			raise NotImplementedError("Type and Modul of relationalbone's must not be None")
 		if refKeys:
 			if not "id" in refKeys:
 				raise AttributeError("ID must be included in refKeys!")
