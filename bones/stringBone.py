@@ -296,11 +296,19 @@ class stringBone( baseBone ):
 		if not self.value:
 			return( res )
 		value = self.value
-		for line in unicode(value).splitlines():
-			for key in line.split(" "):
-				key = "".join( [ c for c in key if c.lower() in conf["viur.searchValidChars"] ] )
-				if key and key not in res and len(key)>3:
-					res.append( key.lower() )
+		if self.languages and isinstance( value, dict ):
+			for lang in value.values():
+				for line in unicode(lang).splitlines():
+					for key in line.split(" "):
+						key = "".join( [ c for c in key if c.lower() in conf["viur.searchValidChars"] ] )
+						if key and key not in res and len(key)>3:
+							res.append( key.lower() )
+		else:
+			for line in unicode(value).splitlines():
+				for key in line.split(" "):
+					key = "".join( [ c for c in key if c.lower() in conf["viur.searchValidChars"] ] )
+					if key and key not in res and len(key)>3:
+						res.append( key.lower() )
 		return( res )
 
 	def getSearchDocumentFields(self, name):
