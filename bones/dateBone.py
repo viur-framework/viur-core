@@ -243,4 +243,4 @@ class dateBone( baseBone ):
 
 	def performMagic( self, isAdd ):
 		if (self.creationMagic and isAdd) or self.updateMagic:
-			self.setLocalized( datetime.now() )
+			self.setLocalized( ExtendedDateTime.now() )
