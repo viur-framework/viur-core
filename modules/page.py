@@ -55,7 +55,7 @@ class Page( Hierarchy ):
 		return( super( Page, self ).view( id, *args, **kwargs  )) 
 	view.exposed = True
 
-	def pathToKey( self, key=None ):
+	def pathToKey( self, key=None ): #FIXME: Obsolete
 		if unicode(key).startswith("!"): #This is a human readable key
 			repo = str(self.getAvailableRootNodes()[0]["key"])
 			query = db.Query(  self.viewSkel().kindName )

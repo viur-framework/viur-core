@@ -177,6 +177,8 @@ class Hierarchy( object ):
 				raise errors.NotFound()
 			keylist = [ ]
 		else:
+			if str(key).isdigit():
+				key = str( db.Key.from_path( self.viewSkel().kindName, int(key) ) )
 			keylist = [ key ]
 		if not self.canList( key ):
 			raise errors.Unauthorized()
