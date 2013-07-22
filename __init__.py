@@ -380,7 +380,31 @@ class BrowseHandler(webapp.RequestHandler):
 				except:
 					pass
 		self.kwargs = kwargs
-		self.response.out.write( caller( *self.args, **self.kwargs ) )
+		try:
+			self.response.out.write( caller( *self.args, **self.kwargs ) )
+		except TypeError as e:
+			if self.internalRequest: #We provide that "service" only for requests originating from outside
+				raise
+			#Check if the function got too few arguments and raise a NotAcceptable error
+			tmpRes = {}
+			argsOrder = list( caller.__code__.co_varnames )[ 1 : caller.__code__.co_argcount ]
+			# Map default values in
+			reversedArgsOrder = argsOrder[ : : -1]
+			for defaultValue in list( caller.func_defaults or [] )[ : : -1]:
+				tmpRes[ reversedArgsOrder.pop( 0 ) ] = defaultValue
+			del reversedArgsOrder
+			# Map args in
+			for idx in range(0, min( len( args ), len( argsOrder ) ) ):
+				tmpRes[ argsOrder[ idx ] ] = args[ idx ]
+			# Last, we map the kwargs in
+			for k,v in kwargs.items():
+				if k in tmpRes.keys():
+					raise( errors.NotAcceptable() ) #We reraise that exception as we got duplicate arguments
+				tmpRes[ k ] = v
+			# Last check, that every parameter is satisfied:
+			if not all ( [ x in tmpRes.keys() for x in argsOrder ] ):
+				raise( errors.NotAcceptable() )
+			raise
 
 
 	def saveSession(self):
