@@ -55,8 +55,20 @@ class Render( object ):
 			return( unicode( self.key ) )
 		
 		def __eq__( self, other ):
-			return( self.key == other )
-			
+			return( unicode( self ) == unicode( other ) )
+		
+		def __lt__( self, other ):
+			return( unicode( self ) < unicode( other ) )
+
+		def __gt__( self, other ):
+			return( unicode( self ) > unicode( other ) )
+
+		def __le__( self, other ):
+			return( unicode( self ) <= unicode( other ) )
+
+		def __ge__( self, other ):
+			return( unicode( self ) >= unicode( other ) )
+
 		def __trunc__( self ):
 			return( self.key.__trunc__() )
 
