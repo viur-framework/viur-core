@@ -57,6 +57,7 @@ class Skeleton( object ):
 	kindName = "" # To which kind we save our data to
 	searchIndex = None # If set, use this name as the index-name for the GAE search API
 	enforceUniqueValuesFor = None # If set, enforce that the values of that bone are unique.
+	isBaseClassSkel = False # If True, this skeleton won't be handled by tasks like the relational update task
 
 	id = baseBone( readOnly=True, visible=False, descr="ID")
 	creationdate = dateBone( readOnly=True, visible=False, creationMagic=True, indexed=True, descr="created at" )
@@ -435,7 +436,7 @@ class TaskUpdateSeachIndex( CallableTaskBase ):
 		if not Skel:
 			logging.error("TaskUpdateSeachIndex: Invalid modul")
 			return
-		for sub in db.Query( Skel().kindName ).iter():
+		for sub in Skel().all().iter():
 			try:
 				skel = Skel()
 				skel.fromDB( str(sub.key()) )

@@ -278,7 +278,7 @@ class relationalBone( baseBone ):
 				if origFilter:
 					for k,v in origFilter.items():
 						#Ensure that all non-relational-filters are in parentKeys
-						if not k in self.parentKeys:
+						if not (k if not " " in k else k.split(" ")[0]) in self.parentKeys:
 							logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
 							raise RuntimeError()
 						dbFilter.filter( k, v )
@@ -353,7 +353,7 @@ def findRelations( currentObj, depth=0, rels={} ):
 		return( rels )
 	try:
 		if issubclass( currentObj, Skeleton ):
-			if not currentObj.kindName:
+			if not currentObj.kindName or currentObj.isBaseClassSkel:
 				return( rels )
 			for key in dir( currentObj ):
 				if key.startswith("__"):
@@ -380,12 +380,10 @@ def updateRelations():
 	for modul, referers in findRelations( conf["viur.mainApp"] ).items():
 		for entry in db.Query( modul ).filter( "viur_delayed_update_tag >", 0).iter():
 			for refTable, refKey, skel in referers:
-				oldRelations = db.Query( refTable+"_"+modul+"_"+refKey )\
-					.filter( "%s.id =" % refKey, str( entry.key() ) )\
-					.filter( "viur_delayed_update_tag <", entry["viur_delayed_update_tag"] ).iter()
-				for oldRelation in oldRelations:
+				for oldRelation in skel().all().mergeExternalFilter( {"%s.id" % refKey: str( entry.key() ) } ).filter("viur_delayed_update_tag <", entry["viur_delayed_update_tag"]).iter():
 					tmp = skel()
-					tmp.fromDB( str(oldRelation.key().parent()) )
+					currKey = str( oldRelation.key().parent() or oldRelation.key() )
+					tmp.fromDB( currKey )
 					for key in dir( tmp ):
 						if not key.startswith("__") and isinstance( getattr( tmp, key ), relationalBone ):
 							bone = getattr( tmp, key )
@@ -394,7 +392,7 @@ def updateRelations():
 									bone.fromClient( "relbone", { "relbone":[ x["id"] for x in bone.value]} )
 								else:
 									bone.fromClient( "relbone", { "relbone": bone.value["id"]} )
-					tmp.toDB( str(oldRelation.key().parent()), clearUpdateTag=True )
+					tmp.toDB( currKey, clearUpdateTag=True )
 			tmp = db.Get( entry.key() ) #Reset its modified tag
 			tmp["viur_delayed_update_tag"] = 0
 			db.Put( tmp )
