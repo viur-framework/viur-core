@@ -253,7 +253,7 @@ class List( object ):
 			@param skel: Skeleton with the data which has been edited
 			@type skel: Skeleton
 		"""
-		logging.info("Entry changed: %s" % id )
+		logging.info("Entry changed: %s" % skel.id.value )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
