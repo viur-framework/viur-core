@@ -53,7 +53,7 @@ class File( Tree ):
 	rootNodes = {"personal":"my files"}
 	adminInfo = {	"name": "my files", #Name of this modul, as shown in Admin (will be translated at runtime)
 			"handler": "tree.simple.file",  #Which handler to invoke
-			"icon": "icons/modules/folder.png", #Icon for this modul
+			"icon": "icons/modules/my_files.svg", #Icon for this modul
 			}
 
 	def getUploads(self, field_name=None):
