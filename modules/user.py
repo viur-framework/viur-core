@@ -312,7 +312,7 @@ class CustomUser( List ):
 
 	def edit( self,  *args,  **kwargs ):
 		if len( args ) == 0 and not "id" in kwargs and session.current.get("user"):
-			kwargs["id"] = session.current['user'].get("user")["id"]
+			kwargs["id"] = session.current.get("user")["id"]
 		return( super( CustomUser, self ).edit( *args,  **kwargs ) )
 	edit.exposed=True
 
