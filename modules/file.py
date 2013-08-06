@@ -68,6 +68,11 @@ class File( Tree ):
 			else: #Maybe base64 encoded
 				return( b64decode( name.encode("ascii") ).decode("UTF-8") )
 		except: #Sorry - I cant guess whats happend here
+			if isinstance( name, str ) and not isinstance( name, unicode ):
+				try:
+					return( name.decode("UTF-8", "ignore") )
+				except:
+					pass
 			return( name )
 
 	def getUploads(self, field_name=None):
