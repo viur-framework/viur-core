@@ -181,7 +181,7 @@ class CustomUser( List ):
 	class baseSkel( Skeleton ):
 		kindName = "user"
 		enforceUniqueValuesFor = "name" #Important! Duplicate usernames will cause trouble!
-		name = emailBone( descr="E-Mail", required=True, readOnly=True, caseSensitive=False, indexed=True )
+		name = emailBone( descr="E-Mail", required=True, readOnly=True, caseSensitive=False, searchable=True, indexed=True )
 		access = selectMultiBone( descr="Accessrights", values={"root": "Superuser"}, indexed=True )
 		status = selectOneBone( descr="Account status", values = {
 					1: "Waiting for EMail verification",
