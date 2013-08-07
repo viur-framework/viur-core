@@ -27,7 +27,7 @@ class LanguageWrapper( dict ):
 		else:
 			if lang in conf["viur.languageAliasMap"].keys():
 				lang = conf["viur.languageAliasMap"][ lang ]
-		if lang in self.keys(): #The users language is avaiable :)
+		if lang in self.keys() and self[ lang ] is not None and unicode( self[ lang ] ).strip(): #The users language is avaiable :)
 			return( self[ lang ] )
 		else: #We need to select another lang for him
 			for lang in self.languages:
