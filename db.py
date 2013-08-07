@@ -556,6 +556,12 @@ class Query( object ):
 			@returns String
 		"""
 		return( self.datastoreQuery.__kind )
+	
+	def setKind( self, newKind ):
+		"""
+			Changes the kind of our query.
+		"""
+		self.datastore_query.__kind = newKind
 		
 	def getAncestor(self):
 		"""

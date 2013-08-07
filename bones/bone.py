@@ -174,12 +174,15 @@ class baseBone(object): # One Bone:
 				keyList = [ fromShortKey( key  ) for key in rawFilter["id"] ]
 				if keyList:
 					origQuery = dbFilter.datastoreQuery
+					kind = dbFilter.getKind()
 					try:
 						dbFilter.datastoreQuery = db.MultiQuery( [db.DatastoreQuery( dbFilter.getKind(), filters={ db.KEY_SPECIAL_PROPERTY: x } ) for x in keyList ], () )
 					except db.BadKeyError: #Invalid key
 						raise RuntimeError()
 					except UnicodeEncodeError: # Also invalid key
 						raise RuntimeError()
+					#Monkey-fix for datastore.MultiQuery not setting an kind and therefor breaking order()
+					dbFilter.setKind( kind )
 					for k, v in origQuery.items():
 						dbFilter.filter( k, v )
 			else:
