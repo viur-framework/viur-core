@@ -165,7 +165,7 @@ class Render( object ):
 		return( self.env )
 	
 	def translatevalue(self,obj):
-		return (str (obj))
+		return (obj)
 
 	def execRequest( self, path, *args, **kwargs ):
 		"""
