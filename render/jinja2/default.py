@@ -156,12 +156,16 @@ class Render( object ):
 			self.env.globals["modulName"] = lambda *args, **kwargs: self.parent.modulName
 			self.env.globals["modulPath"] = lambda *args, **kwargs: self.parent.modulPath
 			self.env.globals["_"] = _
+			self.env.globals["tv"] = self.translatevalue
 			self.env.filters["tr"] = _
 			self.env.filters["urlencode"] = self.quotePlus
 			self.env.filters["shortKey"] = self.shortKey
 			if "jinjaEnv" in dir( self.parent ):
 				self.env = self.parent.jinjaEnv( self.env )
 		return( self.env )
+	
+	def translatevalue(self,obj):
+		return (str (obj))
 
 	def execRequest( self, path, *args, **kwargs ):
 		"""
