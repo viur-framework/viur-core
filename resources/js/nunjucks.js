@@ -3638,6 +3638,7 @@ var HttpLoader = Object.extend({
 
     getSource: function(name) {
         var src = this.fetch(this.baseURL + '/' + name);
+
         var _this = this;
 
         if(!src) {
@@ -3659,7 +3660,7 @@ var HttpLoader = Object.extend({
                 src = ajax.responseText;
             }
         };
-
+			
         url += (url.indexOf('?') === -1 ? '?' : '&') + 's=' + Date.now();
 
         // Synchronous because this API shouldn't be used in
