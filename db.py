@@ -561,7 +561,9 @@ class Query( object ):
 		"""
 			Changes the kind of our query.
 		"""
-		self.datastore_query.__kind = newKind
+		if self.datastoreQuery is None:
+			return
+		self.datastoreQuery.__kind = newKind
 		
 	def getAncestor(self):
 		"""
