@@ -128,18 +128,6 @@ function translate (str) {
 
 env.globals["_"]=function(str){return translate(str);};
 
-///Translation choose the right string!
-function tv(obj) {
-	if(typeof obj != "undefined") {
-		//console.log(obj[viur_lang]); 
-		return obj[viur_lang]
-	}
-	//console.log("cant translate: ");
-	//console.log(obj);
-	return("<span title='"+obj+" - my lang:"+viur_lang+"'>&nbsp</span>")
-		
-}
-env.globals["tv"]=tv;
 
 
 
