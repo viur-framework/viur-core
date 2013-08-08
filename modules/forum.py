@@ -39,7 +39,7 @@ class ThreadSkel( PostSkel ):
 
 
 class Forum( Hierarchy ): 
-	adminInfo = {	"name": "Forum", #Name of this modul, as shown in Apex (will be translated at runtime)
+	adminInfo = {	"name": "Forum", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
 				"handler": "hierarchy",  #Which handler to invoke
 				"icon": "icons/modules/forum.png", #Icon for this modul
 				"formatstring": "$(name)", 

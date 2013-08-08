@@ -16,7 +16,7 @@ class Singleton( object ):
 	viewSkel = None
 	editSkel = None	
 	
-	adminInfo = {	"name": "BaseApplication", #Name of this modul, as shown in Apex (will be translated at runtime)
+	adminInfo = {	"name": "BaseApplication", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
 				"handler": "singleton",  #Which handler to invoke
 				"icon": "", #Icon for this modul
 				}
