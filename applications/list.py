@@ -7,7 +7,7 @@ from google.appengine.api import users
 import logging
 
 class List( object ):
-	adminInfo = {	"name": "BaseApplication", #Name of this modul, as shown in Apex (will be translated at runtime)
+	adminInfo = {	"name": "BaseApplication", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
 				"handler": "list",  #Which handler to invoke
 				"icon": "", #Icon for this modul
 				}

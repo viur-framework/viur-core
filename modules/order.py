@@ -319,18 +319,18 @@ class Order( List ):
 			self.html = html
 		
 	adminInfo = {
-		"name": "Orders", #Name of this modul, as shown in Apex (will be translated at runtime)
+		"name": "Orders", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
 		"handler": "list.order",  #Which handler to invoke
-		"icon": "icons/modules/cart.png", #Icon for this modul
+		"icon": "icons/modules/cart.svg", #Icon for this modul
 		"filter":{"orderby":"creationdate","orderdir":1,"state_complete":"1" }, 
 		"columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"],
-		"views" : [	{ "name": u"Not shipped", "filter":{"state_archived": "0",  "state_complete":"1", "state_send":"0", "state_canceled":"0", "orderby":"creationdate","orderdir":1 }, "icon":"icons/status/unsend.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"]},
-					{ "name": u"Unpaid", "filter":{"state_archived": "0", "state_complete":"1", "state_payed":"0","state_canceled":"0", "orderby":"creationdate","orderdir":1}, "icon":"icons/status/unpayed.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] },
-					{ "name": u"Paid","filter":{"state_archived": "0", "state_complete":"1", "state_payed":"1", "state_canceled":"0", "orderby":"creationdate","orderdir":1}, "icon":"icons/status/payed.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] },
-					{ "name": u"Shipped", "filter":{"state_archived": "0", "state_complete":"1", "state_canceled":"0", "state_send":"1","orderby":"changedate","orderdir":1}, "icon":"icons/status/send.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] }, 
-					{ "name": u"Ready to ship", "filter":{"state_archived": "0","state_canceled":"0",  "state_complete":"1", "state_send":"0","state_rts":"1","orderby":"changedate","orderdir":1}, "icon":"icons/status/send.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] }, 
-					{ "name": u"Canceled", "filter":{"state_archived": "0", "state_canceled":"1", "state_complete":"1",  "orderby":"changedate","orderdir":1}, "icon":"icons/status/send.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] }, 
-					{ "name": u"Archived", "filter":{"state_archived": "1", "state_complete":"1", "orderby":"changedate","orderdir":1}, "icon":"icons/status/send.png", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] }
+		"views" : [	{ "name": u"Not shipped", "filter":{"state_archived": "0",  "state_complete":"1", "state_send":"0", "state_canceled":"0", "orderby":"creationdate","orderdir":1 }, "icon":"icons/status/order_not_shipped.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"]},
+					{ "name": u"Unpaid", "filter":{"state_archived": "0", "state_complete":"1", "state_payed":"0","state_canceled":"0", "orderby":"creationdate","orderdir":1}, "icon":"icons/status/order_unpaid.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] },
+					{ "name": u"Paid","filter":{"state_archived": "0", "state_complete":"1", "state_payed":"1", "state_canceled":"0", "orderby":"creationdate","orderdir":1}, "icon":"icons/status/order_paid.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] },
+					{ "name": u"Shipped", "filter":{"state_archived": "0", "state_complete":"1", "state_canceled":"0", "state_send":"1","orderby":"changedate","orderdir":1}, "icon":"icons/status/order_shipped.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] }, 
+					{ "name": u"Ready to ship", "filter":{"state_archived": "0","state_canceled":"0",  "state_complete":"1", "state_send":"0","state_rts":"1","orderby":"changedate","orderdir":1}, "icon":"icons/status/order_ready.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] }, 
+					{ "name": u"Canceled", "filter":{"state_archived": "0", "state_canceled":"1", "state_complete":"1",  "orderby":"changedate","orderdir":1}, "icon":"icons/status/order_cancelled.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] }, 
+					{ "name": u"Archived", "filter":{"state_archived": "1", "state_complete":"1", "orderby":"changedate","orderdir":1}, "icon":"icons/status/archived.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] }
 			]
 		}
 

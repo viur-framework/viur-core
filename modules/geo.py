@@ -45,7 +45,7 @@ class GeoSkel( Skeleton ):
 		return( fields )
 
 class Geo( List ): 
-	adminInfo = {	"name": "Geo", #Name of this modul, as shown in Apex (will be translated at runtime)
+	adminInfo = {	"name": "Geo", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
 				"handler": "list",  #Which handler to invoke
 				"icon": "icons/modules/geo.png", #Icon for this modul
 				"formatstring": "$(name)", 

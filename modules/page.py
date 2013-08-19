@@ -26,13 +26,13 @@ class pageSkel( HierarchySkel ):
 		db.Put( obj )
 
 class Page( Hierarchy ): 
-	adminInfo = {	"name": "Sites", #Name of this modul, as shown in Apex (will be translated at runtime)
+	adminInfo = {	"name": "Sites", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
 				"handler": "hierarchy",  #Which handler to invoke
-				"icon": "icons/modules/menuestruktur.png", #Icon for this modul
+				"icon": "icons/modules/hierarchy.svg", #Icon for this modul
 				"formatstring": "$(name)", 
 				"filters" : { 	
 							None: { "filter":{ },
-									"icon":"icons/modules/menuestruktur.png",
+									"icon":"icons/modules/hierarchy.svg",
 									"columns":["name", "language", "isactive"]
 							},
 					},

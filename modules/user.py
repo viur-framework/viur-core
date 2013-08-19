@@ -38,9 +38,9 @@ class GoogleUser( List ):
 	viewSkel = editSkel
 	addSuccessTemplate = "user_add_success"
 
-	adminInfo = {	"name": "user", #Name of this modul, as shown in Apex (will be translated at runtime)
+	adminInfo = {	"name": "user", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
 			"handler": "list",  #Which handler to invoke
-			"icon": "icons/modules/user.png", #Icon for this modul
+			"icon": "icons/modules/users.svg", #Icon for this modul
 			"columns":[ "name", "access"] # List of default-visible columns
 			}
 
@@ -239,9 +239,9 @@ class CustomUser( List ):
 	registrationEmailVerificationRequired = True
 	registrationAdminVerificationRequired = False
 	
-	adminInfo = {	"name": "User", #Name of this modul, as shown in Apex (will be translated at runtime)
+	adminInfo = {	"name": "User", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
 				"handler": "list",  #Which handler to invoke
-				"icon": "icons/modules/user.png", #Icon for this modul
+				"icon": "icons/modules/users.svg", #Icon for this modul
 				}
 	
 	def getCurrentUser( self, *args, **kwargs ):
