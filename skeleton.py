@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import copy
-from server.bones import baseBone,  dateBone
+from server.bones import baseBone, dateBone, selectOneBone, relationalBone, stringBone
 from collections import OrderedDict
 from threading import local
 from server import db
@@ -8,20 +8,47 @@ from time import time
 from google.appengine.api import search
 from server.config import conf
 from server import utils
-from server.bones import selectOneBone, baseBone, relationalBone, stringBone
-from server.tasks import CallableTask, CallableTaskBase
-from google.appengine.api import datastore, datastore_types, datastore_errors
-from google.appengine.api import memcache
-from google.appengine.api import search
-from copy import deepcopy
+from server.tasks import CallableTask, CallableTaskBase, callDeferred
+import inspect, os
 import logging
-
 
 class BoneCounter(local):
 	def __init__(self):
 		self.count = 0
 
 _boneCounter = BoneCounter()
+
+class MetaSkel( type ):
+	_skelCache = {}
+	__reservedKeywords_ = [ "self", "cursor", "amount", "orderby", "orderdir" ]
+	def __init__( cls, name, bases, dct ):
+		kindName = cls.kindName
+		#if kindName in MetaSkel._skelCache.keys():
+		#	raise NotImplementedError("Duplicate definition of %s" % kindName)
+		relFileName = inspect.getfile(cls).replace( os.getcwd(),"" )
+		if not relFileName.startswith("/models/") and not relFileName.startswith("/server/"): # and any( [isinstance(x,baseBone) for x in [ getattr(cls,y) for y in dir( cls ) if not y.startswith("_") ] ] ):
+			raise NotImplementedError("Skeletons must be defined in /models/")
+		if kindName:
+			MetaSkel._skelCache[ kindName ] = cls
+		for key in dir( cls ):
+			if isinstance( getattr( cls, key ), baseBone ):
+				if key.lower()!=key:
+					raise AttributeError( "Bonekeys must be lowercase" )
+				if "_" in key or "." in key:
+					raise AttributeError( "Bonekeys must not contain \"_\" or \".\" (got %s)" % key )
+				if key in MetaSkel.__reservedKeywords_:
+					raise AttributeError( "Your bone cannot have any of the following keys: %s" % str( MetaSkel.__reservedKeywords_ ) )
+		return( super( MetaSkel, cls ).__init__( name, bases, dct ) )
+
+def skeletonByKind( kindName ):
+	if conf["viur.models"] is None:
+		raise NotImplementedError("You must call server.setup before you can access the skeletons!")
+	if not kindName:
+		return( None )
+	logging.error( kindName )
+	#logging.error( MetaSkel._skelCache.keys() )
+	assert kindName in MetaSkel._skelCache
+	return MetaSkel._skelCache[ kindName ]
 
 class Skeleton( object ):
 	""" 
@@ -31,18 +58,16 @@ class Skeleton( object ):
 		
 		Its an hacked Object that stores it members in a OrderedDict-Instance so the Order stays constant
 	"""
-	__reservedKeywords__ = [ "self", "cursor", "amount", "orderby", "orderdir" ]
+	__metaclass__ = MetaSkel
 
 	def __setattr__(self, key, value):
 		if not "__dataDict__" in dir( self ):
 			super( Skeleton, self ).__setattr__( "__dataDict__", OrderedDict() )
 		if not "__" in key:
 			if isinstance( value , baseBone ):
-				if key.lower() in self.__reservedKeywords__:
-					raise AttributeError("Your bone cannot have any of the following names: %s" % str(self.__reservedKeywords__) )
-				self.__dataDict__[ key ] =  value 
+				self.__dataDict__[ key ] =  value
 			elif key in self.__dataDict__.keys(): #Allow setting a bone to None again
-				self.__dataDict__[ key ] =  value 
+				self.__dataDict__[ key ] =  value
 		super( Skeleton, self ).__setattr__( key, value )
 
 	def __delattr__(self, key):
@@ -53,7 +78,7 @@ class Skeleton( object ):
 
 	def items(self):
 		return( self.__dataDict__.items() )
-	
+
 	kindName = "" # To which kind we save our data to
 	searchIndex = None # If set, use this name as the index-name for the GAE search API
 	enforceUniqueValuesFor = None # If set, enforce that the values of that bone are unique.
@@ -94,7 +119,7 @@ class Skeleton( object ):
 		if not isinstance( bone, baseBone ):
 			raise KeyError("%s is no valid Bone!" % name )
 		bone.value = value
-	
+
 	def __getitem__(self, name ):
 		try:
 			bone = getattr( self, name )
@@ -111,7 +136,7 @@ class Skeleton( object ):
 			to use its special methods mergeExternalFilter and getSkel.
 		"""
 		return( db.Query( self.kindName, srcSkelClass=type( self ) ) )
-	
+
 	def fromDB( self, id ):
 		"""
 			Populates the current instance with values read from the given DB-Key.
@@ -123,15 +148,15 @@ class Skeleton( object ):
 		"""
 		if isinstance(id, basestring ):
 			try:
-				id = datastore_types.Key( id )
-			except datastore_errors.BadKeyError:
+				id = db.Key( id )
+			except db.BadKeyError:
 				id = unicode( id )
 				if id.isdigit():
 					id = long( id )
-				id = datastore_types.Key.from_path( self.kindName, id )
-		assert isinstance( id, datastore_types.Key )
+				id = db.Key.from_path( self.kindName, id )
+		assert isinstance( id, db.Key )
 		try:
-			dbRes = datastore.Get( id )
+			dbRes = db.Get( id )
 		except db.EntityNotFoundError:
 			return( False )
 		if dbRes is None:
@@ -174,21 +199,20 @@ class Skeleton( object ):
 					oldUniquePropertyValue = dbObj[ "%s.uniqueIndexValue" % self.enforceUniqueValuesFor ]
 				else:
 					oldUniquePropertyValue = None
-			tags = []
 			unindexed_properties = []
 			for key in dir( skel ):
 				if "__" not in key:
 					_bone = getattr( skel, key )
 					if( isinstance( _bone, baseBone )  ):
 						tmpKeys = dbObj.keys()
-						dbObj = _bone.serialize( key, dbObj ) 
+						dbObj = _bone.serialize( key, dbObj )
 						newKeys = [ x for x in dbObj.keys() if not x in tmpKeys ] #These are the ones that the bone added
 						if not _bone.indexed:
 							unindexed_properties += newKeys
-						if _bone.searchable and not skel.searchIndex:
-							tags += [ tag for tag in _bone.getSearchTags() if (tag not in tags and len(tag)<400) ]
-			if tags:
-				dbObj["viur_tags"] = tags
+						#if _bone.searchable and not skel.searchIndex:
+						#	tags += [ tag for tag in _bone.getSearchTags() if (tag not in tags and len(tag)<400) ]
+			#if tags:
+			#	dbObj["viur_tags"] = tags
 			if clearUpdateTag:
 				dbObj["viur_delayed_update_tag"] = 0 #Mark this entity as Up-to-date.
 			else:
@@ -214,6 +238,16 @@ class Skeleton( object ):
 				else:
 					if "%s.uniqueIndexValue" % self.enforceUniqueValuesFor in dbObj.keys():
 						del dbObj[ "%s.uniqueIndexValue" % self.enforceUniqueValuesFor ]
+			if not skel.searchIndex:
+				# We generate the searchindex using the full skel, not this (maybe incomplete one)
+				tags = []
+				for key in dir( self ):
+					if "__" not in key:
+						_bone = getattr( self, key )
+						if( isinstance( _bone, baseBone )  ):
+							if _bone.searchable:
+								tags += [ tag for tag in _bone.getSearchTags() if (tag not in tags and len(tag)<400) ]
+				dbObj["viur_tags"] = tags
 			db.Put( dbObj )
 			if self.enforceUniqueValuesFor:
 				# Now update/create/delte the lock-object
@@ -257,6 +291,8 @@ class Skeleton( object ):
 					_bone.postSavedHandler( key, self, id, dbObj )
 		if "postProcessSerializedData" in dir( self ):
 			self.postProcessSerializedData( id,  dbObj )
+		if not clearUpdateTag:
+			updateRelations( id )
 		return( id )
 
 
@@ -308,7 +344,7 @@ class Skeleton( object ):
 					if key=="id":
 						try:
 							# Reading the value from db.Entity
-							_bone.value = str( values.key() ) 
+							_bone.value = str( values.key() )
 						except:
 							# Is it in the dict?
 							if "id" in values.keys():
@@ -375,7 +411,7 @@ class Skeleton( object ):
 		if( len( data )==0 or (len(data)==1 and "id" in data) or ("nomissing" in data.keys() and str(data["nomissing"])=="1") ):
 			self.errors = {}
 		return( complete )
-	
+
 class SkelList( list ):
 	"""
 		Class to hold multiple skeletons along
@@ -395,6 +431,24 @@ class SkelList( list ):
 
 
 ### Tasks ###
+
+@callDeferred
+def updateRelations( destID ):
+	logging.error("updateRelations %s" % destID )
+	for srcRel in db.Query( "viur-relations" ).filter("dest.id =", destID ).iter( ):
+		logging.error("updating ref %s" % srcRel.key().parent() )
+		skel = skeletonByKind( srcRel["viur_src_kind"] )()
+		skel.fromDB( str(srcRel.key().parent()) )
+		for key in dir( skel ):
+			if not key.startswith("_"):
+				_bone = getattr( skel, key )
+				if isinstance( _bone, relationalBone ):
+					if isinstance( _bone.value, dict ):
+						_bone.fromClient( key, {key: _bone.value["id"]} )
+					elif isinstance( _bone.value, list ):
+						_bone.fromClient( key, {key: [x["id"] for x in _bone.value]} )
+		skel.toDB( str(srcRel.key().parent()), clearUpdateTag=True )
+
 
 @CallableTask
 class TaskUpdateSeachIndex( CallableTaskBase ):
@@ -446,3 +500,4 @@ class TaskUpdateSeachIndex( CallableTaskBase ):
 			except Exception as e:
 				logging.error("Updating %s failed" % str(sub.key()) )
 				logging.error( e )
+

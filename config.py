@@ -5,6 +5,7 @@ from google.appengine.api import memcache
 
 #Conf is static, local Dictionary. Changes here are local to the current instance
 conf = {	"viur.mainApp": None,  #Reference to our prebuild Application-Instance
+		"viur.models": None, #Dictionary of all models known to this instance
 		"viur.defaultLanguage": "en", #Unless overridden by the Project: Use english as default language
 		"viur.languageMethod": "session", #Defines how translations are applied. session: Per Session, url: inject language prefix in url, domain: one domain per language
 		"viur.domainLanguageMapping": {},  #Maps Domains to alternative default languages

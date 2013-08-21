@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from server.bones import treeItemBone
+from server.bones import treeItemBone, baseBone
 from server import db
 from server.utils import markFileForDeletion
 from google.appengine.api.images import get_serving_url
@@ -21,7 +21,9 @@ class fileBone( treeItemBone ):
 		parentValues = {}
 		for parentKey in self.parentKeys:
 			if parentKey in dir( skel ):
-				parentValues[ parentKey ] = unicode( getattr( skel, parentKey ).value )
+				_bone = getattr( skel, parentKey )
+				if isinstance( _bone, baseBone ):
+					parentValues[ parentKey ] = unicode( _bone.value )
 		dbVals = db.Query( skel.kindName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) ).run()
 		for dbObj in dbVals:
 			if not dbObj[ key+"_id" ] in [ x[key+"_id"] for x in values ]: #Relation has been removed

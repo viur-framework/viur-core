@@ -56,7 +56,7 @@ class Geo( List ):
 							},
 					}
 				}
-	viewSkel = GeoSkel
-	addSkel = GeoSkel
-	editSkel = GeoSkel
+	#viewSkel = GeoSkel
+	#addSkel = GeoSkel
+	#editSkel = GeoSkel
 

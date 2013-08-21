@@ -8,7 +8,7 @@ http://www.gnu.org/licenses/lgpl-3.0
 http://www.viur.is
 """
 
-__version__ = (0,9,1)
+__version__ = (1,0,0)
 
 import sys, traceback, os
 #All (optional) 3rd-party modules in our libs-directory
@@ -21,11 +21,9 @@ from server import request
 import server.languages as servertrans
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp.util import run_wsgi_app
-from google.appengine.ext import deferred
 from google.appengine.api import users
 import urlparse
 
-from functools import wraps
 from string import Template
 from StringIO import StringIO
 import logging
@@ -421,6 +419,24 @@ def setup( modules, render=None, default="jinja2" ):
 		@param default: Which render should be the default. Its modules wont get a prefix (i.e /user instead of /renderBaseName/user )
 		@type default: String
 	"""
+	import models
+	from server.skeleton import Skeleton
+	conf["viur.models"] = {}
+	for modelKey in dir( models ):
+		modelModul = getattr( models, modelKey )
+		for key in dir( modelModul ):
+			model = getattr( modelModul, key )
+			try:
+				isSkelClass = issubclass( model, Skeleton )
+			except TypeError:
+				continue
+			if isSkelClass:
+				if not model.kindName:
+					# Looks like a common base-class for models
+					continue
+				if model.kindName in conf["viur.models"].keys():
+					raise ValueError("Duplicate definition for %s" % model.kindName)
+				conf["viur.models"][ model.kindName ] = model
 	if not render:
 		import server.render
 		render = server.render

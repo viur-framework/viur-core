@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
-from server.skeleton import Skeleton
+from server.skeleton import Skeleton, skeletonByKind
 from server import utils, session,  errors, conf, securitykey, request
 from server import forcePost, forceSSL, exposed, internalExposed
 from google.appengine.api import users
@@ -22,6 +22,15 @@ class List( object ):
 				rightName = "%s-%s" % ( modulName, r )
 				if not rightName in conf["viur.accessRights"]:
 					conf["viur.accessRights"].append( rightName )
+
+	def viewSkel( self, *args, **kwargs ):
+		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
+	
+	def addSkel( self, *args, **kwargs ):
+		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
+
+	def editSkel( self, *args, **kwargs ):
+		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
 
 ## External exposed functions
 

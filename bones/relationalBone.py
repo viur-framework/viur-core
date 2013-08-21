@@ -129,47 +129,58 @@ class relationalBone( baseBone ):
 		return( entity )
 	
 	def postSavedHandler( self, key, skel, id, dbfields ):
-		if not self.multiple or not self.indexed:
-			return #If not n:m relation: Nothing to do here :)
 		if not self.value:
 			values = []
 		elif isinstance( self.value, dict ):
-			values = [ dict( (key+"."+k,v) for k,v in self.value.items() ) ]
+			values = [ dict( (k,v) for k,v in self.value.items() ) ]
 		else:
-			values = [ dict( (key+"."+k,v) for k,v in x.items() ) for x in self.value ]
+			values = [ dict( (k,v) for k,v in x.items() ) for x in self.value ]
 		parentValues = {}
 		for parentKey in self.parentKeys:
 			if parentKey in dbfields.keys():
 				parentValues[ parentKey ] = dbfields[ parentKey ]
-		dbVals = db.Query( skel.kindName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) )
+		dbVals = db.Query( "viur-relations" ).ancestor( db.Key( id ) ) #skel.kindName+"_"+self.type+"_"+key
+		dbVals.filter("viur_src_kind =", skel.kindName )
+		dbVals.filter("viur_dest_kind =", self.type )
+		dbVals.filter("viur_src_property =", key )
 		for dbObj in dbVals.run():
 			try:
-				if not dbObj[ key+".id" ] in [ x[key+".id"] for x in values ]: #Relation has been removed
+				if not dbObj[ "dest.id" ] in [ x["id"] for x in values ]: #Relation has been removed
 					db.Delete( dbObj.key() )
 					continue
 			except: #This entry is corrupt
 				db.Delete( dbObj.key() )
 			else: # Relation: Updated
-				data = [ x for x in values if x[key+".id"]== dbObj[ key+".id" ] ][0]
-				for k,v in data.items():
-					dbObj[ k ] = v
-				for k,v in parentValues.items():
-					dbObj[ k ] = v
-				dbObj[ "viur_delayed_update_tag" ] = time()
-				db.Put( dbObj )
+				data = [ x for x in values if x["id"]== dbObj[ "dest.id" ] ][0]
+				if self.multiple and self.indexed: #We dont store more than key and kinds, and these dont change
+					for k,v in data.items():
+						dbObj[ "dest."+k ] = v
+					for k,v in parentValues.items():
+						dbObj[ "src."+k ] = v
+					dbObj[ "viur_delayed_update_tag" ] = time()
+					db.Put( dbObj )
 				values.remove( data )
 		# Add any new Relation
 		for val in values:
-			dbObj = db.Entity( skel.kindName+"_"+self.type+"_"+key, parent=db.Key( id ) )
-			for k, v in val.items():
-				dbObj[ k ] = v
-			for k,v in parentValues.items():
-				dbObj[ k ] = v
+			dbObj = db.Entity( "viur-relations" , parent=db.Key( id ) ) #skel.kindName+"_"+self.type+"_"+key
+			if not self.multiple or not self.indexed: #Dont store more than key and kinds, as they aren't used anyway
+				dbObj[ "dest.id" ] = val["id"]
+				dbObj[ "src.id" ] = id
+			else:
+				for k, v in val.items():
+					dbObj[ "dest."+k ] = v
+				for k,v in parentValues.items():
+					dbObj[ "src."+k ] = v
 			dbObj[ "viur_delayed_update_tag" ] = time()
+			dbObj[ "viur_src_kind" ] = skel.kindName #The kind of the entry referencing
+			#dbObj[ "viur_src_key" ] = str( id ) #The id of the entry referencing
+			dbObj[ "viur_src_property" ] = key #The key of the bone referencing
+			#dbObj[ "viur_dest_key" ] = val[ "id" ]
+			dbObj[ "viur_dest_kind" ] = self.type
 			db.Put( dbObj )
 		
 	def postDeletedHandler( self, skel, key, id ):
-		db.Delete( [x for x in db.Query( skel.kindName+"_"+self.type+"_"+key ).ancestor( db.Key( id ) ).run( keysOnly=True ) ] )
+		db.Delete( [x for x in db.Query( "viur-relations" ).ancestor( db.Key( id ) ).run( keysOnly=True ) ] ) #skel.kindName+"_"+self.type+"_"+key
 	
 	def rebuildData(self, *args, **kwargs ):
 		pass
@@ -273,34 +284,38 @@ class relationalBone( baseBone ):
 				# create a new Filter based on our SubType and copy the parameters
 				if isinstance( origFilter, db.MultiQuery):
 					raise NotImplementedError("Doing a relational Query with multiple=True and \"IN or !=\"-filters is currently unsupported!")
-				else:
-					dbFilter.datastoreQuery = type( dbFilter.datastoreQuery )( skel.kindName+"_"+self.type+"_"+name )
+				dbFilter.datastoreQuery = type( dbFilter.datastoreQuery )( "viur-relations" ) #skel.kindName+"_"+self.type+"_"+name
+				dbFilter.filter("viur_src_kind =", skel.kindName )
+				dbFilter.filter("viur_dest_kind =", self.type )
+				dbFilter.filter("viur_src_property", name )
 				if origFilter:
 					for k,v in origFilter.items():
 						#Ensure that all non-relational-filters are in parentKeys
 						if not (k if not " " in k else k.split(" ")[0]) in self.parentKeys:
 							logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
 							raise RuntimeError()
-						dbFilter.filter( k, v )
+						dbFilter.filter( "src.%s" % k, v )
 			# Merge the relational filters in
 			for key in myKeys:
 				value = rawFilter[ key ]
 				tmpdata = key.split("$")
+				key = tmpdata[0].split(".")[1]
 				#Ensure that the relational-filter is in refKeys
-				if not tmpdata[0].split(".")[1] in self.refKeys:
-					logging.warning( "Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (tmpdata[0].split(".")[1],name) )
+				if not key in self.refKeys:
+					logging.warning( "Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (key,name) )
 					raise RuntimeError()
 				if len( tmpdata ) > 1:
 					if tmpdata[1]=="lt":
-						dbFilter.filter( "%s <" % tmpdata[0], value )
+						dbFilter.filter( "dest.%s <" % key, value )
 					elif tmpdata[1]=="gt":
-						dbFilter.filter( "%s >" % tmpdata[0], value )
+						dbFilter.filter( "dest.%s >" % key, value )
 					else:
-						dbFilter.filter( "%s =", tmpdata[0], value )
+						dbFilter.filter( "dest.%s =", key, value )
 				else:
-					dbFilter.filter( "%s =" % tmpdata[0], value )
+					dbFilter.filter( "dest.%s =" % key, value )
 		elif name in rawFilter.keys() and rawFilter[ name ].lower()=="none":
 			dbFilter = dbFilter.filter( "%s =" % name, None )
+		logging.error( dbFilter.getFilter() )
 		return( dbFilter )
 
 	def buildDBSort( self, name, skel, dbFilter, rawFilter ):

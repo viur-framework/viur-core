@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone, numericBone
-from server.skeleton import Skeleton
+from server.skeleton import Skeleton, skeletonByKind
 from server import utils, errors, session, conf, request, securitykey
 from server import db
 from server import forcePost, forceSSL, exposed, internalExposed
@@ -33,11 +33,20 @@ class Hierarchy( object ):
 			#,"orderby":"changedate",
 			#"orderdir":1
 			}
-			
+
+	def viewSkel( self, *args, **kwargs ):
+		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
+	
+	def addSkel( self, *args, **kwargs ):
+		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
+
+	def editSkel( self, *args, **kwargs ):
+		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
+
 	def __init__( self, modulName, modulPath, *args, **kwargs ):
 		self.modulName = modulName
 		self.modulPath = modulPath
-		if self.adminInfo and self.editSkel:
+		if self.adminInfo: # and self.editSkel
 			rights = ["add", "edit", "view", "delete"]
 			for r in rights:
 				rightName = "%s-%s" % ( modulName, r )
