@@ -362,6 +362,7 @@ class relationalBone( baseBone ):
 				res.append( search.TextField( name="%s%s" % (name, k), value=unicode( v ) ) )
 		return( res )
 
+"""
 def findRelations( currentObj, depth=0, rels={} ):
 	from server.skeleton import Skeleton
 	if depth>4:
@@ -412,3 +413,4 @@ def updateRelations():
 			tmp["viur_delayed_update_tag"] = 0
 			db.Put( tmp )
 
+"""
