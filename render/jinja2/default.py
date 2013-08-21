@@ -206,7 +206,12 @@ class Render( object ):
 			currentRequest.kwargs = tmp_params # Reset RequestParams
 			currentRequest.internalRequest = lastRequestState
 			return( u"%s not callable or not exposed" % str(caller) )
-		resstr = caller( *args, **kwargs )
+		try:
+			resstr = caller( *args, **kwargs )
+		except Exception as e:
+			logging.error("Caught execption in execRequest while calling %s" % path)
+			logging.exception(e)
+			raise
 		currentRequest.kwargs = tmp_params
 		currentRequest.internalRequest = lastRequestState
 		if cachetime:
