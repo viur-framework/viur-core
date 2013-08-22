@@ -258,14 +258,20 @@ class stringBone( baseBone ):
 		return( dbFilter )
 
 	def buildDBSort( self, name, skel, dbFilter, rawFilter ):
-		if "orderby" in list(rawFilter.keys()) and rawFilter["orderby"] == name:
+		if "orderby" in list(rawFilter.keys()) and (rawFilter["orderby"] == name or (rawFilter["orderby"].startswith("%s."%name) and self.languages) ):
 			if not self.indexed:
 				logging.warning( "Invalid ordering! %s is not indexed!" % name )
 				raise RuntimeError()
 			if self.languages:
-				lang = request.current.get().language #currentSession.getLanguage()
-				if not lang or not lang in self.languages:
-					lang = self.languages[ 0 ]
+				lang = None
+				if rawFilter["orderby"].startswith("%s."%name):
+					lng = rawFilter["orderby"].replace("%s."%name,"")
+					if lng in self.languages:
+						lang = lng
+				if lang is None:
+					lang = request.current.get().language #currentSession.getLanguage()
+					if not lang or not lang in self.languages:
+						lang = self.languages[ 0 ]
 				if self.caseSensitive:
 					prop = "%s.%s" % (name, lang)
 				else:
