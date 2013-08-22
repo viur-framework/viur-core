@@ -39,23 +39,26 @@ def translate( key, **kwargs ):
 		lang = request.current.get().language
 	except:
 		return( key )
+	res = None
 	lang = lang or conf["viur.defaultLanguage"]
 	if lang in conf["viur.languageAliasMap"].keys():
 		lang = conf["viur.languageAliasMap"][ lang ]
 	if lang and lang in dir( translations ):
 		langDict = getattr(translations,lang)
 		if key.lower() in langDict.keys():
-			return( langDict[ key.lower() ] )
-	if lang and lang in dir( servertrans ):
+			res = langDict[ key.lower() ]
+	if res is None and lang and lang in dir( servertrans ):
 		langDict = getattr(servertrans,lang)
 		if key.lower() in langDict.keys():
-			return( langDict[ key.lower() ] )
-	if conf["viur.logMissingTranslations"]:
+			res = langDict[ key.lower() ]
+	if res is None and conf["viur.logMissingTranslations"]:
 		from server import db
 		db.GetOrInsert( key="%s-%s" % (key, str(lang)), kindName="viur-missing-translations", langkey=key, lang=lang )
+	if res is None:
+		res = key
 	for k, v in kwargs.items():
-		key = key.replace("{{%s}}"%k, v )
-	return( key )
+		res = res.replace("{{%s}}"%k, v )
+	return( res )
 __builtins__["_"] = translate #Install the global "_"-Function
 
 def setDefaultLanguage( lang ):
