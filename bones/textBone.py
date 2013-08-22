@@ -126,7 +126,11 @@ class textBone( baseBone ):
 					del entity[ k ]
 			for lang in self.languages:
 				if lang in self.value.keys():
-					entity[ "%s.%s" % (name, lang) ] = self.value[ lang ]
+					val = self.value[ lang ]
+					if not val or (not HtmlSerializer().santinize(val).strip() and not "<img " in val):
+						#This text is empty (ie. it might contain only an empty <p> tag
+						continue
+					entity[ "%s.%s" % (name, lang) ] = val
 		else:
 			entity.set( name, self.value, self.indexed )
 		return( entity )
@@ -174,7 +178,7 @@ class textBone( baseBone ):
 			for lang in self.languages:
 				if "%s.%s" % (name,lang ) in data.keys():
 					val = data[ "%s.%s" % (name,lang ) ]
-					if not self.canUse( val ): #Returns None on success, error-str otherwise
+					if not self.isInvalid( val ): #Returns None on success, error-str otherwise
 						self.value[ lang ] = HtmlSerializer( self.validHtml ).santinize( val )
 			if not any( self.value.values() ):
 				return( "No / invalid values entered" )
@@ -190,7 +194,7 @@ class textBone( baseBone ):
 				return( "No value entered" )
 			if not isinstance( value, str ) and not isinstance( value, unicode ):
 				value = unicode(value)
-			err = self.canUse( value )
+			err = self.isInvalid( value )
 			if not err:
 				self.value = HtmlSerializer( self.validHtml ).santinize( value )
 				return( None )
