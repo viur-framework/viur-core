@@ -26,7 +26,7 @@ class MetaSkel( type ):
 		#if kindName in MetaSkel._skelCache.keys():
 		#	raise NotImplementedError("Duplicate definition of %s" % kindName)
 		relFileName = inspect.getfile(cls).replace( os.getcwd(),"" )
-		if not relFileName.startswith("/models/") and not relFileName.startswith("/server/"): # and any( [isinstance(x,baseBone) for x in [ getattr(cls,y) for y in dir( cls ) if not y.startswith("_") ] ] ):
+		if not relFileName.strip(os.path.sep).startswith("models") and not relFileName.strip(os.path.sep).startswith("server"): # and any( [isinstance(x,baseBone) for x in [ getattr(cls,y) for y in dir( cls ) if not y.startswith("_") ] ] ):
 			raise NotImplementedError("Skeletons must be defined in /models/")
 		if kindName:
 			MetaSkel._skelCache[ kindName ] = cls
