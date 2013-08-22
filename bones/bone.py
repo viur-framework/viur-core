@@ -71,10 +71,12 @@ class baseBone(object): # One Bone:
 		self.indexed = indexed
 		self.searchable = searchable
 		if vfunc:
-			self.canUse = vfunc
+			self.isInvalid = vfunc
 		self.readOnly = readOnly
 		self.visible = visible
 		self.idx = _boneCounter.count
+		if "canUse" in dir( self ):
+			raise AssertionError("canUse is deprecated! Use isInvalid instead!")
 		_boneCounter.count += 1
 		
 	def fromClient( self, name, data ):
@@ -96,14 +98,14 @@ class baseBone(object): # One Bone:
 			value = data[ name ]
 		else:
 			value = None
-		err = self.canUse( value )
+		err = self.isInvalid( value )
 		if not err:
 			self.value = value
 			return( True )
 		else:
 			return( err )
 
-	def canUse( self, value ):
+	def isInvalid( self, value ):
 		"""
 			Returns None if the value would be valid for
 			this bone, an error-message otherwise.

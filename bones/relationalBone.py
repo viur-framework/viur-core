@@ -185,7 +185,7 @@ class relationalBone( baseBone ):
 	def rebuildData(self, *args, **kwargs ):
 		pass
 	
-	def canUse( self, id ):
+	def isInvalid( self, id ):
 		return( True )
 	
 
@@ -218,20 +218,20 @@ class relationalBone( baseBone ):
 					if value.find("\n")!=-1:
 						for val in value.replace("\r\n","\n").split("\n"):
 							valstr = val
-							if valstr and self.canUse(  valstr  ):
+							if valstr and self.isInvalid(  valstr  ):
 								res.append(  valstr )
 					else:
 						valstr =  value
-						if valstr and self.canUse(  valstr ):
+						if valstr and self.isInvalid(  valstr ):
 							res.append( valstr )
 			else:
 				for val in value:
 					valstr =  val 
-					if valstr and self.canUse( valstr  ):
+					if valstr and self.isInvalid( valstr  ):
 						res.append( valstr )
 		else:
 			valstr = value 
-			if valstr and self.canUse( valstr ):
+			if valstr and self.isInvalid( valstr ):
 				res.append( valstr )
 		
 		if len( res ) == 0:

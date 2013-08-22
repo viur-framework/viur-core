@@ -6,7 +6,7 @@ import re
 class emailBone( stringBone ):
 	type = "str.email"
 	
-	def canUse( self, value ):
+	def isInvalid( self, value ):
 		regex = re.compile("[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}")
 		res = regex.findall( unicode(value).lower() )
 		if len( res ) == 1:

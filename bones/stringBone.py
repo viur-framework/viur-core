@@ -172,7 +172,7 @@ class stringBone( baseBone ):
 			if not isinstance( value, list ):
 				value = [value]
 			for val in value:
-				if not self.canUse( val ):
+				if not self.isInvalid( val ):
 					self.value.append( escapeValue( val ) )
 			if( len( self.value ) > 0):
 				self.value = self.value[0:254] #Max 254 Keys
@@ -185,7 +185,7 @@ class stringBone( baseBone ):
 			for lang in self.languages:
 				if "%s.%s" % ( name, lang ) in data.keys():
 					val = data["%s.%s" % ( name, lang )]
-					tmpErr = self.canUse( val )
+					tmpErr = self.isInvalid( val )
 					if not tmpErr:
 						self.value[ lang ] = escapeValue( val )
 					else:
@@ -198,7 +198,7 @@ class stringBone( baseBone ):
 			return( None )
 			
 		else:
-			err = self.canUse( value )
+			err = self.isInvalid( value )
 			if not err:
 				if not value:
 					self.value = u""

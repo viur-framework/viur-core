@@ -55,20 +55,20 @@ class treeDirBone( baseBone ):
 					if value.find("\n")!=-1:
 						for val in value.replace("\r\n","\n").split("\n"):
 							valstr = val
-							if valstr and not self.canUse(  valstr  ):
+							if valstr and not self.isInvalid(  valstr  ):
 								res.append(  valstr )
 					else:
 						valstr =  value
-						if valstr and not self.canUse(  valstr ):
+						if valstr and not self.isInvalid(  valstr ):
 							res.append( valstr )
 			else:
 				for val in value:
 					valstr =  val 
-					if valstr and not self.canUse( valstr  ):
+					if valstr and not self.isInvalid( valstr  ):
 						res.append( valstr )
 		else:
 			valstr = value 
-			if valstr and not self.canUse( valstr ):
+			if valstr and not self.isInvalid( valstr ):
 				res.append( valstr )
 		if len( res ) == 0:
 			return( "No value entered" )
@@ -78,7 +78,7 @@ class treeDirBone( baseBone ):
 			self.value = res[0]
 		return( None )
 	
-	def canUse( self, value ):
+	def isInvalid( self, value ):
 		try:
 			repo, path = value.split("/",1)
 		except:
