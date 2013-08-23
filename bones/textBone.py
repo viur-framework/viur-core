@@ -156,6 +156,10 @@ class textBone( baseBone ):
 			if not self.value.keys(): #Got nothing
 				if name in expando.keys(): #Old (non-multi-lang) format
 					self.value[ self.languages[0] ] = expando[ name ]
+				for lang in self.languages:
+					if not lang in self.value.keys() and "%s_%s" % ( name, lang ) in expando.keys():
+						self.value[ lang ] = expando[ "%s_%s" % ( name, lang ) ]
+
 		return( True )
 	
 	def fromClient( self, name, data ):
@@ -237,19 +241,34 @@ class textBone( baseBone ):
 		res = []
 		if not self.value:
 			return( res )
-		value = HtmlSerializer( None ).santinize( self.value.lower() )
-		for line in unicode(value).splitlines():
-			for key in line.split(" "):
-				key = "".join( [ c for c in key if c.lower() in conf["viur.searchValidChars"]  ] )
-				if key and key not in res and len(key)>3:
-					res.append( key.lower() )
+		if self.languages:
+			for v in self.value.values():
+				value = HtmlSerializer( None ).santinize( v.lower() )
+				for line in unicode(value).splitlines():
+					for key in line.split(" "):
+						key = "".join( [ c for c in key if c.lower() in conf["viur.searchValidChars"]  ] )
+						if key and key not in res and len(key)>3:
+							res.append( key.lower() )
+		else:
+			value = HtmlSerializer( None ).santinize( self.value.lower() )
+			for line in unicode(value).splitlines():
+				for key in line.split(" "):
+					key = "".join( [ c for c in key if c.lower() in conf["viur.searchValidChars"]  ] )
+					if key and key not in res and len(key)>3:
+						res.append( key.lower() )
 		return( res )
 		
 	def getSearchDocumentFields(self, name):
 		"""
 			Returns a list of search-fields (GAE search API) for this bone.
 		"""
-		if self.validHtml:
-			return( [ search.HtmlField( name=name, value=unicode( self.value ) ) ] )
+		if self.languages:
+			if self.validHtml:
+				return( [ search.HtmlField( name=name, value=unicode( self.value[lang] ), language=lang ) for lang in self.languages ] )
+			else:
+				return( [ search.TextField( name=name, value=unicode( self.value[lang] ), language=lang ) for lang in self.languages ] )
 		else:
-			return( [ search.TextField( name=name, value=unicode( self.value ) ) ] )
+			if self.validHtml:
+				return( [ search.HtmlField( name=name, value=unicode( self.value ) ) ] )
+			else:
+				return( [ search.TextField( name=name, value=unicode( self.value ) ) ] )
