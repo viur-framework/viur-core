@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
-from server.skeleton import Skeleton
+from server.skeleton import Skeleton, skeletonByKind
 from server import utils, session,  errors, conf, securitykey
 from google.appengine.api import users
 from google.appengine.ext import db
@@ -12,9 +12,6 @@ class Singleton( object ):
 		The default-implementation uses one, global Skeleton (eg. usefull for side-wide configuration).
 		However, it can be easily adapted to provide one Skeleton per user.
 	"""
-	
-	viewSkel = None
-	editSkel = None	
 	
 	adminInfo = {	"name": "BaseApplication", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
 				"handler": "singleton",  #Which handler to invoke
@@ -40,7 +37,13 @@ class Singleton( object ):
 				rightName = "%s-%s" % ( modulName, r )
 				if not rightName in conf["viur.accessRights"]:
 					conf["viur.accessRights"].append( rightName )
-				
+
+	def viewSkel( self, *args, **kwargs ):
+		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
+
+	def editSkel( self, *args, **kwargs ):
+		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
+
 	def preview( self, skey, *args, **kwargs ):
 		"""
 			Renders the viewTemplate with the values given.
