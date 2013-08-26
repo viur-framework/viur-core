@@ -4,7 +4,7 @@ from server import errors, utils
 from server.bones import baseBone
 
 class MailSkel(Skeleton):
-	kindName="Ignored"
+	kindName=None
 	changedate = None #Changedates won't apply here
 
 class Formmailer(object): #fixme
@@ -32,6 +32,9 @@ class Formmailer(object): #fixme
 		self.onItemAdded( rcpts, skel )
 		return self.render.addItemSuccess( None, skel )
 	index.exposed = True
+
+	def mailSkel(self):
+		raise NotImplementedError("You must implement the \"mailSkel\" function!")
 	
 	def add( self,  *args,  **kwargs ):
 		return self.index( *args,  **kwargs )
