@@ -253,7 +253,10 @@ def callDeferred( func ):
 	"""
 	__undefinedFlag_ = object()
 	def mkDefered( func, self=__undefinedFlag_, *args,  **kwargs ):
-		req = request.current.get()
+		try:
+			req = request.current.get()
+		except: #This will fail for warmup requests
+			req = {}
 		if "HTTP_X_APPENGINE_TASKRETRYCOUNT".lower() in [x.lower() for x in os.environ.keys()] and not "DEFERED_TASK_CALLED" in dir( req ): #This is the defered call
 			req.DEFERED_TASK_CALLED = True #Defer recursive calls to an deferred function again.
 			return( func( self, *args, **kwargs ) )
