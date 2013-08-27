@@ -437,7 +437,7 @@ def setup( modules, render=None, default="jinja2" ):
 				if not model.kindName:
 					# Looks like a common base-class for models
 					continue
-				if model.kindName in conf["viur.models"].keys():
+				if model.kindName in conf["viur.models"].keys() and model!=conf["viur.models"][ model.kindName ]:
 					raise ValueError("Duplicate definition for %s" % model.kindName)
 				conf["viur.models"][ model.kindName ] = model
 	if not render:
