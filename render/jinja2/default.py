@@ -22,6 +22,38 @@ from google.appengine.api.images import get_serving_url
 from urllib import urlencode, quote_plus
 from google.appengine.ext import db
 
+class ListWrapper( list ):
+	def __init__( self, src ):
+		"""
+			Initializes this wrapper by copying the values from src
+		"""
+		self.extend( src )
+	
+	def __getitem__( self, key ):
+		"""
+			Monkey-Patching for lists.
+			Allows collecting sub-properties by using []
+			Example: [ {"id":"1"}, {"id":"2"} ]["id"] --> ["1","2"]
+		"""
+		if isinstance( key, int ):
+			return( super( ListWrapper, self ).__getitem__( key ) )
+		res = []
+		for obj in self:
+			if isinstance( obj, dict ) and key in obj.keys():
+				res.append( obj[ key ] )
+			elif key in dir( obj ):
+				res.append( getattr( obj, key ) )
+		return( ListWrapper(res) )
+
+class SkelListWrapper( ListWrapper ):
+	"""
+		Like ListWrapper, but takes the additional properties
+		of skellist into account
+	"""
+	def __init__( self, src ):
+		super( SkelListWrapper, self ).__init__( src )
+		self.cursor = src.cursor
+
 class Render( object ):
 	listTemplate = "list"
 	viewTemplate = "view"
@@ -358,7 +390,7 @@ class Render( object ):
 		mylist = query.fetch()
 		for x in range(0, len( mylist ) ):
 			mylist.append( self.collectSkelData( mylist.pop(0) ) )
-		return( mylist )
+		return( SkelListWrapper( mylist ) )
 	
 	def quotePlus(self, val ):
 		if isinstance( val, unicode ):
@@ -442,6 +474,8 @@ class Render( object ):
 					res[ key ] = [ (Render.KeyValueWrapper( val, _bone.values[ val ] ) if val in _bone.values.keys() else val)  for val in _bone.value ]
 				elif( isinstance( _bone, bones.baseBone ) ):
 					res[ key ] = _bone.value
+				if key in res.keys() and isinstance( res[key], list ):
+					res[key] = ListWrapper( res[key] )
 		return( res )
 
 	def add( self, skel, tpl=None,*args,**kwargs ):
@@ -546,7 +580,7 @@ class Render( object ):
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		for x in range(0, len( skellist ) ):
 			skellist.append( self.collectSkelData( skellist.pop(0) ) )
-		return( template.render( skellist=skellist, **kwargs ) )
+		return( template.render( skellist=SkelListWrapper(skellist), **kwargs ) )
 	
 	def listRootNodes(self, repos, tpl=None, **kwargs ):
 		"""
