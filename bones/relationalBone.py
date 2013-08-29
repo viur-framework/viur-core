@@ -306,16 +306,27 @@ class relationalBone( baseBone ):
 					raise RuntimeError()
 				if len( tmpdata ) > 1:
 					if tmpdata[1]=="lt":
-						dbFilter.filter( "dest.%s <" % key, value )
+						if self.multiple:
+							dbFilter.filter( "dest.%s <" % key, value )
+						else:
+							dbFilter.filter( "%s.%s <" % (name, key), value )
 					elif tmpdata[1]=="gt":
-						dbFilter.filter( "dest.%s >" % key, value )
+						if self.multiple:
+							dbFilter.filter( "dest.%s >" % key, value )
+						else:
+							dbFilter.filter( "%s.%s >" % (name, key), value )
 					else:
-						dbFilter.filter( "dest.%s =", key, value )
+						if self.multiple:
+							dbFilter.filter( "dest.%s =", key, value )
+						else:
+							dbFilter.filter( "%s.%s =" % (name, key), value )
 				else:
-					dbFilter.filter( "dest.%s =" % key, value )
+					if self.multiple:
+						dbFilter.filter( "dest.%s =" % key, value )
+					else:
+						dbFilter.filter( "%s.%s =" % (name, key), value )
 		elif name in rawFilter.keys() and rawFilter[ name ].lower()=="none":
 			dbFilter = dbFilter.filter( "%s =" % name, None )
-		logging.error( dbFilter.getFilter() )
 		return( dbFilter )
 
 	def buildDBSort( self, name, skel, dbFilter, rawFilter ):
