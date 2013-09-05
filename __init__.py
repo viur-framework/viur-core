@@ -10,7 +10,7 @@ http://www.viur.is
 
 __version__ = (1,0,0)
 
-import sys, traceback, os
+import sys, traceback, os, inspect
 #All (optional) 3rd-party modules in our libs-directory
 for lib in os.listdir( os.path.join("server", "libs") ):
 	if not lib.lower().endswith(".zip"): #Skip invalid file
@@ -438,6 +438,16 @@ def setup( modules, render=None, default="jinja2" ):
 					# Looks like a common base-class for models
 					continue
 				if model.kindName in conf["viur.models"].keys() and model!=conf["viur.models"][ model.kindName ]:
+					# We have a conflict here, lets see if one skeleton is from server.*, and one from models.*
+					relNewFileName = inspect.getfile(model).replace( os.getcwd(),"" )
+					relOldFileName = inspect.getfile(conf["viur.models"][ model.kindName ]).replace( os.getcwd(),"" )
+					if relNewFileName.strip(os.path.sep).startswith("server"):
+						#The currently processed skeleton is from the server.* package
+						continue
+					elif relOldFileName.strip(os.path.sep).startswith("server"):
+						#The old one was from server - override it
+						conf["viur.models"][ model.kindName ] = model
+						continue
 					raise ValueError("Duplicate definition for %s" % model.kindName)
 				conf["viur.models"][ model.kindName ] = model
 	if not render:
