@@ -34,8 +34,8 @@ class MetaSkel( type ):
 			if isinstance( getattr( cls, key ), baseBone ):
 				if key.lower()!=key:
 					raise AttributeError( "Bonekeys must be lowercase" )
-				if "_" in key or "." in key:
-					raise AttributeError( "Bonekeys must not contain \"_\" or \".\" (got %s)" % key )
+				if "." in key:
+					raise AttributeError( "Bonekeys cannot not contain a dot (.) - got %s" % key )
 				if key in MetaSkel.__reservedKeywords_:
 					raise AttributeError( "Your bone cannot have any of the following keys: %s" % str( MetaSkel.__reservedKeywords_ ) )
 		return( super( MetaSkel, cls ).__init__( name, bases, dct ) )
@@ -156,7 +156,8 @@ class Skeleton( object ):
 				if id.isdigit():
 					id = long( id )
 				id = db.Key.from_path( self.kindName, id )
-		assert isinstance( id, db.Key )
+		if not isinstance( id, db.Key ):
+			raise ValueError("fromDB expects an db.Key instance, an string-encoded key or a long as argument, got \"%s\" instead" % id )
 		try:
 			dbRes = db.Get( id )
 		except db.EntityNotFoundError:
