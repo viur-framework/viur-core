@@ -517,6 +517,8 @@ class Query( object ):
 		"""
 			Returns the filters applied to the current query as dictionary.
 		"""
+		if self.datastoreQuery is None:
+			return( None )
 		return( { k:v for (k, v) in self.datastoreQuery.items() } )
 	
 	def getOrders(self):
