@@ -45,8 +45,6 @@ def skeletonByKind( kindName ):
 		raise NotImplementedError("You must call server.setup before you can access the skeletons!")
 	if not kindName:
 		return( None )
-	logging.error( kindName )
-	#logging.error( MetaSkel._skelCache.keys() )
 	assert kindName in MetaSkel._skelCache
 	return MetaSkel._skelCache[ kindName ]
 
