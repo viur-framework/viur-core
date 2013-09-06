@@ -325,6 +325,8 @@ class relationalBone( baseBone ):
 						dbFilter.filter( "dest.%s =" % key, value )
 					else:
 						dbFilter.filter( "%s.%s =" % (name, key), value )
+			dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
+			dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings) )
 		elif name in rawFilter.keys() and rawFilter[ name ].lower()=="none":
 			dbFilter = dbFilter.filter( "%s =" % name, None )
 		return( dbFilter )
@@ -349,15 +351,19 @@ class relationalBone( baseBone ):
 			else:
 				order = ( param, db.ASCENDING )
 			dbFilter = dbFilter.order( order )
+			dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
+			dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings))
 		else: #Ensure that the non-relational order is valid
 			if self.multiple \
 			  and dbFilter.origKind != dbFilter.getKind()\
 			  and dbFilter.getKind() == skel.kindName+"_"+self.type+"_"+name:
-				  if "orderby" in rawFilter.keys():
+				if "orderby" in rawFilter.keys():
 					  order = rawFilter["orderby"]
 					  if not "." in order and not order in self.parentKeys:
 						logging.warning( "Invalid ordering! %s is not in parentKeys of RelationalBone %s!" % (order,name) )
 						raise RuntimeError()
+				dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
+				dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings))
 		return( dbFilter )
 
 	def getSearchDocumentFields(self, name):
@@ -372,6 +378,89 @@ class relationalBone( baseBone ):
 			for k, v in rel.items():
 				res.append( search.TextField( name="%s%s" % (name, k), value=unicode( v ) ) )
 		return( res )
+
+	def filterHook(self, name, query, param, value ):
+		"""
+			Hook installed by buildDbFilter.
+			This rewrites all filters added to the query after buildDbFilter has been run to match the
+			layout of our viur-relations index.
+			Also performs sanity checks wherever this query is possible at all.
+		"""
+		if param.startswith("src.") or param.startswith("dest."):
+			#This filter is already valid in our relation
+			return( param, value )
+		if param.startswith( "%s." % name):
+			#We add a constrain filtering by properties of the referenced entity
+			refKey = param.replace( "%s." % name, "" )
+			if " " in refKey: #Strip >, < or = params
+				refKey = refKey[ :refKey.find(" ")]
+			if not refKey in self.refKeys:
+				logging.warning( "Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (refKey,name) )
+				raise RuntimeError()
+			if self.multiple:
+				return( param.replace( "%s." % name, "dest."), value )
+			else:
+				return( param, value )
+		else:
+			#We filter by a property of this entity
+			if not self.multiple:
+				#Not relational, not multiple - nothing to do here
+				return( param, value )
+			#Prepend "src."
+			srcKey = param
+			if " " in srcKey:
+				srcKey = srcKey[ : srcKey.find(" ")] #Cut <, >, and =
+				if not srcKey in self.parentKeys:
+					logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (srcKey,name) )
+					raise RuntimeError()
+			return( "src.%s" % param, value )
+
+	def orderHook(self, name, query, orderings ):
+		"""
+			Hook installed by buildDbFilter.
+			This rewrites all orderings added to the query after buildDbFilter has been run to match the
+			layout of our viur-relations index.
+			Also performs sanity checks wherever this query is possible at all.
+		"""
+		res = []
+		if not isinstance( orderings, list) and not isinstance( orderings, tuple):
+			orderings = [ orderings ]
+		for order in orderings:
+			if isinstance( order, tuple):
+				orderKey = order[0]
+			else:
+				orderKey = order
+			if orderKey.startswith("dest.") or orderKey.startswith("src."):
+				#This is already valid for our relational index
+				res.append( order )
+				continue
+			if orderKey.startswith("%s." % name ):
+				k = orderKey.replace( "%s." % name, "" )
+				if not k in self.refKeys:
+					logging.warning( "Invalid ordering! %s is not in refKeys of RelationalBone %s!" % (k,name) )
+					raise RuntimeError()
+				if not self.multiple:
+					res.append( order )
+				else:
+					if isinstance( order, tuple ):
+						res.append( ("dest.%s" % k, order[1] ) )
+					else:
+						res.append( "dest.%s" % k )
+			else:
+				if not self.multiple:
+					# Nothing to do here
+					res.append( order )
+					continue
+				else:
+					if not orderKey in self.parentKeys:
+						logging.warning( "Invalid ordering! %s is not in parentKeys of RelationalBone %s!" % (orderKey,name) )
+						raise RuntimeError()
+					if isinstance( order, tuple ):
+						res.append( ("src.%s" % orderKey, order[1] ) )
+					else:
+						res.append( "src.%s" % orderKey )
+		return( res )
+
 
 """
 def findRelations( currentObj, depth=0, rels={} ):

@@ -261,7 +261,7 @@ def GetOrInsert( key, kindName=None, parent=None, **kwargs ):
 	
 class Query( object ):
 	"""
-		Thin wrapper around datastore.Query to provide a consitent
+		Thin wrapper around datastore.Query to provide a consistent
 		(camelCase) API.
 	"""
 	
@@ -270,8 +270,39 @@ class Query( object ):
 		self.datastoreQuery = datastore.Query( kind, *args, **kwargs )
 		self.srcSkelClass = srcSkelClass
 		self.amount = 30
+		self._filterHook = None
+		self._orderHook = None
 		self.origKind = kind
-	
+
+	def setFilterHook(self, hook):
+		"""
+			Installs callable "hook" as a callback function.
+			"Hook" will be called each time a new filter constrain is added
+			to the query. This allows f.e. the relationalBone to rewrite constrains added
+			after the initial processing of the query has been done (ie by listFilter() methods)
+		@param hook: The function to register as callback. None removes the currently active hook.
+		@type hook: callable
+		@return: The old registered hook (if any)
+		"""
+		old = self._filterHook
+		self._filterHook = hook
+		return( old )
+
+
+	def setOrderHook(self, hook):
+		"""
+			Installs callable "hook" as a callback function.
+			"Hook" will be called each time order() is called on that query.
+			This allows f.e. the relationalBone to rewrite constrains added
+			after the initial processing of the query has been done (ie by listFilter() methods)
+		@param hook: The function to register as callback. None removes the currently active hook.
+		@type hook: callable
+		@return: The old registered hook (if any)
+		"""
+		old = self._orderHook
+		self._orderHook = hook
+		return( old )
+
 	def mergeExternalFilter(self, filters ):
 		"""
 			Safely processes filters according to the datamodel.
@@ -353,12 +384,21 @@ class Query( object ):
 			@type value: Int, Long, Float, Bytes, String, List or DateTime
 		"""
 		if self.datastoreQuery is None:
-			#This query is allready unsatifiable and adding more constrains to this won't change this
+			#This query is already unsatisfiable and adding more constrains to this won't change this
 			return( self )
 		if isinstance( filter, dict ):
 			for k, v in filter.items():
 				self.filter( k, v )
-		elif value!=None and (filter.endswith(" !=") or filter.lower().endswith(" in")):
+		if self._filterHook is not None:
+			try:
+				r = self._filterHook( self, filter, value )
+			except RuntimeError:
+				self.datastoreQuery = None
+				return( self )
+			if r is None:
+				return( self )
+			filter, value = r
+		if value!=None and (filter.endswith(" !=") or filter.lower().endswith(" in")):
 			if isinstance( self.datastoreQuery, datastore.MultiQuery ):
 				raise NotImplementedError("You cannot use multiple IN or != filter")
 			origQuery = self.datastoreQuery
@@ -431,6 +471,16 @@ class Query( object ):
 			Returns:
 				# this query
 		"""
+		if self._orderHook is not None:
+			try:
+				orderings = self._orderHook( self, orderings )
+			except RuntimeError:
+				self.datastoreQuery = None
+				return( self )
+			if orderings is None:
+				return( self )
+		if self.datastoreQuery is None:
+			return
 		self.datastoreQuery.Order( *orderings )
 		return( self )
 
