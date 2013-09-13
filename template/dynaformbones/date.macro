@@ -25,8 +25,15 @@
 
 {%- macro datebone( bone_name,bone,value ) -%}
 <!-- ############################### Date ( Bonename:{{bone_name}} ) ####################################### -->
+
+	{% set readonly = "" %}
+	{% if bone.readOnly %}
+		{% set readonly = 'readonly="readonly"'	%}
+	{%endif%}
+	
+	
 	{% if not bone.visible %}
-		<input type="hidden" name="{{ bone_name }}" value="{{ value }}" />
+		<input {{readonly}} type="hidden" name="{{ bone_name }}" value="{{ value }}" />
 	{% else %}
 					<div style="float:left; padding:5px;">	
 	<script type="text/javascript">

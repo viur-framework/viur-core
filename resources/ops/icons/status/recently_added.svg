@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 16.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" id="Ebene_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 width="64px" height="64px" viewBox="0 0 64 64" enable-background="new 0 0 64 64" xml:space="preserve">
+<g>
+	<g>
+		<linearGradient id="SVGID_1_" gradientUnits="userSpaceOnUse" x1="1.7568" y1="19.9922" x2="62.4951" y2="19.9922">
+			<stop  offset="0" style="stop-color:#9D9D9C"/>
+			<stop  offset="1" style="stop-color:#4E4D4C"/>
+		</linearGradient>
+		<polygon fill="url(#SVGID_1_)" points="62.495,32.97 1.757,34.323 11.362,5.662 53.34,5.662 		"/>
+		<path fill="#6F6F6F" d="M1.411,34.578l0.11-0.333l9.663-28.83h42.333l0.057,0.169l9.262,27.625l-0.335,0.008L1.411,34.578z
+			 M11.54,5.909L2.102,34.068l60.053-1.338L53.162,5.909H11.54z"/>
+	</g>
+	<g>
+		<g>
+			<linearGradient id="SVGID_2_" gradientUnits="userSpaceOnUse" x1="31.7207" y1="24.1025" x2="31.7207" y2="31.3164">
+				<stop  offset="0.2118" style="stop-color:#FFFFFF"/>
+				<stop  offset="1" style="stop-color:#C6C6C6"/>
+			</linearGradient>
+			<polygon fill="url(#SVGID_2_)" points="54.104,24.103 53.048,31.316 10.394,31.316 9.339,24.103 			"/>
+			<path fill="#9B9A9A" d="M53.368,31.687H10.073l-1.162-7.955h45.621L53.368,31.687z M10.715,30.945h42.013l0.948-6.473H9.768
+				L10.715,30.945z"/>
+		</g>
+		<g>
+			<linearGradient id="SVGID_3_" gradientUnits="userSpaceOnUse" x1="32.002" y1="4.2412" x2="32.0019" y2="63.5059">
+				<stop  offset="0" style="stop-color:#469B41"/>
+				<stop  offset="1" style="stop-color:#288342"/>
+			</linearGradient>
+			<path fill="url(#SVGID_3_)" d="M53.455,4.241H10.55L0.504,31.179l3.558,32.327h56.882l2.556-32.327L53.455,4.241z M12.317,6.88
+				h39.367l9.019,24.437H3.302L12.317,6.88z"/>
+			<path fill="#22612B" d="M61.4,64H3.618L0,31.116l0.041-0.109l10.165-27.26h43.593L64,31.108L61.4,64z M4.504,63.012h55.983
+				l2.511-31.762L53.112,4.735h-42.22L1.008,31.242L4.504,63.012z M61.412,31.811H2.592l9.381-25.425h40.057L61.412,31.811z
+				 M4.011,30.822h55.983L51.34,7.374H12.662L4.011,30.822z"/>
+		</g>
+		<g>
+			<linearGradient id="SVGID_4_" gradientUnits="userSpaceOnUse" x1="31.7207" y1="7.1113" x2="31.7207" y2="17.1729">
+				<stop  offset="0" style="stop-color:#FFFFFF"/>
+				<stop  offset="0.67" style="stop-color:#C6C6C6"/>
+			</linearGradient>
+			<polygon fill="url(#SVGID_4_)" points="52.588,7.111 51.532,17.173 11.909,17.173 10.854,7.111 			"/>
+			<path fill="#9B9A9A" d="M51.866,17.543H11.575L10.442,6.741h42.557L51.866,17.543z M12.243,16.802h38.955l0.979-9.319H11.265
+				L12.243,16.802z"/>
+		</g>
+		<g>
+			<linearGradient id="SVGID_5_" gradientUnits="userSpaceOnUse" x1="31.7207" y1="12.3018" x2="31.7207" y2="18.5146">
+				<stop  offset="0.1232" style="stop-color:#FFFFFF"/>
+				<stop  offset="1" style="stop-color:#C6C6C6"/>
+			</linearGradient>
+			<polygon fill="url(#SVGID_5_)" points="53.265,12.302 52.676,18.515 10.678,18.515 10.178,12.302 			"/>
+			<path fill="#9B9A9A" d="M53.013,18.885H10.336l-0.56-6.953h43.896L53.013,18.885z M11.02,18.144h41.319l0.519-5.471H10.579
+				L11.02,18.144z"/>
+		</g>
+		<g>
+			<linearGradient id="SVGID_6_" gradientUnits="userSpaceOnUse" x1="31.7207" y1="18.0625" x2="31.7207" y2="24.1025">
+				<stop  offset="0.1527" style="stop-color:#FFFFFF"/>
+				<stop  offset="1" style="stop-color:#C6C6C6"/>
+			</linearGradient>
+			<polygon fill="url(#SVGID_6_)" points="54.022,18.062 53.298,24.103 10.179,24.103 9.419,18.062 			"/>
+			<path fill="#9B9A9A" d="M53.627,24.473H9.852l-0.853-6.78H54.44L53.627,24.473z M10.506,23.731h42.463l0.637-5.298H9.839
+				L10.506,23.731z"/>
+		</g>
+	</g>
+	<g>
+		<polygon fill="#FFFFFF" points="43.256,51.423 43.256,45.052 35.311,45.052 35.311,37.11 28.938,37.11 28.938,45.052 
+			20.995,45.052 20.995,51.423 28.938,51.423 28.938,59.368 35.311,59.368 35.311,51.423 		"/>
+		<path fill="#00416E" d="M35.682,59.739h-7.114v-7.945h-7.942v-7.113h7.942v-7.94h7.114v7.94h7.945v7.113h-7.945V59.739z
+			 M29.309,58.998h5.632v-7.945h7.945v-5.631H34.94v-7.94h-5.632v7.94h-7.942v5.631h7.942V58.998z"/>
+	</g>
+</g>
+</svg>

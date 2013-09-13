@@ -29,7 +29,6 @@
 				{% endfor %}
 			{% else %}
 				var relationalBoneData_{{boneKey}} = new Array( );
-				##if value
 				{% for item in value %}
 					relationalBoneData_{{boneKey}}[ {{loop.index0}} ] = new Object();
 					{% set elemLoop = loop %}
@@ -37,7 +36,6 @@
 						relationalBoneData_{{boneKey}}[ {{elemLoop.index0}} ]["{{k}}"] = "{{v}}";
 					{% endfor %}
 				{% endfor %}
-				##endif
 			{% endif %}
 			var relationalBoneMultiple_{{boneKey}} = {%if bone.multiple%}true;{%else%}false;{%endif%}
 			var relationalBoneName_{{boneKey}} = "{{bone_name}}";
