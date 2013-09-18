@@ -98,14 +98,12 @@
 {%macro format_renderer(bone_name,bone,Skel,form,format)%}
 	{%if not format=="advanced" %}
 		{%if format=="basic"%}
-			<tr>
-				<td class="td_formdescr td_formdescr_{{bone_name}}">
+				<dt class="td_formdescr td_formdescr_{{bone_name}}">
 					$descr
-				</td>
-				<td class="td_formfield">
+				</dt>
+				<dd class="td_formfield">
 					$value
-				</td>
-			</tr>
+				</dd>
 		{%else%}
 			{% set customFormat =  customformat_renderer( bone_name,bone,Skel,form,format) %}
 			{% if customFormat|trim %} {#We got a customBone for this #}
@@ -113,8 +111,7 @@
 			{% endif %}
 		{% endif %}
 	{% else %}
-		<tr>
-			<td class="td_formdescr{% if bone_name in Skel.errors and Skel.errors[bone_name] %} msg warning{% endif %} td_formdescr_{{bone_name}}"
+			<dt class="td_formdescr{% if bone_name in Skel.errors and Skel.errors[bone_name] %} msg warning{% endif %} td_formdescr_{{bone_name}}"
 				{% if bone.descr|length()>25 %}
 					colspan="2" style="width: 100%;"        
 				{% endif %}    
@@ -132,17 +129,14 @@
 						<span class="ui-button-text">info</span>
 					</button>
 				{% endif %}  
-			</td>
+			</dt>
 			{% if  bone.descr|length()>25 %}  
-				</tr>
-				<tr> 
-					<td colspan="2"  class="td_formfield">
+					<dd colspan="2"  class="td_formfield">
 			{% else %} 
-					<td  class="td_formfield">
+					<dd  class="td_formfield">
 			{% endif %} 
 				$value
-			</td>
-		</tr>
+			</dd>
 	{% endif %}
 	
 {%endmacro%}
@@ -253,8 +247,7 @@
 		<input type="hidden" name="{{ bone_name }}" value="{{Skel.value[bone_name] }}" />   
 	{% else %}
 		{% if bone.visible %}   
-			<tr>
-				<td class="td_formdescr{% if bone_name in Skel.errors and Skel.errors[bone_name] %} msg warning{% endif %} td_formdescr_{{bone_name}}"
+				<dt class="td_formdescr{% if bone_name in Skel.errors and Skel.errors[bone_name] %} msg warning{% endif %} td_formdescr_{{bone_name}}"
 					{% if bone.descr|length()>25 %}
 						colspan="2" style="width: 100%;"        
 					{% endif %}    
@@ -279,13 +272,11 @@
 						</button>
 					{% endif %}  
 			  
-				</td>
+				</dt>
 			{% if  bone.descr|length()>25 %}  
-				</tr>
-				<tr> 
-					<td colspan="2"  class="td_formfield">
+					<dd colspan="2"  class="td_formfield">
 			{% else %} 
-					<td  class="td_formfield">
+					<dd  class="td_formfield">
 			{% endif %} 
 		{% endif %}  
 			{% set customBone =  render_custombone( bone_name,bone,Skel.value[bone_name],form ) %}
@@ -327,8 +318,7 @@
 			{% endif %}
 	
 		{% if bone.visible %}
-			</td>
-			</tr>
+			</dd>
 		{% endif %}
 	{%- endif -%}
 {% endmacro %}

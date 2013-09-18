@@ -20,7 +20,7 @@ body {
     font-size:100.01%;
     overflow-y:scroll;
     overflow-x: hidden;
-    background-color:#555;
+    background-color:#ccc;
 }
 
 
@@ -45,11 +45,21 @@ p { margin-bottom:10px;}
 .content {width:100%; position:relative;height: auto; background-color:#eee;}
 
 .modullist {z-index:9; width:298px;position:fixed; overflow-y:scroll;background-color:#eeeeee; height: 100%;}
-.modulview {margin-left:298px; width:auto;position:relative; background-color:#f4f4f4;border-left:1px solid #ccc;padding: 80px 30px 45px;min-height: 400px;}
-	.modulview .head {width:100%; border-bottom:1px solid #BE1622; margin-bottom:30px;}
-	.modulview .head img {width:32px; float:left; margin:0 15px 15px 0;}
-	.modulview .head h3 {font-size:1.5em; margin-bottom:10px;line-height:2em;}
-.modulextend {} 
+.modulview {margin-left:298px; width:auto; float:left; position:relative; background-color:#f4f4f4;border-left:1px solid #ccc; border-right:1px solid #bbb;padding: 80px 30px 45px;min-height: 400px;z-index:-1;}
+.modulextend {z-index:20; padding: 80px 30px 45px; float:left; min-width:300px; min-height:500px; background:#ccc; } 
+	.modulview .head, .modulextend .head {width:100%; border-bottom:1px solid #BE1622; margin-bottom:30px;}
+	.modulview .head img, .modulextend .head img {width:32px; float:left; margin:0 15px 15px 0;}
+	.modulview .head h3, .modulextend .head h3 {font-size:1.5em; margin-bottom:10px;line-height:2em;}
+
+	.modulextend:before {
+		content:" ";
+		margin-left:-90px;
+		margin-top:50%;
+		float:left;
+		border-style: solid;
+		border-width: 24px 30px;
+		border-color: rgba(255, 255, 255, 0) #ccc rgba(255, 255, 255, 0) rgba(255, 255, 255, 0);
+	}
 
 .logo {
     position:relative;
@@ -269,8 +279,29 @@ p { margin-bottom:10px;}
 		margin:3px 1px 0px;
 	}
 
-/* #Forms
+/* #ViUR DynaForms (Dyf)
 ================================================== */
+
+.Dyf {
+ width:1000px;
+ overflow:hidden;
+}
+
+dt {
+	float:left;
+	clear: left;
+	width:20%; /* adjust the width; make sure the total of both is 100% */
+	text-align: right;
+	padding:6px 7px 7px;
+	background:#e5e5e5;
+}
+
+dd {
+	width:77%; /* adjust the width; make sure the total of both is 100% */
+    margin: 0 0 0 23%;
+    padding: 0 0 2em 0;
+    overflow:visible;
+  }
 
 input[type="radio"], input[type="checkbox"] {
 	margin-right: 15px;
@@ -386,8 +417,8 @@ input[type="button"], input[type="submit"], input[type="reset"] {}
 
 .icon-logout { font-size: 0.85em; color:#999}
 
-                         .btn-auth {
-                         position: relative;
+.btn-auth {
+                     position: relative;
                      display: inline-block;
                      height: 22px;
                      padding: 0 1em;

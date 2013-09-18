@@ -22,7 +22,7 @@
 <li>
     <a href="/ops/{{data.defaultaction}}">
         <img src="/resources/ops/{{data.icon}}" alt="{{data.name}}" />
-        <span class="name">{{data.name}}</span>
+        <span class="name">{{data.name|truncate(21,True,'&hellip;')}}</span>
     </a>
         <ul class="actions">
 					{% if data.handler == "list" or data.handler == "base" %}
@@ -108,8 +108,6 @@
             </div><!--wrapper_header -->
 			##block main
 
-            <div class="clear"></div>
-
             <div class="content">
 
                 <div class="modullist">
@@ -126,7 +124,11 @@
                 </div><!--right -->
                 
                 <div class="modulextend">
-                	
+                	 ##block extendcontent
+                	<div class="head">
+					<img src="/resources/ops/icons/actions/text-edit.svg" /> <h3>{{_("extendedoperation")}}</h3>
+					</div>
+                    ##endblock
                 </div>
 
             </div><!--content -->
