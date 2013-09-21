@@ -754,13 +754,21 @@ class Render( object ):
 			template = self.getEnv().from_string( tpl )
 		data = template.render( skel=res, dests=dests, user=user )
 		body = False
+		linecount=0
 		for line in data.splitlines():
-			if body==False:
-				if not line or not ":" in line or not len( line.split(":") ) == 2:
-					body=""
-				else:
-					k,v = line.split(":")
-					headers[ k.lower() ] = v
-			if body != False:
+			if body != False or linecount>3:
 				body += line+"\n"
+			else:
+				if line.lower().find("from:")!=-1:
+					headers["from"]=line[line.lower().find("from:")+5:]				
+				if line.lower().find("subject:")!=-1:
+					headers["subject"]=line[line.lower().find("subject:")+8:]				
+				if "subject" in headers.keys() and "from" in headers.keys():
+					body="\n\n"
+				#if not line or not ":" in line or not len( line.split(":") ) == 2:
+				#	body=""
+				#else:
+				#		k,v = line.split(":")
+				#		headers[ k.lower() ] = v
+			++linecount
 		return( headers, body  )
