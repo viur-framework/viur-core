@@ -762,7 +762,9 @@ class Render( object ):
 				if line.lower().find("from:")!=-1:
 					headers["from"]=line[line.lower().find("from:")+5:]				
 				if line.lower().find("subject:")!=-1:
-					headers["subject"]=line[line.lower().find("subject:")+8:]				
+					headers["subject"]=line[line.lower().find("subject:")+8:]
+				if line.lower().find("references:")!=-1:
+					headers["references"]=line[line.lower().find("references:")+11:]				
 				if "subject" in headers.keys() and "from" in headers.keys():
 					body="\n\n"
 				#if not line or not ":" in line or not len( line.split(":") ) == 2:

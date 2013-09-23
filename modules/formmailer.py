@@ -10,8 +10,11 @@ class MailSkel(Skeleton):
 class Formmailer(object): #fixme
 	adminInfo = None
 
-        def __init__(self, *args, **kwargs):
-            super( Formmailer, self ).__init__()
+	def __init__( self, modulName, modulPath, *args, **kwargs ):
+		super( Formmailer, self ).__init__()
+		self.modulName = modulName
+		self.modulPath = modulPath
+		
 
 	def index( self, *args, **kwargs ):
 		if not self.canUse():
