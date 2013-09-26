@@ -293,4 +293,4 @@ class List( object ):
 	
 List.admin=True
 List.jinja2=True
-List.ops=True
+List.vi=True

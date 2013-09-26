@@ -170,4 +170,4 @@ class Singleton( object ):
 	
 Singleton.admin=True
 Singleton.jinja2=True
-Singleton.ops=True
+Singleton.vi=True

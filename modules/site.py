@@ -18,4 +18,4 @@ class Site( object ):
 	index.exposed = True	
 	
 Site.jinja2 = True
-Site.ops = True
+Site.vi = True

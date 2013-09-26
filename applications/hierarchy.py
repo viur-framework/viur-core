@@ -597,4 +597,4 @@ class Hierarchy( object ):
 
 Hierarchy.admin=True
 Hierarchy.jinja2=True
-Hierarchy.ops=True
+Hierarchy.vi=True

@@ -499,4 +499,4 @@ class Tree( object ):
 
 Tree.admin = True
 Tree.jinja2 = True
-Tree.ops = True
+Tree.vi = True

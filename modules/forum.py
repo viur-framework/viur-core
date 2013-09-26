@@ -325,7 +325,7 @@ class Forum( Hierarchy ):
 		return( False )
 
 Forum.jinja2 = True
-Forum.ops = True
+Forum.vi = True
 
 	
 

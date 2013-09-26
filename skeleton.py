@@ -443,7 +443,7 @@ class SkelList( list ):
 
 @callDeferred
 def updateRelations( destID ):
-	logging.error("updateRelations %s" % destID )
+	#logging.error("updateRelations %s" % destID )
 	for srcRel in db.Query( "viur-relations" ).filter("dest.id =", destID ).iter( ):
 		logging.error("updating ref %s" % srcRel.key().parent() )
 		skel = skeletonByKind( srcRel["viur_src_kind"] )()

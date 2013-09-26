@@ -1,0 +1,38 @@
+@charset "UTF-8";
+@import url(http://fonts.googleapis.com/css?family=Open+Sans:400,300italic,300,400italic,600,600italic,700,700italic,800,800italic);
+/* css resets */
+@import url('../reset.css');
+/* #Colors
+ * Icon-Grey: #939393;
+ * 
+ */
+
+
+
+
+/* #Site Styles
+================================================== */
+
+body {
+    font-family: 'Open Sans', Geneva, Arial, Helvetica, sans-serif;
+    height:100%;
+    line-height:1.4em;
+    color: #333;
+    font-size:100.01%;
+    overflow-y:scroll;
+    overflow-x: hidden;
+    background-color:#ccc;
+}
+
+
+a {color:#333; text-decoration:none;}
+a:visited {color:#333; text-decoration:none;}
+a:hover {color:#222; text-decoration:underline;}
+
+em { font-style:italic;}
+
+h1 { font-size:1.6em; color:#cc0000;}
+h2 { font-size:1.4em; color:#333;}
+h3 {font-size:1.2em; color:#666; font-weight:bold;}
+
+p { margin-bottom:10px;}
