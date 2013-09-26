@@ -1,214 +1,141 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-## set userid=getCurrentUser()
-## set skey=getSecurityKey()
-
-##if not Forms
-	## set Forms=False
-##endif
-## from "autoJS.macro" import alljs
-
-## if not modulConfig
-## set modulConfig = execRequest("dash/config")
-## endif
-
-##if not title
-   	##set title='slogan'
-##endif	
-
-
-##macro generateMenu( config )
-<ul class="menuleft">	
-	##for modul,data in config.items()
-<li>
-    <a href="/ops/{{data.defaultaction}}">
-        <img src="/resources/ops/{{data.icon}}" alt="{{data.name}}" />
-        <span class="name">{{data.name|truncate(21,True,'&hellip;')}}</span>
-    </a>
-        <ul class="actions">
-					{% if data.handler == "list" or data.handler == "base" %}
-            <li>
-                <a href="/ops/{{modul}}/list"><img src="/resources/ops/icons/actions/list.svg" /><span class="action_name">Liste</span></a>
-            </li>
-            <li>
-                <a href="/ops/{{modul}}/add"><img src="/resources/ops/icons/actions/add.svg" /><span class="action_name">Hinzufügen</span></a>
-            </li>
-					{% endif %}
-					##for action in data.actions
-            <li>
-                <a href="/ops/{{action.action}}"><img src="/resources/ops/images/icons/action/{{action.icon}}.svg" /><span class="action_name">{{action.name}}</span></a>
-            </li>
-					##endfor
-        </ul>
-</li><!-- menuleft -->
-	##endfor
-</ul>
-##endmacro
-
-<html xmlns="http://www.w3.org/1999/xhtml">
-    <head><!--[if lt IE 9]>
-	<script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
-        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-        <meta name="robots" content="all,follow" />
-        <meta name="description" content="Description" />
-        <meta name="keywords" content="Keywords" />
-        <link type="text/css" href="/resources/ops/css/jqueryui/jquery-ui.min.css" rel="stylesheet" />
-
-        <link rel="stylesheet" media="screen,projection" type="text/css" href="/resources/ops/css/style.css" />
-        <!--[if IE 7]>
-			<link rel="stylesheet" href="/resources/ops/css/ops-ie7.css">
-		<![endif]-->
-        <link rel="shortcut icon" href="/resources/ops/icons/ViURadmin.ico" type="image/x-icon" />
-
-				{{alljs(Forms)}}
-
-        <script type="text/javascript" language="JavaScript" src="/resources/ops/js/app.js"></script>
-        <script type="text/javascript" language="JavaScript" src="/resources/js/json_sans_eval.js"></script>
-
-		##block additionalheader
-
-		##endblock
+<!DOCTYPE html>
+<html xml:lang="{{getLanguage()}}" lang="{{getLanguage()}}">
+    <head>
+        <meta charset="utf-8">
         
-        ##block title
-        <title>ViUR Operation Center - {{_(title)}} </title>
-        ##endblock
-    </head>
+  	 	<!-- Robots müssen leider draußen bleiben. -->
+        <meta name="robots" content="noindex,nofollow" />
+  	 	
+  	 	##if not pagetitle
+   			##set pagetitle=_('vi_slogan')
+		##endif	
+		
+  	 	<!-- Herzlich willkommen bei -->
+        <title>{{_('vi_name')}} | {{pagetitle}}</title>
+        <meta name="title" content="{{_('vi_name')}} | {{pagetitle}}" />
+        <meta name="DC.Title" content="{{_('vi_name')}} | {{pagetitle}}" />
+        <meta property="og:title" content="{{_('vi_name')}} | {{pagetitle}}" />
+		
+        <meta name="description" content="Vi ist das Online-Administrationstool für ViUR-Informationssysteme.">
 
-    <body>
-        ##if userid
-        ##block body
-        <div class="wrapper">
-            <div class="wrapper_header vdark">
-                <div class="header">
+    	<!-- Diese Webseite ist ein Viur Informationssystem. -->
+	    <meta name="generator" content="www.viur.is" />
+    	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    	
+        <!-- Mit Liebe hergestellt von Mausbrand. -->
+        <!-- www.mausbrand.de -->      
+        <link type="text/plain" rel="author" href="/resources/meta/humans.txt" />
+        
+        <!-- iPhone -->
+        <!-- FIXME! <link href="/resources/meta/viur-apple-touch-57x57.png" sizes="57x57" rel="apple-touch-icon-precomposed" />  -->
+        <link href="/resources/meta/viur-apple-touch-startup-image-320x460.png" media="(device-width: 320px) and (device-height: 480px) and (-webkit-device-pixel-ratio: 1)" rel="apple-touch-startup-image" />
+        <!-- iPhone (Retina) -->
+        <link href="/resources/meta/viur-apple-touch-icon-114x114-precomposed.png" sizes="114x114" rel="apple-touch-icon-precomposed" />
+        <link href="/resources/meta/viur-apple-touch-startup-image-640x920.png" media="(device-width: 320px) and (device-height: 480px) and (-webkit-device-pixel-ratio: 2)" rel="apple-touch-startup-image" />
+        <!-- iPhone 5 -->
+        <!-- FIXME! <link href="/resources/meta/viur-apple-touch-startup-image-640x1096.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)" rel="apple-touch-startup-image" /> -->
 
-                    <h1 class="logo" title="ViUR Operation Center"><span class="viur">ViUR</span>OPS</h1><!--logo -->
-                    ##block centername
-                    <div class="centername"> <span class="viur">ViUR </span>Operation Center</div><!--centername -->
-                    ##endblock
+        <!-- iPad -->
+        <link href="/resources/meta/viur-apple-touch-icon-72x72-precomposed.png" sizes="72x72" rel="apple-touch-icon-precomposed" />
+        <link href="/resources/meta/viur-apple-touch-startup-image-748x1024.png" media="(device-width: 768px) and (device-height: 1024px) and (orientation: portrait) and (-webkit-device-pixel-ratio: 1)" rel="apple-touch-startup-image" />
+        <link href="/resources/meta/viur-apple-touch-startup-image-768x1004.png" media="(device-width: 768px) and (device-height: 1024px) and (orientation: landscape) and (-webkit-device-pixel-ratio: 1)" rel="apple-touch-startup-image" />
+        <!-- iPad (Retina) -->
+        <!-- FIXME! <link href="/resources/meta/viur-apple-touch-icon-144x144.png" sizes="144x144" rel="apple-touch-icon-precomposed" /> -->
+        <link href="/resources/meta/viur-apple-touch-startup-image-1536x2008.png" media="(device-width: 768px) and (device-height: 1024px) and (orientation: portrait) and (-webkit-device-pixel-ratio: 2)" rel="apple-touch-startup-image" />
+        <link href="/resources/meta/viur-apple-touch-startup-image-1496x2048.png" media="(device-width: 768px) and (device-height: 1024px) and (orientation: landscape) and (-webkit-device-pixel-ratio: 2)" rel="apple-touch-startup-image" />
 
-        	##block iconnav
-                    <ul class="iconnav">
-				##block iconnav_opanel
-                        <li class="iconmenu"><a  href="/ops"><i class="icon-th" title="Operation Panel"></i></a></li>
-				##endblock
-				##block iconnav_files
-                        <li class="iconmenu"><a  href="#"><i class="icon-folder" title="Dateien"></i></a></li>
-				##endblock
-				##block iconnav_user	
-                        <li class="iconmenu"><a  href="#"><i class="icon-users" title="Nutzer"></i></a></li>
-				##endblock	
-				##block iconnav_controls
-                        <li class="iconmenu"><a  href="#"><i class="icon-cog" title="Einstellungen"></i></a></li>
-				##endblock	
-				##block iconnav_logout
-                        <li class="iconmenu logout"><a  href="/ops/user/logout?skey={{skey}}">&nbsp;<em class="icon-logout" title="Logout">Ausloggen</em></a></li>
-				##endblock
-                    </ul><!--iconnav -->
-			##endblock
-                </div><!--header -->
-            </div><!--wrapper_header -->
-			##block main
+        <!-- CSS -->
+        <link rel="stylesheet" href="/resources/css/vi/vi.css" />
 
-            <div class="content">
-
-                <div class="modullist">
-                    ##block menu
-                    {{generateMenu( modulConfig )}}
-                    ##endblock
-                </div><!--left -->
-
-                <div class="modulview">
-                	##block modulhead
-                	##endblock
-                    ##block content
-                    ##endblock
-                </div><!--right -->
+        <!-- JS --> 
+        <script type="text/javascript" language="JavaScript" src="/resources/js/vi/app.js"></script>
                 
-                <div class="modulextend">
-                	 ##block extendcontent
-                	<div class="head">
-					<img src="/resources/ops/icons/actions/text-edit.svg" /> <h3>{{_("extendedoperation")}}</h3>
+    </head>	
+    <body>
+ 
+    	<div class="wrapper">
+			
+			<header class="vi_topbar">
+				<img class="vi_app_logo" />
+				<h1>{{_('vi_app_name')}}</h1>
+				
+				<div class="centername">
+				<h2>{{_('vi_app_slogan')}}</h2>	
+				</div>
+	
+				<nav class="iconnav">
+	                <ul>
+	                    <li><a href="/ops"><i class="icon-th" title="Operation Panel"></i></a></li>
+	                    <li><a href="#"><i class="icon-folder" title="Dateien"></i></a></li>
+	                    <li><a href="#"><i class="icon-users" title="Nutzer"></i></a></li>
+	                    <li><a href="#"><i class="icon-cog" title="Einstellungen"></i></a></li>
+		                <li class="logout"><a  href="/ops/user/logout?skey={{skey}}">&nbsp;<em class="icon-logout" title="Logout">Ausloggen</em></a></li>
+	                </ul><!--iconnav -->
+				</nav>	
+			</header>
+
+
+			<div class="vi_workspace">
+
+				<nav class="vi_manager">
+					<ul class="modullist">	
+						<li>
+						    <a href="#">
+						        <img src="" alt="Modulname" />
+						        <h3>Modulname</h3>
+						    </a>
+						        <ul class="actionlist">
+						            <li>
+						                <a href="#"><img src="/resources/icons/actions/list.svg" /><h4>Liste</h4></a>
+						            </li>
+						        </ul>
+						</li>
+					</ul>
+				</nav><!-- vi_manager -->
+	
+	
+				<div class="vi_viewer" role="main">
+					<div class="actionbar">
+						<img src="/resourcess/icons/actions/list.svg" />
+						<h3>Liste</h3>
+						<button type="button">add</button>
+						<button type="button">edit</button>
+						<button type="button">duplicate</button>
+						<button type="button">delete</button>
+					
+						<button type="button">preview</button>
+						<button type="button">search</button>															
 					</div>
-                    ##endblock
-                </div>
+					
+					
+					
+				</div><!-- vi_viewer -->	
+	
+	
+				<aside class="vi_operator">
+					<div class="actionbar">
+						<img src="/resources/ops/icons/actions/text-edit.svg" /> 
+						<h3>Text-Editor</h3>
+						<button type="button">save</button>															
+						<button type="button">cancel</button>															
+					</div>	
+				</aside><!-- vi_operator -->	
 
-            </div><!--content -->
-				##endblock
-
-            <div class="footer">
-                ##block statusmessage
-                ##endblock
-            </div><!--Footer -->
-
-        </div> <!-- /wrapper -->
-		##endblock
-
-        {# loginscreen for #}
-        ##else
-
-        <div class="wrapper">
-            <div class="wrapper_header">
-                <div class="header">
-
-                    <h1 class="logo" title="ViUR Operation Center"><span class="viur">ViUR</span>OPS</h1><!--logo -->
-
-                    <div class="centername"> <span style="color:#cc0000">ViUR </span>Operation Center</div><!--centername -->
-
-                    <ul class="iconnav">
-                        <li class="iconmenu inactive"><a  href="#"><i class="icon-th" title="Operation Panel"></i></a></li>
-                        <li class="iconmenu inactive"><a  href="#"><i class="icon-folder" title="Dateien"></i></a></li>
-                        <li class="iconmenu inactive"><a  href="#"><i class="icon-users" title="Nutzer"></i></a></li>
-                        <li class="iconmenu inactive"><a  href="#"><i class="icon-cog" title="Einstellungen"></i></a></li>
-                    </ul><!--iconnav --><!--iconnav -->
-
-                </div><!--header -->
-            </div><!--wrapper_header -->
-
-            <div class="clear"></div>
-
-            <div class="login shadowdark">
-
-                <div class="loghead"><strong>Login</strong></div>
-
-		##block loginimage
-                <img src="/static/images/loginimage.png" alt="Loginimage" width="340" />
-		##endblock
-
-			##block message
-
-			##endblock
-
-			##if customuserauth
-                <p style="font-size:1.4em; line-height:1.4em; margin-top:20px;">Bitte melden Sie sich jetzt mit<br />
-			Ihrem Google Account an.</p>
+			</div><!-- vi_workspace -->
 
 
-                <p style="font-size:1.1em; line-height:1.8em; margin-top:25px;">
-                    <label for="Email">E-Mail-Adresse</label><br />
-                    <input  type="text" spellcheck="false" name="Email" id="Email" value="" style="width:100%;" />
+			<footer class="vi_messenger">
+				<ul class="statuslist">
+					<li>
+						<a href="#"><img src="/resources/icons/status/success_white.svg" /><h4>Status</h4></a>
+					</li>
+				</ul>
+			</footer>	
 
-                    <br />
-                </p>
-			##else
-
-                <p style="font-size:1.4em; line-height:1.4em; margin-top:20px;">
-		Dieses Projekt nutzt eine Authentifizierung über die zentrale Google-Apps-Steuerung.<br /><br />
-                </p>
-
-
-                <a class="btn-auth btn-google large" href="/ops/user/login">
-					 über <b>Google</b> einloggen                </a>
-			##endif
-
-
-            </div><!-- login -->
-
-
-        </div> <!-- /wrapper -->
-        ##endif
-
-        <div id="dialog-yesno" title="A Question..."></div>
-        
-<!-- Zeitreise. -->
-
-    </body>
+			
+		</div><!-- wrapper -->
+		
+		<!-- Zeitreise. -->
+		
+	</body>	
 </html>
