@@ -3,13 +3,9 @@
     <head>
         <meta charset="utf-8">
         
-  	 	<!-- Robots müssen leider draußen bleiben. -->
+  	 	<!-- Robots müssen leider draußen bleiben :( -->
         <meta name="robots" content="noindex,nofollow" />
-  	 	
-  	 	##if not pagetitle
-   			##set pagetitle=_('vi_slogan')
-		##endif	
-		
+
   	 	<!-- Herzlich willkommen bei -->
         <title>{{_('vi_name')}} | {{pagetitle}}</title>
         <meta name="title" content="{{_('vi_name')}} | {{pagetitle}}" />
@@ -19,15 +15,20 @@
         <meta name="description" content="Vi ist das Online-Administrationstool für ViUR-Informationssysteme.">
 
     	<!-- Diese Webseite ist ein Viur Informationssystem. -->
-	    <meta name="generator" content="www.viur.is" />
+	    <meta name="generator" content="http://www.viur.is" />
+	    <link rel="publisher" href="https://plus.google.com/107200665691554897689"/>
+
     	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     	
         <!-- Mit Liebe hergestellt von Mausbrand. -->
         <!-- www.mausbrand.de -->      
         <link type="text/plain" rel="author" href="/resources/meta/humans.txt" />
         
+		<!-- Icons -->
+		<link rel="shortcut icon" href="/resources/meta/favicon.png" />
+
         <!-- iPhone -->
-        <!-- FIXME! <link href="/resources/meta/viur-apple-touch-57x57.png" sizes="57x57" rel="apple-touch-icon-precomposed" />  -->
+        <link href="/resources/meta/viur-apple-touch-57x57-precomposed.png" sizes="57x57" rel="apple-touch-icon-precomposed" />
         <link href="/resources/meta/viur-apple-touch-startup-image-320x460.png" media="(device-width: 320px) and (device-height: 480px) and (-webkit-device-pixel-ratio: 1)" rel="apple-touch-startup-image" />
         <!-- iPhone (Retina) -->
         <link href="/resources/meta/viur-apple-touch-icon-114x114-precomposed.png" sizes="114x114" rel="apple-touch-icon-precomposed" />
@@ -40,12 +41,12 @@
         <link href="/resources/meta/viur-apple-touch-startup-image-748x1024.png" media="(device-width: 768px) and (device-height: 1024px) and (orientation: portrait) and (-webkit-device-pixel-ratio: 1)" rel="apple-touch-startup-image" />
         <link href="/resources/meta/viur-apple-touch-startup-image-768x1004.png" media="(device-width: 768px) and (device-height: 1024px) and (orientation: landscape) and (-webkit-device-pixel-ratio: 1)" rel="apple-touch-startup-image" />
         <!-- iPad (Retina) -->
-        <!-- FIXME! <link href="/resources/meta/viur-apple-touch-icon-144x144.png" sizes="144x144" rel="apple-touch-icon-precomposed" /> -->
+        <link href="/resources/meta/viur-apple-touch-icon-144x144-precomposed.png" sizes="144x144" rel="apple-touch-icon-precomposed" />
         <link href="/resources/meta/viur-apple-touch-startup-image-1536x2008.png" media="(device-width: 768px) and (device-height: 1024px) and (orientation: portrait) and (-webkit-device-pixel-ratio: 2)" rel="apple-touch-startup-image" />
         <link href="/resources/meta/viur-apple-touch-startup-image-1496x2048.png" media="(device-width: 768px) and (device-height: 1024px) and (orientation: landscape) and (-webkit-device-pixel-ratio: 2)" rel="apple-touch-startup-image" />
 
         <!-- CSS -->
-        <link rel="stylesheet" href="/resources/css/vi/vi.css" />
+        <link rel="stylesheet" href="../../resources/css/vi/vi.css" />
         
         <script type="text/javascript" src="/resources/js/angular/angular.min.js"></script>
         <script type="text/javascript" src="/resources/js/angular/ui-bootstrap-custom-0.6.0.min.js"></script>
@@ -59,11 +60,10 @@
     </head>	
     <body>
  
-    	<div class="wrapper">
+    	<div id="wrapper" class="wrapper">
 			
-			<header class="vi_topbar">
-				<img class="vi_app_logo" />
-				<h1>{{_('vi_app_name')}}</h1>
+			<header id="vi_topbar" class="vi_topbar">
+				<h1 class="beta">{{_('vi_app_name')}}</h1>
 				
 				<div class="centername">
 				<h2>{{_('vi_app_slogan')}}</h2>	
@@ -71,19 +71,19 @@
 	
 				<nav class="iconnav">
 	                <ul>
-	                    <li><a href="/ops"><i class="icon-th" title="Operation Panel"></i></a></li>
-	                    <li><a href="#"><i class="icon-folder" title="Dateien"></i></a></li>
-	                    <li><a href="#"><i class="icon-users" title="Nutzer"></i></a></li>
-	                    <li><a href="#"><i class="icon-cog" title="Einstellungen"></i></a></li>
-		                <li class="logout"><a  href="/ops/user/logout?skey={{skey}}">&nbsp;<em class="icon-logout" title="Logout">Ausloggen</em></a></li>
+	                    <li><a href="/vi" title="{{_('dashboard')}}">{{_('dashboard')}}</a></li>
+	                    <li><a href="#" title="{{_('myfiles')}}">{{_('myfiles')}}</a></li>
+	                    <li><a href="#" title="{{_('accountmanagement')}}">{{_('accountmanagement')}}</a></li>
+	                    <li><a href="#" title="{{_('settings')}}">{{_('settings')}}</a></li>
+		                <li class="logout"><a  href="/ops/user/logout?skey={{skey}}" title="{{_('logout')}}">{{_('logout')}}</a></li>
 	                </ul><!--iconnav -->
 				</nav>	
 			</header>
 
 
-			<div class="vi_workspace">
+			<div id="vi_workspace" class="vi_workspace">
 
-				<nav class="vi_manager">
+				<nav id="vi_manager" class="vi_manager">
 					<ul class="modullist">	
 						<li>
 						    <a href="#">
@@ -100,7 +100,7 @@
 				</nav><!-- vi_manager -->
 	
 	
-				<div class="vi_viewer" role="main">
+				<div id="vi_viewer" class="vi_viewer" role="main">
 					<div class="actionbar">
 						<img src="/resourcess/icons/actions/list.svg" />
 						<h3>Liste</h3>
@@ -112,8 +112,6 @@
 						<button type="button">preview</button>
 						<button type="button">search</button>															
 					</div>
-					
-					
 					
 				</div><!-- vi_viewer -->	
 	
