@@ -22,7 +22,7 @@ body {
     font-size:100.01%;
     overflow-y:scroll;
     overflow-x: hidden;
-    background-color:#ccc;
+    background-color:#ddd;
 }
 
 
@@ -69,7 +69,6 @@ p { margin-bottom:10px;}
 		    float:left;
 		    width:auto;
 		    color:#fff;
-		    padding:0 30px 15px 0;
 		}
 		.vi_topbar h1:before {
 			content:' ';
@@ -102,11 +101,25 @@ p { margin-bottom:10px;}
 		    float:right;
 		}
 			.iconnav li {float:left; color:#777;}
-				.iconnav li a, .iconnav li a:link, .iconnav li a:visited {color:#777; position:relative;padding:11px 12px 12px; float:left; text-decoration:none; text-shadow: 0px 1px 1px rgba(255, 255, 255,1);}
+				.iconnav li a, .iconnav li a:link, .iconnav li a:visited {
+					border-left:1px solid #fafafa;
+					border-bottom:2px solid #BE1622;
+					color:#777; 
+					position:relative;
+					padding:11px 12px 12px; 
+					float:left; 
+					text-decoration:none; 
+					text-shadow: 0px 1px 1px rgba(255, 255, 255,1);
+					-webkit-transition: all 0.3s ease;
+					-moz-transition: all 0.3s ease;
+					-o-transition: all 0.3s ease;
+					transition: all 0.3s ease;
+				}
 				.iconnav li a:hover,.iconnav li a:active {
 				    color:#999;
 				    background-color:#fff;
 				    text-decoration:none;
+				    border-bottom:2px solid #ff0000;
 				    /*-moz-box-shadow:inset 0px 0px 4px rgba(0, 0, 0, .6); -webkit-box-shadow:inset 0px 0px 4px rgba(0, 0, 0, .6); box-shadow:inset 0px 0px 4px rgba(0, 0, 0, .6);*/
 				}
 				.iconnav li.inactive a, .iconnav li.inactive a:link{
@@ -142,6 +155,7 @@ p { margin-bottom:10px;}
 }
 
 	.vi_manager a:link, .vi_manager a:visited {
+	    
 	    width:268px;
 	    position:relative;
 	    border-bottom:1px dotted #cccccc;
@@ -152,6 +166,10 @@ p { margin-bottom:10px;}
 	    background:-moz-linear-gradient(top, #f2f2f2, #f7f7f7); /* Firefox */
 	    background:-webkit-gradient(linear, left top, left bottom, from(#f2f2f2), to(#f7f7f7)); /* Safari, Chrome */
 	    padding:12px 15px;
+	    -webkit-transition: all 0.3s ease;
+		-moz-transition: all 0.3s ease;
+		-o-transition: all 0.3s ease;
+		transition: all 0.3s ease;
 	}
 	
 	.vi_manager a:hover, .vi_manager a:active {
@@ -180,12 +198,12 @@ p { margin-bottom:10px;}
 /* #vi_viewer
 ================================================== */	
 
-.vi_viewer {margin-left:298px; width:auto; float:left; position:relative; background-color:#f4f4f4;border-left:1px solid #ccc; border-right:1px solid #bbb;padding: 80px 30px 45px;min-height: 400px;z-index:-1;}
+.vi_viewer {margin-left:298px; width:auto; float:left; position:relative; background-color:#f4f4f4;border-left:1px solid #ccc; border-right:1px solid #ccc;padding: 80px 30px 45px;min-height: 400px;z-index:-1;}
 
 /* #vi_operator
 ================================================== */	
 
-.vi_operator {z-index:20; padding: 80px 30px 45px; float:left; min-width:300px; min-height:500px; background:#ccc; } 
+.vi_operator {z-index:20; padding: 80px 30px 45px; float:left; min-width:300px; min-height:500px; background:#ddd; } 
 
 	.vi_operator:before {
 		content:" ";
@@ -194,7 +212,7 @@ p { margin-bottom:10px;}
 		float:left;
 		border-style: solid;
 		border-width: 24px 30px;
-		border-color: rgba(255, 255, 255, 0) #ccc rgba(255, 255, 255, 0) rgba(255, 255, 255, 0);
+		border-color: rgba(255, 255, 255, 0) #ddd rgba(255, 255, 255, 0) rgba(255, 255, 255, 0);
 	}
 
 /* #actionbar
@@ -267,6 +285,10 @@ button[type="button"] {
     background: linear-gradient(to bottom, #ddd 0%, #ccc 100%);
     filter: progid:DXImageTransform.Microsoft.Gradient(StartColorStr='#ddd', EndColorStr='#ccc', GradientType=0);	
 	cursor:pointer;
+	-webkit-transition: all 0.3s ease;
+	-moz-transition: all 0.3s ease;
+	-o-transition: all 0.3s ease;
+	transition: all 0.3s ease;	
 }
 
 button[type="button"]:hover {
@@ -286,6 +308,7 @@ button[type="button"]:hover {
 ================================================== */	
 
 	.vi_messenger {
+		box-shadow:0px -3px 3px rgba(0,0,0,0.2);
 	    width:100%;
 	    position:fixed;
 	    top:100%;
