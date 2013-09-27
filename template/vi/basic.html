@@ -54,13 +54,14 @@
         <script type="text/javascript" src="/resources/js/jquery/jquery.min.js"></script>
     
         <!-- JS -->
-        <script type="text/javascript" language="JavaScript" src="/resources/js/vi/vi_windowmanager.js"></script> 
+        <script type="text/javascript" language="JavaScript" src="/resources/js/vi/vi_windowmanager.js"></script>
+        <script type="text/javascript" language="JavaScript" src="/resources/js/vi/vi_messagecenter.js"></script> 
         <script type="text/javascript" language="JavaScript" src="/resources/js/vi/vi_app.js"></script>
                 
     </head>	
     <body>
  
-    	<div id="wrapper" class="wrapper">
+    	<div id="wrapper" class="wrapper" >
 			
 			<header id="vi_topbar" class="vi_topbar">
 				<h1 class="beta">{{_('vi_app_name')}}</h1>
@@ -82,8 +83,8 @@
 
 
 			<div id="vi_workspace" class="vi_workspace">
-
-				<nav id="vi_manager" class="vi_manager">
+            {% raw %}
+				<nav id="vi_manager" class="vi_manager" >
 					<ul class="modullist">	
 						<li>
 						    <a href="#">
@@ -98,7 +99,7 @@
 						</li>
 					</ul>
 				</nav><!-- vi_manager -->
-	
+	         {% endraw %}
 	
 				<div id="vi_viewer" class="vi_viewer" role="main">
 					<div class="actionbar">
@@ -139,12 +140,14 @@
 			</div><!-- vi_workspace -->
 
 
-			<footer class="vi_messenger">
-				<ul class="statuslist">
-					<li>
-						<a href="#"><img src="/resources/icons/status/success_white.svg" /><h4>Status</h4></a>
+			<footer class="vi_messenger" ng-controller="vi_mc" style="margin-top: -130px;">
+			    {% raw %}
+				<ul class="statuslist" >
+					<li ng-repeat="m in vi_mc_messages" class="type-{{m.type}}">
+						<a href="#"><img src="/resources/icons/status/{{m.type}}.svg" /><h4>{{m.message}}</h4></a>
 					</li>
 				</ul>
+				{% endraw %}
 			</footer>	
 
 			##block message
