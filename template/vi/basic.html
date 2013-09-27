@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xml:lang="{{getLanguage()}}" lang="{{getLanguage()}}">
+<html xml:lang="{{getLanguage()}}" lang="{{getLanguage()}}" ng-app>
     <head>
         <meta charset="utf-8">
         
@@ -47,9 +47,15 @@
 
         <!-- CSS -->
         <link rel="stylesheet" href="../../resources/css/vi/vi.css" />
-
-        <!-- JS --> 
-        <script type="text/javascript" language="JavaScript" src="/resources/js/vi/app.js"></script>
+        
+        <script type="text/javascript" src="/resources/js/angular/angular.min.js"></script>
+        <script type="text/javascript" src="/resources/js/angular/ui-bootstrap-custom-0.6.0.min.js"></script>
+        <script type="text/javascript" src="/resources/js/angular/ui-bootstrap-custom-tpls-0.6.0.min.js"></script>        
+        <script type="text/javascript" src="/resources/js/jquery/jquery.min.js"></script>
+    
+        <!-- JS -->
+        <script type="text/javascript" language="JavaScript" src="/resources/js/vi/vi_windowmanager.js"></script> 
+        <script type="text/javascript" language="JavaScript" src="/resources/js/vi/vi_app.js"></script>
                 
     </head>	
     <body>
@@ -130,7 +136,9 @@
 				</ul>
 			</footer>	
 
+			##block message
 			
+			##endblock
 		</div><!-- wrapper -->
 		
 		<!-- Zeitreise. -->
