@@ -198,7 +198,7 @@ p { margin-bottom:10px;}
 /* #vi_viewer
 ================================================== */	
 
-.vi_viewer {margin-left:298px; width:auto; float:left; position:relative; background-color:#f4f4f4;border-left:1px solid #ccc; border-right:1px solid #ccc;padding: 80px 30px 45px;min-height: 400px;z-index:-1;}
+.vi_viewer {margin-left:298px; width:auto; min-width:500px; float:left; position:relative; background-color:#f4f4f4;border-left:1px solid #ccc; border-right:1px solid #ccc;padding: 80px 30px 45px;min-height: 400px;z-index:-1;}
 
 /* #vi_operator
 ================================================== */	
@@ -218,12 +218,19 @@ p { margin-bottom:10px;}
 /* #actionbar
 ================================================== */
 
-.vi_viewer .actionbar, .vi_operator .actionbar {width:100%; border-bottom:1px solid #BE1622; margin-bottom:30px;}
-.vi_viewer .actionbar img, .vi_operator .actionbar img {border: 1px solid #999; width:26px; float:left;}
+.vi_viewer .actionbar, .vi_operator .actionbar {width:auto; min-width:500px; border-bottom:1px solid #BE1622; position:fixed;}
+.vi_viewer .actionbar img, .vi_operator .actionbar img {border: 1px solid #aaa; border-right:0; width:16px; float:left; padding:5px 6px 5px 4px;
+	background-color: #ddd;
+    background: -moz-linear-gradient(top, #fff 0%, #ddd 100%);
+    background: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #fff), color-stop(100%, #ddd));
+    background: -webkit-linear-gradient(top, #fff 0%, #ddd 100%);
+    background: -o-linear-gradient(top, #fff 0%, #ddd 100%);
+    background: -ms-linear-gradient(top, #fff 0%, #ddd 100%);
+    background: linear-gradient(to bottom, #fff 0%, #ddd 100%);
+    filter: progid:DXImageTransform.Microsoft.Gradient(StartColorStr='#fff', EndColorStr='#ddd', GradientType=0);	}
 .vi_viewer .actionbar h3, .vi_operator .actionbar h3 {
 	line-height:1em;
 	margin-bottom:10px;
-	border: 1px solid #999;
 	color:#222;
 	height:16px;
 	padding:4px 15px 6px 10px;
@@ -236,13 +243,14 @@ p { margin-bottom:10px;}
     background: -ms-linear-gradient(top, #fff 0%, #ddd 100%);
     background: linear-gradient(to bottom, #fff 0%, #ddd 100%);
     filter: progid:DXImageTransform.Microsoft.Gradient(StartColorStr='#fff', EndColorStr='#ddd', GradientType=0);	
-	cursor:pointer;
-	-webkit-transition: all 0.3s ease;
-	-moz-transition: all 0.3s ease;
-	-o-transition: all 0.3s ease;
-	transition: all 0.3s ease;
 	float:left;
+	border: 1px solid #aaa;
+	border-right:2px solid #BE1622;
+	border-left:1px solid #ccc;
+	margin-right:4px;
 	}
+.actionbar .operations {float:right;}
+
 
 /* #vi_buttons and #vi_forms
 ================================================== */
@@ -297,7 +305,7 @@ button[type="button"] {
 	margin:0;
 	/*margin-right: 6px;*/
 	text-align:center;
-	background-color: #444;
+	background-color: #bbb;
     background: -moz-linear-gradient(top, #ddd 0%, #bbb 100%);
     background: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #ddd), color-stop(100%, #bbb));
     background: -webkit-linear-gradient(top, #ddd 0%, #bbb 100%);
@@ -315,14 +323,52 @@ button[type="button"] {
 button[type="button"]:hover {
 	border: 1px solid #666;
 	color:#222;	
+	letter-spacing:normal;	
 }
+
+button.icon {
+	color:transparent;
+	letter-spacing:-10em;
+	overflow:hidden;
+	min-width:28px;
+}
+button.add:before{background-image: url(../../icons/actions/add.svg);}	
+button.edit:before{background-image: url(../../icons/actions/edit.svg);}	
+button.clone:before{background-image: url(../../icons/actions/clone.svg);}	
+button.delete:before{background-image: url(../../icons/actions/delete.svg);}
+	
+button.preview:before{background-image: url(../../icons/actions/preview.svg);}	
+button.search:before{background-image: url(../../icons/actions/search.svg);}	
+
+button.icon:before {
+	background-position: center;
+	background-size: 16px;
+	background-repeat: no-repeat;
+	width:16px;
+	height:16px;
+	content:' ';
+	position:relative;
+	float:left;
+	margin-left:-1px;
+	margin-top:-1px;
+}
+
+button.icon[type="button"]:hover {
+	border: 1px solid #666;
+	overflow:visible;
+	color:#222;	
+	min-width:120px;
+	letter-spacing:normal;	
+}
+
+
 
 /* #vi_labels
 ================================================== */	
 
 .beta {
 	background:url(../../images/beta_small.png) no-repeat top right;
-	padding-right:30px;
+	padding-right:35px;
 }
 	
 /* #vi_messenger

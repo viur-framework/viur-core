@@ -102,15 +102,19 @@
 	
 				<div id="vi_viewer" class="vi_viewer" role="main">
 					<div class="actionbar">
-						<img src="/resourcess/icons/actions/list.svg" />
+						<img src="../../resources/icons/actions/list.svg" />
 						<h3>Liste</h3>
-						<button type="button">add</button>
-						<button type="button">edit</button>
-						<button type="button">duplicate</button>
-						<button type="button">delete</button>
-					
-						<button type="button">preview</button>
-						<button type="button">search</button>															
+						
+						<button type="button" class="icon add">{{_('add')}}</button>
+						<button type="button" class="icon edit">{{_('edit')}}</button>
+						<button type="button" class="icon clone">{{_('clone')}}</button>
+						<button type="button" class="icon delete">{{_('delete')}}</button>
+						
+						<div class="operations">
+							<button type="button" class="icon preview">{{_('preview')}}</button>
+							<button type="button" class="icon search">{{_('search')}}</button>
+						</div>
+																					
 					</div>
 					
 				</div><!-- vi_viewer -->	
@@ -118,10 +122,17 @@
 	
 				<aside class="vi_operator">
 					<div class="actionbar">
-						<img src="/resources/ops/icons/actions/text-edit.svg" /> 
+						<img src="../../resources/icons/actions/text-edit.svg" /> 
 						<h3>Text-Editor</h3>
-						<button type="button">save</button>															
-						<button type="button">cancel</button>															
+						<button type="button" class="icon saveClose">{{_('saveClose')}}</button>															
+						<button type="button" class="icon saveContinue">{{_('saveContinue')}}</button>															
+						<button type="button" class="icon saveNew">{{_('saveNew')}}</button>															
+						<button type="button" class="icon saveClose">{{_('saveClose')}}</button>															
+						
+						<div class="operations">
+						<button type="button" class="icon reset">{{_('reset')}}</button>		
+						<button type="button" class="icon cancel">{{_('cancel')}}</button>		
+						</div>													
 					</div>	
 				</aside><!-- vi_operator -->	
 
