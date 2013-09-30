@@ -22,6 +22,7 @@ conf = {	"viur.mainApp": None,  #Reference to our prebuild Application-Instance
 		"viur.tasks.startBackendOnDemand": True, #If true, allows the task modul to start a backend immediately (instead of waiting for the cronjob)
 		"viur.logMissingTranslations": False, #If true, ViUR will log missing translations in the datastore
 		"viur.disableCache": False, #If set to true, the decorator @enableCache from server.cache has no effect
+		"viur.maxPasswordLength": 512, #Prevent Denial of Service attacks using large inputs for pbkdf2
 		"bugsnag.apiKey": None #If set, ViUR will report Errors to bugsnag
 	}
 

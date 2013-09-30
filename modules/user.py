@@ -157,7 +157,7 @@ class CustomUser( List ):
 	def addUser(self, name, password ):
 		skel = self.loginSkel()
 		salt = utils.generateRandomString(13)
-		pwHash = pbkdf2( password, salt )
+		pwHash = pbkdf2( password[ : conf["viur.maxPasswordLength"] ], salt )
 		uidHash = sha512( name.lower().encode("utf-8")+conf["viur.salt"] ).hexdigest()
 		return( db.GetOrInsert( uidHash,
 					kindName=skel.kindName,
@@ -263,7 +263,7 @@ class CustomUser( List ):
 		if res is None:
 			res = {"password":"", "status":0, "name":"","name.idx":"" }
 		if "password_salt" in res.keys(): #Its the new, more secure passwd
-			passwd = pbkdf2( password, res["password_salt"] )
+			passwd = pbkdf2( password[ : conf["viur.maxPasswordLength"] ], res["password_salt"] )
 		else:
 			passwd = sha512( password.encode("UTF-8")+conf["viur.salt"] ).hexdigest()
 		isOkay = True
@@ -283,7 +283,7 @@ class CustomUser( List ):
 		else:
 			if not "password_salt" in res.keys(): #Update the password to the new, more secure format
 				res[ "password_salt" ] = utils.generateRandomString( 13 )
-				res[ "password" ] = pbkdf2( password, res["password_salt"] )
+				res[ "password" ] = pbkdf2( password[ : conf["viur.maxPasswordLength"] ], res["password_salt"] )
 				db.Put( res )
 			session.current.reset()
 			session.current['user'] = {}
