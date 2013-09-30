@@ -291,6 +291,15 @@ class relationalBone( baseBone ):
 				if origFilter:
 					for k,v in origFilter.items():
 						#Ensure that all non-relational-filters are in parentKeys
+						if k=="__key__":
+							# We must process the key-property separately as its meaning changes as we change the datastore kind were querying
+							if isinstance( v, list ) or isinstance(v, tuple):
+								logging.warning( "Invalid filtering! Doing an relational Query on %s with multiple id= filters is unsupported!" % (name) )
+								raise RuntimeError()
+							if not isinstance(v, db.Key ):
+								v = db.Key( v )
+							dbFilter.ancestor( v )
+							continue
 						if not (k if not " " in k else k.split(" ")[0]) in self.parentKeys:
 							logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
 							raise RuntimeError()
@@ -410,9 +419,17 @@ class relationalBone( baseBone ):
 			srcKey = param
 			if " " in srcKey:
 				srcKey = srcKey[ : srcKey.find(" ")] #Cut <, >, and =
-				if not srcKey in self.parentKeys:
-					logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (srcKey,name) )
+			if srcKey == "__key__": #Rewrite id= filter as its meaning has changed
+				if isinstance( value, list ) or isinstance( value, tuple ):
+					logging.warning( "Invalid filtering! Doing an relational Query on %s with multiple id= filters is unsupported!" % (name) )
 					raise RuntimeError()
+				if not isinstance( value, db.Key ):
+					value = db.Key( value )
+				query.ancestor( value )
+				return( None )
+			if not srcKey in self.parentKeys:
+				logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (srcKey,name) )
+				raise RuntimeError()
 			return( "src.%s" % param, value )
 
 	def orderHook(self, name, query, orderings ):
