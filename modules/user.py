@@ -381,8 +381,8 @@ class CustomUser( List ):
 		if id=="self":
 			user = self.getCurrentUser()
 			if user:
-				return( super( GoogleUser, self ).view( user["id"], *args, **kwargs ) )
-		return( super( GoogleUser, self ).view( id, *args, **kwargs ) )
+				return( super( CustomUser, self ).view( user["id"], *args, **kwargs ) )
+		return( super( CustomUser, self ).view( id, *args, **kwargs ) )
 	view.exposed=True
 	
 	def onItemAdded( self, skel ):

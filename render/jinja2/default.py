@@ -759,13 +759,21 @@ class Render( object ):
 			template = self.getEnv().from_string( tpl )
 		data = template.render( skel=res, dests=dests, user=user )
 		body = False
+		lineCount=0
 		for line in data.splitlines():
-			if body==False:
-				if not line or not ":" in line or not len( line.split(":") ) == 2:
-					body=""
-				else:
-					k,v = line.split(":")
-					headers[ k.lower() ] = v
+			if lineCount>3 and body is False:
+				body = "\n\n"
 			if body != False:
 				body += line+"\n"
+			else:
+				if line.lower().startswith("from:"):
+					headers["from"]=line[ len("from:"):]
+				elif line.lower().startswith("subject:"):
+					headers["subject"]=line[ len("subject:"): ]
+				elif line.lower().startswith("references:"):
+					headers["references"]=line[ len("references:"):]
+				else:
+					body="\n\n"
+					body += line
+			lineCount += 1
 		return( headers, body  )
