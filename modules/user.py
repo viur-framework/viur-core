@@ -28,7 +28,7 @@ class GoogleUser( List ):
 	addSkel = None #You cannot add users directly - they need to sign up with google and log into the application once
 
 	def editSkel( self = None, *args,  **kwargs ):
-		skel = GoogleUser.baseSkel()
+		skel = self.baseSkel()
 		accessRights = skel.access.values.copy()
 		for right in conf["viur.accessRights"]:
 			accessRights[ right ] = _( right )
