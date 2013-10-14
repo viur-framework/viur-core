@@ -30,6 +30,7 @@ conf = {	"viur.mainApp": None,  #Reference to our prebuild Application-Instance
 		"viur.debug.traceExternalCallRouting": True, #If enabled, ViUR will log which (exposed) function are called from outside with what arguments
 		"viur.debug.traceInternalCallRouting": True, #If enabled, ViUR will log which (internal-exposed) function are called from templates with what arguments
                 "viur.debug.traceQueries": True, #If enabled, we log all datastore queries performed
+		"viur.errorTemplate": "server/template/error.html", #Path to the template to render if an unhandled error occurs. This is a Python String-template, *not* a jinja2 one!
 		"bugsnag.apiKey": None #If set, ViUR will report Errors to bugsnag
 	}
 

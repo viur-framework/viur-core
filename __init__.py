@@ -301,13 +301,13 @@ class BrowseHandler(webapp.RequestHandler):
 				raise
 			self.response.clear()
 			self.response.set_status( e.status )
-			tpl = Template( open("server/template/error.html", "r").read() )
+			tpl = Template( open(conf["viur.errorTemplate"], "r").read() )
 			self.response.out.write( tpl.safe_substitute( {"error_code": e.status, "error_name":e.name, "error_descr": e.descr} ) )
 		except Exception as e: #Something got really wrong
 			logging.exception( "Viur caught an unhandled exception!" )
 			self.response.clear()
 			self.response.set_status( 500 )
-			tpl = Template( open("server/template/error.html", "r").read() )
+			tpl = Template( open(conf["viur.errorTemplate"], "r").read() )
 			descr = "The server encountered an unexpected error and is unable to process your request."
 			if self.isDevServer: #Were running on development Server
 				strIO = StringIO()
