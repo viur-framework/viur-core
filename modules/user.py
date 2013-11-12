@@ -5,7 +5,6 @@ from server import utils, session
 from server.bones import *
 from server.bones.passwordBone import pbkdf2
 from server import errors, conf, securitykey
-#from cone.maintenance import maintenance
 from time import time
 from server import db
 from hashlib import sha512
@@ -19,10 +18,10 @@ class GoogleUser( List ):
 	
 	class baseSkel( Skeleton ):
 		kindName = "user"
-		uid = stringBone( descr="Google's UserID", params={"indexed": True, "frontend_list_visible": True}, required=True, readOnly=True )
+		uid = stringBone( descr="Google's UserID", indexed=True, required=True, readOnly=True )
 		gaeadmin = selectOneBone( descr="Is GAE Admin", values={0:"No", 1:"Yes"}, defaultValue=0, readOnly=True )
-		name = stringBone( descr="E-Mail", params={"indexed": True, "frontend_list_visible": True}, required=True )
-		access = selectMultiBone( descr="Accessrights", values={}, params={"indexed": True, "frontend_list_visible": True} )
+		name = stringBone( descr="E-Mail", indexed=True,required=True,searchable=True )
+		access = selectMultiBone( descr="Accessrights", values={}, indexed= True )
 		lastlogin = dateBone( descr="Last Login", readOnly=True )
 	
 	addSkel = None #You cannot add users directly - they need to sign up with google and log into the application once
@@ -73,7 +72,10 @@ class GoogleUser( List ):
 			return( res )
 		else:
 			return( None )
-	
+
+	def onLogin(self):
+		pass
+
 	def login( self, skey="", *args, **kwargs ):
 		def updateCurrentUser():
 			currentUser = users.get_current_user()
@@ -81,6 +83,7 @@ class GoogleUser( List ):
 			mysha512 = sha512()
 			mysha512.update( str(uid)+conf["viur.salt"]  )
 			uidHash = mysha512.hexdigest()
+
 			user = db.GetOrInsert( "user-%s" % uidHash, kindName=self.baseSkel().kindName, uid=uid, name=currentUser.email(), creationdate=datetime.datetime.now(), access=None )
 			#Update the user
 			dt = datetime.datetime.now()
@@ -100,6 +103,7 @@ class GoogleUser( List ):
 		if users.get_current_user():
 			session.current.reset()
 			db.RunInTransaction( updateCurrentUser )
+			self.onLogin()
 			return( self.render.loginSucceeded( ) )
 		else:
 			raise( errors.Redirect( users.create_login_url( self.modulPath+"/login") ) )
@@ -175,8 +179,8 @@ class CustomUser( List ):
 	class loginSkel( Skeleton ):
 		kindName = "user"
 		id = None
-		name = emailBone( descr="E-Mail", params={"indexed": True, "frontend_list_visible": True}, required=True, caseSensitive=False, indexed=True )
-		password = passwordBone( descr="Passwort", params={"indexed": True, "frontend_list_visible": True,"justinput":True}, required=True )
+		name = emailBone( descr="E-Mail",  required=True, caseSensitive=False, indexed=True )
+		password = passwordBone( descr="Password", indexed=True, params={"justinput":True}, required=True )
 
 	class baseSkel( Skeleton ):
 		kindName = "user"
