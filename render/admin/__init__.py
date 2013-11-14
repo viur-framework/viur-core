@@ -84,7 +84,7 @@ def dumpConfig( adminTree ):
 
 def canAccess( *args, **kwargs ):
 	user = utils.getCurrentUser()
-	if user and "root" in user["access"]:
+	if user and ("root" in user["access"] or "admin" in user["access"]):
 		return( True )
 	pathList = request.current.get().pathlist
 	if len( pathList )>=2 and pathList[1] == "skey":
