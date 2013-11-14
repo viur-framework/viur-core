@@ -20,7 +20,7 @@ _boneCounter = BoneCounter()
 
 class MetaSkel( type ):
 	_skelCache = {}
-	__reservedKeywords_ = [ "self", "cursor", "amount", "orderby", "orderdir" ]
+	__reservedKeywords_ = [ "self", "cursor", "amount", "orderby", "orderdir", "style" ]
 	def __init__( cls, name, bases, dct ):
 		kindName = cls.kindName
 		#if kindName in MetaSkel._skelCache.keys():
