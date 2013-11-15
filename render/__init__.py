@@ -1,7 +1,6 @@
 import jinja2
 import admin
 import xml
-import vi
 import json
 import rss
 try:
