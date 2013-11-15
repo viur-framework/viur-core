@@ -56,26 +56,27 @@ def setLanguage( lang, skey):
 setLanguage.exposed=True
 
 
-def generateAdminConfig( adminTree ):
-	res = {}
+def dumpConfig( adminTree ):
+	adminConfig = {}
 	for key in dir( adminTree ):
 		app = getattr( adminTree, key )
 		if "adminInfo" in dir( app ) and app.adminInfo:
-			res[ key ] = app.adminInfo.copy()
-			res[ key ]["name"] = _(res[ key ]["name"])
-			res[ key ]["views"] = []
-			if "views" in app.adminInfo.keys():
-				for v in app.adminInfo["views"]:
-					tmp = v.copy()
-					tmp["name"] = _(tmp["name"])
-					res[ key ]["views"].append( tmp )
-	return( res )
-	
-def dumpConfig( adminTree ):
-	adminConfig = generateAdminConfig( adminTree )
-	res = {	"capabilities": conf["viur.capabilities"], 
-			"modules": adminConfig, 
-			"configuration": {}
+			if callable( app.adminInfo ):
+				info = app.adminInfo()
+				if info is not None:
+					adminConfig[ key ] = info
+			else:
+				adminConfig[ key ] = app.adminInfo.copy()
+				adminConfig[ key ]["name"] = _(adminConfig[ key ]["name"])
+				adminConfig[ key ]["views"] = []
+				if "views" in app.adminInfo.keys():
+					for v in app.adminInfo["views"]:
+						tmp = v.copy()
+						tmp["name"] = _(tmp["name"])
+						adminConfig[ key ]["views"].append( tmp )
+	res = {	"capabilities": conf["viur.capabilities"],
+		"modules": adminConfig,
+		"configuration": {}
 		}
 	for k, v in conf.items():
 		if k.lower().startswith("admin."):
@@ -84,7 +85,7 @@ def dumpConfig( adminTree ):
 
 def canAccess( *args, **kwargs ):
 	user = utils.getCurrentUser()
-	if user and "root" in user["access"]:
+	if user and ("root" in user["access"] or "admin" in user["access"]):
 		return( True )
 	pathList = request.current.get().pathlist
 	if len( pathList )>=2 and pathList[1] == "skey":

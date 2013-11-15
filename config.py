@@ -13,7 +13,7 @@ conf = {	"viur.mainApp": None,  #Reference to our prebuild Application-Instance
 		"viur.languageAliasMap": {}, #Allows mapping of certain languages to one translation (ie. us->en)
 		"viur.capabilities": [], #Extended functionality of the whole System (For modul-dependend functionality advertise this in the modul configuration (adminInfo)
 		"viur.searchValidChars": "abcdefghijklmnopqrstuvwxyz0123456789",  #Characters valid for the internal search functionality (all other chars are ignored)
-		"viur.accessRights": ["root"],  #Accessrights available on this Application
+		"viur.accessRights": ["root","admin"],  #Accessrights available on this Application
 		"viur.salt": "ViUR-CMS",  #Default salt which will be used for eg. passwods. Once the application is used, this must not change!
 		"viur.maxPostParamsCount": 250, #Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks
 		"viur.forceSSL": False,  #If true, all requests must be encrypted (ignored on development server)

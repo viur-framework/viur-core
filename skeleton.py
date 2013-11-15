@@ -20,7 +20,7 @@ _boneCounter = BoneCounter()
 
 class MetaSkel( type ):
 	_skelCache = {}
-	__reservedKeywords_ = [ "self", "cursor", "amount", "orderby", "orderdir" ]
+	__reservedKeywords_ = [ "self", "cursor", "amount", "orderby", "orderdir", "style" ]
 	def __init__( cls, name, bases, dct ):
 		kindName = cls.kindName
 		#if kindName in MetaSkel._skelCache.keys():
@@ -80,11 +80,35 @@ class Skeleton( object ):
 	kindName = "" # To which kind we save our data to
 	searchIndex = None # If set, use this name as the index-name for the GAE search API
 	enforceUniqueValuesFor = None # If set, enforce that the values of that bone are unique.
+	subSkels = {} # List of pre-defined sub-skeletons of this type
 	isBaseClassSkel = False # If True, this skeleton won't be handled by tasks like the relational update task
 
 	id = baseBone( readOnly=True, visible=False, descr="ID")
 	creationdate = dateBone( readOnly=True, visible=False, creationMagic=True, indexed=True, descr="created at" )
 	changedate = dateBone( readOnly=True, visible=False, updateMagic=True, indexed=True, descr="updated at" )
+
+	@classmethod
+	def subSkel(cls, name):
+		skel = cls()
+		if not name in skel.subSkels.keys():
+			raise ValueError("Unknown sub-skeleton %s for skel %s" % (name, skel.kindName))
+		boneList = skel.subSkels[name]
+		for key in dir(skel):
+			if key.startswith("_"):
+				continue
+			bone = getattr( skel, key )
+			if not isinstance(bone, baseBone):
+				continue
+			keepBone = key in boneList
+			if not keepBone: #Test if theres a prefix-match that allows it
+				for boneKey in boneList:
+					if boneKey.endswith("*") and key.startswith(boneKey[: -1]):
+						keepBone = True
+						break
+			if not keepBone: #Remove that bone from the skeleton
+				setattr(skel,key,None)
+		return( skel )
+
 
 	def __init__( self, kindName=None, *args,  **kwargs ):
 		"""
