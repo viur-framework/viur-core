@@ -1,24 +1,16 @@
 ##set Forms=True
-##extends "ops/index_custom.html"
+##set operation='add'
+
+##extends "ops/default_modul_view.html"
 ## from "dynaform.macro" import render_dynaform
-##block Content
-##set modulinfos=modulConfig[modulName()]
 
-<div class="headerlist">
-<img src="/resources/ops/{{modulinfos.icon}}" />
-<h1>{{modulinfos.name}} {{_("add")}}</h1>
-</div>
-
-<div class="clear"></div>
+##block content
 
 	<form name="bestform" action="{{ modulPath(  ) }}/add" method="POST">
-		<table border="0" cellspacing="2" class="dftable" style="width: 100%">
+		<dl class="Dyf">
 			{{ render_dynaform( skel ) }}
-		</table>
+		</dl>
 		<input style="margin-left: 420px;" type="submit" value="{{_('add')}}" />
 	</form>
 
-<div class="clear">&nbsp;</div>
-
-<br />
 ##endblock

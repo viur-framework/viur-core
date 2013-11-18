@@ -730,9 +730,9 @@ ISO2TOISO3 = { #Convert iso2 to iso3 codes
 class selectCountryBone( selectOneBone ):
 	ISO2 = 2
 	ISO3 = 3
-	def __init__( self, codes=ISO2, *args, **kwargs ):
+	def __init__( self, codes=ISO2, sortBy="values", *args, **kwargs ):
 		global ISO2CODES, ISO3CODES
-		super( selectCountryBone, self ).__init__( *args,  **kwargs )
+		super( selectCountryBone, self ).__init__( sortBy=sortBy, *args,  **kwargs )
 		assert( codes in [self.ISO2, self.ISO3] )
 		if codes==self.ISO2:
 			self.values = ISO2CODES
@@ -741,8 +741,8 @@ class selectCountryBone( selectOneBone ):
 		self.codes = codes
 		
 	def unserialize( self, name, expando ):
-		if name in expando._properties.keys():
-			value = getattr( expando, name )
+		if name in expando.keys():
+			value = expando[ name ]
 			if isinstance(value, basestring) and len(value)==3 and self.codes==self.ISO2: #We got an ISO3 code from the db, but are using ISO2
 				try:
 					self.value = ISO2TOISO3[ value ]

@@ -40,10 +40,10 @@ class Render( default.Render ): #Render user-data to xml
 		return( template.render( **kwargs ) )
 	
 	def verifyFailed( self, tpl=None,  **kwargs ):
-		if "verifySuccessTemplate" in dir( self.parent ):
-			tpl = tpl or self.parent.verifySuccessTemplate
+		if "verifyFailedTemplate" in dir( self.parent ):
+			tpl = tpl or self.parent.verifyFailedTemplate
 		else:
-			tpl = tpl or self.verifySuccessTemplate
+			tpl = tpl or self.verifyFailedTemplate
 		template= self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		return( template.render( **kwargs ) )
 

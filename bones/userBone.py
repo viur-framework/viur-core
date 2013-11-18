@@ -16,13 +16,11 @@ class userBone( relationalBone ):
 		self.updateMagic = updateMagic
 
 
-	def fromClient( self, value ): #fixme
-		if self.updateMagic or (self.creationMagic and not self.value):
+	def performMagic( self, isAdd ):
+		if self.updateMagic or (self.creationMagic and isAdd):
 			user = conf["viur.mainApp"].user.getCurrentUser()
 			if user:
-				return( super( userBone, self).fromClient( str(user["id"]) ) )
+				return( self.fromClient( "user", {"user": str(user["id"]) } ) )
 			else:
-				return( super( userBone, self).fromClient( None ) )
-		return( relationalBone.fromClient( self, value ) )
+				return( self.fromClient( "user", {} ) )
 		
-

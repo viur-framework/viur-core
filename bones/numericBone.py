@@ -28,7 +28,25 @@ class numericBone( baseBone ):
 		self.min = min
 		self.max = max
 
-	def fromClient( self, value ):
+	def fromClient( self, name, data ):
+		"""
+			Reads a value from the client.
+			If this value is valis for this bone,
+			store this value and return None.
+			Otherwise our previous value is
+			left unchanged and an error-message
+			is returned.
+			
+			@param name: Our name in the skeleton
+			@type name: String
+			@param data: *User-supplied* request-data
+			@type data: Dict
+			@returns: None or String
+		"""
+		if name in data.keys():
+			value = data[ name ]
+		else:
+			value = None
 		try:
 			value = str( value ).replace(",", ".", 1)
 		except:
@@ -44,23 +62,24 @@ class numericBone( baseBone ):
 			self.value = None
 			return( "Invalid value entered" )
 	
-	def serialize( self, name ):
+	def serialize( self, name, entity ):
 		if isinstance( self.value,  float ) and self.value!= self.value: # NaN
-			return( {name: None } )
+			entity.set( name, None, self.indexed )
 		else:
-			return( {name:  self.value  } )
+			entity.set( name, self.value, self.indexed )
+		return( entity )
 		
 	def unserialize( self, name, expando ):
-		if not name in expando._properties.keys():
+		if not name in expando.keys():
 			self.value = None
 			return
-		if getattr( expando, name )==None or not str(getattr( expando, name )).replace(".", "", 1).lstrip("-").isdigit():
+		if expando[ name ]==None or not str(expando[ name ]).replace(".", "", 1).lstrip("-").isdigit():
 			self.value = None
 		else:
 			if not self.precision:
-				self.value = int( getattr( expando, name ) )
+				self.value = int( expando[ name ] )
 			else:
-				self.value = float( getattr( expando, name ) )
+				self.value = float( expando[ name ] )
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
 		if not self.precision:

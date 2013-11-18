@@ -1,7 +1,13 @@
 {%- macro numericbone( bone_name,bone,value ) -%}
 <!-- ############################### Numeric ####################################### -->
+
+	{% set readonly = "" %}
+	{% if bone.readOnly %}
+		{% set readonly = 'readonly="readonly"'	%}
+	{%endif%}
+
 	{% if not bone.visible %}
-		<input type="hidden" name="{{ bone_name }}" value="{{ value }}" />
+		<input {{readonly}} type="hidden" name="{{ bone_name }}" value="{{ value }}" />
 	{% else %}
 		##set steps=(bone.max-bone.min)*(10**bone.precision)
 		{% if steps<=20 %}
@@ -34,7 +40,7 @@
 	<div id="slider_numeric{{bone_name}}"></div>
 		{% endif %}
 		
-		<input type="text"  id="amount_numeric{{bone_name}}" name="{{ bone_name }}" value="{{ value|default("0",true) }}"  class="viur_numericinput"/>
+		<input {{readonly}} type="text"  id="amount_numeric{{bone_name}}" name="{{ bone_name }}" value="{{ value|default("0",true) }}"  class="viur_numericinput"/>
 		<script>
 		        $(function() {
                          var numericspinnerobj{{bone_name}}={};

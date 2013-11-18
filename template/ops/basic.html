@@ -11,21 +11,26 @@
 ## set modulConfig = execRequest("ops/config")
 ## endif
 
+##if not title
+   	##set title='slogan'
+##endif	
+
+
 ##macro generateMenu( config )
+<ul class="menuleft">	
 	##for modul,data in config.items()
-<div class="menuleft">
+<li>
     <a href="/ops/{{data.defaultaction}}">
-        <img src="/resources/ops/{{data.icon}}" alt="Modulicon" />
-        <span class="menuleft_name">{{data.name}}</span>
+        <img src="/resources/ops/{{data.icon}}" alt="{{data.name}}" />
+        <span class="name">{{data.name|truncate(21,True,'&hellip;')}}</span>
     </a>
-    <div class="menuleftactions">
-        <ul>
+        <ul class="actions">
 					{% if data.handler == "list" or data.handler == "base" %}
             <li>
-                <a href="/ops/{{modul}}/list"><img src="/resources/ops/icons/actions/list.png" /><span class="action_name">Liste</span></a>
+                <a href="/ops/{{modul}}/list"><img src="/resources/ops/icons/actions/list.svg" /><span class="action_name">Liste</span></a>
             </li>
             <li>
-                <a href="/ops/{{modul}}/add"><img src="/resources/ops/icons/actions/add_icon.png" /><span class="action_name">Hinzufügen</span></a>
+                <a href="/ops/{{modul}}/add"><img src="/resources/ops/icons/actions/add.svg" /><span class="action_name">Hinzufügen</span></a>
             </li>
 					{% endif %}
 					##for action in data.actions
@@ -34,9 +39,9 @@
             </li>
 					##endfor
         </ul>
-    </div>
-</div><!-- menuleft -->
+</li><!-- menuleft -->
 	##endfor
+</ul>
 ##endmacro
 
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -46,13 +51,13 @@
         <meta name="robots" content="all,follow" />
         <meta name="description" content="Description" />
         <meta name="keywords" content="Keywords" />
+        <link type="text/css" href="/resources/ops/css/jqueryui/jquery-ui.min.css" rel="stylesheet" />
 
         <link rel="stylesheet" media="screen,projection" type="text/css" href="/resources/ops/css/style.css" />
         <!--[if IE 7]>
 			<link rel="stylesheet" href="/resources/ops/css/ops-ie7.css">
 		<![endif]-->
         <link rel="shortcut icon" href="/resources/ops/icons/ViURadmin.ico" type="image/x-icon" />
-        <link type="text/css" href="/resources/ops/css/jqueryui/jquery-ui.min.css" rel="stylesheet" />
 
 				{{alljs(Forms)}}
 
@@ -62,8 +67,10 @@
 		##block additionalheader
 
 		##endblock
-
-        <title>ViUR-OPS &mdash; {{activemoduldescr}}</title>
+        
+        ##block title
+        <title>ViUR Operation Center - {{_(title)}} </title>
+        ##endblock
     </head>
 
     <body>
@@ -74,11 +81,9 @@
                 <div class="header">
 
                     <h1 class="logo" title="ViUR Operation Center"><span class="viur">ViUR</span>OPS</h1><!--logo -->
-                    ##if not activemoduldescr
-                    <div class="centername"> <span style="color:#cc0000">ViUR </span>Operation Center</div><!--centername -->
-                    ##else
-                    <h2 class="centername">{{activemoduldescr}}</h2><!--centername -->
-                    ##endif
+                    ##block centername
+                    <div class="centername"> <span class="viur">ViUR </span>Operation Center</div><!--centername -->
+                    ##endblock
 
         	##block iconnav
                     <ul class="iconnav">
@@ -103,23 +108,28 @@
             </div><!--wrapper_header -->
 			##block main
 
-            <div class="clear"></div>
-
             <div class="content">
 
-                <div class="left">
+                <div class="modullist">
                     ##block menu
                     {{generateMenu( modulConfig )}}
                     ##endblock
                 </div><!--left -->
 
-                <div class="right">
-                    ##block Content
-                    Contentright
+                <div class="modulview">
+                	##block modulhead
+                	##endblock
+                    ##block content
                     ##endblock
                 </div><!--right -->
-
-                <div class="clear"></div>
+                
+                <div class="modulextend">
+                	 ##block extendcontent
+                	<div class="head">
+					<img src="/resources/ops/icons/actions/text-edit.svg" /> <h3>{{_("extendedoperation")}}</h3>
+					</div>
+                    ##endblock
+                </div>
 
             </div><!--content -->
 				##endblock
@@ -197,6 +207,8 @@
         ##endif
 
         <div id="dialog-yesno" title="A Question..."></div>
+        
+<!-- Zeitreise. -->
 
     </body>
 </html>

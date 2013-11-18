@@ -1,15 +1,8 @@
-{% extends "ops/index_custom.html" %}
+##set operation='edit'
+##extends "ops/default_modul_view.html"
 
-{% block Content %}
-##set modulinfos=modulConfig[modulName()]
-
-<div class="headerlist">
-<img src="/resources/ops/{{modulinfos.icon}}" />
-<h1>{{modulinfos.name}} {{_("edit")}}</h1>
-</div>
-
-{{hint("positive")}}
-
-{{_(modulName()+'_edit_item_sucess')}}
+##block content
+	{{hint("positive")}}
+	{{_(modulName()+'_edit_item_sucess')}}
 ##endblock
 

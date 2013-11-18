@@ -7,21 +7,23 @@ http://www.gnu.org/licenses/lgpl-3.0
 
 http://www.viur.is
 """
-import sys, traceback, os
+
+__version__ = (1,0,0)
+
+import sys, traceback, os, inspect
 #All (optional) 3rd-party modules in our libs-directory
 for lib in os.listdir( os.path.join("server", "libs") ):
 	if not lib.lower().endswith(".zip"): #Skip invalid file
 		continue
 	sys.path.insert(0, os.path.join( "server", "libs", lib ) )
 from server.config import conf, sharedConf
+from server import request
 import server.languages as servertrans
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp.util import run_wsgi_app
-from google.appengine.ext import deferred
 from google.appengine.api import users
 import urlparse
 
-from functools import wraps
 from string import Template
 from StringIO import StringIO
 import logging
@@ -29,26 +31,34 @@ import logging
 ### Multi-Language Part
 try:
 	import translations
+	conf["viur.avaiableLanguages"].extend( [x for x in dir( translations ) if (len(x)==2 and not x.startswith("_")) ] )
 except: #The Project doesnt use Multi-Language features
 	translations = None
-
 def translate( key, **kwargs ):
 	try:
-		lang = session.current.getLanguage()
+		lang = request.current.get().language
 	except:
 		return( key )
+	res = None
 	lang = lang or conf["viur.defaultLanguage"]
+	if lang in conf["viur.languageAliasMap"].keys():
+		lang = conf["viur.languageAliasMap"][ lang ]
 	if lang and lang in dir( translations ):
 		langDict = getattr(translations,lang)
 		if key.lower() in langDict.keys():
-			return( langDict[ key.lower() ] )
-	if lang and lang in dir( servertrans ):
+			res = langDict[ key.lower() ]
+	if res is None and lang and lang in dir( servertrans ):
 		langDict = getattr(servertrans,lang)
 		if key.lower() in langDict.keys():
-			return( langDict[ key.lower() ] )
+			res = langDict[ key.lower() ]
+	if res is None and conf["viur.logMissingTranslations"]:
+		from server import db
+		db.GetOrInsert( key="%s-%s" % (key, str(lang)), kindName="viur-missing-translations", langkey=key, lang=lang )
+	if res is None:
+		res = key
 	for k, v in kwargs.items():
-		key = key.replace("{{%s}}"%k, v )
-	return( key )
+		res = res.replace("{{%s}}"%k, v )
+	return( res )
 __builtins__["_"] = translate #Install the global "_"-Function
 
 def setDefaultLanguage( lang ):
@@ -62,10 +72,32 @@ def setDefaultDomainLanguage( domain, lang ):
 
 ### Multi-Language Part: END 
 
-from server import session, errors, request
-from server.modules.file import UploadHandler,DownloadHandler
+from server import session, errors
 from server.tasks import TaskHandler
 from server import backup
+
+try:
+	import bugsnag
+	from google.appengine.api import app_identity
+	try:
+		appVersion = app_identity.get_default_version_hostname()
+		if ".appspot.com" in appVersion.lower():
+			appVersion = appVersion.replace(".appspot.com", "")
+			releaseStage = "production"
+		else:
+			appVersion = "-unknown-"
+			releaseStage = "development"
+	except:
+		appVersion = "-error-"
+		releaseStage = "production"
+	bugsnag.configure(	use_ssl=True,
+				release_stage = releaseStage,
+				auto_notify = False,
+				app_version=appVersion,
+				notify_release_stages = ["production"]
+				)
+except:
+	bugsnag = None
 
 def buildApp( config, renderers, default=None, *args, **kwargs ):
 	"""
@@ -159,17 +191,67 @@ class BrowseHandler(webapp.RequestHandler):
 	"""
 	
 	def get(self, path="/", *args, **kwargs): #Accept a HTTP-GET request
-		if path=="_ah/start": #Warmup request
+		if path=="_ah/start" or path=="_ah/warmup": #Warmup request
 			self.response.out.write("OK")
 			return
+		self.isPostRequest = False
 		self.processRequest( path, *args, **kwargs )
-		
+
+
 	def post(self, path="/", *args, **kwargs): #Accept a HTTP-POST request
+		self.isPostRequest = True
+		self.processRequest( path, *args, **kwargs )
+
+	def head(self, path="/", *args, **kwargs): #Accept a HTTP-HEAD request
+		self.isPostRequest = False
 		self.processRequest( path, *args, **kwargs )
 		
+	def selectLanguage( self, path ):
+		"""
+			Tries to select the best language for the current request.
+		"""
+		if translations is None:
+			# This project doesn't use the multi-language feature, nothing to do here
+			return( path )
+		if conf["viur.languageMethod"] == "session":
+			# We store the language inside the session, try to load it from there
+			if not session.current.getLanguage():
+				if "X-Appengine-Country" in self.request.headers.keys():
+					lng = self.request.headers["X-Appengine-Country"].lower()
+					if lng in conf["viur.avaiableLanguages"]+list( conf["viur.languageAliasMap"].keys() ):
+						session.current.setLanguage( lng )
+						self.language = lng
+					else:
+						session.current.setLanguage( conf["viur.defaultLanguage"] )
+			else:
+				self.language = session.current.getLanguage()
+		elif conf["viur.languageMethod"] == "domain":
+			host = self.request.host_url.lower()
+			host = host[ host.find("://")+3: ].strip(" /") #strip http(s)://
+			if host.startswith("www."):
+				host = host[ 4: ]
+			if host in conf["viur.domainLanguageMapping"].keys():
+				self.language = conf["viur.domainLanguageMapping"][ host ]
+			else: # We have no language configured for this domain, try to read it from session
+				if session.current.getLanguage():
+					self.language = session.current.getLanguage()
+		elif conf["viur.languageMethod"] == "url":
+			tmppath = urlparse.urlparse( path ).path
+			tmppath = [ urlparse.unquote( x ) for x in tmppath.lower().strip("/").split("/") ]
+			if len( tmppath )>0 and tmppath[0] in conf["viur.avaiableLanguages"]+list( conf["viur.languageAliasMap"].keys() ):
+				self.language = tmppath[0]
+				return( path[ len( tmppath[0])+1: ] ) #Return the path stripped by its language segment
+			else: # This URL doesnt contain an language prefix, try to read it from session
+				if session.current.getLanguage():
+					self.language = session.current.getLanguage()
+		return( path )
+
+
 	def processRequest( self, path, *args, **kwargs ): #Bring up the enviroment for this request, handle errors
 		self.internalRequest = False
 		self.isDevServer = "Development" in os.environ['SERVER_SOFTWARE'] #Were running on development Server
+		self.isSSLConnection = self.request.host_url.lower().startswith("https://") #We have an encrypted channel
+		self.language = conf["viur.defaultLanguage"]
 		if sharedConf["viur.disabled"] and not (users.is_current_user_admin() or "HTTP_X_QUEUE_NAME".lower() in [x.lower() for x in os.environ.keys()] ): #FIXME: Validate this works
 			self.response.set_status( 503 ) #Service unaviable
 			tpl = Template( open("server/template/error.html", "r").read() )
@@ -179,28 +261,14 @@ class BrowseHandler(webapp.RequestHandler):
 				msg = "This application is currently disabled or performing maintenance. Try again later."
 			self.response.out.write( tpl.safe_substitute( {"error_code": "503", "error_name": "Service unaviable", "error_descr": msg} ) )
 			return
-		if conf["viur.forceSSL"] and not self.isDevServer and not self.request.host_url.lower().startswith("https://"):
+		if conf["viur.forceSSL"] and not self.isDevServer and not self.isSSLConnection:
 			#Redirect the user to the startpage (using ssl this time)
 			host = self.request.host_url.lower()
 			host = host[ host.find("://")+3: ].strip(" /") #strip http(s)://
 			self.redirect( "https://%s/" % host )
 		try:
-			session.current.load( self.request.cookies )
-			if not session.current.getLanguage():
-				host = self.request.host_url.lower()
-				host = host[ host.find("://")+3: ].strip(" /") #strip http(s)://
-				if host.startswith("www."):
-					host = host[ 4: ]
-				if host in conf["viur.domainLanguageMapping"].keys():
-					session.current.setLanguage( conf["viur.domainLanguageMapping"][ host ] )
-				elif "X-Appengine-Country" in self.request.headers.keys():
-					lng = self.request.headers["X-Appengine-Country"].lower()
-					if lng in (list( dir( translations ) ) + list( dir( servertrans ) )):
-						session.current.setLanguage( lng )
-					else:
-						session.current.setLanguage( conf["viur.defaultLanguage"] )
-				elif "server.defaultLanguage" in conf.keys():
-					session.current.setLanguage( conf["viur.defaultLanguage"] )
+			session.current.load( self ) # self.request.cookies )
+			path = self.selectLanguage( path )
 			self.findAndCall( path, *args, **kwargs )
 		except errors.Redirect as e :
 			self.redirect( e.url.encode("UTF-8") )
@@ -219,10 +287,22 @@ class BrowseHandler(webapp.RequestHandler):
 				strIO = StringIO()
 				traceback.print_exc(file=strIO)
 				descr= strIO.getvalue()
-				descr = descr.replace(" ", "&nbsp;").replace("\n", "<br />")
+				descr = descr.replace("<","&lt;").replace(">","&gt;").replace(" ", "&nbsp;").replace("\n", "<br />")
 			self.response.out.write( tpl.safe_substitute( {"error_code": "500", "error_name":"Internal Server Error", "error_descr": descr} ) )
+			if bugsnag and conf["bugsnag.apiKey" ]:
+				bugsnag.configure( api_key=conf["bugsnag.apiKey" ] )
+				try: 
+					user = conf["viur.mainApp"].user.getCurrentUser()
+				except:
+					user = "-unknown-"
+				try:
+					sessData = session.current.session.session
+				except:
+					sessData = None
+				bugsnag.configure_request( context=path, user_id=user, session_data=sessData )
+				bugsnag.notify( e )
 		finally:
-			self.saveSession()
+			self.saveSession( )
 	
 
 	def findAndCall( self, path, *args, **kwargs ): #Do the actual work: process the request
@@ -244,12 +324,19 @@ class BrowseHandler(webapp.RequestHandler):
 				else:
 					kwargs[key] = [ kwargs[key] ] + tmpArgs[key]
 		del tmpArgs
+		if "self" in kwargs.keys(): #self is reserved for bound methods
+			raise errors.BadRequest()
+		request.current.setRequest( self )
 		#Parse the URL
 		path = urlparse.urlparse( path ).path
 		self.pathlist = [ urlparse.unquote( x ) for x in path.strip("/").split("/") ]
 		caller = conf["viur.mainApp"]
 		idx = 0 #Count how may items from *args we'd have consumed (so the rest can go into *args of the called func
 		for currpath in self.pathlist:
+			if "canAccess" in dir( caller ) and not caller.canAccess():
+				# We have a canAccess function guarding that object,
+				# and it returns False...
+				raise( errors.Unauthorized() )
 			idx += 1
 			currpath = currpath.replace("-", "_").replace(".", "_")
 			if currpath in dir( caller ):
@@ -274,12 +361,16 @@ class BrowseHandler(webapp.RequestHandler):
 					caller = caller.index
 			else:
 				raise( errors.MethodNotAllowed() )
+		# Check for forceSSL flag
 		if not self.internalRequest \
 			and "forceSSL" in dir( caller ) \
 			and caller.forceSSL \
 			and not self.request.host_url.lower().startswith("https://") \
 			and not "Development" in os.environ['SERVER_SOFTWARE']:
 				raise( errors.PreconditionFailed("You must use SSL to access this ressource!") )
+		# Check for forcePost flag
+		if "forcePost" in dir( caller ) and caller.forcePost and not self.isPostRequest:
+			raise( errors.MethodNotAllowed("You must use POST to access this ressource!") )
 		self.args = []
 		for arg in args:
 			if isinstance( x, unicode):
@@ -290,13 +381,36 @@ class BrowseHandler(webapp.RequestHandler):
 				except:
 					pass
 		self.kwargs = kwargs
-		request.current.setRequest( self )
-		self.response.out.write( caller( *self.args, **self.kwargs ) )
+		try:
+			self.response.out.write( caller( *self.args, **self.kwargs ) )
+		except TypeError as e:
+			if self.internalRequest: #We provide that "service" only for requests originating from outside
+				raise
+			#Check if the function got too few arguments and raise a NotAcceptable error
+			tmpRes = {}
+			argsOrder = list( caller.__code__.co_varnames )[ 1 : caller.__code__.co_argcount ]
+			# Map default values in
+			reversedArgsOrder = argsOrder[ : : -1]
+			for defaultValue in list( caller.func_defaults or [] )[ : : -1]:
+				tmpRes[ reversedArgsOrder.pop( 0 ) ] = defaultValue
+			del reversedArgsOrder
+			# Map args in
+			for idx in range(0, min( len( args ), len( argsOrder ) ) ):
+				tmpRes[ argsOrder[ idx ] ] = args[ idx ]
+			# Last, we map the kwargs in
+			for k,v in kwargs.items():
+				if k in tmpRes.keys():
+					raise( errors.NotAcceptable() ) #We reraise that exception as we got duplicate arguments
+				tmpRes[ k ] = v
+			# Last check, that every parameter is satisfied:
+			if not all ( [ x in tmpRes.keys() for x in argsOrder ] ):
+				raise( errors.NotAcceptable() )
+			raise
+
 
 	def saveSession(self):
-		sessionData = session.current.save()
-		if sessionData:
-			self.response.headers.add_header("Set-Cookie", "viurCookie=%s; Max-Age: 99999; Path=/" % ( sessionData ) )
+		session.current.save( self )
+
 
 def setup( modules, render=None, default="jinja2" ):
 	"""
@@ -308,14 +422,40 @@ def setup( modules, render=None, default="jinja2" ):
 		@param default: Which render should be the default. Its modules wont get a prefix (i.e /user instead of /renderBaseName/user )
 		@type default: String
 	"""
+	import models
+	from server.skeleton import Skeleton
+	conf["viur.models"] = {}
+	for modelKey in dir( models ):
+		modelModul = getattr( models, modelKey )
+		for key in dir( modelModul ):
+			model = getattr( modelModul, key )
+			try:
+				isSkelClass = issubclass( model, Skeleton )
+			except TypeError:
+				continue
+			if isSkelClass:
+				if not model.kindName:
+					# Looks like a common base-class for models
+					continue
+				if model.kindName in conf["viur.models"].keys() and model!=conf["viur.models"][ model.kindName ]:
+					# We have a conflict here, lets see if one skeleton is from server.*, and one from models.*
+					relNewFileName = inspect.getfile(model).replace( os.getcwd(),"" )
+					relOldFileName = inspect.getfile(conf["viur.models"][ model.kindName ]).replace( os.getcwd(),"" )
+					if relNewFileName.strip(os.path.sep).startswith("server"):
+						#The currently processed skeleton is from the server.* package
+						continue
+					elif relOldFileName.strip(os.path.sep).startswith("server"):
+						#The old one was from server - override it
+						conf["viur.models"][ model.kindName ] = model
+						continue
+					raise ValueError("Duplicate definition for %s" % model.kindName)
+				conf["viur.models"][ model.kindName ] = model
 	if not render:
 		import server.render
 		render = server.render
 	conf["viur.mainApp"] = buildApp( modules, render, default )
 	renderPrefix = [ "/%s" % x for x in dir( render ) if (not x.startswith("_") and x!=default) ]+[""]
-	conf["viur.wsgiApp"] = webapp.WSGIApplication(	[(r"%s/file/upload" %x ,UploadHandler) for x in renderPrefix ]+ #Upload handler
-											[(r"%s/file/view/(.*)" %x,DownloadHandler) for x in renderPrefix]+ #Download handler
-											[(r'/(.*)', BrowseHandler)] )
+	conf["viur.wsgiApp"] = webapp.WSGIApplication( [(r'/(.*)', BrowseHandler)] )
 	return( conf["viur.wsgiApp"] )
 	
 
@@ -332,4 +472,28 @@ def forceSSL( f ):
 		Has no effect on the development-server.
 	"""
 	f.forceSSL = True
+	return( f )
+
+def forcePost( f ):
+	"""
+		Forces usage of an http post request.
+	"""
+	f.forcePost = True
+	return( f )
+
+def exposed( f ):
+	"""
+		Marks an function as exposed.
+		Only exposed functions are callable by http-requests.
+	"""
+	f.exposed = True
+	return( f )
+
+def internalExposed( f ):
+	"""
+		Marks an function as internal exposed.
+		Internal exposed functions are not callable by external http-requests,
+		but can be called by templates using execRequest
+	"""
+	f.internalExposed = True
 	return( f )

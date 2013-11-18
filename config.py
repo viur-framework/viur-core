@@ -5,16 +5,25 @@ from google.appengine.api import memcache
 
 #Conf is static, local Dictionary. Changes here are local to the current instance
 conf = {	"viur.mainApp": None,  #Reference to our prebuild Application-Instance
+		"viur.models": None, #Dictionary of all models known to this instance
 		"viur.defaultLanguage": "en", #Unless overridden by the Project: Use english as default language
+		"viur.languageMethod": "session", #Defines how translations are applied. session: Per Session, url: inject language prefix in url, domain: one domain per language
 		"viur.domainLanguageMapping": {},  #Maps Domains to alternative default languages
+		"viur.avaiableLanguages": [], #List of language-codes, which are valid for this application
+		"viur.languageAliasMap": {}, #Allows mapping of certain languages to one translation (ie. us->en)
 		"viur.capabilities": [], #Extended functionality of the whole System (For modul-dependend functionality advertise this in the modul configuration (adminInfo)
 		"viur.searchValidChars": "abcdefghijklmnopqrstuvwxyz0123456789",  #Characters valid for the internal search functionality (all other chars are ignored)
-		"viur.accessRights": ["root"],  #Accessrights available on this Application
+		"viur.accessRights": ["root","admin"],  #Accessrights available on this Application
 		"viur.salt": "ViUR-CMS",  #Default salt which will be used for eg. passwods. Once the application is used, this must not change!
 		"viur.maxPostParamsCount": 250, #Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks
 		"viur.forceSSL": False,  #If true, all requests must be encrypted (ignored on development server)
 		"viur.emailSenderOverride": False, #If set, this sender will be used, regardless of what the templates advertise as sender
-		"admin.analyticsKey": None #Tell the admin wich analytics-account to use
+		"viur.db.caching" : 2, #Cache strategy used by the database. 2: Aggressive, 1: Safe, 0: Off
+		"viur.tasks.startBackendOnDemand": True, #If true, allows the task modul to start a backend immediately (instead of waiting for the cronjob)
+		"viur.logMissingTranslations": False, #If true, ViUR will log missing translations in the datastore
+		"viur.disableCache": False, #If set to true, the decorator @enableCache from server.cache has no effect
+		"viur.maxPasswordLength": 512, #Prevent Denial of Service attacks using large inputs for pbkdf2
+		"bugsnag.apiKey": None #If set, ViUR will report Errors to bugsnag
 	}
 
 

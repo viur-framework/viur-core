@@ -40,7 +40,7 @@ de = {
 	"const_month_12_long": u"Dezember",
 	"const_datetimeformat": u"%a %d %b %Y %H:%M:%S ", # Format: Datum mit Zeit 
 	"const_timeformat": u"%H:%M:%S", # Format: Nur Zeit
-	"const_dateformat": u"%D.%M.%Y", # Format: Nur Datum
+	"const_dateformat": u"%d.%m.%Y", # Format: Nur Datum
 	"search":u"Suche",
 	"my files":u"Dateiverwaltung",
 	"Sites":u"Seiten",
@@ -55,6 +55,19 @@ de = {
 	"invalid mode selected":u"Ungültiger Modus eingegeben", 
 	"no item selected":u"Kein Element ausgewählt", 
 	"no or invalid value selected":u"Kein oder ungültiger Wert ausgewählt", 
-	"invalid path supplied":u"Ungültiger Pfad angegeben"
+	"invalid path supplied":u"Ungültiger Pfad angegeben", 
+	"grand total": u"Gesamtpreis", 
+	"archived": u"Archiviert", 
+	"not shipped":u"Nicht versendet", 
+	"ready to ship":u"Versandbereit", 
+	"shipped": u"Versendet", 
+	"unpaid": u"Unbezahlt", 
+	"created at": u"Erstellt am", 
+	"changed at": u"Geändert am", 
+	
+	"waiting for email verification":u"wartet auf Bestätigung der E-Mailadresse",
+	"waiting for verification through admin":u"warte auf Freischaltung durch Administrator",
+	"account disabled":u"deaktiviert",
+	"active":u"aktiv"
 	}
 	

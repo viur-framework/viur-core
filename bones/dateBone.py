@@ -10,6 +10,10 @@ except:
 	pytz = None
 
 
+## Workaround for Python Bug #7980 - time.strptime not thread safe
+datetime.now().strptime("2010%02d%02d"%(1,1),"%Y%m%d")
+datetime.now().strftime("%Y%m%d")
+
 class ExtendedDateTime( datetime ):
 	def totimestamp( self ):
 		"""Converts this DateTime-Object back into Unixtime"""
@@ -36,13 +40,13 @@ class ExtendedDateTime( datetime ):
 		if "%b" in format:
 			format = format.replace( "%b", _("const_month_%s_short" % int( super( ExtendedDateTime, self ).strftime("%m") ) ) )
 		if "%B" in format:
-			format = format.replace( "%B", _("const_month_%s_long" % int( super( ExtendedDateTime, self ).strftime("%m") ) ) )	
-		return( super( ExtendedDateTime, self ).strftime( format ) )
+			format = format.replace( "%B", _("const_month_%s_long" % int( super( ExtendedDateTime, self ).strftime("%m") ) ) )
+		return( super( ExtendedDateTime, self ).strftime( format.encode("UTF-8") ).decode("UTF-8") )
 
 class dateBone( baseBone ):
 	type = "date"
 	
-	def __init__( self,  creationMagic=False, updateMagic=False, date=True, time=True,  localize=False, *args,  **kwargs ):
+	def __init__( self,  creationMagic=False, updateMagic=False, date=True, time=True, localize=False, *args,  **kwargs ):
 		"""
 			Initializes a new dateBone.
 			
@@ -71,7 +75,25 @@ class dateBone( baseBone ):
 		self.time=time
 		self.localize = localize
 
-	def fromClient( self, value ):
+	def fromClient( self, name, data ):
+		"""
+			Reads a value from the client.
+			If this value is valis for this bone,
+			store this value and return None.
+			Otherwise our previous value is
+			left unchanged and an error-message
+			is returned.
+			
+			@param name: Our name in the skeleton
+			@type name: String
+			@param data: *User-supplied* request-data
+			@type data: Dict
+			@returns: None or String
+		"""
+		if name in data.keys():
+			value = data[ name ]
+		else:
+			value = None
 		self.value = None
 		if str( value ).replace("-",  "",  1).replace(".","",1).isdigit():
 			if int(value) < -1*(2**30) or int(value)>(2**31)-2:
@@ -180,19 +202,18 @@ class dateBone( baseBone ):
 			res = utc.normalize( res.astimezone( utc ) )
 		return( res )
 
-	def serialize( self, name ):
+	def serialize( self, name, entity ):
 		res = self.value
-		if (self.creationMagic and not self.value) or self.updateMagic:
-			res  = datetime.now() #This is UTC - Nothing to do here
-		elif res:
+		if res:
 			res = self.readLocalized( datetime.now().strptime( res.strftime( "%d.%m.%Y %H:%M:%S" ), "%d.%m.%Y %H:%M:%S"  ) )
-		return( {name: res} )
+		entity.set( name, res, self.indexed )
+		return( entity )
 
 	def unserialize( self, name, expando ):
-		if not name in expando._properties.keys():
+		if not name in expando.keys():
 			self.value = None
 			return
-		self.value = getattr( expando, name )
+		self.value = expando[ name ]
 		if self.value and ( isinstance( self.value, float) or isinstance( self.value, int) ):
 			if self.date:
 				self.setLocalized( ExtendedDateTime.fromtimestamp( self.value ) )
@@ -216,6 +237,10 @@ class dateBone( baseBone ):
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
 		for key in [ x for x in rawFilter.keys() if x.startswith(name) ]:
-			if not self.fromClient( rawFilter[ key ] ): #Parsing succeeded
-				dbFilter = super( dateBone, self ).buildDBFilter( name, skel, dbFilter, {key:datetime.now().strptime( self.value.strftime( "%d.%m.%Y %H:%M:%S" ), "%d.%m.%Y %H:%M:%S"  )} )
+			if not self.fromClient( key, rawFilter ): #Parsing succeeded
+				super( dateBone, self ).buildDBFilter( name, skel, dbFilter, {key:datetime.now().strptime( self.value.strftime( "%d.%m.%Y %H:%M:%S" ), "%d.%m.%Y %H:%M:%S"  )} )
 		return( dbFilter )
+
+	def performMagic( self, isAdd ):
+		if (self.creationMagic and isAdd) or self.updateMagic:
+			self.setLocalized( ExtendedDateTime.now() )

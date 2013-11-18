@@ -1,5 +1,6 @@
 {%- macro captchabone( bone_name,bone,value ) -%}
 <!-- ############################### Captcha ####################################### -->
+
 	{% if not bone.visible %}
 		<input type="hidden" name="{{ bone_name }}" value="{{ value }}" />
 	{% else %}

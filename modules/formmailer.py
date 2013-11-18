@@ -1,15 +1,20 @@
 # -*- coding: utf-8 -*-
 from server.skeleton import Skeleton
 from server import errors, utils
+from server.bones import baseBone
 
 class MailSkel(Skeleton):
-	entityName="Ignored"
+	kindName=None
+	changedate = None #Changedates won't apply here
 
 class Formmailer(object): #fixme
 	adminInfo = None
 
-        def __init__(self, *args, **kwargs):
-            super( Formmailer, self ).__init__()
+	def __init__( self, modulName, modulPath, *args, **kwargs ):
+		super( Formmailer, self ).__init__()
+		self.modulName = modulName
+		self.modulPath = modulPath
+		
 
 	def index( self, *args, **kwargs ):
 		if not self.canUse():
@@ -19,11 +24,20 @@ class Formmailer(object): #fixme
 			return self.render.add( skel=skel, failed=False)
 		if not skel.fromClient( kwargs ):
 			return self.render.add(  skel=skel, failed=True )
+		# Allow bones to perform outstanding "magic" operations before sending the mail
+		for key in dir( skel ):
+			if "__" not in key:
+				_bone = getattr( skel, key )
+				if( isinstance( _bone, baseBone ) ):
+					_bone.performMagic( isAdd=True )
 		rcpts = self.getRcpts( skel )
 		utils.sendEMail( rcpts, self.mailTemplate , skel )
 		self.onItemAdded( rcpts, skel )
 		return self.render.addItemSuccess( None, skel )
 	index.exposed = True
+
+	def mailSkel(self):
+		raise NotImplementedError("You must implement the \"mailSkel\" function!")
 	
 	def add( self,  *args,  **kwargs ):
 		return self.index( *args,  **kwargs )

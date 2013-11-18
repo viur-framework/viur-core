@@ -1,2 +1,19 @@
-{%- macro render_custombone( bone_name, bone, value ) -%}
+{#für alte dynaform#}
+{%- macro render_custombone( bone_name, bone, value,form="" ) -%}
+
+	
 {%- endmacro -%}
+
+{# um das render format zu ändern#}
+{%- macro customformat_renderer(bone_name,bone,Skel,form,format) -%}
+	
+{%- endmacro-%}
+
+{# um den ausgabe wert zuändern#}
+{%- macro customvalue_renderer(bone_name,bone,Skel,form) -%}
+	{{render_custombone( bone_name, bone, Skel.value[bone_name],form )}}
+{% endmacro%}
+{# um den beschreibungstext zu ändern#}
+{%- macro customdescr_renderer(bone_name,bone,Skel,form) -%}
+
+{% endmacro%}

@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
-from server.skeleton import Skeleton
-from server.skellist import Skellist
-from server import utils, session,  errors, conf
+from server.skeleton import Skeleton, skeletonByKind
+from server import utils, session,  errors, conf, securitykey, request
+from server import forcePost, forceSSL, exposed, internalExposed
 from google.appengine.api import users
 import logging
 
 class List( object ):
-	adminInfo = {	"name": "BaseApplication", #Name of this modul, as shown in Apex (will be translated at runtime)
+	adminInfo = {	"name": "BaseApplication", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
 				"handler": "list",  #Which handler to invoke
 				"icon": "", #Icon for this modul
 				}
@@ -23,6 +23,19 @@ class List( object ):
 				if not rightName in conf["viur.accessRights"]:
 					conf["viur.accessRights"].append( rightName )
 
+	def viewSkel( self, *args, **kwargs ):
+		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
+	
+	def addSkel( self, *args, **kwargs ):
+		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
+
+	def editSkel( self, *args, **kwargs ):
+		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
+
+## External exposed functions
+
+	@exposed
+	@forcePost
 	def preview( self, skey, *args, **kwargs ):
 		"""
 			Renders the viewTemplate with the values given.
@@ -30,13 +43,14 @@ class List( object ):
 		"""
 		if not self.canPreview( ):
 			raise errors.Unauthorized()
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel = self.viewSkel()
 		skel.fromClient( kwargs )
 		return( self.render.view( skel ) )
-	preview.exposed = True
-	
+
+
+	@exposed
 	def view( self, *args, **kwargs ):
 		"""
 			Prepares and renders a single entry for viewing
@@ -49,20 +63,23 @@ class List( object ):
 			raise errors.NotAcceptable()
 		skel = self.viewSkel()
 		if "canView" in dir( self ):
-			if not self.canView( id ):
-				raise errors.Unauthorized()
 			if not skel.fromDB( id ):
 				raise errors.NotFound()
-		else:
-			queryObj = utils.buildDBFilter( skel, {"id": id} )
-			queryObj = self.listFilter( queryObj ) #Access control
-			if not queryObj:
+			if not self.canView( skel ):
 				raise errors.Unauthorized()
-			if not skel.fromDB( queryObj ):
+
+		else:
+			queryObj = self.viewSkel().all().mergeExternalFilter( {"id":  id} )
+			queryObj = self.listFilter( queryObj ) #Access control
+			if queryObj is None:
+				raise errors.Unauthorized()
+			skel = queryObj.getSkel()
+			if not skel: #skel.fromDB( queryObj ):
 				raise errors.NotFound()
 		return( self.render.view( skel ) )
-	view.exposed = True
-	
+
+
+	@exposed
 	def list( self, *args, **kwargs ):
 		"""
 			Renders a list of entries.
@@ -71,15 +88,16 @@ class List( object ):
 			by calling the function listFilter, which updates the query-filter to contain only
 			elements which the user is allowed to view.
 		"""
-		mylist = Skellist( self.viewSkel )
-		queryObj = utils.buildDBFilter( self.viewSkel(), kwargs ) #Build the initial one
-		queryObj = self.listFilter( queryObj ) #Access control
-		if not queryObj:
+		query = self.viewSkel().all()
+		query.mergeExternalFilter( kwargs )
+		query = self.listFilter( query ) #Access control
+		if query is None:
 			raise( errors.Unauthorized() )
-		mylist.fromDB( queryObj )
+		mylist = query.fetch()
 		return( self.render.list( mylist ) )
-	list.exposed = True
 
+	@forceSSL
+	@exposed
 	def edit( self, *args, **kwargs ):
 		"""
 			Edit the entry with the given id
@@ -95,22 +113,21 @@ class List( object ):
 		else:
 			raise errors.NotAcceptable()
 		skel = self.editSkel()
-		if id == "0":
-			return( self.render.edit( skel ) )
-		if not self.canEdit( id ):
-			raise errors.Unauthorized()
 		if not skel.fromDB( id ):
 			raise errors.NotAcceptable()
-		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
+		if not self.canEdit( skel ):
+			raise errors.Unauthorized()
+		if len(kwargs)==0 or skey=="" or not request.current.get().isPostRequest or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel ) )
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel.toDB( id )
-		self.onItemEdited( id, skel )
+		self.onItemEdited( skel )
 		return self.render.editItemSuccess( skel )
-	edit.exposed = True
-	edit.forceSSL = True
-	
+
+
+	@forceSSL
+	@exposed
 	def add( self, *args, **kwargs ):
 		"""
 			Add a new entry.
@@ -122,32 +139,34 @@ class List( object ):
 		if not self.canAdd( ):
 			raise errors.Unauthorized()
 		skel = self.addSkel()
-		if not skel.fromClient( kwargs ) or len(kwargs)==0 or skey=="" or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
+		if len(kwargs)==0 or skey=="" or not request.current.get().isPostRequest or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.add( skel ) )
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		id = skel.toDB( )
-		self.onItemAdded( id, skel )
-		return self.render.addItemSuccess( id, skel )
-	add.exposed = True
-	add.forceSSL = True
-	
+		self.onItemAdded( skel )
+		return self.render.addItemSuccess( skel )
+
+
+	@forceSSL
+	@forcePost
+	@exposed
 	def delete( self, id, skey, *args, **kwargs ):
 		"""
 			Delete an entry.
 		"""
-		if not self.canDelete( id ):
-			raise errors.Unauthorized()
 		skel = self.editSkel()
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
-		if not utils.validateSecurityKey( skey ):
+		if not self.canDelete( skel ):
+			raise errors.Unauthorized()
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel.delete( id )
-		self.onItemDeleted( id, skel )
+		self.onItemDeleted( skel )
 		return self.render.deleteSuccess( skel )
-	delete.exposed = True
-	delete.forceSSL = True
+
+## Default accesscontrol functions 
 
 	def listFilter( self, filter ):
 		"""
@@ -156,14 +175,9 @@ class List( object ):
 			@type filter: ndb.query
 			@return: altered ndb.query
 		"""
-		user = users.get_current_user() #Check the GAE API
-		if users.is_current_user_admin():
+		user = utils.getCurrentUser()
+		if user and ("%s-view" % self.modulName in user["access"] or "root" in user["access"] ):
 			return( filter )
-		if "user" in dir( conf["viur.mainApp"] ): #Check for our custom user-api
-			user = conf["viur.mainApp"].user.getCurrentUser()
-			if user and user["access"] \
-				and ("%s-view" % self.modulName in user["access"] or "root" in user["access"] ) :
-					return( filter )
 		return( None )
 
 	def canAdd( self ):
@@ -193,7 +207,7 @@ class List( object ):
 		if user and  user["access"] and ("%s-add" % self.modulName in user["access"] or  "%s-edit" % self.modulName in user["access"] ):
 			return( True )
 
-	def canEdit( self, id ):
+	def canEdit( self, skel ):
 		"""
 			Checks if the current user has the right to edit the given entry
 			@param id: Urlsafe-key of the entry
@@ -209,7 +223,7 @@ class List( object ):
 			return( True )
 		return( False )
 
-	def canDelete( self, id ):
+	def canDelete( self, skel ):
 		"""
 			Checks if the current user has the right to delete the given entry
 			@param id: Urlsafe-key of the entry
@@ -224,8 +238,10 @@ class List( object ):
 		if user and user["access"] and "%s-delete" % self.modulName in user["access"]:
 			return( True )
 		return( False )
-		
-	def onItemAdded( self, id, skel ):
+
+## Overridable eventhooks
+
+	def onItemAdded( self, skel ):
 		"""
 			Hook. Can be overriden to hook the onItemAdded-Event
 			@param id: Urlsafe-key of the entry added
@@ -233,12 +249,12 @@ class List( object ):
 			@param skel: Skeleton with the data which has been added
 			@type skel: Skeleton
 		"""
-		logging.info("Entry added: %s" % id )
+		logging.info("Entry added: %s" % skel.id.value )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
 	
-	def onItemEdited( self, id, skel ):
+	def onItemEdited( self, skel ):
 		"""
 			Hook. Can be overriden to hook the onItemEdited-Event
 			@param id: Urlsafe-key of the entry edited
@@ -246,12 +262,12 @@ class List( object ):
 			@param skel: Skeleton with the data which has been edited
 			@type skel: Skeleton
 		"""
-		logging.info("Entry changed: %s" % id )
+		logging.info("Entry changed: %s" % skel.id.value )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
 		
-	def onItemViewed( self, id, skel ):
+	def onItemViewed( self, skel ):
 		"""
 			Hook. Can be overriden to hook the onItemViewed-Event
 			@param id: Urlsafe-key of the entry viewed
@@ -261,7 +277,7 @@ class List( object ):
 		"""
 		pass
 	
-	def onItemDeleted( self, id, skel ):
+	def onItemDeleted( self, skel ):
 		"""
 			Hook. Can be overriden to hook the onItemDeleted-Event
 			Note: Saving the skeleton again will undo the deletion.
@@ -270,11 +286,11 @@ class List( object ):
 			@param skel: Skeleton with the data which has been deleted
 			@type skel: Skeleton
 		"""
-		logging.info("Entry deleted: %s" % id )
+		logging.info("Entry deleted: %s" % skel.id.value )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
 	
 List.admin=True
 List.jinja2=True
-List.ops=True
+List.vi=True

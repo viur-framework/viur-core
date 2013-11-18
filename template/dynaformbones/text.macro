@@ -1,10 +1,17 @@
 {%- macro textbone( bone_name,bone,value ) -%}
 <!-- ############################### TEXT: {{bone_name}} ####################################### -->
+
+	{% set readonly = "" %}
+	{% if bone.readOnly %}
+		{% set readonly = 'readonly="readonly"'	%}
+	{%endif%}
+	
+
 	{% if not bone.visible %}
-		<input type="hidden" name="{{ bone_name }}" value="{{ value }}" />
+		<input {{readonly}} type="hidden" name="{{ bone_name }}" value="{{ value }}" />
 	{% else %}
 
-	<textarea name="{{ bone_name }}" class="viur_uielement viur_textinput {%if bone.validHtml %}tinymcetextedit{% endif %}" id="mceEditor{{bone_name}}">{{ value|default("",true) }}</textarea>
+	<textarea {{readonly}} name="{{ bone_name }}" class="viur_uielement viur_textinput {%if bone.validHtml %}tinymcetextedit{% endif %}" id="mceEditor{{bone_name}}">{{ value|default("",true) }}</textarea>
 
 
 	

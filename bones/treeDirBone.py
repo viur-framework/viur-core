@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
 from server import utils
-from google.appengine.ext import ndb
-from server.utils import generateExpandoClass
+from server import db
 
 class treeDirBone( baseBone ):
 	def __init__( self, type, multiple=False, *args, **kwargs ):
@@ -12,22 +11,40 @@ class treeDirBone( baseBone ):
 
 	
 	def findPathInRepository( self, repository, path ):
-		dbObj = utils.generateExpandoClass( self.type+"_repository" )
-		repo = ndb.Key( urlsafe=repository ).get()
+		dbObj = utils.generateExpandoClass(  )
+		repo = db.Get( db.Key( repository ) )
 		for comp in path.split("/"):
 			if not repo:
 				return( None )
 			if not comp:
 				continue			
-			repo = dbObj.query().filter( ndb.GenericProperty("parentdir" ) == repo.key.urlsafe() )\
-					.filter( ndb.GenericProperty("name" ) == comp ).get()
+			repo = db.Query( self.type+"_repository").filter( "parentdir =", str(repo.key()))\
+					.filter( "name =", comp ).get()
 		if not repo:
 			return( None )
 		else:
 			return( repo )
 	
 		
-	def fromClient( self, value ):
+	def fromClient( self, name, data ):
+		"""
+			Reads a value from the client.
+			If this value is valis for this bone,
+			store this value and return None.
+			Otherwise our previous value is
+			left unchanged and an error-message
+			is returned.
+			
+			@param name: Our name in the skeleton
+			@type name: String
+			@param data: *User-supplied* request-data
+			@type data: Dict
+			@returns: None or String
+		"""
+		if name in data.keys():
+			value = data[ name ]
+		else:
+			value = None
 		self.value = []
 		res = []
 		if not value:
@@ -38,20 +55,20 @@ class treeDirBone( baseBone ):
 					if value.find("\n")!=-1:
 						for val in value.replace("\r\n","\n").split("\n"):
 							valstr = val
-							if valstr and not self.canUse(  valstr  ):
+							if valstr and not self.isInvalid(  valstr  ):
 								res.append(  valstr )
 					else:
 						valstr =  value
-						if valstr and not self.canUse(  valstr ):
+						if valstr and not self.isInvalid(  valstr ):
 							res.append( valstr )
 			else:
 				for val in value:
 					valstr =  val 
-					if valstr and not self.canUse( valstr  ):
+					if valstr and not self.isInvalid( valstr  ):
 						res.append( valstr )
 		else:
 			valstr = value 
-			if valstr and not self.canUse( valstr ):
+			if valstr and not self.isInvalid( valstr ):
 				res.append( valstr )
 		if len( res ) == 0:
 			return( "No value entered" )
@@ -61,7 +78,7 @@ class treeDirBone( baseBone ):
 			self.value = res[0]
 		return( None )
 	
-	def canUse( self, value ):
+	def isInvalid( self, value ):
 		try:
 			repo, path = value.split("/",1)
 		except:
@@ -72,10 +89,6 @@ class treeDirBone( baseBone ):
 			return( "Invalid path supplied" )
 		return( None )
 		
-	def serialize(self, key ):
-		if not self.value:
-			return( {key:None } )
-		return( {key: self.value } )
 	
 	def unserialize( self, name, expando ):
 		super( treeDirBone, self ).unserialize( name, expando )

@@ -30,27 +30,48 @@ class ExtensionParser( HtmlSerializer ):
 class documentBone( textBone ):
 	type = "document"
 	
-	def __init__(self, extensions=[], *args, **kwargs ):
+	def __init__(self, extensions=[], indexed=False, *args, **kwargs ):
 		super( documentBone, self ).__init__( *args, **kwargs )
+		if indexed:
+			raise NotImplementedError("indexed=True is not supported on textBones")
 		self.extensions = extensions
 		self.cache = ""
 
-	def serialize( self, name ):
-		return( {	"%s" % name: self.value, 
-					"%s-cache" % name: self.cache } )
+	def serialize( self, name, entity ):
+		entity.set( name, self.value, False )
+		entity.set( "%s-cache" % name, self.cache, False )
+		return( entity )
 	
 	def unserialize( self, name, expando ):
 		self.value = None
-		if name in expando._properties.keys() \
-			and "%s-cache" % name in expando._properties.keys():
-				self.value =getattr( expando, name )
-				self.cache = getattr( expando, "%s-cache" % name )
-		elif name in expando._properties.keys():
-			self.value = getattr( expando, name )
-			self.value = getattr( expando, name )
+		if name in expando.keys() \
+			and "%s-cache" % name in expando.keys():
+				self.value = expando[ name ]
+				self.cache = expando[ "%s-cache" % name ]
+		elif name in expando.keys():
+			self.value = expando[ name ]
+			self.cache = expando[ name ] #FIXME: ???
 		return( True )
 
-	def fromClient( self, value ):
+	def fromClient( self, name, data ):
+		"""
+			Reads a value from the client.
+			If this value is valis for this bone,
+			store this value and return None.
+			Otherwise our previous value is
+			left unchanged and an error-message
+			is returned.
+			
+			@param name: Our name in the skeleton
+			@type name: String
+			@param data: *User-supplied* request-data
+			@type data: Dict
+			@returns: None or String
+		"""
+		if name in data.keys():
+			value = data[ name ]
+		else:
+			value = None
 		if not value:
 			self.value = ""
 			self.cache = ""

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html xml:lang="{{getLanguage()}}" lang="{{getLanguage()}}" ng-app>
+    <head>
+        <meta charset="utf-8">
+        
+  	 	<!-- Robots müssen leider draußen bleiben :( -->
+        <meta name="robots" content="noindex,nofollow" />
+
+  	 	<!-- Herzlich willkommen bei -->
+        <title>{{_('vi_name')}} | {{pagetitle}}</title>
+        <meta name="title" content="{{_('vi_name')}} | {{pagetitle}}" />
+        <meta name="DC.Title" content="{{_('vi_name')}} | {{pagetitle}}" />
+        <meta property="og:title" content="{{_('vi_name')}} | {{pagetitle}}" />
+		
+        <meta name="description" content="Vi ist das Online-Administrationstool für ViUR-Informationssysteme.">
+
+    	<!-- Diese Webseite ist ein Viur Informationssystem. -->
+	    <meta name="generator" content="http://www.viur.is" />
+	    <link rel="publisher" href="https://plus.google.com/107200665691554897689"/>
+
+    	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    	
+        <!-- Mit Liebe hergestellt von Mausbrand. -->
+        <!-- www.mausbrand.de -->      
+        <link type="text/plain" rel="author" href="/resources/meta/humans.txt" />
+        
+		<!-- Icons -->
+		<link rel="shortcut icon" href="/resources/meta/favicon.png" />
+
+        <!-- iPhone -->
+        <link href="/resources/meta/viur-apple-touch-57x57-precomposed.png" sizes="57x57" rel="apple-touch-icon-precomposed" />
+        <link href="/resources/meta/viur-apple-touch-startup-image-320x460.png" media="(device-width: 320px) and (device-height: 480px) and (-webkit-device-pixel-ratio: 1)" rel="apple-touch-startup-image" />
+        <!-- iPhone (Retina) -->
+        <link href="/resources/meta/viur-apple-touch-icon-114x114-precomposed.png" sizes="114x114" rel="apple-touch-icon-precomposed" />
+        <link href="/resources/meta/viur-apple-touch-startup-image-640x920.png" media="(device-width: 320px) and (device-height: 480px) and (-webkit-device-pixel-ratio: 2)" rel="apple-touch-startup-image" />
+        <!-- iPhone 5 -->
+        <!-- FIXME! <link href="/resources/meta/viur-apple-touch-startup-image-640x1096.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)" rel="apple-touch-startup-image" /> -->
+
+        <!-- iPad -->
+        <link href="/resources/meta/viur-apple-touch-icon-72x72-precomposed.png" sizes="72x72" rel="apple-touch-icon-precomposed" />
+        <link href="/resources/meta/viur-apple-touch-startup-image-748x1024.png" media="(device-width: 768px) and (device-height: 1024px) and (orientation: portrait) and (-webkit-device-pixel-ratio: 1)" rel="apple-touch-startup-image" />
+        <link href="/resources/meta/viur-apple-touch-startup-image-768x1004.png" media="(device-width: 768px) and (device-height: 1024px) and (orientation: landscape) and (-webkit-device-pixel-ratio: 1)" rel="apple-touch-startup-image" />
+        <!-- iPad (Retina) -->
+        <link href="/resources/meta/viur-apple-touch-icon-144x144-precomposed.png" sizes="144x144" rel="apple-touch-icon-precomposed" />
+        <link href="/resources/meta/viur-apple-touch-startup-image-1536x2008.png" media="(device-width: 768px) and (device-height: 1024px) and (orientation: portrait) and (-webkit-device-pixel-ratio: 2)" rel="apple-touch-startup-image" />
+        <link href="/resources/meta/viur-apple-touch-startup-image-1496x2048.png" media="(device-width: 768px) and (device-height: 1024px) and (orientation: landscape) and (-webkit-device-pixel-ratio: 2)" rel="apple-touch-startup-image" />
+
+        <!-- CSS -->
+        <link rel="stylesheet" href="../../resources/css/vi/vi.css" />
+        
+        <script type="text/javascript" src="/resources/js/angular/angular.min.js"></script>
+        <script type="text/javascript" src="/resources/js/angular/ui-bootstrap-custom-0.6.0.min.js"></script>
+        <script type="text/javascript" src="/resources/js/angular/ui-bootstrap-custom-tpls-0.6.0.min.js"></script>        
+        <script type="text/javascript" src="/resources/js/jquery/jquery.min.js"></script>
+    
+        <!-- JS -->
+        <script type="text/javascript" language="JavaScript" src="/resources/js/vi/vi_windowmanager.js"></script>
+        <script type="text/javascript" language="JavaScript" src="/resources/js/vi/vi_messagecenter.js"></script> 
+        <script type="text/javascript" language="JavaScript" src="/resources/js/vi/vi_app.js"></script>
+                
+    </head>	
+    <body>
+ 
+    	<div id="wrapper" class="wrapper" >
+			
+			<header id="vi_topbar" class="vi_topbar">
+				<h1 class="beta">{{_('vi_app_name')}}</h1>
+				
+				<div class="centername">
+				<h2>{{_('vi_app_slogan')}}</h2>	
+				</div>
+	
+				<nav class="iconnav">
+	                <ul>
+	                    <li><a href="/vi" title="{{_('dashboard')}}">{{_('dashboard')}}</a></li>
+	                    <li><a href="#" title="{{_('myfiles')}}">{{_('myfiles')}}</a></li>
+	                    <li><a href="#" title="{{_('accountmanagement')}}">{{_('accountmanagement')}}</a></li>
+	                    <li><a href="#" title="{{_('settings')}}">{{_('settings')}}</a></li>
+		                <li class="logout"><a  href="/ops/user/logout?skey={{skey}}" title="{{_('logout')}}">{{_('logout')}}</a></li>
+	                </ul><!--iconnav -->
+				</nav>	
+			</header>
+
+
+			<div id="vi_workspace" class="vi_workspace">
+            {% raw %}
+				<nav id="vi_manager" class="vi_manager" >
+					<ul class="modullist">	
+						<li>
+						    <a href="#">
+						        <img src="" alt="Modulname" />
+						        <h3>Modulname</h3>
+						    </a>
+						        <ul class="actionlist">
+						            <li>
+						                <a href="#"><img src="/resources/icons/actions/list.svg" /><h4>Liste</h4></a>
+						            </li>
+						        </ul>
+						</li>
+					</ul>
+				</nav><!-- vi_manager -->
+	         {% endraw %}
+	
+				<div id="vi_viewer" class="vi_viewer" role="main">
+					<div class="actionbar">
+						<img src="../../resources/icons/actions/list.svg" />
+						<h3>Liste</h3>
+						
+						<button type="button" class="icon add">{{_('add')}}</button>
+						<button type="button" class="icon edit">{{_('edit')}}</button>
+						<button type="button" class="icon clone">{{_('clone')}}</button>
+						<button type="button" class="icon delete">{{_('delete')}}</button>
+						
+						<div class="operations">
+							<button type="button" class="icon preview">{{_('preview')}}</button>
+							<button type="button" class="icon search">{{_('search')}}</button>
+						</div>
+																					
+					</div>
+					
+				</div><!-- vi_viewer -->	
+	
+	
+				<aside class="vi_operator">
+					<div class="actionbar">
+						<img src="../../resources/icons/actions/text-edit.svg" /> 
+						<h3>Text-Editor</h3>
+						<button type="button" class="icon saveClose">{{_('saveClose')}}</button>															
+						<button type="button" class="icon saveContinue">{{_('saveContinue')}}</button>															
+						<button type="button" class="icon saveNew">{{_('saveNew')}}</button>															
+						<button type="button" class="icon saveClose">{{_('saveClose')}}</button>															
+						
+						<div class="operations">
+						<button type="button" class="icon reset">{{_('reset')}}</button>		
+						<button type="button" class="icon cancel">{{_('cancel')}}</button>		
+						</div>													
+					</div>	
+				</aside><!-- vi_operator -->	
+
+			</div><!-- vi_workspace -->
+
+
+			<footer class="vi_messenger" ng-controller="vi_mc" style="margin-top: -130px;">
+			    {% raw %}
+				<ul class="statuslist" >
+					<li ng-repeat="m in vi_mc_messages" class="type-{{m.type}}">
+						<a href="#"><img src="/resources/icons/status/{{m.type}}.svg" /><h4>{{m.message}}</h4></a>
+					</li>
+				</ul>
+				{% endraw %}
+			</footer>	
+
+			##block message
+			
+			##endblock
+		</div><!-- wrapper -->
+		
+		<!-- Zeitreise. -->
+		
+	</body>	
+</html>

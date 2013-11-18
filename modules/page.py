@@ -1,36 +1,38 @@
 # -*- coding: utf-8 -*-
 from server.skeleton import Skeleton
 from server.applications.hierarchy import Hierarchy, HierarchySkel
-from hashlib import md5
 from server.bones import *
-from google.appengine.ext import ndb
-from server.utils import generateExpandoClass
+from server import db
 from server import session, errors
 from server.plugins.text.youtube import YouTube
 import logging
 
 class pageSkel( HierarchySkel ):
-	entityName="page"
+	kindName="page"
 	searchindex = "page"
-	name = stringBone( descr="Name", searchable=True, required=True )
-	descr = documentBone( descr="Content",searchable=True, required=True, extensions=[YouTube] )
-	hrk = baseBone( descr="Human readable key", visible=False, required=False, readOnly=True )
+	name = stringBone( descr="Name", indexed=True, searchable=True, required=True )
+	descr = textBone( descr="Content", required=True, searchable=True, extensions=[YouTube] )
+	hrk = baseBone( descr="Human readable key", visible=False, required=False, indexed=True, readOnly=True )
 	
 	def postProcessSerializedData( self, id,  dbfields ): #Build our human readable key
-		obj = ndb.Key( urlsafe=id ).get()
-		nr = ndb.Key( urlsafe=id ).integer_id()
-		hrk = "!%s-%s" % ( str( "".join( [ x for x in obj.name.lower() if x in "0123456789 abcdefghijklmnopqrstuvwxyz"] ) ).replace(" ", "_"), nr )
-		obj.hrk = hrk
-		obj.put()
-		
+		obj = db.Get( db.Key( id ) )
+		nr = db.Key( id ).id_or_name()
+		try:
+			name = unicode( self.name.value )
+		except:
+			name = ""
+		hrk = "!%s-%s" % ( str( "".join( [ x for x in name.lower() if x in "0123456789 abcdefghijklmnopqrstuvwxyz"] ) ).replace(" ", "_"), nr )
+		obj["hrk"] = hrk
+		db.Put( obj )
+
 class Page( Hierarchy ): 
-	adminInfo = {	"name": "Sites", #Name of this modul, as shown in Apex (will be translated at runtime)
+	adminInfo = {	"name": "Sites", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
 				"handler": "hierarchy",  #Which handler to invoke
-				"icon": "icons/modules/menuestruktur.png", #Icon for this modul
+				"icon": "icons/modules/hierarchy.svg", #Icon for this modul
 				"formatstring": "$(name)", 
 				"filters" : { 	
 							None: { "filter":{ },
-									"icon":"icons/modules/menuestruktur.png",
+									"icon":"icons/modules/hierarchy.svg",
 									"columns":["name", "language", "isactive"]
 							},
 					},
@@ -44,24 +46,30 @@ class Page( Hierarchy ):
 	def view( self, id=None, *args, **kwargs ):
 		if unicode(id).startswith("!"): #This is a human readable key
 			repo = str(self.getAvailableRootNodes()[0]["key"])
-			entry = generateExpandoClass( self.viewSkel().entityName ).query().filter( ndb.GenericProperty( "parentrepo" ) == repo ).filter( ndb.GenericProperty( "hrk" ) == id ).get()
+			query = db.Query(  self.viewSkel().kindName )
+			query.filter( "parentrepo =", repo )
+			query.filter( "hrk =", id )
+			entry = query.get()
 			if entry:
-				return( super( Page, self ).view( entry.key.urlsafe() ) )
+				return( super( Page, self ).view( str( entry.key() ) ) )
 		return( super( Page, self ).view( id, *args, **kwargs  )) 
 	view.exposed = True
 
-	def pathToKey( self, key=None ):
+	def pathToKey( self, key=None ): #FIXME: Obsolete
 		if unicode(key).startswith("!"): #This is a human readable key
 			repo = str(self.getAvailableRootNodes()[0]["key"])
-			entry = generateExpandoClass( self.viewSkel().entityName ).query().filter( ndb.GenericProperty( "parentrepo" ) == repo ).filter( ndb.GenericProperty( "hrk" ) == key ).get()
+			query = db.Query(  self.viewSkel().kindName )
+			query.filter( "parentrepo =", repo )
+			query.filter( "hrk =", key )
+			entry = query.get()
 			if entry:
-				return( super( Page, self ).pathToKey( entry.key.urlsafe() ) )
+				return( super( Page, self ).pathToKey( str( entry.key() ) ) )
 		return( super( Page, self ).pathToKey( key ))
 	pathToKey.internalExposed=True
 
 	def getAvailableRootNodes( self, *args, **kwargs ):
 		repo = self.ensureOwnModulRootNode()
-		return( [{"name":u"Seiten", "key": repo.key.urlsafe() }] )
+		return( [{"name":u"Seiten", "key": str( repo.key() ) }] )
 
 	def canList( self, parent ):
 		return( True )

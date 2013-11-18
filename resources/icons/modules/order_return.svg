@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 16.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" id="Ebene_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 width="64px" height="64px" viewBox="0 0 64 64" enable-background="new 0 0 64 64" xml:space="preserve">
+<g>
+	<linearGradient id="SVGID_1_" gradientUnits="userSpaceOnUse" x1="0.7354" y1="39.3008" x2="63.4766" y2="39.3008">
+		<stop  offset="0" style="stop-color:#009EE2"/>
+		<stop  offset="1" style="stop-color:#00416E"/>
+	</linearGradient>
+	<path fill-rule="evenodd" clip-rule="evenodd" fill="url(#SVGID_1_)" d="M63.477,38.953c0,8.551-6.932,15.576-15.482,15.576H16.215
+		l7.892,8.948H12.964L0.735,51.058l12.229-12.42h11.143l-8.084,9.167l31.972-0.058c4.857,0,8.797-3.938,8.797-8.794v-8.347
+		c0-4.857-4.408-8.76-9.266-8.76H25.019l0.004-6.723h22.503c8.549,0,15.951,6.932,15.951,15.482V38.953z"/>
+	<path fill="#00416E" d="M25.265,64H12.746L-0.001,51.058l12.747-12.942h12.519l-8.08,9.163l30.809-0.054
+		c4.562,0,8.273-3.711,8.273-8.271v-8.347c0-4.466-4.003-8.237-8.741-8.237H24.496l0.004-7.768h23.025
+		c8.93,0,16.474,7.329,16.474,16.005v8.347c0,8.878-7.18,16.101-16.005,16.101H17.375L25.265,64z M13.184,62.953h9.763l-7.89-8.946
+		h32.938c8.249,0,14.958-6.753,14.958-15.054v-8.347c0-8.108-7.064-14.959-15.427-14.959H25.547l-0.004,5.675h21.982
+		c5.306,0,9.788,4.251,9.788,9.284v8.347c0,5.137-4.181,9.317-9.319,9.317l-33.132,0.06l8.084-9.168h-9.763L1.471,51.058
+		L13.184,62.953z"/>
+</g>
+<g>
+	<g>
+		
+			<linearGradient id="SVGID_2_" gradientUnits="userSpaceOnUse" x1="141.5557" y1="46.9648" x2="141.5557" y2="74.8525" gradientTransform="matrix(1 0.004 -0.004 1 -109.2054 -42.3505)">
+			<stop  offset="0" style="stop-color:#B9A483"/>
+			<stop  offset="1" style="stop-color:#928269"/>
+		</linearGradient>
+		<polygon fill-rule="evenodd" clip-rule="evenodd" fill="url(#SVGID_2_)" points="45.992,33.122 18.109,33.012 18.22,5.128 
+			46.104,5.236 		"/>
+		<path fill="#6C5A4F" d="M19.001,5.917l26.313,0.101l-0.105,26.315L18.896,32.23L19.001,5.917 M18.22,5.128l-0.11,27.884
+			l27.883,0.11l0.111-27.886L18.22,5.128L18.22,5.128z"/>
+	</g>
+</g>
+</svg>

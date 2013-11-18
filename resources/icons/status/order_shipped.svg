@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 16.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" id="Ebene_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 width="64px" height="64px" viewBox="0 0 64 64" enable-background="new 0 0 64 64" xml:space="preserve">
+<g>
+	<g>
+		<g>
+			<linearGradient id="SVGID_1_" gradientUnits="userSpaceOnUse" x1="23.1465" y1="18.0869" x2="23.1465" y2="63.6201">
+				<stop  offset="0" style="stop-color:#B9A483"/>
+				<stop  offset="1" style="stop-color:#928269"/>
+			</linearGradient>
+			<rect x="0.38" y="18.087" fill-rule="evenodd" clip-rule="evenodd" fill="url(#SVGID_1_)" width="45.533" height="45.533"/>
+			<path fill="#6C5A4F" d="M45.913,64H0.38L0,63.62V18.087l0.38-0.38h45.533l0.38,0.38V63.62L45.913,64z M0.759,63.241h44.775
+				V18.466H0.759V63.241z"/>
+		</g>
+		<g>
+			<polygon fill-rule="evenodd" clip-rule="evenodd" fill="#928269" points="45.913,18.192 0.38,18.192 20.617,5.545 63.62,5.545 
+							"/>
+			<path fill="#6C5A4F" d="M45.913,18.572H0.38L0.179,17.87L20.417,5.223l0.2-0.058H63.62l0.221,0.688L46.134,18.501L45.913,18.572z
+				 M1.703,17.812h44.089L62.436,5.925h-41.71L1.703,17.812z"/>
+		</g>
+		<g>
+			<polygon fill-rule="evenodd" clip-rule="evenodd" fill="#A89679" points="63.62,50.972 45.913,63.62 45.913,18.087 63.62,5.438 
+							"/>
+			<path fill="#6C5A4F" d="M46.134,63.929l-0.6-0.309V18.087l0.159-0.309L63.4,5.13L64,5.438v45.533l-0.159,0.308L46.134,63.929z
+				 M46.293,18.282v44.601l16.948-12.107v-44.6L46.293,18.282z"/>
+		</g>
+	</g>
+	<g>
+		<linearGradient id="SVGID_2_" gradientUnits="userSpaceOnUse" x1="24.6729" y1="31.7832" x2="14.9113" y2="62.5413">
+			<stop  offset="0" style="stop-color:#469B41"/>
+			<stop  offset="1" style="stop-color:#288342"/>
+		</linearGradient>
+		<polygon fill-rule="evenodd" clip-rule="evenodd" fill="url(#SVGID_2_)" points="32.001,23.535 27.062,55.805 19.187,55.805 
+			11.999,40.168 17.716,35.128 22.207,46.636 22.315,47.283 22.423,46.906 26.285,30.087 		"/>
+		<path fill="#22612B" d="M27.497,56.311h-8.635l-7.48-16.273l6.542-5.768l4.333,11.102L25.82,29.85l6.945-7.959L27.497,56.311z
+			 M19.511,55.298h7.116l4.609-30.117l-4.486,5.144l-3.947,17.097l-0.613,2.163l-0.473-2.812l-4.21-10.785l-4.892,4.312
+			L19.511,55.298z"/>
+	</g>
+</g>
+</svg>

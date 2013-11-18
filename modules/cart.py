@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 from server.applications.list import List
-from server.skellist import Skellist
+from server.skeleton import SkelList
 from server.bones import *
 from server import errors, session, conf, request
 from server import utils
-from google.appengine.ext import ndb
 
 
 class Cart( List ):
@@ -34,18 +33,16 @@ class Cart( List ):
 	
 	def view( self, *args, **kwargs ):
 		prods = session.current.get("cart_products") or {}
-		mylist = Skellist( self.productSkel )
+		mylist = SkelList( self.productSkel )
 		if prods:
-			queryObj = utils.buildDBFilter( self.productSkel(), {} ) #Build the initial one
-			queryObj = queryObj.filter(self.productSkel()._expando._key.IN( [ ndb.Key( urlsafe=x ) for x in list(prods.keys()) ] ) )
-			queryObj.limit = 10
-			queryObj.cursor = None
-			mylist.fromDB( queryObj )
+			queryObj = self.productSkel().all() #Build the initial one
+			queryObj = queryObj.mergeExternalFilter( {"id": list(prods.keys()) } )
+			queryObj.limit( 10 )
+			mylist = queryObj.fetch()
 		for skel in mylist:
-			skel.amt = numericBone( descr="Anzahl", defaultvalue=session.current["cart_products"][ str( skel.id.value ) ] )
+			skel.amt = numericBone( descr="Anzahl", defaultValue=session.current["cart_products"][ str( skel.id.value ) ] )
 		return( self.render.list( mylist ) )
 	view.exposed=True
-	
 	
 	def delete( self, product , all="0" ):
 		prods = session.current.get("cart_products") or {}

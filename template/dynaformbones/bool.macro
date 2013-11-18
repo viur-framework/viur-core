@@ -1,0 +1,32 @@
+{%- macro booleanbone( bone_name,bone,value ) -%}
+<!-- ############################### Select One ####################################### -->
+	
+	{% set readonly = "" %}
+	{% set disable = "" %}
+	{% if bone.readOnly %}
+		{% set readonly = 'readonly="readonly"'	%}
+		{% set disable = 'disabled="disabled"'	%}
+	{%endif%}
+
+	{% if not bone.visible %}
+		<input {{readonly}} type="hidden" name="{{ bone_name }}" value="{{ value }}" />
+	{% else %}
+			{#<select {{disable}} name="{{ bone_name }}">
+				<option value="0" {% if not value %}selected="selected"{% endif%}>{{_("No")}}</option>
+				<option value="1" {% if value %}selected="selected"{% endif%}>{{_("Yes")}}</option>
+			</select>
+			#}
+			
+			<script type="text/javascript">
+			    $('#{{ bone_name }}_checkbox').click(function(){
+                    
+                })
+			</script>
+			<input type="hidden" name="{{ bone_name }}" id="{{ bone_name }}hiddenvalfield" value="{{ value }}" />
+			<input {{readonly}} type="checkbox" name="{{ bone_name }}_checkbox" id="{{ bone_name }}_checkbox" value="{{value}}" {% if value %}checked{% endif %} onclick="$('#{{ bone_name }}hiddenvalfield').val( $(this).is(':checked') ? '1' : '0' );" />
+			
+			
+	{%endif%}
+
+
+{%- endmacro -%}

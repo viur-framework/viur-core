@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
-from server.skeleton import Skeleton
-from server.skellist import Skellist
-from server import utils, session,  errors, conf
+from server.skeleton import Skeleton, skeletonByKind
+from server import utils, session,  errors, conf, securitykey
 from google.appengine.api import users
 from google.appengine.ext import db
 import logging
@@ -14,10 +13,7 @@ class Singleton( object ):
 		However, it can be easily adapted to provide one Skeleton per user.
 	"""
 	
-	viewSkel = None
-	editSkel = None	
-	
-	adminInfo = {	"name": "BaseApplication", #Name of this modul, as shown in Apex (will be translated at runtime)
+	adminInfo = {	"name": "BaseApplication", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
 				"handler": "singleton",  #Which handler to invoke
 				"icon": "", #Icon for this modul
 				}
@@ -30,7 +26,7 @@ class Singleton( object ):
 			
 			@returns String
 		"""
-		return( "%s-modulkey" % self.editSkel().entityName )
+		return( "%s-modulkey" % self.editSkel().kindName )
 
 	def __init__( self, modulName, modulPath, *args, **kwargs ):
 		self.modulName = modulName
@@ -41,7 +37,13 @@ class Singleton( object ):
 				rightName = "%s-%s" % ( modulName, r )
 				if not rightName in conf["viur.accessRights"]:
 					conf["viur.accessRights"].append( rightName )
-				
+
+	def viewSkel( self, *args, **kwargs ):
+		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
+
+	def editSkel( self, *args, **kwargs ):
+		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
+
 	def preview( self, skey, *args, **kwargs ):
 		"""
 			Renders the viewTemplate with the values given.
@@ -49,7 +51,7 @@ class Singleton( object ):
 		"""
 		if not self.canPreview( ):
 			raise errors.Unauthorized()
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel = self.viewSkel()
 		skel.fromClient( kwargs )
@@ -63,7 +65,7 @@ class Singleton( object ):
 		skel = self.viewSkel()
 		if not self.canView( ):
 			raise errors.Unauthorized()
-		id = str( db.Key.from_path( self.editSkel().entityName, self.getKey() ) )
+		id = str( db.Key.from_path( self.editSkel().kindName, self.getKey() ) )
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
 		self.onItemViewed( skel )
@@ -81,17 +83,28 @@ class Singleton( object ):
 		skel = self.editSkel()
 		if not self.canEdit( ):
 			raise errors.Unauthorized()
-		id = str( db.Key.from_path( self.editSkel().entityName, self.getKey() ) )
+		id = str( db.Key.from_path( self.editSkel().kindName, self.getKey() ) )
 		skel.fromDB( id )
 		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel ) )
-		if not utils.validateSecurityKey( skey ):
+		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		skel.toDB( id )
 		self.onItemEdited( skel )
 		return self.render.editItemSuccess( skel )
 	edit.exposed = True
 	edit.forceSSL = True
+
+
+	def getContents( self ):
+		"""
+			Returns the data of this singleton application as viewSkel.
+		"""
+		skel = self.viewSkel()
+		id = str( db.Key.from_path( self.viewSkel().kindName, self.getKey() ) )
+		if not skel.fromDB( id ):
+			return( None )
+		return( skel )
 
 	def canPreview( self ):
 		"""
@@ -103,7 +116,7 @@ class Singleton( object ):
 			return( False )
 		if user["access"] and "root" in user["access"]:
 			return( True )
-		if user["access"] and "%s-edit" % self.viewSkel.entityName in user["access"]:
+		if user["access"] and "%s-edit" % self.viewSkel.kindName in user["access"]:
 			return( True )
 		return( False )
 
@@ -157,4 +170,4 @@ class Singleton( object ):
 	
 Singleton.admin=True
 Singleton.jinja2=True
-Singleton.ops=True
+Singleton.vi=True

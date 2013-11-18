@@ -39,6 +39,6 @@ en = {
 	"const_month_12_long": u"December",
 	"const_datetimeformat": u"%a %b %d %H:%M:%S %Y ", # Format: Date with Time 
 	"const_timeformat": u"%H:%M:%S", # Format: Time  only
-	"const_dateformat": u"%M/%D/%Y", # Format: Date  only
+	"const_dateformat": u"%m/%d/%Y", # Format: Date  only
 }
 	

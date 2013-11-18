@@ -10,12 +10,12 @@ class Site( object ):
 	def index( self,template="index",*arg,**kwargs ):
 		if ".." in template or "/" in template:
 			return
-		if 1:
+		try:
 			template = self.render.getEnv().get_template( self.render.getTemplateFileName( "sites/"+template ) )
-		else: #except:
+		except:
 			raise errors.NotFound()
 		return( template.render( ) )
 	index.exposed = True	
 	
 Site.jinja2 = True
-Site.ops = True
+Site.vi = True

@@ -37,6 +37,7 @@ class DefaultRender( object ):
 						else:
 							boneType = "relational"
 						res[key]["type"]="%s.%s" % (boneType,_bone.type)
+						res[key]["modul"] = _bone.modul
 						res[key]["multiple"]=_bone.multiple
 						res[key]["format"] = _bone.format
 					if( isinstance( _bone, bones.treeDirBone ) ):
@@ -45,6 +46,7 @@ class DefaultRender( object ):
 							res[key]["multiple"]=_bone.multiple
 					if ( isinstance( _bone, bones.selectOneBone ) or  isinstance( _bone, bones.selectMultiBone ) ):
 						res[key]["values"] = dict( [(k,_(v)) for (k,v) in _bone.values.items() ] )
+						res[key]["sortBy"] = _bone.sortBy
 					if ( isinstance( _bone, bones.dateBone ) ):
 						res[key]["time"] = _bone.time
 						res[key]["date"] = _bone.date
@@ -58,6 +60,9 @@ class DefaultRender( object ):
 						res[key]["max"] = _bone.max
 					if( isinstance( _bone, bones.documentBone ) ):
 						res[key]["extensions"] = [ self.renderTextExtension( x ) for x in _bone.extensions ]
+					if( isinstance( _bone, bones.textBone ) ) or ( isinstance( _bone, bones.stringBone ) ):
+						res[key]["languages"] = _bone.languages 
+
 		return( [ (key, val) for key, val in res.items()] )
 	
 	def renderTextExtension(self, ext ):
@@ -86,17 +91,28 @@ class DefaultRender( object ):
 					res[key] = _bone.value
 		return res
 		
-	def view( self, skel, listname="view", *args, **kwargs ):
-		res = {	"values": self.renderSkelValues( skel ), 
-				"structure": self.renderSkelStructure( skel ) }
+	def renderEntry( self, skel, actionName ):
+		if isinstance( skel, list ):
+			vals = [ self.renderSkelValues( x ) for x in skel ]
+			struct = self.renderSkelStructure( skel[0] )
+		else:
+			vals = self.renderSkelValues( skel )
+			struct = self.renderSkelStructure( skel )
+		res = {	"values": vals, 
+			"structure": struct,
+			"action": actionName }
 		request.current.get().response.headers['Content-Type'] = "application/json"
 		return( json.dumps( res ) )
+
+	
+	def view( self, skel, listname="view", *args, **kwargs ):
+		return( self.renderEntry( skel, "view" ) )
 		
 	def add( self, skel, **kwargs ):
-		return( self.view( skel ) )
+		return( self.renderEntry( skel, "add" ) )
 
 	def edit( self, skel, **kwargs ):
-		return( self.view( skel ) )
+		return( self.renderEntry( skel, "edit" ) )
 
 	def list( self, skellist, **kwargs ):
 		res = {}
@@ -109,17 +125,18 @@ class DefaultRender( object ):
 		else:
 			res["structure"] = None
 		res["cursor"] = skellist.cursor
+		res["action"] = "list"
 		request.current.get().response.headers['Content-Type'] = "application/json"
 		return( json.dumps( res ) )
 
-	def editItemSuccess(self, *args, **kwargs ):
-		return( json.dumps("OKAY") )
+	def editItemSuccess(self, skel, **kwargs ):
+		return( self.renderEntry( skel, "editSuccess" ) )
 		
-	def addItemSuccess(self, *args, **kwargs ):
-		return( json.dumps("OKAY") )
+	def addItemSuccess(self, skel, **kwargs ):
+		return( self.renderEntry( skel, "addSuccess" ) )
 		
-	def deleteItemSuccess(self, *args, **kwargs ):
-		return( json.dumps("OKAY") )
+	def deleteItemSuccess(self, skel, **kwargs ):
+		return( self.renderEntry( skel, "deleteSuccess" ) )
 
 	def addDirSuccess(self, *args, **kwargs ):
 		return( json.dumps( "OKAY") )

@@ -1,0 +1,22 @@
+##set Forms=True
+##extends "ops/index_custom.html"
+
+<!-- Titletag wird gesetzt -->
+	##block title
+	##set modulinfos=modulConfig[modulName()]
+	     <title>ViUR Operation Center - {{modulinfos.name}} - {{_(operation)}}</title>
+	##endblock
+
+<!-- Modulname wird als Centername -->
+	##block centername
+	##set modulinfos=modulConfig[modulName()]
+	     <div class="centername"> <img src="/resources/ops/{{modulinfos.icon}}" /><h2>{{modulinfos.name|truncate(23,True,'&hellip;')}}</h2></div><!--centername -->
+	##endblock
+
+<!-- Operationstyp (edit, add, delete, list) wird gesetzt -->
+	##block modulhead
+		<div class="head">
+		<img src="/resources/ops/icons/actions/{{operation}}.svg" /> <h3>{{_(operation)}}</h3>
+		</div>
+	##endblock
+

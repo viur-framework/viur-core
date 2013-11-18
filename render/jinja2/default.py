@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 import time
 from string import Template
-from server import bones, utils, request, session, conf, errors
+from server import bones, utils, request, session, conf, errors, securitykey
 from server.skeleton import Skeleton
 from server.bones import *
 from server.applications.singleton import Singleton
+from server.bones.stringBone import escapeValue
 import string
 import codecs
 from jinja2 import Environment, FileSystemLoader, ChoiceLoader
@@ -15,12 +16,43 @@ from collections import OrderedDict
 import threading
 from server import conf
 from server.skeleton import Skeleton
-from server.skellist import Skellist
 import logging
 from google.appengine.api import memcache, users
 from google.appengine.api.images import get_serving_url
 from urllib import urlencode, quote_plus
 from google.appengine.ext import db
+
+class ListWrapper( list ):
+	def __init__( self, src ):
+		"""
+			Initializes this wrapper by copying the values from src
+		"""
+		self.extend( src )
+	
+	def __getitem__( self, key ):
+		"""
+			Monkey-Patching for lists.
+			Allows collecting sub-properties by using []
+			Example: [ {"id":"1"}, {"id":"2"} ]["id"] --> ["1","2"]
+		"""
+		if isinstance( key, int ):
+			return( super( ListWrapper, self ).__getitem__( key ) )
+		res = []
+		for obj in self:
+			if isinstance( obj, dict ) and key in obj.keys():
+				res.append( obj[ key ] )
+			elif key in dir( obj ):
+				res.append( getattr( obj, key ) )
+		return( ListWrapper(res) )
+
+class SkelListWrapper( ListWrapper ):
+	"""
+		Like ListWrapper, but takes the additional properties
+		of skellist into account
+	"""
+	def __init__( self, src ):
+		super( SkelListWrapper, self ).__init__( src )
+		self.cursor = src.cursor
 
 class Render( object ):
 	listTemplate = "list"
@@ -36,7 +68,42 @@ class Render( object ):
 	renameSuccessTemplate = "rename_success"
 	copySuccessTemplate = "copy_success"
 	
-	
+	class KeyValueWrapper:
+		"""
+			This holds one Key-Value pair for
+			selectOne/selectMulti Bones.
+			It allows to directly treat the key as string,
+			but still makes the translated description of that
+			key avaiable.
+		"""
+		def __init__( self, key, descr ):
+			self.key = key
+			self.descr = _( descr )
+
+		def __str__( self ):
+			return( unicode( self.key ) )
+		
+		def __repr__( self ):
+			return( unicode( self.key ) )
+		
+		def __eq__( self, other ):
+			return( unicode( self ) == unicode( other ) )
+		
+		def __lt__( self, other ):
+			return( unicode( self ) < unicode( other ) )
+
+		def __gt__( self, other ):
+			return( unicode( self ) > unicode( other ) )
+
+		def __le__( self, other ):
+			return( unicode( self ) <= unicode( other ) )
+
+		def __ge__( self, other ):
+			return( unicode( self ) >= unicode( other ) )
+
+		def __trunc__( self ):
+			return( self.key.__trunc__() )
+
 	def __init__(self, parent=None, *args, **kwargs ):
 		super( Render, self ).__init__(*args, **kwargs)
 		self.parent = parent
@@ -64,7 +131,7 @@ class Render( object ):
 				stylePostfix = "_"+request.current.get().kwargs["style"]
 		else:
 			stylePostfix = ""
-		lang = session.current.getLanguage()
+		lang = request.current.get().language #session.current.getLanguage()
 		fnames = [ template+stylePostfix+".html", template+".html" ]
 		if lang:
 			fnames = [ 	os.path.join(  lang, template+stylePostfix+".html"),
@@ -111,18 +178,19 @@ class Render( object ):
 			self.env.globals["getSkel"] = self.getSkel
 			self.env.globals["getEntry"] = self.getEntry
 			self.env.globals["getList"] = self.fetchList
-			self.env.globals["getSecurityKey"] = utils.createSecurityKey
+			self.env.globals["getSecurityKey"] = securitykey.create
 			self.env.globals["getCurrentUser"] = self.getCurrentUser
 			self.env.globals["getResizedURL"] = get_serving_url
 			self.env.globals["updateURL"] = self.updateURL
 			self.env.globals["execRequest"] = self.execRequest
 			self.env.globals["getHostUrl" ] = self.getHostUrl
-			self.env.globals["getLanguage" ] = lambda *args, **kwargs: session.current.getLanguage()
+			self.env.globals["getLanguage" ] = lambda *args, **kwargs: request.current.get().language #session.current.getLanguage()
 			self.env.globals["modulName"] = lambda *args, **kwargs: self.parent.modulName
 			self.env.globals["modulPath"] = lambda *args, **kwargs: self.parent.modulPath
 			self.env.globals["_"] = _
 			self.env.filters["tr"] = _
 			self.env.filters["urlencode"] = self.quotePlus
+			self.env.filters["shortKey"] = self.shortKey
 			if "jinjaEnv" in dir( self.parent ):
 				self.env = self.parent.jinjaEnv( self.env )
 		return( self.env )
@@ -141,6 +209,8 @@ class Render( object ):
 			cachetime = kwargs["cachetime"]
 			del( kwargs["cachetime"] )
 		else:
+			cachetime=0
+		if conf["viur.disableCache"]: #Caching disabled by config
 			cachetime=0
 		if cachetime:
 			cacheKey = str(path)+str(args)+str(kwargs)
@@ -168,7 +238,12 @@ class Render( object ):
 			currentRequest.kwargs = tmp_params # Reset RequestParams
 			currentRequest.internalRequest = lastRequestState
 			return( u"%s not callable or not exposed" % str(caller) )
-		resstr = caller( *args, **kwargs )
+		try:
+			resstr = caller( *args, **kwargs )
+		except Exception as e:
+			logging.error("Caught execption in execRequest while calling %s" % path)
+			logging.exception(e)
+			raise
 		currentRequest.kwargs = tmp_params
 		currentRequest.internalRequest = lastRequestState
 		if cachetime:
@@ -180,7 +255,7 @@ class Render( object ):
 	
 	def getHostUrl(self, *args,  **kwargs):
 		"""
-			Returns the hostname, including the currently used Protocoll.
+			Returns the hostname, including the currently used Protocol.
 			Eg: http://www.example.com
 			@returns: String
 		"""
@@ -213,10 +288,14 @@ class Render( object ):
 	def getRequestParams(self):
 		"""
 			Allows accessing the request-parameters from the template
-			Warning: They where not santinized!
+			We escape these values here, as users tend to use these in an
+			unsafe manner.
 			@returns: Dict
 		"""
-		return request.current.get().kwargs
+		res = {}
+		for k, v in request.current.get().kwargs.items():
+			res[ escapeValue( k ) ] = escapeValue( v )
+		return res
 	
 	def getSession(self):
 		"""
@@ -262,7 +341,7 @@ class Render( object ):
 			skel = getattr( obj , skel)()
 			if isinstance( obj, Singleton ) and not id:
 				#We fetching the entry from a singleton - No id needed
-				id = str( db.Key.from_path( skel.entityName, obj.getKey() ) )
+				id = str( db.Key.from_path( skel.kindName, obj.getKey() ) )
 			if isinstance( skel,  Skeleton ):
 				skel.fromDB( id )
 				return( self.collectSkelData( skel ) )
@@ -293,29 +372,37 @@ class Render( object ):
 			@type modul: String
 			@param skel: Name to the skeleton to fetch the list from
 			@type skel: String
-			@returns: List
+			@returns: List or None
 		"""
 		if not modul in dir ( conf["viur.mainApp"] ):
-			return False
+			logging.error("Jinja2-Render can't fetch a list from an unknown modul %s!" % modul)
+			return( False )
 		caller = getattr( conf["viur.mainApp"], modul)
 		if not skel in dir( caller ):
-				return( False )
-		else:
-			mylist = Skellist( getattr(caller, skel ) )
-		queryObj = utils.buildDBFilter( getattr(caller, skel )(), kwargs )
-		if "listFilter" in dir( caller ):
-			queryObj = caller.listFilter( queryObj )
-		if not queryObj:
+			logging.error("Jinja2-Render can't fetch a list with an unknown skeleton %s!" % skel)
 			return( False )
-		mylist.fromDB( queryObj )
+		query = getattr(caller, skel )().all()
+		query.mergeExternalFilter( kwargs )
+		if "listFilter" in dir( caller ):
+			query = caller.listFilter( query )
+		if query is None:
+			return( None )
+		mylist = query.fetch()
 		for x in range(0, len( mylist ) ):
 			mylist.append( self.collectSkelData( mylist.pop(0) ) )
-		return( mylist )	
+		return( SkelListWrapper( mylist ) )
 	
 	def quotePlus(self, val ):
 		if isinstance( val, unicode ):
 			val = val.encode("UTF-8")
 		return( quote_plus( val ) )
+
+	def shortKey( self, val ):
+		try:
+			k = db.Key( encoded=unicode( val ) )
+			return( k.id_or_name() )
+		except: 
+			return( None )
 
 	def renderSkelStructure(self, skel ):
 		"""
@@ -332,7 +419,8 @@ class Render( object ):
 							"type": _bone.type,
 							"required":_bone.required,
 							"params":_bone.params,
-							"visible": _bone.visible
+							"visible": _bone.visible,
+							"readOnly": _bone.readOnly
 							}
 					if key in skel.errors.keys():
 						res[ key ][ "error" ] = skel.errors[ key ]
@@ -346,10 +434,12 @@ class Render( object ):
 						else:
 							boneType = "relational."+_bone.type
 						res[key]["type"] = boneType
+						res[key]["modul"] = _bone.modul
 						res[key]["multiple"]=_bone.multiple
 						res[key]["format"] = _bone.format
-					if( isinstance( _bone, bones.selectOneBone ) or  isinstance( _bone, bones.selectMultiBone ) ):
+					if( isinstance( _bone, bones.selectOneBone ) or isinstance( _bone, bones.selectMultiBone ) ):
 						res[key]["values"] = dict( [(k,_(v)) for (k,v) in _bone.values.items() ] )
+						res[key]["sortBy"] = _bone.sortBy
 					if( isinstance( _bone, bones.dateBone ) ):
 						res[key]["time"] = _bone.time
 						res[key]["date"] = _bone.date
@@ -359,6 +449,8 @@ class Render( object ):
 						res[key]["max"] = _bone.max
 					if( isinstance( _bone, bones.textBone ) ):
 						res[key]["validHtml"] = _bone.validHtml
+					if( isinstance( _bone, bones.textBone ) ) or ( isinstance( _bone, bones.stringBone ) ):
+						res[key]["languages"] = _bone.languages 
 		return( res )
 	
 	def collectSkelData( self, skel ):
@@ -372,9 +464,18 @@ class Render( object ):
 			if "__" not in key:
 				_bone = getattr( skel, key )
 				if( isinstance( _bone, bones.documentBone ) ): #We flip source-html and parsed (cached) html for a more natural use
-						res[key] = _bone.cache
+					res[key] = _bone.cache
+				elif isinstance( _bone, selectOneBone ):
+					if _bone.value in _bone.values.keys():
+						res[ key ] = Render.KeyValueWrapper( _bone.value, _bone.values[ _bone.value ] )
+					else:
+						res[ key ] = _bone.value
+				elif isinstance( _bone, selectMultiBone ):
+					res[ key ] = [ (Render.KeyValueWrapper( val, _bone.values[ val ] ) if val in _bone.values.keys() else val)  for val in _bone.value ]
 				elif( isinstance( _bone, bones.baseBone ) ):
 					res[ key ] = _bone.value
+				if key in res.keys() and isinstance( res[key], list ):
+					res[key] = ListWrapper( res[key] )
 		return( res )
 
 	def add( self, skel, tpl=None,*args,**kwargs ):
@@ -388,12 +489,12 @@ class Render( object ):
 			@param tpl: Name of an different template, which should be used instead of the default one
 			@param: tpl: String
 		"""
-		tpl = tpl or self.addTemplate
-		if "addTemplate" in dir( self.parent ):
+		if not tpl and "addTemplate" in dir( self.parent ):
 			tpl = self.parent.addTemplate
+		tpl = tpl or self.addTemplate
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		skeybone = bones.baseBone( descr="SecurityKey",  readOnly=True, visible=False )
-		skeybone.value = utils.createSecurityKey()
+		skeybone.value = securitykey.create()
 		skel.skey = skeybone
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
 			skel.errors = {}
@@ -410,18 +511,18 @@ class Render( object ):
 			@param tpl: Name of an different template, which should be used instead of the default one
 			@param: tpl: String
 		"""
-		tpl = tpl or self.editTemplate
-		if "editTemplate" in dir( self.parent ):
+		if not tpl and "editTemplate" in dir( self.parent ):
 			tpl = self.parent.editTemplate
+		tpl = tpl or self.editTemplate
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		skeybone = bones.baseBone( descr="SecurityKey",  readOnly=True, visible=False )
-		skeybone.value = utils.createSecurityKey()
+		skeybone.value = securitykey.create()
 		skel.skey = skeybone
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
 			skel.errors = {}
 		return( template.render( skel={"structure":self.renderSkelStructure(skel),"errors":skel.errors, "value":self.collectSkelData(skel) },  **kwargs) )
 	
-	def addItemSuccess (self, id, skel, *args, **kwargs ):
+	def addItemSuccess (self, skel, *args, **kwargs ):
 		"""
 			Render an page, informing that the entry has been successfully created.
 			@param id: Urlsafe key of the new entry
@@ -434,7 +535,7 @@ class Render( object ):
 			tpl = self.parent.addSuccessTemplate
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		res = self.collectSkelData( skel )
-		return( template.render( {"id":id, "skel":res} ) )
+		return( template.render( { "skel":res } ) )
 
 	def editItemSuccess (self, skel, *args, **kwargs ):
 		"""
@@ -469,10 +570,9 @@ class Render( object ):
 			@param tpl: Name of an different template, which should be used instead of the default one
 			@param: tpl: String
 		"""
-		if "listTemplate" in dir( self.parent ):
-			tpl = tpl or self.parent.listTemplate
-		if not tpl:
-			tpl = self.listTemplate
+		if not tpl and "listTemplate" in dir( self.parent ):
+			tpl = self.parent.listTemplate
+		tpl = tpl or self.listTemplate
 		try:
 			fn = self.getTemplateFileName( tpl )
 		except errors.HTTPException as e: #Not found - try default fallbacks FIXME: !!!
@@ -480,7 +580,7 @@ class Render( object ):
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		for x in range(0, len( skellist ) ):
 			skellist.append( self.collectSkelData( skellist.pop(0) ) )
-		return( template.render( skellist=skellist, **kwargs ) )
+		return( template.render( skellist=SkelListWrapper(skellist), **kwargs ) )
 	
 	def listRootNodes(self, repos, tpl=None, **kwargs ):
 		"""
@@ -509,10 +609,9 @@ class Render( object ):
 			@param tpl: Name of an different template, which should be used instead of the default one
 			@param: tpl: String
 		"""
-		if "viewTemplate" in dir( self.parent ):
-			tpl = tpl or self.parent.viewTemplate
-		else:
-			tpl = tpl or self.viewTemplate
+		if not tpl and "viewTemplate" in dir( self.parent ):
+			tpl = self.parent.viewTemplate
+		tpl = tpl or self.viewTemplate
 		template= self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		if isinstance( skel, Skeleton ):
 			res = self.collectSkelData( skel )
@@ -647,6 +746,8 @@ class Render( object ):
 		user = session.current.get("user")
 		if isinstance( skel, Skeleton ):
 			res = self.collectSkelData( skel )
+		elif isinstance( skel, list ) and all( [isinstance(x,Skeleton) for x in skel] ):
+			res = [ self.collectSkelData( x ) for x in skel ]
 		else:
 			res = skel
 		if len(tpl)<101:
@@ -658,13 +759,21 @@ class Render( object ):
 			template = self.getEnv().from_string( tpl )
 		data = template.render( skel=res, dests=dests, user=user )
 		body = False
+		lineCount=0
 		for line in data.splitlines():
-			if body==False:
-				if not line or not ":" in line or not len( line.split(":") ) == 2:
-					body=""
-				else:
-					k,v = line.split(":")
-					headers[ k.lower() ] = v
+			if lineCount>3 and body is False:
+				body = "\n\n"
 			if body != False:
 				body += line+"\n"
+			else:
+				if line.lower().startswith("from:"):
+					headers["from"]=line[ len("from:"):]
+				elif line.lower().startswith("subject:"):
+					headers["subject"]=line[ len("subject:"): ]
+				elif line.lower().startswith("references:"):
+					headers["references"]=line[ len("references:"):]
+				else:
+					body="\n\n"
+					body += line
+			lineCount += 1
 		return( headers, body  )

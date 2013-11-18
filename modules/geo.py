@@ -3,18 +3,18 @@ from server.skeleton import Skeleton
 from server.applications.list import List
 from server.bones import *
 from google.appengine.ext import db
-from server.utils import generateExpandoClass
 from server import session, errors
 import urllib
+from google.appengine.api import search
 
 class GeoSkel( Skeleton ):
-	name = stringBone( descr="Name", searchable=True, required=True )
-	address = stringBone( descr="Street and House Number", searchable=True, required=True )
-	zipcode = stringBone( descr="Zipcode", searchable=True, required=True )
-	city = stringBone( descr="City", searchable=True, required=True)
+	name = stringBone( descr="Name", indexed=True, required=True, searchable=True )
+	address = stringBone( descr="Street and House Number", indexed=True, required=True )
+	zipcode = stringBone( descr="Zipcode", indexed=True, required=True )
+	city = stringBone( descr="City", indexed=True, required=True)
 	country = selectCountryBone( descr="Country", codes=selectCountryBone.ISO2, required=True )
-	latitude = numericBone( descr="Latitude", required=False, mode="float" )
-	longitude = numericBone( descr="Longitude", required=False, mode="float" )
+	latitude = numericBone( descr="Latitude", required=False, precision=8 )
+	longitude = numericBone( descr="Longitude", required=False, precision=8 )
 	
 	def fromClient( self, data ):
 		"""
@@ -39,11 +39,13 @@ class GeoSkel( Skeleton ):
 			except:
 				pass
 		return( res )
-		
 	
+	def getSearchDocumentFields( self, fields ):
+		fields.append( search.GeoField(name='latlong', value=search.GeoPoint(self.latitude.value, self.longitude.value)) )
+		return( fields )
 
 class Geo( List ): 
-	adminInfo = {	"name": "Geo", #Name of this modul, as shown in Apex (will be translated at runtime)
+	adminInfo = {	"name": "Geo", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
 				"handler": "list",  #Which handler to invoke
 				"icon": "icons/modules/geo.png", #Icon for this modul
 				"formatstring": "$(name)", 
@@ -54,7 +56,7 @@ class Geo( List ):
 							},
 					}
 				}
-	viewSkel = GeoSkel
-	addSkel = GeoSkel
-	editSkel = GeoSkel
+	#viewSkel = GeoSkel
+	#addSkel = GeoSkel
+	#editSkel = GeoSkel
 

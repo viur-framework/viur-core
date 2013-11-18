@@ -56,11 +56,11 @@ class PreconditionFailed( HTTPException ):
 		
 class RequestTooLarge( HTTPException ):
 	def __init__( self, descr="Request Too Large" ):
-		super( PreconditionFailed, self ).__init__(  status=413, name = "Request Too Large", descr=descr )
+		super( RequestTooLarge, self ).__init__(  status=413, name = "Request Too Large", descr=descr )
 
 class InternalServerError( HTTPException ):
 	def __init__( self, descr="Internal Server Error" ):
-		super( Gone, self ).__init__(  status=500, name = "Internal Server Error", descr=descr )
+		super( InternalServerError, self ).__init__(  status=500, name = "Internal Server Error", descr=descr )
 
 class NotImplemented( HTTPException ):
 	def __init__( self, descr="Not Implemented" ):
