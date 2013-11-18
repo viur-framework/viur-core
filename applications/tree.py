@@ -189,7 +189,7 @@ class Tree( object ):
 ## External exposed functions
 
 	@exposed
-	def listRootNodes(self, name=None ):
+	def listRootNodes(self, name=None, *args, **kwargs ):
 		"""
 			Renders a list of all available repositories for the current user
 		"""
