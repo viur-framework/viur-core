@@ -4,7 +4,7 @@ from server import session, errors, conf, request
 from server.applications.tree import Tree, TreeNodeSkel, TreeLeafSkel
 from server import forcePost, forceSSL, exposed, internalExposed
 from server.bones import *
-from server import utils, db
+from server import utils, db, securitykey
 from server.tasks import callDeferred
 from google.appengine.ext import blobstore
 from google.appengine.ext.webapp import blobstore_handlers
@@ -115,6 +115,14 @@ class File( Tree ):
 
 
 	def getUploadURL( self, *args, **kwargs ):
+		if "skey" in kwargs:
+			skey = kwargs["skey"]
+		else:
+			skey = ""
+		if not self.canAdd( None, "leaf" ):
+			raise errors.Forbidden()
+		if not securitykey.validate( skey ):
+			raise errors.PreconditionFailed()
 		return( blobstore.create_upload_url( "%s/upload" % self.modulPath ) )
 	getUploadURL.exposed=True
 
@@ -250,7 +258,7 @@ class File( Tree ):
 	@exposed
 	@forceSSL
 	@forcePost
-	def delete( self, skelType, id  ):
+	def delete( self, skelType, id, *args, **kwargs  ):
 		"""Our timestamp-based update approach dosnt work here, so we'll do another trick"""
 		if skelType=="node":
 			skel = self.editNodeSkel
@@ -258,11 +266,17 @@ class File( Tree ):
 			skel = self.editLeafSkel
 		else:
 			assert False
+		if "skey" in kwargs:
+			skey = kwargs["skey"]
+		else:
+			skey = ""
 		repo = skel()
 		if not repo.fromDB( id ):
 			raise errors.NotFound()
 		if not self.canDelete( repo, skelType ):
 			raise errors.Unauthorized()
+		if not securitykey.validate( skey ):
+			raise errors.PreconditionFailed()
 		if skelType=="leaf":
 			utils.markFileForDeletion( repo.dlkey.value )
 			repo.delete( id )

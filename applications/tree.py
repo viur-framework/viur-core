@@ -247,8 +247,12 @@ class Tree( object ):
 	
 	@exposed
 	@forceSSL
-	def add( self, skelType, node, skey="", *args, **kwargs ):
+	def add( self, skelType, node, *args, **kwargs ):
 		assert skelType in ["node","leaf"]
+		if "skey" in kwargs:
+			skey = kwargs["skey"]
+		else:
+			skey = ""
 		if skelType == "node":
 			skel = self.viewNodeSkel()
 		elif skelType == "leaf":
@@ -262,6 +266,8 @@ class Tree( object ):
 			raise errors.Unauthorized()
 		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.add( skel ) )
+		if not securitykey.validate( skey ):
+			raise errors.PreconditionFailed()
 		skel.parentdir.value = str( node )
 		skel.parentrepo.value = parentNodeSkel.parentrepo.value or str( node )
 		id = skel.toDB( )
@@ -280,6 +286,10 @@ class Tree( object ):
 			skel = self.viewLeafSkel()
 		else:
 			raise( errors.NotAcceptable() )
+		if "skey" in kwargs:
+			skey = kwargs["skey"]
+		else:
+			skey = ""
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
 		if not self.canEdit( skel ):
@@ -295,7 +305,7 @@ class Tree( object ):
 	@exposed
 	@forceSSL
 	@forcePost
-	def delete( self, skelType, id ):
+	def delete( self, skelType, id, *args, **kwargs ):
 		"""
 			Deletes an entry or an directory (including its contents)
 			@param rootNode: Urlsafe-key of the rootNode
@@ -313,10 +323,16 @@ class Tree( object ):
 			skel = self.viewLeafSkel()
 		else:
 			raise( errors.NotAcceptable() )
+		if "skey" in kwargs:
+			skey = kwargs["skey"]
+		else:
+			skey = ""
 		if not self.canDelete( id, skelType ):
 			raise errors.Unauthorized()
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
+		if not securitykey.validate( skey ):
+			raise errors.PreconditionFailed()
 		if type=="leaf":
 			skel.delete( id )
 		else:
@@ -328,7 +344,7 @@ class Tree( object ):
 	@exposed
 	@forceSSL
 	@forcePost
-	def move( self, skelType, id, destNode ):
+	def move( self, skelType, id, destNode, *args, **kwargs ):
 		"""
 			Move an node or a leaf to another node  (including its contents).
 			@param srcrepo: RootNode-key from which has been copied/moved
@@ -352,6 +368,10 @@ class Tree( object ):
 			srcSkel = self.viewLeafSkel()
 		else:
 			raise( errors.NotAcceptable() )
+		if "skey" in kwargs:
+			skey = kwargs["skey"]
+		else:
+			skey = ""
 		destSkel = self.editNodeSkel()
 		if not self.canMove( id, skelType, destNode ):
 			raise errors.Unauthorized()
@@ -361,6 +381,8 @@ class Tree( object ):
 		if not srcSkel.fromDB( id ) or not destSkel.fromDB( destNode ):
 			# Could not find one of the entities
 			raise errors.NotFound()
+		if not securitykey.validate( skey ):
+			raise errors.PreconditionFailed()
 		srcSkel.parentdir.value = str( destNode )
 		srcSkel.parentrepo.value = destSkel.parentrepo.value #Fixme: Need to rekursive fixing to parentrepo?
 		srcSkel.toDB( id )
