@@ -181,7 +181,7 @@ class File( Tree ):
 						res.append( fileSkel )
 			else:
 				#We got a anonymous upload (a file not registered in any rootNode yet)
-				for upload in self.get_uploads():
+				for upload in self.getUploads():
 					filename = self.decodeFileName( upload.filename )
 					if str( upload.content_type ).startswith("image/"):
 						try:
@@ -190,7 +190,7 @@ class File( Tree ):
 							servingURL = ""
 					else:
 						servingURL = ""
-
+					fileName = self.decodeFileName( upload.filename )
 					fileSkel = self.addLeafSkel()
 					fileSkel.setValues( {	"name": fileName,
 								"size": upload.size,
