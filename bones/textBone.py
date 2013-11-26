@@ -205,37 +205,22 @@ class textBone( baseBone ):
 			else:
 				return( "Invalid value entered" )
 
-
-	def postSavedHandler_DISABLED( self, key, skel, id, dbfields ):
-		lockInfo = "textBone/%s" % ( key )
-		oldFiles = db.Query( "file" ).ancestor( db.Key( str(id) )).filter( "lockinfo =",  lockInfo ).run(100)
+	def getReferencedBlobs(self):
+		"""
+			Test for /file/download/ links inside our text body.
+			Doesn't check for actual <a href=> or <img src=> yet.
+		"""
 		newFileKeys = []
-		if not self.value:
-			return
-		idx = self.value.find("/file/view/")
+		idx = self.value.find("/file/download/")
 		while idx!=-1:
-			idx += 11
+			idx += 15
 			seperatorIdx = min( [ x for x in [self.value.find("/",idx), self.value.find("\"",idx)] if x!=-1] )
 			fk = self.value[ idx:seperatorIdx]
 			if not fk in newFileKeys:
 				newFileKeys.append( fk )
-			idx = self.value.find("/file/view/", seperatorIdx)
-		oldFileKeys = [ x["dlkey"] for x in oldFiles ]
-		for newFileKey in [ x for x in newFileKeys if not x in oldFileKeys]:
-			f = db.Entity( "file", parent=db.Key( str(id) ) )
-			f["lockinfo"] = lockInfo
-			f["dlkey"] = newFileKey
-			f["weak"] = False
-			db.Put( f )
-		for oldFile in [ x for x in oldFiles if not x["dlkey"] in newFileKeys ]:
-			markFileForDeletion( oldFile["dlkey"] )
-			db.Delete( oldFile.key() )
+			idx = self.value.find("/file/download/", seperatorIdx)
+		return( newFileKeys )
 
-	def postDeletedHandler( self, skel, key, id ):
-		files = db.Query( "file").ancestor( db.Key( id ) ).run()
-		for f in files:
-			markFileForDeletion( f["dlkey"] )
-			db.Delete( f.key() )
 
 	def getSearchTags(self):
 		res = []

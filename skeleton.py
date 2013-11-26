@@ -81,7 +81,7 @@ class Skeleton( object ):
 	searchIndex = None # If set, use this name as the index-name for the GAE search API
 	enforceUniqueValuesFor = None # If set, enforce that the values of that bone are unique.
 	subSkels = {} # List of pre-defined sub-skeletons of this type
-	isBaseClassSkel = False # If True, this skeleton won't be handled by tasks like the relational update task
+
 
 	id = baseBone( readOnly=True, visible=False, descr="ID")
 	creationdate = dateBone( readOnly=True, visible=False, creationMagic=True, indexed=True, descr="created at" )
@@ -211,14 +211,20 @@ class Skeleton( object ):
 			@returns String DB-Key
 		"""
 		def txnUpdate( id, skel, clearUpdateTag ):
+			blobList = set()
 			if not id:
 				dbObj = db.Entity( skel.kindName )
+				oldBlobLockObj = None
 			else:
+				k = db.Key( id )
 				try:
-					dbObj = db.Get( db.Key( id ) )
+					dbObj = db.Get( k )
 				except db.EntityNotFoundError:
-					k = db.Key( id )
 					dbObj = db.Entity( k.kind(), id=k.id(), name=k.name(), parent=k.parent() )
+				try:
+					oldBlobLockObj = db.Get(db.Key.from_path("viur-blob-locks",str(k)))
+				except:
+					oldBlobLockObj = None
 			if self.enforceUniqueValuesFor:
 				uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
 				if "%s.uniqueIndexValue" % uniqueProperty in dbObj.keys():
@@ -235,6 +241,7 @@ class Skeleton( object ):
 						newKeys = [ x for x in dbObj.keys() if not x in tmpKeys ] #These are the ones that the bone added
 						if not _bone.indexed:
 							unindexed_properties += newKeys
+						blobList.update( _bone.getReferencedBlobs() )
 						#if _bone.searchable and not skel.searchIndex:
 						#	tags += [ tag for tag in _bone.getSearchTags() if (tag not in tags and len(tag)<400) ]
 			#if tags:
@@ -275,9 +282,32 @@ class Skeleton( object ):
 							if _bone.searchable:
 								tags += [ tag for tag in _bone.getSearchTags() if (tag not in tags and len(tag)<400) ]
 				dbObj["viur_tags"] = tags
-			db.Put( dbObj )
+			db.Put( dbObj ) #Write the core entry back
+			# Now write the blob-lock object
+			blobList = self.preProcessBlobLocks( blobList )
+			if blobList is None:
+				raise ValueError("Did you forget to return the bloblist somewhere inside getReferencedBlobs()?")
+			if oldBlobLockObj is not None:
+				oldBlobs = set(oldBlobLockObj["active_blob_references"] if oldBlobLockObj["active_blob_references"] is not None else [])
+				removedBlobs = oldBlobs-blobList
+				oldBlobLockObj["active_blob_references"] = list(blobList)
+				if oldBlobLockObj["old_blob_references"] is None:
+					oldBlobLockObj["old_blob_references"] = [x for x in removedBlobs]
+				else:
+					tmp = set(oldBlobLockObj["old_blob_references"]+[x for x in removedBlobs])
+					oldBlobLockObj["old_blob_references"] = [x for x in (tmp-blobList)]
+				oldBlobLockObj["has_old_blob_references"] = oldBlobLockObj["old_blob_references"] is not None and len(oldBlobLockObj["old_blob_references"])>0
+				oldBlobLockObj["is_stale"] = False
+				db.Put( oldBlobLockObj )
+			else: #We need to create a new blob-lock-object
+				blobLockObj = db.Entity( "viur-blob-locks", name=str( dbObj.key() ) )
+				blobLockObj["active_blob_references"] = list(blobList)
+				blobLockObj["old_blob_references"] = []
+				blobLockObj["has_old_blob_references"] = False
+				blobLockObj["is_stale"] = False
+				db.Put( blobLockObj )
 			if self.enforceUniqueValuesFor:
-				# Now update/create/delte the lock-object
+				# Now update/create/delete the lock-object
 				if newVal != oldUniquePropertyValue:
 					if oldUniquePropertyValue is not None:
 						db.Delete( db.Key.from_path( "%s_uniquePropertyIndex" % self.kindName, oldUniquePropertyValue ) )
@@ -323,6 +353,12 @@ class Skeleton( object ):
 		return( id )
 
 
+	def preProcessBlobLocks(self, locks):
+		"""
+			Can be overridden to modify the list of blobs referenced by this skeleton
+		"""
+		return( locks )
+
 	def delete( self, id ):
 		"""
 			Deletes the specified entity from the database.
@@ -339,6 +375,24 @@ class Skeleton( object ):
 					db.Delete( db.Key.from_path( "%s_uniquePropertyIndex" % self.kindName, dbObj[ "%s.uniqueIndexValue" % uniqueProperty ] ) )
 			except db.EntityNotFoundError:
 				pass
+		# Delete the blob-key lock object
+		try:
+			lockObj = db.Get(db.Key.from_path("viur-blob-locks", str(id)))
+		except:
+			lockObj = None
+		if lockObj is not None:
+			if lockObj["old_blob_references"] is None and lockObj["active_blob_references"] is None:
+				db.Delete( lockObj ) #Nothing to do here
+			elif lockObj["old_blob_references"] is None:
+				lockObj["old_blob_references"] = lockObj["active_blob_references"]
+			elif lockObj["active_blob_references"] is None:
+				pass #Nothing to do here
+			else:
+				lockObj["old_blob_references"] += lockObj["active_blob_references"]
+			lockObj["active_blob_references"] = []
+			lockObj["is_stale"] = True
+			lockObj["has_old_blob_references"] = True
+			db.Put(lockObj)
 		db.Delete( db.Key( id ) )
 		for key in dir( self ):
 			if "__" not in key:
@@ -437,7 +491,7 @@ class Skeleton( object ):
 						if isinstance( self.enforceUniqueValuesFor, tuple ):
 							errorMsg = _(self.enforceUniqueValuesFor[1])
 						else:
-							errorMsg = _("This value is not avaiable")
+							errorMsg = _("This value is not available")
 						self.errors[ uniqueProperty ] = errorMsg
 				except db.EntityNotFoundError:
 					pass

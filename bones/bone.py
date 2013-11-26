@@ -300,6 +300,12 @@ class baseBone(object): # One Bone:
 			return("S-%s" % res )
 		raise NotImplementedError("Type %s can't be safely used in an uniquePropertyIndex" % type( self.value) )
 
+	def getReferencedBlobs( self ):
+		"""
+			Returns the list of blob keys referenced from this bone
+		"""
+		return( [] )
+
 	def performMagic( self, isAdd ):
 		"""
 			This function applies "magically" functionality which f.e. inserts the current Date or the current user.

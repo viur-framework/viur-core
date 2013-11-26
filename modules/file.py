@@ -23,7 +23,6 @@ import cgi
 import string
 
 
-
 class fileBaseSkel( TreeLeafSkel ):
 	kindName = "file"
 	size = stringBone( descr="Size", params={"indexed": True, "frontend_list_visible": True}, readOnly=True, indexed=True, searchable=True )
@@ -33,6 +32,12 @@ class fileBaseSkel( TreeLeafSkel ):
 	weak = booleanBone( descr="Is a weak Reference?", indexed=True, readOnly=True, visible=False )
 	servingurl = stringBone( descr="Serving URL", params={"frontend_list_visible": True}, readOnly=True )
 
+	def preProcessBlobLocks(self, locks ):
+		"""
+			Ensure that our dlkey is locked even if we don't have a filebone here
+		"""
+		locks.add( self.dlkey.value )
+		return( locks )
 
 class fileNodeSkel( TreeNodeSkel ):
 	kindName = "file_rootNode"
@@ -129,7 +134,6 @@ class File( Tree ):
 
 	def getAvailableRootNodes( self, name ):
 		thisuser = utils.getCurrentUser()
-		logging.error( thisuser )
 		if thisuser:
 			repo = self.ensureOwnUserRootNode()
 			res = [ { "name":_("Meine Datein"), "key": str(repo.key()) } ]
@@ -158,7 +162,7 @@ class File( Tree ):
 			for upload in self.get_uploads():
 				upload.delete()
 			raise errors.Forbidden()
-		try:
+		if 1:
 			res = []
 			if node:
 				# The file is uploaded into a rootNode
@@ -189,7 +193,7 @@ class File( Tree ):
 						res.append( fileSkel )
 			else:
 				#We got a anonymous upload (a file not registered in any rootNode yet)
-				for upload in self.get_uploads():
+				for upload in self.getUploads():
 					filename = self.decodeFileName( upload.filename )
 					if str( upload.content_type ).startswith("image/"):
 						try:
@@ -198,7 +202,7 @@ class File( Tree ):
 							servingURL = ""
 					else:
 						servingURL = ""
-
+					fileName = self.decodeFileName( upload.filename )
 					fileSkel = self.addLeafSkel()
 					fileSkel.setValues( {	"name": fileName,
 								"size": upload.size,
@@ -216,7 +220,7 @@ class File( Tree ):
 			if user:
 				logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
 			return( self.render.addItemSuccess( res ) )
-		except:
+		else: #except:
 			for upload in self.getUploads():
 				upload.delete()
 				utils.markFileForDeletion( str(upload.key() ) )
@@ -315,13 +319,43 @@ class File( Tree ):
 File.json=True
 File.jinja2=True
 
+@PeriodicTask( 60 )
+def checkForUnreferencedBlobs( ):
+	def getOldBlobKeysTxn( dbKey ):
+		obj = db.Get( dbKey )
+		res = obj["old_blob_references"] or []
+		if obj["is_stale"]:
+			db.Delete( dbKey )
+		else:
+			obj["has_old_blob_references"] = False
+			obj["old_blob_references"] = []
+			db.Put( obj )
+		return( res )
+	for lockKey in db.Query( "viur-blob-locks" ).filter("has_old_blob_references", True).iter(keysOnly=True):
+		oldBlobKeys = db.RunInTransaction( getOldBlobKeysTxn, lockKey )
+		for blobKey in oldBlobKeys:
+			if db.Query("viur-blob-locks").filter("active_blob_references =", blobKey).get():
+				#This blob is referenced elsewhere
+				continue
+			# Add a marker and schedule it for deletion
+			fileObj = db.Query( "viur-deleted-files" ).filter( "dlkey", blobKey ).get()
+			if fileObj: #Its already marked
+				return
+			fileObj = db.Entity( "viur-deleted-files" )
+			fileObj["itercount"] = 0
+			fileObj["dlkey"] = str( blobKey )
+			db.Put( fileObj )
+
+
+#has_old_blob_references
+
 @PeriodicTask( 60*4 )
-def cleanup( ):
+def cleanupDeletedFiles( ):
 	maxIterCount = 2 #How often a file will be checked for deletion
 	for file in db.Query( "viur-deleted-files" ).iter():
 		if not "dlkey" in file.keys():
 			db.Delete( file.key() )
-		elif db.Query( "file" ).filter( "dlkey =", file["dlkey"] ).filter( "weak =", False ).get():
+		elif db.Query( "viur-blob-locks" ).filter( "active_blob_references =", file["dlkey"] ).get():
 			db.Delete( file.key() )
 		else:
 			if file["itercount"] > maxIterCount:
