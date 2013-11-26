@@ -50,13 +50,15 @@ def keyFromArgs( f, userSensitive, languageSensitive, evaluatedArgs, path, *args
 		res[ reversedArgsOrder.pop( 0 ) ] = defaultValue
 	del reversedArgsOrder
 	# Map args in
+	setArgs = [] # Store a list of args already set by *args
 	for idx in range(0, min( len( args ), len( argsOrder ) ) ):
 		if argsOrder[ idx ] in evaluatedArgs:
+			setArgs.append( argsOrder[ idx ] )
 			res[ argsOrder[ idx ] ] = args[ idx ]
 	# Last, we map the kwargs in
 	for k,v in kwargs.items():
 		if k in evaluatedArgs:
-			if k in res.keys():
+			if k in setArgs:
 				raise AssertionError("Got dupplicate arguments for %s" % k )
 			res[ k ] = v
 	if userSensitive:
