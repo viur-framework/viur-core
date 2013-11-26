@@ -32,13 +32,17 @@ import logging
 try:
 	import translations
 	conf["viur.avaiableLanguages"].extend( [x for x in dir( translations ) if (len(x)==2 and not x.startswith("_")) ] )
-except: #The Project doesnt use Multi-Language features
+except ImportError: #The Project doesnt use Multi-Language features
 	translations = None
 def translate( key, **kwargs ):
 	try:
 		lang = request.current.get().language
 	except:
 		return( key )
+	if key is None:
+		return( None )
+	elif not isinstance( key, basestring ):
+		raise ValueError("Can only translate strings, got %s instead" % str(type(key)))
 	res = None
 	lang = lang or conf["viur.defaultLanguage"]
 	if lang in conf["viur.languageAliasMap"].keys():

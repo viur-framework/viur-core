@@ -165,7 +165,7 @@ class textBone( baseBone ):
 	def fromClient( self, name, data ):
 		"""
 			Reads a value from the client.
-			If this value is valis for this bone,
+			If this value is valid for this bone,
 			store this value and return None.
 			Otherwise our previous value is
 			left unchanged and an error-message
