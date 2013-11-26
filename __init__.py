@@ -410,11 +410,13 @@ class BrowseHandler(webapp.RequestHandler):
 				tmpRes[ reversedArgsOrder.pop( 0 ) ] = defaultValue
 			del reversedArgsOrder
 			# Map args in
+			setArgs = [] # Store a list of args already set by *args
 			for idx in range(0, min( len( args ), len( argsOrder ) ) ):
+				setArgs.append( argsOrder[ idx ] )
 				tmpRes[ argsOrder[ idx ] ] = args[ idx ]
 			# Last, we map the kwargs in
 			for k,v in kwargs.items():
-				if k in tmpRes.keys():
+				if k in setArgs: #This key has already been set by *args
 					raise( errors.NotAcceptable() ) #We reraise that exception as we got duplicate arguments
 				tmpRes[ k ] = v
 			# Last check, that every parameter is satisfied:
