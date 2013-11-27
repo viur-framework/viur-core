@@ -18,7 +18,7 @@ class TreeLeafSkel( Skeleton ):
 	def fromDB( self, *args, **kwargs ):
 		res = super( TreeLeafSkel, self ).fromDB( *args, **kwargs )
 		# Heal missing parent-repo values
-		if not self.parentrepo.value:
+		if not self.parentrepo.value and self.id.value is not None:
 			dbObj = db.Get( self.id.value )
 			if not "parentdir" in dbObj.keys(): #RootNode
 				return( res )
@@ -378,13 +378,31 @@ class Tree( object ):
 		if id==destNode: 
 			# Cannot move a node into itself
 			raise errors.NotAcceptable()
+		## Test for recursion
+		isValid = False
+		currLevel = db.Get( destNode )
+		for x in range(0,99):
+			if str(currLevel.key())==id:
+				break
+			if "rootNode" in currLevel.keys() and currLevel["rootNode"]==1:
+				#We reached a rootNode
+				isValid=True
+				break
+			currLevel = db.Get( currLevel["parentdir"] )
+		if not isValid:
+			raise errors.NotAcceptable()
+		#Test if id points to a rootNone
+			tmp = db.Get( id )
+			if "rootNode" in tmp.keys() and tmp["rootNode"]==1:
+				#Cant move a rootNode away..
+				raise errors.NotAcceptable()
 		if not srcSkel.fromDB( id ) or not destSkel.fromDB( destNode ):
 			# Could not find one of the entities
 			raise errors.NotFound()
 		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 		srcSkel.parentdir.value = str( destNode )
-		srcSkel.parentrepo.value = destSkel.parentrepo.value #Fixme: Need to rekursive fixing to parentrepo?
+		srcSkel.parentrepo.value = destSkel.parentrepo.value #Fixme: Need to recursive fixing to parentrepo?
 		srcSkel.toDB( id )
 		self.updateParentRepo( id, destSkel.parentrepo.value )
 		return( self.render.editItemSuccess( srcSkel, skelType=skelType, action="move", destNode = destSkel ) )
