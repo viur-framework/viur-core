@@ -184,7 +184,7 @@ class Render( object ):
 			self.env.globals["updateURL"] = self.updateURL
 			self.env.globals["execRequest"] = self.execRequest
 			self.env.globals["getHostUrl" ] = self.getHostUrl
-			self.env.globals["getLanguage" ] = lambda *args, **kwargs: request.current.get().language #session.current.getLanguage()
+			self.env.globals["getLanguage" ] = self.getLanguage #session.current.getLanguage()
 			self.env.globals["modulName"] = lambda *args, **kwargs: self.parent.modulName
 			self.env.globals["modulPath"] = lambda *args, **kwargs: self.parent.modulPath
 			self.env.globals["_"] = _
@@ -194,6 +194,17 @@ class Render( object ):
 			if "jinjaEnv" in dir( self.parent ):
 				self.env = self.parent.jinjaEnv( self.env )
 		return( self.env )
+
+	def getLanguage(self, resolveAlias=False):
+		"""
+			Returns the language used for this request.
+			If resolveAlias is set, its tried to resolve the actual language
+			using conf["viur.languageAliasMap"]
+		"""
+		lang = request.current.get().language
+		if resolveAlias and lang in conf["viur.languageAliasMap"].keys():
+			lang = conf["viur.languageAliasMap"][ lang ]
+		return( lang )
 
 	def execRequest( self, path, *args, **kwargs ):
 		"""
