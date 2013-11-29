@@ -38,9 +38,7 @@ class Page( Hierarchy ):
 					},
 				"previewURL": "/page/view/{{id}}"
 				}
-	viewSkel = pageSkel
-	addSkel = pageSkel
-	editSkel = pageSkel
+
 	viewTemplate = "page_view"
 
 	def view( self, id=None, *args, **kwargs ):
