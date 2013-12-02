@@ -286,7 +286,7 @@ class Render( object ):
 		for key in list(tmpparams.keys()):
 			if key[0]=="_":
 				del tmpparams[ key ]
-			elif isinstance( tmpparams[ key ], str ):
+			elif isinstance( tmpparams[ key ], unicode ):
 				tmpparams[ key ] = tmpparams[ key ].encode("UTF-8", "ignore")
 		for key, value in list(kwargs.items()):
 			if value==None:
