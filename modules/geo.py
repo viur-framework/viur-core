@@ -12,9 +12,9 @@ class GeoSkel( Skeleton ):
 	address = stringBone( descr="Street and House Number", indexed=True, required=True )
 	zipcode = stringBone( descr="Zipcode", indexed=True, required=True )
 	city = stringBone( descr="City", indexed=True, required=True)
-	country = selectCountryBone( descr="Country", codes=selectCountryBone.ISO2, required=True )
-	latitude = numericBone( descr="Latitude", required=False, precision=8 )
-	longitude = numericBone( descr="Longitude", required=False, precision=8 )
+	country = selectCountryBone( descr="Country", indexed=True, codes=selectCountryBone.ISO2, required=True )
+	latitude = numericBone( descr="Latitude", indexed=True, required=False, precision=8 )
+	longitude = numericBone( descr="Longitude", indexed=True, required=False, precision=8 )
 	
 	def fromClient( self, data ):
 		"""
