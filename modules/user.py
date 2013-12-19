@@ -230,6 +230,9 @@ class CustomUser( List ):
 			accessRights[ right ] = _( right )
 		skel.access.values = accessRights
 		skel.password = passwordBone( descr="Passwort", required=False )
+		currUser = utils.getCurrentUser()
+		if currUser and "root" in currUser["access"]:
+			skel.name.readOnly=False
 		return( skel )
 
 	class lostPasswordSkel( Skeleton ):
