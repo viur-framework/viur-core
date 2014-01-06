@@ -313,3 +313,22 @@ class baseBone(object): # One Bone:
 			@type isAdd: Bool
 		"""
 		pass #We do nothing by default
+
+	def toBackup(self):
+		"""
+			Serializes this bone into something json-serializable for backup purposes.
+			Must contain every information needed to recreate the exact value of this bone.
+		"""
+		if self.value is None or isinstance(self.value, str) or isinstance(self.value, unicode):
+			return ( self.value )
+		raise ValueError("Cannot serialize value of type %s" % str(type(self.value)))
+
+	def fromBackup(self, value):
+		"""
+			Inverse of toBackup. Receives the information dumped by toBackup() as argument and must
+			revert this bone into the state it was when toBackup() was called.
+		"""
+		if value is None or isinstance(value, str) or isinstance(value, unicode):
+			self.value = value
+			return
+		raise ValueError("Cannot unserialize value of type %s" % str(type(value)))
