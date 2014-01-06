@@ -29,10 +29,20 @@ class fileBaseSkel( TreeLeafSkel ):
 	size = stringBone( descr="Size", params={"indexed": True, "frontend_list_visible": True}, readOnly=True, indexed=True, searchable=True )
 	dlkey = stringBone( descr="Download-Key", params={"frontend_list_visible": True}, readOnly=True, indexed=True )
 	name = stringBone( descr="Filename", params={"frontend_list_visible": True}, caseSensitive=False, indexed=True, searchable=True )
-	metamime = stringBone( descr="Mime-Info", params={"frontend_list_visible": True}, readOnly=True, indexed=True, ) #ALERT: was meta_mime
+	metamime = stringBone( descr="Mime-Info", params={"frontend_list_visible": True}, readOnly=True, indexed=True, visible=False ) #ALERT: was meta_mime
+	meta_mime = stringBone( descr="Mime-Info", params={"frontend_list_visible": True}, readOnly=True, indexed=True, visible=False ) #ALERT: was meta_mime
+	mimetype = stringBone( descr="Mime-Info", params={"frontend_list_visible": True}, readOnly=True, indexed=True ) #ALERT: was meta_mime
 	weak = booleanBone( descr="Is a weak Reference?", indexed=True, readOnly=True, visible=False )
 	servingurl = stringBone( descr="Serving URL", params={"frontend_list_visible": True}, readOnly=True )
 
+	def fromDB( self, *args, **kwargs ):
+		r = super( fileBaseSkel, self ).fromDB( *args, **kwargs )
+		if not self.mimetype.value:
+			if self.meta_mime.value:
+				self.mimetype.value = self.meta_mime.value
+			elif self.metamime.value:
+				self.mimetype.value = self.metamime.value
+		return( r )
 
 class fileNodeSkel( TreeNodeSkel ):
 	kindName = "file_rootNode"
@@ -119,7 +129,7 @@ class File( Tree ):
 	getUploadURL.exposed=True
 
 
-	def getAvailableRootNodes( self, name ):
+	def getAvailableRootNodes( self, name, *args, **kwargs ):
 		thisuser = utils.getCurrentUser()
 		logging.error( thisuser )
 		if thisuser:
@@ -171,7 +181,7 @@ class File( Tree ):
 						fileSkel = self.addLeafSkel()
 						fileSkel.setValues( {	"name": fileName,
 									"size": upload.size,
-									"meta_mime": upload.content_type,
+									"mimetype": upload.content_type,
 									"dlkey": str(upload.key()),
 									"servingurl": servingURL,
 									"parentdir": str(node),
@@ -194,7 +204,7 @@ class File( Tree ):
 					fileSkel = self.addLeafSkel()
 					fileSkel.setValues( {	"name": fileName,
 								"size": upload.size,
-								"meta_mime": upload.content_type,
+								"mimetype": upload.content_type,
 								"dlkey": str(upload.key()),
 								"servingurl": servingURL,
 								"parentdir": None,
@@ -250,7 +260,7 @@ class File( Tree ):
 	@exposed
 	@forceSSL
 	@forcePost
-	def delete( self, skelType, id  ):
+	def delete( self, skelType, id, *args, **kwargs  ):
 		"""Our timestamp-based update approach dosnt work here, so we'll do another trick"""
 		if skelType=="node":
 			skel = self.editNodeSkel
@@ -293,7 +303,7 @@ class File( Tree ):
 			return( True )
 		return( self.isOwnUserRootNode( str( skel.id.value ) ) )
 
-	def canEdit( self, skel ):
+	def canEdit( self, skelType, node ):
 		user = utils.getCurrentUser()
 		return( user and "root" in user["access"] )
 	

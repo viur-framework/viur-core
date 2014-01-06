@@ -6,7 +6,7 @@ from google.appengine.api.images import get_serving_url
 
 class fileBone( treeItemBone ):
 	type = "file"
-	refKeys = ["name", "meta_mime", "dlkey", "servingurl", "size"]
+	refKeys = ["name", "meta_mime", "metamime", "mimetype", "dlkey", "servingurl", "size"]
 	
 	def __init__(self, format="$(name)",*args, **kwargs ):
 		super( fileBone, self ).__init__( format=format, *args, **kwargs )

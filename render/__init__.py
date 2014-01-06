@@ -7,3 +7,4 @@ try:
 	import pdf
 except ImportError: #We miss some of our 3rd party modules
 	pass
+import vi

@@ -189,7 +189,7 @@ class Tree( object ):
 ## External exposed functions
 
 	@exposed
-	def listRootNodes(self, name=None ):
+	def listRootNodes(self, name=None, *args, **kwargs ):
 		"""
 			Renders a list of all available repositories for the current user
 		"""
@@ -295,7 +295,7 @@ class Tree( object ):
 	@exposed
 	@forceSSL
 	@forcePost
-	def delete( self, skelType, id ):
+	def delete( self, skelType, id, *args, **kwargs ):
 		"""
 			Deletes an entry or an directory (including its contents)
 			@param rootNode: Urlsafe-key of the rootNode
@@ -328,7 +328,7 @@ class Tree( object ):
 	@exposed
 	@forceSSL
 	@forcePost
-	def move( self, skelType, id, destNode ):
+	def move( self, skelType, id, destNode, *args, **kwargs ):
 		"""
 			Move an node or a leaf to another node  (including its contents).
 			@param srcrepo: RootNode-key from which has been copied/moved

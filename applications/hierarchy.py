@@ -298,7 +298,7 @@ class Hierarchy( object ):
 	@forceSSL
 	@forcePost
 	@exposed
-	def delete( self, id, skey ):
+	def delete( self, id, skey, *args, **kwargs ):
 		"""
 			Delete an entry.
 		"""
