@@ -15,7 +15,7 @@ class GeoSkel( Skeleton ):
 	country = selectCountryBone( descr="Country", codes=selectCountryBone.ISO2, required=True )
 	latitude = numericBone( descr="Latitude", required=False, precision=8 )
 	longitude = numericBone( descr="Longitude", required=False, precision=8 )
-	
+
 	def fromClient( self, data ):
 		"""
 		Try to retrive Lat/Long Coordinates for the given address
@@ -41,7 +41,8 @@ class GeoSkel( Skeleton ):
 		return( res )
 	
 	def getSearchDocumentFields( self, fields ):
-		fields.append( search.GeoField(name='latlong', value=search.GeoPoint(self.latitude.value, self.longitude.value)) )
+		if self.latitude.value is not None and self.longitude.value is not None:
+			fields.append( search.GeoField(name='latlong', value=search.GeoPoint(self.latitude.value, self.longitude.value)) )
 		return( fields )
 
 class Geo( List ): 
