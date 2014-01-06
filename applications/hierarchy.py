@@ -265,7 +265,7 @@ class Hierarchy( object ):
 			raise errors.PreconditionFailed()
 		if not self.canReparent( item, dest ):
 			raise errors.Unauthorized()
-		if not self.isValidParent( dest ):
+		if not self.isValidParent( dest ) or item==dest:
 			raise errors.NotAcceptable()
 		fromItem = db.Get( item )
 		fromItem["parententry"] = dest 

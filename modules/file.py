@@ -303,7 +303,7 @@ class File( Tree ):
 			return( True )
 		return( self.isOwnUserRootNode( str( skel.id.value ) ) )
 
-	def canEdit( self, skelType, node ):
+	def canEdit( self, skelType, node=None ):
 		user = utils.getCurrentUser()
 		return( user and "root" in user["access"] )
 	
