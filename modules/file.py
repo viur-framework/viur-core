@@ -159,10 +159,10 @@ class File( Tree ):
 		except:
 			canAdd = False
 		if not canAdd:
-			for upload in self.get_uploads():
+			for upload in self.getUploads():
 				upload.delete()
 			raise errors.Forbidden()
-		if 1:
+		try:
 			res = []
 			if node:
 				# The file is uploaded into a rootNode
@@ -212,7 +212,7 @@ class File( Tree ):
 								"parentdir": None,
 								"parentrepo": None,
 								"weak": True } )
-					fileSkel.toDB()
+					#fileSkel.toDB()
 					res.append( fileSkel )
 			for r in res:
 				logging.info("Got a successfull upload: %s (%s)" % (r.name.value, r.dlkey.value ) )
@@ -220,7 +220,7 @@ class File( Tree ):
 			if user:
 				logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
 			return( self.render.addItemSuccess( res ) )
-		else: #except:
+		except:
 			for upload in self.getUploads():
 				upload.delete()
 				utils.markFileForDeletion( str(upload.key() ) )
