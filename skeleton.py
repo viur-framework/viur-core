@@ -23,7 +23,19 @@ class MetaSkel( type ):
 	__reservedKeywords_ = [ "self", "cursor", "amount", "orderby", "orderdir", "style" ]
 	def __init__( cls, name, bases, dct ):
 		kindName = cls.kindName
-		#if kindName in MetaSkel._skelCache.keys():
+		if kindName and kindName in MetaSkel._skelCache.keys():
+			isOkay = False
+			relNewFileName = inspect.getfile(cls).replace( os.getcwd(),"" )
+			relOldFileName = inspect.getfile( MetaSkel._skelCache[ kindName ] ).replace( os.getcwd(),"" )
+			if relNewFileName.strip(os.path.sep).startswith("server"):
+				#The currently processed skeleton is from the server.* package
+				pass
+			elif relOldFileName.strip(os.path.sep).startswith("server"):
+				#The old one was from server - override it
+				MetaSkel._skelCache[ kindName ] = cls
+				isOkay = True
+			else:
+				raise ValueError("Duplicate definition for %s in %s and %s" % (kindName, relNewFileName, relOldFileName) )
 		#	raise NotImplementedError("Duplicate definition of %s" % kindName)
 		relFileName = inspect.getfile(cls).replace( os.getcwd(),"" )
 		if not relFileName.strip(os.path.sep).startswith("models") and not relFileName.strip(os.path.sep).startswith("server"): # and any( [isinstance(x,baseBone) for x in [ getattr(cls,y) for y in dir( cls ) if not y.startswith("_") ] ] ):
@@ -41,12 +53,13 @@ class MetaSkel( type ):
 		return( super( MetaSkel, cls ).__init__( name, bases, dct ) )
 
 def skeletonByKind( kindName ):
-	if conf["viur.models"] is None:
-		raise NotImplementedError("You must call server.setup before you can access the skeletons!")
 	if not kindName:
 		return( None )
 	assert kindName in MetaSkel._skelCache
 	return MetaSkel._skelCache[ kindName ]
+
+def listKnownSkeletons():
+	return list(MetaSkel._skelCache.keys())[:]
 
 class Skeleton( object ):
 	""" 
