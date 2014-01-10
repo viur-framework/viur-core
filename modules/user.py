@@ -40,7 +40,8 @@ class GoogleUser( List ):
 	adminInfo = {	"name": "user", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
 			"handler": "list",  #Which handler to invoke
 			"icon": "icons/modules/users.svg", #Icon for this modul
-			"columns":[ "name", "access"] # List of default-visible columns
+			"columns":[ "name", "access"], # List of default-visible columns
+			"disabledFunctions": ["add"] # Even 'root' cannot add new users
 			}
 
 	def getAuthMethod( self, *args, **kwargs ):
@@ -130,6 +131,16 @@ class GoogleUser( List ):
 				return( super( GoogleUser, self ).view( user["id"], *args, **kwargs ) )
 		return( super( GoogleUser, self ).view( id, *args, **kwargs ) )
 	view.exposed=True
+
+	def canView(self, skel):
+		user = self.getCurrentUser()
+		if user:
+			if skel.id.value==user["id"]:
+				return( True )
+			if "root" in user["access"] or "user-view" in user["access"]:
+				return( True )
+		return( False )
+
 
 class CustomUser( List ): 
 	addTemplate = "user_add"
@@ -391,6 +402,15 @@ class CustomUser( List ):
 				return( super( CustomUser, self ).view( user["id"], *args, **kwargs ) )
 		return( super( CustomUser, self ).view( id, *args, **kwargs ) )
 	view.exposed=True
+
+	def canView(self, skel):
+		user = self.getCurrentUser()
+		if user:
+			if skel.id.value==user["id"]:
+				return( True )
+			if "root" in user["access"] or "user-view" in user["access"]:
+				return( True )
+		return( False )
 	
 	def onItemAdded( self, skel ):
 		"""
