@@ -19,6 +19,10 @@ class BoneCounter(local):
 _boneCounter = BoneCounter()
 
 class MetaSkel( type ):
+	"""
+		Meta Class for Skeletons.
+		Used to enforce several restrictions on Bone names etc.
+	"""
 	_skelCache = {}
 	__reservedKeywords_ = [ "self", "cursor", "amount", "orderby", "orderdir", "style" ]
 	def __init__( cls, name, bases, dct ):
@@ -96,8 +100,15 @@ class Skeleton( object ):
 	subSkels = {} # List of pre-defined sub-skeletons of this type
 
 
+	# The "id" bone stores the current database key of this skeleton.
+	# Warning: Assigning to this bones value is dangerous and does *not* affect the actual key
+	# its stored in
 	id = baseBone( readOnly=True, visible=False, descr="ID")
+
+	# The date (including time) when this entry has been created
 	creationdate = dateBone( readOnly=True, visible=False, creationMagic=True, indexed=True, descr="created at" )
+
+	# The last date (including time) when this entry has been updated
 	changedate = dateBone( readOnly=True, visible=False, updateMagic=True, indexed=True, descr="updated at" )
 
 	@classmethod
@@ -133,6 +144,7 @@ class Skeleton( object ):
 		super(Skeleton, self).__init__(*args, **kwargs)
 		self.kindName = kindName or self.kindName
 		self.errors = {}
+		self.__currentDbKey_ = None
 		tmpList = []
 		self.__dataDict__ = OrderedDict()
 		for key in dir(self):
@@ -193,17 +205,17 @@ class Skeleton( object ):
 				id = db.Key.from_path( self.kindName, id )
 		if not isinstance( id, db.Key ):
 			raise ValueError("fromDB expects an db.Key instance, an string-encoded key or a long as argument, got \"%s\" instead" % id )
+		if id.kind() !=  self.kindName: # Wrong Kind
+			return( False )
 		try:
 			dbRes = db.Get( id )
 		except db.EntityNotFoundError:
 			return( False )
 		if dbRes is None:
 			return( False )
-		if dbRes.kind() != self.kindName:
-			# Wrong Kind
-			return( False )
 		self.setValues( dbRes )
 		id = str( dbRes.key() )
+		self.__currentDbKey_ = id
 		for key in dir( self ):
 			bone = getattr( self, key )
 			if not "__" in key and isinstance( bone , baseBone ):
@@ -211,7 +223,7 @@ class Skeleton( object ):
 					bone.postUnserialize( key, self, id )
 		return( True )
 
-	def toDB( self, id=False, clearUpdateTag=False ):
+	def toDB( self, clearUpdateTag=False ):
 		"""
 			Saves the current data of this instance into the database.
 			If an ID is specified, this entity is updated, otherwise an new
@@ -329,6 +341,10 @@ class Skeleton( object ):
 						newLockObj["references"] = str( dbObj.key() )
 						db.Put( newLockObj )
 			return( str( dbObj.key() ), dbObj )
+		# END of txnUpdate subfunction
+		id = self.__currentDbKey_
+		if not isinstance(clearUpdateTag,bool):
+			raise ValueError("Got an unsupported type %s for clearUpdateTag. toDB doens't accept a key argument any more!" % str(type(clearUpdateTag)))
 		# Allow bones to perform outstanding "magic" operations before saving to db
 		for key in dir( self ):
 			if "__" not in key:
@@ -339,6 +355,7 @@ class Skeleton( object ):
 		id, dbObj = db.RunInTransactionOptions( db.TransactionOptions(xg=True), txnUpdate, id, self, clearUpdateTag )
 		# Perform post-save operations (postProcessSerializedData Hook, Searchindex, ..)
 		self.id.value = str(id)
+		self.__currentDbKey_ = str(id)
 		if self.searchIndex: #Add a Document to the index if an index specified
 			fields = []
 			for key in dir( self ):
@@ -372,53 +389,56 @@ class Skeleton( object ):
 		"""
 		return( locks )
 
-	def delete( self, id ):
+	def delete( self ):
 		"""
 			Deletes the specified entity from the database.
-			
-			@param id: DB.Key to delete
-			@type id: String 
 		"""
-		if self.enforceUniqueValuesFor:
-			#Ensure that we delete any lock objects remaining for this entry
-			uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
+		def txnDelete( key ):
+			if self.enforceUniqueValuesFor:
+				#Ensure that we delete any lock objects remaining for this entry
+				uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
+				try:
+					dbObj = db.Get( db.Key( key ) )
+					if  "%s.uniqueIndexValue" % uniqueProperty in dbObj.keys():
+						db.Delete( db.Key.from_path( "%s_uniquePropertyIndex" % self.kindName, dbObj[ "%s.uniqueIndexValue" % uniqueProperty ] ) )
+				except db.EntityNotFoundError:
+					pass
+			# Delete the blob-key lock object
 			try:
-				dbObj = db.Get( db.Key( id ) )
-				if  "%s.uniqueIndexValue" % uniqueProperty in dbObj.keys():
-					db.Delete( db.Key.from_path( "%s_uniquePropertyIndex" % self.kindName, dbObj[ "%s.uniqueIndexValue" % uniqueProperty ] ) )
-			except db.EntityNotFoundError:
-				pass
-		# Delete the blob-key lock object
-		try:
-			lockObj = db.Get(db.Key.from_path("viur-blob-locks", str(id)))
-		except:
-			lockObj = None
-		if lockObj is not None:
-			if lockObj["old_blob_references"] is None and lockObj["active_blob_references"] is None:
-				db.Delete( lockObj ) #Nothing to do here
-			elif lockObj["old_blob_references"] is None:
-				lockObj["old_blob_references"] = lockObj["active_blob_references"]
-			elif lockObj["active_blob_references"] is None:
-				pass #Nothing to do here
-			else:
-				lockObj["old_blob_references"] += lockObj["active_blob_references"]
-			lockObj["active_blob_references"] = []
-			lockObj["is_stale"] = True
-			lockObj["has_old_blob_references"] = True
-			db.Put(lockObj)
-		db.Delete( db.Key( id ) )
-		for key in dir( self ):
-			if "__" not in key:
-				_bone = getattr( self, key )
+				lockObj = db.Get(db.Key.from_path("viur-blob-locks", str(key)))
+			except:
+				lockObj = None
+			if lockObj is not None:
+				if lockObj["old_blob_references"] is None and lockObj["active_blob_references"] is None:
+					db.Delete( lockObj ) #Nothing to do here
+				elif lockObj["old_blob_references"] is None:
+					lockObj["old_blob_references"] = lockObj["active_blob_references"]
+				elif lockObj["active_blob_references"] is None:
+					pass #Nothing to do here
+				else:
+					lockObj["old_blob_references"] += lockObj["active_blob_references"]
+				lockObj["active_blob_references"] = []
+				lockObj["is_stale"] = True
+				lockObj["has_old_blob_references"] = True
+				db.Put(lockObj)
+			db.Delete( db.Key( key ) )
+		key = self.__currentDbKey_
+		if key is None:
+			raise ValueError("This skeleton is not in the database (anymore?)!")
+		db.RunInTransactionOptions(db.TransactionOptions(xg=True), txnDelete, key )
+		for boneName in dir( self ):
+			if "__" not in boneName:
+				_bone = getattr( self, boneName )
 				if( isinstance( _bone, baseBone )  ) and "postDeletedHandler" in dir( _bone ):
-					_bone.postDeletedHandler( self, key, id )
+					_bone.postDeletedHandler( self, boneName, key )
 		if "postDeletedHandler" in dir( self ):
-			self.postDeletedHandler( key, id )
+			self.postDeletedHandler( )
 		if self.searchIndex:
 			try:
-				search.Index( name=self.searchIndex ).remove( "s_"+str(id) )
+				search.Index( name=self.searchIndex ).remove( "s_"+str(key) )
 			except:
 				pass
+		self.__currentDbKey_ = None
 
 	def setValues( self, values ):
 		"""
