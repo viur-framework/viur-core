@@ -8,7 +8,7 @@ http://www.gnu.org/licenses/lgpl-3.0
 http://www.viur.is
 """
 
-__version__ = (1,2,0)
+__version__ = (-99,-99,-99)
 
 import sys, traceback, os, inspect
 #All (optional) 3rd-party modules in our libs-directory
