@@ -106,6 +106,13 @@ class SessionWrapper( threading.local ):
 		except AttributeError:
 			pass
 
+	def getSessionSecurityKey(self):
+		try:
+			return( self.session.getSessionSecurityKey() )
+		except AttributeError:
+			return( "" )
+
+
 
 class GaeSession:
 	lifeTime = 60*60 #60 Minutes
@@ -124,6 +131,7 @@ class GaeSession:
 		self.changed = False
 		self.key = None
 		self.sslKey = None
+		self.sessionSecurityKey = None
 		self.session = {}
 		if self.plainCookieName in req.request.cookies.keys():
 			cookie = req.request.cookies[ self.plainCookieName ]
@@ -137,6 +145,7 @@ class GaeSession:
 					return( False )
 				self.session = pickle.loads( base64.b64decode(data["data"]) )
 				self.sslKey = data["sslkey"]
+				self.sessionSecurityKey = data["skey"]
 				if data["lastseen"] < time()-5*60: #Refresh every 5 Minutes
 					self.changed = True
 			if req.isSSLConnection and not (self.sslCookieName in req.request.cookies.keys() and req.request.cookies[ self.sslCookieName ] == self.sslKey and self.sslKey ):
@@ -171,6 +180,7 @@ class GaeSession:
 				dbSession = db.Entity( self.kindName, name=self.key )
 				dbSession["data"] = serialized
 				dbSession["sslkey"] = self.sslKey
+				dbSession["skey"] = self.sessionSecurityKey
 				dbSession["lastseen"] = time()
 				dbSession["user"] = str(userid) or "guest" #Store the userid inside the sessionobj, so we can kill specific sessions if needed
 				dbSession.set_unindexed_properties( ["data","sslkey" ] )
@@ -247,6 +257,7 @@ class GaeSession:
 			lang = None
 		self.key = None
 		self.sslKey = None
+		self.sessionSecurityKey = None
 		self.changed = True
 		self.session = {}
 		if lang:
@@ -268,8 +279,16 @@ class GaeSession:
 			self.sslKey = ''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase + string.digits) for x in range(42))
 		else:
 			self.sslKey = ""
+		self.sessionSecurityKey = ''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase + string.digits) for x in range(13))
 		return( self.key )
-	
+
+	def getSessionSecurityKey(self):
+		"""
+			Returns the security key for this session
+		"""
+		if self.sessionSecurityKey:
+			return( self.sessionSecurityKey )
+		return( "" )
 
 
 @callDeferred

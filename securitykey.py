@@ -37,14 +37,19 @@ def create( duration=None, **kwargs ):
 	db.Put( dbObj )
 	return( key )
 	
-def validate( key ):
+def validate( key, acceptSessionKey=False ):
 	""" 
 		Validates a onetime securitykey
 	
 		@type key: String
 		@param key: The key to validate
+		@type acceptSessionKey: Bool
+		@param acceptSessionKey: If True, we also accept the session's skey
 		@returns: False if the key was not valid for whatever reasons, the data (given during createSecurityKey) as dictionary or True if the dict is empty.
 	"""
+	if acceptSessionKey:
+		if key==currentSession.getSessionSecurityKey():
+			return( True )
 	try:
 		dbObj = db.Get( db.Key.from_path( securityKeyKindName, key ) )
 	except:
