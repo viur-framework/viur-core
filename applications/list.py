@@ -119,9 +119,9 @@ class List( object ):
 			raise errors.Unauthorized()
 		if len(kwargs)==0 or skey=="" or not request.current.get().isPostRequest or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel ) )
-		if not securitykey.validate( skey ):
+		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
-		skel.toDB( id )
+		skel.toDB( )
 		self.onItemEdited( skel )
 		return self.render.editItemSuccess( skel )
 
@@ -141,7 +141,7 @@ class List( object ):
 		skel = self.addSkel()
 		if len(kwargs)==0 or skey=="" or not request.current.get().isPostRequest or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.add( skel ) )
-		if not securitykey.validate( skey ):
+		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
 		id = skel.toDB( )
 		self.onItemAdded( skel )
@@ -160,9 +160,9 @@ class List( object ):
 			raise errors.NotFound()
 		if not self.canDelete( skel ):
 			raise errors.Unauthorized()
-		if not securitykey.validate( skey ):
+		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
-		skel.delete( id )
+		skel.delete( )
 		self.onItemDeleted( skel )
 		return self.render.deleteSuccess( skel )
 

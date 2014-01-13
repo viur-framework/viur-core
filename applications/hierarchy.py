@@ -261,7 +261,7 @@ class Hierarchy( object ):
 			@param dest: Urlsafe-key of the new parent for this item
 			@type dest: String
 		"""
-		if not securitykey.validate( skey ):
+		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
 		if not self.canReparent( item, dest ):
 			raise errors.Unauthorized()
@@ -285,7 +285,7 @@ class Hierarchy( object ):
 			@param index: New index for this item. Must be castable to float
 			@type index: String
 		"""
-		if not securitykey.validate( skey ):
+		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
 		if not self.canSetIndex( item, index ):
 			raise errors.Unauthorized()
@@ -302,7 +302,7 @@ class Hierarchy( object ):
 		"""
 			Delete an entry.
 		"""
-		if not securitykey.validate( skey ):
+		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
 		skel = self.editSkel()
 		if not skel.fromDB( id ):
@@ -311,7 +311,7 @@ class Hierarchy( object ):
 			raise errors.Unauthorized()
 		self.deleteRecursive( id )
 		self.onItemDeleted( skel )
-		return( self.render.deleteSuccess( id ) )
+		return( self.render.deleteSuccess( skel ) )
 
 
 	@exposed
@@ -379,9 +379,9 @@ class Hierarchy( object ):
 			raise errors.NotAcceptable()
 		if len(kwargs)==0 or skey=="" or not request.current.get().isPostRequest or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel ) )
-		if not securitykey.validate( skey ):
+		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
-		skel.toDB( id )
+		skel.toDB( )
 		self.onItemEdited( skel )
 		return self.render.editItemSuccess( skel )
 
@@ -405,7 +405,7 @@ class Hierarchy( object ):
 		skel = self.addSkel()
 		if len(kwargs)==0 or skey=="" or not request.current.get().isPostRequest or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.add( skel ) )
-		if not securitykey.validate( skey ):
+		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
 		skel.parententry.value = str( parent )
 		skel.parentrepo.value = str( self.getRootNode( parent ).key() )

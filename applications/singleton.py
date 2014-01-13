@@ -87,9 +87,9 @@ class Singleton( object ):
 		skel.fromDB( id )
 		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel ) )
-		if not securitykey.validate( skey ):
+		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
-		skel.toDB( id )
+		skel.toDB( )
 		self.onItemEdited( skel )
 		return self.render.editItemSuccess( skel )
 	edit.exposed = True

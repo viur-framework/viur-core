@@ -71,11 +71,18 @@ class Tree( object ):
 		"""
 		skel = self.viewLeafSkel()
 		for f in db.Query( self.viewLeafSkel().kindName ).filter( "parentdir", str(nodeKey) ).iter( keysOnly=True ):
-			skel.delete( str( f ) )
+			s = skel()
+			if not s.fromDB( f ):
+				continue
+			s.delete()
 		skel = self.viewNodeSkel()
 		for d in db.Query( self.viewNodeSkel().kindName ).filter( "parentdir", str(repo.key()) ).iter( keysOnly=True ):
 			self.deleteDirsRecursive( d )
-			skel.delete( d )
+			s = skel()
+			if not s.fromDB( d ):
+				continue
+			s.delete()
+
 		#db.Delete( [x.key() for x in dirs ] )
 	
 	@callDeferred
@@ -266,7 +273,7 @@ class Tree( object ):
 			raise errors.Unauthorized()
 		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.add( skel ) )
-		if not securitykey.validate( skey ):
+		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
 		skel.parentdir.value = str( node )
 		skel.parentrepo.value = parentNodeSkel.parentrepo.value or str( node )
@@ -296,9 +303,9 @@ class Tree( object ):
 			raise errors.Unauthorized()
 		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel ) )
-		if not securitykey.validate( skey ):
+		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
-		skel.toDB( id )
+		skel.toDB( )
 		self.onItemEdited( skel )
 		return self.render.editItemSuccess( skel )
 
@@ -331,13 +338,13 @@ class Tree( object ):
 			raise errors.Unauthorized()
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
-		if not securitykey.validate( skey ):
+		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
 		if type=="leaf":
-			skel.delete( id )
+			skel.delete( )
 		else:
 			self.deleteRecursive( id )
-			skel.delete( id )
+			skel.delete( )
 		self.onItemDeleted( skel )
 		return( self.render.deleteSuccess( skel, skelType=skelType ) )
 
@@ -399,11 +406,11 @@ class Tree( object ):
 		if not srcSkel.fromDB( id ) or not destSkel.fromDB( destNode ):
 			# Could not find one of the entities
 			raise errors.NotFound()
-		if not securitykey.validate( skey ):
+		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
 		srcSkel.parentdir.value = str( destNode )
 		srcSkel.parentrepo.value = destSkel.parentrepo.value #Fixme: Need to recursive fixing to parentrepo?
-		srcSkel.toDB( id )
+		srcSkel.toDB( )
 		self.updateParentRepo( id, destSkel.parentrepo.value )
 		return( self.render.editItemSuccess( srcSkel, skelType=skelType, action="move", destNode = destSkel ) )
 
