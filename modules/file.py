@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from server.skeleton import Skeleton
+from server.skeleton import Skeleton, skeletonByKind
 from server import session, errors, conf, request
 from server.applications.tree import Tree, TreeNodeSkel, TreeLeafSkel
 from server import forcePost, forceSSL, exposed, internalExposed
@@ -7,6 +7,7 @@ from server.bones import *
 from server import utils, db, securitykey
 from server.tasks import callDeferred
 from google.appengine.ext import blobstore
+from datetime import datetime, timedelta
 from google.appengine.ext.webapp import blobstore_handlers
 import json, urlparse
 from server.tasks import PeriodicTask
@@ -29,7 +30,7 @@ class fileBaseSkel( TreeLeafSkel ):
 	dlkey = stringBone( descr="Download-Key", params={"frontend_list_visible": True}, readOnly=True, indexed=True )
 	name = stringBone( descr="Filename", params={"frontend_list_visible": True}, caseSensitive=False, indexed=True, searchable=True )
 	mimetype = stringBone( descr="Mime-Info", params={"frontend_list_visible": True}, readOnly=True, indexed=True, ) #ALERT: was meta_mime
-	weak = booleanBone( descr="Is a weak Reference?", indexed=True, readOnly=True, visible=False )
+	weak = booleanBone( descr="Is a weak Reference?", indexed=True, readOnly=True, visible=False ) #If weak is true, this entry will be automatically deleted after 24hrs
 	servingurl = stringBone( descr="Serving URL", params={"frontend_list_visible": True}, readOnly=True )
 
 	def preProcessBlobLocks(self, locks ):
@@ -346,9 +347,6 @@ def checkForUnreferencedBlobs( ):
 			fileObj["dlkey"] = str( blobKey )
 			db.Put( fileObj )
 
-
-#has_old_blob_references
-
 @PeriodicTask( 60*4 )
 def cleanupDeletedFiles( ):
 	maxIterCount = 2 #How often a file will be checked for deletion
@@ -366,3 +364,13 @@ def cleanupDeletedFiles( ):
 			else:
 				file["itercount"] += 1
 				db.Put( file )
+
+@PeriodicTask( 60*4 )
+def deleteWeakReferences( ):
+	"""
+		Delete all weak file references older than a day.
+		If that file isn't referenced elsewhere, it's deleted, too.
+	"""
+	skelCls = skeletonByKind( "file" )
+	for skel in skelCls().all().filter("weak =", True).filter("creationdate <", datetime.now()-timedelta(days=1)).fetch(99):
+		skel.delete(skel.id.value)
