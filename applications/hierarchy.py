@@ -330,7 +330,7 @@ class Hierarchy( object ):
 			raise errors.Unauthorized()
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
-		self.onItemViewed( id, skel )
+		self.onItemViewed( skel )
 		return( self.render.view( skel ) )
 
 
@@ -573,11 +573,9 @@ class Hierarchy( object ):
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
 		
-	def onItemViewed( self, key, skel ):
+	def onItemViewed( self, skel ):
 		"""
 			Hook. Can be overriden to hook the onItemViewed-Event
-			@param id: Urlsafe-key of the entry added
-			@type id: String
 			@param skel: Skeleton with the data which has been viewed
 			@type skel: Skeleton
 		"""

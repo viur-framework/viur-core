@@ -76,6 +76,7 @@ class List( object ):
 			skel = queryObj.getSkel()
 			if not skel: #skel.fromDB( queryObj ):
 				raise errors.NotFound()
+		self.onItemViewed( skel )
 		return( self.render.view( skel ) )
 
 
