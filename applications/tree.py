@@ -358,6 +358,24 @@ class Tree( object ):
 		if id==destNode: 
 			# Cannot move a node into itself
 			raise errors.NotAcceptable()
+		## Test for recursion
+		isValid = False
+		currLevel = db.Get( destNode )
+		for x in range(0,99):
+			if str(currLevel.key())==id:
+				break
+			if "rootNode" in currLevel.keys() and currLevel["rootNode"]==1:
+				#We reached a rootNode
+				isValid=True
+				break
+			currLevel = db.Get( currLevel["parentdir"] )
+		if not isValid:
+			raise errors.NotAcceptable()
+		#Test if id points to a rootNone
+		tmp = db.Get( id )
+		if "rootNode" in tmp.keys() and tmp["rootNode"]==1:
+			#Cant move a rootNode away..
+			raise errors.NotAcceptable()
 		if not srcSkel.fromDB( id ) or not destSkel.fromDB( destNode ):
 			# Could not find one of the entities
 			raise errors.NotFound()
