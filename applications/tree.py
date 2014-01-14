@@ -399,10 +399,10 @@ class Tree( object ):
 		if not isValid:
 			raise errors.NotAcceptable()
 		#Test if id points to a rootNone
-			tmp = db.Get( id )
-			if "rootNode" in tmp.keys() and tmp["rootNode"]==1:
-				#Cant move a rootNode away..
-				raise errors.NotAcceptable()
+		tmp = db.Get( id )
+		if "rootNode" in tmp.keys() and tmp["rootNode"]==1:
+			#Cant move a rootNode away..
+			raise errors.NotAcceptable()
 		if not srcSkel.fromDB( id ) or not destSkel.fromDB( destNode ):
 			# Could not find one of the entities
 			raise errors.NotFound()
