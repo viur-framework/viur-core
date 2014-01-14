@@ -267,6 +267,19 @@ class Hierarchy( object ):
 			raise errors.Unauthorized()
 		if item==dest or not self.isValidParent( dest ):
 			raise errors.NotAcceptable()
+		## Test for recursion
+		isValid = False
+		currLevel = db.Get( dest )
+		for x in range(0,99):
+			if str(currLevel.key())==item:
+				break
+			if "rootNode" in currLevel.keys() and currLevel["rootNode"]==1:
+				#We reached a rootNode
+				isValid=True
+				break
+			currLevel = db.Get( currLevel["parententry"] )
+		if not isValid:
+			raise errors.NotAcceptable()
 		fromItem = db.Get( item )
 		fromItem["parententry"] = dest 
 		fromItem["parentrepo"] = str( self.getRootNode( dest ).key() )
