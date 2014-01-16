@@ -3,7 +3,8 @@ from server import errors
 
 class UserRender( user ):
 	def loginSucceeded( self,  **kwargs ):
-		raise errors.Redirect("/vi")
+		return("OKAY")
+		#raise errors.Redirect("/vi")
 
 	def logoutSuccess(self, **kwargs ):
 		raise errors.Redirect("/vi/s/logout.html")
