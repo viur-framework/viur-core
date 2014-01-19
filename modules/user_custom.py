@@ -5,7 +5,6 @@ from server import utils, session
 from server.bones import *
 from server.bones.passwordBone import pbkdf2
 from server import errors, conf, securitykey
-from time import time
 from server import db
 from hashlib import sha512
 from itertools import izip
@@ -13,131 +12,25 @@ from google.appengine.api import users, app_identity
 import logging
 import datetime
 
-class GoogleUser( List ):
-	modulList = None #Cache this list of avaiable modules on this instance
-	
-	class baseSkel( Skeleton ):
-		kindName = "user"
-		uid = stringBone( descr="Google's UserID", indexed=True, required=True, readOnly=True )
-		gaeadmin = selectOneBone( descr="Is GAE Admin", values={0:"No", 1:"Yes"}, defaultValue=0, readOnly=True )
-		name = stringBone( descr="E-Mail", indexed=True,required=True,searchable=True )
-		access = selectMultiBone( descr="Accessrights", values={}, indexed= True )
-		lastlogin = dateBone( descr="Last Login", readOnly=True )
-	
-	addSkel = None #You cannot add users directly - they need to sign up with google and log into the application once
+class userSkel( Skeleton ):
+	kindName = "user"
+	enforceUniqueValuesFor = "name", "That E-Mail address is already taken" #Important! Duplicate usernames will cause trouble!
+	name = emailBone( descr="E-Mail", required=True, readOnly=True, caseSensitive=False, searchable=True, indexed=True )
+	access = selectMultiBone( descr="Accessrights", values={"root": "Superuser"}, indexed=True )
+	status = selectOneBone( descr="Account status", values = {
+				1: "Waiting for EMail verification",
+				2: "Waiting for verification through admin",
+				5: "Account disabled",
+				10: "Active" }, defaultValue="10", required=True, indexed=True )
 
-	def editSkel( self = None, *args,  **kwargs ):
-		skel = self.baseSkel()
-		accessRights = skel.access.values.copy()
-		for right in conf["viur.accessRights"]:
-			accessRights[ right ] = _( right )
-		skel.access.values = accessRights
-		return( skel )
-	
-	viewSkel = editSkel
-	addSuccessTemplate = "user_add_success"
 
-	adminInfo = {	"name": "user", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
-			"handler": "list",  #Which handler to invoke
-			"icon": "icons/modules/users.svg", #Icon for this modul
-			"columns":[ "name", "access"] # List of default-visible columns
-			}
-
-	def getAuthMethod( self, *args, **kwargs ):
-		"""Inform tools like ViUR-Admin which authentication to use"""
-		return( "X-GOOGLE-ACCOUNT" )
-	getAuthMethod.exposed = True
-	
-	def getCurrentUser( self, *args, **kwargs ):
-		from google.appengine.api import users
-		currentUser = users.get_current_user()
-		if not currentUser:
-			return( None )
-		uid = currentUser.user_id()
-		mysha512 = sha512()
-		mysha512.update( str(uid)+conf["viur.salt"]  )
-		uidHash = mysha512.hexdigest()
-		try:
-			user = db.Get( db.Key.from_path( self.baseSkel().kindName,  "user-%s" % uidHash ) )
-		except db.EntityNotFoundError:
-			#This user is known to the appengine, but not to us yet (he didnt use /user/login)
-			return( None )
-		if user:
-			res = {}
-			for k in user.keys():
-				res[ k ] = user[ k ]
-			res[ "id" ] = str( user.key() )
-			if not res["access"]:
-				res["access"] = []
-			return( res )
-		else:
-			return( None )
-
-	def onLogin(self):
-		pass
-
-	def login( self, skey="", *args, **kwargs ):
-		def updateCurrentUser():
-			currentUser = users.get_current_user()
-			uid = currentUser.user_id()
-			mysha512 = sha512()
-			mysha512.update( str(uid)+conf["viur.salt"]  )
-			uidHash = mysha512.hexdigest()
-
-			user = db.GetOrInsert( "user-%s" % uidHash, kindName=self.baseSkel().kindName, uid=uid, name=currentUser.email(), creationdate=datetime.datetime.now(), access=None )
-			#Update the user
-			dt = datetime.datetime.now()
-			if (not "lastlogin" in user.keys()) or (dt-user["lastlogin"])>datetime.timedelta( minutes=30 ):
-				#Save DB-Writes: Update the user max once in 30 Minutes
-				user["lastlogin"] = dt
-				if users.is_current_user_admin():
-					try:
-						if not "root" in user.access:
-							user["access"].append("root")
-					except:
-						user["access"] = ["root"]
-					user["gaeadmin"] = 1
-				else:
-					user["gaeadmin"] = 0
-				db.Put( user )
-		if users.get_current_user():
-			session.current.reset()
-			db.RunInTransaction( updateCurrentUser )
-			self.onLogin()
-			return( self.render.loginSucceeded( ) )
-		else:
-			raise( errors.Redirect( users.create_login_url( self.modulPath+"/login") ) )
-	login.exposed = True
-	login.forceSSL = True
-
-	def logout( self,  skey="", *args,  **kwargs ): #fixme
-		user = users.get_current_user()
-		if not user:
-			return( self.render.logoutSuccess( ) )
-		if not securitykey.validate( skey ):
-			raise( errors.Forbidden() )
-		raise( errors.Redirect( users.create_logout_url( self.modulPath+"/logout" ) ) )
-	logout.exposed = True
-	logout.forceSSL = True
-	
-	def view(self, id, *args, **kwargs):
-		"""
-			Allow a special id "self" to reference always the current user
-		"""
-		if id=="self":
-			user = self.getCurrentUser()
-			if user:
-				return( super( GoogleUser, self ).view( user["id"], *args, **kwargs ) )
-		return( super( GoogleUser, self ).view( id, *args, **kwargs ) )
-	view.exposed=True
-
-class CustomUser( List ): 
+class CustomUser( List ):
 	addTemplate = "user_add"
 	addSuccessTemplate = "user_add_success"
 	lostPasswordTemplate = "user_lostpassword"
 	verifyEmailAddressMail = "user_verify_address"
 	passwordRecoveryMail = "user_password_recovery"
-	
+
 	def __init__(self, *args, **kwargs ):
 		"""Create a new Admin user, if the userDB is empty
 		"""
@@ -174,28 +67,17 @@ class CustomUser( List ):
 	def getAuthMethod( self, *args, **kwargs ):
 		"""Inform tools like Viur-Admin which authentication to use"""
 		return( "X-VIUR-INTERNAL" )
-	getAuthMethod.exposed = True	
-	
+	getAuthMethod.exposed = True
+
 	class loginSkel( Skeleton ):
 		kindName = "user"
 		id = None
 		name = emailBone( descr="E-Mail",  required=True, caseSensitive=False, indexed=True )
 		password = passwordBone( descr="Password", indexed=True, params={"justinput":True}, required=True )
 
-	class baseSkel( Skeleton ):
-		kindName = "user"
-		enforceUniqueValuesFor = "name", "That E-Mail address is already taken" #Important! Duplicate usernames will cause trouble!
-		name = emailBone( descr="E-Mail", required=True, readOnly=True, caseSensitive=False, searchable=True, indexed=True )
-		access = selectMultiBone( descr="Accessrights", values={"root": "Superuser"}, indexed=True )
-		status = selectOneBone( descr="Account status", values = {
-					1: "Waiting for EMail verification",
-					2: "Waiting for verification through admin",
-					5: "Account disabled",
-					10: "Active" }, defaultValue="10", required=True, indexed=True )
-	
 	def addSkel( self ):
 		admin=False
-		skel = self.baseSkel()
+		skel = super(CustomUser, self).addSkel()
 		user = users.get_current_user()  #Check the GAE API
 		if users.is_current_user_admin():
 			admin=True
@@ -224,7 +106,7 @@ class CustomUser( List ):
 		return( skel )
 
 	def editSkel( self, *args,  **kwargs ):
-		skel = self.baseSkel()
+		skel = super(CustomUser, self).editSkel()
 		accessRights = skel.access.values.copy()
 		for right in conf["viur.accessRights"]:
 			accessRights[ right ] = _( right )
@@ -236,21 +118,21 @@ class CustomUser( List ):
 		kindName = "user"
 		name = stringBone( descr="username", required=True )
 		password = passwordBone( descr="New Password", required=True )
-	
+
 	viewSkel = baseSkel
-	
+
 	registrationEnabled = True
 	registrationEmailVerificationRequired = True
 	registrationAdminVerificationRequired = False
-	
+
 	adminInfo = {	"name": "User", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
 				"handler": "list",  #Which handler to invoke
 				"icon": "icons/modules/users.svg", #Icon for this modul
 				}
-	
+
 	def getCurrentUser( self, *args, **kwargs ):
 		return( session.current.get("user") )
-	
+
 	def canAdd(self):
 		if self.registrationEnabled:
 			return( True )
@@ -302,7 +184,7 @@ class CustomUser( List ):
 			return( self.render.loginSucceeded( ) )
 	login.exposed = True
 	login.forceSSL = True
-	
+
 	def logout( self,  skey="", *args,  **kwargs ): #fixme
 		user = session.current.get("user")
 		if not user:
@@ -350,7 +232,7 @@ class CustomUser( List ):
 			self.sendPasswordRecoveryEmail( str( user.key() ), key )
 			return( self.render.passwdRecoverInfo( "instructions_send", skel ) )
 	pwrecover.exposed = True
-	
+
 	def verify(self,  skey,  *args,  **kwargs ):
 		data = securitykey.validate( skey )
 		skel = self.baseSkel()
@@ -363,14 +245,14 @@ class CustomUser( List ):
 		skel.toDB( data["userid"] )
 		return self.render.verifySuccess( data )
 	verify.exposed = True
-	
+
 	def sendVerificationEmail(self, userID, skey ):
 		skel = self.viewSkel()
 		assert skel.fromDB( userID )
 		skel.skey = baseBone( descr="Skey" )
 		skel.skey.value = skey
 		utils.sendEMail( [skel.name.value], self.verifyEmailAddressMail, skel )
-		
+
 	def sendPasswordRecoveryEmail(self, userID, skey ):
 		skel = self.viewSkel()
 		assert skel.fromDB( userID )
@@ -388,7 +270,7 @@ class CustomUser( List ):
 				return( super( CustomUser, self ).view( user["id"], *args, **kwargs ) )
 		return( super( CustomUser, self ).view( id, *args, **kwargs ) )
 	view.exposed=True
-	
+
 	def onItemAdded( self, skel ):
 		"""
 			Ensure that the verifyEmailAddressMail get's send if needed.
@@ -397,7 +279,7 @@ class CustomUser( List ):
 		if self.registrationEmailVerificationRequired and str(skel.status.value)=="1":
 			skey = securitykey.create( duration=60*60*24*7 , userid=str(skel.id.value), name=skel.name.value )
 			self.sendVerificationEmail( str(skel.id.value), skey )
-	
+
 	def onItemDeleted( self, skel ):
 		"""
 			Invalidate all sessions of that user
