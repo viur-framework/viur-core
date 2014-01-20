@@ -57,7 +57,7 @@ class GoogleUser( List ):
 		mysha512.update( str(uid)+conf["viur.salt"]  )
 		uidHash = mysha512.hexdigest()
 		try:
-			user = db.Get( db.Key.from_path( self.baseSkel().kindName,  "user-%s" % uidHash ) )
+			user = db.Get( db.Key.from_path( self.viewSkel().kindName,  "user-%s" % uidHash ) )
 		except db.EntityNotFoundError:
 			#This user is known to the appengine, but not to us yet (he didnt use /user/login)
 			return( None )
@@ -83,7 +83,7 @@ class GoogleUser( List ):
 			mysha512.update( str(uid)+conf["viur.salt"]  )
 			uidHash = mysha512.hexdigest()
 
-			user = db.GetOrInsert( "user-%s" % uidHash, kindName=self.baseSkel().kindName, uid=uid, name=currentUser.email(), creationdate=datetime.datetime.now(), access=None )
+			user = db.GetOrInsert( "user-%s" % uidHash, kindName=self.viewSkel().kindName, uid=uid, name=currentUser.email(), creationdate=datetime.datetime.now(), access=None )
 			#Update the user
 			dt = datetime.datetime.now()
 			if (not "lastlogin" in user.keys()) or (dt-user["lastlogin"])>datetime.timedelta( minutes=30 ):
