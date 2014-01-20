@@ -4,14 +4,17 @@ from server import errors
 class UserRender( user ):
 	def loginSucceeded( self,  **kwargs ):
 		#Fixme: We need a better method for this..
+		isGoogle=False
 		if self.parent:
 			try:
 				if self.parent.getAuthMethod()=="X-GOOGLE-ACCOUNT":
-					raise errors.Redirect("/vi")
+					isGoogle=True
 			except:
 				pass
-		return("OKAY")
-		#raise errors.Redirect("/vi")
+		if isGoogle:
+			raise errors.Redirect("/vi")
+		else:
+			return("OKAY")
 
 	def logoutSuccess(self, **kwargs ):
 		raise errors.Redirect("/vi/s/logout.html")
