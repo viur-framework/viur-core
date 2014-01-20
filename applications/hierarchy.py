@@ -273,7 +273,7 @@ class Hierarchy( object ):
 		for x in range(0,99):
 			if str(currLevel.key())==item:
 				break
-			if "rootNode" in currLevel.keys() and currLevel["rootNode"]==1:
+			if currLevel.key().kind() == self.viewSkel().kindName+"_rootNode":
 				#We reached a rootNode
 				isValid=True
 				break
