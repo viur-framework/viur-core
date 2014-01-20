@@ -8,6 +8,7 @@ class DefaultRender( object ):
 	
 	def __init__(self, parent=None, *args, **kwargs ):
 		super( DefaultRender,  self ).__init__( *args, **kwargs )
+		self.parent = parent
 	
 	def renderSkelStructure(self, skel ):
 		"""Dumps the Structure of a Skeleton"""

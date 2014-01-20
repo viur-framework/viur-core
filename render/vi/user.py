@@ -3,6 +3,13 @@ from server import errors
 
 class UserRender( user ):
 	def loginSucceeded( self,  **kwargs ):
+		#Fixme: We need a better method for this..
+		if self.parent:
+			try:
+				if self.parent.getAuthMethod()=="X-GOOGLE-ACCOUNT":
+					raise errors.Redirect("/vi")
+			except:
+				pass
 		return("OKAY")
 		#raise errors.Redirect("/vi")
 
