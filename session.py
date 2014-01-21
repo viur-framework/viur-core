@@ -145,7 +145,10 @@ class GaeSession:
 					return( False )
 				self.session = pickle.loads( base64.b64decode(data["data"]) )
 				self.sslKey = data["sslkey"]
-				self.sessionSecurityKey = data["skey"]
+				if "skey" in data.keys():
+					self.sessionSecurityKey = data["skey"]
+				else:
+					self.reset()
 				if data["lastseen"] < time()-5*60: #Refresh every 5 Minutes
 					self.changed = True
 			if req.isSSLConnection and not (self.sslCookieName in req.request.cookies.keys() and req.request.cookies[ self.sslCookieName ] == self.sslKey and self.sslKey ):
