@@ -211,14 +211,28 @@ class textBone( baseBone ):
 			Doesn't check for actual <a href=> or <img src=> yet.
 		"""
 		newFileKeys = []
-		idx = self.value.find("/file/download/")
-		while idx!=-1:
-			idx += 15
-			seperatorIdx = min( [ x for x in [self.value.find("/",idx), self.value.find("\"",idx)] if x!=-1] )
-			fk = self.value[ idx:seperatorIdx]
-			if not fk in newFileKeys:
-				newFileKeys.append( fk )
-			idx = self.value.find("/file/download/", seperatorIdx)
+		if self.languages:
+			if self.value:
+				for lng in self.languages:
+					if lng in self.value.keys():
+						val = self.value[ lng ]
+						idx = val.find("/file/download/")
+						while idx!=-1:
+							idx += 15
+							seperatorIdx = min( [ x for x in [val.find("/",idx), val.find("\"",idx)] if x!=-1] )
+							fk = val[ idx:seperatorIdx]
+							if not fk in newFileKeys:
+								newFileKeys.append( fk )
+							idx = val.find("/file/download/", seperatorIdx)
+		else:
+			idx = self.value.find("/file/download/")
+			while idx!=-1:
+				idx += 15
+				seperatorIdx = min( [ x for x in [self.value.find("/",idx), self.value.find("\"",idx)] if x!=-1] )
+				fk = self.value[ idx:seperatorIdx]
+				if not fk in newFileKeys:
+					newFileKeys.append( fk )
+				idx = self.value.find("/file/download/", seperatorIdx)
 		return( newFileKeys )
 
 
