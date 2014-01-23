@@ -91,11 +91,25 @@ class Skeleton( object ):
 	changedate = dateBone( readOnly=True, visible=False, updateMagic=True, indexed=True, descr="updated at" )
 
 	@classmethod
-	def subSkel(cls, name):
+	def subSkel(cls, name, *args):
+		"""
+			Creates the given subskeleton.
+			A subskeleton is a copy of the original skeleton, containing only a subset of its bones.
+			To define subskeletons, use the subSkels property of that skeleton.
+			If more than one subskel is given, its treated as union, so a bone will appear in the resulting
+			skeleton if its included in at least one subskels.
+
+			@param name: Name of the subskel (that's the key of the subSkels dictionary)
+			@type name: String
+			@returns Skeleton
+		"""
 		skel = cls()
-		if not name in skel.subSkels.keys():
-			raise ValueError("Unknown sub-skeleton %s for skel %s" % (name, skel.kindName))
-		boneList = skel.subSkels[name]
+		boneList = []
+		subSkelNames = [name]+list(args)
+		for name in subSkelNames:
+			if not name in skel.subSkels.keys():
+				raise ValueError("Unknown sub-skeleton %s for skel %s" % (name, skel.kindName))
+			boneList.extend( skel.subSkels[name][:] )
 		for key in dir(skel):
 			if key.startswith("_"):
 				continue
