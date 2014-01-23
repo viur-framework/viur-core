@@ -48,6 +48,9 @@ def skeletonByKind( kindName ):
 	assert kindName in MetaSkel._skelCache
 	return MetaSkel._skelCache[ kindName ]
 
+def listKnownSkeletons():
+	return list(MetaSkel._skelCache.keys())[:]
+
 class Skeleton( object ):
 	""" 
 		Container-object which holds informations about one entity.

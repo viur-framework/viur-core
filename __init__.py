@@ -176,6 +176,21 @@ def buildApp( config, renderers, default=None, *args, **kwargs ):
 				else:
 					if renderName in dir(res):
 						setattr( res, renderName,  rend["_postProcessAppObj"]( getattr( res,renderName ) ) )
+	if conf["viur.exportPassword"] is not None or conf["viur.importPassword"] is not None:
+		# Enable the Database ex/import API
+		from server.dbtransfer import DbTransfer
+		if conf["viur.importPassword"]:
+			logging.critical("The Import-API is enabled! Never do this on production systems!")
+			from server import utils
+			try:
+				utils.sendEMailToAdmins("Active Database import API",
+							"ViUR just started a new Instance with an ENABLED DATABASE IMPORT API! You have been warned.")
+			except: #OverQuota, whatever
+				pass #Dont render this instance unusable
+		elif conf["viur.exportPassword"]:
+			logging.warning("The Export-API is enabled. Everyone having that key can read the whole database!")
+
+		setattr( res, "dbtransfer", DbTransfer() )
 	if default in rendlist and "renderEmail" in dir (rendlist[ default ]["default"]()):
 		conf["viur.emailRenderer"] = rendlist[ default ]["default"]().renderEmail
 	elif "jinja2" in list(rendlist.keys()):
