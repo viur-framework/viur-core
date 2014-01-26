@@ -17,6 +17,7 @@ import os
 _periodicTasks = {}
 _callableTasks = {}
 _deferedTasks = {}
+_startupTasks = []
 _periodicTaskID = 1L #Used to determine bound functions
 
 
@@ -257,8 +258,8 @@ def callDeferred( func ):
 		try:
 			req = request.current.get()
 		except: #This will fail for warmup requests
-			req = {}
-		if "HTTP_X_APPENGINE_TASKRETRYCOUNT".lower() in [x.lower() for x in os.environ.keys()] and not "DEFERED_TASK_CALLED" in dir( req ): #This is the defered call
+			req = None
+		if req is not None and "HTTP_X_APPENGINE_TASKRETRYCOUNT".lower() in [x.lower() for x in os.environ.keys()] and not "DEFERED_TASK_CALLED" in dir( req ): #This is the defered call
 			req.DEFERED_TASK_CALLED = True #Defer recursive calls to an deferred function again.
 			return( func( self, *args, **kwargs ) )
 		else:
@@ -308,7 +309,7 @@ def PeriodicTask( intervall ):
 	return( mkDecorator )
 
 def CallableTask( fn ):
-	"""Marks a Class as representig a user-callabe Task.
+	"""Marks a Class as representing a user-callable Task.
 	It *should* extend CallableTaskBase and *must* provide
 	its API
 	"""
@@ -316,6 +317,25 @@ def CallableTask( fn ):
 	_callableTasks[ fn.id ] = fn
 	return( fn )
 
+def StartupTask( fn ):
+	"""
+		Functions decorated with this are called shortly at instance startup.
+		It's *not* guaranteed that they actually run on the instance that just started up!
+		Wrapped functions must not take any arguments.
+	"""
+	global _startupTasks
+	_startupTasks.append( fn )
+	return( fn )
+
+@callDeferred
+def runStartupTasks():
+	"""
+		Runs all queued startupTasks.
+		Do not call directly!
+	"""
+	global _startupTasks
+	for st in _startupTasks:
+		st()
 
 ## Tasks ##
 

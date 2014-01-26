@@ -77,7 +77,7 @@ def setDefaultDomainLanguage( domain, lang ):
 ### Multi-Language Part: END 
 
 from server import session, errors
-from server.tasks import TaskHandler
+from server.tasks import TaskHandler, runStartupTasks
 from server import backup
 
 try:
@@ -477,6 +477,7 @@ def setup( modules, render=None, default="jinja2" ):
 	conf["viur.mainApp"] = buildApp( modules, render, default )
 	renderPrefix = [ "/%s" % x for x in dir( render ) if (not x.startswith("_") and x!=default) ]+[""]
 	conf["viur.wsgiApp"] = webapp.WSGIApplication( [(r'/(.*)', BrowseHandler)] )
+	runStartupTasks() #Add a deferred call to run all queued startup tasks
 	return( conf["viur.wsgiApp"] )
 	
 

@@ -5,6 +5,7 @@ from server import utils, session
 from server.bones import *
 from server.bones.passwordBone import pbkdf2
 from server import errors, conf, securitykey
+from server.tasks import StartupTask
 from time import time
 from server import db
 from hashlib import sha512
@@ -32,27 +33,8 @@ class CustomUser( List ):
 	verifyEmailAddressMail = "user_verify_address"
 	passwordRecoveryMail = "user_password_recovery"
 	
-	def __init__(self, *args, **kwargs ):
-		"""Create a new Admin user, if the userDB is empty
-		"""
-		super( CustomUser, self ).__init__(*args, **kwargs)
-		if not db.Query( self.loginSkel().kindName ).get():
-			l = self.addSkel()
-			l.password = passwordBone( descr="Password", required=True )
-			uname = "admin@%s.appspot.com" % app_identity.get_application_id()
-			pw = utils.generateRandomString( 13 )
-			l.setValues( {	"name":uname,
-					"status": 10,
-					"access": ["root"] } )
-			l.password.value = pw
-			try:
-				l.toDB()
-			except:
-				return
-			logging.warn("Created a new adminuser for you! Username: %s, Password: %s" % (uname,pw) )
-			utils.sendEMailToAdmins( "Your new ViUR password", "ViUR created a new adminuser for you! Username: %s, Password: %s" % (uname,pw) )
-
 	def addUser(self, name, password ):
+		raise NotImplementedError() #Fixme: Dont use! Doesn't wirte uniquePropertyIndex
 		skel = self.loginSkel()
 		salt = utils.generateRandomString(13)
 		pwHash = pbkdf2( password[ : conf["viur.maxPasswordLength"] ], salt )
@@ -298,3 +280,29 @@ class CustomUser( List ):
 		"""
 		super( CustomUser, self ).onItemDeleted( skel )
 		session.killSessionByUser( str( skel.id.value ) )
+
+
+
+@StartupTask
+def createNewUserIfNotExists():
+	"""
+		Create a new Admin user, if the userDB is empty
+	"""
+	if "user" in dir( conf["viur.mainApp"] ):# We have a user module
+		userMod = getattr( conf["viur.mainApp"], "user" )
+		if isinstance( userMod, CustomUser ) and "loginSkel" in dir(userMod): #Its our user module :)
+			if not db.Query( userMod.loginSkel().kindName ).get(): #There's currently no user in the database
+				l = userMod.addSkel()
+				l.password = passwordBone( descr="Password", required=True )
+				uname = "admin@%s.appspot.com" % app_identity.get_application_id()
+				pw = utils.generateRandomString( 13 )
+				l.setValues( {	"name":uname,
+						"status": 10,
+						"access": ["root"] } )
+				l.password.value = pw
+				try:
+					l.toDB()
+				except:
+					return
+				logging.warn("Created a new adminuser for you! Username: %s, Password: %s" % (uname,pw) )
+				utils.sendEMailToAdmins( "Your new ViUR password", "ViUR created a new adminuser for you! Username: %s, Password: %s" % (uname,pw) )
