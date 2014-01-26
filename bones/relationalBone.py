@@ -93,10 +93,16 @@ class relationalBone( baseBone ):
 						pass
 			else:
 				if isinstance( val, list ) and len( val )>0:
-					self.value = json.loads( val[0] )
+					try:
+						self.value = json.loads( val[0] )
+					except:
+						pass
 				else:
 					if val:
-						self.value = json.loads( val )
+						try:
+							self.value = json.loads( val )
+						except:
+							pass
 					else:
 						self.value = None
 
