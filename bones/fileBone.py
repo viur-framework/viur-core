@@ -47,7 +47,7 @@ class fileBone( treeItemBone ):
 				origFileObj = db.Get( db.Key( fileID ) )
 				assert origFileObj
 			except:
-				pass
+				continue
 			if not "servingurl" in origFileObj.keys() \
 			and "meta_mime" in origFileObj.keys() \
 			and str(origFileObj["meta_mime"]).startswith("image/"):
