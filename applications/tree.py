@@ -25,7 +25,7 @@ class TreeLeafSkel( Skeleton ):
 			while( "parentdir" in dbObj.keys() and dbObj["parentdir"] ):
 				dbObj = db.Get( dbObj[ "parentdir" ] )
 			self.parentrepo.value = str( dbObj.key() )
-			self.toDB( self.id.value )
+			self.toDB(  )
 		return( res )
 
 class TreeNodeSkel( TreeLeafSkel ):
@@ -76,7 +76,7 @@ class Tree( object ):
 				continue
 			s.delete()
 		skel = self.viewNodeSkel()
-		for d in db.Query( self.viewNodeSkel().kindName ).filter( "parentdir", str(repo.key()) ).iter( keysOnly=True ):
+		for d in db.Query( self.viewNodeSkel().kindName ).filter( "parentdir", str(nodeKey) ).iter( keysOnly=True ):
 			self.deleteDirsRecursive( d )
 			s = skel()
 			if not s.fromDB( d ):
