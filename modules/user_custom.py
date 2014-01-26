@@ -37,7 +37,7 @@ class CustomUser( List ):
 		"""
 		super( CustomUser, self ).__init__(*args, **kwargs)
 		if not db.Query( self.loginSkel().kindName ).get():
-			l = self.baseSkel()
+			l = self.addSkel()
 			l.password = passwordBone( descr="Password", required=True )
 			uname = "admin@%s.appspot.com" % app_identity.get_application_id()
 			pw = utils.generateRandomString( 13 )
@@ -123,8 +123,7 @@ class CustomUser( List ):
 		name = stringBone( descr="username", required=True )
 		password = passwordBone( descr="New Password", required=True )
 	
-	viewSkel = baseSkel
-	
+
 	registrationEnabled = True
 	registrationEmailVerificationRequired = True
 	registrationAdminVerificationRequired = False
