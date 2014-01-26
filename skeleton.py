@@ -358,7 +358,7 @@ class Skeleton( object ):
 		# END of txnUpdate subfunction
 		id = self.__currentDbKey_
 		if not isinstance(clearUpdateTag,bool):
-			raise ValueError("Got an unsupported type %s for clearUpdateTag. toDB doens't accept a key argument any more!" % str(type(clearUpdateTag)))
+			raise ValueError("Got an unsupported type %s for clearUpdateTag. toDB doesn't accept a key argument any more!" % str(type(clearUpdateTag)))
 		# Allow bones to perform outstanding "magic" operations before saving to db
 		for key in dir( self ):
 			if "__" not in key:
