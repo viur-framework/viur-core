@@ -896,22 +896,40 @@ class Order( List ):
 		logging.error("Order archived: "+str( order.key.urlsafe() ) )
 
 	@PeriodicTask(60*24)
-	def archiveOrdersTask( self, *args, **kwargs ):
+	def startArchiveOrdersTask( self, *args, **kwargs ):
+		self.doArchiveActiveOrdersTask( (datetime.now()-self.archiveDelay).strftime("%d.%m.%Y %H:%M:%S"), None )
+		self.doArchiveCancelledOrdersTask( (datetime.now()-self.archiveDelay).strftime("%d.%m.%Y %H:%M:%S"), None )
+
+	@callDeferred
+	def doArchiveActiveOrdersTask(self, timeStamp, cursor):
 		logging.debug("Archiving old orders")
 		#Archive all payed,send and not canceled orders
-		orders = self.viewSkel().all()\
-				.filter( "changedate <", (datetime.now()-self.archiveDelay) )\
+		query = self.viewSkel().all()\
+				.filter( "changedate <", datetime.strptime(timeStamp,"%d.%m.%Y %H:%M:%S") )\
 				.filter( "state_archived =", "0" )\
 				.filter( "state_send = ", "1" )\
 				.filter( "state_payed =", "1" )\
-				.filter( "state_canceled =", "0" ).iter()
-		for order in orders:
+				.filter( "state_canceled =", "0" ).cursor( cursor )
+		gotAtLeastOne = False
+		for order in query.fetch():
+			gotAtLeastOne = True
 			self.setArchived( order )
+		newCursor = query.getCursor()
+		if gotAtLeastOne and newCursor and newCursor.urlsafe()!=cursor:
+			self.doArchiveActiveOrdersTask( timeStamp, newCursor.urlsafe() )
+
+	@callDeferred
+	def doArchiveCancelledOrdersTask(self, timeStamp, cursor):
 		#Archive all canceled orders
-		orders = self.viewSkel().all()\
-				.filter( "changedate <", (datetime.now()-self.archiveDelay) )\
+		query = self.viewSkel().all()\
+				.filter( "changedate <", datetime.strptime(timeStamp,"%d.%m.%Y %H:%M:%S") )\
 				.filter( "state_archived =", "0" )\
-				.filter( "state_canceled =", "1" ).iter()
-		for order in orders:
+				.filter( "state_canceled =", "1" ).cursor( cursor)
+		gotAtLeastOne = False
+		for order in query.fetch():
+			gotAtLeastOne = True
 			self.setArchived( order )
+		newCursor = query.getCursor()
+		if gotAtLeastOne and newCursor and newCursor.urlsafe()!=cursor:
+			self.doArchiveCancelledOrdersTask( timeStamp, newCursor.urlsafe() )
 

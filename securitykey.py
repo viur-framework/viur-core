@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from server.utils import generateRandomString
 from server.session import current as currentSession
 from server import db, conf
-from server.tasks import PeriodicTask
+from server.tasks import PeriodicTask, callDeferred
 
 securityKeyKindName = "viur-securitykeys"
 
@@ -71,11 +71,21 @@ def validate( key, acceptSessionKey=False ):
 		return( res )
 	return( False )
 
-@PeriodicTask(60)
-def clearSKeys():
+@PeriodicTask(60*4)
+def startClearSKeys():
 	"""
 		Removes old (expired) skeys
 	"""
-	for oldKey in db.Query( securityKeyKindName ).filter( "until <", datetime.now()-timedelta(seconds=300) ).iter( keysOnly=True ):
+	doClearSKeys( (datetime.now()-timedelta(seconds=300)).strftime("%d.%m.%Y %H:%M:%S"), None )
+
+@callDeferred
+def doClearSKeys( timeStamp, cursor ):
+	gotAtLeastOne = False
+	query = db.Query( securityKeyKindName ).filter( "until <", datetime.strptime(timeStamp,"%d.%m.%Y %H:%M:%S") )
+	for oldKey in query.run(100, keysOnly=True):
+		gotAtLeastOne = True
 		db.Delete( oldKey )
+	newCursor = query.getCursor()
+	if gotAtLeastOne and newCursor and newCursor.urlsafe()!=cursor:
+		doClearSKeys( timeStamp, newCursor.urlsafe() )
 

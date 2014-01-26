@@ -309,13 +309,22 @@ def killSessionByUser( user=None ):
 	for key in query.iter(keysOnly=True):
 		db.Delete( key )
 	
+@PeriodicTask(60*4)
+def startClearSessions():
+	"""
+		Removes old (expired) Sessions
+	"""
+	doClearSessions( time()-(GaeSession.lifeTime+300), None )
 
-@PeriodicTask( 60 )
-def cleanup( ):
-	oldSessions = db.Query(GaeSession.kindName).filter("lastseen <", time()-GaeSession.lifeTime ).run(limit=1000,keysOnly=True)
-	while( oldSessions ):
-		db.Delete( oldSessions )
-		oldSessions = db.Query(GaeSession.kindName).filter("lastseen <", time()-GaeSession.lifeTime ).run(limit=1000,keysOnly=True)
-
+@callDeferred
+def doClearSessions( timeStamp, cursor ):
+	gotAtLeastOne = False
+	query = db.Query( GaeSession.kindName ).filter( "lastseen <", timeStamp )
+	for oldKey in query.run(100, keysOnly=True):
+		gotAtLeastOne = True
+		db.Delete( oldKey )
+	newCursor = query.getCursor()
+	if gotAtLeastOne and newCursor and newCursor.urlsafe()!=cursor:
+		doClearSessions( timeStamp, newCursor.urlsafe() )
 
 current = SessionWrapper( GaeSession )

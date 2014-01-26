@@ -581,7 +581,7 @@ def updateRelations( destID ):
 						_bone.fromClient( key, {key: _bone.value["id"]} )
 					elif isinstance( _bone.value, list ):
 						_bone.fromClient( key, {key: [x["id"] for x in _bone.value]} )
-		skel.toDB( str(srcRel.key().parent()), clearUpdateTag=True )
+		skel.toDB( clearUpdateTag=True )
 
 
 @CallableTask
@@ -637,8 +637,9 @@ def processChunk( modul, compact, cursor ):
 			skel = Skel()
 			skel.fromDB( str(key) )
 			if compact=="YES":
-				skel.delete( str(key) )
-			skel.toDB( str(key) )
+				raise NotImplementedError() #FIXME: This deletes the __currentKey__ property..
+				skel.delete( )
+			skel.toDB( )
 		except Exception as e:
 			logging.error("Updating %s failed" % str(key) )
 			logging.error( e )

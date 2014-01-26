@@ -272,39 +272,6 @@ class File( Tree ):
 			raise errors.NotAcceptable()
 		return( super( File, self ).add( skelType, node, *args, **kwargs ) )
 
-	@exposed
-	@forceSSL
-	@forcePost
-	def delete( self, skelType, id, *args, **kwargs  ):
-		"""Our timestamp-based update approach dosnt work here, so we'll do another trick"""
-		if skelType=="node":
-			skel = self.editNodeSkel
-		elif skelType=="leaf":
-			skel = self.editLeafSkel
-		else:
-			assert False
-		if "skey" in kwargs:
-			skey = kwargs["skey"]
-		else:
-			skey = ""
-		repo = skel()
-		if not repo.fromDB( id ):
-			raise errors.NotFound()
-		if not self.canDelete( repo, skelType ):
-			raise errors.Unauthorized()
-		if not securitykey.validate( skey ):
-			raise errors.PreconditionFailed()
-		if skelType=="leaf":
-			utils.markFileForDeletion( repo.dlkey.value )
-			repo.delete( id )
-		else:
-			self.deleteDirsRecursive( str(id) )
-			repo.delete( id )
-		self.onItemDeleted( repo )
-		return( self.render.deleteSuccess( repo ) )
-	delete.exposed=True
-
-
 	def canViewRootNode( self, repo ):
 		user = utils.getCurrentUser()
 		return( self.isOwnUserRootNode( repo ) or (user and "root" in user["access"]) )
@@ -333,19 +300,97 @@ File.json=True
 File.jinja2=True
 
 @PeriodicTask( 60*4 )
-def cleanup( ):
+def startCheckForUnreferencedBlobs():
+	"""
+		Start searching for blob locks that have been recently freed
+	"""
+	doCheckForUnreferencedBlobs( None )
+
+@callDeferred
+def doCheckForUnreferencedBlobs( cursor ):
+	def getOldBlobKeysTxn( dbKey ):
+		obj = db.Get( dbKey )
+		res = obj["old_blob_references"] or []
+		if obj["is_stale"]:
+			db.Delete( dbKey )
+		else:
+			obj["has_old_blob_references"] = False
+			obj["old_blob_references"] = []
+			db.Put( obj )
+		return( res )
+	gotAtLeastOne = False
+	query = db.Query( "viur-blob-locks" ).filter("has_old_blob_references", True).cursor( cursor )
+	for lockKey in query.run( 100, keysOnly=True ):
+		gotAtLeastOne = True
+		oldBlobKeys = db.RunInTransaction( getOldBlobKeysTxn, lockKey )
+		for blobKey in oldBlobKeys:
+			if db.Query("viur-blob-locks").filter("active_blob_references =", blobKey).get():
+				#This blob is referenced elsewhere
+				logging.error("STALE BLOB KEY IS STILL REFERENCED, %s" % blobKey)
+				continue
+			# Add a marker and schedule it for deletion
+			fileObj = db.Query( "viur-deleted-files" ).filter( "dlkey", blobKey ).get()
+			if fileObj: #Its already marked
+				logging.error("STALE BLOB KEY ALLREADY MARKDED FOR DELETION, %s" % blobKey)
+				return
+			fileObj = db.Entity( "viur-deleted-files" )
+			fileObj["itercount"] = 0
+			fileObj["dlkey"] = str( blobKey )
+			logging.error("STALE BLOB MARKED DIRTY, %s" % blobKey)
+			db.Put( fileObj )
+	newCursor = query.getCursor()
+	if gotAtLeastOne and newCursor and newCursor.urlsafe()!=cursor:
+		doCheckForUnreferencedBlobs( newCursor.urlsafe() )
+
+@PeriodicTask( 60*4 )
+def startCleanupDeletedFiles():
+	"""
+		Increase deletion counter on each blob currently not referenced and delete
+		it if that counter reaches maxIterCount
+	"""
+	doCleanupDeletedFiles( None )
+
+def doCleanupDeletedFiles( cursor ):
 	maxIterCount = 2 #How often a file will be checked for deletion
-	for file in db.Query( "viur-deleted-files" ).iter():
+	gotAtLeastOne = False
+	query = db.Query( "viur-deleted-files" ).cursor( cursor )
+	for file in query.run( 100 ):
+		gotAtLeastOne = True
 		if not "dlkey" in file.keys():
 			db.Delete( file.key() )
-		elif db.Query( "file" ).filter( "dlkey =", file["dlkey"] ).filter( "weak =", False ).get():
+		elif db.Query( "viur-blob-locks" ).filter( "active_blob_references =", file["dlkey"] ).get():
+			logging.error("IS REFERENCED, %s" % file["dlkey"])
 			db.Delete( file.key() )
 		else:
 			if file["itercount"] > maxIterCount:
+				logging.error("FINNALY DELETING, %s" % file["dlkey"])
 				blobstore.delete( file["dlkey"] )
 				db.Delete( file.key() )
 				for f in db.Query( "file").filter( "dlkey =", file["dlkey"]).iter( keysOnly=True ): #There should be exactly 1 or 0 of these
 					db.Delete( f )
 			else:
+				logging.error("INCREASING COUNT, %s" % file["dlkey"])
 				file["itercount"] += 1
 				db.Put( file )
+	newCursor = query.getCursor()
+	if gotAtLeastOne and newCursor and newCursor.urlsafe()!=cursor:
+		doCleanupDeletedFiles( newCursor.urlsafe() )
+
+@PeriodicTask( 60*4 )
+def startDeleteWeakReferences( ):
+	"""
+		Delete all weak file references older than a day.
+		If that file isn't referenced elsewhere, it's deleted, too.
+	"""
+	doDeleteWeakReferences( (datetime.now()-timedelta(days=1)).strftime("%d.%m.%Y %H:%M:%S"), None )
+
+def doDeleteWeakReferences( timeStamp, cursor ):
+	skelCls = skeletonByKind( "file" )
+	gotAtLeastOne = False
+	query = skelCls().all().filter("weak =", True).filter("creationdate <", datetime.strptime(timeStamp,"%d.%m.%Y %H:%M:%S") ).cursor( cursor )
+	for skel in query.fetch(99):
+		gotAtLeastOne = True
+		skel.delete()
+	newCursor = query.getCursor()
+	if gotAtLeastOne and newCursor and newCursor.urlsafe()!=cursor:
+		doDeleteWeakReferences( timeStamp, newCursor.urlsafe() )
