@@ -518,11 +518,11 @@ class TaskUpdateSeachIndex( CallableTaskBase ):
 		return( user is not None and "root" in user["access"] )
 
 	def dataSkel(self):
-		modules = []
-		for modulName in dir( conf["viur.mainApp"] ):
-			modul = getattr( conf["viur.mainApp"], modulName )
-			if "editSkel" in dir( modul ) and not modulName in modules:
-				modules.append( modulName )
+		modules = listKnownSkeletons()
+		#for modulName in dir( conf["viur.mainApp"] ):
+		#	modul = getattr( conf["viur.mainApp"], modulName )
+		#	if "editSkel" in dir( modul ) and not modulName in modules:
+		#		modules.append( modulName )
 		skel = Skeleton( self.kindName )
 		skel.modul = selectOneBone( descr="Modul", values={ x: x for x in modules}, required=True )
 		def verifyCompact( val ):
@@ -533,21 +533,32 @@ class TaskUpdateSeachIndex( CallableTaskBase ):
 		return( skel )
 
 	def execute( self, modul=None, compact="", *args, **kwargs ):
-		Skel = None
-		if modul in dir( conf["viur.mainApp"] ):
-			if "editSkel" in dir( getattr( conf["viur.mainApp"], modul ) ):
-				Skel = getattr( conf["viur.mainApp"], modul ).editSkel
-		if not Skel:
-			logging.error("TaskUpdateSeachIndex: Invalid modul")
-			return
-		for sub in Skel().all().iter():
-			try:
-				skel = Skel()
-				skel.fromDB( str(sub.key()) )
-				if compact=="YES":
-					skel.delete(str(sub.key()) )
-				skel.toDB( str(sub.key()) )
-			except Exception as e:
-				logging.error("Updating %s failed" % str(sub.key()) )
-				logging.error( e )
+		processChunk( modul, compact, None )
 
+@callDeferred
+def processChunk( modul, compact, cursor ):
+	"""
+		Processes 100 Entries and calls the next batch
+	"""
+	Skel = skeletonByKind( modul )
+	if not Skel:
+		logging.error("TaskUpdateSeachIndex: Invalid modul")
+		return
+	query = Skel().all().cursor( cursor )
+	gotAtLeastOne = False
+	for key in query.run(100, keysOnly=True):
+		logging.error(key)
+		gotAtLeastOne = True
+		try:
+			skel = Skel()
+			skel.fromDB( str(key) )
+			if compact=="YES":
+				skel.delete( str(key) )
+			skel.toDB( str(key) )
+		except Exception as e:
+			logging.error("Updating %s failed" % str(key) )
+			logging.error( e )
+	newCursor = query.getCursor()
+	if gotAtLeastOne and newCursor and newCursor.urlsafe()!=cursor:
+		# Start processing of the next chunk
+		processChunk( modul, compact, newCursor.urlsafe() )
