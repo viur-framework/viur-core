@@ -5,6 +5,7 @@ from server import utils, session
 from server.bones import *
 from server.bones.passwordBone import pbkdf2
 from server import errors, conf, securitykey
+from time import time
 from server import db
 from hashlib import sha512
 from itertools import izip
@@ -30,7 +31,7 @@ class CustomUser( List ):
 	lostPasswordTemplate = "user_lostpassword"
 	verifyEmailAddressMail = "user_verify_address"
 	passwordRecoveryMail = "user_password_recovery"
-
+	
 	def __init__(self, *args, **kwargs ):
 		"""Create a new Admin user, if the userDB is empty
 		"""
@@ -67,8 +68,8 @@ class CustomUser( List ):
 	def getAuthMethod( self, *args, **kwargs ):
 		"""Inform tools like Viur-Admin which authentication to use"""
 		return( "X-VIUR-INTERNAL" )
-	getAuthMethod.exposed = True
-
+	getAuthMethod.exposed = True	
+	
 	class loginSkel( Skeleton ):
 		kindName = "user"
 		id = None
@@ -112,27 +113,30 @@ class CustomUser( List ):
 			accessRights[ right ] = _( right )
 		skel.access.values = accessRights
 		skel.password = passwordBone( descr="Passwort", required=False )
+		currUser = utils.getCurrentUser()
+		if currUser and "root" in currUser["access"]:
+			skel.name.readOnly=False
 		return( skel )
 
 	class lostPasswordSkel( Skeleton ):
 		kindName = "user"
 		name = stringBone( descr="username", required=True )
 		password = passwordBone( descr="New Password", required=True )
-
+	
 	viewSkel = baseSkel
-
+	
 	registrationEnabled = True
 	registrationEmailVerificationRequired = True
 	registrationAdminVerificationRequired = False
-
+	
 	adminInfo = {	"name": "User", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
 				"handler": "list",  #Which handler to invoke
 				"icon": "icons/modules/users.svg", #Icon for this modul
 				}
-
+	
 	def getCurrentUser( self, *args, **kwargs ):
 		return( session.current.get("user") )
-
+	
 	def canAdd(self):
 		if self.registrationEnabled:
 			return( True )
@@ -184,7 +188,7 @@ class CustomUser( List ):
 			return( self.render.loginSucceeded( ) )
 	login.exposed = True
 	login.forceSSL = True
-
+	
 	def logout( self,  skey="", *args,  **kwargs ): #fixme
 		user = session.current.get("user")
 		if not user:
@@ -232,7 +236,7 @@ class CustomUser( List ):
 			self.sendPasswordRecoveryEmail( str( user.key() ), key )
 			return( self.render.passwdRecoverInfo( "instructions_send", skel ) )
 	pwrecover.exposed = True
-
+	
 	def verify(self,  skey,  *args,  **kwargs ):
 		data = securitykey.validate( skey )
 		skel = self.baseSkel()
@@ -245,14 +249,14 @@ class CustomUser( List ):
 		skel.toDB( data["userid"] )
 		return self.render.verifySuccess( data )
 	verify.exposed = True
-
+	
 	def sendVerificationEmail(self, userID, skey ):
 		skel = self.viewSkel()
 		assert skel.fromDB( userID )
 		skel.skey = baseBone( descr="Skey" )
 		skel.skey.value = skey
 		utils.sendEMail( [skel.name.value], self.verifyEmailAddressMail, skel )
-
+		
 	def sendPasswordRecoveryEmail(self, userID, skey ):
 		skel = self.viewSkel()
 		assert skel.fromDB( userID )
@@ -271,6 +275,15 @@ class CustomUser( List ):
 		return( super( CustomUser, self ).view( id, *args, **kwargs ) )
 	view.exposed=True
 
+	def canView(self, skel):
+		user = self.getCurrentUser()
+		if user:
+			if skel.id.value==user["id"]:
+				return( True )
+			if "root" in user["access"] or "user-view" in user["access"]:
+				return( True )
+		return( False )
+	
 	def onItemAdded( self, skel ):
 		"""
 			Ensure that the verifyEmailAddressMail get's send if needed.
@@ -279,7 +292,7 @@ class CustomUser( List ):
 		if self.registrationEmailVerificationRequired and str(skel.status.value)=="1":
 			skey = securitykey.create( duration=60*60*24*7 , userid=str(skel.id.value), name=skel.name.value )
 			self.sendVerificationEmail( str(skel.id.value), skey )
-
+	
 	def onItemDeleted( self, skel ):
 		"""
 			Invalidate all sessions of that user

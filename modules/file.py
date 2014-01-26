@@ -24,13 +24,16 @@ import cgi
 import string
 
 
+
 class fileBaseSkel( TreeLeafSkel ):
 	kindName = "file"
 	size = stringBone( descr="Size", params={"indexed": True, "frontend_list_visible": True}, readOnly=True, indexed=True, searchable=True )
 	dlkey = stringBone( descr="Download-Key", params={"frontend_list_visible": True}, readOnly=True, indexed=True )
 	name = stringBone( descr="Filename", params={"frontend_list_visible": True}, caseSensitive=False, indexed=True, searchable=True )
-	mimetype = stringBone( descr="Mime-Info", params={"frontend_list_visible": True}, readOnly=True, indexed=True, ) #ALERT: was meta_mime
-	weak = booleanBone( descr="Is a weak Reference?", indexed=True, readOnly=True, visible=False ) #If weak is true, this entry will be automatically deleted after 24hrs
+	metamime = stringBone( descr="Mime-Info", params={"frontend_list_visible": True}, readOnly=True, indexed=True, visible=False ) #ALERT: was meta_mime
+	meta_mime = stringBone( descr="Mime-Info", params={"frontend_list_visible": True}, readOnly=True, indexed=True, visible=False ) #ALERT: was meta_mime
+	mimetype = stringBone( descr="Mime-Info", params={"frontend_list_visible": True}, readOnly=True, indexed=True ) #ALERT: was meta_mime
+	weak = booleanBone( descr="Is a weak Reference?", indexed=True, readOnly=True, visible=False )
 	servingurl = stringBone( descr="Serving URL", params={"frontend_list_visible": True}, readOnly=True )
 
 	def preProcessBlobLocks(self, locks ):
@@ -39,6 +42,15 @@ class fileBaseSkel( TreeLeafSkel ):
 		"""
 		locks.add( self.dlkey.value )
 		return( locks )
+
+	def fromDB( self, *args, **kwargs ):
+		r = super( fileBaseSkel, self ).fromDB( *args, **kwargs )
+		if not self.mimetype.value:
+			if self.meta_mime.value:
+				self.mimetype.value = self.meta_mime.value
+			elif self.metamime.value:
+				self.mimetype.value = self.metamime.value
+		return( r )
 
 class fileNodeSkel( TreeNodeSkel ):
 	kindName = "file_rootNode"
@@ -133,7 +145,7 @@ class File( Tree ):
 	getUploadURL.exposed=True
 
 
-	def getAvailableRootNodes( self, name ):
+	def getAvailableRootNodes( self, name, *args, **kwargs ):
 		thisuser = utils.getCurrentUser()
 		if thisuser:
 			repo = self.ensureOwnUserRootNode()
@@ -207,13 +219,13 @@ class File( Tree ):
 					fileSkel = self.addLeafSkel()
 					fileSkel.setValues( {	"name": fileName,
 								"size": upload.size,
-								"meta_mime": upload.content_type,
+								"mimetype": upload.content_type,
 								"dlkey": str(upload.key()),
 								"servingurl": servingURL,
 								"parentdir": None,
 								"parentrepo": None,
 								"weak": True } )
-					#fileSkel.toDB()
+					fileSkel.toDB()
 					res.append( fileSkel )
 			for r in res:
 				logging.info("Got a successfull upload: %s (%s)" % (r.name.value, r.dlkey.value ) )
@@ -312,7 +324,7 @@ class File( Tree ):
 			return( True )
 		return( self.isOwnUserRootNode( str( skel.id.value ) ) )
 
-	def canEdit( self, skel ):
+	def canEdit( self, skelType, node=None ):
 		user = utils.getCurrentUser()
 		return( user and "root" in user["access"] )
 	
@@ -320,40 +332,13 @@ class File( Tree ):
 File.json=True
 File.jinja2=True
 
-@PeriodicTask( 60 )
-def checkForUnreferencedBlobs( ):
-	def getOldBlobKeysTxn( dbKey ):
-		obj = db.Get( dbKey )
-		res = obj["old_blob_references"] or []
-		if obj["is_stale"]:
-			db.Delete( dbKey )
-		else:
-			obj["has_old_blob_references"] = False
-			obj["old_blob_references"] = []
-			db.Put( obj )
-		return( res )
-	for lockKey in db.Query( "viur-blob-locks" ).filter("has_old_blob_references", True).iter(keysOnly=True):
-		oldBlobKeys = db.RunInTransaction( getOldBlobKeysTxn, lockKey )
-		for blobKey in oldBlobKeys:
-			if db.Query("viur-blob-locks").filter("active_blob_references =", blobKey).get():
-				#This blob is referenced elsewhere
-				continue
-			# Add a marker and schedule it for deletion
-			fileObj = db.Query( "viur-deleted-files" ).filter( "dlkey", blobKey ).get()
-			if fileObj: #Its already marked
-				return
-			fileObj = db.Entity( "viur-deleted-files" )
-			fileObj["itercount"] = 0
-			fileObj["dlkey"] = str( blobKey )
-			db.Put( fileObj )
-
 @PeriodicTask( 60*4 )
-def cleanupDeletedFiles( ):
+def cleanup( ):
 	maxIterCount = 2 #How often a file will be checked for deletion
 	for file in db.Query( "viur-deleted-files" ).iter():
 		if not "dlkey" in file.keys():
 			db.Delete( file.key() )
-		elif db.Query( "viur-blob-locks" ).filter( "active_blob_references =", file["dlkey"] ).get():
+		elif db.Query( "file" ).filter( "dlkey =", file["dlkey"] ).filter( "weak =", False ).get():
 			db.Delete( file.key() )
 		else:
 			if file["itercount"] > maxIterCount:
@@ -364,13 +349,3 @@ def cleanupDeletedFiles( ):
 			else:
 				file["itercount"] += 1
 				db.Put( file )
-
-@PeriodicTask( 60*4 )
-def deleteWeakReferences( ):
-	"""
-		Delete all weak file references older than a day.
-		If that file isn't referenced elsewhere, it's deleted, too.
-	"""
-	skelCls = skeletonByKind( "file" )
-	for skel in skelCls().all().filter("weak =", True).filter("creationdate <", datetime.now()-timedelta(days=1)).fetch(99):
-		skel.delete(skel.id.value)

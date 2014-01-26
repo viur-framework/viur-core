@@ -112,11 +112,25 @@ class Skeleton( object ):
 	changedate = dateBone( readOnly=True, visible=False, updateMagic=True, indexed=True, descr="updated at" )
 
 	@classmethod
-	def subSkel(cls, name):
+	def subSkel(cls, name, *args):
+		"""
+			Creates the given subskeleton.
+			A subskeleton is a copy of the original skeleton, containing only a subset of its bones.
+			To define subskeletons, use the subSkels property of that skeleton.
+			If more than one subskel is given, its treated as union, so a bone will appear in the resulting
+			skeleton if its included in at least one subskels.
+
+			@param name: Name of the subskel (that's the key of the subSkels dictionary)
+			@type name: String
+			@returns Skeleton
+		"""
 		skel = cls()
-		if not name in skel.subSkels.keys():
-			raise ValueError("Unknown sub-skeleton %s for skel %s" % (name, skel.kindName))
-		boneList = skel.subSkels[name]
+		boneList = []
+		subSkelNames = [name]+list(args)
+		for name in subSkelNames:
+			if not name in skel.subSkels.keys():
+				raise ValueError("Unknown sub-skeleton %s for skel %s" % (name, skel.kindName))
+			boneList.extend( skel.subSkels[name][:] )
 		for key in dir(skel):
 			if key.startswith("_"):
 				continue
@@ -588,11 +602,11 @@ class TaskUpdateSeachIndex( CallableTaskBase ):
 		return( user is not None and "root" in user["access"] )
 
 	def dataSkel(self):
-		modules = []
-		for modulName in dir( conf["viur.mainApp"] ):
-			modul = getattr( conf["viur.mainApp"], modulName )
-			if "editSkel" in dir( modul ) and not modulName in modules:
-				modules.append( modulName )
+		modules = listKnownSkeletons()
+		#for modulName in dir( conf["viur.mainApp"] ):
+		#	modul = getattr( conf["viur.mainApp"], modulName )
+		#	if "editSkel" in dir( modul ) and not modulName in modules:
+		#		modules.append( modulName )
 		skel = Skeleton( self.kindName )
 		skel.modul = selectOneBone( descr="Modul", values={ x: x for x in modules}, required=True )
 		def verifyCompact( val ):
@@ -603,21 +617,32 @@ class TaskUpdateSeachIndex( CallableTaskBase ):
 		return( skel )
 
 	def execute( self, modul=None, compact="", *args, **kwargs ):
-		Skel = None
-		if modul in dir( conf["viur.mainApp"] ):
-			if "editSkel" in dir( getattr( conf["viur.mainApp"], modul ) ):
-				Skel = getattr( conf["viur.mainApp"], modul ).editSkel
-		if not Skel:
-			logging.error("TaskUpdateSeachIndex: Invalid modul")
-			return
-		for sub in Skel().all().iter():
-			try:
-				skel = Skel()
-				skel.fromDB( str(sub.key()) )
-				if compact=="YES":
-					skel.delete(str(sub.key()) )
-				skel.toDB( str(sub.key()) )
-			except Exception as e:
-				logging.error("Updating %s failed" % str(sub.key()) )
-				logging.error( e )
+		processChunk( modul, compact, None )
 
+@callDeferred
+def processChunk( modul, compact, cursor ):
+	"""
+		Processes 100 Entries and calls the next batch
+	"""
+	Skel = skeletonByKind( modul )
+	if not Skel:
+		logging.error("TaskUpdateSeachIndex: Invalid modul")
+		return
+	query = Skel().all().cursor( cursor )
+	gotAtLeastOne = False
+	for key in query.run(100, keysOnly=True):
+		logging.error(key)
+		gotAtLeastOne = True
+		try:
+			skel = Skel()
+			skel.fromDB( str(key) )
+			if compact=="YES":
+				skel.delete( str(key) )
+			skel.toDB( str(key) )
+		except Exception as e:
+			logging.error("Updating %s failed" % str(key) )
+			logging.error( e )
+	newCursor = query.getCursor()
+	if gotAtLeastOne and newCursor and newCursor.urlsafe()!=cursor:
+		# Start processing of the next chunk
+		processChunk( modul, compact, newCursor.urlsafe() )

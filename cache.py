@@ -78,6 +78,12 @@ def keyFromArgs( f, userSensitive, languageSensitive, evaluatedArgs, path, *args
 	if languageSensitive:
 		res[ "__lang" ] = request.current.get().language
 	res[ "__path" ] = path #Different path might have different output (html,xml,..)
+	try:
+		appVersion = request.current.get().request.environ["CURRENT_VERSION_ID"].split('.')[0]
+	except:
+		appVersion = ""
+		logging.error("Could not determine the current application id! Caching might produce unexpected results!")
+	res["__appVersion"] =appVersion
 	# Last check, that every parameter is satisfied:
 	if not all ( [ x in res.keys() for x in argsOrder ] ):
 		# we have too few paramerts for this function; that wont work
@@ -85,7 +91,7 @@ def keyFromArgs( f, userSensitive, languageSensitive, evaluatedArgs, path, *args
 	res = list( res.items() ) #Flatn our dict to a list
 	res.sort( key=lambda x: x[0] ) #sort by keys
 	mysha512 = sha512()
-	mysha512.update( str(res).encode("UTF8") )
+	mysha512.update( unicode(res).encode("UTF8") )
 	return( mysha512.hexdigest() )
 
 

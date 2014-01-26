@@ -4,6 +4,7 @@ from server.render.vi.default import DefaultRender as default
 from server.render.vi.user import UserRender as user
 from server.render.json.file import FileRender as file
 from server.skeleton import Skeleton
+from google.appengine.api import app_identity
 from server import conf
 from server import securitykey
 from server import utils
@@ -98,10 +99,17 @@ def canAccess( *args, **kwargs ):
 	return( False )
 
 def index(*args, **kwargs):
-	if canAccess():
-		raise( errors.Redirect("/vi/s/admin.html") )
+	if request.current.get().isDevServer:
+		if canAccess():
+			raise( errors.Redirect("/vi/s/admin.html") )
+		else:
+			raise( errors.Redirect("/vi/user/login") )
 	else:
-		raise( errors.Redirect("/vi/user/login") )
+		appVersion = app_identity.get_default_version_hostname()
+		if canAccess():
+			raise( errors.Redirect("https://%s/vi/s/admin.html" % appVersion) )
+		else:
+			raise( errors.Redirect("https://%s/vi/user/login" % appVersion) )
 index.exposed=True
 
 def _postProcessAppObj( obj ):

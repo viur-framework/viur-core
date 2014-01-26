@@ -8,6 +8,7 @@ from google.appengine.api import users
 from google.appengine.api import taskqueue
 from google.appengine.ext.deferred import PermanentTaskFailure
 from server import db
+from functools import wraps
 import json
 import logging
 import os
@@ -237,13 +238,13 @@ TaskHandler.jinja2 = True
 ## Decorators ##
 
 def noRetry( f ):
-	"""Prevents a defered Function from beeing called a second time"""
+	"""Prevents a deferred Function from beeing called a second time"""
 	@wraps( f )
 	def wrappedFunc( *args,  **kwargs ):
 		try:
 			f( *args,  **kwargs )
 		except:
-			raise deferred.PermanentTaskFailure()
+			raise PermanentTaskFailure()
 	return( wrappedFunc )
 
 def callDeferred( func ):

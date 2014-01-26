@@ -458,7 +458,7 @@ class Tree( object ):
 			return( True )
 		return( False )
 		
-	def canEdit( self, skelType, node ):
+	def canEdit( self, skelType, node=None ):
 		"""
 			Checks if the current user has the right to edit an entry
 			@returns: True, if hes allowed to do so, False otherwise.

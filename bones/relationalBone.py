@@ -3,7 +3,6 @@ from server.bones import baseBone
 from server import db
 from google.appengine.api import search
 import json
-from server.tasks import PeriodicTask
 from time import time
 from datetime import datetime
 import logging
@@ -93,10 +92,16 @@ class relationalBone( baseBone ):
 						pass
 			else:
 				if isinstance( val, list ) and len( val )>0:
-					self.value = json.loads( val[0] )
+					try:
+						self.value = json.loads( val[0] )
+					except:
+						pass
 				else:
 					if val:
-						self.value = json.loads( val )
+						try:
+							self.value = json.loads( val )
+						except:
+							pass
 					else:
 						self.value = None
 
@@ -513,55 +518,3 @@ class relationalBone( baseBone ):
 			return
 		raise ValueError("Cannot read type %s into a relationalBone!" % str(type(value)))
 
-"""
-def findRelations( currentObj, depth=0, rels={} ):
-	from server.skeleton import Skeleton
-	if depth>4:
-		return( rels )
-	try:
-		if issubclass( currentObj, Skeleton ):
-			if not currentObj.kindName or currentObj.isBaseClassSkel:
-				return( rels )
-			for key in dir( currentObj ):
-				if key.startswith("__"):
-					continue
-				bone = getattr( currentObj, key )
-				if isinstance( bone, relationalBone ):
-					if not bone.type in rels.keys():
-						rels[ bone.type ] = []
-					data = ( currentObj.kindName, key, currentObj )
-					if not data in rels[ bone.type ]:
-						rels[ bone.type ].append( data )
-			return( rels )
-	except TypeError: #currentObj might not be a class
-		pass
-	for key in dir( currentObj ):
-		if key.startswith("__"):
-			continue
-		rels = findRelations( getattr( currentObj, key ), depth+1, rels )
-	return( rels )
-
-@PeriodicTask(60*24)
-def updateRelations():
-	from server import conf
-	for modul, referers in findRelations( conf["viur.mainApp"] ).items():
-		for entry in db.Query( modul ).filter( "viur_delayed_update_tag >", 0).iter():
-			for refTable, refKey, skel in referers:
-				for oldRelation in skel().all().mergeExternalFilter( {"%s.id" % refKey: str( entry.key() ) } ).filter("viur_delayed_update_tag <", entry["viur_delayed_update_tag"]).iter():
-					tmp = skel()
-					currKey = str( oldRelation.key().parent() or oldRelation.key() )
-					tmp.fromDB( currKey )
-					for key in dir( tmp ):
-						if not key.startswith("__") and isinstance( getattr( tmp, key ), relationalBone ):
-							bone = getattr( tmp, key )
-							if bone.value:
-								if isinstance( bone.value, list ):
-									bone.fromClient( "relbone", { "relbone":[ x["id"] for x in bone.value]} )
-								else:
-									bone.fromClient( "relbone", { "relbone": bone.value["id"]} )
-					tmp.toDB( currKey, clearUpdateTag=True )
-			tmp = db.Get( entry.key() ) #Reset its modified tag
-			tmp["viur_delayed_update_tag"] = 0
-			db.Put( tmp )
-
-"""

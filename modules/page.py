@@ -26,14 +26,13 @@ class Page( Hierarchy ):
 					},
 				"previewURL": "/page/view/{{id}}"
 				}
-	viewSkel = pageSkel
-	addSkel = pageSkel
-	editSkel = pageSkel
+
 	viewTemplate = "page_view"
 
 	def getAvailableRootNodes( self, *args, **kwargs ):
 		repo = self.ensureOwnModulRootNode()
 		return( [{"name":u"Seiten", "key": str( repo.key() ) }] )
+	getAvailableRootNodes.internalExposed=True
 
 	def canList( self, parent ):
 		return( True )

@@ -57,7 +57,7 @@ def sendEMail( dests, name , skel, extraFiles=[] ):
 	else:
 		message.to = dests
 	message.sender = mailfrom
-	message.html = data.encode('ascii', 'xmlcharrefreplace')
+	message.html = data.replace("\x00","").encode('ascii', 'xmlcharrefreplace')
 	if len( extraFiles )> 0:
 		message.attachments = extraFiles
 	message.send( )

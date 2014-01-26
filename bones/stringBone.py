@@ -21,6 +21,13 @@ class LanguageWrapper( dict ):
 		self.languages = languages
 	
 	def __str__( self ):
+		return( unicode(self.resolve()) )
+
+	def resolve(self):
+		"""
+			Causes this wrapper to evaluate to the best language available for the current request.
+			@returns string or [string] if multiple
+		"""
 		lang = request.current.get().language # currentSession.getLanguage()
 		if not lang:
 			lang = self.languages[ 0 ]

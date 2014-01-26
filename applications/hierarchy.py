@@ -265,7 +265,7 @@ class Hierarchy( object ):
 			raise errors.PreconditionFailed()
 		if not self.canReparent( item, dest ):
 			raise errors.Unauthorized()
-		if item==dest or not self.isValidParent( dest ):
+		if not self.isValidParent( dest ) or item==dest:
 			raise errors.NotAcceptable()
 		## Test for recursion
 		isValid = False
@@ -273,7 +273,7 @@ class Hierarchy( object ):
 		for x in range(0,99):
 			if str(currLevel.key())==item:
 				break
-			if "rootNode" in currLevel.keys() and currLevel["rootNode"]==1:
+			if currLevel.key().kind() == self.viewSkel().kindName+"_rootNode":
 				#We reached a rootNode
 				isValid=True
 				break
