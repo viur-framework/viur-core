@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
+import logging
 
 class booleanBone( baseBone ):
 	type = "bool"
@@ -73,7 +74,7 @@ class booleanBone( baseBone ):
 				val = True
 			else:
 				val = False
-			return( super( booleanBone, self ).buildDBFilter( name, skel, dbFilter, {"name":val} ) )
+			return( super( booleanBone, self ).buildDBFilter( name, skel, dbFilter, {name:val} ) )
 		else:
 			return( dbFilter )
 	
