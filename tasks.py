@@ -229,7 +229,7 @@ class TaskHandler:
 				if request.current.get().isDevServer:
 					conf["viur.mainApp"]._tasks.index()
 				else:
-					taskqueue.add( url="/_tasks", target="tasksq" )
+					taskqueue.add( url="/_tasks" )
 		return self.render.addItemSuccess( skel )
 	execute.exposed = True
 	
