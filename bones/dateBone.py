@@ -221,6 +221,9 @@ class dateBone( baseBone ):
 				self.value = time( hour=int(self.value/60), minute=int(self.value%60) )
 		elif isinstance( self.value, datetime ):
 			self.setLocalized( ExtendedDateTime.now().strptime( self.value.strftime( "%d.%m.%Y %H:%M:%S" ), "%d.%m.%Y %H:%M:%S") )
+		else:
+			# We got garbarge from the datastore
+			self.value = None
 		return
 	
 	def setLocalized( self, value ):
