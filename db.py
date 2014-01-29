@@ -389,6 +389,7 @@ class Query( object ):
 		if isinstance( filter, dict ):
 			for k, v in filter.items():
 				self.filter( k, v )
+			return( self )
 		if self._filterHook is not None:
 			try:
 				r = self._filterHook( self, filter, value )
