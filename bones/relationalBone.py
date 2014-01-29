@@ -158,9 +158,7 @@ class relationalBone( baseBone ):
 			else: # Relation: Updated
 				data = [ x for x in values if x["id"]== dbObj[ "dest.id" ] ][0]
 				if self.multiple and self.indexed: #We dont store more than key and kinds, and these dont change
-					for k,v in data.items():
-						dbObj[ "dest."+k ] = v
-					for k,v in parentValues.items():
+					for k,v in parentValues.items(): #Write our (updated) values in
 						dbObj[ "src."+k ] = v
 					dbObj[ "viur_delayed_update_tag" ] = time()
 					db.Put( dbObj )
@@ -352,7 +350,7 @@ class relationalBone( baseBone ):
 		if "orderby" in list(rawFilter.keys()) and rawFilter["orderby"].startswith( "%s." % name ):
 			if self.multiple:
 				#Create a new Filter based on our SubType and copy the parameters
-				dbFilter.datastoreQuery = type( dbFilter.datastoreQuery )( skel.kindName+"_"+self.type+"_"+name )
+				dbFilter.datastoreQuery = type( dbFilter.datastoreQuery )( "viur-relations" )
 				if origFilter:
 					dbFilter.filter( origFilter )
 			key = rawFilter["orderby"]
@@ -361,21 +359,27 @@ class relationalBone( baseBone ):
 				logging.warning( "Invalid ordering! %s is not in refKeys of RelationalBone %s!" % (param,name) )
 				raise RuntimeError()
 			if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
-				order = ( param, db.DESCENDING )
+				order = ( "dest."+param, db.DESCENDING )
 			else:
-				order = ( param, db.ASCENDING )
+				order = ( "dest."+param, db.ASCENDING )
 			dbFilter = dbFilter.order( order )
 			dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
 			dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings))
 		else: #Ensure that the non-relational order is valid
 			if self.multiple \
 			  and dbFilter.origKind != dbFilter.getKind()\
-			  and dbFilter.getKind() == skel.kindName+"_"+self.type+"_"+name:
+			  and dbFilter.getKind() == "viur-relations":
+				key = rawFilter["orderby"]
 				if "orderby" in rawFilter.keys():
-					  order = rawFilter["orderby"]
-					  if not "." in order and not order in self.parentKeys:
+					order = rawFilter["orderby"]
+					if not "." in order and not order in self.parentKeys:
 						logging.warning( "Invalid ordering! %s is not in parentKeys of RelationalBone %s!" % (order,name) )
 						raise RuntimeError()
+				if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
+					order = ( "src."+key, db.DESCENDING )
+				else:
+					order = ( "src."+key, db.ASCENDING )
+				dbFilter = dbFilter.order( order )
 				dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
 				dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings))
 		return( dbFilter )
@@ -400,7 +404,7 @@ class relationalBone( baseBone ):
 			layout of our viur-relations index.
 			Also performs sanity checks wherever this query is possible at all.
 		"""
-		if param.startswith("src.") or param.startswith("dest."):
+		if param.startswith("src.") or param.startswith("dest.") or param.startswith("viur_"):
 			#This filter is already valid in our relation
 			return( param, value )
 		if param.startswith( "%s." % name):
