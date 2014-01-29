@@ -345,7 +345,7 @@ class relationalBone( baseBone ):
 
 	def buildDBSort( self, name, skel, dbFilter, rawFilter ):
 		origFilter = dbFilter.datastoreQuery
-		if origFilter is None: #This query is unsatisfiable
+		if origFilter is None or not "orderby" in rawFilter.keys(): #This query is unsatisfiable or not sorted
 			return( dbFilter )
 		if "orderby" in list(rawFilter.keys()) and rawFilter["orderby"].startswith( "%s." % name ):
 			if self.multiple:
