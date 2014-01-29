@@ -291,6 +291,8 @@ class relationalBone( baseBone ):
 				dbFilter.filter("viur_src_kind =", skel.kindName )
 				dbFilter.filter("viur_dest_kind =", self.type )
 				dbFilter.filter("viur_src_property", name )
+				if dbFilter._origCursor: #Merge the cursor in again (if any)
+					dbFilter.cursor( dbFilter._origCursor )
 				if origFilter:
 					for k,v in origFilter.items():
 						#Ensure that all non-relational-filters are in parentKeys
