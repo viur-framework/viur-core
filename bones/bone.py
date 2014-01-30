@@ -332,3 +332,9 @@ class baseBone(object): # One Bone:
 			self.value = value
 			return
 		raise ValueError("Cannot unserialize value of type %s" % str(type(value)))
+
+	def refresh(self, boneName, skel ):
+		"""
+			Refresh all values we might have cached from other entities.
+		"""
+		pass

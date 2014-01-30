@@ -524,3 +524,18 @@ class relationalBone( baseBone ):
 			return
 		raise ValueError("Cannot read type %s into a relationalBone!" % str(type(value)))
 
+	def refresh(self, boneName, skel ):
+		"""
+			Refresh all values we might have cached from other entities.
+		"""
+		logging.warning("Refreshing Relationalbone %s of %s" % (boneName, skel.kindName))
+		if not self.value:
+			return
+		if isinstance( self.value, dict ) and "id" in self.value.keys():
+			self.fromClient( boneName, {boneName: self.value["id"]} )
+		elif isinstance( self.value, list ):
+			tmpList = []
+			for data in self.value:
+				if isinstance(data,dict) and "id" in data.keys():
+					tmpList.append( data["id"] )
+			self.fromClient( boneName, {boneName: tmpList} )

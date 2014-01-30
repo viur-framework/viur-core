@@ -546,6 +546,23 @@ class Skeleton( object ):
 			self.errors = {}
 		return( complete )
 
+	def refresh(self):
+		"""
+			Causes all cached data in this skeleton to refreshed.
+			This does not re-read the skeleton from the datastore but
+			causes bones like relationalBones to re-fetch the values of their
+			referenced entities.
+		"""
+		for key in dir(self):
+			if key.startswith("_"):
+				continue
+			bone = getattr( self, key )
+			if not isinstance( bone, baseBone ):
+				continue
+			if "refresh" in dir( bone ):
+				bone.refresh( key, self )
+
+
 class SkelList( list ):
 	"""
 		Class to hold multiple skeletons along
@@ -570,7 +587,6 @@ class SkelList( list ):
 def updateRelations( destID ):
 	#logging.error("updateRelations %s" % destID )
 	for srcRel in db.Query( "viur-relations" ).filter("dest.id =", destID ).iter( ):
-		logging.error("updating ref %s" % srcRel.key().parent() )
 		skel = skeletonByKind( srcRel["viur_src_kind"] )()
 		skel.fromDB( str(srcRel.key().parent()) )
 		for key in dir( skel ):
@@ -631,7 +647,6 @@ def processChunk( modul, compact, cursor ):
 	query = Skel().all().cursor( cursor )
 	gotAtLeastOne = False
 	for key in query.run(100, keysOnly=True):
-		logging.error(key)
 		gotAtLeastOne = True
 		try:
 			skel = Skel()
@@ -639,6 +654,7 @@ def processChunk( modul, compact, cursor ):
 			if compact=="YES":
 				raise NotImplementedError() #FIXME: This deletes the __currentKey__ property..
 				skel.delete( )
+			skel.refresh()
 			skel.toDB( )
 		except Exception as e:
 			logging.error("Updating %s failed" % str(key) )
