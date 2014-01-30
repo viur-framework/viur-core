@@ -216,6 +216,8 @@ class textBone( baseBone ):
 				for lng in self.languages:
 					if lng in self.value.keys():
 						val = self.value[ lng ]
+						if not val:
+							continue
 						idx = val.find("/file/download/")
 						while idx!=-1:
 							idx += 15
@@ -225,14 +227,15 @@ class textBone( baseBone ):
 								newFileKeys.append( fk )
 							idx = val.find("/file/download/", seperatorIdx)
 		else:
-			idx = self.value.find("/file/download/")
-			while idx!=-1:
-				idx += 15
-				seperatorIdx = min( [ x for x in [self.value.find("/",idx), self.value.find("\"",idx)] if x!=-1] )
-				fk = self.value[ idx:seperatorIdx]
-				if not fk in newFileKeys:
-					newFileKeys.append( fk )
-				idx = self.value.find("/file/download/", seperatorIdx)
+			if self.value:
+				idx = self.value.find("/file/download/")
+				while idx!=-1:
+					idx += 15
+					seperatorIdx = min( [ x for x in [self.value.find("/",idx), self.value.find("\"",idx)] if x!=-1] )
+					fk = self.value[ idx:seperatorIdx]
+					if not fk in newFileKeys:
+						newFileKeys.append( fk )
+					idx = self.value.find("/file/download/", seperatorIdx)
 		return( newFileKeys )
 
 
