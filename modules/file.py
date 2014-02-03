@@ -157,7 +157,7 @@ class File( Tree ):
 		except:
 			canAdd = False
 		if not canAdd:
-			for upload in self.get_uploads():
+			for upload in self.getUploads():
 				upload.delete()
 			raise errors.Forbidden()
 		try:
