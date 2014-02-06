@@ -582,8 +582,11 @@ class Query( object ):
 			Property is the name of the property used to sort,
 			direction a Bool (false => ascending, True => descending )
 		"""
-		order = self.datastoreQuery.__orderings
-		return( [ (prop, dir) for (prop, dir) in order ] )
+		try:
+			order = self.datastoreQuery.__orderings
+			return( [ (prop, dir) for (prop, dir) in order ] )
+		except:
+			return( [] )
 
 	def getCursor(self):
 		"""
