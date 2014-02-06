@@ -67,7 +67,6 @@ class relationalBone( baseBone ):
 		if parentKeys:
 			if not "id" in parentKeys:
 				raise AttributeError("ID must be included in parentKeys!")
-
 			self.parentKeys=parentKeys
 
 	def unserialize( self, name, expando ):
@@ -195,7 +194,7 @@ class relationalBone( baseBone ):
 	def fromClient( self, name, data ):
 		"""
 			Reads a value from the client.
-			If this value is valis for this bone,
+			If this value is valid for this bone,
 			store this value and return None.
 			Otherwise our previous value is
 			left unchanged and an error-message
@@ -273,7 +272,47 @@ class relationalBone( baseBone ):
 		if not self.value:
 			return( "No value entered" )
 		return( None )
-		
+
+	def _rewriteQuery(self, name, skel, dbFilter, rawFilter ):
+		"""
+			Rewrites a datastore query to operate on "viur-relations" instead of the original kind.
+			This is needed to perform relational queries on n:m relations.
+		"""
+		origFilter = dbFilter.datastoreQuery
+		if isinstance( origFilter, db.MultiQuery):
+			raise NotImplementedError("Doing a relational Query with multiple=True and \"IN or !=\"-filters is currently unsupported!")
+		dbFilter.datastoreQuery = type( dbFilter.datastoreQuery )( "viur-relations" ) #skel.kindName+"_"+self.type+"_"+name
+		dbFilter.filter("viur_src_kind =", skel.kindName )
+		dbFilter.filter("viur_dest_kind =", self.type )
+		dbFilter.filter("viur_src_property", name )
+		if dbFilter._origCursor: #Merge the cursor in again (if any)
+			dbFilter.cursor( dbFilter._origCursor )
+		if origFilter:
+			for k,v in origFilter.items(): #Merge old filters in
+				#Ensure that all non-relational-filters are in parentKeys
+				if k=="__key__":
+					# We must process the key-property separately as its meaning changes as we change the datastore kind were querying
+					if isinstance( v, list ) or isinstance(v, tuple):
+						logging.warning( "Invalid filtering! Doing an relational Query on %s with multiple id= filters is unsupported!" % (name) )
+						raise RuntimeError()
+					if not isinstance(v, db.Key ):
+						v = db.Key( v )
+					dbFilter.ancestor( v )
+					continue
+				if not (k if not " " in k else k.split(" ")[0]) in self.parentKeys:
+					logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
+					raise RuntimeError()
+				dbFilter.filter( "src.%s" % k, v )
+			orderList = []
+			for k,d in dbFilter.getOrders(): #Merge old sort orders in
+				if not k in self.parentKeys:
+					logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
+					raise RuntimeError()
+				orderList.append( ("src.%s" % k, d) )
+			if orderList:
+				dbFilter.order( *orderList )
+		return( name, skel, dbFilter, rawFilter )
+
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
 		origFilter = dbFilter.datastoreQuery
 		if origFilter is None:  #This query is unsatisfiable
@@ -285,30 +324,8 @@ class relationalBone( baseBone ):
 		if len( myKeys ) > 0: #We filter by some properties
 			if self.multiple: #We have a n:m relation, so we
 				# create a new Filter based on our SubType and copy the parameters
-				if isinstance( origFilter, db.MultiQuery):
-					raise NotImplementedError("Doing a relational Query with multiple=True and \"IN or !=\"-filters is currently unsupported!")
-				dbFilter.datastoreQuery = type( dbFilter.datastoreQuery )( "viur-relations" ) #skel.kindName+"_"+self.type+"_"+name
-				dbFilter.filter("viur_src_kind =", skel.kindName )
-				dbFilter.filter("viur_dest_kind =", self.type )
-				dbFilter.filter("viur_src_property", name )
-				if dbFilter._origCursor: #Merge the cursor in again (if any)
-					dbFilter.cursor( dbFilter._origCursor )
-				if origFilter:
-					for k,v in origFilter.items():
-						#Ensure that all non-relational-filters are in parentKeys
-						if k=="__key__":
-							# We must process the key-property separately as its meaning changes as we change the datastore kind were querying
-							if isinstance( v, list ) or isinstance(v, tuple):
-								logging.warning( "Invalid filtering! Doing an relational Query on %s with multiple id= filters is unsupported!" % (name) )
-								raise RuntimeError()
-							if not isinstance(v, db.Key ):
-								v = db.Key( v )
-							dbFilter.ancestor( v )
-							continue
-						if not (k if not " " in k else k.split(" ")[0]) in self.parentKeys:
-							logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
-							raise RuntimeError()
-						dbFilter.filter( "src.%s" % k, v )
+				if dbFilter.getKind()!="viur-relations":
+					name, skel, dbFilter, rawFilter = self._rewriteQuery( name, skel, dbFilter, rawFilter )
 			# Merge the relational filters in
 			for key in myKeys:
 				value = rawFilter[ key ]
@@ -351,10 +368,8 @@ class relationalBone( baseBone ):
 			return( dbFilter )
 		if "orderby" in list(rawFilter.keys()) and rawFilter["orderby"].startswith( "%s." % name ):
 			if self.multiple:
-				#Create a new Filter based on our SubType and copy the parameters
-				dbFilter.datastoreQuery = type( dbFilter.datastoreQuery )( "viur-relations" )
-				if origFilter:
-					dbFilter.filter( origFilter )
+				if not dbFilter.getKind()=="viur-relations": #This query has not been rewritten (yet)
+					name, skel, dbFilter, rawFilter = self._rewriteQuery( name, skel, dbFilter, rawFilter )
 				key = rawFilter["orderby"]
 				param = key.split(".")[1]
 				if not param in self.refKeys:
