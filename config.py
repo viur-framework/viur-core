@@ -25,6 +25,9 @@ conf = {	"viur.mainApp": None,  #Reference to our prebuild Application-Instance
 		"viur.maxPasswordLength": 512, #Prevent Denial of Service attacks using large inputs for pbkdf2
 		"viur.exportPassword": None, # Activates the Database export API if set. Must be exactly 32 chars. *Everyone* knowing this password can dump the whole database!
 		"viur.importPassword": None, # Activates the Database import API if set. Must be exactly 32 chars. *Everyone* knowing this password can rewrite the whole database!
+		"viur.debug.traceExceptions": False, #If enabled, user-generated exceptions from the server.errors module won't be caught and handled
+		"viur.debug.traceExternalCallRouting": True, #If enabled, ViUR will log which (exposed) function are called from outside with what arguments
+		"viur.debug.traceInternalCallRouting": True, #If enabled, ViUR will log which (internal-exposed) function are called from templates with what arguments
 		"bugsnag.apiKey": None #If set, ViUR will report Errors to bugsnag
 	}
 

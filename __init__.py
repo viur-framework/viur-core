@@ -286,8 +286,12 @@ class BrowseHandler(webapp.RequestHandler):
 			path = self.selectLanguage( path )
 			self.findAndCall( path, *args, **kwargs )
 		except errors.Redirect as e :
+			if conf["viur.debug.traceExceptions"]:
+				raise
 			self.redirect( e.url.encode("UTF-8") )
 		except errors.HTTPException as e:
+			if conf["viur.debug.traceExceptions"]:
+				raise
 			self.response.clear()
 			self.response.set_status( e.status )
 			tpl = Template( open("server/template/error.html", "r").read() )
@@ -397,6 +401,8 @@ class BrowseHandler(webapp.RequestHandler):
 					pass
 		self.kwargs = kwargs
 		try:
+			if (conf["viur.debug.traceExternalCallRouting"] and not self.internalRequest) or conf["viur.debug.traceInternalCallRouting"]:
+				logging.debug("Calling %s with args=%s and kwargs=%s" % (str(caller),unicode(args), unicode(kwargs)))
 			self.response.out.write( caller( *self.args, **self.kwargs ) )
 		except TypeError as e:
 			if self.internalRequest: #We provide that "service" only for requests originating from outside
