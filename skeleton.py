@@ -117,6 +117,8 @@ class Skeleton( object ):
 			if not isinstance(bone, baseBone):
 				continue
 			keepBone = key in boneList
+			if key=="id":
+				keepBone = True
 			if not keepBone: #Test if theres a prefix-match that allows it
 				for boneKey in boneList:
 					if boneKey.endswith("*") and key.startswith(boneKey[: -1]):
