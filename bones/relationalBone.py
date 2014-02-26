@@ -314,7 +314,7 @@ class relationalBone( baseBone ):
 							raise RuntimeError()
 						dbFilter.filter( "src.%s" % k, v )
 				if origOrders:
-					dbFilter.order([("src.%s" % x,y) for x,y in origOrders])
+					dbFilter.order([("src.%s" % x,y) for x,y in origOrders][0])
 			# Merge the relational filters in
 			for key in myKeys:
 				value = rawFilter[ key ]
