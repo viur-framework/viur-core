@@ -276,6 +276,10 @@ class relationalBone( baseBone ):
 		
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
 		origFilter = dbFilter.datastoreQuery
+		try:
+			origOrders = dbFilter.getOrders()
+		except:
+			origOrders = None
 		if origFilter is None:  #This query is unsatisfiable
 			return( dbFilter )
 		myKeys = [ x for x in rawFilter.keys() if x.startswith( "%s." % name ) ]
@@ -309,6 +313,8 @@ class relationalBone( baseBone ):
 							logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
 							raise RuntimeError()
 						dbFilter.filter( "src.%s" % k, v )
+				if origOrders:
+					dbFilter.order([("src.%s" % x,y) for x,y in origOrders])
 			# Merge the relational filters in
 			for key in myKeys:
 				value = rawFilter[ key ]
