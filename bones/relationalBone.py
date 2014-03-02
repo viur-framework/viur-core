@@ -25,8 +25,8 @@ class relationalBone( baseBone ):
 		If you filter a list by relational properties, this will also use the old data! (Eg. filtering A's list by B's new name wont return any result)
 		Currently, this is corrected by the background task, however its possible to consider other methods (eg. by probability).
 	"""
-	
-	
+
+
 	type = None
 	modul = None
 	refKeys = ["id","name"]
@@ -319,10 +319,6 @@ class relationalBone( baseBone ):
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
 		origFilter = dbFilter.datastoreQuery
-		try:
-			origOrders = dbFilter.getOrders()
-		except:
-			origOrders = None
 		if origFilter is None:  #This query is unsatisfiable
 			return( dbFilter )
 		myKeys = [ x for x in rawFilter.keys() if x.startswith( "%s." % name ) ]
@@ -376,6 +372,7 @@ class relationalBone( baseBone ):
 			return( dbFilter )
 		if "orderby" in list(rawFilter.keys()) and rawFilter["orderby"].startswith( "%s." % name ):
 			if self.multiple:
+<<<<<<< HEAD
 				if not dbFilter.getKind()=="viur-relations": #This query has not been rewritten (yet)
 					name, skel, dbFilter, rawFilter = self._rewriteQuery( name, skel, dbFilter, rawFilter )
 				key = rawFilter["orderby"]
@@ -418,6 +415,24 @@ class relationalBone( baseBone ):
 				dbFilter = dbFilter.order( order )
 				dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
 				dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings))
+=======
+				#Create a new Filter based on our SubType and copy the parameters
+				dbFilter.datastoreQuery = type( dbFilter.datastoreQuery )( "viur-relations" )
+				if origFilter:
+					dbFilter.filter( origFilter )
+			key = rawFilter["orderby"]
+			param = key.split(".")[1]
+			if not param in self.refKeys:
+				logging.warning( "Invalid ordering! %s is not in refKeys of RelationalBone %s!" % (param,name) )
+				raise RuntimeError()
+			if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
+				order = ( "dest."+param, db.DESCENDING )
+			else:
+				order = ( "dest."+param, db.ASCENDING )
+			dbFilter = dbFilter.order( order )
+			dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
+			dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings))
+>>>>>>> mdtest-vi
 		return( dbFilter )
 
 	def getSearchDocumentFields(self, name):

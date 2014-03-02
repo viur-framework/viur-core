@@ -346,6 +346,7 @@ class Render( object ):
 			@returns: Dict
 		"""
 		if not modul in dir ( conf["viur.mainApp"] ):
+			logging.error("getEntry called with unknown modul %s!" % modul)
 			return False
 		obj = getattr( conf["viur.mainApp"], modul)
 		if skel in dir( obj ):
@@ -354,7 +355,8 @@ class Render( object ):
 				#We fetching the entry from a singleton - No id needed
 				id = str( db.Key.from_path( skel.kindName, obj.getKey() ) )
 			if isinstance( skel,  Skeleton ):
-				skel.fromDB( id )
+				if not skel.fromDB( id ):
+					return( None )
 				return( self.collectSkelData( skel ) )
 		return False
 
