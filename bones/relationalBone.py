@@ -118,6 +118,10 @@ class relationalBone( baseBone ):
 	def serialize(self, key, entity ):
 		if not self.value:
 			entity.set( key, None, False )
+			if not self.multiple:
+				for k in entity.keys():
+					if k.startswith("%s." % key):
+						del entity[ k ]
 		else:
 			if self.multiple:
 				res = []
