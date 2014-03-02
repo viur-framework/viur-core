@@ -318,6 +318,10 @@ class relationalBone( baseBone ):
 							raise RuntimeError()
 						dbFilter.filter( "src.%s" % k, v )
 				if origOrders:
+					for key, odir in origOrders:
+						if not key in self.parentKeys:
+							logging.warning( "Invalid ordering! %s is not in parentKeys of RelationalBone %s!" % (key,name) )
+							raise RuntimeError()
 					dbFilter.order([("src.%s" % x,y) for x,y in origOrders][0])
 			# Merge the relational filters in
 			for key in myKeys:
@@ -377,23 +381,6 @@ class relationalBone( baseBone ):
 			dbFilter = dbFilter.order( order )
 			dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
 			dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings))
-		else: #Ensure that the non-relational order is valid
-			if self.multiple \
-			  and dbFilter.origKind != dbFilter.getKind()\
-			  and dbFilter.getKind() == "viur-relations":
-				key = rawFilter["orderby"]
-				if "orderby" in rawFilter.keys():
-					order = rawFilter["orderby"]
-					if not "." in order and not order in self.parentKeys:
-						logging.warning( "Invalid ordering! %s is not in parentKeys of RelationalBone %s!" % (order,name) )
-						raise RuntimeError()
-				if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
-					order = ( "src."+key, db.DESCENDING )
-				else:
-					order = ( "src."+key, db.ASCENDING )
-				dbFilter = dbFilter.order( order )
-				dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
-				dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings))
 		return( dbFilter )
 
 	def getSearchDocumentFields(self, name):
