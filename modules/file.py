@@ -168,7 +168,7 @@ class File( Tree ):
 	@exposed
 	def upload( self, node=None, *args, **kwargs ):
 		try:
-			canAdd = self.canAdd( node, "leaf" )
+			canAdd = self.canAdd( "leaf", node )
 		except:
 			canAdd = False
 		if not canAdd:

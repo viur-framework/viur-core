@@ -117,6 +117,10 @@ class relationalBone( baseBone ):
 	def serialize(self, key, entity ):
 		if not self.value:
 			entity.set( key, None, False )
+			if not self.multiple:
+				for k in entity.keys():
+					if k.startswith("%s." % key):
+						del entity[ k ]
 		else:
 			if self.multiple:
 				res = []
@@ -315,6 +319,10 @@ class relationalBone( baseBone ):
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
 		origFilter = dbFilter.datastoreQuery
+		try:
+			origOrders = dbFilter.getOrders()
+		except:
+			origOrders = None
 		if origFilter is None:  #This query is unsatisfiable
 			return( dbFilter )
 		myKeys = [ x for x in rawFilter.keys() if x.startswith( "%s." % name ) ]
