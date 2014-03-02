@@ -18,13 +18,13 @@ class TreeLeafSkel( Skeleton ):
 	def fromDB( self, *args, **kwargs ):
 		res = super( TreeLeafSkel, self ).fromDB( *args, **kwargs )
 		# Heal missing parent-repo values
-		if not self.parentrepo.value and self.id.value is not None:
-			dbObj = db.Get( self.id.value )
+		if not self["parentrepo"].value and self["id"].value is not None:
+			dbObj = db.Get( self["id"].value )
 			if not "parentdir" in dbObj.keys(): #RootNode
 				return( res )
 			while( "parentdir" in dbObj.keys() and dbObj["parentdir"] ):
 				dbObj = db.Get( dbObj[ "parentdir" ] )
-			self.parentrepo.value = str( dbObj.key() )
+			self["parentrepo"].value = str( dbObj.key() )
 			self.toDB(  )
 		return( res )
 
@@ -132,9 +132,9 @@ class Tree( object ):
 			raise errors.Unauthorized()
 		res = [ self.render.collectSkelData( nodeSkel ) ]
 		for x in range(0,99):
-			if not nodeSkel.parentdir.value:
+			if not nodeSkel["parentdir"].value:
 				break
-			parentdir = nodeSkel.parentdir.value
+			parentdir = nodeSkel["parentdir"].value
 			nodeSkel = self.viewNodeSkel()
 			if not nodeSkel.fromDB( parentdir ):
 				break
@@ -225,12 +225,12 @@ class Tree( object ):
 			raise errors.NotFound()
 		query = skel.all()
 		if "search" in kwargs.keys() and kwargs["search"]:
-			query.filter( "parentrepo =", str(nodeSkel.id.value) )
+			query.filter( "parentrepo =", str(nodeSkel["id"].value) )
 		else:
-			query.filter( "parentdir =", str(nodeSkel.id.value) )
+			query.filter( "parentdir =", str(nodeSkel["id"].value) )
 		query.mergeExternalFilter( kwargs )
 		res = query.fetch( )
-		return( self.render.list( res, node=str(nodeSkel.id.value) ) )
+		return( self.render.list( res, node=str(nodeSkel["id"].value) ) )
 	
 	
 	@exposed
@@ -275,8 +275,8 @@ class Tree( object ):
 			return( self.render.add( skel ) )
 		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
-		skel.parentdir.value = str( node )
-		skel.parentrepo.value = parentNodeSkel.parentrepo.value or str( node )
+		skel["parentdir"].value = str( node )
+		skel["parentrepo"].value = parentNodeSkel["parentrepo"].value or str( node )
 		id = skel.toDB( )
 		self.onItemAdded( skel )
 		return self.render.addItemSuccess( skel )
@@ -408,10 +408,10 @@ class Tree( object ):
 			raise errors.NotFound()
 		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
-		srcSkel.parentdir.value = str( destNode )
-		srcSkel.parentrepo.value = destSkel.parentrepo.value #Fixme: Need to recursive fixing to parentrepo?
+		srcSkel["parentdir"].value = str( destNode )
+		srcSkel["parentrepo"].value = destSkel["parentrepo"].value #Fixme: Need to recursive fixing to parentrepo?
 		srcSkel.toDB( )
-		self.updateParentRepo( id, destSkel.parentrepo.value )
+		self.updateParentRepo( id, destSkel["parentrepo"].value )
 		return( self.render.editItemSuccess( srcSkel, skelType=skelType, action="move", destNode = destSkel ) )
 
 ## Default accesscontrol functions 
@@ -508,7 +508,7 @@ class Tree( object ):
 			@param skel: Skeleton with the data which has been added
 			@type skel: Skeleton
 		"""
-		logging.info("Entry added: %s" % skel.id.value )
+		logging.info("Entry added: %s" % skel["id"].value )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
@@ -519,7 +519,7 @@ class Tree( object ):
 			@param skel: Skeleton with the data which has been edited
 			@type skel: Skeleton
 		"""
-		logging.info("Entry changed: %s" % skel.id.value )
+		logging.info("Entry changed: %s" % skel["id"].value )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
@@ -539,7 +539,7 @@ class Tree( object ):
 			Note: Saving the skeleton again will undo the deletion
 			(if the skeleton was a leaf or a node with no childen).
 		"""
-		logging.info("Entry deleted: %s (%s)" % ( skel.id.value, type(skel) ) )
+		logging.info("Entry deleted: %s (%s)" % ( skel["id"].value, type(skel) ) )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )

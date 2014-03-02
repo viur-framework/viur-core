@@ -27,10 +27,10 @@ class GoogleUser( List ):
 
 	def editSkel( self, *args,  **kwargs ):
 		skel = super( GoogleUser, self ).editSkel()
-		accessRights = skel.access.values.copy()
+		accessRights = skel["access"].values.copy()
 		for right in conf["viur.accessRights"]:
 			accessRights[ right ] = _( right )
-		skel.access.values = accessRights
+		skel["access"].values = accessRights
 		return( skel )
 
 	viewSkel = editSkel

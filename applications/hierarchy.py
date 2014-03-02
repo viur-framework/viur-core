@@ -175,7 +175,7 @@ class Hierarchy( object ):
 				nameBone = skel.name
 				if isinstance( nameBone, baseBone ) and "languages" in dir( nameBone ) and nameBone.languages:
 					skel.setValues( obj )
-					return( unicode( skel.name.value ) )
+					return( unicode( skel["name"].value ) )
 			return( None )
 			
 		availableRepos = self.getAvailableRootNodes()
@@ -420,8 +420,8 @@ class Hierarchy( object ):
 			return( self.render.add( skel ) )
 		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
-		skel.parententry.value = str( parent )
-		skel.parentrepo.value = str( self.getRootNode( parent ).key() )
+		skel["parententry"].value = str( parent )
+		skel["parentrepo"].value = str( self.getRootNode( parent ).key() )
 		key = skel.toDB( )
 		self.onItemAdded( skel )
 		return self.render.addItemSuccess( skel )
@@ -568,7 +568,7 @@ class Hierarchy( object ):
 			@param skel: Skeleton with the data which has been added
 			@type skel: Skeleton
 		"""
-		logging.info("Entry added: %s" % skel.id.value )
+		logging.info("Entry added: %s" % skel["id"].value )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
@@ -581,7 +581,7 @@ class Hierarchy( object ):
 			@param skel: Skeleton with the data which has been edited
 			@type skel: Skeleton
 		"""
-		logging.info("Entry changed: %s" % skel.id.value )
+		logging.info("Entry changed: %s" % skel["id"].value )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
@@ -601,7 +601,7 @@ class Hierarchy( object ):
 			@param id: Urlsafe-key of the entry deleted
 			@type id: Skeleton
 		"""
-		logging.info("Entry deleted: %s" % skel.id.value )
+		logging.info("Entry deleted: %s" % skel["id"].value )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )

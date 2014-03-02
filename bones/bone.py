@@ -4,6 +4,7 @@ from server.config import conf
 from server import db
 import logging
 import hashlib
+import copy
 
 class baseBone(object): # One Bone:
 	hasDBField = True
@@ -314,6 +315,32 @@ class baseBone(object): # One Bone:
 		"""
 		pass #We do nothing by default
 
+	def postSavedHandler( self, boneName, skel, id, dbObj ):
+		"""
+			Can be overriden to perform further actions after the main entity has been written.
+			@param boneName: Name of this bone
+			@type boneName: String
+			@param skel: The skeleton this bone belongs to
+			@type skel: Skeleton
+			@param id: The (new?) Database Key we've written to
+			@type id: String
+			@param dbObj: The db.Entity object written
+			@type dbObj: db.Entity
+		"""
+		pass
+
+	def postDeletedHandler(self, skel, boneName, key):
+		"""
+			Can be overriden to perform  further actions after the main entity has been deleted.
+			@param skel: The skeleton this bone belongs to
+			@type skel: Skeleton
+			@param boneName: Name of this bone
+			@type boneName: String
+			@param key: The old Database Key of hte entity we've deleted
+			@type id: String
+		"""
+		pass
+
 	def toBackup(self):
 		"""
 			Serializes this bone into something json-serializable for backup purposes.
@@ -338,3 +365,14 @@ class baseBone(object): # One Bone:
 			Refresh all values we might have cached from other entities.
 		"""
 		pass
+
+	def mergeFrom(self, other):
+		"""
+			Clones the values from other into this instance
+		"""
+		if other is None:
+			return
+		if not isinstance( other, type(self) ):
+			logging.error("Ignoring values from conflicting boneType (%s is not a instance of %s)!" % (other, type(self)))
+			return
+		self.value = copy.deepcopy( other.value )

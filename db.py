@@ -332,7 +332,8 @@ class Query( object ):
 			else:
 				self.datastoreQuery = None
 			return( self )
-		bones = [ (getattr( skel, key ), key) for key in dir( skel ) if not "__" in key and isinstance( getattr( skel, key ) , baseBone ) ]
+		#bones = [ (getattr( skel, key ), key) for key in dir( skel ) if not "__" in key and isinstance( getattr( skel, key ) , baseBone ) ]
+		bones = [ (y,x) for x,y in skel.items() ]
 		try:
 			#First, filter non-relational bones
 			for bone, key in [ x for x in bones if not isinstance( x[0], relationalBone ) ]:

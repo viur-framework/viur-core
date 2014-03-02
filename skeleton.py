@@ -54,6 +54,8 @@ class MetaSkel( type ):
 					raise AttributeError( "Bonekeys cannot not contain a dot (.) - got %s" % key )
 				if key in MetaSkel.__reservedKeywords_:
 					raise AttributeError( "Your bone cannot have any of the following keys: %s" % str( MetaSkel.__reservedKeywords_ ) )
+			if key == "postProcessSerializedData":
+				raise AttributeError( "postProcessSerializedData is deprecated! Use postSavedHandler instead." )
 		return( super( MetaSkel, cls ).__init__( name, bases, dct ) )
 
 def skeletonByKind( kindName ):
@@ -76,6 +78,9 @@ class Skeleton( object ):
 	__metaclass__ = MetaSkel
 
 	def __setattr__(self, key, value):
+		if "_Skeleton__isInitialized_" in dir( self ) and not key in ["_Skeleton__currentDbKey_"]:
+			logging.error(key)
+			raise AttributeError("You cannot directly modify the skeleton instance. Use [] instead!")
 		if not "__dataDict__" in dir( self ):
 			super( Skeleton, self ).__setattr__( "__dataDict__", OrderedDict() )
 		if not "__" in key:
@@ -86,13 +91,39 @@ class Skeleton( object ):
 		super( Skeleton, self ).__setattr__( key, value )
 
 	def __delattr__(self, key):
+		if "_Skeleton__isInitialized_" in dir( self ):
+			raise AttributeError("You cannot directly modify the skeleton instance. Use [] instead!")
+
 		if( key in dir( self ) ):
 			super( Skeleton, self ).__delattr__( key )
 		else:
 			del self.__dataDict__[key]
 
+	def __getattribute__(self, item):
+		isOkay = False
+		if item.startswith("_") or item in ["kindName","searchIndex", "enforceUniqueValuesFor","all","fromDB",
+						    "toDB", "items","keys","values","setValues","errors","fromClient",
+						    "preProcessBlobLocks","preProcessSerializedData","postSavedHandler",
+						    "postDeletedHandler", "delete"]:
+			isOkay = True
+		elif not "_Skeleton__isInitialized_" in dir( self ):
+			isOkay = True
+		if isOkay:
+			return( super( Skeleton, self ).__getattribute__(item ))
+		else:
+			raise AttributeError("Use [] to access your bones!")
+
+	def __contains__(self, item):
+		return( item in self.__dataDict__.keys() )
+
 	def items(self):
 		return( self.__dataDict__.items() )
+
+	def keys(self):
+		return( self.__dataDict__.keys() )
+
+	def values(self):
+		return( self.__dataDict__.values() )
 
 	kindName = "" # To which kind we save our data to
 	searchIndex = None # If set, use this name as the index-name for the GAE search API
@@ -168,29 +199,21 @@ class Skeleton( object ):
 		tmpList.sort( key=lambda x: x[1].idx )
 		for key, bone in tmpList:
 			bone = copy.copy( bone )
-			setattr( self, key, bone )
+			self.__dataDict__[ key ] = bone
 		if self.enforceUniqueValuesFor:
 			uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
 			if not uniqueProperty in [ key for (key,bone) in tmpList ]:
 				raise( ValueError("Cant enforce unique variables for unknown bone %s" % uniqueProperty ) )
+		self.__isInitialized_ = True
 
 	def __setitem__(self, name, value):
-		try:
-			bone = getattr( self, name )
-		except:
-			bone = None
-		if not isinstance( bone, baseBone ):
-			raise KeyError("%s is no valid Bone!" % name )
-		bone.value = value
+		self.__dataDict__[ name ] = value
 
 	def __getitem__(self, name ):
-		try:
-			bone = getattr( self, name )
-		except:
-			bone = None
-		if not isinstance( bone, baseBone ):
-			raise KeyError("%s is no valid Bone!" % name )
-		return( bone.value )
+		return( self.__dataDict__[name] )
+
+	def __delitem__(self, key):
+		del self.__dataDict__[ key ]
 
 	def all(self):
 		"""
@@ -230,11 +253,6 @@ class Skeleton( object ):
 		self.setValues( dbRes )
 		id = str( dbRes.key() )
 		self.__currentDbKey_ = id
-		for key in dir( self ):
-			bone = getattr( self, key )
-			if not "__" in key and isinstance( bone , baseBone ):
-				if "postUnserialize" in dir( bone ):
-					bone.postUnserialize( key, self, id )
 		return( True )
 
 	def toDB( self, clearUpdateTag=False ):
@@ -249,40 +267,46 @@ class Skeleton( object ):
 			@type clearUpdateTag: Bool
 			@returns String DB-Key
 		"""
-		def txnUpdate( id, skel, clearUpdateTag ):
+		def txnUpdate( id, mergeFrom, clearUpdateTag ):
 			blobList = set()
+			skel = type(mergeFrom)()
+			# Load the current values from Datastore or create a new, empty db.Entity
 			if not id:
 				dbObj = db.Entity( skel.kindName )
 				oldBlobLockObj = None
 			else:
 				k = db.Key( id )
+				assert k.kind()==skel.kindName, "Cannot write to invalid kind!"
 				try:
 					dbObj = db.Get( k )
 				except db.EntityNotFoundError:
 					dbObj = db.Entity( k.kind(), id=k.id(), name=k.name(), parent=k.parent() )
+				else:
+					skel.setValues( dbObj )
 				try:
 					oldBlobLockObj = db.Get(db.Key.from_path("viur-blob-locks",str(k)))
 				except:
 					oldBlobLockObj = None
-			if self.enforceUniqueValuesFor:
-				uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
+			if skel.enforceUniqueValuesFor: # Remember the old lock-object (if any) we might need to delete
+				uniqueProperty = (skel.enforceUniqueValuesFor[0] if isinstance( skel.enforceUniqueValuesFor, tuple ) else skel.enforceUniqueValuesFor)
 				if "%s.uniqueIndexValue" % uniqueProperty in dbObj.keys():
 					oldUniquePropertyValue = dbObj[ "%s.uniqueIndexValue" % uniqueProperty ]
 				else:
 					oldUniquePropertyValue = None
+			# Merge the values from mergeFrom in
+			for key, bone in skel.items():
+				if key in mergeFrom.keys() and mergeFrom[ key ]:
+					bone.mergeFrom( mergeFrom[ key ] )
 			unindexed_properties = []
-			for key in dir( skel ):
-				if "__" not in key:
-					_bone = getattr( skel, key )
-					if( isinstance( _bone, baseBone )  ):
-						tmpKeys = dbObj.keys()
-						dbObj = _bone.serialize( key, dbObj )
-						newKeys = [ x for x in dbObj.keys() if not x in tmpKeys ] #These are the ones that the bone added
-						if not _bone.indexed:
-							unindexed_properties += newKeys
-						blobList.update( _bone.getReferencedBlobs() )
-						#if _bone.searchable and not skel.searchIndex:
-						#	tags += [ tag for tag in _bone.getSearchTags() if (tag not in tags and len(tag)<400) ]
+			for key, _bone in skel.items():
+				tmpKeys = dbObj.keys()
+				dbObj = _bone.serialize( key, dbObj )
+				newKeys = [ x for x in dbObj.keys() if not x in tmpKeys ] #These are the ones that the bone added
+				if not _bone.indexed:
+					unindexed_properties += newKeys
+				blobList.update( _bone.getReferencedBlobs() )
+				#if _bone.searchable and not skel.searchIndex:
+				#	tags += [ tag for tag in _bone.getSearchTags() if (tag not in tags and len(tag)<400) ]
 			#if tags:
 			#	dbObj["viur_tags"] = tags
 			if clearUpdateTag:
@@ -290,15 +314,14 @@ class Skeleton( object ):
 			else:
 				dbObj["viur_delayed_update_tag"] = time() #Mark this entity as dirty, so the background-task will catch it up and update its references.
 			dbObj.set_unindexed_properties( unindexed_properties )
-			if "preProcessSerializedData" in dir( self ):
-				dbObj = self.preProcessSerializedData( dbObj )
-			if self.enforceUniqueValuesFor:
-				uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
+			dbObj = skel.preProcessSerializedData( dbObj )
+			if skel.enforceUniqueValuesFor:
+				uniqueProperty = (skel.enforceUniqueValuesFor[0] if isinstance( skel.enforceUniqueValuesFor, tuple ) else skel.enforceUniqueValuesFor)
 				# Check if the property is really unique
-				newVal = getattr( self, uniqueProperty ).getUniquePropertyIndexValue()
+				newVal = getattr( skel, uniqueProperty ).getUniquePropertyIndexValue()
 				if newVal is not None:
 					try:
-						lockObj = db.Get( db.Key.from_path( "%s_uniquePropertyIndex" % self.kindName, newVal ) )
+						lockObj = db.Get( db.Key.from_path( "%s_uniquePropertyIndex" % skel.kindName, newVal ) )
 						try:
 							ourKey = str( dbObj.key() )
 						except: #Its not an update but an insert, no key yet
@@ -314,16 +337,13 @@ class Skeleton( object ):
 			if not skel.searchIndex:
 				# We generate the searchindex using the full skel, not this (maybe incomplete one)
 				tags = []
-				for key in dir( self ):
-					if "__" not in key:
-						_bone = getattr( self, key )
-						if( isinstance( _bone, baseBone )  ):
-							if _bone.searchable:
-								tags += [ tag for tag in _bone.getSearchTags() if (tag not in tags and len(tag)<400) ]
+				for key, _bone in skel.items():
+					if _bone.searchable:
+						tags += [ tag for tag in _bone.getSearchTags() if (tag not in tags and len(tag)<400) ]
 				dbObj["viur_tags"] = tags
 			db.Put( dbObj ) #Write the core entry back
 			# Now write the blob-lock object
-			blobList = self.preProcessBlobLocks( blobList )
+			blobList = skel.preProcessBlobLocks( blobList )
 			if blobList is None:
 				raise ValueError("Did you forget to return the bloblist somewhere inside getReferencedBlobs()?")
 			if oldBlobLockObj is not None:
@@ -345,53 +365,48 @@ class Skeleton( object ):
 				blobLockObj["has_old_blob_references"] = False
 				blobLockObj["is_stale"] = False
 				db.Put( blobLockObj )
-			if self.enforceUniqueValuesFor:
+			if skel.enforceUniqueValuesFor:
 				# Now update/create/delete the lock-object
 				if newVal != oldUniquePropertyValue:
 					if oldUniquePropertyValue is not None:
-						db.Delete( db.Key.from_path( "%s_uniquePropertyIndex" % self.kindName, oldUniquePropertyValue ) )
+						db.Delete( db.Key.from_path( "%s_uniquePropertyIndex" % skel.kindName, oldUniquePropertyValue ) )
 					if newVal is not None:
-						newLockObj = db.Entity( "%s_uniquePropertyIndex" % self.kindName, name=newVal )
+						newLockObj = db.Entity( "%s_uniquePropertyIndex" % skel.kindName, name=newVal )
 						newLockObj["references"] = str( dbObj.key() )
 						db.Put( newLockObj )
-			return( str( dbObj.key() ), dbObj )
+			return( str( dbObj.key() ), dbObj, skel )
 		# END of txnUpdate subfunction
 		id = self.__currentDbKey_
 		if not isinstance(clearUpdateTag,bool):
 			raise ValueError("Got an unsupported type %s for clearUpdateTag. toDB doesn't accept a key argument any more!" % str(type(clearUpdateTag)))
 		# Allow bones to perform outstanding "magic" operations before saving to db
-		for key in dir( self ):
-			if "__" not in key:
-				_bone = getattr( self, key )
-				if( isinstance( _bone, baseBone ) ):
-					_bone.performMagic( isAdd=(id==False) )
+		for key,_bone in self.items():
+			_bone.performMagic( isAdd=(id==False) )
 		# Run our SaveTxn
-		id, dbObj = db.RunInTransactionOptions( db.TransactionOptions(xg=True), txnUpdate, id, self, clearUpdateTag )
+		id, dbObj, skel = db.RunInTransactionOptions( db.TransactionOptions(xg=True), txnUpdate, id, self, clearUpdateTag )
 		# Perform post-save operations (postProcessSerializedData Hook, Searchindex, ..)
-		self.id.value = str(id)
+		self["id"].value = str(id)
 		self.__currentDbKey_ = str(id)
 		if self.searchIndex: #Add a Document to the index if an index specified
 			fields = []
-			for key in dir( self ):
-				if "__" not in key:
-					_bone = getattr( self, key )
-					if( isinstance( _bone, baseBone )  ) and _bone.searchable:
-						fields.extend( _bone.getSearchDocumentFields(key ) )
-			if "getSearchDocumentFields" in dir( self ):
-				fields = self.getSearchDocumentFields( fields )
+			for key, _bone in skel.items():
+				if _bone.searchable:
+					fields.extend( _bone.getSearchDocumentFields(key ) )
+			fields = skel.getSearchDocumentFields( fields )
 			if fields:
 				try:
 					doc = search.Document(doc_id="s_"+str(id), fields= fields )
-					search.Index(name=self.searchIndex).put( doc )
+					search.Index(name=skel.searchIndex).put( doc )
 				except:
 					pass
-		for key in dir( self ):
-			if "__" not in key:
-				_bone = getattr( self, key )
-				if( isinstance( _bone, baseBone ) ) and "postSavedHandler" in dir( _bone ):
-					_bone.postSavedHandler( key, self, id, dbObj )
-		if "postProcessSerializedData" in dir( self ):
-			self.postProcessSerializedData( id,  dbObj )
+			else: #Remove the old document (if any)
+				try:
+					search.Index( name=self.searchIndex ).remove( "s_"+str(id) )
+				except:
+					pass
+		for key, _bone in skel.items():
+			_bone.postSavedHandler( key, skel, id, dbObj )
+		skel.postSavedHandler( id,  dbObj )
 		if not clearUpdateTag:
 			updateRelations( id )
 		return( id )
@@ -402,6 +417,30 @@ class Skeleton( object ):
 			Can be overridden to modify the list of blobs referenced by this skeleton
 		"""
 		return( locks )
+
+	def preProcessSerializedData(self, entity):
+		"""
+			Can be overridden to modify the db.Entity before its actually written to the datastore.
+		"""
+		return( entity )
+
+	def getSearchDocumentFields(self, fields):
+		"""
+			Can be overridden to modify the list of search document fields before they are added to the index.
+		"""
+		return( fields )
+
+	def postSavedHandler(self, id, dbObj ):
+		"""
+			Can be overridden to perform further actions after the entity has been written to the datastore.
+		"""
+		pass
+
+	def postDeletedHandler(self, id):
+		"""
+			Can be overridden to perform further actions after the entity has been deleted from the datastore.
+		"""
+
 
 	def delete( self ):
 		"""
@@ -439,14 +478,13 @@ class Skeleton( object ):
 		key = self.__currentDbKey_
 		if key is None:
 			raise ValueError("This skeleton is not in the database (anymore?)!")
+		skel = type( self )()
+		if not skel.fromDB( key ):
+			raise ValueError("This skeleton is not in the database (anymore?)!")
 		db.RunInTransactionOptions(db.TransactionOptions(xg=True), txnDelete, key )
-		for boneName in dir( self ):
-			if "__" not in boneName:
-				_bone = getattr( self, boneName )
-				if( isinstance( _bone, baseBone )  ) and "postDeletedHandler" in dir( _bone ):
-					_bone.postDeletedHandler( self, boneName, key )
-		if "postDeletedHandler" in dir( self ):
-			self.postDeletedHandler( )
+		for boneName, _bone in skel.items():
+			_bone.postDeletedHandler( skel, boneName, key )
+		skel.postDeletedHandler( key )
 		if self.searchIndex:
 			try:
 				search.Index( name=self.searchIndex ).remove( "s_"+str(key) )
@@ -464,24 +502,22 @@ class Skeleton( object ):
 			Values of other bones, not mentioned in this dict are also left unchanged.
 			
 			@param values: Dictionary with new Values.
-			@type values: Dict
+			@type values: dict
 		"""
-		for key in dir( self ):
-			if not "__" in key:
-				_bone = getattr( self, key )
-				if isinstance( _bone, baseBone ):
-					if key=="id":
-						try:
-							# Reading the value from db.Entity
-							_bone.value = str( values.key() )
-						except:
-							# Is it in the dict?
-							if "id" in values.keys():
-								_bone.value = str( values["id"] )
-							else: #Ingore the key value
-								pass
-					else:
-						_bone.unserialize( key, values )
+		for key,_bone in self.items():
+			if isinstance( _bone, baseBone ):
+				if key=="id":
+					try:
+						# Reading the value from db.Entity
+						_bone.value = str( values.key() )
+					except:
+						# Is it in the dict?
+						if "id" in values.keys():
+							_bone.value = str( values["id"] )
+						else: #Ingore the key value
+							pass
+				else:
+					_bone.unserialize( key, values )
 
 	def getValues(self):
 		"""
@@ -489,8 +525,7 @@ class Skeleton( object ):
 			This is *not* the inverse of setValues as its not
 			valid to save these values into the database yourself!
 			Doing so will result in an entity that might not appear
-			in searches and possibly break the deserializion of the whole
-			list if it does.
+			in searches and possibly break the deserializion of the whole entity.
 			
 			@returns: dict
 		"""
@@ -516,17 +551,14 @@ class Skeleton( object ):
 			@returns: True if the data was successfully read; False otherwise (eg. some required fields where missing or invalid)
 		"""
 		complete = True
-		self.errors = {}
-		for key in dir( self ):
-			if "__" not in key:
-				_bone = getattr( self, key )
-				if( isinstance( _bone, baseBone ) ):
-					if _bone.readOnly:
-						continue
-					error = _bone.fromClient( key, data )
-					self.errors[ key ] = error
-					if error  and _bone.required:
-						complete = False
+		super(Skeleton,self).__setattr__( "errors", {} )
+		for key,_bone in self.items():
+			if _bone.readOnly:
+				continue
+			error = _bone.fromClient( key, data )
+			self.errors[ key ] = error
+			if error  and _bone.required:
+				complete = False
 		if self.enforceUniqueValuesFor:
 			uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
 			newVal = getattr( self, uniqueProperty ).getUniquePropertyIndexValue()

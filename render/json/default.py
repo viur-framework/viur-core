@@ -15,55 +15,52 @@ class DefaultRender( object ):
 		if isinstance( skel, dict ):
 			return( None )
 		res = OrderedDict()
-		for key, bone in skel.items() :
-			if "__" not in key:
-				_bone = getattr( skel, key )
-				if( isinstance( _bone, bones.baseBone ) ):
-					res[ key ] = {	"descr": _(_bone.descr), 
-								"type": _bone.type, 
-								"visible":_bone.visible,
-								"required": _bone.required,
-								"readonly": _bone.readOnly, 
-								"params": _bone.params
-								}
-					if key in skel.errors.keys():
-						res[ key ][ "error" ] = skel.errors[ key ]
+		for key, _bone in skel.items() :
+			if( isinstance( _bone, bones.baseBone ) ):
+				res[ key ] = {	"descr": _(_bone.descr),
+							"type": _bone.type,
+							"visible":_bone.visible,
+							"required": _bone.required,
+							"readonly": _bone.readOnly,
+							"params": _bone.params
+							}
+				if key in skel.errors.keys():
+					res[ key ][ "error" ] = skel.errors[ key ]
+				else:
+					res[ key ][ "error" ] = None
+				if isinstance( _bone, bones.relationalBone ):
+					if isinstance( _bone, bones.hierarchyBone ):
+						boneType = "hierarchy"
+					elif isinstance( _bone, bones.treeItemBone ):
+						boneType = "treeitem"
 					else:
-						res[ key ][ "error" ] = None
-					if isinstance( _bone, bones.relationalBone ):
-						if isinstance( _bone, bones.hierarchyBone ):
-							boneType = "hierarchy"
-						elif isinstance( _bone, bones.treeItemBone ):
-							boneType = "treeitem"
-						else:
-							boneType = "relational"
+						boneType = "relational"
+					res[key]["type"]="%s.%s" % (boneType,_bone.type)
+					res[key]["modul"] = _bone.modul
+					res[key]["multiple"]=_bone.multiple
+					res[key]["format"] = _bone.format
+				if( isinstance( _bone, bones.treeDirBone ) ):
+						boneType = "treedir"
 						res[key]["type"]="%s.%s" % (boneType,_bone.type)
-						res[key]["modul"] = _bone.modul
 						res[key]["multiple"]=_bone.multiple
-						res[key]["format"] = _bone.format
-					if( isinstance( _bone, bones.treeDirBone ) ):
-							boneType = "treedir"
-							res[key]["type"]="%s.%s" % (boneType,_bone.type)
-							res[key]["multiple"]=_bone.multiple
-					if ( isinstance( _bone, bones.selectOneBone ) or  isinstance( _bone, bones.selectMultiBone ) ):
-						res[key]["values"] = dict( [(k,_(v)) for (k,v) in _bone.values.items() ] )
-						res[key]["sortBy"] = _bone.sortBy
-					if ( isinstance( _bone, bones.dateBone ) ):
-						res[key]["time"] = _bone.time
-						res[key]["date"] = _bone.date
-					if( isinstance( _bone, bones.textBone ) ):
-						res[key]["validHtml"] = _bone.validHtml
-					if( isinstance( _bone, bones.stringBone ) ):
-						res[key]["multiple"] = _bone.multiple
-					if( isinstance( _bone, bones.numericBone )):
-						res[key]["precision"] = _bone.precision
-						res[key]["min"] = _bone.min
-						res[key]["max"] = _bone.max
-					if( isinstance( _bone, bones.documentBone ) ):
-						res[key]["extensions"] = [ self.renderTextExtension( x ) for x in _bone.extensions ]
-					if( isinstance( _bone, bones.textBone ) ) or ( isinstance( _bone, bones.stringBone ) ):
-						res[key]["languages"] = _bone.languages 
-
+				if ( isinstance( _bone, bones.selectOneBone ) or  isinstance( _bone, bones.selectMultiBone ) ):
+					res[key]["values"] = dict( [(k,_(v)) for (k,v) in _bone.values.items() ] )
+					res[key]["sortBy"] = _bone.sortBy
+				if ( isinstance( _bone, bones.dateBone ) ):
+					res[key]["time"] = _bone.time
+					res[key]["date"] = _bone.date
+				if( isinstance( _bone, bones.textBone ) ):
+					res[key]["validHtml"] = _bone.validHtml
+				if( isinstance( _bone, bones.stringBone ) ):
+					res[key]["multiple"] = _bone.multiple
+				if( isinstance( _bone, bones.numericBone )):
+					res[key]["precision"] = _bone.precision
+					res[key]["min"] = _bone.min
+					res[key]["max"] = _bone.max
+				if( isinstance( _bone, bones.documentBone ) ):
+					res[key]["extensions"] = [ self.renderTextExtension( x ) for x in _bone.extensions ]
+				if( isinstance( _bone, bones.textBone ) ) or ( isinstance( _bone, bones.stringBone ) ):
+					res[key]["languages"] = _bone.languages
 		return( [ (key, val) for key, val in res.items()] )
 	
 	def renderTextExtension(self, ext ):
@@ -77,19 +74,17 @@ class DefaultRender( object ):
 		if isinstance( skel, dict ):
 			return( skel )
 		res = {}
-		for key in dir( skel ):
-			if "__" not in key:
-				_bone = getattr( skel, key )
-				if isinstance( _bone, bones.dateBone ):
-					if _bone.value:
-						if _bone.date and _bone.time:
-							res[key] = _bone.value.strftime("%d.%m.%Y %H:%M:%S")
-						elif _bone.date:
-							res[key] = _bone.value.strftime("%d.%m.%Y")
-						else:
-							res[key] = _bone.value.strftime("%H:%M:%S")
-				elif( isinstance( _bone, bones.baseBone ) ):
-					res[key] = _bone.value
+		for key,_bone in skel.items():
+			if isinstance( _bone, bones.dateBone ):
+				if _bone.value:
+					if _bone.date and _bone.time:
+						res[key] = _bone.value.strftime("%d.%m.%Y %H:%M:%S")
+					elif _bone.date:
+						res[key] = _bone.value.strftime("%d.%m.%Y")
+					else:
+						res[key] = _bone.value.strftime("%H:%M:%S")
+			elif( isinstance( _bone, bones.baseBone ) ):
+				res[key] = _bone.value
 		return res
 		
 	def renderEntry( self, skel, actionName ):

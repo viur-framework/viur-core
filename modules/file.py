@@ -40,16 +40,16 @@ class fileBaseSkel( TreeLeafSkel ):
 		"""
 			Ensure that our dlkey is locked even if we don't have a filebone here
 		"""
-		locks.add( self.dlkey.value )
+		locks.add( self["dlkey"].value )
 		return( locks )
 
 	def fromDB( self, *args, **kwargs ):
 		r = super( fileBaseSkel, self ).fromDB( *args, **kwargs )
-		if not self.mimetype.value:
-			if self.meta_mime.value:
-				self.mimetype.value = self.meta_mime.value
-			elif self.metamime.value:
-				self.mimetype.value = self.metamime.value
+		if not self["mimetype"].value:
+			if self["meta_mime"].value:
+				self["mimetype"].value = self["meta_mime"].value
+			elif self["metamime"].value:
+				self["mimetype"].value = self["metamime"].value
 		return( r )
 
 class fileNodeSkel( TreeNodeSkel ):
@@ -200,7 +200,7 @@ class File( Tree ):
 									"dlkey": str(upload.key()),
 									"servingurl": servingURL,
 									"parentdir": str(node),
-									"parentrepo": nodeSkel.parentrepo.value,
+									"parentrepo": nodeSkel["parentrepo"].value,
 									"weak": False } )
 						fileSkel.toDB()
 						res.append( fileSkel )
@@ -228,7 +228,7 @@ class File( Tree ):
 					fileSkel.toDB()
 					res.append( fileSkel )
 			for r in res:
-				logging.info("Got a successfull upload: %s (%s)" % (r.name.value, r.dlkey.value ) )
+				logging.info("Got a successfull upload: %s (%s)" % (r["name"].value, r["dlkey"].value ) )
 			user = utils.getCurrentUser()
 			if user:
 				logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
@@ -289,7 +289,7 @@ class File( Tree ):
 		user = utils.getCurrentUser()
 		if user and "root" in user["access"]:
 			return( True )
-		return( self.isOwnUserRootNode( str( skel.id.value ) ) )
+		return( self.isOwnUserRootNode( str( skel["id"].value ) ) )
 
 	def canEdit( self, skelType, node=None ):
 		user = utils.getCurrentUser()
