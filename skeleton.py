@@ -104,7 +104,7 @@ class Skeleton( object ):
 		if item.startswith("_") or item in ["kindName","searchIndex", "enforceUniqueValuesFor","all","fromDB",
 						    "toDB", "items","keys","values","setValues","errors","fromClient",
 						    "preProcessBlobLocks","preProcessSerializedData","postSavedHandler",
-						    "postDeletedHandler", "delete"]:
+						    "postDeletedHandler", "delete","clone"]:
 			isOkay = True
 		elif not "_Skeleton__isInitialized_" in dir( self ):
 			isOkay = True
@@ -181,7 +181,7 @@ class Skeleton( object ):
 		return( skel )
 
 
-	def __init__( self, kindName=None, *args,  **kwargs ):
+	def __init__( self, kindName=None, _cloneFrom=None, *args,  **kwargs ):
 		"""
 			Create a local copy from the global Skel-class.
 			
@@ -192,24 +192,40 @@ class Skeleton( object ):
 		self.kindName = kindName or self.kindName
 		self.errors = {}
 		self.__currentDbKey_ = None
-		tmpList = []
 		self.__dataDict__ = OrderedDict()
-		for key in dir(self):
-			bone = getattr( self, key )
-			if not "__" in key and isinstance( bone , baseBone ):
-				tmpList.append( (key, bone) )
-		tmpList.sort( key=lambda x: x[1].idx )
-		for key, bone in tmpList:
-			bone = copy.copy( bone )
-			self.__dataDict__[ key ] = bone
+		if _cloneFrom:
+			for key, bone in _cloneFrom.__dataDict__.items():
+				self.__dataDict__[ key ] = copy.deepcopy( bone )
+		else:
+			tmpList = []
+
+			for key in dir(self):
+				bone = getattr( self, key )
+				if not "__" in key and isinstance( bone , baseBone ):
+					tmpList.append( (key, bone) )
+			tmpList.sort( key=lambda x: x[1].idx )
+			for key, bone in tmpList:
+				bone = copy.copy( bone )
+				self.__dataDict__[ key ] = bone
 		if self.enforceUniqueValuesFor:
 			uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
 			if not uniqueProperty in [ key for (key,bone) in tmpList ]:
 				raise( ValueError("Cant enforce unique variables for unknown bone %s" % uniqueProperty ) )
 		self.__isInitialized_ = True
 
+	def clone(self):
+		"""
+			Returns a copy of the current skeleton
+		"""
+		return( type( self )( _cloneFrom=self ) )
+
 	def __setitem__(self, name, value):
-		self.__dataDict__[ name ] = value
+		if value is None and name in self.__dataDict__.keys():
+			del self.__dataDict__[ name ]
+		elif isinstance( value, baseBone ):
+			self.__dataDict__[ name ] = value
+		else:
+			raise ValueError("Expected a instance of baseBone or None, got %s instead." % type(value))
 
 	def __getitem__(self, name ):
 		return( self.__dataDict__[name] )
@@ -223,7 +239,7 @@ class Skeleton( object ):
 			This query will operate on our kindName, and its valid
 			to use its special methods mergeExternalFilter and getSkel.
 		"""
-		return( db.Query( self.kindName, srcSkelClass=type( self ) ) )
+		return( db.Query( self.kindName, srcSkelClass=self ) )
 
 	def fromDB( self, id ):
 		"""

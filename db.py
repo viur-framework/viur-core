@@ -268,7 +268,7 @@ class Query( object ):
 	def __init__(self, kind, srcSkelClass=None, *args, **kwargs ):
 		super( Query, self ).__init__( )
 		self.datastoreQuery = datastore.Query( kind, *args, **kwargs )
-		self.srcSkelClass = srcSkelClass
+		self.srcSkel = srcSkelClass
 		self.amount = 30
 		self._filterHook = None
 		self._orderHook = None
@@ -316,11 +316,11 @@ class Query( object ):
 			this function; the normal filter() cannot provide that.
 		"""
 		from server.bones import baseBone, relationalBone
-		if self.srcSkelClass is None:
+		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
 		if self.datastoreQuery is None: #This query is allready unsatifiable and adding more constrains to this wont change this
 			return( self )
-		skel = self.srcSkelClass()
+		skel = self.srcSkel.clone()
 		if skel.searchIndex and "search" in filters.keys(): #We perform a Search via Google API - all other parameters are ignored
 			searchRes = search.Index( name=skel.searchIndex ).search( query=search.Query( query_string=filters["search"], options=search.QueryOptions( limit=25 ) ) )
 			tmpRes = [ datastore_types.Key( encoded=x.doc_id[ 2: ] ) for x in searchRes ]
@@ -686,18 +686,18 @@ class Query( object ):
 			Like run, but returns a skeleton.Skellist instance instead
 			of an result iterator. The query must be limited.
 		"""
-		if self.srcSkelClass is None:
+		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
 		amount = limit if limit!=-1 else self.amount
 		if amount < 1 or amount > 100:
 			raise NotImplementedError("This query is not limited! You must specify an upper bound using limit() between 1 and 100")
 		from server.skeleton import SkelList
-		res = SkelList( self.srcSkelClass )
+		res = SkelList( self.srcSkel )
 		dbRes = self.run( amount )
 		if dbRes is None:
 			return( res )
 		for e in dbRes:
-			s = self.srcSkelClass()
+			s = self.srcSkel.clone()
 			s.setValues( e) 
 			res.append( s )
 		try:
@@ -777,12 +777,12 @@ class Query( object ):
 			
 			@returns: skeleton.Skeleton or None if the result-set is empty
 		"""
-		if self.srcSkelClass is None:
+		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
 		res = self.get()
 		if res is None:
 			return( None )
-		s = self.srcSkelClass()
+		s = self.srcSkel.clone()
 		s.setValues( res )
 		return( s )
 	
@@ -807,7 +807,7 @@ class Query( object ):
 		"""
 		if keysOnly is None:
 			keysOnly = self.isKeysOnly()
-		res = Query( self.getKind(), self.srcSkelClass, keys_only=keysOnly )
+		res = Query( self.getKind(), self.srcSkel, keys_only=keysOnly )
 		res.limit( self.amount )
 		for k, v in self.getFilter().items():
 			res.filter( k, v )
