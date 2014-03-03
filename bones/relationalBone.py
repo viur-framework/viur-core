@@ -502,41 +502,6 @@ class relationalBone( baseBone ):
 						res.append( "src.%s" % orderKey )
 		return( res )
 
-	def toBackup(self):
-		"""
-			Serializes this bone into something json-serializable for backup purposes.
-			Must contain every information needed to recreate the exact value of this bone.
-
-			We just dump the list of referenced ids here, the other informations
-			(ie name of the referenced entity) are  recreated later in the restore process
-		"""
-		if self.value is None:
-			return( None )
-		elif isinstance(self.value, dict):
-			return( self.value["id"])
-		elif isinstance(self.value, list):
-			return( [x["id"] for x in self.value])
-		raise ValueError("Unhandled type of my value: %s" % str(type(self.value)))
-
-	def fromBackup(self,value):
-		"""
-			Inverse of toBackup. Receives the information dumped by toBackup() as argument and must
-			revert this bone into the state it was when toBackup() was called.
-
-			We load just the referenced ids here; all other informations (ie name of the referenced entity)
-			must be recreated by calling the updateSearchIndex task after the import finished.
-		"""
-		if value is None:
-			self.value = None
-			return
-		elif isinstance( value, str ):
-			self.value = {"id": value}
-			return
-		elif isinstance( value, list ):
-			self.value = [ {"id": v} for v in value]
-			return
-		raise ValueError("Cannot read type %s into a relationalBone!" % str(type(value)))
-
 	def refresh(self, boneName, skel ):
 		"""
 			Refresh all values we might have cached from other entities.
