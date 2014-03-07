@@ -74,3 +74,8 @@ class ServiceUnavailable( HTTPException ):
 	def __init__( self, descr="Service Unavailable" ):
 		super( ServiceUnavailable, self ).__init__(  status=503, name = "Service Unavailable", descr=descr )
 
+class ReadFromClientError( object ):
+	def __init__(self, errors, forceFail=False):
+		super( ReadFromClientError, self ).__init__()
+		self.errors = errors
+		self.forceFail = forceFail

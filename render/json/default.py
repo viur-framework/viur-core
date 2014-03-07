@@ -26,6 +26,8 @@ class DefaultRender( object ):
 							}
 				if key in skel.errors.keys():
 					res[ key ][ "error" ] = skel.errors[ key ]
+				elif any( [x.startswith("%s." % key) for x in skel.errors.keys()]):
+					res[ key ][ "error" ] = {k:v for k,v in skel.errors.items() if k.startswith("%s." % key )}
 				else:
 					res[ key ][ "error" ] = None
 				if isinstance( _bone, bones.relationalBone ):
@@ -33,6 +35,9 @@ class DefaultRender( object ):
 						boneType = "hierarchy"
 					elif isinstance( _bone, bones.treeItemBone ):
 						boneType = "treeitem"
+					elif isinstance( _bone, bones.extendedRelationalBone ):
+						boneType = "extendedrelational"
+						res[key]["using"] = self.renderSkelStructure( _bone.using() )
 					else:
 						boneType = "relational"
 					res[key]["type"]="%s.%s" % (boneType,_bone.type)

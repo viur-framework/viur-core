@@ -10,6 +10,7 @@ from server.config import conf
 from server import utils
 from server.tasks import CallableTask, CallableTaskBase, callDeferred
 import inspect, os
+from server.errors import ReadFromClientError
 import logging
 
 class BoneCounter(local):
@@ -574,7 +575,12 @@ class Skeleton( object ):
 			if _bone.readOnly:
 				continue
 			error = _bone.fromClient( key, data )
-			self.errors[ key ] = error
+			if isinstance( error, ReadFromClientError ):
+				self.errors.update( error.errors )
+				if error.forceFail:
+					complete = False
+			else:
+				self.errors[ key ] = error
 			if error  and _bone.required:
 				complete = False
 		if self.enforceUniqueValuesFor:
@@ -611,6 +617,151 @@ class Skeleton( object ):
 				continue
 			if "refresh" in dir( bone ):
 				bone.refresh( key, self )
+
+
+
+class MetaRelSkel( type ):
+	"""
+		Meta Class for relational Skeletons.
+		Used to enforce several restrictions on Bone names etc.
+	"""
+	_skelCache = {}
+	__reservedKeywords_ = [ "self", "cursor", "amount", "orderby", "orderdir", "style" ]
+	def __init__( cls, name, bases, dct ):
+		for key in dir( cls ):
+			if isinstance( getattr( cls, key ), baseBone ):
+				if key.lower()!=key:
+					raise AttributeError( "Bonekeys must be lowercase" )
+				if "." in key:
+					raise AttributeError( "Bonekeys cannot not contain a dot (.) - got %s" % key )
+				if key in MetaRelSkel.__reservedKeywords_:
+					raise AttributeError( "Your bone cannot have any of the following keys: %s" % str( MetaRelSkel.__reservedKeywords_ ) )
+			if key == "postProcessSerializedData":
+				raise AttributeError( "postProcessSerializedData is deprecated! Use postSavedHandler instead." )
+		return( super( MetaRelSkel, cls ).__init__( name, bases, dct ) )
+
+
+class RelSkel( object ):
+	"""
+		A Skeleton-like class that acts as a container for skeletons used as a additional skeleton for
+		extendedRelationalBones.
+		It must be subclassed where informations about the kindName and its
+		attributes (Bones) are specified.
+
+		Its an hacked Object that stores it members in a OrderedDict-Instance so the Order stays constant
+	"""
+	__metaclass__ = MetaRelSkel
+
+	def __setattr__(self, key, value):
+		if "_Skeleton__isInitialized_" in dir( self ) and not key in ["_Skeleton__currentDbKey_"]:
+			raise AttributeError("You cannot directly modify the skeleton instance. Use [] instead!")
+		if not "__dataDict__" in dir( self ):
+			super( RelSkel, self ).__setattr__( "__dataDict__", OrderedDict() )
+		if not "__" in key:
+			if isinstance( value , baseBone ):
+				self.__dataDict__[ key ] =  value
+			elif key in self.__dataDict__.keys(): #Allow setting a bone to None again
+				self.__dataDict__[ key ] =  value
+		super( RelSkel, self ).__setattr__( key, value )
+
+	def __delattr__(self, key):
+		if "_Skeleton__isInitialized_" in dir( self ):
+			raise AttributeError("You cannot directly modify the skeleton instance. Use [] instead!")
+
+		if( key in dir( self ) ):
+			super( RelSkel, self ).__delattr__( key )
+		else:
+			del self.__dataDict__[key]
+
+	def __getattribute__(self, item):
+		isOkay = False
+		if item.startswith("_") or item in [ "items","keys","values","setValues","errors","fromClient" ]:
+			isOkay = True
+		elif not "_Skeleton__isInitialized_" in dir( self ):
+			isOkay = True
+		if isOkay:
+			return( super( RelSkel, self ).__getattribute__(item ))
+		else:
+			raise AttributeError("Use [] to access your bones!")
+
+	def __contains__(self, item):
+		return( item in self.__dataDict__.keys() )
+
+	def items(self):
+		return( self.__dataDict__.items() )
+
+	def keys(self):
+		return( self.__dataDict__.keys() )
+
+	def values(self):
+		return( self.__dataDict__.values() )
+
+	def __init__( self, *args,  **kwargs ):
+		"""
+			Create a local copy from the global Skel-class.
+
+			@param kindName: If set, override the entity kind were operating on.
+			@type kindName: String or None
+		"""
+		super(RelSkel, self).__init__(*args, **kwargs)
+		self.errors = {}
+		self.__dataDict__ = OrderedDict()
+		tmpList = []
+		for key in dir(self):
+			bone = getattr( self, key )
+			if not "__" in key and isinstance( bone , baseBone ):
+				tmpList.append( (key, bone) )
+		tmpList.sort( key=lambda x: x[1].idx )
+		for key, bone in tmpList:
+			bone = copy.copy( bone )
+			self.__dataDict__[ key ] = bone
+		self.__isInitialized_ = True
+
+	def __setitem__(self, name, value):
+		if value is None and name in self.__dataDict__.keys():
+			del self.__dataDict__[ name ]
+		elif isinstance( value, baseBone ):
+			self.__dataDict__[ name ] = value
+		else:
+			raise ValueError("Expected a instance of baseBone or None, got %s instead." % type(value))
+
+	def __getitem__(self, name ):
+		return( self.__dataDict__[name] )
+
+	def __delitem__(self, key):
+		del self.__dataDict__[ key ]
+
+	def fromClient( self, data ):
+		"""
+			Reads the data supplied by data.
+			Unlike setValues, error-checking is performed.
+			The values might be in a different representation than the one used in getValues/serValues.
+			Even if this function returns False, all bones are guranteed to be in a valid state:
+			The ones which have been read correctly contain their data; the other ones are set back to a safe default (None in most cases)
+			So its possible to call save() afterwards even if reading data fromClient faild (through this might violates the assumed consitency-model!).
+
+			@param data: Dictionary from which the data is read
+			@type data: Dict
+			@returns: True if the data was successfully read; False otherwise (eg. some required fields where missing or invalid)
+		"""
+		complete = True
+		super(RelSkel,self).__setattr__( "errors", {} )
+		for key,_bone in self.items():
+			if _bone.readOnly:
+				continue
+			error = _bone.fromClient( key, data )
+			if isinstance( error, ReadFromClientError ):
+				self.errors.update( error.errors )
+				if error.forceFail:
+					complete = False
+			else:
+				self.errors[ key ] = error
+			if error  and _bone.required:
+				complete = False
+		if( len( data )==0 or (len(data)==1 and "id" in data) or ("nomissing" in data.keys() and str(data["nomissing"])=="1") ):
+			self.errors = {}
+		return( complete )
+
 
 
 class SkelList( list ):
