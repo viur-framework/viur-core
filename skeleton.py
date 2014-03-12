@@ -105,7 +105,7 @@ class Skeleton( object ):
 		if item.startswith("_") or item in ["kindName","searchIndex", "enforceUniqueValuesFor","all","fromDB",
 						    "toDB", "items","keys","values","setValues","errors","fromClient",
 						    "preProcessBlobLocks","preProcessSerializedData","postSavedHandler",
-						    "postDeletedHandler", "delete","clone","getSearchDocumentFields"]:
+						    "postDeletedHandler", "delete","clone","getSearchDocumentFields","subSkels","subSkel"]:
 			isOkay = True
 		elif not "_Skeleton__isInitialized_" in dir( self ):
 			isOkay = True
@@ -163,12 +163,7 @@ class Skeleton( object ):
 			if not name in skel.subSkels.keys():
 				raise ValueError("Unknown sub-skeleton %s for skel %s" % (name, skel.kindName))
 			boneList.extend( skel.subSkels[name][:] )
-		for key in dir(skel):
-			if key.startswith("_"):
-				continue
-			bone = getattr( skel, key )
-			if not isinstance(bone, baseBone):
-				continue
+		for key,bone in skel.items():
 			keepBone = key in boneList
 			if key=="id":
 				keepBone = True
@@ -178,7 +173,7 @@ class Skeleton( object ):
 						keepBone = True
 						break
 			if not keepBone: #Remove that bone from the skeleton
-				setattr(skel,key,None)
+				skel[key]=None
 		return( skel )
 
 
