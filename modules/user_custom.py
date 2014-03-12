@@ -259,7 +259,7 @@ class CustomUser( List ):
 	def canView(self, skel):
 		user = self.getCurrentUser()
 		if user:
-			if skel.id.value==user["id"]:
+			if skel["id"].value==user["id"]:
 				return( True )
 			if "root" in user["access"] or "user-view" in user["access"]:
 				return( True )
