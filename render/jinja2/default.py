@@ -473,22 +473,20 @@ class Render( object ):
 			@returns: Dict
 		"""
 		res = {}
-		for key in dir( skel ):
-			if "__" not in key:
-				_bone = getattr( skel, key )
-				if( isinstance( _bone, bones.documentBone ) ): #We flip source-html and parsed (cached) html for a more natural use
-					res[key] = _bone.cache
-				elif isinstance( _bone, selectOneBone ):
-					if _bone.value in _bone.values.keys():
-						res[ key ] = Render.KeyValueWrapper( _bone.value, _bone.values[ _bone.value ] )
-					else:
-						res[ key ] = _bone.value
-				elif isinstance( _bone, selectMultiBone ):
-					res[ key ] = [ (Render.KeyValueWrapper( val, _bone.values[ val ] ) if val in _bone.values.keys() else val)  for val in _bone.value ]
-				elif( isinstance( _bone, bones.baseBone ) ):
+		for key,_bone in skel.items():
+			if( isinstance( _bone, bones.documentBone ) ): #We flip source-html and parsed (cached) html for a more natural use
+				res[key] = _bone.cache
+			elif isinstance( _bone, selectOneBone ):
+				if _bone.value in _bone.values.keys():
+					res[ key ] = Render.KeyValueWrapper( _bone.value, _bone.values[ _bone.value ] )
+				else:
 					res[ key ] = _bone.value
-				if key in res.keys() and isinstance( res[key], list ):
-					res[key] = ListWrapper( res[key] )
+			elif isinstance( _bone, selectMultiBone ):
+				res[ key ] = [ (Render.KeyValueWrapper( val, _bone.values[ val ] ) if val in _bone.values.keys() else val)  for val in _bone.value ]
+			elif( isinstance( _bone, bones.baseBone ) ):
+				res[ key ] = _bone.value
+			if key in res.keys() and isinstance( res[key], list ):
+				res[key] = ListWrapper( res[key] )
 		return( res )
 
 	def add( self, skel, tpl=None,*args,**kwargs ):
@@ -508,7 +506,7 @@ class Render( object ):
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		skeybone = bones.baseBone( descr="SecurityKey",  readOnly=True, visible=False )
 		skeybone.value = securitykey.create()
-		skel.skey = skeybone
+		skel["skey"] = skeybone
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
 			skel.errors = {}
 		return( template.render( skel={"structure":self.renderSkelStructure(skel),"errors":skel.errors, "value":self.collectSkelData(skel) } ) )
@@ -530,7 +528,7 @@ class Render( object ):
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		skeybone = bones.baseBone( descr="SecurityKey",  readOnly=True, visible=False )
 		skeybone.value = securitykey.create()
-		skel.skey = skeybone
+		skel["skey"]  = skeybone
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
 			skel.errors = {}
 		return( template.render( skel={"structure":self.renderSkelStructure(skel),"errors":skel.errors, "value":self.collectSkelData(skel) },  **kwargs) )
