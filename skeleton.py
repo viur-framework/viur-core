@@ -589,11 +589,11 @@ class Skeleton( object ):
 				complete = False
 		if self.enforceUniqueValuesFor:
 			uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
-			newVal = getattr( self, uniqueProperty ).getUniquePropertyIndexValue()
+			newVal = self[ uniqueProperty].getUniquePropertyIndexValue()
 			if newVal is not None:
 				try:
 					dbObj = db.Get( db.Key.from_path( "%s_uniquePropertyIndex" % self.kindName, newVal  ) )
-					if dbObj["references"] != self.id.value: #This valus is taken (sadly, not by us)
+					if dbObj["references"] != self["id"].value: #This valus is taken (sadly, not by us)
 						complete = False
 						if isinstance( self.enforceUniqueValuesFor, tuple ):
 							errorMsg = _(self.enforceUniqueValuesFor[1])
