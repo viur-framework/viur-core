@@ -393,7 +393,7 @@ class Order( List ):
 		session.current["cart_products"] = None
 		session.current.markChanged()
 	
-	def getSkelByName(self, name):
+	def getSkelByName(self, name, orderID):
 		"""
 			Returns a skeleton for the given Name.
 		"""
@@ -591,14 +591,14 @@ class Order( List ):
 				pass
 			if "mainHandler" in currentStep.keys():
 				if currentStep["mainHandler"]["action"] == "edit":
-					skel = self.getSkelByName( currentStep["mainHandler"]["skeleton"] )
+					skel = self.getSkelByName( currentStep["mainHandler"]["skeleton"], str(orderID) )
 					skel.fromDB( str( orderID ) )
 					if not len( kwargs.keys() ) or not skel.fromClient( kwargs ):
 						return( self.render.edit( skel, tpl=currentStep["mainHandler"]["template"], step=step ) )
 					skel.toDB( str( orderID ) )
 				if currentStep["mainHandler"]["action"] == "view":
 					if not "complete" in kwargs or not kwargs["complete"]==u"1":
-						skel = self.getSkelByName( currentStep["mainHandler"]["skeleton"] )
+						skel = self.getSkelByName( currentStep["mainHandler"]["skeleton"], str(orderID) )
 						skel.fromDB( str( orderID ) )
 						return( self.render.view( skel, tpl=currentStep["mainHandler"]["template"], step=step ) )
 				elif currentStep["mainHandler"]["action"] == "function":
