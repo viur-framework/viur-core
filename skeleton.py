@@ -105,7 +105,7 @@ class Skeleton( object ):
 		if item.startswith("_") or item in ["kindName","searchIndex", "enforceUniqueValuesFor","all","fromDB",
 						    "toDB", "items","keys","values","setValues","errors","fromClient",
 						    "preProcessBlobLocks","preProcessSerializedData","postSavedHandler",
-						    "postDeletedHandler", "delete","clone"]:
+						    "postDeletedHandler", "delete","clone","getSearchDocumentFields"]:
 			isOkay = True
 		elif not "_Skeleton__isInitialized_" in dir( self ):
 			isOkay = True
@@ -197,6 +197,10 @@ class Skeleton( object ):
 		if _cloneFrom:
 			for key, bone in _cloneFrom.__dataDict__.items():
 				self.__dataDict__[ key ] = copy.deepcopy( bone )
+			if self.enforceUniqueValuesFor:
+				uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
+				if not uniqueProperty in self.keys():
+					raise( ValueError("Cant enforce unique variables for unknown bone %s" % uniqueProperty ) )
 		else:
 			tmpList = []
 
@@ -208,10 +212,10 @@ class Skeleton( object ):
 			for key, bone in tmpList:
 				bone = copy.copy( bone )
 				self.__dataDict__[ key ] = bone
-		if self.enforceUniqueValuesFor:
-			uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
-			if not uniqueProperty in [ key for (key,bone) in tmpList ]:
-				raise( ValueError("Cant enforce unique variables for unknown bone %s" % uniqueProperty ) )
+			if self.enforceUniqueValuesFor:
+				uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
+				if not uniqueProperty in [ key for (key,bone) in tmpList ]:
+					raise( ValueError("Cant enforce unique variables for unknown bone %s" % uniqueProperty ) )
 		self.__isInitialized_ = True
 
 	def clone(self):
@@ -337,7 +341,7 @@ class Skeleton( object ):
 			if skel.enforceUniqueValuesFor:
 				uniqueProperty = (skel.enforceUniqueValuesFor[0] if isinstance( skel.enforceUniqueValuesFor, tuple ) else skel.enforceUniqueValuesFor)
 				# Check if the property is really unique
-				newVal = getattr( skel, uniqueProperty ).getUniquePropertyIndexValue()
+				newVal = skel[ uniqueProperty ].getUniquePropertyIndexValue()
 				if newVal is not None:
 					try:
 						lockObj = db.Get( db.Key.from_path( "%s_uniquePropertyIndex" % skel.kindName, newVal ) )
@@ -790,9 +794,8 @@ def updateRelations( destID ):
 	for srcRel in db.Query( "viur-relations" ).filter("dest.id =", destID ).iter( ):
 		skel = skeletonByKind( srcRel["viur_src_kind"] )()
 		skel.fromDB( str(srcRel.key().parent()) )
-		for key in dir( skel ):
+		for key,_bone in skel.items():
 			if not key.startswith("_"):
-				_bone = getattr( skel, key )
 				if isinstance( _bone, relationalBone ):
 					if isinstance( _bone.value, dict ):
 						_bone.fromClient( key, {key: _bone.value["id"]} )
