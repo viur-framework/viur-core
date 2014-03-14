@@ -217,40 +217,30 @@ class extendedRelationalBone( relationalBone ):
 			logging.warning( "Invalid searchfilter! %s is not indexed!" % name )
 			raise RuntimeError()
 		if len( myKeys ) > 0: #We filter by some properties
-			if self.multiple: #We have a n:m relation, so we
-				# create a new Filter based on our SubType and copy the parameters
-				if dbFilter.getKind()!="viur-relations":
-					name, skel, dbFilter, rawFilter = self._rewriteQuery( name, skel, dbFilter, rawFilter )
+			if dbFilter.getKind()!="viur-relations":
+				name, skel, dbFilter, rawFilter = self._rewriteQuery( name, skel, dbFilter, rawFilter )
 			# Merge the relational filters in
 			for key in myKeys:
 				value = rawFilter[ key ]
 				tmpdata = key.split("$")
-				key = tmpdata[0].split(".")[1]
+				try:
+					unused, _type, key = tmpdata[0].split(".")
+					assert _type in ["dest","rel"]
+				except:
+					continue
 				#Ensure that the relational-filter is in refKeys
 				if not key in self.refKeys:
 					logging.warning( "Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (key,name) )
 					raise RuntimeError()
 				if len( tmpdata ) > 1:
 					if tmpdata[1]=="lt":
-						if self.multiple:
-							dbFilter.filter( "dest.%s <" % key, value )
-						else:
-							dbFilter.filter( "%s.%s <" % (name, key), value )
+						dbFilter.filter( "%s.%s <" % (_type,key), value )
 					elif tmpdata[1]=="gt":
-						if self.multiple:
-							dbFilter.filter( "dest.%s >" % key, value )
-						else:
-							dbFilter.filter( "%s.%s >" % (name, key), value )
+						dbFilter.filter( "%s.%s >" % (_type,key), value )
 					else:
-						if self.multiple:
-							dbFilter.filter( "dest.%s =", key, value )
-						else:
-							dbFilter.filter( "%s.%s =" % (name, key), value )
+						dbFilter.filter( "%s.%s =", (_type,key), value )
 				else:
-					if self.multiple:
-						dbFilter.filter( "dest.%s =" % key, value )
-					else:
-						dbFilter.filter( "%s.%s =" % (name, key), value )
+					dbFilter.filter( "%s.%s =" % (_type,key), value )
 			dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
 			dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings) )
 		elif name in rawFilter.keys() and rawFilter[ name ].lower()=="none":
