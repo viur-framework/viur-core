@@ -105,7 +105,7 @@ class Skeleton( object ):
 		if item.startswith("_") or item in ["kindName","searchIndex", "enforceUniqueValuesFor","all","fromDB",
 						    "toDB", "items","keys","values","setValues","errors","fromClient",
 						    "preProcessBlobLocks","preProcessSerializedData","postSavedHandler",
-						    "postDeletedHandler", "delete","clone"]:
+						    "postDeletedHandler", "delete","clone","getSearchDocumentFields","subSkels","subSkel"]:
 			isOkay = True
 		elif not "_Skeleton__isInitialized_" in dir( self ):
 			isOkay = True
@@ -163,12 +163,7 @@ class Skeleton( object ):
 			if not name in skel.subSkels.keys():
 				raise ValueError("Unknown sub-skeleton %s for skel %s" % (name, skel.kindName))
 			boneList.extend( skel.subSkels[name][:] )
-		for key in dir(skel):
-			if key.startswith("_"):
-				continue
-			bone = getattr( skel, key )
-			if not isinstance(bone, baseBone):
-				continue
+		for key,bone in skel.items():
 			keepBone = key in boneList
 			if key=="id":
 				keepBone = True
@@ -178,7 +173,7 @@ class Skeleton( object ):
 						keepBone = True
 						break
 			if not keepBone: #Remove that bone from the skeleton
-				setattr(skel,key,None)
+				skel[key]=None
 		return( skel )
 
 
@@ -197,6 +192,10 @@ class Skeleton( object ):
 		if _cloneFrom:
 			for key, bone in _cloneFrom.__dataDict__.items():
 				self.__dataDict__[ key ] = copy.deepcopy( bone )
+			if self.enforceUniqueValuesFor:
+				uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
+				if not uniqueProperty in self.keys():
+					raise( ValueError("Cant enforce unique variables for unknown bone %s" % uniqueProperty ) )
 		else:
 			tmpList = []
 
@@ -208,10 +207,10 @@ class Skeleton( object ):
 			for key, bone in tmpList:
 				bone = copy.copy( bone )
 				self.__dataDict__[ key ] = bone
-		if self.enforceUniqueValuesFor:
-			uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
-			if not uniqueProperty in [ key for (key,bone) in tmpList ]:
-				raise( ValueError("Cant enforce unique variables for unknown bone %s" % uniqueProperty ) )
+			if self.enforceUniqueValuesFor:
+				uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
+				if not uniqueProperty in [ key for (key,bone) in tmpList ]:
+					raise( ValueError("Cant enforce unique variables for unknown bone %s" % uniqueProperty ) )
 		self.__isInitialized_ = True
 
 	def clone(self):
@@ -337,7 +336,7 @@ class Skeleton( object ):
 			if skel.enforceUniqueValuesFor:
 				uniqueProperty = (skel.enforceUniqueValuesFor[0] if isinstance( skel.enforceUniqueValuesFor, tuple ) else skel.enforceUniqueValuesFor)
 				# Check if the property is really unique
-				newVal = getattr( skel, uniqueProperty ).getUniquePropertyIndexValue()
+				newVal = skel[ uniqueProperty ].getUniquePropertyIndexValue()
 				if newVal is not None:
 					try:
 						lockObj = db.Get( db.Key.from_path( "%s_uniquePropertyIndex" % skel.kindName, newVal ) )
@@ -585,11 +584,11 @@ class Skeleton( object ):
 				complete = False
 		if self.enforceUniqueValuesFor:
 			uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
-			newVal = getattr( self, uniqueProperty ).getUniquePropertyIndexValue()
+			newVal = self[ uniqueProperty].getUniquePropertyIndexValue()
 			if newVal is not None:
 				try:
 					dbObj = db.Get( db.Key.from_path( "%s_uniquePropertyIndex" % self.kindName, newVal  ) )
-					if dbObj["references"] != self.id.value: #This valus is taken (sadly, not by us)
+					if dbObj["references"] != self["id"].value: #This valus is taken (sadly, not by us)
 						complete = False
 						if isinstance( self.enforceUniqueValuesFor, tuple ):
 							errorMsg = _(self.enforceUniqueValuesFor[1])
@@ -790,9 +789,8 @@ def updateRelations( destID ):
 	for srcRel in db.Query( "viur-relations" ).filter("dest.id =", destID ).iter( ):
 		skel = skeletonByKind( srcRel["viur_src_kind"] )()
 		skel.fromDB( str(srcRel.key().parent()) )
-		for key in dir( skel ):
+		for key,_bone in skel.items():
 			if not key.startswith("_"):
-				_bone = getattr( skel, key )
 				if isinstance( _bone, relationalBone ):
 					if isinstance( _bone.value, dict ):
 						_bone.fromClient( key, {key: _bone.value["id"]} )
