@@ -229,8 +229,11 @@ class extendedRelationalBone( relationalBone ):
 				except:
 					continue
 				#Ensure that the relational-filter is in refKeys
-				if not key in self.refKeys:
+				if _type=="dest" and not key in self.refKeys:
 					logging.warning( "Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (key,name) )
+					raise RuntimeError()
+				if _type=="rel" and not key in self.using().keys():
+					logging.warning( "Invalid filtering! %s is not a bone in 'using' of %s" % (key,name) )
 					raise RuntimeError()
 				if len( tmpdata ) > 1:
 					if tmpdata[1]=="lt":
@@ -252,32 +255,28 @@ class extendedRelationalBone( relationalBone ):
 		if origFilter is None or not "orderby" in rawFilter.keys(): #This query is unsatisfiable or not sorted
 			return( dbFilter )
 		if "orderby" in list(rawFilter.keys()) and rawFilter["orderby"].startswith( "%s." % name ):
-			if self.multiple:
-				if not dbFilter.getKind()=="viur-relations": #This query has not been rewritten (yet)
-					name, skel, dbFilter, rawFilter = self._rewriteQuery( name, skel, dbFilter, rawFilter )
-				key = rawFilter["orderby"]
-				param = key.split(".")[1]
-				if not param in self.refKeys:
-					logging.warning( "Invalid ordering! %s is not in refKeys of RelationalBone %s!" % (param,name) )
-					raise RuntimeError()
-				if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
-					order = ( "dest."+param, db.DESCENDING )
-				else:
-					order = ( "dest."+param, db.ASCENDING )
-				dbFilter = dbFilter.order( order )
-				dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
-				dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings))
-			else: #Not multiple
-				key = rawFilter["orderby"]
-				param = key.split(".")[1]
-				if not param in self.refKeys:
-					logging.warning( "Invalid ordering! %s is not in refKeys of RelationalBone %s!" % (param,name) )
-					raise RuntimeError()
-				if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
-					order = ( "%s.%s" % (name,param), db.DESCENDING )
-				else:
-					order = ( "%s.%s"% (name,param), db.ASCENDING )
-				dbFilter = dbFilter.order( order )
+			if not dbFilter.getKind()=="viur-relations": #This query has not been rewritten (yet)
+				name, skel, dbFilter, rawFilter = self._rewriteQuery( name, skel, dbFilter, rawFilter )
+			key = rawFilter["orderby"]
+			try:
+				unused, _type, param = key.split(".")
+				assert _type in ["dest","rel"]
+			except:
+				return( dbFilter ) #We cant parse that
+				#Ensure that the relational-filter is in refKeys
+			if _type=="dest" and not param in self.refKeys:
+				logging.warning( "Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (param,name) )
+				raise RuntimeError()
+			if _type=="rel" and not param in self.using().keys():
+				logging.warning( "Invalid filtering! %s is not a bone in 'using' of %s" % (param,name) )
+				raise RuntimeError()
+			if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
+				order = ( "%s.%s" % (_type,param), db.DESCENDING )
+			else:
+				order = ( "%s.%s" % (_type,param), db.ASCENDING )
+			dbFilter = dbFilter.order( order )
+			dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
+			dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings))
 		return( dbFilter )
 
 	def getSearchDocumentFields(self, name): #FIXME
