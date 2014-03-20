@@ -1,4 +1,9 @@
-class PaymentProviderPayPal:
+from server import db, request, errors
+import urllib
+from server.config import conf
+from google.appengine.api import urlfetch
+
+class PayPal( object ):
 	"""
 	Provides payments via Paypal.
 	By default the sandbox is used, to change this to productionmode,
@@ -10,7 +15,7 @@ class PaymentProviderPayPal:
 	}
 	"""
 
-	class PayPal:
+	class PayPalHandler:
 		""" #PayPal utility class"""
 		# by Mike Atlas, September 2007
 		# No License Expressed. Feel free to distribute, modify,
@@ -41,7 +46,7 @@ class PaymentProviderPayPal:
 				self.signature = urllib.urlencode(self.signature_values) + "&"
 			url = request.current.get().request.url
 			host = url[ url.find("://")+3: url.find("/", url.find("://")+5) ]
-			self.returnurl = returnurl or "http://%s/order/doPayPal" % host
+			self.returnurl = returnurl or "http://%s/order/pp_paypal/doPayPal" % host
 			self.cancelurl = cancelurl or "http://%s/site/paypal_failed" % host
 			self.currency = currency
 
@@ -118,15 +123,19 @@ class PaymentProviderPayPal:
 					response_tokens[key] = urllib.unquote(response_tokens[key])
 			return response_tokens
 
+	def __init__(self, orderHandler):
+		super( PayPal, self ).__init__()
+		self.orderHandler = orderHandler
 
-	def paymentProvider_paypal( self, step, orderID ):
+
+	def startProcessing( self, step, orderID ):
 		def setTokenTxn( key, token ):
 			order = db.Get( key )
 			if not order:
 				return
 			order["paypal_token"] = urllib.unquote(token)
 			db.Put( order )
-		paypal = PaymentProviderPayPal.PayPal()
+		paypal = PayPal.PayPalHandler()
 		key = db.Key( orderID )
 		order = db.Get( key )
 		if not order:
@@ -137,14 +146,14 @@ class PaymentProviderPayPal:
 
 
 	def doPayPal( self, token, PayerID,  *args, **kwargs ):
-		order = db.Query( self.kindName ).filter( "paypal_token =", token).get()
+		order = db.Query( self.orderHandler.viewSkel().kindName ).filter( "paypal_token =", token).get()
 		if not order:
 			return("NO SUCH ORDER - PAYMENT ABORTED")
-		paypal = PaymentProviderPayPal.PayPal()
+		paypal = PayPal.PayPalHandler()
 		res = paypal.DoExpressCheckoutPayment( token, PayerID, "%.2f" % float(order["price"]) )
 		if res["ACK"].lower()==u"success":
-			self.setPayed( str( order.key() ) )
-			return self.render.getEnv().get_template( self.render.getTemplateFileName("paypal_okay") ).render()
+			self.orderHandler.setPayed( str( order.key() ) )
+			return self.orderHandler.render.getEnv().get_template( self.orderHandler.render.getTemplateFileName("paypal_okay") ).render()
 		else:
-			return self.render.getEnv().get_template( self.render.getTemplateFileName("paypal_failed") ).render()
+			return self.orderHandler.render.getEnv().get_template( self.orderHandler.render.getTemplateFileName("paypal_failed") ).render()
 	doPayPal.exposed=True

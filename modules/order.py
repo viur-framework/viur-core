@@ -29,7 +29,7 @@ class OrderSkel( Skeleton ):
 	bill_city = stringBone( descr=u"Bill-city",required=True )
 	bill_zip = stringBone( descr=u"Bill-zipcode",required=True,unsharp=True )
 	bill_country = selectCountryBone( descr=u"Bill-country", codes=selectCountryBone.ISO2, required=True)
-	bill_email = stringBone( descr=u"email", required=True, unsharp=True)
+	bill_email = emailBone( descr=u"email", required=True, unsharp=True)
 	shipping_firstname = stringBone( descr=u"Shipping-first name", params={"indexed": True, "frontend_list_visible": True},required=True,unsharp=True )
 	shipping_lastname = stringBone( descr=u"Shipping-last name", params={"indexed": True, "frontend_list_visible": True},required=True,unsharp=True )
 	shipping_street = stringBone( descr=u"Shipping-street", params={"indexed": True, "frontend_list_visible": True},required=True )
@@ -62,7 +62,8 @@ class ReturnHtmlException( Exception ):
 	def __init__(self, html ):
 		super( ReturnHtmlException, self ).__init__()
 		self.html = html
-
+from server.modules.order_paypal import PayPal
+from server.modules.order_sofort import Sofort
 class Order( List ):
 	"""
 	Provides an unified orderingprocess with payment-handling.
@@ -70,6 +71,7 @@ class Order( List ):
 	"""
 
 	archiveDelay = timedelta( days=31 ) # Archive completed orders after 31 Days
+	paymentProviders = [PayPal,Sofort]
 
 	states = [	"complete", # The user completed all steps of the process, he might got redirected to a paymentprovider
 			"payed", #This oder has been payed
@@ -95,6 +97,16 @@ class Order( List ):
 			]
 		}
 
+
+	def __init__(self, *args, **kwargs):
+		super( Order, self ).__init__( *args, **kwargs )
+		# Initialize the payment-providers
+		self.initializedPaymentProviders = {}
+		for p in self.paymentProviders:
+			pInstance = p( self )
+			self.initializedPaymentProviders[ pInstance.__class__.__name__.lower() ] = pInstance
+			#Also put it as an object into self, sothat any exposed function is reachable
+			setattr( self, "pp_%s" % pInstance.__class__.__name__.lower(), pInstance )
 
 	def setState( self, orderID, state, removeState=False ):
 		"""
@@ -318,8 +330,10 @@ class Order( List ):
 			session.current["order_"+order.kindName] = None
 			session.current.markChanged() #Fixme
 			self.setComplete( orderID )
-			if "paymentProvider_%s" % order.payment_type.value in dir( self ):
-				getattr( self, "paymentProvider_%s" % order.payment_type.value )( step, orderID )
+			if order.payment_type.value in self.initializedPaymentProviders.keys():
+				pp = self.initializedPaymentProviders[ order.payment_type.value ]
+				pp.startProcessing( step, orderID )
+				#getattr( self, "paymentProvider_%s" % order.payment_type.value )( step, orderID )
 	
 	def paymentProvider_pod( self, step, orderID ):
 		"""

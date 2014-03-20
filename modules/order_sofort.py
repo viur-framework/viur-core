@@ -1,6 +1,8 @@
+from server import db, errors
+from server.config import conf
+import hashlib, logging
 
-
-class PaymentProviderSofort:
+class Sofort( object ):
 	"""
 	Provides payments via Sofort.com (SOFORT-Classic).
 	You must set the following variables before using this:
@@ -11,6 +13,10 @@ class PaymentProviderSofort:
 						}
 	"""
 
+	def __init__(self, orderHandler):
+		super( Sofort, self ).__init__()
+		self.orderHandler = orderHandler
+
 	def getSofortURL(self, orderID ):
 		order = db.Get( db.Key( orderID ) )
 		hashstr = "%s|%s|||||%.2f|EUR|%s||%s||||||%s" % (conf["sofort"]["userid"], conf["sofort"]["projectid"], float( order["price"] ), str(order.key()), str(order.key()), conf["sofort"]["projectpassword"] )
@@ -18,7 +24,7 @@ class PaymentProviderSofort:
 		returnURL = "https://www.sofortueberweisung.de/payment/start?user_id=%s&project_id=%s&amount=%.2f&currency_id=EUR&reason_1=%s&user_variable_0=%s&hash=%s" % ( conf["sofort"]["userid"], conf["sofort"]["projectid"], float( order["price"]) , str(order.key()), str(order.key()), hash)
 		return( returnURL )
 
-	def paymentProvider_sofort(self, step, orderID ):
+	def startProcessing(self, step, orderID ):
 		raise errors.Redirect( self.getSofortURL( orderID ) )
 
 	def sofortStatus(self, *args, **kwargs):
@@ -42,14 +48,14 @@ class PaymentProviderSofort:
 		if ("%.2f" % order["price"]) != kwargs["amount"]:
 			logging.error("RECIVED INVALID AMOUNT PAYED sofort (%s!=%s)" % ( order["price"], kwargs["amount"] ) )
 			return("INVALID AMOUNT")
-		self.setPayed( kwargs["user_variable_0"] )
+		self.orderHandler.setPayed( kwargs["user_variable_0"] )
 		return("OKAY")
 	sofortStatus.exposed=True
 
 	def doSofort(self, *args, **kwargs ):
-		return self.render.getEnv().get_template( self.render.getTemplateFileName("sofort_okay") ).render()
+		return self.orderHandler.render.getEnv().get_template( self.orderHandler.render.getTemplateFileName("sofort_okay") ).render()
 	doSofort.exposed=True
 
 	def sofortFailed(self, *args, **kwargs ):
-		return self.render.getEnv().get_template( self.render.getTemplateFileName("sofort_failed") ).render()
+		return self.orderHandler.render.getEnv().get_template( self.orderHandler.render.getTemplateFileName("sofort_failed") ).render()
 	sofortFailed.exposed=True
