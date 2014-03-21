@@ -224,7 +224,7 @@ class Skeleton( object ):
 			del self.__dataDict__[ name ]
 		elif isinstance( value, baseBone ):
 			self.__dataDict__[ name ] = value
-		else:
+		elif value:
 			raise ValueError("Expected a instance of baseBone or None, got %s instead." % type(value))
 
 	def __getitem__(self, name ):

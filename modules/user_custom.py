@@ -18,6 +18,7 @@ class userSkel( Skeleton ):
 	kindName = "user"
 	enforceUniqueValuesFor = "name", "That E-Mail address is already taken" #Important! Duplicate usernames will cause trouble!
 	name = emailBone( descr="E-Mail", required=True, readOnly=True, caseSensitive=False, searchable=True, indexed=True )
+	password = passwordBone( descr="Password", required=False, readOnly=True, visible=False )
 	access = selectMultiBone( descr="Accessrights", values={"root": "Superuser"}, indexed=True )
 	status = selectOneBone( descr="Account status", values = {
 				1: "Waiting for EMail verification",
@@ -77,15 +78,20 @@ class CustomUser( List ):
 				defaultStatusValue = 2
 			else: #No further verification required
 				defaultStatusValue = 10
-			skel.status = baseBone( defaultValue=defaultStatusValue, readOnly=True, visible=False )
-			skel.access = baseBone( defaultValue=[], readOnly=True, visible=False )
+			skel["status"].readOnly = True
+			skel["status"].value = defaultStatusValue
+			skel["status"].visible = False
+			#= baseBone( defaultValue=defaultStatusValue, readOnly=True, visible=False )
+			skel["access"].readOnly = True
+			skel["access"].value = []
+			skel["access"].visible = False
 		else:
-			accessRights = skel.access.values.copy()
+			accessRights = skel["access"].values.copy()
 			for right in conf["viur.accessRights"]:
 				accessRights[ right ] = _( right )
-			skel.access.values = accessRights
-		skel.name.readOnly = False #Dont enforce readonly name in user/add
-		skel.password = passwordBone( descr="Password", required=True )
+			skel["access"].values = accessRights
+		skel["name"].readOnly = False #Dont enforce readonly name in user/add
+		skel["password"] = passwordBone( descr="Password", required=True )
 		return( skel )
 
 	def editSkel( self, *args,  **kwargs ):
@@ -293,13 +299,13 @@ def createNewUserIfNotExists():
 		if isinstance( userMod, CustomUser ) and "loginSkel" in dir(userMod): #Its our user module :)
 			if not db.Query( userMod.loginSkel().kindName ).get(): #There's currently no user in the database
 				l = userMod.addSkel()
-				l.password = passwordBone( descr="Password", required=True )
+				l["password"] = passwordBone( descr="Password", required=True )
 				uname = "admin@%s.appspot.com" % app_identity.get_application_id()
 				pw = utils.generateRandomString( 13 )
 				l.setValues( {	"name":uname,
 						"status": 10,
 						"access": ["root"] } )
-				l.password.value = pw
+				l["password"].value = pw
 				try:
 					l.toDB()
 				except:
