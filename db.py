@@ -564,7 +564,10 @@ class Query( object ):
 				datastore_query.Order or None if there are no sort orders set on the
 				current Query.
 		"""
-		return( self.datastoreQuery.GetOrder() )
+		if self.datastoreQuery is None:
+			return( None )
+		else:
+			return( self.datastoreQuery.GetOrder() )
 	
 	def getFilter(self):
 		"""
@@ -582,8 +585,11 @@ class Query( object ):
 			Property is the name of the property used to sort,
 			direction a Bool (false => ascending, True => descending )
 		"""
-		order = self.datastoreQuery.__orderings
-		return( [ (prop, dir) for (prop, dir) in order ] )
+		if self.datastoreQuery is None:
+			return( None )
+		else:
+			order = self.datastoreQuery.__orderings
+			return( [ (prop, dir) for (prop, dir) in order ] )
 
 	def getCursor(self):
 		"""
@@ -603,7 +609,10 @@ class Query( object ):
 			Raises:
 				AssertionError: The query has not yet been run or cannot be compiled.
 		"""
-		return( self.datastoreQuery.GetCursor() )
+		if self.datastoreQuery is None:
+			return( None )
+		else:
+			return( self.datastoreQuery.GetCursor() )
 
 	def getKind(self):
 		"""
