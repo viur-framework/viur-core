@@ -168,11 +168,11 @@ class Hierarchy( object ):
 			"""
 				Tries to return a suitable name for the given object
 			"""
-			if "name " in obj.keys():
+			if "name" in obj.keys():
 				return( obj["name"] )
 			skel = self.viewSkel()
-			if "name" in dir( skel ):
-				nameBone = skel.name
+			if "name" in skel.keys():
+				nameBone = skel["name"]
 				if isinstance( nameBone, baseBone ) and "languages" in dir( nameBone ) and nameBone.languages:
 					skel.setValues( obj )
 					return( unicode( skel["name"].value ) )
