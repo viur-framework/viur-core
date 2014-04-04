@@ -18,7 +18,7 @@ class TreeLeafSkel( Skeleton ):
 	def fromDB( self, *args, **kwargs ):
 		res = super( TreeLeafSkel, self ).fromDB( *args, **kwargs )
 		# Heal missing parent-repo values
-		if not self.parentrepo.value:
+		if res and not self.parentrepo.value:
 			dbObj = db.Get( self.id.value )
 			if not "parentdir" in dbObj.keys(): #RootNode
 				return( res )
