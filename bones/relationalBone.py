@@ -2,7 +2,7 @@
 from server.bones import baseBone
 from server import db
 from google.appengine.api import search
-import json
+import extjson
 from time import time
 from datetime import datetime
 import logging
@@ -80,12 +80,12 @@ class relationalBone( baseBone ):
 				if isinstance(val, list):
 					for res in val:
 						try:
-							self.value.append( json.loads( res ) )
+							self.value.append( extjson.loads( res ) )
 						except:
 							pass
 				else:
 					try:
-						value = json.loads( val )
+						value = extjson.loads( val )
 						if isinstance( value, dict ):
 							self.value.append( value )
 					except:
@@ -93,13 +93,13 @@ class relationalBone( baseBone ):
 			else:
 				if isinstance( val, list ) and len( val )>0:
 					try:
-						self.value = json.loads( val[0] )
+						self.value = extjson.loads( val[0] )
 					except:
 						pass
 				else:
 					if val:
 						try:
-							self.value = json.loads( val )
+							self.value = extjson.loads( val )
 						except:
 							pass
 					else:
@@ -126,10 +126,10 @@ class relationalBone( baseBone ):
 			if self.multiple:
 				res = []
 				for val in self.value:
-					res.append( json.dumps( val ) )
+					res.append( extjson.dumps( val ) )
 				entity.set( key, res, False )
 			else:
-				entity.set( key, json.dumps( self.value ), False )
+				entity.set( key, extjson.dumps( self.value ), False )
 				#Copy attrs of our referenced entity in
 				if self.indexed:
 					for k, v in self.value.items():
