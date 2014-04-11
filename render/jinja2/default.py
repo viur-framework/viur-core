@@ -378,13 +378,17 @@ class Render( object ):
 				return( self.renderSkelStructure( skel ) )
 		return False
 
-	def fetchList(self, modul, skel="viewSkel",  *args,  **kwargs ):
+	def fetchList(self, modul, skel="viewSkel", _noEmptyFilter=False, *args,  **kwargs ):
 		"""
 			Fetches a list of entries which match the given criteria.
 			@param modul: Modul from which the skeleton should be retrived
 			@type modul: String
 			@param skel: Name to the skeleton to fetch the list from
 			@type skel: String
+			@param _noEmptyFilter: If set, this function will not return any results if at least one
+						parameter is an empty list. This is useful to prevent filtering (e.g. by id)
+						not being performed because the list is empty.
+			@type _noEmptyFilter: Bool
 			@returns: List or None
 		"""
 		if not modul in dir ( conf["viur.mainApp"] ):
@@ -394,6 +398,9 @@ class Render( object ):
 		if not skel in dir( caller ):
 			logging.error("Jinja2-Render can't fetch a list with an unknown skeleton %s!" % skel)
 			return( False )
+		if _noEmptyFilter: #Test if any value of kwargs is an empty list
+			if any( [isinstance(x,list) and not len(x) for x in kwargs.values()] ):
+				return( [] )
 		query = getattr(caller, skel )().all()
 		query.mergeExternalFilter( kwargs )
 		if "listFilter" in dir( caller ):
