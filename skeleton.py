@@ -817,7 +817,7 @@ class TaskUpdateSeachIndex( CallableTaskBase ):
 	id = "rebuildsearchIndex"
 	name = u"Rebuild a Searchindex"
 	descr = u"Needs to be called whenever a search-releated parameters are changed."
-	direct = False
+	direct = True
 
 	def canCall( self ):
 		"""Checks wherever the current user can execute this task

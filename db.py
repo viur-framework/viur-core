@@ -565,7 +565,10 @@ class Query( object ):
 				datastore_query.Order or None if there are no sort orders set on the
 				current Query.
 		"""
-		return( self.datastoreQuery.GetOrder() )
+		if self.datastoreQuery is None:
+			return( None )
+		else:
+			return( self.datastoreQuery.GetOrder() )
 	
 	def getFilter(self):
 		"""
@@ -607,7 +610,10 @@ class Query( object ):
 			Raises:
 				AssertionError: The query has not yet been run or cannot be compiled.
 		"""
-		return( self.datastoreQuery.GetCursor() )
+		if self.datastoreQuery is None:
+			return( None )
+		else:
+			return( self.datastoreQuery.GetCursor() )
 
 	def getKind(self):
 		"""

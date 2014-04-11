@@ -406,6 +406,8 @@ class Render( object ):
 		return( SkelListWrapper( mylist ) )
 	
 	def quotePlus(self, val ):
+		if not val: #quote_plus fails if val is None
+			return("")
 		if isinstance( val, unicode ):
 			val = val.encode("UTF-8")
 		return( quote_plus( val ) )
