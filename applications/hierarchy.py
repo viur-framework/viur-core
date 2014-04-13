@@ -168,11 +168,11 @@ class Hierarchy( object ):
 			"""
 				Tries to return a suitable name for the given object
 			"""
-			if "name " in obj.keys():
+			if "name" in obj.keys():
 				return( obj["name"] )
 			skel = self.viewSkel()
-			if "name" in dir( skel ):
-				nameBone = skel.name
+			if "name" in skel.keys():
+				nameBone = skel["name"]
 				if isinstance( nameBone, baseBone ) and "languages" in dir( nameBone ) and nameBone.languages:
 					skel.setValues( obj )
 					return( unicode( skel["name"].value ) )
@@ -320,7 +320,7 @@ class Hierarchy( object ):
 		skel = self.editSkel()
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
-		if not self.canDelete( id ):
+		if not self.canDelete( skel ):
 			raise errors.Unauthorized()
 		self.deleteRecursive( id )
 		self.onItemDeleted( skel )
@@ -339,10 +339,10 @@ class Hierarchy( object ):
 		else:
 			raise errors.NotAcceptable()
 		skel = self.viewSkel()
-		if not self.canView( id ):
-			raise errors.Unauthorized()
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
+		if not self.canView( skel ):
+			raise errors.Unauthorized()
 		self.onItemViewed( skel )
 		return( self.render.view( skel ) )
 
@@ -386,10 +386,10 @@ class Hierarchy( object ):
 		else:
 			raise errors.NotAcceptable()
 		skel = self.editSkel()
-		if  not self.canEdit( id ):
-			raise errors.Unauthorized()
 		if not skel.fromDB( id ):
 			raise errors.NotAcceptable()
+		if  not self.canEdit( skel ):
+			raise errors.Unauthorized()
 		if len(kwargs)==0 or skey=="" or not request.current.get().isPostRequest or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel ) )
 		if not securitykey.validate( skey, acceptSessionKey=True ):
@@ -458,7 +458,7 @@ class Hierarchy( object ):
 			return( True )
 		return( False )
 	
-	def canEdit( self, key ):
+	def canEdit( self, skel ):
 		"""
 			Checks if the current user has the right to edit the given entry
 			@param id: Urlsafe-key of the entry
@@ -474,7 +474,7 @@ class Hierarchy( object ):
 			return( True )
 		return( False )
 		
-	def canView( self, key ):
+	def canView( self, skel ):
 		"""
 			Checks if the current user has the right to view the given entry
 			@param id: Urlsafe-key of the entry
@@ -490,7 +490,7 @@ class Hierarchy( object ):
 			return( True )
 		return( False )
 		
-	def canDelete( self, key ):
+	def canDelete( self, skel ):
 		"""
 			Checks if the current user has the right to delete the given entry (and everything below)
 			@param id: Urlsafe-key of the entry

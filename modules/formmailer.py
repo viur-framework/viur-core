@@ -32,8 +32,8 @@ class Formmailer(object): #fixme
 					_bone.performMagic( isAdd=True )
 		rcpts = self.getRcpts( skel )
 		utils.sendEMail( rcpts, self.mailTemplate , skel )
-		self.onItemAdded( rcpts, skel )
-		return self.render.addItemSuccess( None, skel )
+		self.onItemAdded( skel )
+		return self.render.addItemSuccess( skel )
 	index.exposed = True
 
 	def mailSkel(self):
@@ -43,7 +43,7 @@ class Formmailer(object): #fixme
 		return self.index( *args,  **kwargs )
 	add.exposed = True
 	
-	def onItemAdded( self, rcpts, skel ):
+	def onItemAdded( self, skel ):
 		pass
 
 Formmailer.jinja2=True
