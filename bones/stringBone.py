@@ -51,7 +51,11 @@ def escapeValue( val, maxLength=254 ):
 
 class stringBone( baseBone ):
 	type = "str"
-	
+
+	@staticmethod
+	def generageSearchWidget(target,name="STRING BONE",mode="equals"):
+		return ( {"name":name,"mode":mode,"target":target,"type":"string"} )
+
 	def __init__(self, caseSensitive = True, multiple=False, languages=None, *args, **kwargs ):
 		super( stringBone, self ).__init__( *args, **kwargs )
 		if not caseSensitive and not self.indexed:

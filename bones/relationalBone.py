@@ -32,6 +32,10 @@ class relationalBone( baseBone ):
 	refKeys = ["id","name"]
 	parentKeys = ["id","name"]
 
+	@staticmethod
+	def generageSearchWidget(target,modul,name="RELATIONAL BONE"):
+		return ( {"name":name,"target":target,"type":"relational","modul":modul} )
+
 	def __init__( self, type=None, modul=None, refKeys=None, parentKeys=None, multiple=False, format="$(name)",  *args,**kwargs):
 		"""
 			Initialize a new relationalBone.

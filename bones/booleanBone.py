@@ -5,7 +5,11 @@ import logging
 class booleanBone( baseBone ):
 	type = "bool"
 	trueStrs = [ str(True), "1", "yes" ]
-	
+
+	@staticmethod
+	def generageSearchWidget(target,name="BOOLEAN BONE"):
+		return ( {"name":name,"target":target,"type":"boolean"} )
+
 	def __init__( self, defaultValue=False, *args, **kwargs ):
 		assert defaultValue in [True, False]
 		defaultValue = defaultValue

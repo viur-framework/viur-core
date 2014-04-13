@@ -3,6 +3,12 @@ from server.bones import baseBone
 
 class selectMultiBone( baseBone ):
 	type = "selectmulti"
+
+	@staticmethod
+	def generageSearchWidget(target,name="SELECTMULTI BONE",values=[]):
+		return ( {"name":name,"target":target,"type":"selectmulti","values":values} )
+
+
 	def __init__( self, defaultValue=[],  values = {}, sortBy="keys", *args, **kwargs ):
 		"""
 			Creates a new SelectMultiBone

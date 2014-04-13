@@ -103,6 +103,11 @@ class textBone( baseBone ):
 
 	type = "text"
 
+	@staticmethod
+	def generageSearchWidget(target,name="TEXT BONE",mode="equals"):
+		return ( {"name":name,"mode":mode,"target":target,"type":"text"} )
+
+
 	def __init__( self, validHtml=__undefinedC__, indexed=False, languages=None, *args, **kwargs ):
 		baseBone.__init__( self,  *args, **kwargs )
 		if indexed:

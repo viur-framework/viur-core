@@ -146,7 +146,7 @@ class Skeleton( object ):
 	@classmethod
 	def subSkel(cls, name, *args):
 		"""
-			Creates the given subskeleton.
+			Creates the given eton.
 			A subskeleton is a copy of the original skeleton, containing only a subset of its bones.
 			To define subskeletons, use the subSkels property of that skeleton.
 			If more than one subskel is given, its treated as union, so a bone will appear in the resulting

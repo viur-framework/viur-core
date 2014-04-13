@@ -4,8 +4,10 @@ from server import  errors
 class Site( object ):
 	adminInfo = None
 
+
 	def __init__(self, *args, **kwargs):
 		super( Site, self ).__init__()
+		self.modulPath = ""
 
 	def index( self,template="index",*arg,**kwargs ):
 		if ".." in template or "/" in template:

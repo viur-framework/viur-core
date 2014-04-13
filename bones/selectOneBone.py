@@ -3,7 +3,11 @@ from server.bones import baseBone
 
 class selectOneBone( baseBone ):
 	type = "selectone"
-	
+
+	@staticmethod
+	def generageSearchWidget(target,name="SELECTONE BONE",values=[]):
+		return ( {"name":name,"values":values,"target":target,"type":"selectone"} )
+
 	def __init__( self,  values = {}, defaultValue=None, sortBy="keys", *args, **kwargs ):
 		"""
 			Creates a new selectOneBone
