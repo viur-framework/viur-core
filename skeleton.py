@@ -524,9 +524,9 @@ class Skeleton( object ):
 			@param key: If given, sets the current database-key of this skeleton
 			@type key: db.Key or None
 		"""
-		for key,_bone in self.items():
+		for bkey,_bone in self.items():
 			if isinstance( _bone, baseBone ):
-				if key=="id":
+				if bkey=="id":
 					try:
 						# Reading the value from db.Entity
 						_bone.value = str( values.key() )
@@ -537,7 +537,7 @@ class Skeleton( object ):
 						else: #Ingore the key value
 							pass
 				else:
-					_bone.unserialize( key, values )
+					_bone.unserialize( bkey, values )
 		if key is not False:
 			assert key is None or isinstance( key, db.Key ), "Key must be None or a db.Key instance"
 			if key is None:
