@@ -121,6 +121,8 @@ class textBone( baseBone ):
 			raise ValueError("languages must be None or a list of strings ")
 		self.languages = languages
 		self.validHtml = validHtml
+		if self.languages:
+			self.value = LanguageWrapper( self.languages )
 
 	def serialize( self, name, entity ):
 		if name == "id":
