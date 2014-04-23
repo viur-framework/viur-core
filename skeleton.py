@@ -426,7 +426,7 @@ class Skeleton( object ):
 			_bone.postSavedHandler( key, skel, id, dbObj )
 		skel.postSavedHandler( id,  dbObj )
 		if not clearUpdateTag:
-			updateRelations( id )
+			updateRelations( id, time()+1 )
 		return( id )
 
 
@@ -794,9 +794,8 @@ class SkelList( list ):
 ### Tasks ###
 
 @callDeferred
-def updateRelations( destID ):
-	#logging.error("updateRelations %s" % destID )
-	for srcRel in db.Query( "viur-relations" ).filter("dest.id =", destID ).iter( ):
+def updateRelations( destID, minChangeTime ):
+	for srcRel in db.Query( "viur-relations" ).filter("dest.id =", destID ).filter("viur_delayed_update_tag <",minChangeTime).iter( ):
 		skel = skeletonByKind( srcRel["viur_src_kind"] )()
 		skel.fromDB( str(srcRel.key().parent()) )
 		for key,_bone in skel.items():
