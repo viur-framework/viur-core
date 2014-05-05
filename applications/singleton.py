@@ -83,8 +83,9 @@ class Singleton( object ):
 		skel = self.editSkel()
 		if not self.canEdit( ):
 			raise errors.Unauthorized()
-		id = str( db.Key.from_path( self.editSkel().kindName, self.getKey() ) )
-		skel.fromDB( id )
+		id = db.Key.from_path( self.editSkel().kindName, self.getKey() )
+		if not skel.fromDB( str(id) ): #Its not there yet; we need to set the key again
+			skel.setValues( {}, key=id )
 		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel ) )
 		if not securitykey.validate( skey, acceptSessionKey=True ):
