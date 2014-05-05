@@ -354,6 +354,9 @@ class Render( object ):
 			if isinstance( obj, Singleton ) and not id:
 				#We fetching the entry from a singleton - No id needed
 				id = str( db.Key.from_path( skel.kindName, obj.getKey() ) )
+			elif not id:
+				logging.info("getEntry called without an valid id" )
+				return( None )
 			if isinstance( skel,  Skeleton ):
 				if not skel.fromDB( id ):
 					return( None )
