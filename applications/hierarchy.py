@@ -25,8 +25,8 @@ class Hierarchy( object ):
 		This application holds hierarchy data.
 		In this application, entries are direct children of each other.
 	"""
-	
-	
+
+	kindName = None
 	adminInfo = {	"name": "BaseApplication", #Name of this modul, as shown in Admin (will be translated at runtime)
 			"handler": "hierarchy",  #Which handler to invoke
 			"icon": "", #Icon for this modul
@@ -34,14 +34,21 @@ class Hierarchy( object ):
 			#"orderdir":1
 			}
 
+	def _resolveSkel(self):
+		if self.kindName:
+			kName = self.kindName
+		else:
+			kName = unicode( type(self).__name__ ).lower()
+		return( skeletonByKind( kName )() )
+
 	def viewSkel( self, *args, **kwargs ):
-		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
-	
+		return( self._resolveSkel() )
+
 	def addSkel( self, *args, **kwargs ):
-		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
+		return( self._resolveSkel() )
 
 	def editSkel( self, *args, **kwargs ):
-		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
+		return( self._resolveSkel() )
 
 	def __init__( self, modulName, modulPath, *args, **kwargs ):
 		self.modulName = modulName
@@ -67,7 +74,6 @@ class Hierarchy( object ):
 		env.globals["canList"] = self.canList
 		env.globals["canReparent"] = self.canReparent
 		return( env )
-
 
 	def getRootNode(self, entryKey ):
 		"""

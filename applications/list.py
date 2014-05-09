@@ -7,10 +7,11 @@ from google.appengine.api import users
 import logging
 
 class List( object ):
+	kindName = None
 	adminInfo = {	"name": "BaseApplication", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
-				"handler": "list",  #Which handler to invoke
-				"icon": "", #Icon for this modul
-				}
+			"handler": "list",  #Which handler to invoke
+			"icon": "", #Icon for this modul
+			}
 
 	def __init__( self, modulName, modulPath, *args, **kwargs ):
 		super( List, self ).__init__( *args, **kwargs )
@@ -23,14 +24,21 @@ class List( object ):
 				if not rightName in conf["viur.accessRights"]:
 					conf["viur.accessRights"].append( rightName )
 
+	def _resolveSkel(self):
+		if self.kindName:
+			kName = self.kindName
+		else:
+			kName = unicode( type(self).__name__ ).lower()
+		return( skeletonByKind( kName )() )
+
 	def viewSkel( self, *args, **kwargs ):
-		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
-	
+		return( self._resolveSkel() )
+
 	def addSkel( self, *args, **kwargs ):
-		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
+		return( self._resolveSkel() )
 
 	def editSkel( self, *args, **kwargs ):
-		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
+		return( self._resolveSkel() )
 
 ## External exposed functions
 

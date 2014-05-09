@@ -12,7 +12,7 @@ class Singleton( object ):
 		The default-implementation uses one, global Skeleton (eg. usefull for side-wide configuration).
 		However, it can be easily adapted to provide one Skeleton per user.
 	"""
-	
+	kindName = None
 	adminInfo = {	"name": "BaseApplication", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
 				"handler": "singleton",  #Which handler to invoke
 				"icon": "", #Icon for this modul
@@ -38,11 +38,22 @@ class Singleton( object ):
 				if not rightName in conf["viur.accessRights"]:
 					conf["viur.accessRights"].append( rightName )
 
+	def _resolveSkel(self):
+		if self.kindName:
+			kName = self.kindName
+		else:
+			kName = unicode( type(self).__name__ ).lower()
+		return( skeletonByKind( kName )() )
+
 	def viewSkel( self, *args, **kwargs ):
-		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
+		return( self._resolveSkel() )
+
+	def addSkel( self, *args, **kwargs ):
+		return( self._resolveSkel() )
 
 	def editSkel( self, *args, **kwargs ):
-		return( skeletonByKind( unicode( type(self).__name__).lower() )() )
+		return( self._resolveSkel() )
+
 
 	def preview( self, skey, *args, **kwargs ):
 		"""
