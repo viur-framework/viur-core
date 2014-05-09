@@ -21,6 +21,7 @@ class userSkel( Skeleton ):
 
 
 class GoogleUser( List ):
+	kindName = "user"
 	modulList = None #Cache this list of avaiable modules on this instance
 
 	addSkel = None #You cannot add users directly - they need to sign up with google and log into the application once

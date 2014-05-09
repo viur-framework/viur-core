@@ -28,6 +28,7 @@ class userSkel( Skeleton ):
 
 
 class CustomUser( List ):
+	kindName = "user"
 	addTemplate = "user_add"
 	addSuccessTemplate = "user_add_success"
 	lostPasswordTemplate = "user_lostpassword"
