@@ -62,7 +62,7 @@ class MetaSkel( type ):
 def skeletonByKind( kindName ):
 	if not kindName:
 		return( None )
-	assert kindName in MetaSkel._skelCache
+	assert kindName in MetaSkel._skelCache, "Unknown skeleton '%s'" % kindName
 	return MetaSkel._skelCache[ kindName ]
 
 def listKnownSkeletons():
