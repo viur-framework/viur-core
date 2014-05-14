@@ -293,10 +293,6 @@ class Tree( object ):
 			skel = self.viewLeafSkel()
 		else:
 			raise( errors.NotAcceptable() )
-		if "skey" in kwargs:
-			skey = kwargs["skey"]
-		else:
-			skey = ""
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
 		if not self.canEdit( skel ):
