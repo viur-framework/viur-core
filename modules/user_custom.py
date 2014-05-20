@@ -157,7 +157,9 @@ class CustomUser( List ):
 		if res[ "name.idx" ] != name.lower():
 			isOkay = False
 		if( not isOkay ):
-			return( self.render.login( self.loginSkel(), loginFailed=(skey and name and password) )  )
+			skel=self.loginSkel()
+			skel["name"].fromClient("name",{"name":name} )
+			return( self.render.login( skel, loginFailed=True )  )
 		else:
 			if not "password_salt" in res.keys(): #Update the password to the new, more secure format
 				res[ "password_salt" ] = utils.generateRandomString( 13 )
