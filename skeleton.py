@@ -799,12 +799,7 @@ def updateRelations( destID, minChangeTime ):
 		skel = skeletonByKind( srcRel["viur_src_kind"] )()
 		skel.fromDB( str(srcRel.key().parent()) )
 		for key,_bone in skel.items():
-			if not key.startswith("_"):
-				if isinstance( _bone, relationalBone ):
-					if isinstance( _bone.value, dict ):
-						_bone.fromClient( key, {key: _bone.value["id"]} )
-					elif isinstance( _bone.value, list ):
-						_bone.fromClient( key, {key: [x["id"] for x in _bone.value]} )
+			_bone.refresh( key, skel )
 		skel.toDB( clearUpdateTag=True )
 
 

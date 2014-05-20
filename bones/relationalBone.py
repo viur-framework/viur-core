@@ -167,6 +167,8 @@ class relationalBone( baseBone ):
 				if self.multiple and self.indexed: #We dont store more than key and kinds, and these dont change
 					for k,v in parentValues.items(): #Write our (updated) values in
 						dbObj[ "src."+k ] = v
+					for k, v in data.items():
+						dbObj[ "dest."+k ] = v
 					dbObj[ "viur_delayed_update_tag" ] = time()
 					db.Put( dbObj )
 				values.remove( data )

@@ -64,8 +64,13 @@ class extendedRelationalBone( relationalBone ):
 			else: # Relation: Updated
 				data = [ x for x in values if x["dest"]["id"]== dbObj[ "dest.id" ] ][0]
 				if self.indexed: #We dont store more than key and kinds, and these dont change
-					for k,v in parentValues.items(): #Write our (updated) values in
+					#Write our (updated) values in
+					for k, v in data["dest"].items():
+						dbObj[ "dest."+k ] = v
+					for k,v in parentValues.items():
 						dbObj[ "src."+k ] = v
+					for k, v in data["rel"].items():
+						dbObj[ "rel."+k ] = v
 					dbObj[ "viur_delayed_update_tag" ] = time()
 					db.Put( dbObj )
 				values.remove( data )
@@ -128,7 +133,6 @@ class extendedRelationalBone( relationalBone ):
 		tmpList = [ (k,v) for k,v in tmpRes.items() ]
 		tmpList.sort( key=lambda k: k[0] )
 		tmpList = [{"rel":v,"dest":{"id":v["id"]}} for k,v in tmpList]
-		logging.error( tmpList )
 		errorDict = {}
 		for r in tmpList[:]:
 			# Rebuild the referenced entity data
@@ -382,3 +386,34 @@ class extendedRelationalBone( relationalBone ):
 						res.append( "src.%s" % orderKey )
 		return( res )
 
+	def refresh(self, boneName, skel ):
+		"""
+			Refresh all values we might have cached from other entities.
+		"""
+		def updateInplace( valDict ):
+			"""
+				Fetches the entity referenced by valDict["dest.id"] and updates all dest.* keys
+				accordingly
+			"""
+			if not "dest" in valDict.keys():
+				logging.error("Invalid dictionary in updateInplace!")
+				logging.error("Got: %s" % valDict )
+				return
+			try:
+				newValues = db.Get( valDict["dest"]["id"] )
+				assert  newValues is not None
+			except:
+				#This entity has been deleted
+				return
+			for key in valDict["dest"].keys():
+				if key=="id":
+					continue
+				if key in newValues.keys():
+					valDict["dest"][ key] = newValues[ key ]
+		if not self.value:
+			return
+		if isinstance( self.value, dict ):
+			updateInplace( self.value )
+		elif isinstance( self.value, list ):
+			for k in self.value:
+				updateInplace( k )
