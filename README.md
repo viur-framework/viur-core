@@ -7,7 +7,7 @@ ViUR – the Information System for the Google App Engine™ plattform – is a 
 in this Repository you'll find the frameworkcode, which should be included by git submodul function in your ViUR-Projekt.
 If you are looking for an exampleproject goto:
 
-[https://bitbucket.org/viur/admin](bitbucket.org/viur/admin)
+[https://bitbucket.org/viur/projekt](bitbucket.org/viur/projekt)
 
 
 We have two projects for an graphical administration Interface:
@@ -18,10 +18,12 @@ We have two projects for an graphical administration Interface:
 ### How do I get set up? ###
 
 Dependencies:
-* [viur.is/site/Download-Projekt](http://www.viur.is/site/Download-Projekt)
+[viur.is/site/Download-Projekt](http://www.viur.is/site/Download-Projekt)
+
 
 Howto start:
-* [viur.is/site/How-To](http://www.viur.is/site/How-To)
+[viur.is/site/How-To](http://www.viur.is/site/How-To)
+
 
 
 ### Contribution guidelines ###
