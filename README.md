@@ -12,19 +12,18 @@ If you are looking for an exampleproject goto:
 
 We have two projects for an graphical administration Interface:
 
-[bitbucket.org/viur/vi](https://bitbucket.org/viur/vi) - for the Webbased UI written in PyJS
-[bitbucket.org/viur/admin](https://bitbucket.org/viur/admin) - for the Native Program - written in Python 3.3 and QT
+* [bitbucket.org/viur/vi](https://bitbucket.org/viur/vi) - for the Webbased UI written in PyJS
+* [bitbucket.org/viur/admin](https://bitbucket.org/viur/admin) - for the Native Program - written in Python 3.3 and QT
 
 ### How do I get set up? ###
 
 Dependencies:
-[viur.is/site/Download-Projekt](http://www.viur.is/site/Download-Projekt)
+* [viur.is/site/Download-Projekt](http://www.viur.is/site/Download-Projekt)
 
 Howto start:
-[viur.is/site/How-To](http://www.viur.is/site/How-To)
+* [viur.is/site/How-To](http://www.viur.is/site/How-To)
 
 
 ### Contribution guidelines ###
 For short questions contact [tsteinruecken](https://bitbucket.org/tsteinruecken) via DM.
 If you want to become part of our Project write me an email: rb@viur.is
-
