@@ -25,11 +25,9 @@ class Formmailer(object): #fixme
 		if not skel.fromClient( kwargs ):
 			return self.render.add(  skel=skel, failed=True )
 		# Allow bones to perform outstanding "magic" operations before sending the mail
-		for key in dir( skel ):
-			if "__" not in key:
-				_bone = getattr( skel, key )
-				if( isinstance( _bone, baseBone ) ):
-					_bone.performMagic( isAdd=True )
+		for key, _bone in skel.items():
+			if( isinstance( _bone, baseBone ) ):
+				_bone.performMagic( isAdd=True )
 		rcpts = self.getRcpts( skel )
 		utils.sendEMail( rcpts, self.mailTemplate , skel )
 		self.onItemAdded( skel )
