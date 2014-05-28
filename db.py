@@ -173,7 +173,8 @@ def Get( keys, **kwargs ):
 						if str( e.key() ) == key:
 							tmpRes.append ( e )
 							break
-			logging.debug( "Fetched a result-set from Datastore: %s total, %s from cache, %s from datastore" % (len(tmpRes),len( cacheRes.keys()), len( dbRes ) ) )
+			if conf["viur.debug.traceQueries"]:
+				logging.debug( "Fetched a result-set from Datastore: %s total, %s from cache, %s from datastore" % (len(tmpRes),len( cacheRes.keys()), len( dbRes ) ) )
 			return( tmpRes )
 	if isinstance( keys, list ):
 		return( [ Entity.FromDatastoreEntity(x) for x in datastore.Get( keys, **kwargs ) ] )
@@ -666,6 +667,11 @@ class Query( object ):
 			# Query-Caching is disabled, make this query keys-only if (and only if) explicitly requested for this query
 			internalKeysOnly = keysOnly
 		res = list( self.datastoreQuery.Run( keys_only=internalKeysOnly, **kwargs ) )
+		if conf["viur.debug.traceQueries"]:
+			kindName = self.getKind()
+			orders = self.getOrders()
+			filters = self.getFilter()
+			logging.debug("Queried %s with filter %s and orders %s. Returned %s results" % (kindName, filters, orders, len(res)))
 		if keysOnly and not internalKeysOnly: #Wanted key-only, but this wasnt directly possible
 			if len(res)>0 and res[0].key().kind()!=self.origKind and res[0].key().parent().kind()==self.origKind:
 				#Fixing the kind - it has been changed (probably by quering an relation)

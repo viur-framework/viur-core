@@ -28,6 +28,7 @@ conf = {	"viur.mainApp": None,  #Reference to our prebuild Application-Instance
 		"viur.debug.traceExceptions": False, #If enabled, user-generated exceptions from the server.errors module won't be caught and handled
 		"viur.debug.traceExternalCallRouting": True, #If enabled, ViUR will log which (exposed) function are called from outside with what arguments
 		"viur.debug.traceInternalCallRouting": True, #If enabled, ViUR will log which (internal-exposed) function are called from templates with what arguments
+                "viur.debug.traceQueries": True, #If enabled, we log all datastore queries performed
 		"bugsnag.apiKey": None #If set, ViUR will report Errors to bugsnag
 	}
 
