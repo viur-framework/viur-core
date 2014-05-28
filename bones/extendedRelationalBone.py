@@ -78,7 +78,7 @@ class extendedRelationalBone( relationalBone ):
 		for val in values:
 			dbObj = db.Entity( "viur-relations" , parent=db.Key( id ) ) #skel.kindName+"_"+self.type+"_"+key
 			if not self.indexed: #Dont store more than key and kinds, as they aren't used anyway
-				dbObj[ "dest.id" ] = val["id"]
+				dbObj[ "dest.id" ] = val["dest"]["id"]
 				dbObj[ "src.id" ] = id
 			else:
 				for k, v in val["dest"].items():
