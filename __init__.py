@@ -271,6 +271,7 @@ class BrowseHandler(webapp.RequestHandler):
 		self.isDevServer = "Development" in os.environ['SERVER_SOFTWARE'] #Were running on development Server
 		self.isSSLConnection = self.request.host_url.lower().startswith("https://") #We have an encrypted channel
 		self.language = conf["viur.defaultLanguage"]
+		request.current.setRequest( self )
 		if sharedConf["viur.disabled"] and not (users.is_current_user_admin() or "HTTP_X_QUEUE_NAME".lower() in [x.lower() for x in os.environ.keys()] ): #FIXME: Validate this works
 			self.response.set_status( 503 ) #Service unaviable
 			tpl = Template( open("server/template/error.html", "r").read() )
@@ -288,6 +289,8 @@ class BrowseHandler(webapp.RequestHandler):
 		try:
 			session.current.load( self ) # self.request.cookies )
 			path = self.selectLanguage( path )
+			if conf["viur.requestPreprocessor"]:
+				path = conf["viur.requestPreprocessor"]( path )
 			self.findAndCall( path, *args, **kwargs )
 		except errors.Redirect as e :
 			if conf["viur.debug.traceExceptions"]:
@@ -349,7 +352,6 @@ class BrowseHandler(webapp.RequestHandler):
 		del tmpArgs
 		if "self" in kwargs.keys(): #self is reserved for bound methods
 			raise errors.BadRequest()
-		request.current.setRequest( self )
 		#Parse the URL
 		path = urlparse.urlparse( path ).path
 		self.pathlist = [ urlparse.unquote( x ) for x in path.strip("/").split("/") ]
