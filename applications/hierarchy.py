@@ -151,14 +151,14 @@ class Hierarchy( object ):
 
 	def deleteRecursive( self, key ):
 		"""
-			Recursivly processes an delete request
+			Recursively processes an delete request
 		"""
-		vs = self.editSkel()
 		entrys = db.Query( self.viewSkel().kindName ).filter( "parententry", str(key) ).run()
 		for e in entrys:
 			self.deleteRecursive( str( e.key() ) )
-			vs.delete( str( e.key() ) )
-		vs.delete( key )
+			vs = self.editSkel()
+			vs.setValues( e, key=e.key() )
+			vs.delete( )
 
 ## Internal exposed functions
 
@@ -317,7 +317,7 @@ class Hierarchy( object ):
 	@forceSSL
 	@forcePost
 	@exposed
-	def delete( self, id, skey ):
+	def delete( self, id, skey, *args, **kwargs ):
 		"""
 			Delete an entry.
 		"""
@@ -329,6 +329,7 @@ class Hierarchy( object ):
 		if not self.canDelete( skel ):
 			raise errors.Unauthorized()
 		self.deleteRecursive( id )
+		skel.delete()
 		self.onItemDeleted( skel )
 		return( self.render.deleteSuccess( skel ) )
 
