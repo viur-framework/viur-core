@@ -244,8 +244,11 @@ class extendedRelationalBone( relationalBone ):
 						dbFilter.filter( "%s.%s <" % (_type,key), value )
 					elif tmpdata[1]=="gt":
 						dbFilter.filter( "%s.%s >" % (_type,key), value )
+					elif tmpdata[1]=="lk":
+						dbFilter.filter( "%s.%s >=" % (_type,key), value )
+						dbFilter.filter( "%s.%s <" % (_type,key), value+u"\ufffd" )
 					else:
-						dbFilter.filter( "%s.%s =", (_type,key), value )
+						dbFilter.filter( "%s.%s =" % (_type,key), value )
 				else:
 					dbFilter.filter( "%s.%s =" % (_type,key), value )
 			dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
