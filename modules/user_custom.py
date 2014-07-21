@@ -279,9 +279,9 @@ class CustomUser( List ):
 			Ensure that the verifyEmailAddressMail get's send if needed.
 		"""
 		super( CustomUser, self ).onItemAdded( skel )
-		if self.registrationEmailVerificationRequired and str(skel.status.value)=="1":
-			skey = securitykey.create( duration=60*60*24*7 , userid=str(skel.id.value), name=skel.name.value )
-			self.sendVerificationEmail( str(skel.id.value), skey )
+		if self.registrationEmailVerificationRequired and str(skel["status"].value)=="1":
+			skey = securitykey.create( duration=60*60*24*7 , userid=str(skel["id"].value), name=skel["name"].value )
+			self.sendVerificationEmail( str(skel["id"].value), skey )
 	
 	def onItemDeleted( self, skel ):
 		"""
