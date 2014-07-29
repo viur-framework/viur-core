@@ -608,7 +608,7 @@ class Skeleton( object ):
 				except db.EntityNotFoundError:
 					pass
 		if( len( data )==0 or (len(data)==1 and "id" in data) or ("nomissing" in data.keys() and str(data["nomissing"])=="1") ):
-			self.errors = {}
+			super(Skeleton,self).__setattr__( "errors", {} )
 		return( complete )
 
 	def refresh(self):
