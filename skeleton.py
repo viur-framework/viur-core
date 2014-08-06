@@ -103,9 +103,9 @@ class Skeleton( object ):
 	def __getattribute__(self, item):
 		isOkay = False
 		if item.startswith("_") or item in ["kindName","searchIndex", "enforceUniqueValuesFor","all","fromDB",
-						    "toDB", "items","keys","values","setValues","errors","fromClient",
+						    "toDB", "items","keys","values","setValues","getValues","errors","fromClient",
 						    "preProcessBlobLocks","preProcessSerializedData","postSavedHandler",
-						    "postDeletedHandler", "delete","clone","getSearchDocumentFields","subSkels","subSkel"]:
+						    "postDeletedHandler", "delete","clone","getSearchDocumentFields","subSkels","subSkel","refresh"]:
 			isOkay = True
 		elif not "_Skeleton__isInitialized_" in dir( self ):
 			isOkay = True
@@ -558,11 +558,8 @@ class Skeleton( object ):
 			@returns: dict
 		"""
 		res = {}
-		for key in dir( self ):
-			if not "__" in key:
-				_bone = getattr( self, key )
-				if isinstance( _bone, baseBone ):
-					res[ key ] = _bone.value
+		for key,_bone in self.items():
+			res[ key ] = _bone.value
 		return( res )
 
 	def fromClient( self, data ):
@@ -608,7 +605,7 @@ class Skeleton( object ):
 				except db.EntityNotFoundError:
 					pass
 		if( len( data )==0 or (len(data)==1 and "id" in data) or ("nomissing" in data.keys() and str(data["nomissing"])=="1") ):
-			self.errors = {}
+			super(Skeleton,self).__setattr__( "errors", {} )
 		return( complete )
 
 	def refresh(self):
@@ -618,10 +615,7 @@ class Skeleton( object ):
 			causes bones like relationalBones to re-fetch the values of their
 			referenced entities.
 		"""
-		for key in dir(self):
-			if key.startswith("_"):
-				continue
-			bone = getattr( self, key )
+		for key,bone in self.items():
 			if not isinstance( bone, baseBone ):
 				continue
 			if "refresh" in dir( bone ):
@@ -827,12 +821,12 @@ class TaskUpdateSeachIndex( CallableTaskBase ):
 		#	if "editSkel" in dir( modul ) and not modulName in modules:
 		#		modules.append( modulName )
 		skel = Skeleton( self.kindName )
-		skel.modul = selectOneBone( descr="Modul", values={ x: x for x in modules}, required=True )
+		skel["modul"] = selectOneBone( descr="Modul", values={ x: x for x in modules}, required=True )
 		def verifyCompact( val ):
 			if not val or val.lower()=="no" or val=="YES":
 				return( None )
 			return("Must be \"No\" or uppercase \"YES\" (very dangerous!)")
-		skel.compact = stringBone( descr="Recreate Entities", vfunc=verifyCompact, required=False, defaultValue="NO" )
+		skel["compact"] = stringBone( descr="Recreate Entities", vfunc=verifyCompact, required=False, defaultValue="NO" )
 		return( skel )
 
 	def execute( self, modul=None, compact="", *args, **kwargs ):
@@ -861,7 +855,7 @@ def processChunk( modul, compact, cursor ):
 			skel.toDB( )
 		except Exception as e:
 			logging.error("Updating %s failed" % str(key) )
-			logging.error( e )
+			logging.exception( e )
 	newCursor = query.getCursor()
 	if gotAtLeastOne and newCursor and newCursor.urlsafe()!=cursor:
 		# Start processing of the next chunk
