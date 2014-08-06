@@ -201,30 +201,36 @@ class CustomUser( List ):
 			data = securitykey.validate( authtoken )
 			if data and isinstance( data, dict ) and "userid" in data.keys() and "password" in data.keys():
 				skel = self.editSkel()
-				assert skel["fromDB"]( data["userid"] )
+				assert skel.fromDB( data["userid"] )
 				skel["password"].value = data["password"]
-				skel["toDB"]( data["userid"] )
-				return( self.render.passwdRecoverInfo( "success", skel ) )
+				skel.toDB()
+				return (self.render.view(skel, "user_passwordrecover_success"))
 			else:
-				return( self.render.passwdRecoverInfo( "invalid_token", None ) )
+				return (self.render.view(skel,
+										 "user_passwordrecover_invalid_token"))
 		else:
 			skel = self.lostPasswordSkel()
-			if len(kwargs)==0 or not skel["fromClient"]( kwargs ):
+			if len(kwargs)==0 or not skel.fromClient(kwargs):
 				return( self.render.passwdRecover( skel, tpl=self.lostPasswordTemplate ) )
 			user = self.viewSkel().all().filter( "name.idx =", skel["name"].value.lower() ).get()
+
 			if not user: #Unknown user
 				skel["errors"]["name"] = _("Unknown user")
 				return( self.render.passwdRecover( skel, tpl=self.lostPasswordTemplate ) )
 			try:
-				if user["changedate"]>datetime.datetime.now()-datetime.timedelta(days=1): #This user probably has already requested a password reset
-					return( self.render.passwdRecoverInfo( "already_send", skel ) ) #within the last 24 hrs
+				if user["changedate"]>datetime.datetime.now()-datetime.timedelta(days=1):
+					# This user probably has already requested a password reset
+					# within the last 24 hrss
+					return (self.render.view(skel,
+											 "user_passwordrecover_already_sent"))
+
 			except AttributeError: #Some newly generated user-objects dont have such a changedate yet
 				pass
 			user["changedate"] = datetime.datetime.now()
 			db.Put( user )
 			key = securitykey.create( 60*60*24, userid=str( user.key() ), password=skel["password"].value )
 			self.sendPasswordRecoveryEmail( str( user.key() ), key )
-			return( self.render.passwdRecoverInfo( "instructions_send", skel ) )
+			return (self.render.view(skel, "user_passwordrecover_mail_sent"))
 	pwrecover.exposed = True
 	
 	def verify(self,  skey,  *args,  **kwargs ):
@@ -242,14 +248,14 @@ class CustomUser( List ):
 	
 	def sendVerificationEmail(self, userID, skey ):
 		skel = self.viewSkel()
-		assert skel["fromDB"]( userID )
+		assert skel.fromDB(userID)
 		skel["skey"] = baseBone( descr="Skey" )
 		skel["skey"].value = skey
 		utils.sendEMail( [skel["name"].value], self.verifyEmailAddressMail, skel )
 		
 	def sendPasswordRecoveryEmail(self, userID, skey ):
 		skel = self.viewSkel()
-		assert skel["fromDB"]( userID )
+		assert skel.fromDB(userID)
 		skel["skey"] = baseBone( descr="Skey" )
 		skel["skey"].value = skey
 		utils.sendEMail( [skel["name"].value], self.passwordRecoveryMail, skel )
