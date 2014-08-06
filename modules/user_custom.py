@@ -42,7 +42,7 @@ class CustomUser( List ):
 		pwHash = pbkdf2( password[ : conf["viur.maxPasswordLength"] ], salt )
 		uidHash = sha512( name.lower().encode("utf-8")+conf["viur.salt"] ).hexdigest()
 		return( db.GetOrInsert( uidHash,
-					kindName=skel.kindName,
+					kindName=skel["kindName"],
 					name=name,
 					name_idx=name.lower(),
 					password=pwHash,
@@ -73,7 +73,7 @@ class CustomUser( List ):
 		if not admin:
 			if self.registrationEmailVerificationRequired:
 				defaultStatusValue = 1
-				#skey = securitykey.create( duration=60*60*24*7 , userid=str(newUser.key()), name=skel.name.value )
+				#skey = securitykey.create( duration=60*60*24*7 , userid=str(newUser.key()), name=skel["name"].value )
 				#self.sendVerificationEmail( str(newUser.key()), skey )
 			elif self.registrationAdminVerificationRequired:
 				defaultStatusValue = 2
@@ -202,57 +202,63 @@ class CustomUser( List ):
 			if data and isinstance( data, dict ) and "userid" in data.keys() and "password" in data.keys():
 				skel = self.editSkel()
 				assert skel.fromDB( data["userid"] )
-				skel.password.value = data["password"]
-				skel.toDB( data["userid"] )
-				return( self.render.passwdRecoverInfo( "success", skel ) )
+				skel["password"].value = data["password"]
+				skel.toDB()
+				return (self.render.view(skel, "user_passwordrecover_success"))
 			else:
-				return( self.render.passwdRecoverInfo( "invalid_token", None ) )
+				return (self.render.view(skel,
+										 "user_passwordrecover_invalid_token"))
 		else:
 			skel = self.lostPasswordSkel()
-			if len(kwargs)==0 or not skel.fromClient( kwargs ):
+			if len(kwargs)==0 or not skel.fromClient(kwargs):
 				return( self.render.passwdRecover( skel, tpl=self.lostPasswordTemplate ) )
-			user = self.viewSkel().all().filter( "name.idx =", skel.name.value.lower() ).get()
+			user = self.viewSkel().all().filter( "name.idx =", skel["name"].value.lower() ).get()
+
 			if not user: #Unknown user
-				skel.errors["name"] = _("Unknown user")
+				skel["errors"]["name"] = _("Unknown user")
 				return( self.render.passwdRecover( skel, tpl=self.lostPasswordTemplate ) )
 			try:
-				if user["changedate"]>datetime.datetime.now()-datetime.timedelta(days=1): #This user probably has already requested a password reset
-					return( self.render.passwdRecoverInfo( "already_send", skel ) ) #within the last 24 hrs
+				if user["changedate"]>datetime.datetime.now()-datetime.timedelta(days=1):
+					# This user probably has already requested a password reset
+					# within the last 24 hrss
+					return (self.render.view(skel,
+											 "user_passwordrecover_already_sent"))
+
 			except AttributeError: #Some newly generated user-objects dont have such a changedate yet
 				pass
 			user["changedate"] = datetime.datetime.now()
 			db.Put( user )
-			key = securitykey.create( 60*60*24, userid=str( user.key() ), password=skel.password.value )
+			key = securitykey.create( 60*60*24, userid=str( user.key() ), password=skel["password"].value )
 			self.sendPasswordRecoveryEmail( str( user.key() ), key )
-			return( self.render.passwdRecoverInfo( "instructions_send", skel ) )
+			return (self.render.view(skel, "user_passwordrecover_mail_sent"))
 	pwrecover.exposed = True
 	
 	def verify(self,  skey,  *args,  **kwargs ):
 		data = securitykey.validate( skey )
 		skel = self.baseSkel()
-		if not data or not isinstance( data,  dict ) or not "userid" in data or not skel.fromDB( data["userid"] ):
+		if not data or not isinstance( data,  dict ) or not "userid" in data or not skel["fromDB"]( data["userid"] ):
 			return self.render.verifyFailed()
 		if self.registrationAdminVerificationRequired:
-			skel.status.value = 2
+			skel["status"].value = 2
 		else:
-			skel.status.value = 10
-		skel.toDB( data["userid"] )
+			skel["status"].value = 10
+		skel["toDB"]( data["userid"] )
 		return self.render.verifySuccess( data )
 	verify.exposed = True
 	
 	def sendVerificationEmail(self, userID, skey ):
 		skel = self.viewSkel()
-		assert skel.fromDB( userID )
-		skel.skey = baseBone( descr="Skey" )
-		skel.skey.value = skey
-		utils.sendEMail( [skel.name.value], self.verifyEmailAddressMail, skel )
+		assert skel.fromDB(userID)
+		skel["skey"] = baseBone( descr="Skey" )
+		skel["skey"].value = skey
+		utils.sendEMail( [skel["name"].value], self.verifyEmailAddressMail, skel )
 		
 	def sendPasswordRecoveryEmail(self, userID, skey ):
 		skel = self.viewSkel()
-		assert skel.fromDB( userID )
-		skel.skey = baseBone( descr="Skey" )
-		skel.skey.value = skey
-		utils.sendEMail( [skel.name.value], self.passwordRecoveryMail, skel )
+		assert skel.fromDB(userID)
+		skel["skey"] = baseBone( descr="Skey" )
+		skel["skey"].value = skey
+		utils.sendEMail( [skel["name"].value], self.passwordRecoveryMail, skel )
 
 	def view(self, id, *args, **kwargs):
 		"""
@@ -279,16 +285,16 @@ class CustomUser( List ):
 			Ensure that the verifyEmailAddressMail get's send if needed.
 		"""
 		super( CustomUser, self ).onItemAdded( skel )
-		if self.registrationEmailVerificationRequired and str(skel.status.value)=="1":
-			skey = securitykey.create( duration=60*60*24*7 , userid=str(skel.id.value), name=skel.name.value )
-			self.sendVerificationEmail( str(skel.id.value), skey )
+		if self.registrationEmailVerificationRequired and str(skel["status"].value)=="1":
+			skey = securitykey.create( duration=60*60*24*7 , userid=str(skel["id"].value), name=skel["name"].value )
+			self.sendVerificationEmail( str(skel["id"].value), skey )
 	
 	def onItemDeleted( self, skel ):
 		"""
 			Invalidate all sessions of that user
 		"""
 		super( CustomUser, self ).onItemDeleted( skel )
-		session.killSessionByUser( str( skel.id.value ) )
+		session.killSessionByUser( str( skel["id"].value ) )
 
 
 

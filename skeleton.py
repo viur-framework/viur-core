@@ -399,7 +399,7 @@ class Skeleton( object ):
 			raise ValueError("Got an unsupported type %s for clearUpdateTag. toDB doesn't accept a key argument any more!" % str(type(clearUpdateTag)))
 		# Allow bones to perform outstanding "magic" operations before saving to db
 		for key,_bone in self.items():
-			_bone.performMagic( isAdd=(id==False) )
+			_bone.performMagic( isAdd=(id==None) )
 		# Run our SaveTxn
 		id, dbObj, skel = db.RunInTransactionOptions( db.TransactionOptions(xg=True), txnUpdate, id, self, clearUpdateTag )
 		# Perform post-save operations (postProcessSerializedData Hook, Searchindex, ..)
