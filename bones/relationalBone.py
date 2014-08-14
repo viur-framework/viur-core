@@ -363,9 +363,15 @@ class relationalBone( baseBone ):
 							dbFilter.filter( "%s.%s =" % (name, key), value )
 				else:
 					if self.multiple:
-						dbFilter.filter( "dest.%s =" % key, value )
+						if isinstance( value, list ):
+							dbFilter.filter( "dest.%s IN" % key, value )
+						else:
+							dbFilter.filter( "dest.%s =" % key, value )
 					else:
-						dbFilter.filter( "%s.%s =" % (name, key), value )
+						if isinstance( value, list):
+							dbFilter.filter( "%s.%s IN" % (name, key), value )
+						else:
+							dbFilter.filter( "%s.%s =" % (name, key), value )
 			dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
 			dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings) )
 		elif name in rawFilter.keys() and rawFilter[ name ].lower()=="none":
