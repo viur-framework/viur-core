@@ -484,6 +484,8 @@ class Render( object ):
 			@type skel: Skeleton
 			@returns: Dict
 		"""
+		if isinstance( skel, list ):
+			return( [ self.collectSkelData(x) for x in skel ] )
 		res = {}
 		for key,_bone in skel.items():
 			if( isinstance( _bone, bones.documentBone ) ): #We flip source-html and parsed (cached) html for a more natural use
