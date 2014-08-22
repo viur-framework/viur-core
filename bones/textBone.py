@@ -22,7 +22,7 @@ _defaultTags = {
 					"span":["align","width","height"]+_attrsMargins+_attrsSpacing,
 					"img":[ "src","target", "width","height", "align" ]+_attrsDescr+_attrsMargins+_attrsSpacing,
 					"table": [ "width","align", "border", "cellspacing", "cellpadding" ]+_attrsDescr,
-					"td" : [ "cellspan", "rowspan", "width", "heigt" ]+_attrsMargins+_attrsSpacing
+					"td" : [ "colspan", "rowspan", "width", "height" ]+_attrsMargins+_attrsSpacing
 				}, 
 	"validStyles": ["font-weight","font-style","text-decoration","color", "display"], #List of CSS-Directives we allow
 	"singleTags": ["br","img", "hr"] # List of tags, which dont have a corresponding end tag
