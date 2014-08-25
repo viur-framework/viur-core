@@ -78,6 +78,8 @@ class stringBone( baseBone ):
 					entity.set( name, self.value, self.indexed )
 					if self.value is None:
 						entity.set( name+".idx", None, self.indexed )
+					elif isinstance( self.value, list ):
+						entity.set( name+".idx", [unicode( x ).lower() for x in self.value], self.indexed )
 					else:
 						entity.set( name+".idx", unicode( self.value ).lower(), self.indexed )
 		else: #Write each language separately

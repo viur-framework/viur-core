@@ -791,7 +791,9 @@ class SkelList( list ):
 def updateRelations( destID, minChangeTime ):
 	for srcRel in db.Query( "viur-relations" ).filter("dest.id =", destID ).filter("viur_delayed_update_tag <",minChangeTime).iter( ):
 		skel = skeletonByKind( srcRel["viur_src_kind"] )()
-		skel.fromDB( str(srcRel.key().parent()) )
+		if not skel.fromDB( str(srcRel.key().parent()) ):
+			logging.error("Cannot update stale reference to %s (referenced from %s)" % (str(srcRel.key().parent()), str(srcRel.key())))
+			return
 		for key,_bone in skel.items():
 			_bone.refresh( key, skel )
 		skel.toDB( clearUpdateTag=True )
