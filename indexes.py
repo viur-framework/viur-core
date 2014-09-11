@@ -64,7 +64,7 @@ class IndexMannager:
 			pass
 		#We dont have this index yet.. Build it
 		#Clone the original Query
-		queryRes = origQuery.clone( keysOnly=True ).run( limit=self.maxPages*self.pageSize )
+		queryRes = origQuery.clone( keysOnly=True ).datastoreQuery.Run( limit=self.maxPages*self.pageSize )
 		#Build-Up the index
 		res = [ ] 
 		i = 0
