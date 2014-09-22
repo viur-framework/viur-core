@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 from server.bones import bone
-from server import request
+from server import request, utils
 import urllib
-from google.appengine.api import urlfetch 
+from google.appengine.api import urlfetch
 import logging
 
 #Fixme: Read the global dict
@@ -25,7 +25,7 @@ class captchaBone( bone.baseBone ):
 	def fromClient( self, name, data ):
 		"""
 			Reads a value from the client.
-			If this value is valis for this bone,
+			If this value is valid for this bone,
 			store this value and return None.
 			Otherwise our previous value is
 			left unchanged and an error-message
@@ -38,6 +38,9 @@ class captchaBone( bone.baseBone ):
 			@returns: None or String
 		"""
 		if request.current.get().isDevServer: #We dont enforce captchas on dev server
+			return( None )
+		user = utils.getCurrentUser()
+		if user and "root" in user["access"]: # Don't bother trusted users with this (not supported by admin/vi anyways)
 			return( None )
 		if not "recaptcha_challenge_field" in data.keys() or not "recaptcha_response_field" in data.keys():
 			return( u"No Captcha given!" )
