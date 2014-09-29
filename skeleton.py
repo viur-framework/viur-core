@@ -794,15 +794,22 @@ class SkelList( list ):
 ### Tasks ###
 
 @callDeferred
-def updateRelations( destID, minChangeTime ):
-	for srcRel in db.Query( "viur-relations" ).filter("dest.id =", destID ).filter("viur_delayed_update_tag <",minChangeTime).iter( ):
+def updateRelations( destID, minChangeTime, cursor=None ):
+	logging.debug("Starting updateRelations for %s ; minChangeTime %s", destID, minChangeTime)
+	updateListQuery = db.Query( "viur-relations" ).filter("dest.id =", destID ).filter("viur_delayed_update_tag <",minChangeTime)
+	if cursor:
+		updateListQuery.cursor( cursor )
+	updateList = updateListQuery.run(limit=20)
+	for srcRel in updateList:
 		skel = skeletonByKind( srcRel["viur_src_kind"] )()
 		if not skel.fromDB( str(srcRel.key().parent()) ):
-			logging.error("Cannot update stale reference to %s (referenced from %s)" % (str(srcRel.key().parent()), str(srcRel.key())))
-			return
+			logging.warning("Cannot update stale reference to %s (referenced from %s)" % (str(srcRel.key().parent()), str(srcRel.key())))
+			continue
 		for key,_bone in skel.items():
 			_bone.refresh( key, skel )
 		skel.toDB( clearUpdateTag=True )
+	if len(updateList)==20:
+		updateRelations( destID, minChangeTime, updateListQuery.getCursor().urlsafe() )
 
 
 @CallableTask
