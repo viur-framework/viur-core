@@ -262,7 +262,10 @@ class File( Tree ):
 				raise( errors.Redirect( "%s/download/%s" % (self.modulPath, args[0]) ) )
 			elif len(args)>1 and blobstore.get( args[1] ):
 				raise( errors.Redirect( "%s/download/%s" % (self.modulPath, args[1]) ) )
-			raise( e )
+			elif isinstance( e, TypeError ):
+				raise( errors.NotFound() )
+			else:
+				raise( e )
 
 	@exposed
 	@forceSSL
