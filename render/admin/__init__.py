@@ -84,7 +84,7 @@ def dumpConfig( adminTree ):
 
 	if "viur.defaultlangs" in conf:
 			res["viur.defaultlangs"] = conf["viur.defaultlangs"]
-	if "viur.defaultlangavalues" in conf:
+	if "viur.defaultlangsvalues" in conf:
 		res["viur.defaultlangsvalues"] = conf["viur.defaultlangsvalues"]
 	return json.dumps( res )
 
