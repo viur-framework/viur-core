@@ -4,6 +4,7 @@ from server.skeleton import Skeleton, skeletonByKind
 from server import utils, errors, session, conf, request, securitykey
 from server import db
 from server import forcePost, forceSSL, exposed, internalExposed
+from server.tasks import callDeferred
 from time import time
 from google.appengine.api import users
 from datetime import datetime
@@ -420,6 +421,7 @@ class Hierarchy( object ):
 			skey = ""
 		if not self.isValidParent( parent ): #Ensure the parent exists
 			raise errors.NotAcceptable()
+
 		if not self.canAdd( parent ):
 			raise errors.Unauthorized()
 		skel = self.addSkel()
@@ -432,6 +434,69 @@ class Hierarchy( object ):
 		key = skel.toDB( )
 		self.onItemAdded( skel )
 		return self.render.addItemSuccess( skel )
+
+	@forceSSL
+	@exposed
+	def clone(self, from_repo, to_repo, from_parent = None, to_parent = None, *args, **kwargs ):
+		"""
+		Clones a hierarchy recursively.
+
+		:param from_repo: is the ID to the repository (=rootNode ID) to clone from.
+		:param to_repo: is the ID to the repository (=rootNode ID) to clone to.
+		:param from_parent: is the parent to clone from; for root nodes, this is equal to from_repo.
+		:param to_parent: is the parent to clone to; for root nodes, this is equal to to_repo.
+
+		:return:
+		"""
+		if "skey" in kwargs:
+			skey = kwargs["skey"]
+		else:
+			skey = ""
+
+		assert from_repo
+		assert to_repo
+
+		if from_parent is None:
+			from_parent = from_repo
+		if to_parent is None:
+			to_parent = to_repo
+
+		if not self.isValidParent( from_parent ) or not self.isValidParent( to_parent ): #Ensure the parents exists
+			raise errors.NotAcceptable()
+
+		if not self.canAdd( to_parent ):
+			raise errors.Unauthorized()
+		if not securitykey.validate( skey, acceptSessionKey=True ):
+			raise errors.PreconditionFailed()
+
+		self._clone( from_repo, to_repo, from_parent, to_parent )
+
+	@callDeferred
+	def _clone( self, from_repo, to_repo, from_parent, to_parent ):
+		for node in self.viewSkel().all().filter("parententry =", from_parent).order("sortindex").run(99):
+			old_id = str(node.key())
+
+			skel = self.addSkel()
+			skel.fromDB( old_id )
+
+			#for k,v in skel.items():
+			#	print( "BEFORE %s = >%s<", ( k, v.value ) )
+
+
+			skel = skel.clone()
+			#skel.setValues( {}, key=None )
+
+			#for k,v in skel.items():
+			#	print( "BEHIND %s = >%s<", ( k, v.value ) )
+
+			skel[ "parententry" ].value = to_parent
+			skel[ "parentrepo" ].value = to_repo
+
+			#print( "write  >%s<" % skel[ "name" ].value )
+			new_id = skel.toDB()
+
+			self._clone( from_repo, to_repo, old_id, new_id )
+
 
 ## Default accesscontrol functions 
 
