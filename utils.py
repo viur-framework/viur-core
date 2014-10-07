@@ -247,24 +247,23 @@ def parseChangeList(service, changelist, video_folder):
 
 def get_stored_videos():
 	print("conf viur.mainapp", dir(conf["viur.mainApp"]))
-	video_module = getattr(conf["viur.mainApp"], "videos")
-	skellist = video_module.editSkel().all().run()
+	video_module = getattr(conf["viur.mainApp"], "drivevideos")
+	skellist = video_module.viewSkel().all().fetch()
 	by_id = dict()
 	by_file_id = dict()
 	for video in skellist:
-		print "video", video
-		by_file_id[video["file_id"]] = video
-		by_id[video["id"]] = video
+		by_file_id[str(video["file_id"].value)] = video
+		by_id[str(video["id"].value)] = video
 	return by_id, by_file_id
 
 
 def add_local_video(video):
-	# pprint.pprint(video)
-	# print
-	video_module = getattr(conf["viur.mainApp"], "videos")
+	print "add local", type(video)
+	print
+	video_module = getattr(conf["viur.mainApp"], "drivevideos")
 	skel = video_module.addSkel()
-	skel["title"].value = video["title"]
-	skel["file_id"].value = video["id"]
+	skel["title"].value = video[u"title"]
+	skel["file_id"].value = video[u"id"]
 	try:
 		skel["caption"].value = video["description"]
 	except KeyError:
