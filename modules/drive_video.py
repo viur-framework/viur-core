@@ -1,6 +1,6 @@
 __author__ = 'stefan'
 
-import logging
+import logging, pprint
 from server.skeleton import Skeleton
 from server.bones import stringBone
 from server.applications.list import List
@@ -14,8 +14,9 @@ class DriveVideoSkel(Skeleton):
 
 	file_id = stringBone(descr="File Id in Google Drive (Do not change this unless you know what you're doing)",
 	                     readOnly=False, required=True, indexed=True, searchable=True)
-	title = stringBone(descr="Video Title")
-	caption = stringBone(descr="Video Caption")
+	title = stringBone(descr="Video Title", required=True, indexed=True, searchable=True)
+	caption = stringBone(descr="Video Caption", required=False, indexed=True, searchable=True)
+	preview_image_url = stringBone(descr="Thumbnail Bild URL von Google", required=False, indexed=True, searchable=True)
 
 
 class DriveVideoList(List):
@@ -33,7 +34,7 @@ class DriveVideoList(List):
 
 	# def push_notification(self, ):
 
-@StartupTask
+# @StartupTask
 def sync_with_drive():
 	"""
 		Syncs this appengine with drive content
@@ -41,27 +42,41 @@ def sync_with_drive():
 
 	# try:
 	by_id, by_file_id = get_stored_videos()
-	print by_file_id
-	# 	return
-	# 	credentials = get_credentials()
-	# 	drive_service = build_service(credentials)
-	# 	folder_title = "videos"
-	# 	filelist = retrieve_all_files(drive_service)
-	# 	video_folder = findVideoFolder(filelist, folder_title)
-	# 	if not video_folder:
-	# 		video_folder = createFolder(drive_service, folder_title)
-	#
-	# 	if not video_folder:
-	# 		raise ValueError("did not have an video folder in google drive. check the credentials...")
-	#
-	# 	remote_videos = retrieve_all_files(drive_service, video_folder["id"])
-	#
-	# 	new_local_files = list()
-	# 	for remote_video in remote_videos:
-	# 		if remote_video["id"] not in by_file_id:
-	# 			local_video = add_local_video(remote_video)
-	# 			by_id[local_video["id"]] = local_video
-	# 			by_file_id[local_video["file_id"]] = local_video
-	# 			new_local_files.append(local_video)
+	print "by_id", repr(by_id.keys())
+	print "by_file_id", repr(by_file_id.keys())
+	for file_id, video in by_file_id.items():
+		print file_id, video["caption"].value
+
+	credentials = get_credentials()
+	drive_service = build_service(credentials)
+	folder_title = "videos"
+	filelist = retrieve_all_files(drive_service)
+	video_folder = findVideoFolder(filelist, folder_title)
+	if not video_folder:
+		video_folder = createFolder(drive_service, folder_title)
+
+	if not video_folder:
+		logging.critical("did not have an video folder in google drive. check the credentials...")
+
+	remote_videos = retrieve_all_files(drive_service, video_folder["id"])
+
+	remote_file_ids = dict()
+
+	for remote_video in remote_videos:
+		print
+		pprint.pprint(remote_video)
+		print
+		if (u'explicitlyTrashed' not in remote_video or not remote_video[u'explicitlyTrashed']) and remote_video[u'mimeType'] != u'application/vnd.google-apps.folder' and remote_video["id"] not in by_file_id:
+			local_video = add_local_video(remote_video)
+			# by_id[local_video["id"]] = local_video
+			# by_file_id[local_video["file_id"]] = local_video
+			remote_file_ids[str(remote_video["id"])] = remote_video
+
+	# print("remote_file_ids", repr(remote_file_ids.keys()))
+	# for file_id, local_file in by_file_id.items():
+	# 	if file_id not in remote_file_ids:
+	# 		local_file["file_id"].value = "deleted"
+	# 		local_file.toDB()
+
 	# except Exception, err:
 	# 	logging.debug(err)
