@@ -5,7 +5,7 @@ from server import bones, utils, request, session, conf, errors, securitykey
 from server.skeleton import Skeleton
 from server.bones import *
 from server.applications.singleton import Singleton
-from server.bones.stringBone import escapeValue
+from server.utils import escapeString
 import string
 import codecs
 from jinja2 import Environment, FileSystemLoader, ChoiceLoader
@@ -305,7 +305,7 @@ class Render( object ):
 		"""
 		res = {}
 		for k, v in request.current.get().kwargs.items():
-			res[ escapeValue( k ) ] = escapeValue( v )
+			res[ escapeString( k ) ] = escapeString( v )
 		return res
 	
 	def getSession(self):

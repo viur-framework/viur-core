@@ -3,6 +3,7 @@ from server.bones import baseBone
 from server.config import conf
 from server import db
 from server import request
+from server import utils
 from server.session import current as currentSession
 from google.appengine.api import search
 import logging
@@ -42,12 +43,6 @@ class LanguageWrapper( dict ):
 					return( self[ lang ] )
 		return( "" )
 
-def escapeValue( val, maxLength=254 ):
-	val = unicode(val).strip().replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;")
-	if maxLength:
-		return( val[0:254] )
-	else:
-		return( val )
 
 class stringBone( baseBone ):
 	type = "str"
@@ -170,10 +165,10 @@ class stringBone( baseBone ):
 				if "%s.%s" % ( name, lang ) in data.keys():
 					val = data["%s.%s" % ( name, lang )]
 					if isinstance( val, basestring ):
-						self.value[ lang ].append( escapeValue( val ) )
+						self.value[ lang ].append( utils.escapeString( val ) )
 					elif isinstance( val, list ):
 						for v in val:
-							self.value[ lang ].append( escapeValue( v ) )
+							self.value[ lang ].append( utils.escapeString( v ) )
 			if not any( self.value.values() ):
 				return( "No value entered" )
 			else:
@@ -186,7 +181,7 @@ class stringBone( baseBone ):
 				value = [value]
 			for val in value:
 				if not self.isInvalid( val ):
-					self.value.append( escapeValue( val ) )
+					self.value.append( utils.escapeString( val ) )
 			if( len( self.value ) > 0):
 				self.value = self.value[0:254] #Max 254 Keys
 				return( None )
@@ -200,7 +195,7 @@ class stringBone( baseBone ):
 					val = data["%s.%s" % ( name, lang )]
 					tmpErr = self.isInvalid( val )
 					if not tmpErr:
-						self.value[ lang ] = escapeValue( val )
+						self.value[ lang ] = utils.escapeString( val )
 					else:
 						err = tmpErr
 			if err:
@@ -216,7 +211,7 @@ class stringBone( baseBone ):
 				if not value:
 					self.value = u""
 					return( "No value entered" )
-				self.value = escapeValue( value )
+				self.value = utils.escapeString( value )
 				return( None )
 			else:
 				return( err )

@@ -194,9 +194,9 @@ class File( Tree ):
 						else:
 							servingURL = ""
 						fileSkel = self.addLeafSkel()
-						fileSkel.setValues( {	"name": fileName,
+						fileSkel.setValues( {	"name": utils.escapeString( fileName ),
 									"size": upload.size,
-									"mimetype": upload.content_type,
+									"mimetype": utils.escapeString( upload.content_type ),
 									"dlkey": str(upload.key()),
 									"servingurl": servingURL,
 									"parentdir": str(node),
@@ -217,9 +217,9 @@ class File( Tree ):
 						servingURL = ""
 					fileName = self.decodeFileName( upload.filename )
 					fileSkel = self.addLeafSkel()
-					fileSkel.setValues( {	"name": fileName,
+					fileSkel.setValues( {	"name": utils.escapeString( fileName ),
 								"size": upload.size,
-								"mimetype": upload.content_type,
+								"mimetype": utils.escapeString( upload.content_type ),
 								"dlkey": str(upload.key()),
 								"servingurl": servingURL,
 								"parentdir": None,
