@@ -19,5 +19,6 @@ from server.bones.passwordBone import passwordBone
 from server.bones.userBone import userBone
 from server.bones.captchaBone import captchaBone
 from server.bones.selectCountryBone import selectCountryBone
+from server.bones.selectGenderBone import selectGenderBone
 from server.bones.documentBone import documentBone
 from server.bones.emailBone import emailBone
