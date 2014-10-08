@@ -121,15 +121,19 @@ class File( Tree ):
 
 
 	@callDeferred
-	def deleteDirsRecursive( self, parentKey ):
+	def deleteRecursive( self, parentKey ):
 		files = db.Query( self.editLeafSkel().kindName ).filter( "parentdir =", parentKey  ).iter()
 		for fileEntry in files:
 			utils.markFileForDeletion( fileEntry["dlkey"] )
-			self.editLeafSkel().delete( str( fileEntry.key() ) )
+			skel = self.editLeafSkel()
+			if skel.fromDB( str( fileEntry.key() ) ):
+				skel.delete()
 		dirs = db.Query( self.editNodeSkel().kindName ).filter( "parentdir", parentKey ).iter( keysOnly=True )
 		for d in dirs:
-			self.deleteDirsRecursive( str( d ) )
-			self.editNodeSkel().delete( str( d ) )
+			self.deleteRecursive( str( d ) )
+			skel = self.editNodeSkel()
+			if skel.fromDB( str( d ) ):
+				skel.delete()
 
 
 	def getUploadURL( self, *args, **kwargs ):
@@ -345,7 +349,7 @@ def doCheckForUnreferencedBlobs( cursor ):
 	if gotAtLeastOne and newCursor and newCursor.urlsafe()!=cursor:
 		doCheckForUnreferencedBlobs( newCursor.urlsafe() )
 
-@PeriodicTask( 60*4 )
+@PeriodicTask( 0 ) #60*4
 def startCleanupDeletedFiles():
 	"""
 		Increase deletion counter on each blob currently not referenced and delete
