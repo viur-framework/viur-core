@@ -1,13 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import pprint
-import httplib2
 
-from oauth2client.client import Credentials
-from apiclient.discovery import build
-from apiclient import errors
-from server import db
-from server.config import conf
+
 
 from google.appengine.api import memcache, app_identity, mail
 from google.appengine.ext import deferred
