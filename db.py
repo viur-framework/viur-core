@@ -323,7 +323,11 @@ class Query( object ):
 			return( self )
 		skel = self.srcSkel.clone()
 		if skel.searchIndex and "search" in filters.keys(): #We perform a Search via Google API - all other parameters are ignored
-			searchRes = search.Index( name=skel.searchIndex ).search( query=search.Query( query_string=filters["search"], options=search.QueryOptions( limit=25 ) ) )
+			try:
+				searchRes = search.Index( name=skel.searchIndex ).search( query=search.Query( query_string=filters["search"], options=search.QueryOptions( limit=25 ) ) )
+			except search.QueryError: #We cant parse the query, treat it as verbatim
+				qstr="\"%s\"" % filters["search"].replace("\"","")
+				searchRes = search.Index( name=skel.searchIndex ).search( query=search.Query( query_string=qstr, options=search.QueryOptions( limit=25 ) ) )
 			tmpRes = [ datastore_types.Key( encoded=x.doc_id[ 2: ] ) for x in searchRes ]
 			if tmpRes:
 				filters = []
