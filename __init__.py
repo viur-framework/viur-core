@@ -45,6 +45,10 @@ def translate( key, **kwargs ):
 		raise ValueError("Can only translate strings, got %s instead" % str(type(key)))
 	res = None
 	lang = lang or conf["viur.defaultLanguage"]
+
+	if "_lang" in kwargs.keys():
+		lang = kwargs[ "_lang" ]
+
 	if lang in conf["viur.languageAliasMap"].keys():
 		lang = conf["viur.languageAliasMap"][ lang ]
 	if lang and lang in dir( translations ):

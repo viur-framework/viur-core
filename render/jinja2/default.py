@@ -21,6 +21,7 @@ from google.appengine.api import memcache, users
 from google.appengine.api.images import get_serving_url
 from urllib import urlencode, quote_plus
 from google.appengine.ext import db
+from hashlib import sha512
 
 class ListWrapper( list ):
 	def __init__( self, src ):
@@ -211,20 +212,27 @@ class Render( object ):
 			Starts an internal Request.
 			This allows a template to embed the result of another
 			request inside the current response.
-			All optional parameters are passed to the requested ressource.
+			All optional parameters are passed to the requested resource.
 			@param path: Local part of the url. eg. user/list. Must not start with an /. Must not include an protocol or hostname.
 			@type path: String
-			@returns: Whatever the requested ressource returns. This is *not* limited to strings!
+			@returns: Whatever the requested resource returns. This is *not* limited to strings!
 		"""
 		if "cachetime" in kwargs:
 			cachetime = kwargs["cachetime"]
 			del( kwargs["cachetime"] )
 		else:
 			cachetime=0
-		if conf["viur.disableCache"]: #Caching disabled by config
-			cachetime=0
+		#if conf["viur.disableCache"]: #Caching disabled by config
+		#	cachetime=0
 		if cachetime:
-			cacheKey = str(path)+str(args)+str(kwargs)
+			#Calculate the cache key that entry would be stored under
+			tmpList = [ "%s:%s" % (unicode(k), unicode(v)) for k,v in kwargs.items()]
+			tmpList.sort()
+			tmpList.extend(list(args))
+			tmpList.append(path)
+			mysha512 = sha512()
+			mysha512.update( unicode(tmpList).encode("UTF8") )
+			cacheKey = "jinja2_cache_%s" % mysha512.hexdigest()
 			res = memcache.get( cacheKey )
 			if res:
 				return( res )
@@ -384,7 +392,7 @@ class Render( object ):
 	def fetchList(self, modul, skel="viewSkel", _noEmptyFilter=False, *args,  **kwargs ):
 		"""
 			Fetches a list of entries which match the given criteria.
-			@param modul: Modul from which the skeleton should be retrived
+			@param modul: Modul from which the skeleton should be retrieved
 			@type modul: String
 			@param skel: Name to the skeleton to fetch the list from
 			@type skel: String
