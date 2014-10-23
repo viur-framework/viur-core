@@ -92,7 +92,7 @@ class stringBone( baseBone ):
 				if self.indexed:
 					for lang in self.languages[ 1: ]:
 						entity.set( "%s.%s" % (name, lang), "", self.indexed )
-						if self.caseSensitive:
+						if not self.caseSensitive:
 							entity.set( "%s.%s.idx" % (name, lang), "", self.indexed )
 			else:
 				assert isinstance( self.value, dict)
@@ -109,7 +109,7 @@ class stringBone( baseBone ):
 						# Fill in None for all remaining languages (needed for sort!)
 						if self.indexed:
 							entity.set( "%s.%s" % (name, lang), "", self.indexed )
-							if self.caseSensitive:
+							if not self.caseSensitive:
 								entity.set( "%s.%s.idx" % (name, lang), "", self.indexed )
 		return( entity )
 		
