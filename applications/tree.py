@@ -69,16 +69,14 @@ class Tree( object ):
 		"""
 			Recursivly processes an delete request
 		"""
-		skel = self.viewLeafSkel()
 		for f in db.Query( self.viewLeafSkel().kindName ).filter( "parentdir", str(nodeKey) ).iter( keysOnly=True ):
-			s = skel()
+			s = self.viewLeafSkel()
 			if not s.fromDB( f ):
 				continue
 			s.delete()
-		skel = self.viewNodeSkel()
 		for d in db.Query( self.viewNodeSkel().kindName ).filter( "parentdir", str(nodeKey) ).iter( keysOnly=True ):
-			self.deleteDirsRecursive( d )
-			s = skel()
+			self.deleteRecursive( str(d) )
+			s = self.viewNodeSkel()
 			if not s.fromDB( d ):
 				continue
 			s.delete()

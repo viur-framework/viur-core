@@ -68,6 +68,9 @@ de = {
 	"waiting for email verification":u"wartet auf Bestätigung der E-Mailadresse",
 	"waiting for verification through admin":u"warte auf Freischaltung durch Administrator",
 	"account disabled":u"deaktiviert",
-	"active":u"aktiv"
+	"active":u"aktiv",
+
+    "Mr." : u"Herr",
+	"Mrs." : u"Frau"
 	}
 	

@@ -45,6 +45,10 @@ def translate( key, **kwargs ):
 		raise ValueError("Can only translate strings, got %s instead" % str(type(key)))
 	res = None
 	lang = lang or conf["viur.defaultLanguage"]
+
+	if "_lang" in kwargs.keys():
+		lang = kwargs[ "_lang" ]
+
 	if lang in conf["viur.languageAliasMap"].keys():
 		lang = conf["viur.languageAliasMap"][ lang ]
 	if lang and lang in dir( translations ):
@@ -272,6 +276,11 @@ class BrowseHandler(webapp.RequestHandler):
 		self.isSSLConnection = self.request.host_url.lower().startswith("https://") #We have an encrypted channel
 		self.language = conf["viur.defaultLanguage"]
 		request.current.setRequest( self )
+		#Add CSP headers early (if any)
+		if conf["viur.contentSecurityPolicy"] and conf["viur.contentSecurityPolicy"]["_headerCache"]:
+			for k,v in conf["viur.contentSecurityPolicy"]["_headerCache"].items():
+				assert k.startswith("Content-Security-Policy"), "Got unexpected header in conf['viur.contentSecurityPolicy']['_headerCache']"
+				self.response.headers[k] = v
 		if sharedConf["viur.disabled"] and not (users.is_current_user_admin() or "HTTP_X_QUEUE_NAME".lower() in [x.lower() for x in os.environ.keys()] ): #FIXME: Validate this works
 			self.response.set_status( 503 ) #Service unaviable
 			tpl = Template( open("server/template/error.html", "r").read() )

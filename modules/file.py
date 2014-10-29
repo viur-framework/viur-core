@@ -121,15 +121,19 @@ class File( Tree ):
 
 
 	@callDeferred
-	def deleteDirsRecursive( self, parentKey ):
+	def deleteRecursive( self, parentKey ):
 		files = db.Query( self.editLeafSkel().kindName ).filter( "parentdir =", parentKey  ).iter()
 		for fileEntry in files:
 			utils.markFileForDeletion( fileEntry["dlkey"] )
-			self.editLeafSkel().delete( str( fileEntry.key() ) )
+			skel = self.editLeafSkel()
+			if skel.fromDB( str( fileEntry.key() ) ):
+				skel.delete()
 		dirs = db.Query( self.editNodeSkel().kindName ).filter( "parentdir", parentKey ).iter( keysOnly=True )
 		for d in dirs:
-			self.deleteDirsRecursive( str( d ) )
-			self.editNodeSkel().delete( str( d ) )
+			self.deleteRecursive( str( d ) )
+			skel = self.editNodeSkel()
+			if skel.fromDB( str( d ) ):
+				skel.delete()
 
 
 	def getUploadURL( self, *args, **kwargs ):
@@ -194,9 +198,9 @@ class File( Tree ):
 						else:
 							servingURL = ""
 						fileSkel = self.addLeafSkel()
-						fileSkel.setValues( {	"name": fileName,
+						fileSkel.setValues( {	"name": utils.escapeString( fileName ),
 									"size": upload.size,
-									"mimetype": upload.content_type,
+									"mimetype": utils.escapeString( upload.content_type ),
 									"dlkey": str(upload.key()),
 									"servingurl": servingURL,
 									"parentdir": str(node),
@@ -217,9 +221,9 @@ class File( Tree ):
 						servingURL = ""
 					fileName = self.decodeFileName( upload.filename )
 					fileSkel = self.addLeafSkel()
-					fileSkel.setValues( {	"name": fileName,
+					fileSkel.setValues( {	"name": utils.escapeString( fileName ),
 								"size": upload.size,
-								"mimetype": upload.content_type,
+								"mimetype": utils.escapeString( upload.content_type ),
 								"dlkey": str(upload.key()),
 								"servingurl": servingURL,
 								"parentdir": None,
@@ -262,7 +266,10 @@ class File( Tree ):
 				raise( errors.Redirect( "%s/download/%s" % (self.modulPath, args[0]) ) )
 			elif len(args)>1 and blobstore.get( args[1] ):
 				raise( errors.Redirect( "%s/download/%s" % (self.modulPath, args[1]) ) )
-			raise( e )
+			elif isinstance( e, TypeError ):
+				raise( errors.NotFound() )
+			else:
+				raise( e )
 
 	@exposed
 	@forceSSL
@@ -342,7 +349,7 @@ def doCheckForUnreferencedBlobs( cursor ):
 	if gotAtLeastOne and newCursor and newCursor.urlsafe()!=cursor:
 		doCheckForUnreferencedBlobs( newCursor.urlsafe() )
 
-@PeriodicTask( 60*4 )
+@PeriodicTask( 0 ) #60*4
 def startCleanupDeletedFiles():
 	"""
 		Increase deletion counter on each blob currently not referenced and delete

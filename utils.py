@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+
+
+
+
 from google.appengine.api import memcache, app_identity, mail
 from google.appengine.ext import deferred
 import new, os
@@ -106,4 +110,18 @@ def markFileForDeletion( dlkey ):
 	fileObj["dlkey"] = str( dlkey )
 	db.Put( fileObj )
 
+def escapeString( val, maxLength=254 ):
+	"""
+		Quotes several characters and removes \n and \0 to prevent xss injection
+		@param val: The value to escape
+		@type val: string
+		@param maxLength: Cut-off after maxLength characters. 0 means unlimited
+		@type maxLength: int
+		@returns the quoted string
+	"""
+	val = unicode(val).strip().replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;").replace("\n","").replace("\0","")
+	if maxLength:
+		return( val[0:maxLength] )
+	else:
+		return( val )
 

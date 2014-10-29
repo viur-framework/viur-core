@@ -81,6 +81,11 @@ def dumpConfig( adminTree ):
 	for k, v in conf.items():
 		if k.lower().startswith("admin."):
 			res["configuration"][ k[ 6: ] ] = v
+
+	if "viur.defaultlangs" in conf:
+			res["viur.defaultlangs"] = conf["viur.defaultlangs"]
+	if "viur.defaultlangsvalues" in conf:
+		res["viur.defaultlangsvalues"] = conf["viur.defaultlangsvalues"]
 	return json.dumps( res )
 
 def canAccess( *args, **kwargs ):
