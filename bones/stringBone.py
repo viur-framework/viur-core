@@ -338,3 +338,12 @@ class stringBone( baseBone ):
 		else:
 			res.append( search.TextField( name=name, value=unicode( self.value ) ) )
 		return( res )
+
+	def getUniquePropertyIndexValue( self ):
+		"""
+			Returns an hash for our current value, used to store in the uniqueProptertyValue index.
+		"""
+		if not self.value and not self.required: #Dont enforce a unique property on an empty string if we are required=False
+			return( None )
+		return( super( stringBone, self).getUniquePropertyIndexValue())
+
