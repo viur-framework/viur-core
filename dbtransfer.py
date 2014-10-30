@@ -8,6 +8,7 @@ from datetime import datetime
 from server.render.json.default import DefaultRender
 from server import db
 from server import request
+from server import errors
 from google.appengine.api import datastore, datastore_types
 from google.appengine.datastore import datastore_query
 from google.appengine.ext.blobstore import BlobInfo
@@ -17,27 +18,60 @@ from google.appengine.ext import blobstore
 from google.appengine.api.images import get_serving_url
 import collections
 import cgi
+from itertools import izip
 
 
 class DbTransfer( object ):
 	def __init__(self, *args, **kwargs ):
 		return( super( DbTransfer, self ).__init__())
 
-	def listModules(self):
-		return( pickle.dumps( listKnownSkeletons() ) )
-	listModules.exposed=True
+	def _checkKey(self, key, export=True):
+		"""
+			Utility function to compare the given key with the keys stored in our conf in constant time
+			@param key: The key we should validate
+			@type key: string
+			@param export: If True, we validate against the export-key, otherwise the import-key
+			@type export: bool
+			@returns: True if the key is correct, False otherwise
+		"""
+		isValid = True
+		if not isinstance( key, string ):
+			isValid = False
+		if export:
+			expectedKey = conf["viur.exportPassword"]
+		else:
+			expectedKey = conf["viur.importPassword"]
+		if not expectedKey:
+			isValid = False
+		if len(key)!=len(expectedKey):
+			isValid = False
+		for a,b in izip(str(key),str(expectedKey)):
+			if a!=b:
+				isValid = False
+		return( isValid )
 
-	def getCfg(self, modul ):
+	@exposed
+	def listModules(self, backupkey):
+		if not self._checkKey( backupkey, export=False):
+			raise errors.Forbidden()
+		return( pickle.dumps( listKnownSkeletons() ) )
+
+	@exposed
+	def getCfg(self, modul, backupkey ):
+		if not self._checkKey( backupkey, export=False):
+			raise errors.Forbidden()
 		skel = skeletonByKind( modul )
 		assert skel is not None
 		res = skel()
 		r = DefaultRender()
 		return( pickle.dumps( r.renderSkelStructure(res)))
-	getCfg.exposed=True
 
-	def getAppId(self, *args, **kwargs):
+
+	@exposed
+	def getAppId(self, backupkey, *args, **kwargs):
+		if not self._checkKey( backupkey, export=False):
+			raise errors.Forbidden()
 		return( pickle.dumps( db.Query("SharedConfData").get().key().app() ) ) #app_identity.get_application_id()
-	getAppId.exposed=True
 
 	def decodeFileName(self, name):
 		# http://code.google.com/p/googleappengine/issues/detail?id=2749
@@ -106,11 +140,16 @@ class DbTransfer( object ):
 					"weak": False } )
 		return( json.dumps( {"action":"addSuccess", "values":res } ) )
 
-	def getUploadURL( self, *args, **kwargs ):
+	@exposed
+	def getUploadURL( self, backupkey, *args, **kwargs ):
+		if not self._checkKey( backupkey, export=False):
+			raise errors.Forbidden()
 		return( blobstore.create_upload_url( "/dbtransfer/upload"  ) )
-	getUploadURL.exposed=True
 
-	def storeEntry(self, e):
+	@exposed
+	def storeEntry(self, e, key ):
+		if not self._checkKey( key, export=False):
+			raise errors.Forbidden()
 		entry = pickle.loads( e )
 		for k in list(entry.keys())[:]:
 			if isinstance(entry[k],str):
@@ -127,7 +166,6 @@ class DbTransfer( object ):
 				#	val = pickle.dumps( val )
 				dbEntry[k] = val
 		db.Put( dbEntry )
-	storeEntry.exposed=True
 
 	def genDict(self, obj):
 		res = {}
@@ -168,10 +206,10 @@ class DbTransfer( object ):
 		res["id"] = str( obj.key() )
 		return( res )
 
-
+	@exposed
 	def exportDb(self, cursor=None, backupkey=None, *args, **kwargs):
-		global backupKey
-		assert backupKey==backupkey
+		if not self._checkKey( backupkey, export=True):
+			raise errors.Forbidden()
 		if cursor:
 			c = datastore_query.Cursor(urlsafe=cursor)
 		else:
@@ -181,11 +219,11 @@ class DbTransfer( object ):
 		for res in q.Run(limit=5):
 			r.append( self.genDict( res ) )
 		return( pickle.dumps( {"cursor": str(q.GetCursor().urlsafe()),"values":r}).encode("HEX"))
-	exportDb.exposed=True
 
+	@exposed
 	def exportBlob(self, cursor=None, backupkey=None,):
-		global backupKey
-		assert backupKey==backupkey
+		if not self._checkKey( backupkey, export=True):
+			raise errors.Forbidden()
 		q = BlobInfo.all()
 		if cursor is not None:
 			q.with_cursor( cursor )
@@ -193,5 +231,4 @@ class DbTransfer( object ):
 		for res in q.run(limit=5):
 			r.append( str(res.key()) )
 		return( pickle.dumps( {"cursor": str(q.cursor()),"values":r}).encode("HEX"))
-	exportBlob.exposed=True
 
