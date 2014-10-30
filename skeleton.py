@@ -793,7 +793,7 @@ def updateRelations( destID, minChangeTime, cursor=None ):
 	updateListQuery = db.Query( "viur-relations" ).filter("dest.id =", destID ).filter("viur_delayed_update_tag <",minChangeTime)
 	if cursor:
 		updateListQuery.cursor( cursor )
-	updateList = updateListQuery.run(limit=20)
+	updateList = updateListQuery.run(limit=5)
 	for srcRel in updateList:
 		skel = skeletonByKind( srcRel["viur_src_kind"] )()
 		if not skel.fromDB( str(srcRel.key().parent()) ):
@@ -802,7 +802,7 @@ def updateRelations( destID, minChangeTime, cursor=None ):
 		for key,_bone in skel.items():
 			_bone.refresh( key, skel )
 		skel.toDB( clearUpdateTag=True )
-	if len(updateList)==20:
+	if len(updateList)==5:
 		updateRelations( destID, minChangeTime, updateListQuery.getCursor().urlsafe() )
 
 
