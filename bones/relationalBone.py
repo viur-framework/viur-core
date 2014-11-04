@@ -358,7 +358,7 @@ class relationalBone( baseBone ):
 							dbFilter.filter( "%s.%s >" % (name, key), value )
 					else:
 						if self.multiple:
-							dbFilter.filter( "dest.%s =", key, value )
+							dbFilter.filter( "dest.%s =" % key, value )
 						else:
 							dbFilter.filter( "%s.%s =" % (name, key), value )
 				else:
