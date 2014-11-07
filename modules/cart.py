@@ -2,7 +2,7 @@
 from server.applications.list import List
 from server.skeleton import SkelList
 from server.bones import *
-from server import errors, session, conf, request
+from server import errors, session, conf, request, exposed, internalExposed
 from server import utils
 
 
@@ -10,7 +10,8 @@ class Cart( List ):
 	listTemplate = "order_viewcart"
 	adminInfo = None
 	productSkel = None
-	
+
+	@exposed
 	def add( self, product, amt=None ):
 		prods = session.current.get("cart_products") or {}
 		if not all( x in "1234567890" for x in unicode(amt) ):
@@ -29,21 +30,25 @@ class Cart( List ):
 			session.current["cart_products"] = prods
 			session.current.markChanged()
 		raise( errors.Redirect( "/%s/view" % self.modulName ) )
-	add.exposed=True
-	
+
+	@exposed
 	def view( self, *args, **kwargs ):
 		prods = session.current.get("cart_products") or {}
-		mylist = SkelList( self.productSkel )
+
 		if prods:
 			queryObj = self.productSkel().all() #Build the initial one
 			queryObj = queryObj.mergeExternalFilter( {"id": list(prods.keys()) } )
 			queryObj.limit( 10 )
 			mylist = queryObj.fetch()
+		else:
+			mylist = SkelList( self.productSkel )
+
 		for skel in mylist:
-			skel.amt = numericBone( descr="Anzahl", defaultValue=session.current["cart_products"][ str( skel.id.value ) ] )
+			skel["amt"] = numericBone( descr="Anzahl", defaultValue=session.current["cart_products"][ str( skel["id"].value ) ] )
+
 		return( self.render.list( mylist ) )
-	view.exposed=True
-	
+
+	@exposed
 	def delete( self, product , all="0" ):
 		prods = session.current.get("cart_products") or {}
 		if product in prods.keys():
@@ -54,9 +59,8 @@ class Cart( List ):
 		session.current["cart_products"] = prods
 		session.current.markChanged()
 		raise( errors.Redirect( "/%s/view" % self.modulName ) )
-	delete.exposed=True
-	
+
+	@internalExposed
 	def entryCount( self ):
 		prods = session.current.get("cart_products") or {}
 		return( len( prods.keys() ) )
-	entryCount.internalExposed=True
