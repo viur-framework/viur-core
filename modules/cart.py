@@ -13,22 +13,31 @@ class Cart( List ):
 
 	@exposed
 	def add( self, product, amt=None ):
+		"""
+		Adds the product with the id product to the cart.
+		If product already exists, and amt is left-out, the number of the product in the cart will be increased.
+
+		:param product: The product key to add to the cart.
+		:param amt: The amount to add; default is 1.
+		"""
+
 		prods = session.current.get("cart_products") or {}
+
 		if not all( x in "1234567890" for x in unicode(amt) ):
 			amt = None
+
 		if self.productSkel().fromDB( product ):
-			if product in prods.keys():
-				if amt:
-					prods[ product ] = int(amt)
-				else:
-					prods[ product ] += 1
+			if not product in prods.keys():
+				prods[ product ] = { "amount" : 0 }
+
+			if amt:
+				prods[ product ][ "amount" ] = int(amt)
 			else:
-				if amt:
-					prods[ product ] = int(amt)
-				else:
-					prods[ product ] = 1
+				prods[ product ][ "amount" ] += 1
+
 			session.current["cart_products"] = prods
 			session.current.markChanged()
+
 		raise( errors.Redirect( "/%s/view" % self.modulName ) )
 
 	@exposed
@@ -36,26 +45,26 @@ class Cart( List ):
 		prods = session.current.get("cart_products") or {}
 
 		if prods:
-			queryObj = self.productSkel().all() #Build the initial one
-			queryObj = queryObj.mergeExternalFilter( {"id": list(prods.keys()) } )
-			queryObj.limit( 10 )
-			mylist = queryObj.fetch()
+			items = self.productSkel().all().mergeExternalFilter( {"id": list(prods.keys()) } ).fetch( limit=10 )
 		else:
-			mylist = SkelList( self.productSkel )
+			items = SkelList( self.productSkel )
 
-		for skel in mylist:
-			skel["amt"] = numericBone( descr="Anzahl", defaultValue=session.current["cart_products"][ str( skel["id"].value ) ] )
+		for skel in items:
+			skel["amt"] = numericBone( descr="Quantity",
+			                defaultValue = session.current["cart_products"][ str( skel["id"].value ) ][ "amount" ] )
 
-		return( self.render.list( mylist ) )
+		return( self.render.list( items ) )
 
 	@exposed
 	def delete( self, product , all="0" ):
 		prods = session.current.get("cart_products") or {}
+
 		if product in prods.keys():
-			if all=="0" and prods[ product ] > 1:
-				prods[ product ] -= 1
+			if all=="0" and prods[ product ][ "amount" ] > 1:
+				prods[ product ][ "amount" ] -= 1
 			else:
 				del prods[ product ]
+
 		session.current["cart_products"] = prods
 		session.current.markChanged()
 		raise( errors.Redirect( "/%s/view" % self.modulName ) )

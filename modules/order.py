@@ -554,18 +554,22 @@ class Order( List ):
 				billObj[ "state_%s" % state ] = "0"
 			db.Put( billObj )
 			id = str( billObj.key() )
-			#Try copying the Cart
+
+			#Copy the Cart
 			if "amountSkel" in dir ( self ):
 				cart = session.current.get("cart_products") or {}
 				s = self.amountSkel()
 				products = []
-				for prod, amt in cart.items():
-					for i in range(0,amt):
+				for prod, atts in cart.items():
+					for i in range( 0, atts[ "amount" ] ):
 						products.append( str(prod) )
+
 				s.fromClient( {"product": products} )
 				s.toDB( id )
+
 			session.current["order_"+myKindName] = {"id": str( id ), "completedSteps": [] }
 			session.current.markChanged()
+
 			raise errors.Redirect("?step=0&id=%s" % str( id ) )
 		elif id:
 			try:
