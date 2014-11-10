@@ -3,7 +3,7 @@ import server
 from server.applications.list import List
 from server.skeleton import Skeleton
 from server.bones import *
-from server import errors, session, conf, request
+from server import errors, session, conf, request, exposed, internalExposed
 from server import securitykey
 from server.tasks import callDeferred
 from server import db, request
@@ -15,9 +15,6 @@ import re
 from server import request
 from datetime import datetime, timedelta
 from server.tasks import PeriodicTask
-
-
-
 
 
 class OrderSkel( Skeleton ):
@@ -62,8 +59,10 @@ class ReturnHtmlException( Exception ):
 	def __init__(self, html ):
 		super( ReturnHtmlException, self ).__init__()
 		self.html = html
+
 from server.modules.order_paypal import PayPal
 from server.modules.order_sofort import Sofort
+
 class Order( List ):
 	"""
 	Provides an unified orderingprocess with payment-handling.
@@ -144,7 +143,6 @@ class Order( List ):
 			if stateName in dbObj.keys() and str( dbObj[ stateName ] )=="1":
 				res.append( state )
 		return( res )
-
 	
 	def setComplete( self, orderID ):
 		"""
@@ -158,7 +156,7 @@ class Order( List ):
 		if not order.fromDB( str(orderID) ):
 			return( False )
 		self.setState( orderID, "complete")
-		if order.payment_type.value == "pod":
+		if order[ "payment_type" ].value == "pod":
 			states = self.getStates( orderID )
 			if not any( [ x in states for x in ["canceled", "rts", "send"] ] ):
 				self.setRTS( orderID )
@@ -230,7 +228,6 @@ class Order( List ):
 		self.sendOrderArchivedEMail( orderID )
 		return( True )
 
-
 	def sendOrderShippedEMail(self, orderID):
 		pass
 
@@ -246,6 +243,7 @@ class Order( List ):
 	def sendOrderArchivedEMail(self, orderID):
 		pass
 
+	@exposed
 	def markPayed( self, id, skey, *args, **kwargs ):
 		if not self.canEdit( id ):
 			raise errors.Unauthorized()
@@ -253,8 +251,8 @@ class Order( List ):
 			raise errors.PreconditionFailed()
 		self.setPayed( id )
 		return("OKAY")
-	markPayed.exposed = True
 
+	@exposed
 	def markSend( self, id, skey, *args, **kwargs ):
 		if not self.canEdit( id ):
 			raise errors.Unauthorized()
@@ -262,8 +260,8 @@ class Order( List ):
 			raise errors.PreconditionFailed()
 		self.setSend( id )
 		return("OKAY")
-	markSend.exposed = True
-	
+
+	@exposed
 	def markCanceled( self, id, skey, *args, **kwargs ):
 		if not self.canEdit( id ):
 			raise errors.Unauthorized()
@@ -271,8 +269,6 @@ class Order( List ):
 			raise errors.PreconditionFailed()
 		self.setCanceled( id )
 		return("OKAY")
-	markCanceled.exposed = True
-
 
 	def checkSkipShippingAddress( self, step, orderID, *args, **kwargs ):
 		"""
@@ -286,16 +282,20 @@ class Order( List ):
 		"""
 		billSkel = self.editSkel()
 		billSkel.fromDB( orderID )
-		if not billSkel.extrashippingaddress.value:
+
+		if not billSkel[ "extrashippingaddress" ].value:
+
 			keyMap = { 	"bill_firstname": "shipping_firstname",
 					"bill_lastname" : "shipping_lastname",
 					"bill_street": "shipping_street",
 					"bill_city": "shipping_city",
 					"bill_zip": "shipping_zip",
 					"bill_country": "shipping_country" }
+
 			for srcKey, destKey in keyMap.items():
-				getattr( billSkel, destKey ).value = getattr( billSkel, srcKey ).value
-			billSkel.toDB( orderID )
+				billSkel[ destKey ].value = billSkel[ srcKey ].value
+
+			billSkel.toDB()
 			raise SkipStepException()
 
 	def calcualteOrderSum( self, step, orderID, *args, **kwargs ):
@@ -313,7 +313,6 @@ class Order( List ):
 		orderObj["price"] = price
 		db.Put( orderObj )
 
-	
 	def startPayment( self, step, orderID, *args, **kwargs ):
 		"""
 		Starts paymentprocessing for this order.
@@ -326,12 +325,12 @@ class Order( List ):
 		"""
 		order = self.editSkel()
 		order.fromDB( orderID )
-		if not str(order.state_complete.value)=="1":
+		if not str( order["state_complete"].value ) == "1":
 			session.current["order_"+order.kindName] = None
 			session.current.markChanged() #Fixme
 			self.setComplete( orderID )
-			if order.payment_type.value in self.initializedPaymentProviders.keys():
-				pp = self.initializedPaymentProviders[ order.payment_type.value ]
+			if order[ "payment_type" ].value in self.initializedPaymentProviders.keys():
+				pp = self.initializedPaymentProviders[ order[ "payment_type" ].value ]
 				pp.startProcessing( step, orderID )
 				#getattr( self, "paymentProvider_%s" % order.payment_type.value )( step, orderID )
 	
@@ -341,6 +340,7 @@ class Order( List ):
 		"""
 		self.setRTS( orderID )
 
+	@internalExposed
 	def getBillItems(self, orderID ):
 		"""
 		Returns all Items for the given Order.
@@ -350,13 +350,10 @@ class Order( List ):
 		@param orderID: ID to mark completed
 		@return: [ ( Int Amount, Unicode Description , Float Price of one Item, Float Price of all Items (normaly Price of one Item*Amount), Float Included Tax )  ] 
 		"""
-
 		return( [] )
-	getBillItems.internalExposed = True
 	
 	def billSequenceAvailable( self, orderID ):
 		self.sendOrderCompleteEMail( orderID )
-	
 	
 	@callDeferred
 	def assignBillSequence( self, orderID ):
@@ -397,7 +394,7 @@ class Order( List ):
 		skel = self.viewSkel()
 		if not skel.fromDB( orderID ):
 			raise AssertionError()
-		skel.toDB( orderID )
+		skel.toDB()
 	
 	def resetCart(self, step, orderID, *args, **kwargs ):
 		"""
@@ -472,7 +469,7 @@ class Order( List ):
 				}
 			]
 	
-	
+	@internalExposed
 	def getSteps(self):
 		thesteps = []
 		for step in self.steps[:]:
@@ -482,7 +479,6 @@ class Order( List ):
 				step["mainHandler"].update({"descr": _(step["mainHandler"]["descr"])})
 			thesteps.append( step )
 		return (thesteps)
-	getSteps.internalExposed=True
 	
 	def getBillPdf(self, orderID):
 		"""
@@ -504,6 +500,7 @@ class Order( List ):
 		"""
 		return( None )
 	
+	@exposed
 	def getBill(self, id, *args, **kwargs):
 		"""
 			Returns the Bill for the given order.
@@ -522,8 +519,8 @@ class Order( List ):
 			raise errors.NotFound()
 		request.current.get().response.headers['Content-Type'] = "application/pdf"
 		return( bill )
-	getBill.exposed=True
 
+	@exposed
 	def getDeliveryNote(self, id, *args, **kwargs):
 		"""
 			Returns the delivery note for the given order.
@@ -542,11 +539,21 @@ class Order( List ):
 			raise errors.NotFound()
 		request.current.get().response.headers['Content-Type'] = "application/pdf"
 		return( bill )
-	getDeliveryNote.exposed=True
 	
+	@exposed
 	def checkout( self, step=None, id=None, skey=None, *args, **kwargs ):
+		"""
+		Performs the checkout process trough the state machine provided by self.steps.
+
+		:param step: The current step index, None for beginning a new checkout
+		:param id: Id of the current checkout
+		:param skey: Server security key
+		:return: Returns the rendered template or throws redirection exceptions.
+		"""
+
 		myKindName = self.viewSkel().kindName
-		if( step==None ):
+
+		if step is None:
 			logging.info("Starting new checkout process")
 			billObj = db.Entity( myKindName )
 			billObj["idx"] = "0000000"
@@ -565,12 +572,12 @@ class Order( List ):
 						products.append( str(prod) )
 
 				s.fromClient( {"product": products} )
-				s.toDB( id )
+				s.toDB()
 
 			session.current["order_"+myKindName] = {"id": str( id ), "completedSteps": [] }
 			session.current.markChanged()
 
-			raise errors.Redirect("?step=0&id=%s" % str( id ) )
+			raise errors.Redirect( "?step=0&id=%s" % str( id ) )
 		elif id:
 			try:
 				orderID = db.Key( id )
@@ -611,9 +618,12 @@ class Order( List ):
 				if currentStep["mainHandler"]["action"] == "edit":
 					skel = self.getSkelByName( currentStep["mainHandler"]["skeleton"], str(orderID) )
 					skel.fromDB( str( orderID ) )
+
 					if not len( kwargs.keys() ) or not skel.fromClient( kwargs ):
 						return( self.render.edit( skel, tpl=currentStep["mainHandler"]["template"], step=step ) )
-					skel.toDB( str( orderID ) )
+
+					skel.toDB()
+
 				if currentStep["mainHandler"]["action"] == "view":
 					if not "complete" in kwargs or not kwargs["complete"]==u"1":
 						skel = self.getSkelByName( currentStep["mainHandler"]["skeleton"], str(orderID) )
@@ -628,7 +638,6 @@ class Order( List ):
 			session.current["order_"+myKindName]["completedSteps"].append( step )
 			session.current.markChanged()
 			raise errors.Redirect("?step=%s&id=%s" % (str( step+1 ), str( orderID ) ) )
-	checkout.exposed=True
 
 	def archiveOrder(self, order ):
 		self.setState( order.key.urlsafe(), "archived" )
@@ -672,4 +681,3 @@ class Order( List ):
 		newCursor = query.getCursor()
 		if gotAtLeastOne and newCursor and newCursor.urlsafe()!=cursor:
 			self.doArchiveCancelledOrdersTask( timeStamp, newCursor.urlsafe() )
-
