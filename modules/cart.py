@@ -12,13 +12,14 @@ class Cart( List ):
 	productSkel = None
 
 	@exposed
-	def add( self, product, amt=None ):
+	def add( self, product, amt=None, extend=False ):
 		"""
 		Adds the product with the id product to the cart.
 		If product already exists, and amt is left-out, the number of the product in the cart will be increased.
 
 		:param product: The product key to add to the cart.
 		:param amt: The amount to add; default is 1.
+		:param extend: Set True, if amt should be added to existing items, else the amount is overridden.
 		"""
 
 		prods = session.current.get("cart_products") or {}
@@ -30,10 +31,13 @@ class Cart( List ):
 			if not product in prods.keys():
 				prods[ product ] = { "amount" : 0 }
 
-			if amt:
+			if amt and not extend:
 				prods[ product ][ "amount" ] = int(amt)
 			else:
-				prods[ product ][ "amount" ] += 1
+				if amt is None:
+					amt = 1
+
+				prods[ product ][ "amount" ] += int( amt )
 
 			session.current["cart_products"] = prods
 			session.current.markChanged()
