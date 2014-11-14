@@ -4,7 +4,7 @@ from server.skeleton import SkelList
 from server.bones import *
 from server import errors, session, conf, request, exposed, internalExposed
 from server import utils
-
+import json
 
 class Cart( List ):
 	listTemplate = "order_viewcart"
@@ -12,7 +12,7 @@ class Cart( List ):
 	productSkel = None
 
 	@exposed
-	def add( self, product, amt=None, extend=False ):
+	def add( self, product, amt=None, extend=False, async=False ):
 		"""
 		Adds the product with the id product to the cart.
 		If product already exists, and amt is left-out, the number of the product in the cart will be increased.
@@ -20,9 +20,14 @@ class Cart( List ):
 		:param product: The product key to add to the cart.
 		:param amt: The amount to add; default is 1.
 		:param extend: Set True, if amt should be added to existing items, else the amount is overridden.
+		:param async: Set True for use in Ajax requests.
 		"""
 
 		prods = session.current.get("cart_products") or {}
+		if not isinstance(extend, bool):
+			extend = bool(int(extend))
+		if not isinstance(async, bool):
+			async = bool(int(async))
 
 		if not all( x in "1234567890" for x in unicode(amt) ):
 			amt = None
@@ -31,7 +36,7 @@ class Cart( List ):
 			if not product in prods.keys():
 				prods[ product ] = { "amount" : 0 }
 
-			if amt and not extend:
+			if amt and not bool( extend ):
 				prods[ product ][ "amount" ] = int(amt)
 			else:
 				if amt is None:
@@ -41,6 +46,12 @@ class Cart( List ):
 
 			session.current["cart_products"] = prods
 			session.current.markChanged()
+
+		if async:
+			return( json.dumps( {
+								 "cartentries" : self.entryCount(),
+			                     "cartsum" : self.cartSum(),
+			                     "added" : int( amt ) } ) )
 
 		raise( errors.Redirect( "/%s/view" % self.modulName ) )
 
@@ -77,3 +88,8 @@ class Cart( List ):
 	def entryCount( self ):
 		prods = session.current.get("cart_products") or {}
 		return( len( prods.keys() ) )
+
+	@internalExposed
+	def cartSum( self ):
+		# Should be overridden.
+		return 0.0
