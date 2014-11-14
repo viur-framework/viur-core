@@ -421,7 +421,7 @@ class relationalBone( baseBone ):
 		res = []
 		for rel in data:
 			for k, v in rel.items():
-				res.append( search.TextField( name="%s%s" % (name, k), value=unicode( v ) ) )
+				res.append( search.TextField( name=( "%s%s" % (name, k) ).replace(".", "_"), value=unicode( v ) ) )
 		return( res )
 
 	def filterHook(self, name, query, param, value ):
