@@ -155,7 +155,7 @@ class relationalBone( baseBone ):
 		dbVals.filter("viur_src_kind =", skel.kindName )
 		dbVals.filter("viur_dest_kind =", self.type )
 		dbVals.filter("viur_src_property =", key )
-		for dbObj in dbVals.run():
+		for dbObj in dbVals.iter():
 			try:
 				if not dbObj[ "dest.id" ] in [ x["id"] for x in values ]: #Relation has been removed
 					db.Delete( dbObj.key() )
