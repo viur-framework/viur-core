@@ -284,16 +284,11 @@ class Order( List ):
 		billSkel.fromDB( orderID )
 
 		if not billSkel[ "extrashippingaddress" ].value:
-
-			keyMap = { 	"bill_firstname": "shipping_firstname",
-					"bill_lastname" : "shipping_lastname",
-					"bill_street": "shipping_street",
-					"bill_city": "shipping_city",
-					"bill_zip": "shipping_zip",
-					"bill_country": "shipping_country" }
-
-			for srcKey, destKey in keyMap.items():
-				billSkel[ destKey ].value = billSkel[ srcKey ].value
+			for name, bone in billSkel.items():
+				if name.startswith( "bill_" ):
+					name = name.replace( "bill_", "shipping_" )
+					if name in billSkel.keys():
+						billSkel[ name ].value = bone.value
 
 			billSkel.toDB()
 			raise SkipStepException()
