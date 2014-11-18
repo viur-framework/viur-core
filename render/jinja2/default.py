@@ -246,8 +246,8 @@ class Render( object ):
 			del( kwargs["cachetime"] )
 		else:
 			cachetime=0
-		#if conf["viur.disableCache"]: #Caching disabled by config
-		#	cachetime=0
+		if conf["viur.disableCache"]: #Caching disabled by config
+			cachetime=0
 		if cachetime:
 			#Calculate the cache key that entry would be stored under
 			tmpList = [ "%s:%s" % (unicode(k), unicode(v)) for k,v in kwargs.items()]
