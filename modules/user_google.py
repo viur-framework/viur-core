@@ -16,7 +16,7 @@ class userSkel( Skeleton ):
 	uid = stringBone( descr="Google's UserID", indexed=True, required=True, readOnly=True )
 	gaeadmin = selectOneBone( descr="Is GAE Admin", values={0:"No", 1:"Yes"}, defaultValue=0, readOnly=True )
 	name = stringBone( descr="E-Mail", indexed=True,required=True,searchable=True )
-	access = selectMultiBone( descr="Accessrights", values={}, indexed= True )
+	access = selectAccessMultiBone( descr="Accessrights", values={}, indexed= True )
 	lastlogin = dateBone( descr="Last Login", readOnly=True )
 
 

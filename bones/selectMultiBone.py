@@ -74,3 +74,17 @@ class selectMultiBone( baseBone ):
 			self.value = []
 		return( True )
 
+class selectAccessMultiBone( selectMultiBone ):
+	type = "accessselectmulti"
+
+	def __init__( self, *args, **kwargs ):
+		"""
+			Creates a new AccessSelectMultiBone.
+			This bone encapulates elements that have a postfix "-add", "-delete",
+			"-view" and "-edit" and visualizes them as a compbound unit.
+
+			This bone is normally used in the userSkel only to provide a
+			user data access right selector.
+		"""
+		super( selectAccessMultiBone, self ).__init__( *args, **kwargs )
+

@@ -19,7 +19,7 @@ class userSkel( Skeleton ):
 	enforceUniqueValuesFor = "name", "That E-Mail address is already taken" #Important! Duplicate usernames will cause trouble!
 	name = emailBone( descr="E-Mail", required=True, readOnly=True, caseSensitive=False, searchable=True, indexed=True )
 	password = passwordBone( descr="Password", required=False, readOnly=True, visible=False )
-	access = selectMultiBone( descr="Accessrights", values={"root": "Superuser"}, indexed=True )
+	access = selectAccessMultiBone( descr="Accessrights", values={"root": "Superuser"}, indexed=True )
 	status = selectOneBone( descr="Account status", values = {
 				1: "Waiting for EMail verification",
 				2: "Waiting for verification through admin",

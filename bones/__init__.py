@@ -6,7 +6,7 @@ from server.bones.textBone import textBone
 from server.bones.numericBone import numericBone
 from server.bones.colorBone import colorBone
 from server.bones.selectOneBone import selectOneBone
-from server.bones.selectMultiBone import selectMultiBone
+from server.bones.selectMultiBone import selectMultiBone, selectAccessMultiBone
 from server.bones.booleanBone import booleanBone
 from server.bones.relationalBone import relationalBone
 from server.bones.extendedRelationalBone import extendedRelationalBone
