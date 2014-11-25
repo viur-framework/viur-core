@@ -466,14 +466,15 @@ class Order( List ):
 	
 	@internalExposed
 	def getSteps(self):
-		thesteps = []
+		steps = []
 		for step in self.steps[:]:
 			step = step.copy()
 			step["mainHandler"] = step["mainHandler"].copy()
-			if step["mainHandler"]["descr"]:
+			if "descr" in step["mainHandler"]:
 				step["mainHandler"].update({"descr": _(step["mainHandler"]["descr"])})
-			thesteps.append( step )
-		return (thesteps)
+			steps.append( step )
+
+		return steps
 	
 	def getBillPdf(self, orderID):
 		"""
