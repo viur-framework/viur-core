@@ -206,8 +206,7 @@ class CustomUser( List ):
 				skel.toDB()
 				return (self.render.view(skel, "user_passwordrecover_success"))
 			else:
-				return (self.render.view(skel,
-										 "user_passwordrecover_invalid_token"))
+				return (self.render.view(None, "user_passwordrecover_invalid_token"))
 		else:
 			skel = self.lostPasswordSkel()
 			if len(kwargs)==0 or not skel.fromClient(kwargs):
