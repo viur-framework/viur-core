@@ -75,7 +75,7 @@ class selectMultiBone( baseBone ):
 		return( True )
 
 class selectAccessMultiBone( selectMultiBone ):
-	type = "accessselectmulti"
+	type = "selectmulti.access"
 
 	def __init__( self, *args, **kwargs ):
 		"""
