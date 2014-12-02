@@ -22,6 +22,7 @@ conf = {	"viur.mainApp": None,  #Reference to our prebuild Application-Instance
 		"viur.tasks.startBackendOnDemand": True, #If true, allows the task modul to start a backend immediately (instead of waiting for the cronjob)
 		"viur.logMissingTranslations": False, #If true, ViUR will log missing translations in the datastore
 		"viur.disableCache": False, #If set to true, the decorator @enableCache from server.cache has no effect
+                "viur.cacheEnvironmentKey": None, #If set, this function will be called for each cache-attempt and the result will be included in the computed cache-key
 		"viur.maxPasswordLength": 512, #Prevent Denial of Service attacks using large inputs for pbkdf2
 		"viur.exportPassword": None, # Activates the Database export API if set. Must be exactly 32 chars. *Everyone* knowing this password can dump the whole database!
 		"viur.importPassword": None, # Activates the Database import API if set. Must be exactly 32 chars. *Everyone* knowing this password can rewrite the whole database!
