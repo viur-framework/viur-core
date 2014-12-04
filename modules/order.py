@@ -99,8 +99,10 @@ class Order( List ):
 
 	def __init__(self, *args, **kwargs):
 		super( Order, self ).__init__( *args, **kwargs )
+
 		# Initialize the payment-providers
 		self.initializedPaymentProviders = {}
+
 		for p in self.paymentProviders:
 			pInstance = p( self )
 			self.initializedPaymentProviders[ pInstance.__class__.__name__.lower() ] = pInstance
@@ -125,6 +127,7 @@ class Order( List ):
 			dbObj[ "state_%s" % state ] = "1" if not removeState else "0"
 			dbObj["changedate"] = datetime.now()
 			db.Put( dbObj )
+
 		db.RunInTransaction( txn, orderID,  state, removeState )
 
 	def getStates(self, orderID ):
@@ -135,41 +138,50 @@ class Order( List ):
 			@returns: [string]
 		"""
 		dbObj = db.Get( db.Key( orderID ) )
-		if not dbObj:
-			return( [] )
 		res = []
+
+		if not dbObj:
+			return( res )
+
 		for state in self.states:
 			stateName = "state_%s" % state
+
 			if stateName in dbObj.keys() and str( dbObj[ stateName ] )=="1":
 				res.append( state )
+
 		return( res )
 	
 	def setComplete( self, orderID ):
 		"""
 		Marks an order as Complete
-		May be overriden to hook this event
+		May be overridden to hook this event
 		
 		@type orderID: string
-		@param orderID: ID to mark completed
+		@param orderID: order to mark completed
 		"""
 		order = self.editSkel()
+
 		if not order.fromDB( str(orderID) ):
 			return( False )
+
 		self.setState( orderID, "complete")
+
 		if order[ "payment_type" ].value == "pod":
 			states = self.getStates( orderID )
+
 			if not any( [ x in states for x in ["canceled", "rts", "send"] ] ):
 				self.setRTS( orderID )
+
 		self.assignBillSequence( str(orderID) )
 		return( True )
 
 	def setRTS(self, orderID):
 		"""
 			Marks an order ready to send
-			May be overriden to hook this event
+			May be overridden to hook this event
 			
 			@type orderID: string
-			@param orderID: ID to mark
+			@param orderID: order to mark
 		"""
 		self.setState( orderID, "rts")
 
@@ -177,25 +189,27 @@ class Order( List ):
 	def setPayed(self, orderID):
 		"""
 		Marks an order as Payed
-		May be overriden to hook this event
+		May be overridden to hook this event
 
 		@type orderID: string
-		@param orderID: ID to mark completed
+		@param orderID: order to mark completed
 		"""
 		self.setState( orderID, "payed")
 		states = self.getStates( orderID )
+
 		if not any( [ x in states for x in ["rts", "send", "canceled", "closed"] ] ):
 			self.setState( orderID,"rts")
+
 		self.sendOrderPayedEMail( orderID )
 		return( True )
 
 	def setSend(self, orderID):
 		"""
 		Marks an order as Shiped
-		May be overriden to hook this event
+		May be overridden to hook this event
 
 		@type orderID: string
-		@param orderID: ID to mark completed
+		@param orderID: order to mark completed
 		"""
 		self.setState( orderID, "send" )
 		self.setState( orderID, "rts", True )
@@ -205,10 +219,10 @@ class Order( List ):
 	def setCanceled(self, orderID):
 		"""
 		Marks an order as Canceled
-		May be overriden to hook this event
+		May be overridden to hook this event
 
 		@type orderID: string
-		@param orderID: ID to mark completed
+		@param orderID: order to mark completed
 		"""
 		self.setState( orderID, "canceled" )
 		self.setState( orderID, "rts", True )
@@ -218,10 +232,10 @@ class Order( List ):
 	def setArchived(self, orderID ):
 		"""
 		Marks an order as Archived
-		May be overriden to hook this event
+		May be overridden to hook this event
 
 		@type orderID: string
-		@param orderID: ID to mark completed
+		@param orderID: order to mark completed
 		"""
 		self.setState( orderID, "archived" )
 		self.setState( orderID, "rts", True )
@@ -256,8 +270,10 @@ class Order( List ):
 	def markSend( self, id, skey, *args, **kwargs ):
 		if not self.canEdit( id ):
 			raise errors.Unauthorized()
+
 		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
+
 		self.setSend( id )
 		return("OKAY")
 
@@ -265,8 +281,10 @@ class Order( List ):
 	def markCanceled( self, id, skey, *args, **kwargs ):
 		if not self.canEdit( id ):
 			raise errors.Unauthorized()
+
 		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
+
 		self.setCanceled( id )
 		return("OKAY")
 
@@ -275,10 +293,10 @@ class Order( List ):
 		This step updates the current order copys the values from 
 		billAddressSkel to shippingAddressSkel if extrashippingaddress is False
 		
-		@type step: Int
+		@type step: int
 		@param step: Current step within the ordering process
 		@type orderID: string
-		@param orderID: ID to mark completed
+		@param orderID: order to mark completed
 		"""
 		billSkel = self.editSkel()
 		billSkel.fromDB( orderID )
@@ -293,15 +311,15 @@ class Order( List ):
 			billSkel.toDB()
 			raise SkipStepException()
 
-	def calcualteOrderSum( self, step, orderID, *args, **kwargs ):
+	def calculateOrderSum( self, step, orderID, *args, **kwargs ):
 		"""
 		Calculates the final price for this order.
 		*Must* be called before any attempt is made to start a payment process
 		
-		@type step: Int
+		@type step: int
 		@param step: Current step within the ordering process
 		@type orderID: string
-		@param orderID: ID to calculate the price for
+		@param orderID: order to calculate the price for
 		"""
 		price = sum( [x[3] for x in self.getBillItems( orderID ) ] )
 		orderObj = db.Get( db.Key( str( orderID ) ) )
@@ -310,13 +328,13 @@ class Order( List ):
 
 	def startPayment( self, step, orderID, *args, **kwargs ):
 		"""
-		Starts paymentprocessing for this order.
+		Starts the payment processing for this order.
 		The order is marked completed, so no further changes can be made.
 		
-		@type step: Int
+		@type step: int
 		@param step: Current step within the ordering process
 		@type orderID: string
-		@param orderID: ID to mark completed
+		@param orderID: order to mark completed
 		"""
 		order = self.editSkel()
 		order.fromDB( orderID )
@@ -338,12 +356,12 @@ class Order( List ):
 	@internalExposed
 	def getBillItems(self, orderID ):
 		"""
-		Returns all Items for the given Order.
-		Must be overriden.
+		Returns all items for the given Order.
+		Must be overridden.
 
 		@type orderID: string
-		@param orderID: ID to mark completed
-		@return: [ ( Int Amount, Unicode Description , Float Price of one Item, Float Price of all Items (normaly Price of one Item*Amount), Float Included Tax )  ] 
+		@param orderID: order to mark completed
+		@return: [ ( int Amount, Unicode Description , Float Price of one Item, Float Price of all Items (normaly Price of one Item*Amount), Float Included Tax )  ] 
 		"""
 		return( [] )
 	
@@ -352,7 +370,7 @@ class Order( List ):
 	
 	@callDeferred
 	def assignBillSequence( self, orderID ):
-		"""Assigns an unique order-ID to the given Order """
+		"""Assigns an unique order-order to the given Order """
 
 		def  getIDtxn( kindName, orderID ):
 			"""Generates and returns a new, unique ID"""
@@ -363,7 +381,7 @@ class Order( List ):
 			return( str(idx) )
 
 		def setIDtxn( orderID, idx ):
-			"""Assigns the new orderID to the given order"""
+			"""Assigns the new order to the given order"""
 			dbObj = db.Get( db.Key( orderID ) )
 			if not dbObj:
 				return
@@ -378,12 +396,12 @@ class Order( List ):
 
 	def rebuildSeachIndex(self, step, orderID, *args, **kwargs ):
 		"""
-			This rewrites the order after its complete.
-			As each step has its own (tiny) skeleton, the searchIndex
-			saved is incomplete.
-			This loads the order using the (hopefully complete)
-			viewSkel and saves it back; ensuring a complete
-			searchIndex.
+			This rewrites the order after its completion.
+			
+			As each step has its own (tiny) skeleton, the searchIndex saved is incomplete.
+			This loads the order using the (hopefully complete) viewSkel and saves it back,
+			so that it is ensuring a complete searchIndex.
+			
 			Not a transaction, do not defer!
 		"""
 		skel = self.viewSkel()
@@ -405,8 +423,8 @@ class Order( List ):
 		"""
 		if not name:
 			return( self.viewSkel() )
-		else:
-			return( self.viewSkel().subSkel(name))
+
+		return( self.viewSkel().subSkel(name))
 
 	def tmpSkipCheck(self, *args, **kwargs):
 		raise SkipStepException()
@@ -428,7 +446,7 @@ class Order( List ):
 					}
 				}, 
 				{	
-					"preHandler": checkSkipShippingAddress, 
+					"preHandler": checkSkipShippingAddress,
 					"mainHandler": {
 						"action": "edit", 
 						"skeleton": "shippingaddress",
@@ -443,7 +461,7 @@ class Order( List ):
 						"template": "order_payment", 
 						"descr":u"Payment"
 					}, 
-					"postHandler": calcualteOrderSum
+					"postHandler": calculateOrderSum
 				}, 
 				{	
 					"mainHandler": {
@@ -478,20 +496,20 @@ class Order( List ):
 	
 	def getBillPdf(self, orderID):
 		"""
-			Should be overriden to return the Bill (as pdf) for the given order.
+			Should be overridden to return the bill (as pdf) for the given order.
 			
 			@param orderID: Order, for which the the bill should be generated.
-			@type orderID: String
+			@type orderID: str
 			@returns: Bytes or None
 		"""
 		return( None )
 
 	def getDeliveryNotePdf(self, orderID ):
 		"""
-			Should be overriden to return the delivery note (as pdf) for the given order.
+			Should be overridden to return the delivery note (as pdf) for the given order.
 			
 			@param orderID: Order, for which the the bill of delivery should be generated.
-			@type orderID: String
+			@type orderID: str
 			@returns: Bytes or None
 		"""
 		return( None )
@@ -502,18 +520,24 @@ class Order( List ):
 			Returns the Bill for the given order.
 		"""
 		skel = self.viewSkel()
+
 		if "canView" in dir( self ):
 			if not self.canView( id ):
 				raise errors.Unauthorized()
 		else:
 			queryObj = self.viewSkel().all().mergeExternalFilter( {"id":  id} )
 			queryObj = self.listFilter( queryObj ) #Access control
+
 			if queryObj is None:
 				raise errors.Unauthorized()
+
 		bill = self.getBillPdf( id )
+
 		if not bill:
 			raise errors.NotFound()
+
 		request.current.get().response.headers['Content-Type'] = "application/pdf"
+
 		return( bill )
 
 	@exposed
@@ -522,17 +546,22 @@ class Order( List ):
 			Returns the delivery note for the given order.
 		"""
 		skel = self.viewSkel()
+
 		if "canView" in dir( self ):
 			if not self.canView( id ):
 				raise errors.Unauthorized()
 		else:
 			queryObj = self.viewSkel().all().mergeExternalFilter( {"id":  id} )
 			queryObj = self.listFilter( queryObj ) #Access control
+
 			if queryObj is None:
 				raise errors.Unauthorized()
+
 		bill = self.getDeliveryNotePdf( id )
+
 		if not bill:
 			raise errors.NotFound()
+
 		request.current.get().response.headers['Content-Type'] = "application/pdf"
 		return( bill )
 	
@@ -574,6 +603,7 @@ class Order( List ):
 			session.current.markChanged()
 
 			raise errors.Redirect( "?step=0&id=%s" % str( id ) )
+
 		elif id:
 			try:
 				orderID = db.Key( id )
@@ -582,35 +612,46 @@ class Order( List ):
 				assert( step < len( self.steps ) )
 			except:
 				raise errors.NotAcceptable()
+
 			sessionInfo = session.current.get("order_"+myKindName)
+
 			if not sessionInfo or not sessionInfo.get("id") == str( orderID ):
 				raise errors.Unauthorized()
+
 			if step in sessionInfo["completedSteps"]:
 				session.current["order_"+myKindName]["completedSteps"] = [ x for x in sessionInfo["completedSteps"] if x<step ]
 				session.current.markChanged()
+
 			#Make sure that no steps can be skipped
 			if step != 0 and not step-1 in sessionInfo["completedSteps"]  :
 				raise errors.Redirect("?step=0&id=%s" % str( str(orderID) ) )
+
 			currentStep = self.steps[ step ]
 			res = ""
+
 			if "preHandler" in currentStep.keys():
 				try:
 					if isinstance( currentStep["preHandler"], list ):
 						for handler in currentStep["preHandler"]:
 							handler( self, step, str(orderID), *args, **kwargs )
 					else:
-						currentStep["preHandler"]( self, step, str(orderID), *args, **kwargs )
+						currentStep["preHandler"]( self, step, str(orderID),
+						                           refkwargs=kwargs, *args, **kwargs )
+
 				except SkipStepException:
 					session.current["order_"+myKindName]["completedSteps"].append( step )
 					session.current.markChanged()
-					raise errors.Redirect("?step=%s&id=%s" % (str( step+1 ), str( str(orderID) ) ) )
+					raise errors.Redirect("?step=%s&id=%s" % ( str( step+1 ), str( orderID ) ) )
 				except ReturnHtmlException as e:
 					return( e.html )
+
 			if "requiresSecutityKey" in currentStep.keys() and currentStep["requiresSecutityKey"] :
 				if not securitykey.validate( skey ):
 					raise errors.PreconditionFailed()
 				pass
+
 			if "mainHandler" in currentStep.keys():
+
 				if currentStep["mainHandler"]["action"] == "edit":
 					skel = self.getSkelByName( currentStep["mainHandler"]["skeleton"], str(orderID) )
 					skel.fromDB( str( orderID ) )
@@ -629,10 +670,14 @@ class Order( List ):
 					res = currentStep["mainHandler"]["function"]( self, step, str(orderID), *args, **kwargs )
 					if res:
 						return( res )
+
 			if "postHandler" in currentStep.keys():
 				currentStep["postHandler"]( self, step, str(orderID), *args, **kwargs )
+
 			session.current["order_"+myKindName]["completedSteps"].append( step )
 			session.current.markChanged()
+
+			logging.info( "next ?step=%s&id=%s" % (str( step+1 ), str( orderID ) ) )
 			raise errors.Redirect("?step=%s&id=%s" % (str( step+1 ), str( orderID ) ) )
 
 	def archiveOrder(self, order ):
@@ -648,6 +693,7 @@ class Order( List ):
 	@callDeferred
 	def doArchiveActiveOrdersTask(self, timeStamp, cursor):
 		logging.debug("Archiving old orders")
+
 		#Archive all payed,send and not canceled orders
 		query = self.viewSkel().all()\
 				.filter( "changedate <", datetime.strptime(timeStamp,"%d.%m.%Y %H:%M:%S") )\
@@ -656,10 +702,13 @@ class Order( List ):
 				.filter( "state_payed =", "1" )\
 				.filter( "state_canceled =", "0" ).cursor( cursor )
 		gotAtLeastOne = False
+
 		for order in query.fetch():
 			gotAtLeastOne = True
 			self.setArchived( order )
+
 		newCursor = query.getCursor()
+
 		if gotAtLeastOne and newCursor and newCursor.urlsafe()!=cursor:
 			self.doArchiveActiveOrdersTask( timeStamp, newCursor.urlsafe() )
 
