@@ -424,6 +424,7 @@ class Query( object ):
 				for val in value:
 					q = datastore.Query( kind=self.getKind() )
 					q[ "%s =" % filter.split(" ")[0] ] = val
+					q.Order( *origQuery.__orderings )
 					queries.append( q )
 			self.datastoreQuery = MultiQuery( queries, origQuery.__orderings )
 			for k,v in origQuery.items():
