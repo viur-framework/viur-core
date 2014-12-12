@@ -35,7 +35,7 @@ class DbTransfer( object ):
 			@returns: True if the key is correct, False otherwise
 		"""
 		isValid = True
-		if not isinstance( key, string ):
+		if not isinstance( key, basestring ):
 			isValid = False
 		if export:
 			expectedKey = conf["viur.exportPassword"]
@@ -51,14 +51,14 @@ class DbTransfer( object ):
 		return( isValid )
 
 	@exposed
-	def listModules(self, backupkey):
-		if not self._checkKey( backupkey, export=False):
+	def listModules(self, key):
+		if not self._checkKey( key, export=False):
 			raise errors.Forbidden()
 		return( pickle.dumps( listKnownSkeletons() ) )
 
 	@exposed
-	def getCfg(self, modul, backupkey ):
-		if not self._checkKey( backupkey, export=False):
+	def getCfg(self, modul, key ):
+		if not self._checkKey( key, export=False):
 			raise errors.Forbidden()
 		skel = skeletonByKind( modul )
 		assert skel is not None
@@ -68,8 +68,8 @@ class DbTransfer( object ):
 
 
 	@exposed
-	def getAppId(self, backupkey, *args, **kwargs):
-		if not self._checkKey( backupkey, export=False):
+	def getAppId(self, key, *args, **kwargs):
+		if not self._checkKey( key, export=False):
 			raise errors.Forbidden()
 		return( pickle.dumps( db.Query("SharedConfData").get().key().app() ) ) #app_identity.get_application_id()
 
@@ -141,8 +141,8 @@ class DbTransfer( object ):
 		return( json.dumps( {"action":"addSuccess", "values":res } ) )
 
 	@exposed
-	def getUploadURL( self, backupkey, *args, **kwargs ):
-		if not self._checkKey( backupkey, export=False):
+	def getUploadURL( self, key, *args, **kwargs ):
+		if not self._checkKey( key, export=False):
 			raise errors.Forbidden()
 		return( blobstore.create_upload_url( "/dbtransfer/upload"  ) )
 
@@ -207,8 +207,8 @@ class DbTransfer( object ):
 		return( res )
 
 	@exposed
-	def exportDb(self, cursor=None, backupkey=None, *args, **kwargs):
-		if not self._checkKey( backupkey, export=True):
+	def exportDb(self, cursor=None, key=None, *args, **kwargs):
+		if not self._checkKey( key, export=True):
 			raise errors.Forbidden()
 		if cursor:
 			c = datastore_query.Cursor(urlsafe=cursor)
@@ -221,8 +221,8 @@ class DbTransfer( object ):
 		return( pickle.dumps( {"cursor": str(q.GetCursor().urlsafe()),"values":r}).encode("HEX"))
 
 	@exposed
-	def exportBlob(self, cursor=None, backupkey=None,):
-		if not self._checkKey( backupkey, export=True):
+	def exportBlob(self, cursor=None, key=None,):
+		if not self._checkKey( key, export=True):
 			raise errors.Forbidden()
 		q = BlobInfo.all()
 		if cursor is not None:

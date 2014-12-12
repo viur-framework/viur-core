@@ -186,8 +186,10 @@ class Render( object ):
 			self.env.globals["execRequest"] = self.execRequest
 			self.env.globals["getHostUrl" ] = self.getHostUrl
 			self.env.globals["getLanguage" ] = self.getLanguage #session.current.getLanguage()
-			self.env.globals["modulName"] = lambda *args, **kwargs: self.parent.modulName
-			self.env.globals["modulPath"] = lambda *args, **kwargs: self.parent.modulPath
+			self.env.globals["modulName"] = self.moduleName #deprecated
+			self.env.globals["moduleName"] = self.moduleName
+			self.env.globals["modulPath"] = self.modulePath # deprecated
+			self.env.globals["modulePath"] = self.modulePath
 			self.env.globals["_"] = _
 			self.env.filters["tr"] = _
 			self.env.filters["urlencode"] = self.quotePlus
@@ -195,6 +197,28 @@ class Render( object ):
 			if "jinjaEnv" in dir( self.parent ):
 				self.env = self.parent.jinjaEnv( self.env )
 		return( self.env )
+
+	def moduleName(self):
+		"""
+		Retrieve name of current module name the renderer is used within.
+
+		:return: Returns the name of the current module, or empty string if there is no module set.
+		"""
+		if self.parent and "modulName" in dir(self.parent):
+			return self.parent.modulName
+
+		return ""
+
+	def modulePath(self):
+		"""
+		Retrieve name of current module path the renderer is used within.
+
+		:return: Returns the path of the current module, or empty string if there is no module set.
+		"""
+		if self.parent and "modulPath" in dir(self.parent):
+			return self.parent.modulPath
+
+		return ""
 
 	def getLanguage(self, resolveAlias=False):
 		"""
@@ -222,8 +246,8 @@ class Render( object ):
 			del( kwargs["cachetime"] )
 		else:
 			cachetime=0
-		#if conf["viur.disableCache"]: #Caching disabled by config
-		#	cachetime=0
+		if conf["viur.disableCache"]: #Caching disabled by config
+			cachetime=0
 		if cachetime:
 			#Calculate the cache key that entry would be stored under
 			tmpList = [ "%s:%s" % (unicode(k), unicode(v)) for k,v in kwargs.items()]
