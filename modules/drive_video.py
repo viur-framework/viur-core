@@ -67,7 +67,7 @@ def retrieve_all_files(service, folderId='root'):
 
 
 def findVideoFolder(filelist, folder_title="videos"):
-	print "findVideoFolder", folder_title
+	# print "findVideoFolder", folder_title
 	for item in filelist:
 		# print
 		# print "*" * 50
@@ -357,7 +357,7 @@ class DriveVideoList(List):
 	             "sortIndex": 50
 	}
 
-	def drive_changes(self):
+	def drive_changes(self, **kwargs):
 		check_drive_modifications()
 		return "OK"
 
