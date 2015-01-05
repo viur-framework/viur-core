@@ -337,6 +337,7 @@ class Skeleton( object ):
 				uniqueProperty = (skel.enforceUniqueValuesFor[0] if isinstance( skel.enforceUniqueValuesFor, tuple ) else skel.enforceUniqueValuesFor)
 				# Check if the property is really unique
 				newVal = skel[ uniqueProperty ].getUniquePropertyIndexValue()
+				lockObj = None
 				if newVal is not None:
 					try:
 						lockObj = db.Get( db.Key.from_path( "%s_uniquePropertyIndex" % skel.kindName, newVal ) )
@@ -385,9 +386,12 @@ class Skeleton( object ):
 				db.Put( blobLockObj )
 			if skel.enforceUniqueValuesFor:
 				# Now update/create/delete the lock-object
-				if newVal != oldUniquePropertyValue:
+				if newVal != oldUniquePropertyValue or not lockObj:
 					if oldUniquePropertyValue is not None:
-						db.Delete( db.Key.from_path( "%s_uniquePropertyIndex" % skel.kindName, oldUniquePropertyValue ) )
+						try:
+							db.Delete( db.Key.from_path( "%s_uniquePropertyIndex" % skel.kindName, oldUniquePropertyValue ) )
+						except:
+							logging.warning("Cannot delete stale lock-object")
 					if newVal is not None:
 						newLockObj = db.Entity( "%s_uniquePropertyIndex" % skel.kindName, name=newVal )
 						newLockObj["references"] = str( dbObj.key() )

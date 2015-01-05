@@ -19,7 +19,7 @@ class userSkel( Skeleton ):
 	enforceUniqueValuesFor = "name", "That E-Mail address is already taken" #Important! Duplicate usernames will cause trouble!
 	name = emailBone( descr="E-Mail", required=True, readOnly=True, caseSensitive=False, searchable=True, indexed=True )
 	password = passwordBone( descr="Password", required=False, readOnly=True, visible=False )
-	access = selectMultiBone( descr="Accessrights", values={"root": "Superuser"}, indexed=True )
+	access = selectAccessMultiBone( descr="Accessrights", values={"root": "Superuser"}, indexed=True )
 	status = selectOneBone( descr="Account status", values = {
 				1: "Waiting for EMail verification",
 				2: "Waiting for verification through admin",
@@ -206,8 +206,7 @@ class CustomUser( List ):
 				skel.toDB()
 				return (self.render.view(skel, "user_passwordrecover_success"))
 			else:
-				return (self.render.view(skel,
-										 "user_passwordrecover_invalid_token"))
+				return (self.render.view(None, "user_passwordrecover_invalid_token"))
 		else:
 			skel = self.lostPasswordSkel()
 			if len(kwargs)==0 or not skel.fromClient(kwargs):
@@ -215,7 +214,7 @@ class CustomUser( List ):
 			user = self.viewSkel().all().filter( "name.idx =", skel["name"].value.lower() ).get()
 
 			if not user: #Unknown user
-				skel["errors"]["name"] = _("Unknown user")
+				skel.errors["name"] = _("Unknown user")
 				return( self.render.passwdRecover( skel, tpl=self.lostPasswordTemplate ) )
 			try:
 				if user["changedate"]>datetime.datetime.now()-datetime.timedelta(days=1):

@@ -48,10 +48,9 @@ class Cart( List ):
 			session.current.markChanged()
 
 		if async:
-			return( json.dumps( {
-								 "cartentries" : self.entryCount(),
-			                     "cartsum" : self.cartSum(),
-			                     "added" : int( amt ) } ) )
+			return json.dumps({ "cartentries": self.entryCount(),
+			                    "cartsum": self.cartSum(),
+			                    "added": int( amt ) } )
 
 		raise( errors.Redirect( "/%s/view" % self.modulName ) )
 
@@ -71,17 +70,36 @@ class Cart( List ):
 		return( self.render.list( items ) )
 
 	@exposed
-	def delete( self, product , all="0" ):
+	def delete( self, product, all="0", async=False ):
+		"""
+		Deletes or decrements a product from the cart.
+		If all is set, it removes the entire product.
+
+		:param product: The product key to add to the cart.
+		:param all: If not "0", remove the entire entry for product, else decrement.
+		:param async: Set True for use in Ajax requests.
+		"""
+
 		prods = session.current.get("cart_products") or {}
 
 		if product in prods.keys():
+			removed = prods[ product ][ "amount" ]
+
 			if all=="0" and prods[ product ][ "amount" ] > 1:
 				prods[ product ][ "amount" ] -= 1
 			else:
 				del prods[ product ]
+		else:
+			removed = 0
 
 		session.current["cart_products"] = prods
 		session.current.markChanged()
+
+		if async:
+			return json.dumps({ "cartentries": self.entryCount(),
+			                    "cartsum": self.cartSum(),
+			                    "removed": removed })
+
 		raise( errors.Redirect( "/%s/view" % self.modulName ) )
 
 	@internalExposed

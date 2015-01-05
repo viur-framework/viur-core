@@ -56,18 +56,20 @@
 		{%- endfor -%}
 	{%- endif -%}  
 
-{# Error handling #}
-	{% if Skel.errors|length>0 %}
+	{# Error handling #}
+	{%- if Skel.errors|length>0 -%}
 		<strong>{{_("Please correct your inputs!")}}</strong><br />
-		{{_("Not all required entry fields have been filled:")}}
-		##for errornoame in Skel.errors
-			##if Skel.errors[errornoame]!=None and Skel["structure"][errornoame].required
-				<font color="red">{{Skel["structure"][errornoame].descr}}</font>, 
-			##endif
-		##endfor
+		{{_("Not all required entry fields have been filled:") + " "}}
+        {%- set first=True -%}
+		{%- for errornoame in Skel.errors -%}
+			{%-if Skel.errors[errornoame]!=None and Skel["structure"][errornoame].required -%}
+				{{ "," if not first }} <span class="mandatory">{{Skel["structure"][errornoame].descr}}</span>
+                {%-set first=False -%}
+			{%- endif -%}
+		{%- endfor -%}
 		<br />
 		<br />
-	{% endif %}
+	{%- endif -%}
 {%- endmacro -%}
 
 
@@ -228,17 +230,20 @@
 		{%- endif -%}
 	{%- endfor -%} 
 
-	{% if Skel.errors|length>0 %}
+	{# Error handling #}
+	{%- if Skel.errors|length>0 -%}
 		<strong>{{_("Please correct your inputs!")}}</strong><br />
-		{{_("Not all required entry fields have been filled:")}}
-		##for errornoame in Skel.errors
-			##if Skel.errors[errornoame]!=None and Skel["structure"][errornoame].required
-				<font color="red">{{Skel["structure"][errornoame].descr}}</font>, 
-			##endif
-		##endfor
+		{{_("Not all required entry fields have been filled:") + " "}}
+        {%- set first=True -%}
+		{%- for errornoame in Skel.errors -%}
+			{%-if Skel.errors[errornoame]!=None and Skel["structure"][errornoame].required -%}
+				{{ "," if not first }} <span class="mandatory">{{Skel["structure"][errornoame].descr}}</span>
+                {%-set first=False -%}
+			{%- endif -%}
+		{%- endfor -%}
 		<br />
 		<br />
-	{% endif %}
+	{%- endif -%}
 {%- endmacro -%}
 
 {% macro dynaform_tr(bone_name,bone,Skel,form) %}

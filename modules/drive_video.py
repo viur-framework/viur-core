@@ -36,6 +36,20 @@ class DriveVideoList(List):
 	drive_changes.exposed = True
 
 
+class DriveVideoSkel(Skeleton):
+	kindName = "drivevideo"
+	searchIndex = "drivevideo"
+
+	file_id = stringBone(descr="File Id in Google Drive (Do not change this unless you know what you're doing)",
+	                     readOnly=False, required=True, indexed=True, searchable=True)
+	title = stringBone(descr="Video Title", required=True, indexed=True, searchable=True)
+	caption = stringBone(descr="Video Caption", required=False, indexed=True, searchable=True)
+	preview_image_url = stringBone(descr="Thumbnail Bild URL von Google", required=False, indexed=True,
+	                               searchable=True)
+	thumbnail_image = fileBone(descr=u"Thumbnail Bild", required=False, multiple=False,
+	                           params={"frontend_list_visible": True})
+
+
 def get_credentials():
 	cred_json_str = conf["video_credentials"]
 	return Credentials.new_from_json(cred_json_str)
@@ -195,20 +209,6 @@ def get_local_videos():
 		by_file_id[str(video["file_id"].value)] = video
 		by_id[str(video["id"].value)] = video
 	return by_id, by_file_id
-
-
-class DriveVideoSkel(Skeleton):
-	kindName = "drivevideo"
-	searchIndex = "drivevideo"
-
-	file_id = stringBone(descr="File Id in Google Drive (Do not change this unless you know what you're doing)",
-	                     readOnly=False, required=True, indexed=True, searchable=True)
-	title = stringBone(descr="Video Title", required=True, indexed=True, searchable=True)
-	caption = stringBone(descr="Video Caption", required=False, indexed=True, searchable=True)
-	preview_image_url = stringBone(descr="Thumbnail Bild URL von Google", required=False, indexed=True,
-	                               searchable=True)
-	thumbnail_image = fileBone(descr=u"Thumbnail Bild", required=False, multiple=False,
-	                           params={"frontend_list_visible": True})
 
 
 # TODO: periodic task should be recursively deferred for each subfolder, don't use this for now
