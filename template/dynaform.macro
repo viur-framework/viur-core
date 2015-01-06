@@ -205,7 +205,7 @@
 
 {#ALTE DYNAFORM#}
 {# \/ \/ \/ \/#}
-{%- macro render_dynaform(Skel,ignor=[],form="",modulname="") -%}
+{%- macro render_dynaform(Skel,ignor=[],form="",modulname="",markMandatoryFields=True) -%}
 
 	{% if not Skel["structure"] and not modulname==""%}
 		{% set renderskel = "viewskel"%}
@@ -226,7 +226,7 @@
 
 	{%- for bone_name, bone in stuct -%}
 		{% if not bone_name in ignor%}
-			{{dynaform_tr(bone_name,bone,Skel,form)}}
+			{{dynaform_tr(bone_name,bone,Skel,form,markMandatoryFields)}}
 		{%- endif -%}
 	{%- endfor -%} 
 
@@ -246,7 +246,7 @@
 	{%- endif -%}
 {%- endmacro -%}
 
-{% macro dynaform_tr(bone_name,bone,Skel,form) %}
+{% macro dynaform_tr(bone_name,bone,Skel,form,markMandatoryFields=True) %}
 	##set debug=False
 	{% if bone.type == "hidden" %}     
 		<input type="hidden" name="{{ bone_name }}" value="{{Skel.value[bone_name] }}" />   
@@ -263,7 +263,7 @@
 						{% endif %}
 					">
 						{{ bone.descr }}
-						{%if bone.required and not bone.readOnly and Skel["structure"] %}
+						{%if markMandatoryFields and bone.required and not bone.readOnly and Skel["structure"] %}
 							*
 						{% endif %}
 						{% if debug %}
