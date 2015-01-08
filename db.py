@@ -681,7 +681,10 @@ class Query( object ):
 			if len(res)>0 and res[0].key().kind()!=self.origKind and res[0].key().parent().kind()==self.origKind:
 				#Fixing the kind - it has been changed (probably by quering an relation)
 				res = [ x.key().parent() for x in res ]
-			return( [x.key() for x in res] )
+			if res and isinstance(res[0], datastore_types.Key):
+				return res
+			else:
+				return( [x.key() for x in res] )
 		elif keysOnly and internalKeysOnly: #Keys-only requested and we did it
 			if len(res)>0 and res[0].kind()!=self.origKind and res[0].parent().kind()==self.origKind:
 				#Fixing the kind - it has been changed (probably by quering an relation)
