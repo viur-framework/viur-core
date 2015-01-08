@@ -100,9 +100,13 @@ class List( object ):
 		query = self.viewSkel().all()
 		query.mergeExternalFilter( kwargs )
 		query = self.listFilter( query ) #Access control
+
 		if query is None:
 			raise( errors.Unauthorized() )
+
 		mylist = query.fetch()
+		mylist = self.postFetch( mylist )
+
 		return( self.render.list( mylist ) )
 
 	@forceSSL
@@ -156,7 +160,6 @@ class List( object ):
 		self.onItemAdded( skel )
 		return self.render.addItemSuccess( skel )
 
-
 	@forceSSL
 	@forcePost
 	@exposed
@@ -188,6 +191,14 @@ class List( object ):
 		if user and ("%s-view" % self.modulName in user["access"] or "root" in user["access"] ):
 			return( filter )
 		return( None )
+
+	def postFetch(self, skellist ):
+		"""
+		This function can be used to post-process a skellist that has been fetched by the application's list function.
+		:param skellist: The function recieves the pure skellist provided by the fetch.
+		:return: The function must return the (modified) version of skellist that is passed to the renderer.
+		"""
+		return skellist
 
 	def canAdd( self ):
 		"""

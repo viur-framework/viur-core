@@ -436,15 +436,24 @@ class Render( object ):
 		if _noEmptyFilter: #Test if any value of kwargs is an empty list
 			if any( [isinstance(x,list) and not len(x) for x in kwargs.values()] ):
 				return( [] )
+
 		query = getattr(caller, skel )().all()
 		query.mergeExternalFilter( kwargs )
+
 		if "listFilter" in dir( caller ):
 			query = caller.listFilter( query )
+
 		if query is None:
 			return( None )
+
 		mylist = query.fetch()
+
+		if "postFetch" in dir( caller ):
+			mylist = caller.postFetch( mylist )
+
 		for x in range(0, len( mylist ) ):
 			mylist.append( self.collectSkelData( mylist.pop(0) ) )
+
 		return( SkelListWrapper( mylist ) )
 	
 	def quotePlus(self, val ):
