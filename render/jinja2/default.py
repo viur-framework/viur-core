@@ -563,7 +563,7 @@ class Render( object ):
 		skeybone.value = securitykey.create()
 		skel["skey"] = skeybone
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
-			skel.errors = {}
+			super( Skeleton, skel ).__setattr__( "errors", {} )
 		return( template.render( skel={"structure":self.renderSkelStructure(skel),"errors":skel.errors, "value":self.collectSkelData(skel) } ) )
 	
 	def edit( self, skel, tpl=None, **kwargs ):
@@ -585,7 +585,7 @@ class Render( object ):
 		skeybone.value = securitykey.create()
 		skel["skey"]  = skeybone
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
-			skel.errors = {}
+			super( Skeleton, skel ).__setattr__( "errors", {} )
 		return( template.render( skel={"structure":self.renderSkelStructure(skel),"errors":skel.errors, "value":self.collectSkelData(skel) },  **kwargs) )
 	
 	def addItemSuccess (self, skel, *args, **kwargs ):
