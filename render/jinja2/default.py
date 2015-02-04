@@ -254,6 +254,14 @@ class Render( object ):
 			tmpList.sort()
 			tmpList.extend(list(args))
 			tmpList.append(path)
+			if conf[ "viur.cacheEnvironmentKey" ]:
+				tmpList.append( conf[ "viur.cacheEnvironmentKey" ]() )
+			try:
+				appVersion = request.current.get().request.environ["CURRENT_VERSION_ID"].split('.')[0]
+			except:
+				appVersion = ""
+				logging.error("Could not determine the current application id! Caching might produce unexpected results!")
+			tmpList.append( appVersion )
 			mysha512 = sha512()
 			mysha512.update( unicode(tmpList).encode("UTF8") )
 			cacheKey = "jinja2_cache_%s" % mysha512.hexdigest()
