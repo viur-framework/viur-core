@@ -82,7 +82,6 @@ def setDefaultDomainLanguage( domain, lang ):
 
 from server import session, errors
 from server.tasks import TaskHandler, runStartupTasks
-from server import backup
 
 try:
 	import bugsnag

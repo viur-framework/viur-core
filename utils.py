@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-
-
-
 from google.appengine.api import memcache, app_identity, mail
 from google.appengine.ext import deferred
 import new, os
