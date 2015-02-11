@@ -4,14 +4,13 @@ from server.applications.hierarchy import Hierarchy, HierarchySkel
 from server.bones import *
 from server import db
 from server import session, errors
-from server.plugins.text.youtube import YouTube
 import logging
 
 class pageSkel( HierarchySkel ):
 	kindName="page"
 	searchindex = "page"
 	name = stringBone( descr="Name", indexed=True, searchable=True, required=True )
-	descr = textBone( descr="Content", required=True, searchable=True, extensions=[YouTube] )
+	descr = textBone( descr="Content", required=True, searchable=True )
 
 class Page( Hierarchy ):
 	adminInfo = {	"name": "Sites", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
