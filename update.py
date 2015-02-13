@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
-from server.config import sharedConf
+from server.config import sharedConf, apiVersion
 from time import sleep
 from server import db, request
-
-currentVersion = 1
 
 def markFileRefsStrong():
 	"""Adds the weak=False marker to all Filerefs without such an marker"""
@@ -17,16 +15,16 @@ updateScripts = {	0: [markFileRefsStrong]
 				}
 
 def checkUpdate():
-	if sharedConf["viur.apiVersion"]<currentVersion:
+	if sharedConf["viur.apiVersion"]<apiVersion:
 		#Put all instances on Hold
 		sharedConf["viur.disabled"] = True
 		if not request.current.get().isDevServer:
 			# Sleep only on live instances - theres no race-contition locally
 			sleep( sharedConf.updateInterval.seconds+30 )
-		for version in range( int(sharedConf["viur.apiVersion"]), currentVersion ):
+		for version in range( int(sharedConf["viur.apiVersion"]), apiVersion ):
 			if version in updateScripts.keys():
 				for script in updateScripts[ version ]:
 					script()
 		sharedConf["viur.disabled"] = False #Reenable Apps
-		sharedConf["viur.apiVersion"] = currentVersion
-	
+		sharedConf["viur.apiVersion"] = apiVersion
+

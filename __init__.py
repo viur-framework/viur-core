@@ -8,7 +8,7 @@ http://www.gnu.org/licenses/lgpl-3.0
 http://www.viur.is
 """
 
-__version__ = (-99,-99,-99)
+__version__ = (-99,-99,-99) #Which API do we expose to our application
 
 import sys, traceback, os, inspect
 #All (optional) 3rd-party modules in our libs-directory

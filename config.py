@@ -3,6 +3,9 @@ from datetime import datetime, timedelta
 from google.appengine.ext import db
 from google.appengine.api import memcache
 
+apiVersion = 1 #What format do we use store our data in the Bigtable
+
+
 #Conf is static, local Dictionary. Changes here are local to the current instance
 conf = {	"viur.mainApp": None,  #Reference to our prebuild Application-Instance
 		"viur.models": None, #Dictionary of all models known to this instance
@@ -49,7 +52,7 @@ class SharedConf(  ):
 		pass
 
 	data = {	"viur.disabled": False, 
-			"viur.apiVersion": 0
+			"viur.apiVersion": apiVersion
 			}
 	ctime = datetime(2000, 1, 1, 0, 0, 0)
 	updateInterval = timedelta(seconds=60) #Every 60 Secs
