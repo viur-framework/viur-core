@@ -9,6 +9,6 @@
 	{% if not bone.visible %}
 		<input {{readonly}} type="hidden" name="{{ bone_name }}" value="{{ value }}" />
 	{% else %}	
-		<input {{readonly}} type="text" name="{{ bone_name }}" class="ui-widget ui-widget-content ui-corner-all ui-spinner-input viur_uielement viur_text {{ "viur_mandatory" if bone.required and not bone.error }} {{ "viur_error" if bone.error }}" id="dynabone_{{ bone_name }}" value="{{ value|default("",true) }}" />
+		<input {{readonly}} type="text" name="{{ bone_name }}" class="ui-widget ui-widget-content ui-corner-all ui-spinner-input viur_uielement viur_text {{ "viur_mandatory" if bone.required and not bone.error }} {{ "viur_error" if bone.required and bone.error }}" id="dynabone_{{ bone_name }}" value="{{ value|default("",true) }}" />
 	{% endif %}
 {%- endmacro -%}

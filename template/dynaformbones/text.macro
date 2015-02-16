@@ -11,7 +11,7 @@
 		<input {{readonly}} type="hidden" name="{{ bone_name }}" value="{{ value }}" />
 	{% else %}
 
-	<textarea {{readonly}} name="{{ bone_name }}" class="viur_uielement viur_textinput {{ "tinymcetextedit" if bone.validHtml }} {{ "viur_mandatory" if bone.required and not bone.error }} {{ "viur_error" if bone.error }}" id="mceEditor{{bone_name}}">
+	<textarea {{readonly}} name="{{ bone_name }}" class="viur_uielement viur_textinput {{ "tinymcetextedit" if bone.validHtml }} {{ "viur_mandatory" if bone.required and not bone.error }} {{ "viur_error" if bone.required and bone.error }}" id="mceEditor{{bone_name}}">
         {{ value|default("",true) }}
     </textarea>
 
