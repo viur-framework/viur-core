@@ -40,7 +40,7 @@
 	<div id="slider_numeric{{bone_name}}"></div>
 		{% endif %}
 		
-		<input {{readonly}} type="text"  id="amount_numeric{{bone_name}}" name="{{ bone_name }}" value="{{ value|default("0",true) }}"  class="viur_numericinput"/>
+		<input {{readonly}} type="text"  id="amount_numeric{{bone_name}}" name="{{ bone_name }}" value="{{ value|default("0",true) }}"  class="viur_numericinput {{ "viur_mandatory" if bone.required and not bone.error }} {{ "viur_error" if bone.error }}"/>
 		<script>
 		        $(function() {
                          var numericspinnerobj{{bone_name}}={};
