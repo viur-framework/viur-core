@@ -19,3 +19,15 @@ class fileBone( treeItemBone ):
 		elif isinstance( self.value, list ):
 			return( [x["id"] for x in self.value])
 
+
+	def unserialize( self, name, expando ):
+		res = super( fileBone, self ).unserialize( name, expando )
+		if isinstance(self.value, dict) and "servingurl" in self.value.keys():
+			if self.value["servingurl"].startswith("http://"):
+				self.value["servingurl"] = self.value["servingurl"].replace("http://","https://")
+		elif isinstance( self.value, list ):
+			for val in self.value:
+				if isinstance(val, dict) and "servingurl" in val.keys():
+					if val["servingurl"].startswith("http://"):
+						val["servingurl"] = val["servingurl"].replace("http://","https://")
+		return( res )

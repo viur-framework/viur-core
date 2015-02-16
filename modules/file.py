@@ -193,6 +193,8 @@ class File( Tree ):
 						if str( upload.content_type ).startswith("image/"):
 							try:
 								servingURL = get_serving_url( upload.key() )
+								if servingURL.startswith("http://"):
+									servingURL = servingURL.relace("http://","https://")
 							except:
 								servingURL = ""
 						else:
