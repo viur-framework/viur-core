@@ -11,8 +11,9 @@
 			<input {{readonly}} type="hidden" name="{{ bone_name }}" value="{{val}}">
 		{%endfor%}
 	{% else %}
-			{%- for optionname in bone["values"].keys() -%}
-				<div class="df_checkboxcontainer" ><input {{readonly}} type="checkbox" name="{{ bone_name }}" value="{{optionname}}" {% if optionname in value %}checked{% endif %}>&nbsp;<span class="viur_uielement viur_checkbox">{{bone["values"][optionname]}}<span></div>
-			{% endfor -%}
+					{%- for optionname in bone["values"].keys() -%}
+						<div class="df_checkboxcontainer" ><input {{readonly}} type="checkbox" name="{{ bone_name }}" value="{{optionname}}" {% if optionname in value %}checked{% endif %}>&nbsp;<span class="viur_uielement viur_checkbox">{{bone["values"][optionname]}}<span></div>
+					{% endfor -%}
+					
 	{%endif%}
 {%- endmacro -%}

@@ -11,13 +11,13 @@
 	{% if not bone.visible %}
 		<input {{readonly}} type="hidden" name="{{ bone_name }}" value="{{ value }}" />
 	{% else %}
-			<select {{disable}} class="{{ "viur_mandatory" if bone.required and not bone.error }} {{ "viur_error" if bone.required and bone.error }}" name="{{ bone_name }}">
+			<select {{disable}} name="{{ bone_name }}">
 	{% if not bone.required or not value %}
-				<option value="" {% if not value %}selected="selected"{% endif%} {% if bone.required %}disabled="disabled"{% endif %}></option>
+					<option value="" {% if not value %}selected="selected"{% endif%} {% if bone.required %}disabled="disabled"{% endif %}></option>
 	{%endif%}				
-				{%- for key,descr in bone["values"]|dictsort(by="value") %}
-					<option value="{{key}}" {% if key|string==value|string %}selected="selected"{% endif%}>{{descr}}</option>
-				{% endfor -%}
+					{%- for key,descr in bone["values"]|dictsort(by="value") %}
+						<option value="{{key}}" {% if key|string==value|string %}selected="selected"{% endif%}>{{descr}}</option>
+					{% endfor -%}
 			</select>
 	{%endif%}
 

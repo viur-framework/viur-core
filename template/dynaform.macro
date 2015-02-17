@@ -38,20 +38,13 @@
 		struct={}
 	{% endif%}
 {# Element rendern #}
-
-    {% set required_bones = [] %}
-	{% set formattpl = format_renderer(bone_name,bone,Skel,form,format)%}
-
+	{%set formattpl = format_renderer(bone_name,bone,Skel,form,format)%}
 	{%if regex_search("^mask_+",format|string)%}
 		{% set savetpl = {"tpl":formattpl}%}
 		{%- for bone_name, bone in struct -%}
 			{% if not bone_name in ignor%}
 				{% set temptpl = element_renderer(bone_name,hidden,bone,Skel,form,format,savetpl["tpl"]) %}
 				{% do savetpl.update({"tpl":temptpl})%}
-
-		        {%- if Skel.errors|length > 0 and Skel.errors[ bone_name ] and bone.required -%}
-					{% do required_bones.append( bone.descr ) %}
-				{%- endif -%}
 			{%- endif -%}
 		{%- endfor -%}
 		{{savetpl["tpl"]}}
@@ -59,19 +52,21 @@
 		{%- for bone_name, bone in struct -%}
 			{% if not bone_name in ignor%}
 				{{element_renderer(bone_name,hidden,bone,Skel,form,format,formattpl)}}
-
-		        {%- if Skel.errors|length > 0 and Skel.errors[ bone_name ] and bone.required -%}
-					{% do required_bones.append( bone.descr ) %}
-				{%- endif -%}
 			{%- endif -%}
 		{%- endfor -%}
 	{%- endif -%}  
 
 	{# Error handling #}
-	{%- if required_bones|length>0 -%}
+	{%- if Skel.errors|length>0 -%}
 		<strong>{{_("Please correct your inputs!")}}</strong><br />
 		{{_("Not all required entry fields have been filled:") + " "}}
-        <span class="mandatory">{{ required_bones|join( ", " ) }}</span>
+        {%- set first=True -%}
+		{%- for errornoame in Skel.errors -%}
+			{%-if Skel.errors[errornoame]!=None and Skel["structure"][errornoame].required -%}
+				{{ "," if not first }} <span class="mandatory">{{Skel["structure"][errornoame].descr}}</span>
+                {%-set first=False -%}
+			{%- endif -%}
+		{%- endfor -%}
 		<br />
 		<br />
 	{%- endif -%}
@@ -217,9 +212,9 @@
 		{% if modulname=="contact"%}
 			{% set renderskel = "mailSkel"%}
 		{% endif%}
-		{% set struct = getSkel(modulname,renderskel).items() %}
+		{% set stuct = getSkel(modulname,renderskel).items() %}
 	{% else %}
-		{% set struct = Skel["structure"].items() %}
+		{% set stuct = Skel["structure"].items() %}
 	{% endif%}
 
 	{%if not Skel["structure"]%}
@@ -228,26 +223,24 @@
 		{% set Skel = tmpSkel %}
 	{% endif %}
 
-    {%- set required_bones = [] %}
 
-	{%- for bone_name, bone in struct -%}
-		{% if bone_name in ignor%}
-            {% continue %}
-        {% endif %}
-
-		{{dynaform_tr(bone_name,bone,Skel,form,markMandatoryFields)}}
-
-        {%- if Skel.errors|length > 0 and Skel.errors[ bone_name ] and bone.required -%}
-			{% do required_bones.append( bone.descr ) %}
+	{%- for bone_name, bone in stuct -%}
+		{% if not bone_name in ignor%}
+			{{dynaform_tr(bone_name,bone,Skel,form,markMandatoryFields)}}
 		{%- endif -%}
 	{%- endfor -%} 
 
 	{# Error handling #}
-	{%- if required_bones|length > 0 -%}
+	{%- if Skel.errors|length>0 -%}
 		<strong>{{_("Please correct your inputs!")}}</strong><br />
 		{{_("Not all required entry fields have been filled:") + " "}}
-
-        <span class="mandatory">{{ required_bones|join( ", " ) }}</span>
+        {%- set first=True -%}
+		{%- for errornoame in Skel.errors -%}
+			{%-if Skel.errors[errornoame]!=None and Skel["structure"][errornoame].required -%}
+				{{ "," if not first }} <span class="mandatory">{{Skel["structure"][errornoame].descr}}</span>
+                {%-set first=False -%}
+			{%- endif -%}
+		{%- endfor -%}
 		<br />
 		<br />
 	{%- endif -%}
@@ -275,8 +268,6 @@
 						{% endif %}
 						{% if debug %}
 							{{bone.type}}
-                            {{bone.required}}
-                            {{bone.errors}}
 						{% endif %}
 					</div>
 					{% if bone.params and bone.params["hint"] %}
