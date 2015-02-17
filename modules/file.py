@@ -52,6 +52,15 @@ class fileBaseSkel( TreeLeafSkel ):
 				self["mimetype"].value = self["metamime"].value
 		return( r )
 
+	def setValues( self, values, key=False ):
+		r = super( fileBaseSkel, self ).setValues( values, key )
+		if not self["mimetype"].value:
+			if self["meta_mime"].value:
+				self["mimetype"].value = self["meta_mime"].value
+			elif self["metamime"].value:
+				self["mimetype"].value = self["metamime"].value
+		return( r )
+
 class fileNodeSkel( TreeNodeSkel ):
 	kindName = "file_rootNode"
 	name = stringBone( descr="Name", required=True, indexed=True, searchable=True )
