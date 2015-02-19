@@ -58,8 +58,8 @@ class numericBone( baseBone ):
 		if self.precision and ( str( value ).replace(".","",1).replace("-", "", 1).isdigit() ) and float( value )>=self.min and float( value )<=self.max:
 				self.value = round( float( value ), self.precision )
 				return( None )
-		elif not self.precision and ( str( value ).replace("-", "", 1).isdigit() ):
-				self.value = ( int( value ) )
+		elif not self.precision and ( str( value ).replace("-", "", 1).isdigit() ) and int( value )>=self.min and int( value )<=self.max:
+				self.value = int( value )
 				return( None )
 		else:
 			self.value = None
