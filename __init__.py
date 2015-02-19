@@ -290,10 +290,12 @@ class BrowseHandler(webapp.RequestHandler):
 			self.response.out.write( tpl.safe_substitute( {"error_code": "503", "error_name": "Service unaviable", "error_descr": msg} ) )
 			return
 		if conf["viur.forceSSL"] and not self.isDevServer and not self.isSSLConnection:
-			#Redirect the user to the startpage (using ssl this time)
-			host = self.request.host_url.lower()
-			host = host[ host.find("://")+3: ].strip(" /") #strip http(s)://
-			self.redirect( "https://%s/" % host )
+			if not self.request.path.startswith( "/_tasks/" ): #The Tasks-Queue doesn't call using https
+				#Redirect the user to the startpage (using ssl this time)
+				host = self.request.host_url.lower()
+				host = host[ host.find("://")+3: ].strip(" /") #strip http(s)://
+				self.redirect( "https://%s/" % host )
+				return
 		try:
 			session.current.load( self ) # self.request.cookies )
 			path = self.selectLanguage( path )
