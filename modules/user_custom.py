@@ -165,7 +165,13 @@ class CustomUser( List ):
 				res[ "password_salt" ] = utils.generateRandomString( 13 )
 				res[ "password" ] = pbkdf2( password[ : conf["viur.maxPasswordLength"] ], res["password_salt"] )
 				db.Put( res )
+			oldSession = {k:v for k,v in session.current.items()} #Store all items in the current session
 			session.current.reset()
+			# Copy the persistent fields over
+			for k in conf["viur.session.persistentFieldsOnLogin"]:
+				if k in oldSession.keys():
+					session.current[ k ] = oldSession[ k ]
+			del oldSession
 			session.current['user'] = {}
 			for key in ["name", "status", "access"]:
 				try:

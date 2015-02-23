@@ -36,6 +36,8 @@ conf = {	"viur.mainApp": None,  #Reference to our prebuild Application-Instance
                 "viur.debug.traceQueries": True, #If enabled, we log all datastore queries performed
 		"viur.errorTemplate": "server/template/error.html", #Path to the template to render if an unhandled error occurs. This is a Python String-template, *not* a jinja2 one!
                 "viur.contentSecurityPolicy": None, #If set, viur will emit a CSP http-header with each request. Use the csp module to set this property
+                "viur.session.persistentFieldsOnLogin": [], #If set, these Fields will survive the session.reset() called on user/login
+                "viur.session.persistentFieldsOnLogout": [], #If set, these Fields will survive the session.reset() called on user/logout
 		"bugsnag.apiKey": None #If set, ViUR will report Errors to bugsnag
 	}
 
