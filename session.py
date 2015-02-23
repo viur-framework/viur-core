@@ -113,6 +113,12 @@ class SessionWrapper( threading.local ):
 			return( "" )
 
 
+	def items(self):
+		try:
+			return( self.session.items() )
+		except AttributeError:
+			return( [] )
+
 
 class GaeSession:
 	lifeTime = 60*60 #60 Minutes
@@ -293,6 +299,11 @@ class GaeSession:
 			return( self.sessionSecurityKey )
 		return( "" )
 
+	def items(self):
+		"""
+			Returns all items in the current session
+		"""
+		return( self.session.items() )
 
 @callDeferred
 def killSessionByUser( user=None ):
