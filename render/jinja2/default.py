@@ -456,9 +456,6 @@ class Render( object ):
 
 		mylist = query.fetch()
 
-		if "postFetch" in dir( caller ):
-			mylist = caller.postFetch( mylist )
-
 		for x in range(0, len( mylist ) ):
 			mylist.append( self.collectSkelData( mylist.pop(0) ) )
 
