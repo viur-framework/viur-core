@@ -25,7 +25,7 @@ class MetaSkel( type ):
 		Used to enforce several restrictions on Bone names etc.
 	"""
 	_skelCache = {}
-	__reservedKeywords_ = [ "self", "cursor", "amount", "orderby", "orderdir", "style" ]
+	__reservedKeywords_ = [ "self", "cursor", "amount", "orderby", "orderdir", "style", "items", "keys", "values" ]
 	def __init__( cls, name, bases, dct ):
 		kindName = cls.kindName
 		if kindName and kindName in MetaSkel._skelCache.keys():
