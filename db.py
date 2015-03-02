@@ -363,7 +363,7 @@ class Query( object ):
 			assert not isinstance( self.datastoreQuery, datastore.MultiQuery )
 			origFilter = self.datastoreQuery
 			queries = []
-			for tag in taglist:
+			for tag in taglist[:30]: #Limit to max 30 keywords
 				q = datastore.Query( kind=origFilter.__kind )
 				q[ "viur_tags" ] = tag
 				queries.append( q )
