@@ -256,7 +256,6 @@ class CustomUser( List ):
 		assert skel.fromDB(userID)
 		skel["skey"] = baseBone( descr="Skey" )
 		skel["skey"].value = skey
-		logging.debug( skel["name"].value + " verify?skey=%s" % skey )
 		utils.sendEMail( [skel["name"].value], self.verifyEmailAddressMail, skel )
 		
 	def sendPasswordRecoveryEmail(self, userID, skey ):
