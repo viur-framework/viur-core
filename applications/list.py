@@ -105,7 +105,6 @@ class List( object ):
 			raise( errors.Unauthorized() )
 
 		mylist = query.fetch()
-		mylist = self.postFetch( mylist )
 
 		return( self.render.list( mylist ) )
 
@@ -191,14 +190,6 @@ class List( object ):
 		if user and ("%s-view" % self.modulName in user["access"] or "root" in user["access"] ):
 			return( filter )
 		return( None )
-
-	def postFetch(self, skellist ):
-		"""
-		This function can be used to post-process a skellist that has been fetched by the application's list function.
-		:param skellist: The function recieves the pure skellist provided by the fetch.
-		:return: The function must return the (modified) version of skellist that is passed to the renderer.
-		"""
-		return skellist
 
 	def canAdd( self ):
 		"""

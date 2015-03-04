@@ -59,8 +59,14 @@ def sendEMail( dests, name , skel, extraFiles=[] ):
 		message.to = dests
 	message.sender = mailfrom
 	message.html = data.replace("\x00","").encode('ascii', 'xmlcharrefreplace')
+
+	logging.debug( 30 * "-" + "BEGIN OF EMAIL" + 30 * "-" )
+	logging.debug( message.html )
+	logging.debug( 30 * "-" + "END OF EMAIL" + 30 * "-" )
+
 	if len( extraFiles )> 0:
 		message.attachments = extraFiles
+	
 	message.send( )
 
 def sendEMailToAdmins( subject, body, sender=None ):

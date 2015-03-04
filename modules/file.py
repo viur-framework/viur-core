@@ -204,7 +204,7 @@ class File( Tree ):
 								servingURL = get_serving_url( upload.key() )
 								if not request.current.get().isDevServer and servingURL.startswith("http://"):
 									# Rewrite Serving-URLs to https if we are live
-									servingURL = servingURL.relace("http://","https://")
+									servingURL = servingURL.replace("http://","https://")
 							except:
 								servingURL = ""
 						else:
