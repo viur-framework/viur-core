@@ -23,9 +23,10 @@ class ExtendedDateTime( datetime ):
 		"""
 		Provides correct localized names for directives like %a which dont get translated on GAE properly
 		This currently replaces %a, %A, %b, %B, %c, %x and %X.
-		@param format: Strinc containing the Format to apply.
-		@type format: string
-		@returns: string
+
+		:param format: String containing the Format to apply.
+		:type format: str
+		:returns: str
 		"""
 		if "%c" in format:
 			format = format.replace("%c", _("const_datetimeformat") )
@@ -55,16 +56,18 @@ class dateBone( baseBone ):
 		"""
 			Initializes a new dateBone.
 			
-			@param creationMagic: Use the current time as value when creating an entity; ignoring this bone if the entity gets updated.
-			@type creationMagic: Bool
-			@param updateMagic: Use the current time whenever this entity is saved. 
-			@type updateMagic: Bool
-			@param date: Should this bone contain a date-information?
-			@type date: Bool
-			@param time: Should this bone contain time information?
-			@type time: Bool
-			@param localize: Automatically convert this time into the users timezone? Only valid if this bone contains date and time-information!
-			@type localize: Bool
+			:param creationMagic: Use the current time as value when creating an entity; ignoring this bone if the
+				entity gets updated.
+			:type creationMagic: bool
+			:param updateMagic: Use the current time whenever this entity is saved.
+			:type updateMagic: bool
+			:param date: Should this bone contain a date-information?
+			:type date: bool
+			:param time: Should this bone contain time information?
+			:type time: bool
+			:param localize: Automatically convert this time into the users timezone? Only valid if this bone
+                contains date and time-information!
+			:type localize: bool
 		"""
 		baseBone.__init__( self,  *args,  **kwargs )
 		if creationMagic or updateMagic:
@@ -83,17 +86,17 @@ class dateBone( baseBone ):
 	def fromClient( self, name, data ):
 		"""
 			Reads a value from the client.
-			If this value is valis for this bone,
+			If this value is valid for this bone,
 			store this value and return None.
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
 			
-			@param name: Our name in the skeleton
-			@type name: String
-			@param data: *User-supplied* request-data
-			@type data: Dict
-			@returns: None or String
+			:param name: Our name in the skeleton
+			:type name: str
+			:param data: *User-supplied* request-data
+			:type data: dict
+			:returns: str or None
 		"""
 		if name in data.keys():
 			value = data[ name ]

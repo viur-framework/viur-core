@@ -13,40 +13,39 @@ class baseBone(object): # One Bone:
 			indexed=False, searchable=False, vfunc=None, readOnly=False, visible=True, **kwargs ):
 		"""
 			Initializes a new Bone.
-			@param descr: Textual, human-readable description of that bone. Will be translated.
-			@type descr: String
-			@param defaultValue: If set, this bone will be preinitialized with this value
-			@type defaultValue: mixed
-			@param required: If True, the user must enter a valid value for this bone
-				(the server refuses to save the skeleton otherwise)
-			@type required: Bool
-			@param params: Optional dictionary of custom values to pass along with this bone.
-				This dictionary will be avaiable in the admin aswell as templates rendered
-				by the jinja2-render. Can be used to specifiy project-depended informations
-				used to configure the apperance of this bone.
-			@type params: Dict or None
-			@param multiple: If True, multiple values can be given. (ie. n:m relations instead of n:1)
-				Note: This flag is not supported by all bones (fe. selectOneBone)
-			@type multiple: Bool
-			@param indexed: If True, this bone will be included in indexes. This is needed if you
+
+			:param descr: Textual, human-readable description of that bone. Will be translated.
+			:type descr: str
+			:param defaultValue: If set, this bone will be preinitialized with this value
+			:type defaultValue: mixed
+			:param required: If True, the user must enter a valid value for this bone (the server refuses to save the
+				skeleton otherwise)
+			:type required: bool
+			:param multiple: If True, multiple values can be given. (ie. n:m relations instead of n:1)
+			:type multiple: bool
+			:param indexed: If True, this bone will be included in indexes. This is needed if you
 				want to run queries against this bone. If False, it will save datastore write-ops.
-			@type indexed: Bool
-			@param searchable: If True, this bone will be included in the fulltext search. Can be used
+			:type indexed: bool
+			:param searchable: If True, this bone will be included in the fulltext search. Can be used
 				without the need of also been indexed.
-			@type searchable: Bool
-			@param vfunc: If given, a callable validating the user-supplied value for this bone. This
+			:type searchable: bool
+			:param vfunc: If given, a callable validating the user-supplied value for this bone. This
 				callable must return None if the value is valid, a String containing an meaningfull
 				error-message for the user otherwise.
-			@type vfunc: Callable
-			@param readOnly: If True, the user is unable to change the value of this bone. If a value for
+			:type vfunc: callable
+			:param readOnly: If True, the user is unable to change the value of this bone. If a value for
 				this bone is given along the POST-Request during Add/Edit, this value will be ignored.
 				Its still possible for the developer to modify this value by assigning skel.bone.value.
-			@type readOnly: Bool
-			@param visible: If False, the value of this bone should be hidden from the user. This does *not*
+			:type readOnly: bool
+			:param visible: If False, the value of this bone should be hidden from the user. This does *not*
 				protect the value from beeing exposed in a template, nor from being transfered to the
 				client (ie to the admin or as hidden-value in html-forms)
 				Again: This is just a hint. It cannot be used as a security precaution.
-			@type visible: Bool
+			:type visible: bool
+
+			.. NOTE::
+				The kwarg 'multiple' is not supported by all bones (fe. selectOneBone)
+
 		"""
 		from server.skeleton import _boneCounter
 		#Fallbacks for old non-CamelCase API
@@ -89,11 +88,11 @@ class baseBone(object): # One Bone:
 			left unchanged and an error-message
 			is returned.
 			
-			@param name: Our name in the skeleton
-			@type name: String
-			@param data: *User-supplied* request-data
-			@type data: Dict
-			@returns: None or String
+			:param name: Our name in the skeleton
+			:type name: String
+			:param data: User-supplied request-data
+			:type data: dict
+			:returns: None or str
 		"""
 		if name in data.keys():
 			value = data[ name ]
@@ -119,9 +118,9 @@ class baseBone(object): # One Bone:
 			Serializes this bone into something we
 			can write into the datastore.
 			
-			@param name: The property-name this bone has in its Skeleton (not the description!)
-			@type name: String
-			@returns: Dict
+			:param name: The property-name this bone has in its Skeleton (not the description!)
+			:type name: String
+			:returns: dict
 		"""
 		if name != "id":
 			entity.set( name, self.value, self.indexed )
@@ -132,10 +131,11 @@ class baseBone(object): # One Bone:
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
 			this bone accordingly.
-			@param name: The property-name this bone has in its Skeleton (not the description!)
-			@type name: String
-			@param expando: An instance of the dictionary-like db.Entity class
-			@type expando: db.Entity
+			:param name: The property-name this bone has in its Skeleton (not the description!)
+			:type name: String
+			:param expando: An instance of the dictionary-like db.Entity class
+			:type expando: db.Entity
+			:returns: bool
 		"""
 		if name in expando.keys():
 			self.value = expando[ name ]
@@ -146,19 +146,19 @@ class baseBone(object): # One Bone:
 			Parses the searchfilter a client specified in his Request into
 			something understood by the datastore.
 			This function must:
-				- Ignore all filters not targeting this bone
-				- Safely handle malformed data in rawFilter 
-				(this parameter is directly controlled by the client)
+				* Ignore all filters not targeting this bone
+				* Safely handle malformed data in rawFilter
+					(this parameter is directly controlled by the client)
 			
-			@param name: The property-name this bone has in its Skeleton (not the description!)
-			@type name: String
-			@param skel: The skeleton this bone is part of
-			@type skel: Skeleton
-			@param dbFilter: The current db.Query instance the filters should be applied to
-			@type db.Query
-			@param rawFilter: The dictionary of filters the client wants to have applied
-			@type rawFilter: Dict
-			@returns: The modified dbFilter
+			:param name: The property-name this bone has in its Skeleton (not the description!)
+			:type name: str
+			:param skel: The :class:`server.db.Query` this bone is part of
+			:type skel: :class:`server.skeleton.Skeleton`
+			:param dbFilter: The current :class:`server.db.Query` instance the filters should be applied to
+			:type dbFilter: :class:`server.db.Query`
+			:param rawFilter: The dictionary of filters the client wants to have applied
+			:type rawFilter: dict
+			:returns: The modified :class:`server.db.Query`
 		"""
 		def fromShortKey( key ):
 			if isinstance(key, basestring ):
@@ -228,15 +228,15 @@ class baseBone(object): # One Bone:
 			Again: rawFilter is controlled by the client, so you *must* expect and safely hande
 			malformed data!
 			
-			@param name: The property-name this bone has in its Skeleton (not the description!)
-			@type name: String
-			@param skel: The skeleton this bone is part of
-			@type skel: Skeleton
-			@param dbFilter: The current db.Query instance the filters should be applied to
-			@type db.Query
-			@param rawFilter: The dictionary of filters the client wants to have applied
-			@type rawFilter: Dict
-			@returns: The modified dbFilter
+			:param name: The property-name this bone has in its Skeleton (not the description!)
+			:type name: str
+			:param skel: The :class:`server.skeleton.Skeleton` instance this bone is part of
+			:type skel: :class:`server.skeleton.Skeleton`
+			:param dbFilter: The current :class:`server.db.Query` instance the filters should be applied to
+			:type dbFilter: :class:`server.db.Query`
+			:param rawFilter: The dictionary of filters the client wants to have applied
+			:type rawFilter: dict
+			:returns: The modified :class:`server.db.Query`
 		"""
 		if "orderby" in list(rawFilter.keys()) and rawFilter["orderby"] == name:
 			if not self.indexed:
@@ -263,12 +263,14 @@ class baseBone(object): # One Bone:
 		"""
 			Returns a list of Strings which will be included in the
 			fulltext-index for this bone.
-			Note: This function gets only called, if the ViUR internal
-			fulltext-search is used. If you enable the search-API
-			by setting a searchIndex on the skeleton, getSearchDocumentFields
-			is called instead.
+
+			.. NOTE::
+				This function gets only called, if the ViUR internal
+				fulltext-search is used. If you enable the search-API
+				by setting a searchIndex on the skeleton, getSearchDocumentFields
+				is called instead.
 			
-			@returns: List of Strings
+			:return: List of Strings
 		"""
 		res = []
 		if not self.value:
@@ -311,33 +313,35 @@ class baseBone(object): # One Bone:
 		"""
 			This function applies "magically" functionality which f.e. inserts the current Date or the current user.
 			@param isAdd: Signals whereever this is an add or edit operation.
-			@type isAdd: Bool
+			:type isAdd: bool
 		"""
 		pass #We do nothing by default
 
 	def postSavedHandler( self, boneName, skel, id, dbObj ):
 		"""
-			Can be overriden to perform further actions after the main entity has been written.
-			@param boneName: Name of this bone
-			@type boneName: String
-			@param skel: The skeleton this bone belongs to
-			@type skel: Skeleton
-			@param id: The (new?) Database Key we've written to
-			@type id: String
-			@param dbObj: The db.Entity object written
-			@type dbObj: db.Entity
+			Can be overridden to perform further actions after the main entity has been written.
+
+			:param boneName: Name of this bone
+			:type boneName: String
+			:param skel: The skeleton this bone belongs to
+			:type skel: Skeleton
+			:param id: The (new?) Database Key we've written to
+			:type id: String
+			:param dbObj: The db.Entity object written
+			:type dbObj: db.Entity
 		"""
 		pass
 
 	def postDeletedHandler(self, skel, boneName, key):
 		"""
-			Can be overriden to perform  further actions after the main entity has been deleted.
-			@param skel: The skeleton this bone belongs to
-			@type skel: Skeleton
-			@param boneName: Name of this bone
-			@type boneName: String
-			@param key: The old Database Key of hte entity we've deleted
-			@type id: String
+			Can be overridden to perform  further actions after the main entity has been deleted.
+
+			:param skel: The skeleton this bone belongs to
+			:type skel: Skeleton
+			:param boneName: Name of this bone
+			:type boneName: String
+			:param key: The old Database Key of hte entity we've deleted
+			:type id: String
 		"""
 		pass
 

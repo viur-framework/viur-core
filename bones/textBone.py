@@ -125,6 +125,15 @@ class textBone( baseBone ):
 			self.value = LanguageWrapper( self.languages )
 
 	def serialize( self, name, entity ):
+		"""
+			Fills this bone with user generated content
+
+			:param name: The property-name this bone has in its Skeleton (not the description!)
+			:type name: str
+			:param entity: An instance of the dictionary-like db.Entity class
+			:type entity: :class:`server.db.Entity`
+			:return: the modified :class:`server.db.Entity`
+		"""
 		if name == "id":
 			return( entity )
 		if self.languages:
@@ -147,10 +156,11 @@ class textBone( baseBone ):
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
 			this bone accordingly.
-			@param name: The property-name this bone has in its Skeleton (not the description!)
-			@type name: String
-			@param expando: An instance of the dictionary-like db.Entity class
-			@type expando: db.Entity
+
+			:param name: The property-name this bone has in its Skeleton (not the description!)
+			:type name: str
+			:param expando: An instance of the dictionary-like db.Entity class
+			:type expando: :class:`db.Entity`
 		"""
 		if not self.languages:
 			if name in expando.keys():
@@ -178,11 +188,11 @@ class textBone( baseBone ):
 			left unchanged and an error-message
 			is returned.
 			
-			@param name: Our name in the skeleton
-			@type name: String
-			@param data: *User-supplied* request-data
-			@type data: Dict
-			@returns: None or String
+			:param name: Our name in the skeleton
+			:type name: String
+			:param data: *User-supplied* request-data
+			:type data: Dict
+			:returns: None or String
 		"""
 		if self.languages:
 			self.value = LanguageWrapper( self.languages )

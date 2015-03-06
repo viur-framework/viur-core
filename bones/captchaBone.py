@@ -31,11 +31,11 @@ class captchaBone( bone.baseBone ):
 			left unchanged and an error-message
 			is returned.
 			
-			@param name: Our name in the skeleton
-			@type name: String
-			@param data: *User-supplied* request-data
-			@type data: Dict
-			@returns: None or String
+			:param name: Our name in the skeleton
+			:type name: String
+			:param data: *User-supplied* request-data
+			:type data: Dict
+			:returns: None or String
 		"""
 		if request.current.get().isDevServer: #We dont enforce captchas on dev server
 			return( None )

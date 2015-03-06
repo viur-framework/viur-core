@@ -40,7 +40,7 @@ def pbkdf2( password, salt, iterations=1001, keylen=42):
 class passwordBone( stringBone ):
 	"""
 		A bone holding passwords.
-		This is allways empty if read from the database.
+		This is always empty if read from the database.
 		If its saved, its ignored if its values is still empty.
 		If its value is not empty, its hashed (with salt) and only the resulting hash 
 		will be written to the database

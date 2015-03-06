@@ -16,13 +16,14 @@ class numericBone( baseBone ):
 
 	def __init__(self, precision=0, min=-int( pow(2, 30) ), max=int( pow(2, 30) ), *args,  **kwargs ):
 		"""
-		Initializes a new NumericBone.
-		@param precision: How may decimal places should be saved. Zero casts the value to int instead of float.
-		@type precision: int
-		@param min: Minumum accepted value (including).
-		@type min: float
-		@param max: Maximum accepted value (including).
-		@type max: float
+			Initializes a new NumericBone.
+
+			:param precision: How may decimal places should be saved. Zero casts the value to int instead of float.
+			:type precision: int
+			:param min: Minimum accepted value (including).
+			:type min: float
+			:param max: Maximum accepted value (including).
+			:type max: float
 		"""
 		baseBone.__init__( self,  *args,  **kwargs )
 		self.precision = precision
@@ -34,17 +35,17 @@ class numericBone( baseBone ):
 	def fromClient( self, name, data ):
 		"""
 			Reads a value from the client.
-			If this value is valis for this bone,
+			If this value is valid for this bone,
 			store this value and return None.
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
 			
-			@param name: Our name in the skeleton
-			@type name: String
-			@param data: *User-supplied* request-data
-			@type data: Dict
-			@returns: None or String
+			:param name: Our name in the skeleton
+			:type name: String
+			:param data: *User-supplied* request-data
+			:type data: Dict
+			:returns: None or String
 		"""
 		if name in data.keys():
 			value = data[ name ]

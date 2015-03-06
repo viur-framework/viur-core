@@ -14,7 +14,7 @@ class LanguageWrapper( dict ):
 		Wrapper-class for a multi-language value.
 		Its a dictionary, allowing accessing each stored language,
 		but can also be used as a string, in which case it tries to
-		guess the corrent language.
+		guess the correct language.
 	"""
 	
 	def __init__( self, languages ):
@@ -118,10 +118,11 @@ class stringBone( baseBone ):
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
 			this bone accordingly.
-			@param name: The property-name this bone has in its Skeleton (not the description!)
-			@type name: String
-			@param expando: An instance of the dictionary-like db.Entity class
-			@type expando: db.Entity
+
+			:param name: The property-name this bone has in its :class:`server.skeleton.Skeleton` (not the description!)
+			:type name: str
+			:param expando: An instance of the dictionary-like db.Entity class
+			:type expando: :class:`server.db.Entity`
 		"""
 		if not self.languages:
 			if name in expando.keys():
@@ -148,11 +149,11 @@ class stringBone( baseBone ):
 			left unchanged and an error-message
 			is returned.
 			
-			@param name: Our name in the skeleton
-			@type name: String
-			@param data: *User-supplied* request-data
-			@type data: Dict
-			@returns: None or String
+			:param name: Our name in the :class:`server.skeleton.Skeleton`
+			:type name: str
+			:param data: *User-supplied* request-data
+			:type data: dict
+			:returns: str or None
 		"""
 		if name in data.keys():
 			value = data[ name ]

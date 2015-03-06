@@ -10,20 +10,30 @@ import logging
 class relationalBone( baseBone ):
 	"""
 		This is our magic class implementing relations.
-		This implementation is read-efficient, e.g. filtering by relational-properties only costs an additional small-op for each entity returned.
+
+		This implementation is read-efficient, e.g. filtering by relational-properties only costs an additional
+		small-op for each entity returned.
 		However, it costs several more write-ops for writing an entity to the db.
-		(These costs are somewhat around additional (4+len(refKeys)+len(parentKeys)) write-ops for each referenced property))
-		So dont use this if you expect data being read less frequently than written! (Sorry, we dont have a write-efficient method yet)
+		(These costs are somewhat around additional (4+len(refKeys)+len(parentKeys)) write-ops for each referenced
+		property))
+
+		So dont use this if you expect data being read less frequently than written! (Sorry, we dont have a
+		write-efficient method yet)
 		To speedup writes to (maybe) referenced entities, information in these relations isnt updated instantly.
-		There is a background task which runs periodically (default: every 4 hours) which updates the references to recently changed entities.
+		There is a background task which runs periodically (default: every 4 hours) which updates the references to
+		recently changed entities.
 		As a result, you might see stale data for up to these four hours.
+
 		Example:
-		Entity A references Entity B.
-		Both have a property "name".
-		Entity B gets updated (it name changes).
-		As "A" has a copy of entity "B"s values, you'll see "B"s old name inside the values of the relationalBone when fetching entity A.
-		If you filter a list by relational properties, this will also use the old data! (Eg. filtering A's list by B's new name wont return any result)
-		Currently, this is corrected by the background task, however its possible to consider other methods (eg. by probability).
+			* Entity A references Entity B.
+			* Both have a property "name".
+			* Entity B gets updated (it name changes).
+			* As "A" has a copy of entity "B"s values, you'll see "B"s old name inside the values of the relationalBone when fetching entity A.
+
+		If you filter a list by relational properties, this will also use the old data! (Eg. filtering A's list by
+		B's new name wont return any result)
+		Currently, this is corrected by the background task, however its possible to consider other methods (eg. by
+		probability).
 	"""
 
 
@@ -39,18 +49,25 @@ class relationalBone( baseBone ):
 	def __init__( self, type=None, modul=None, refKeys=None, parentKeys=None, multiple=False, format="$(name)",  *args,**kwargs):
 		"""
 			Initialize a new relationalBone.
-			@param type: KindName of the referenced property. 
-			@type type: String
-			@param modul: Name of the modul which should be used to select entities of kind "type". If not set, the value of "type" will be used (the kindName must match the modulName)
-			@type type: String
-			@param refKeys: A list of properties to include from the referenced property. These properties will be avaiable in the template without having to fetch the referenced property. Filtering is also only possible by properties named here!
-			@type refKeys: List of Strings
-			@param parentKeys: A list of properties from the current skeleton to include. If mixing filtering by relational properties and properties of the class itself, these must be named here.
-			@type parentKeys: List of Strings
-			@param multiple: If True, allow referencing multiple Elements of the given class. (Eg. n:n-relation. otherwise its n:1 )
-			@type multiple: False
-			@param format: Hint for the admin how to display such an relation. See admin/utils.py:formatString for more information
-			@type format: String
+
+			:param type: KindName of the referenced property.
+			:type type: str
+			:param modul: Name of the modul which should be used to select entities of kind "type". If not set,
+				the value of "type" will be used (the kindName must match the modulName)
+			:type type: str
+			:param refKeys: A list of properties to include from the referenced property. These properties will be
+				available in the template without having to fetch the referenced property. Filtering is also only possible
+				by properties named here!
+			:type refKeys: list<str>
+			:param parentKeys: A list of properties from the current skeleton to include. If mixing filtering by
+				relational properties and properties of the class itself, these must be named here.
+			:type parentKeys: List of Strings
+			:param multiple: If True, allow referencing multiple Elements of the given class. (Eg. n:n-relation.
+				otherwise its n:1 )
+			:type multiple: bool
+			:param format: Hint for the admin how to display such an relation. See admin/utils.py:formatString for
+				more information
+			:type format: str
 		"""
 		baseBone.__init__( self, *args, **kwargs )
 		self.multiple = multiple
@@ -210,11 +227,11 @@ class relationalBone( baseBone ):
 			left unchanged and an error-message
 			is returned.
 			
-			@param name: Our name in the skeleton
-			@type name: String
-			@param data: *User-supplied* request-data
-			@type data: Dict
-			@returns: None or String
+			:param name: Our name in the skeleton
+			:type name: String
+			:param data: *User-supplied* request-data
+			:type data: Dict
+			:returns: None or String
 		"""
 		if name in data.keys():
 			value = data[ name ]

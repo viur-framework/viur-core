@@ -18,17 +18,17 @@ class booleanBone( baseBone ):
 	def fromClient( self, name, data ):
 		"""
 			Reads a value from the client.
-			If this value is valis for this bone,
+			If this value is valid for this bone,
 			store this value and return None.
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
 			
-			@param name: Our name in the skeleton
-			@type name: String
-			@param data: *User-supplied* request-data
-			@type data: Dict
-			@returns: None or String
+			:param name: Our name in the skeleton
+			:type name: str
+			:param data: *User-supplied* request-data
+			:type data: dict
+			:returns: str or None
 		"""
 		if name in data.keys():
 			value = data[ name ]
@@ -45,9 +45,9 @@ class booleanBone( baseBone ):
 			Serializes this bone into something we
 			can write into the datastore.
 			
-			@param name: The property-name this bone has in its Skeleton (not the description!)
-			@type name: String
-			@returns: Dict
+			:param name: The property-name this bone has in its Skeleton (not the description!)
+			:type name: str
+			:returns: dict
 		"""
 		if name != "id":
 			entity.set( name, self.value, self.indexed )
@@ -58,10 +58,12 @@ class booleanBone( baseBone ):
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
 			this bone accordingly.
-			@param name: The property-name this bone has in its Skeleton (not the description!)
-			@type name: String
-			@param expando: An instance of the dictionary-like db.Entity class
-			@type expando: db.Entity
+
+			:param name: The property-name this bone has in its Skeleton (not the description!)
+			:type name: str
+			:param expando: An instance of the dictionary-like db.Entity class
+			:type expando: :class:`db.Entity`
+			:returns: bool
 		"""
 		if name in expando.keys():
 			val = expando[ name ]
@@ -81,4 +83,3 @@ class booleanBone( baseBone ):
 			return( super( booleanBone, self ).buildDBFilter( name, skel, dbFilter, {name:val} ) )
 		else:
 			return( dbFilter )
-	

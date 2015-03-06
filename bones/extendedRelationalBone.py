@@ -20,18 +20,24 @@ class extendedRelationalBone( relationalBone ):
 	def __init__( self, type=None, modul=None, refKeys=None, parentKeys=None, multiple=True, format="$(name)", using=None, *args, **kwargs):
 		"""
 			Initialize a new relationalBone.
-			@param type: KindName of the referenced property.
-			@type type: String
-			@param modul: Name of the modul which should be used to select entities of kind "type". If not set, the value of "type" will be used (the kindName must match the modulName)
-			@type type: String
-			@param refKeys: A list of properties to include from the referenced property. These properties will be avaiable in the template without having to fetch the referenced property. Filtering is also only possible by properties named here!
-			@type refKeys: List of Strings
-			@param parentKeys: A list of properties from the current skeleton to include. If mixing filtering by relational properties and properties of the class itself, these must be named here.
-			@type parentKeys: List of Strings
-			@param multiple: If True, allow referencing multiple Elements of the given class. (Eg. n:n-relation. otherwise its n:1 )
-			@type multiple: False
-			@param format: Hint for the admin how to display such an relation. See admin/utils.py:formatString for more information
-			@type format: String
+			:param type: KindName of the referenced property.
+			:type type: String
+			:param modul: Name of the modul which should be used to select entities of kind "type". If not set,
+				the value of "type" will be used (the kindName must match the modulName)
+			:type type: String
+			:param refKeys: A list of properties to include from the referenced property. These properties will be
+				avaiable in the template without having to fetch the referenced property. Filtering is also only possible
+				by properties named here!
+			:type refKeys: List of Strings
+			:param parentKeys: A list of properties from the current skeleton to include. If mixing filtering by
+				relational properties and properties of the class itself, these must be named here.
+			:type parentKeys: List of Strings
+			:param multiple: If True, allow referencing multiple Elements of the given class. (Eg. n:n-relation.
+				otherwise its n:1 )
+			:type multiple: False
+			:param format: Hint for the admin how to display such an relation. See admin/utils.py:formatString for
+				more information
+			:type format: String
 		"""
 		super( extendedRelationalBone, self ).__init__( type, modul, refKeys, parentKeys, multiple, format, *args, **kwargs)
 		if not multiple:
@@ -104,11 +110,11 @@ class extendedRelationalBone( relationalBone ):
 			left unchanged and an error-message
 			is returned.
 
-			@param name: Our name in the skeleton
-			@type name: String
-			@param data: *User-supplied* request-data
-			@type data: Dict
-			@returns: None or String
+			:param name: Our name in the skeleton
+			:type name: String
+			:param data: *User-supplied* request-data
+			:type data: Dict
+			:returns: None or String
 		"""
 		if name in data.keys():
 			value = data[ name ]
