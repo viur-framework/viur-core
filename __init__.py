@@ -12,10 +12,11 @@ __version__ = (-99,-99,-99) #Which API do we expose to our application
 
 import sys, traceback, os, inspect
 #All (optional) 3rd-party modules in our libs-directory
-for lib in os.listdir( os.path.join("server", "libs") ):
+cwd = os.path.abspath(os.path.dirname(__file__))
+for lib in os.listdir( os.path.join(cwd, "libs") ):
 	if not lib.lower().endswith(".zip"): #Skip invalid file
 		continue
-	sys.path.insert(0, os.path.join( "server", "libs", lib ) )
+	sys.path.insert(0, os.path.join( cwd, "libs", lib ) )
 from server.config import conf, sharedConf
 from server import request
 import server.languages as servertrans

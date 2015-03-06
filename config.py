@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta
 from google.appengine.ext import db
 from google.appengine.api import memcache
+import sys
 
 apiVersion = 1 #What format do we use store our data in the Bigtable
 
@@ -95,6 +96,10 @@ class SharedConf(  ):
 			setattr( data, key, value )
 		data.put()
 	
-	
-sharedConf = SharedConf()
+
+if "viur_doc_build" in dir(sys):
+	from mock import MagicMock
+	sharedConf = MagicMock()
+else:
+	sharedConf = SharedConf()
 
