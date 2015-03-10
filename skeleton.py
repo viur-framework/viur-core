@@ -9,7 +9,7 @@ from google.appengine.api import search
 from server.config import conf
 from server import utils
 from server.tasks import CallableTask, CallableTaskBase, callDeferred
-import inspect, os
+import inspect, os, sys
 from server.errors import ReadFromClientError
 import logging
 
@@ -44,7 +44,8 @@ class MetaSkel( type ):
 		#	raise NotImplementedError("Duplicate definition of %s" % kindName)
 		relFileName = inspect.getfile(cls).replace( os.getcwd(),"" )
 		if not relFileName.strip(os.path.sep).startswith("models") and not relFileName.strip(os.path.sep).startswith("server"): # and any( [isinstance(x,baseBone) for x in [ getattr(cls,y) for y in dir( cls ) if not y.startswith("_") ] ] ):
-			raise NotImplementedError("Skeletons must be defined in /models/")
+			if not "viur_doc_build" in dir(sys): #Do not check while documentation build
+				raise NotImplementedError("Skeletons must be defined in /models/")
 		if kindName:
 			MetaSkel._skelCache[ kindName ] = cls
 		for key in dir( cls ):
