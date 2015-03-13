@@ -158,6 +158,16 @@ class relationalBone( baseBone ):
 		return( entity )
 	
 	def postSavedHandler( self, key, skel, id, dbfields ):
+		def isIndexable( val ):
+			if isinstance( val, unicode ) or isinstance(val, str):
+				if len( val )>=500:
+					return( False )
+			if isinstance( val, list ):
+				for x in val:
+					if isinstance( x, unicode ) or isinstance( x, str ):
+						if( len( x )>= 500 ):
+							return( False )
+			return( True )
 		if not self.value:
 			values = []
 		elif isinstance( self.value, dict ):
@@ -183,9 +193,17 @@ class relationalBone( baseBone ):
 				data = [ x for x in values if x["id"]== dbObj[ "dest.id" ] ][0]
 				if self.multiple and self.indexed: #We dont store more than key and kinds, and these dont change
 					for k,v in parentValues.items(): #Write our (updated) values in
-						dbObj[ "src."+k ] = v
+						if not isIndexable(v):
+							dbObj[ "src."+k ] = None
+							logging.error("Cannot index property src.%s of relationalBone %s" % (k,key))
+						else:
+							dbObj[ "src."+k ] = v
 					for k, v in data.items():
-						dbObj[ "dest."+k ] = v
+						if not isIndexable(v):
+							dbObj[ "dest."+k ] = None
+							logging.error("Cannot index property dest.%s of relationalBone %s" % (k,key))
+						else:
+							dbObj[ "dest."+k ] = v
 					dbObj[ "viur_delayed_update_tag" ] = time()
 					db.Put( dbObj )
 				values.remove( data )
@@ -197,9 +215,17 @@ class relationalBone( baseBone ):
 				dbObj[ "src.id" ] = id
 			else:
 				for k, v in val.items():
-					dbObj[ "dest."+k ] = v
+					if not isIndexable(v):
+						dbObj[ "dest."+k ] = None
+						logging.error("Cannot index property dest.%s of relationalBone %s" % (k,key))
+					else:
+						dbObj[ "dest."+k ] = v
 				for k,v in parentValues.items():
-					dbObj[ "src."+k ] = v
+					if not isIndexable(v):
+						dbObj[ "src."+k ] = None
+						logging.error("Cannot index property src.%s of relationalBone %s" % (k,key))
+					else:
+						dbObj[ "src."+k ] = v
 			dbObj[ "viur_delayed_update_tag" ] = time()
 			dbObj[ "viur_src_kind" ] = skel.kindName #The kind of the entry referencing
 			#dbObj[ "viur_src_key" ] = str( id ) #The id of the entry referencing
