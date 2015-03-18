@@ -20,7 +20,7 @@ def generateRandomString( length=13 ):
 	return(  ''.join( [ random.choice(string.ascii_lowercase+string.ascii_uppercase + string.digits) for x in range(13) ] ) )
 
 	
-def sendEMail( dests, name , skel, extraFiles=[] ):
+def sendEMail( dests, name , skel, extraFiles=[], cc=None, bcc=None, replyTo=None ):
 	"""Sends an EMail
 	
 	@type dests: String or [String]
@@ -57,6 +57,18 @@ def sendEMail( dests, name , skel, extraFiles=[] ):
 		message.to = ", ".join( dests )
 	else:
 		message.to = dests
+	if cc:
+		if isinstance( cc, list ):
+			message.cc = ", ".join( cc )
+		else:
+			message.cc = cc
+	if bcc:
+		if isinstance( bcc, list ):
+			message.bcc = ", ".join( bcc )
+		else:
+			message.bcc = bcc
+	if replyTo:
+		message.reply_to = replyTo
 	message.sender = mailfrom
 	message.html = data.replace("\x00","").encode('ascii', 'xmlcharrefreplace')
 
