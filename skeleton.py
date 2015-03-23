@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import copy
+
 from server.bones import baseBone, dateBone, selectOneBone, relationalBone, stringBone
 from collections import OrderedDict
 from threading import local
@@ -11,7 +11,8 @@ from server import utils
 from server.tasks import CallableTask, CallableTaskBase, callDeferred
 import inspect, os, sys
 from server.errors import ReadFromClientError
-import logging
+import logging, copy
+
 
 class BoneCounter(local):
 	def __init__(self):
@@ -275,12 +276,15 @@ class Skeleton( object ):
 			from the data store into the Skeleton structure's bones. Any previous
 			data of the bones will discard.
 
+			To store a Skeleton object to the data store, see :func:`~server.skeleton.Skeleton.toDB`.
+
 			:param id: A :class:`server.DB.Key`, :class:`server.DB.Query`, or string,\
 			from which the data shall be fetched.
 			:type id: server.DB.Key|DB.Query|str
 
 			:returns: True on success; False if the given key could not be found.
 			:rtype: bool
+
 		"""
 		if isinstance(id, basestring ):
 			try:
@@ -312,6 +316,8 @@ class Skeleton( object ):
 			Stores the current data of this instance into the database.
 			If an *id* value is set to the object, this entity will ne updated;
 			Otherwise an new entity will be created.
+
+			To read a Skeleton object from the data store, see :func:`~server.skeleton.Skeleton.fromDB`.
 
 			:param clearUpdateTag: If True, this entity won't be marked dirty;
 			This avoids from being fetched by the background task updating relations.
@@ -614,14 +620,14 @@ class Skeleton( object ):
 		"""
 			Load supplied *data* into Skeleton.
 
-			This function works similar to :ref:`server.skeleton.Skeleton.setValues`, except that
+			This function works similar to :func:`~server.skeleton.Skeleton.setValues`, except that
 			the values retrieved from *data* are checked against the bones and their validity checks.
 
 			Even if this function returns False, all bones are guaranteed to be in a valid state.
-			The ones which have been read correctly are set to their valid values; the other ones are
-			set back to a safe default (None in most cases). So its possible to call
-			:ref:`server.skeleton.Skeleton.toDB()` afterwards even if reading data with this function
-			failed (through this might violates the assumed consistency-model).
+			The ones which have been read correctly are set to their valid values;
+			Bones with invalid values are set back to a safe default (None in most cases).
+			So its possible to call :func:`~server.skeleton.Skeleton.toDB` afterwards even if reading
+			data with this function failed (through this might violates the assumed consistency-model).
 			
 			:param data: Dictionary from which the data is read.
 			:type data: dict
@@ -700,12 +706,15 @@ class MetaRelSkel( type ):
 
 class RelSkel( object ):
 	"""
-		A Skeleton-like class that acts as a container for skeletons used as a additional skeleton for
-		extendedRelationalBones.
-		It must be subclassed where informations about the kindName and its
-		attributes (Bones) are specified.
+		This is a Skeleton-like class that acts as a container for Skeletons used as a
+		additional information data skeleton for
+		:class:`~server.bones.extendedRelationalBone.extendedRelationalBone`.
 
-		Its an hacked Object that stores it members in a OrderedDict-Instance so the Order stays constant
+		It needs to be sub-classed where information about the kindName and its attributes
+		(bones) are specified.
+
+		The Skeleton stores its bones in an :class:`OrderedDict`-Instance, so the definition order of the
+		contained bones remains constant.
 	"""
 	__metaclass__ = MetaRelSkel
 
@@ -823,11 +832,13 @@ class RelSkel( object ):
 
 class SkelList( list ):
 	"""
-		Class to hold multiple skeletons along
-		other commonly used informations (cursors, etc)
-		of that result set.
-		
-		Usually created by calling skel.all(). ... .fetch()
+		This class is used to hold multiple skeletons together with other, commonly used information.
+
+		SkelLists are returned by Skel().all()...fetch()-constructs and provide additional information
+		about the data base query, for fetching additional entries.
+
+		:ivar cursor: Holds the cursor within a query.
+		:vartype cursor: str
 	"""
 
 	def __init__( self, baseSkel ):
