@@ -30,23 +30,23 @@ def sendEMail( dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None
 
 	This function allows for sending e-mails, also with generated content using the Jinja2 template engine.
 
-	:type dests: str|list of str
+	:type dests: str | list of str
 	:param dests: Full-qualified recipient email addresses; These can be assigned as list, for multiple targets.
 
 	:type name: str
 	:param name: The name of a template from the appengine/emails directory, or the template string itself.
 
-	:type skel: server.skeleton.Skeleton|dict|None
+	:type skel: server.skeleton.Skeleton | dict | None
 	:param skel: The data made available to the template. In case of a Skeleton, its parsed the usual way;\
 	Dictionarys are passed unchanged.
 
 	:type extraFiles: list of fileobjects
-	:param extraFiles: List of _open_ fileobjects to be sent within the mail as attachments
+	:param extraFiles: List of **open** fileobjects to be sent within the mail as attachments
 
-	:type cc: str|list of str
+	:type cc: str | list of str
 	:param cc: Carbon-copy recipients
 
-	:type bcc: str|list of str
+	:type bcc: str | list of str
 	:param bcc: Blind carbon-copy recipients
 
 	:type replyTo: str
@@ -137,7 +137,7 @@ def getCurrentUser( ):
 
 		If no user is logged in, the function returns None.
 
-		:rtype: dict|bool
+		:rtype: dict | bool
 		:returns: A dict containing information about the logged-in user, None if no user is logged in.
 	"""
 	user = None
@@ -171,8 +171,7 @@ def markFileForDeletion( dlkey ):
 
 def escapeString( val, maxLength=254 ):
 	"""
-		Quotes several characters and removes "\n" and "\0" to prevent XSS injection.
-
+		Quotes several characters and removes "\\\\n" and "\\\\0" to prevent XSS injection.
 
 		:param val: The value to be escaped.
 		:type val: str

@@ -280,7 +280,7 @@ class Skeleton( object ):
 
 			:param id: A :class:`server.DB.Key`, :class:`server.DB.Query`, or string,\
 			from which the data shall be fetched.
-			:type id: server.DB.Key|DB.Query|str
+			:type id: server.DB.Key | DB.Query | str
 
 			:returns: True on success; False if the given key could not be found.
 			:rtype: bool
@@ -575,7 +575,7 @@ class Skeleton( object ):
 			:param values: A dictionary with values.
 			:type values: dict
 			:param key: If given, this allows to set the current database unique key.
-			:type key: server.db.Key|None
+			:type key: server.db.Key | None
 		"""
 		for bkey,_bone in self.items():
 			if isinstance( _bone, baseBone ):
