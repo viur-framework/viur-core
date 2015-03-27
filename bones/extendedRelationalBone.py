@@ -364,7 +364,7 @@ class extendedRelationalBone( relationalBone ):
 				orderKey = order[0]
 			else:
 				orderKey = order
-			if orderKey.startswith("dest.") or orderKey.startswith("src."):
+			if orderKey.startswith("dest.") or orderKey.startswith("rel.") or orderKey.startswith("src."):
 				#This is already valid for our relational index
 				res.append( order )
 				continue
