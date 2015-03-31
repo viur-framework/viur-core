@@ -5,23 +5,28 @@ import base64
 import string, random
 from time import time
 from server.tasks import PeriodicTask, callDeferred
-from server import db, conf
+from server import db
+from server.config import conf
 from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError, OverQuotaError
 import logging
 
 """
-	Provides a fast and reliable Session-Implementation for the GAE.
-	Use singleton current to access the current Session.
+	Provides a fast and reliable session implementation for the Google AppEngine™.
+	Import singleton ``current`` to access the currently active session.
+
 	Example:
-	from session import current as currentSession
-	currentSession["your_key"] = "your_data"
-	data = currentSession["your_key"]
+
+	.. code-block:: python
+
+		from session import current as currentSession
+
+		currentSession["your_key"] = "your_data"
+		data = currentSession["your_key"]
 	
 	A get-method is provided for convenience.
-	It returns None instead of raising an Exception for the key is not found.
+	It returns None instead of raising an Exception if the key is not found.
 """
 	
-
 class SessionWrapper( threading.local ):
 	cookieName = "viurCookie"
 	
@@ -121,18 +126,19 @@ class SessionWrapper( threading.local ):
 
 
 class GaeSession:
-	lifeTime = 60*60 #60 Minutes
 	plainCookieName = "viurHttpCookie"
 	sslCookieName = "viurSSLCookie"
 	kindName = "viur-session"
 	
 	"""Store Sessions inside the Big Table/Memcache"""
+
 	def load( self, req ):
 		"""
 			Initializes the Session.
-			If the client supplied a valid Cookie,
-			the session is read from the memcache/datastore,
-			otherwise a new, empty session is initialized.
+
+			If the client supplied a valid Cookie, the session is read
+			from the memcache/datastore, otherwise a new, empty session
+			will be initialized.
 		"""
 		self.changed = False
 		self.key = None
@@ -146,9 +152,10 @@ class GaeSession:
 			except:
 				return( False )
 			if data: #Loaded successfully from Memcache
-				if data["lastseen"] < time()-self.lifeTime :
+				if data["lastseen"] < time() - conf[ "viur.session.lifeTime" ]:
 					# This session is too old
 					return( False )
+
 				self.session = pickle.loads( base64.b64decode(data["data"]) )
 				self.sslKey = data["sslkey"]
 				if "skey" in data.keys():
@@ -168,8 +175,8 @@ class GaeSession:
 	def save(self, req):
 		"""
 			Writes the session to the memcache/datastore.
-			Does nothing, if the session hasn't been changed
-			in the current request.
+
+			Does nothing, if the session hasn't been changed in the current request.
 		"""
 		if self.changed:
 			serialized = base64.b64encode( pickle.dumps(self.session, protocol=pickle.HIGHEST_PROTOCOL ) )
@@ -203,14 +210,14 @@ class GaeSession:
 
 	def __contains__( self, key ):
 		"""
-			Returns True if the given key is set in
-			the current session.
+			Returns True if the given *key* is set in the current session.
 		"""
 		return( key in self.session ) 
 	
 	def __delitem__(self, key ):
 		"""
-			Removes a key from the session.
+			Removes a *key* from the session.
+
 			This key must exist.
 		"""
 		del self.session[key]
@@ -218,16 +225,20 @@ class GaeSession:
 	
 	def __getitem__( self, key ):
 		"""
-			Returns the value stored under the
-			given key. The key must exist.
+			Returns the value stored under the given *key*.
+
+			The key must exist.
 		"""
 		return( self.session[ key ] )
 	
 	def get( self, key ): 
 		"""
-			Returns the value stored under the
-			given key. Returns None if the key
-			dosnt exist.
+			Returns the value stored under the given key.
+
+			:param key: Key to retrieve from the session variables.
+			:type key: str
+
+			:return: Returns None if the key doesn't exist.
 		"""
 		if( key in self.session.keys() ):
 			return( self.session[ key ] )
@@ -237,6 +248,7 @@ class GaeSession:
 	def __setitem__( self, key, item ):
 		"""
 			Stores a new value under the given key.
+
 			If that key exists before, its value is
 			overwritten.
 		"""
@@ -255,10 +267,11 @@ class GaeSession:
 	def reset(self):
 		"""
 			Invalids the current session and starts a new one.
-			Especially usefull on login, where we might need to
-			create an ssl-capable Session.
-			Warning: Everything (except the current language)
-			is flushed.
+
+			This function is especially useful at login, where
+			we might need to create an SSL-capable session.
+
+			:warning: Everything (except the current language) is flushed.
 		"""
 		try:
 			lang = self.session[ "language" ]
@@ -275,7 +288,7 @@ class GaeSession:
 	def getSessionKey( self, req=None ):
 		"""
 			Ensures that the current session is initialized
-			and returns its session-key
+			and returns its session-key.
 		"""
 		self.changed = True
 		if self.key: # We are already initialized
@@ -293,7 +306,7 @@ class GaeSession:
 
 	def getSessionSecurityKey(self):
 		"""
-			Returns the security key for this session
+			Returns the security key for this session.
 		"""
 		if self.sessionSecurityKey:
 			return( self.sessionSecurityKey )
@@ -301,17 +314,22 @@ class GaeSession:
 
 	def items(self):
 		"""
-			Returns all items in the current session
+			Returns all items in the current session.
 		"""
 		return( self.session.items() )
 
 @callDeferred
 def killSessionByUser( user=None ):
 	"""
-		Invalidates all sessions for the given userid.
+		Invalidates all active sessions for the given *user*.
+
 		This means that this user is instantly logged out.
-		If no user is given, it tries to invalidate *all* sessions.
-		Use "guest" to kill all sessions not associated with an user.
+		If no user is given, it tries to invalidate **all** active sessions.
+
+		Use "guest" as to kill all sessions not associated with an user.
+
+		:param user: UserID, "guest" or None.
+		:type user: str | None
 	"""
 	logging.error("Invalidating all sessions for %s" % user )
 	query = db.Query( GaeSession.kindName )
@@ -325,7 +343,7 @@ def startClearSessions():
 	"""
 		Removes old (expired) Sessions
 	"""
-	doClearSessions( time()-(GaeSession.lifeTime+300), None )
+	doClearSessions( time() - ( conf[ "viur.session.lifeTime" ] + 300 ), None )
 
 @callDeferred
 def doClearSessions( timeStamp, cursor ):
