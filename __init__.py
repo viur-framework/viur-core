@@ -147,7 +147,7 @@ def buildApp( config, renderers, default=None, *args, **kwargs ):
 			continue
 		for renderName in list(rendlist.keys()): # look, if a particular render should be built
 			if renderName in dir( getattr( config, modulName ) ) \
-				and getattr( getattr( config, modulName ) , renderName ):
+				and getattr( getattr( config, modulName ) , renderName )==True:
 					modulPath = "%s/%s" % ("/"+renderName if renderName!=default else "",  modulName)
 					obj =  getattr( config,  modulName)( modulName, modulPath )
 					if modulName in rendlist[ renderName ]: # we have a special render for this
