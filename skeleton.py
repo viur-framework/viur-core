@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import copy
+
 from server.bones import baseBone, dateBone, selectOneBone, relationalBone, stringBone
 from collections import OrderedDict
 from threading import local
@@ -11,7 +11,8 @@ from server import utils
 from server.tasks import CallableTask, CallableTaskBase, callDeferred
 import inspect, os, sys
 from server.errors import ReadFromClientError
-import logging
+import logging, copy
+
 
 class BoneCounter(local):
 	def __init__(self):
@@ -21,11 +22,12 @@ _boneCounter = BoneCounter()
 
 class MetaSkel( type ):
 	"""
-		Meta Class for Skeletons.
-		Used to enforce several restrictions on Bone names etc.
+		This is the meta class for Skeletons.
+		It is used to enforce several restrictions on bone names, etc.
 	"""
 	_skelCache = {}
-	__reservedKeywords_ = [ "self", "cursor", "amount", "orderby", "orderdir", "style", "items", "keys", "values" ]
+	__reservedKeywords_ = [ "self", "cursor", "amount", "orderby", "orderdir",
+	                        "style", "items", "keys", "values" ]
 	def __init__( cls, name, bases, dct ):
 		kindName = cls.kindName
 		if kindName and kindName in MetaSkel._skelCache.keys():
@@ -71,11 +73,22 @@ def listKnownSkeletons():
 
 class Skeleton( object ):
 	""" 
-		Container-object which holds informations about one entity.
-		It must be subclassed where informations about the kindName and its
-		attributes (Bones) are specified.
-		
-		Its an hacked Object that stores it members in a OrderedDict-Instance so the Order stays constant
+		This is a container-object holding information about one database entity.
+
+		It has to be sub-classed with individual information about the kindName of the entities
+		and its specific data attributes, the so called bones.
+		The Skeleton stores its bones in an :class:`OrderedDict`-Instance, so the definition order of the
+		contained bones remains constant.
+
+		:ivar id: This bone stores the current database key of this entity. \
+		Assigning to this bones value is dangerous and does *not* affect the actual key its stored in.
+		:vartype id: server.bones.baseBone
+
+		:ivar creationdate: The date and time where this entity has been created.
+		:vartype creationdate: server.bones.dateBone
+
+		:ivar changedate: The date and time of the last change to this entity.
+		:vartype changedate: server.bones.dateBone
 	"""
 	__metaclass__ = MetaSkel
 
@@ -136,26 +149,35 @@ class Skeleton( object ):
 	# The "id" bone stores the current database key of this skeleton.
 	# Warning: Assigning to this bones value is dangerous and does *not* affect the actual key
 	# its stored in
-	id = baseBone( readOnly=True, visible=False, descr="ID")
+	id = baseBone( descr="ID", readOnly=True, visible=False )
 
 	# The date (including time) when this entry has been created
-	creationdate = dateBone( readOnly=True, visible=False, creationMagic=True, indexed=True, descr="created at" )
+	creationdate = dateBone( descr="created at",
+	                         readOnly=True, visible=False,
+	                         creationMagic=True, indexed=True  )
 
 	# The last date (including time) when this entry has been updated
-	changedate = dateBone( readOnly=True, visible=False, updateMagic=True, indexed=True, descr="updated at" )
+	changedate = dateBone( descr="updated at",
+	                       readOnly=True, visible=False,
+	                       updateMagic=True, indexed=True, )
 
 	@classmethod
 	def subSkel(cls, name, *args):
 		"""
-			Creates the given eton.
-			A subskeleton is a copy of the original skeleton, containing only a subset of its bones.
-			To define subskeletons, use the subSkels property of that skeleton.
-			If more than one subskel is given, its treated as union, so a bone will appear in the resulting
-			skeleton if its included in at least one subskels.
+			Creates a new sub-skeleton as part of the current skeleton.
 
-			@param name: Name of the subskel (that's the key of the subSkels dictionary)
-			@type name: String
-			@returns Skeleton
+			A sub-skeleton is a copy of the original skeleton, containing only a subset of its bones.
+			To define sub-skeletons, use the subSkels property of the Skeleton object.
+
+			By passing multiple sub-skeleton names to this function, a sub-skeleton with the union of
+			all bones of the specified sub-skeletons is returned
+
+			:param name: Name of the sub-skeleton (that's the key of the subSkels dictionary); \
+						Multiple names can be specified.
+			:type name: str
+
+			:return: The sub-skeleton of the specified type.
+			:rtype: server.Skeleton
 		"""
 		skel = cls()
 		boneList = []
@@ -180,10 +202,10 @@ class Skeleton( object ):
 
 	def __init__( self, kindName=None, _cloneFrom=None, *args,  **kwargs ):
 		"""
-			Create a local copy from the global Skel-class.
+			Initializes a Skeleton.
 			
-			@param kindName: If set, override the entity kind were operating on.
-			@type kindName: String or None
+			:param kindName: If set, it overrides the kindName of the current class.
+			:type kindName: str
 		"""
 		super(Skeleton, self).__init__(*args, **kwargs)
 		self.kindName = kindName or self.kindName
@@ -216,7 +238,10 @@ class Skeleton( object ):
 
 	def clone(self):
 		"""
-			Returns a copy of the current skeleton
+			Creates a stand-alone copy of the current Skeleton object.
+
+			:returns: The stand-alone copy of the object.
+			:rtype: Skeleton
 		"""
 		return( type( self )( _cloneFrom=self ) )
 
@@ -236,20 +261,30 @@ class Skeleton( object ):
 
 	def all(self):
 		"""
-			Returns a db.Query object bound to this skeleton.
-			This query will operate on our kindName, and its valid
-			to use its special methods mergeExternalFilter and getSkel.
+			Create a query with the current Skeletons kindName.
+
+			:returns: A db.Query object which allows for entity filtering and sorting.
+			:rtype: :class:`server.db.Query`
 		"""
 		return( db.Query( self.kindName, srcSkelClass=self ) )
 
 	def fromDB( self, id ):
 		"""
-			Populates the current instance with values read from the given DB-Key.
-			Its current (maybe unsaved data) is discarded.
-			
-			@param id: An DB.Key or a DB.Query from which the data is read.
-			@type id: DB.Key, String or DB.Query
-			@returns: True on success; False if the key could not be found
+			Load entity with *id* from the data store into the Skeleton.
+
+			Reads all available data of entity kind *kindName* and the key *id*
+			from the data store into the Skeleton structure's bones. Any previous
+			data of the bones will discard.
+
+			To store a Skeleton object to the data store, see :func:`~server.skeleton.Skeleton.toDB`.
+
+			:param id: A :class:`server.DB.Key`, :class:`server.DB.Query`, or string,\
+			from which the data shall be fetched.
+			:type id: server.DB.Key | DB.Query | str
+
+			:returns: True on success; False if the given key could not be found.
+			:rtype: bool
+
 		"""
 		if isinstance(id, basestring ):
 			try:
@@ -276,15 +311,20 @@ class Skeleton( object ):
 
 	def toDB( self, clearUpdateTag=False ):
 		"""
-			Saves the current data of this instance into the database.
-			If an ID is specified, this entity is updated, otherwise an new
-			Entity is created.
-			
-			@param id: DB-Key to update. If none, a new one will be created
-			@type id: string or None
-			@param clearUpdateTag: If true, this entity wont be marked dirty; so the background-task updating releations wont catch this one. Default: False
-			@type clearUpdateTag: Bool
-			@returns String DB-Key
+			Store current Skeleton entity to data store.
+
+			Stores the current data of this instance into the database.
+			If an *id* value is set to the object, this entity will ne updated;
+			Otherwise an new entity will be created.
+
+			To read a Skeleton object from the data store, see :func:`~server.skeleton.Skeleton.fromDB`.
+
+			:param clearUpdateTag: If True, this entity won't be marked dirty;
+			This avoids from being fetched by the background task updating relations.
+			:type clearUpdateTag: bool
+
+			:returns: The data store key of the entity.
+			:rtype: str
 		"""
 		def txnUpdate( id, mergeFrom, clearUpdateTag ):
 			blobList = set()
@@ -443,31 +483,35 @@ class Skeleton( object ):
 
 	def preProcessSerializedData(self, entity):
 		"""
-			Can be overridden to modify the db.Entity before its actually written to the datastore.
+			Can be overridden to modify the :class:`server.db.Entity` before its actually
+			written to the data store.
 		"""
 		return( entity )
 
 	def getSearchDocumentFields(self, fields):
 		"""
-			Can be overridden to modify the list of search document fields before they are added to the index.
+			Can be overridden to modify the list of search document fields before they are
+			added to the index.
 		"""
 		return( fields )
 
 	def postSavedHandler(self, id, dbObj ):
 		"""
-			Can be overridden to perform further actions after the entity has been written to the datastore.
+			Can be overridden to perform further actions after the entity has been written
+			to the data store.
 		"""
 		pass
 
 	def postDeletedHandler(self, id):
 		"""
-			Can be overridden to perform further actions after the entity has been deleted from the datastore.
+			Can be overridden to perform further actions after the entity has been deleted
+			from the data store.
 		"""
 
 
 	def delete( self ):
 		"""
-			Deletes the specified entity from the database.
+			Deletes the entity associated with the current Skeleton from the data store.
 		"""
 		def txnDelete( key ):
 			if self.enforceUniqueValuesFor:
@@ -517,17 +561,21 @@ class Skeleton( object ):
 
 	def setValues( self, values, key=False ):
 		"""
-			Update the values of the current instance with the ones from the given dictionary.
-			Usually used to merge values fetched from the database into the current skeleton instance.
-			Warning: Performs no error-checking for invalid values! Its possible to set invalid values
+			Load *values* into Skeleton, without validity checks.
+
+			This function is usually used to merge values fetched from the database into the
+			current skeleton instance.
+
+			:warning: Performs no error-checking for invalid values! Its possible to set invalid values
 			which may break the serialize/deserialize function of the related bone!
-			If no bone could be found for a given key-name. this key is ignored.
-			Values of other bones, not mentioned in this dict are also left unchanged.
+
+			If no bone could be found for a given key, this key is ignored. Any values of other bones
+			not mentioned in *values* remain unchanged.
 			
-			@param values: Dictionary with new Values.
-			@type values: dict
-			@param key: If given, sets the current database-key of this skeleton
-			@type key: db.Key or None
+			:param values: A dictionary with values.
+			:type values: dict
+			:param key: If given, this allows to set the current database unique key.
+			:type key: server.db.Key | None
 		"""
 		for bkey,_bone in self.items():
 			if isinstance( _bone, baseBone ):
@@ -543,8 +591,10 @@ class Skeleton( object ):
 							pass
 				else:
 					_bone.unserialize( bkey, values )
+
 		if key is not False:
 			assert key is None or isinstance( key, db.Key ), "Key must be None or a db.Key instance"
+
 			if key is None:
 				self.__currentDbKey_ = None
 				self["id"].value = ""
@@ -554,31 +604,37 @@ class Skeleton( object ):
 
 	def getValues(self):
 		"""
-			Returns the current values as dictionary.
-			This is *not* the inverse of setValues as its not
-			valid to save these values into the database yourself!
-			Doing so will result in an entity that might not appear
-			in searches and possibly break the deserializion of the whole entity.
-			
-			@returns: dict
+			Returns the current bones of the Skeleton as a dictionary.
+
+			:returns: Dictionary, where the keys are the bones and the values the current values.
+			:rtype: dict
 		"""
 		res = {}
+
 		for key,_bone in self.items():
 			res[ key ] = _bone.value
+
 		return( res )
 
 	def fromClient( self, data ):
 		"""
-			Reads the data supplied by data.
-			Unlike setValues, error-checking is performed.
-			The values might be in a different representation than the one used in getValues/serValues.
-			Even if this function returns False, all bones are guranteed to be in a valid state:
-			The ones which have been read correctly contain their data; the other ones are set back to a safe default (None in most cases)
-			So its possible to call save() afterwards even if reading data fromClient faild (through this might violates the assumed consitency-model!).
+			Load supplied *data* into Skeleton.
+
+			This function works similar to :func:`~server.skeleton.Skeleton.setValues`, except that
+			the values retrieved from *data* are checked against the bones and their validity checks.
+
+			Even if this function returns False, all bones are guaranteed to be in a valid state.
+			The ones which have been read correctly are set to their valid values;
+			Bones with invalid values are set back to a safe default (None in most cases).
+			So its possible to call :func:`~server.skeleton.Skeleton.toDB` afterwards even if reading
+			data with this function failed (through this might violates the assumed consistency-model).
 			
-			@param data: Dictionary from which the data is read
-			@type data: Dict
-			@returns: True if the data was successfully read; False otherwise (eg. some required fields where missing or invalid)
+			:param data: Dictionary from which the data is read.
+			:type data: dict
+
+			:returns: True if all data was successfully read and taken by the Skeleton's bones.\
+			False otherwise (eg. some required fields where missing or invalid).
+			:rtype: bool
 		"""
 		complete = True
 		super(Skeleton,self).__setattr__( "errors", {} )
@@ -615,17 +671,16 @@ class Skeleton( object ):
 
 	def refresh(self):
 		"""
-			Causes all cached data in this skeleton to refreshed.
-			This does not re-read the skeleton from the datastore but
-			causes bones like relationalBones to re-fetch the values of their
-			referenced entities.
+			Refresh the bones current content.
+
+			This function causes a refresh of all relational bones and their associated
+			information.
 		"""
 		for key,bone in self.items():
 			if not isinstance( bone, baseBone ):
 				continue
 			if "refresh" in dir( bone ):
 				bone.refresh( key, self )
-
 
 
 class MetaRelSkel( type ):
@@ -651,12 +706,15 @@ class MetaRelSkel( type ):
 
 class RelSkel( object ):
 	"""
-		A Skeleton-like class that acts as a container for skeletons used as a additional skeleton for
-		extendedRelationalBones.
-		It must be subclassed where informations about the kindName and its
-		attributes (Bones) are specified.
+		This is a Skeleton-like class that acts as a container for Skeletons used as a
+		additional information data skeleton for
+		:class:`~server.bones.extendedRelationalBone.extendedRelationalBone`.
 
-		Its an hacked Object that stores it members in a OrderedDict-Instance so the Order stays constant
+		It needs to be sub-classed where information about the kindName and its attributes
+		(bones) are specified.
+
+		The Skeleton stores its bones in an :class:`OrderedDict`-Instance, so the definition order of the
+		contained bones remains constant.
 	"""
 	__metaclass__ = MetaRelSkel
 
@@ -774,11 +832,13 @@ class RelSkel( object ):
 
 class SkelList( list ):
 	"""
-		Class to hold multiple skeletons along
-		other commonly used informations (cursors, etc)
-		of that result set.
-		
-		Usually created by calling skel.all(). ... .fetch()
+		This class is used to hold multiple skeletons together with other, commonly used information.
+
+		SkelLists are returned by Skel().all()...fetch()-constructs and provide additional information
+		about the data base query, for fetching additional entries.
+
+		:ivar cursor: Holds the cursor within a query.
+		:vartype cursor: str
 	"""
 
 	def __init__( self, baseSkel ):

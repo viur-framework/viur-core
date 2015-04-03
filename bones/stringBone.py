@@ -27,7 +27,9 @@ class LanguageWrapper( dict ):
 	def resolve(self):
 		"""
 			Causes this wrapper to evaluate to the best language available for the current request.
-			@returns string or [string] if multiple
+
+			:returns: str|list of str
+			:rtype: str|list of str
 		"""
 		lang = request.current.get().language # currentSession.getLanguage()
 		if not lang:

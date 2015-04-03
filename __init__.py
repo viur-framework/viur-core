@@ -1,7 +1,7 @@
 """
 ViUR Server
 
-Copyright 2012 Mausbrand Informationssysteme GmbH
+Copyright 2012-2015 by Mausbrand Informationssysteme GmbH
 Licensed under LGPL Version 3.
 http://www.gnu.org/licenses/lgpl-3.0
 
@@ -11,12 +11,15 @@ http://www.viur.is
 __version__ = (-99,-99,-99) #Which API do we expose to our application
 
 import sys, traceback, os, inspect
+
 #All (optional) 3rd-party modules in our libs-directory
 cwd = os.path.abspath(os.path.dirname(__file__))
+
 for lib in os.listdir( os.path.join(cwd, "libs") ):
 	if not lib.lower().endswith(".zip"): #Skip invalid file
 		continue
 	sys.path.insert(0, os.path.join( cwd, "libs", lib ) )
+
 from server.config import conf, sharedConf
 from server import request
 import server.languages as servertrans
@@ -35,15 +38,73 @@ try:
 	conf["viur.avaiableLanguages"].extend( [x for x in dir( translations ) if (len(x)==2 and not x.startswith("_")) ] )
 except ImportError: #The Project doesnt use Multi-Language features
 	translations = None
+
 def translate( key, **kwargs ):
+	"""
+	Translate *key* into language text pendant.
+
+	This function is part of ViURs language support facilities for supporting internationalization (i18n).
+
+	Translations are provided in the applications *translations* module in form of a dict, where the keys
+	should be the language strings in the project's major language (usually english), and the values the
+	strings provided in the particular language implemented. The translation key strings must be given
+	in a lower-case order, altought they may be capitalized or upper-case written. If no key is found
+	within a specific translation, it is directly used as the output string.
+
+	The strings may contain placeholders in form ``{{placeholer}}``, which can be assigned via the
+	*kwargs* argument.
+
+	``translate()`` is also provided as ``_()`` as global function.
+
+	In this simple example, a file ``translations/de.py`` is implemented with the content:
+
+	.. code-block:: python
+
+		de = {
+				"welcome to viur": u"Willkommen in ViUR",
+				"hello {{user}}!": u"Hallo, {{user}}!"
+		}
+
+	To support internationalization, it is simply done this way:
+
+	.. code-block:: python
+		txt = _( "Hello {{user}}!", user="John Doe" ) + " - "  + _( "Welcome to ViUR" )
+
+	Language support is also provided in Jinja2-templates like this:
+
+	.. code-block:: jinja2
+		{{ _( "Hello {{user}}!", user="John Doe" ) }} - {{ _( "Welcome to ViUR" ) }}
+
+	This will both output "Hello John Doe! - Welcome to ViUR" in an english-configured language environment,
+	and "Hallo John Doe! - Willkommen in ViUR" in a german-configured language environment.
+
+	The current session language (or default language) can be overridden with ``_lang``, e.g.
+
+	.. code-block:: python
+		txt = _( "Hello {{user}}!", user="John Doe" ) + " - "  + _( "Welcome to ViUR", lang="en" )
+
+	will result in "Hallo John Doe! - Welcome to ViUR" in a german-configured language environment.
+
+	:param key: The key value that should be translated; If no key is found in the configured language,\
+	key is directly used.
+	:type key: str
+	:param kwargs: May contain place-holders replaced as ``{{placeholer}}`` within the key or translation.\
+	The special-value ``_lang`` overrides the current language setting.
+
+	:return: Translated text or key, with replaced placeholders, if given.
+	:rtype: str
+	"""
+
 	try:
 		lang = request.current.get().language
 	except:
 		return( key )
+
 	if key is None:
 		return( None )
 	elif not isinstance( key, basestring ):
 		raise ValueError("Can only translate strings, got %s instead" % str(type(key)))
+
 	res = None
 	lang = lang or conf["viur.defaultLanguage"]
 
@@ -52,25 +113,43 @@ def translate( key, **kwargs ):
 
 	if lang in conf["viur.languageAliasMap"].keys():
 		lang = conf["viur.languageAliasMap"][ lang ]
+
 	if lang and lang in dir( translations ):
 		langDict = getattr(translations,lang)
+
 		if key.lower() in langDict.keys():
 			res = langDict[ key.lower() ]
+
 	if res is None and lang and lang in dir( servertrans ):
 		langDict = getattr(servertrans,lang)
+
 		if key.lower() in langDict.keys():
 			res = langDict[ key.lower() ]
+
 	if res is None and conf["viur.logMissingTranslations"]:
 		from server import db
-		db.GetOrInsert( key="%s-%s" % (key, str(lang)), kindName="viur-missing-translations", langkey=key, lang=lang )
+		db.GetOrInsert( key="%s-%s" % ( key, str( lang )),
+		                kindName="viur-missing-translations",
+		                langkey=key, lang=lang )
+
 	if res is None:
 		res = key
+
 	for k, v in kwargs.items():
 		res = res.replace("{{%s}}"%k, v )
+
 	return( res )
+
 __builtins__["_"] = translate #Install the global "_"-Function
 
+
 def setDefaultLanguage( lang ):
+	"""
+	Configures default language to *lang*.
+
+	:param lang: Name of the language module to use by default.
+	:type lang: str
+	"""
 	conf["viur.defaultLanguage"] = lang.lower()
 
 def setDefaultDomainLanguage( domain, lang ):
@@ -109,19 +188,25 @@ except:
 
 def buildApp( config, renderers, default=None, *args, **kwargs ):
 	"""
-		This creates the application-context for the current instance.
-		It converts the classes found in your "modules"-modul, and the given
-		renders into the object found at conf["viur.mainApp"].
-		Each class found in "modules" will be
-			- instanciated
-			- get the corresponding render attached
-			- attached to conf["viur.mainApp"]
-		@param config: Usually your "modules"-modul.
-		@type config: Modul, or anything else which can be traversed by dir, getattr
-		@param renders: Usually the module server.renders.
-		@type renders: Modul, or a dictionary renderName => renderClass
-		@param default: Name of the render, wich will form the root of the application (i.e. the render, which wont get a prefix.) Usually jinja2. ( => /user instead of /jinja2/user )
-		@type default: String
+		Creates the application-context for the current instance.
+
+		This function converts the classes found in the *modules*-module,
+		and the given renders into the object found at ``conf["viur.mainApp"]``.
+
+		Every class found in *modules* becomes
+
+		- instanced
+		- get the corresponding renderer attached
+		- will be attached to ``conf["viur.mainApp"]``
+
+		:param config: Usually the module provided as *modules* directory within the application.
+		:type config: module | object
+		:param renders: Usually the module *server.renders*, or a dictionary renderName => renderClass.
+		:type renders: module | dict
+		:param default: Name of the renderer, which will form the root of the application.\
+		This will be the renderer, which wont get a prefix, usually jinja2. \
+		(=> /user instead of /jinja2/user)
+		:type default: str
 	"""
 	class ExtendableObject( object ):
 		pass
@@ -137,14 +222,18 @@ def buildApp( config, renderers, default=None, *args, **kwargs ):
 				for subkey in dir(  rendsublist ):
 					if not "__" in subkey:
 						rendlist[ key ][ subkey ] = getattr( rendsublist,  subkey )
+
 	if "index" in dir( config ):
 		res = config.index()
 	else:
 		res = ExtendableObject()
+
 	config._tasks = TaskHandler
+
 	for modulName in dir( config ): # iterate over all modules
 		if modulName=="index":
 			continue
+
 		for renderName in list(rendlist.keys()): # look, if a particular render should be built
 			if renderName in dir( getattr( config, modulName ) ) \
 				and getattr( getattr( config, modulName ) , renderName )==True:
@@ -166,7 +255,8 @@ def buildApp( config, renderers, default=None, *args, **kwargs ):
 							else:
 								setattr( res,  renderName,  ExtendableObject() )
 						setattr( getattr(res, renderName), modulName, obj )
-	if not isinstance( renderers,    dict ): # Apply Renderers postProcess Filters
+
+	if not isinstance( renderers, dict ): # Apply Renderers postProcess Filters
 		for renderName in list(rendlist.keys()):
 			rend = getattr( renderers, renderName )
 			if "_postProcessAppObj" in dir( rend ):
@@ -184,6 +274,7 @@ def buildApp( config, renderers, default=None, *args, **kwargs ):
 				else:
 					if renderName in dir(res):
 						setattr( res, renderName,  rend["_postProcessAppObj"]( getattr( res,renderName ) ) )
+
 	if conf["viur.exportPassword"] is not None or conf["viur.importPassword"] is not None:
 		# Enable the Database ex/import API
 		from server.dbtransfer import DbTransfer
@@ -199,27 +290,29 @@ def buildApp( config, renderers, default=None, *args, **kwargs ):
 			logging.warning("The Export-API is enabled. Everyone having that key can read the whole database!")
 
 		setattr( res, "dbtransfer", DbTransfer() )
+
 	if default in rendlist and "renderEmail" in dir (rendlist[ default ]["default"]()):
 		conf["viur.emailRenderer"] = rendlist[ default ]["default"]().renderEmail
 	elif "jinja2" in list(rendlist.keys()):
 		conf["viur.emailRenderer"] = rendlist[ "jinja2" ]["default"]().renderEmail
+
 	return res
 
 class BrowseHandler(webapp.RequestHandler):
 	"""
-		This class accepts the requests, collect its parameters and
-		routes the request to its destination function.
-		Dont mess around with. Dont instanciate. Dont subclass.
-		DONT TOUCH!
+		This class accepts the requests, collect its parameters and routes the request
+		to its destination function.
+
+		:warning: Don't instantiate! Don't subclass! DON'T TOUCH! ;)
 	"""
 	
 	def get(self, path="/", *args, **kwargs): #Accept a HTTP-GET request
 		if path=="_ah/start" or path=="_ah/warmup": #Warmup request
 			self.response.out.write("OK")
 			return
+
 		self.isPostRequest = False
 		self.processRequest( path, *args, **kwargs )
-
 
 	def post(self, path="/", *args, **kwargs): #Accept a HTTP-POST request
 		self.isPostRequest = True
@@ -455,15 +548,19 @@ class BrowseHandler(webapp.RequestHandler):
 def setup( modules, render=None, default="jinja2" ):
 	"""
 		Define whats going to be served by this instance.
-		@param modules: Your "modules"-modul. (The thing you got by calling "import modules")
-		@type modules: Modul
-		@param render: Usually the "server.renders"-Modul. Allows the project to supply an alternative set of renders
-		@type render: Modul, or a dictionary renderBaseName => { renderSubName => Class }, or None (for the build-in set of renders)
-		@param default: Which render should be the default. Its modules wont get a prefix (i.e /user instead of /renderBaseName/user )
-		@type default: String
+
+		:param config: Usually the module provided as *modules* directory within the application.
+		:type config: module | object
+		:param renders: Usually the module *server.renders*, or a dictionary renderName => renderClass.
+		:type renders: module | dict
+		:param default: Name of the renderer, which will form the root of the application.\
+		This will be the renderer, which wont get a prefix, usually jinja2. \
+		(=> /user instead of /jinja2/user)
+		:type default: str
 	"""
 	import models
 	from server.skeleton import Skeleton
+
 	conf["viur.models"] = {}
 	for modelKey in dir( models ):
 		modelModul = getattr( models, modelKey )
@@ -500,31 +597,32 @@ def setup( modules, render=None, default="jinja2" ):
 	return( conf["viur.wsgiApp"] )
 	
 
-def run( ):
+def run():
 	"""
-		Starts processing requests.
+		Runs the previously configured server.
 	"""
 	run_wsgi_app( conf["viur.wsgiApp"] )
 
 ## Decorators ##
 def forceSSL( f ):
 	"""
-		Forces usage of an encrypted Channel for a given Ressource.
-		Has no effect on the development-server.
+		Decorator, which forces usage of an encrypted Cchannel for a given resource.
+		Has no effects on development-servers.
 	"""
 	f.forceSSL = True
 	return( f )
 
 def forcePost( f ):
 	"""
-		Forces usage of an http post request.
+		Decorator, which forces usage of an http post request.
 	"""
 	f.forcePost = True
 	return( f )
 
 def exposed( f ):
 	"""
-		Marks an function as exposed.
+		Decorator, which marks an function as exposed.
+
 		Only exposed functions are callable by http-requests.
 	"""
 	f.exposed = True
@@ -532,9 +630,10 @@ def exposed( f ):
 
 def internalExposed( f ):
 	"""
-		Marks an function as internal exposed.
+		Decorator, marks an function as internal exposed.
+
 		Internal exposed functions are not callable by external http-requests,
-		but can be called by templates using execRequest
+		but can be called by templates using ``execRequest()``.
 	"""
 	f.internalExposed = True
 	return( f )

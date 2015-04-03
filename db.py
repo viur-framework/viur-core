@@ -7,21 +7,25 @@ from server.config import conf
 import logging
 
 """
-	Tiny wrapper around google.appengine.api.datastore*.
+	Tiny wrapper around *google.appengine.api.datastore*.
+
 	This just ensures that operations issued directly through the database-api
-	dosn't interfere with our caching. If you need skeletons anyway, query the database
-	using skel.all(); its faster and is able to serve more requests from cache.
+	doesn't interfere with ViURs internal caching. If you need skeletons anyway,
+	query the database using skel.all(); its faster and is able to serve more
+	requests from cache.
 """
+
 __cacheLockTime__ = 42 #Prevent an entity from creeping into the cache for 42 Secs if it just has been altered.
 __cacheTime__ = 15*60 #15 Mins
 __CacheKeyPrefix__ ="viur-db-cache:" #Our Memcache-Namespace. Dont use that for other purposes
 
 def PutAsync( entities, **kwargs ):
 	"""
-		Asynchronously store one or more entities in the datastore.
+		Asynchronously store one or more entities in the data store.
 
-		Identical to db.Put() except returns an asynchronous object. Call
-		get_result() on the return value to block on the call and get the results.
+		This function is identical to :func:`server.db.Put`, except that it
+		returns an asynchronous object. Call ``get_result()`` on the return value to
+		block on the call and get the results.
 	"""
 	if isinstance( entities, Entity ):
 		entities._fixUnindexedProperties()
@@ -42,24 +46,24 @@ def PutAsync( entities, **kwargs ):
 
 def Put( entities, **kwargs ):
 	"""
-		Store one or more entities in the datastore.
+		Store one or more entities in the data store.
 
-		The entities may be new or previously existing. For new entities, Put() will
-		fill in the app id and key assigned by the datastore.
+		The entities may be new or previously existing. For new entities,
+		``Put()`` will fill in the app id and key assigned by the data store.
 
-		If the argument is a single Entity, a single Key will be returned. If the
-		argument is a list of Entity, a list of Keys will be returned.
+		:param entities: Entity or list of entities to be stored.
+		:type entities: :class:`server.db.Entity` | list of :class:`server.db.Entity`
 
-		Args:
-			entities: Entity or list of Entities
-			config: Optional Configuration to use for this request, must be specified
-			as a keyword argument.
+		:param config: Optional configuration to use for this request. This must be specified\
+		as a keyword argument.
+		:type config: dict
 
-		Returns:
-			Key or list of Keys
+		:returns: If the argument ``entities`` is a single :class:`server.db.Entity`, \
+		a single Key is returned. If the argument is a list of :class:`server.db.Entity`, \
+		a list of Keys will be returned.
+		:rtype: Key | list of keys
 
-		Raises:
-			TransactionFailedError, if the Put could not be committed.
+		:raises: :exc:`TransactionFailedError`, if the action could not be committed.
 	"""
 	if isinstance( entities, Entity ):
 		entities._fixUnindexedProperties()
@@ -80,10 +84,11 @@ def Put( entities, **kwargs ):
 	
 def GetAsync( keys, **kwargs ):
 	"""
-		Asynchronously retrieves one or more entities from the datastore.
+		Asynchronously retrieves one or more entities from the data store.
 		
-		Identical to datastore.Get() except returns an asynchronous object. Call
-		get_result() on the return value to block on the call and get the results.
+		This function is identical to :func:`server.db.Get`, except that it
+		returns an asynchronous object. Call ``get_result()`` on the return value to
+		block on the call and get the results.
 	"""
 	class AsyncResultWrapper:
 		"""
@@ -106,26 +111,29 @@ def GetAsync( keys, **kwargs ):
 	
 def Get( keys, **kwargs ):
 	"""
-		Retrieves one or more entities from the datastore.
+		Retrieve one or more entities from the data store.
 
-		Retrieves the entity or entities with the given key(s) from the datastore
-		and returns them as fully populated Entity objects, as defined below. If
-		there is an error, raises a subclass of datastore_errors.Error.
+		Retrieves the entity or entities with the given key(s) from the data store
+		and returns them as fully populated :class:`server.db.Entity` objects.
 
-		If keys is a single key or string, an Entity will be returned, or
-		EntityNotFoundError will be raised if no existing entity matches the key.
+		If there is an error, the function raises a subclass of :exc:`datastore_errors.Error`.
+
+		If keys is a single key or str, an Entity will be returned,
+		or :exc:`EntityNotFoundError` will be raised if no existing entity matches the key.
 
 		However, if keys is a list or tuple, a list of entities will be returned
 		that corresponds to the sequence of keys. It will include entities for keys
 		that were found and None placeholders for keys that were not found.
 
-		Args:
-			keys: Key or string or list of Keys or strings
-			config: Optional Configuration to use for this request, must be specified
-			as a keyword argument.
+		:param keys: Key, str or list of keys or strings to be retrieved.
+		:type keys: Key | str | list of Key | list of str
 
-		Returns:
-			Entity or list of Entity objects
+		:param config: Optional configuration to use for this request. This must be specified\
+		as a keyword argument.
+		:type config: dict
+
+		:returns: Entity or list of Entity objects corresponding to the specified key(s).
+		:rtype: :class:`server.db.Entity` | list of :class:`server.db.Entity`
 	"""
 	if conf["viur.db.caching" ]>0  and not datastore.IsInTransaction():
 		if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
@@ -181,62 +189,26 @@ def Get( keys, **kwargs ):
 	else:
 		return( Entity.FromDatastoreEntity( datastore.Get( keys, **kwargs ) ) )
 
-def DeleteAsync(keys, **kwargs):
-	"""
-		Asynchronously deletes one or more entities from the datastore.
-
-		Identical to datastore.Delete() except returns an asynchronous object. Call
-		get_result() on the return value to block on the call.
-	"""
-	if conf["viur.db.caching" ]>0:
-		if isinstance( keys, datastore_types.Key ): #Just one:
-			memcache.delete( str( keys ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
-		elif isinstance( keys, list ):
-			for key in keys:
-				assert isinstance( key, datastore_types.Key ) or isinstance( key, basestring )
-				memcache.delete( str( key ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
-	return( datastore.DeleteAsync( keys, **kwargs ) )
-	
-def Delete(keys, **kwargs):
-	"""
-		Deletes one or more entities from the datastore. Use with care!
-
-		Deletes the given entity(ies) from the datastore. You can only delete
-		entities from your app. If there is an error, raises a subclass of
-		datastore_errors.Error.
-
-		Args:
-			# the primary key(s) of the entity(ies) to delete
-			keys: Key or string or list of Keys or strings
-			config: Optional Configuration to use for this request, must be specified
-			as a keyword argument.
-
-		Raises:
-			TransactionFailedError, if the Delete could not be committed.
-	"""
-	if conf["viur.db.caching" ]>0:
-		if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
-			memcache.delete( str( keys ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
-		elif isinstance( keys, list ):
-			for key in keys:
-				assert isinstance( key, datastore_types.Key ) or isinstance( key, basestring )
-				memcache.delete( str( key ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
-	return( datastore.Delete( keys, **kwargs ) )
-
 def GetOrInsert( key, kindName=None, parent=None, **kwargs ):
 	"""
 		Either creates a new entity with the given key, or returns the existing one.
-		Its guranteed that there is no race-condition here; it will never overwrite an
+
+		Its guaranteed that there is no race-condition here; it will never overwrite an
 		previously created entity. Extra keyword arguments passed to this function will be
 		used to populate the entity if it has to be created; otherwise they are ignored.
-		
-		@param key: The key which will be fetched/created. If key is a string, it will be used as the name for
-			the new entity, therefor the collectionName is required in this case.
-		@type key: db.Key or String
-		@param kindName: Kind to use for that entity. Ignored if key is a db.Key
-		@type kindName: String
-		@param parent: The parent entity of our entity.
-		@type parent: db.Key or None
+
+		:param key: The key which will be fetched or created. \
+		If key is a string, it will be used as the name for the new entity, therefore the \
+		collectionName is required in this case.
+		:type key: server.db.Key | String
+		:param kindName: The data kind to use for that entity. Ignored if key is a db.Key.
+		:type kindName: str
+
+		:param parent: The parent entity of the entity.
+		:type parent: db.Key or None
+
+		:returns: Returns the wanted Entity.
+		:rtype: server.db.Entity
 	"""
 
 	def txn( key, kwargs ):
@@ -259,7 +231,53 @@ def GetOrInsert( key, kindName=None, parent=None, **kwargs ):
 		return( txn(key, kwargs) )
 	else:
 		return( datastore.RunInTransaction( txn, key, kwargs ) )
+
+def DeleteAsync(keys, **kwargs):
+	"""
+		Asynchronously deletes one or more entities from the data store.
+
+		This function is identical to :func:`server.db.Delete`, except that it
+		returns an asynchronous object. Call ``get_result()`` on the return value to
+		block on the call and get the results.
+	"""
+	if conf["viur.db.caching" ]>0:
+		if isinstance( keys, datastore_types.Key ): #Just one:
+			memcache.delete( str( keys ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
+		elif isinstance( keys, list ):
+			for key in keys:
+				assert isinstance( key, datastore_types.Key ) or isinstance( key, basestring )
+				memcache.delete( str( key ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
+	return( datastore.DeleteAsync( keys, **kwargs ) )
 	
+def Delete(keys, **kwargs):
+	"""
+		Deletes one or more entities from the data store.
+
+		:warning: Permanently deletes entities, use with care!
+
+		Deletes the given entity or entities from the data store. You can only delete
+		entities from your app. If there is an error, the function raises a
+		subclass of :exc:`datastore_errors.Error`.
+
+		:param keys: Key, str or list of keys or strings to be deleted.
+		:type keys: Key | str | list of Key | list of str
+
+		:param config: Optional configuration to use for this request. This must be specified\
+		as a keyword argument.
+		:type config: dict
+
+		:raises: :exc:`TransactionFailedError`, if the deletion could not be committed.
+	"""
+	if conf["viur.db.caching" ]>0:
+		if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
+			memcache.delete( str( keys ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
+		elif isinstance( keys, list ):
+			for key in keys:
+				assert isinstance( key, datastore_types.Key ) or isinstance( key, basestring )
+				memcache.delete( str( key ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
+	return( datastore.Delete( keys, **kwargs ) )
+
+
 class Query( object ):
 	"""
 		Thin wrapper around datastore.Query to provide a consistent
@@ -278,28 +296,33 @@ class Query( object ):
 
 	def setFilterHook(self, hook):
 		"""
-			Installs callable "hook" as a callback function.
-			"Hook" will be called each time a new filter constrain is added
-			to the query. This allows f.e. the relationalBone to rewrite constrains added
-			after the initial processing of the query has been done (ie by listFilter() methods)
-		@param hook: The function to register as callback. None removes the currently active hook.
-		@type hook: callable
-		@return: The old registered hook (if any)
+			Installs *hook* as a callback function for new filters.
+
+			*hook* will be called each time a new filter constrain is added to the query.
+			This allows e. g. the relationalBone to rewrite constrains added after the initial
+			processing of the query has been done (e. g. by ``listFilter()`` methods).
+
+			:param hook: The function to register as callback. \
+			A value of None removes the currently active hook.
+			:type hook: callable
+
+			:returns: The previously registered hook (if any), or None.
 		"""
 		old = self._filterHook
 		self._filterHook = hook
 		return( old )
 
-
 	def setOrderHook(self, hook):
 		"""
-			Installs callable "hook" as a callback function.
-			"Hook" will be called each time order() is called on that query.
-			This allows f.e. the relationalBone to rewrite constrains added
-			after the initial processing of the query has been done (ie by listFilter() methods)
-		@param hook: The function to register as callback. None removes the currently active hook.
-		@type hook: callable
-		@return: The old registered hook (if any)
+			Installs *hook* as a callback function for new orderings.
+
+			*hook* will be called each time a :func:`db.Query.order` is called on this query.
+
+			:param hook: The function to register as callback. \
+			A value of None removes the currently active hook.
+			:type hook: callable
+
+			:returns: The previously registered hook (if any), or None.
 		"""
 		old = self._orderHook
 		self._orderHook = hook
@@ -307,16 +330,28 @@ class Query( object ):
 
 	def mergeExternalFilter(self, filters ):
 		"""
-			Safely processes filters according to the datamodel.
-			Its only valid to call this if the query has been created using skel.all().
-			Its safe to pass filters recieved from an external source (a user);
-			unknown/invalid filters will be ignored, so the query-object stayes in a 
-			valid state even after processing malformed data.
+			Safely merges filters according to the data model.
+
+			Its only valid to call this function if the query has been created using
+			:func:`server.skeleton.Skeleton.all`.
+
+			Its safe to pass filters received from an external source (a user);
+			unknown/invalid filters will be ignored, so the query-object is kept in a
+			valid state even when processing malformed data.
 			
-			If you need complex queries (ie filter by relations), youll also need to use
-			this function; the normal filter() cannot provide that.
+			If complex queries are needed (e.g. filter by relations), this function
+			shall also be used.
+
+			See also :func:`server.db.Query.filter` for simple filters.
+
+ 			:param filters: A dictionary of attributes and filter pairs.
+			:type filters: dict
+
+			:returns: Returns the query itself for chaining.
+			:rtype: server.db.Query
 		"""
 		from server.bones import baseBone, relationalBone
+
 		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
 		if self.datastoreQuery is None: #This query is allready unsatifiable and adding more constrains to this wont change this
@@ -380,15 +415,21 @@ class Query( object ):
 	
 	def filter(self, filter, value=None ):
 		"""
-			Adds contrains to this query.
-			The following examples are equivalent:
-				filter( "name", "John" )
-				filter( {"name": "John"} )
+			Adds a filter to this query. #fixme: Better description required here...
 
-			@param filter: A dictionary to read the filters from, or a string (name of that filter)
-			@type filter: Dict or String
-			@param value: The value of that filter. Only valid, if key is a string.
-			@type value: Int, Long, Float, Bytes, String, List or DateTime
+			The following examples are equivalent: ``filter( "name", "John" )``
+			and ``filter( {"name": "John"} )``.
+
+			See also :func:`server.db.Query.mergeExternalFilter` for a safer filter implementation.
+
+			:param filter: A dictionary to read the filters from, or a string (name of that filter)
+			:type filter: dict | str
+
+			:param value: The value of that filter. Only valid, if *key* is a string.
+			:type: value: int | long | float | bytes | string | list | datetime
+
+			:returns: Returns the query itself for chaining.
+			:rtype: server.db.Query
 		"""
 		if self.datastoreQuery is None:
 			#This query is already unsatisfiable and adding more constrains to this won't change this
@@ -437,25 +478,29 @@ class Query( object ):
 	
 	def order(self, *orderings):
 		"""
-			Specify how the query results should be sorted.
+			Specify a query sorting.
 
-			Result entities will be sorted by the first property argument, then by the
-			second, and so on. For example, this:
+			Resulting entities will be sorted by the first property argument, then by the
+			second, and so on.
 
-			> query = Query('Person')
-			> query.Order('bday', ('age', Query.DESCENDING))
+			The following example
 
-			sorts everyone in order of their birthday, starting with January 1.
+			.. code-block:: python
+
+				query = Query( "Person" )
+				query.order( "bday", ( "age", Query.DESCENDING ) )
+
+			sorts every Person in order of their birthday, starting with January 1.
 			People with the same birthday are sorted by age, oldest to youngest.
 
 			The direction for each sort property may be provided; if omitted, it
 			defaults to ascending.
 
-			Order() may be called multiple times. Each call resets the sort order
+			``order()`` may be called multiple times. Each call resets the sort order
 			from scratch.
 
 			If an inequality filter exists in this Query it must be the first property
-			passed to Order. Any number of sort orders may be used after the
+			passed to ``order()``. Any number of sort orders may be used after the
 			inequality filter property. Without inequality filters, any number of
 			filters with different orders may be specified.
 
@@ -466,19 +511,19 @@ class Query( object ):
 			Entities without the sort order property are filtered out, and *not*
 			included in the query results.
 
-			If the sort order property has different types in different entities - ie,
-			if bob['id'] is an int and fred['id'] is a string - the entities will be
+			If the sort order property has different types in different entities -
+			e.g. if bob['id'] is an int and fred['id'] is a string - the entities will be
 			grouped first by the property type, then sorted within type. No attempt is
 			made to compare property values across types.
 
 			Raises BadArgumentError if any argument is of the wrong format.
 
-			Args:
-			      # the properties to sort by, in sort order. each argument may be either a
-			      # string or (string, direction) 2-tuple.
+			:param orderings: The properties to sort by, in sort order.\
+			Each argument may be either a string or (string, direction) 2-tuple.
+			:param orderings: str | tuple
 
-			Returns:
-				# this query
+			:returns: Returns the query itself for chaining.
+			:rtype: server.db.Query
 		"""
 		if self._orderHook is not None:
 			try:
@@ -499,18 +544,16 @@ class Query( object ):
 
 			This restricts the query to only return result entities that are descended
 			from a given entity. In other words, all of the results will have the
-			ancestor as their parent, or parent's parent, or etc.
+			ancestor as their parent, or parent's parent, and so on.
 
 			Raises BadArgumentError or BadKeyError if parent is not an existing Entity
-			or Key in the datastore.
+			or Key in the data store.
 
-			Args:
-				# the key must be complete
-				ancestor: Entity or Key
+			:param ancestor: Entity or Key. The key must be complete.
+			:type ancestor: server.db.Entity | Key
 
-			Returns:
-				# this query
-			Query
+			:returns: Returns the query itself for chaining.
+			:rtype: server.db.Query
 		"""
 		self.datastoreQuery.Ancestor( ancestor )
 		return( self )
@@ -518,10 +561,18 @@ class Query( object ):
 	def cursor( self, cursor ):
 		"""
 			Sets the start cursor for this query.
-			The result set will only include results after that cursor.
-			The cursor must be generated by an earlier query with exactly the same parameters.
-			Its safe to use client-supplied cursors, a cursor can't be abused to access entities which don't
-			match the current filters.
+
+			The result set will only include results behind that cursor.
+			The cursor is generated by an earlier query with exactly the same configuration.
+
+			Its safe to use client-supplied cursors, a cursor can't be abused to access entities
+			which don't match the current filters.
+
+			:param cursor: The cursor key to set to the Query.
+			:type cursor: str | datastore_query.Cursor
+
+			:returns: Returns the query itself for chaining.
+			:rtype: server.db.Query
 		"""
 		if isinstance( cursor, basestring ):
 			cursor = datastore_query.Cursor( urlsafe=cursor )
@@ -540,26 +591,40 @@ class Query( object ):
 	
 	def limit( self, amount ):
 		"""
-			Limit this query to return at most #amount results.
-			Set to 0 to disable (use with care!).
+			Sets the query limit to *amount* entities in the result.
+
+			Specifying an amount of 0 disables the limit (use with care!).
+
+			:param amount: The maximum number of entities.
+			:type amount: int
+
+			:returns: Returns the query itself for chaining.
+			:rtype: server.db.Query
 		"""
 		self.amount = amount
+		return self
 	
 	def isKeysOnly(self):
 		"""
-			Returns True if this query is keys only, false otherwise.
+			Returns True if this query is configured as *keys only*, False otherwise.
+
+			:rtype: bool
 		"""
 		return( self.datastoreQuery.IsKeysOnly() )
 
 	def getQueryOptions(self):
 		"""
 			Returns a datastore_query.QueryOptions for the current instance.
+
+			:rtype: datastore_query.QueryOptions
 		"""
 		return( self.datastoreQuery.GetQueryOptions() )
 
 	def getQuery(self):
 		"""
 			Returns a datastore_query.Query for the current instance.
+
+			:rtype: datastore_query.Query
 		"""
 		return( self.datastoreQuery.GetQuery() )
 
@@ -567,30 +632,37 @@ class Query( object ):
 		"""
 			Gets a datastore_query.Order for the current instance.
 
-			Returns:
-				datastore_query.Order or None if there are no sort orders set on the
-				current Query.
+			:returns: The sort orders set on the current query, or None.
+			:rtype: datastore_query.Order or None
 		"""
 		if self.datastoreQuery is None:
 			return( None )
-		else:
-			return( self.datastoreQuery.GetOrder() )
+
+		return( self.datastoreQuery.GetOrder() )
 	
 	def getFilter(self):
 		"""
 			Returns the filters applied to the current query as dictionary.
+
+			:returns: Filter as dictionary.
+			:rtype: dict
 		"""
 		if self.datastoreQuery is None:
 			return( None )
+
 		return( { k:v for (k, v) in self.datastoreQuery.items() } )
 	
 	def getOrders(self):
 		"""
 			Returns a list of orders applied to this query.
-			Each element in the list returned (if any),
-			is a tuple (property,direction).
-			Property is the name of the property used to sort,
-			direction a Bool (false => ascending, True => descending )
+
+			Every element in the list returned (if any), is a tuple of (property,direction).
+
+			Property is the name of the property used to sort, direction a bool
+			(false => ascending, True => descending).
+
+			:returns: List of orderings, in tuples (property,direction).
+			:rtype: list
 		"""
 		try:
 			order = self.datastoreQuery.__orderings
@@ -600,37 +672,40 @@ class Query( object ):
 
 	def getCursor(self):
 		"""
-			Get the cursor from the last run of this query.
+			Get a valid cursor from the last run of this query.
 
 			The source of this cursor varies depending on what the last call was:
-			- Run: A cursor that points immediately after the last result pulled off
-			  the returned iterator.
-			- Get: A cursor that points immediately after the last result in the
-			  returned list.
-			- Count: A cursor that points immediately after the last result counted.
+			- :func:`server.db.Query.run`: A cursor that points immediatelly behind the\
+			last result pulled off the returned iterator.
+			- :func:`server.db.Query.get`:: A cursor that points immediatelly behind the\
+			last result in the returned list.
+			- :func:`server.db.Query.count`: A cursor that points immediatelly behind the\
+			last result counted.
 
-			Returns:
-				A datastore_query.Cursor object that can be used in subsequent query
-				requests.
+			:returns: A cursor that can be used in subsequent query requests.
+			:rtype: datastore_query.Cursor
 
-			Raises:
-				AssertionError: The query has not yet been run or cannot be compiled.
+			:raises: :exc:`AssertionError` if the query has not yet been run or cannot be compiled.
 		"""
 		if self.datastoreQuery is None:
 			return( None )
-		else:
-			return( self.datastoreQuery.GetCursor() )
+
+		return( self.datastoreQuery.GetCursor() )
 
 	def getKind(self):
 		"""
-			Returns the kind of our query.
-			@returns String
+			Returns the kind of this query.
+
+			:rtype: str
 		"""
 		return( self.datastoreQuery.__kind )
 	
 	def setKind( self, newKind ):
 		"""
-			Changes the kind of our query.
+			Sets the kind of this query.
+
+			:param newKind: New query kind.
+			:type newKind: str
 		"""
 		if self.datastoreQuery is None:
 			return
@@ -638,28 +713,36 @@ class Query( object ):
 		
 	def getAncestor(self):
 		"""
-			Returns the ancestor of this query (if any)
-			@returns String or None
+			Returns the ancestor of this query (if any).
+
+			:rtype: str | None
 		"""
 		return( self.datastoreQuery.ancestor )
 
 	def run(self, limit=-1, keysOnly=False, **kwargs):
 		"""
-			Runs this query.
+			Run this query.
 
-			If a filter string is invalid, raises BadFilterError. If a filter value is
-			invalid, raises BadValueError. If an IN filter is provided, and a sort
-			order on another property is provided, raises BadQueryError.
+			It is more efficient to use *limit* if the number of results is known.
 
-			If you know in advance how many results you want, use limit=#. It's
-			more efficient.
+			If queried data is wanted as instances of Skeletons, :func:`server.db.Query.fetch`
+			should be used.
 
-			Args:
-				kwargs: Any keyword arguments accepted by datastore_query.QueryOptions().
+			:param limit: Limits the query to the defined maximum entities.
+			:type limit: int
 
-			Returns:
-				# an iterator that provides access to the query results
-				Iterator
+			:param keysOnly: If the query should be used to retrieve entity keys only.
+			:type keysOnly: bool
+
+			:param kwargs: Any keyword arguments accepted by datastore_query.QueryOptions().
+
+			:returns: An iterator that provides access to the query results iterator
+			:rtype: list
+
+			:raises: :exc:`BadFilterError` if a filter string is invalid
+			:raises: :exc:`BadValueError` if a filter value is invalid.
+			:raises: :exc:`BadQueryError` if an IN filter in combination with a sort order on\
+			another property is provided
 		"""
 		if self.datastoreQuery is None:
 			return( None )
@@ -703,8 +786,24 @@ class Query( object ):
 	
 	def fetch(self, limit=-1, **kwargs ):
 		"""
-			Like run, but returns a skeleton.Skellist instance instead
-			of an result iterator. The query must be limited.
+			Run this query and fetch results as :class:`server.skeleton.SkelList`.
+
+			This function is similar to :func:`server.db.Query.run`, but returns a
+			:class:`server.skeleton.SkelList` instance instead of Entities.
+
+			:warning: The query must be limited!
+
+			If queried data is wanted as instances of Entity, :func:`server.db.Query.run`
+			should be used.
+
+			:param limit: Limits the query to the defined maximum entities. \
+			A maxiumum value of 99 entries can be fetched at once.
+			:type limit: int
+
+			:raises: :exc:`BadFilterError` if a filter string is invalid
+			:raises: :exc:`BadValueError` if a filter value is invalid.
+			:raises: :exc:`BadQueryError` if an IN filter in combination with a sort order on\
+			another property is provided
 		"""
 		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
@@ -732,19 +831,22 @@ class Query( object ):
 	
 	def iter(self, keysOnly=False):
 		"""
-			Returns an iterator for the results.
-			Advantage: Its possible to iterate over a large result-set,
-			as it hasn't have to be pulled in advance from the datastore.
-			Disadvantage: No Caching (yet)
-			Note: This intentionally ignores the limit set by self.limt() -
-			it yields *all* results.
+			Run this query and return an iterator for the results.
+
+			The advantage of this function is, that it allows for iterating
+			over a large result-set, as it hasn't have to be pulled in advance
+			from the data store.
+
+			The disadvantage is, that is supports no caching yet.
+
+			This function intentionally ignores a limit set by :func:`server.db.Query.limit`.
 			
-			Warning: If iterating over a large result set, make sure the query
-			supports cursors. Otherwise, it might not return all results as the
-			appengine doesn't maintain the view for a query for more than ~30 seconds.
+			:warning: If iterating over a large result set, make sure the query supports cursors. \
+			Otherwise, it might not return all results as the AppEngine doesn't maintain the view \
+			for a query for more than ~30 seconds.
 			
-			@param keysOnly: Set to true if you just want the keys
-			@type keysOnly: Bool
+			:param keysOnly: If the query should be used to retrieve entity keys only.
+			:type keysOnly: bool
 		"""
 		if self.datastoreQuery is None: #Noting to pull here
 			raise StopIteration()
@@ -778,9 +880,10 @@ class Query( object ):
 	
 	def get( self ):
 		"""
-			Returns the first entity of the current query or None if the result-set is empty.
-			
-			@returns: Dict or None if the result-set is empty
+			Returns only the first entity of the current query.
+
+			:returns: dict on success, or None if the result-set is empty.
+			:rtype: dict
 		"""
 		try:
 			res = list( self.run( limit=1 ) )[0]
@@ -792,10 +895,14 @@ class Query( object ):
 	
 	def getSkel( self ):
 		"""
-			Like get, but returns an skeleton.Skeleton instance.
-			Its only valid to call this, if this query has been created using skel.all()
+			Returns a matching :class:`server.db.skeleton.Skeleton` instance for the
+			current query.
+
+			Its only possible to use this function if this query has been created using
+			:func:`server.skeleton.Skeleton.all`.
 			
-			@returns: skeleton.Skeleton or None if the result-set is empty
+			:returns: The Skeleton or None if the result-set is empty.
+			:rtype: :class:`server.skeleton.Skeleton`
 		"""
 		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
@@ -810,20 +917,30 @@ class Query( object ):
 		"""
 			Returns the number of entities that this query matches.
 
-			Args:
-				limit, a number or None. If there are more results than this, stop short
-				and just return this number. Providing this argument makes the count
-				operation more efficient.
-				config: Optional Configuration to use for this request.
+			:param limit: Limits the query to the defined maximum entities count.\
+			If there are more results than this limit, stop short and just return this number.\
+			Providing this argument makes the count operation more efficient.
+			:type limit: int
 
-			Returns:
-				The number of results.
+			:param config: Optional configuration to use for this request. This must be specified\
+			as a keyword argument.
+			:type config: dict
+
+			:returns: The number of results.
+			:rtype: int
 			"""
 		return( self.datastoreQuery.Count( limit, **kwargs ) )
 	
 	def clone(self, keysOnly=None):
 		"""
-			Returns a deep copy of the current query
+			Returns a deep copy of the current query.
+
+			:param keysOnly: If the query should be used to retrieve entity keys only\
+			in the new query.
+			:type keysOnly: bool
+
+			:returns: The cloned query.
+			:rtype: server.db.Query
 		"""
 		if keysOnly is None:
 			keysOnly = self.isKeysOnly()
@@ -841,8 +958,7 @@ class Query( object ):
 
 class Entity( datastore.Entity ):
 	"""
-		Wraps datastore.Entity to prevent
-		trying adding a string>500 chars
+		Wraps ``datastore.Entity`` to prevent trying to add a string with more than 500 chars
 		to an index and providing a camelCase-API.
 	"""
 	def _fixUnindexedProperties( self ):
@@ -862,7 +978,9 @@ class Entity( datastore.Entity ):
 
 	def isSaved(self):
 		"""
-			Returns True if this entity has been saved to the datastore.
+			Returns True if this entity has been saved to the data store.
+
+			:rtype: bool
 		"""
 		return( self.is_saved() )
 	
@@ -877,16 +995,18 @@ class Entity( datastore.Entity ):
 
 	def getUnindexedProperties(self):
 		"""
-			Returns this entity's unindexed properties, as a frozenset of strings.
+			Returns this entity's unindexed properties, as a frozen set of strings.
 		"""
 		return( self.unindexed_properties() )
 	
 	def setUnindexedProperties(self, unindexed_properties):
 		"""
 			Sets the list of unindexed properties.
+
 			Properties listed here are *not* saved in an index;
 			its impossible to use them in a query filter / sort.
-			But you'll save one db-write op per property listed here.
+
+			But it saves one db-write op per property listed here.
 		"""
 		self.set_unindexed_properties( unindexed_properties )
 
@@ -894,9 +1014,13 @@ class Entity( datastore.Entity ):
 		"""
 			Implements the [] operator. Used to set property value(s).
 
-			If the property name is the empty string or not a string, raises
-			BadPropertyError. If the value is not a supported type, raises
-			BadValueError.
+			:param name: Name of the property to set.
+			:type name: str
+			:param value: Any value to set tot the property.
+
+			:raises: :exc:`BadPropertyError` if the property name is the \
+			empty string or not a string.
+			:raises: :exc:`BadValueError` if the value is not a supported type.
 		"""
 		if isinstance(value,list) or isinstance(value,tuple):
 			# We cant store an empty list, so we catch any attempts
@@ -908,7 +1032,18 @@ class Entity( datastore.Entity ):
 	
 	def set( self, key, value, indexed=True ):
 		"""
-			Sets key to value.
+			Sets a property.
+
+			:param key: key of the property to set.
+			:type key: str
+			:param value: Any value to set tot the property.
+
+			:param indexed: Defines if the value is indexed.
+			:type indexed: bool
+
+			:raises: :exc:`BadPropertyError` if the property name is the \
+			empty string or not a string.
+			:raises: :exc:`BadValueError` if the value is not a supported type.
 		"""
 		if not indexed:
 			unindexed = list( self.getUnindexedProperties() )
@@ -919,10 +1054,10 @@ class Entity( datastore.Entity ):
 	@staticmethod
 	def FromDatastoreEntity( entity ):
 		"""
-			Converts a datastore.Entity into this class.
-			Required, as datastore.Get always returns a
-			datastore.Entity (and it seems that currently
-			there is no valid way to change that).
+			Converts a datastore.Entity into a :class:`db.server.Entity`.
+
+			Required, as ``datastore.Get()`` always returns a datastore.Entity
+			(and it seems that currently there is no valid way to change that).
 		"""
 		res = Entity(	entity.kind(), parent=entity.key().parent(), _app=entity.key().app(),
 				name=entity.key().name(), id=entity.key().id(),

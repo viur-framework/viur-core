@@ -11,9 +11,11 @@ import logging
 
 class extendedRelationalBone( relationalBone ):
 	"""
-		This class extends a relationalBone sothat it can store addidional properties along with the relation.
-		This is only useful on multiple=True bones, as you could just store that properties in the containing
-		skeleton.
+		This class extends a :class:`server.bones.relationalBone.relationalBone`, so that it can store
+		additional properties along with the relation.
+
+		This is only useful on multiple=True bones, as you could just store that properties in the
+		containing skeleton.
 	"""
 
 
@@ -143,16 +145,24 @@ class extendedRelationalBone( relationalBone ):
 		for r in tmpList[:]:
 			# Rebuild the referenced entity data
 			isEntryFromBackup = False #If the referenced entry has been deleted, restore information from
+			entry = None
+
 			try:
 				entry = db.Get( db.Key( r["dest"]["id"] ) )
 			except: #Invalid key or something like that
+
+				logging.info( "Invalid reference key >%s< detected on bone '%s'",
+				              r["dest"]["id"], name )
+
 				if isinstance(self._dbValue, dict):
-					if self._dbValue["id"]==str(r):
+					if self._dbValue["dest"]["id"]==str(r):
 						entry = self._dbValue
 						isEntryFromBackup = True
 				elif  isinstance(self._dbValue, list):
 					for dbVal in self._dbValue:
-						if dbVal["id"]==str(r):
+
+
+						if dbVal["dest"]["id"]==str(r):
 							entry = dbVal
 							isEntryFromBackup = True
 				if not isEntryFromBackup:
@@ -364,7 +374,7 @@ class extendedRelationalBone( relationalBone ):
 				orderKey = order[0]
 			else:
 				orderKey = order
-			if orderKey.startswith("dest.") or orderKey.startswith("src."):
+			if orderKey.startswith("dest.") or orderKey.startswith("rel.") or orderKey.startswith("src."):
 				#This is already valid for our relational index
 				res.append( order )
 				continue
