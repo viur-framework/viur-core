@@ -381,7 +381,7 @@ class BrowseHandler(webapp.RequestHandler):
 				msg = sharedConf["viur.disabled"]
 			else:
 				msg = "This application is currently disabled or performing maintenance. Try again later."
-			self.response.out.write( tpl.safe_substitute( {"error_code": "503", "error_name": "Service unaviable", "error_descr": msg} ) )
+			self.response.out.write( tpl.safe_substitute( {"error_code": "503", "error_name": "Service unavailable", "error_descr": msg} ) )
 			return
 		if conf["viur.forceSSL"] and not self.isDevServer and not self.isSSLConnection:
 			if not self.request.path.startswith( "/_tasks/" ): #The Tasks-Queue doesn't call using https
@@ -405,20 +405,40 @@ class BrowseHandler(webapp.RequestHandler):
 				raise
 			self.response.clear()
 			self.response.set_status( e.status )
-			tpl = Template( open(conf["viur.errorTemplate"], "r").read() )
-			self.response.out.write( tpl.safe_substitute( {"error_code": e.status, "error_name":e.name, "error_descr": e.descr} ) )
+			res = None
+			if conf["viur.errorHandler"]:
+				try:
+					res = conf["viur.errorHandler"]( e )
+				except Exception as newE:
+					logging.error("viur.errorHandler failed!")
+					logging.exception( newE )
+					res = None
+			if not res:
+				tpl = Template( open(conf["viur.errorTemplate"], "r").read() )
+				res = tpl.safe_substitute( {"error_code": e.status, "error_name":e.name, "error_descr": e.descr} )
+			self.response.out.write( res )
 		except Exception as e: #Something got really wrong
 			logging.exception( "Viur caught an unhandled exception!" )
 			self.response.clear()
 			self.response.set_status( 500 )
-			tpl = Template( open(conf["viur.errorTemplate"], "r").read() )
-			descr = "The server encountered an unexpected error and is unable to process your request."
-			if self.isDevServer: #Were running on development Server
-				strIO = StringIO()
-				traceback.print_exc(file=strIO)
-				descr= strIO.getvalue()
-				descr = descr.replace("<","&lt;").replace(">","&gt;").replace(" ", "&nbsp;").replace("\n", "<br />")
-			self.response.out.write( tpl.safe_substitute( {"error_code": "500", "error_name":"Internal Server Error", "error_descr": descr} ) )
+			res = None
+			if conf["viur.errorHandler"]:
+				try:
+					res = conf["viur.errorHandler"]( e )
+				except Exception as newE:
+					logging.error("viur.errorHandler failed!")
+					logging.exception( newE )
+					res = None
+			if not res:
+				tpl = Template( open(conf["viur.errorTemplate"], "r").read() )
+				descr = "The server encountered an unexpected error and is unable to process your request."
+				if self.isDevServer: #Were running on development Server
+					strIO = StringIO()
+					traceback.print_exc(file=strIO)
+					descr= strIO.getvalue()
+					descr = descr.replace("<","&lt;").replace(">","&gt;").replace(" ", "&nbsp;").replace("\n", "<br />")
+					res = tpl.safe_substitute( {"error_code": "500", "error_name":"Internal Server Error", "error_descr": descr} )
+			self.response.out.write( res )
 			if bugsnag and conf["bugsnag.apiKey" ]:
 				bugsnag.configure( api_key=conf["bugsnag.apiKey" ] )
 				try: 

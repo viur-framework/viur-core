@@ -27,20 +27,21 @@ conf = {
 		"viur.tasks.startBackendOnDemand": True, #If true, allows the task modul to start a backend immediately (instead of waiting for the cronjob)
 		"viur.logMissingTranslations": False, #If true, ViUR will log missing translations in the datastore
 		"viur.disableCache": False, #If set to true, the decorator @enableCache from server.cache has no effect
-        "viur.cacheEnvironmentKey": None, #If set, this function will be called for each cache-attempt and the result will be included in the computed cache-key
+		"viur.cacheEnvironmentKey": None, #If set, this function will be called for each cache-attempt and the result will be included in the computed cache-key
 		"viur.maxPasswordLength": 512, #Prevent Denial of Service attacks using large inputs for pbkdf2
 		"viur.exportPassword": None, # Activates the Database export API if set. Must be exactly 32 chars. *Everyone* knowing this password can dump the whole database!
 		"viur.importPassword": None, # Activates the Database import API if set. Must be exactly 32 chars. *Everyone* knowing this password can rewrite the whole database!
-        "viur.requestPreprocessor": None, # Allows the application to register a function that's called before the request gets routed
+		"viur.requestPreprocessor": None, # Allows the application to register a function that's called before the request gets routed
 		"viur.debug.traceExceptions": False, #If enabled, user-generated exceptions from the server.errors module won't be caught and handled
 		"viur.debug.traceExternalCallRouting": True, #If enabled, ViUR will log which (exposed) function are called from outside with what arguments
 		"viur.debug.traceInternalCallRouting": True, #If enabled, ViUR will log which (internal-exposed) function are called from templates with what arguments
-        "viur.debug.traceQueries": True, #If enabled, we log all datastore queries performed
+		"viur.debug.traceQueries": True, #If enabled, we log all datastore queries performed
+		"viur.errorHandler": None, #If set, ViUR call this function instead of rendering the viur.errorTemplate if an exception occurs
 		"viur.errorTemplate": "server/template/error.html", #Path to the template to render if an unhandled error occurs. This is a Python String-template, *not* a jinja2 one!
-        "viur.contentSecurityPolicy": None, #If set, viur will emit a CSP http-header with each request. Use the csp module to set this property
-        "viur.session.persistentFieldsOnLogin": [], #If set, these Fields will survive the session.reset() called on user/login
-        "viur.session.persistentFieldsOnLogout": [], #If set, these Fields will survive the session.reset() called on user/logout
-        "viur.session.lifeTime": 60*60, #Default is 60 minutes lifetime for ViUR sessions
+		"viur.contentSecurityPolicy": None, #If set, viur will emit a CSP http-header with each request. Use the csp module to set this property
+		"viur.session.persistentFieldsOnLogin": [], #If set, these Fields will survive the session.reset() called on user/login
+		"viur.session.persistentFieldsOnLogout": [], #If set, these Fields will survive the session.reset() called on user/logout
+		"viur.session.lifeTime": 60*60, #Default is 60 minutes lifetime for ViUR sessions
 		"bugsnag.apiKey": None #If set, ViUR will report Errors to bugsnag
 	}
 
