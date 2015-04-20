@@ -161,8 +161,8 @@ class TaskHandler:
 			if res: #Its bound, call it this way :)
 				t, s = res
 				t( s )
-				continue
-			task() #It seems it wasnt bound - call it as a static method
+			else:
+				task() #It seems it wasnt bound - call it as a static method
 			logging.debug("Successfully called task %s" % task.periodicTaskName )
 			if intervall:
 				# Update its last-call timestamp
