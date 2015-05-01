@@ -216,7 +216,7 @@ class baseBone(object): # One Bone:
 					dbFilter.filter( tmpdata[0],  value )
 			else:
 				if isinstance( value, list ):
-					dbFilter.filter( ndb.GenericProperty( key ) in value )
+					dbFilter.filter( key+" IN", value )
 				else:
 					dbFilter.filter( key, value )
 		return( dbFilter )
