@@ -140,7 +140,7 @@ class Hierarchy( object ):
 			@type repo: String
 			@returns: True if the user owns this rootNode, False otherwise
 		"""
-		thisuser = user.get_current_user()
+		thisuser = utils.getCurrentUser()
 		if not thisuser:
 			return(False)
 		repo = self.getRootNode( repo )

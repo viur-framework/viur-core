@@ -63,7 +63,7 @@ class CustomUser( List ):
 	def addSkel( self ):
 		admin=False
 		skel = super(CustomUser, self).addSkel()
-		user = users.get_current_user()  #Check the GAE API
+		#Check the GAE API
 		if users.is_current_user_admin():
 			admin=True
 		if "user" in dir( conf["viur.mainApp"] ): #Check for our custom user-api
