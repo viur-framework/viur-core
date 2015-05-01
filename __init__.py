@@ -368,6 +368,7 @@ class BrowseHandler(webapp.RequestHandler):
 		self.isDevServer = "Development" in os.environ['SERVER_SOFTWARE'] #Were running on development Server
 		self.isSSLConnection = self.request.host_url.lower().startswith("https://") #We have an encrypted channel
 		self.language = conf["viur.defaultLanguage"]
+		self.disableCache = False # Shall this request bypass the caches?
 		request.current.setRequest( self )
 		#Add CSP headers early (if any)
 		if conf["viur.contentSecurityPolicy"] and conf["viur.contentSecurityPolicy"]["_headerCache"]:
@@ -375,7 +376,7 @@ class BrowseHandler(webapp.RequestHandler):
 				assert k.startswith("Content-Security-Policy"), "Got unexpected header in conf['viur.contentSecurityPolicy']['_headerCache']"
 				self.response.headers[k] = v
 		if sharedConf["viur.disabled"] and not (users.is_current_user_admin() or "HTTP_X_QUEUE_NAME".lower() in [x.lower() for x in os.environ.keys()] ): #FIXME: Validate this works
-			self.response.set_status( 503 ) #Service unaviable
+			self.response.set_status( 503 ) #Service unavailable
 			tpl = Template( open("server/template/error.html", "r").read() )
 			if isinstance( sharedConf["viur.disabled"], basestring ):
 				msg = sharedConf["viur.disabled"]
@@ -530,6 +531,14 @@ class BrowseHandler(webapp.RequestHandler):
 				except:
 					pass
 		self.kwargs = kwargs
+		# Check if this request should bypass the caches
+		if self.request.headers.get("X-Viur-Disable-Cache"):
+			from server import utils
+			#No cache requested, check if the current user is allowed to do so
+			user = utils.getCurrentUser()
+			if user and "root" in user["access"]:
+				logging.debug( "Caching disabled by X-Viur-Disable-Cache header" )
+				self.disableCache = True
 		try:
 			if (conf["viur.debug.traceExternalCallRouting"] and not self.internalRequest) or conf["viur.debug.traceInternalCallRouting"]:
 				logging.debug("Calling %s with args=%s and kwargs=%s" % (str(caller),unicode(args), unicode(kwargs)))
