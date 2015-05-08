@@ -41,7 +41,7 @@ class SessionWrapper( threading.local ):
 	
 	def __contains__( self, key ):
 		try:
-			return( key in self.session.keys() ) 
+			return( key in self.session )
 		except AttributeError:
 			return( False )
 	
@@ -212,7 +212,7 @@ class GaeSession:
 		"""
 			Returns True if the given *key* is set in the current session.
 		"""
-		return( key in self.session ) 
+		return( key in self.session.keys() )
 	
 	def __delitem__(self, key ):
 		"""
