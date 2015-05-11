@@ -369,6 +369,8 @@ class BrowseHandler(webapp.RequestHandler):
 		self.isSSLConnection = self.request.host_url.lower().startswith("https://") #We have an encrypted channel
 		self.language = conf["viur.defaultLanguage"]
 		request.current.setRequest( self )
+		self.args = []
+		self.kwargs = {}
 		#Add CSP headers early (if any)
 		if conf["viur.contentSecurityPolicy"] and conf["viur.contentSecurityPolicy"]["_headerCache"]:
 			for k,v in conf["viur.contentSecurityPolicy"]["_headerCache"].items():
