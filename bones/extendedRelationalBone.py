@@ -194,6 +194,7 @@ class extendedRelationalBone( relationalBone ):
 			This is needed to perform relational queries on n:m relations.
 		"""
 		origFilter = dbFilter.datastoreQuery
+		origSortOrders = dbFilter.getOrders()
 		if isinstance( origFilter, db.MultiQuery):
 			raise NotImplementedError("Doing a relational Query with multiple=True and \"IN or !=\"-filters is currently unsupported!")
 		dbFilter.datastoreQuery = type( dbFilter.datastoreQuery )( "viur-relations" ) #skel.kindName+"_"+self.type+"_"+name
@@ -219,7 +220,7 @@ class extendedRelationalBone( relationalBone ):
 					raise RuntimeError()
 				dbFilter.filter( "src.%s" % k, v )
 			orderList = []
-			for k,d in dbFilter.getOrders(): #Merge old sort orders in
+			for k,d in origSortOrders: #Merge old sort orders in
 				if not k in self.parentKeys:
 					logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
 					raise RuntimeError()
