@@ -293,7 +293,7 @@ class Tree( object ):
 			raise( errors.NotAcceptable() )
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
-		if not self.canEdit( skel ):
+		if not self.canEdit(skelType, skel):
 			raise errors.Unauthorized()
 		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel ) )
@@ -328,10 +328,11 @@ class Tree( object ):
 			skey = kwargs["skey"]
 		else:
 			skey = ""
-		if not self.canDelete( id, skelType ):
-			raise errors.Unauthorized()
+
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
+		if not self.canDelete(skelType, skel):
+			raise errors.Unauthorized()
 		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
 		if type=="leaf":
