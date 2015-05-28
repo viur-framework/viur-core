@@ -536,7 +536,7 @@ class Tree(BasicApplication):
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
 
-		if not self.canEdit( skelType, skel ):
+		if not self.canEdit(skelType, skel):
 			raise errors.Unauthorized()
 
 		if (len(kwargs) == 0 # no data supplied
@@ -592,7 +592,7 @@ class Tree(BasicApplication):
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
 
-		if not self.canDelete( skelType, skel ):
+		if not self.canDelete(skelType, skel):
 			raise errors.Unauthorized()
 
 		if not securitykey.validate( skey, acceptSessionKey=True ):

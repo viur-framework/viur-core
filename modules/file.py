@@ -149,7 +149,7 @@ class File( Tree ):
 			skey = kwargs["skey"]
 		else:
 			skey = ""
-		if not self.canAdd( None, "leaf" ):
+		if not self.canAdd("leaf", None):
 			raise errors.Forbidden()
 		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
