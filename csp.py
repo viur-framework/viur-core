@@ -24,7 +24,7 @@ def addRule( objectType, srcOrDirective, enforceMode="monitor" ):
 	if not enforceMode in conf["viur.contentSecurityPolicy"].keys():
 		conf["viur.contentSecurityPolicy"][ enforceMode ] = {}
 	if objectType=="report-uri":
-		conf["viur.contentSecurityPolicy"][ enforceMode ]["report-uri"] = srcOrDirective
+		conf["viur.contentSecurityPolicy"][ enforceMode ]["report-uri"] = [srcOrDirective]
 	else:
 		if not objectType in conf["viur.contentSecurityPolicy"][ enforceMode ].keys():
 			conf["viur.contentSecurityPolicy"][ enforceMode ][ objectType ] = []
