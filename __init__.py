@@ -136,7 +136,7 @@ def translate( key, **kwargs ):
 		res = key
 
 	for k, v in kwargs.items():
-		res = res.replace("{{%s}}"%k, v )
+		res = res.replace("{{%s}}"%k, unicode(v) )
 
 	return( res )
 
