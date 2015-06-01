@@ -333,14 +333,18 @@ class relationalBone( baseBone ):
 		"""
 		origFilter = dbFilter.datastoreQuery
 		origSortOrders = dbFilter.getOrders()
+
 		if isinstance( origFilter, db.MultiQuery):
 			raise NotImplementedError("Doing a relational Query with multiple=True and \"IN or !=\"-filters is currently unsupported!")
+
 		dbFilter.datastoreQuery = type( dbFilter.datastoreQuery )( "viur-relations" ) #skel.kindName+"_"+self.type+"_"+name
 		dbFilter.filter("viur_src_kind =", skel.kindName )
 		dbFilter.filter("viur_dest_kind =", self.type )
 		dbFilter.filter("viur_src_property", name )
+
 		if dbFilter._origCursor: #Merge the cursor in again (if any)
 			dbFilter.cursor( dbFilter._origCursor )
+
 		if origFilter:
 			for k,v in origFilter.items(): #Merge old filters in
 				#Ensure that all non-relational-filters are in parentKeys
@@ -357,14 +361,19 @@ class relationalBone( baseBone ):
 					logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
 					raise RuntimeError()
 				dbFilter.filter( "src.%s" % k, v )
-			orderList = []
-			for k,d in origSortOrders: #Merge old sort orders in
-				if not k in self.parentKeys:
-					logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
-					raise RuntimeError()
-				orderList.append( ("src.%s" % k, d) )
-			if orderList:
-				dbFilter.order( *orderList )
+
+		# Take original sort order
+		orderList = []
+		for k,d in origSortOrders: #Merge old sort orders in
+			if not k in self.parentKeys:
+				logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
+				raise RuntimeError()
+
+			orderList.append( ("src.%s" % k, d) )
+
+		if orderList:
+			dbFilter.order( *orderList )
+
 		return( name, skel, dbFilter, rawFilter )
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
