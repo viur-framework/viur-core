@@ -241,13 +241,13 @@ class CustomUser( List ):
 	def verify(self,  skey,  *args,  **kwargs ):
 		data = securitykey.validate( skey )
 		skel = self.baseSkel()
-		if not data or not isinstance( data,  dict ) or not "userid" in data or not skel["fromDB"]( data["userid"] ):
+		if not data or not isinstance( data,  dict ) or not "userid" in data or not skel.fromDB( data["userid"] ):
 			return self.render.verifyFailed()
 		if self.registrationAdminVerificationRequired:
 			skel["status"].value = 2
 		else:
 			skel["status"].value = 10
-		skel["toDB"]( data["userid"] )
+		skel.toDB()
 		return self.render.verifySuccess( data )
 	verify.exposed = True
 	
