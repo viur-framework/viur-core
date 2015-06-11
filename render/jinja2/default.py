@@ -73,9 +73,10 @@ class Render( object ):
 		"""
 			This holds one Key-Value pair for
 			selectOne/selectMulti Bones.
+
 			It allows to directly treat the key as string,
 			but still makes the translated description of that
-			key avaiable.
+			key available.
 		"""
 		def __init__( self, key, descr ):
 			self.key = key
@@ -113,13 +114,22 @@ class Render( object ):
 	def getTemplateFileName( self, template, ignoreStyle=False ):
 		"""
 			Returns the filename of the template.
-			This decides in which language and which style a given template is rendered.
-			If getLoaders if overriden, this method should be also.
-			@param template: Name of the template to use
-			@type template: string
-			@param ignoreStyle: Ignore any maybe given style hints
-			@type ignoreStyle: bool
-			@returns: Filename of the template
+
+			This function decides in which language and which style a given template is rendered.
+			The style is provided as get-parameters for special-case templates that differ from
+			their usual way.
+
+			It is advised to override this function in case that
+			:func:`server.render.jinja2.default.Render.getLoaders` is redefined.
+
+			:param template: The basename of the template to use.
+			:type template: str
+
+			:param ignoreStyle: Ignore any maybe given style hints.
+			:type ignoreStyle: bool
+
+			:returns: Filename of the template
+			:rtype: str
 		"""
 		validChars = "abcdefghijklmnopqrstuvwxyz1234567890-"
 		if "htmlpath" in dir( self ):
@@ -149,30 +159,528 @@ class Render( object ):
 	
 	def getLoaders(self):
 		"""
-			Return the List of Jinja2-Loaders which should be used.
-			May be overriden to provide an alternative loader
-			(eg. fetch templates from the datastore).
+			Return the list of Jinja2 loaders which should be used.
+
+			May be overridden to provide an alternative loader
+			(e.g. for fetching templates from the datastore).
 		"""
 		if "htmlpath" in dir( self ):
 			htmlpath = self.htmlpath
 		else:
 			htmlpath = "html/"
 		return( ChoiceLoader( [FileSystemLoader( htmlpath ), FileSystemLoader( "server/template/" )] ) )
+
+
+	def renderSkelStructure(self, skel):
+		"""
+			Dumps the structure of a :class:`server.db.skeleton.Skeleton`.
+
+			:param skel: Skeleton which structure will be processed.
+			:type skel: server.db.skeleton.Skeleton
+
+			:returns: The rendered dictionary.
+			:rtype: dict
+		"""
+		res = OrderedDict()
+		for key, _bone in skel.items():
+			if "__" not in key:
+				if( isinstance( _bone, bones.baseBone ) ):
+					res[ key ] = {	"descr":  _(_bone.descr ), 
+							"type": _bone.type,
+							"required":_bone.required,
+							"params":_bone.params,
+							"visible": _bone.visible,
+							"readOnly": _bone.readOnly
+							}
+					if key in skel.errors.keys():
+						res[ key ][ "error" ] = skel.errors[ key ]
+					else:
+						res[ key ][ "error" ] = None
+					if isinstance( _bone, bones.relationalBone ):
+						if isinstance( _bone, bones.hierarchyBone ):
+							boneType = "hierarchy."+_bone.type
+						elif isinstance( _bone, bones.treeItemBone ):
+							boneType = "treeitem."+_bone.type
+						else:
+							boneType = "relational."+_bone.type
+						res[key]["type"] = boneType
+						res[key]["modul"] = _bone.modul
+						res[key]["multiple"]=_bone.multiple
+						res[key]["format"] = _bone.format
+					if( isinstance( _bone, bones.selectOneBone ) or isinstance( _bone, bones.selectMultiBone ) ):
+						res[key]["values"] = dict( [(k,_(v)) for (k,v) in _bone.values.items() ] )
+						res[key]["sortBy"] = _bone.sortBy
+					if( isinstance( _bone, bones.dateBone ) ):
+						res[key]["time"] = _bone.time
+						res[key]["date"] = _bone.date
+					if( isinstance( _bone, bones.numericBone )):
+						res[key]["precision"] = _bone.precision
+						res[key]["min"] = _bone.min
+						res[key]["max"] = _bone.max
+					if( isinstance( _bone, bones.textBone ) ):
+						res[key]["validHtml"] = _bone.validHtml
+					if( isinstance( _bone, bones.textBone ) ) or ( isinstance( _bone, bones.stringBone ) ):
+						res[key]["languages"] = _bone.languages 
+		return( res )
 	
+	def collectSkelData( self, skel ):
+		""" 
+			Prepares values of one :class:`server.db.skeleton.Skeleton` or a list of skeletons for output.
+
+			:param skel: Skeleton which structure will be processed.
+			:type skel: server.db.skeleton.Skeleton
+
+			:returns: A dictionary or list of dictonaries.
+			:rtype: dict
+		"""
+		if isinstance( skel, list ):
+			return( [ self.collectSkelData(x) for x in skel ] )
+		res = {}
+		for key,_bone in skel.items():
+			if( isinstance( _bone, bones.documentBone ) ): #We flip source-html and parsed (cached) html for a more natural use
+				res[key] = _bone.cache
+			elif isinstance( _bone, selectOneBone ):
+				if _bone.value in _bone.values.keys():
+					res[ key ] = Render.KeyValueWrapper( _bone.value, _bone.values[ _bone.value ] )
+				else:
+					res[ key ] = _bone.value
+			elif isinstance( _bone, selectMultiBone ):
+				res[ key ] = [ (Render.KeyValueWrapper( val, _bone.values[ val ] ) if val in _bone.values.keys() else val)  for val in _bone.value ]
+			elif( isinstance( _bone, bones.baseBone ) ):
+				res[ key ] = _bone.value
+			if key in res.keys() and isinstance( res[key], list ):
+				res[key] = ListWrapper( res[key] )
+		return( res )
+
+	def add(self, skel, tpl=None, *args, **kwargs):
+		"""
+			Renders a page for adding an entry.
+
+			The template must construct the HTML-form on itself; the required information
+			are passed via skel.structure, skel.value and skel.errors.
+
+			A jinja2-macro, which builds such kind of forms, is shipped with the server.
+
+			:param skel: Skeleton of the entry which should be created.
+			:type skel: server.db.skeleton.Skeleton
+
+			:param tpl: Name of a different template, which should be used instead of the default one.
+			:type tpl: str
+
+			:return: Returns the emitted HTML response.
+			:rtype: str
+		"""
+		if not tpl and "addTemplate" in dir( self.parent ):
+			tpl = self.parent.addTemplate
+
+		tpl = tpl or self.addTemplate
+		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
+		skeybone = bones.baseBone( descr="SecurityKey",  readOnly=True, visible=False )
+		skeybone.value = securitykey.create()
+		skel["skey"] = skeybone
+
+		if ( "nomissing" in request.current.get().kwargs.keys()
+		        and request.current.get().kwargs["nomissing"]=="1" ):
+			super( Skeleton, skel ).__setattr__( "errors", {} )
+
+		return template.render( skel={"structure":self.renderSkelStructure(skel),
+		                                "errors":skel.errors,
+		                                "value":self.collectSkelData(skel) }, **kwargs )
+	
+	def edit(self, skel, tpl=None, **kwargs):
+		"""
+			Renders a page for modifying an entry.
+
+			The template must construct the HTML-form on itself; the required information
+			are passed via skel.structure, skel.value and skel.errors.
+
+			A jinja2-macro, which builds such kind of forms, is shipped with the server.
+
+			:param skel: Skeleton of the entry which should be modified.
+			:type skel: server.db.skeleton.Skeleton
+
+			:param tpl: Name of a different template, which should be used instead of the default one.
+			:type tpl: str
+
+			:return: Returns the emitted HTML response.
+			:rtype: str
+		"""
+		if not tpl and "editTemplate" in dir( self.parent ):
+			tpl = self.parent.editTemplate
+
+		tpl = tpl or self.editTemplate
+		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
+		skeybone = bones.baseBone( descr="SecurityKey",  readOnly=True, visible=False )
+		skeybone.value = securitykey.create()
+		skel["skey"]  = skeybone
+
+		if ( "nomissing" in request.current.get().kwargs.keys()
+		        and request.current.get().kwargs["nomissing"]=="1" ):
+			super( Skeleton, skel ).__setattr__( "errors", {} )
+
+		return template.render( skel={"structure": self.renderSkelStructure(skel),
+		                                "errors": skel.errors,
+		                                "value": self.collectSkelData(skel) }, **kwargs )
+	
+	def addItemSuccess (self, skel, *args, **kwargs ):
+		"""
+			Renders a page, informing that the entry has been successfully created.
+
+			:param skel: Skeleton which contains the data of the new entity
+			:type skel: server.db.skeleton.Skeleton
+
+			:return: Returns the emitted HTML response.
+			:rtype: str
+		"""
+		tpl = self.addSuccessTemplate
+
+		if "addSuccessTemplate" in dir( self.parent ):
+			tpl = self.parent.addSuccessTemplate
+
+		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
+		res = self.collectSkelData( skel )
+
+		return( template.render( { "skel":res }, **kwargs ) )
+
+	def editItemSuccess (self, skel, *args, **kwargs ):
+		"""
+			Renders a page, informing that the entry has been successfully modified.
+
+			:param skel: Skeleton which contains the data of the modified entity
+			:type skel: server.db.skeleton.Skeleton
+
+			:return: Returns the emitted HTML response.
+			:rtype: str
+		"""
+		tpl = self.editSuccessTemplate
+
+		if "editSuccessTemplate" in dir( self.parent ):
+			tpl = self.parent.editSuccessTemplate
+
+		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
+		res = self.collectSkelData( skel )
+
+		return( template.render( skel=res, **kwargs ) )
+	
+	def deleteSuccess (self, *args, **kwargs ):
+		"""
+			Renders a page, informing that the entry has been successfully deleted.
+
+			The provided parameters depend on the application calling this:
+			List and Hierarchy pass the id of the deleted entry, while Tree passes
+			the rootNode and path.
+
+			:return: Returns the emitted HTML response.
+			:rtype: str
+		"""
+		tpl = self.deleteSuccessTemplate
+
+		if "deleteSuccessTemplate" in dir( self.parent ):
+			tpl = self.parent.deleteSuccessTemplate
+
+		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
+
+		return( template.render( **kwargs ) )
+	
+	def list( self, skellist, tpl=None, **kwargs ):
+		"""
+			Renders a list of entries.
+
+			:param skellist: List of Skeletons with entries to display.
+			:type skellist: server.db.skeleton.SkelList
+
+			:param tpl: Name of a different template, which should be used instead of the default one.
+			:param: tpl: str
+
+			:return: Returns the emitted HTML response.
+			:rtype: str
+		"""
+		if not tpl and "listTemplate" in dir( self.parent ):
+			tpl = self.parent.listTemplate
+		tpl = tpl or self.listTemplate
+		try:
+			fn = self.getTemplateFileName( tpl )
+		except errors.HTTPException as e: #Not found - try default fallbacks FIXME: !!!
+			tpl = "list"
+		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
+		for x in range(0, len( skellist ) ):
+			skellist.append( self.collectSkelData( skellist.pop(0) ) )
+		return( template.render( skellist=SkelListWrapper(skellist), **kwargs ) )
+	
+	def listRootNodes(self, repos, tpl=None, **kwargs ):
+		"""
+			Renders a list of available repositories.
+
+			:param repos: List of repositories (dict with "key"=>Repo-Key and "name"=>Repo-Name)
+			:type repos: list
+
+			:param tpl: Name of a different template, which should be used instead of the default one.
+			:param: tpl: str
+
+			:return: Returns the emitted HTML response.
+			:rtype: str
+		"""
+		if "listRepositoriesTemplate" in dir( self.parent ):
+			tpl = tpl or self.parent.listTemplate
+		if not tpl:
+			tpl = self.listRepositoriesTemplate
+		try:
+			fn = self.getTemplateFileName( tpl )
+		except errors.HTTPException as e: #Not found - try default fallbacks FIXME: !!!
+			tpl = "list"
+		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
+		return( template.render( repos=repos, **kwargs ) )
+	
+	def view( self, skel, tpl=None, **kwargs ):
+		"""
+			Renders a single entry.
+
+			:param skel: Skeleton to be displayed.
+			:type skellist: server.db.skeleton.Skeleton
+
+			:param tpl: Name of a different template, which should be used instead of the default one.
+			:param: tpl: str
+
+			:return: Returns the emitted HTML response.
+			:rtype: str
+		"""
+		if not tpl and "viewTemplate" in dir( self.parent ):
+			tpl = self.parent.viewTemplate
+
+		tpl = tpl or self.viewTemplate
+		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
+
+		if isinstance( skel, Skeleton ):
+			res = self.collectSkelData( skel )
+		else:
+			res = skel
+
+		return( template.render( skel=res, **kwargs ) )
+	
+## Extended functionality for the Tree-Application ##
+	def listRootNodeContents( self, subdirs, entries, tpl=None, **kwargs):
+		"""
+			Renders the contents of a given RootNode.
+
+			This differs from list(), as one level in the tree-application may contains two different
+			child-types: Entries and folders.
+
+			:param subdirs: List of (sub-)directories on the current level
+			:type repos: list
+
+			:param entries: List of entries of the current level
+			:type entries: server.db.skeleton.SkelList
+			
+			:param tpl: Name of a different template, which should be used instead of the default one
+			:param: tpl: str
+
+			:return: Returns the emitted HTML response.
+			:rtype: str
+		"""
+		if "listRootNodeContentsTemplate" in dir( self.parent ):
+			tpl = tpl or self.parent.listRootNodeContentsTemplate
+		else:
+			tpl = tpl or self.listRootNodeContentsTemplate
+		template= self.getEnv().get_template( self.getTemplateFileName( tpl ) )
+		return( template.render( subdirs=subdirs, entries=[self.collectSkelData( x ) for x in entries], **kwargs) )
+
+	def addDirSuccess(self, rootNode,  path, dirname, *args, **kwargs ):
+		"""
+			Renders a page, informing that the directory has been successfully created.
+
+			:param rootNode: RootNode-key in which the directory has been created
+			:type rootNode: str
+
+			:param path: Path in which the directory has been created
+			:type path: str
+
+			:param dirname: Name of the newly created directory
+			:type dirname: str
+
+			:return: Returns the emitted HTML response.
+			:rtype: str
+		"""
+
+		tpl = self.addDirSuccessTemplate
+		if "addDirSuccessTemplate" in dir( self.parent ):
+			tpl = self.parent.addDirSuccessTemplate
+		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
+		return( template.render( rootNode=rootNode,  path=path, dirname=dirname ) )
+
+	def renameSuccess(self, rootNode, path, src, dest, *args, **kwargs ):
+		"""
+			Renders a page, informing that the entry has been successfully renamed.
+
+			:param rootNode: RootNode-key in which the entry has been renamed
+			:type rootNode: str
+
+			:param path: Path in which the entry has been renamed
+			:type path: str
+
+			:param src: Old name of the entry
+			:type src: str
+
+			:param dest: New name of the entry
+			:type dest: str
+
+			:return: Returns the emitted HTML response.
+			:rtype: str
+		"""
+		tpl = self.renameSuccessTemplate
+		if "renameSuccessTemplate" in dir( self.parent ):
+			tpl = self.parent.renameSuccessTemplate
+		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
+		return( template.render( rootNode=rootNode,  path=path, src=src, dest=dest ) )
+
+	def copySuccess(self, srcrepo, srcpath, name, destrepo, destpath, type, deleteold, *args, **kwargs ):
+		"""
+			Renders a page, informing that an entry has been successfully copied/moved.
+			
+			:param srcrepo: RootNode-key from which has been copied/moved
+			:type srcrepo: str
+
+			:param srcpath: Path from which the entry has been copied/moved
+			:type srcpath: str
+
+			:param name: Name of the entry which has been copied/moved
+			:type name: str
+
+			:param destrepo: RootNode-key to which has been copied/moved
+			:type destrepo: str
+
+			:param destpath: Path to which the entries has been copied/moved
+			:type destpath: str
+
+			:param type: "entry": Copy/Move an entry, everything else: Copy/Move an directory
+			:type type: string
+
+			:param deleteold: "0": Copy, "1": Move
+			:type deleteold: str
+
+			:return: Returns the emitted HTML response.
+			:rtype: str
+		"""
+		tpl = self.copySuccessTemplate
+		if "copySuccessTemplate" in dir( self.parent ):
+			tpl = self.parent.copySuccessTemplate
+		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
+		return( template.render( srcrepo=srcrepo, srcpath=srcpath, name=name, destrepo=destrepo, destpath=destpath, type=type, deleteold=deleteold ) )
+
+
+	def reparentSuccess(self, repoObj, tpl=None, **kwargs ):
+		"""
+			Renders a page informing that the item was successfully moved.
+			
+			:param repoObj: ndb.Expando instance of the item that was moved.
+			:type repoObj: ndb.Expando
+
+			:param tpl: Name of a different template, which should be used instead of the default one
+			:type tpl: str
+		"""
+		if not tpl:
+			if "reparentSuccessTemplate" in dir( self.parent ):
+				tpl = self.parent.reparentSuccessTemplate
+			else:
+				tpl = self.reparentSuccessTemplate
+		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
+		return( template.render( repoObj=repoObj, **kwargs ) )
+
+	def setIndexSuccess(self, dbobj, tpl=None, *args, **kwargs ):
+		"""
+			Renders a page informing that the items sortindex was successfully changed.
+
+			:param repoObj: ndb.Expando instance of the item that was changed
+			:type repoObj: ndb.Expando
+
+			:param tpl: Name of a different template, which should be used instead of the default one
+			:type tpl: str
+
+			:return: Returns the emitted HTML response.
+			:rtype: str
+		"""
+		if not tpl:
+			if "setIndexSuccessTemplate" in dir( self.parent ):
+				tpl = self.parent.setIndexSuccessTemplate
+			else:
+				tpl = self.setIndexSuccessTemplate
+		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
+		return( template.render( repoObj=repoObj, **kwargs ) )
+
+
+	def renderEmail(self, skel, tpl, dests ):
+		"""
+			Renders an email.
+
+			:param skel: Skeleton or dict which data to supply to the template.
+			:type skel: server.db.skeleton.Skeleton | dict
+
+			:param tpl: Name of the email-template to use. If this string is longer than 100 characters,
+			this string is interpreted as the template contents instead of its filename.
+			:type tpl: str
+
+			:param dests: Destination recipients.
+			:type dests: list | str
+
+			:return: Returns a tuple consisting of email header and body.
+			:rtype: str, str
+		"""
+		headers = {}
+		user = session.current.get("user")
+		if isinstance( skel, Skeleton ):
+			res = self.collectSkelData( skel )
+		elif isinstance( skel, list ) and all( [isinstance(x,Skeleton) for x in skel] ):
+			res = [ self.collectSkelData( x ) for x in skel ]
+		else:
+			res = skel
+		if len(tpl)<101:
+			try:
+				template = self.getEnv().from_string(  codecs.open( "emails/"+tpl+".email", "r", "utf-8" ).read() ) 
+			except:
+				template = self.getEnv().get_template( tpl+".email" )
+		else:
+			template = self.getEnv().from_string( tpl )
+		data = template.render( skel=res, dests=dests, user=user )
+		body = False
+		lineCount=0
+		for line in data.splitlines():
+			if lineCount>3 and body is False:
+				body = "\n\n"
+			if body != False:
+				body += line+"\n"
+			else:
+				if line.lower().startswith("from:"):
+					headers["from"]=line[ len("from:"):]
+				elif line.lower().startswith("subject:"):
+					headers["subject"]=line[ len("subject:"): ]
+				elif line.lower().startswith("references:"):
+					headers["references"]=line[ len("references:"):]
+				else:
+					body="\n\n"
+					body += line
+			lineCount += 1
+		return( headers, body )
+
+
+	# JINJA2 ENV ------------------------------------------------------------------------------------------------------
+	# ---------- JINJA2 ENV -------------------------------------------------------------------------------------------
+	# ---------------------JINJA2 ENV ----------------------------------------------------------------------------------
+
 	def getEnv( self ):
 		"""
 			Constucts the Jinja2 environment.
-			If an application specifies an jinja2Env function, this function 
-			can alter the enviroment before its used to parse any template.
-			@returns: Jinja2 Enviroment
+
+			If an application specifies an jinja2Env function, this function
+			can alter the environment before its used to parse any template.
+
+			:returns: Extended Jinja2 environment.
+			:rtype jinja2.Environment
 		"""
-		if "htmlpath" in dir( self ):
-			htmlpath = self.htmlpath
-		else:
-			htmlpath = "html/"
+
 		if not "env" in dir( self ):
 			loaders = self.getLoaders()
 			self.env = Environment( loader=loaders, extensions=['jinja2.ext.do', 'jinja2.ext.loopcontrols'], line_statement_prefix="##" )
+
+			# Globals (functions)
 			self.env.globals["requestParams"] = self.getRequestParams
 			self.env.globals["getSession"] = self.getSession
 			self.env.globals["setSession"] = self.setSession
@@ -191,16 +699,20 @@ class Render( object ):
 			self.env.globals["modulPath"] = self.modulePath # deprecated
 			self.env.globals["modulePath"] = self.modulePath
 			self.env.globals["_"] = _
+
+			# Filters
 			self.env.filters["tr"] = _
 			self.env.filters["urlencode"] = self.quotePlus
 			self.env.filters["shortKey"] = self.shortKey
+
 			if "jinjaEnv" in dir( self.parent ):
 				self.env = self.parent.jinjaEnv( self.env )
+
 		return( self.env )
 
 	def moduleName(self):
 		"""
-		Retrieve name of current module name the renderer is used within.
+		Jinja2 global: Retrieve name of current module where this renderer is used within.
 
 		:return: Returns the name of the current module, or empty string if there is no module set.
 		"""
@@ -211,7 +723,7 @@ class Render( object ):
 
 	def modulePath(self):
 		"""
-		Retrieve name of current module path the renderer is used within.
+		Jinja2 global: Retrieve path of current module the renderer is used within.
 
 		:return: Returns the path of the current module, or empty string if there is no module set.
 		"""
@@ -222,9 +734,11 @@ class Render( object ):
 
 	def getLanguage(self, resolveAlias=False):
 		"""
-			Returns the language used for this request.
-			If resolveAlias is set, its tried to resolve the actual language
-			using conf["viur.languageAliasMap"]
+			Jinja2 global: Returns the language used for this request.
+
+			:param resolveAlias: If True, the function tries to resolve the current language
+			using conf["viur.languageAliasMap"].
+			:type resolveAlias: bool
 		"""
 		lang = request.current.get().language
 		if resolveAlias and lang in conf["viur.languageAliasMap"].keys():
@@ -233,13 +747,16 @@ class Render( object ):
 
 	def execRequest( self, path, *args, **kwargs ):
 		"""
-			Starts an internal Request.
-			This allows a template to embed the result of another
-			request inside the current response.
+			Jinja2 global: Perform an internal Request.
+
+			This function allows to embed the result of another request inside the current template.
 			All optional parameters are passed to the requested resource.
-			@param path: Local part of the url. eg. user/list. Must not start with an /. Must not include an protocol or hostname.
-			@type path: String
-			@returns: Whatever the requested resource returns. This is *not* limited to strings!
+
+			:param path: Local part of the url, e.g. user/list. Must not start with an /.
+			Must not include an protocol or hostname.
+			:type path: str
+
+			:returns: Whatever the requested resource returns. This is *not* limited to strings!
 		"""
 		if "cachetime" in kwargs:
 			cachetime = kwargs["cachetime"]
@@ -300,15 +817,22 @@ class Render( object ):
 		if cachetime:
 			memcache.set( cacheKey, resstr, cachetime )
 		return( resstr )
-	
+
 	def getCurrentUser( self ):
+		"""
+		Jinja2 global: Returns the current user from the session, or None if not logged in.
+
+		:return: A dict containing user data. Returns None if no user data is available.
+		:rtype: dict
+		"""
 		return( utils.getCurrentUser() )
-	
+
 	def getHostUrl(self, *args,  **kwargs):
 		"""
-			Returns the hostname, including the currently used Protocol.
-			Eg: http://www.example.com
-			@returns: String
+			Jinja2 global: Retrieve hostname with prototcol.
+
+			:returns: Returns the hostname, including the currently used protocol, e.g: http://www.example.com
+			:rtype: str
 		"""
 		url = request.current.get().request.url
 		url = url[ :url.find("/", url.find("://")+5) ]
@@ -316,10 +840,12 @@ class Render( object ):
 
 	def updateURL( self, **kwargs ):
 		"""
-			Constructs a new URL based on the current requests url.
-			Given parameters are replaced if they exists in the current requests url,
-			otherwise there appended.
-			@returns: String
+			Jinja2 global: Constructs a new URL based on the current requests url.
+
+			Given parameters are replaced if they exists in the current requests url, otherwise there appended.
+
+			:returns: Returns a well-formed URL.
+			:rtype: str
 		"""
 		tmpparams = {}
 		tmpparams.update( request.current.get().kwargs )
@@ -335,109 +861,140 @@ class Render( object ):
 			else:
 				tmpparams[key] = value
 		return "?"+ urlencode( tmpparams ).replace("&","&amp;" )
-		
+
 	def getRequestParams(self):
 		"""
-			Allows accessing the request-parameters from the template
-			We escape these values here, as users tend to use these in an
-			unsafe manner.
-			@returns: Dict
+			Jinja2 global: Allows for accessing the request-parameters from the template.
+
+			These returned values are escaped, as users tend to use these in an unsafe manner.
+
+			:returns: Dict of parameter and values.
+			:rtype: dict
 		"""
 		res = {}
 		for k, v in request.current.get().kwargs.items():
 			res[ escapeString( k ) ] = escapeString( v )
 		return res
-	
+
 	def getSession(self):
 		"""
-			Allows templates to store variables server-side inside the session.
-			Note: This is seperate part of the session for security-reasons.
-			@returns: Dict
+			Jinja2 global: Allows templates to store variables server-side inside the session.
+
+			Note: This is done in a separated part of the session for security reasons.
+
+			:returns: A dictionary of session variables.
+			:rtype: dict
 		"""
 		if not session.current.get("JinjaSpace"):
 			session.current["JinjaSpace"] = {}
 		return session.current.get("JinjaSpace")
-	
+
 	def setSession(self,name,value):
 		"""
-			Allows templates to store variables server-side inside the session.
-			Note: This is seperate part of the session for security-reasons.
-			@param name: Name of the key to store the value under
-			@type name: String
-			@param value: Value to store
+			Jinja2 global: Allows templates to store variables on server-side inside the session.
+
+			Note: This is done in a separated part of the session for security reasons.
+
+			:param name: Name of the key
+			:type name: str
+
+			:param value: Value to store with name.
+			:type value: any
 		"""
 		sessionData = self.getSession()
 		sessionData[name]=value
 		session.current["JinjaSpace"]= sessionData
 		session.current.markChanged()
-	
-	def getEntry(self,  modul, id=None, skel="viewSkel"  ):
+
+	def getEntry(self, module, id=None, skel="viewSkel"):
 		"""
-			Fetch an entry from a given modul, and return
-			the data as dict (prepared for direct use in the output).
-			Its possible to specify a different data-model as the one
-			normally used for rendering (eg. an editSkel)
-			@param modul: Modulname, from which the data should be fetched
-			@type modul: String
-			@param id: Enity-Key in urlsafe format
-			@type id: String
-			@param skel: Optional different datamodell
-			@type skel: String
-			@returns: Dict
+			Jinja2 global: Fetch an entry from a given module, and return the data as a dict,
+			prepared for direct use in the output.
+
+			It is possible to specify a different data-model as the one used for rendering
+			(e.g. an editSkel).
+
+			:param module: Name of the module, from which the data should be fetched.
+			:type module: str
+
+			:param id: Requested entity-key in an urlsafe-format. If the module is a Singleton
+			application, the parameter can be omitted.
+			:type id: str
+
+			:param skel: Specifies and optionally different data-model
+			:type skel: str
+
+			:returns: dict on success, False on error.
+			:rtype: dict | bool
 		"""
-		if not modul in dir ( conf["viur.mainApp"] ):
-			logging.error("getEntry called with unknown modul %s!" % modul)
+		if not module in dir ( conf["viur.mainApp"] ):
+			logging.error("getEntry called with unknown modul %s!" % module)
 			return False
-		obj = getattr( conf["viur.mainApp"], modul)
+
+		obj = getattr( conf["viur.mainApp"], module)
+
 		if skel in dir( obj ):
 			skel = getattr( obj , skel)()
+
 			if isinstance( obj, Singleton ) and not id:
 				#We fetching the entry from a singleton - No id needed
 				id = str( db.Key.from_path( skel.kindName, obj.getKey() ) )
 			elif not id:
 				logging.info("getEntry called without an valid id" )
 				return( None )
+
 			if isinstance( skel,  Skeleton ):
 				if not skel.fromDB( id ):
 					return( None )
 				return( self.collectSkelData( skel ) )
+
 		return False
 
-	def getSkel(self,  modul,  skel="viewSkel"):
+	def getSkel(self, module, skel="viewSkel"):
 		"""
-			Returns the structure instead of data of an skeleton.
-			@param modul: Modul from which the skeleton should be retrived
-			@type modul: String
-			@param skel: Name of the skeleton.
-			@type skel: String
-		
+			Jinja2 global: Returns the skeleton structure instead of data for a module.
+
+			:param module: Module from which the skeleton is retrieved.
+			:type module: str
+
+			:param skel: Name of the skeleton.
+			:type skel: str
 		"""
-		if not modul in dir ( conf["viur.mainApp"] ):
+		if not module in dir ( conf["viur.mainApp"] ):
 			return False
-		obj = getattr( conf["viur.mainApp"], modul)
+
+		obj = getattr( conf["viur.mainApp"], module)
+
 		if skel in dir( obj ):
 			skel = getattr( obj , skel)()
 			if isinstance( skel,  Skeleton ):
 				return( self.renderSkelStructure( skel ) )
+
 		return False
 
-	def fetchList(self, modul, skel="viewSkel", _noEmptyFilter=False, *args,  **kwargs ):
+	def fetchList(self, module, skel="viewSkel", _noEmptyFilter=False, *args, **kwargs):
 		"""
-			Fetches a list of entries which match the given criteria.
-			@param modul: Modul from which the skeleton should be retrieved
-			@type modul: String
-			@param skel: Name to the skeleton to fetch the list from
-			@type skel: String
-			@param _noEmptyFilter: If set, this function will not return any results if at least one
-						parameter is an empty list. This is useful to prevent filtering (e.g. by id)
-						not being performed because the list is empty.
-			@type _noEmptyFilter: Bool
-			@returns: List or None
+			Jinja2 global: Fetches a list of entries which match the given filter criteria.
+
+			:param module: Name of the module from which list should be fetched.
+			:type module: str
+
+			:param skel: Name of the skeleton that is used to fetching the list.
+			:type skel: str
+
+			:param _noEmptyFilter: If True, this function will not return any results if at least one
+			parameter is an empty list. This is useful to prevent filtering (e.g. by id) not being
+			performed because the list is empty.
+			:type _noEmptyFilter: bool
+
+			:returns: Returns a dict that contains the "skellist" and "cursor" information,
+			or None on error case.
+			:rtype: dict
 		"""
-		if not modul in dir ( conf["viur.mainApp"] ):
-			logging.error("Jinja2-Render can't fetch a list from an unknown modul %s!" % modul)
+		if not module in dir ( conf["viur.mainApp"] ):
+			logging.error("Jinja2-Render can't fetch a list from an unknown modul %s!" % module)
 			return( False )
-		caller = getattr( conf["viur.mainApp"], modul)
+		caller = getattr( conf["viur.mainApp"], module)
 		if not skel in dir( caller ):
 			logging.error("Jinja2-Render can't fetch a list with an unknown skeleton %s!" % skel)
 			return( False )
@@ -460,8 +1017,18 @@ class Render( object ):
 			mylist.append( self.collectSkelData( mylist.pop(0) ) )
 
 		return( SkelListWrapper( mylist ) )
-	
+
 	def quotePlus(self, val ):
+		"""
+		Jinja2 filter: Make a string URL-safe.
+
+		:param val: String to be quoted.
+		:type val: str
+
+		:returns: Quoted string.
+		:rtype: str
+		"""
+
 		if not val: #quote_plus fails if val is None
 			return("")
 		if isinstance( val, unicode ):
@@ -469,382 +1036,18 @@ class Render( object ):
 		return( quote_plus( val ) )
 
 	def shortKey( self, val ):
+		"""
+		Jinja2 filter: Make a shortkey from an entity-key.
+
+		:param val: Entity-key as string.
+		:return: str
+
+		:returns: Shortkey on success, None on error.
+		:rtype: str
+		"""
+
 		try:
 			k = db.Key( encoded=unicode( val ) )
 			return( k.id_or_name() )
-		except: 
+		except:
 			return( None )
-
-	def renderSkelStructure(self, skel ):
-		"""
-			Dumps the Structure of a Skeleton.
-			@param skel: Skeleton which structure will be processed
-			@type skel: Skeleton
-			@returns: Dict
-		"""
-		res = OrderedDict()
-		for key, _bone in skel.items():
-			if "__" not in key:
-				if( isinstance( _bone, bones.baseBone ) ):
-					res[ key ] = {	"descr":  _(_bone.descr ), 
-							"type": _bone.type,
-							"required":_bone.required,
-							"params":_bone.params,
-							"visible": _bone.visible,
-							"readOnly": _bone.readOnly
-							}
-					if key in skel.errors.keys():
-						res[ key ][ "error" ] = skel.errors[ key ]
-					else:
-						res[ key ][ "error" ] = None
-					if isinstance( _bone, bones.relationalBone ):
-						if isinstance( _bone, bones.hierarchyBone ):
-							boneType = "hierarchy."+_bone.type
-						elif isinstance( _bone, bones.treeItemBone ):
-							boneType = "treeitem."+_bone.type
-						else:
-							boneType = "relational."+_bone.type
-						res[key]["type"] = boneType
-						res[key]["modul"] = _bone.modul
-						res[key]["multiple"]=_bone.multiple
-						res[key]["format"] = _bone.format
-					if( isinstance( _bone, bones.selectOneBone ) or isinstance( _bone, bones.selectMultiBone ) ):
-						res[key]["values"] = dict( [(k,_(v)) for (k,v) in _bone.values.items() ] )
-						res[key]["sortBy"] = _bone.sortBy
-					if( isinstance( _bone, bones.dateBone ) ):
-						res[key]["time"] = _bone.time
-						res[key]["date"] = _bone.date
-					if( isinstance( _bone, bones.numericBone )):
-						res[key]["precision"] = _bone.precision
-						res[key]["min"] = _bone.min
-						res[key]["max"] = _bone.max
-					if( isinstance( _bone, bones.textBone ) ):
-						res[key]["validHtml"] = _bone.validHtml
-					if( isinstance( _bone, bones.textBone ) ) or ( isinstance( _bone, bones.stringBone ) ):
-						res[key]["languages"] = _bone.languages 
-		return( res )
-	
-	def collectSkelData( self, skel ):
-		""" 
-			Prepares Values of one Skeleton for Output.
-			@type skel: Skeleton
-			@returns: Dict
-		"""
-		if isinstance( skel, list ):
-			return( [ self.collectSkelData(x) for x in skel ] )
-		res = {}
-		for key,_bone in skel.items():
-			if( isinstance( _bone, bones.documentBone ) ): #We flip source-html and parsed (cached) html for a more natural use
-				res[key] = _bone.cache
-			elif isinstance( _bone, selectOneBone ):
-				if _bone.value in _bone.values.keys():
-					res[ key ] = Render.KeyValueWrapper( _bone.value, _bone.values[ _bone.value ] )
-				else:
-					res[ key ] = _bone.value
-			elif isinstance( _bone, selectMultiBone ):
-				res[ key ] = [ (Render.KeyValueWrapper( val, _bone.values[ val ] ) if val in _bone.values.keys() else val)  for val in _bone.value ]
-			elif( isinstance( _bone, bones.baseBone ) ):
-				res[ key ] = _bone.value
-			if key in res.keys() and isinstance( res[key], list ):
-				res[key] = ListWrapper( res[key] )
-		return( res )
-
-	def add( self, skel, tpl=None,*args,**kwargs ):
-		"""
-			Renders a page for adding an entry.
-			The template must construct the html-form itself; the required informations
-			are passed as skel.structure, skel.value and skel.errors.
-			An jinja2-macro, wich builds such an form, is shipped with the server.
-			@param skel: Skeleton of the entry which should be created
-			@type skel: Skeleton
-			@param tpl: Name of an different template, which should be used instead of the default one
-			@param: tpl: String
-		"""
-		if not tpl and "addTemplate" in dir( self.parent ):
-			tpl = self.parent.addTemplate
-		tpl = tpl or self.addTemplate
-		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		skeybone = bones.baseBone( descr="SecurityKey",  readOnly=True, visible=False )
-		skeybone.value = securitykey.create()
-		skel["skey"] = skeybone
-		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
-			super( Skeleton, skel ).__setattr__( "errors", {} )
-		return( template.render( skel={"structure":self.renderSkelStructure(skel),"errors":skel.errors, "value":self.collectSkelData(skel) } ) )
-	
-	def edit( self, skel, tpl=None, **kwargs ):
-		"""
-			Renders a page for modifying an entry.
-			The template must construct the html-form itself; the required informations
-			are passed as skel.structure, skel.value and skel.errors.
-			An jinja2-macro, wich builds such an form, is shipped with the server.
-			@param skel: Skeleton of the entry which should be modified
-			@type skel: Skeleton
-			@param tpl: Name of an different template, which should be used instead of the default one
-			@param: tpl: String
-		"""
-		if not tpl and "editTemplate" in dir( self.parent ):
-			tpl = self.parent.editTemplate
-		tpl = tpl or self.editTemplate
-		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		skeybone = bones.baseBone( descr="SecurityKey",  readOnly=True, visible=False )
-		skeybone.value = securitykey.create()
-		skel["skey"]  = skeybone
-		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
-			super( Skeleton, skel ).__setattr__( "errors", {} )
-		return( template.render( skel={"structure":self.renderSkelStructure(skel),"errors":skel.errors, "value":self.collectSkelData(skel) },  **kwargs) )
-	
-	def addItemSuccess (self, skel, *args, **kwargs ):
-		"""
-			Render an page, informing that the entry has been successfully created.
-			@param id: Urlsafe key of the new entry
-			@type id: String
-			@param skel: Skeleton which contains the data of the new entity
-			@type skel: Skeleton
-		"""
-		tpl = self.addSuccessTemplate
-		if "addSuccessTemplate" in dir( self.parent ):
-			tpl = self.parent.addSuccessTemplate
-		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		res = self.collectSkelData( skel )
-		return( template.render( { "skel":res } ) )
-
-	def editItemSuccess (self, skel, *args, **kwargs ):
-		"""
-			Render an page, informing that the entry has been successfully modified.
-			@param skel: Skeleton which contains the data of the new entity
-			@type skel: Skeleton
-		"""
-		tpl = self.editSuccessTemplate
-		if "editSuccessTemplate" in dir( self.parent ):
-			tpl = self.parent.editSuccessTemplate
-		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		res = self.collectSkelData( skel )
-		return( template.render( skel=res ) )	
-	
-	def deleteSuccess (self, *args, **kwargs ):
-		"""
-			Render an page, informing that the entry has been successfully deleted.
-			Parameters depends on the application calling this:
-			List and Hierachy pass the id of the deleted Entry, while Tree passes the rootNode and path.
-		"""
-		tpl = self.deleteSuccessTemplate
-		if "deleteSuccessTemplate" in dir( self.parent ):
-			tpl = self.parent.deleteSuccessTemplate
-		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		return( template.render( **kwargs ) )	
-	
-	def list( self, skellist, tpl=None, **kwargs ):
-		"""
-			Renders a list of entries.
-			@param skellist: Skellist-instance which the entries to display
-			@type skellist: Skellist
-			@param tpl: Name of an different template, which should be used instead of the default one
-			@param: tpl: String
-		"""
-		if not tpl and "listTemplate" in dir( self.parent ):
-			tpl = self.parent.listTemplate
-		tpl = tpl or self.listTemplate
-		try:
-			fn = self.getTemplateFileName( tpl )
-		except errors.HTTPException as e: #Not found - try default fallbacks FIXME: !!!
-			tpl = "list"
-		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		for x in range(0, len( skellist ) ):
-			skellist.append( self.collectSkelData( skellist.pop(0) ) )
-		return( template.render( skellist=SkelListWrapper(skellist), **kwargs ) )
-	
-	def listRootNodes(self, repos, tpl=None, **kwargs ):
-		"""
-			Renders a list of available repositories.
-			@param repos: List of repositories ( Dictionaries with "key"=>Repo-Key and "name"=>Repo-Name )
-			@type repos: List
-			@param tpl: Name of an different template, which should be used instead of the default one
-			@param: tpl: String
-		"""
-		if "listRepositoriesTemplate" in dir( self.parent ):
-			tpl = tpl or self.parent.listTemplate
-		if not tpl:
-			tpl = self.listRepositoriesTemplate
-		try:
-			fn = self.getTemplateFileName( tpl )
-		except errors.HTTPException as e: #Not found - try default fallbacks FIXME: !!!
-			tpl = "list"
-		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		return( template.render( repos=repos, **kwargs ) )
-	
-	def view( self, skel, tpl=None, **kwargs ):
-		"""
-			Renders a page to display a single item
-			@param skel: Skeleton which contains the data of the entity
-			@type skel: Skeleton
-			@param tpl: Name of an different template, which should be used instead of the default one
-			@param: tpl: String
-		"""
-		if not tpl and "viewTemplate" in dir( self.parent ):
-			tpl = self.parent.viewTemplate
-		tpl = tpl or self.viewTemplate
-		template= self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		if isinstance( skel, Skeleton ):
-			res = self.collectSkelData( skel )
-		else:
-			res = skel
-		return( template.render( skel=res, **kwargs ) )
-	
-## Extended functionality for the Tree-Application ##
-	def listRootNodeContents( self, subdirs, entries, tpl=None, **kwargs):
-		"""
-			Renders the contents of a given RootNode.
-			This differs from list(), as one level in the tree-application may contains two different Child-Types: Entries and Folders.
-			@param subdirs: List of (sub-) Directories on the current level
-			@type repos: List
-			@param entries: Skellist-instance which the entries of the current level
-			@type entries: Skellist
-			@param tpl: Name of an different template, which should be used instead of the default one
-			@param: tpl: String
-		"""
-		if "listRootNodeContentsTemplate" in dir( self.parent ):
-			tpl = tpl or self.parent.listRootNodeContentsTemplate
-		else:
-			tpl = tpl or self.listRootNodeContentsTemplate
-		template= self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		return( template.render( subdirs=subdirs, entries=[self.collectSkelData( x ) for x in entries], **kwargs) )
-
-	def addDirSuccess(self, rootNode,  path, dirname, *args, **kwargs ):
-		"""
-			Render an page, informing that the directory has been successfully created.
-			@param rootNode: RootNode-key in which the directory has been created
-			@type rootNode: String
-			@param path: Path in which the directory has been created
-			@type path: String:
-			@param dirname: Name of the newly created directory
-			@type dirname: string
-			@type skel: Skeleton
-		"""
-		tpl = self.addDirSuccessTemplate
-		if "addDirSuccessTemplate" in dir( self.parent ):
-			tpl = self.parent.addDirSuccessTemplate
-		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		return( template.render( rootNode=rootNode,  path=path, dirname=dirname ) )
-
-	def renameSuccess(self,  rootNode, path, src, dest, *args, **kwargs ):
-		"""
-			Render an page, informing that an entry has been successfully renamed.
-			@param rootNode: RootNode-key in which the entry has been renamed
-			@type rootNode: String
-			@param path: Path in which the entry has been renamed
-			@type path: String:
-			@param src: Old name of the entry
-			@type src: string
-			@param dest: New name of the entry
-			@type dest: string
-			@type skel: Skeleton
-		"""
-		tpl = self.renameSuccessTemplate
-		if "renameSuccessTemplate" in dir( self.parent ):
-			tpl = self.parent.renameSuccessTemplate
-		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		return( template.render( rootNode=rootNode,  path=path, src=src, dest=dest ) )
-
-	def copySuccess(self, srcrepo, srcpath, name, destrepo, destpath, type, deleteold, *args, **kwargs ):
-		"""
-			Render an page, informing that an entry has been successfully copied/moved.
-			@param srcrepo: RootNode-key from which has been copied/moved
-			@type srcrepo: String
-			@param srcpath: Path from which the entry has been copied/moved
-			@type srcpath: String
-			@type name: Name of the entry which has been copied/moved
-			@type name: String
-			@param destrepo: RootNode-key to which has been copied/moved
-			@type destrepo: String
-			@param destpath: Path to which the entries has been copied/moved
-			@type destpath: String
-			@param type: "entry": Copy/Move an entry, everything else: Copy/Move an directory
-			@type type: string
-			@param deleteold: "0": Copy, "1": Move
-			@type deleteold: string
-		"""
-		tpl = self.copySuccessTemplate
-		if "copySuccessTemplate" in dir( self.parent ):
-			tpl = self.parent.copySuccessTemplate
-		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		return( template.render( srcrepo=srcrepo, srcpath=srcpath, name=name, destrepo=destrepo, destpath=destpath, type=type, deleteold=deleteold ) )
-
-
-	def reparentSuccess(self, repoObj, tpl=None, **kwargs ):
-		"""
-			Renders a page informing that the item was successfully moved.
-			@param repoObj: ndb.Expando instance of the item that was moved
-			@type repoObj: ndb.Expando
-			@param tpl: Name of an different template, which should be used instead of the default one
-			@param: tpl: String
-		"""
-		if not tpl:
-			if "reparentSuccessTemplate" in dir( self.parent ):
-				tpl = self.parent.reparentSuccessTemplate
-			else:
-				tpl = self.reparentSuccessTemplate
-		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		return( template.render( repoObj=repoObj, **kwargs ) )
-
-	def setIndexSuccess(self, dbobj, tpl=None, *args, **kwargs ):
-		"""
-			Renders a page informing that the items sortindex was successfully changed.
-			@param repoObj: ndb.Expando instance of the item that was changed
-			@type repoObj: ndb.Expando
-			@param tpl: Name of an different template, which should be used instead of the default one
-			@param: tpl: String
-		"""
-		if not tpl:
-			if "setIndexSuccessTemplate" in dir( self.parent ):
-				tpl = self.parent.setIndexSuccessTemplate
-			else:
-				tpl = self.setIndexSuccessTemplate
-		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		return( template.render( repoObj=repoObj, **kwargs ) )
-
-
-	def renderEmail(self, skel, tpl, dests ):
-		"""
-			Renders an email.
-			@param skel: Skeleton or Dictionary which data to supply to the template
-			@type skel: Skeleton or Dict
-			@param tpl: Name of the email-template to use. If this string is longer than 100 characters, this string is interpreted as the template contents insted of its filename.
-			@type tpl: String
-			@param dests: Destination email-address
-			@type dests: String
-		"""
-		headers = {}
-		user = session.current.get("user")
-		if isinstance( skel, Skeleton ):
-			res = self.collectSkelData( skel )
-		elif isinstance( skel, list ) and all( [isinstance(x,Skeleton) for x in skel] ):
-			res = [ self.collectSkelData( x ) for x in skel ]
-		else:
-			res = skel
-		if len(tpl)<101:
-			try:
-				template = self.getEnv().from_string(  codecs.open( "emails/"+tpl+".email", "r", "utf-8" ).read() ) 
-			except:
-				template = self.getEnv().get_template( tpl+".email" )
-		else:
-			template = self.getEnv().from_string( tpl )
-		data = template.render( skel=res, dests=dests, user=user )
-		body = False
-		lineCount=0
-		for line in data.splitlines():
-			if lineCount>3 and body is False:
-				body = "\n\n"
-			if body != False:
-				body += line+"\n"
-			else:
-				if line.lower().startswith("from:"):
-					headers["from"]=line[ len("from:"):]
-				elif line.lower().startswith("subject:"):
-					headers["subject"]=line[ len("subject:"): ]
-				elif line.lower().startswith("references:"):
-					headers["references"]=line[ len("references:"):]
-				else:
-					body="\n\n"
-					body += line
-			lineCount += 1
-		return( headers, body  )
