@@ -99,7 +99,7 @@ def canAccess( *args, **kwargs ):
 	return( False )
 
 def index(*args, **kwargs):
-	if request.current.get().isDevServer:
+	if request.current.get().isDevServer or request.current.get().isSSLConnection:
 		if canAccess():
 			raise( errors.Redirect("/vi/s/admin.html") )
 		else:
