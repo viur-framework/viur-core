@@ -97,14 +97,16 @@ class CustomUser( List ):
 
 	def editSkel( self, *args,  **kwargs ):
 		skel = super(CustomUser, self).editSkel()
-		accessRights = skel["access"].values.copy()
-		for right in conf["viur.accessRights"]:
-			accessRights[ right ] = _( right )
-		skel["access"].values = accessRights
 		skel["password"] = passwordBone( descr="Passwort", required=False )
 		currUser = utils.getCurrentUser()
 		if currUser and "root" in currUser["access"]:
 			skel["name"].readOnly=False
+			skel["access"].readOnly=False
+			skel["status"].readOnly=False
+		else:
+			skel["name"].readOnly=True
+			skel["access"].readOnly=True
+			skel["status"].readOnly=True
 		return( skel )
 
 	class lostPasswordSkel( Skeleton ):
@@ -241,13 +243,13 @@ class CustomUser( List ):
 	def verify(self,  skey,  *args,  **kwargs ):
 		data = securitykey.validate( skey )
 		skel = self.baseSkel()
-		if not data or not isinstance( data,  dict ) or not "userid" in data or not skel["fromDB"]( data["userid"] ):
+		if not data or not isinstance( data,  dict ) or not "userid" in data or not skel.fromDB( data["userid"] ):
 			return self.render.verifyFailed()
 		if self.registrationAdminVerificationRequired:
 			skel["status"].value = 2
 		else:
 			skel["status"].value = 10
-		skel["toDB"]( data["userid"] )
+		skel.toDB()
 		return self.render.verifySuccess( data )
 	verify.exposed = True
 	
