@@ -97,7 +97,14 @@ class CustomUser( List ):
 
 	def editSkel( self, *args,  **kwargs ):
 		skel = super(CustomUser, self).editSkel()
+		accessRights = skel["access"].values.copy()
+
+		for right in conf["viur.accessRights"]:
+			accessRights[ right ] = _( right )
+
+		skel["access"].values = accessRights
 		skel["password"] = passwordBone( descr="Passwort", required=False )
+
 		currUser = utils.getCurrentUser()
 		if currUser and "root" in currUser["access"]:
 			skel["name"].readOnly=False
@@ -107,7 +114,8 @@ class CustomUser( List ):
 			skel["name"].readOnly=True
 			skel["access"].readOnly=True
 			skel["status"].readOnly=True
-		return( skel )
+
+		return skel
 
 	class lostPasswordSkel( Skeleton ):
 		kindName = "user"
