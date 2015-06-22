@@ -12,24 +12,43 @@ class Cart( List ):
 	productSkel = None
 
 	@exposed
-	def add( self, product, amt=None, extend=False, async=False ):
+	def add(self, product, amt=None, extend=False, async=False):
 		"""
 		Adds the product with the id product to the cart.
-		If product already exists, and amt is left-out, the number of the product in the cart will be increased.
+
+		If product already exists, and amt is left-out, the number of the products in the cart
+		will be increased.
 
 		:param product: The product key to add to the cart.
-		:param amt: The amount to add; default is 1.
-		:param extend: Set True, if amt should be added to existing items, else the amount is overridden.
+		:type product: str
+
+		:param amt: The amount to add; defaults to 1.
+		:type amt: str | int
+
+		:param extend: Set True, if amt should be added to existing items, else the amount is
+		overridden.
+		:type extend: bool
+
 		:param async: Set True for use in Ajax requests.
+		:type extend: bool
 		"""
 
 		prods = session.current.get("cart_products") or {}
-		if not isinstance(extend, bool):
-			extend = bool(int(extend))
-		if not isinstance(async, bool):
-			async = bool(int(async))
 
-		if not all( x in "1234567890" for x in unicode(amt) ):
+		# sanity checks
+		if not isinstance(extend, bool):
+			try:
+				extend = bool(int(extend))
+			except ValueError:
+				extend = False
+
+		if not isinstance(async, bool):
+			try:
+				async = bool(int(async))
+			except ValueError:
+				async = False
+
+		if not (amt and all(x in "1234567890" for x in unicode(amt)) and int(amt) > 0):
 			amt = None
 
 		if self.productSkel().fromDB( product ):
@@ -39,10 +58,10 @@ class Cart( List ):
 			if amt and not bool( extend ):
 				prods[ product ][ "amount" ] = int(amt)
 			else:
-				if amt is None:
+				if not amt:
 					amt = 1
 
-				prods[ product ][ "amount" ] += int( amt )
+				prods[ product ][ "amount" ] += int(amt)
 
 			session.current["cart_products"] = prods
 			session.current.markChanged()
@@ -52,10 +71,14 @@ class Cart( List ):
 			                    "cartsum": self.cartSum(),
 			                    "added": int( amt ) } )
 
-		raise( errors.Redirect( "/%s/view" % self.modulName ) )
+		raise errors.Redirect("/%s/view" % self.modulName)
 
 	@exposed
 	def view( self, *args, **kwargs ):
+		"""
+		Views the current cart content.
+		"""
+
 		prods = session.current.get("cart_products") or {}
 
 		if prods:
@@ -64,20 +87,26 @@ class Cart( List ):
 			items = SkelList( self.productSkel )
 
 		for skel in items:
-			skel["amt"] = numericBone( descr="Quantity",
-			                defaultValue = session.current["cart_products"][ str( skel["id"].value ) ][ "amount" ] )
+			skel["amt"] = numericBone(
+							descr="Quantity",
+							defaultValue=session.current["cart_products"][ str( skel["id"].value ) ][ "amount" ] )
 
-		return( self.render.list( items ) )
+		return self.render.list(items)
 
 	@exposed
-	def delete( self, product, all="0", async=False ):
+	def delete(self, product, all="0", async=False):
 		"""
 		Deletes or decrements a product from the cart.
 		If all is set, it removes the entire product.
 
 		:param product: The product key to add to the cart.
+		:type product: str
+
 		:param all: If not "0", remove the entire entry for product, else decrement.
+		:type all: str
+
 		:param async: Set True for use in Ajax requests.
+		:type async: bool
 		"""
 
 		prods = session.current.get("cart_products") or {}
@@ -100,14 +129,26 @@ class Cart( List ):
 			                    "cartsum": self.cartSum(),
 			                    "removed": removed })
 
-		raise( errors.Redirect( "/%s/view" % self.modulName ) )
+		raise errors.Redirect("/%s/view" % self.modulName)
 
 	@internalExposed
 	def entryCount( self ):
+		"""
+		Returns the products in the cart.
+
+		:return: Number of products.
+		:rtype: int
+		"""
+
 		prods = session.current.get("cart_products") or {}
-		return( len( prods.keys() ) )
+		return len(prods.keys())
 
 	@internalExposed
 	def cartSum( self ):
-		# Should be overridden.
+		"""
+		This function should be overridden, to return the current cart total sum.
+
+		:return: Current cart total. Default implementation always returns 0.0
+		:rtype: float
+		"""
 		return 0.0
