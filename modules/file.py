@@ -307,8 +307,9 @@ class File( Tree ):
 	def canDelete( self, skel, skelType ):
 		user = utils.getCurrentUser()
 		if user and "root" in user["access"]:
-			return( True )
-		return( self.isOwnUserRootNode( str( skel["id"].value ) ) )
+			return True
+
+		return self.isOwnUserRootNode( str( skel["id"].value ) )
 
 	def canEdit( self, skelType, node=None ):
 		user = utils.getCurrentUser()

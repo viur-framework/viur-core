@@ -200,7 +200,7 @@ class Tree( object ):
 		"""
 		return( self.render.listRootNodes( self.getAvailableRootNodes( name ) ) )
 
-	
+
 	@exposed
 	def list( self, skelType, node, *args, **kwargs ):
 		"""
@@ -323,24 +323,30 @@ class Tree( object ):
 		elif skelType == "leaf":
 			skel = self.viewLeafSkel()
 		else:
-			raise( errors.NotAcceptable() )
+			raise errors.NotAcceptable()
+
 		if "skey" in kwargs:
 			skey = kwargs["skey"]
 		else:
 			skey = ""
-		if not self.canDelete( skel, skelType ):
-			raise errors.Unauthorized()
+
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
+
+		if not self.canDelete( skel, skelType ):
+			raise errors.Unauthorized()
+
 		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
-		if type=="leaf":
-			skel.delete( )
+
+		if skelType == "leaf":
+			skel.delete()
 		else:
 			self.deleteRecursive( id )
-			skel.delete( )
+			skel.delete()
+
 		self.onItemDeleted( skel )
-		return( self.render.deleteSuccess( skel, skelType=skelType ) )
+		return self.render.deleteSuccess( skel, skelType=skelType )
 
 	@exposed
 	@forceSSL
