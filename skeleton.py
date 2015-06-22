@@ -177,7 +177,7 @@ class Skeleton( object ):
 			:type name: str
 
 			:return: The sub-skeleton of the specified type.
-			:rtype: server.Skeleton
+			:rtype: server.skeleton.Skeleton
 		"""
 		skel = cls()
 		boneList = []
