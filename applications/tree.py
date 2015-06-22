@@ -328,7 +328,7 @@ class Tree( object ):
 			skey = kwargs["skey"]
 		else:
 			skey = ""
-		if not self.canDelete( id, skelType ):
+		if not self.canDelete( skel, skelType ):
 			raise errors.Unauthorized()
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
