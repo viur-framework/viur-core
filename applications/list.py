@@ -202,7 +202,6 @@ class List( object ):
 		return self.render.list( query.fetch() )
 
 	@forceSSL
-	@forcePost
 	@exposed
 	def edit( self, *args, **kwargs ):
 		"""
@@ -244,6 +243,7 @@ class List( object ):
 
 		if (    len(kwargs) == 0 # no data supplied
 				or skey == "" # no security key
+				or not request.current.get().isPostRequest # failure if not using POST-method
 				or not skel.fromClient(kwargs) # failure on reading into the bones
 				or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1") # review before changing
 		        ):
@@ -261,7 +261,6 @@ class List( object ):
 
 
 	@forceSSL
-	@forcePost
 	@exposed
 	def add( self, *args, **kwargs ):
 		"""
@@ -290,6 +289,7 @@ class List( object ):
 
 		if (    len(kwargs) == 0 # no data supplied
 				or skey == "" # no skey supplied
+		        or not request.current.get().isPostRequest # failure if not using POST-method
 		        or not skel.fromClient( kwargs ) # failure on reading into the bones
 		        or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1") # review before adding
 		        ):
