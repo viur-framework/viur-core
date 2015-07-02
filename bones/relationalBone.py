@@ -262,7 +262,19 @@ class relationalBone( baseBone ):
 		if name in data.keys():
 			value = data[ name ]
 		else:
-			value = None
+			value = []
+			for k,v in data.items():
+				if k.startswith( name ):
+					k = k.replace( name, "", 1)
+					try:
+						idx = int(k)
+					except:
+						continue
+					value.insert(idx, v)
+			if len(value)==0:
+				value = None
+			elif len(value)==1:
+				value = value[1]
 		self.value = []
 		res = []
 		if not value:
