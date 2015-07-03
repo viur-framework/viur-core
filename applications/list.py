@@ -6,10 +6,9 @@ import logging
 
 class List( object ):
 	"""
-	List is a ViUR BasicApplication that is used for multiple data entities of the same kind.
+	List is a ViUR BasicApplication.
 
-	The BasicApplication must be sub-classed for individual modules and provided the kindName
-	member set.
+	It is used for multiple data entities of the same kind, and needs to be sub-classed for individual modules.
 
 	:ivar kindName: Name of the kind of data entities that are managed by the application. \
 	This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the \
@@ -98,7 +97,7 @@ class List( object ):
 
 		.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`_resolveSkel`
 
-		:return: Returns a Skeleton instance for adding an entry.
+		:return: Returns a Skeleton instance for editing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
 		return self._resolveSkel()
@@ -110,23 +109,21 @@ class List( object ):
 	def preview( self, skey, *args, **kwargs ):
 		"""
 		Renders data for an entry, without reading from the database.
-		This function allows to preview a list entry without having to save it first.
+		This function allows to preview an entry without writing it to the database.
 
-		Values a provided via *kwargs*, and must
+		Any entity values are provided via *kwargs*.
 
 		The function uses the viewTemplate of the application.
 
-		:returns: The rendered preview object of the supplied data.
+		:returns: The rendered representation of the the supplied data.
 		"""
-		if not self.canPreview( ):
+		if not self.canPreview():
 			raise errors.Unauthorized()
 
 		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 
 		skel = self.viewSkel()
-		# fixme: self.canPreview() is not called??
-
 		skel.fromClient( kwargs )
 
 		return self.render.view( skel )
@@ -138,12 +135,12 @@ class List( object ):
 		Prepares and renders a single entry for viewing.
 
 		The entry is fetched by its entity key, which either is provided via *kwargs["id"]*,
-		or as the first parameter in *args*. The function runs several access control checks
-		on the loaded data before it is rendered.
+		or as the first parameter in *args*. The function performs several access control checks
+		on the requested entity before it is rendered.
 
 		.. seealso:: :func:`viewSkel`, :func:`canView`, :func:`onItemViewed`
 
-		:returns: The rendered object of the entry.
+		:returns: The rendered representation of the requested entity.
 
 		:raises: :exc:`server.errors.NotAcceptable`, when no *id* is provided.
 		:raises: :exc:`server.errors.NotFound`, when no entry with the given *id* was found.
@@ -151,8 +148,8 @@ class List( object ):
 		"""
 		if "id" in kwargs:
 			id = kwargs["id"]
-		elif( len( args ) >= 1 ):
-			id= args[0]
+		elif len( args ) >= 1:
+			id = args[0]
 		else:
 			raise errors.NotAcceptable()
 
@@ -208,8 +205,8 @@ class List( object ):
 		Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
 
 		The entry is fetched by its entity key, which either is provided via *kwargs["id"]*,
-		or as the first parameter in *args*. The function runs several access control checks
-		on the data before it is modified.
+		or as the first parameter in *args*. The function performs several access control checks
+		on the requested entity before it is modified.
 
 		.. seealso:: :func:`editSkel`, :func:`onItemEdited`, :func:`canEdit`
 
@@ -241,12 +238,12 @@ class List( object ):
 		if not self.canEdit( skel ):
 			raise errors.Unauthorized()
 
-		if (    len(kwargs) == 0 # no data supplied
-				or skey == "" # no security key
-				or not request.current.get().isPostRequest # failure if not using POST-method
-				or not skel.fromClient(kwargs) # failure on reading into the bones
-				or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1") # review before changing
-		        ):
+		if (len(kwargs) == 0 # no data supplied
+			or skey == "" # no security key
+			or not request.current.get().isPostRequest # failure if not using POST-method
+			or not skel.fromClient(kwargs) # failure on reading into the bones
+			or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1") # review before changing
+	        ):
 
 			# render the skeleton in the version it could as far as it could be read.
 			return self.render.edit( skel )
@@ -266,7 +263,7 @@ class List( object ):
 		"""
 		Add a new entry, and render the entry, eventually with error notes on incorrect data.
 
-		The function runs several access control checks on the data before it is added.
+		The function performs several access control checks on the requested entity before it is added.
 
 		.. seealso:: :func:`addSkel`, :func:`onItemAdded`, :func:`canAdd`
 
@@ -287,12 +284,12 @@ class List( object ):
 
 		skel = self.addSkel()
 
-		if (    len(kwargs) == 0 # no data supplied
-				or skey == "" # no skey supplied
-		        or not request.current.get().isPostRequest # failure if not using POST-method
-		        or not skel.fromClient( kwargs ) # failure on reading into the bones
-		        or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1") # review before adding
-		        ):
+		if (len(kwargs) == 0 # no data supplied
+			or skey == "" # no skey supplied
+	        or not request.current.get().isPostRequest # failure if not using POST-method
+	        or not skel.fromClient( kwargs ) # failure on reading into the bones
+	        or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1") # review before adding
+	        ):
 			# render the skeleton in the version it could as far as it could be read.
 			return self.render.add( skel )
 
@@ -377,7 +374,7 @@ class List( object ):
 
 		.. seealso:: :func:`add`
 
-		:returns: True, if adding entries is allowed, False else.
+		:returns: True, if adding entries is allowed, False otherwise.
 		:rtype: bool
 		"""
 		user = utils.getCurrentUser()
@@ -394,13 +391,11 @@ class List( object ):
 
 		return False
 
-
 	def canPreview( self ):
 		"""
 		Access control function for preview permission.
 
 		Checks if the current user has the permission to preview an entry.
-		It should be overridden for module-specific behavior.
 
 		The default behavior is:
 		- If no user is logged in, previewing is generally refused.
@@ -408,11 +403,11 @@ class List( object ):
 		- If the user has the modules "add" or "edit" permission (module-add, module-edit) enabled, \
 		previewing is allowed.
 
-		It should be overridden for a module-specific behavior.
+		It should be overridden for module-specific behavior.
 
 		.. seealso:: :func:`preview`
 
-		:returns: True, if previewing entries is allowed, False else.
+		:returns: True, if previewing entries is allowed, False otherwise.
 		:rtype: bool
 		"""
 		user = utils.getCurrentUser()
@@ -422,11 +417,9 @@ class List( object ):
 		if user["access"] and "root" in user["access"]:
 			return True
 
-		if (    user and user["access"]
-		        and ( "%s-add" % self.modulName in user["access"]
-		                or "%s-edit" % self.modulName in user["access"]
-		              )
-		        ):
+		if (user and user["access"]
+	        and ("%s-add" % self.modulName in user["access"]
+	                or "%s-edit" % self.modulName in user["access"])):
 			return True
 
 		return False
@@ -450,7 +443,7 @@ class List( object ):
 		:param skel: The Skeleton that should be edited.
 		:type skel: :class:`server.skeleton.Skeleton`
 
-		:returns: True, if editing entries is allowed, False else.
+		:returns: True, if editing entries is allowed, False otherwise.
 		:rtype: bool
 		"""
 		user = utils.getCurrentUser()
@@ -484,17 +477,21 @@ class List( object ):
 
 		.. seealso:: :func:`edit`
 
-		:returns: True, if editing entries is allowed, False else.
+		:returns: True, if editing entries is allowed, False otherwise.
 		:rtype: bool
 		"""
 		user = utils.getCurrentUser()
+
 		if not user:
-			return( False )
+			return False
+
 		if user["access"] and "root" in user["access"]:
-			return( True )
+			return True
+
 		if user and user["access"] and "%s-delete" % self.modulName in user["access"]:
-			return( True )
-		return( False )
+			return True
+
+		return False
 
 
 ## Override-able event-hooks
@@ -528,7 +525,7 @@ class List( object ):
 		:param skel: The Skeleton that has been modified.
 		:type skel: :class:`server.skeleton.Skeleton`
 
-		.. seealso:: :func:`add`
+		.. seealso:: :func:`edit`
 		"""
 		logging.info("Entry changed: %s" % skel["id"].value )
 
@@ -539,7 +536,7 @@ class List( object ):
 
 	def onItemViewed( self, skel ):
 		"""
-		Hook function that is called after viewing an entry.
+		Hook function that is called when viewing an entry.
 
 		It should be overridden for a module-specific behavior.
 		The default is doing nothing.
