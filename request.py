@@ -8,10 +8,12 @@ class RequestWrapper( object ):
 		Allows applications to access the current request
 		object (google.appengine.ext.webapp.Request)
 		without having a direct reference to it.
-		Dont use singleton current insted of this class.
-		Example:
-		from request import current as currentRequest
-		currentRequest.get().headers
+		Use singleton 'current' instead of this class.
+
+		Example::
+
+			from request import current as currentRequest
+			currentRequest.get().headers
 	"""
 		
 	def __init__( self,  *args, **kwargs ):

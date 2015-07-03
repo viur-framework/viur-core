@@ -1,10 +1,22 @@
 # -*- coding: utf-8 -*-
 
+"""
+	This module provides onetime keys. Such a Securitykey can only be used once to authenticate an action like
+	edit an entry. Unless specified otherwise, keys are bound to a session. This prevents such actions from beeing
+	executed without explicit user consent so an attacker can't send special crafted links (like /user/delete/xxx)
+	to a authenticated user as these links would lack a valid securityKey.
+
+	Its also possible to store data along with a securityKey and specify a lifeTime.
+
+"""
+
+
 from datetime import datetime, timedelta
 from server.utils import generateRandomString
 from server.session import current as currentSession
 from server import db, conf
 from server.tasks import PeriodicTask, callDeferred
+
 
 securityKeyKindName = "viur-securitykeys"
 
@@ -14,9 +26,10 @@ def create( duration=None, **kwargs ):
 		If duration is not set, this key is valid only for the current session.
 		Otherwise, the key and its data is serialized and saved inside the datastore
 		for up to duration-seconds
-		@param duration: Make this key valid for a fixed timeframe (and independend of the current session)
-		@type duration: Int or None
-		@returns: The new onetime key
+
+		:param duration: Make this key valid for a fixed timeframe (and independend of the current session)
+		:type duration: Int or None
+		:returns: The new onetime key
 	"""
 	key = generateRandomString()
 	if duration is None:
@@ -41,11 +54,11 @@ def validate( key, acceptSessionKey=False ):
 	""" 
 		Validates a onetime securitykey
 	
-		@type key: String
-		@param key: The key to validate
-		@type acceptSessionKey: Bool
-		@param acceptSessionKey: If True, we also accept the session's skey
-		@returns: False if the key was not valid for whatever reasons, the data (given during createSecurityKey) as dictionary or True if the dict is empty.
+		:type key: String
+		:param key: The key to validate
+		:type acceptSessionKey: Bool
+		:param acceptSessionKey: If True, we also accept the session's skey
+		:returns: False if the key was not valid for whatever reasons, the data (given during createSecurityKey) as dictionary or True if the dict is empty.
 	"""
 	if acceptSessionKey:
 		if key==currentSession.getSessionSecurityKey():

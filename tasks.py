@@ -11,7 +11,7 @@ from server import db
 from functools import wraps
 import json
 import logging
-import os
+import os, sys
 
 
 _periodicTasks = {}
@@ -253,6 +253,8 @@ def callDeferred( func ):
 		This is a decorator, wich allways calls the function defered.
 		Unlike Googles implementation, this one works (with bound functions)
 	"""
+	if "viur_doc_build" in dir(sys):
+		return(func)
 	__undefinedFlag_ = object()
 	def mkDefered( func, self=__undefinedFlag_, *args,  **kwargs ):
 		try:
