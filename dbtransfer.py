@@ -170,7 +170,7 @@ class DbTransfer( object ):
 	def genDict(self, obj):
 		res = {}
 		for k,v in obj.items():
-			if not any( [isinstance(v,x) for x in [str, unicode, long, float, datetime.datetime, list, dict, bool, type(None)]] ):
+			if not any( [isinstance(v,x) for x in [str, unicode, long, float, datetime, list, dict, bool, type(None)]] ):
 				logging.error("UNKNOWN TYPE %s" % str(type(v)))
 				v = unicode( v )
 				logging.error( v )
@@ -231,4 +231,21 @@ class DbTransfer( object ):
 		for res in q.run(limit=5):
 			r.append( str(res.key()) )
 		return( pickle.dumps( {"cursor": str(q.cursor()),"values":r}).encode("HEX"))
+
+
+	@exposed
+	def iterValues(self, module, cursor=None, key=None):
+		if not self._checkKey( key, export=True):
+			raise errors.Forbidden()
+
+		q = db.Query(module)
+
+		if cursor:
+			q.cursor(cursor)
+
+		r = []
+		for res in q.run(limit=99):
+			r.append( self.genDict( res ) )
+
+		return pickle.dumps({"cursor": str(q.getCursor().urlsafe()), "values": r} )
 
