@@ -194,3 +194,6 @@ class DefaultRender( object ):
 
 	def setIndexSuccess(self, *args, **kwargs ):
 		return( serializeXML( "OKAY") )
+
+	def cloneSuccess(self, *args, **kwargs ):
+		return( serializeXML( "OKAY") )

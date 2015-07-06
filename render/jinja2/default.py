@@ -68,6 +68,10 @@ class Render( object ):
 	addDirSuccessTemplate = "add_dir_success"
 	renameSuccessTemplate = "rename_success"
 	copySuccessTemplate = "copy_success"
+
+	reparentSuccessTemplate = "reparent_success"
+	setIndexSuccessTemplate = "setindex_success"
+	cloneSuccessTemplate = "clone_success"
 	
 	class KeyValueWrapper:
 		"""
@@ -567,12 +571,12 @@ class Render( object ):
 		return( template.render( srcrepo=srcrepo, srcpath=srcpath, name=name, destrepo=destrepo, destpath=destpath, type=type, deleteold=deleteold ) )
 
 
-	def reparentSuccess(self, repoObj, tpl=None, **kwargs ):
+	def reparentSuccess(self, obj, tpl=None, **kwargs ):
 		"""
 			Renders a page informing that the item was successfully moved.
 			
-			:param repoObj: ndb.Expando instance of the item that was moved.
-			:type repoObj: ndb.Expando
+			:param obj: ndb.Expando instance of the item that was moved.
+			:type obj: ndb.Expando
 
 			:param tpl: Name of a different template, which should be used instead of the default one
 			:type tpl: str
@@ -582,15 +586,16 @@ class Render( object ):
 				tpl = self.parent.reparentSuccessTemplate
 			else:
 				tpl = self.reparentSuccessTemplate
-		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		return( template.render( repoObj=repoObj, **kwargs ) )
 
-	def setIndexSuccess(self, dbobj, tpl=None, *args, **kwargs ):
+		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
+		return template.render( skel=skel, repoObj=obj, **kwargs )
+
+	def setIndexSuccess(self, obj, tpl=None, *args, **kwargs ):
 		"""
 			Renders a page informing that the items sortindex was successfully changed.
 
-			:param repoObj: ndb.Expando instance of the item that was changed
-			:type repoObj: ndb.Expando
+			:param obj: ndb.Expando instance of the item that was changed
+			:type obj: ndb.Expando
 
 			:param tpl: Name of a different template, which should be used instead of the default one
 			:type tpl: str
@@ -603,9 +608,31 @@ class Render( object ):
 				tpl = self.parent.setIndexSuccessTemplate
 			else:
 				tpl = self.setIndexSuccessTemplate
-		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		return( template.render( repoObj=repoObj, **kwargs ) )
 
+		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
+		return template.render( skel=obj, repoObj=obj, **kwargs )
+
+	def cloneSuccess(self, tpl=None, *args, **kwargs ):
+		"""
+			Renders a page informing that the items sortindex was successfully changed.
+
+			:param obj: ndb.Expando instance of the item that was changed
+			:type obj: ndb.Expando
+
+			:param tpl: Name of a different template, which should be used instead of the default one
+			:type tpl: str
+
+			:return: Returns the emitted HTML response.
+			:rtype: str
+		"""
+		if not tpl:
+			if "cloneSuccessTemplate" in dir( self.parent ):
+				tpl = self.parent.cloneSuccessTemplate
+			else:
+				tpl = self.cloneSuccessTemplate
+
+		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
+		return template.render( **kwargs )
 
 	def renderEmail(self, skel, tpl, dests ):
 		"""

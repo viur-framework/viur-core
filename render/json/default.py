@@ -167,3 +167,6 @@ class DefaultRender( object ):
 
 	def setIndexSuccess(self, *args, **kwargs ):
 		return( json.dumps( "OKAY") )
+
+	def cloneSuccess(self, *args, **kwargs ):
+		return( json.dumps( "OKAY") )

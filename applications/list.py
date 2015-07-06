@@ -33,9 +33,9 @@ class List( object ):
 		self.modulPath = modulPath
 
 		if self.adminInfo:
-			rights = ["add", "edit", "view", "delete"]
-			for r in rights:
+			for r in ["add", "edit", "view", "delete"]:
 				rightName = "%s-%s" % ( modulName, r )
+
 				if not rightName in conf["viur.accessRights"]:
 					conf["viur.accessRights"].append( rightName )
 
@@ -188,6 +188,8 @@ class List( object ):
 		by calling the function :func:`listFilter`, which updates the query-filter to match only
 		elements which the user is allowed to see.
 
+		.. seealso:: :func:`listFilter`, :func:`server.db.mergeExternalFilter`
+
 		:returns: The rendered list objects for the matching entries.
 
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
@@ -269,7 +271,6 @@ class List( object ):
 
 		:returns: The rendered, added object of the entry, eventually with error hints.
 
-		:raises: :exc:`server.errors.NotFound`, when no entry with the given *id* was found.
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
@@ -463,12 +464,13 @@ class List( object ):
 		"""
 		Access control function for delete permission.
 
-		Checks if the current user has the permission to edit an entry.
+		Checks if the current user has the permission to delete an entry.
 
 		The default behavior is:
-		- If no user is logged in, editing is generally refused.
-		- If the user has "root" access, editing is generally allowed.
-		- If the user has the modules "edit" permission (module-edit) enabled, editing is allowed.
+		- If no user is logged in, deleting is generally refused.
+		- If the user has "root" access, deleting is generally allowed.
+		- If the user has the modules "deleting" permission (module-delete) enabled, \
+		 deleting is allowed.
 
 		It should be overridden for a module-specific behavior.
 
@@ -477,7 +479,7 @@ class List( object ):
 
 		.. seealso:: :func:`edit`
 
-		:returns: True, if editing entries is allowed, False otherwise.
+		:returns: True, if deleting entries is allowed, False otherwise.
 		:rtype: bool
 		"""
 		user = utils.getCurrentUser()

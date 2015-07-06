@@ -30,23 +30,24 @@ class Singleton( object ):
 				
 	def getKey(self):
 		"""
-			Returns the DB-Key for the current context.
+		Returns the DB-Key for the current context.
 
-			This implementation provides one module-global key.
-			It *must* return *exactly one* key at any given time in any given context.
-			
-			:returns: Current context DB-key
-			:rtype: str
+		This implementation provides one module-global key.
+		It *must* return *exactly one* key at any given time in any given context.
+
+		:returns: Current context DB-key
+		:rtype: str
 		"""
 		return( "%s-modulkey" % self.editSkel().kindName )
 
 	def __init__( self, modulName, modulPath, *args, **kwargs ):
 		self.modulName = modulName
 		self.modulPath = modulPath
+
 		if self.adminInfo:
-			rights = ["edit", "view"]
-			for r in rights:
+			for r in ["edit", "view"]:
 				rightName = "%s-%s" % ( modulName, r )
+
 				if not rightName in conf["viur.accessRights"]:
 					conf["viur.accessRights"].append( rightName )
 
@@ -304,7 +305,10 @@ class Singleton( object ):
 
 		.. seealso:: :func:`view`
 
-		:returns: True, if editing is allowed, False otherwise.
+		:param skel: The Skeleton that should be viewed.
+		:type skel: :class:`server.skeleton.Skeleton`
+
+		:returns: True, if viewing is allowed, False otherwise.
 		:rtype: bool
 		"""
 		user = utils.getCurrentUser()
