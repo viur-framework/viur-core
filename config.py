@@ -23,6 +23,7 @@ conf = {
 		"viur.maxPostParamsCount": 250, #Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks
 		"viur.forceSSL": False,  #If true, all requests must be encrypted (ignored on development server)
 		"viur.emailSenderOverride": False, #If set, this sender will be used, regardless of what the templates advertise as sender
+		"viur.emailRecipientOverride": False, #If set, all outgoing emails will be send to this address (overriding the 'dests'-parameter in utils.sendEmail)
 		"viur.db.caching" : 2, #Cache strategy used by the database. 2: Aggressive, 1: Safe, 0: Off
 		"viur.tasks.startBackendOnDemand": True, #If true, allows the task modul to start a backend immediately (instead of waiting for the cronjob)
 		"viur.logMissingTranslations": False, #If true, ViUR will log missing translations in the datastore

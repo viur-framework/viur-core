@@ -52,6 +52,9 @@ def sendEMail( dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None
 	:type replyTo: str
 	:param replyTo: A reply-to email address
 	"""
+	if conf["viur.emailRecipientOverride"]:
+		logging.warning("Overriding destination %s with %s", dests, conf["viur.emailRecipientOverride"])
+		dests = conf["viur.emailRecipientOverride"]
 
 	headers, data = conf["viur.emailRenderer"]( skel, name, dests )
 	xheader = {}
