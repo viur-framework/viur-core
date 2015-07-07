@@ -12,6 +12,8 @@ from functools import wraps
 	implemented in ViUR, it caches the actual result
 	(ie the html-output in most cases). This can also
 	be used to cache the output of custom build functions.
+	Admins can bypass this cache by sending the X-Viur-Disable-Cache http Header
+	along with their requests.
 """
 
 
@@ -105,13 +107,15 @@ def wrapCallable(f, urls, userSensitive, languageSensitive, evaluatedArgs, maxCa
 	
 	@wraps(f)
 	def wrapF( self, *args, **kwargs ):
-		if conf["viur.disableCache"]:
+		currentRequest = request.current.get()
+		if conf["viur.disableCache"] or currentRequest.disableCache:
 			# Caching disabled
-			logging.debug( "Caching is disabled by config" )
+			if conf["viur.disableCache"]:
+				logging.debug( "Caching is disabled by config" )
 			return( f( self, *args, **kwargs ) )
 		# How many arguments are part of the way to the function called (and how many are just *args)
-		offset = -len( request.current.get().args) or len( request.current.get().pathlist )
-		path = "/"+"/".join( request.current.get().pathlist[ : offset ] )
+		offset = -len( currentRequest.args) or len( currentRequest.pathlist )
+		path = "/"+"/".join( currentRequest.pathlist[ : offset ] )
 		if not path in urls:
 			# This path (possibly a sub-render) should not be cached
 			logging.debug( "Not caching for %s" % path )
@@ -130,7 +134,7 @@ def wrapCallable(f, urls, userSensitive, languageSensitive, evaluatedArgs, maxCa
 			  dbRes["creationtime"] > datetime.now()-timedelta( seconds=maxCacheTime ):
 				# We store it unlimited or the cache is fresh enough
 				logging.debug( "This request was served from cache." )
-				request.current.get().response.headers['Content-Type'] = dbRes[ "content-type"].encode("UTF-8")
+				currentRequest.response.headers['Content-Type'] = dbRes[ "content-type"].encode("UTF-8")
 				return( dbRes["data"] )
 		# If we made it this far, the request wasnt cached or too old; we need to rebuild it
 		res = f( self, *args, **kwargs )

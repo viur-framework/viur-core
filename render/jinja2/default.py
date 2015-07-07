@@ -174,7 +174,6 @@ class Render( object ):
 			htmlpath = "html/"
 		return( ChoiceLoader( [FileSystemLoader( htmlpath ), FileSystemLoader( "server/template/" )] ) )
 
-
 	def renderSkelStructure(self, skel):
 		"""
 			Dumps the structure of a :class:`server.db.skeleton.Skeleton`.
@@ -790,7 +789,7 @@ class Render( object ):
 			del( kwargs["cachetime"] )
 		else:
 			cachetime=0
-		if conf["viur.disableCache"]: #Caching disabled by config
+		if conf["viur.disableCache"] or request.current.get().disableCache: #Caching disabled by config
 			cachetime=0
 		if cachetime:
 			#Calculate the cache key that entry would be stored under
