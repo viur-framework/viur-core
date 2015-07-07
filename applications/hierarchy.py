@@ -31,20 +31,19 @@ class Hierarchy( object ):
 
 	:ivar kindName: Name of the kind of data entities that are managed by the application. \
 	This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the \
-	application. For more information, refer to the function :func:`~server.applications.list._resolveSkel`.
+	application. For more information, refer to the function :func:`resolveSkel`.
 	:vartype kindName: str
 
 	:ivar adminInfo: todo short info on how to use adminInfo.
 	:vartype adminInfo: dict | callable
 	"""
 
-	kindName = None
+	kindName = None                             # The generic kindname for this module.
+
 	adminInfo = {
-		"name": "BaseHierarchy",    # Module name as shown in the admin tools
-		"handler": "hierarchy",     # Which handler to invoke
-		"icon": "",                 # Icon for this modul
-		#,"orderby":"changedate",
-		#"orderdir":1
+		"name": "BaseHierarchy",                # Module name as shown in the admin tools
+		"handler": "hierarchy",                 # Which handler to invoke
+		"icon": "icons/modules/hierarchy.svg"   # Icon for this module
 	}
 
 	def __init__( self, modulName, modulPath, *args, **kwargs ):
@@ -58,15 +57,17 @@ class Hierarchy( object ):
 				if not rightName in conf["viur.accessRights"]:
 					conf["viur.accessRights"].append( rightName )
 
-	def _resolveSkel(self):
+	def _resolveSkel(self, *args, **kwargs):
 		"""
-		Retrieve the a generally associated :class:`server.skeleton.Skeleton` that is used by
+		Retrieve the generally associated :class:`server.skeleton.Skeleton` that is used by
 		the application.
 
 		This is either be defined by the member variable *kindName* or by a Skeleton named like the
 		application class in lower-case order.
 
-		The function can be overridden by a general function returning the wanted Skeleton.
+		If this behavior is not wanted, it can be definitely overridden by defining module-specific
+		:func:`viewSkel`,:func:`addSkel`, or :func:`editSkel` functions, or by overriding this
+		function in general.
 
 		:return: Returns a Skeleton instance that matches the application.
 		:rtype: server.skeleton.Skeleton
@@ -91,7 +92,7 @@ class Hierarchy( object ):
 		:return: Returns a Skeleton instance for viewing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel()
+		return self._resolveSkel(*args, **kwargs)
 
 	def addSkel( self, *args, **kwargs ):
 		"""
@@ -105,7 +106,7 @@ class Hierarchy( object ):
 		:return: Returns a Skeleton instance for adding an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel()
+		return self._resolveSkel(*args, **kwargs)
 
 	def editSkel( self, *args, **kwargs ):
 		"""
@@ -119,27 +120,7 @@ class Hierarchy( object ):
 		:return: Returns a Skeleton instance for editing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel()
-
-	def jinjaEnv(self, env ):
-		"""
-		Provides some additional Jinja2 template functions for hierarchy applications.
-
-		..warning::
-		It is important to call the super-class-function of Hierarchy when this function
-		is overridden from a sub-classed module.
-		"""
-		env.globals["getPathToKey"] = self.pathToKey
-		env.globals["canAdd"] = self.canAdd
-		env.globals["canPreview"] = self.canPreview
-		env.globals["canEdit"] = self.canEdit
-		env.globals["canView"] = self.canView
-		env.globals["canDelete"] = self.canDelete
-		env.globals["canSetIndex"] = self.canSetIndex
-		env.globals["canList"] = self.canList
-		env.globals["canReparent"] = self.canReparent
-
-		return env
+		return self._resolveSkel(*args, **kwargs)
 
 	def getRootNode(self, entryKey ):
 		"""
@@ -212,10 +193,10 @@ class Hierarchy( object ):
 		"""
 		Checks, if the given rootNode is owned by the current user.
 
-		:param repo: Urlsafe-key of the rootNode
+		:param repo: URL-safe key of the root-node.
 		:type repo: str
 
-		:returns: True if the user owns this rootNode, False otherwise.
+		:returns: True if the user owns this root-node, False otherwise.
 		:rtype: bool
 		"""
 		thisuser = utils.getCurrentUser()
@@ -486,7 +467,10 @@ class Hierarchy( object ):
 
 		The function runs several access control checks on the data before it is deleted.
 
-		.. seealso:: :func:`editSkel`, :func:`onItemDeleted`
+		.. seealso:: :func:`canDelete`, :func:`editSkel`, :func:`onItemDeleted`
+
+		:param id: URL-safe key of the entry to be deleted.
+		:type id: str
 
 		:returns: The rendered, deleted object of the entry.
 
@@ -587,6 +571,7 @@ class Hierarchy( object ):
 	def edit( self, *args, **kwargs ):
 		"""
 		Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
+		Data is taken by any other arguments in *kwargs*.
 
 		The entry is fetched by its entity key, which either is provided via *kwargs["id"]*,
 		or as the first parameter in *args*. The function performs several access control checks
@@ -642,6 +627,7 @@ class Hierarchy( object ):
 	def add( self, parent, *args, **kwargs ):
 		"""
 		Add a new entry with the given parent, and render the entry, eventually with error notes on incorrect data.
+		Data is taken by any other arguments in *kwargs*.
 
 		The function performs several access control checks on the requested entity before it is added.
 
@@ -909,7 +895,7 @@ class Hierarchy( object ):
 		:param skel: The Skeleton that should be deleted.
 		:type skel: :class:`server.skeleton.Skeleton`
 
-		.. seealso:: :func:`edit`
+		.. seealso:: :func:`delete`
 
 		:returns: True, if deleting entries is allowed, False otherwise.
 		:rtype: bool
@@ -1093,6 +1079,40 @@ class Hierarchy( object ):
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
+
+## Renderer specific stuff
+
+	def jinjaEnv(self, env ):
+		"""
+		Provides some additional Jinja2 template functions for hierarchy applications.
+
+		These function are:
+
+		- :func:`pathToKey()` alias *getPathToKey()*
+		- :func:`canAdd()`
+		- :func:`canPreview()`
+		- :func:`canEdit()`
+		- :func:`canView()`
+		- :func:`canDelete()`
+		- :func:`canSetIndex()`
+		- :func:`canList()`
+		- :func:`canReparent()`
+
+		..warning::
+		It is important to call the super-class-function of Hierarchy when this function
+		is overridden from a sub-classed module.
+		"""
+		env.globals["getPathToKey"] = self.pathToKey
+		env.globals["canAdd"] = self.canAdd
+		env.globals["canPreview"] = self.canPreview
+		env.globals["canEdit"] = self.canEdit
+		env.globals["canView"] = self.canView
+		env.globals["canDelete"] = self.canDelete
+		env.globals["canSetIndex"] = self.canSetIndex
+		env.globals["canList"] = self.canList
+		env.globals["canReparent"] = self.canReparent
+
+		return env
 
 Hierarchy.admin=True
 Hierarchy.jinja2=True
