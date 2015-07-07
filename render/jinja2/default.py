@@ -977,15 +977,16 @@ class Render( object ):
 
 		return False
 
-	def getSkel(self, module, skel="viewSkel"):
+	def getSkel(self, module, skel="viewSkel", subSkel=None):
 		"""
 			Jinja2 global: Returns the skeleton structure instead of data for a module.
 
 			:param module: Module from which the skeleton is retrieved.
 			:type module: str
-
 			:param skel: Name of the skeleton.
 			:type skel: str
+			:param subSkel: If set, return just that subskel instead of the whole skeleton
+			:type subSkel: str or None
 		"""
 		if not module in dir ( conf["viur.mainApp"] ):
 			return False
@@ -995,7 +996,13 @@ class Render( object ):
 		if skel in dir( obj ):
 			skel = getattr( obj , skel)()
 			if isinstance( skel,  Skeleton ):
-				return( self.renderSkelStructure( skel ) )
+				if subSkel is not None:
+					try:
+						skel = skel.subSkel(subSkel)
+					except Exception as e:
+						logging.exception(e)
+						return False
+				return self.renderSkelStructure(skel)
 
 		return False
 
