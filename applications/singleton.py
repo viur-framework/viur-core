@@ -14,7 +14,7 @@ class Singleton( object ):
 
 	:ivar kindName: Name of the kind of data entity that are managed by the application. \
 	This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the \
-	application. For more information, refer to the function :func:`~server.applications.singleton._resolveSkel`.
+	application. For more information, refer to the function :func:`_resolveSkel`.
 	:vartype kindName: str
 
 	:ivar adminInfo: todo short info on how to use adminInfo.
@@ -23,9 +23,9 @@ class Singleton( object ):
 
 	kindName = None
 	adminInfo = {
-		"name": "BaseSingleton",    # Module name as shown in the admin tools
-		"handler": "singleton",     # Which handler to invoke
-		# "icon": "",               #Icon for this modul
+		"name": "BaseSingleton",                # Module name as shown in the admin tools
+		"handler": "singleton",                 # Which handler to invoke
+		"icon": "icons/modules/singleton.svg",  # Icon for this module
 	}
 				
 	def getKey(self):
@@ -51,15 +51,17 @@ class Singleton( object ):
 				if not rightName in conf["viur.accessRights"]:
 					conf["viur.accessRights"].append( rightName )
 
-	def _resolveSkel(self):
+	def _resolveSkel(self, *args, **kwargs):
 		"""
-		Retrieve the a generally associated :class:`server.skeleton.Skeleton` that is used by
+		Retrieve the generally associated :class:`server.skeleton.Skeleton` that is used by
 		the application.
 
 		This is either be defined by the member variable *kindName* or by a Skeleton named like the
 		application class in lower-case order.
 
-		The function can be overridden by a general function returning the wanted Skeleton.
+		If this behavior is not wanted, it can be definitely overridden by defining module-specific
+		:func:`viewSkel`,:func:`addSkel`, or :func:`editSkel` functions, or by overriding this
+		function in general.
 
 		:return: Returns a Skeleton instance that matches the application.
 		:rtype: server.skeleton.Skeleton
@@ -84,21 +86,7 @@ class Singleton( object ):
 		:return: Returns a Skeleton instance for viewing the singleton entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel()
-
-	def addSkel( self, *args, **kwargs ):
-		"""
-		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
-		for adding its entry. Therefore, this function is only used ONCE the applications entity is created.
-
-		The default is a Skeleton instance returned by :func:`_resolveSkel`.
-
-		.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`_resolveSkel`
-
-		:return: Returns a Skeleton instance for adding the singleton entry.
-		:rtype: server.skeleton.Skeleton
-		"""
-		return self._resolveSkel()
+		return self._resolveSkel(*args, **kwargs)
 
 	def editSkel( self, *args, **kwargs ):
 		"""
@@ -112,7 +100,7 @@ class Singleton( object ):
 		:return: Returns a Skeleton instance for editing the entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel()
+		return self._resolveSkel(*args, **kwargs)
 
 ## External exposed functions
 

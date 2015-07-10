@@ -66,22 +66,21 @@ class fileNodeSkel( TreeNodeSkel ):
 	name = stringBone( descr="Name", required=True, indexed=True, searchable=True )
 
 class File( Tree ):
-	viewLeafSkel = fileBaseSkel
-	editLeafSkel = fileBaseSkel
-	addLeafSkel = fileBaseSkel
-	
-	viewNodeSkel = fileNodeSkel
-	editNodeSkel = fileNodeSkel
-	addNodeSkel = fileNodeSkel
-	
 	maxuploadsize = None
 	uploadHandler = []
-	
+
 	rootNodes = {"personal":"my files"}
 	adminInfo = {	"name": "my files", #Name of this modul, as shown in Admin (will be translated at runtime)
 			"handler": "tree.simple.file",  #Which handler to invoke
 			"icon": "icons/modules/my_files.svg", #Icon for this modul
 			}
+
+	def _resolveSkel(self, skelType):
+		for rofl, copter in {"leaf": fileBaseSkel, "node": fileNodeSkel}.items():
+			if skelType.lower() == rofl:
+				return copter()
+
+		return None #failure!
 
 	def decodeFileName(self, name):
 		# http://code.google.com/p/googleappengine/issues/detail?id=2749
@@ -113,7 +112,7 @@ class File( Tree ):
 			Returns:
 				A list of BlobInfo records corresponding to each upload.
 				Empty list if there are no blob-info records for field_name.
-			
+
 		"""
 		uploads = collections.defaultdict(list)
 		for key, value in request.current.get().request.params.items():
@@ -177,7 +176,7 @@ class File( Tree ):
 		return( [] )
 	getAvailableRootNodes.internalExposed=True
 
-	
+
 	@exposed
 	def upload( self, node=None, *args, **kwargs ):
 		try:
@@ -254,7 +253,7 @@ class File( Tree ):
 				upload.delete()
 				utils.markFileForDeletion( str(upload.key() ) )
 			raise( errors.InternalServerError() )
-			
+
 
 	@exposed
 	def download( self, blobKey, fileName="", download="", *args, **kwargs ):
@@ -268,7 +267,7 @@ class File( Tree ):
 		request.current.get().response.headers['Content-Type'] = str(info.content_type)
 		request.current.get().response.headers[blobstore.BLOB_KEY_HEADER] = str(blobKey)
 		return("")
-		
+
 	@exposed
 	def view( self, *args, **kwargs ):
 		try:
@@ -297,24 +296,24 @@ class File( Tree ):
 
 	def canMkDir( self, repo, dirname ):
 		return( self.isOwnUserRootNode( str(repo.key() ) ) )
-		
+
 	def canRename( self, repo, src, dest ):
 		return( self.isOwnUserRootNode( str(repo.key() ) ) )
 
 	def canCopy( self, srcRepo, destRepo, type, deleteold ):
 		return( self.isOwnUserRootNode( str( srcRepo.key() ) ) and self.isOwnUserRootNode( str( destRepo.key() ) ) )
-		
-	def canDelete( self, skel, skelType ):
+
+	def canDelete( self, skelType, skel ):
 		user = utils.getCurrentUser()
 		if user and "root" in user["access"]:
 			return True
 
 		return self.isOwnUserRootNode( str( skel["id"].value ) )
 
-	def canEdit( self, skelType, node=None ):
+	def canEdit( self, skelType, skel=None ):
 		user = utils.getCurrentUser()
 		return( user and "root" in user["access"] )
-	
+
 		
 File.json=True
 File.jinja2=True

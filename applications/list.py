@@ -12,7 +12,7 @@ class List( object ):
 
 	:ivar kindName: Name of the kind of data entities that are managed by the application. \
 	This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the \
-	application. For more information, refer to the function :func:`~server.applications.list._resolveSkel`.
+	application. For more information, refer to the function :func:`_resolveSkel`.
 	:vartype kindName: str
 
 	:ivar adminInfo: todo short info on how to use adminInfo.
@@ -22,9 +22,9 @@ class List( object ):
 	kindName = None
 
 	adminInfo = {
-		"name": "BaseList",         # Module name as shown in the admin tools
-		"handler": "list",          # Which handler to invoke
-		"icon": "",                 # Icon for this module
+		"name": "BaseList",                     # Module name as shown in the admin tools
+		"handler": "list",                      # Which handler to invoke
+		"icon": "icons/modules/list.svg"        # Icon for this module
 	}
 
 	def __init__( self, modulName, modulPath, *args, **kwargs ):
@@ -39,15 +39,17 @@ class List( object ):
 				if not rightName in conf["viur.accessRights"]:
 					conf["viur.accessRights"].append( rightName )
 
-	def _resolveSkel(self):
+	def _resolveSkel(self, *args, **kwargs):
 		"""
-		Retrieve the a generally associated :class:`server.skeleton.Skeleton` that is used by
+		Retrieve the generally associated :class:`server.skeleton.Skeleton` that is used by
 		the application.
 
 		This is either be defined by the member variable *kindName* or by a Skeleton named like the
 		application class in lower-case order.
 
-		The function can be overridden by a general function returning the wanted Skeleton.
+		If this behavior is not wanted, it can be definitely overridden by defining module-specific
+		:func:`viewSkel`,:func:`addSkel`, or :func:`editSkel` functions, or by overriding this
+		function in general.
 
 		:return: Returns a Skeleton instance that matches the application.
 		:rtype: server.skeleton.Skeleton
@@ -72,7 +74,7 @@ class List( object ):
 		:return: Returns a Skeleton instance for viewing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel()
+		return self._resolveSkel(*args, **kwargs)
 
 	def addSkel( self, *args, **kwargs ):
 		"""
@@ -86,7 +88,7 @@ class List( object ):
 		:return: Returns a Skeleton instance for adding an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel()
+		return self._resolveSkel(*args, **kwargs)
 
 	def editSkel( self, *args, **kwargs ):
 		"""
@@ -100,7 +102,7 @@ class List( object ):
 		:return: Returns a Skeleton instance for editing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel()
+		return self._resolveSkel(*args, **kwargs)
 
 ## External exposed functions
 
@@ -205,6 +207,7 @@ class List( object ):
 	def edit( self, *args, **kwargs ):
 		"""
 		Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
+		Data is taken by any other arguments in *kwargs*.
 
 		The entry is fetched by its entity key, which either is provided via *kwargs["id"]*,
 		or as the first parameter in *args*. The function performs several access control checks
@@ -264,6 +267,7 @@ class List( object ):
 	def add( self, *args, **kwargs ):
 		"""
 		Add a new entry, and render the entry, eventually with error notes on incorrect data.
+		Data is taken by any other arguments in *kwargs*.
 
 		The function performs several access control checks on the requested entity before it is added.
 
@@ -311,7 +315,7 @@ class List( object ):
 
 		The function runs several access control checks on the data before it is deleted.
 
-		.. seealso:: :func:`editSkel`, :func:`onItemDeleted`
+		.. seealso:: :func:`canDelete`, :func:`editSkel`, :func:`onItemDeleted`
 
 		:returns: The rendered, deleted object of the entry.
 
@@ -477,7 +481,7 @@ class List( object ):
 		:param skel: The Skeleton that should be deleted.
 		:type skel: :class:`server.skeleton.Skeleton`
 
-		.. seealso:: :func:`edit`
+		.. seealso:: :func:`delete`
 
 		:returns: True, if deleting entries is allowed, False otherwise.
 		:rtype: bool
@@ -566,6 +570,7 @@ class List( object ):
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
+
 
 List.admin = True
 List.jinja2 = True
