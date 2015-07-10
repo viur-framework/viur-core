@@ -26,6 +26,8 @@
 
 """
 
+from server.config import conf
+import logging
 
 def addRule(objectType, srcOrDirective, enforceMode="monitor"):
 	"""

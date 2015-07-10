@@ -5,6 +5,7 @@ from google.appengine.api import memcache
 from google.appengine.api import search
 from server.config import conf
 import logging
+from random import random, sample, shuffle
 
 """
 	Tiny wrapper around *google.appengine.api.datastore*.
@@ -292,6 +293,7 @@ class Query( object ):
 		self._filterHook = None
 		self._orderHook = None
 		self._origCursor = None
+		self._isRandomOrder = False # Store if we had a orderby=random directive in mergeExternalFilter
 		self.origKind = kind
 
 	def setFilterHook(self, hook):
@@ -384,7 +386,7 @@ class Query( object ):
 			#Now filter relational bones
 			for bone, key in [ x for x in bones if isinstance( x[0], relationalBone ) ]:
 				bone.buildDBFilter( key, skel, self, filters )
-			#finally process orderings of nelational bones
+			#finally process orderings of relational bones
 			for bone, key in [ x for x in bones if isinstance( x[0], relationalBone ) ]:
 				bone.buildDBSort( key, skel, self, filters )
 		except RuntimeError:
@@ -395,12 +397,32 @@ class Query( object ):
 				taglist = [ "".join([y for y in unicode(x).lower() if y in conf["viur.searchValidChars"] ] ) for x in filters["search"] ]
 			else:
 				taglist = [ "".join([y for y in unicode(x).lower() if y in conf["viur.searchValidChars"] ]) for x in unicode(filters["search"]).split(" ")] 
-			assert not isinstance( self.datastoreQuery, datastore.MultiQuery )
+			assert not isinstance( self.datastoreQuery, datastore.MultiQuery ), "Searching using viur-tags is not possible on a query that already uses an IN-filter!"
 			origFilter = self.datastoreQuery
 			queries = []
 			for tag in taglist[:30]: #Limit to max 30 keywords
 				q = datastore.Query( kind=origFilter.__kind )
 				q[ "viur_tags" ] = tag
+				queries.append( q )
+			self.datastoreQuery = datastore.MultiQuery( queries, origFilter.__orderings )
+			for k, v in origFilter.items():
+				self.datastoreQuery[ k ] = v
+		if "orderby" in filters.keys() and filters["orderby"] == "random":
+			if not self.srcSkel.writeRandomIndex:
+				raise NotImplementedError("writeRandomIndex not set for Skeleton '%s' and therefore not available!" % self.srcSkel.kindName)
+			# We select a random set of elemets from that collection
+			assert not isinstance( self.datastoreQuery, datastore.MultiQuery ), "Orderby random is not possible on a query that already uses an IN-filter!"
+			self._isRandomOrder = True
+			origFilter = self.datastoreQuery
+			queries = []
+			for unused in range(0,3): #Fetch 3 Slices from the set
+				rndVal = random()
+				q = datastore.Query( kind=origFilter.__kind )
+				q["viur_randomidx <="] = rndVal
+				q.Order( ("viur_randomidx", DESCENDING) )
+				queries.append( q )
+				q = datastore.Query( kind=origFilter.__kind )
+				q["viur_randomidx >"] = rndVal
 				queries.append( q )
 			self.datastoreQuery = datastore.MultiQuery( queries, origFilter.__orderings )
 			for k, v in origFilter.items():
@@ -525,6 +547,15 @@ class Query( object ):
 			:returns: Returns the query itself for chaining.
 			:rtype: server.db.Query
 		"""
+		for reqOrder in orderings:
+			if isinstance(reqOrder, str):
+				fieldName = reqOrder
+			elif isinstance(reqOrder, tuple):
+				fieldName = reqOrder[0]
+			else:
+				raise BadArgumentError("Dont know what to do with %s" % type(fieldName),)
+			if fieldName=="random":
+				raise NotImplemented("orderby=random must be supplied to mergeExternalFilter as this changes which elements are returned")
 		if self._orderHook is not None:
 			try:
 				orderings = self._orderHook( self, orderings )
@@ -746,7 +777,8 @@ class Query( object ):
 		"""
 		if self.datastoreQuery is None:
 			return( None )
-		kwargs["limit"] = limit if limit!=-1 else self.amount
+		origLimit = limit if limit!=-1 else self.amount
+		kwargs["limit"] = origLimit
 		if not isinstance( self.datastoreQuery, datastore.MultiQuery ):
 			internalKeysOnly = True
 		else:
@@ -754,7 +786,28 @@ class Query( object ):
 		if conf["viur.db.caching" ]<2:
 			# Query-Caching is disabled, make this query keys-only if (and only if) explicitly requested for this query
 			internalKeysOnly = keysOnly
-		res = list( self.datastoreQuery.Run( keys_only=internalKeysOnly, **kwargs ) )
+		if self._isRandomOrder:
+			# We do a really dirty trick here: Running the queries in our MultiQuery by hand, as
+			# we don't want it's sort&merge functionality
+			assert isinstance( self.datastoreQuery, MultiQuery)
+			res = []
+			kwargs["limit"] = max(1,int(kwargs["limit"]/2))
+			for qry in getattr(self.datastoreQuery,"_MultiQuery__bound_queries"):
+				res.extend( qry.Run( keys_only=internalKeysOnly, **kwargs ) )
+		else:
+			res = list( self.datastoreQuery.Run( keys_only=internalKeysOnly, **kwargs ) )
+		if self._isRandomOrder:
+			# Remove duplicates
+			if internalKeysOnly:
+				res = list(set(res))
+			else:
+				tmpDict = {}
+				for item in res:
+					tmpDict[ str(item.key()) ] = item
+				res = list(tmpDict.values())
+			# Slice the requested amount of results our 3times lager set
+			res = sample(res,min(len(res),origLimit))
+			shuffle(res)
 		if conf["viur.debug.traceQueries"]:
 			kindName = self.getKind()
 			orders = self.getOrders()
@@ -850,6 +903,8 @@ class Query( object ):
 		"""
 		if self.datastoreQuery is None: #Noting to pull here
 			raise StopIteration()
+		if self._isRandomOrder:
+			raise NotImplemented("Cannot iter a orderby=random query!")
 		if isinstance( self.datastoreQuery, datastore.MultiQuery ) and keysOnly:
 			# Wantet KeysOnly, but MultiQuery is unable to give us that.
 			for res in self.datastoreQuery.Run():
