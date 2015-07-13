@@ -9,28 +9,23 @@ from itertools import chain
 
 class randomSliceBone( baseBone ):
 	"""
-		Holds numeric values.
-		Can be used for ints and floats.
-		For floats, the precision can be specified in decimal-places.
+		Simulates the orderby=random from SQL.
+		If you sort by this bone, the query will return a random set of elements from that query.
 	"""
 
 	type = "randomslice"
 
-	def __init__(self, *args,  **kwargs ):
+	def __init__(self, indexed=True, visible=False, readOnly=True, slices=2, sliceSize=0.5, *args,  **kwargs ):
 		"""
 			Initializes a new randomSliceBone.
 
-			:param precision: How may decimal places should be saved. Zero casts the value to int instead of float.
-			:type precision: int
-			:param min: Minimum accepted value (including).
-			:type min: float
-			:param max: Maximum accepted value (including).
-			:type max: float
+
 		"""
+		if not indexed or visible or not readOnly:
+			raise NotImplemented("A RandomSliceBone must be indexed, not visible and readonly!")
 		baseBone.__init__( self, indexed=True, visible=False, readOnly=True,  *args,  **kwargs )
-		self.boundsLat = (50.0,60.0)
-		self.boundsLng = (10.0,20.0)
-		self.gridDimensions = 10.0,12.0
+		self.slices = slices
+		self.sliceSize = sliceSize
 
 	def serialize( self, name, entity ):
 		"""
@@ -90,7 +85,7 @@ class randomSliceBone( baseBone ):
 			origFilter = dbFilter.datastoreQuery
 			origKind = dbFilter.getKind()
 			queries = []
-			for unused in range(0,3): #Fetch 3 Slices from the set
+			for unused in range(0,self.slices): #Fetch 3 Slices from the set
 				rndVal = random() # Choose our Slice center
 				# Right Side
 				q = db.DatastoreQuery( kind=origKind )
@@ -109,10 +104,9 @@ class randomSliceBone( baseBone ):
 				dbFilter.datastoreQuery[ k ] = v
 			dbFilter._customMultiQueryMerge = self.customMultiQueryMerge
 			dbFilter._calculateInternalMultiQueryAmount = self.calculateInternalMultiQueryAmount
-			logging.error("XXXX!")
 
 	def calculateInternalMultiQueryAmount(self, targetAmount):
-		return int(targetAmount/2)
+		return int(targetAmount*self.sliceSize)
 
 	#(self, res, origLimit
 	def customMultiQueryMerge(self, dbFilter, result, targetAmount):
