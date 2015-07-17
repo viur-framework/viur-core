@@ -3,7 +3,24 @@ from server.bones import baseBone
 from math import pow, floor, ceil
 from server import db
 import logging
-from math import sqrt
+import math
+
+def haversine(lat1, lng1, lat2, lng2):
+	"""
+		Calculates the distance between two points on Earth given by (lat1,lng1) and (lat2, lng2) in Meter.
+		See https://en.wikipedia.org/wiki/Haversine_formula
+
+		:return: Distance in Meter
+	"""
+	lat1 = math.radians(lat1)
+	lng1 = math.radians(lng1)
+	lat2 = math.radians(lat2)
+	lng2 = math.radians(lng2)
+	distLat = lat2-lat1
+	distlng = lng2-lng1
+	d = math.sin(distLat/2.0)**2.0+math.cos(lat1)*math.cos(lat2)*math.sin(distlng/2.0)**2.0
+	return math.atan2(math.sqrt(d),math.sqrt(1-d))*12742000 # 12742000 = Avg. Earth size (6371km) in meters*2
+
 
 class spatialBone( baseBone ):
 	"""
@@ -133,7 +150,7 @@ class spatialBone( baseBone ):
 			:param lng:
 			:return:
 			"""
-			return sqrt((item[name+".lat.val"]-lat)*(item[name+".lat.val"]-lat)+(item[name+".lng.val"]-lng)*(item[name+".lng.val"]-lng))
+			return math.sqrt((item[name+".lat.val"]-lat)*(item[name+".lat.val"]-lat)+(item[name+".lng.val"]-lng)*(item[name+".lng.val"]-lng))
 
 		assert len(result)==4 #There should be exactly one result for each direction
 		result = [list(x) for x in result] # Remove the iterators
@@ -145,20 +162,22 @@ class spatialBone( baseBone ):
 		# If there are no results in a give lane (f.e. because we are close the border and there is no point
 		# in between) we choose a arbitrary large value for that lower bound
 		limits = [
-				(latRight[-1][name+".lat.val"]-lat)*(latRight[-1][name+".lat.val"]-lat) if latRight else 2^31, # Lat - Right Side
-				(latLeft[-1][name+".lat.val"]-lat)*(latLeft[-1][name+".lat.val"]-lat) if latLeft else 2^31, # Lat - Left Side
-				(lngBottom[-1][name+".lng.val"]-lng)*(lngBottom[-1][name+".lng.val"]-lng) if lngBottom else 2^31, # Lng - Bottom
-				(lngTop[-1][name+".lng.val"]-lng)*(lngTop[-1][name+".lng.val"]-lng) if lngTop else 2^31, # Lng - Top
-				gridSizeLat,
-				gridSizeLng
+				haversine(latRight[-1][name+".lat.val"], lng, lat, lng) if latRight else 2^31, # Lat - Right Side
+				haversine(latLeft[-1][name+".lat.val"], lng, lat, lng) if latLeft else 2^31, # Lat - Left Side
+				haversine(lat, lngBottom[-1][name+".lng.val"], lat, lng) if lngBottom else 2^31, # Lng - Bottom
+				haversine(lat, lngTop[-1][name+".lng.val"], lat, lng) if lngTop else 2^31, # Lng - Top
+				haversine(lat+gridSizeLat,lng,lat,lng),
+				haversine(lat,lng+gridSizeLng,lat,lng)
 			]
-		dbFilter.spatialGuaranteedCorrectness = min(limits)
-		logging.debug("SpatialGuaranteedCorrectness: %s", dbFilter.spatialGuaranteedCorrectness)
+		dbFilter.customQueryInfo["spatialGuaranteedCorrectness"] = min(limits)
+		logging.error("SpatialGuaranteedCorrectness: %s", dbFilter.customQueryInfo["spatialGuaranteedCorrectness"])
 		# Filter duplicates
 		tmpDict = {}
 		for item in (latRight+latLeft+lngBottom+lngTop):
 			tmpDict[str(item.key())] = item
 		# Build up the final results
-		tmpList = [(calculateDistance(x,name,lat,lng),x) for x in tmpDict.values()]
+
+		tmpList = [(haversine(x[name+".lat.val"],x[name+".lng.val"],lat,lng),x) for x in tmpDict.values()]
+		#tmpList = [(calculateDistance(x,name,lat,lng),x) for x in tmpDict.values()]
 		tmpList.sort( key=lambda x: x[0])
 		return [x[1] for x in tmpList[:targetAmount]]

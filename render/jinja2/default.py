@@ -54,6 +54,7 @@ class SkelListWrapper( ListWrapper ):
 	def __init__( self, src ):
 		super( SkelListWrapper, self ).__init__( src )
 		self.cursor = src.cursor
+		self.customQueryInfo = src.customQueryInfo
 
 class Render( object ):
 	listTemplate = "list"

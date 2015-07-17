@@ -295,6 +295,7 @@ class Query( object ):
 		self._origCursor = None
 		self._customMultiQueryMerge = None # Sometimes, the default merge functionality from MultiQuery is not sufficient
 		self._calculateInternalMultiQueryAmount = None # Some (Multi-)Queries need a different amount of results per subQuery than actually returned
+		self.customQueryInfo = {} # Allow carrying custom data along with the query. Currently only used by spartialBone to record the guranteed correctnes
 		self.origKind = kind
 
 	def setFilterHook(self, hook):
@@ -475,7 +476,7 @@ class Query( object ):
 					queries.append( q )
 			self.datastoreQuery = MultiQuery( queries, origQuery.__orderings )
 			for k,v in origQuery.items():
-				self.dataslstoreQuery[ k ] = v
+				self.datastoreQuery[ k ] = v
 		elif filter and value!=None:
 			self.datastoreQuery[ filter ] = value
 		else:
@@ -777,7 +778,6 @@ class Query( object ):
 			# we don't want it's sort&merge functionality
 			assert isinstance( self.datastoreQuery, MultiQuery)
 			res = []
-			#kwargs["limit"] = max(1,int(kwargs["limit"]/2))
 			if self._calculateInternalMultiQueryAmount:
 				kwargs["limit"] = self._calculateInternalMultiQueryAmount(kwargs["limit"])
 			for qry in getattr(self.datastoreQuery,"_MultiQuery__bound_queries"):
@@ -793,7 +793,7 @@ class Query( object ):
 			orders = self.getOrders()
 			filters = self.getFilter()
 			logging.debug("Queried %s with filter %s and orders %s. Returned %s results" % (kindName, filters, orders, len(res)))
-		if keysOnly and not internalKeysOnly: #Wanted key-only, but this wasnt directly possible
+		if keysOnly and not internalKeysOnly: #Wanted key-only, but this wasn't directly possible
 			if len(res)>0 and res[0].key().kind()!=self.origKind and res[0].key().parent().kind()==self.origKind:
 				#Fixing the kind - it has been changed (probably by quering an relation)
 				res = [ x.key().parent() for x in res ]
@@ -846,6 +846,7 @@ class Query( object ):
 		from server.skeleton import SkelList
 		res = SkelList( self.srcSkel )
 		dbRes = self.run( amount )
+		res.customQueryInfo = self.customQueryInfo
 		if dbRes is None:
 			return( res )
 		for e in dbRes:
