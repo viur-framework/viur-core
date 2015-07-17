@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from server.config import conf
 
 """
 	This module helps configuring and reporting of content security policy rules and violations.

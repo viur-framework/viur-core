@@ -249,3 +249,11 @@ class DbTransfer( object ):
 
 		return pickle.dumps({"cursor": str(q.getCursor().urlsafe()), "values": r} )
 
+	@exposed
+	def getEntry(self, module, id, key=None):
+		if not self._checkKey( key, export=True):
+			raise errors.Forbidden()
+
+		res = db.Get(id)
+
+		return pickle.dumps(self.genDict(res))
