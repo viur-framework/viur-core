@@ -13,6 +13,7 @@ from itertools import izip
 from google.appengine.api import users, app_identity
 import logging
 import datetime
+import hmac, hashlib
 
 class userSkel( Skeleton ):
 	kindName = "user"
@@ -90,7 +91,7 @@ class UserPassword(object):
 				res[ "password_salt" ] = utils.generateRandomString( 13 )
 				res[ "password" ] = pbkdf2( password[ : conf["viur.maxPasswordLength"] ], res["password_salt"] )
 				db.Put( res )
-			return self.userModule.authenticateUser(self, res.key())
+			return self.userModule.continueAuthenticationFlow(self, res.key())
 	login.exposed = True
 	login.forceSSL = True
 
@@ -193,7 +194,7 @@ class GoogleAccount(object):
 			return user
 		if users.get_current_user():
 			user = db.RunInTransaction( updateCurrentUser )
-			return self.userModule.authenticateUser(self, user.key())
+			return self.userModule.continueAuthenticationFlow(self, user.key())
 		else:
 			raise( errors.Redirect( users.create_login_url( self.modulePath+"/login") ) )
 	login.exposed = True
@@ -205,6 +206,12 @@ class Otp2Factor( object ):
 		super(Otp2Factor, self).__init__()
 		self.userModule = userModule
 		self.modulePath = modulePath
+
+
+	def canHandle(self, userId):
+		user = db.Get(userId)
+		return all([(x in user.keys() and user[x]) for x in ["otpid", "otpkey", "otptimedrift"]])
+
 
 	def startProcessing(self, userId):
 		user = db.Get(userId)
@@ -281,7 +288,9 @@ class User(List):
 	passwordRecoveryMail = "user_password_recovery"
 
 	authenticationProviders = [UserPassword,GoogleAccount]
+	secondFactorProviders = [Otp2Factor]
 
+	validAuthenticationMethods = [(UserPassword,Otp2Factor),(UserPassword,None)]
 
 	
 	adminInfo = {	"name": "User", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
@@ -294,6 +303,7 @@ class User(List):
 
 		# Initialize the payment-providers
 		self.initializedAuthenticationProviders = {}
+		self.initializedSecondFactorProviders = {}
 
 		for p in self.authenticationProviders:
 			pInstance = p(self, modulName+"/auth_%s" % p.__name__.lower())
@@ -303,10 +313,34 @@ class User(List):
 			logging.error("auth_%s" % pInstance.__class__.__name__.lower() )
 
 
+		for p in self.secondFactorProviders:
+			pInstance = p(self, modulName+"/f2_%s" % p.__name__.lower())
+			self.initializedAuthenticationProviders[pInstance.__class__.__name__.lower()] = pInstance
+			#Also put it as an object into self, sothat any exposed function is reachable
+			setattr( self, "f2_%s" % pInstance.__class__.__name__.lower(), pInstance )
+			logging.error("f2_%s" % pInstance.__class__.__name__.lower() )
+
+	def secondFactorProviderByClass(self, cls):
+		return getattr(self, "f2_%s" % cls.__name__.lower())
+
 	def getCurrentUser( self, *args, **kwargs ):
 		return( session.current.get("user") )
-	
-	def authenticateUser(self, authProvider, userId):
+
+	def continueAuthenticationFlow(self, caller, userId):
+		for authProvider, secondFactor in self.validAuthenticationMethods:
+			if secondFactor is None:
+				# We allow sign-in without a second factor
+				return self.authenticateUser(userId)
+			if isinstance(caller,authProvider):
+				# This Auth-Request was issued from this authenticationProvider
+				secondFactorProvider = self.secondFactorProviderByClass(secondFactor)
+				if secondFactorProvider.canHandle(userId):
+					# We choose the first second factor provider which claims it can verify that user
+					return secondFactor.startProcessing(userId)
+		# Whoops.. This user logged in successfully - but we have no second factor provider willing to confirm it
+		raise errors.NotAcceptable("There are no more authentication methods to try") # Sorry...
+
+	def authenticateUser(self, userId):
 		"""
 			Performs Log-In for the current session and the given userId.
 			This resets the current session: All fields not explicitly marked as persistent
@@ -394,8 +428,8 @@ def createNewUserIfNotExists():
 	"""
 	if "user" in dir( conf["viur.mainApp"] ):# We have a user module
 		userMod = getattr( conf["viur.mainApp"], "user" )
-		if isinstance( userMod, User ) and "loginSkel" in dir(userMod): #Its our user module :)
-			if not db.Query( userMod.loginSkel().kindName ).get(): #There's currently no user in the database
+		if isinstance( userMod, User ) and "addSkel" in dir(userMod): #Its our user module :)
+			if not db.Query( userMod.addSkel().kindName ).get(): #There's currently no user in the database
 				l = userMod.addSkel()
 				l["password"] = passwordBone( descr="Password", required=True )
 				uname = "admin@%s.appspot.com" % app_identity.get_application_id()
