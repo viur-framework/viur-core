@@ -14,6 +14,7 @@ from google.appengine.api import users, app_identity
 import logging
 import datetime
 import hmac, hashlib
+import json
 
 class userSkel( Skeleton ):
 	kindName = "user"
@@ -43,10 +44,6 @@ class userSkel( Skeleton ):
 
 
 
-	role = selectOneBone( descr=u"Ich bin", values={"10":u"admin","1":u"Verband","2":u"Partner","3":u"Presse","4":u"Architekt","5":u"Übersetzer"}, indexed=True,required=True )
-	translang = selectMultiBone ( descr=u"Übersetzer für:", required=False,indexed=True, values={"en":"Englisch","de":"Deutsch","fr":u"Französisch","it":u"Italienisch","ru":"Russisch","no":"Norwegisch","se":"Schwedisch","dk":u"Dänisch","nl":u"Niederländisch" })
-
-
 class UserPassword(object):
 	registrationEnabled = False
 	registrationEmailVerificationRequired = False
@@ -56,6 +53,10 @@ class UserPassword(object):
 		super(UserPassword, self).__init__()
 		self.userModule = userModule
 		self.modulePath = modulePath
+
+	@classmethod
+	def getAuthMethodName(*args,**kwargs):
+		return (u"X-VIUR-AUTH-User-Password")
 
 	class loginSkel(RelSkel):
 		name = emailBone( descr="E-Mail",  required=True, caseSensitive=False, indexed=True )
@@ -171,6 +172,10 @@ class GoogleAccount(object):
 		self.userModule = userModule
 		self.modulePath = modulePath
 
+	@classmethod
+	def getAuthMethodName(*args,**kwargs):
+		return (u"X-VIUR-AUTH-Google-Account")
+
 	def login( self, skey="", *args, **kwargs ):
 		def updateCurrentUser():
 			currentUser = users.get_current_user()
@@ -205,45 +210,40 @@ class GoogleAccount(object):
 	login.forceSSL = True
 
 class Otp2Factor( object ):
-	windowSize = 5
 
 	def __init__(self, userModule, modulePath):
 		super(Otp2Factor, self).__init__()
 		self.userModule = userModule
 		self.modulePath = modulePath
 
-
-	class OtpSkel(RelSkel):
-		otptoken = stringBone(descr="OTP Key", required=True)
+	@classmethod
+	def get2FactorMethodName(*args,**kwargs):
+		return (u"X-VIUR-2Factor-Otp")
 
 	def canHandle(self, userId):
 		user = db.Get(userId)
-		logging.error([(x in user.keys() and user[x]) for x in ["otpid", "otpkey", "otptimedrift"]])
-		return all([(x in user.keys() and user[x]) for x in ["otpid", "otpkey", ]])
+		return all([(x in user.keys() and user[x]) for x in ["otpid", "otpkey", "otptimedrift"]])
 
 
 	def startProcessing(self, userId):
 		user = db.Get(userId)
-		if all([(x in user.keys() and user[x]) for x in ["otpid", "otpkey"]]):
+		if all([(x in user.keys() and user[x]) for x in ["otpid", "otpkey", "otptimedrift"]]):
 			logging.info( "OTP wanted for user" )
 			session.current["_otp_user"] = {	"uid": str(userId),
 								"otpid": user["otpid"],
 								"otpkey": user["otpkey"],
 								"otptimedrift": user["otptimedrift"],
-								"timestamp": time(),
-			                                        "failures": 0}
+								"timestamp": time() }
 			session.current.markChanged()
-			return self.userModule.render.edit( self.OtpSkel(), tpl="user_otp")
+			return self.userModule.render.loginSucceeded()
 		return None
 
 	class otpSkel( RelSkel ):
 		otptoken = stringBone( descr="Token", required=True, caseSensitive=False, indexed=True )
 
-	def generateOtps(self, secret, timeDrift):
+	def generateOtps(self, secret, window=5):
 		"""
 			Generates all valid tokens for the given secret
-			TimeDrift indicates how far the clock of that token has drifted in minutes (negative values
-			mean it's clock is behind)
 		"""
 		def asBytes( valIn):
 			"""
@@ -256,9 +256,8 @@ class Otp2Factor( object ):
 			return( ("00"*(8-(len(hexStr)/2))+hexStr).decode("hex") )
 
 		idx = int( time()/60.0 ) # Current time index
-		idx += int(timeDrift)
 		res = []
-		for slot in range( idx-self.windowSize, idx+self.windowSize ):
+		for slot in range( idx-window, idx+window ):
 			currHash= hmac.new( secret.decode("HEX"), asBytes(slot), hashlib.sha1 ).digest()
 			# Magic code from https://tools.ietf.org/html/rfc4226 :)
 			offset = ord(currHash[19]) & 0xf
@@ -270,60 +269,27 @@ class Otp2Factor( object ):
 		return res
 
 	def otp(self, otptoken=None, skey=None, *args, **kwargs ):
-		"""
-			Processes the request to authenticate a given one-time token
-		:param otptoken: The token that should be verified
-		:param skey: A system security-key
-		:param args:
-		:param kwargs:
-		:return:
-		"""
 		token = session.current.get("_otp_user")
 		if not token:
 			raise errors.Forbidden()
-		if token["failures"]>3:
-			raise errors.Forbidden("Maximum amount of authentication retries exceeded")
 
 		if not otptoken or not skey:
 			return( self.userModule.render.edit( self.otpSkel(), otpFailed=False, tpl="user_otp"  ) )
 
-		validTokens = self.generateOtps(token["otpkey"], token["otptimedrift"])
+		validTokens = self.generateOtps( token["otpkey"] )
+		logging.debug( int( otptoken ) )
+		logging.debug( validTokens )
+		logging.debug( int( otptoken ) in validTokens )
 
 		if int(otptoken) in validTokens:
 			userId = session.current["_otp_user"]["uid"]
 			del session.current["_otp_user" ]
 			session.current.markChanged()
-			idx = validTokens.index(int(otptoken))
-			if abs(idx - self.windowSize) > 2:
-				# The time-drift accumulates to more than 2 minutes, update our
-				# clock-drift value accordingly
-				self.updateTimeDrift(userId, idx - self.windowSize)
 			return self.userModule.secondFactorSucceeded(self, userId)
 		else:
-			token["failures"] += 1
-			session.current["_otp_user"] = token
-			session.current.markChanged()
-			return self.userModule.render.edit( self.OtpSkel(), otpFailed=True, tpl="user_otp")
+			return self.render.edit( self.otpSkel(), otpFailed=True, tpl="user_otp"  )
 	otp.exposed = True
 	otp.forceSSL = True
-
-	def updateTimeDrift(self, userId, idx):
-		"""
-			Updates the clock-drift value.
-			The value is only changed in 1/10 steps, so that a late submit by an user doesn't skew
-			it out of bounds. Maximum change per call is 0.3 minutes.
-		:param userId: For which user should the update occour
-		:param idx: How many steps before/behind was that token
-		:return:
-		"""
-		def updateTransaction(userId, idx):
-			user = db.Get(userId)
-			if not "otptimedrift" in user.keys() or not isinstance(user["otptimedrift"],float):
-				user["otptimedrift"] = 0.0
-			user["otptimedrift"] += min(max(0.1*idx,-0.3),0.3)
-			db.Put(user)
-		db.RunInTransaction(updateTransaction, userId, idx)
-
 
 class User(List):
 	kindName = "user"
@@ -336,7 +302,7 @@ class User(List):
 	authenticationProviders = [UserPassword,GoogleAccount]
 	secondFactorProviders = [Otp2Factor]
 
-	validAuthenticationMethods = [(UserPassword,Otp2Factor),] #(UserPassword,None)
+	validAuthenticationMethods = [(UserPassword,Otp2Factor),(UserPassword,None)]
 
 	
 	adminInfo = {	"name": "User", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
@@ -373,10 +339,6 @@ class User(List):
 		return( session.current.get("user") )
 
 	def continueAuthenticationFlow(self, caller, userId):
-		# Store the userId which our authProvider authenticated
-		# so it cannot change accidentally in the secondFactorProvider
-		session.current["_mayBeUserId"] = str(userId)
-		session.current.markChanged()
 		for authProvider, secondFactor in self.validAuthenticationMethods:
 			if secondFactor is None:
 				# We allow sign-in without a second factor
@@ -386,15 +348,9 @@ class User(List):
 				secondFactorProvider = self.secondFactorProviderByClass(secondFactor)
 				if secondFactorProvider.canHandle(userId):
 					# We choose the first second factor provider which claims it can verify that user
-					return secondFactorProvider.startProcessing(userId)
+					return secondFactor.startProcessing(userId)
 		# Whoops.. This user logged in successfully - but we have no second factor provider willing to confirm it
 		raise errors.NotAcceptable("There are no more authentication methods to try") # Sorry...
-
-	def secondFactorSucceeded(self, secondFactor, userId):
-		logging.debug("Got SecondFactorSucceeded call from %s." % secondFactor)
-		if str(session.current["_mayBeUserId"]) != str(userId):
-			raise errors.Forbidden()
-		return self.authenticateUser(userId)
 
 	def authenticateUser(self, userId):
 		"""
@@ -465,7 +421,14 @@ class User(List):
 			if "root" in user["access"] or "user-view" in user["access"]:
 				return( True )
 		return( False )
-	
+
+	def getAuthMethod( self, *args, **kwargs ):
+		"""Inform tools like Viur-Admin which authentication to use"""
+		res=[]
+		for auth,secondFactor in self.validAuthenticationMethods:
+			res.append(auth.getAuthMethodName())
+		return( json.dumps(res) )
+	getAuthMethod.exposed = True
 
 	
 	def onItemDeleted( self, skel ):
