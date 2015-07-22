@@ -205,12 +205,13 @@ class GoogleAccount(object):
 			user = db.RunInTransaction( updateCurrentUser )
 			return self.userModule.continueAuthenticationFlow(self, user.key())
 		else:
+			logging.error("XXXXXXX")
+			logging.error(self.modulePath)
 			raise( errors.Redirect( users.create_login_url( self.modulePath+"/login") ) )
 	login.exposed = True
 	login.forceSSL = True
 
 class Otp2Factor( object ):
-
 	def __init__(self, userModule, modulePath):
 		super(Otp2Factor, self).__init__()
 		self.userModule = userModule
@@ -318,7 +319,7 @@ class User(List):
 		self.initializedSecondFactorProviders = {}
 
 		for p in self.authenticationProviders:
-			pInstance = p(self, modulName+"/auth_%s" % p.__name__.lower())
+			pInstance = p(self, modulPath+"/auth_%s" % p.__name__.lower())
 			self.initializedAuthenticationProviders[pInstance.__class__.__name__.lower()] = pInstance
 			#Also put it as an object into self, sothat any exposed function is reachable
 			setattr( self, "auth_%s" % pInstance.__class__.__name__.lower(), pInstance )
@@ -326,7 +327,7 @@ class User(List):
 
 
 		for p in self.secondFactorProviders:
-			pInstance = p(self, modulName+"/f2_%s" % p.__name__.lower())
+			pInstance = p(self, modulPath+"/f2_%s" % p.__name__.lower())
 			self.initializedAuthenticationProviders[pInstance.__class__.__name__.lower()] = pInstance
 			#Also put it as an object into self, sothat any exposed function is reachable
 			setattr( self, "f2_%s" % pInstance.__class__.__name__.lower(), pInstance )
@@ -382,6 +383,7 @@ class User(List):
 		if not "access" in session.current['user'].keys() or not session.current['user']["access"]:
 			session.current['user']["access"] = []
 		session.current.markChanged()
+		logging.error("Calling: self.render.loginSucceeded( )")
 		return( self.render.loginSucceeded( ) )
 
 	def logout( self,  skey="", *args,  **kwargs ): #fixme
@@ -403,8 +405,6 @@ class User(List):
 			kwargs["id"] = session.current.get("user")["id"]
 		return( super( User, self ).edit( *args,  **kwargs ) )
 	edit.exposed=True
-
-
 
 	def view(self, id, *args, **kwargs):
 		"""
