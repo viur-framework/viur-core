@@ -1,4 +1,5 @@
 from server.render.json.user import UserRender as user
+from server import utils
 from server import errors
 
 class UserRender( user ):
@@ -14,7 +15,11 @@ class UserRender( user ):
 		if isGoogle:
 			raise errors.Redirect("/vi")
 		else:
-			return("OKAY")
+			user=utils.getCurrentUser()
+			if user and ("admin" in user["access"] or "root" in user["access"]):
+				raise errors.Redirect("/vi/s/admin.html")
+			else:
+				raise errors.Redirect("/vi/s/nopermission.html")
 
 	def logoutSuccess(self, **kwargs ):
 		raise errors.Redirect("/vi/s/logout.html")
