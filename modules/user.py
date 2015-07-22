@@ -394,6 +394,10 @@ class User(List):
 		return self.render.logoutSuccess( )
 	logout.exposed = True
 
+	def login(self,*args,**kwargs):
+		self.render.login(self.validAuthenticationMethods)
+	login.exposed=True
+
 	def edit( self,  *args,  **kwargs ):
 		if len( args ) == 0 and not "id" in kwargs and session.current.get("user"):
 			kwargs["id"] = session.current.get("user")["id"]
