@@ -310,9 +310,9 @@ def createNewUserIfNotExists():
 	"""
 	if "user" in dir( conf["viur.mainApp"] ):# We have a user module
 		userMod = getattr( conf["viur.mainApp"], "user" )
-		if isinstance( userMod, CustomUser ) and "loginSkel" in dir(userMod): #Its our user module :)
-			if not db.Query( userMod.loginSkel().kindName ).get(): #There's currently no user in the database
-				l = userMod.addSkel()
+		if isinstance( userMod, CustomUser ) and "addSkel" in dir(userMod): #Its our user module :)
+			if not db.Query( userSkel().kindName ).get(): #There's currently no user in the database
+				l = userSkel()
 				l["password"] = passwordBone( descr="Password", required=True )
 				uname = "admin@%s.appspot.com" % app_identity.get_application_id()
 				pw = utils.generateRandomString( 13 )
