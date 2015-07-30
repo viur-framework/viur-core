@@ -90,7 +90,7 @@ class UserPassword(object):
 		if( not isOkay ):
 			skel=self.loginSkel()
 			skel["name"].fromClient("name",{"name":name} )
-			return( self.render.login( skel, loginFailed=True )  )
+			return( self.userModule.render.login( skel, loginFailed=True )  )
 		else:
 			if not "password_salt" in res.keys(): #Update the password to the new, more secure format
 				res[ "password_salt" ] = utils.generateRandomString( 13 )
@@ -205,8 +205,6 @@ class GoogleAccount(object):
 			user = db.RunInTransaction( updateCurrentUser )
 			return self.userModule.continueAuthenticationFlow(self, user.key())
 		else:
-			logging.error("XXXXXXX")
-			logging.error(self.modulePath)
 			raise( errors.Redirect( users.create_login_url( self.modulePath+"/login") ) )
 	login.exposed = True
 	login.forceSSL = True
@@ -383,6 +381,7 @@ class User(List):
 		if not "access" in session.current['user'].keys() or not session.current['user']["access"]:
 			session.current['user']["access"] = []
 		session.current.markChanged()
+		self.onLogin()
 		logging.error("Calling: self.render.loginSucceeded( )")
 		return( self.render.loginSucceeded( ) )
 
