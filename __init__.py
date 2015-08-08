@@ -383,7 +383,7 @@ class BrowseHandler(webapp.RequestHandler):
 				msg = "This application is currently disabled or performing maintenance. Try again later."
 			self.response.out.write( tpl.safe_substitute( {"error_code": "503", "error_name": "Service unavailable", "error_descr": msg} ) )
 			return
-		if conf["viur.forceSSL"] and not self.isSSLConnection: #and not self.isDevServer
+		if conf["viur.forceSSL"] and not self.isSSLConnection and not self.isDevServer:
 			isWhitelisted = False
 			reqPath = self.request.path
 			for testUrl in conf["viur.noSSLCheckUrls"]:
