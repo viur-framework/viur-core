@@ -569,7 +569,7 @@ class Render( object ):
 		skel["skey"] = skeybone
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
 			super( Skeleton, skel ).__setattr__( "errors", {} )
-		return( template.render( skel={"structure":self.renderSkelStructure(skel),"errors":skel.errors, "value":self.collectSkelData(skel) } ) )
+		return( template.render( skel={"structure":self.renderSkelStructure(skel),"errors":skel.errors, "value":self.collectSkelData(skel) }, **kwargs ) )
 	
 	def edit( self, skel, tpl=None, **kwargs ):
 		"""
