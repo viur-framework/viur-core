@@ -55,6 +55,9 @@ def sendEMail( dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None
 	if conf["viur.emailRecipientOverride"]:
 		logging.warning("Overriding destination %s with %s", dests, conf["viur.emailRecipientOverride"])
 		dests = conf["viur.emailRecipientOverride"]
+	elif conf["viur.emailRecipientOverride"] is None:
+		logging.warning("Sending emails disabled by config[viur.emailRecipientOverride]")
+		return
 
 	headers, data = conf["viur.emailRenderer"]( skel, name, dests )
 	xheader = {}
