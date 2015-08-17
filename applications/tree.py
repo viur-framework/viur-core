@@ -200,7 +200,7 @@ class Tree( object ):
 		"""
 		return( self.render.listRootNodes( self.getAvailableRootNodes( name ) ) )
 
-
+	
 	@exposed
 	def list( self, skelType, node, *args, **kwargs ):
 		"""
@@ -293,7 +293,7 @@ class Tree( object ):
 			raise( errors.NotAcceptable() )
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
-		if not self.canEdit( skel ):
+		if not self.canEdit(skelType, skel):
 			raise errors.Unauthorized()
 		if len(kwargs)==0 or skey=="" or not skel.fromClient( kwargs ) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.edit( skel ) )
@@ -323,8 +323,7 @@ class Tree( object ):
 		elif skelType == "leaf":
 			skel = self.viewLeafSkel()
 		else:
-			raise errors.NotAcceptable()
-
+			raise( errors.NotAcceptable() )
 		if "skey" in kwargs:
 			skey = kwargs["skey"]
 		else:
@@ -332,21 +331,17 @@ class Tree( object ):
 
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
-
-		if not self.canDelete( skel, skelType ):
+		if not self.canDelete(skelType, skel):
 			raise errors.Unauthorized()
-
 		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
-
-		if skelType == "leaf":
-			skel.delete()
+		if type=="leaf":
+			skel.delete( )
 		else:
 			self.deleteRecursive( id )
-			skel.delete()
-
+			skel.delete( )
 		self.onItemDeleted( skel )
-		return self.render.deleteSuccess( skel, skelType=skelType )
+		return( self.render.deleteSuccess( skel, skelType=skelType ) )
 
 	@exposed
 	@forceSSL
