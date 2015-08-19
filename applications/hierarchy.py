@@ -194,7 +194,7 @@ class Hierarchy( object ):
 			keylist = [ ]
 		else:
 			if str(key).isdigit():
-				key = str( db.Key.from_path( self.viewSkel().kindName, int(key) ) )
+				key = str( db.Key.from_path( self.viewSkel().kindName, long(key) ) )
 			keylist = [ key ]
 		if not self.canList( key ):
 			raise errors.Unauthorized()
