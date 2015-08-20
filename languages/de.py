@@ -312,5 +312,28 @@ de = {
 	"western sahara": u"Westsahara",
 	"yemen": u"Jemen",
 	"zambia": u"Sambia",
-	"zimbabwe": u"Simbabwe"
+	"zimbabwe": u"Simbabwe",
+
+	# HTTP error codes
+	"bad request": u"Fehlerhafte Anfrage",
+	"the request your browser sent cannot be fulfilled due to bad syntax.": u"Die Anfrage Ihres Browsers kann aufgrund einer falschen Syntax nicht bearbeitet werden.",
+	"redirect": u"Weiterleitung",
+	"unauthorized": u"Nicht autorisiert",
+	"the resource is protected and you don't have the permissions.": u"Diese Ressource ist geschützt, Sie haben nicht die notwendige Berechtigung.",
+	"payment required": u"Bezahlung erforderlich",
+	"forbidden": u"Zugriff verweigert",
+	"not found": u"Seite nicht gefunden",
+	"the requested resource could not be found.": u"Die angeforderte Ressource wurde nicht gefunden.",
+	"method not allowed": u"Methode nicht erlaubt",
+	"not acceptable": u"Nicht akzeptierbar",
+	"the request cannot be processed due to missing or invalid parameters.": u"Die Anfrage kann Aufgrund fehlender oder falscher Parameter nicht verarbeitet werden.",
+	"request timeout": u"Zeitüberschreitung",
+	"the request has timed out.": u"Die Bearbeitung der Anfrage dauerte zu lange, und wurde abgebrochen.",
+	"gone": u"Weg",
+	"precondition failed": u"Vorhergehende Bedingung nicht erfüllt.",
+	"request too large": u"Anfrage enthält zu viele Daten",
+	"internal server error": "Interner Serverfehler",
+	"not implemented": u"Nicht implementiert",
+	"bad gateway": u"Falscher Gateway",
+	"service unavailable": u"Dienst nicht verfügbar"
 }
