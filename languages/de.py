@@ -61,8 +61,8 @@ de = {
 	"ready to ship":u"Versandbereit", 
 	"shipped": u"Versendet", 
 	"unpaid": u"Unbezahlt", 
-	"created at": u"Erstellt am", 
-	"changed at": u"Geändert am", 
+	"created at": u"Erstellt am",
+	"updated at": u"Aktualisiert am",
 	
 	"waiting for email verification":u"wartet auf Bestätigung der E-Mailadresse",
 	"waiting for verification through admin":u"warte auf Freischaltung durch Administrator",
