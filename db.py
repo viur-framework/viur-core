@@ -26,7 +26,7 @@ def IsInTransaction():
 	:return: True if so, else False.
 	:rtype: bool
 	"""
-	return bool(datastore.IsInTransaction)
+	return bool(datastore.IsInTransaction())
 
 def PutAsync( entities, **kwargs ):
 	"""
