@@ -435,7 +435,7 @@ class relationalBone( baseBone ):
 		origFilter = dbFilter.datastoreQuery
 		if origFilter is None or not "orderby" in rawFilter.keys(): #This query is unsatisfiable or not sorted
 			return( dbFilter )
-		if "orderby" in list(rawFilter.keys()) and rawFilter["orderby"].startswith( "%s." % name ):
+		if "orderby" in list(rawFilter.keys()) and isinstance(rawFilter["orderby"], basestring) and rawFilter["orderby"].startswith( "%s." % name ):
 			if self.multiple:
 				if not dbFilter.getKind()=="viur-relations": #This query has not been rewritten (yet)
 					name, skel, dbFilter, rawFilter = self._rewriteQuery( name, skel, dbFilter, rawFilter )

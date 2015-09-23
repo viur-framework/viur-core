@@ -269,7 +269,7 @@ class stringBone( baseBone ):
 		return( dbFilter )
 
 	def buildDBSort( self, name, skel, dbFilter, rawFilter ):
-		if "orderby" in list(rawFilter.keys()) and (rawFilter["orderby"] == name or (rawFilter["orderby"].startswith("%s."%name) and self.languages) ):
+		if "orderby" in list(rawFilter.keys()) and (rawFilter["orderby"] == name or (isinstance(rawFilter["orderby"], basestring) and rawFilter["orderby"].startswith("%s."%name) and self.languages)):
 			if not self.indexed:
 				logging.warning( "Invalid ordering! %s is not indexed!" % name )
 				raise RuntimeError()
