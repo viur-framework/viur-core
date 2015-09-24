@@ -187,6 +187,8 @@ def escapeString( val, maxLength=254 ):
 
 		:returns: The quoted string.
 		:rtype: str
+
+		:seealso: ``utils.unescapeString``
 	"""
 	val = unicode(val).strip() \
 			.replace("<", "&lt;") \
@@ -201,3 +203,29 @@ def escapeString( val, maxLength=254 ):
 
 	return( val )
 
+def unescapeString(val, maxLength = 0):
+	"""
+		Unquotes several HTML-quoted characters in a string.
+
+		:param val: The value to be unescaped.
+		:type val: str
+
+		:param maxLength: Cut-off after maxLength characters.
+				A value of 0 means "unlimited". (default)
+		:type maxLength: int
+
+		:returns: The unquoted string.
+		:rtype: str
+
+		:seealso: ``utils.escapeString``
+	"""
+	val = unicode(val) \
+			.replace("&lt;", "<") \
+			.replace("&gt;", ">") \
+			.replace("&quot;", "\"") \
+			.replace("&#39;", "'")
+
+	if maxLength > 0:
+		return val[0:maxLength]
+
+	return val
