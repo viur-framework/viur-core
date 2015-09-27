@@ -19,18 +19,31 @@ class TreeLeafSkel( Skeleton ):
 
 		# Heal missing parent-repo values
 		if res and not self["parentrepo"].value:
-			dbObj = db.Get( self["id"].value )
+			try:
+				dbObj = db.Get( self["id"].value )
+			except:
+				return res
 
 			if not "parentdir" in dbObj.keys(): #RootNode
 				return res
 
 			while( "parentdir" in dbObj.keys() and dbObj["parentdir"] ):
-				dbObj = db.Get( dbObj[ "parentdir" ] )
+				try:
+					dbObj = db.Get( dbObj[ "parentdir" ] )
+				except:
+					return res
 
 			self["parentrepo"].value = str( dbObj.key() )
 			self.toDB()
 
 		return res
+
+	def refresh(self):
+		if self["parentdir"].value:
+			self["parentdir"].value = utils.normalizeKey(self["parentdir"].value)
+		if self["parentrepo"].value:
+			self["parentrepo"].value = utils.normalizeKey(self["parentrepo"].value)
+		super( TreeLeafSkel, self ).refresh()
 
 class TreeNodeSkel( TreeLeafSkel ):
 	pass

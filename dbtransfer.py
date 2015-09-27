@@ -19,6 +19,13 @@ from google.appengine.api.images import get_serving_url
 import collections
 import cgi
 from itertools import izip
+from tasks import CallableTask, CallableTaskBase, callDeferred
+from server.bones import *
+from server.skeleton import Skeleton
+from server import utils
+import urllib
+from google.appengine.api import urlfetch
+from hashlib import sha256
 
 
 class DbTransfer( object ):
@@ -119,7 +126,8 @@ class DbTransfer( object ):
 			return results
 
 	@exposed
-	def upload( self,  *args, **kwargs ):
+	def upload( self, oldkey, *args, **kwargs ):
+		logging.error("got UPLOADS")
 		res = []
 		for upload in self.getUploads():
 			fileName = self.decodeFileName( upload.filename )
@@ -138,6 +146,13 @@ class DbTransfer( object ):
 					"parentdir": "",
 					"parentrepo": "",
 					"weak": False } )
+			oldKeyHash = sha256(oldkey).hexdigest().encode("hex")
+			e = db.Entity("viur-blobimportmap", name=oldKeyHash)
+			e["newkey"] = str(upload.key())
+			e["oldkey"] = oldkey
+			e["servingurl"] = servingURL
+			e["available"] = True
+			db.Put(e)
 		return( json.dumps( {"action":"addSuccess", "values":res } ) )
 
 	@exposed
@@ -167,7 +182,52 @@ class DbTransfer( object ):
 				dbEntry[k] = val
 		db.Put( dbEntry )
 
-	def genDict(self, obj):
+	@exposed
+	def hasblob(self, blobkey, key ):
+		if not self._checkKey( key, export=False):
+			raise errors.Forbidden()
+		try:
+			oldKeyHash = sha256(blobkey).hexdigest().encode("hex")
+			res = db.Get( db.Key.from_path("viur-blobimportmap", oldKeyHash))
+			if res:
+				if "available" in res.keys():
+					return json.dumps(res["available"])
+				else:
+					return json.dumps(True)
+		except:
+			pass
+		return json.dumps(False)
+
+
+	@exposed
+	def storeEntry2(self, e, key ):
+		if not self._checkKey( key, export=False):
+			raise errors.Forbidden()
+		entry = pickle.loads( e.decode("HEX") )
+		for k in list(entry.keys())[:]:
+			if isinstance(entry[k],str):
+				entry[k] = entry[k].decode("UTF-8")
+		key = db.Key( encoded=utils.normalizeKey(entry["id"]) )
+
+		logging.error( key.kind() )
+		logging.error( key.id() )
+		logging.error( key.name() )
+		dbEntry = db.Entity( kind=key.kind(), parent=key.parent(), id=key.id(), name=key.name() )
+		for k in entry.keys():
+			if k!="id":
+				val = entry[k]
+				dbEntry[k] = val
+		db.Put( dbEntry )
+		try:
+			skel =  skeletonByKind( key.kind() )()
+		except:
+			logging.error("Unknown Skeleton - skipping")
+		skel.fromDB( str(dbEntry.key()) )
+		skel.refresh()
+		skel.toDB(clearUpdateTag=True)
+
+	@staticmethod
+	def genDict(obj):
 		res = {}
 		for k,v in obj.items():
 			if not any( [isinstance(v,x) for x in [str, unicode, long, float, datetime, list, dict, bool, type(None)]] ):
@@ -257,3 +317,87 @@ class DbTransfer( object ):
 		res = db.Get(id)
 
 		return pickle.dumps(self.genDict(res))
+
+
+###### NEW ######
+
+
+@CallableTask
+class TaskTransferKind( CallableTaskBase ):
+	"""This tasks loads and saves *every* entity of the given modul.
+	This ensures an updated searchIndex and verifies consistency of this data.
+	"""
+	id = "transferkind"
+	name = u"Transfer Data"
+	descr = u"Copies the selected data to the given target application"
+	direct = True
+
+	def canCall( self ):
+		"""Checks wherever the current user can execute this task
+		@returns bool
+		"""
+		user = utils.getCurrentUser()
+		return( user is not None and "root" in user["access"] )
+
+	def dataSkel(self):
+		modules = listKnownSkeletons()
+		modules.append("*")
+		#for modulName in dir( conf["viur.mainApp"] ):
+		#	modul = getattr( conf["viur.mainApp"], modulName )
+		#	if "editSkel" in dir( modul ) and not modulName in modules:
+		#		modules.append( modulName )
+		skel = Skeleton( self.kindName )
+		skel["modul"] = selectOneBone( descr="Modul", values={ x: x for x in modules}, required=True )
+		skel["target"] = stringBone( descr="URL to Target-Application", required=True, defaultValue="https://your-app-id.appspot.com/storeE" )
+		skel["importkey"] = stringBone( descr="Import-Key", required=True)
+		return( skel )
+
+	def execute( self, modul=None, target=None, importkey=None, *args, **kwargs ):
+		assert importkey
+		if modul=="*":
+			for module in listKnownSkeletons():
+				iterExport( module, target, importkey, None )
+		else:
+			iterExport( modul, target, importkey, None )
+
+@callDeferred
+def iterExport( modul, target, importKey, cursor=None ):
+	"""
+		Processes 100 Entries and calls the next batch
+	"""
+	urlfetch.set_default_fetch_deadline(20)
+	Skel = skeletonByKind( modul )
+	if not Skel:
+		logging.error("TaskUpdateSeachIndex: Invalid modul")
+		return
+	query = Skel().all().cursor( cursor )
+	gotAtLeastOne = False
+	startCursor = cursor
+	query.run(100, keysOnly=True)
+	endCursor = query.getCursor()
+	logging.error("start")
+	logging.error(startCursor)
+	logging.error(endCursor.urlsafe())
+	exportItems(modul, target, importKey, startCursor, endCursor.urlsafe())
+	if startCursor is None or startCursor!=endCursor.urlsafe():
+		iterExport(modul, target, importKey, endCursor.urlsafe())
+	else:
+		logging.error("FIN")
+	return
+
+@callDeferred
+def exportItems( modul, target, importKey, startCursor, endCursor):
+	Skel = skeletonByKind( modul )
+	query = Skel().all().cursor( startCursor, endCursor )
+	logging.error("exportItems")
+	for item in query.run(250, keysOnly=False):
+		flatItem = DbTransfer.genDict( item )
+		formFields = {
+			"e": pickle.dumps(flatItem).encode("HEX"),
+			"key": importKey
+		}
+		result = urlfetch.fetch(        url=target,
+		                                payload=urllib.urlencode(formFields),
+		                                method=urlfetch.POST,
+		                                headers={'Content-Type': 'application/x-www-form-urlencoded'})
+		logging.error(result)
