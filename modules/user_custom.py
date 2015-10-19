@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from server.applications.list import List
-from server.skeleton import Skeleton
+from server.skeleton import Skeleton, RelSkel
 from server import utils, session
 from server.bones import *
 from server.bones.passwordBone import pbkdf2
@@ -54,9 +54,7 @@ class CustomUser( List ):
 		return( "X-VIUR-INTERNAL" )
 	getAuthMethod.exposed = True	
 	
-	class loginSkel( Skeleton ):
-		kindName = "user"
-		id = None
+	class loginSkel( RelSkel ):
 		name = emailBone( descr="E-Mail",  required=True, caseSensitive=False, indexed=True )
 		password = passwordBone( descr="Password", indexed=True, params={"justinput":True}, required=True )
 
@@ -107,8 +105,7 @@ class CustomUser( List ):
 			skel["name"].readOnly=False
 		return( skel )
 
-	class lostPasswordSkel( Skeleton ):
-		kindName = "user"
+	class lostPasswordSkel( RelSkel ):
 		name = stringBone( descr="username", required=True )
 		password = passwordBone( descr="New Password", required=True )
 	
