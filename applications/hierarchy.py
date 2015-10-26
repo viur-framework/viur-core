@@ -410,7 +410,7 @@ class Hierarchy( object ):
 				isValid=True
 				break
 
-				currLevel = db.Get( currLevel["parententry"] )
+			currLevel = db.Get( currLevel["parententry"] )
 
 		if not isValid:
 			raise errors.NotAcceptable()
