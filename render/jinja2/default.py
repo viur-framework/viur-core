@@ -853,7 +853,7 @@ class Render( object ):
 		"""
 		return( utils.getCurrentUser() )
 
-	def getHostUrl(self, *args,  **kwargs):
+	def getHostUrl(self, forceSSL = False, *args, **kwargs):
 		"""
 			Jinja2 global: Retrieve hostname with prototcol.
 
@@ -862,7 +862,11 @@ class Render( object ):
 		"""
 		url = request.current.get().request.url
 		url = url[ :url.find("/", url.find("://")+5) ]
-		return( url )
+
+		if forceSSL and url.startswith("http://"):
+			url = "https://" + url[7:]
+
+		return url
 
 	def updateURL( self, **kwargs ):
 		"""
