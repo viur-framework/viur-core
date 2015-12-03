@@ -242,6 +242,8 @@ class Tree( object ):
 			skel = self.viewLeafSkel()
 		else:
 			raise errors.NotAcceptable()
+		if not len(id):
+			raise errors.NotAcceptable()
 		if not self.canView( id, skelType ):
 			raise errors.Unauthorized()
 		if not skel.fromDB( id ):

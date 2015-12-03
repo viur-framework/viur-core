@@ -346,6 +346,8 @@ class Hierarchy( object ):
 			id= args[0]
 		else:
 			raise errors.NotAcceptable()
+		if not len(id):
+			raise errors.NotAcceptable()
 		skel = self.viewSkel()
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
