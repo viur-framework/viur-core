@@ -32,6 +32,9 @@ class randomSliceBone( baseBone ):
 			Serializes this bone into something we
 			can write into the datastore.
 
+			This time, we just ignore whatever is set on this bone and write a randomly chosen
+			float [0..1) as value for this bone.
+
 			:param name: The property-name this bone has in its Skeleton (not the description!)
 			:type name: String
 			:returns: dict
@@ -45,6 +48,10 @@ class randomSliceBone( baseBone ):
 			the results, but by sorting them.
 			Again: rawFilter is controlled by the client, so you *must* expect and safely handle
 			malformed data!
+
+			This function is somewhat special as it doesn't just change in which order the selected
+			Elements are being returned - but also changes *which* Elements are beeing returned (=>
+			a random selection)
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
 			:type name: str
@@ -72,7 +79,7 @@ class randomSliceBone( baseBone ):
 			try:
 				property, value = dbFilter._filterHook(dbFilter, property, value)
 			except:
-				# Either, the filterHook tried to do something special to dbFilter (which won't)
+				# Either, the filterHook tried to do something special to dbFilter (which won't
 				# work as we are currently rewriting the core part of it) or it thinks that the query
 				# is unsatisfiable (fe. because of a missing ref/parent key in relationalBone).
 				# In each case we kill the query here - making it to return no results
@@ -106,10 +113,30 @@ class randomSliceBone( baseBone ):
 			dbFilter._calculateInternalMultiQueryAmount = self.calculateInternalMultiQueryAmount
 
 	def calculateInternalMultiQueryAmount(self, targetAmount):
+		"""
+			Tells :class:`server.db.Query` How much entries should be fetched in each subquery.
+
+			:param targetAmount: How many entries shall be returned from db.Query
+			:type targetAmount: int
+			:returns: The amount of elements db.Query should fetch on each subquery
+			:rtype: int
+		"""
 		return int(targetAmount*self.sliceSize)
 
-	#(self, res, origLimit
+
 	def customMultiQueryMerge(self, dbFilter, result, targetAmount):
+		"""
+			Randomly returns 'targetAmount' elements from 'result'
+
+			:param dbFilter: The db.Query calling this function
+			:type: dbFilter: server.db.Query
+			:param result: The list of results for each subquery we've run
+			:type result: list of list of :class:`server.db.Entity`
+			:param targetAmount: How many results should be returned from db.Query
+			:type targetAmount: int
+			:return: List of elements which should be returned from db.Query
+			:rtype: list of :class:`server.db.Entity`
+		"""
 		# res is a list of iterators at this point, chain them together
 		res = chain(*[list(x) for x in result])
 		# Remove duplicates

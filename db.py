@@ -784,19 +784,17 @@ class Query( object ):
 			internalKeysOnly = keysOnly
 		if self._customMultiQueryMerge:
 			# We do a really dirty trick here: Running the queries in our MultiQuery by hand, as
-			# we don't want it's sort&merge functionality
-			assert isinstance( self.datastoreQuery, MultiQuery)
+			# we don't want the default sort&merge functionality from :class:`google.appengine.api.datastore.MultiQuery`
+			assert isinstance( self.datastoreQuery, MultiQuery), "Got a customMultiQueryMerge - but no multiQuery"
 			res = []
 			if self._calculateInternalMultiQueryAmount:
 				kwargs["limit"] = self._calculateInternalMultiQueryAmount(kwargs["limit"])
 			for qry in getattr(self.datastoreQuery,"_MultiQuery__bound_queries"):
 				res.append( qry.Run( keys_only=internalKeysOnly, **kwargs ) )
+			# As the results are now available, perform the actual merge
+			res = self._customMultiQueryMerge(self, res, origLimit)
 		else:
 			res = list( self.datastoreQuery.Run( keys_only=internalKeysOnly, **kwargs ) )
-
-		if self._customMultiQueryMerge:
-			assert isinstance( self.datastoreQuery, datastore.MultiQuery ), "Got a customMultiQueryMerge - but no multiQuery"
-			res = self._customMultiQueryMerge(self, res, origLimit)
 		if conf["viur.debug.traceQueries"]:
 			kindName = self.getKind()
 			orders = self.getOrders()

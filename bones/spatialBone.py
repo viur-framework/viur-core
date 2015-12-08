@@ -24,35 +24,63 @@ def haversine(lat1, lng1, lat2, lng2):
 
 class spatialBone( baseBone ):
 	"""
-		Holds numeric values.
-		Can be used for ints and floats.
-		For floats, the precision can be specified in decimal-places.
+		Allows to query by Elements close to a given position.
+		Prior to use, you must specify for which region of the map the index should be build.
+		This region should be as small as possible for best accuracy. You cannot use the whole world, as
+		no boundary wraps are been performed.
+		GridDimensions specifies into how many sub-regions the map will be split. Results further away than the
+		size of these sub-regions won't be considered within a search by this algorithm.
+
+		Example:
+			If you use this bone to query your data for the nearest pubs, you might want to this algorithm
+			to consider results up to 100km distance, but not results that are 500km away.
+			Setting the size of these sub-regions to roughly 100km width/height allows this algorithm
+			to exclude results further than 200km away on database-query-level, therefore drastically
+			improving performance and reducing costs per query.
+
+		Example region: Germany: boundsLat=(46.988, 55.022), boundsLng=(4.997, 15.148)
 	"""
 
 	type = "spatial"
 
-	def __init__(self, *args,  **kwargs ):
+	def __init__(self, boundsLat, boundsLng, gridDimensions, indexed=True, *args,  **kwargs ):
 		"""
 			Initializes a new spatialBone.
 
-			:param precision: How may decimal places should be saved. Zero casts the value to int instead of float.
-			:type precision: int
-			:param min: Minimum accepted value (including).
-			:type min: float
-			:param max: Maximum accepted value (including).
-			:type max: float
+			:param boundsLat: Outer bounds (Latitude) of the region we will search in.
+			:type boundsLat: (int, int)
+			:param boundsLng: Outer bounds (Latitude) of the region we will search in.
+			:type boundsLng: (int, int)
+			:param gridDimensions: Number of sub-regions the map will be divided in
+			:type gridDimensions: (int, int)
 		"""
-		baseBone.__init__( self,  *args,  **kwargs )
-		self.boundsLat = (50.0,60.0)
-		self.boundsLng = (10.0,20.0)
-		self.gridDimensions = 10.0,12.0
+		baseBone.__init__( self, indexed, *args,  **kwargs )
+		assert indexed, "spatialBone must be indexed! You want to search using it - don't you?"
+		assert isinstance(boundsLat, tuple) and len(boundsLat, 2), "boundsLat must be a tuple of (int, int)"
+		assert isinstance(boundsLng, tuple) and len(boundsLng, 2), "boundsLng must be a tuple of (int, int)"
+		assert isinstance(gridDimensions, tuple) and len(gridDimensions, 2), "gridDimensions must be a tuple of (int, int)"
+		self.boundsLat = boundsLat
+		self.boundsLng = boundsLng
+		self.gridDimensions = gridDimensions
 
 	def getGridSize(self):
+		"""
+			:return: the size of our sub-regions in (fractions-of-latitude, fractions-of-longitude)
+			:rtype: (float, flot)
+		"""
 		latDelta = self.boundsLat[1]-self.boundsLat[0]
 		lngDelta = self.boundsLng[1]-self.boundsLng[0]
 		return latDelta/self.gridDimensions[0], lngDelta/self.gridDimensions[1]
 
 	def isInvalid( self, value ):
+		"""
+			Tests, if the point given by 'value' is inside our boundaries.
+			We'll reject all values outside that region.
+			:param value: (latitude, longitude) of the location of this entry.
+			:type value: (float, float)
+			:return: An error-description or False if the value is valid
+			:rtype: str | False
+		"""
 		if value is None and self.required:
 			return "No value entered"
 		elif value is None and not self.required:
@@ -71,6 +99,14 @@ class spatialBone( baseBone ):
 
 
 	def serialize( self, name, entity ):
+		"""
+			Serializes this bone into something we
+			can write into the datastore.
+
+			:param name: The property-name this bone has in its Skeleton (not the description!)
+			:type name: String
+			:returns: dict
+		"""
 		if self.value and not self.isInvalid(self.value):
 			lat, lng = self.value
 			entity.set( name+".lat.val", lat, self.indexed )
@@ -86,12 +122,42 @@ class spatialBone( baseBone ):
 		return( entity )
 		
 	def unserialize( self, name, expando ):
+		"""
+			Inverse of serialize. Evaluates whats
+			read from the datastore and populates
+			this bone accordingly.
+			:param name: The property-name this bone has in its Skeleton (not the description!)
+			:type name: String
+			:param expando: An instance of the dictionary-like db.Entity class
+			:type expando: db.Entity
+			:returns: bool
+		"""
 		if not name+".lat.val" in expando.keys() or not name+".lng.val":
 			self.value = None
 			return
 		self.value = expando[name+".lat.val"], expando[name+".lng.val"]
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
+		"""
+			Parses the searchfilter a client specified in his Request into
+			something understood by the datastore.
+			This function must:
+				* Ignore all filters not targeting this bone
+				* Safely handle malformed data in rawFilter
+					(this parameter is directly controlled by the client)
+
+			For detailed information, how this geo-spatial search works, see the ViUR documentation.
+
+			:param name: The property-name this bone has in its Skeleton (not the description!)
+			:type name: str
+			:param skel: The :class:`server.db.Query` this bone is part of
+			:type skel: :class:`server.skeleton.Skeleton`
+			:param dbFilter: The current :class:`server.db.Query` instance the filters should be applied to
+			:type dbFilter: :class:`server.db.Query`
+			:param rawFilter: The dictionary of filters the client wants to have applied
+			:type rawFilter: dict
+			:returns: The modified :class:`server.db.Query`
+		"""
 		if name+".lat" in rawFilter.keys() and name+".lng" in rawFilter.keys():
 			try:
 				lat = float(rawFilter[name+".lat"])
@@ -138,20 +204,29 @@ class spatialBone( baseBone ):
 		#return( super( spatialBone, self ).buildDBFilter( name, skel, dbFilter, rawFilter ) )
 
 	def calculateInternalMultiQueryAmount(self, targetAmount):
+		"""
+			Tells :class:`server.db.Query` How much entries should be fetched in each subquery.
+
+			:param targetAmount: How many entries shall be returned from db.Query
+			:type targetAmount: int
+			:returns: The amount of elements db.Query should fetch on each subquery
+			:rtype: int
+		"""
 		return targetAmount*2
 
 	def customMultiQueryMerge(self, name, lat, lng, dbFilter, result, targetAmount):
-		#def calculateDistance(lat1, lat2, lng1, lng2):
-		#	return sqrt((lat1-lat2)*(lat1-lat2)+(lng1-lng2)*(lng1-lng2))
-		def calculateDistance(item, name, lat, lng):
-			"""
-			:param item:
-			:param lat:
-			:param lng:
-			:return:
-			"""
-			return math.sqrt((item[name+".lat.val"]-lat)*(item[name+".lat.val"]-lat)+(item[name+".lng.val"]-lng)*(item[name+".lng.val"]-lng))
+		"""
+			Randomly returns 'targetAmount' elements from 'result'
 
+			:param dbFilter: The db.Query calling this function
+			:type: dbFilter: server.db.Query
+			:param result: The list of results for each subquery we've run
+			:type result: list of list of :class:`server.db.Entity`
+			:param targetAmount: How many results should be returned from db.Query
+			:type targetAmount: int
+			:return: List of elements which should be returned from db.Query
+			:rtype: list of :class:`server.db.Entity`
+		"""
 		assert len(result)==4 #There should be exactly one result for each direction
 		result = [list(x) for x in result] # Remove the iterators
 		latRight, latLeft, lngBottom, lngTop = result
@@ -170,14 +245,12 @@ class spatialBone( baseBone ):
 				haversine(lat,lng+gridSizeLng,lat,lng)
 			]
 		dbFilter.customQueryInfo["spatialGuaranteedCorrectness"] = min(limits)
-		logging.error("SpatialGuaranteedCorrectness: %s", dbFilter.customQueryInfo["spatialGuaranteedCorrectness"])
+		logging.debug("SpatialGuaranteedCorrectness: %s", dbFilter.customQueryInfo["spatialGuaranteedCorrectness"])
 		# Filter duplicates
 		tmpDict = {}
 		for item in (latRight+latLeft+lngBottom+lngTop):
 			tmpDict[str(item.key())] = item
 		# Build up the final results
-
 		tmpList = [(haversine(x[name+".lat.val"],x[name+".lng.val"],lat,lng),x) for x in tmpDict.values()]
-		#tmpList = [(calculateDistance(x,name,lat,lng),x) for x in tmpDict.values()]
 		tmpList.sort( key=lambda x: x[0])
 		return [x[1] for x in tmpList[:targetAmount]]
