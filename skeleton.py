@@ -450,8 +450,14 @@ class Skeleton( object ):
 		# Allow bones to perform outstanding "magic" operations before saving to db
 		for key,_bone in self.items():
 			_bone.performMagic( isAdd=(id==None) )
+
 		# Run our SaveTxn
-		id, dbObj, skel = db.RunInTransactionOptions( db.TransactionOptions(xg=True), txnUpdate, id, self, clearUpdateTag )
+		if db.IsInTransaction():
+			id, dbObj, skel = txnUpdate(id, self, clearUpdateTag)
+		else:
+			id, dbObj, skel = db.RunInTransactionOptions(db.TransactionOptions(xg=True),
+			                                                txnUpdate, id, self, clearUpdateTag)
+
 		# Perform post-save operations (postProcessSerializedData Hook, Searchindex, ..)
 		self["id"].value = str(id)
 		self.__currentDbKey_ = str(id)

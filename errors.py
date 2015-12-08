@@ -29,7 +29,7 @@ class BadRequest( HTTPException ):
 
 		Not used inside the server
 	"""
-	def __init__( self, descr="The request your browser send cannot be fulfilled due to bad syntax." ):
+	def __init__( self, descr="The request your browser sent cannot be fulfilled due to bad syntax." ):
 		super( BadRequest, self ).__init__(  status=400, name = "Bad Request", descr=descr )
 
 class Redirect( HTTPException ):
@@ -47,7 +47,7 @@ class Unauthorized( HTTPException ):
 		Raised whenever a request hits an path protected by canAccess() or a canAdd/canEdit/... -Function inside
 		an application returns false.
 	"""
-	def __init__( self, descr="The resource is protected and you dont have the permissions." ):
+	def __init__( self, descr="The resource is protected and you don't have the permissions." ):
 		super( Unauthorized, self ).__init__(  status=401, name = "Unauthorized", descr=descr )
 
 class PaymentRequired( HTTPException ):
@@ -67,7 +67,7 @@ class Forbidden( HTTPException ):
 		Not used inside the server. May be utilized in the future to distinguish between requests from
 		guests and users, who are logged in but don't have the permission.
 	"""
-	def __init__( self, descr="The resource is protected and you dont have the permissions." ):
+	def __init__( self, descr="The resource is protected and you don't have the permissions." ):
 		super( Forbidden, self ).__init__(  status=403, name = "Forbidden", descr=descr )
 
 class NotFound( HTTPException ):

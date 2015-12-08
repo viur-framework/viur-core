@@ -20,6 +20,15 @@ __cacheLockTime__ = 42 #Prevent an entity from creeping into the cache for 42 Se
 __cacheTime__ = 15*60 #15 Mins
 __CacheKeyPrefix__ ="viur-db-cache:" #Our Memcache-Namespace. Dont use that for other purposes
 
+def IsInTransaction():
+	"""
+	Checks if the system currently runs within a transaction.
+
+	:return: True if so, else False.
+	:rtype: bool
+	"""
+	return bool(datastore.IsInTransaction())
+
 def PutAsync( entities, **kwargs ):
 	"""
 		Asynchronously store one or more entities in the data store.
@@ -101,7 +110,7 @@ def GetAsync( keys, **kwargs ):
 		
 		def get_result( self ):
 			return( self.res )
-	if conf["viur.db.caching" ]>0 and not datastore.IsInTransaction():
+	if conf["viur.db.caching" ]>0 and not IsInTransaction():
 		if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
 			res = memcache.get( str(keys), namespace=__CacheKeyPrefix__ )
 			if res:
@@ -136,7 +145,7 @@ def Get( keys, **kwargs ):
 		:returns: Entity or list of Entity objects corresponding to the specified key(s).
 		:rtype: :class:`server.db.Entity` | list of :class:`server.db.Entity`
 	"""
-	if conf["viur.db.caching" ]>0  and not datastore.IsInTransaction():
+	if conf["viur.db.caching" ]>0  and not IsInTransaction():
 		if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
 			res = memcache.get( str(keys), namespace=__CacheKeyPrefix__ )
 			if not res: #Not cached - fetch and cache it :)
@@ -228,10 +237,10 @@ def GetOrInsert( key, kindName=None, parent=None, **kwargs ):
 		except:
 			assert kindName
 			key = datastore_types.Key.from_path( kindName, key, parent=parent )
-	if datastore.IsInTransaction():
-		return( txn(key, kwargs) )
-	else:
-		return( datastore.RunInTransaction( txn, key, kwargs ) )
+	if IsInTransaction():
+		return txn(key, kwargs)
+
+	return datastore.RunInTransaction( txn, key, kwargs )
 
 def DeleteAsync(keys, **kwargs):
 	"""
