@@ -241,9 +241,7 @@ class Render( object ):
 			return( [ self.collectSkelData(x) for x in skel ] )
 		res = {}
 		for key,_bone in skel.items():
-			if( isinstance( _bone, bones.documentBone ) ): #We flip source-html and parsed (cached) html for a more natural use
-				res[key] = _bone.cache
-			elif isinstance( _bone, selectOneBone ):
+			if isinstance( _bone, selectOneBone ):
 				if _bone.value in _bone.values.keys():
 					res[ key ] = Render.KeyValueWrapper( _bone.value, _bone.values[ _bone.value ] )
 				else:

@@ -100,8 +100,6 @@ class DefaultRender( object ):
 						res[key]["precision"] = _bone.precision
 						res[key]["min"] = _bone.min
 						res[key]["max"] = _bone.max
-					if( isinstance( _bone, bones.documentBone ) ):
-						res[key]["extensions"] = [ self.renderTextExtension( x ) for x in _bone.extensions ]
 					if( isinstance( _bone, bones.textBone ) ) or ( isinstance( _bone, bones.stringBone ) ):
 						res[key]["languages"] = _bone.languages 
 
