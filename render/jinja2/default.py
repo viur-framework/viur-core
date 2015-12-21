@@ -2,7 +2,7 @@
 import time
 from string import Template
 from server import bones, utils, request, session, conf, errors, securitykey
-from server.skeleton import Skeleton
+from server.skeleton import Skeleton, RelSkel
 from server.bones import *
 from server.applications.singleton import Singleton
 from server.utils import escapeString
@@ -282,15 +282,15 @@ class Render( object ):
 		skeybone = bones.baseBone( descr="SecurityKey",  readOnly=True, visible=False )
 		skeybone.value = securitykey.create()
 		skel["skey"] = skeybone
-
-		if ( "nomissing" in request.current.get().kwargs.keys()
-		        and request.current.get().kwargs["nomissing"]=="1" ):
-			super( Skeleton, skel ).__setattr__( "errors", {} )
-
+		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
+			if isinstance(skel, Skeleton):
+				super( Skeleton, skel ).__setattr__( "errors", {} )
+			elif isinstance(skel, RelSkel):
+				super( RelSkel, skel ).__setattr__( "errors", {} )
 		return template.render( skel={"structure":self.renderSkelStructure(skel),
 		                                "errors":skel.errors,
 		                                "value":self.collectSkelData(skel) }, **kwargs )
-	
+
 	def edit(self, skel, tpl=None, **kwargs):
 		"""
 			Renders a page for modifying an entry.
@@ -317,6 +317,7 @@ class Render( object ):
 		skeybone = bones.baseBone( descr="SecurityKey",  readOnly=True, visible=False )
 		skeybone.value = securitykey.create()
 		skel["skey"]  = skeybone
+<<<<<<< HEAD
 
 		if ( "nomissing" in request.current.get().kwargs.keys()
 		        and request.current.get().kwargs["nomissing"]=="1" ):
@@ -325,6 +326,14 @@ class Render( object ):
 		return template.render( skel={"structure": self.renderSkelStructure(skel),
 		                                "errors": skel.errors,
 		                                "value": self.collectSkelData(skel) }, **kwargs )
+=======
+		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
+			if isinstance(skel, Skeleton):
+				super( Skeleton, skel ).__setattr__( "errors", {} )
+			elif isinstance(skel, RelSkel):
+				super( RelSkel, skel ).__setattr__( "errors", {} )
+		return( template.render( skel={"structure":self.renderSkelStructure(skel),"errors":skel.errors, "value":self.collectSkelData(skel) },  **kwargs) )
+>>>>>>> master
 	
 	def addItemSuccess (self, skel, *args, **kwargs ):
 		"""

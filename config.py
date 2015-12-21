@@ -22,6 +22,7 @@ conf = {
 		"viur.salt": "ViUR-CMS",  #Default salt which will be used for eg. passwods. Once the application is used, this must not change!
 		"viur.maxPostParamsCount": 250, #Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks
 		"viur.forceSSL": False,  #If true, all requests must be encrypted (ignored on development server)
+		"viur.noSSLCheckUrls": ["/_tasks*", "/ah/*"], #List of Urls for which viur.forceSSL is ignored. Add an asterisk to mark that entry as a prefix (exact mathch otherwhise)
 		"viur.emailSenderOverride": False, #If set, this sender will be used, regardless of what the templates advertise as sender
 		"viur.emailRecipientOverride": False, #If set, all outgoing emails will be send to this address (overriding the 'dests'-parameter in utils.sendEmail)
 		"viur.db.caching" : 2, #Cache strategy used by the database. 2: Aggressive, 1: Safe, 0: Off

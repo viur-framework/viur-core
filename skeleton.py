@@ -296,6 +296,8 @@ class Skeleton( object ):
 				id = unicode( id )
 				if id.isdigit():
 					id = long( id )
+				elif not len(id):
+					raise ValueError("fromDB called with empty id!")
 				id = db.Key.from_path( self.kindName, id )
 		if not isinstance( id, db.Key ):
 			raise ValueError("fromDB expects an db.Key instance, an string-encoded key or a long as argument, got \"%s\" instead" % id )
