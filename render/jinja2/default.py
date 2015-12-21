@@ -317,24 +317,15 @@ class Render( object ):
 		skeybone = bones.baseBone( descr="SecurityKey",  readOnly=True, visible=False )
 		skeybone.value = securitykey.create()
 		skel["skey"]  = skeybone
-<<<<<<< HEAD
-
-		if ( "nomissing" in request.current.get().kwargs.keys()
-		        and request.current.get().kwargs["nomissing"]=="1" ):
-			super( Skeleton, skel ).__setattr__( "errors", {} )
-
-		return template.render( skel={"structure": self.renderSkelStructure(skel),
-		                                "errors": skel.errors,
-		                                "value": self.collectSkelData(skel) }, **kwargs )
-=======
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
 			if isinstance(skel, Skeleton):
 				super( Skeleton, skel ).__setattr__( "errors", {} )
 			elif isinstance(skel, RelSkel):
 				super( RelSkel, skel ).__setattr__( "errors", {} )
-		return( template.render( skel={"structure":self.renderSkelStructure(skel),"errors":skel.errors, "value":self.collectSkelData(skel) },  **kwargs) )
->>>>>>> master
-	
+		return template.render( skel={"structure": self.renderSkelStructure(skel),
+		                                "errors": skel.errors,
+		                                "value": self.collectSkelData(skel) }, **kwargs )
+
 	def addItemSuccess (self, skel, *args, **kwargs ):
 		"""
 			Renders a page, informing that the entry has been successfully created.
