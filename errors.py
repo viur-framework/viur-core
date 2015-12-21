@@ -134,6 +134,15 @@ class RequestTooLarge( HTTPException ):
 	def __init__( self, descr="Request Too Large" ):
 		super( RequestTooLarge, self ).__init__(  status=413, name = "Request Too Large", descr=descr )
 
+class Censored( HTTPException ):
+	"""
+		Censored
+
+		Not used inside the server
+	"""
+	def __init__( self, descr="Unavailable For Legal Reasons" ):
+		super( Censored, self ).__init__(  status=451, name = "Unavailable For Legal Reasons", descr=descr )
+
 class InternalServerError( HTTPException ):
 	"""
 		InternalServerError
