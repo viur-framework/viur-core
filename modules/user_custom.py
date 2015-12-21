@@ -9,7 +9,6 @@ from server.tasks import StartupTask
 from time import time
 from server import db
 from hashlib import sha512
-from itertools import izip
 from google.appengine.api import users, app_identity
 import logging
 import datetime
@@ -152,18 +151,13 @@ class CustomUser( List ):
 		else:
 			passwd = sha512( password.encode("UTF-8")+conf["viur.salt"] ).hexdigest()
 		isOkay = True
-		# We do this exactly that way to avoid timing attacks
-		if len( res["password"] ) != len( passwd ):
+		if not utils.safeStringComparison(password, passwd):
 			isOkay = False
-		else:
-			for x, y in izip( res["password"], passwd ):
-				if x!=y:
-					isOkay = False
 		if res["status"] < 10:
 			isOkay = False
-		if res[ "name.idx" ] != name.lower():
+		if not utils.safeStringComparison(res[ "name.idx" ], name.lower()):
 			isOkay = False
-		if( not isOkay ):
+		if not isOkay:
 			skel=self.loginSkel()
 			skel["name"].fromClient("name",{"name":name} )
 			return( self.render.login( skel, loginFailed=True )  )
