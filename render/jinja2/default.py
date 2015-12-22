@@ -23,7 +23,13 @@ from urllib import urlencode, quote_plus
 from google.appengine.ext import db
 from hashlib import sha512
 
+
 class ListWrapper( list ):
+	"""
+		Monkey-Patching for lists.
+		Allows collecting sub-properties by using []
+		Example: [ {"id":"1"}, {"id":"2"} ]["id"] --> ["1","2"]
+	"""
 	def __init__( self, src ):
 		"""
 			Initializes this wrapper by copying the values from src
@@ -31,11 +37,6 @@ class ListWrapper( list ):
 		self.extend( src )
 	
 	def __getitem__( self, key ):
-		"""
-			Monkey-Patching for lists.
-			Allows collecting sub-properties by using []
-			Example: [ {"id":"1"}, {"id":"2"} ]["id"] --> ["1","2"]
-		"""
 		if isinstance( key, int ):
 			return( super( ListWrapper, self ).__getitem__( key ) )
 		res = []
@@ -49,7 +50,7 @@ class ListWrapper( list ):
 class SkelListWrapper( ListWrapper ):
 	"""
 		Like ListWrapper, but takes the additional properties
-		of skellist into account
+		of skellist into account - namely cursor and customQueryInfo.
 	"""
 	def __init__( self, src ):
 		super( SkelListWrapper, self ).__init__( src )
@@ -57,6 +58,25 @@ class SkelListWrapper( ListWrapper ):
 		self.customQueryInfo = src.customQueryInfo
 
 class Render( object ):
+	"""
+		The core jinja2 render.
+
+		This is the bridge between your ViUR modules and your templates.
+		First, the default jinja2-api is exposed to your templates. See http://jinja.pocoo.org/ for
+		more information. Second, we'll pass data das global variables to templates depending on the
+		current action.
+			- For list() we'll pass `skellist` - a :py:class:`server.render.jinja2.default.SkelListWrapper` instance
+			- For view(): skel - a dictionary with values from the skeleton prepared for use inside html
+			- For add()/edit: a dictionary as `skel` with `values`, `structure` and `errors` as keys.
+		Third, a bunch of global filters (like urlencode) and functions (getEntry, ..) are available  to templates.
+
+		See the ViUR Documentation for more information about functions and data available to jinja2 templates.
+
+		Its possible for modules to extend the list of filters/functions available to templates by defining
+		a function called `jinjaEnv`. Its called from the render when the environment is first created and
+		can extend/override the functionality exposed to templates.
+
+	"""
 	listTemplate = "list"
 	viewTemplate = "view"
 	addTemplate = "add"
@@ -234,7 +254,7 @@ class Render( object ):
 			:param skel: Skeleton which structure will be processed.
 			:type skel: server.db.skeleton.Skeleton
 
-			:returns: A dictionary or list of dictonaries.
+			:returns: A dictionary or list of dictionaries.
 			:rtype: dict
 		"""
 		if isinstance( skel, list ):
@@ -262,6 +282,8 @@ class Render( object ):
 			are passed via skel.structure, skel.value and skel.errors.
 
 			A jinja2-macro, which builds such kind of forms, is shipped with the server.
+
+			Any data in **kwargs is passed unmodified to the template.
 
 			:param skel: Skeleton of the entry which should be created.
 			:type skel: server.db.skeleton.Skeleton
@@ -297,6 +319,8 @@ class Render( object ):
 			are passed via skel.structure, skel.value and skel.errors.
 
 			A jinja2-macro, which builds such kind of forms, is shipped with the server.
+
+			Any data in **kwargs is passed unmodified to the template.
 
 			:param skel: Skeleton of the entry which should be modified.
 			:type skel: server.db.skeleton.Skeleton
@@ -388,6 +412,8 @@ class Render( object ):
 		"""
 			Renders a list of entries.
 
+			Any data in **kwargs is passed unmodified to the template.
+
 			:param skellist: List of Skeletons with entries to display.
 			:type skellist: server.db.skeleton.SkelList
 
@@ -436,6 +462,8 @@ class Render( object ):
 	def view( self, skel, tpl=None, **kwargs ):
 		"""
 			Renders a single entry.
+
+			Any data in **kwargs is passed unmodified to the template.
 
 			:param skel: Skeleton to be displayed.
 			:type skellist: server.db.skeleton.Skeleton
@@ -955,7 +983,10 @@ class Render( object ):
 
 			:returns: dict on success, False on error.
 			:rtype: dict | bool
+
+
 		"""
+		#FIXME: Should obey the same restrictions as fetchList???!
 		if not module in dir ( conf["viur.mainApp"] ):
 			logging.error("getEntry called with unknown modul %s!" % module)
 			return False
