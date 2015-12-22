@@ -57,11 +57,13 @@ class Tree( object ):
 	"""
 
 	kindName = None
-	adminInfo = {
-		"name": "BaseTree",                     # Module name as shown in the admin tools
+
+	def adminInfo(self):
+		return {
+		"name": self.__class__.__name__,        # Module name as shown in the admin tools
 		"handler": "tree",                      # Which handler to invoke
 		"icon": "icons/modules/tree.svg"        # Icon for this module
-	}
+		}
 
 
 	def __init__( self, modulName, modulPath, *args, **kwargs ):

@@ -40,11 +40,12 @@ class Hierarchy( object ):
 
 	kindName = None                             # The generic kindname for this module.
 
-	adminInfo = {
-		"name": "BaseHierarchy",                # Module name as shown in the admin tools
+	def adminInfo(self):
+		return {
+		"name": self.__class__.__name__,        # Module name as shown in the admin tools
 		"handler": "hierarchy",                 # Which handler to invoke
 		"icon": "icons/modules/hierarchy.svg"   # Icon for this module
-	}
+		}
 
 	def __init__( self, modulName, modulPath, *args, **kwargs ):
 		self.modulName = modulName

@@ -21,11 +21,12 @@ class List( object ):
 
 	kindName = None
 
-	adminInfo = {
-		"name": "BaseList",                     # Module name as shown in the admin tools
-		"handler": "list",                      # Which handler to invoke
-		"icon": "icons/modules/list.svg"        # Icon for this module
-	}
+	def adminInfo(self):
+		return {
+			"name": self.__class__.__name__,        # Module name as shown in the admin tools
+			"handler": "list",                      # Which handler to invoke
+			"icon": "icons/modules/list.svg"        # Icon for this module
+		}
 
 	def __init__( self, modulName, modulPath, *args, **kwargs ):
 		super( List, self ).__init__( *args, **kwargs )
@@ -260,6 +261,67 @@ class List( object ):
 		self.onItemEdited( skel )
 
 		return self.render.editItemSuccess( skel )
+
+	@exposed
+	@forceSSL
+	def amend(self, *args, **kwargs):
+		"""
+		Amend is like the standard lists edit action, but it only amends the values coming from outside.
+		The supplied data must not be complete nor contain all required fields.
+		"""
+		logging.error(kwargs)
+		if "skey" in kwargs:
+			skey = kwargs["skey"]
+		else:
+			skey = ""
+
+		if( len( args ) == 1 ):
+			id = args[0]
+		elif "id" in kwargs:
+			id = kwargs["id"]
+		else:
+			raise errors.NotAcceptable()
+
+		skel = self.editSkel()
+
+		if not skel.fromDB( id ):
+			raise errors.NotAcceptable()
+
+		if not self.canEdit( skel ):
+			raise errors.Unauthorized()
+
+		if (len(kwargs) == 0
+			or skey == ""
+			or not request.current.get().isPostRequest ):
+			return self.render.edit( skel )
+
+		count = 0
+		for k in kwargs.keys():
+			# Check for valid bones
+			if k in [ "id" ] or not k in skel.keys():
+				continue
+
+			# Check for correct data fetch
+			if (skel[k].fromClient(k, kwargs)
+			    and skel[k].required
+				and not kwargs[k]):
+
+				logging.info("XX %s = %s" % (k,kwargs[k]))
+				count += 1
+			else:
+				logging.info("OK %s = %s" % (k,kwargs[k]))
+
+		if count:
+			return self.render.edit( skel )
+
+		if not securitykey.validate( skey, acceptSessionKey=True ):
+			#raise errors.PreconditionFailed()
+			pass
+
+		skel.toDB()
+		self.onItemEdited( skel )
+		return self.render.editItemSuccess( skel )
+
 
 
 	@forceSSL

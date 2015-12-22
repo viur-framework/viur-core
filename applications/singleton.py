@@ -22,11 +22,13 @@ class Singleton( object ):
 	"""
 
 	kindName = None
-	adminInfo = {
-		"name": "BaseSingleton",                # Module name as shown in the admin tools
+	def adminInfo(self):
+		return {
+			"name": self.__class__.__name__,        # Module name as shown in the admin tools
 		"handler": "singleton",                 # Which handler to invoke
 		"icon": "icons/modules/singleton.svg",  # Icon for this module
-	}
+		}
+
 				
 	def getKey(self):
 		"""
@@ -200,6 +202,56 @@ class Singleton( object ):
 		self.onItemEdited( skel )
 		return self.render.editItemSuccess( skel )
 
+	@exposed
+	@forceSSL
+	def amend(self, *args, **kwargs):
+		"""
+		Amend is like the standard lists edit action, but it only amends the values coming from outside.
+		The supplied data must not be complete nor contain all required fields.
+		"""
+		if "skey" in kwargs:
+			skey = kwargs["skey"]
+		else:
+			skey = ""
+		skel = self.editSkel()
+
+		id = db.Key.from_path( self.editSkel().kindName, self.getKey() )
+		if not skel.fromDB( id ):
+			raise errors.NotAcceptable()
+		if not self.canEdit( ):
+			raise errors.Unauthorized()
+
+		if (len(kwargs) == 0 or skey == "" ):
+			return self.render.edit( skel )
+
+		count = 0
+		for k in kwargs.keys():
+			# Check for valid bones
+			if k in [ "id" ] or not k in skel.keys():
+				continue
+
+			# Check for correct data fetch
+			if (skel[k].fromClient(k, kwargs)
+			    and skel[k].required
+				and not kwargs[k]):
+
+				logging.info("XX %s = %s" % (k,kwargs[k]))
+				count += 1
+			else:
+				logging.info("OK %s = %s" % (k,kwargs[k]))
+
+		if count:
+			return self.render.edit( skel )
+
+		logging.info("skey is:"+skey)
+		if not securitykey.validate( skey, acceptSessionKey=True ):
+			logging.info("validation failed...")
+			raise errors.PreconditionFailed()
+			pass
+
+		skel.toDB()
+		self.onItemEdited( skel )
+		return self.render.editItemSuccess( skel )
 
 	def getContents( self ):
 		"""
