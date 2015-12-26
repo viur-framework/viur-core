@@ -7,6 +7,8 @@ from server import db
 import string, random, base64
 from server import conf
 import logging
+from itertools import izip
+
 
 def generateRandomString( length=13 ):
 	"""
@@ -229,3 +231,26 @@ def unescapeString(val, maxLength = 0):
 		return val[0:maxLength]
 
 	return val
+
+
+def safeStringComparison(s1, s2):
+	"""
+		Performs a string comparison in constant time.
+		This should prevent side-channel (timing) attacks
+		on passwords etc.
+		:param s1: First string to compare
+		:type s1: string | unicode
+		:param s2: Second string to compare
+		:type s2: string | unicode
+		:return: True if both strings are equal, False otherwise
+		:return type: bool
+	"""
+	isOkay = True
+	if type(s1) != type(s2):
+		isOkay = False  # We have a unicode/str messup here
+	if len(s1) != len(s2):
+		isOkay = False
+	for x, y in izip(s1, s2):
+		if x != y:
+			isOkay = False
+	return isOkay

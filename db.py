@@ -725,8 +725,10 @@ class Query( object ):
 
 			:rtype: str
 		"""
+		if self.datastoreQuery is None:
+			return( None )
 		return( self.datastoreQuery.__kind )
-	
+
 	def setKind( self, newKind ):
 		"""
 			Sets the kind of this query.

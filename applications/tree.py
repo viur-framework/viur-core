@@ -445,7 +445,8 @@ class Tree( object ):
 		skel = self.viewSkel(skelType)
 		if skel is None:
 			raise errors.NotAcceptable()
-
+		if not len(id):
+			raise errors.NotAcceptable()
 		if not skel.fromDB( id ):
 			raise errors.NotFound()
 

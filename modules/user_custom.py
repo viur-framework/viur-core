@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from server.applications.list import List
-from server.skeleton import Skeleton
+from server.skeleton import Skeleton, RelSkel
 from server import utils, session
 from server.bones import *
 from server.bones.passwordBone import pbkdf2
@@ -9,7 +9,6 @@ from server.tasks import StartupTask
 from time import time
 from server import db
 from hashlib import sha512
-from itertools import izip
 from google.appengine.api import users, app_identity
 import logging
 import datetime
@@ -54,9 +53,7 @@ class CustomUser( List ):
 		return( "X-VIUR-INTERNAL" )
 	getAuthMethod.exposed = True	
 	
-	class loginSkel( Skeleton ):
-		kindName = "user"
-		id = None
+	class loginSkel( RelSkel ):
 		name = emailBone( descr="E-Mail",  required=True, caseSensitive=False, indexed=True )
 		password = passwordBone( descr="Password", indexed=True, params={"justinput":True}, required=True )
 
@@ -117,8 +114,7 @@ class CustomUser( List ):
 
 		return skel
 
-	class lostPasswordSkel( Skeleton ):
-		kindName = "user"
+	class lostPasswordSkel( RelSkel ):
 		name = stringBone( descr="username", required=True )
 		password = passwordBone( descr="New Password", required=True )
 	
@@ -155,18 +151,13 @@ class CustomUser( List ):
 		else:
 			passwd = sha512( password.encode("UTF-8")+conf["viur.salt"] ).hexdigest()
 		isOkay = True
-		# We do this exactly that way to avoid timing attacks
-		if len( res["password"] ) != len( passwd ):
+		if not utils.safeStringComparison(password, passwd):
 			isOkay = False
-		else:
-			for x, y in izip( res["password"], passwd ):
-				if x!=y:
-					isOkay = False
 		if res["status"] < 10:
 			isOkay = False
-		if res[ "name.idx" ] != name.lower():
+		if not utils.safeStringComparison(res[ "name.idx" ], name.lower()):
 			isOkay = False
-		if( not isOkay ):
+		if not isOkay:
 			skel=self.loginSkel()
 			skel["name"].fromClient("name",{"name":name} )
 			return( self.render.login( skel, loginFailed=True )  )
@@ -320,9 +311,9 @@ def createNewUserIfNotExists():
 	"""
 	if "user" in dir( conf["viur.mainApp"] ):# We have a user module
 		userMod = getattr( conf["viur.mainApp"], "user" )
-		if isinstance( userMod, CustomUser ) and "loginSkel" in dir(userMod): #Its our user module :)
-			if not db.Query( userMod.loginSkel().kindName ).get(): #There's currently no user in the database
-				l = userMod.addSkel()
+		if isinstance( userMod, CustomUser ) and "addSkel" in dir(userMod): #Its our user module :)
+			if not db.Query( userSkel().kindName ).get(): #There's currently no user in the database
+				l = userSkel()
 				l["password"] = passwordBone( descr="Password", required=True )
 				uname = "admin@%s.appspot.com" % app_identity.get_application_id()
 				pw = utils.generateRandomString( 13 )

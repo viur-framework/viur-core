@@ -280,7 +280,7 @@ class Hierarchy( object ):
 			keylist = []
 		else:
 			if str(key).isdigit():
-				key = str( db.Key.from_path( self.viewSkel().kindName, int(key) ) )
+				key = str( db.Key.from_path( self.viewSkel().kindName, long(key) ) )
 			keylist = [ key ]
 
 		if not self.canList( key ):
@@ -520,7 +520,8 @@ class Hierarchy( object ):
 			id = args[0]
 		else:
 			raise errors.NotAcceptable()
-
+		if not len(id):
+			raise errors.NotAcceptable()
 		skel = self.viewSkel()
 
 		if not skel.fromDB( id ):

@@ -46,11 +46,11 @@ class passwordBone( stringBone ):
 		will be written to the database
 	"""
 	type = "password"
-	saltLenth = 13
+	saltLength = 13
 	
 	def serialize( self, name, entity ):
 		if self.value and self.value != "":
-			salt = ''.join( [ random.choice(string.ascii_lowercase+string.ascii_uppercase + string.digits) for x in range(self.saltLenth) ] )
+			salt = ''.join( [ random.choice(string.ascii_lowercase + string.ascii_uppercase + string.digits) for x in range(self.saltLength) ] )
 			passwd = pbkdf2( self.value[ : conf["viur.maxPasswordLength"] ], salt )
 			entity.set( name, passwd, self.indexed )
 			entity.set( "%s_salt" % name, salt, self.indexed )
