@@ -37,6 +37,7 @@ def pbkdf2( password, salt, iterations=1001, keylen=42):
 		buf.extend(rv)
 	return (''.join(map(chr, buf))[:keylen]).encode("hex")
 
+
 class passwordBone( stringBone ):
 	"""
 		A bone holding passwords.
@@ -47,7 +48,28 @@ class passwordBone( stringBone ):
 	"""
 	type = "password"
 	saltLength = 13
-	
+	minPasswordLength = 8
+	passwordTests = [
+				lambda val: val.lower()!=val, #Do we have upper-case characters?
+				lambda val: val.upper()!=val, #Do we have lower-case characters?
+				lambda val: any([x in val for x in "0123456789"]), #Do we have any digits?
+				lambda val: any([x not in (string.ascii_lowercase + string.ascii_uppercase + string.digits) for x in val]), #Special characters?
+			]
+	passwordTestThreshold = 3
+
+	def isInvalid(self, value):
+		if not value:
+			return False
+		if len(value)<self.minPasswordLength:
+			return "Password to short"
+		# Run our passwort test suite
+		testResults = []
+		for test in self.passwordTests:
+			testResults.append(test(value))
+		if sum(testResults)<self.passwordTestThreshold:
+			return("Your password isn't strong enough!")
+		return False
+
 	def serialize( self, name, entity ):
 		if self.value and self.value != "":
 			salt = ''.join( [ random.choice(string.ascii_lowercase + string.ascii_uppercase + string.digits) for x in range(self.saltLength) ] )
