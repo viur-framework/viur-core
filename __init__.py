@@ -373,10 +373,17 @@ class BrowseHandler(webapp.RequestHandler):
 		self.args = []
 		self.kwargs = {}
 		#Add CSP headers early (if any)
-		if conf["viur.contentSecurityPolicy"] and conf["viur.contentSecurityPolicy"]["_headerCache"]:
-			for k,v in conf["viur.contentSecurityPolicy"]["_headerCache"].items():
-				assert k.startswith("Content-Security-Policy"), "Got unexpected header in conf['viur.contentSecurityPolicy']['_headerCache']"
+		if conf["viur.security.contentSecurityPolicy"] and conf["viur.security.contentSecurityPolicy"]["_headerCache"]:
+			for k,v in conf["viur.security.contentSecurityPolicy"]["_headerCache"].items():
+				assert k.startswith("Content-Security-Policy"), "Got unexpected header in conf['viur.security.contentSecurityPolicy']['_headerCache']"
 				self.response.headers[k] = v
+		if self.isSSLConnection: #Check for HTST and PKP headers only if we have a secure channel.
+			if conf["viur.security.strictTransportSecurity"]:
+				assert conf["viur.security.strictTransportSecurity"].startswith("max-age"), "Got unexpected header in conf['viur.security.strictTransportSecurity']"
+				self.response.headers["Strict-Transport-Security"] = conf["viur.security.strictTransportSecurity"]
+			if conf["viur.security.publicKeyPins"]:
+				assert conf["viur.security.publicKeyPins"].startswith("pin-"), "Got unexpected header in conf['viur.security.publicKeyPins']"
+				self.response.headers["Public-Key-Pins"] = conf["viur.security.publicKeyPins"]
 		if sharedConf["viur.disabled"] and not (users.is_current_user_admin() or "HTTP_X_QUEUE_NAME".lower() in [x.lower() for x in os.environ.keys()] ): #FIXME: Validate this works
 			self.response.set_status( 503 ) #Service unavailable
 			tpl = Template( open("server/template/error.html", "r").read() )
