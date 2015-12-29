@@ -151,7 +151,7 @@ class CustomUser( List ):
 		else:
 			passwd = sha512( password.encode("UTF-8")+conf["viur.salt"] ).hexdigest()
 		isOkay = True
-		if not utils.safeStringComparison(password, passwd):
+		if not utils.safeStringComparison(res["password"], unicode(passwd)):
 			isOkay = False
 		if res["status"] < 10:
 			isOkay = False
