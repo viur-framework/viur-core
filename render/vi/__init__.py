@@ -51,10 +51,11 @@ def getStructure( adminTree, modul ):
 
 def setLanguage( lang, skey):
 	if not securitykey.validate( skey ):
-		return( )
-	if lang in conf["viur.avaiableLanguages"]:
+		return
+
+	if lang in conf["viur.availableLanguages"]:
 		session.current.setLanguage( lang )
-	return( )
+
 setLanguage.exposed=True
 
 

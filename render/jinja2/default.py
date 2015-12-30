@@ -1087,13 +1087,13 @@ class Render( object ):
 
 	def quotePlus(self, val ):
 		"""
-		Jinja2 filter: Make a string URL-safe.
+			Jinja2 filter: Make a string URL-safe.
 
-		:param val: String to be quoted.
-		:type val: str
+			:param val: String to be quoted.
+			:type val: str
 
-		:returns: Quoted string.
-		:rtype: str
+			:returns: Quoted string.
+			:rtype: str
 		"""
 
 		if not val: #quote_plus fails if val is None
@@ -1104,13 +1104,13 @@ class Render( object ):
 
 	def shortKey( self, val ):
 		"""
-		Jinja2 filter: Make a shortkey from an entity-key.
+			Jinja2 filter: Make a shortkey from an entity-key.
 
-		:param val: Entity-key as string.
-		:return: str
+			:param val: Entity-key as string.
+			:return: str
 
-		:returns: Shortkey on success, None on error.
-		:rtype: str
+			:returns: Shortkey on success, None on error.
+			:rtype: str
 		"""
 
 		try:

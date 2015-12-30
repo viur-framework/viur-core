@@ -35,7 +35,7 @@ import logging
 ### Multi-Language Part
 try:
 	import translations
-	conf["viur.avaiableLanguages"].extend( [x for x in dir( translations ) if (len(x)==2 and not x.startswith("_")) ] )
+	conf["viur.availableLanguages"].extend( [x for x in dir( translations ) if (len(x)==2 and not x.startswith("_")) ] )
 except ImportError: #The Project doesnt use Multi-Language features
 	translations = None
 
@@ -334,7 +334,7 @@ class BrowseHandler(webapp.RequestHandler):
 			if not session.current.getLanguage():
 				if "X-Appengine-Country" in self.request.headers.keys():
 					lng = self.request.headers["X-Appengine-Country"].lower()
-					if lng in conf["viur.avaiableLanguages"]+list( conf["viur.languageAliasMap"].keys() ):
+					if lng in conf["viur.availableLanguages"]+list( conf["viur.languageAliasMap"].keys() ):
 						session.current.setLanguage( lng )
 						self.language = lng
 					else:
@@ -354,7 +354,7 @@ class BrowseHandler(webapp.RequestHandler):
 		elif conf["viur.languageMethod"] == "url":
 			tmppath = urlparse.urlparse( path ).path
 			tmppath = [ urlparse.unquote( x ) for x in tmppath.lower().strip("/").split("/") ]
-			if len( tmppath )>0 and tmppath[0] in conf["viur.avaiableLanguages"]+list( conf["viur.languageAliasMap"].keys() ):
+			if len( tmppath )>0 and tmppath[0] in conf["viur.availableLanguages"]+list( conf["viur.languageAliasMap"].keys() ):
 				self.language = tmppath[0]
 				return( path[ len( tmppath[0])+1: ] ) #Return the path stripped by its language segment
 			else: # This URL doesnt contain an language prefix, try to read it from session
