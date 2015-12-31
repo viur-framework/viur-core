@@ -15,25 +15,24 @@ class relationalBone( baseBone ):
 		small-op for each entity returned.
 		However, it costs several more write-ops for writing an entity to the db.
 		(These costs are somewhat around additional (4+len(refKeys)+len(parentKeys)) write-ops for each referenced
-		property))
+		property) for multiple=True relationalBones and (4+len(refKeys)) for n:1 relations)
 
-		So dont use this if you expect data being read less frequently than written! (Sorry, we dont have a
+		So don't use this if you expect data being read less frequently than written! (Sorry, we don't have a
 		write-efficient method yet)
-		To speedup writes to (maybe) referenced entities, information in these relations isnt updated instantly.
-		There is a background task which runs periodically (default: every 4 hours) which updates the references to
-		recently changed entities.
-		As a result, you might see stale data for up to these four hours.
+		To speedup writes to (maybe) referenced entities, information in these relations isn't updated instantly.
+		Once a skeleton is updated, a deferred task is kicked off which updates the references to
+		that skeleton (if any).
+		As a result, you might see stale data until this task has been finished.
 
 		Example:
 			* Entity A references Entity B.
 			* Both have a property "name".
 			* Entity B gets updated (it name changes).
-			* As "A" has a copy of entity "B"s values, you'll see "B"s old name inside the values of the relationalBone when fetching entity A.
+			* As "A" has a copy of entity "B"s values, you'll see "B"s old name inside the values of the
+			  relationalBone when fetching entity A.
 
 		If you filter a list by relational properties, this will also use the old data! (Eg. filtering A's list by
-		B's new name wont return any result)
-		Currently, this is corrected by the background task, however its possible to consider other methods (eg. by
-		probability).
+		B's new name won't return any result)
 	"""
 
 
