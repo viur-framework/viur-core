@@ -1,11 +1,27 @@
+#-*- coding: utf-8 -*-
 """
-ViUR Server
+                 iii
+                iii
+               iii
 
-Copyright 2012-2015 by Mausbrand Informationssysteme GmbH
-Licensed under LGPL Version 3.
-http://www.gnu.org/licenses/lgpl-3.0
+           vvv iii uu      uu rrrrrrrr
+          vvvv iii uu      uu rr     rr
+  v      vvvv  iii uu      uu rr     rr
+  vv    vvvv   iii uu      uu rr rrrrr
+ vvvv  vvvv    iii uu      uu rr rrr
+  vvv vvvv     iii uu      uu rr  rrr
+   vvvvvv      iii  uu    uu  rr   rrr
+    vvvv       iii   uuuuuu   rr    rrr
 
-http://www.viur.is
+   I N F O R M A T I O N    S Y S T E M
+
+ ViUR SERVER
+ Copyright 2012-2016 by mausbrand Informationssysteme GmbH
+
+ http://www.viur.is
+
+ Licensed under the GNU Lesser General Public License, version 3.
+ See file LICENSE for more information.
 """
 
 __version__ = (-99,-99,-99) #Which API do we expose to our application
