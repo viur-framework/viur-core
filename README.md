@@ -1,14 +1,15 @@
 
 DESCRIPTION
-###########
+===========
 
 **ViUR** is an application development framework that mainly focuses to
-implement cloud-based information systems on top of the `Google AppEngine™`_.
+implement cloud-based information systems on top of the
+[Google AppEngine™](http://appengine.google.com).
 
 By design, ViUR-based applications are build upon simple, clear, flexible,
 extendible, versatile, high-scalable and easy-to-use concepts. To fit the
 requirements of modern agile software development workflows, ViUR is entirely
-written in the `Python programming language`_.
+written in the [Python programming language](http://www.python.org/).
 
 Applications implemented in ViUR are not only limited to websites or any other
 kind of specialized web-application. Therefore, we call ViUR an information
@@ -29,35 +30,33 @@ ViUR currently exists of three parts:
 - The **server** is the core of a ViUR application. It provides the server-parts
   of the web-application, a library of pre-defined data-models, modules, tools
   and libraries for data management and much more, and several renders to
-  support different output kinds.
+  support different output kinds. (https://bitbucket.org/viur/server)
 - The **admin** is the client-based, cross-platform administration backend to
   manage a ViUR application. It focuses on power-users that want to manage
   their applications with the full power of a desktop client computer.
+  (https://bitbucket.org/viur/admin)
 - The **vi** (visual interface), is the web-based administration backend for
   ViUR written in pure HTML5, to provide an easy-to-access management tool
   that directly runs system-independently in the web-browser of any desktop or
-  even mobile devices.
+  even mobile devices. (https://bitbucket.org/viur/vi)
 
 Both administration tools support the integration of application-specific
 plug-ins and can be used independently, depending on what is wanted and
 required.
 
-.. _Google AppEngine™: http://appengine.google.com
-.. _Python programming language: http://www.python.org/
-
 PREREQUISITES
-#############
+===========
 
 The server components of ViUR are written in **Python 2.7** because they are
-based on the Google App Engine SDK. The `Google App Engine SDK
-<https://cloud.google.com/appengine/downloads#Google_App_Engine_SDK_for_Python>`_
+based on the Google App Engine SDK. The [Google App Engine SDK]
+(https://cloud.google.com/appengine/downloads#Google_App_Engine_SDK_for_Python)
 is required for testing and deployment in the latest version.
 
 As client system, Windows, OS X and Linux are supported, but Linux will give
 you the best platform for development tasks with ViUR.
 
 QUICK START
-###########
+===========
 
 To quickly build a running ViUR web-application, you only have to follow these
 few steps:
@@ -70,19 +69,15 @@ few steps:
 
 Now you're done: Run
 
-::
-
 	dev_appserver.py <project-dir>
 
 or deploy your app to the world with
-
-::
 
 	appcfg.py update <project-dir>``
 
 
 WHO CREATED VIUR?
-#################
+=================
 
 ViUR is developed and maintained by mausbrand Informationssysteme GmbH,
 from Dortmund, Germany.
@@ -96,7 +91,7 @@ Help of any kind to extend and improve or enhance this project in any kind or
 way is always appreciated.
 
 LICENSING
-#########
+=========
 
 ViUR is Copyright (C) 2012-2016 by mausbrand Informationssysteme GmbH.
 
