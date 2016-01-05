@@ -48,8 +48,7 @@ PREREQUISITES
 ===========
 
 The server components of ViUR are written in **Python 2.7** because they are
-based on the Google App Engine SDK. The [Google App Engine SDK]
-(https://cloud.google.com/appengine/downloads#Google_App_Engine_SDK_for_Python)
+based on the Google App Engine SDK. The [Google App Engine SDK](https://cloud.google.com/appengine/downloads#Google_App_Engine_SDK_for_Python)
 is required for testing and deployment in the latest version.
 
 As client system, Windows, OS X and Linux are supported, but Linux will give
