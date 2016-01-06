@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from server.applications import BasicApplication
 from server.bones import baseBone, numericBone
 from server.skeleton import Skeleton, skeletonByKind
 from server import utils, errors, session, conf, request, securitykey
@@ -6,11 +7,10 @@ from server import db
 from server import forcePost, forceSSL, exposed, internalExposed
 from server.tasks import callDeferred
 from time import time
-from google.appengine.api import users
 from datetime import datetime
 import logging
 
-class HierarchySkel( Skeleton ):
+class HierarchySkel(Skeleton):
 	parententry = baseBone( descr="Parent", visible=False, indexed=True, readOnly=True )
 	parentrepo = baseBone( descr="BaseRepo", visible=False, indexed=True, readOnly=True )
 	sortindex = numericBone( descr="SortIndex", mode="float", visible=False, indexed=True, readOnly=True )
@@ -18,10 +18,10 @@ class HierarchySkel( Skeleton ):
 	def preProcessSerializedData( self, dbfields ):
 		if not ("sortindex" in dbfields.keys() and dbfields["sortindex"] ):
 			dbfields[ "sortindex" ] = time()
-		return( dbfields )
+		return dbfields
 
 
-class Hierarchy( object ):
+class Hierarchy(BasicApplication):
 	"""
 	Hierarchy is a ViUR BasicApplication.
 
@@ -31,55 +31,24 @@ class Hierarchy( object ):
 
 	:ivar kindName: Name of the kind of data entities that are managed by the application. \
 	This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the \
-	application. For more information, refer to the function :func:`resolveSkel`.
+	application. For more information, refer to the function :func:`_resolveSkel`.
 	:vartype kindName: str
 
 	:ivar adminInfo: todo short info on how to use adminInfo.
 	:vartype adminInfo: dict | callable
 	"""
 
-	kindName = None                             # The generic kindname for this module.
+	accessRights = ["add", "edit", "view", "delete"]# Possible access rights for this app
 
 	def adminInfo(self):
 		return {
-		"name": self.__class__.__name__,        # Module name as shown in the admin tools
-		"handler": "hierarchy",                 # Which handler to invoke
-		"icon": "icons/modules/hierarchy.svg"   # Icon for this module
+			"name": self.__class__.__name__,        # Module name as shown in the admin tools
+			"handler": "hierarchy",                 # Which handler to invoke
+			"icon": "icons/modules/hierarchy.svg"   # Icon for this module
 		}
 
 	def __init__( self, modulName, modulPath, *args, **kwargs ):
-		self.modulName = modulName
-		self.modulPath = modulPath
-
-		if self.adminInfo: # and self.editSkel
-			for r in ["add", "edit", "view", "delete"]:
-				rightName = "%s-%s" % ( modulName, r )
-
-				if not rightName in conf["viur.accessRights"]:
-					conf["viur.accessRights"].append( rightName )
-
-	def _resolveSkel(self, *args, **kwargs):
-		"""
-		Retrieve the generally associated :class:`server.skeleton.Skeleton` that is used by
-		the application.
-
-		This is either be defined by the member variable *kindName* or by a Skeleton named like the
-		application class in lower-case order.
-
-		If this behavior is not wanted, it can be definitely overridden by defining module-specific
-		:func:`viewSkel`,:func:`addSkel`, or :func:`editSkel` functions, or by overriding this
-		function in general.
-
-		:return: Returns a Skeleton instance that matches the application.
-		:rtype: server.skeleton.Skeleton
-		"""
-
-		if self.kindName:
-			kName = self.kindName
-		else:
-			kName = unicode( type(self).__name__ ).lower()
-
-		return skeletonByKind( kName )()
+		super(Hierarchy, self).__init__(modulName, modulPath, *args, **kwargs)
 
 	def viewSkel( self, *args, **kwargs ):
 		"""

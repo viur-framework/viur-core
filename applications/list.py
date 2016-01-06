@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
+from server.applications import BasicApplication
 from server.skeleton import Skeleton, skeletonByKind
 from server import utils, session,  errors, conf, securitykey, request
 from server import forcePost, forceSSL, exposed, internalExposed
 import logging
 
-class List( object ):
+class List(BasicApplication):
 	"""
 	List is a ViUR BasicApplication.
 
-	It is used for multiple data entities of the same kind, and needs to be sub-classed for individual modules.
+	It is used for multiple data entities of the same kind, and needs to be sub-classed for individual
+	modules.
 
 	:ivar kindName: Name of the kind of data entities that are managed by the application. \
 	This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the \
@@ -18,8 +20,7 @@ class List( object ):
 	:ivar adminInfo: todo short info on how to use adminInfo.
 	:vartype adminInfo: dict | callable
 	"""
-
-	kindName = None
+	accessRights = ["add", "edit", "view", "delete"]# Possible access rights for this app
 
 	def adminInfo(self):
 		return {
@@ -29,39 +30,7 @@ class List( object ):
 		}
 
 	def __init__( self, modulName, modulPath, *args, **kwargs ):
-		super( List, self ).__init__( *args, **kwargs )
-		self.modulName = modulName
-		self.modulPath = modulPath
-
-		if self.adminInfo:
-			for r in ["add", "edit", "view", "delete"]:
-				rightName = "%s-%s" % ( modulName, r )
-
-				if not rightName in conf["viur.accessRights"]:
-					conf["viur.accessRights"].append( rightName )
-
-	def _resolveSkel(self, *args, **kwargs):
-		"""
-		Retrieve the generally associated :class:`server.skeleton.Skeleton` that is used by
-		the application.
-
-		This is either be defined by the member variable *kindName* or by a Skeleton named like the
-		application class in lower-case order.
-
-		If this behavior is not wanted, it can be definitely overridden by defining module-specific
-		:func:`viewSkel`,:func:`addSkel`, or :func:`editSkel` functions, or by overriding this
-		function in general.
-
-		:return: Returns a Skeleton instance that matches the application.
-		:rtype: server.skeleton.Skeleton
-		"""
-
-		if self.kindName:
-			kName = self.kindName
-		else:
-			kName = unicode( type(self).__name__ ).lower()
-
-		return skeletonByKind( kName )()
+		super(List, self).__init__(modulName, modulPath, *args, **kwargs)
 
 	def viewSkel( self, *args, **kwargs ):
 		"""
@@ -179,7 +148,6 @@ class List( object ):
 
 		self.onItemViewed( skel )
 		return self.render.view( skel )
-
 
 	@exposed
 	def list( self, *args, **kwargs ):
@@ -322,7 +290,6 @@ class List( object ):
 		skel.toDB()
 		self.onItemEdited( skel )
 		return self.render.editItemSuccess( skel )
-
 
 
 	@forceSSL
