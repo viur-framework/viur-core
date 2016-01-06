@@ -45,7 +45,7 @@ plug-ins and can be used independently, depending on what is wanted and
 required.
 
 PREREQUISITES
-===========
+=============
 
 The server components of ViUR are written in **Python 2.7** because they are
 based on the Google App Engine SDK. The [Google App Engine SDK](https://cloud.google.com/appengine/downloads#Google_App_Engine_SDK_for_Python)
@@ -72,7 +72,7 @@ Now you're done: Run
 
 or deploy your app to the world with
 
-	appcfg.py update <project-dir>``
+	appcfg.py update <project-dir>
 
 
 WHO CREATED VIUR?
@@ -81,10 +81,11 @@ WHO CREATED VIUR?
 ViUR is developed and maintained by mausbrand Informationssysteme GmbH,
 from Dortmund, Germany.
 
-We are a software company consisting of young, enthusted software developers,
-designers and social media experts, working on exciting projects for different
-kinds of customers. All of our newer projects are implemented with ViUR, from
-tiny web-pages to huge company intranets with hundres of users.
+We are a software company consisting of young, enthusiastic software
+developers, designers and social media experts, working on exciting
+projects for different kinds of customers. All of our newer projects are
+implemented with ViUR, from tiny web-pages to huge company intranets with
+hundreds of users.
 
 Help of any kind to extend and improve or enhance this project in any kind or 
 way is always appreciated.
