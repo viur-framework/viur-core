@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
+from server import db, utils, errors, session, conf, securitykey
+from server import forcePost, forceSSL, exposed, internalExposed
+
+from server.applications import BasicApplication
 from server.bones import baseBone, numericBone
 from server.skeleton import Skeleton, skeletonByKind
-from server import utils
-from server import errors, session, conf, securitykey
-from server import db
-from server import forcePost, forceSSL, exposed, internalExposed
-from time import time
 from server.tasks import callDeferred
-from google.appengine.api import users
+
 from datetime import datetime
 import logging
 
@@ -37,7 +36,7 @@ class TreeNodeSkel( TreeLeafSkel ):
 	pass
 
 
-class Tree( object ):
+class Tree(BasicApplication):
 	"""
 	Tree is a ViUR BasicApplication.
 
@@ -46,7 +45,7 @@ class Tree( object ):
 
 	:ivar kindName: Name of the kind of data entities that are managed by the application. \
 	This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the \
-	application. For more information, refer to the function :func:`resolveSkel`.\
+	application. For more information, refer to the function :func:`_resolveSkel`.\
 	\
 	In difference to the other ViUR BasicApplication, the kindName in Trees evolve into the kindNames\
 	*kindName + "node"* and *kindName + "leaf"*, because information can be stored in different kinds.
@@ -56,25 +55,17 @@ class Tree( object ):
 	:vartype adminInfo: dict | callable
 	"""
 
-	kindName = None
+	accessRights = ["add", "edit", "view", "delete"]# Possible access rights for this app
 
 	def adminInfo(self):
 		return {
-		"name": self.__class__.__name__,        # Module name as shown in the admin tools
-		"handler": "tree",                      # Which handler to invoke
-		"icon": "icons/modules/tree.svg"        # Icon for this module
+			"name": self.__class__.__name__,        # Module name as shown in the admin tools
+			"handler": "tree",                      # Which handler to invoke
+			"icon": "icons/modules/tree.svg"        # Icon for this module
 		}
 
-
 	def __init__( self, modulName, modulPath, *args, **kwargs ):
-		self.modulName = modulName
-		self.modulPath = modulPath
-
-		if self.adminInfo and self.viewSkel("leaf"):
-			for r in ["add", "edit", "view", "delete"]:
-				rightName = "%s-%s" % (modulName, r )
-				if not rightName in conf["viur.accessRights"]:
-					conf["viur.accessRights"].append( rightName )
+		super(Tree, self).__init__(modulName, modulPath, *args, **kwargs)
 
 	def _resolveSkel(self, skelType, *args, **kwargs):
 		"""

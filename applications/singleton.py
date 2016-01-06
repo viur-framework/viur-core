@@ -1,18 +1,16 @@
 # -*- coding: utf-8 -*-
-from server.bones import baseBone
-from server.skeleton import Skeleton, skeletonByKind
-from server import utils, session,  errors, conf, securitykey, exposed, forceSSL
-from google.appengine.api import users
-from google.appengine.ext import db
+from server import db, utils, session,  errors, conf, securitykey, exposed, forceSSL
+from server.applications import BasicApplication
+
 import logging
 
-class Singleton( object ):
+class Singleton(BasicApplication):
 	"""
 	Singleton is a ViUR BasicApplication.
 
 	It is used to store one single data entity, and needs to be sub-classed for individual modules.
 
-	:ivar kindName: Name of the kind of data entity that are managed by the application. \
+	:ivar kindName: Name of the kind of data entities that are managed by the application. \
 	This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the \
 	application. For more information, refer to the function :func:`_resolveSkel`.
 	:vartype kindName: str
@@ -21,15 +19,18 @@ class Singleton( object ):
 	:vartype adminInfo: dict | callable
 	"""
 
-	kindName = None
+	accessRights = ["edit", "view"]                 # Possible access rights for this app
+
 	def adminInfo(self):
 		return {
 			"name": self.__class__.__name__,        # Module name as shown in the admin tools
-		"handler": "singleton",                 # Which handler to invoke
-		"icon": "icons/modules/singleton.svg",  # Icon for this module
+			"handler": "singleton",                 # Which handler to invoke
+			"icon": "icons/modules/singleton.svg",  # Icon for this module
 		}
 
-				
+	def __init__( self, modulName, modulPath, *args, **kwargs ):
+		super(Singleton, self).__init__(modulName, modulPath, *args, **kwargs)
+
 	def getKey(self):
 		"""
 		Returns the DB-Key for the current context.
@@ -40,41 +41,7 @@ class Singleton( object ):
 		:returns: Current context DB-key
 		:rtype: str
 		"""
-		return( "%s-modulkey" % self.editSkel().kindName )
-
-	def __init__( self, modulName, modulPath, *args, **kwargs ):
-		self.modulName = modulName
-		self.modulPath = modulPath
-
-		if self.adminInfo:
-			for r in ["edit", "view"]:
-				rightName = "%s-%s" % ( modulName, r )
-
-				if not rightName in conf["viur.accessRights"]:
-					conf["viur.accessRights"].append( rightName )
-
-	def _resolveSkel(self, *args, **kwargs):
-		"""
-		Retrieve the generally associated :class:`server.skeleton.Skeleton` that is used by
-		the application.
-
-		This is either be defined by the member variable *kindName* or by a Skeleton named like the
-		application class in lower-case order.
-
-		If this behavior is not wanted, it can be definitely overridden by defining module-specific
-		:func:`viewSkel`,:func:`addSkel`, or :func:`editSkel` functions, or by overriding this
-		function in general.
-
-		:return: Returns a Skeleton instance that matches the application.
-		:rtype: server.skeleton.Skeleton
-		"""
-
-		if self.kindName:
-			kName = self.kindName
-		else:
-			kName = unicode( type(self).__name__ ).lower()
-
-		return skeletonByKind( kName )()
+		return "%s-modulkey" % self.editSkel().kindName
 
 	def viewSkel( self, *args, **kwargs ):
 		"""
@@ -206,7 +173,7 @@ class Singleton( object ):
 	@forceSSL
 	def amend(self, *args, **kwargs):
 		"""
-		Amend is like the standard lists edit action, but it only amends the values coming from outside.
+		Amend is like the standard edit action, but it only amends the values coming from outside.
 		The supplied data must not be complete nor contain all required fields.
 		"""
 		if "skey" in kwargs:
