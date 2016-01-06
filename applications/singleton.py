@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
+from server import db, utils, session,  errors, conf, securitykey, exposed, forceSSL
 from server.applications import BasicApplication
-from server import utils, session,  errors, conf, securitykey, exposed, forceSSL
-from google.appengine.ext import db
+
 import logging
 
 class Singleton(BasicApplication):
@@ -18,6 +18,7 @@ class Singleton(BasicApplication):
 	:ivar adminInfo: todo short info on how to use adminInfo.
 	:vartype adminInfo: dict | callable
 	"""
+
 	accessRights = ["edit", "view"]                 # Possible access rights for this app
 
 	def adminInfo(self):

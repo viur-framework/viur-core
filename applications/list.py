@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-from server.applications import BasicApplication
-from server.skeleton import Skeleton, skeletonByKind
-from server import utils, session,  errors, conf, securitykey, request
+from server import utils, session, errors, conf, securitykey, request
 from server import forcePost, forceSSL, exposed, internalExposed
+
+from server.applications import BasicApplication
+
 import logging
 
 class List(BasicApplication):
@@ -20,6 +21,7 @@ class List(BasicApplication):
 	:ivar adminInfo: todo short info on how to use adminInfo.
 	:vartype adminInfo: dict | callable
 	"""
+
 	accessRights = ["add", "edit", "view", "delete"]# Possible access rights for this app
 
 	def adminInfo(self):

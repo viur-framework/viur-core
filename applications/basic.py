@@ -1,18 +1,19 @@
 #-*- coding: utf-8 -*-
 from server import conf
-from server.skeleton import Skeleton, skeletonByKind
+from server.skeleton import skeletonByKind
 
 class BasicApplication(object):
 	"""
-	BasicApplication is a generic ViUR BasicApplication.
+	BasicApplication is a generic class serving as the base for the four BasicApplications.
 
 	:ivar kindName: Name of the kind of data entities that are managed by the application. \
 	This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the \
-	application. For more information, refer to the function :func:`resolveSkel`.
+	application. For more information, refer to the function :func:`_resolveSkel`.
 	:vartype kindName: str
 	"""
 
 	kindName = None # The generic kindname for this module.
+
 	adminInfo = None
 	accessRights = None
 
@@ -43,9 +44,4 @@ class BasicApplication(object):
 		:rtype: server.skeleton.Skeleton
 		"""
 
-		if self.kindName:
-			kName = self.kindName
-		else:
-			kName = unicode(type(self).__name__).lower()
-
-		return skeletonByKind( kName )()
+		return skeletonByKind(self.kindName if self.kindName else unicode(type(self).__name__).lower())()

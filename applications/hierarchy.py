@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
+from server import db, utils, errors, session, conf, request, securitykey
+from server import forcePost, forceSSL, exposed, internalExposed
+
 from server.applications import BasicApplication
 from server.bones import baseBone, numericBone
-from server.skeleton import Skeleton, skeletonByKind
-from server import utils, errors, session, conf, request, securitykey
-from server import db
-from server import forcePost, forceSSL, exposed, internalExposed
 from server.tasks import callDeferred
+from server.skeleton import Skeleton
+
 from time import time
 from datetime import datetime
 import logging
