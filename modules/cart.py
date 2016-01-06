@@ -3,10 +3,14 @@ from server.applications.list import List
 from server.skeleton import SkelList
 from server.bones import *
 from server import errors, session, conf, request, exposed, internalExposed
-from server import utils
 import json
 
-class Cart( List ):
+class Cart(List):
+	"""
+	Implements a cart module which can be used in combination with the order module.
+	"""
+
+
 	listTemplate = "order_viewcart"
 	adminInfo = None
 	productSkel = None
@@ -74,7 +78,7 @@ class Cart( List ):
 		raise errors.Redirect("/%s/view" % self.modulName)
 
 	@exposed
-	def view( self, *args, **kwargs ):
+	def view(self, *args, **kwargs):
 		"""
 		Views the current cart content.
 		"""
@@ -82,14 +86,14 @@ class Cart( List ):
 		prods = session.current.get("cart_products") or {}
 
 		if prods:
-			items = self.productSkel().all().mergeExternalFilter( {"id": list(prods.keys()) } ).fetch( limit=10 )
+			items = self.productSkel().all().mergeExternalFilter( {"id": list(prods.keys()) } ).fetch(limit=10)
 		else:
 			items = SkelList( self.productSkel )
 
 		for skel in items:
 			skel["amt"] = numericBone(
 							descr="Quantity",
-							defaultValue=session.current["cart_products"][ str( skel["id"].value ) ][ "amount" ] )
+							defaultValue=session.current["cart_products"][str(skel["id"].value)]["amount"])
 
 		return self.render.list(items)
 

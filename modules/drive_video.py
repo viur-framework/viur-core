@@ -1,5 +1,4 @@
-__author__ = 'stefan'
-
+# -*- coding: utf-8 -*-
 import logging
 
 import httplib2

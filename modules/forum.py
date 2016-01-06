@@ -134,7 +134,7 @@ class Forum( Hierarchy ):
 		postSkel.fromClient( tmp )
 		postSkel.toDB()
 		#Refresh the index
-		queryObj = self.threadSkel().all().mergeExternalFilter( {"fid": skel.forum.value["id"],"orderby":"creationdate", "orderdir":"1", "amount":"10"} )  #Build the initial one
+		queryObj = self.threadSkel().all().mergeExternalFilter( {"fid": skel["forum"].value["id"],"orderby":"creationdate", "orderdir":"1", "amount":"10"} )  #Build the initial one
 		self.indexMgr.refreshIndex( queryObj )
 		self.onItemAdded( id, skel )
 		return self.render.addItemSuccess( id, skel )
@@ -152,11 +152,11 @@ class Forum( Hierarchy ):
 		if not skel.fromClient( kwargs ) or len(kwargs)==0 or skey=="" or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
 			return( self.render.add( skel, tpl=self.addPostTemplate ) )
 		threadSkel = self.threadSkel()
-		if not securitykey.validate( skey ) or not self.threadSkel().fromDB( skel.thread.value ): #Maybe stale thread
+		if not securitykey.validate( skey ) or not self.threadSkel().fromDB( skel["thread"].value ): #Maybe stale thread
 			raise errors.PreconditionFailed()
 		id = skel.toDB( )
 		#Refresh the index
-		queryObj = self.postSkel().all().mergeExternalFilter( {"thread":skel.thread.value, "amount":"10", "orderby":"creationdate", "orderdir":"0" } )
+		queryObj = self.postSkel().all().mergeExternalFilter( {"thread":skel["thread"].value, "amount":"10", "orderby":"creationdate", "orderdir":"0" } )
 		self.indexMgr.refreshIndex( queryObj )
 		self.onItemAdded( id, skel )
 		return self.render.addItemSuccess( id, skel )
@@ -170,10 +170,10 @@ class Forum( Hierarchy ):
 			raise errors.PreconditionFailed()
 		skel.delete( post )
 		#Refresh the index
-		queryObj = utils.buildDBFilter( self.postSkel() ,  {"thread":skel.thread.value}) #Build the initial one
+		queryObj = utils.buildDBFilter( self.postSkel() ,  {"thread":skel["thread"].value}) #Build the initial one
 		self.indexMgr.refreshIndex( queryObj )
 		self.onItemDeleted( skel )
-		self.checkForEmptyThread( skel.thread.value )
+		self.checkForEmptyThread( skel["thread"].value )
 		return( self.render.deleteSuccess( skel ) )
 	deletePost.exposed=True
 	
@@ -185,7 +185,7 @@ class Forum( Hierarchy ):
 			raise errors.PreconditionFailed()
 		skel.delete( thread )
 		#Refresh the index
-		queryObj = utils.buildDBFilter( self.threadSkel() ,  { "fid": skel.forum.value["id"], "amount":"10" }) #Build the initial one
+		queryObj = utils.buildDBFilter( self.threadSkel() ,  { "fid": skel["forum"].value["id"], "amount":"10" }) #Build the initial one
 		self.indexMgr.refreshIndex( queryObj )
 		self.deleteStalePosts( thread )
 		return( self.render.deleteSuccess( skel ) )
@@ -210,7 +210,7 @@ class Forum( Hierarchy ):
 			skel.delete( thread )
 			#Refresh the index
 			queryObj = db.Query( self.threadSkel().kindName )
-			queryObj[ "fid" ] = skel.forum.value["id"] #Build the initial one
+			queryObj[ "fid" ] = skel["forum"].value["id"] #Build the initial one
 			self.indexMgr.refreshIndex( queryObj )
 	
 	def editThread(self, id, skey="",  *args, **kwargs ):
@@ -248,11 +248,11 @@ class Forum( Hierarchy ):
 		user = utils.getCurrentUser()
 		if not skel.fromDB( id ):
 			return( False )
-		if skel.readaccess.value == "all":
+		if skel["readaccess"].value == "all":
 			return( True )
-		elif skel.readaccess.value == "users" and user:
+		elif skel["readaccess"].value == "users" and user:
 			return( True )
-		elif skel.readaccess.value=="admin" and user and "root" in user["access"]:
+		elif skel["readaccess"].value=="admin" and user and "root" in user["access"]:
 			return( True )
 		return( False )
 		
@@ -261,11 +261,11 @@ class Forum( Hierarchy ):
 		user = utils.getCurrentUser()
 		if not skel.fromDB( id ):
 			return( False )
-		if skel.readaccess.value == "all":
+		if skel["readaccess"].value == "all":
 			return( True )
-		elif skel.readaccess.value == "users" and user:
+		elif skel["readaccess"].value == "users" and user:
 			return( True )
-		elif skel.readaccess.value=="admin" and user and "root" in user["access"]:
+		elif skel["readaccess"].value=="admin" and user and "root" in user["access"]:
 			return( True )
 		return( False )
 		
@@ -274,11 +274,11 @@ class Forum( Hierarchy ):
 		user = utils.getCurrentUser()
 		if not skel.fromDB( forum ):
 			return( False )
-		if skel.writeaccess.value == "all":
+		if skel["writeaccess"].value == "all":
 			return( True )
-		elif skel.writeaccess.value == "users" and user:
+		elif skel["writeaccess"].value == "users" and user:
 			return( True )
-		elif skel.writeaccess.value=="admin" and user and "root" in user["access"]:
+		elif skel["writeaccess"].value=="admin" and user and "root" in user["access"]:
 			return( True )
 		return( False )
 
@@ -290,13 +290,13 @@ class Forum( Hierarchy ):
 			return( False )
 		skel = self.editSkel()
 		user = utils.getCurrentUser()
-		if not skel.fromDB( threadSkel.forum.value["id"] ):
+		if not skel.fromDB( threadSkel["forum"].value["id"] ):
 			return( False )
-		if skel.writeaccess.value == "all":
+		if skel["writeaccess"].value == "all":
 			return( True )
-		elif skel.writeaccess.value == "users" and user:
+		elif skel["writeaccess"].value == "users" and user:
 			return( True )
-		elif skel.writeaccess.value=="admin" and user and "root" in user["access"]:
+		elif skel["writeaccess"].value=="admin" and user and "root" in user["access"]:
 			return( True )
 		return( False )
 
