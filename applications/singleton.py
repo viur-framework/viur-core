@@ -169,13 +169,14 @@ class Singleton(BasicApplication):
 		self.onItemEdited( skel )
 		return self.render.editItemSuccess( skel )
 
+	"""
 	@exposed
 	@forceSSL
 	def amend(self, *args, **kwargs):
-		"""
+		" ""
 		Amend is like the standard edit action, but it only amends the values coming from outside.
 		The supplied data must not be complete nor contain all required fields.
-		"""
+		" ""
 		if "skey" in kwargs:
 			skey = kwargs["skey"]
 		else:
@@ -219,6 +220,7 @@ class Singleton(BasicApplication):
 		skel.toDB()
 		self.onItemEdited( skel )
 		return self.render.editItemSuccess( skel )
+	"""
 
 	def getContents( self ):
 		"""
