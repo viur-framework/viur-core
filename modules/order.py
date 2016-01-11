@@ -685,7 +685,6 @@ class Order( List ):
 		self.sendOrderArchivedEMail( order.key.urlsafe() )
 		logging.error("Order archived: "+str( order.key.urlsafe() ) )
 
-	@exposed
 	@PeriodicTask(60*24)
 	def startArchiveOrdersTask( self, *args, **kwargs ):
 		self.doArchiveActiveOrdersTask( (datetime.now()-self.archiveDelay).strftime("%d.%m.%Y %H:%M:%S"), None )
