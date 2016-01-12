@@ -173,7 +173,10 @@ class Skeleton( object ):
 			To define sub-skeletons, use the subSkels property of the Skeleton object.
 
 			By passing multiple sub-skeleton names to this function, a sub-skeleton with the union of
-			all bones of the specified sub-skeletons is returned
+			all bones of the specified sub-skeletons is returned.
+
+			If an entry called "*" exists in the subSkels-dictionary, the bones listed in this entry
+			will always be part of the generated sub-skeleton.
 
 			:param name: Name of the sub-skeleton (that's the key of the subSkels dictionary); \
 						Multiple names can be specified.
@@ -183,24 +186,35 @@ class Skeleton( object ):
 			:rtype: server.skeleton.Skeleton
 		"""
 		skel = cls()
-		boneList = []
-		subSkelNames = [name]+list(args)
+
+		if "*" in skel.subSkels.keys():
+			boneList = skel.subSkels["*"][:]
+		else:
+			boneList = []
+
+		subSkelNames = [name] + list(args)
+
 		for name in subSkelNames:
 			if not name in skel.subSkels.keys():
 				raise ValueError("Unknown sub-skeleton %s for skel %s" % (name, skel.kindName))
 			boneList.extend( skel.subSkels[name][:] )
-		for key,bone in skel.items():
-			keepBone = key in boneList
-			if key=="id":
+
+		for key, bone in skel.items():
+			if key in ["id"]:
 				keepBone = True
+			else:
+				keepBone = key in boneList
+
 			if not keepBone: #Test if theres a prefix-match that allows it
 				for boneKey in boneList:
-					if boneKey.endswith("*") and key.startswith(boneKey[: -1]):
+					if boneKey.endswith("*") and key.startswith(boneKey[:-1]):
 						keepBone = True
 						break
+
 			if not keepBone: #Remove that bone from the skeleton
-				skel[key]=None
-		return( skel )
+				skel[key] = None
+
+		return skel
 
 
 	def __init__( self, kindName=None, _cloneFrom=None, *args,  **kwargs ):
