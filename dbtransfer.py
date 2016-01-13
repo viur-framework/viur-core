@@ -348,7 +348,7 @@ class TaskTransferKind( CallableTaskBase ):
 		#		modules.append( modulName )
 		skel = Skeleton( self.kindName )
 		skel["modul"] = selectOneBone( descr="Modul", values={ x: x for x in modules}, required=True )
-		skel["target"] = stringBone( descr="URL to Target-Application", required=True, defaultValue="https://your-app-id.appspot.com/storeE" )
+		skel["target"] = stringBone( descr="URL to Target-Application", required=True, defaultValue="https://your-app-id.appspot.com/dbtransfer/storeEntry2" )
 		skel["importkey"] = stringBone( descr="Import-Key", required=True)
 		return( skel )
 
