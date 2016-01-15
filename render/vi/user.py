@@ -1,20 +1,21 @@
 from server.render.json.user import UserRender as user
-from server import errors
+from server import utils, errors, session
+import json
 
-class UserRender( user ):
-	def loginSucceeded( self,  **kwargs ):
-		#Fixme: We need a better method for this..
-		isGoogle=False
-		if self.parent:
-			try:
-				if self.parent.getAuthMethod()=="X-GOOGLE-ACCOUNT":
-					isGoogle=True
-			except:
-				pass
-		if isGoogle:
+class UserRender(user):
+
+	def loginSucceeded(self, **kwargs):
+		if "thirdPartyLogin" in kwargs.keys() and kwargs["thirdPartyLogin"]:
 			raise errors.Redirect("/vi")
-		else:
-			return("OKAY")
+
+		if session.current.get("_otp_user"):
+			return json.dumps("OKAY:OTP")
+
+		user = utils.getCurrentUser()
+		if user and ("admin" in user["access"] or "root" in user["access"]):
+			return json.dumps("OKAY")
+
+		return json.dumps("OKAY:NOADMIN")
 
 	def logoutSuccess(self, **kwargs ):
 		raise errors.Redirect("/vi/s/logout.html")
