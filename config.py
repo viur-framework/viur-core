@@ -8,6 +8,7 @@ apiVersion = 1 #What format do we use to store data in the bigtable
 
 #Conf is static, local Dictionary. Changes here are local to the current instance
 conf = {
+
 	"bugsnag.apiKey": None, #If set, ViUR will report Errors to bugsnag
 
 	"viur.accessRights": ["root","admin"],  #Accessrights available on this Application
@@ -36,6 +37,7 @@ conf = {
 
 	"viur.importPassword": None, # Activates the Database import API if set. Must be exactly 32 chars. *Everyone* knowing this password can rewrite the whole database!
 
+
 	"viur.languageAliasMap": {}, #Allows mapping of certain languages to one translation (ie. us->en)
 	"viur.languageMethod": "session", #Defines how translations are applied. session: Per Session, url: inject language prefix in url, domain: one domain per language
 	"viur.logMissingTranslations": False, #If true, ViUR will log missing translations in the datastore
@@ -56,6 +58,11 @@ conf = {
 	"viur.session.persistentFieldsOnLogout": [], #If set, these Fields will survive the session.reset() called on user/logout
 
 	"viur.tasks.startBackendOnDemand": True #If true, allows the task module to start a backend immediately (instead of waiting for the cronjob)
+
+	"viur.security.contentSecurityPolicy": None, #If set, viur will emit a CSP http-header with each request. Use security.addCspRule to set this property
+	"viur.security.strictTransportSecurity": None, #If set, viur will emit a HSTS http-header with each request. Use security.enableStrictTransportSecurity to set this property
+	"viur.security.publicKeyPins": None, #If set, viur will emit a Public Key Pins http-header with each request. Use security.setPublicKeyPins to set this property
+
 }
 
 
