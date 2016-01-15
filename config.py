@@ -57,7 +57,7 @@ conf = {
 	"viur.session.persistentFieldsOnLogin": [], #If set, these Fields will survive the session.reset() called on user/login
 	"viur.session.persistentFieldsOnLogout": [], #If set, these Fields will survive the session.reset() called on user/logout
 
-	"viur.tasks.startBackendOnDemand": True #If true, allows the task module to start a backend immediately (instead of waiting for the cronjob)
+	"viur.tasks.startBackendOnDemand": True, #If true, allows the task module to start a backend immediately (instead of waiting for the cronjob)
 
 	"viur.security.contentSecurityPolicy": None, #If set, viur will emit a CSP http-header with each request. Use security.addCspRule to set this property
 	"viur.security.strictTransportSecurity": None, #If set, viur will emit a HSTS http-header with each request. Use security.enableStrictTransportSecurity to set this property
