@@ -6,6 +6,7 @@ import json
 from time import time
 from datetime import datetime
 import logging
+from server.utils import normalizeKey
 
 class relationalBone( baseBone ):
 	"""
@@ -296,12 +297,12 @@ class relationalBone( baseBone ):
 				entry = db.Get( db.Key( r ) )
 			except: #Invalid key or something like that
 				if isinstance(self._dbValue, dict):
-					if self._dbValue["id"]==str(r):
+					if normalizeKey(self._dbValue["id"])==normalizeKey(r):
 						entry = self._dbValue
 						isEntryFromBackup = True
 				elif  isinstance(self._dbValue, list):
 					for dbVal in self._dbValue:
-						if dbVal["id"]==str(r):
+						if normalizeKey(dbVal["id"])==normalizeKey(r):
 							entry = dbVal
 							isEntryFromBackup = True
 				if not isEntryFromBackup:
@@ -574,10 +575,11 @@ class relationalBone( baseBone ):
 		if not self.value:
 			return
 		if isinstance( self.value, dict ) and "id" in self.value.keys():
-			self.fromClient( boneName, {boneName: self.value["id"]} )
+			# Try fixing
+			self.fromClient( boneName, {boneName: normalizeKey(self.value["id"])} )
 		elif isinstance( self.value, list ):
 			tmpList = []
 			for data in self.value:
 				if isinstance(data,dict) and "id" in data.keys():
-					tmpList.append( data["id"] )
+					tmpList.append( normalizeKey(data["id"]) )
 			self.fromClient( boneName, {boneName: tmpList} )

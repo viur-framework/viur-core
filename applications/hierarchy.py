@@ -21,6 +21,14 @@ class HierarchySkel(Skeleton):
 			dbfields[ "sortindex" ] = time()
 		return dbfields
 
+	def refresh(self):
+		if self["parententry"].value:
+			self["parententry"].value = utils.normalizeKey(self["parententry"].value)
+		if self["parentrepo"].value:
+			self["parentrepo"].value = utils.normalizeKey(self["parentrepo"].value)
+		super( HierarchySkel, self ).refresh()
+
+
 
 class Hierarchy(BasicApplication):
 	"""

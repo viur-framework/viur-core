@@ -54,6 +54,7 @@ def sendEMail( dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None
 	:type replyTo: str
 	:param replyTo: A reply-to email address
 	"""
+	return
 	if conf["viur.emailRecipientOverride"]:
 		logging.warning("Overriding destination %s with %s", dests, conf["viur.emailRecipientOverride"])
 		dests = conf["viur.emailRecipientOverride"]
@@ -131,6 +132,7 @@ def sendEMailToAdmins( subject, body, sender=None ):
 		:param sender: (optional) specify a different sender
 		:type sender: str
 	"""
+	return
 	if not sender:
 		sender = "viur@%s.appspotmail.com" % app_identity.get_application_id()
 
@@ -254,3 +256,22 @@ def safeStringComparison(s1, s2):
 		if x != y:
 			isOkay = False
 	return isOkay
+
+def normalizeKey( key ):
+	"""
+		Normalizes a datastore key (replacing _application with the current one)
+	:param key:
+	:return:
+	"""
+	if key is None:
+		return None
+	key = db.Key(encoded=str(key))
+	if key.parent():
+		parent = db.Key(encoded=normalizeKey(key.parent()))
+	else:
+		parent = None
+	return str( db.Key.from_path(key.kind(), key.id_or_name(), parent=parent))
+
+
+
+
