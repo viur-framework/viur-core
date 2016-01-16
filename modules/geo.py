@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from server.skeleton import Skeleton
-from server.applications.list import List
+from server.prototypes.list import List
 from server.bones import *
 from google.appengine.ext import db
 from server import session, errors

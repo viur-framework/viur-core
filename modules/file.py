@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.skeleton import Skeleton, skeletonByKind
 from server import session, errors, conf, request
-from server.applications.tree import Tree, TreeNodeSkel, TreeLeafSkel
+from server.prototypes.tree import Tree, TreeNodeSkel, TreeLeafSkel
 from server import forcePost, forceSSL, exposed, internalExposed
 from server.bones import *
 from server import utils, db, securitykey
@@ -153,7 +153,7 @@ class File( Tree ):
 			raise errors.Forbidden()
 		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
-		return( blobstore.create_upload_url( "%s/upload" % self.modulPath ) )
+		return( blobstore.create_upload_url( "%s/upload" % self.modulePath ) )
 	getUploadURL.exposed=True
 
 
@@ -246,7 +246,7 @@ class File( Tree ):
 				logging.info("Got a successfull upload: %s (%s)" % (r["name"].value, r["dlkey"].value ) )
 			user = utils.getCurrentUser()
 			if user:
-				logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
+				logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
 			return( self.render.addItemSuccess( res ) )
 		except:
 			for upload in self.getUploads():
@@ -274,9 +274,9 @@ class File( Tree ):
 			return( super(File, self).view( *args, **kwargs ) )
 		except (errors.NotFound, errors.NotAcceptable, TypeError) as e:
 			if len(args)>0 and blobstore.get( args[0] ):
-				raise( errors.Redirect( "%s/download/%s" % (self.modulPath, args[0]) ) )
+				raise( errors.Redirect( "%s/download/%s" % (self.modulePath, args[0]) ) )
 			elif len(args)>1 and blobstore.get( args[1] ):
-				raise( errors.Redirect( "%s/download/%s" % (self.modulPath, args[1]) ) )
+				raise( errors.Redirect( "%s/download/%s" % (self.modulePath, args[1]) ) )
 			elif isinstance( e, TypeError ):
 				raise( errors.NotFound() )
 			else:
@@ -308,7 +308,7 @@ class File( Tree ):
 		if user and "root" in user["access"]:
 			return True
 
-		return self.isOwnUserRootNode( str( skel["id"].value ) )
+		return self.isOwnUserRootNode( str( skel["key"].value ) )
 
 	def canEdit( self, skelType, skel=None ):
 		user = utils.getCurrentUser()

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from server.applications.list import List
+from server.prototypes.list import List
 from server.skeleton import Skeleton, RelSkel
 from server import utils, session
 from server.bones import *
@@ -311,15 +311,15 @@ class User(List):
 					"icon": "icons/modules/users.svg",
 				}
 
-	def __init__(self, modulName, modulPath, *args, **kwargs):
-		super(User, self).__init__(modulName, modulPath, *args, **kwargs)
+	def __init__(self, moduleName, modulePath, *args, **kwargs):
+		super(User, self).__init__(moduleName, modulePath, *args, **kwargs)
 
 		# Initialize the payment-providers
 		self.initializedAuthenticationProviders = {}
 		self.initializedSecondFactorProviders = {}
 
 		for p in self.authenticationProviders:
-			pInstance = p(self, modulPath+"/auth_%s" % p.__name__.lower())
+			pInstance = p(self, modulePath+"/auth_%s" % p.__name__.lower())
 			self.initializedAuthenticationProviders[pInstance.__class__.__name__.lower()] = pInstance
 
 			#Also put it as an object into self, so that any exposed function is reachable
@@ -327,7 +327,7 @@ class User(List):
 			logging.error("auth_%s" % pInstance.__class__.__name__.lower() )
 
 		for p in self.secondFactorProviders:
-			pInstance = p(self, modulPath+"/f2_%s" % p.__name__.lower())
+			pInstance = p(self, modulePath+"/f2_%s" % p.__name__.lower())
 			self.initializedAuthenticationProviders[pInstance.__class__.__name__.lower()] = pInstance
 
 			#Also put it as an object into self, so that any exposed function is reachable
@@ -417,26 +417,26 @@ class User(List):
 
 	@exposed
 	def edit( self,  *args,  **kwargs ):
-		if len( args ) == 0 and not "id" in kwargs and session.current.get("user"):
-			kwargs["id"] = session.current.get("user")["id"]
+		if len( args ) == 0 and not "key" in kwargs and session.current.get("user"):
+			kwargs["id"] = session.current.get("user")["key"]
 
 		return super( User, self ).edit( *args,  **kwargs )
 
 	@exposed
-	def view(self, id, *args, **kwargs):
+	def view(self, key, *args, **kwargs):
 		"""
 			Allow a special id "self" to reference always the current user
 		"""
-		if id=="self":
+		if key=="self":
 			user = self.getCurrentUser()
 			if user:
-				return( super( User, self ).view( user["id"], *args, **kwargs ) )
-		return super( User, self ).view( id, *args, **kwargs )
+				return( super( User, self ).view( user["key"], *args, **kwargs ) )
+		return super( User, self ).view( key, *args, **kwargs )
 
 	def canView(self, skel):
 		user = self.getCurrentUser()
 		if user:
-			if skel["id"].value==user["id"]:
+			if skel["key"].value==user["key"]:
 				return True
 
 			if "root" in user["access"] or "user-view" in user["access"]:
@@ -457,7 +457,7 @@ class User(List):
 			Invalidate all sessions of that user
 		"""
 		super( User, self ).onItemDeleted( skel )
-		session.killSessionByUser( str( skel["id"].value ) )
+		session.killSessionByUser( str( skel["key"].value ) )
 
 @StartupTask
 def createNewUserIfNotExists():

@@ -45,7 +45,7 @@ conf = {
 	"viur.mainApp": None,  #Reference to our pre-build Application-Instance
 	"viur.maxPasswordLength": 512, #Prevent Denial of Service attacks using large inputs for pbkdf2
 	"viur.maxPostParamsCount": 250, #Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks
-	"viur.models": None, #Dictionary of all models known to this instance
+	"viur.skeletons": None, #Dictionary of all models known to this instance
 
 	"viur.noSSLCheckUrls": ["/_tasks*", "/ah/*"], #List of Urls for which viur.forceSSL is ignored. Add an asterisk to mark that entry as a prefix (exact match otherwise)
 

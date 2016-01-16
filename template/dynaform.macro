@@ -19,14 +19,14 @@
 {# neue Dynaform#}
 
 {# ignore & hidden == liste von bone_names, form uniquename für customrenderer, modulename für viewSkel,#}
-{%- macro skel_render(Skel,ignor=[],hidden=[],form="",modulname="",format="advanced") -%}
+{%- macro skel_render(Skel,ignor=[],hidden=[],form="",modulename="",format="advanced") -%}
 {# ViewSkel #}
-	{% if not Skel["structure"] and not modulname==""%}
+	{% if not Skel["structure"] and not modulename==""%}
 		{% set renderskel = "viewskel"%}
-		{% if modulname=="contact"%}
+		{% if modulename=="contact"%}
 			{% set renderskel = "mailSkel"%}
 		{% endif%}
-		{% set struct = getSkel(modulname,renderskel).items() %}
+		{% set struct = getSkel(modulename,renderskel).items() %}
 		{% set tmpSkel ={}%}
 		{% do tmpSkel.update({"value":Skel, "errors":{}}) %}
 		{% set Skel = tmpSkel %}
@@ -205,14 +205,14 @@
 
 {#ALTE DYNAFORM#}
 {# \/ \/ \/ \/#}
-{%- macro render_dynaform(Skel,ignor=[],form="",modulname="",markMandatoryFields=True) -%}
+{%- macro render_dynaform(Skel,ignor=[],form="",modulename="",markMandatoryFields=True) -%}
 
-	{% if not Skel["structure"] and not modulname==""%}
+	{% if not Skel["structure"] and not modulename==""%}
 		{% set renderskel = "viewskel"%}
-		{% if modulname=="contact"%}
+		{% if modulename=="contact"%}
 			{% set renderskel = "mailSkel"%}
 		{% endif%}
-		{% set stuct = getSkel(modulname,renderskel).items() %}
+		{% set stuct = getSkel(modulename,renderskel).items() %}
 	{% else %}
 		{% set stuct = Skel["structure"].items() %}
 	{% endif%}

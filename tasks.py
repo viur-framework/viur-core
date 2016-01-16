@@ -51,7 +51,7 @@ class TaskHandler:
 	"""
 	adminInfo = None
 
-	def __init__(self, modulName, modulPath ):
+	def __init__(self, moduleName, modulePath ):
 		pass
 	
 	def findBoundTask( self, task, obj=None, depth=0 ):
@@ -266,7 +266,7 @@ def callDeferred( func ):
 			return( func( self, *args, **kwargs ) )
 		else:
 			try:
-				funcPath = "%s/%s" % (self.modulPath, func.func_name )
+				funcPath = "%s/%s" % (self.modulePath, func.func_name )
 				command = "rel"
 			except:
 				funcPath = "%s.%s" % ( func.__name__, func.__module__ )

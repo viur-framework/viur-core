@@ -124,15 +124,15 @@ class Render( default ):
 		request.current.get().response.headers['Content-Type'] = "application/pdf"
 		return( result.getvalue() )
 	
-	def addItemSuccess (self, id, skel, *args, **kwargs ):
+	def addItemSuccess (self, key, skel, *args, **kwargs ):
 		"""
 			Render an page, informing that the entry has been successfully created.
-			@param id: Urlsafe key of the new entry
-			@type id: String
+			@param key: Urlsafe key of the new entry
+			@type key: String
 			@param skel: Skeleton which contains the data of the new entity
 			@type skel: Skeleton
 		"""
-		htmlRes = super( Render, self).addItemSuccess(  id, skel, *args, **kwargs )
+		htmlRes = super( Render, self).addItemSuccess(  key, skel, *args, **kwargs )
 		result = StringIO.StringIO()
 		pdf = pisa.CreatePDF( StringIO.StringIO(htmlRes.encode('ascii', 'xmlcharrefreplace')), result )
 		try:
@@ -166,7 +166,7 @@ class Render( default ):
 		"""
 			Render an page, informing that the entry has been successfully deleted.
 			Parameters depends on the application calling this:
-			List and Hierachy pass the id of the deleted Entry, while Tree passes the rootNode and path.
+			List and Hierachy pass the key of the deleted Entry, while Tree passes the rootNode and path.
 		"""
 		htmlRes = super( Render, self).deleteSuccess( *args, **kwargs )
 		result = StringIO.StringIO()

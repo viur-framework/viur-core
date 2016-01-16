@@ -10,10 +10,10 @@ class MailSkel(Skeleton):
 class Formmailer(object): #fixme
 	adminInfo = None
 
-	def __init__( self, modulName, modulPath, *args, **kwargs ):
+	def __init__( self, moduleName, modulePath, *args, **kwargs ):
 		super( Formmailer, self ).__init__()
-		self.modulName = modulName
-		self.modulPath = modulPath
+		self.modulName = moduleName
+		self.modulPath = modulePath
 		
 
 	def index( self, *args, **kwargs ):

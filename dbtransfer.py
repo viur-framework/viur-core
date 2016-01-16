@@ -64,10 +64,10 @@ class DbTransfer( object ):
 		return( pickle.dumps( listKnownSkeletons() ) )
 
 	@exposed
-	def getCfg(self, modul, key ):
+	def getCfg(self, module, key ):
 		if not self._checkKey( key, export=False):
 			raise errors.Forbidden()
-		skel = skeletonByKind( modul )
+		skel = skeletonByKind( module )
 		assert skel is not None
 		res = skel()
 		r = DefaultRender()
@@ -324,7 +324,7 @@ class DbTransfer( object ):
 
 @CallableTask
 class TaskTransferKind( CallableTaskBase ):
-	"""This tasks loads and saves *every* entity of the given modul.
+	"""This tasks loads and saves *every* entity of the given module.
 	This ensures an updated searchIndex and verifies consistency of this data.
 	"""
 	id = "transferkind"
@@ -342,33 +342,33 @@ class TaskTransferKind( CallableTaskBase ):
 	def dataSkel(self):
 		modules = listKnownSkeletons()
 		modules.append("*")
-		#for modulName in dir( conf["viur.mainApp"] ):
-		#	modul = getattr( conf["viur.mainApp"], modulName )
-		#	if "editSkel" in dir( modul ) and not modulName in modules:
-		#		modules.append( modulName )
+		#for moduleName in dir( conf["viur.mainApp"] ):
+		#	module = getattr( conf["viur.mainApp"], moduleName )
+		#	if "editSkel" in dir( module ) and not moduleName in modules:
+		#		modules.append( moduleName )
 		skel = Skeleton( self.kindName )
-		skel["modul"] = selectOneBone( descr="Modul", values={ x: x for x in modules}, required=True )
+		skel["module"] = selectOneBone( descr="Module", values={ x: x for x in modules}, required=True )
 		skel["target"] = stringBone( descr="URL to Target-Application", required=True, defaultValue="https://your-app-id.appspot.com/dbtransfer/storeEntry2" )
 		skel["importkey"] = stringBone( descr="Import-Key", required=True)
 		return( skel )
 
-	def execute( self, modul=None, target=None, importkey=None, *args, **kwargs ):
+	def execute( self, module=None, target=None, importkey=None, *args, **kwargs ):
 		assert importkey
-		if modul=="*":
+		if module=="*":
 			for module in listKnownSkeletons():
 				iterExport( module, target, importkey, None )
 		else:
-			iterExport( modul, target, importkey, None )
+			iterExport( module, target, importkey, None )
 
 @callDeferred
-def iterExport( modul, target, importKey, cursor=None ):
+def iterExport( module, target, importKey, cursor=None ):
 	"""
 		Processes 100 Entries and calls the next batch
 	"""
 	urlfetch.set_default_fetch_deadline(20)
-	Skel = skeletonByKind( modul )
+	Skel = skeletonByKind( module )
 	if not Skel:
-		logging.error("TaskUpdateSeachIndex: Invalid modul")
+		logging.error("TaskUpdateSeachIndex: Invalid module")
 		return
 	query = Skel().all().cursor( cursor )
 	gotAtLeastOne = False
@@ -378,16 +378,16 @@ def iterExport( modul, target, importKey, cursor=None ):
 	logging.error("start")
 	logging.error(startCursor)
 	logging.error(endCursor.urlsafe())
-	exportItems(modul, target, importKey, startCursor, endCursor.urlsafe())
+	exportItems(module, target, importKey, startCursor, endCursor.urlsafe())
 	if startCursor is None or startCursor!=endCursor.urlsafe():
-		iterExport(modul, target, importKey, endCursor.urlsafe())
+		iterExport(module, target, importKey, endCursor.urlsafe())
 	else:
 		logging.error("FIN")
 	return
 
 @callDeferred
-def exportItems( modul, target, importKey, startCursor, endCursor):
-	Skel = skeletonByKind( modul )
+def exportItems( module, target, importKey, startCursor, endCursor):
+	Skel = skeletonByKind( module )
 	query = Skel().all().cursor( startCursor, endCursor )
 	logging.error("exportItems")
 	for item in query.run(250, keysOnly=False):

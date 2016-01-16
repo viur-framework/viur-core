@@ -47,10 +47,10 @@
 				if( relationalBoneKeyList_{{boneKey}}.length>0 ) {
 					pCursor = relationalBoneKeyList_{{boneKey}}[ relationalBoneKeyList_{{boneKey}}.length -1 ];
 				};
-				var destModul = "{{bone.type|replace("relational.","")}}";
+				var destModule = "{{bone.type|replace("relational.","")}}";
 				$.ajax({
 						type: "GET",
-						url: "/ops/"+destModul+"/list",
+						url: "/ops/"+destModule+"/list",
 						data: { style: "relationalselect", bonename: "{{bone_name}}", cursor: pCursor, amount:"3"},
 						cache: false
 					}).done(function( msg ) {
