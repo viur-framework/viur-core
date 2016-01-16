@@ -252,7 +252,6 @@ def buildApp( config, renderers, default=None, *args, **kwargs ):
 			continue
 
 		for renderName in list(rendlist.keys()): # look, if a particular render should be built
-			#logging.error(list(rendlist.keys()))
 			if renderName in dir( getattr( config, moduleName ) ) \
 				and getattr( getattr( config, moduleName ) , renderName )==True:
 					modulePath = "%s/%s" % ("/"+renderName if renderName!=default else "",  moduleName)
@@ -265,9 +264,7 @@ def buildApp( config, renderers, default=None, *args, **kwargs ):
 					if renderName == default: #default or render (sub)namespace?
 						setattr( res,  moduleName, obj )
 					else:
-						#logging.error(renderName)
-						#logging.error(moduleName)
-						if not renderName in dir( res ): 
+						if not renderName in dir( res ):
 							setattr( res,  renderName,  ExtendableObject() )
 						setattr( getattr(res, renderName), moduleName, obj )
 
