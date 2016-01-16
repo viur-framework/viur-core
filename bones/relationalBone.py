@@ -38,22 +38,22 @@ class relationalBone( baseBone ):
 
 
 	type = None
-	modul = None
+	module = None
 	refKeys = ["id","name"]
 	parentKeys = ["id","name"]
 
 	@staticmethod
-	def generageSearchWidget(target,modul,name="RELATIONAL BONE"):
-		return ( {"name":name,"target":target,"type":"relational","modul":modul} )
+	def generageSearchWidget(target,module,name="RELATIONAL BONE"):
+		return ( {"name":name,"target":target,"type":"relational","module":module} )
 
-	def __init__( self, type=None, modul=None, refKeys=None, parentKeys=None, multiple=False, format="$(name)",  *args,**kwargs):
+	def __init__( self, type=None, module=None, refKeys=None, parentKeys=None, multiple=False, format="$(name)",  *args,**kwargs):
 		"""
 			Initialize a new relationalBone.
 
 			:param type: KindName of the referenced property.
 			:type type: str
-			:param modul: Name of the modul which should be used to select entities of kind "type". If not set,
-				the value of "type" will be used (the kindName must match the modulName)
+			:param module: Name of the modul which should be used to select entities of kind "type". If not set,
+				the value of "type" will be used (the kindName must match the moduleName)
 			:type type: str
 			:param refKeys: A list of properties to include from the referenced property. These properties will be
 				available in the template without having to fetch the referenced property. Filtering is also only possible
@@ -75,12 +75,12 @@ class relationalBone( baseBone ):
 		self._dbValue = None #Store the original result fetched from the db here so we have that information in case a referenced entity has been deleted
 		if type:
 			self.type = type
-		if modul:
-			self.modul = modul
+		if module:
+			self.module = module
 		elif self.type:
-			self.modul = self.type
-		if self.type is None or self.modul is None:
-			raise NotImplementedError("Type and Modul of relationalbone's must not be None")
+			self.module = self.type
+		if self.type is None or self.module is None:
+			raise NotImplementedError("Type and Module of relationalbone's must not be None")
 		if refKeys:
 			if not "id" in refKeys:
 				raise AttributeError("ID must be included in refKeys!")
@@ -322,7 +322,7 @@ class relationalBone( baseBone ):
 						return( "Invalid entry selected" )
 					else:
 						continue
-			if not entry or (not isEntryFromBackup and not entry.key().kind()==self.type): #Entry does not exist or has wrong type (is from another modul)
+			if not entry or (not isEntryFromBackup and not entry.key().kind()==self.type): #Entry does not exist or has wrong type (is from another module)
 				if entry:
 					logging.error("I got an id, which kind doesn't match my type! (Got: %s, my type %s)" % ( entry.key().kind(), self.type ) )
 				continue

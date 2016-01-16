@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import server
-from server.applications.list import List
+from server.prototypes.list import List
 from server.skeleton import Skeleton
 from server.bones import *
 from server import errors, session, conf, request, exposed, internalExposed
@@ -258,34 +258,34 @@ class Order( List ):
 		pass
 
 	@exposed
-	def markPayed( self, id, skey, *args, **kwargs ):
-		if not self.canEdit( id ):
+	def markPayed( self, key, skey, *args, **kwargs ):
+		if not self.canEdit( key ):
 			raise errors.Unauthorized()
 		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
-		self.setPayed( id )
+		self.setPayed( key )
 		return("OKAY")
 
 	@exposed
-	def markSend( self, id, skey, *args, **kwargs ):
-		if not self.canEdit( id ):
+	def markSend( self, key, skey, *args, **kwargs ):
+		if not self.canEdit( key ):
 			raise errors.Unauthorized()
 
 		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 
-		self.setSend( id )
+		self.setSend( key )
 		return("OKAY")
 
 	@exposed
-	def markCanceled( self, id, skey, *args, **kwargs ):
-		if not self.canEdit( id ):
+	def markCanceled( self, key, skey, *args, **kwargs ):
+		if not self.canEdit( key ):
 			raise errors.Unauthorized()
 
 		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
 
-		self.setCanceled( id )
+		self.setCanceled( key )
 		return("OKAY")
 
 	def checkSkipShippingAddress( self, step, orderID, *args, **kwargs ):
@@ -515,23 +515,23 @@ class Order( List ):
 		return( None )
 	
 	@exposed
-	def getBill(self, id, *args, **kwargs):
+	def getBill(self, key, *args, **kwargs):
 		"""
 			Returns the Bill for the given order.
 		"""
 		skel = self.viewSkel()
 
 		if "canView" in dir( self ):
-			if not self.canView( id ):
+			if not self.canView( key ):
 				raise errors.Unauthorized()
 		else:
-			queryObj = self.viewSkel().all().mergeExternalFilter( {"id":  id} )
+			queryObj = self.viewSkel().all().mergeExternalFilter( {"key":  key} )
 			queryObj = self.listFilter( queryObj ) #Access control
 
 			if queryObj is None:
 				raise errors.Unauthorized()
 
-		bill = self.getBillPdf( id )
+		bill = self.getBillPdf( key )
 
 		if not bill:
 			raise errors.NotFound()
@@ -541,23 +541,23 @@ class Order( List ):
 		return( bill )
 
 	@exposed
-	def getDeliveryNote(self, id, *args, **kwargs):
+	def getDeliveryNote(self, key, *args, **kwargs):
 		"""
 			Returns the delivery note for the given order.
 		"""
 		skel = self.viewSkel()
 
 		if "canView" in dir( self ):
-			if not self.canView( id ):
+			if not self.canView( key ):
 				raise errors.Unauthorized()
 		else:
-			queryObj = self.viewSkel().all().mergeExternalFilter( {"id":  id} )
+			queryObj = self.viewSkel().all().mergeExternalFilter( {"key":  key} )
 			queryObj = self.listFilter( queryObj ) #Access control
 
 			if queryObj is None:
 				raise errors.Unauthorized()
 
-		bill = self.getDeliveryNotePdf( id )
+		bill = self.getDeliveryNotePdf( key )
 
 		if not bill:
 			raise errors.NotFound()
@@ -566,12 +566,12 @@ class Order( List ):
 		return( bill )
 	
 	@exposed
-	def checkout( self, step=None, id=None, skey=None, *args, **kwargs ):
+	def checkout( self, step=None, key=None, skey=None, *args, **kwargs ):
 		"""
 		Performs the checkout process trough the state machine provided by self.steps.
 
 		:param step: The current step index, None for beginning a new checkout
-		:param id: Id of the current checkout
+		:param key: Key of the current checkout
 		:param skey: Server security key
 		:return: Returns the rendered template or throws redirection exceptions.
 		"""
@@ -585,7 +585,7 @@ class Order( List ):
 			for state in self.states:
 				billObj[ "state_%s" % state ] = "0"
 			db.Put( billObj )
-			id = str( billObj.key() )
+			key = str( billObj.key() )
 
 			#Copy the Cart
 			if "amountSkel" in dir ( self ):
@@ -599,14 +599,14 @@ class Order( List ):
 				s.fromClient( {"product": products} )
 				s.toDB()
 
-			session.current["order_"+myKindName] = {"id": str( id ), "completedSteps": [] }
+			session.current["order_"+myKindName] = {"key": str( key ), "completedSteps": [] }
 			session.current.markChanged()
 
-			raise errors.Redirect( "?step=0&id=%s" % str( id ) )
+			raise errors.Redirect( "?step=0&key=%s" % str( key ) )
 
-		elif id:
+		elif key:
 			try:
-				orderID = db.Key( id )
+				orderID = db.Key( key )
 				step = int( step )
 				assert( step>=0 )
 				assert( step < len( self.steps ) )
@@ -615,7 +615,7 @@ class Order( List ):
 
 			sessionInfo = session.current.get("order_"+myKindName)
 
-			if not sessionInfo or not sessionInfo.get("id") == str( orderID ):
+			if not sessionInfo or not sessionInfo.get("key") == str( orderID ):
 				raise errors.Unauthorized()
 
 			if step in sessionInfo["completedSteps"]:
@@ -624,7 +624,7 @@ class Order( List ):
 
 			#Make sure that no steps can be skipped
 			if step != 0 and not step-1 in sessionInfo["completedSteps"]  :
-				raise errors.Redirect("?step=0&id=%s" % str( str(orderID) ) )
+				raise errors.Redirect("?step=0&key=%s" % str( str(orderID) ) )
 
 			currentStep = self.steps[ step ]
 			res = ""
@@ -641,7 +641,7 @@ class Order( List ):
 				except SkipStepException:
 					session.current["order_"+myKindName]["completedSteps"].append( step )
 					session.current.markChanged()
-					raise errors.Redirect("?step=%s&id=%s" % ( str( step+1 ), str( orderID ) ) )
+					raise errors.Redirect("?step=%s&key=%s" % ( str( step+1 ), str( orderID ) ) )
 				except ReturnHtmlException as e:
 					return( e.html )
 
@@ -677,8 +677,8 @@ class Order( List ):
 			session.current["order_"+myKindName]["completedSteps"].append( step )
 			session.current.markChanged()
 
-			logging.info( "next ?step=%s&id=%s" % (str( step+1 ), str( orderID ) ) )
-			raise errors.Redirect("?step=%s&id=%s" % (str( step+1 ), str( orderID ) ) )
+			logging.info( "next ?step=%s&key=%s" % (str( step+1 ), str( orderID ) ) )
+			raise errors.Redirect("?step=%s&key=%s" % (str( step+1 ), str( orderID ) ) )
 
 	def archiveOrder(self, order ):
 		self.setState( order.key.urlsafe(), "archived" )

@@ -196,8 +196,8 @@ def flushCache( prefix="/*" ):
 
 		Examples:
 			- "/" would flush the main page (and only that),
-			- "/*" everything from the cache, "/page/*" everything from the page-modul (default render),
-			- and "/page/view/*" only that specific subset of the page-modul.
+			- "/*" everything from the cache, "/page/*" everything from the page-module (default render),
+			- and "/page/view/*" only that specific subset of the page-module.
 	"""
 	items = db.Query( viurCacheName ).filter( "path =", prefix.rstrip("*") ).iter( keysOnly=True )
 	for item in items:

@@ -6,7 +6,7 @@ class Site( object ):
 
 	def __init__(self, *args, **kwargs):
 		super( Site, self ).__init__()
-		self.modulPath = ""
+		self.modulePath = ""
 
 	@exposed
 	def index( self,template="index",*arg,**kwargs ):

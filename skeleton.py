@@ -46,9 +46,9 @@ class MetaSkel( type ):
 				raise ValueError("Duplicate definition for %s in %s and %s" % (kindName, relNewFileName, relOldFileName) )
 		#	raise NotImplementedError("Duplicate definition of %s" % kindName)
 		relFileName = inspect.getfile(cls).replace( os.getcwd(),"" )
-		if not relFileName.strip(os.path.sep).startswith("models") and not relFileName.strip(os.path.sep).startswith("server"): # and any( [isinstance(x,baseBone) for x in [ getattr(cls,y) for y in dir( cls ) if not y.startswith("_") ] ] ):
+		if not relFileName.strip(os.path.sep).startswith("skeletons") and not relFileName.strip(os.path.sep).startswith("server"): # and any( [isinstance(x,baseBone) for x in [ getattr(cls,y) for y in dir( cls ) if not y.startswith("_") ] ] ):
 			if not "viur_doc_build" in dir(sys): #Do not check while documentation build
-				raise NotImplementedError("Skeletons must be defined in /models/")
+				raise NotImplementedError("Skeletons must be defined in /skeletons/")
 		if kindName:
 			MetaSkel._skelCache[ kindName ] = cls
 		for key in dir( cls ):
@@ -900,7 +900,7 @@ def updateRelations( destID, minChangeTime, cursor=None ):
 
 @CallableTask
 class TaskUpdateSeachIndex( CallableTaskBase ):
-	"""This tasks loads and saves *every* entity of the given modul.
+	"""This tasks loads and saves *every* entity of the given module.
 	This ensures an updated searchIndex and verifies consistency of this data.
 	"""
 	id = "rebuildsearchIndex"
@@ -917,12 +917,12 @@ class TaskUpdateSeachIndex( CallableTaskBase ):
 
 	def dataSkel(self):
 		modules = listKnownSkeletons()
-		#for modulName in dir( conf["viur.mainApp"] ):
-		#	modul = getattr( conf["viur.mainApp"], modulName )
-		#	if "editSkel" in dir( modul ) and not modulName in modules:
-		#		modules.append( modulName )
+		#for moduleName in dir( conf["viur.mainApp"] ):
+		#	module = getattr( conf["viur.mainApp"], moduleName )
+		#	if "editSkel" in dir( module ) and not moduleName in modules:
+		#		modules.append( moduleName )
 		skel = Skeleton( self.kindName )
-		skel["modul"] = selectOneBone( descr="Modul", values={ x: x for x in modules}, required=True )
+		skel["module"] = selectOneBone( descr="Module", values={ x: x for x in modules}, required=True )
 		def verifyCompact( val ):
 			if not val or val.lower()=="no" or val=="YES":
 				return( None )
@@ -930,17 +930,17 @@ class TaskUpdateSeachIndex( CallableTaskBase ):
 		skel["compact"] = stringBone( descr="Recreate Entities", vfunc=verifyCompact, required=False, defaultValue="NO" )
 		return( skel )
 
-	def execute( self, modul=None, compact="", *args, **kwargs ):
-		processChunk( modul, compact, None )
+	def execute( self, module=None, compact="", *args, **kwargs ):
+		processChunk( module, compact, None )
 
 @callDeferred
-def processChunk( modul, compact, cursor ):
+def processChunk( module, compact, cursor ):
 	"""
 		Processes 100 Entries and calls the next batch
 	"""
-	Skel = skeletonByKind( modul )
+	Skel = skeletonByKind( module )
 	if not Skel:
-		logging.error("TaskUpdateSeachIndex: Invalid modul")
+		logging.error("TaskUpdateSeachIndex: Invalid module")
 		return
 	query = Skel().all().cursor( cursor )
 	gotAtLeastOne = False
@@ -960,4 +960,4 @@ def processChunk( modul, compact, cursor ):
 	newCursor = query.getCursor()
 	if gotAtLeastOne and newCursor and newCursor.urlsafe()!=cursor:
 		# Start processing of the next chunk
-		processChunk( modul, compact, newCursor.urlsafe() )
+		processChunk( module, compact, newCursor.urlsafe() )

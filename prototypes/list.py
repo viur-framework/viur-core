@@ -2,7 +2,7 @@
 from server import utils, session, errors, conf, securitykey, request
 from server import forcePost, forceSSL, exposed, internalExposed
 
-from server.applications import BasicApplication
+from server.prototypes import BasicApplication
 
 import logging
 
@@ -31,8 +31,8 @@ class List(BasicApplication):
 			"icon": "icons/modules/list.svg"        # Icon for this module
 		}
 
-	def __init__( self, modulName, modulPath, *args, **kwargs ):
-		super(List, self).__init__(modulName, modulPath, *args, **kwargs)
+	def __init__( self, moduleName, modulePath, *args, **kwargs ):
+		super(List, self).__init__(moduleName, modulePath, *args, **kwargs)
 
 	def viewSkel( self, *args, **kwargs ):
 		"""
@@ -108,7 +108,7 @@ class List(BasicApplication):
 		"""
 		Prepares and renders a single entry for viewing.
 
-		The entry is fetched by its entity key, which either is provided via *kwargs["id"]*,
+		The entry is fetched by its entity key, which either is provided via *kwargs["key"]*,
 		or as the first parameter in *args*. The function performs several access control checks
 		on the requested entity before it is rendered.
 
@@ -116,29 +116,29 @@ class List(BasicApplication):
 
 		:returns: The rendered representation of the requested entity.
 
-		:raises: :exc:`server.errors.NotAcceptable`, when no *id* is provided.
-		:raises: :exc:`server.errors.NotFound`, when no entry with the given *id* was found.
+		:raises: :exc:`server.errors.NotAcceptable`, when no *key* is provided.
+		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		"""
-		if "id" in kwargs:
-			id = kwargs["id"]
+		if "key" in kwargs:
+			key = kwargs["key"]
 		elif len( args ) >= 1:
-			id = args[0]
+			key = args[0]
 		else:
 			raise errors.NotAcceptable()
-		if not len(id):
+		if not len(key):
 			raise errors.NotAcceptable()
 		skel = self.viewSkel()
 
 		if "canView" in dir( self ):
-			if not skel.fromDB( id ):
+			if not skel.fromDB( key ):
 				raise errors.NotFound()
 
 			if not self.canView( skel ):
 				raise errors.Unauthorized()
 
 		else:
-			queryObj = self.viewSkel().all().mergeExternalFilter( {"id":  id} )
+			queryObj = self.viewSkel().all().mergeExternalFilter( {"key":  key} )
 			queryObj = self.listFilter( queryObj ) #Access control
 
 			if queryObj is None:
@@ -181,7 +181,7 @@ class List(BasicApplication):
 		Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
 		Data is taken by any other arguments in *kwargs*.
 
-		The entry is fetched by its entity key, which either is provided via *kwargs["id"]*,
+		The entry is fetched by its entity key, which either is provided via *kwargs["key"]*,
 		or as the first parameter in *args*. The function performs several access control checks
 		on the requested entity before it is modified.
 
@@ -189,8 +189,8 @@ class List(BasicApplication):
 
 		:returns: The rendered, edited object of the entry, eventually with error hints.
 
-		:raises: :exc:`server.errors.NotAcceptable`, when no *id* is provided.
-		:raises: :exc:`server.errors.NotFound`, when no entry with the given *id* was found.
+		:raises: :exc:`server.errors.NotAcceptable`, when no *key* is provided.
+		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
@@ -200,16 +200,16 @@ class List(BasicApplication):
 		else:
 			skey = ""
 
-		if len( args ) == 1:
-			id = args[0]
-		elif "id" in kwargs:
-			id = kwargs["id"]
+		if "key" in kwargs:
+			key = kwargs["key"]
+		elif len( args ) == 1:
+			key = args[0]
 		else:
 			raise errors.NotAcceptable()
 
 		skel = self.editSkel()
 
-		if not skel.fromDB( id ):
+		if not skel.fromDB( key ):
 			raise errors.NotAcceptable()
 
 		if not self.canEdit( skel ):
@@ -233,67 +233,6 @@ class List(BasicApplication):
 
 		return self.render.editItemSuccess( skel )
 
-	"""
-	@exposed
-	@forceSSL
-	def amend(self, *args, **kwargs):
-		" ""
-		Amend is like the standard lists edit action, but it only amends the values coming from outside.
-		The supplied data must not be complete nor contain all required fields.
-		" ""
-		logging.error(kwargs)
-		if "skey" in kwargs:
-			skey = kwargs["skey"]
-		else:
-			skey = ""
-
-		if( len( args ) == 1 ):
-			id = args[0]
-		elif "id" in kwargs:
-			id = kwargs["id"]
-		else:
-			raise errors.NotAcceptable()
-
-		skel = self.editSkel()
-
-		if not skel.fromDB( id ):
-			raise errors.NotAcceptable()
-
-		if not self.canEdit( skel ):
-			raise errors.Unauthorized()
-
-		if (len(kwargs) == 0
-			or skey == ""
-			or not request.current.get().isPostRequest ):
-			return self.render.edit( skel )
-
-		count = 0
-		for k in kwargs.keys():
-			# Check for valid bones
-			if k in [ "id" ] or not k in skel.keys():
-				continue
-
-			# Check for correct data fetch
-			if (skel[k].fromClient(k, kwargs)
-			    and skel[k].required
-				and not kwargs[k]):
-
-				logging.info("XX %s = %s" % (k,kwargs[k]))
-				count += 1
-			else:
-				logging.info("OK %s = %s" % (k,kwargs[k]))
-
-		if count:
-			return self.render.edit( skel )
-
-		if not securitykey.validate( skey, acceptSessionKey=True ):
-			#raise errors.PreconditionFailed()
-			pass
-
-		skel.toDB()
-		self.onItemEdited( skel )
-		return self.render.editItemSuccess( skel )
-	"""
 
 	@forceSSL
 	@exposed
@@ -342,7 +281,7 @@ class List(BasicApplication):
 	@forceSSL
 	@forcePost
 	@exposed
-	def delete( self, id, skey, *args, **kwargs ):
+	def delete( self, key, skey, *args, **kwargs ):
 		"""
 		Delete an entry.
 
@@ -352,13 +291,13 @@ class List(BasicApplication):
 
 		:returns: The rendered, deleted object of the entry.
 
-		:raises: :exc:`server.errors.NotFound`, when no entry with the given *id* was found.
+		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
 
 		skel = self.editSkel()
-		if not skel.fromDB( id ):
+		if not skel.fromDB( key ):
 			raise errors.NotFound()
 
 		if not self.canDelete( skel ):
@@ -391,7 +330,7 @@ class List(BasicApplication):
 		"""
 		user = utils.getCurrentUser()
 
-		if user and ("%s-view" % self.modulName in user["access"] or "root" in user["access"] ):
+		if user and ("%s-view" % self.moduleName in user["access"] or "root" in user["access"] ):
 			return filter
 
 		return None
@@ -424,7 +363,7 @@ class List(BasicApplication):
 			return True
 
 		# user with add-permission is allowed.
-		if user and user["access"] and "%s-add" % self.modulName in user["access"]:
+		if user and user["access"] and "%s-add" % self.moduleName in user["access"]:
 			return True
 
 		return False
@@ -456,8 +395,8 @@ class List(BasicApplication):
 			return True
 
 		if (user and user["access"]
-	        and ("%s-add" % self.modulName in user["access"]
-	                or "%s-edit" % self.modulName in user["access"])):
+	        and ("%s-add" % self.moduleName in user["access"]
+	                or "%s-edit" % self.moduleName in user["access"])):
 			return True
 
 		return False
@@ -491,7 +430,7 @@ class List(BasicApplication):
 		if user["access"] and "root" in user["access"]:
 			return True
 
-		if user and user["access"] and "%s-edit" % self.modulName in user["access"]:
+		if user and user["access"] and "%s-edit" % self.moduleName in user["access"]:
 			return True
 
 		return False
@@ -527,7 +466,7 @@ class List(BasicApplication):
 		if user["access"] and "root" in user["access"]:
 			return True
 
-		if user and user["access"] and "%s-delete" % self.modulName in user["access"]:
+		if user and user["access"] and "%s-delete" % self.moduleName in user["access"]:
 			return True
 
 		return False
@@ -547,11 +486,11 @@ class List(BasicApplication):
 
 		.. seealso:: :func:`add`
 		"""
-		logging.info("Entry added: %s" % skel["id"].value )
+		logging.info("Entry added: %s" % skel["key"].value )
 
 		user = utils.getCurrentUser()
 		if user:
-			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
+			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
 
 
 	def onItemEdited( self, skel ):
@@ -566,11 +505,11 @@ class List(BasicApplication):
 
 		.. seealso:: :func:`edit`
 		"""
-		logging.info("Entry changed: %s" % skel["id"].value )
+		logging.info("Entry changed: %s" % skel["key"].value )
 
 		user = utils.getCurrentUser()
 		if user:
-			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
+			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
 
 
 	def onItemViewed( self, skel ):
@@ -599,10 +538,10 @@ class List(BasicApplication):
 
 		.. seealso:: :func:`delete`
 		"""
-		logging.info("Entry deleted: %s" % skel["id"].value )
+		logging.info("Entry deleted: %s" % skel["key"].value )
 		user = utils.getCurrentUser()
 		if user:
-			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
+			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
 
 
 List.admin = True

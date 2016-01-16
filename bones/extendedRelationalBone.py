@@ -19,13 +19,13 @@ class extendedRelationalBone( relationalBone ):
 	"""
 
 
-	def __init__( self, type=None, modul=None, refKeys=None, parentKeys=None, multiple=True, format="$(name)", using=None, *args, **kwargs):
+	def __init__( self, type=None, module=None, refKeys=None, parentKeys=None, multiple=True, format="$(name)", using=None, *args, **kwargs):
 		"""
 			Initialize a new relationalBone.
 			:param type: KindName of the referenced property.
 			:type type: String
-			:param modul: Name of the modul which should be used to select entities of kind "type". If not set,
-				the value of "type" will be used (the kindName must match the modulName)
+			:param module: Name of the modul which should be used to select entities of kind "type". If not set,
+				the value of "type" will be used (the kindName must match the moduleName)
 			:type type: String
 			:param refKeys: A list of properties to include from the referenced property. These properties will be
 				avaiable in the template without having to fetch the referenced property. Filtering is also only possible
@@ -41,7 +41,7 @@ class extendedRelationalBone( relationalBone ):
 				more information
 			:type format: String
 		"""
-		super( extendedRelationalBone, self ).__init__( type, modul, refKeys, parentKeys, multiple, format, *args, **kwargs)
+		super( extendedRelationalBone, self ).__init__( type, module, refKeys, parentKeys, multiple, format, *args, **kwargs)
 		if not multiple:
 			raise ValueError("extendedRelationalBones must be multiple!")
 		self.using = using
@@ -171,7 +171,7 @@ class extendedRelationalBone( relationalBone ):
 				else:
 					tmpList.remove( r )
 					continue
-			if not entry or (not isEntryFromBackup and not entry.key().kind()==self.type): #Entry does not exist or has wrong type (is from another modul)
+			if not entry or (not isEntryFromBackup and not entry.key().kind()==self.type): #Entry does not exist or has wrong type (is from another module)
 				if entry:
 					logging.error("I got an id, which kind doesn't match my type! (Got: %s, my type %s)" % ( entry.key().kind(), self.type ) )
 				tmpList.remove( r )

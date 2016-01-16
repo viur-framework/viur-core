@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from server.applications.list import List
+from server.prototypes.list import List
 from server.skeleton import Skeleton, RelSkel
 from server import utils, session
 from server.bones import *
@@ -65,7 +65,7 @@ class CustomUser( List ):
 			admin=True
 		if "user" in dir( conf["viur.mainApp"] ): #Check for our custom user-api
 			user = conf["viur.mainApp"].user.getCurrentUser()
-			if user and user["access"] and ("%s-add" % self.modulName in user["access"] or "root" in user["access"] ):
+			if user and user["access"] and ("%s-add" % self.moduleName in user["access"] or "root" in user["access"] ):
 				admin=True
 		if not admin:
 			if self.registrationEmailVerificationRequired:
@@ -178,7 +178,7 @@ class CustomUser( List ):
 				try:
 					session.current['user'][ key ] = res[ key ]
 				except: pass
-			session.current['user']["id"] = str( res.key() )
+			session.current['user']["key"] = str( res.key() )
 			if not "access" in session.current['user'].keys() or not session.current['user']["access"]:
 				session.current['user']["access"] = []
 			session.current.markChanged()
@@ -198,8 +198,8 @@ class CustomUser( List ):
 	login.forceSSL = True
 
 	def edit( self,  *args,  **kwargs ):
-		if len( args ) == 0 and not "id" in kwargs and session.current.get("user"):
-			kwargs["id"] = session.current.get("user")["id"]
+		if len( args ) == 0 and not "key" in kwargs and session.current.get("user"):
+			kwargs["key"] = session.current.get("user")["key"]
 		return( super( CustomUser, self ).edit( *args,  **kwargs ) )
 	edit.exposed=True
 
@@ -266,21 +266,21 @@ class CustomUser( List ):
 		skel["skey"].value = skey
 		utils.sendEMail( [skel["name"].value], self.passwordRecoveryMail, skel )
 
-	def view(self, id, *args, **kwargs):
+	def view(self, key, *args, **kwargs):
 		"""
-			Allow a special id "self" to reference always the current user
+			Allow a special key "self" to reference always the current user
 		"""
-		if id=="self":
+		if key=="self":
 			user = self.getCurrentUser()
 			if user:
-				return( super( CustomUser, self ).view( user["id"], *args, **kwargs ) )
-		return( super( CustomUser, self ).view( id, *args, **kwargs ) )
+				return( super( CustomUser, self ).view( user["key"], *args, **kwargs ) )
+		return( super( CustomUser, self ).view( key, *args, **kwargs ) )
 	view.exposed=True
 
 	def canView(self, skel):
 		user = self.getCurrentUser()
 		if user:
-			if skel["id"].value==user["id"]:
+			if skel["key"].value==user["key"]:
 				return( True )
 			if "root" in user["access"] or "user-view" in user["access"]:
 				return( True )
@@ -292,15 +292,15 @@ class CustomUser( List ):
 		"""
 		super( CustomUser, self ).onItemAdded( skel )
 		if self.registrationEmailVerificationRequired and str(skel["status"].value)=="1":
-			skey = securitykey.create( duration=60*60*24*7 , userid=str(skel["id"].value), name=skel["name"].value )
-			self.sendVerificationEmail( str(skel["id"].value), skey )
+			skey = securitykey.create( duration=60*60*24*7 , userid=str(skel["key"].value), name=skel["name"].value )
+			self.sendVerificationEmail( str(skel["key"].value), skey )
 	
 	def onItemDeleted( self, skel ):
 		"""
 			Invalidate all sessions of that user
 		"""
 		super( CustomUser, self ).onItemDeleted( skel )
-		session.killSessionByUser( str( skel["id"].value ) )
+		session.killSessionByUser( str( skel["key"].value ) )
 
 
 

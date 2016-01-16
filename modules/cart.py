@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from server.applications.list import List
+from server.prototypes.list import List
 from server.skeleton import SkelList
 from server.bones import *
 from server import errors, session, conf, request, exposed, internalExposed
@@ -18,7 +18,7 @@ class Cart(List):
 	@exposed
 	def add(self, product, amt=None, extend=False, async=False):
 		"""
-		Adds the product with the id product to the cart.
+		Adds the product with the key product to the cart.
 
 		If product already exists, and amt is left-out, the number of the products in the cart
 		will be increased.
@@ -75,7 +75,7 @@ class Cart(List):
 			                    "cartsum": self.cartSum(),
 			                    "added": int( amt ) } )
 
-		raise errors.Redirect("/%s/view" % self.modulName)
+		raise errors.Redirect("/%s/view" % self.moduleName)
 
 	@exposed
 	def view(self, *args, **kwargs):
@@ -86,14 +86,14 @@ class Cart(List):
 		prods = session.current.get("cart_products") or {}
 
 		if prods:
-			items = self.productSkel().all().mergeExternalFilter( {"id": list(prods.keys()) } ).fetch(limit=10)
+			items = self.productSkel().all().mergeExternalFilter( {"key": list(prods.keys()) } ).fetch(limit=10)
 		else:
 			items = SkelList( self.productSkel )
 
 		for skel in items:
 			skel["amt"] = numericBone(
 							descr="Quantity",
-							defaultValue=session.current["cart_products"][str(skel["id"].value)]["amount"])
+							defaultValue=session.current["cart_products"][str(skel["key"].value)]["amount"])
 
 		return self.render.list(items)
 
@@ -133,7 +133,7 @@ class Cart(List):
 			                    "cartsum": self.cartSum(),
 			                    "removed": removed })
 
-		raise errors.Redirect("/%s/view" % self.modulName)
+		raise errors.Redirect("/%s/view" % self.moduleName)
 
 	@internalExposed
 	def entryCount( self ):
