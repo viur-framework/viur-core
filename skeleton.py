@@ -149,10 +149,10 @@ class Skeleton( object ):
 	subSkels = {} # List of pre-defined sub-skeletons of this type
 
 
-	# The "id" bone stores the current database key of this skeleton.
+	# The "key" bone stores the current database key of this skeleton.
 	# Warning: Assigning to this bones value is dangerous and does *not* affect the actual key
 	# its stored in
-	id = baseBone( descr="ID", readOnly=True, visible=False )
+	key = baseBone( descr="key", readOnly=True, visible=False )
 
 	# The date (including time) when this entry has been created
 	creationdate = dateBone( descr="created at",
@@ -200,7 +200,7 @@ class Skeleton( object ):
 			boneList.extend( skel.subSkels[name][:] )
 
 		for key, bone in skel.items():
-			if key in ["id"]:
+			if key in ["key"]:
 				keepBone = True
 			else:
 				keepBone = key in boneList
@@ -285,47 +285,47 @@ class Skeleton( object ):
 		"""
 		return( db.Query( self.kindName, srcSkelClass=self ) )
 
-	def fromDB( self, id ):
+	def fromDB( self, key ):
 		"""
-			Load entity with *id* from the data store into the Skeleton.
+			Load entity with *key* from the data store into the Skeleton.
 
-			Reads all available data of entity kind *kindName* and the key *id*
+			Reads all available data of entity kind *kindName* and the key *key*
 			from the data store into the Skeleton structure's bones. Any previous
 			data of the bones will discard.
 
 			To store a Skeleton object to the data store, see :func:`~server.skeleton.Skeleton.toDB`.
 
-			:param id: A :class:`server.DB.Key`, :class:`server.DB.Query`, or string,\
+			:param key: A :class:`server.DB.Key`, :class:`server.DB.Query`, or string,\
 			from which the data shall be fetched.
-			:type id: server.DB.Key | DB.Query | str
+			:type key: server.DB.Key | DB.Query | str
 
 			:returns: True on success; False if the given key could not be found.
 			:rtype: bool
 
 		"""
-		if isinstance(id, basestring ):
+		if isinstance(key, basestring ):
 			try:
-				id = db.Key( id )
+				key = db.Key( key )
 			except db.BadKeyError:
-				id = unicode( id )
-				if id.isdigit():
-					id = long( id )
-				elif not len(id):
-					raise ValueError("fromDB called with empty id!")
-				id = db.Key.from_path( self.kindName, id )
-		if not isinstance( id, db.Key ):
-			raise ValueError("fromDB expects an db.Key instance, an string-encoded key or a long as argument, got \"%s\" instead" % id )
-		if id.kind() !=  self.kindName: # Wrong Kind
+				key = unicode( key )
+				if key.isdigit():
+					key = long( key )
+				elif not len(key):
+					raise ValueError("fromDB called with empty key!")
+				key = db.Key.from_path( self.kindName, key )
+		if not isinstance( key, db.Key ):
+			raise ValueError("fromDB expects an db.Key instance, an string-encoded key or a long as argument, got \"%s\" instead" % key )
+		if key.kind() !=  self.kindName: # Wrong Kind
 			return( False )
 		try:
-			dbRes = db.Get( id )
+			dbRes = db.Get( key )
 		except db.EntityNotFoundError:
 			return( False )
 		if dbRes is None:
 			return( False )
 		self.setValues( dbRes )
-		id = str( dbRes.key() )
-		self.__currentDbKey_ = id
+		key = str( dbRes.key() )
+		self.__currentDbKey_ = key
 		return( True )
 
 	def toDB( self, clearUpdateTag=False ):
@@ -333,7 +333,7 @@ class Skeleton( object ):
 			Store current Skeleton entity to data store.
 
 			Stores the current data of this instance into the database.
-			If an *id* value is set to the object, this entity will ne updated;
+			If an *key* value is set to the object, this entity will ne updated;
 			Otherwise an new entity will be created.
 
 			To read a Skeleton object from the data store, see :func:`~server.skeleton.Skeleton.fromDB`.
@@ -345,20 +345,20 @@ class Skeleton( object ):
 			:returns: The data store key of the entity.
 			:rtype: str
 		"""
-		def txnUpdate( id, mergeFrom, clearUpdateTag ):
+		def txnUpdate( key, mergeFrom, clearUpdateTag ):
 			blobList = set()
 			skel = type(mergeFrom)()
 			# Load the current values from Datastore or create a new, empty db.Entity
-			if not id:
+			if not key:
 				dbObj = db.Entity( skel.kindName )
 				oldBlobLockObj = None
 			else:
-				k = db.Key( id )
+				k = db.Key( key )
 				assert k.kind()==skel.kindName, "Cannot write to invalid kind!"
 				try:
 					dbObj = db.Get( k )
 				except db.EntityNotFoundError:
-					dbObj = db.Entity( k.kind(), id=k.id(), name=k.name(), parent=k.parent() )
+					dbObj = db.Entity( k.kind(), key=k.id(), name=k.name(), parent=k.parent() )
 				else:
 					skel.setValues( dbObj )
 				try:
@@ -460,23 +460,23 @@ class Skeleton( object ):
 						db.Put( newLockObj )
 			return( str( dbObj.key() ), dbObj, skel )
 		# END of txnUpdate subfunction
-		id = self.__currentDbKey_
+		key = self.__currentDbKey_
 		if not isinstance(clearUpdateTag,bool):
 			raise ValueError("Got an unsupported type %s for clearUpdateTag. toDB doesn't accept a key argument any more!" % str(type(clearUpdateTag)))
 		# Allow bones to perform outstanding "magic" operations before saving to db
-		for key,_bone in self.items():
-			_bone.performMagic( isAdd=(id==None) )
+		for bkey,_bone in self.items():
+			_bone.performMagic( isAdd=(key==None) )
 
 		# Run our SaveTxn
 		if db.IsInTransaction():
-			id, dbObj, skel = txnUpdate(id, self, clearUpdateTag)
+			key, dbObj, skel = txnUpdate(key, self, clearUpdateTag)
 		else:
-			id, dbObj, skel = db.RunInTransactionOptions(db.TransactionOptions(xg=True),
-			                                                txnUpdate, id, self, clearUpdateTag)
+			key, dbObj, skel = db.RunInTransactionOptions(db.TransactionOptions(xg=True),
+			                                                txnUpdate, key, self, clearUpdateTag)
 
 		# Perform post-save operations (postProcessSerializedData Hook, Searchindex, ..)
-		self["id"].value = str(id)
-		self.__currentDbKey_ = str(id)
+		self["key"].value = str(key)
+		self.__currentDbKey_ = str(key)
 		if self.searchIndex: #Add a Document to the index if an index specified
 			fields = []
 			for key, _bone in skel.items():
@@ -485,21 +485,21 @@ class Skeleton( object ):
 			fields = skel.getSearchDocumentFields( fields )
 			if fields:
 				try:
-					doc = search.Document(doc_id="s_"+str(id), fields= fields )
+					doc = search.Document(doc_id="s_"+str(key), fields= fields )
 					search.Index(name=skel.searchIndex).put( doc )
 				except:
 					pass
 			else: #Remove the old document (if any)
 				try:
-					search.Index( name=self.searchIndex ).remove( "s_"+str(id) )
+					search.Index( name=self.searchIndex ).remove( "s_"+str(key) )
 				except:
 					pass
 		for key, _bone in skel.items():
-			_bone.postSavedHandler( key, skel, id, dbObj )
-		skel.postSavedHandler( id,  dbObj )
+			_bone.postSavedHandler( key, skel, key, dbObj )
+		skel.postSavedHandler( key,  dbObj )
 		if not clearUpdateTag:
-			updateRelations( id, time()+1 )
-		return( id )
+			updateRelations( key, time()+1 )
+		return( key )
 
 
 	def preProcessBlobLocks(self, locks):
@@ -522,14 +522,14 @@ class Skeleton( object ):
 		"""
 		return( fields )
 
-	def postSavedHandler(self, id, dbObj ):
+	def postSavedHandler(self, key, dbObj ):
 		"""
 			Can be overridden to perform further actions after the entity has been written
 			to the data store.
 		"""
 		pass
 
-	def postDeletedHandler(self, id):
+	def postDeletedHandler(self, key):
 		"""
 			Can be overridden to perform further actions after the entity has been deleted
 			from the data store.
@@ -606,14 +606,14 @@ class Skeleton( object ):
 		"""
 		for bkey,_bone in self.items():
 			if isinstance( _bone, baseBone ):
-				if bkey=="id":
+				if bkey=="key":
 					try:
 						# Reading the value from db.Entity
 						_bone.value = str( values.key() )
 					except:
 						# Is it in the dict?
-						if "id" in values.keys():
-							_bone.value = str( values["id"] )
+						if "key" in values.keys():
+							_bone.value = str( values["key"] )
 						else: #Ingore the key value
 							pass
 				else:
@@ -624,10 +624,10 @@ class Skeleton( object ):
 
 			if key is None:
 				self.__currentDbKey_ = None
-				self["id"].value = ""
+				self["key"].value = ""
 			else:
 				self.__currentDbKey_ = str( key )
-				self["id"].value = self.__currentDbKey_
+				self["key"].value = self.__currentDbKey_
 
 	def getValues(self):
 		"""
@@ -683,7 +683,7 @@ class Skeleton( object ):
 			if newVal is not None:
 				try:
 					dbObj = db.Get( db.Key.from_path( "%s_uniquePropertyIndex" % self.kindName, newVal  ) )
-					if dbObj["references"] != self["id"].value: #This valus is taken (sadly, not by us)
+					if dbObj["references"] != self["key"].value: #This valus is taken (sadly, not by us)
 						complete = False
 						if isinstance( self.enforceUniqueValuesFor, tuple ):
 							errorMsg = _(self.enforceUniqueValuesFor[1])
@@ -692,7 +692,7 @@ class Skeleton( object ):
 						self.errors[ uniqueProperty ] = errorMsg
 				except db.EntityNotFoundError:
 					pass
-		if( len( data )==0 or (len(data)==1 and "id" in data) or ("nomissing" in data.keys() and str(data["nomissing"])=="1") ):
+		if( len( data )==0 or (len(data)==1 and "key" in data) or ("nomissing" in data.keys() and str(data["nomissing"])=="1") ):
 			super(Skeleton,self).__setattr__( "errors", {} )
 		return( complete )
 
@@ -851,7 +851,7 @@ class RelSkel( object ):
 				self.errors[ key ] = error
 			if error  and _bone.required:
 				complete = False
-		if( len( data )==0 or (len(data)==1 and "id" in data) or ("nomissing" in data.keys() and str(data["nomissing"])=="1") ):
+		if( len( data )==0 or (len(data)==1 and "key" in data) or ("nomissing" in data.keys() and str(data["nomissing"])=="1") ):
 			self.errors = {}
 		return( complete )
 
@@ -882,7 +882,7 @@ class SkelList( list ):
 @callDeferred
 def updateRelations( destID, minChangeTime, cursor=None ):
 	logging.debug("Starting updateRelations for %s ; minChangeTime %s", destID, minChangeTime)
-	updateListQuery = db.Query( "viur-relations" ).filter("dest.id =", destID ).filter("viur_delayed_update_tag <",minChangeTime)
+	updateListQuery = db.Query( "viur-relations" ).filter("dest.key =", destID ).filter("viur_delayed_update_tag <",minChangeTime)
 	if cursor:
 		updateListQuery.cursor( cursor )
 	updateList = updateListQuery.run(limit=5)
@@ -903,7 +903,7 @@ class TaskUpdateSeachIndex( CallableTaskBase ):
 	"""This tasks loads and saves *every* entity of the given module.
 	This ensures an updated searchIndex and verifies consistency of this data.
 	"""
-	id = "rebuildsearchIndex"
+	key = "rebuildsearchIndex"
 	name = u"Rebuild a Searchindex"
 	descr = u"Needs to be called whenever a search-releated parameters are changed."
 	direct = True

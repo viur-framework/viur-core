@@ -528,6 +528,7 @@ class Hierarchy(BasicApplication):
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.NotFound`, if *parent* could not be found.
 		"""
+		logging.error( str((parent, args, kwargs)) )
 		if not parent or not self.canList( parent ):
 			raise errors.Unauthorized()
 
