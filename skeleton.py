@@ -371,10 +371,12 @@ class Skeleton( object ):
 					oldUniquePropertyValue = dbObj[ "%s.uniqueIndexValue" % uniqueProperty ]
 				else:
 					oldUniquePropertyValue = None
+
 			# Merge the values from mergeFrom in
 			for key, bone in skel.items():
 				if key in mergeFrom.keys() and mergeFrom[ key ]:
 					bone.mergeFrom( mergeFrom[ key ] )
+
 			unindexed_properties = []
 			for key, _bone in skel.items():
 				tmpKeys = dbObj.keys()
@@ -460,9 +462,11 @@ class Skeleton( object ):
 						db.Put( newLockObj )
 			return( str( dbObj.key() ), dbObj, skel )
 		# END of txnUpdate subfunction
+
 		key = self.__currentDbKey_
 		if not isinstance(clearUpdateTag,bool):
 			raise ValueError("Got an unsupported type %s for clearUpdateTag. toDB doesn't accept a key argument any more!" % str(type(clearUpdateTag)))
+
 		# Allow bones to perform outstanding "magic" operations before saving to db
 		for bkey,_bone in self.items():
 			_bone.performMagic( isAdd=(key==None) )
@@ -479,9 +483,11 @@ class Skeleton( object ):
 		self.__currentDbKey_ = str(key)
 		if self.searchIndex: #Add a Document to the index if an index specified
 			fields = []
-			for key, _bone in skel.items():
-				if _bone.searchable:
-					fields.extend( _bone.getSearchDocumentFields(key ) )
+
+			for boneName, bone in skel.items():
+				if bone.searchable:
+					fields.extend(bone.getSearchDocumentFields(boneName))
+
 			fields = skel.getSearchDocumentFields( fields )
 			if fields:
 				try:
@@ -489,16 +495,21 @@ class Skeleton( object ):
 					search.Index(name=skel.searchIndex).put( doc )
 				except:
 					pass
+
 			else: #Remove the old document (if any)
 				try:
 					search.Index( name=self.searchIndex ).remove( "s_"+str(key) )
 				except:
 					pass
-		for key, _bone in skel.items():
-			_bone.postSavedHandler( key, skel, key, dbObj )
-		skel.postSavedHandler( key,  dbObj )
+
+		for boneName, bone in skel.items():
+			bone.postSavedHandler(boneName, skel, key, dbObj)
+
+		skel.postSavedHandler(key, dbObj)
+
 		if not clearUpdateTag:
-			updateRelations( key, time()+1 )
+			updateRelations(key, time() + 1)
+
 		return( key )
 
 

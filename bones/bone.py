@@ -325,7 +325,7 @@ class baseBone(object): # One Bone:
 		"""
 		pass #We do nothing by default
 
-	def postSavedHandler( self, boneName, skel, id, dbObj ):
+	def postSavedHandler( self, boneName, skel, key, dbObj ):
 		"""
 			Can be overridden to perform further actions after the main entity has been written.
 

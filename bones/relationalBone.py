@@ -39,8 +39,8 @@ class relationalBone( baseBone ):
 
 	type = None
 	module = None
-	refKeys = ["id","name"]
-	parentKeys = ["id","name"]
+	refKeys = ["key","name"]
+	parentKeys = ["key","name"]
 
 	@staticmethod
 	def generageSearchWidget(target,module,name="RELATIONAL BONE"):
@@ -73,21 +73,26 @@ class relationalBone( baseBone ):
 		self.multiple = multiple
 		self.format = format
 		self._dbValue = None #Store the original result fetched from the db here so we have that information in case a referenced entity has been deleted
+
 		if type:
 			self.type = type
+
 		if module:
 			self.module = module
 		elif self.type:
 			self.module = self.type
+
 		if self.type is None or self.module is None:
 			raise NotImplementedError("Type and Module of relationalbone's must not be None")
+
 		if refKeys:
-			if not "id" in refKeys:
-				raise AttributeError("ID must be included in refKeys!")
+			if not "key" in refKeys:
+				raise AttributeError("'key' must be included in refKeys!")
 			self.refKeys=refKeys
+
 		if parentKeys:
-			if not "id" in parentKeys:
-				raise AttributeError("ID must be included in parentKeys!")
+			if not "key" in parentKeys:
+				raise AttributeError("'key' must be included in parentKeys!")
 			self.parentKeys=parentKeys
 
 	def unserialize( self, name, expando ):
@@ -135,29 +140,29 @@ class relationalBone( baseBone ):
 			self._dbValue = None
 		return( True )
 	
-	def serialize(self, key, entity ):
+	def serialize(self, name, entity ):
 		if not self.value:
-			entity.set( key, None, False )
+			entity.set( name, None, False )
 			if not self.multiple:
 				for k in entity.keys():
-					if k.startswith("%s." % key):
+					if k.startswith("%s." % name):
 						del entity[ k ]
 		else:
 			if self.multiple:
 				res = []
 				for val in self.value:
 					res.append( json.dumps( val ) )
-				entity.set( key, res, False )
+				entity.set( name, res, False )
 			else:
-				entity.set( key, json.dumps( self.value ), False )
+				entity.set( name, json.dumps( self.value ), False )
 				#Copy attrs of our referenced entity in
 				if self.indexed:
 					for k, v in self.value.items():
 						if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ):
-							entity[ "%s.%s" % (key,k) ] = v
+							entity[ "%s.%s" % (name,k) ] = v
 		return( entity )
 	
-	def postSavedHandler( self, key, skel, id, dbfields ):
+	def postSavedHandler( self, boneName, skel, key, dbfields ):
 		def isIndexable( val ):
 			if isinstance( val, unicode ) or isinstance(val, str):
 				if len( val )>=500:
@@ -178,30 +183,31 @@ class relationalBone( baseBone ):
 		for parentKey in self.parentKeys:
 			if parentKey in dbfields.keys():
 				parentValues[ parentKey ] = dbfields[ parentKey ]
-		dbVals = db.Query( "viur-relations" ).ancestor( db.Key( id ) ) #skel.kindName+"_"+self.type+"_"+key
+
+		dbVals = db.Query( "viur-relations" ).ancestor( db.Key( key ) ) #skel.kindName+"_"+self.type+"_"+key
 		dbVals.filter("viur_src_kind =", skel.kindName )
 		dbVals.filter("viur_dest_kind =", self.type )
-		dbVals.filter("viur_src_property =", key )
+		dbVals.filter("viur_src_property =", boneName )
 		for dbObj in dbVals.iter():
 			try:
-				if not dbObj[ "dest.id" ] in [ x["id"] for x in values ]: #Relation has been removed
+				if not dbObj[ "dest.key" ] in [ x["key"] for x in values ]: #Relation has been removed
 					db.Delete( dbObj.key() )
 					continue
 			except: #This entry is corrupt
 				db.Delete( dbObj.key() )
 			else: # Relation: Updated
-				data = [ x for x in values if x["id"]== dbObj[ "dest.id" ] ][0]
+				data = [ x for x in values if x["key"] == dbObj[ "dest.key" ] ][0]
 				if self.multiple and self.indexed: #We dont store more than key and kinds, and these dont change
 					for k,v in parentValues.items(): #Write our (updated) values in
 						if not isIndexable(v):
 							dbObj[ "src."+k ] = None
-							logging.error("Cannot index property src.%s of relationalBone %s" % (k,key))
+							logging.error("Cannot index property src.%s of relationalBone %s" % (k,boneName))
 						else:
 							dbObj[ "src."+k ] = v
 					for k, v in data.items():
 						if not isIndexable(v):
 							dbObj[ "dest."+k ] = None
-							logging.error("Cannot index property dest.%s of relationalBone %s" % (k,key))
+							logging.error("Cannot index property dest.%s of relationalBone %s" % (k,boneName))
 						else:
 							dbObj[ "dest."+k ] = v
 					dbObj[ "viur_delayed_update_tag" ] = time()
@@ -209,28 +215,28 @@ class relationalBone( baseBone ):
 				values.remove( data )
 		# Add any new Relation
 		for val in values:
-			dbObj = db.Entity( "viur-relations" , parent=db.Key( id ) ) #skel.kindName+"_"+self.type+"_"+key
+			dbObj = db.Entity( "viur-relations" , parent=db.Key( key ) ) #skel.kindName+"_"+self.type+"_"+key
 			if not self.multiple or not self.indexed: #Dont store more than key and kinds, as they aren't used anyway
-				dbObj[ "dest.id" ] = val["id"]
-				dbObj[ "src.id" ] = id
+				dbObj[ "dest.key" ] = val["key"]
+				dbObj[ "src.key" ] = key
 			else:
 				for k, v in val.items():
 					if not isIndexable(v):
 						dbObj[ "dest."+k ] = None
-						logging.error("Cannot index property dest.%s of relationalBone %s" % (k,key))
+						logging.error("Cannot index property dest.%s of relationalBone %s" % (k,boneName))
 					else:
 						dbObj[ "dest."+k ] = v
 				for k,v in parentValues.items():
 					if not isIndexable(v):
 						dbObj[ "src."+k ] = None
-						logging.error("Cannot index property src.%s of relationalBone %s" % (k,key))
+						logging.error("Cannot index property src.%s of relationalBone %s" % (k,boneName))
 					else:
 						dbObj[ "src."+k ] = v
 			dbObj[ "viur_delayed_update_tag" ] = time()
 			dbObj[ "viur_src_kind" ] = skel.kindName #The kind of the entry referencing
 			#dbObj[ "viur_src_key" ] = str( id ) #The id of the entry referencing
-			dbObj[ "viur_src_property" ] = key #The key of the bone referencing
-			#dbObj[ "viur_dest_key" ] = val[ "id" ]
+			dbObj[ "viur_src_property" ] = boneName #The key of the bone referencing
+			#dbObj[ "viur_dest_key" ] = val[ "key" ]
 			dbObj[ "viur_dest_kind" ] = self.type
 			db.Put( dbObj )
 		
@@ -309,12 +315,12 @@ class relationalBone( baseBone ):
 				entry = db.Get( db.Key( r ) )
 			except: #Invalid key or something like that
 				if isinstance(self._dbValue, dict):
-					if normalizeKey(self._dbValue["id"])==normalizeKey(r):
+					if normalizeKey(self._dbValue["key"])==normalizeKey(r):
 						entry = self._dbValue
 						isEntryFromBackup = True
 				elif  isinstance(self._dbValue, list):
 					for dbVal in self._dbValue:
-						if normalizeKey(dbVal["id"])==normalizeKey(r):
+						if normalizeKey(dbVal["key"])==normalizeKey(r):
 							entry = dbVal
 							isEntryFromBackup = True
 				if not isEntryFromBackup:
@@ -328,11 +334,11 @@ class relationalBone( baseBone ):
 				continue
 			if not self.multiple:
 				self.value = { k: entry[k] for k in entry.keys() if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ) }
-				self.value["id"] = r
+				self.value["key"] = r
 				return( None )
 			else:
 				tmp = { k: entry[k] for k in entry.keys() if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ) }
-				tmp["id"] = r
+				tmp["key"] = r
 				self.value.append( tmp )
 		if not self.value:
 			return( "No value entered" )
@@ -586,12 +592,12 @@ class relationalBone( baseBone ):
 		logging.warning("Refreshing Relationalbone %s of %s" % (boneName, skel.kindName))
 		if not self.value:
 			return
-		if isinstance( self.value, dict ) and "id" in self.value.keys():
+		if isinstance( self.value, dict ) and "key" in self.value.keys():
 			# Try fixing
-			self.fromClient( boneName, {boneName: normalizeKey(self.value["id"])} )
+			self.fromClient( boneName, {boneName: normalizeKey(self.value["key"])} )
 		elif isinstance( self.value, list ):
 			tmpList = []
 			for data in self.value:
-				if isinstance(data,dict) and "id" in data.keys():
-					tmpList.append( normalizeKey(data["id"]) )
+				if isinstance(data,dict) and "key" in data.keys():
+					tmpList.append( normalizeKey(data["key"]) )
 			self.fromClient( boneName, {boneName: tmpList} )
