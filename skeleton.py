@@ -358,7 +358,7 @@ class Skeleton( object ):
 				try:
 					dbObj = db.Get( k )
 				except db.EntityNotFoundError:
-					dbObj = db.Entity( k.kind(), key=k.id(), name=k.name(), parent=k.parent() )
+					dbObj = db.Entity( k.kind(), id=k.id(), name=k.name(), parent=k.parent() )
 				else:
 					skel.setValues( dbObj )
 				try:
