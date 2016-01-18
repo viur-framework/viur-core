@@ -270,4 +270,3 @@ def normalizeKey( key ):
 	else:
 		parent = None
 	return str( db.Key.from_path(key.kind(), key.id_or_name(), parent=parent))
-

@@ -383,6 +383,8 @@ class Tree(BasicApplication):
 		"""
 		return self.render.listRootNodes( self.getAvailableRootNodes( name ) )
 
+
+
 	@exposed
 	def list( self, skelType, node, *args, **kwargs ):
 		"""
@@ -548,7 +550,10 @@ class Tree(BasicApplication):
 
 		if not skel.fromDB( key ):
 			raise errors.NotFound()
+<<<<<<< HEAD:prototypes/tree.py
 
+=======
+>>>>>>> a19c408c72ebf5e902d5271355128056da7ddc06:prototypes/tree.py
 		if not self.canEdit(skelType, skel):
 			raise errors.Unauthorized()
 
@@ -595,8 +600,7 @@ class Tree(BasicApplication):
 		elif skelType == "leaf":
 			skel = self.viewSkel("leaf")
 		else:
-			raise errors.NotAcceptable()
-
+			raise( errors.NotAcceptable() )
 		if "skey" in kwargs:
 			skey = kwargs["skey"]
 		else:
@@ -607,18 +611,17 @@ class Tree(BasicApplication):
 
 		if not self.canDelete(skelType, skel):
 			raise errors.Unauthorized()
-
 		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
 
-		if skelType == "leaf":
-			skel.delete()
+		if type=="leaf":
+			skel.delete( )
 		else:
 			self.deleteRecursive(key)
 			skel.delete()
 
 		self.onItemDeleted( skel )
-		return self.render.deleteSuccess( skel, skelType=skelType )
+		return( self.render.deleteSuccess( skel, skelType=skelType ) )
 
 	@exposed
 	@forceSSL

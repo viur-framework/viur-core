@@ -216,6 +216,7 @@ class Render( object ):
 			htmlpath = "html/"
 		return( ChoiceLoader( [FileSystemLoader( htmlpath ), FileSystemLoader( "server/template/" )] ) )
 
+
 	def renderSkelStructure(self, skel):
 		"""
 			Dumps the structure of a :class:`server.db.skeleton.Skeleton`.
