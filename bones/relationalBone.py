@@ -596,10 +596,10 @@ class relationalBone( baseBone ):
 		"""
 			Refresh all values we might have cached from other entities.
 		"""
-		logging.warning("Refreshing relationalBone %s of %s" % (boneName, skel.kindName))
-
 		if not self.value:
 			return
+
+		logging.warning("Refreshing relationalBone %s of %s" % (boneName, skel.kindName))
 
 		if isinstance(self.value, dict):
 			if "key" in self.value.keys():
