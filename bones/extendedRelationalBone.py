@@ -431,7 +431,8 @@ class extendedRelationalBone( relationalBone ):
 			if "key" in valDict["dest"].keys():
 				entityKey = normalizeKey(valDict["dest"]["key"])
 			elif "id" in valDict["dest"].keys(): # !!!ViUR re-design compatibility!!!
-				entityKey = normalizeKey(valDict["dest"]["id"])
+				entityKey = valDict["key"] = normalizeKey(valDict["dest"]["id"])
+				del valDict["id"]
 			else:
 				return
 
