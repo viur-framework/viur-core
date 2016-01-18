@@ -3,6 +3,7 @@ from server.bones import baseBone
 from server.bones.relationalBone import relationalBone
 from server import db
 from server.errors import ReadFromClientError
+from server.utils import normalizeKey
 from google.appengine.api import search
 import json
 from time import time
@@ -419,19 +420,25 @@ class extendedRelationalBone( relationalBone ):
 				logging.error("Invalid dictionary in updateInplace!")
 				logging.error("Got: %s" % valDict )
 				return
+
+			entityKey = normalizeKey(valDict["dest"]["id"])
+
 			try:
-				newValues = db.Get( valDict["dest"]["id"] )
-				assert  newValues is not None
+				newValues = db.Get(entityKey)
+				assert newValues is not None
 			except:
 				#This entity has been deleted
 				return
+
 			for key in valDict["dest"].keys():
-				if key=="id":
-					continue
-				if key in newValues.keys():
-					valDict["dest"][ key] = newValues[ key ]
+				if key == "id":
+					valDict["dest"]["id"] = entityKey
+				elif key in newValues.keys():
+					valDict["dest"][key] = newValues[ key ]
+
 		if not self.value:
 			return
+
 		if isinstance( self.value, dict ):
 			updateInplace( self.value )
 		elif isinstance( self.value, list ):
