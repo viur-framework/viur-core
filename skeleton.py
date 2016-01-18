@@ -899,13 +899,14 @@ def updateRelations( destID, minChangeTime, cursor=None ):
 
 
 @CallableTask
-class TaskUpdateSeachIndex( CallableTaskBase ):
-	"""This tasks loads and saves *every* entity of the given modul.
+class TaskUpdateSearchIndex( CallableTaskBase ):
+	"""
+	This tasks loads and saves *every* entity of the given module.
 	This ensures an updated searchIndex and verifies consistency of this data.
 	"""
 	id = "rebuildsearchIndex"
-	name = u"Rebuild a Searchindex"
-	descr = u"Needs to be called whenever a search-releated parameters are changed."
+	name = u"Rebuild search index"
+	descr = u"This task can be called to update search indexes and relational information."
 	direct = True
 
 	def canCall( self ):
@@ -913,50 +914,58 @@ class TaskUpdateSeachIndex( CallableTaskBase ):
 		@returns bool
 		"""
 		user = utils.getCurrentUser()
-		return( user is not None and "root" in user["access"] )
+		return user is not None and "root" in user["access"]
 
 	def dataSkel(self):
-		modules = listKnownSkeletons()
-		#for modulName in dir( conf["viur.mainApp"] ):
-		#	modul = getattr( conf["viur.mainApp"], modulName )
-		#	if "editSkel" in dir( modul ) and not modulName in modules:
-		#		modules.append( modulName )
-		skel = Skeleton( self.kindName )
-		skel["modul"] = selectOneBone( descr="Modul", values={ x: x for x in modules}, required=True )
+		modules = ["*"] + listKnownSkeletons()
+
+		skel = Skeleton(self.kindName)
+
+		skel["module"] = selectOneBone( descr="Module", values={ x: x for x in modules}, required=True )
 		def verifyCompact( val ):
 			if not val or val.lower()=="no" or val=="YES":
 				return( None )
 			return("Must be \"No\" or uppercase \"YES\" (very dangerous!)")
 		skel["compact"] = stringBone( descr="Recreate Entities", vfunc=verifyCompact, required=False, defaultValue="NO" )
+
 		return( skel )
 
-	def execute( self, modul=None, compact="", *args, **kwargs ):
-		processChunk( modul, compact, None )
+	def execute( self, module=None, compact="", *args, **kwargs ):
+		if module == "*":
+			for module in listKnownSkeletons():
+				logging.info("Rebuilding search index for module '%s'" % module)
+				processChunk(module, compact, None)
+		else:
+			processChunk(module, compact, None)
 
 @callDeferred
-def processChunk( modul, compact, cursor ):
+def processChunk( module, compact, cursor ):
 	"""
 		Processes 100 Entries and calls the next batch
 	"""
-	Skel = skeletonByKind( modul )
+	Skel = skeletonByKind( module )
 	if not Skel:
-		logging.error("TaskUpdateSeachIndex: Invalid modul")
+		logging.error("TaskUpdateSearchIndex: Invalid module")
 		return
+
 	query = Skel().all().cursor( cursor )
 	gotAtLeastOne = False
+
 	for key in query.run(100, keysOnly=True):
 		gotAtLeastOne = True
+
 		try:
 			skel = Skel()
 			skel.fromDB( str(key) )
 			if compact=="YES":
 				raise NotImplementedError() #FIXME: This deletes the __currentKey__ property..
-				skel.delete( )
+				skel.delete()
 			skel.refresh()
-			skel.toDB( )
+			skel.toDB()
 		except Exception as e:
 			logging.error("Updating %s failed" % str(key) )
 			logging.exception( e )
+
 	newCursor = query.getCursor()
 	if gotAtLeastOne and newCursor and newCursor.urlsafe()!=cursor:
 		# Start processing of the next chunk
