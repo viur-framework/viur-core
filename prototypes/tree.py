@@ -550,10 +550,7 @@ class Tree(BasicApplication):
 
 		if not skel.fromDB( key ):
 			raise errors.NotFound()
-<<<<<<< HEAD:prototypes/tree.py
 
-=======
->>>>>>> a19c408c72ebf5e902d5271355128056da7ddc06:prototypes/tree.py
 		if not self.canEdit(skelType, skel):
 			raise errors.Unauthorized()
 
