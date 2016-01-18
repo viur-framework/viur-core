@@ -171,30 +171,38 @@ class baseBone(object): # One Bone:
 					key = db.Key.from_path( skel.kindName, key )
 			assert isinstance( key, db.Key )
 			return( key )
-		if name == "id" and "id" in rawFilter.keys():
-			from server import utils
-			if isinstance( rawFilter["id"], list ):
-				keyList = [ fromShortKey( key  ) for key in rawFilter["id"] ]
+
+		if name == "key" and "key" in rawFilter.keys():
+			if isinstance( rawFilter["key"], list ):
+
+				keyList = [ fromShortKey( key  ) for key in rawFilter["key"] ]
+
 				if keyList:
 					origQuery = dbFilter.datastoreQuery
 					kind = dbFilter.getKind()
+
 					try:
 						dbFilter.datastoreQuery = db.MultiQuery( [db.DatastoreQuery( dbFilter.getKind(), filters={ db.KEY_SPECIAL_PROPERTY: x } ) for x in keyList ], () )
 					except db.BadKeyError: #Invalid key
 						raise RuntimeError()
 					except UnicodeEncodeError: # Also invalid key
 						raise RuntimeError()
-					#Monkey-fix for datastore.MultiQuery not setting an kind and therefor breaking order()
+
+							#Monkey-fix for datastore.MultiQuery not setting an kind and therefor breaking order()
 					dbFilter.setKind( kind )
 					for k, v in origQuery.items():
 						dbFilter.filter( k, v )
+
 			else:
 				try:
-					dbFilter.filter( db.KEY_SPECIAL_PROPERTY, fromShortKey( rawFilter["id"] ) )
+					dbFilter.filter( db.KEY_SPECIAL_PROPERTY, fromShortKey( rawFilter["key"] ) )
 				except: #Invalid key or something
 					raise RuntimeError()
-			return( dbFilter )
-		myKeys = [ key for key in rawFilter.keys() if (key==name or key.startswith( name+"$" )) ] 
+
+			return dbFilter
+
+		myKeys = [ key for key in rawFilter.keys() if (key==name or key.startswith( name+"$" )) ]
+
 		if len( myKeys ) == 0:
 			return( dbFilter )
 		if not self.indexed:
