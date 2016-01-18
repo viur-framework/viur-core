@@ -101,16 +101,16 @@ class relationalBone( baseBone ):
 			if self.multiple:
 				self.value = []
 				if not val:
-					return( True )
+					return True
 				if isinstance(val, list):
 					for res in val:
 						try:
-							self.value.append( json.loads( res ) )
+							self.value.append(json.loads(res))
 						except:
 							pass
 				else:
 					try:
-						value = json.loads( val )
+						value = json.loads(val)
 						if isinstance( value, dict ):
 							self.value.append( value )
 					except:
@@ -118,13 +118,13 @@ class relationalBone( baseBone ):
 			else:
 				if isinstance( val, list ) and len( val )>0:
 					try:
-						self.value = json.loads( val[0] )
+						self.value = json.loads(val[0])
 					except:
 						pass
 				else:
 					if val:
 						try:
-							self.value = json.loads( val )
+							self.value = json.loads(val)
 						except:
 							pass
 					else:
@@ -132,13 +132,15 @@ class relationalBone( baseBone ):
 
 		else:
 			self.value = None
+
 		if isinstance( self.value, list ):
 			self._dbValue = self.value[ : ]
 		elif isinstance( self.value, dict ):
 			self._dbValue = dict( self.value.items() )
 		else:
 			self._dbValue = None
-		return( True )
+
+		return True
 	
 	def serialize(self, name, entity ):
 		if not self.value:
@@ -160,26 +162,29 @@ class relationalBone( baseBone ):
 					for k, v in self.value.items():
 						if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ):
 							entity[ "%s.%s" % (name,k) ] = v
-		return( entity )
+		return entity
 	
 	def postSavedHandler( self, boneName, skel, key, dbfields ):
 		def isIndexable( val ):
 			if isinstance( val, unicode ) or isinstance(val, str):
 				if len( val )>=500:
-					return( False )
+					return False
 			if isinstance( val, list ):
 				for x in val:
 					if isinstance( x, unicode ) or isinstance( x, str ):
 						if( len( x )>= 500 ):
-							return( False )
-			return( True )
+							return False
+			return True
+
 		if not self.value:
 			values = []
 		elif isinstance( self.value, dict ):
 			values = [ dict( (k,v) for k,v in self.value.items() ) ]
 		else:
 			values = [ dict( (k,v) for k,v in x.items() ) for x in self.value ]
+
 		parentValues = {}
+
 		for parentKey in self.parentKeys:
 			if parentKey in dbfields.keys():
 				parentValues[ parentKey ] = dbfields[ parentKey ]
@@ -188,6 +193,7 @@ class relationalBone( baseBone ):
 		dbVals.filter("viur_src_kind =", skel.kindName )
 		dbVals.filter("viur_dest_kind =", self.type )
 		dbVals.filter("viur_src_property =", boneName )
+
 		for dbObj in dbVals.iter():
 			try:
 				if not dbObj[ "dest.key" ] in [ x["key"] for x in values ]: #Relation has been removed
@@ -213,6 +219,7 @@ class relationalBone( baseBone ):
 					dbObj[ "viur_delayed_update_tag" ] = time()
 					db.Put( dbObj )
 				values.remove( data )
+
 		# Add any new Relation
 		for val in values:
 			dbObj = db.Entity( "viur-relations" , parent=db.Key( key ) ) #skel.kindName+"_"+self.type+"_"+key
@@ -585,19 +592,30 @@ class relationalBone( baseBone ):
 						res.append( "src.%s" % orderKey )
 		return( res )
 
-	def refresh(self, boneName, skel ):
+	def refresh(self, boneName, skel):
 		"""
 			Refresh all values we might have cached from other entities.
 		"""
-		logging.warning("Refreshing Relationalbone %s of %s" % (boneName, skel.kindName))
+		logging.warning("Refreshing relationalBone %s of %s" % (boneName, skel.kindName))
+
 		if not self.value:
 			return
-		if isinstance( self.value, dict ) and "key" in self.value.keys():
-			# Try fixing
-			self.fromClient( boneName, {boneName: normalizeKey(self.value["key"])} )
+
+		if isinstance(self.value, dict):
+			if "key" in self.value.keys():
+				self.fromClient(boneName, {boneName: normalizeKey(self.value["key"])})
+
+			# !!!ViUR re-design compatibility!!!
+			elif "id" in self.value.keys():
+				self.fromClient(boneName, {boneName: normalizeKey(self.value["id"])})
+
 		elif isinstance( self.value, list ):
 			tmpList = []
 			for data in self.value:
-				if isinstance(data,dict) and "key" in data.keys():
-					tmpList.append( normalizeKey(data["key"]) )
-			self.fromClient( boneName, {boneName: tmpList} )
+				if isinstance(data, dict) and "key" in data.keys():
+					tmpList.append(normalizeKey(data["key"]))
+				# !!!ViUR re-design compatibility!!!
+				elif isinstance(data, dict) and "id" in data.keys():
+					tmpList.append(normalizeKey(data["key"]))
+
+			self.fromClient(boneName, {boneName: tmpList})
