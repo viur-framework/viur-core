@@ -616,6 +616,6 @@ class relationalBone( baseBone ):
 					tmpList.append(normalizeKey(data["key"]))
 				# !!!ViUR re-design compatibility!!!
 				elif isinstance(data, dict) and "id" in data.keys():
-					tmpList.append(normalizeKey(data["key"]))
+					tmpList.append(normalizeKey(data["id"]))
 
 			self.fromClient(boneName, {boneName: tmpList})
