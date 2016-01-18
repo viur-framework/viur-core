@@ -93,8 +93,8 @@ class extendedRelationalBone( relationalBone ):
 			dbObj = db.Entity( "viur-relations" , parent=db.Key( key ) ) #skel.kindName+"_"+self.type+"_"+key
 
 			if not self.indexed: #Dont store more than key and kinds, as they aren't used anyway
-				dbObj[ "dest.id" ] = val["dest"]["key"]
-				dbObj[ "src.id" ] = key
+				dbObj[ "dest.key" ] = val["dest"]["key"]
+				dbObj[ "src.key" ] = key
 			else:
 				for k, v in val["dest"].items():
 					dbObj[ "dest."+k ] = v
@@ -105,7 +105,7 @@ class extendedRelationalBone( relationalBone ):
 
 			dbObj[ "viur_delayed_update_tag" ] = time()
 			dbObj[ "viur_src_kind" ] = skel.kindName #The kind of the entry referencing
-			#dbObj[ "viur_src_key" ] = str( id ) #The id of the entry referencing
+			#dbObj[ "viur_src_key" ] = str( key ) #The key of the entry referencing
 			dbObj[ "viur_src_property" ] = boneName #The key of the bone referencing
 			#dbObj[ "viur_dest_key" ] = val["key"]
 			dbObj[ "viur_dest_kind" ] = self.type
@@ -217,7 +217,7 @@ class extendedRelationalBone( relationalBone ):
 				if k=="__key__":
 					# We must process the key-property separately as its meaning changes as we change the datastore kind were querying
 					if isinstance( v, list ) or isinstance(v, tuple):
-						logging.warning( "Invalid filtering! Doing an relational Query on %s with multiple id= filters is unsupported!" % (name) )
+						logging.warning( "Invalid filtering! Doing an relational Query on %s with multiple key= filters is unsupported!" % (name) )
 						raise RuntimeError()
 					if not isinstance(v, db.Key ):
 						v = db.Key( v )
@@ -355,9 +355,9 @@ class extendedRelationalBone( relationalBone ):
 			srcKey = param
 			if " " in srcKey:
 				srcKey = srcKey[ : srcKey.find(" ")] #Cut <, >, and =
-			if srcKey == "__key__": #Rewrite id= filter as its meaning has changed
+			if srcKey == "__key__": #Rewrite key= filter as its meaning has changed
 				if isinstance( value, list ) or isinstance( value, tuple ):
-					logging.warning( "Invalid filtering! Doing an relational Query on %s with multiple id= filters is unsupported!" % (name) )
+					logging.warning( "Invalid filtering! Doing an relational Query on %s with multiple key= filters is unsupported!" % (name) )
 					raise RuntimeError()
 				if not isinstance( value, db.Key ):
 					value = db.Key( value )
@@ -420,7 +420,7 @@ class extendedRelationalBone( relationalBone ):
 		"""
 		def updateInplace(valDict):
 			"""
-				Fetches the entity referenced by valDict["dest.id"] and updates all dest.* keys
+				Fetches the entity referenced by valDict["dest.key"] and updates all dest.* keys
 				accordingly
 			"""
 			if not "dest" in valDict.keys() or not isinstance(valDict["dest"], dict):
