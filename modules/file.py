@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 from server.skeleton import Skeleton, skeletonByKind
-from server import session, errors, conf, request
+from server import utils, db, securitykey, session, errors, conf, request
 from server.prototypes.tree import Tree, TreeNodeSkel, TreeLeafSkel
 from server import forcePost, forceSSL, exposed, internalExposed
 from server.bones import *
-from server import utils, db, securitykey
 from server.tasks import callDeferred
 from google.appengine.ext import blobstore
 from datetime import datetime, timedelta
@@ -22,7 +21,7 @@ import collections
 import logging
 import cgi
 import string
-
+from hashlib import sha256
 
 
 class fileBaseSkel( TreeLeafSkel ):
@@ -35,6 +34,23 @@ class fileBaseSkel( TreeLeafSkel ):
 	mimetype = stringBone( descr="Mime-Info", params={"frontend_list_visible": True}, readOnly=True, indexed=True ) #ALERT: was meta_mime
 	weak = booleanBone( descr="Is a weak Reference?", indexed=True, readOnly=True, visible=False )
 	servingurl = stringBone( descr="Serving URL", params={"frontend_list_visible": True}, readOnly=True )
+
+
+	def refresh(self):
+		# Update from blobimportmap
+		try:
+			oldKeyHash = sha256(self["dlkey"].value).hexdigest().encode("hex")
+			res = db.Get( db.Key.from_path("viur-blobimportmap", oldKeyHash))
+		except:
+			res = None
+
+		if res and res["oldkey"] == self["dlkey"].value:
+			self["dlkey"].value = res["newkey"]
+			self["servingurl"].value = res["servingurl"]
+
+			logging.info("Refreshing file dlkey %s (%s)" % (self["dlkey"].value, self["servingurl"].value))
+
+		super(fileBaseSkel, self).refresh()
 
 	def preProcessBlobLocks(self, locks ):
 		"""
