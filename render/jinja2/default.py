@@ -1006,27 +1006,36 @@ class Render( object ):
 
 
 		"""
-		#FIXME: Should obey the same restrictions as fetchList???!
-		if not module in dir ( conf["viur.mainApp"] ):
+		if module not in dir ( conf["viur.mainApp"] ):
 			logging.error("getEntry called with unknown module %s!" % module)
 			return False
 
 		obj = getattr( conf["viur.mainApp"], module)
 
-		if skel in dir( obj ):
-			skel = getattr( obj , skel)()
+		if skel in dir(obj):
+			skel = getattr(obj , skel)()
 
-			if isinstance( obj, Singleton ) and not key:
+			if isinstance(obj, Singleton) and not key:
 				#We fetching the entry from a singleton - No key needed
-				key = str( db.Key.from_path( skel.kindName, obj.getKey() ) )
+				key = str(db.Key.from_path(skel.kindName, obj.getKey()))
 			elif not key:
 				logging.info("getEntry called without an valid key" )
-				return( None )
-
-			if isinstance( skel,  Skeleton ):
+				return False
+			if not isinstance(skel,  Skeleton):
+				return False
+			if "listFilter" in dir(obj):
+				qry = skel.all().mergeExternalFilter({"key": str(key)})
+				qry = obj.listFilter(qry)
+				if not qry:
+					return None
+				skel = qry.getSkel()
+				if not skel:
+					return None
+				return self.collectSkelData(skel)
+			else: # No Access-Test for this module
 				if not skel.fromDB( key ):
-					return( None )
-				return( self.collectSkelData( skel ) )
+					return None
+				return self.collectSkelData( skel )
 
 		return False
 
