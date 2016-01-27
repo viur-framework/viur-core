@@ -423,39 +423,53 @@ class extendedRelationalBone( relationalBone ):
 				Fetches the entity referenced by valDict["dest.key"] and updates all dest.* keys
 				accordingly
 			"""
-			if not "dest" in valDict.keys() or not isinstance(valDict["dest"], dict):
-				logging.error("Invalid dictionary in updateInplace!")
-				logging.error("Got: %s" % valDict )
-				return
-
+			if not "dest" in valDict.keys():
+				logging.error("Invalid dictionary in updateInplace: %s" % valDict)
+				return False
+				
 			if "key" in valDict["dest"].keys():
-				entityKey = normalizeKey(valDict["dest"]["key"])
-			elif "id" in valDict["dest"].keys(): # !!!ViUR re-design compatibility!!!
-				entityKey = valDict["key"] = normalizeKey(valDict["dest"]["id"])
-				del valDict["id"]
+				originalKey = valDict["dest"]["key"]
+			# !!!ViUR re-design compatibility!!!
+			elif "id" in valDict["dest"].keys():
+				originalKey = valDict["dest"]["id"]
 			else:
-				return
+				logging.error("Invalid dictionary in updateInplace: %s" % valDict)
+				return False
 
+			entityKey = normalizeKey(originalKey)
+			if originalKey != entityKey or not "key" in valDict["dest"].keys():
+				logging.info("Rewriting %s to %s" % (originalKey, entityKey))
+				valDict["dest"]["key"] = entityKey
+
+			# Try to update referenced values;
+			# If the entity does not exist with this key, ignore
+			# (key was overidden above to have a new appid when transferred).
 			try:
 				newValues = db.Get(entityKey)
 				assert newValues is not None
-			except:
+			except db.EntityNotFoundError:
 				#This entity has been deleted
-				return
+				logging.info("The key %s does not exist" % entityKey)
+				return False
+			except:
+				raise
 
 			for key in valDict["dest"].keys():
-				if key == "key":
-					valDict["dest"]["key"] = entityKey
+				if key in ["key", "id"]: # !!!ViUR re-design compatibility!!!
+					continue
 				elif key in newValues.keys():
 					valDict["dest"][key] = newValues[key]
+
+			return True
 
 		if not self.value:
 			return
 
-		logging.warning("Refreshing extendedRelationalBone %s of %s" % (boneName, skel.kindName))
+		logging.info("Refreshing extendedRelationalBone %s of %s" % (boneName, skel.kindName))
 
 		if isinstance( self.value, dict ):
 			updateInplace(self.value)
+
 		elif isinstance( self.value, list ):
 			for k in self.value:
 				updateInplace(k)

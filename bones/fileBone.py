@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
-from server.bones import treeItemBone, baseBone
-from server import db
-from server.utils import markFileForDeletion, normalizeKey
-from google.appengine.api.images import get_serving_url
-from server import request
-import logging
-from hashlib import sha256
+from server.bones import treeItemBone
+from server import db, skeleton, request
+from server.utils import normalizeKey
 
-class fileBone( treeItemBone ):
+from hashlib import sha256
+import logging
+
+class fileBone(treeItemBone):
 	type = "file"
 	refKeys = ["name", "meta_mime", "metamime", "mimetype", "dlkey", "servingurl", "size"]
 	
@@ -36,44 +35,60 @@ class fileBone( treeItemBone ):
 							val["servingurl"] = val["servingurl"].replace("http://","https://")
 		return( res )
 
-	def refresh(self, boneName, skel ):
+	def refresh(self, boneName, skel):
 		"""
 			Refresh all values we might have cached from other entities.
 		"""
-		logging.warning("Refreshing Filebone %s of %s" % (boneName, skel.kindName))
+
+		def updateInplace(valDict):
+			if "key" in valDict.keys():
+				originalKey = valDict["key"]
+			# !!!ViUR re-design compatibility!!!
+			elif "id" in valDict.keys() and not "key" in valDict.keys():
+				originalKey = valDict["id"]
+			else:
+				logging.error("Broken fileBone dict")
+				return
+
+			entityKey = normalizeKey(originalKey)
+			if originalKey != entityKey or not "key" in valDict.keys():
+				logging.info("Rewriting %s to %s" % (originalKey, entityKey))
+				valDict["key"] = originalKey
+
+			# OK, now update the corresponding fileSkel if this exists.
+			fileSkel = skeleton.skeletonByKind("file")
+
+			if fileSkel:
+				skel = fileSkel()
+				if skel.fromDB(entityKey):
+					skel.refresh()
+					skel.toDB()
+
+			# Anyway, try to copy a dlkey and servingurl
+			# from the corresponding viur-blobimportmap entity.
+			if "dlkey" in valDict.keys():
+				try:
+					oldKeyHash = sha256(valDict["dlkey"]).hexdigest().encode("hex")
+
+					logging.info("Trying to fetch entry from blobimportmap with hash %s" % oldKeyHash)
+					res = db.Get(db.Key.from_path("viur-blobimportmap", oldKeyHash))
+				except:
+					res = None
+
+				if res and res["oldkey"] == self["dlkey"]:
+					valDict["dlkey"] = res["newkey"]
+					valDict["servingurl"] = res["servingurl"]
+
+					logging.info("Refreshing file dlkey %s (%s)" % (valDict["dlkey"], valDict["servingurl"]))
+
 		if not self.value:
 			return
-		if isinstance( self.value, dict ) and "dlkey" in self.value.keys():
-			# Try fixing
-			try:
-				oldKeyHash = sha256(self.value["dlkey"]).hexdigest().encode("hex")
-				res = db.Get( db.Key.from_path("viur-blobimportmap", oldKeyHash))
-				if res and "available" in res.keys() and res["available"]:
-					self.value["dlkey"] = res["newkey"]
-					self.value["servingurl"] = res["servingurl"]
-					logging.error("Got Blobmap-Match    ghjklmarker")
-				else:
-					logging.error("Missing BLOB   ghjklmarker ")
-			except db.EntityNotFoundError:
-				logging.error("Missing BLOB 2   ghjklmarker ")
-				pass
-			except:
-				raise
-		elif isinstance( self.value, list ):
-			for data in self.value:
-				if isinstance(data,dict) and "dlkey" in data.keys():
-					try:
-						oldKeyHash = sha256(data["dlkey"]).hexdigest().encode("hex")
-						res = db.Get( db.Key.from_path("viur-blobimportmap", oldKeyHash))
-						if res and "available" in res.keys() and res["available"]:
-							data["dlkey"] = res["newkey"]
-							data["servingurl"] = res["servingurl"]
-							logging.error("Got Blobmap-Match ghjklmarker")
-						else:
-							logging.error("Missing BLOB ghjklmarker")
-					except db.EntityNotFoundError:
-						logging.error("Missing BLOB 2   ghjklmarker ")
-						pass
-					except:
-						raise
 
+		logging.info("Refreshing fileBone %s of %s" % (boneName, skel.kindName))
+
+		if isinstance(self.value, dict):
+			updateInplace(self.value)
+
+		elif isinstance( self.value, list ):
+			for k in self.value:
+				updateInplace(k)

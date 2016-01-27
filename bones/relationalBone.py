@@ -599,7 +599,7 @@ class relationalBone( baseBone ):
 		if not self.value:
 			return
 
-		logging.warning("Refreshing relationalBone %s of %s" % (boneName, skel.kindName))
+		logging.info("Refreshing relationalBone %s of %s" % (boneName, skel.kindName))
 
 		if isinstance(self.value, dict):
 			if "key" in self.value.keys():
