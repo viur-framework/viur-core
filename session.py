@@ -189,7 +189,7 @@ class GaeSession:
 			userid = None
 			try:
 				if "user" in dir( conf["viur.mainApp"] ): #Check for our custom user-api
-					userid = conf["viur.mainApp"].user.getCurrentUser()["id"]
+					userid = conf["viur.mainApp"].user.getCurrentUser()["key"]
 			except:
 				pass
 			try:
