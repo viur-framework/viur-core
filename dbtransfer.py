@@ -281,7 +281,7 @@ class DbTransfer( object ):
 		return( pickle.dumps( {"cursor": str(q.GetCursor().urlsafe()),"values":r}).encode("HEX"))
 
 	@exposed
-	def exportBlob(self, cursor=None, key=None,):
+	def exportBlob(self, cursor=None, key=None):
 		if not self._checkKey( key, export=True):
 			raise errors.Forbidden()
 		q = BlobInfo.all()
@@ -293,7 +293,7 @@ class DbTransfer( object ):
 		return( pickle.dumps( {"cursor": str(q.cursor()),"values":r}).encode("HEX"))
 
 	@exposed
-	def exportBlob2(self, cursor=None, key=None,):
+	def exportBlob2(self, cursor=None, key=None):
 		if not self._checkKey( key, export=True):
 			raise errors.Forbidden()
 
@@ -335,7 +335,7 @@ class DbTransfer( object ):
 			q.cursor(cursor)
 
 		r = []
-		for res in q.run(limit=99):
+		for res in q.run(limit=32):
 			r.append(self.genDict(res))
 
 		return pickle.dumps({"cursor": str(q.getCursor().urlsafe()), "values": r}).encode("HEX")
@@ -457,7 +457,7 @@ class TaskImportKind( CallableTaskBase ):
 
 @callDeferred
 #@noRetry
-def iterImport(module, target, exportKey, cursor=None):
+def iterImport(module, target, exportKey, cursor=None, amount=0):
 	"""
 		Processes 100 Entries and calls the next batch
 	"""
@@ -482,10 +482,11 @@ def iterImport(module, target, exportKey, cursor=None):
 
 		if len(res["values"]) == 0:
 			try:
-				utils.sendEMailToAdmins("Import of kind %s finished" % module,
-				                        "ViUR finished to import kind %s from %s.\n" % (module, source))
+				utils.sendEMailToAdmins("Import of kind %s finished with %d entities" % (module, amount),
+				                        "ViUR finished to import %d entities of "
+										"kind %s from %s.\n" % (amount, module, target))
 			except: #OverQuota, whatever
-				pass
+				logging.error("Unable to send Email")
 
 			return
 
@@ -505,6 +506,7 @@ def iterImport(module, target, exportKey, cursor=None):
 			skel.fromDB(str(dbEntry.key()))
 			skel.refresh()
 			skel.toDB(clearUpdateTag=True)
+			amount += 1
 
-		iterImport(module, target, exportKey, res["cursor"])
+		iterImport(module, target, exportKey, res["cursor"], amount)
 

@@ -910,7 +910,7 @@ def updateRelations( destID, minChangeTime, cursor=None ):
 
 
 @CallableTask
-class TaskUpdateSearchIndex( CallableTaskBase ):
+class TaskUpdateSearchIndex(CallableTaskBase):
 	"""
 	This tasks loads and saves *every* entity of the given module.
 	This ensures an updated searchIndex and verifies consistency of this data.
@@ -939,11 +939,11 @@ class TaskUpdateSearchIndex( CallableTaskBase ):
 			if not val or val.lower()=="no" or val=="YES":
 				return( None )
 			return("Must be \"No\" or uppercase \"YES\" (very dangerous!)")
-		skel["compact"] = stringBone( descr="Recreate Entities", vfunc=verifyCompact, required=False, defaultValue="NO" )
+		#skel["compact"] = stringBone( descr="Recreate Entities", vfunc=verifyCompact, required=False, defaultValue="NO" )
 
 		return( skel )
 
-	def execute( self, module=None, compact="", *args, **kwargs ):
+	def execute( self, module, compact="", *args, **kwargs ):
 		if module == "*":
 			for module in listKnownSkeletons():
 				logging.info("Rebuilding search index for module '%s'" % module)
@@ -952,7 +952,7 @@ class TaskUpdateSearchIndex( CallableTaskBase ):
 			processChunk(module, compact, None)
 
 @callDeferred
-def processChunk( module, compact, cursor ):
+def processChunk(module, compact, cursor, allCount = 0):
 	"""
 		Processes 100 Entries and calls the next batch
 	"""
@@ -961,25 +961,89 @@ def processChunk( module, compact, cursor ):
 		logging.error("TaskUpdateSearchIndex: Invalid module")
 		return
 
+	logging.info("START processChunk %s with cursor %s" % (module, cursor))
+
 	query = Skel().all().cursor( cursor )
-	gotAtLeastOne = False
+	count = 0
 
 	for key in query.run(100, keysOnly=True):
-		gotAtLeastOne = True
+		count += 1
 
 		try:
 			skel = Skel()
-			skel.fromDB( str(key) )
+			skel.fromDB(str(key))
 			if compact=="YES":
 				raise NotImplementedError() #FIXME: This deletes the __currentKey__ property..
 				skel.delete()
+
 			skel.refresh()
 			skel.toDB()
+
 		except Exception as e:
 			logging.error("Updating %s failed" % str(key) )
 			logging.exception( e )
 
 	newCursor = query.getCursor()
-	if gotAtLeastOne and newCursor and newCursor.urlsafe()!=cursor:
+
+	logging.info("END processChunk %s, %d records refreshed" % (module, count))
+	if count and newCursor and newCursor.urlsafe() != cursor:
 		# Start processing of the next chunk
-		processChunk( module, compact, newCursor.urlsafe() )
+		processChunk(module, compact, newCursor.urlsafe(), allCount + count)
+	else:
+		try:
+			utils.sendEMailToAdmins("Rebuild search index finished for %s" % module,
+			                        "ViUR finished to rebuild the search index for module %s.\n"
+			                        "%d records updated in total on this kind." % (module, allCount))
+		except: #OverQuota, whatever
+			pass
+
+
+
+### UPDATE ONE FUCKING ENTITY ###
+
+@CallableTask
+class TaskUpdateOneEntity(CallableTaskBase):
+	"""
+	This tasks loads and saves *one* entity with the given key.
+	This ensures an updated searchIndex and verifies consistency of this data.
+	
+	It shall be used for debug and testing purposes.
+	"""
+	id = "updateoneentity"
+	name = u"Refresh single entity"
+	descr = u"This task can be called to update search indexes and relational information of ONE entitiy."
+	direct = True
+
+	def canCall( self ):
+		"""Checks wherever the current user can execute this task
+		@returns bool
+		"""
+		user = utils.getCurrentUser()
+		return user is not None and "root" in user["access"]
+
+	def dataSkel(self):
+		skel = Skeleton(self.kindName)
+		skel["key"] = stringBone(descr=u"Entity key", required=True)
+		return skel
+
+	def execute(self, key, *args, **kwargs):
+		logging.info("key %s" % key)
+
+		dkey = db.Key(encoded=str(key))
+		kindName = dkey.kind()
+		logging.info("kindName %s" % kindName)
+
+		Skel = skeletonByKind(kindName)
+		if not Skel:
+			logging.error("No Skeleton class found for kindName %s" % kindName)
+			return
+
+		skel = Skel()
+		if not skel.fromDB(str(key)):
+			logging.error("The key %s could not be loaded" % key)
+			return
+
+		skel.refresh()
+		skel.toDB()
+
+		logging.info("OK")

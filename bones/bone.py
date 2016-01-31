@@ -331,10 +331,13 @@ class baseBone(object): # One Bone:
 
 			:param boneName: Name of this bone
 			:type boneName: String
+
 			:param skel: The skeleton this bone belongs to
 			:type skel: Skeleton
-			:param id: The (new?) Database Key we've written to
-			:type id: String
+
+			:param key: The (new?) Database Key we've written to
+			:type key: str
+
 			:param dbObj: The db.Entity object written
 			:type dbObj: db.Entity
 		"""
@@ -353,7 +356,7 @@ class baseBone(object): # One Bone:
 		"""
 		pass
 
-	def refresh(self, boneName, skel ):
+	def refresh(self, boneName, skel):
 		"""
 			Refresh all values we might have cached from other entities.
 		"""
