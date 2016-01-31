@@ -424,7 +424,8 @@ def doDeleteWeakReferences( timeStamp, cursor ):
 	gotAtLeastOne = False
 	query = skelCls().all().filter("weak =", True).filter("creationdate <", datetime.strptime(timeStamp,"%d.%m.%Y %H:%M:%S") ).cursor( cursor )
 	for skel in query.fetch(99):
-		anyRel = any(db.Query("viur-relations").filter("dest.id =", skel["id"].value).run(1, keysOnly=True))
+		# FIXME: Is that still needed? See hotfix/weakfile
+		anyRel = any(db.Query("viur-relations").filter("dest.key =", skel["key"].value).run(1, keysOnly=True))
 		if anyRel:
 			logging.debug("doDeleteWeakReferences: found relations with that file - don't delete!")
 			continue
