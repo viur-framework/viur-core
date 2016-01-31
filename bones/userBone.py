@@ -20,7 +20,7 @@ class userBone( relationalBone ):
 		if self.updateMagic or (self.creationMagic and isAdd):
 			user = conf["viur.mainApp"].user.getCurrentUser()
 			if user:
-				return( self.fromClient( "user", {"user": str(user["id"]) } ) )
+				return( self.fromClient( "user", {"user": str(user["key"]) } ) )
 			else:
 				return( self.fromClient( "user", {} ) )
 		
