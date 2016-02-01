@@ -399,6 +399,8 @@ class Hierarchy(BasicApplication):
 		fromItem["parententry"] = dest 
 		fromItem["parentrepo"] = str( self.getRootNode( dest ).key() )
 		db.Put( fromItem )
+		self.onItemReparent( skel )
+		self.onItemChanged( skel )
 
 		return self.render.reparentSuccess( obj=fromItem )
 
@@ -433,6 +435,8 @@ class Hierarchy(BasicApplication):
 		fromItem = db.Get( item )
 		fromItem["sortindex"] = float( index )
 		db.Put( fromItem )
+		self.onItemSetIndex( skel )
+		self.onItemChanged( skel )
 
 		return self.render.setIndexSuccess( obj=fromItem )
 
@@ -471,6 +475,7 @@ class Hierarchy(BasicApplication):
 		self.deleteRecursive( key )
 		skel.delete()
 		self.onItemDeleted( skel )
+		self.onItemChanged( skel )
 
 		return self.render.deleteSuccess( skel )
 
@@ -599,6 +604,7 @@ class Hierarchy(BasicApplication):
 
 		skel.toDB() # write it!
 		self.onItemEdited( skel )
+		self.onItemChanged( skel )
 
 		return self.render.editItemSuccess( skel )
 
@@ -650,6 +656,7 @@ class Hierarchy(BasicApplication):
 		skel["parentrepo"].value = str( self.getRootNode( parent ).key() )
 		key = skel.toDB( )
 		self.onItemAdded( skel )
+		self.onItemChanged( skel )
 		return self.render.addItemSuccess( skel )
 
 	@forceSSL
@@ -724,6 +731,8 @@ class Hierarchy(BasicApplication):
 			skel[ "parentrepo" ].value = toRepo
 
 			new_key = skel.toDB()
+			self.onItemCloned( skel )
+			self.onItemChanged( skel )
 			self._clone( fromRepo, toRepo, old_key, new_key )
 
 ## Default accesscontrol functions 
@@ -1057,6 +1066,69 @@ class Hierarchy(BasicApplication):
 		.. seealso:: :func:`delete`
 		"""
 		logging.info("Entry deleted: %s" % skel["key"].value )
+		user = utils.getCurrentUser()
+		if user:
+			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
+	
+	def onItemReparent( self, skel ):
+		"""
+		Hook function that is called after reparenting an entry.
+
+		It should be overridden for a module-specific behavior.
+		The default is writing a log entry.
+
+		:param skel: The Skeleton that has been reparented.
+		:type skel: :class:`server.skeleton.Skeleton`
+
+		.. seealso:: :func:`reparent`
+		"""
+		logging.info("Entry reparented: %s" % skel["key"].value )
+		user = utils.getCurrentUser()
+		if user:
+			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
+	
+	def onItemChanged( self, skel ):
+		"""
+		Hook function that is called after changing an entry.
+
+		It should be overridden for a module-specific behavior.
+		The default is doing nothing because it is additional to the other on* functions.
+
+		:param skel: The Skeleton that has been deleted.
+		:type skel: :class:`server.skeleton.Skeleton`
+		"""
+		pass
+
+	def onItemSetIndex( self, skel ):
+		"""
+		Hook function that is called after setting a new index an entry.
+
+		It should be overridden for a module-specific behavior.
+		The default is writing a log entry.
+
+		:param skel: The Skeleton that has got a new index.
+		:type skel: :class:`server.skeleton.Skeleton`
+
+		.. seealso:: :func:`setIndex`
+		"""
+		logging.info("Entry has a new index: %s" % skel["key"].value )
+		user = utils.getCurrentUser()
+		if user:
+			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
+
+	def onItemCloned( self, skel ):
+		"""
+		Hook function that is called after cloning an entry.
+
+		It should be overridden for a module-specific behavior.
+		The default is writing a log entry.
+
+		:param skel: The Skeleton that has been cloned.
+		:type skel: :class:`server.skeleton.Skeleton`
+
+		.. seealso:: :func:`_clone`
+		"""
+		logging.info("Entry cloned: %s" % skel["key"].value )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
