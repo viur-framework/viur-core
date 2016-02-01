@@ -769,6 +769,8 @@ class Render( object ):
 			self.env.globals["execRequest"] = self.execRequest
 			self.env.globals["getHostUrl" ] = self.getHostUrl
 			self.env.globals["getLanguage" ] = self.getLanguage #session.current.getLanguage()
+			self.env.globals["getLanguages"] = self.getLanguages
+			self.env.globals["getLanguageNames"] = self.getLanguageNames
 			self.env.globals["moduleName"] = self.moduleName
 			self.env.globals["modulePath"] = self.modulePath
 			self.env.globals["_"] = _
@@ -817,7 +819,13 @@ class Render( object ):
 		if resolveAlias and lang in conf["viur.languageAliasMap"].keys():
 			lang = conf["viur.languageAliasMap"][ lang ]
 		return( lang )
+		
+	def getLanguages(self):
+		return conf["supported_languages"]
 
+	def getLanguageNames(self):
+		return conf["viur.defaultlangsvalues"]
+		
 	def execRequest( self, path, *args, **kwargs ):
 		"""
 			Jinja2 global: Perform an internal Request.
