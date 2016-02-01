@@ -192,7 +192,7 @@ class TaskHandler:
 		global _callableTasks
 		class extList( list ):
 			pass
-		res = extList( [{"id": x.id, "name":_(x.name), "descr":_(x.descr) } for x in _callableTasks.values() if x().canCall()] )
+		res = extList( [{"key": x.key, "name":_(x.name), "descr":_(x.descr) } for x in _callableTasks.values() if x().canCall()] )
 		res.cursor = None
 		return( self.render.list( res ) )
 	list.exposed=True
