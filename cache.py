@@ -74,7 +74,7 @@ def keyFromArgs( f, userSensitive, languageSensitive, evaluatedArgs, path, args,
 				res[ "__user" ] = None
 		elif userSensitive==3:
 			if user:
-				res[ "__user" ] = user["id"]
+				res[ "__user" ] = user["key"]
 			else:
 				res[ "__user" ] = None
 	if languageSensitive:
