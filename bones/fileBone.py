@@ -19,7 +19,7 @@ class fileBone(treeItemBone):
 		elif isinstance( self.value, dict ):
 			return( [self.value["dlkey"]] )
 		elif isinstance( self.value, list ):
-			return( [x["id"] for x in self.value])
+			return( [x["key"] for x in self.value])
 
 	def unserialize( self, name, expando ):
 		res = super( fileBone, self ).unserialize( name, expando )
