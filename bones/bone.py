@@ -122,7 +122,7 @@ class baseBone(object): # One Bone:
 			:type name: String
 			:returns: dict
 		"""
-		if name != "id":
+		if name != "key":
 			entity.set( name, self.value, self.indexed )
 		return( entity )
 

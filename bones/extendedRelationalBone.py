@@ -223,7 +223,7 @@ class extendedRelationalBone( relationalBone ):
 						v = db.Key( v )
 					dbFilter.ancestor( v )
 					continue
-				if not (k if not " " in k else k.split(" ")[0]) in self.parentKeys:
+				if not (k if " " not in k else k.split(" ")[0]) in self.parentKeys:
 					logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
 					raise RuntimeError()
 				dbFilter.filter( "src.%s" % k, v )
@@ -258,10 +258,10 @@ class extendedRelationalBone( relationalBone ):
 				except:
 					continue
 				#Ensure that the relational-filter is in refKeys
-				if _type=="dest" and not key in self.refKeys:
+				if _type=="dest" and key not in self.refKeys:
 					logging.warning( "Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (key,name) )
 					raise RuntimeError()
-				if _type=="rel" and not key in self.using().keys():
+				if _type=="rel" and key not in self.using().keys():
 					logging.warning( "Invalid filtering! %s is not a bone in 'using' of %s" % (key,name) )
 					raise RuntimeError()
 				if len( tmpdata ) > 1:
@@ -339,7 +339,7 @@ class extendedRelationalBone( relationalBone ):
 			refKey = param.replace( "%s." % name, "" )
 			if " " in refKey: #Strip >, < or = params
 				refKey = refKey[ :refKey.find(" ")]
-			if not refKey in self.refKeys:
+			if refKey not in self.refKeys:
 				logging.warning( "Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (refKey,name) )
 				raise RuntimeError()
 			if self.multiple:
@@ -363,7 +363,7 @@ class extendedRelationalBone( relationalBone ):
 					value = db.Key( value )
 				query.ancestor( value )
 				return( None )
-			if not srcKey in self.parentKeys:
+			if srcKey not in self.parentKeys:
 				logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (srcKey,name) )
 				raise RuntimeError()
 			return( "src.%s" % param, value )
@@ -389,7 +389,7 @@ class extendedRelationalBone( relationalBone ):
 				continue
 			if orderKey.startswith("%s." % name ):
 				k = orderKey.replace( "%s." % name, "" )
-				if not k in self.refKeys:
+				if k not in self.refKeys:
 					logging.warning( "Invalid ordering! %s is not in refKeys of RelationalBone %s!" % (k,name) )
 					raise RuntimeError()
 				if not self.multiple:
@@ -405,7 +405,7 @@ class extendedRelationalBone( relationalBone ):
 					res.append( order )
 					continue
 				else:
-					if not orderKey in self.parentKeys:
+					if orderKey not in self.parentKeys:
 						logging.warning( "Invalid ordering! %s is not in parentKeys of RelationalBone %s!" % (orderKey,name) )
 						raise RuntimeError()
 					if isinstance( order, tuple ):
@@ -423,7 +423,7 @@ class extendedRelationalBone( relationalBone ):
 				Fetches the entity referenced by valDict["dest.key"] and updates all dest.* keys
 				accordingly
 			"""
-			if not "dest" in valDict.keys():
+			if "dest" not in valDict.keys():
 				logging.error("Invalid dictionary in updateInplace: %s" % valDict)
 				return False
 				
@@ -437,7 +437,7 @@ class extendedRelationalBone( relationalBone ):
 				return False
 
 			entityKey = normalizeKey(originalKey)
-			if originalKey != entityKey or not "key" in valDict["dest"].keys():
+			if originalKey != entityKey or "key" not in valDict["dest"].keys():
 				logging.info("Rewriting %s to %s" % (originalKey, entityKey))
 				valDict["dest"]["key"] = entityKey
 

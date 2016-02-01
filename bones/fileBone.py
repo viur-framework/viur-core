@@ -19,7 +19,7 @@ class fileBone(treeItemBone):
 		elif isinstance( self.value, dict ):
 			return( [self.value["dlkey"]] )
 		elif isinstance( self.value, list ):
-			return( [x["id"] for x in self.value])
+			return( [x["key"] for x in self.value])
 
 	def unserialize( self, name, expando ):
 		res = super( fileBone, self ).unserialize( name, expando )
@@ -44,14 +44,14 @@ class fileBone(treeItemBone):
 			if "key" in valDict.keys():
 				originalKey = valDict["key"]
 			# !!!ViUR re-design compatibility!!!
-			elif "id" in valDict.keys() and not "key" in valDict.keys():
+			elif "id" in valDict.keys() and "key" not in valDict.keys():
 				originalKey = valDict["id"]
 			else:
 				logging.error("Broken fileBone dict")
 				return
 
 			entityKey = normalizeKey(originalKey)
-			if originalKey != entityKey or not "key" in valDict.keys():
+			if originalKey != entityKey or "key" in valDict.keys():
 				logging.info("Rewriting %s to %s" % (originalKey, entityKey))
 				valDict["key"] = originalKey
 

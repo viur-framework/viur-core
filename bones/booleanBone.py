@@ -49,7 +49,7 @@ class booleanBone( baseBone ):
 			:type name: str
 			:returns: dict
 		"""
-		if name != "id":
+		if name != "key":
 			entity.set( name, self.value, self.indexed )
 		return( entity )
 
