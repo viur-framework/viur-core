@@ -150,7 +150,7 @@ def Get( keys, **kwargs ):
 			res = memcache.get( str(keys), namespace=__CacheKeyPrefix__ )
 			if not res: #Not cached - fetch and cache it :)
 				res = Entity.FromDatastoreEntity( datastore.Get( keys, **kwargs ) )
-				res[ "id" ] = str( res.key() )
+				res[ "key" ] = str( res.key() )
 				memcache.set( str(res.key() ), res, time=__cacheTime__, namespace=__CacheKeyPrefix__ )
 			return( res )
 		#Either the result wasnt found, or we got a list of keys to fetch;
