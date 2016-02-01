@@ -169,13 +169,13 @@ class DbTransfer( object ):
 		for k in list(entry.keys())[:]:
 			if isinstance(entry[k],str):
 				entry[k] = entry[k].decode("UTF-8")
-		key = db.Key( encoded=entry["id"] )
+		key = db.Key( encoded=entry["key"] )
 		logging.error( key.kind() )
 		logging.error( key.id() )
 		logging.error( key.name() )
-		dbEntry = db.Entity( kind=key.kind(), parent=key.parent(), id=key.id(), _app=key.app(), name=key.name() )
+		dbEntry = db.Entity( kind=key.kind(), parent=key.parent(), id=key.id(), _app=key.app(), name=key.name() )#maybe some more fixes here ?
 		for k in entry.keys():
-			if k!="id":
+			if k!="key":
 				val = entry[k]
 				#if isinstance(val, dict) or isinstance(val, list):
 				#	val = pickle.dumps( val )
@@ -212,7 +212,7 @@ class DbTransfer( object ):
 		logging.info( key.kind() )
 		logging.info( key.id() )
 		logging.info( key.name() )
-		dbEntry = db.Entity( kind=key.kind(), parent=key.parent(), id=key.id(), name=key.name() )
+		dbEntry = db.Entity( kind=key.kind(), parent=key.parent(), id=key.id(), name=key.name() )#maybe some more fixes here ?
 		for k in entry.keys():
 			if k!="key":
 				val = entry[k]
@@ -263,7 +263,7 @@ class DbTransfer( object ):
 			if "datastore" in str(type(v)):
 				logging.error(str(type(v)))
 			res[ k ] = v
-		res["id"] = str( obj.key() )
+		res["key"] = str( obj.key() )
 		return( res )
 
 	@exposed
@@ -495,11 +495,11 @@ def iterImport(module, target, exportKey, cursor=None, amount=0):
 				if isinstance(entry[k], str):
 					entry[k] = entry[k].decode("UTF-8")
 
-			key = db.Key(encoded=utils.normalizeKey(entry["id"]))
-			dbEntry = db.Entity(kind=key.kind(), parent=key.parent(), id=key.id(), name=key.name())
+			key = db.Key(encoded=utils.normalizeKey(entry["key"]))
+			dbEntry = db.Entity(kind=key.kind(), parent=key.parent(), id=key.id(), name=key.name())#maybe some more fixes here ?
 
 			for k in entry.keys():
-				if k != "id":
+				if k != "key":
 					dbEntry[k] = entry[k]
 
 			db.Put(dbEntry)
