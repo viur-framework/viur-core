@@ -75,7 +75,7 @@ class fileBone(treeItemBone):
 				except:
 					res = None
 
-				if res and res["oldkey"] == self["dlkey"]:
+				if res and res["oldkey"] == valDict["dlkey"]:
 					valDict["dlkey"] = res["newkey"]
 					valDict["servingurl"] = res["servingurl"]
 
