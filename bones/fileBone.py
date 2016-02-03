@@ -55,15 +55,6 @@ class fileBone(treeItemBone):
 				logging.info("Rewriting %s to %s" % (originalKey, entityKey))
 				valDict["key"] = originalKey
 
-			# OK, now update the corresponding fileSkel if this exists.
-			fileSkel = skeleton.skeletonByKind("file")
-
-			if fileSkel:
-				skel = fileSkel()
-				if skel.fromDB(entityKey):
-					skel.refresh()
-					skel.toDB()
-
 			# Anyway, try to copy a dlkey and servingurl
 			# from the corresponding viur-blobimportmap entity.
 			if "dlkey" in valDict.keys():
