@@ -676,9 +676,11 @@ class Skeleton( object ):
 		"""
 		complete = True
 		super(Skeleton,self).__setattr__( "errors", {} )
-		for key,_bone in self.items():
+
+		for key, _bone in self.items():
 			if _bone.readOnly:
 				continue
+
 			error = _bone.fromClient( key, data )
 			if isinstance( error, ReadFromClientError ):
 				self.errors.update( error.errors )
@@ -686,8 +688,11 @@ class Skeleton( object ):
 					complete = False
 			else:
 				self.errors[ key ] = error
+
 			if error  and _bone.required:
 				complete = False
+				logging.info("%s throws error: %s" % (key, error))
+
 		if self.enforceUniqueValuesFor:
 			uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
 			newVal = self[ uniqueProperty].getUniquePropertyIndexValue()
@@ -703,8 +708,12 @@ class Skeleton( object ):
 						self.errors[ uniqueProperty ] = errorMsg
 				except db.EntityNotFoundError:
 					pass
-		if( len( data )==0 or (len(data)==1 and "key" in data) or ("nomissing" in data.keys() and str(data["nomissing"])=="1") ):
+
+		if( len(data) == 0
+		    or (len(data) == 1 and "key" in data)
+		    or ("nomissing" in data.keys() and str(data["nomissing"]) == "1" )):
 			super(Skeleton,self).__setattr__( "errors", {} )
+
 		return( complete )
 
 	def refresh(self):
