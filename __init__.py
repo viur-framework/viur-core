@@ -396,6 +396,22 @@ class BrowseHandler(webapp.RequestHandler):
 			if conf["viur.security.publicKeyPins"]:
 				assert conf["viur.security.publicKeyPins"].startswith("pin-"), "Got unexpected header in conf['viur.security.publicKeyPins']"
 				self.response.headers["Public-Key-Pins"] = conf["viur.security.publicKeyPins"]
+		# Check for X-Security-Headers we shall emit
+		if conf["viur.security.xContentTypeOptions"]:
+			self.response.headers["X-Content-Type-Options"] = "nosniff"
+		if conf["viur.security.xXssProtection"] is not None:
+			if conf["viur.security.xXssProtection"]:
+				self.response.headers["X-XSS-Protection"] = "1; mode=block"
+			elif conf["viur.security.xXssProtection"] is False:
+				self.response.headers["X-XSS-Protection"] = "0"
+		if conf["viur.security.xFrameOptions"] is not None and isinstance(conf["viur.security.xFrameOptions"], tuple):
+			mode, uri = conf["viur.security.xFrameOptions"]
+			assert mode in ["deny", "sameorigin","allow-from"]
+			if mode in ["deny", "sameorigin"]:
+				self.response.headers["X-Frame-Options"] = mode
+			elif mode=="allow-from":
+				assert uri is not None and (uri.lower().startswith("https://") or uri.lower().startswith("http://"))
+				self.response.headers["X-Frame-Options"] = "allow-from %s" % uri
 		if sharedConf["viur.disabled"] and not (users.is_current_user_admin() or "HTTP_X_QUEUE_NAME".lower() in [x.lower() for x in os.environ.keys()] ): #FIXME: Validate this works
 			self.response.set_status( 503 ) #Service unavailable
 			tpl = Template( open("server/template/error.html", "r").read() )

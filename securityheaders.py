@@ -119,3 +119,45 @@ def setPublicKeyPins(pins, method="sha256", maxAge=2*24*60*60, includeSubDomains
 		res += "; report-uri=\"%s\"" % reportUri
 	conf["viur.security.publicKeyPins"] = res
 
+def setXFrameOptions(action, uri=None):
+	"""
+		Sets X-Frame-Options to prevent click-jacking attacks.
+		:param action: off | deny | sameorigin | allow-from
+		:type action: string
+		:param uri: URL to whitelist
+		:type uri: string
+		:return:
+	"""
+	if action=="off":
+		conf["viur.security.xFrameOptions"] = None
+	elif action in ["deny", "sameorigin"]:
+		conf["viur.security.xFrameOptions"] = (action, None)
+	elif action=="allow-from":
+		if uri is None or not (uri.lower().startswith("https://") or uri.lower().startswith("http://")):
+			raise ValueError("If action is allow-from, an uri MUST be given and start with http(s)://")
+		conf["viur.security.xFrameOptions"] = (action, uri)
+
+def setXXssProtection(enable):
+	"""
+		Sets X-XSS-Protection header. If set, mode will always be block.
+		:param enable: Enable the protection or not. Set to None to drop this header
+		:type enable: bool | None
+		:return:
+	"""
+	if enable is True or enable is False or enable is None:
+		conf["viur.security.xXssProtection"] = enable
+	else:
+		raise ValueError("enable must be exactly one of None | True | False")
+
+
+def setXContentTypeNoSniff(enable):
+	"""
+		Sets X-Content-Type-Options if enable is true, otherwise no header is emited.
+		:param enable: Enable emitting this header or not
+		:type enable: bool
+		:return:
+	"""
+	if enable is True or enable is False:
+		conf["viur.security.xContentTypeOptions"] = enable
+	else:
+		raise ValueError("enable must be one of True | False")
