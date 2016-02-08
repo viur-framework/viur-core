@@ -417,7 +417,7 @@ class Render( object ):
 		obj = getattr( conf["viur.mainApp"], modul)
 		if skel in dir( obj ):
 			skel = getattr( obj , skel)()
-			if isinstance( skel,  Skeleton ):
+			if isinstance( skel,  Skeleton ) or isinstance( skel,  RelSkel ):
 				return( self.renderSkelStructure( skel ) )
 		return False
 
@@ -821,9 +821,9 @@ class Render( object ):
 		"""
 		headers = {}
 		user = session.current.get("user")
-		if isinstance( skel, Skeleton ):
+		if isinstance( skel, Skeleton ) or isinstance(skel, RelSkel):
 			res = self.collectSkelData( skel )
-		elif isinstance( skel, list ) and all( [isinstance(x,Skeleton) for x in skel] ):
+		elif isinstance( skel, list ) and all( [(isinstance(x,Skeleton) or isinstance(x, RelSkel)) for x in skel] ):
 			res = [ self.collectSkelData( x ) for x in skel ]
 		else:
 			res = skel
