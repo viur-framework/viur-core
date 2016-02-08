@@ -434,6 +434,8 @@ class Hierarchy(BasicApplication):
 		fromItem = db.Get(item)
 		fromItem["sortindex"] = float(index)
 		db.Put(fromItem)
+		skel = self.editSkel()
+		assert skel.fromDB(item)
 		self.onItemSetIndex(skel)
 		self.onItemChanged(skel)
 

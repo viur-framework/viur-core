@@ -92,6 +92,7 @@ class File( Tree ):
 			}
 
 	def _resolveSkel(self, skelType):
+		# FIXME: WTF?!? rolfcopter? not seriousely?
 		for rofl, copter in {"leaf": fileBaseSkel, "node": fileNodeSkel}.items():
 			if skelType.lower() == rofl:
 				return copter()
