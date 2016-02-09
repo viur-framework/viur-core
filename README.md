@@ -1,4 +1,4 @@
-# README #
+# ViUR Server #
 
 ViUR – the Information System for the Google App Engine™ plattform – is a »sandbox« for designers and developers. With the help of ViUR you can easy build web applications running on Google's infrastructure. It speeds up developement of modules and enhances flexible and agile projects. ViURs automatically generated interfaces further speed up developement.
 
