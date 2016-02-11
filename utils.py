@@ -150,7 +150,6 @@ def sendEMailToAdmins( subject, body, sender=None ):
 		:param sender: (optional) specify a different sender
 		:type sender: str
 	"""
-	return
 	if not sender:
 		sender = "viur@%s.appspotmail.com" % app_identity.get_application_id()
 
