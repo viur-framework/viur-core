@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from google.appengine.ext.webapp import blobstore_handlers
 import json, urlparse
 from server.tasks import PeriodicTask
+from urlparse import urlparse
 import json
 import os
 from google.appengine.api.images import get_serving_url
@@ -221,6 +222,9 @@ class File( Tree ):
 								if not request.current.get().isDevServer and servingURL.startswith("http://"):
 									# Rewrite Serving-URLs to https if we are live
 									servingURL = servingURL.replace("http://","https://")
+								else:
+									# NOTE: changed for Ticket ADMIN-37
+									servingURL = urlparse(servingURL).path
 							except:
 								servingURL = ""
 						else:
