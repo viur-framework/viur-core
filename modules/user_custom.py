@@ -139,50 +139,78 @@ class CustomUser( List ):
 
 	def login( self, name=None, password=None, skey="", *args, **kwargs ):
 		if self.getCurrentUser(): #Were already loggedin
-			return( self.render.loginSucceeded( ) )
+			logging.info("User already logged in")
+			return self.render.loginSucceeded()
+
 		if not name or not password or not securitykey.validate( skey ):
-			return( self.render.login( self.loginSkel() ) )
+			logging.info("No name, password or invalid securitykey assigned")
+
+			return self.render.login(self.loginSkel())
+
 		query = db.Query( self.viewSkel().kindName )
 		res  = query.filter( "name.idx >=", name.lower()).get()
+
 		if res is None:
 			res = {"password":"", "status":0, "name":"","name.idx":"" }
+		else:
+			logging.info("User found")
+
 		if "password_salt" in res.keys(): #Its the new, more secure passwd
 			passwd = pbkdf2( password[ : conf["viur.maxPasswordLength"] ], res["password_salt"] )
 		else:
 			passwd = sha512( password.encode("UTF-8")+conf["viur.salt"] ).hexdigest()
+
 		isOkay = True
+
 		if not utils.safeStringComparison(res["password"], unicode(passwd)):
+			logging.info("passwords did not match")
 			isOkay = False
+
 		if res["status"] < 10:
+			logging.info("status is %d, user is not allowed to login" % res["status"])
 			isOkay = False
+
 		if not utils.safeStringComparison(res[ "name.idx" ], name.lower()):
+			logging.info("lower username comparison failed")
 			isOkay = False
+
 		if not isOkay:
 			skel=self.loginSkel()
 			skel["name"].fromClient("name",{"name":name} )
-			return( self.render.login( skel, loginFailed=True )  )
+
+			logging.info("Render login skel")
+			return self.render.login(skel, loginFailed=True)
 		else:
 			if not "password_salt" in res.keys(): #Update the password to the new, more secure format
 				res[ "password_salt" ] = utils.generateRandomString( 13 )
 				res[ "password" ] = pbkdf2( password[ : conf["viur.maxPasswordLength"] ], res["password_salt"] )
 				db.Put( res )
+
 			oldSession = {k:v for k,v in session.current.items()} #Store all items in the current session
 			session.current.reset()
+
 			# Copy the persistent fields over
 			for k in conf["viur.session.persistentFieldsOnLogin"]:
 				if k in oldSession.keys():
 					session.current[ k ] = oldSession[ k ]
+
 			del oldSession
+
 			session.current['user'] = {}
+
 			for key in ["name", "status", "access"]:
 				try:
 					session.current['user'][ key ] = res[ key ]
-				except: pass
+				except:
+					pass
+
 			session.current['user']["key"] = str( res.key() )
+
 			if not "access" in session.current['user'].keys() or not session.current['user']["access"]:
 				session.current['user']["access"] = []
+
 			session.current.markChanged()
-			return( self.render.loginSucceeded( ) )
+			return self.render.loginSucceeded()
 	login.exposed = True
 	login.forceSSL = True
 	

@@ -700,10 +700,10 @@ class Render( object ):
 			:rtype: str, str
 		"""
 		headers = {}
-		user = session.current.get("user")
-		if isinstance( skel, Skeleton ):
+		user = utils.getCurrentUser()
+		if isinstance(skel, Skeleton) or isinstance(skel, RelSkel):
 			res = self.collectSkelData( skel )
-		elif isinstance( skel, list ) and all( [isinstance(x,Skeleton) for x in skel] ):
+		elif isinstance(skel, list) and all([(isinstance(x, Skeleton) or isinstance(x,RelSkel)) for x in skel]):
 			res = [ self.collectSkelData( x ) for x in skel ]
 		else:
 			res = skel

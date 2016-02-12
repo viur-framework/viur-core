@@ -54,11 +54,29 @@ def sendEMail( dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None
 	:type replyTo: str
 	:param replyTo: A reply-to email address
 	"""
-	return
+
+	def rewriteEmail(oldDests, newDest):
+		"""
+			Rewrites each address in *oldDests* so that it will end with @newDest
+			:param oldDests: EMail-Address (or a list hereof) to rewrite
+			:type oldDests: str | list[str]
+			:param newDest: New Destination-Domain (eg "@mausbrand.de")
+			:type newDest: str
+			:return:
+		"""
+		if isinstance( oldDests, list ):
+			return [rewriteEmail(x) for x in oldDests ]
+		else:
+			newAddress = oldDests.replace(".", "_dot_").replace("@", "_at_")
+			return "%s%s" % (newAddress, newDest)
+
 	if conf["viur.emailRecipientOverride"]:
 		logging.warning("Overriding destination %s with %s", dests, conf["viur.emailRecipientOverride"])
-		dests = conf["viur.emailRecipientOverride"]
-	elif conf["viur.emailRecipientOverride"] is None:
+		if conf["viur.emailRecipientOverride"].startswith("@"):
+			dests = rewriteEmail(dests, conf["viur.emailRecipientOverride"])
+		else:
+			dests = conf["viur.emailRecipientOverride"]
+	elif conf["viur.emailRecipientOverride"] is False:
 		logging.warning("Sending emails disabled by config[viur.emailRecipientOverride]")
 		return
 
@@ -132,7 +150,6 @@ def sendEMailToAdmins( subject, body, sender=None ):
 		:param sender: (optional) specify a different sender
 		:type sender: str
 	"""
-	return
 	if not sender:
 		sender = "viur@%s.appspotmail.com" % app_identity.get_application_id()
 
