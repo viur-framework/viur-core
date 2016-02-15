@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+
+from google.appengine.api import images
 from server.skeleton import Skeleton, skeletonByKind
 from server import utils, db, securitykey, session, errors, conf, request
 from server.prototypes.tree import Tree, TreeNodeSkel, TreeLeafSkel
@@ -35,6 +37,18 @@ class fileBaseSkel( TreeLeafSkel ):
 	mimetype = stringBone( descr="Mime-Info", params={"frontend_list_visible": True}, readOnly=True, indexed=True ) #ALERT: was meta_mime
 	weak = booleanBone( descr="Is a weak Reference?", indexed=True, readOnly=True, visible=False )
 	servingurl = stringBone( descr="Serving URL", params={"frontend_list_visible": True}, readOnly=True )
+
+	width = numericBone(
+			descr=u"Breite",
+			indexed=True,
+			searchable=True,
+	)
+
+	height = numericBone(
+			descr=u"Höhe",
+			indexed=True,
+			searchable=True,
+	)
 
 
 	def refresh(self):
@@ -230,14 +244,30 @@ class File( Tree ):
 						else:
 							servingURL = ""
 						fileSkel = self.addLeafSkel()
-						fileSkel.setValues( {	"name": utils.escapeString( fileName ),
+						try:
+							# only fetching the file header or all if the file is smaller than 50k
+							data = blobstore.fetch_data(upload.key(), 0, min(upload.size, 50000))
+							image = images.Image(image_data=data)
+							height = image.height
+							width = image.width
+						except Exception, err:
+							height = width = 0
+							logging.error("some error occurred while trying to fetch the image header with dimensions")
+							logging.exception(err)
+						fileSkel.setValues(
+								{
+									"name": utils.escapeString( fileName ),
 									"size": upload.size,
 									"mimetype": utils.escapeString( upload.content_type ),
 									"dlkey": str(upload.key()),
 									"servingurl": servingURL,
 									"parentdir": str(node),
 									"parentrepo": nodeSkel["parentrepo"].value,
-									"weak": False } )
+									"weak": False,
+									"width": width,
+									"height": height
+								}
+						)
 						fileSkel.toDB()
 						res.append( fileSkel )
 			else:
@@ -253,23 +283,32 @@ class File( Tree ):
 						servingURL = ""
 					fileName = self.decodeFileName( upload.filename )
 					fileSkel = self.addLeafSkel()
-					fileSkel.setValues( {	"name": utils.escapeString( fileName ),
+					image = images.Image(str(upload.key()))
+					fileSkel.setValues(
+							{
+								"name": utils.escapeString( fileName ),
 								"size": upload.size,
 								"mimetype": utils.escapeString( upload.content_type ),
 								"dlkey": str(upload.key()),
 								"servingurl": servingURL,
 								"parentdir": None,
 								"parentrepo": None,
-								"weak": True } )
+								"weak": True,
+								"width": image.width,
+								"height": image.height
+							}
+					)
 					fileSkel.toDB()
 					res.append( fileSkel )
 			for r in res:
 				logging.info("Got a successfull upload: %s (%s)" % (r["name"].value, r["dlkey"].value ) )
+
 			user = utils.getCurrentUser()
 			if user:
 				logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
 			return( self.render.addItemSuccess( res ) )
-		except:
+		except Exception, err:
+			logging.exception(err)
 			for upload in self.getUploads():
 				upload.delete()
 				utils.markFileForDeletion( str(upload.key() ) )
