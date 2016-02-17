@@ -283,7 +283,16 @@ class File( Tree ):
 						servingURL = ""
 					fileName = self.decodeFileName( upload.filename )
 					fileSkel = self.addLeafSkel()
-					image = images.Image(str(upload.key()))
+					try:
+						# only fetching the file header or all if the file is smaller than 50k
+						data = blobstore.fetch_data(upload.key(), 0, min(upload.size, 50000))
+						image = images.Image(image_data=data)
+						height = image.height
+						width = image.width
+					except Exception, err:
+						height = width = 0
+						logging.error("some error occurred while trying to fetch the image header with dimensions")
+						logging.exception(err)
 					fileSkel.setValues(
 							{
 								"name": utils.escapeString( fileName ),
@@ -294,8 +303,8 @@ class File( Tree ):
 								"parentdir": None,
 								"parentrepo": None,
 								"weak": True,
-								"width": image.width,
-								"height": image.height
+								"width": width,
+								"height": height
 							}
 					)
 					fileSkel.toDB()
