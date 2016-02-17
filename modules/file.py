@@ -245,8 +245,8 @@ class File( Tree ):
 							servingURL = ""
 						fileSkel = self.addLeafSkel()
 						try:
-							# only fetching the file header or all if the file is smaller than 50k
-							data = blobstore.fetch_data(upload.key(), 0, min(upload.size, 50000))
+							# only fetching the file header or all if the file is smaller than 1M
+							data = blobstore.fetch_data(upload.key(), 0, min(upload.size, 1000000))
 							image = images.Image(image_data=data)
 							height = image.height
 							width = image.width
@@ -284,8 +284,8 @@ class File( Tree ):
 					fileName = self.decodeFileName( upload.filename )
 					fileSkel = self.addLeafSkel()
 					try:
-						# only fetching the file header or all if the file is smaller than 50k
-						data = blobstore.fetch_data(upload.key(), 0, min(upload.size, 50000))
+						# only fetching the file header or all if the file is smaller than 1M
+						data = blobstore.fetch_data(upload.key(), 0, min(upload.size, 1000000))
 						image = images.Image(image_data=data)
 						height = image.height
 						width = image.width

@@ -224,7 +224,6 @@ def buildApp( config, renderers, default=None, *args, **kwargs ):
 		(=> /user instead of /jinja2/user)
 		:type default: str
 	"""
-	logging.error(renderers)
 	class ExtendableObject( object ):
 		pass
 		
