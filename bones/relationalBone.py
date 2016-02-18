@@ -253,9 +253,8 @@ class relationalBone( baseBone ):
 	def rebuildData(self, *args, **kwargs ):
 		pass
 	
-	def isInvalid( self, id ):
-		return( True )
-	
+	def isInvalid( self, key ):
+		return True
 
 	def fromClient( self, name, data ):
 		"""
@@ -276,6 +275,7 @@ class relationalBone( baseBone ):
 			value = data[ name ]
 		else:
 			value = []
+
 			for k,v in data.items():
 				if k.startswith( name ):
 					k = k.replace( name, "", 1)
@@ -283,73 +283,92 @@ class relationalBone( baseBone ):
 						idx = int(k)
 					except:
 						continue
+
 					value.insert(idx, v)
+
 			if len(value)==0:
 				value = None
 			elif len(value)==1:
 				value = value[1]
+
 		self.value = []
 		res = []
+
 		if not value:
-			return( "Invalid value entered" )
+			return "Invalid value entered"
+
 		if self.multiple:
 			if not isinstance( value, list ):
 				if value:
 					if value.find("\n")!=-1:
 						for val in value.replace("\r\n","\n").split("\n"):
 							valstr = val
+
 							if valstr and self.isInvalid(  valstr  ):
 								res.append(  valstr )
 					else:
 						valstr =  value
 						if valstr and self.isInvalid(  valstr ):
 							res.append( valstr )
+
 			else:
 				for val in value:
 					valstr =  val 
 					if valstr and self.isInvalid( valstr  ):
 						res.append( valstr )
+
 		else:
 			valstr = value 
 			if valstr and self.isInvalid( valstr ):
 				res.append( valstr )
 		
 		if len( res ) == 0:
-			return( "No value entered" )
+			return "No value entered"
+
 		for r in res:
 			isEntryFromBackup = False #If the referenced entry has been deleted, restore information from 
+
 			try:
 				entry = db.Get( db.Key( r ) )
+
 			except: #Invalid key or something like that
+
 				if isinstance(self._dbValue, dict):
 					if normalizeKey(self._dbValue["key"])==normalizeKey(r):
 						entry = self._dbValue
 						isEntryFromBackup = True
-				elif  isinstance(self._dbValue, list):
+
+				elif isinstance(self._dbValue, list):
 					for dbVal in self._dbValue:
 						if normalizeKey(dbVal["key"])==normalizeKey(r):
 							entry = dbVal
 							isEntryFromBackup = True
+
 				if not isEntryFromBackup:
 					if not self.multiple: #We can stop here :/
-						return( "Invalid entry selected" )
+						return "Invalid entry selected"
 					else:
 						continue
+
 			if not entry or (not isEntryFromBackup and not entry.key().kind()==self.type): #Entry does not exist or has wrong type (is from another module)
 				if entry:
-					logging.error("I got an id, which kind doesn't match my type! (Got: %s, my type %s)" % ( entry.key().kind(), self.type ) )
+					logging.error("I've got a key which kind doesn't match my type! (got %s, but expected %s)" % (entry.key().kind(), self.type))
 				continue
+
 			if not self.multiple:
 				self.value = { k: entry[k] for k in entry.keys() if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ) }
 				self.value["key"] = r
-				return( None )
+				return None
+
 			else:
 				tmp = { k: entry[k] for k in entry.keys() if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ) }
 				tmp["key"] = r
 				self.value.append( tmp )
+
 		if not self.value:
-			return( "No value entered" )
-		return( None )
+			return "No value entered"
+
+		return None
 
 	def _rewriteQuery(self, name, skel, dbFilter, rawFilter ):
 		"""
