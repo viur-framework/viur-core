@@ -766,7 +766,6 @@ class Render( object ):
 			self.env.globals["getCurrentUser"] = self.getCurrentUser
 			self.env.globals["getResizedURL"] = get_serving_url
 			self.env.globals["updateURL"] = self.updateURL
-			self.env.filters["urlencode"] = urlencode
 			self.env.globals["execRequest"] = self.execRequest
 			self.env.globals["getHostUrl" ] = self.getHostUrl
 			self.env.globals["getLanguage" ] = self.getLanguage #session.current.getLanguage()
