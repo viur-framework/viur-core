@@ -705,7 +705,7 @@ class Order( List ):
 
 		for order in query.fetch():
 			gotAtLeastOne = True
-			self.setArchived( order )
+			self.setArchived(order["id"].value)
 
 		newCursor = query.getCursor()
 
@@ -722,7 +722,7 @@ class Order( List ):
 		gotAtLeastOne = False
 		for order in query.fetch():
 			gotAtLeastOne = True
-			self.setArchived( order )
+			self.setArchived(order["id"].value)
 		newCursor = query.getCursor()
 		if gotAtLeastOne and newCursor and newCursor.urlsafe()!=cursor:
 			self.doArchiveCancelledOrdersTask( timeStamp, newCursor.urlsafe() )
