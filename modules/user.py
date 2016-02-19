@@ -99,7 +99,7 @@ class UserPassword(object):
 				res[ "password_salt" ] = utils.generateRandomString( 13 )
 				res[ "password" ] = pbkdf2( password[ : conf["viur.maxPasswordLength"] ], res["password_salt"] )
 				db.Put( res )
-	
+
 			return self.userModule.continueAuthenticationFlow(self, res.key())
 
 	@exposed
@@ -223,11 +223,11 @@ class Otp2Factor( object ):
 
 	def canHandle(self, userId):
 		user = db.Get(userId)
-		return all([(x in user.keys() and user[x]) for x in ["otpid", "otpkey"]]) # , "otptimedrift"
+		return all([(x in user.keys() and user[x]) for x in ["otpid", "otpkey", "otptimedrift"]])
 
 	def startProcessing(self, userId):
 		user = db.Get(userId)
-		if all([(x in user.keys() and user[x]) for x in ["otpid", "otpkey"]]): #, "otptimedrift"
+		if all([(x in user.keys() and user[x]) for x in ["otpid", "otpkey", "otptimedrift"]]): 
 			logging.info( "OTP wanted for user" )
 			session.current["_otp_user"] = {	"uid": str(userId),
 								"otpid": user["otpid"],
