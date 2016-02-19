@@ -71,7 +71,7 @@ class stringBone( baseBone ):
 			if self.caseSensitive:
 				return( super( stringBone, self ).serialize( name, entity ) )
 			else:
-				if name != "id":
+				if name != "key":
 					entity.set( name, self.value, self.indexed )
 					if self.value is None:
 						entity.set( name+".idx", None, self.indexed )

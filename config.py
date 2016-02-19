@@ -8,6 +8,7 @@ apiVersion = 1 #What format do we use to store data in the bigtable
 
 #Conf is static, local Dictionary. Changes here are local to the current instance
 conf = {
+
 	"bugsnag.apiKey": None, #If set, ViUR will report Errors to bugsnag
 
 	"viur.accessRights": ["root","admin"],  #Accessrights available on this Application
@@ -26,8 +27,8 @@ conf = {
 	"viur.disableCache": False, #If set to true, the decorator @enableCache from server.cache has no effect
 	"viur.domainLanguageMapping": {},  #Maps Domains to alternative default languages
 
-	"viur.emailRecipientOverride": False, #If set, all outgoing emails will be send to this address (overriding the 'dests'-parameter in utils.sendEmail)
-	"viur.emailSenderOverride": False, #If set, this sender will be used, regardless of what the templates advertise as sender
+	"viur.emailRecipientOverride": None, #If set, all outgoing emails will be send to this address (overriding the 'dests'-parameter in utils.sendEmail)
+	"viur.emailSenderOverride": None, #If set, this sender will be used, regardless of what the templates advertise as sender
 	"viur.errorHandler": None, #If set, ViUR call this function instead of rendering the viur.errorTemplate if an exception occurs
 	"viur.errorTemplate": "server/template/error.html", #Path to the template to render if an unhandled error occurs. This is a Python String-template, *not* a jinja2 one!
 	"viur.exportPassword": None, # Activates the Database export API if set. Must be exactly 32 chars. *Everyone* knowing this password can dump the whole database!
@@ -36,6 +37,7 @@ conf = {
 
 	"viur.importPassword": None, # Activates the Database import API if set. Must be exactly 32 chars. *Everyone* knowing this password can rewrite the whole database!
 
+
 	"viur.languageAliasMap": {}, #Allows mapping of certain languages to one translation (ie. us->en)
 	"viur.languageMethod": "session", #Defines how translations are applied. session: Per Session, url: inject language prefix in url, domain: one domain per language
 	"viur.logMissingTranslations": False, #If true, ViUR will log missing translations in the datastore
@@ -43,7 +45,7 @@ conf = {
 	"viur.mainApp": None,  #Reference to our pre-build Application-Instance
 	"viur.maxPasswordLength": 512, #Prevent Denial of Service attacks using large inputs for pbkdf2
 	"viur.maxPostParamsCount": 250, #Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks
-	"viur.models": None, #Dictionary of all models known to this instance
+	"viur.skeletons": None, #Dictionary of all models known to this instance
 
 	"viur.noSSLCheckUrls": ["/_tasks*", "/ah/*"], #List of Urls for which viur.forceSSL is ignored. Add an asterisk to mark that entry as a prefix (exact match otherwise)
 
@@ -51,11 +53,19 @@ conf = {
 
 	"viur.salt": "ViUR-CMS",  #Default salt which will be used for eg. passwords. Once the application is used, this must not change!
 	"viur.searchValidChars": "abcdefghijklmnopqrstuvwxyz0123456789",  #Characters valid for the internal search functionality (all other chars are ignored)
+	"viur.security.contentSecurityPolicy": None, #If set, viur will emit a CSP http-header with each request. Use security.addCspRule to set this property
+	"viur.security.strictTransportSecurity": None, #If set, viur will emit a HSTS http-header with each request. Use security.enableStrictTransportSecurity to set this property
+	"viur.security.publicKeyPins": None, #If set, viur will emit a Public Key Pins http-header with each request. Use security.setPublicKeyPins to set this property
+	"viur.security.xFrameOptions": ("sameorigin", None), # If set, ViUR will emit a X-Frame-Options header,
+	"viur.security.xXssProtection": True, # ViUR will emit a X-XSS-Protection header if set (the default),
+	"viur.security.xContentTypeOptions": True, # ViUR will emit X-Content-Type-Options: nosniff Header unless set to False
 	"viur.session.lifeTime": 60*60, #Default is 60 minutes lifetime for ViUR sessions
 	"viur.session.persistentFieldsOnLogin": [], #If set, these Fields will survive the session.reset() called on user/login
 	"viur.session.persistentFieldsOnLogout": [], #If set, these Fields will survive the session.reset() called on user/logout
 
-	"viur.tasks.startBackendOnDemand": True #If true, allows the task module to start a backend immediately (instead of waiting for the cronjob)
+	"viur.tasks.startBackendOnDemand": True, #If true, allows the task module to start a backend immediately (instead of waiting for the cronjob)
+
+
 }
 
 

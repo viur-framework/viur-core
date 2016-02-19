@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from server import db, utils, session,  errors, conf, securitykey, exposed, forceSSL
-from server.applications import BasicApplication
+from server.prototypes import BasicApplication
 
 import logging
 
@@ -28,8 +28,8 @@ class Singleton(BasicApplication):
 			"icon": "icons/modules/singleton.svg",  # Icon for this module
 		}
 
-	def __init__( self, modulName, modulPath, *args, **kwargs ):
-		super(Singleton, self).__init__(modulName, modulPath, *args, **kwargs)
+	def __init__( self, moduleName, modulePath, *args, **kwargs ):
+		super(Singleton, self).__init__(moduleName, modulePath, *args, **kwargs)
 
 	def getKey(self):
 		"""
@@ -41,7 +41,7 @@ class Singleton(BasicApplication):
 		:returns: Current context DB-key
 		:rtype: str
 		"""
-		return "%s-modulkey" % self.editSkel().kindName
+		return "%s-modulekey" % self.editSkel().kindName
 
 	def viewSkel( self, *args, **kwargs ):
 		"""
@@ -115,9 +115,9 @@ class Singleton(BasicApplication):
 		if not self.canView( ):
 			raise errors.Unauthorized()
 
-		id = str( db.Key.from_path( self.editSkel().kindName, self.getKey() ) )
+		key = str( db.Key.from_path( self.editSkel().kindName, self.getKey() ) )
 
-		if not skel.fromDB( id ):
+		if not skel.fromDB(key):
 			raise errors.NotFound()
 
 		self.onItemViewed( skel )
@@ -129,7 +129,7 @@ class Singleton(BasicApplication):
 		"""
 		Modify the existing entry, and render the entry, eventually with error notes on incorrect data.
 
-		The entry is fetched by its entity key, which either is provided via *kwargs["id"]*,
+		The entry is fetched by its entity key, which either is provided via *kwargs["key"]*,
 		or as the first parameter in *args*. The function performs several access control checks
 		on the singleton's entity before it is modified.
 
@@ -151,10 +151,10 @@ class Singleton(BasicApplication):
 		if not self.canEdit( ):
 			raise errors.Unauthorized()
 
-		id = db.Key.from_path( self.editSkel().kindName, self.getKey() )
+		key = db.Key.from_path( self.editSkel().kindName, self.getKey() )
 
-		if not skel.fromDB( str(id) ): #Its not there yet; we need to set the key again
-			skel.setValues( {}, key=id )
+		if not skel.fromDB( str(key) ): #Its not there yet; we need to set the key again
+			skel.setValues( {}, key=key )
 
 		if (len(kwargs) == 0 # no data supplied
 		    or skey == "" #no skey provided
@@ -169,58 +169,6 @@ class Singleton(BasicApplication):
 		self.onItemEdited( skel )
 		return self.render.editItemSuccess( skel )
 
-	"""
-	@exposed
-	@forceSSL
-	def amend(self, *args, **kwargs):
-		" ""
-		Amend is like the standard edit action, but it only amends the values coming from outside.
-		The supplied data must not be complete nor contain all required fields.
-		" ""
-		if "skey" in kwargs:
-			skey = kwargs["skey"]
-		else:
-			skey = ""
-		skel = self.editSkel()
-
-		id = db.Key.from_path( self.editSkel().kindName, self.getKey() )
-		if not skel.fromDB( id ):
-			raise errors.NotAcceptable()
-		if not self.canEdit( ):
-			raise errors.Unauthorized()
-
-		if (len(kwargs) == 0 or skey == "" ):
-			return self.render.edit( skel )
-
-		count = 0
-		for k in kwargs.keys():
-			# Check for valid bones
-			if k in [ "id" ] or not k in skel.keys():
-				continue
-
-			# Check for correct data fetch
-			if (skel[k].fromClient(k, kwargs)
-			    and skel[k].required
-				and not kwargs[k]):
-
-				logging.info("XX %s = %s" % (k,kwargs[k]))
-				count += 1
-			else:
-				logging.info("OK %s = %s" % (k,kwargs[k]))
-
-		if count:
-			return self.render.edit( skel )
-
-		logging.info("skey is:"+skey)
-		if not securitykey.validate( skey, acceptSessionKey=True ):
-			logging.info("validation failed...")
-			raise errors.PreconditionFailed()
-			pass
-
-		skel.toDB()
-		self.onItemEdited( skel )
-		return self.render.editItemSuccess( skel )
-	"""
 
 	def getContents( self ):
 		"""
@@ -229,9 +177,9 @@ class Singleton(BasicApplication):
 		:returns: The content as Skeleton provided by :func:`viewSkel`.
 		"""
 		skel = self.viewSkel()
-		id = str( db.Key.from_path( self.viewSkel().kindName, self.getKey() ) )
+		key = str( db.Key.from_path( self.viewSkel().kindName, self.getKey() ) )
 
-		if not skel.fromDB( id ):
+		if not skel.fromDB( key ):
 			return None
 
 		return skel
@@ -294,7 +242,7 @@ class Singleton(BasicApplication):
 		if user["access"] and "root" in user["access"]:
 			return True
 
-		if user["access"] and "%s-edit" % self.modulName in user["access"]:
+		if user["access"] and "%s-edit" % self.moduleName in user["access"]:
 			return True
 
 		return False
@@ -325,7 +273,7 @@ class Singleton(BasicApplication):
 			return( False )
 		if user["access"] and "root" in user["access"]:
 			return( True )
-		if user["access"] and "%s-view" % self.modulName in user["access"]:
+		if user["access"] and "%s-view" % self.moduleName in user["access"]:
 			return( True )
 		return( False )
 
@@ -341,10 +289,10 @@ class Singleton(BasicApplication):
 
 		.. seealso:: :func:`edit`
 		"""
-		logging.info("Entry changed: %s" % skel["id"].value )
+		logging.info("Entry changed: %s" % skel["key"].value )
 		user = utils.getCurrentUser()
 		if user:
-			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
+			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
 		
 	def onItemViewed( self, skel ):
 		"""

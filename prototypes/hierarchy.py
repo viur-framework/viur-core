@@ -1,25 +1,32 @@
 # -*- coding: utf-8 -*-
-from server import db, utils, errors, session, conf, request, securitykey
-from server import forcePost, forceSSL, exposed, internalExposed
-
-from server.applications import BasicApplication
-from server.bones import baseBone, numericBone
-from server.tasks import callDeferred
-from server.skeleton import Skeleton
-
-from time import time
-from datetime import datetime
 import logging
+from datetime import datetime
+from time import time
+
+from server import db, utils, errors, conf, request, securitykey
+from server import forcePost, forceSSL, exposed, internalExposed
+from server.bones import baseBone, numericBone
+from server.prototypes import BasicApplication
+from server.skeleton import Skeleton
+from server.tasks import callDeferred
+
 
 class HierarchySkel(Skeleton):
-	parententry = baseBone( descr="Parent", visible=False, indexed=True, readOnly=True )
-	parentrepo = baseBone( descr="BaseRepo", visible=False, indexed=True, readOnly=True )
-	sortindex = numericBone( descr="SortIndex", mode="float", visible=False, indexed=True, readOnly=True )
-	
-	def preProcessSerializedData( self, dbfields ):
-		if not ("sortindex" in dbfields.keys() and dbfields["sortindex"] ):
-			dbfields[ "sortindex" ] = time()
+	parententry = baseBone(descr="Parent", visible=False, indexed=True, readOnly=True)
+	parentrepo = baseBone(descr="BaseRepo", visible=False, indexed=True, readOnly=True)
+	sortindex = numericBone(descr="SortIndex", mode="float", visible=False, indexed=True, readOnly=True)
+
+	def preProcessSerializedData(self, dbfields):
+		if not ("sortindex" in dbfields.keys() and dbfields["sortindex"]):
+			dbfields["sortindex"] = time()
 		return dbfields
+
+	def refresh(self):
+		if self["parententry"].value:
+			self["parententry"].value = utils.normalizeKey(self["parententry"].value)
+		if self["parentrepo"].value:
+			self["parentrepo"].value = utils.normalizeKey(self["parentrepo"].value)
+		super(HierarchySkel, self).refresh()
 
 
 class Hierarchy(BasicApplication):
@@ -39,19 +46,19 @@ class Hierarchy(BasicApplication):
 	:vartype adminInfo: dict | callable
 	"""
 
-	accessRights = ["add", "edit", "view", "delete"]# Possible access rights for this app
+	accessRights = ["add", "edit", "view", "delete"]  # Possible access rights for this app
 
 	def adminInfo(self):
 		return {
-			"name": self.__class__.__name__,        # Module name as shown in the admin tools
-			"handler": "hierarchy",                 # Which handler to invoke
-			"icon": "icons/modules/hierarchy.svg"   # Icon for this module
+			"name": self.__class__.__name__,  # Module name as shown in the admin tools
+			"handler": "hierarchy",  # Which handler to invoke
+			"icon": "icons/modules/hierarchy.svg"  # Icon for this module
 		}
 
-	def __init__( self, modulName, modulPath, *args, **kwargs ):
-		super(Hierarchy, self).__init__(modulName, modulPath, *args, **kwargs)
+	def __init__(self, moduleName, modulePath, *args, **kwargs):
+		super(Hierarchy, self).__init__(moduleName, modulePath, *args, **kwargs)
 
-	def viewSkel( self, *args, **kwargs ):
+	def viewSkel(self, *args, **kwargs):
 		"""
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for viewing an existing entry from the hierarchy.
@@ -65,7 +72,7 @@ class Hierarchy(BasicApplication):
 		"""
 		return self._resolveSkel(*args, **kwargs)
 
-	def addSkel( self, *args, **kwargs ):
+	def addSkel(self, *args, **kwargs):
 		"""
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for adding an entry to the hierarchy.
@@ -79,7 +86,7 @@ class Hierarchy(BasicApplication):
 		"""
 		return self._resolveSkel(*args, **kwargs)
 
-	def editSkel( self, *args, **kwargs ):
+	def editSkel(self, *args, **kwargs):
 		"""
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for editing an existing entry from the hierarchy.
@@ -93,7 +100,7 @@ class Hierarchy(BasicApplication):
 		"""
 		return self._resolveSkel(*args, **kwargs)
 
-	def getRootNode(self, entryKey ):
+	def getRootNode(self, entryKey):
 		"""
 		Returns the root-node for a given child.
 
@@ -103,14 +110,14 @@ class Hierarchy(BasicApplication):
 		:returns: The entity of the root-node.
 		:rtype: :class:`server.db.Entity`
 		"""
-		repo = db.Get( entryKey )
+		repo = db.Get(entryKey)
 		while repo and "parententry" in repo.keys():
-			repo = db.Get( repo["parententry"] )
+			repo = db.Get(repo["parententry"])
 
-		assert repo and repo.key().kind() == self.viewSkel().kindName+"_rootNode"
+		assert repo and repo.key().kind() == self.viewSkel().kindName + "_rootNode"
 		return repo
 
-	def isValidParent(self, parent ):
+	def isValidParent(self, parent):
 		"""
 		Checks wherever a given parent is valid.
 		
@@ -120,18 +127,18 @@ class Hierarchy(BasicApplication):
 		:returns: Test result.
 		:rtype: bool
 		"""
-		if self.viewSkel().fromDB( parent ): #Its a normal node
+		if self.viewSkel().fromDB(parent):  # Its a normal node
 			return True
 
 		try:
-			assert self.getRootNode( parent )
-			return True  #Its a rootNode :)
+			assert self.getRootNode(parent)
+			return True  # Its a rootNode :)
 		except:
 			pass
 
 		return False
 
-	def ensureOwnUserRootNode( self ):
+	def ensureOwnUserRootNode(self):
 		"""
 		Ensures, that an root-node for the current user exists.
 		If no root-node exists yet, it will be created.
@@ -141,14 +148,14 @@ class Hierarchy(BasicApplication):
 		"""
 		thisuser = conf["viur.mainApp"].user.getCurrentUser()
 		if thisuser:
-			key = "rep_user_%s" % str( thisuser["id"] )
-			kindName = self.viewSkel().kindName+"_rootNode"
+			key = "rep_user_%s" % str(thisuser["key"])
+			kindName = self.viewSkel().kindName + "_rootNode"
 			return db.GetOrInsert(key, kindName=kindName, creationdate=datetime.now(),
-			                        rootNode=1, user=str( thisuser["id"] ) )
+			                      rootNode=1, user=str(thisuser["key"]))
 
 		return None
 
-	def ensureOwnModulRootNode( self ):
+	def ensureOwnModuleRootNode(self):
 		"""
 		Ensures, that general root-node for the current module exists.
 		If no root-node exists yet, it will be created.
@@ -156,11 +163,11 @@ class Hierarchy(BasicApplication):
 		:returns: The entity of the root-node.
 		:rtype: :class:`server.db.Entity`
 		"""
-		key = "rep_modul_repo"
-		kindName = self.viewSkel().kindName+"_rootNode"
-		return db.GetOrInsert( key, kindName=kindName, creationdate=datetime.now(), rootNode=1 )
+		key = "rep_module_repo"
+		kindName = self.viewSkel().kindName + "_rootNode"
+		return db.GetOrInsert(key, kindName=kindName, creationdate=datetime.now(), rootNode=1)
 
-	def isOwnUserRootNode( self, repo ):
+	def isOwnUserRootNode(self, repo):
 		"""
 		Checks, if the given rootNode is owned by the current user.
 
@@ -174,15 +181,15 @@ class Hierarchy(BasicApplication):
 		if not thisuser:
 			return False
 
-		repo = self.getRootNode( repo )
+		repo = self.getRootNode(repo)
 		user_repo = self.ensureOwnUserRootNode()
 
-		if str( repo.key.urlsafe() ) == user_repo.key.urlsafe():
+		if str(repo.key.urlsafe()) == user_repo.key.urlsafe():
 			return True
 
 		return False
 
-	def deleteRecursive( self, key ):
+	def deleteRecursive(self, key):
 		"""
 		Recursively processes a delete request.
 
@@ -195,7 +202,7 @@ class Hierarchy(BasicApplication):
 		:rtype: int
 		"""
 		count = 0
-		entrys = db.Query( self.viewSkel().kindName ).filter( "parententry", str(key) ).run()
+		entrys = db.Query(self.viewSkel().kindName).filter("parententry", str(key)).run()
 
 		for e in entrys:
 			count += self.deleteRecursive(str(e.key()))
@@ -206,10 +213,10 @@ class Hierarchy(BasicApplication):
 
 		return count
 
-## Internal exposed functions
+	## Internal exposed functions
 
 	@internalExposed
-	def pathToKey( self, key=None ):
+	def pathToKey(self, key=None):
 		"""
 		Returns the recursively expanded path through the Hierarchy from the root-node to a
 		requested node.
@@ -221,7 +228,8 @@ class Hierarchy(BasicApplication):
 		to the requested node.
 		:rtype: dict
 		"""
-		def getName( obj ):
+
+		def getName(obj):
 			"""
 				Tries to return a suitable name for the given object.
 			"""
@@ -233,13 +241,13 @@ class Hierarchy(BasicApplication):
 				nameBone = skel["name"]
 
 				if (isinstance(nameBone, baseBone)
-				    and "languages" in dir( nameBone )
+				    and "languages" in dir(nameBone)
 				    and nameBone.languages):
-					skel.setValues( obj )
-					return unicode( skel["name"].value )
+					skel.setValues(obj)
+					return unicode(skel["name"].value)
 
 			return None
-			
+
 		availableRepos = self.getAvailableRootNodes()
 		if not key:
 			try:
@@ -250,50 +258,50 @@ class Hierarchy(BasicApplication):
 			keylist = []
 		else:
 			if str(key).isdigit():
-				key = str( db.Key.from_path( self.viewSkel().kindName, long(key) ) )
-			keylist = [ key ]
+				key = str(db.Key.from_path(self.viewSkel().kindName, long(key)))
+			keylist = [key]
 
-		if not self.canList( key ):
+		if not self.canList(key):
 			raise errors.Unauthorized()
 
 		res = []
 
 		lastChildren = []
 
-		for x in range(0,99):
-			q = db.Query( self.viewSkel().kindName )
-			q.filter( "parententry =", str(key) )
-			q.order( "sortindex" )
-			entryObjs = q.run( 100 )
-			lastChildren = res[ : ]
+		for x in range(0, 99):
+			q = db.Query(self.viewSkel().kindName)
+			q.filter("parententry =", str(key))
+			q.order("sortindex")
+			entryObjs = q.run(100)
+			lastChildren = res[:]
 			res = []
 
 			for obj in entryObjs:
 				if "parententry" in obj.keys():
-					parent = str( obj["parententry"] ) 
+					parent = str(obj["parententry"])
 				else:
 					parent = None
 
 				r = {
-						"name": getName( obj ),
-						"id": str(obj.key()),
-						"parent": parent,
-						"hrk": obj["hrk"] if "hrk" in obj.keys() else None,
-						"active":(str(obj.key()) in keylist)
+					"name": getName(obj),
+					"key": str(obj.key()),
+					"parent": parent,
+					"hrk": obj["hrk"] if "hrk" in obj.keys() else None,
+					"active": (str(obj.key()) in keylist)
 				}
 
 				if r["active"]:
 					r["children"] = lastChildren
 
-				res.append( r )
+				res.append(r)
 
-			if key in [ x["key"] for x in availableRepos]:
+			if key in [x["key"] for x in availableRepos]:
 				break
 			else:
-				item = db.Get( str( key ) )
+				item = db.Get(str(key))
 
 				if item and "parententry" in item.keys():
-					keylist.append( key )
+					keylist.append(key)
 					key = item["parententry"]
 
 				else:
@@ -301,10 +309,10 @@ class Hierarchy(BasicApplication):
 
 		return res
 
-## External exposed functions
+	## External exposed functions
 
 	@exposed
-	def listRootNodes(self, *args, **kwargs ):
+	def listRootNodes(self, *args, **kwargs):
 		"""
 		Renders a list of all available repositories for the current user using the
 		modules default renderer.
@@ -312,11 +320,10 @@ class Hierarchy(BasicApplication):
 		:returns: The rendered representation of the available root-nodes.
 		:rtype: str
 		"""
-		return self.render.listRootNodes( self.getAvailableRootNodes( *args, **kwargs ) )
-		
+		return self.render.listRootNodes(self.getAvailableRootNodes(*args, **kwargs))
 
 	@exposed
-	def preview( self, skey, *args, **kwargs ):
+	def preview(self, skey, *args, **kwargs):
 		"""
 		Renders data for an entry, without reading from the database.
 		This function allows to preview an entry without writing it to the database.
@@ -330,19 +337,18 @@ class Hierarchy(BasicApplication):
 		if not self.canPreview():
 			raise errors.Unauthorized()
 
-		if not securitykey.verify( skey ):
+		if not securitykey.verify(skey):
 			raise errors.PreconditionFailed()
 
 		skel = self.viewSkel()
-		skel.fromClient( kwargs )
+		skel.fromClient(kwargs)
 
-		return self.render.view( skel )
-
+		return self.render.view(skel)
 
 	@forceSSL
 	@forcePost
 	@exposed
-	def reparent( self, item, dest, skey, *args, **kwargs ):
+	def reparent(self, item, dest, skey, *args, **kwargs):
 		"""
 		Moves an entry *item* (and everything beneath it) to another parent-node *dest*.
 
@@ -359,46 +365,49 @@ class Hierarchy(BasicApplication):
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-		if not securitykey.validate( skey, acceptSessionKey=True ):
+		if not securitykey.validate(skey, acceptSessionKey=True):
 			raise errors.PreconditionFailed()
 
-		if not self.canReparent( item, dest ):
+		if not self.canReparent(item, dest):
 			raise errors.Unauthorized()
 
-		if not self.isValidParent( dest ) or item==dest:
+		if not self.isValidParent(dest) or item == dest:
 			raise errors.NotAcceptable()
 
 		## Test for recursion
 		isValid = False
-		currLevel = db.Get( dest )
+		currLevel = db.Get(dest)
 
-		for x in range(0,99):
-			if str(currLevel.key())==item:
+		for x in range(0, 99):
+			if str(currLevel.key()) == item:
 				break
 
-			if currLevel.key().kind() == self.viewSkel().kindName+"_rootNode":
-				#We reached a rootNode
-				isValid=True
+			if currLevel.key().kind() == self.viewSkel().kindName + "_rootNode":
+				# We reached a rootNode
+				isValid = True
 				break
 
-			currLevel = db.Get( currLevel["parententry"] )
+			currLevel = db.Get(currLevel["parententry"])
 
 		if not isValid:
 			raise errors.NotAcceptable()
 
 		## Update entry
-		fromItem = db.Get( item )
-		fromItem["parententry"] = dest 
-		fromItem["parentrepo"] = str( self.getRootNode( dest ).key() )
-		db.Put( fromItem )
+		fromItem = db.Get(item)
+		fromItem["parententry"] = dest
+		fromItem["parentrepo"] = str(self.getRootNode(dest).key())
+		db.Put(fromItem)
+		skel = self.editSkel()
+		assert skel.fromDB(item)
+		self.onItemReparent(skel)
+		self.onItemChanged(skel)
 
-		return self.render.reparentSuccess( obj=fromItem )
+		return self.render.reparentSuccess(obj=fromItem)
 
-	
 	@forceSSL
 	@forcePost
 	@exposed
-	def setIndex( self, item, index, skey, *args, **kwargs ):
+	def setIndex(self, item, index, skey, *args, **kwargs):
 		"""
 		Changes the order of the elements in the current level by changing the index of *item*.
 
@@ -412,27 +421,30 @@ class Hierarchy(BasicApplication):
 
 		:returns: A rendered success result generated by the default renderer.
 
-		:raises: :exc:`server.errors.NotFound`, when no entry with the given *id* was found.
+		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-		if not securitykey.validate( skey, acceptSessionKey=True ):
+		if not securitykey.validate(skey, acceptSessionKey=True):
 			raise errors.PreconditionFailed()
 
-		if not self.canSetIndex( item, index ):
+		if not self.canSetIndex(item, index):
 			raise errors.Unauthorized()
 
-		fromItem = db.Get( item )
-		fromItem["sortindex"] = float( index )
-		db.Put( fromItem )
+		fromItem = db.Get(item)
+		fromItem["sortindex"] = float(index)
+		db.Put(fromItem)
+		skel = self.editSkel()
+		assert skel.fromDB(item)
+		self.onItemSetIndex(skel)
+		self.onItemChanged(skel)
 
-		return self.render.setIndexSuccess( obj=fromItem )
-
+		return self.render.setIndexSuccess(obj=fromItem)
 
 	@forceSSL
 	@forcePost
 	@exposed
-	def delete( self, id, skey, *args, **kwargs ):
+	def delete(self, key, skey, *args, **kwargs):
 		"""
 		Delete an entry and all its children.
 
@@ -440,39 +452,39 @@ class Hierarchy(BasicApplication):
 
 		.. seealso:: :func:`canDelete`, :func:`editSkel`, :func:`onItemDeleted`
 
-		:param id: URL-safe key of the entry to be deleted.
-		:type id: str
+		:param key: URL-safe key of the entry to be deleted.
+		:type key: str
 
 		:returns: The rendered, deleted object of the entry.
 
-		:raises: :exc:`server.errors.NotFound`, when no entry with the given *id* was found.
+		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-		if not securitykey.validate( skey, acceptSessionKey=True ):
+		if not securitykey.validate(skey, acceptSessionKey=True):
 			raise errors.PreconditionFailed()
 
 		skel = self.editSkel()
 
-		if not skel.fromDB( id ):
+		if not skel.fromDB(key):
 			raise errors.NotFound()
 
-		if not self.canDelete( skel ):
+		if not self.canDelete(skel):
 			raise errors.Unauthorized()
 
-		self.deleteRecursive( id )
+		self.deleteRecursive(key)
 		skel.delete()
-		self.onItemDeleted( skel )
+		self.onItemDeleted(skel)
+		self.onItemChanged(skel)
 
-		return self.render.deleteSuccess( skel )
-
+		return self.render.deleteSuccess(skel)
 
 	@exposed
-	def view( self, *args, **kwargs ):
+	def view(self, *args, **kwargs):
 		"""
 		Prepares and renders a single entry for viewing.
 
-		The entry is fetched by its entity key, which either is provided via *kwargs["id"]*,
+		The entry is fetched by its entity key, which either is provided via *kwargs["key"]*,
 		or as the first parameter in *args*. The function performs several access control checks
 		on the requested entity before it is rendered.
 
@@ -480,32 +492,31 @@ class Hierarchy(BasicApplication):
 
 		:returns: The rendered representation of the requested entity.
 
-		:raises: :exc:`server.errors.NotAcceptable`, when no *id* is provided.
-		:raises: :exc:`server.errors.NotFound`, when no entry with the given *id* was found.
+		:raises: :exc:`server.errors.NotAcceptable`, when no *key* is provided.
+		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		"""
-		if "id" in kwargs:
-			id = kwargs["id"]
-		elif len( args ) >= 1:
-			id = args[0]
+		if "key" in kwargs:
+			key = kwargs["key"]
+		elif len(args) >= 1:
+			key = args[0]
 		else:
 			raise errors.NotAcceptable()
-		if not len(id):
+		if not len(key):
 			raise errors.NotAcceptable()
 		skel = self.viewSkel()
 
-		if not skel.fromDB( id ):
+		if not skel.fromDB(key):
 			raise errors.NotFound()
 
-		if not self.canView( skel ):
+		if not self.canView(skel):
 			raise errors.Unauthorized()
 
-		self.onItemViewed( skel )
-		return self.render.view( skel )
-
+		self.onItemViewed(skel)
+		return self.render.view(skel)
 
 	@exposed
-	def list( self, parent, *args, **kwargs ):
+	def list(self, parent, *args, **kwargs):
 		"""
 		List the entries which are direct children of the given *parent*.
 		Any other supplied parameters are interpreted as filters for the elements displayed.
@@ -520,32 +531,31 @@ class Hierarchy(BasicApplication):
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.NotFound`, if *parent* could not be found.
 		"""
-		if not parent or not self.canList( parent ):
+		if not parent or not self.canList(parent):
 			raise errors.Unauthorized()
 
 		parentSkel = self.viewSkel()
 
-		if not parentSkel.fromDB( parent ):
+		if not parentSkel.fromDB(parent):
 			if not str(parent) in [str(x["key"]) for x in self.getAvailableRootNodes()]:
-				#It isn't a rootNode either
+				# It isn't a rootNode either
 				raise errors.NotFound()
 			else:
 				parentSkel = None
 
 		query = self.viewSkel().all()
-		query.mergeExternalFilter( kwargs )
-		query.filter( "parententry", parent )
-		return self.render.list( query.fetch(), parent=parent, parentSkel=parentSkel )
-
+		query.mergeExternalFilter(kwargs)
+		query.filter("parententry", parent)
+		return self.render.list(query.fetch(), parent=parent, parentSkel=parentSkel)
 
 	@forceSSL
 	@exposed
-	def edit( self, *args, **kwargs ):
+	def edit(self, *args, **kwargs):
 		"""
 		Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
 		Data is taken by any other arguments in *kwargs*.
 
-		The entry is fetched by its entity key, which either is provided via *kwargs["id"]*,
+		The entry is fetched by its entity key, which either is provided via *kwargs["key"]*,
 		or as the first parameter in *args*. The function performs several access control checks
 		on the requested entity before it is modified.
 
@@ -553,8 +563,8 @@ class Hierarchy(BasicApplication):
 
 		:returns: The rendered, edited object of the entry, eventually with error hints.
 
-		:raises: :exc:`server.errors.NotAcceptable`, when no *id* is provided.
-		:raises: :exc:`server.errors.NotFound`, when no entry with the given *id* was found.
+		:raises: :exc:`server.errors.NotAcceptable`, when no *key* is provided.
+		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
@@ -563,40 +573,40 @@ class Hierarchy(BasicApplication):
 		else:
 			skey = ""
 
-		if len( args ) == 1:
-			id = args[0]
-		elif "id" in kwargs:
-			id = kwargs["id"]
+		if len(args) == 1:
+			key = args[0]
+		elif "key" in kwargs:
+			key = kwargs["key"]
 		else:
 			raise errors.NotAcceptable()
 
 		skel = self.editSkel()
-		if not skel.fromDB( id ):
+		if not skel.fromDB(key):
 			raise errors.NotAcceptable()
 
-		if  not self.canEdit( skel ):
+		if not self.canEdit(skel):
 			raise errors.Unauthorized()
 
-		if (len(kwargs) == 0 # no data supplied
-		    or skey == "" # no security key
-		    or not request.current.get().isPostRequest # failure if not using POST-method
-		    or not skel.fromClient( kwargs ) # failure on reading into the bones
-		    or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1") # review before changing
+		if (len(kwargs) == 0  # no data supplied
+		    or skey == ""  # no security key
+		    or not request.current.get().isPostRequest  # failure if not using POST-method
+		    or not skel.fromClient(kwargs)  # failure on reading into the bones
+		    or ("bounce" in list(kwargs.keys()) and kwargs["bounce"] == "1")  # review before changing
 		    ):
-			return self.render.edit( skel )
+			return self.render.edit(skel)
 
-		if not securitykey.validate( skey, acceptSessionKey=True ):
+		if not securitykey.validate(skey, acceptSessionKey=True):
 			raise errors.PreconditionFailed()
 
-		skel.toDB() # write it!
-		self.onItemEdited( skel )
+		skel.toDB()  # write it!
+		self.onItemEdited(skel)
+		self.onItemChanged(skel)
 
-		return self.render.editItemSuccess( skel )
-
+		return self.render.editItemSuccess(skel)
 
 	@forceSSL
 	@exposed
-	def add( self, parent, *args, **kwargs ):
+	def add(self, parent, *args, **kwargs):
 		"""
 		Add a new entry with the given parent, and render the entry, eventually with error notes on incorrect data.
 		Data is taken by any other arguments in *kwargs*.
@@ -619,10 +629,10 @@ class Hierarchy(BasicApplication):
 		else:
 			skey = ""
 
-		if not self.isValidParent( parent ): #Ensure the parent exists
+		if not self.isValidParent(parent):  # Ensure the parent exists
 			raise errors.NotAcceptable()
 
-		if not self.canAdd( parent ):
+		if not self.canAdd(parent):
 			raise errors.Unauthorized()
 
 		skel = self.addSkel()
@@ -630,31 +640,32 @@ class Hierarchy(BasicApplication):
 		if (len(kwargs) == 0
 		    or skey == ""
 		    or not request.current.get().isPostRequest
-		    or not skel.fromClient( kwargs )
-		    or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1")
+		    or not skel.fromClient(kwargs)
+		    or ("bounce" in list(kwargs.keys()) and kwargs["bounce"] == "1")
 		    ):
-			return self.render.add( skel )
+			return self.render.add(skel)
 
-		if not securitykey.validate( skey, acceptSessionKey=True ):
+		if not securitykey.validate(skey, acceptSessionKey=True):
 			raise errors.PreconditionFailed()
-		skel["parententry"].value = str( parent )
-		skel["parentrepo"].value = str( self.getRootNode( parent ).key() )
-		key = skel.toDB( )
-		self.onItemAdded( skel )
-		return self.render.addItemSuccess( skel )
+		skel["parententry"].value = str(parent)
+		skel["parentrepo"].value = str(self.getRootNode(parent).key())
+		key = skel.toDB()
+		self.onItemAdded(skel)
+		self.onItemChanged(skel)
+		return self.render.addItemSuccess(skel)
 
 	@forceSSL
 	@exposed
-	def clone(self, fromRepo, toRepo, fromParent = None, toParent = None, *args, **kwargs ):
+	def clone(self, fromRepo, toRepo, fromParent=None, toParent=None, *args, **kwargs):
 		"""
 		Clones a hierarchy recursively.
 
 		This function only initiates the cloning process, which is performed in the background.
 		It states only a successful result when the clone action has been correctly initiated.
 
-		:param fromRepo: URL-safe key of the ID to the repository (=root-node ID) to clone from.
+		:param fromRepo: URL-safe key of the key to the repository (=root-node Key) to clone from.
 		:type fromRepo: str
-		:param toRepo: URL-safe key of the ID to the repository (=root-node ID) to clone to.
+		:param toRepo: URL-safe key of the key to the repository (=root-node Key) to clone to.
 		:type toRepo: str
 		:param fromParent: URL-safe key of the parent to clone from; for root nodes, this is equal \
 		 to fromRepo, and can be omitted.
@@ -680,46 +691,48 @@ class Hierarchy(BasicApplication):
 			toParent = toRepo
 
 		if not (self.isValidParent(fromParent)
-		        and self.isValidParent(toParent)): #Ensure the parents exists
+		        and self.isValidParent(toParent)):  # Ensure the parents exists
 			raise errors.NotAcceptable()
 
-		if not self.canAdd( toParent ):
+		if not self.canAdd(toParent):
 			raise errors.Unauthorized()
-		if not securitykey.validate( skey, acceptSessionKey=True ):
+		if not securitykey.validate(skey, acceptSessionKey=True):
 			raise errors.PreconditionFailed()
 
-		self._clone( fromRepo, toRepo, fromParent, toParent )
+		self._clone(fromRepo, toRepo, fromParent, toParent)
 		return self.render.cloneSuccess(*args, **kwargs)
 
 	@callDeferred
-	def _clone( self, fromRepo, toRepo, fromParent, toParent ):
+	def _clone(self, fromRepo, toRepo, fromParent, toParent):
 		"""
 		This is the internal cloning function that runs deferred and recursive.
 		"""
 		for node in self.viewSkel().all().filter("parententry =", fromParent).order("sortindex").run(99):
-			old_id = str(node.key())
+			old_key = str(node.key())
 
 			skel = self.addSkel()
-			skel.fromDB( old_id )
+			skel.fromDB(old_key)
 
-			for k,v in skel.items():
-				logging.debug( "BEFORE %s = >%s<", ( k, v.value ) )
+			for k, v in skel.items():
+				logging.debug("BEFORE %s = >%s<", (k, v.value))
 
 			skel = skel.clone()
-			#skel.setValues( {}, key=None )
+			# skel.setValues( {}, key=None )
 
-			for k,v in skel.items():
-				logging.debug( "BEHIND %s = >%s<", ( k, v.value ) )
+			for k, v in skel.items():
+				logging.debug("BEHIND %s = >%s<", (k, v.value))
 
-			skel[ "parententry" ].value = toParent
-			skel[ "parentrepo" ].value = toRepo
+			skel["parententry"].value = toParent
+			skel["parentrepo"].value = toRepo
 
-			new_id = skel.toDB()
-			self._clone( fromRepo, toRepo, old_id, new_id )
+			new_key = skel.toDB()
+			self.onItemCloned(skel)
+			self.onItemChanged(skel)
+			self._clone(fromRepo, toRepo, old_key, new_key)
 
-## Default accesscontrol functions 
+		## Default accesscontrol functions
 
-	def canAdd( self, parent ):
+	def canAdd(self, parent):
 		"""
 		Access control function for adding permission.
 
@@ -747,12 +760,12 @@ class Hierarchy(BasicApplication):
 		if user["access"] and "root" in user["access"]:
 			return True
 
-		if user["access"] and "%s-add" % self.modulName in user["access"]:
+		if user["access"] and "%s-add" % self.moduleName in user["access"]:
 			return True
 
 		return False
 
-	def canPreview( self ):
+	def canPreview(self):
 		"""
 		Access control function for preview permission.
 
@@ -778,13 +791,13 @@ class Hierarchy(BasicApplication):
 		if user["access"] and "root" in user["access"]:
 			return True
 
-		if user["access"] and ( "%s-edit" % self.modulName in user["access"]
-		                        or "%s-add" % self.modulName in user["access"] ):
+		if user["access"] and ("%s-edit" % self.moduleName in user["access"]
+		                       or "%s-add" % self.moduleName in user["access"]):
 			return True
 
 		return False
-	
-	def canEdit( self, skel ):
+
+	def canEdit(self, skel):
 		"""
 		Access control function for modification permission.
 
@@ -812,12 +825,12 @@ class Hierarchy(BasicApplication):
 		if user["access"] and "root" in user["access"]:
 			return True
 
-		if user["access"] and "%s-edit" % self.modulName in user["access"]:
+		if user["access"] and "%s-edit" % self.moduleName in user["access"]:
 			return True
 
 		return False
-		
-	def canView( self, skel ):
+
+	def canView(self, skel):
 		"""
 		Access control function for viewing permission.
 
@@ -845,12 +858,12 @@ class Hierarchy(BasicApplication):
 		if user["access"] and "root" in user["access"]:
 			return True
 
-		if user["access"] and "%s-view" % self.modulName in user["access"]:
+		if user["access"] and "%s-view" % self.moduleName in user["access"]:
 			return True
 
 		return False
-		
-	def canDelete( self, skel ):
+
+	def canDelete(self, skel):
 		"""
 		Access control function for delete permission.
 
@@ -879,12 +892,12 @@ class Hierarchy(BasicApplication):
 		if user["access"] and "root" in user["access"]:
 			return True
 
-		if user["access"] and "%s-delete" % self.modulName in user["access"]:
+		if user["access"] and "%s-delete" % self.moduleName in user["access"]:
 			return True
 
 		return False
 
-	def canSetIndex( self, item, index ):
+	def canSetIndex(self, item, index):
 		"""
 		Access control function for changing order permission.
 
@@ -910,14 +923,15 @@ class Hierarchy(BasicApplication):
 		"""
 		user = utils.getCurrentUser()
 		if not user:
-			return( False )
+			return (False)
 		if user["access"] and "root" in user["access"]:
-			return( True )
-		if user["access"] and ( "%s-edit" % self.modulName in user["access"] or "%s-add" % self.modulName in user["access"] ):
-			return( True )
-		return( False )
-	
-	def canList( self, parent ):
+			return (True)
+		if user["access"] and (
+					"%s-edit" % self.moduleName in user["access"] or "%s-add" % self.moduleName in user["access"]):
+			return (True)
+		return (False)
+
+	def canList(self, parent):
 		"""
 		Access control function for listing permission.
 
@@ -945,12 +959,12 @@ class Hierarchy(BasicApplication):
 		if user["access"] and "root" in user["access"]:
 			return True
 
-		if user["access"] and "%s-view" % self.modulName in user["access"]:
+		if user["access"] and "%s-view" % self.moduleName in user["access"]:
 			return True
 
 		return False
-	
-	def canReparent( self, item, dest ):
+
+	def canReparent(self, item, dest):
 		"""
 		Access control function for item moving permission.
 
@@ -980,14 +994,14 @@ class Hierarchy(BasicApplication):
 		if user["access"] and "root" in user["access"]:
 			return True
 
-		if user["access"] and "%s-edit" % self.modulName in user["access"]:
+		if user["access"] and "%s-edit" % self.moduleName in user["access"]:
 			return True
 
 		return False
 
-## Overridable eventhooks
+	## Overridable eventhooks
 
-	def onItemAdded( self, skel ):
+	def onItemAdded(self, skel):
 		"""
 		Hook function that is called after adding an entry.
 
@@ -999,12 +1013,12 @@ class Hierarchy(BasicApplication):
 
 		.. seealso:: :func:`add`
 		"""
-		logging.info("Entry added: %s" % skel["id"].value )
+		logging.info("Entry added: %s" % skel["key"].value)
 		user = utils.getCurrentUser()
 		if user:
-			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
-	
-	def onItemEdited( self, skel ):
+			logging.info("User: %s (%s)" % (user["name"], user["key"]))
+
+	def onItemEdited(self, skel):
 		"""
 		Hook function that is called after modifying an entry.
 
@@ -1016,12 +1030,12 @@ class Hierarchy(BasicApplication):
 
 		.. seealso:: :func:`edit`
 		"""
-		logging.info("Entry changed: %s" % skel["id"].value )
+		logging.info("Entry changed: %s" % skel["key"].value)
 		user = utils.getCurrentUser()
 		if user:
-			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
-		
-	def onItemViewed( self, skel ):
+			logging.info("User: %s (%s)" % (user["name"], user["key"]))
+
+	def onItemViewed(self, skel):
 		"""
 		Hook function that is called when viewing an entry.
 
@@ -1034,8 +1048,8 @@ class Hierarchy(BasicApplication):
 		.. seealso:: :func:`view`
 		"""
 		pass
-	
-	def onItemDeleted( self, skel ):
+
+	def onItemDeleted(self, skel):
 		"""
 		Hook function that is called after deleting an entry.
 
@@ -1047,14 +1061,78 @@ class Hierarchy(BasicApplication):
 
 		.. seealso:: :func:`delete`
 		"""
-		logging.info("Entry deleted: %s" % skel["id"].value )
+		logging.info("Entry deleted: %s" % skel["key"].value)
 		user = utils.getCurrentUser()
 		if user:
-			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
+			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-## Renderer specific stuff
+	def onItemReparent(self, skel):
+		"""
+		Hook function that is called after reparenting an entry.
 
-	def jinjaEnv(self, env ):
+		It should be overridden for a module-specific behavior.
+		The default is writing a log entry.
+
+		:param skel: The Skeleton that has been reparented.
+		:type skel: :class:`server.skeleton.Skeleton`
+
+		.. seealso:: :func:`reparent`
+		"""
+		logging.debug("data: %r, %r", skel, skel.keys())
+		logging.info("Entry reparented: %s" % skel["key"].value)
+		user = utils.getCurrentUser()
+		if user:
+			logging.info("User: %s (%s)" % (user["name"], user["key"]))
+
+	def onItemChanged(self, skel):
+		"""
+		Hook function that is called after changing an entry.
+
+		It should be overridden for a module-specific behavior.
+		The default is doing nothing because it is additional to the other on* functions.
+
+		:param skel: The Skeleton that has been deleted.
+		:type skel: :class:`server.skeleton.Skeleton`
+		"""
+		pass
+
+	def onItemSetIndex(self, skel):
+		"""
+		Hook function that is called after setting a new index an entry.
+
+		It should be overridden for a module-specific behavior.
+		The default is writing a log entry.
+
+		:param skel: The Skeleton that has got a new index.
+		:type skel: :class:`server.skeleton.Skeleton`
+
+		.. seealso:: :func:`setIndex`
+		"""
+		logging.info("Entry has a new index: %s" % skel["key"].value)
+		user = utils.getCurrentUser()
+		if user:
+			logging.info("User: %s (%s)" % (user["name"], user["key"]))
+
+	def onItemCloned(self, skel):
+		"""
+		Hook function that is called after cloning an entry.
+
+		It should be overridden for a module-specific behavior.
+		The default is writing a log entry.
+
+		:param skel: The Skeleton that has been cloned.
+		:type skel: :class:`server.skeleton.Skeleton`
+
+		.. seealso:: :func:`_clone`
+		"""
+		logging.info("Entry cloned: %s" % skel["key"].value)
+		user = utils.getCurrentUser()
+		if user:
+			logging.info("User: %s (%s)" % (user["name"], user["key"]))
+
+		## Renderer specific stuff
+
+	def jinjaEnv(self, env):
 		"""
 		Provides some additional Jinja2 template functions for hierarchy applications.
 
@@ -1086,6 +1164,7 @@ class Hierarchy(BasicApplication):
 
 		return env
 
-Hierarchy.admin=True
-Hierarchy.jinja2=True
-Hierarchy.vi=True
+
+Hierarchy.admin = True
+Hierarchy.jinja2 = True
+Hierarchy.vi = True

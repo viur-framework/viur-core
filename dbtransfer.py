@@ -19,6 +19,13 @@ from google.appengine.api.images import get_serving_url
 import collections
 import cgi
 from itertools import izip
+from tasks import CallableTask, CallableTaskBase, callDeferred
+from server.bones import *
+from server.skeleton import Skeleton
+from server import utils
+import urllib
+from google.appengine.api import urlfetch
+from hashlib import sha256
 
 
 class DbTransfer( object ):
@@ -57,10 +64,10 @@ class DbTransfer( object ):
 		return( pickle.dumps( listKnownSkeletons() ) )
 
 	@exposed
-	def getCfg(self, modul, key ):
+	def getCfg(self, module, key ):
 		if not self._checkKey( key, export=False):
 			raise errors.Forbidden()
-		skel = skeletonByKind( modul )
+		skel = skeletonByKind( module )
 		assert skel is not None
 		res = skel()
 		r = DefaultRender()
@@ -119,7 +126,8 @@ class DbTransfer( object ):
 			return results
 
 	@exposed
-	def upload( self,  *args, **kwargs ):
+	def upload( self, oldkey, *args, **kwargs ):
+		logging.error("got UPLOADS")
 		res = []
 		for upload in self.getUploads():
 			fileName = self.decodeFileName( upload.filename )
@@ -138,6 +146,13 @@ class DbTransfer( object ):
 					"parentdir": "",
 					"parentrepo": "",
 					"weak": False } )
+			oldKeyHash = sha256(oldkey).hexdigest().encode("hex")
+			e = db.Entity("viur-blobimportmap", name=oldKeyHash)
+			e["newkey"] = str(upload.key())
+			e["oldkey"] = oldkey
+			e["servingurl"] = servingURL
+			e["available"] = True
+			db.Put(e)
 		return( json.dumps( {"action":"addSuccess", "values":res } ) )
 
 	@exposed
@@ -167,7 +182,52 @@ class DbTransfer( object ):
 				dbEntry[k] = val
 		db.Put( dbEntry )
 
-	def genDict(self, obj):
+	@exposed
+	def hasblob(self, blobkey, key ):
+		if not self._checkKey( key, export=False):
+			raise errors.Forbidden()
+		try:
+			oldKeyHash = sha256(blobkey).hexdigest().encode("hex")
+			res = db.Get( db.Key.from_path("viur-blobimportmap", oldKeyHash))
+			if res:
+				if "available" in res.keys():
+					return json.dumps(res["available"])
+				else:
+					return json.dumps(True)
+		except:
+			pass
+		return json.dumps(False)
+
+
+	@exposed
+	def storeEntry2(self, e, key ):
+		if not self._checkKey( key, export=False):
+			raise errors.Forbidden()
+		entry = pickle.loads( e.decode("HEX") )
+		for k in list(entry.keys())[:]:
+			if isinstance(entry[k],str):
+				entry[k] = entry[k].decode("UTF-8")
+		key = db.Key( encoded=utils.normalizeKey(entry["key"]) )
+
+		logging.info( key.kind() )
+		logging.info( key.id() )
+		logging.info( key.name() )
+		dbEntry = db.Entity( kind=key.kind(), parent=key.parent(), id=key.id(), name=key.name() )
+		for k in entry.keys():
+			if k!="key":
+				val = entry[k]
+				dbEntry[k] = val
+		db.Put( dbEntry )
+		try:
+			skel =  skeletonByKind( key.kind() )()
+		except:
+			logging.error("Unknown Skeleton - skipping")
+		skel.fromDB( str(dbEntry.key()) )
+		skel.refresh()
+		skel.toDB(clearUpdateTag=True)
+
+	@staticmethod
+	def genDict(obj):
 		res = {}
 		for k,v in obj.items():
 			if not any( [isinstance(v,x) for x in [str, unicode, long, float, datetime, list, dict, bool, type(None)]] ):
@@ -221,17 +281,32 @@ class DbTransfer( object ):
 		return( pickle.dumps( {"cursor": str(q.GetCursor().urlsafe()),"values":r}).encode("HEX"))
 
 	@exposed
-	def exportBlob(self, cursor=None, key=None,):
+	def exportBlob(self, cursor=None, key=None):
 		if not self._checkKey( key, export=True):
 			raise errors.Forbidden()
 		q = BlobInfo.all()
 		if cursor is not None:
 			q.with_cursor( cursor )
 		r = []
-		for res in q.run(limit=5):
+		for res in q.run(limit=16):
 			r.append( str(res.key()) )
 		return( pickle.dumps( {"cursor": str(q.cursor()),"values":r}).encode("HEX"))
 
+	@exposed
+	def exportBlob2(self, cursor=None, key=None):
+		if not self._checkKey( key, export=True):
+			raise errors.Forbidden()
+
+		q = BlobInfo.all()
+
+		if cursor is not None:
+			q.with_cursor( cursor )
+
+		r = []
+		for res in q.run(limit=16):
+			r.append({"key": str(res.key()), "content_type": res.content_type})
+
+		return pickle.dumps( {"cursor": str(q.cursor()),"values":r}).encode("HEX")
 
 	@exposed
 	def iterValues(self, module, cursor=None, key=None):
@@ -250,6 +325,22 @@ class DbTransfer( object ):
 		return pickle.dumps({"cursor": str(q.getCursor().urlsafe()), "values": r} )
 
 	@exposed
+	def iterValues2(self, module, cursor=None, key=None):
+		if not self._checkKey( key, export=True):
+			raise errors.Forbidden()
+
+		q = db.Query(module)
+
+		if cursor:
+			q.cursor(cursor)
+
+		r = []
+		for res in q.run(limit=32):
+			r.append(self.genDict(res))
+
+		return pickle.dumps({"cursor": str(q.getCursor().urlsafe()), "values": r}).encode("HEX")
+
+	@exposed
 	def getEntry(self, module, id, key=None):
 		if not self._checkKey( key, export=True):
 			raise errors.Forbidden()
@@ -257,3 +348,165 @@ class DbTransfer( object ):
 		res = db.Get(id)
 
 		return pickle.dumps(self.genDict(res))
+
+
+###### NEW ######
+
+# --- export ---
+@CallableTask
+class TaskExportKind( CallableTaskBase ):
+	id = "exportkind"
+	name = u"Export data kinds to other app"
+	descr = u"Copies the selected data to the given target application"
+	direct = True
+
+	def canCall( self ):
+		user = utils.getCurrentUser()
+		return user is not None and "root" in user["access"]
+
+	def dataSkel(self):
+		modules = ["*"] + listKnownSkeletons()
+		skel = Skeleton( self.kindName )
+		skel["module"] = selectOneBone( descr="Module", values={ x: x for x in modules}, required=True )
+		skel["target"] = stringBone( descr="URL to Target-Application", required=True, defaultValue="https://your-app-id.appspot.com/dbtransfer/storeEntry2" )
+		skel["importkey"] = stringBone( descr="Import-Key", required=True)
+		return skel
+
+	def execute( self, module=None, target=None, importkey=None, *args, **kwargs ):
+		assert importkey
+		if module == "*":
+			for module in listKnownSkeletons():
+				iterExport( module, target, importkey, None )
+		else:
+			iterExport( module, target, importkey, None )
+
+@callDeferred
+def iterExport( module, target, importKey, cursor=None ):
+	"""
+		Processes 100 Entries and calls the next batch
+	"""
+	urlfetch.set_default_fetch_deadline(20)
+	Skel = skeletonByKind( module )
+	if not Skel:
+		logging.error("TaskExportKind: Invalid module")
+		return
+	query = Skel().all().cursor( cursor )
+
+	startCursor = cursor
+	query.run(100, keysOnly=True)
+	endCursor = query.getCursor().urlsafe()
+
+	exportItems(module, target, importKey, startCursor, endCursor)
+
+	if startCursor is None or startCursor != endCursor:
+		iterExport(module, target, importKey, endCursor)
+
+@callDeferred
+def exportItems( module, target, importKey, startCursor, endCursor):
+	Skel = skeletonByKind( module )
+	query = Skel().all().cursor( startCursor, endCursor )
+
+	for item in query.run(250):
+		flatItem = DbTransfer.genDict( item )
+		formFields = {
+			"e": pickle.dumps(flatItem).encode("HEX"),
+			"key": importKey
+		}
+		result = urlfetch.fetch(        url=target,
+		                                payload=urllib.urlencode(formFields),
+		                                method=urlfetch.POST,
+		                                headers={'Content-Type': 'application/x-www-form-urlencoded'})
+
+	if startCursor == endCursor:
+		try:
+			utils.sendEMailToAdmins("Export of kind %s finished" % module,
+			                        "ViUR finished to export kind %s to %s.\n" % (module, target))
+		except: #OverQuota, whatever
+			pass
+
+
+# --- import ---
+
+@CallableTask
+class TaskImportKind( CallableTaskBase ):
+	id = "importkind"
+	name = u"Import data kinds from other app"
+	descr = u"Copies the selected data from the given source application"
+	direct = True
+
+	def canCall( self ):
+		user = utils.getCurrentUser()
+		return user is not None and "root" in user["access"]
+
+	def dataSkel(self):
+		modules = ["*"] + listKnownSkeletons()
+		skel = Skeleton( self.kindName )
+		skel["module"] = selectOneBone( descr="Module", values={ x: x for x in modules}, required=True )
+		skel["source"] = stringBone(descr="URL to Source-Application", required=True, defaultValue="https://<your-app-id>.appspot.com/dbtransfer/iterValues2" )
+		skel["exportkey"] = stringBone(descr="Export-Key", required=True, defaultValue="")
+		return skel
+
+	def execute( self, module=None, source=None, exportkey=None, *args, **kwargs ):
+		assert exportkey
+		if module == "*":
+			for module in listKnownSkeletons():
+				iterImport( module, source, exportkey, None )
+			#iterImport( "allergen", source, exportkey, None )
+		else:
+			iterImport( module, source, exportkey, None )
+
+@callDeferred
+#@noRetry
+def iterImport(module, target, exportKey, cursor=None, amount=0):
+	"""
+		Processes 100 Entries and calls the next batch
+	"""
+	urlfetch.set_default_fetch_deadline(20)
+
+	payload = { "module": module,
+                "key": exportKey}
+	if cursor:
+		payload.update({"cursor": cursor})
+
+	result = urlfetch.fetch(url=target,
+	                        payload=urllib.urlencode(payload),
+							method=urlfetch.POST,
+							headers={'Content-Type': 'application/x-www-form-urlencoded'})
+
+
+
+	if result.status_code == 200:
+		res = pickle.loads(result.content.decode("HEX"))
+		skel = skeletonByKind(module)()
+		logging.info("%s: %d entries fetched" % (module, len(res["values"])))
+
+		if len(res["values"]) == 0:
+			try:
+				utils.sendEMailToAdmins("Import of kind %s finished with %d entities" % (module, amount),
+				                        "ViUR finished to import %d entities of "
+										"kind %s from %s.\n" % (amount, module, target))
+			except: #OverQuota, whatever
+				logging.error("Unable to send Email")
+
+			return
+
+		for entry in res["values"]:
+			for k in list(entry.keys())[:]:
+				if isinstance(entry[k], str):
+					entry[k] = entry[k].decode("UTF-8")
+
+			key = db.Key(encoded=utils.normalizeKey(entry["id"]))
+			dbEntry = db.Entity(kind=key.kind(), parent=key.parent(), id=key.id(), name=key.name())
+
+			for k in entry.keys():
+				if k != "id":
+					dbEntry[k] = entry[k]
+
+			db.Put(dbEntry)
+			skel.fromDB(str(dbEntry.key()))
+			skel.refresh()
+			skel.toDB(clearUpdateTag=True)
+			amount += 1
+
+		iterImport(module, target, exportKey, res["cursor"], amount)
+

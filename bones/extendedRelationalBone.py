@@ -20,13 +20,13 @@ class extendedRelationalBone( relationalBone ):
 	"""
 
 
-	def __init__( self, type=None, modul=None, refKeys=None, parentKeys=None, multiple=True, format="$(name)", using=None, *args, **kwargs):
+	def __init__( self, type=None, module=None, refKeys=None, parentKeys=None, multiple=True, format="$(name)", using=None, *args, **kwargs):
 		"""
 			Initialize a new relationalBone.
 			:param type: KindName of the referenced property.
 			:type type: String
-			:param modul: Name of the modul which should be used to select entities of kind "type". If not set,
-				the value of "type" will be used (the kindName must match the modulName)
+			:param module: Name of the modul which should be used to select entities of kind "type". If not set,
+				the value of "type" will be used (the kindName must match the moduleName)
 			:type type: String
 			:param refKeys: A list of properties to include from the referenced property. These properties will be
 				avaiable in the template without having to fetch the referenced property. Filtering is also only possible
@@ -42,36 +42,40 @@ class extendedRelationalBone( relationalBone ):
 				more information
 			:type format: String
 		"""
-		super( extendedRelationalBone, self ).__init__( type, modul, refKeys, parentKeys, multiple, format, *args, **kwargs)
+		super( extendedRelationalBone, self ).__init__( type, module, refKeys, parentKeys, multiple, format, *args, **kwargs)
 		if not multiple:
 			raise ValueError("extendedRelationalBones must be multiple!")
 		self.using = using
 
 
-	def postSavedHandler( self, key, skel, id, dbfields ):
+	def postSavedHandler( self, boneName, skel, key, dbfields ):
 		if not self.value:
 			values = []
 		elif isinstance( self.value, dict ):
 			values = [ dict( (k,v) for k,v in self.value.items() ) ]
 		else:
 			values = [ dict( (k,v) for k,v in x.items() ) for x in self.value ]
+
 		parentValues = {}
+
 		for parentKey in self.parentKeys:
 			if parentKey in dbfields.keys():
 				parentValues[ parentKey ] = dbfields[ parentKey ]
-		dbVals = db.Query( "viur-relations" ).ancestor( db.Key( id ) ) #skel.kindName+"_"+self.type+"_"+key
+
+		dbVals = db.Query( "viur-relations" ).ancestor( db.Key( key ) ) #skel.kindName+"_"+self.type+"_"+key
 		dbVals.filter("viur_src_kind =", skel.kindName )
 		dbVals.filter("viur_dest_kind =", self.type )
-		dbVals.filter("viur_src_property =", key )
+		dbVals.filter("viur_src_property =", boneName )
+
 		for dbObj in dbVals.iter():
 			try:
-				if not dbObj[ "dest.id" ] in [ x["dest"]["id"] for x in values ]: #Relation has been removed
+				if not dbObj[ "dest.key" ] in [ x["dest"]["key"] for x in values ]: #Relation has been removed
 					db.Delete( dbObj.key() )
 					continue
 			except: #This entry is corrupt
 				db.Delete( dbObj.key() )
 			else: # Relation: Updated
-				data = [ x for x in values if x["dest"]["id"]== dbObj[ "dest.id" ] ][0]
+				data = [x for x in values if x["dest"]["key"] == dbObj["dest.key"]][0]
 				if self.indexed: #We dont store more than key and kinds, and these dont change
 					#Write our (updated) values in
 					for k, v in data["dest"].items():
@@ -83,12 +87,14 @@ class extendedRelationalBone( relationalBone ):
 					dbObj[ "viur_delayed_update_tag" ] = time()
 					db.Put( dbObj )
 				values.remove( data )
+
 		# Add any new Relation
 		for val in values:
-			dbObj = db.Entity( "viur-relations" , parent=db.Key( id ) ) #skel.kindName+"_"+self.type+"_"+key
+			dbObj = db.Entity( "viur-relations" , parent=db.Key( key ) ) #skel.kindName+"_"+self.type+"_"+key
+
 			if not self.indexed: #Dont store more than key and kinds, as they aren't used anyway
-				dbObj[ "dest.id" ] = val["dest"]["id"]
-				dbObj[ "src.id" ] = id
+				dbObj[ "dest.key" ] = val["dest"]["key"]
+				dbObj[ "src.key" ] = key
 			else:
 				for k, v in val["dest"].items():
 					dbObj[ "dest."+k ] = v
@@ -96,11 +102,12 @@ class extendedRelationalBone( relationalBone ):
 					dbObj[ "src."+k ] = v
 				for k, v in val["rel"].items():
 					dbObj[ "rel."+k ] = v
+
 			dbObj[ "viur_delayed_update_tag" ] = time()
 			dbObj[ "viur_src_kind" ] = skel.kindName #The kind of the entry referencing
-			#dbObj[ "viur_src_key" ] = str( id ) #The id of the entry referencing
-			dbObj[ "viur_src_property" ] = key #The key of the bone referencing
-			#dbObj[ "viur_dest_key" ] = val[ "id" ]
+			#dbObj[ "viur_src_key" ] = str( key ) #The key of the entry referencing
+			dbObj[ "viur_src_property" ] = boneName #The key of the bone referencing
+			#dbObj[ "viur_dest_key" ] = val["key"]
 			dbObj[ "viur_dest_kind" ] = self.type
 			db.Put( dbObj )
 
@@ -141,7 +148,7 @@ class extendedRelationalBone( relationalBone ):
 					tmpRes[ idx ][bname] = v
 		tmpList = [ (k,v) for k,v in tmpRes.items() ]
 		tmpList.sort( key=lambda k: k[0] )
-		tmpList = [{"rel":v,"dest":{"id":v["id"]}} for k,v in tmpList]
+		tmpList = [{"rel":v,"dest":{"key":v["key"]}} for k,v in tmpList]
 		errorDict = {}
 		for r in tmpList[:]:
 			# Rebuild the referenced entity data
@@ -149,21 +156,21 @@ class extendedRelationalBone( relationalBone ):
 			entry = None
 
 			try:
-				entry = db.Get( db.Key( r["dest"]["id"] ) )
+				entry = db.Get( db.Key( r["dest"]["key"] ) )
 			except: #Invalid key or something like that
 
 				logging.info( "Invalid reference key >%s< detected on bone '%s'",
-				              r["dest"]["id"], name )
+				              r["dest"]["key"], name )
 
 				if isinstance(self._dbValue, dict):
-					if self._dbValue["dest"]["id"]==str(r):
+					if self._dbValue["dest"]["key"]==str(r):
 						entry = self._dbValue
 						isEntryFromBackup = True
 				elif  isinstance(self._dbValue, list):
 					for dbVal in self._dbValue:
 
 
-						if dbVal["dest"]["id"]==str(r):
+						if dbVal["dest"]["key"]==str(r):
 							entry = dbVal
 							isEntryFromBackup = True
 				if not isEntryFromBackup:
@@ -172,13 +179,13 @@ class extendedRelationalBone( relationalBone ):
 				else:
 					tmpList.remove( r )
 					continue
-			if not entry or (not isEntryFromBackup and not entry.key().kind()==self.type): #Entry does not exist or has wrong type (is from another modul)
+			if not entry or (not isEntryFromBackup and not entry.key().kind()==self.type): #Entry does not exist or has wrong type (is from another module)
 				if entry:
-					logging.error("I got an id, which kind doesn't match my type! (Got: %s, my type %s)" % ( entry.key().kind(), self.type ) )
+					logging.error("I got a key, which kind doesn't match my type! (Got: %s, my type %s)" % ( entry.key().kind(), self.type ) )
 				tmpList.remove( r )
 				continue
 			tmp = { k: entry[k] for k in entry.keys() if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ) }
-			tmp["id"] = r["dest"]["id"]
+			tmp["key"] = r["dest"]["key"]
 			r["dest"] = tmp
 			# Rebuild the refSkel data
 			refSkel = self.using()
@@ -210,13 +217,13 @@ class extendedRelationalBone( relationalBone ):
 				if k=="__key__":
 					# We must process the key-property separately as its meaning changes as we change the datastore kind were querying
 					if isinstance( v, list ) or isinstance(v, tuple):
-						logging.warning( "Invalid filtering! Doing an relational Query on %s with multiple id= filters is unsupported!" % (name) )
+						logging.warning( "Invalid filtering! Doing an relational Query on %s with multiple key= filters is unsupported!" % (name) )
 						raise RuntimeError()
 					if not isinstance(v, db.Key ):
 						v = db.Key( v )
 					dbFilter.ancestor( v )
 					continue
-				if not (k if not " " in k else k.split(" ")[0]) in self.parentKeys:
+				if not (k if " " not in k else k.split(" ")[0]) in self.parentKeys:
 					logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
 					raise RuntimeError()
 				dbFilter.filter( "src.%s" % k, v )
@@ -251,10 +258,10 @@ class extendedRelationalBone( relationalBone ):
 				except:
 					continue
 				#Ensure that the relational-filter is in refKeys
-				if _type=="dest" and not key in self.refKeys:
+				if _type=="dest" and key not in self.refKeys:
 					logging.warning( "Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (key,name) )
 					raise RuntimeError()
-				if _type=="rel" and not key in self.using().keys():
+				if _type=="rel" and key not in self.using().keys():
 					logging.warning( "Invalid filtering! %s is not a bone in 'using' of %s" % (key,name) )
 					raise RuntimeError()
 				if len( tmpdata ) > 1:
@@ -332,7 +339,7 @@ class extendedRelationalBone( relationalBone ):
 			refKey = param.replace( "%s." % name, "" )
 			if " " in refKey: #Strip >, < or = params
 				refKey = refKey[ :refKey.find(" ")]
-			if not refKey in self.refKeys:
+			if refKey not in self.refKeys:
 				logging.warning( "Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (refKey,name) )
 				raise RuntimeError()
 			if self.multiple:
@@ -348,15 +355,15 @@ class extendedRelationalBone( relationalBone ):
 			srcKey = param
 			if " " in srcKey:
 				srcKey = srcKey[ : srcKey.find(" ")] #Cut <, >, and =
-			if srcKey == "__key__": #Rewrite id= filter as its meaning has changed
+			if srcKey == "__key__": #Rewrite key= filter as its meaning has changed
 				if isinstance( value, list ) or isinstance( value, tuple ):
-					logging.warning( "Invalid filtering! Doing an relational Query on %s with multiple id= filters is unsupported!" % (name) )
+					logging.warning( "Invalid filtering! Doing an relational Query on %s with multiple key= filters is unsupported!" % (name) )
 					raise RuntimeError()
 				if not isinstance( value, db.Key ):
 					value = db.Key( value )
 				query.ancestor( value )
 				return( None )
-			if not srcKey in self.parentKeys:
+			if srcKey not in self.parentKeys:
 				logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (srcKey,name) )
 				raise RuntimeError()
 			return( "src.%s" % param, value )
@@ -382,7 +389,7 @@ class extendedRelationalBone( relationalBone ):
 				continue
 			if orderKey.startswith("%s." % name ):
 				k = orderKey.replace( "%s." % name, "" )
-				if not k in self.refKeys:
+				if k not in self.refKeys:
 					logging.warning( "Invalid ordering! %s is not in refKeys of RelationalBone %s!" % (k,name) )
 					raise RuntimeError()
 				if not self.multiple:
@@ -398,7 +405,7 @@ class extendedRelationalBone( relationalBone ):
 					res.append( order )
 					continue
 				else:
-					if not orderKey in self.parentKeys:
+					if orderKey not in self.parentKeys:
 						logging.warning( "Invalid ordering! %s is not in parentKeys of RelationalBone %s!" % (orderKey,name) )
 						raise RuntimeError()
 					if isinstance( order, tuple ):
@@ -407,40 +414,62 @@ class extendedRelationalBone( relationalBone ):
 						res.append( "src.%s" % orderKey )
 		return( res )
 
-	def refresh(self, boneName, skel ):
+	def refresh(self, boneName, skel):
 		"""
 			Refresh all values we might have cached from other entities.
 		"""
-		def updateInplace( valDict ):
+		def updateInplace(valDict):
 			"""
-				Fetches the entity referenced by valDict["dest.id"] and updates all dest.* keys
+				Fetches the entity referenced by valDict["dest.key"] and updates all dest.* keys
 				accordingly
 			"""
-			if not "dest" in valDict.keys():
-				logging.error("Invalid dictionary in updateInplace!")
-				logging.error("Got: %s" % valDict )
-				return
+			if "dest" not in valDict.keys():
+				logging.error("Invalid dictionary in updateInplace: %s" % valDict)
+				return False
 
-			entityKey = normalizeKey(valDict["dest"]["id"])
+			if "key" in valDict["dest"].keys():
+				originalKey = valDict["dest"]["key"]
+			# !!!ViUR re-design compatibility!!!
+			elif "id" in valDict["dest"].keys():
+				originalKey = valDict["dest"]["id"]
+			else:
+				logging.error("Invalid dictionary in updateInplace: %s" % valDict)
+				return False
 
+			entityKey = normalizeKey(originalKey)
+			if originalKey != entityKey or "key" not in valDict["dest"].keys():
+				logging.info("Rewriting %s to %s" % (originalKey, entityKey))
+				valDict["dest"]["key"] = entityKey
+
+			# Try to update referenced values;
+			# If the entity does not exist with this key, ignore
+			# (key was overidden above to have a new appid when transferred).
 			try:
 				newValues = db.Get(entityKey)
 				assert newValues is not None
-			except:
+			except db.EntityNotFoundError:
 				#This entity has been deleted
-				return
+				logging.info("The key %s does not exist" % entityKey)
+				return False
+			except:
+				raise
 
 			for key in valDict["dest"].keys():
-				if key == "id":
-					valDict["dest"]["id"] = entityKey
+				if key in ["key", "id"]: # !!!ViUR re-design compatibility!!!
+					continue
 				elif key in newValues.keys():
-					valDict["dest"][key] = newValues[ key ]
+					valDict["dest"][key] = newValues[key]
+
+			return True
 
 		if not self.value:
 			return
 
+		logging.info("Refreshing extendedRelationalBone %s of %s" % (boneName, skel.kindName))
+
 		if isinstance( self.value, dict ):
-			updateInplace( self.value )
+			updateInplace(self.value)
+
 		elif isinstance( self.value, list ):
 			for k in self.value:
-				updateInplace( k )
+				updateInplace(k)

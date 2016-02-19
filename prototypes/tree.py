@@ -2,7 +2,7 @@
 from server import db, utils, errors, session, conf, securitykey
 from server import forcePost, forceSSL, exposed, internalExposed
 
-from server.applications import BasicApplication
+from server.prototypes import BasicApplication
 from server.bones import baseBone, numericBone
 from server.skeleton import Skeleton, skeletonByKind
 from server.tasks import callDeferred
@@ -19,18 +19,31 @@ class TreeLeafSkel( Skeleton ):
 
 		# Heal missing parent-repo values
 		if res and not self["parentrepo"].value:
-			dbObj = db.Get( self["id"].value )
+			try:
+				dbObj = db.Get( self["key"].value )
+			except:
+				return res
 
 			if not "parentdir" in dbObj.keys(): #RootNode
 				return res
 
 			while( "parentdir" in dbObj.keys() and dbObj["parentdir"] ):
-				dbObj = db.Get( dbObj[ "parentdir" ] )
+				try:
+					dbObj = db.Get( dbObj[ "parentdir" ] )
+				except:
+					return res
 
 			self["parentrepo"].value = str( dbObj.key() )
 			self.toDB()
 
 		return res
+
+	def refresh(self):
+		if self["parentdir"].value:
+			self["parentdir"].value = utils.normalizeKey(self["parentdir"].value)
+		if self["parentrepo"].value:
+			self["parentrepo"].value = utils.normalizeKey(self["parentrepo"].value)
+		super( TreeLeafSkel, self ).refresh()
 
 class TreeNodeSkel( TreeLeafSkel ):
 	pass
@@ -64,8 +77,8 @@ class Tree(BasicApplication):
 			"icon": "icons/modules/tree.svg"        # Icon for this module
 		}
 
-	def __init__( self, modulName, modulPath, *args, **kwargs ):
-		super(Tree, self).__init__(modulName, modulPath, *args, **kwargs)
+	def __init__( self, moduleName, modulePath, *args, **kwargs ):
+		super(Tree, self).__init__(moduleName, modulePath, *args, **kwargs)
 
 	def _resolveSkel(self, skelType, *args, **kwargs):
 		"""
@@ -303,11 +316,11 @@ class Tree(BasicApplication):
 		"""
 		thisuser = conf["viur.mainApp"].user.getCurrentUser()
 		if thisuser:
-			key = "rep_user_%s" % str( thisuser["id"] )
+			key = "rep_user_%s" % str( thisuser["key"] )
 			return db.GetOrInsert( key, self.viewSkel("leaf").kindName+"_rootNode",
-			                        creationdate=datetime.now(), rootNode=1, user=str( thisuser["id"] ) )
+			                        creationdate=datetime.now(), rootNode=1, user=str( thisuser["key"] ) )
 
-	def ensureOwnModulRootNode( self ):
+	def ensureOwnModuleRootNode( self ):
 		"""
 		Ensures, that general root-node for the current module exists.
 		If no root-node exists yet, it will be created.
@@ -315,7 +328,7 @@ class Tree(BasicApplication):
 		:returns: The entity of the root-node.
 		:rtype: :class:`server.db.Entity`
 		"""
-		key = "rep_modul_repo"
+		key = "rep_module_repo"
 		return db.GetOrInsert( key, self.viewSkel("leaf").kindName+"_rootNode",
 		                        creationdate=datetime.now(), rootNode=1 )
 
@@ -370,6 +383,8 @@ class Tree(BasicApplication):
 		"""
 		return self.render.listRootNodes( self.getAvailableRootNodes( name ) )
 
+
+
 	@exposed
 	def list( self, skelType, node, *args, **kwargs ):
 		"""
@@ -403,21 +418,21 @@ class Tree(BasicApplication):
 		query = skel.all()
 
 		if "search" in kwargs.keys() and kwargs["search"]:
-			query.filter( "parentrepo =", str(nodeSkel["id"].value) )
+			query.filter( "parentrepo =", str(nodeSkel["key"].value) )
 		else:
-			query.filter( "parentdir =", str(nodeSkel["id"].value) )
+			query.filter( "parentdir =", str(nodeSkel["key"].value) )
 
 		query.mergeExternalFilter( kwargs )
 		res = query.fetch( )
 
-		return self.render.list( res, node=str(nodeSkel["id"].value) )
+		return self.render.list( res, node=str(nodeSkel["key"].value) )
 
 	@exposed
-	def view( self, skelType, id, *args, **kwargs ):
+	def view( self, skelType, key, *args, **kwargs ):
 		"""
 		Prepares and renders a single entry for viewing.
 
-		The entry is fetched by its *id* and its *skelType*.
+		The entry is fetched by its *key* and its *skelType*.
 		The function performs several access control checks on the requested entity before it is rendered.
 
 		.. seealso:: :func:`canView`, :func:`onItemViewed`
@@ -430,15 +445,15 @@ class Tree(BasicApplication):
 		:type node: str
 
 		:raises: :exc:`server.errors.NotAcceptable`, when an incorrect *skelType* is provided.
-		:raises: :exc:`server.errors.NotFound`, when no entry with the given *id* was found.
+		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		"""
 		skel = self.viewSkel(skelType)
 		if skel is None:
 			raise errors.NotAcceptable()
-		if not len(id):
+		if not len(key):
 			raise errors.NotAcceptable()
-		if not skel.fromDB( id ):
+		if not skel.fromDB( key ):
 			raise errors.NotFound()
 
 		if not self.canView( skelType, skel ):
@@ -508,7 +523,7 @@ class Tree(BasicApplication):
 
 	@exposed
 	@forceSSL
-	def edit( self, skelType, id, skey="", *args, **kwargs ):
+	def edit( self, skelType, key, skey="", *args, **kwargs ):
 		"""
 		Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
 		Data is taken by any other arguments in *kwargs*.
@@ -519,8 +534,8 @@ class Tree(BasicApplication):
 
 		:param skelType: Defines the type of the entry that should be modified and may either be "node" or "leaf".
 		:type skelType: str
-		:param id: URL-safe key of the item to be edited.
-		:type id: str
+		:param key: URL-safe key of the item to be edited.
+		:type key: str
 
 		:returns: The rendered, modified object of the entry, eventually with error hints.
 
@@ -533,10 +548,10 @@ class Tree(BasicApplication):
 		if skel is None:
 			raise errors.NotAcceptable()
 
-		if not skel.fromDB( id ):
+		if not skel.fromDB( key ):
 			raise errors.NotFound()
 
-		if not self.canEdit( skelType, skel ):
+		if not self.canEdit(skelType, skel):
 			raise errors.Unauthorized()
 
 		if (len(kwargs) == 0 # no data supplied
@@ -558,7 +573,7 @@ class Tree(BasicApplication):
 	@exposed
 	@forceSSL
 	@forcePost
-	def delete( self, skelType, id, *args, **kwargs ):
+	def delete( self, skelType, key, *args, **kwargs ):
 		"""
 		Deletes an entry or an directory (including its contents).
 
@@ -568,12 +583,12 @@ class Tree(BasicApplication):
 
 		:param skelType: Defines the type of the entry that should be deleted and may either be "node" or "leaf".
 		:type skelType: str
-		:param id: URL-safe key of the item to be deleted.
-		:type id: str
+		:param key: URL-safe key of the item to be deleted.
+		:type key: str
 
 		:returns: The rendered, deleted object of the entry.
 
-		:raises: :exc:`server.errors.NotFound`, when no entry with the given *id* was found.
+		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
@@ -582,35 +597,33 @@ class Tree(BasicApplication):
 		elif skelType == "leaf":
 			skel = self.viewSkel("leaf")
 		else:
-			raise errors.NotAcceptable()
-
+			raise( errors.NotAcceptable() )
 		if "skey" in kwargs:
 			skey = kwargs["skey"]
 		else:
 			skey = ""
 
-		if not skel.fromDB( id ):
+		if not skel.fromDB( key ):
 			raise errors.NotFound()
 
-		if not self.canDelete( skelType, skel ):
+		if not self.canDelete(skelType, skel):
 			raise errors.Unauthorized()
-
 		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
 
-		if skelType == "leaf":
-			skel.delete()
+		if type=="leaf":
+			skel.delete( )
 		else:
-			self.deleteRecursive( id )
+			self.deleteRecursive(key)
 			skel.delete()
 
 		self.onItemDeleted( skel )
-		return self.render.deleteSuccess( skel, skelType=skelType )
+		return( self.render.deleteSuccess( skel, skelType=skelType ) )
 
 	@exposed
 	@forceSSL
 	@forcePost
-	def move( self, skelType, id, destNode, *args, **kwargs ):
+	def move( self, skelType, key, destNode, *args, **kwargs ):
 		"""
 		Move a node (including its contents) or a leaf to another node.
 
@@ -618,14 +631,14 @@ class Tree(BasicApplication):
 
 		:param skelType: Defines the type of the entry that should be moved and may either be "node" or "leaf".
 		:type skelType: str
-		:param id: URL-safe key of the item to be moved.
-		:type id: str
+		:param key: URL-safe key of the item to be moved.
+		:type key: str
 		:param destNode: URL-safe key of the destination node, which must be a node.
 		:type destNode: str
 
 		:returns: The rendered, edited object of the entry.
 
-		:raises: :exc:`server.errors.NotFound`, when no entry with the given *id* was found.
+		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
@@ -639,10 +652,10 @@ class Tree(BasicApplication):
 			skey = ""
 
 		destSkel = self.editSkel("node")
-		if not self.canMove( skelType, id, destNode ):
+		if not self.canMove( skelType, key, destNode ):
 			raise errors.Unauthorized()
 
-		if id == destNode:
+		if key == destNode:
 			# Cannot move a node into itself
 			raise errors.NotAcceptable()
 
@@ -651,7 +664,7 @@ class Tree(BasicApplication):
 		currLevel = db.Get( destNode )
 
 		for x in range(0,99):
-			if str(currLevel.key())==id:
+			if str(currLevel.key())==key:
 				break
 			if "rootNode" in currLevel.keys() and currLevel["rootNode"]==1:
 				#We reached a rootNode
@@ -662,14 +675,14 @@ class Tree(BasicApplication):
 		if not isValid:
 			raise errors.NotAcceptable()
 
-		#Test if id points to a rootNone
-		tmp = db.Get( id )
+		#Test if key points to a rootNone
+		tmp = db.Get( key )
 
 		if "rootNode" in tmp.keys() and tmp["rootNode"]==1:
 			#Cant move a rootNode away..
 			raise errors.NotAcceptable()
 
-		if not srcSkel.fromDB( id ) or not destSkel.fromDB( destNode ):
+		if not srcSkel.fromDB( key ) or not destSkel.fromDB( destNode ):
 			# Could not find one of the entities
 			raise errors.NotFound()
 
@@ -679,7 +692,7 @@ class Tree(BasicApplication):
 		srcSkel["parentdir"].value = str( destNode )
 		srcSkel["parentrepo"].value = destSkel["parentrepo"].value #Fixme: Need to recursive fixing to parentrepo?
 		srcSkel.toDB()
-		self.updateParentRepo( id, destSkel["parentrepo"].value )
+		self.updateParentRepo( key, destSkel["parentrepo"].value )
 
 		return self.render.editItemSuccess(srcSkel, skelType=skelType, action="move", destNode = destSkel )
 
@@ -715,7 +728,7 @@ class Tree(BasicApplication):
 		if user["access"] and "root" in user["access"]:
 			return True
 
-		if user and user["access"] and "%s-view" % self.modulName in user["access"]:
+		if user and user["access"] and "%s-view" % self.moduleName in user["access"]:
 			return True
 
 		return False
@@ -750,7 +763,7 @@ class Tree(BasicApplication):
 		if user["access"] and "root" in user["access"]:
 			return True
 
-		if user and user["access"] and "%s-view" % self.modulName in user["access"]:
+		if user and user["access"] and "%s-view" % self.moduleName in user["access"]:
 			return True
 
 		return False
@@ -785,7 +798,7 @@ class Tree(BasicApplication):
 		if user["access"] and "root" in user["access"]:
 			return True
 
-		if user and user["access"] and "%s-add" % self.modulName in user["access"]:
+		if user and user["access"] and "%s-add" % self.moduleName in user["access"]:
 			return True
 
 		return False
@@ -820,7 +833,7 @@ class Tree(BasicApplication):
 		if user["access"] and "root" in user["access"]:
 			return True
 
-		if user and user["access"] and "%s-edit" % self.modulName in user["access"]:
+		if user and user["access"] and "%s-edit" % self.moduleName in user["access"]:
 			return True
 
 		return False
@@ -856,7 +869,7 @@ class Tree(BasicApplication):
 		if user["access"] and "root" in user["access"]:
 			return True
 
-		if user and user["access"] and "%s-delete" % self.modulName in user["access"]:
+		if user and user["access"] and "%s-delete" % self.moduleName in user["access"]:
 			return True
 
 		return False
@@ -892,7 +905,7 @@ class Tree(BasicApplication):
 			return( False )
 		if user["access"] and "root" in user["access"]:
 			return( True )
-		if user and user["access"] and "%s-edit" % self.modulName in user["access"]:
+		if user and user["access"] and "%s-edit" % self.moduleName in user["access"]:
 			return( True )
 		return( False )
 
@@ -910,10 +923,10 @@ class Tree(BasicApplication):
 
 		.. seealso:: :func:`add`
 		"""
-		logging.info("Entry added: %s" % skel["id"].value )
+		logging.info("Entry added: %s" % skel["key"].value )
 		user = utils.getCurrentUser()
 		if user:
-			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
+			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
 	
 	def onItemEdited( self, skel ):
 		"""
@@ -927,10 +940,10 @@ class Tree(BasicApplication):
 
 		.. seealso:: :func:`edit`
 		"""
-		logging.info("Entry changed: %s" % skel["id"].value )
+		logging.info("Entry changed: %s" % skel["key"].value )
 		user = utils.getCurrentUser()
 		if user:
-			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
+			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
 		
 	def onItemViewed( self, skel ):
 		"""
@@ -962,10 +975,10 @@ class Tree(BasicApplication):
 
 		.. seealso:: :func:`delete`
 		"""
-		logging.info("Entry deleted: %s (%s)" % ( skel["id"].value, type(skel) ) )
+		logging.info("Entry deleted: %s (%s)" % ( skel["key"].value, type(skel) ) )
 		user = utils.getCurrentUser()
 		if user:
-			logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
+			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
 
 ## Renderer specific stuff
 

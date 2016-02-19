@@ -246,31 +246,26 @@ def buildApp( config, renderers, default=None, *args, **kwargs ):
 
 	config._tasks = TaskHandler
 
-	for modulName in dir( config ): # iterate over all modules
-		if modulName=="index":
+	for moduleName in dir( config ): # iterate over all modules
+		if moduleName=="index":
 			continue
 
 		for renderName in list(rendlist.keys()): # look, if a particular render should be built
-			if renderName in dir( getattr( config, modulName ) ) \
-				and getattr( getattr( config, modulName ) , renderName )==True:
-					modulPath = "%s/%s" % ("/"+renderName if renderName!=default else "",  modulName)
-					obj =  getattr( config,  modulName)( modulName, modulPath )
-					if modulName in rendlist[ renderName ]: # we have a special render for this
-						obj.render = rendlist[ renderName ][ modulName ]( parent = obj )
+			if renderName in dir( getattr( config, moduleName ) ) \
+				and getattr( getattr( config, moduleName ) , renderName )==True:
+					modulePath = "%s/%s" % ("/"+renderName if renderName!=default else "",  moduleName)
+					obj =  getattr( config,  moduleName)( moduleName, modulePath )
+					if moduleName in rendlist[ renderName ]: # we have a special render for this
+						obj.render = rendlist[ renderName ][ moduleName ]( parent = obj )
 					else: # Attach the default render
 						obj.render = rendlist[ renderName ][ "default" ]( parent = obj )
-					setattr(obj,"_modulName",modulName)
+					setattr(obj,"_moduleName",moduleName)
 					if renderName == default: #default or render (sub)namespace?
-						setattr( res,  modulName, obj )
+						setattr( res,  moduleName, obj )
 					else:
-						if not renderName in dir( res ): 
-							if "_rootApp" in rendlist[renderName]:
-								obj = rendlist[renderName]["_rootApp"]()
-								obj.render = rendlist[renderName]["default"]
-								setattr( res,  renderName,  buildObject(rendlist[renderName]["_rootApp"], rendlist[renderName]["default"]) )
-							else:
-								setattr( res,  renderName,  ExtendableObject() )
-						setattr( getattr(res, renderName), modulName, obj )
+						if not renderName in dir( res ):
+							setattr( res,  renderName,  ExtendableObject() )
+						setattr( getattr(res, renderName), moduleName, obj )
 
 	if not isinstance( renderers, dict ): # Apply Renderers postProcess Filters
 		for renderName in list(rendlist.keys()):
@@ -389,10 +384,33 @@ class BrowseHandler(webapp.RequestHandler):
 		self.args = []
 		self.kwargs = {}
 		#Add CSP headers early (if any)
-		if conf["viur.contentSecurityPolicy"] and conf["viur.contentSecurityPolicy"]["_headerCache"]:
-			for k,v in conf["viur.contentSecurityPolicy"]["_headerCache"].items():
-				assert k.startswith("Content-Security-Policy"), "Got unexpected header in conf['viur.contentSecurityPolicy']['_headerCache']"
+		if conf["viur.security.contentSecurityPolicy"] and conf["viur.security.contentSecurityPolicy"]["_headerCache"]:
+			for k,v in conf["viur.security.contentSecurityPolicy"]["_headerCache"].items():
+				assert k.startswith("Content-Security-Policy"), "Got unexpected header in conf['viur.security.contentSecurityPolicy']['_headerCache']"
 				self.response.headers[k] = v
+		if self.isSSLConnection: #Check for HTST and PKP headers only if we have a secure channel.
+			if conf["viur.security.strictTransportSecurity"]:
+				assert conf["viur.security.strictTransportSecurity"].startswith("max-age"), "Got unexpected header in conf['viur.security.strictTransportSecurity']"
+				self.response.headers["Strict-Transport-Security"] = conf["viur.security.strictTransportSecurity"]
+			if conf["viur.security.publicKeyPins"]:
+				assert conf["viur.security.publicKeyPins"].startswith("pin-"), "Got unexpected header in conf['viur.security.publicKeyPins']"
+				self.response.headers["Public-Key-Pins"] = conf["viur.security.publicKeyPins"]
+		# Check for X-Security-Headers we shall emit
+		if conf["viur.security.xContentTypeOptions"]:
+			self.response.headers["X-Content-Type-Options"] = "nosniff"
+		if conf["viur.security.xXssProtection"] is not None:
+			if conf["viur.security.xXssProtection"]:
+				self.response.headers["X-XSS-Protection"] = "1; mode=block"
+			elif conf["viur.security.xXssProtection"] is False:
+				self.response.headers["X-XSS-Protection"] = "0"
+		if conf["viur.security.xFrameOptions"] is not None and isinstance(conf["viur.security.xFrameOptions"], tuple):
+			mode, uri = conf["viur.security.xFrameOptions"]
+			assert mode in ["deny", "sameorigin","allow-from"]
+			if mode in ["deny", "sameorigin"]:
+				self.response.headers["X-Frame-Options"] = mode
+			elif mode=="allow-from":
+				assert uri is not None and (uri.lower().startswith("https://") or uri.lower().startswith("http://"))
+				self.response.headers["X-Frame-Options"] = "allow-from %s" % uri
 		if sharedConf["viur.disabled"] and not (users.is_current_user_admin() or "HTTP_X_QUEUE_NAME".lower() in [x.lower() for x in os.environ.keys()] ): #FIXME: Validate this works
 			self.response.set_status( 503 ) #Service unavailable
 			tpl = Template( open("server/template/error.html", "r").read() )
@@ -616,35 +634,35 @@ def setup( modules, render=None, default="jinja2" ):
 		(=> /user instead of /jinja2/user)
 		:type default: str
 	"""
-	import models
+	import skeletons
 	from server.skeleton import Skeleton
 
-	conf["viur.models"] = {}
-	for modelKey in dir( models ):
-		modelModul = getattr( models, modelKey )
-		for key in dir( modelModul ):
-			model = getattr( modelModul, key )
+	conf["viur.skeletons"] = {}
+	for modelKey in dir( skeletons ):
+		skelCls = getattr( skeletons, modelKey )
+		for key in dir( skelCls ):
+			skel = getattr( skelCls, key )
 			try:
-				isSkelClass = issubclass( model, Skeleton )
+				isSkelClass = issubclass( skel, Skeleton )
 			except TypeError:
 				continue
 			if isSkelClass:
-				if not model.kindName:
-					# Looks like a common base-class for models
+				if not skel.kindName:
+					# Looks like a common base-class for skeletons
 					continue
-				if model.kindName in conf["viur.models"].keys() and model!=conf["viur.models"][ model.kindName ]:
-					# We have a conflict here, lets see if one skeleton is from server.*, and one from models.*
-					relNewFileName = inspect.getfile(model).replace( os.getcwd(),"" )
-					relOldFileName = inspect.getfile(conf["viur.models"][ model.kindName ]).replace( os.getcwd(),"" )
+				if skel.kindName in conf["viur.skeletons"].keys() and skel!=conf["viur.skeletons"][ skel.kindName ]:
+					# We have a conflict here, lets see if one skeleton is from server.*, and one from skeletons.*
+					relNewFileName = inspect.getfile(skel).replace( os.getcwd(),"" )
+					relOldFileName = inspect.getfile(conf["viur.skeletons"][ skel.kindName ]).replace( os.getcwd(),"" )
 					if relNewFileName.strip(os.path.sep).startswith("server"):
 						#The currently processed skeleton is from the server.* package
 						continue
 					elif relOldFileName.strip(os.path.sep).startswith("server"):
 						#The old one was from server - override it
-						conf["viur.models"][ model.kindName ] = model
+						conf["viur.skeletons"][ skel.kindName ] = skel
 						continue
-					raise ValueError("Duplicate definition for %s" % model.kindName)
-				conf["viur.models"][ model.kindName ] = model
+					raise ValueError("Duplicate definition for %s" % skel.kindName)
+				conf["viur.skeletons"][ skel.kindName ] = skel
 	if not render:
 		import server.render
 		render = server.render

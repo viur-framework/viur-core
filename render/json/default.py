@@ -18,12 +18,12 @@ class DefaultRender( object ):
 		for key, _bone in skel.items() :
 			if( isinstance( _bone, bones.baseBone ) ):
 				res[ key ] = {	"descr": _(_bone.descr),
-							"type": _bone.type,
-							"visible":_bone.visible,
-							"required": _bone.required,
-							"readonly": _bone.readOnly,
-							"params": _bone.params
-							}
+						"type": _bone.type,
+						"visible":_bone.visible,
+						"required": _bone.required,
+						"readonly": _bone.readOnly,
+						"params": _bone.params
+						}
 				if key in skel.errors.keys():
 					res[ key ][ "error" ] = skel.errors[ key ]
 				elif any( [x.startswith("%s." % key) for x in skel.errors.keys()]):
@@ -41,7 +41,7 @@ class DefaultRender( object ):
 					else:
 						boneType = "relational"
 					res[key]["type"]="%s.%s" % (boneType,_bone.type)
-					res[key]["modul"] = _bone.modul
+					res[key]["module"] = _bone.module
 					res[key]["multiple"]=_bone.multiple
 					res[key]["format"] = _bone.format
 				if( isinstance( _bone, bones.treeDirBone ) ):

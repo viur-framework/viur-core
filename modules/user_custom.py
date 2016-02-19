@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from server.applications.list import List
+from server.prototypes.list import List
 from server.skeleton import Skeleton, RelSkel
 from server import utils, session
 from server.bones import *
@@ -65,7 +65,7 @@ class CustomUser( List ):
 			admin=True
 		if "user" in dir( conf["viur.mainApp"] ): #Check for our custom user-api
 			user = conf["viur.mainApp"].user.getCurrentUser()
-			if user and user["access"] and ("%s-add" % self.modulName in user["access"] or "root" in user["access"] ):
+			if user and user["access"] and ("%s-add" % self.moduleName in user["access"] or "root" in user["access"] ):
 				admin=True
 		if not admin:
 			if self.registrationEmailVerificationRequired:
@@ -139,50 +139,78 @@ class CustomUser( List ):
 
 	def login( self, name=None, password=None, skey="", *args, **kwargs ):
 		if self.getCurrentUser(): #Were already loggedin
-			return( self.render.loginSucceeded( ) )
+			logging.info("User already logged in")
+			return self.render.loginSucceeded()
+
 		if not name or not password or not securitykey.validate( skey ):
-			return( self.render.login( self.loginSkel() ) )
+			logging.info("No name, password or invalid securitykey assigned")
+
+			return self.render.login(self.loginSkel())
+
 		query = db.Query( self.viewSkel().kindName )
 		res  = query.filter( "name.idx >=", name.lower()).get()
+
 		if res is None:
 			res = {"password":"", "status":0, "name":"","name.idx":"" }
+		else:
+			logging.info("User found")
+
 		if "password_salt" in res.keys(): #Its the new, more secure passwd
 			passwd = pbkdf2( password[ : conf["viur.maxPasswordLength"] ], res["password_salt"] )
 		else:
 			passwd = sha512( password.encode("UTF-8")+conf["viur.salt"] ).hexdigest()
+
 		isOkay = True
+
 		if not utils.safeStringComparison(res["password"], unicode(passwd)):
+			logging.info("passwords did not match")
 			isOkay = False
+
 		if res["status"] < 10:
+			logging.info("status is %d, user is not allowed to login" % res["status"])
 			isOkay = False
+
 		if not utils.safeStringComparison(res[ "name.idx" ], name.lower()):
+			logging.info("lower username comparison failed")
 			isOkay = False
+
 		if not isOkay:
 			skel=self.loginSkel()
 			skel["name"].fromClient("name",{"name":name} )
-			return( self.render.login( skel, loginFailed=True )  )
+
+			logging.info("Render login skel")
+			return self.render.login(skel, loginFailed=True)
 		else:
 			if not "password_salt" in res.keys(): #Update the password to the new, more secure format
 				res[ "password_salt" ] = utils.generateRandomString( 13 )
 				res[ "password" ] = pbkdf2( password[ : conf["viur.maxPasswordLength"] ], res["password_salt"] )
 				db.Put( res )
+
 			oldSession = {k:v for k,v in session.current.items()} #Store all items in the current session
 			session.current.reset()
+
 			# Copy the persistent fields over
 			for k in conf["viur.session.persistentFieldsOnLogin"]:
 				if k in oldSession.keys():
 					session.current[ k ] = oldSession[ k ]
+
 			del oldSession
+
 			session.current['user'] = {}
+
 			for key in ["name", "status", "access"]:
 				try:
 					session.current['user'][ key ] = res[ key ]
-				except: pass
-			session.current['user']["id"] = str( res.key() )
+				except:
+					pass
+
+			session.current['user']["key"] = str( res.key() )
+
 			if not "access" in session.current['user'].keys() or not session.current['user']["access"]:
 				session.current['user']["access"] = []
+
 			session.current.markChanged()
-			return( self.render.loginSucceeded( ) )
+			return self.render.loginSucceeded()
 	login.exposed = True
 	login.forceSSL = True
 	
@@ -198,8 +226,8 @@ class CustomUser( List ):
 	login.forceSSL = True
 
 	def edit( self,  *args,  **kwargs ):
-		if len( args ) == 0 and not "id" in kwargs and session.current.get("user"):
-			kwargs["id"] = session.current.get("user")["id"]
+		if len( args ) == 0 and not "key" in kwargs and session.current.get("user"):
+			kwargs["key"] = session.current.get("user")["key"]
 		return( super( CustomUser, self ).edit( *args,  **kwargs ) )
 	edit.exposed=True
 
@@ -266,21 +294,21 @@ class CustomUser( List ):
 		skel["skey"].value = skey
 		utils.sendEMail( [skel["name"].value], self.passwordRecoveryMail, skel )
 
-	def view(self, id, *args, **kwargs):
+	def view(self, key, *args, **kwargs):
 		"""
-			Allow a special id "self" to reference always the current user
+			Allow a special key "self" to reference always the current user
 		"""
-		if id=="self":
+		if key=="self":
 			user = self.getCurrentUser()
 			if user:
-				return( super( CustomUser, self ).view( user["id"], *args, **kwargs ) )
-		return( super( CustomUser, self ).view( id, *args, **kwargs ) )
+				return( super( CustomUser, self ).view( user["key"], *args, **kwargs ) )
+		return( super( CustomUser, self ).view( key, *args, **kwargs ) )
 	view.exposed=True
 
 	def canView(self, skel):
 		user = self.getCurrentUser()
 		if user:
-			if skel["id"].value==user["id"]:
+			if skel["key"].value==user["key"]:
 				return( True )
 			if "root" in user["access"] or "user-view" in user["access"]:
 				return( True )
@@ -292,15 +320,15 @@ class CustomUser( List ):
 		"""
 		super( CustomUser, self ).onItemAdded( skel )
 		if self.registrationEmailVerificationRequired and str(skel["status"].value)=="1":
-			skey = securitykey.create( duration=60*60*24*7 , userid=str(skel["id"].value), name=skel["name"].value )
-			self.sendVerificationEmail( str(skel["id"].value), skey )
+			skey = securitykey.create( duration=60*60*24*7 , userid=str(skel["key"].value), name=skel["name"].value )
+			self.sendVerificationEmail( str(skel["key"].value), skey )
 	
 	def onItemDeleted( self, skel ):
 		"""
 			Invalidate all sessions of that user
 		"""
 		super( CustomUser, self ).onItemDeleted( skel )
-		session.killSessionByUser( str( skel["id"].value ) )
+		session.killSessionByUser( str( skel["key"].value ) )
 
 
 

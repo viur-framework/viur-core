@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from server.skeleton import Skeleton
-from server.applications.hierarchy import Hierarchy, HierarchySkel
+from server.prototypes.hierarchy import Hierarchy, HierarchySkel
 from server.bones import *
 from server import db
 from server import session, errors
@@ -29,7 +29,7 @@ class Page( Hierarchy ):
 	viewTemplate = "page_view"
 
 	def getAvailableRootNodes( self, *args, **kwargs ):
-		repo = self.ensureOwnModulRootNode()
+		repo = self.ensureOwnModuleRootNode()
 		return( [{"name":u"Seiten", "key": str( repo.key() ) }] )
 	getAvailableRootNodes.internalExposed=True
 

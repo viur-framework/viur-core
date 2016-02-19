@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.skeleton import Skeleton
-from server.applications.hierarchy import Hierarchy, HierarchySkel
-from server.applications.list import List
+from server.prototypes.hierarchy import Hierarchy, HierarchySkel
+from server.prototypes.list import List
 from server.bones import *
 from server import db
 from server import session, errors
@@ -85,12 +85,12 @@ class Forum( Hierarchy ):
 		return( None )
 	
 	def index(self, *args, **kwargs):
-		repo = self.ensureOwnModulRootNode()
+		repo = self.ensureOwnModuleRootNode()
 		return( self.list( str(repo.key())) )
 	index.exposed=True
 
 	def getAvailableRootNodes( self, *args, **kwargs ):
-		repo = self.ensureOwnModulRootNode()
+		repo = self.ensureOwnModuleRootNode()
 		return( [{"name":u"Forum", "key": str(repo.key()) }] )
 	
 	def viewForum(self, forumid, page=0, *args, **kwargs ):

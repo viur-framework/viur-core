@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
+
+from google.appengine.api import images
 from server.skeleton import Skeleton, skeletonByKind
-from server import session, errors, conf, request
-from server.applications.tree import Tree, TreeNodeSkel, TreeLeafSkel
+from server import utils, db, securitykey, session, errors, conf, request
+from server.prototypes.tree import Tree, TreeNodeSkel, TreeLeafSkel
 from server import forcePost, forceSSL, exposed, internalExposed
 from server.bones import *
-from server import utils, db, securitykey
 from server.tasks import callDeferred
 from google.appengine.ext import blobstore
 from datetime import datetime, timedelta
 from google.appengine.ext.webapp import blobstore_handlers
 import json, urlparse
 from server.tasks import PeriodicTask
+from urlparse import urlparse
 import json
 import os
 from google.appengine.api.images import get_serving_url
@@ -22,7 +24,7 @@ import collections
 import logging
 import cgi
 import string
-
+from hashlib import sha256
 
 
 class fileBaseSkel( TreeLeafSkel ):
@@ -35,6 +37,35 @@ class fileBaseSkel( TreeLeafSkel ):
 	mimetype = stringBone( descr="Mime-Info", params={"frontend_list_visible": True}, readOnly=True, indexed=True ) #ALERT: was meta_mime
 	weak = booleanBone( descr="Is a weak Reference?", indexed=True, readOnly=True, visible=False )
 	servingurl = stringBone( descr="Serving URL", params={"frontend_list_visible": True}, readOnly=True )
+
+	width = numericBone(
+			descr=u"Breite",
+			indexed=True,
+			searchable=True,
+	)
+
+	height = numericBone(
+			descr=u"Höhe",
+			indexed=True,
+			searchable=True,
+	)
+
+
+	def refresh(self):
+		# Update from blobimportmap
+		try:
+			oldKeyHash = sha256(self["dlkey"].value).hexdigest().encode("hex")
+			res = db.Get( db.Key.from_path("viur-blobimportmap", oldKeyHash))
+		except:
+			res = None
+
+		if res and res["oldkey"] == self["dlkey"].value:
+			self["dlkey"].value = res["newkey"]
+			self["servingurl"].value = res["servingurl"]
+
+			logging.info("Refreshing file dlkey %s (%s)" % (self["dlkey"].value, self["servingurl"].value))
+
+		super(fileBaseSkel, self).refresh()
 
 	def preProcessBlobLocks(self, locks ):
 		"""
@@ -76,6 +107,7 @@ class File( Tree ):
 			}
 
 	def _resolveSkel(self, skelType):
+		# FIXME: WTF?!? rolfcopter? not seriousely?
 		for rofl, copter in {"leaf": fileBaseSkel, "node": fileNodeSkel}.items():
 			if skelType.lower() == rofl:
 				return copter()
@@ -149,11 +181,11 @@ class File( Tree ):
 			skey = kwargs["skey"]
 		else:
 			skey = ""
-		if not self.canAdd( None, "leaf" ):
+		if not self.canAdd("leaf", None):
 			raise errors.Forbidden()
 		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
-		return( blobstore.create_upload_url( "%s/upload" % self.modulPath ) )
+		return( blobstore.create_upload_url( "%s/upload" % self.modulePath ) )
 	getUploadURL.exposed=True
 
 
@@ -204,19 +236,38 @@ class File( Tree ):
 								if not request.current.get().isDevServer and servingURL.startswith("http://"):
 									# Rewrite Serving-URLs to https if we are live
 									servingURL = servingURL.replace("http://","https://")
+								else:
+									# NOTE: changed for Ticket ADMIN-37
+									servingURL = urlparse(servingURL).path
 							except:
 								servingURL = ""
 						else:
 							servingURL = ""
 						fileSkel = self.addLeafSkel()
-						fileSkel.setValues( {	"name": utils.escapeString( fileName ),
+						try:
+							# only fetching the file header or all if the file is smaller than 1M
+							data = blobstore.fetch_data(upload.key(), 0, min(upload.size, 1000000))
+							image = images.Image(image_data=data)
+							height = image.height
+							width = image.width
+						except Exception, err:
+							height = width = 0
+							logging.error("some error occurred while trying to fetch the image header with dimensions")
+							logging.exception(err)
+						fileSkel.setValues(
+								{
+									"name": utils.escapeString( fileName ),
 									"size": upload.size,
 									"mimetype": utils.escapeString( upload.content_type ),
 									"dlkey": str(upload.key()),
 									"servingurl": servingURL,
 									"parentdir": str(node),
 									"parentrepo": nodeSkel["parentrepo"].value,
-									"weak": False } )
+									"weak": False,
+									"width": width,
+									"height": height
+								}
+						)
 						fileSkel.toDB()
 						res.append( fileSkel )
 			else:
@@ -232,23 +283,41 @@ class File( Tree ):
 						servingURL = ""
 					fileName = self.decodeFileName( upload.filename )
 					fileSkel = self.addLeafSkel()
-					fileSkel.setValues( {	"name": utils.escapeString( fileName ),
+					try:
+						# only fetching the file header or all if the file is smaller than 1M
+						data = blobstore.fetch_data(upload.key(), 0, min(upload.size, 1000000))
+						image = images.Image(image_data=data)
+						height = image.height
+						width = image.width
+					except Exception, err:
+						height = width = 0
+						logging.error("some error occurred while trying to fetch the image header with dimensions")
+						logging.exception(err)
+					fileSkel.setValues(
+							{
+								"name": utils.escapeString( fileName ),
 								"size": upload.size,
 								"mimetype": utils.escapeString( upload.content_type ),
 								"dlkey": str(upload.key()),
 								"servingurl": servingURL,
 								"parentdir": None,
 								"parentrepo": None,
-								"weak": True } )
+								"weak": True,
+								"width": width,
+								"height": height
+							}
+					)
 					fileSkel.toDB()
 					res.append( fileSkel )
 			for r in res:
 				logging.info("Got a successfull upload: %s (%s)" % (r["name"].value, r["dlkey"].value ) )
+
 			user = utils.getCurrentUser()
 			if user:
-				logging.info("User: %s (%s)" % (user["name"], user["id"] ) )
+				logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
 			return( self.render.addItemSuccess( res ) )
-		except:
+		except Exception, err:
+			logging.exception(err)
 			for upload in self.getUploads():
 				upload.delete()
 				utils.markFileForDeletion( str(upload.key() ) )
@@ -274,9 +343,9 @@ class File( Tree ):
 			return( super(File, self).view( *args, **kwargs ) )
 		except (errors.NotFound, errors.NotAcceptable, TypeError) as e:
 			if len(args)>0 and blobstore.get( args[0] ):
-				raise( errors.Redirect( "%s/download/%s" % (self.modulPath, args[0]) ) )
+				raise( errors.Redirect( "%s/download/%s" % (self.modulePath, args[0]) ) )
 			elif len(args)>1 and blobstore.get( args[1] ):
-				raise( errors.Redirect( "%s/download/%s" % (self.modulPath, args[1]) ) )
+				raise( errors.Redirect( "%s/download/%s" % (self.modulePath, args[1]) ) )
 			elif isinstance( e, TypeError ):
 				raise( errors.NotFound() )
 			else:
@@ -308,7 +377,7 @@ class File( Tree ):
 		if user and "root" in user["access"]:
 			return True
 
-		return self.isOwnUserRootNode( str( skel["id"].value ) )
+		return self.isOwnUserRootNode( str( skel["key"].value ) )
 
 	def canEdit( self, skelType, skel=None ):
 		user = utils.getCurrentUser()
@@ -408,6 +477,11 @@ def doDeleteWeakReferences( timeStamp, cursor ):
 	gotAtLeastOne = False
 	query = skelCls().all().filter("weak =", True).filter("creationdate <", datetime.strptime(timeStamp,"%d.%m.%Y %H:%M:%S") ).cursor( cursor )
 	for skel in query.fetch(99):
+		# FIXME: Is that still needed? See hotfix/weakfile
+		anyRel = any(db.Query("viur-relations").filter("dest.key =", skel["key"].value).run(1, keysOnly=True))
+		if anyRel:
+			logging.debug("doDeleteWeakReferences: found relations with that file - don't delete!")
+			continue
 		gotAtLeastOne = True
 		skel.delete()
 	newCursor = query.getCursor()

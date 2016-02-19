@@ -134,7 +134,7 @@ class textBone( baseBone ):
 			:type entity: :class:`server.db.Entity`
 			:return: the modified :class:`server.db.Entity`
 		"""
-		if name == "id":
+		if name == "key":
 			return( entity )
 		if self.languages:
 			for k in entity.keys(): #Remove any old data

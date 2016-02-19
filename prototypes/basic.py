@@ -17,13 +17,13 @@ class BasicApplication(object):
 	adminInfo = None
 	accessRights = None
 
-	def __init__(self, modulName, modulPath, *args, **kwargs):
-		self.modulName = modulName
-		self.modulPath = modulPath
+	def __init__(self, moduleName, modulePath, *args, **kwargs):
+		self.moduleName = moduleName
+		self.modulePath = modulePath
 
 		if self.adminInfo and self.accessRights:
 			for r in self.accessRights:
-				rightName = "%s-%s" % (modulName, r)
+				rightName = "%s-%s" % (moduleName, r)
 
 				if not rightName in conf["viur.accessRights"]:
 					conf["viur.accessRights"].append(rightName)

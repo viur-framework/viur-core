@@ -24,21 +24,21 @@ def timestamp( *args, **kwargs):
 	return( json.dumps( d.strftime("%Y-%m-%dT%H-%M-%S") ) )
 timestamp.exposed=True
 
-def getStructure( adminTree, modul ):
-	if not modul in dir( adminTree ) \
-	  or not "adminInfo" in dir( getattr( adminTree, modul ) )\
-	  or not getattr( adminTree, modul ).adminInfo:
-		# Modul not known or no adminInfo for that modul
+def getStructure( adminTree, module ):
+	if not module in dir( adminTree ) \
+	  or not "adminInfo" in dir( getattr( adminTree, module ) )\
+	  or not getattr( adminTree, module ).adminInfo:
+		# Module not known or no adminInfo for that module
 		return( json.dumps( None ) )
 	res = {}
 	try:
-		modulObj = getattr( adminTree, modul )
+		moduleObj = getattr( adminTree, module )
 	except:
 		return( None )
 	for stype in ["viewSkel","editSkel","addSkel", "viewLeafSkel", "viewNodeSkel", "editNodeSkel", "editLeafSkel", "addNodeSkel", "addLeafSkel"]: #Unknown skel type
-		if stype in dir( modulObj ):
+		if stype in dir( moduleObj ):
 			try:
-				skel = getattr( modulObj, stype )()
+				skel = getattr( moduleObj, stype )()
 			except:
 				continue
 			if isinstance( skel, Skeleton ):
@@ -94,7 +94,7 @@ def canAccess( *args, **kwargs ):
 	if len( pathList )>=2 and pathList[1] == "skey":
 		# Give the user the chance to login :)
 		return( True )
-	if len( pathList )>=3 and pathList[1] == "user" and (pathList[2] == "login" or pathList[2] == "logout" or pathList[2] == "getAuthMethod"):
+	if len( pathList )>=3 and pathList[1] == "user" and (pathList[2].startswith("auth_") or pathList[2].startswith("f2_") or pathList[2] == "getAuthMethod" or pathList[2] == "login"):
 		# Give the user the chance to login :)
 		return( True )
 	return( False )

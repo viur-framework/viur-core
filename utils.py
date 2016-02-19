@@ -54,10 +54,29 @@ def sendEMail( dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None
 	:type replyTo: str
 	:param replyTo: A reply-to email address
 	"""
+
+	def rewriteEmail(oldDests, newDest):
+		"""
+			Rewrites each address in *oldDests* so that it will end with @newDest
+			:param oldDests: EMail-Address (or a list hereof) to rewrite
+			:type oldDests: str | list[str]
+			:param newDest: New Destination-Domain (eg "@mausbrand.de")
+			:type newDest: str
+			:return:
+		"""
+		if isinstance( oldDests, list ):
+			return [rewriteEmail(x) for x in oldDests ]
+		else:
+			newAddress = oldDests.replace(".", "_dot_").replace("@", "_at_")
+			return "%s%s" % (newAddress, newDest)
+
 	if conf["viur.emailRecipientOverride"]:
 		logging.warning("Overriding destination %s with %s", dests, conf["viur.emailRecipientOverride"])
-		dests = conf["viur.emailRecipientOverride"]
-	elif conf["viur.emailRecipientOverride"] is None:
+		if conf["viur.emailRecipientOverride"].startswith("@"):
+			dests = rewriteEmail(dests, conf["viur.emailRecipientOverride"])
+		else:
+			dests = conf["viur.emailRecipientOverride"]
+	elif conf["viur.emailRecipientOverride"] is False:
 		logging.warning("Sending emails disabled by config[viur.emailRecipientOverride]")
 		return
 
@@ -232,7 +251,6 @@ def unescapeString(val, maxLength = 0):
 
 	return val
 
-
 def safeStringComparison(s1, s2):
 	"""
 		Performs a string comparison in constant time.
@@ -254,3 +272,18 @@ def safeStringComparison(s1, s2):
 		if x != y:
 			isOkay = False
 	return isOkay
+
+def normalizeKey( key ):
+	"""
+		Normalizes a datastore key (replacing _application with the current one)
+	:param key:
+	:return:
+	"""
+	if key is None:
+		return None
+	key = db.Key(encoded=str(key))
+	if key.parent():
+		parent = db.Key(encoded=normalizeKey(key.parent()))
+	else:
+		parent = None
+	return str( db.Key.from_path(key.kind(), key.id_or_name(), parent=parent))

@@ -4,7 +4,7 @@ from string import Template
 from server import bones, utils, request, session, conf, errors, securitykey
 from server.skeleton import Skeleton, RelSkel
 from server.bones import *
-from server.applications.singleton import Singleton
+from server.prototypes.singleton import Singleton
 from server.utils import escapeString
 import string
 import codecs
@@ -28,7 +28,7 @@ class ListWrapper( list ):
 	"""
 		Monkey-Patching for lists.
 		Allows collecting sub-properties by using []
-		Example: [ {"id":"1"}, {"id":"2"} ]["id"] --> ["1","2"]
+		Example: [ {"key":"1"}, {"key":"2"} ]["key"] --> ["1","2"]
 	"""
 	def __init__( self, src ):
 		"""
@@ -176,12 +176,33 @@ class Render( object ):
 						template+".html" ]
 		for fn in fnames: #Check the templatefolder of the application
 			if os.path.isfile( os.path.join( os.getcwd(), htmlpath, fn ) ):
+				self.checkForOldLinePrefix( os.path.join( os.getcwd(), htmlpath, fn ) )
 				return( fn )
 		for fn in fnames: #Check the fallback
 			if os.path.isfile( os.path.join( os.getcwd(), "server", "template", fn ) ):
+				self.checkForOldLinePrefix( os.path.join( os.getcwd(), "server", "template", fn ) )
 				return( fn )
 		raise errors.NotFound( "Template %s not found." % template )
-	
+
+	def checkForOldLinePrefix(self, fn):
+		"""
+			This method checks the given template for lines starting with "##" - the old, now unsupported
+			Line-Prefix. Bail out if such prefixes are used. This is a temporary safety measure; will be
+			removed after 01.05.2017.
+		:param fn: The filename to check
+		:return:
+		"""
+		if not "_safeTemplatesCache" in dir( self ):
+			self._safeTemplatesCache = [] #Scan templates at most once per instance
+		if fn in self._safeTemplatesCache:
+			return #This template has already been checked and looks okay
+		tplData = open( fn, "r" ).read()
+		for l in tplData.splitlines():
+			if l.strip(" \t").startswith("##"):
+				raise SyntaxError("Template %s contains unsupported Line-Markers (##)" % fn )
+		self._safeTemplatesCache.append( fn )
+		return
+
 	def getLoaders(self):
 		"""
 			Return the list of Jinja2 loaders which should be used.
@@ -194,6 +215,7 @@ class Render( object ):
 		else:
 			htmlpath = "html/"
 		return( ChoiceLoader( [FileSystemLoader( htmlpath ), FileSystemLoader( "server/template/" )] ) )
+
 
 	def renderSkelStructure(self, skel):
 		"""
@@ -228,7 +250,7 @@ class Render( object ):
 						else:
 							boneType = "relational."+_bone.type
 						res[key]["type"] = boneType
-						res[key]["modul"] = _bone.modul
+						res[key]["module"] = _bone.module
 						res[key]["multiple"]=_bone.multiple
 						res[key]["format"] = _bone.format
 					if( isinstance( _bone, bones.selectOneBone ) or isinstance( _bone, bones.selectMultiBone ) ):
@@ -678,10 +700,10 @@ class Render( object ):
 			:rtype: str, str
 		"""
 		headers = {}
-		user = session.current.get("user")
-		if isinstance( skel, Skeleton ):
+		user = utils.getCurrentUser()
+		if isinstance(skel, Skeleton) or isinstance(skel, RelSkel):
 			res = self.collectSkelData( skel )
-		elif isinstance( skel, list ) and all( [isinstance(x,Skeleton) for x in skel] ):
+		elif isinstance(skel, list) and all([(isinstance(x, Skeleton) or isinstance(x,RelSkel)) for x in skel]):
 			res = [ self.collectSkelData( x ) for x in skel ]
 		else:
 			res = skel
@@ -744,12 +766,13 @@ class Render( object ):
 			self.env.globals["getCurrentUser"] = self.getCurrentUser
 			self.env.globals["getResizedURL"] = get_serving_url
 			self.env.globals["updateURL"] = self.updateURL
+			self.env.filters["urlencode"] = urlencode
 			self.env.globals["execRequest"] = self.execRequest
 			self.env.globals["getHostUrl" ] = self.getHostUrl
 			self.env.globals["getLanguage" ] = self.getLanguage #session.current.getLanguage()
-			self.env.globals["modulName"] = self.moduleName #deprecated
+			self.env.globals["getLanguages"] = self.getLanguages
+			self.env.globals["getLanguageNames"] = self.getLanguageNames
 			self.env.globals["moduleName"] = self.moduleName
-			self.env.globals["modulPath"] = self.modulePath # deprecated
 			self.env.globals["modulePath"] = self.modulePath
 			self.env.globals["_"] = _
 
@@ -769,8 +792,8 @@ class Render( object ):
 
 		:return: Returns the name of the current module, or empty string if there is no module set.
 		"""
-		if self.parent and "modulName" in dir(self.parent):
-			return self.parent.modulName
+		if self.parent and "moduleName" in dir(self.parent):
+			return self.parent.moduleName
 
 		return ""
 
@@ -780,8 +803,8 @@ class Render( object ):
 
 		:return: Returns the path of the current module, or empty string if there is no module set.
 		"""
-		if self.parent and "modulPath" in dir(self.parent):
-			return self.parent.modulPath
+		if self.parent and "modulePath" in dir(self.parent):
+			return self.parent.modulePath
 
 		return ""
 
@@ -797,7 +820,13 @@ class Render( object ):
 		if resolveAlias and lang in conf["viur.languageAliasMap"].keys():
 			lang = conf["viur.languageAliasMap"][ lang ]
 		return( lang )
+		
+	def getLanguages(self):
+		return conf["supported_languages"]
 
+	def getLanguageNames(self):
+		return conf["viur.defaultlangsvalues"]
+		
 	def execRequest( self, path, *args, **kwargs ):
 		"""
 			Jinja2 global: Perform an internal Request.
@@ -963,7 +992,7 @@ class Render( object ):
 		session.current["JinjaSpace"]= sessionData
 		session.current.markChanged()
 
-	def getEntry(self, module, id=None, skel="viewSkel"):
+	def getEntry(self, module, key=None, skel="viewSkel"):
 		"""
 			Jinja2 global: Fetch an entry from a given module, and return the data as a dict,
 			prepared for direct use in the output.
@@ -974,9 +1003,9 @@ class Render( object ):
 			:param module: Name of the module, from which the data should be fetched.
 			:type module: str
 
-			:param id: Requested entity-key in an urlsafe-format. If the module is a Singleton
+			:param key: Requested entity-key in an urlsafe-format. If the module is a Singleton
 			application, the parameter can be omitted.
-			:type id: str
+			:type key: str
 
 			:param skel: Specifies and optionally different data-model
 			:type skel: str
@@ -986,27 +1015,36 @@ class Render( object ):
 
 
 		"""
-		#FIXME: Should obey the same restrictions as fetchList???!
-		if not module in dir ( conf["viur.mainApp"] ):
-			logging.error("getEntry called with unknown modul %s!" % module)
+		if module not in dir ( conf["viur.mainApp"] ):
+			logging.error("getEntry called with unknown module %s!" % module)
 			return False
 
 		obj = getattr( conf["viur.mainApp"], module)
 
-		if skel in dir( obj ):
-			skel = getattr( obj , skel)()
+		if skel in dir(obj):
+			skel = getattr(obj , skel)()
 
-			if isinstance( obj, Singleton ) and not id:
-				#We fetching the entry from a singleton - No id needed
-				id = str( db.Key.from_path( skel.kindName, obj.getKey() ) )
-			elif not id:
-				logging.info("getEntry called without an valid id" )
-				return( None )
-
-			if isinstance( skel,  Skeleton ):
-				if not skel.fromDB( id ):
-					return( None )
-				return( self.collectSkelData( skel ) )
+			if isinstance(obj, Singleton) and not key:
+				#We fetching the entry from a singleton - No key needed
+				key = str(db.Key.from_path(skel.kindName, obj.getKey()))
+			elif not key:
+				logging.info("getEntry called without an valid key" )
+				return False
+			if not isinstance(skel,  Skeleton):
+				return False
+			if "listFilter" in dir(obj):
+				qry = skel.all().mergeExternalFilter({"key": str(key)})
+				qry = obj.listFilter(qry)
+				if not qry:
+					return None
+				skel = qry.getSkel()
+				if not skel:
+					return None
+				return self.collectSkelData(skel)
+			else: # No Access-Test for this module
+				if not skel.fromDB( key ):
+					return None
+				return self.collectSkelData( skel )
 
 		return False
 
@@ -1050,7 +1088,7 @@ class Render( object ):
 			:type skel: str
 
 			:param _noEmptyFilter: If True, this function will not return any results if at least one
-			parameter is an empty list. This is useful to prevent filtering (e.g. by id) not being
+			parameter is an empty list. This is useful to prevent filtering (e.g. by key) not being
 			performed because the list is empty.
 			:type _noEmptyFilter: bool
 
@@ -1059,7 +1097,7 @@ class Render( object ):
 			:rtype: dict
 		"""
 		if not module in dir ( conf["viur.mainApp"] ):
-			logging.error("Jinja2-Render can't fetch a list from an unknown modul %s!" % module)
+			logging.error("Jinja2-Render can't fetch a list from an unknown module %s!" % module)
 			return( False )
 		caller = getattr( conf["viur.mainApp"], module)
 		if not skel in dir( caller ):

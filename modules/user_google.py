@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from server.applications.list import List
+from server.prototypes.list import List
 from server.skeleton import Skeleton
 from server import utils, session
 from server.bones import *
@@ -22,7 +22,7 @@ class userSkel( Skeleton ):
 
 class GoogleUser( List ):
 	kindName = "user"
-	modulList = None #Cache this list of avaiable modules on this instance
+	moduleList = None #Cache this list of avaiable modules on this instance
 
 	addSkel = None #You cannot add users directly - they need to sign up with google and log into the application once
 
@@ -66,7 +66,7 @@ class GoogleUser( List ):
 			res = {}
 			for k in user.keys():
 				res[ k ] = user[ k ]
-			res[ "id" ] = str( user.key() )
+			res["key"] = str( user.key() )
 			if not res["access"]:
 				res["access"] = []
 			return( res )
@@ -106,7 +106,7 @@ class GoogleUser( List ):
 			self.onLogin()
 			return( self.render.loginSucceeded( ) )
 		else:
-			raise( errors.Redirect( users.create_login_url( self.modulPath+"/login") ) )
+			raise( errors.Redirect( users.create_login_url( self.modulePath+"/login") ) )
 	login.exposed = True
 	login.forceSSL = True
 
@@ -116,17 +116,17 @@ class GoogleUser( List ):
 			return( self.render.logoutSuccess( ) )
 		if not securitykey.validate( skey ):
 			raise( errors.Forbidden() )
-		raise( errors.Redirect( users.create_logout_url( self.modulPath+"/logout" ) ) )
+		raise( errors.Redirect( users.create_logout_url( self.modulePath+"/logout" ) ) )
 	logout.exposed = True
 	logout.forceSSL = True
 
-	def view(self, id, *args, **kwargs):
+	def view(self, key, *args, **kwargs):
 		"""
-			Allow a special id "self" to reference always the current user
+			Allow a special key "self" to reference always the current user
 		"""
-		if id=="self":
+		if key=="self":
 			user = self.getCurrentUser()
 			if user:
-				return( super( GoogleUser, self ).view( user["id"], *args, **kwargs ) )
-		return( super( GoogleUser, self ).view( id, *args, **kwargs ) )
+				return( super( GoogleUser, self ).view( user["key"], *args, **kwargs ) )
+		return( super( GoogleUser, self ).view( key, *args, **kwargs ) )
 	view.exposed=True

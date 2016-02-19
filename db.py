@@ -150,7 +150,7 @@ def Get( keys, **kwargs ):
 			res = memcache.get( str(keys), namespace=__CacheKeyPrefix__ )
 			if not res: #Not cached - fetch and cache it :)
 				res = Entity.FromDatastoreEntity( datastore.Get( keys, **kwargs ) )
-				res[ "id" ] = str( res.key() )
+				res[ "key" ] = str( res.key() )
 				memcache.set( str(res.key() ), res, time=__cacheTime__, namespace=__CacheKeyPrefix__ )
 			return( res )
 		#Either the result wasnt found, or we got a list of keys to fetch;
@@ -581,7 +581,7 @@ class Query( object ):
 		self.datastoreQuery.Ancestor( ancestor )
 		return( self )
 	
-	def cursor( self, cursor ):
+	def cursor( self, cursor, endCursor=None ):
 		"""
 			Sets the start cursor for this query.
 
@@ -603,11 +603,19 @@ class Query( object ):
 			pass
 		else:
 			raise ValueError("Cursor must be String, datastore_query.Cursor or None")
+		if endCursor is not None:
+			if isinstance( endCursor, basestring ):
+				endCursor = datastore_query.Cursor( urlsafe=endCursor )
+			elif isinstance( cursor, datastore_query.Cursor ) or endCursor==None:
+				pass
+			else:
+				raise ValueError("endCursor must be String, datastore_query.Cursor or None")
+
 		qo = self.datastoreQuery.__query_options
 		self.datastoreQuery.__query_options = datastore_query.QueryOptions(	keys_only=qo.keys_only, 
 											produce_cursors=qo.produce_cursors,
 											start_cursor=cursor,
-											end_cursor=qo.end_cursor,
+											end_cursor=endCursor or qo.end_cursor,
 											projection=qo.projection )
 		self._origCursor = cursor
 		return( self )

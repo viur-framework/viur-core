@@ -6,6 +6,7 @@ import json
 from time import time
 from datetime import datetime
 import logging
+from server.utils import normalizeKey
 
 class relationalBone( baseBone ):
 	"""
@@ -37,22 +38,22 @@ class relationalBone( baseBone ):
 
 
 	type = None
-	modul = None
-	refKeys = ["id","name"]
-	parentKeys = ["id","name"]
+	module = None
+	refKeys = ["key","name"]
+	parentKeys = ["key","name"]
 
 	@staticmethod
-	def generageSearchWidget(target,modul,name="RELATIONAL BONE"):
-		return ( {"name":name,"target":target,"type":"relational","modul":modul} )
+	def generageSearchWidget(target,module,name="RELATIONAL BONE"):
+		return ( {"name":name,"target":target,"type":"relational","module":module} )
 
-	def __init__( self, type=None, modul=None, refKeys=None, parentKeys=None, multiple=False, format="$(name)",  *args,**kwargs):
+	def __init__( self, type=None, module=None, refKeys=None, parentKeys=None, multiple=False, format="$(name)",  *args,**kwargs):
 		"""
 			Initialize a new relationalBone.
 
 			:param type: KindName of the referenced property.
 			:type type: str
-			:param modul: Name of the modul which should be used to select entities of kind "type". If not set,
-				the value of "type" will be used (the kindName must match the modulName)
+			:param module: Name of the modul which should be used to select entities of kind "type". If not set,
+				the value of "type" will be used (the kindName must match the moduleName)
 			:type type: str
 			:param refKeys: A list of properties to include from the referenced property. These properties will be
 				available in the template without having to fetch the referenced property. Filtering is also only possible
@@ -72,21 +73,26 @@ class relationalBone( baseBone ):
 		self.multiple = multiple
 		self.format = format
 		self._dbValue = None #Store the original result fetched from the db here so we have that information in case a referenced entity has been deleted
+
 		if type:
 			self.type = type
-		if modul:
-			self.modul = modul
+
+		if module:
+			self.module = module
 		elif self.type:
-			self.modul = self.type
-		if self.type is None or self.modul is None:
-			raise NotImplementedError("Type and Modul of relationalbone's must not be None")
+			self.module = self.type
+
+		if self.type is None or self.module is None:
+			raise NotImplementedError("Type and Module of relationalbone's must not be None")
+
 		if refKeys:
-			if not "id" in refKeys:
-				raise AttributeError("ID must be included in refKeys!")
+			if not "key" in refKeys:
+				raise AttributeError("'key' must be included in refKeys!")
 			self.refKeys=refKeys
+
 		if parentKeys:
-			if not "id" in parentKeys:
-				raise AttributeError("ID must be included in parentKeys!")
+			if not "key" in parentKeys:
+				raise AttributeError("'key' must be included in parentKeys!")
 			self.parentKeys=parentKeys
 
 	def unserialize( self, name, expando ):
@@ -95,16 +101,16 @@ class relationalBone( baseBone ):
 			if self.multiple:
 				self.value = []
 				if not val:
-					return( True )
+					return True
 				if isinstance(val, list):
 					for res in val:
 						try:
-							self.value.append( json.loads( res ) )
+							self.value.append(json.loads(res))
 						except:
 							pass
 				else:
 					try:
-						value = json.loads( val )
+						value = json.loads(val)
 						if isinstance( value, dict ):
 							self.value.append( value )
 					except:
@@ -112,13 +118,13 @@ class relationalBone( baseBone ):
 			else:
 				if isinstance( val, list ) and len( val )>0:
 					try:
-						self.value = json.loads( val[0] )
+						self.value = json.loads(val[0])
 					except:
 						pass
 				else:
 					if val:
 						try:
-							self.value = json.loads( val )
+							self.value = json.loads(val)
 						except:
 							pass
 					else:
@@ -126,110 +132,118 @@ class relationalBone( baseBone ):
 
 		else:
 			self.value = None
+
 		if isinstance( self.value, list ):
 			self._dbValue = self.value[ : ]
 		elif isinstance( self.value, dict ):
 			self._dbValue = dict( self.value.items() )
 		else:
 			self._dbValue = None
-		return( True )
+
+		return True
 	
-	def serialize(self, key, entity ):
+	def serialize(self, name, entity ):
 		if not self.value:
-			entity.set( key, None, False )
+			entity.set( name, None, False )
 			if not self.multiple:
 				for k in entity.keys():
-					if k.startswith("%s." % key):
+					if k.startswith("%s." % name):
 						del entity[ k ]
 		else:
 			if self.multiple:
 				res = []
 				for val in self.value:
 					res.append( json.dumps( val ) )
-				entity.set( key, res, False )
+				entity.set( name, res, False )
 			else:
-				entity.set( key, json.dumps( self.value ), False )
+				entity.set( name, json.dumps( self.value ), False )
 				#Copy attrs of our referenced entity in
 				if self.indexed:
 					for k, v in self.value.items():
 						if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ):
-							entity[ "%s.%s" % (key,k) ] = v
-		return( entity )
+							entity[ "%s.%s" % (name,k) ] = v
+		return entity
 	
-	def postSavedHandler( self, key, skel, id, dbfields ):
+	def postSavedHandler( self, boneName, skel, key, dbfields ):
 		def isIndexable( val ):
 			if isinstance( val, unicode ) or isinstance(val, str):
 				if len( val )>=500:
-					return( False )
+					return False
 			if isinstance( val, list ):
 				for x in val:
 					if isinstance( x, unicode ) or isinstance( x, str ):
 						if( len( x )>= 500 ):
-							return( False )
-			return( True )
+							return False
+			return True
+
 		if not self.value:
 			values = []
 		elif isinstance( self.value, dict ):
 			values = [ dict( (k,v) for k,v in self.value.items() ) ]
 		else:
 			values = [ dict( (k,v) for k,v in x.items() ) for x in self.value ]
+
 		parentValues = {}
+
 		for parentKey in self.parentKeys:
 			if parentKey in dbfields.keys():
 				parentValues[ parentKey ] = dbfields[ parentKey ]
-		dbVals = db.Query( "viur-relations" ).ancestor( db.Key( id ) ) #skel.kindName+"_"+self.type+"_"+key
+
+		dbVals = db.Query( "viur-relations" ).ancestor( db.Key( key ) ) #skel.kindName+"_"+self.type+"_"+key
 		dbVals.filter("viur_src_kind =", skel.kindName )
 		dbVals.filter("viur_dest_kind =", self.type )
-		dbVals.filter("viur_src_property =", key )
+		dbVals.filter("viur_src_property =", boneName )
+
 		for dbObj in dbVals.iter():
 			try:
-				if not dbObj[ "dest.id" ] in [ x["id"] for x in values ]: #Relation has been removed
+				if not dbObj[ "dest.key" ] in [ x["key"] for x in values ]: #Relation has been removed
 					db.Delete( dbObj.key() )
 					continue
 			except: #This entry is corrupt
 				db.Delete( dbObj.key() )
 			else: # Relation: Updated
-				data = [ x for x in values if x["id"]== dbObj[ "dest.id" ] ][0]
+				data = [ x for x in values if x["key"] == dbObj[ "dest.key" ] ][0]
 				if self.multiple and self.indexed: #We dont store more than key and kinds, and these dont change
 					for k,v in parentValues.items(): #Write our (updated) values in
 						if not isIndexable(v):
 							dbObj[ "src."+k ] = None
-							logging.error("Cannot index property src.%s of relationalBone %s" % (k,key))
+							logging.error("Cannot index property src.%s of relationalBone %s" % (k,boneName))
 						else:
 							dbObj[ "src."+k ] = v
 					for k, v in data.items():
 						if not isIndexable(v):
 							dbObj[ "dest."+k ] = None
-							logging.error("Cannot index property dest.%s of relationalBone %s" % (k,key))
+							logging.error("Cannot index property dest.%s of relationalBone %s" % (k,boneName))
 						else:
 							dbObj[ "dest."+k ] = v
 					dbObj[ "viur_delayed_update_tag" ] = time()
 					db.Put( dbObj )
 				values.remove( data )
+
 		# Add any new Relation
 		for val in values:
-			dbObj = db.Entity( "viur-relations" , parent=db.Key( id ) ) #skel.kindName+"_"+self.type+"_"+key
+			dbObj = db.Entity( "viur-relations" , parent=db.Key( key ) ) #skel.kindName+"_"+self.type+"_"+key
 			if not self.multiple or not self.indexed: #Dont store more than key and kinds, as they aren't used anyway
-				dbObj[ "dest.id" ] = val["id"]
-				dbObj[ "src.id" ] = id
+				dbObj[ "dest.key" ] = val["key"]
+				dbObj[ "src.key" ] = key
 			else:
 				for k, v in val.items():
 					if not isIndexable(v):
 						dbObj[ "dest."+k ] = None
-						logging.error("Cannot index property dest.%s of relationalBone %s" % (k,key))
+						logging.error("Cannot index property dest.%s of relationalBone %s" % (k,boneName))
 					else:
 						dbObj[ "dest."+k ] = v
 				for k,v in parentValues.items():
 					if not isIndexable(v):
 						dbObj[ "src."+k ] = None
-						logging.error("Cannot index property src.%s of relationalBone %s" % (k,key))
+						logging.error("Cannot index property src.%s of relationalBone %s" % (k,boneName))
 					else:
 						dbObj[ "src."+k ] = v
 			dbObj[ "viur_delayed_update_tag" ] = time()
 			dbObj[ "viur_src_kind" ] = skel.kindName #The kind of the entry referencing
 			#dbObj[ "viur_src_key" ] = str( id ) #The id of the entry referencing
-			dbObj[ "viur_src_property" ] = key #The key of the bone referencing
-			#dbObj[ "viur_dest_key" ] = val[ "id" ]
+			dbObj[ "viur_src_property" ] = boneName #The key of the bone referencing
+			#dbObj[ "viur_dest_key" ] = val[ "key" ]
 			dbObj[ "viur_dest_kind" ] = self.type
 			db.Put( dbObj )
 		
@@ -239,9 +253,8 @@ class relationalBone( baseBone ):
 	def rebuildData(self, *args, **kwargs ):
 		pass
 	
-	def isInvalid( self, id ):
-		return( True )
-	
+	def isInvalid( self, key ):
+		return True
 
 	def fromClient( self, name, data ):
 		"""
@@ -261,69 +274,101 @@ class relationalBone( baseBone ):
 		if name in data.keys():
 			value = data[ name ]
 		else:
-			value = None
+			value = []
+
+			for k,v in data.items():
+				if k.startswith( name ):
+					k = k.replace( name, "", 1)
+					try:
+						idx = int(k)
+					except:
+						continue
+
+					value.insert(idx, v)
+
+			if len(value)==0:
+				value = None
+			elif len(value)==1:
+				value = value[1]
+
 		self.value = []
 		res = []
+
 		if not value:
-			return( "Invalid value entered" )
+			return "Invalid value entered"
+
 		if self.multiple:
 			if not isinstance( value, list ):
 				if value:
 					if value.find("\n")!=-1:
 						for val in value.replace("\r\n","\n").split("\n"):
 							valstr = val
+
 							if valstr and self.isInvalid(  valstr  ):
 								res.append(  valstr )
 					else:
 						valstr =  value
 						if valstr and self.isInvalid(  valstr ):
 							res.append( valstr )
+
 			else:
 				for val in value:
 					valstr =  val 
 					if valstr and self.isInvalid( valstr  ):
 						res.append( valstr )
+
 		else:
 			valstr = value 
 			if valstr and self.isInvalid( valstr ):
 				res.append( valstr )
 		
 		if len( res ) == 0:
-			return( "No value entered" )
+			return "No value entered"
+
 		for r in res:
 			isEntryFromBackup = False #If the referenced entry has been deleted, restore information from 
+
 			try:
 				entry = db.Get( db.Key( r ) )
+
 			except: #Invalid key or something like that
+
 				if isinstance(self._dbValue, dict):
-					if self._dbValue["id"]==str(r):
+					if normalizeKey(self._dbValue["key"])==normalizeKey(r):
 						entry = self._dbValue
 						isEntryFromBackup = True
-				elif  isinstance(self._dbValue, list):
+
+				elif isinstance(self._dbValue, list):
 					for dbVal in self._dbValue:
-						if dbVal["id"]==str(r):
+						if normalizeKey(dbVal["key"])==normalizeKey(r):
 							entry = dbVal
 							isEntryFromBackup = True
+
 				if not isEntryFromBackup:
 					if not self.multiple: #We can stop here :/
-						return( "Invalid entry selected" )
+						return "Invalid entry selected"
 					else:
 						continue
-			if not entry or (not isEntryFromBackup and not entry.key().kind()==self.type): #Entry does not exist or has wrong type (is from another modul)
+
+			if not entry or (not isEntryFromBackup and not entry.key().kind()==self.type): #Entry does not exist or has wrong type (is from another module)
 				if entry:
-					logging.error("I got an id, which kind doesn't match my type! (Got: %s, my type %s)" % ( entry.key().kind(), self.type ) )
+					logging.error("I've got a key which kind doesn't match my type! (got %s, but expected %s)" % (entry.key().kind(), self.type))
 				continue
+
 			if not self.multiple:
 				self.value = { k: entry[k] for k in entry.keys() if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ) }
-				self.value["id"] = r
-				return( None )
+				self.value["key"] = r
+				return None
+
 			else:
 				tmp = { k: entry[k] for k in entry.keys() if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ) }
-				tmp["id"] = r
+				tmp["key"] = r
 				self.value.append( tmp )
+
 		if not self.value:
-			return( "No value entered" )
-		return( None )
+			return "No value entered"
+
+		return None
 
 	def _rewriteQuery(self, name, skel, dbFilter, rawFilter ):
 		"""
@@ -566,18 +611,30 @@ class relationalBone( baseBone ):
 						res.append( "src.%s" % orderKey )
 		return( res )
 
-	def refresh(self, boneName, skel ):
+	def refresh(self, boneName, skel):
 		"""
 			Refresh all values we might have cached from other entities.
 		"""
-		logging.warning("Refreshing Relationalbone %s of %s" % (boneName, skel.kindName))
 		if not self.value:
 			return
-		if isinstance( self.value, dict ) and "id" in self.value.keys():
-			self.fromClient( boneName, {boneName: self.value["id"]} )
+
+		logging.info("Refreshing relationalBone %s of %s" % (boneName, skel.kindName))
+
+		if isinstance(self.value, dict):
+			if "key" in self.value.keys():
+				self.fromClient(boneName, {boneName: normalizeKey(self.value["key"])})
+
+			# !!!ViUR re-design compatibility!!!
+			elif "id" in self.value.keys():
+				self.fromClient(boneName, {boneName: normalizeKey(self.value["id"])})
+
 		elif isinstance( self.value, list ):
 			tmpList = []
 			for data in self.value:
-				if isinstance(data,dict) and "id" in data.keys():
-					tmpList.append( data["id"] )
-			self.fromClient( boneName, {boneName: tmpList} )
+				if isinstance(data, dict) and "key" in data.keys():
+					tmpList.append(normalizeKey(data["key"]))
+				# !!!ViUR re-design compatibility!!!
+				elif isinstance(data, dict) and "id" in data.keys():
+					tmpList.append(normalizeKey(data["id"]))
+
+			self.fromClient(boneName, {boneName: tmpList})
