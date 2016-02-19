@@ -233,12 +233,12 @@ class File( Tree ):
 						if str( upload.content_type ).startswith("image/"):
 							try:
 								servingURL = get_serving_url( upload.key() )
-								if not request.current.get().isDevServer and servingURL.startswith("http://"):
-									# Rewrite Serving-URLs to https if we are live
-									servingURL = servingURL.replace("http://","https://")
-								else:
+								if request.current.get().isDevServer:
 									# NOTE: changed for Ticket ADMIN-37
 									servingURL = urlparse(servingURL).path
+								elif servingURL.startswith("http://"):
+									# Rewrite Serving-URLs to https if we are live
+									servingURL = servingURL.replace("http://","https://")
 							except:
 								servingURL = ""
 						else:
