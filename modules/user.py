@@ -57,8 +57,6 @@ class UserPassword(object):
 	@exposed
 	@forceSSL
 	def login(self, name=None, password=None, skey="", *args, **kwargs):
-		print(name, password, skey)
-
 		if self.userModule.getCurrentUser(): #Were already logged in
 			return self.userModule.render.loginSucceeded()
 
