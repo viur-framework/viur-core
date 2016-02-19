@@ -212,6 +212,8 @@ class GoogleAccount(object):
 		raise errors.Redirect( users.create_login_url( self.modulePath+"/login") )
 
 class Otp2Factor( object ):
+	windowSize = 5
+
 	def __init__(self, userModule, modulePath):
 		super(Otp2Factor, self).__init__()
 		self.userModule = userModule
@@ -227,7 +229,7 @@ class Otp2Factor( object ):
 
 	def startProcessing(self, userId):
 		user = db.Get(userId)
-		if all([(x in user.keys() and user[x]) for x in ["otpid", "otpkey", "otptimedrift"]]): 
+		if all([(x in user.keys() and user[x]) for x in ["otpid", "otpkey", "otptimedrift"]]):
 			logging.info( "OTP wanted for user" )
 			session.current["_otp_user"] = {	"uid": str(userId),
 								"otpid": user["otpid"],
@@ -241,7 +243,7 @@ class Otp2Factor( object ):
 	class otpSkel( RelSkel ):
 		otptoken = stringBone( descr="Token", required=True, caseSensitive=False, indexed=True )
 
-	def generateOtps(self, secret, window=5):
+	def generateOtps(self, secret ):
 		"""
 			Generates all valid tokens for the given secret
 		"""
@@ -257,7 +259,7 @@ class Otp2Factor( object ):
 
 		idx = int( time()/60.0 ) # Current time index
 		res = []
-		for slot in range( idx-window, idx+window ):
+		for slot in range( idx-self.windowSize, idx+self.windowSize ):
 			currHash= hmac.new( secret.decode("HEX"), asBytes(slot), hashlib.sha1 ).digest()
 			# Magic code from https://tools.ietf.org/html/rfc4226 :)
 			offset = ord(currHash[19]) & 0xf
