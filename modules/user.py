@@ -243,7 +243,7 @@ class Otp2Factor( object ):
 	class otpSkel( RelSkel ):
 		otptoken = stringBone( descr="Token", required=True, caseSensitive=False, indexed=True )
 
-	def generateOtps(self, secret ):
+	def generateOtps(self, secret, timeDrift):
 		"""
 			Generates all valid tokens for the given secret
 		"""
@@ -258,6 +258,7 @@ class Otp2Factor( object ):
 			return( ("00"*(8-(len(hexStr)/2))+hexStr).decode("hex") )
 
 		idx = int( time()/60.0 ) # Current time index
+		idx += int(timeDrift)
 		res = []
 		for slot in range( idx-self.windowSize, idx+self.windowSize ):
 			currHash= hmac.new( secret.decode("HEX"), asBytes(slot), hashlib.sha1 ).digest()
@@ -277,10 +278,13 @@ class Otp2Factor( object ):
 		if not token:
 			raise errors.Forbidden()
 
+		if token["failures"]>3:
+			raise errors.Forbidden("Maximum amount of authentication retries exceeded")
+
 		if not otptoken or not skey:
 			return self.userModule.render.edit(self.otpSkel(), otpFailed=False)
 
-		validTokens = self.generateOtps( token["otpkey"] )
+		validTokens = self.generateOtps(token["otpkey"], token["otptimedrift"])
 		logging.debug(int(otptoken) )
 		logging.debug(validTokens)
 		logging.debug(int(otptoken) in validTokens)
@@ -289,9 +293,36 @@ class Otp2Factor( object ):
 			userId = session.current["_otp_user"]["uid"]
 			del session.current["_otp_user" ]
 			session.current.markChanged()
-			return self.userModule.authenticateUser(userId)
+			idx = validTokens.index(int(otptoken))
+			if abs(idx - self.windowSize) > 2:
+				# The time-drift accumulates to more than 2 minutes, update our
+				# clock-drift value accordingly
+				self.updateTimeDrift(userId, idx - self.windowSize)
+			return self.userModule.secondFactorSucceeded(self, userId)
+		else:
+			token["failures"] += 1
+			session.current["_otp_user"] = token
+			session.current.markChanged()
+			return self.userModule.render.edit( self.OtpSkel(), otpFailed=True, tpl="user_otp")
 
-		return self.userModule.render.edit(self.otpSkel(), otpFailed=True)
+
+
+	def updateTimeDrift(self, userId, idx):
+		"""
+			Updates the clock-drift value.
+			The value is only changed in 1/10 steps, so that a late submit by an user doesn't skew
+			it out of bounds. Maximum change per call is 0.3 minutes.
+			:param userId: For which user should the update occour
+			:param idx: How many steps before/behind was that token
+			:return:
+		"""
+		def updateTransaction(userId, idx):
+			user = db.Get(userId)
+			if not "otptimedrift" in user.keys() or not isinstance(user["otptimedrift"],float):
+				user["otptimedrift"] = 0.0
+			user["otptimedrift"] += min(max(0.1*idx,-0.3),0.3)
+			db.Put(user)
+		db.RunInTransaction(updateTransaction, userId, idx)
 
 class User(List):
 	kindName = "user"
@@ -341,6 +372,8 @@ class User(List):
 		return session.current.get("user")
 
 	def continueAuthenticationFlow(self, caller, userId):
+		session.current["_mayBeUserId"] = str(userId)
+		session.current.markChanged()
 		for authProvider, secondFactor in self.validAuthenticationMethods:
 			if secondFactor is None:
 				# We allow sign-in without a second factor
@@ -356,6 +389,12 @@ class User(List):
 
 		# Whoops.. This user logged in successfully - but we have no second factor provider willing to confirm it
 		raise errors.NotAcceptable("There are no more authentication methods to try") # Sorry...
+
+	def secondFactorSucceeded(self, secondFactor, userId):
+		logging.debug("Got SecondFactorSucceeded call from %s." % secondFactor)
+		if str(session.current["_mayBeUserId"]) != str(userId):
+			raise errors.Forbidden()
+		return self.authenticateUser(userId)
 
 	def authenticateUser(self, userId, **kwargs):
 		"""
