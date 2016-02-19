@@ -94,13 +94,13 @@ class UserPassword(object):
 			skel=self.loginSkel()
 			skel["name"].fromClient("name",{"name":name} )
 			return self.userModule.render.login(skel, loginFailed=True)
-
-		if not "password_salt" in res.keys(): #Update the password to the new, more secure format
-			res[ "password_salt" ] = utils.generateRandomString( 13 )
-			res[ "password" ] = pbkdf2( password[ : conf["viur.maxPasswordLength"] ], res["password_salt"] )
-			db.Put( res )
-
-		return self.userModule.continueAuthenticationFlow(self, res.key())
+		else:
+			if not "password_salt" in res.keys(): #Update the password to the new, more secure format
+				res[ "password_salt" ] = utils.generateRandomString( 13 )
+				res[ "password" ] = pbkdf2( password[ : conf["viur.maxPasswordLength"] ], res["password_salt"] )
+				db.Put( res )
+	
+			return self.userModule.continueAuthenticationFlow(self, res.key())
 
 	@exposed
 	def pwrecover( self, authtoken=None, skey=None, *args, **kwargs ):
