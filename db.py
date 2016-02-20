@@ -20,14 +20,6 @@ __cacheLockTime__ = 42 #Prevent an entity from creeping into the cache for 42 Se
 __cacheTime__ = 15*60 #15 Mins
 __CacheKeyPrefix__ ="viur-db-cache:" #Our Memcache-Namespace. Dont use that for other purposes
 
-def IsInTransaction():
-	"""
-	Checks if the system currently runs within a transaction.
-
-	:return: True if so, else False.
-	:rtype: bool
-	"""
-	return bool(datastore.IsInTransaction())
 
 def PutAsync( entities, **kwargs ):
 	"""
@@ -110,7 +102,7 @@ def GetAsync( keys, **kwargs ):
 		
 		def get_result( self ):
 			return( self.res )
-	if conf["viur.db.caching" ]>0 and not IsInTransaction():
+	if conf["viur.db.caching" ]>0 and not datastore.IsInTransaction():
 		if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
 			res = memcache.get( str(keys), namespace=__CacheKeyPrefix__ )
 			if res:
@@ -145,7 +137,7 @@ def Get( keys, **kwargs ):
 		:returns: Entity or list of Entity objects corresponding to the specified key(s).
 		:rtype: :class:`server.db.Entity` | list of :class:`server.db.Entity`
 	"""
-	if conf["viur.db.caching" ]>0  and not IsInTransaction():
+	if conf["viur.db.caching" ]>0  and not datastore.IsInTransaction():
 		if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
 			res = memcache.get( str(keys), namespace=__CacheKeyPrefix__ )
 			if not res: #Not cached - fetch and cache it :)
@@ -237,7 +229,7 @@ def GetOrInsert( key, kindName=None, parent=None, **kwargs ):
 		except:
 			assert kindName
 			key = datastore_types.Key.from_path( kindName, key, parent=parent )
-	if IsInTransaction():
+	if datastore.IsInTransaction():
 		return txn(key, kwargs)
 
 	return datastore.RunInTransaction( txn, key, kwargs )
@@ -1150,6 +1142,7 @@ CommittedButStillApplying = datastore_errors.CommittedButStillApplying
 DatastoreQuery = datastore.Query
 MultiQuery = datastore.MultiQuery
 Cursor = datastore_query.Cursor
+IsInTransaction = datastore.IsInTransaction
 
 #Consts
 KEY_SPECIAL_PROPERTY = datastore_types.KEY_SPECIAL_PROPERTY
@@ -1159,4 +1152,4 @@ DESCENDING = datastore_query.PropertyOrder.DESCENDING
 __all__ = [	PutAsync, Put, GetAsync, Get, DeleteAsync, Delete, AllocateIdsAsync, AllocateIds, RunInTransaction, RunInTransactionCustomRetries, RunInTransactionOptions, TransactionOptions,
 		Error, BadValueError, BadPropertyError, BadRequestError, EntityNotFoundError, BadArgumentError, QueryNotFoundError, TransactionNotFoundError, Rollback, 
 		TransactionFailedError, BadFilterError, BadQueryError, BadKeyError, BadKeyError, InternalError, NeedIndexError, ReferencePropertyResolveError, Timeout,
-		CommittedButStillApplying, Entity, Query, DatastoreQuery, MultiQuery, Cursor, KEY_SPECIAL_PROPERTY, ASCENDING, DESCENDING ]
+		CommittedButStillApplying, Entity, Query, DatastoreQuery, MultiQuery, Cursor, KEY_SPECIAL_PROPERTY, ASCENDING, DESCENDING, IsInTransaction ]
