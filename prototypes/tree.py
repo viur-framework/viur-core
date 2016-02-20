@@ -80,122 +80,6 @@ class Tree(BasicApplication):
 	def __init__( self, moduleName, modulePath, *args, **kwargs ):
 		super(Tree, self).__init__(moduleName, modulePath, *args, **kwargs)
 
-	def _resolveSkel(self, skelType, *args, **kwargs):
-		"""
-		Retrieve the generally associated :class:`server.skeleton.Skeleton` that is used by
-		the application for the requested *skelType*. In difference to the other ViUR BasicApplication,
-		the kindName in Trees evolve into the kindNames *kindName + "node"* and *kindName + "leaf"*,
-		because information can be stored in different kinds.
-
-		This is either be defined by the member variable *kindName* or by a Skeleton named like the
-		application class in lower-case order.
-
-		If this behavior is not wanted, it can be definitely overridden by defining module-specific
-		:func:`viewSkel`,:func:`addSkel`, or :func:`editSkel` functions, or by overriding this
-		function in general.
-
-		:param skelType: This must be either "node" or "leaf", depending on which kind of Skeleton is wanted.
-		:type skelType: str
-
-		:return: Returns a Skeleton instance that matches the application.
-		:rtype: server.skeleton.Skeleton
-		"""
-		if not skelType.lower() in ["node", "leaf"]:
-			return None
-
-		if self.kindName:
-			kName = self.kindName + skelType.lower()
-		else:
-			kName = unicode( type(self).__name__ ).lower() + skelType.lower()
-
-		return skeletonByKind( kName )()
-
-	def viewSkel( self, skelType, *args, **kwargs ):
-		"""
-		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
-		for viewing an existing entry of kind *skelType* from the tree.
-
-		The default is a Skeleton instance returned by :func:`_resolveSkel`.
-
-		.. seealso:: :func:`addSkel`, :func:`editSkel`, :func:`_resolveSkel`
-
-		:param skelType: This must be either "node" or "leaf", depending on which kind of Skeleton is wanted.
-		:type skelType: str
-
-		:return: Returns a Skeleton instance for viewing an entry.
-		:rtype: server.skeleton.Skeleton
-		"""
-		return self._resolveSkel(skelType, *args, **kwargs)
-
-	def viewLeafSkel(self):
-		"""
-		Shortcut for creating a viewSkel on a leaf.
-		"""
-		return self.viewSkel("leaf")
-
-	def viewNodeSkel(self):
-		"""
-		Shortcut for creating a viewSkel on a node.
-		"""
-		return self.viewSkel("node")
-
-	def addSkel( self, skelType, *args, **kwargs ):
-		"""
-		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
-		for adding an entry of kind *skelType* to the tree.
-
-		The default is a Skeleton instance returned by :func:`_resolveSkel`.
-
-		.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`_resolveSkel`
-
-		:param skelType: This must be either "node" or "leaf", depending on which kind of Skeleton is wanted.
-		:type skelType: str
-
-		:return: Returns a Skeleton instance for adding an entry.
-		:rtype: server.skeleton.Skeleton
-		"""
-		return self._resolveSkel(skelType, *args, **kwargs)
-
-	def addLeafSkel(self):
-		"""
-		Shortcut for creating a addSkel on a leaf.
-		"""
-		return self.addSkel("leaf")
-
-	def addNodeSkel(self):
-		"""
-		Shortcut for creating a addSkel on a node.
-		"""
-		return self.addSkel("node")
-
-	def editSkel( self, skelType, *args, **kwargs ):
-		"""
-		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
-		for editing an existing entry of kind *skelType* from the tree.
-
-		The default is a Skeleton instance returned by :func:`_resolveSkel`.
-
-		.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`_resolveSkel`
-
-		:param skelType: This must be either "node" or "leaf", depending on which kind of Skeleton is wanted.
-		:type skelType: str
-
-		:return: Returns a Skeleton instance for editing an entry.
-		:rtype: server.skeleton.Skeleton
-		"""
-		return self._resolveSkel(skelType, *args, **kwargs)
-
-	def editLeafSkel(self):
-		"""
-		Shortcut for creating a editSkel on a leaf.
-		"""
-		return self.editSkel("leaf")
-
-	def editNodeSkel(self):
-		"""
-		Shortcut for creating a editSkel on a node.
-		"""
-		return self.editSkel("node")
 
 	@callDeferred
 	def deleteRecursive( self, nodeKey ):
@@ -212,20 +96,20 @@ class Tree(BasicApplication):
 		"""
 		count = 0
 
-		for f in db.Query( self.viewSkel("leaf").kindName ).filter(
+		for f in db.Query( self.viewLeafSkel().kindName ).filter(
 							"parentdir", str(nodeKey) ).iter( keysOnly=True ):
-			s = self.viewSkel("leaf")
+			s = self.viewLeafSkel()
 			if not s.fromDB( f ):
 				continue
 
 			s.delete()
 			count += 1
 
-		for d in db.Query( self.viewSkel("node").kindName ).filter(
+		for d in db.Query( self.viewNodeSkel().kindName ).filter(
 							"parentdir", str(nodeKey) ).iter( keysOnly=True ):
 			count += self.deleteRecursive( str(d) )
 
-			s = self.viewSkel("node")
+			s = self.viewNodeSkel()
 			if not s.fromDB( d ):
 				continue
 
@@ -260,12 +144,12 @@ class Tree(BasicApplication):
 			db.Put( node )
 
 		# Fix all nodes
-		for repo in db.Query( self.viewSkel("node").kindName ).filter( "parentdir =", parentNode ).iter( keysOnly=True ):
+		for repo in db.Query( self.viewNodeSkel().kindName ).filter( "parentdir =", parentNode ).iter( keysOnly=True ):
 			self.updateParentRepo( str( repo ), newRepoKey, depth=depth+1 )
 			db.RunInTransaction( fixTxn, str( repo ), newRepoKey )
 
 		# Fix the leafs on this level
-		for repo in db.Query( self.viewSkel("leaf").kindName ).filter( "parentdir =", parentNode ).iter( keysOnly=True ):
+		for repo in db.Query( self.viewLeafSkel().kindName ).filter( "parentdir =", parentNode ).iter( keysOnly=True ):
 			db.RunInTransaction( fixTxn, str( repo ), newRepoKey )
 
 ## Internal exposed functions
@@ -282,7 +166,7 @@ class Tree(BasicApplication):
 		given node key.
 		:rtype: dict
 		"""
-		nodeSkel = self.viewSkel("node")
+		nodeSkel = self.viewNodeSkel()
 
 		if not nodeSkel.fromDB( key ):
 			raise errors.NotFound()
@@ -298,7 +182,7 @@ class Tree(BasicApplication):
 
 			parentdir = nodeSkel["parentdir"].value
 
-			nodeSkel = self.viewSkel("node")
+			nodeSkel = self.viewNodeSkel()
 			if not nodeSkel.fromDB( parentdir ):
 				break
 
@@ -317,7 +201,7 @@ class Tree(BasicApplication):
 		thisuser = conf["viur.mainApp"].user.getCurrentUser()
 		if thisuser:
 			key = "rep_user_%s" % str( thisuser["key"] )
-			return db.GetOrInsert( key, self.viewSkel("leaf").kindName+"_rootNode",
+			return db.GetOrInsert( key, self.viewLeafSkel().kindName+"_rootNode",
 			                        creationdate=datetime.now(), rootNode=1, user=str( thisuser["key"] ) )
 
 	def ensureOwnModuleRootNode( self ):
@@ -329,7 +213,7 @@ class Tree(BasicApplication):
 		:rtype: :class:`server.db.Entity`
 		"""
 		key = "rep_module_repo"
-		return db.GetOrInsert( key, self.viewSkel("leaf").kindName+"_rootNode",
+		return db.GetOrInsert( key, self.viewLeafSkel().kindName+"_rootNode",
 		                        creationdate=datetime.now(), rootNode=1 )
 
 	def getRootNode(self, subRepo):
@@ -411,7 +295,7 @@ class Tree(BasicApplication):
 		if not self.canList( skelType, node ):
 			raise errors.Unauthorized()
 
-		nodeSkel = self.viewSkel("node")
+		nodeSkel = self.viewNodeSkel()
 		if not nodeSkel.fromDB( node ):
 			raise errors.NotFound()
 
@@ -494,7 +378,7 @@ class Tree(BasicApplication):
 		if skel is None:
 			raise errors.NotAcceptable()
 
-		parentNodeSkel = self.editSkel("node")
+		parentNodeSkel = self.editNodeSkel()
 
 		if not parentNodeSkel.fromDB( node ):
 			raise errors.NotFound()
@@ -593,9 +477,9 @@ class Tree(BasicApplication):
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
 		if skelType == "node":
-			skel = self.viewSkel("node")
+			skel = self.viewNodeSkel()
 		elif skelType == "leaf":
-			skel = self.viewSkel("leaf")
+			skel = self.viewLeafSkel()
 		else:
 			raise( errors.NotAcceptable() )
 		if "skey" in kwargs:
@@ -651,7 +535,7 @@ class Tree(BasicApplication):
 		else:
 			skey = ""
 
-		destSkel = self.editSkel("node")
+		destSkel = self.editNodeSkel()
 		if not self.canMove( skelType, key, destNode ):
 			raise errors.Unauthorized()
 

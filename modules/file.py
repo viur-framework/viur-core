@@ -97,6 +97,16 @@ class fileNodeSkel( TreeNodeSkel ):
 	name = stringBone( descr="Name", required=True, indexed=True, searchable=True )
 
 class File( Tree ):
+
+	viewLeafSkel = fileBaseSkel
+	editLeafSkel = fileBaseSkel
+	addLeafSkel = fileBaseSkel
+
+	viewNodeSkel = fileNodeSkel
+	editNodeSkel = fileNodeSkel
+	addNodeSkel = fileNodeSkel
+
+
 	maxuploadsize = None
 	uploadHandler = []
 
@@ -105,14 +115,6 @@ class File( Tree ):
 			"handler": "tree.simple.file",  #Which handler to invoke
 			"icon": "icons/modules/my_files.svg", #Icon for this modul
 			}
-
-	def _resolveSkel(self, skelType):
-		# FIXME: WTF?!? rolfcopter? not seriousely?
-		for rofl, copter in {"leaf": fileBaseSkel, "node": fileNodeSkel}.items():
-			if skelType.lower() == rofl:
-				return copter()
-
-		return None #failure!
 
 	def decodeFileName(self, name):
 		# http://code.google.com/p/googleappengine/issues/detail?id=2749
