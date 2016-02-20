@@ -189,6 +189,7 @@ class Hierarchy(BasicApplication):
 
 		return False
 
+	@callDeferred
 	def deleteRecursive(self, key):
 		"""
 		Recursively processes a delete request.
@@ -201,17 +202,14 @@ class Hierarchy(BasicApplication):
 		:returns: The number of deleted objects.
 		:rtype: int
 		"""
-		count = 0
 		entrys = db.Query(self.viewSkel().kindName).filter("parententry", str(key)).run()
 
 		for e in entrys:
-			count += self.deleteRecursive(str(e.key()))
+			self.deleteRecursive(str(e.key()))
 			vs = self.editSkel()
 			vs.setValues(e, key=e.key())
 			vs.delete()
-			count += 1
 
-		return count
 
 	## Internal exposed functions
 
