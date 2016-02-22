@@ -80,6 +80,47 @@ class Tree(BasicApplication):
 	def __init__( self, moduleName, modulePath, *args, **kwargs ):
 		super(Tree, self).__init__(moduleName, modulePath, *args, **kwargs)
 
+	def viewSkel( self, *args, **kwargs ):
+		"""
+		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
+		for viewing an existing entry from the list.
+
+		The default is a Skeleton instance returned by :func:`_resolveSkel`.
+
+		.. seealso:: :func:`addSkel`, :func:`editSkel`, :func:`_resolveSkel`
+
+		:return: Returns a Skeleton instance for viewing an entry.
+		:rtype: server.skeleton.Skeleton
+		"""
+		return self._resolveSkel(*args, **kwargs)
+
+	def addSkel( self, *args, **kwargs ):
+		"""
+		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
+		for adding an entry to the list.
+
+		The default is a Skeleton instance returned by :func:`_resolveSkel`.
+
+		.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`_resolveSkel`
+
+		:return: Returns a Skeleton instance for adding an entry.
+		:rtype: server.skeleton.Skeleton
+		"""
+		return self._resolveSkel(*args, **kwargs)
+
+	def editSkel( self, *args, **kwargs ):
+		"""
+		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
+		for editing an existing entry from the list.
+
+		The default is a Skeleton instance returned by :func:`_resolveSkel`.
+
+		.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`_resolveSkel`
+
+		:return: Returns a Skeleton instance for editing an entry.
+		:rtype: server.skeleton.Skeleton
+		"""
+		return self._resolveSkel(*args, **kwargs)
 
 	@callDeferred
 	def deleteRecursive( self, nodeKey ):

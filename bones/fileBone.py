@@ -51,7 +51,7 @@ class fileBone(treeItemBone):
 				return
 
 			entityKey = normalizeKey(originalKey)
-			if originalKey != entityKey or "key" in valDict.keys():
+			if originalKey != entityKey or "key" not in valDict.keys():
 				logging.info("Rewriting %s to %s" % (originalKey, entityKey))
 				valDict["key"] = originalKey
 

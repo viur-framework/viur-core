@@ -7,6 +7,7 @@ from server.utils import markFileForDeletion
 from server.config import conf
 from google.appengine.api import search
 from server.bones.stringBone import LanguageWrapper
+import logging
 
 _attrsMargins = ["margin","margin-left","margin-right","margin-top","margin-bottom"]
 _attrsSpacing = ["spacing","spacing-left","spacing-right","spacing-top","spacing-bottom"]
@@ -281,7 +282,7 @@ class textBone( baseBone ):
 		"""
 			Returns a list of search-fields (GAE search API) for this bone.
 		"""
-		if self.languages:
+		if self.languages and isinstance(self.value, dict):
 			if self.validHtml:
 				return( [ search.HtmlField( name=name, value=unicode( self.value[lang] ), language=lang ) for lang in self.languages ] )
 			else:
