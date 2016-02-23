@@ -282,7 +282,9 @@ class textBone( baseBone ):
 		"""
 			Returns a list of search-fields (GAE search API) for this bone.
 		"""
-		if self.languages and isinstance(self.value, dict):
+		if self.languages:
+			assert isinstance(self.value, dict), "The value shall already contain a dict, something is wrong here."
+
 			if self.validHtml:
 				return( [ search.HtmlField( name=name, value=unicode( self.value[lang] ), language=lang ) for lang in self.languages ] )
 			else:
