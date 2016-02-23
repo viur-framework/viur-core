@@ -80,7 +80,6 @@ class Tree(BasicApplication):
 	def __init__( self, moduleName, modulePath, *args, **kwargs ):
 		super(Tree, self).__init__(moduleName, modulePath, *args, **kwargs)
 
-
 	@callDeferred
 	def deleteRecursive( self, nodeKey ):
 		"""

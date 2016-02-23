@@ -972,10 +972,10 @@ def processChunk(module, compact, cursor, allCount = 0):
 		return
 
 	query = Skel().all().cursor( cursor )
-	gotAtLeastOne = False
+	count = 0
 
 	for key in query.run(100, keysOnly=True):
-		gotAtLeastOne = True
+		count += 1
 
 		try:
 			skel = Skel()

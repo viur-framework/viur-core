@@ -223,6 +223,11 @@ class relationalBone( baseBone ):
 		# Add any new Relation
 		for val in values:
 			dbObj = db.Entity( "viur-relations" , parent=db.Key( key ) ) #skel.kindName+"_"+self.type+"_"+key
+
+			# !!!ViUR re-design compatibility!!!
+			if "id" in val.keys() and not "key" in val.keys():
+				val["key"] = val["id"]
+
 			if not self.multiple or not self.indexed: #Dont store more than key and kinds, as they aren't used anyway
 				dbObj[ "dest.key" ] = val["key"]
 				dbObj[ "src.key" ] = key
@@ -334,7 +339,11 @@ class relationalBone( baseBone ):
 			except: #Invalid key or something like that
 
 				if isinstance(self._dbValue, dict):
-					if normalizeKey(self._dbValue["key"])==normalizeKey(r):
+					# !!!ViUR re-design compatibility!!!
+					if "id" in self._dbValue.keys() and not "key" in self._dbValue.keys():
+						self._dbValue["key"] = self._dbValue["id"]
+
+					if normalizeKey(self._dbValue["key"]) == normalizeKey(r):
 						entry = self._dbValue
 						isEntryFromBackup = True
 
