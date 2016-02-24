@@ -9,7 +9,7 @@ class selectMultiBone( baseBone ):
 		return ( {"name":name,"target":target,"type":"selectmulti","values":values} )
 
 
-	def __init__( self, defaultValue=[],  values = {}, sortBy="keys", *args, **kwargs ):
+	def __init__( self, defaultValue=[], values = {}, valuesOrder = None, sortBy="keys", *args, **kwargs ):
 		"""
 			Creates a new SelectMultiBone
 			:param defaultValue: List of keys which will be checked by default
@@ -25,6 +25,7 @@ class selectMultiBone( baseBone ):
 			raise ValueError( "sortBy must be \"keys\" or \"values\"" )
 		self.sortBy = sortBy
 		self.values = values
+		self.valuesOrder = valuesOrder or []
 
 	def fromClient( self, name, data ):
 		"""
