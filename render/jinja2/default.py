@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
-from server import conf, bones, utils, request, session, conf, errors, securitykey
+from server import conf, bones, utils, request, session, conf, errors, securitykey, prototypes
 from server.skeleton import Skeleton, RelSkel
 from server.bones import *
 
 from collections import OrderedDict
-from string import Template
-from math import ceil
 from jinja2 import Environment, FileSystemLoader, ChoiceLoader
 from urllib import urlencode, quote_plus
 from hashlib import sha512
@@ -14,8 +12,8 @@ from google.appengine.ext import db
 from google.appengine.api import memcache, users
 from google.appengine.api.images import get_serving_url
 
-import os, threading, logging, string, codecs, datetime, time
-
+from datetime import datetime
+import re, os, logging, codecs, json, pprint
 
 class ListWrapper( list ):
 	"""
@@ -761,9 +759,12 @@ class Render( object ):
 				"getSecurityKey",
 				"getSession",
 				"getSkel",
+				"logging",
 				"moduleName",
 				"modulePath",
+				"now",
 				"parseJSON",
+				"pprint",
 				"regexMatch",
 				"regexReplace",
 				"regexSearch",
@@ -776,6 +777,8 @@ class Render( object ):
 				name = "j2glob" + fn[0].upper() + fn[1:]
 				if name in dir(self) and callable(getattr(self, name)):
 					self.env.globals[fn] = getattr(self, name)
+				else:
+					logging.warning("Function '%s' defined but not implemented" % name)
 
 			self.env.globals["_"] = _
 
@@ -946,7 +949,7 @@ class Render( object ):
 		if skel in dir(obj):
 			skel = getattr(obj , skel)()
 
-			if isinstance(obj, server.prototypes.singleton.Singleton) and not key:
+			if isinstance(obj, prototypes.singleton.Singleton) and not key:
 				#We fetching the entry from a singleton - No key needed
 				key = str(db.Key.from_path(skel.kindName, obj.getKey()))
 			elif not key:
@@ -1109,6 +1112,31 @@ class Render( object ):
 
 		return False
 
+	def j2globLogging(self, msg, kind = "info"):
+		"""
+		Jinja2 global: Write log-level entry.
+		The function shall be used for debug and tracing purposes.
+
+		:param msg: Message to be delivered into logging.
+		:type msg: str
+
+		:param kind: Logging kind. This can either be "info" (default), "debug", "warning", "error" or "critical".
+		:type kind: str
+		"""
+
+		kind = kind.lower()
+
+		if kind == "critical":
+			logging.critical(msg)
+		elif kind == "error":
+			logging.error(msg)
+		elif kind == "warning":
+			logging.warning(msg)
+		elif kind == "debug":
+			logging.debug(msg)
+		else:
+			logging.info(msg)
+
 	def j2globModuleName(self):
 		"""
 		Jinja2 global: Retrieve name of current module where this renderer is used within.
@@ -1131,6 +1159,15 @@ class Render( object ):
 
 		return ""
 
+	def j2globNow(self):
+		"""
+		Jinja2 global: Returns the current date and time.
+
+		:return: The current date & time.
+		:rtype: datetime
+		"""
+		return datetime.now()
+
 	def j2globParseJSON(self, s):
 		"""
 		Jinja2 global: Parse a JSON-string into a dict.
@@ -1142,6 +1179,16 @@ class Render( object ):
 		:rtype: dict
 		"""
 		return json.loads(s)
+
+	def j2globPprint(self,obj):
+		"""
+		Jinja2 global: Provides a pprint function that renders into HTML.
+		The function shall be used for debug purposes.
+
+		:param obj: Object to be pprinted.
+		:return: HTML-enabled pprint output.
+		"""
+		return pprint.pformat(obj).replace("\n", "<br>").replace(" ", "&nbsp;")
 
 	def j2globRegexMatch(self, pattern, string, flags = 0):
 		"""
@@ -1240,7 +1287,7 @@ class Render( object ):
 		:rtype: str
 		"""
 		tmpparams = {}
-		tmpparams.update( request.current.get().kwargs )
+		tmpparams.update(request.current.get().kwargs)
 
 		for key in list(tmpparams.keys()):
 			if key[0]=="_":
@@ -1255,8 +1302,7 @@ class Render( object ):
 			else:
 				tmpparams[key] = value
 
-		return "?" + urlencode( tmpparams ).replace("&","&amp;" )
-
+		return "?" + urlencode(tmpparams).replace("&", "&amp;")
 
 	def j2fltFileSize(self, value, binary=False):
 		"""
