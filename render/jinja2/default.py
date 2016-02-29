@@ -940,20 +940,20 @@ class Render( object ):
 		:returns: dict on success, False on error.
 		:rtype: dict | bool
 		"""
-		if module not in dir ( conf["viur.mainApp"] ):
+		if module not in dir(conf["viur.mainApp"]):
 			logging.error("getEntry called with unknown module %s!" % module)
 			return False
 
-		obj = getattr( conf["viur.mainApp"], module)
+		obj = getattr(conf["viur.mainApp"], module)
 
 		if skel in dir(obj):
-			skel = getattr(obj , skel)()
+			skel = getattr(obj, skel)()
 
 			if isinstance(obj, prototypes.singleton.Singleton) and not key:
 				#We fetching the entry from a singleton - No key needed
 				key = str(db.Key.from_path(skel.kindName, obj.getKey()))
 			elif not key:
-				logging.info("getEntry called without an valid key" )
+				logging.info("getEntry called without a valid key")
 				return False
 
 			if not isinstance(skel,  Skeleton):
@@ -963,16 +963,18 @@ class Render( object ):
 				qry = skel.all().mergeExternalFilter({"key": str(key)})
 				qry = obj.listFilter(qry)
 				if not qry:
+					logging.info("listFilter permits getting entry, returning None")
 					return None
+
 				skel = qry.getSkel()
 				if not skel:
 					return None
-				return self.collectSkelData(skel)
 
 			else: # No Access-Test for this module
-				if not skel.fromDB( key ):
+				if not skel.fromDB(key):
 					return None
-				return self.collectSkelData( skel )
+
+			return self.collectSkelData(skel)
 
 		return False
 
@@ -1049,7 +1051,7 @@ class Render( object ):
 		mylist = query.fetch()
 
 		for x in range(0, len(mylist)):
-			mylist.append( self.collectSkelData( mylist.pop(0) ) )
+			mylist.append(self.collectSkelData(mylist.pop(0)))
 
 		return SkelListWrapper(mylist)
 
