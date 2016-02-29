@@ -1365,7 +1365,7 @@ class Render( object ):
 		if not val:
 			return ""
 
-		if isinstance( val, unicode ):
+		if isinstance(val, unicode):
 			val = val.encode("UTF-8")
 
 		return quote_plus(val)
