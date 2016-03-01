@@ -96,14 +96,8 @@ class TaskHandler:
 		in_prod = ( not req.environ.get("SERVER_SOFTWARE").startswith("Devel") )
 		if in_prod and req.environ.get("REMOTE_ADDR") != "0.1.0.2":
 			logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
-			req.set_status(403)
 			raise errors.Forbidden()
-		headers = ["%s:%s" % (k, v) for k, v in req.headers.items() if k.lower().startswith("x-appengine-")]
 		cmd, data = json.loads( req.body )
-		dbObj = None
-		if cmd=="fromdb":
-			dbObj = _DeferredTaskEntity.get( data )
-			cmd, data = json.loads( dbObj.data )
 		if cmd=="rel":
 			funcPath, args, kwargs = data
 			caller = conf["viur.mainApp"]
@@ -114,31 +108,21 @@ class TaskHandler:
 			try:
 				caller( *args, **kwargs )
 			except PermanentTaskFailure:
-				if dbObj:
-					dbObj.delete()
+				pass
 			except Exception as e:
 				logging.exception( e )
 				raise errors.RequestTimeout() #Task-API should retry
-			else:
-				if dbObj:
-					dbObj.delete()
 		elif cmd=="unb":
 			funcPath, args, kwargs = data
 			if not funcPath in _deferedTasks.keys():
 				logging.error("Ive missed a defered task! %s(%s,%s)" % (funcPath,str(args),str(kwargs)))
-				if dbObj:
-					dbObj.delete()
 			try:
 				_deferedTasks[ funcPath]( *args, **kwargs )
 			except PermanentTaskFailure:
-				if dbObj:
-					dbObj.delete()
+				pass
 			except Exception as e:
 				logging.exception( e )
 				raise errors.RequestTimeout() #Task-API should retry
-			else:
-				if dbObj:
-					dbObj.delete()
 	deferred.exposed=True
 	
 	def index(self, *args, **kwargs):
@@ -280,14 +264,8 @@ def callDeferred( func ):
 			taskargs["headers"] = {"Content-Type": "application/octet-stream"}
 			queue = "default"
 			pickled = json.dumps( (command, (funcPath, args, kwargs) ) )
-			try:
-				task = taskqueue.Task(payload=pickled, **taskargs)
-				return task.add(queue, transactional=transactional)
-			except taskqueue.TaskTooLargeError:
-				key = _DeferredTaskEntity(data=pickled).put()
-				pickled = json.dumps( ("fromdb", str(key) ) )
-				task = taskqueue.Task(payload=pickled, **taskargs)
-			return task.add(queue)
+			task = taskqueue.Task(payload=pickled, **taskargs)
+			return task.add(queue, transactional=transactional)
 	global _deferedTasks
 	_deferedTasks[ "%s.%s" % ( func.__name__, func.__module__ ) ] = func
 	return( lambda *args, **kwargs: mkDefered( func, *args, **kwargs) )
