@@ -1,6 +1,5 @@
-from time import time
+
 from datetime import datetime, timedelta
-from google.appengine.api import backends
 from server.update import checkUpdate
 from server.config import conf, sharedConf
 from server import errors, request
@@ -88,6 +87,7 @@ class TaskHandler:
 		"""
 			This catches one defered call and routes it to its destination
 		"""
+		from server import session
 		global _deferedTasks
 		req = request.current.get().request
 		if 'X-AppEngine-TaskName' not in req.headers:
@@ -98,30 +98,40 @@ class TaskHandler:
 			logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
 			raise errors.Forbidden()
 		cmd, data = json.loads( req.body )
-		if cmd=="rel":
+		try:
+			funcPath, args, kwargs, env = data
+		except ValueError: #We got an old call without an frozen environment
+			env = None
 			funcPath, args, kwargs = data
+		if env:
+			if "user" in env.keys() and env["user"]:
+				session.current["user"] = env["user"]
+			if "lang" in env.keys() and env["lang"]:
+				request.current.get().language = env["lang"]
+		if cmd=="rel":
 			caller = conf["viur.mainApp"]
-			pathlist = [ x for x in funcPath.split("/") if x]
+			pathlist = [x for x in funcPath.split("/") if x]
 			for currpath in pathlist:
-				assert currpath in dir( caller )
-				caller = getattr( caller,currpath )
+				if currpath not in dir(caller):
+					logging.error("ViUR missed a deferred task! Could not resolve the path %s. Failed segment was %s", funcPath, currpath)
+					return
+				caller = getattr(caller, currpath)
 			try:
-				caller( *args, **kwargs )
+				caller(*args, **kwargs)
 			except PermanentTaskFailure:
 				pass
 			except Exception as e:
-				logging.exception( e )
+				logging.exception(e)
 				raise errors.RequestTimeout() #Task-API should retry
 		elif cmd=="unb":
-			funcPath, args, kwargs = data
 			if not funcPath in _deferedTasks.keys():
-				logging.error("Ive missed a defered task! %s(%s,%s)" % (funcPath,str(args),str(kwargs)))
+				logging.error("Ive missed a defered task! %s(%s,%s)" % (funcPath,str(args), str(kwargs)))
 			try:
-				_deferedTasks[ funcPath]( *args, **kwargs )
+				_deferedTasks[ funcPath](*args, **kwargs)
 			except PermanentTaskFailure:
 				pass
 			except Exception as e:
-				logging.exception( e )
+				logging.exception(e)
 				raise errors.RequestTimeout() #Task-API should retry
 	deferred.exposed=True
 	
@@ -235,18 +245,19 @@ def noRetry( f ):
 
 def callDeferred( func ):
 	"""
-		This is a decorator, wich allways calls the function defered.
+		This is a decorator, which allways calls the function deferred.
 		Unlike Googles implementation, this one works (with bound functions)
 	"""
 	if "viur_doc_build" in dir(sys):
 		return(func)
 	__undefinedFlag_ = object()
 	def mkDefered( func, self=__undefinedFlag_, *args,  **kwargs ):
+		from server.utils import getCurrentUser
 		try:
 			req = request.current.get()
 		except: #This will fail for warmup requests
 			req = None
-		if req is not None and "HTTP_X_APPENGINE_TASKRETRYCOUNT".lower() in [x.lower() for x in os.environ.keys()] and not "DEFERED_TASK_CALLED" in dir( req ): #This is the defered call
+		if req is not None and "HTTP_X_APPENGINE_TASKRETRYCOUNT".lower() in [x.lower() for x in os.environ.keys()] and not "DEFERED_TASK_CALLED" in dir( req ): #This is the deferred call
 			req.DEFERED_TASK_CALLED = True #Defer recursive calls to an deferred function again.
 			return( func( self, *args, **kwargs ) )
 		else:
@@ -263,7 +274,18 @@ def callDeferred( func ):
 			transactional = kwargs.pop("_transactional", False)
 			taskargs["headers"] = {"Content-Type": "application/octet-stream"}
 			queue = "default"
-			pickled = json.dumps( (command, (funcPath, args, kwargs) ) )
+			# Try to preserve the important data from the current environment
+			env = {"user": None}
+			usr = getCurrentUser()
+			if usr:
+				env["user"] = {"key": usr["key"],
+				               "name": usr["name"],
+				               "access": usr["access"]}
+			try:
+				env["lang"] = request.current.get().language
+			except AttributeError: #This isn't originating from a normal request
+				pass
+			pickled = json.dumps((command, (funcPath, args, kwargs, env)))
 			task = taskqueue.Task(payload=pickled, **taskargs)
 			return task.add(queue, transactional=transactional)
 	global _deferedTasks
