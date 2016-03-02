@@ -13,7 +13,7 @@ from google.appengine.api import memcache, users
 from google.appengine.api.images import get_serving_url
 
 from datetime import datetime
-import re, os, logging, codecs, json, pprint
+import re, os, logging, codecs, json, pprint, importlib
 
 class ListWrapper( list ):
 	"""
@@ -727,9 +727,42 @@ class Render( object ):
 		return( headers, body )
 
 
+
+
+
 	# JINJA2 ENV ------------------------------------------------------------------------------------------------------
 	# ---------- JINJA2 ENV -------------------------------------------------------------------------------------------
 	# --------------------- JINJA2 ENV --------------------------------------------------------------------------------
+
+	_jinjamoduls=["list","regex","strings"]
+	def getEnv(self):
+		if not "env" in dir(self):
+			super(Render, self).getEnv()
+			self.env.globals["svg"]=self.svg
+
+			for modul in self._jinjamoduls:
+				amodul = importlib.import_module("renders.jinja2.modul."+modul)
+				instance = getattr(amodul,modul)()
+				for name,func in instance.getfilters().items():
+					self.env.filters[name]=func
+				for name,func in instance.getglobals().items():
+					self.env.globals[name]=func
+				for ext in instance.getExtension():
+					self.env.add_extension(ext)
+
+		return ( self.env )
+
+
+	def svg(self,name,params):
+		import re
+		svgtpl=""
+		if os.path.isfile( os.path.join( os.getcwd(), "html", "svg",name+".svg" ) ):
+			svgtpl=self.getEnv().get_template("svg/%s.svg"%name).render(params=params)
+			if "<!" in svgtpl:
+				svgtpl= re.sub("<!.*?>\n","",svgtpl) #remove Doctype & comments
+			if "<?" in svgtpl:
+				svgtpl= re.sub("<\?.*?>\n","",svgtpl) #remove xml head
+		return svgtpl
 
 	def getEnv(self):
 		"""
