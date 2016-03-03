@@ -6,9 +6,32 @@ import logging
 import hashlib
 import copy
 
+class boneFactory(object):
+	def __init__(self, cls, args, kwargs):
+		super(boneFactory, self).__init__()
+		self.cls = cls
+		self.args = args
+		self.kwargs = kwargs
+		self.idx=1
+
+	def __call__(self, *args, **kwargs):
+		return self.cls(__finalize_=True, *self.args, **self.kwargs)
+
+	def __repr__(self):
+		return "%sFactory" % self.cls.__name__
+
+
 class baseBone(object): # One Bone:
 	hasDBField = True
 	type = "hidden"
+
+	def __new__(cls, *args, **kwargs):
+		if "__finalize_" in kwargs.keys():
+			return super(baseBone, cls).__new__(cls, *args, **kwargs)
+		else:
+			return boneFactory(cls, args, kwargs)
+
+
 	def __init__(	self, descr="", defaultValue=None, required=False, params=None, multiple=False,
 			indexed=False, searchable=False, vfunc=None, readOnly=False, visible=True, **kwargs ):
 		"""

@@ -356,11 +356,15 @@ class Query( object ):
 			:rtype: server.db.Query
 		"""
 		from server.bones import baseBone, relationalBone
+		logging.error("-----------")
+		logging.error(self.srcSkel)
 
 		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
 		if self.datastoreQuery is None: #This query is allready unsatifiable and adding more constrains to this wont change this
 			return( self )
+		logging.error(self.srcSkel.items())
+		logging.error(self.srcSkel.clone().items())
 		skel = self.srcSkel.clone()
 		if skel.searchIndex and "search" in filters.keys(): #We perform a Search via Google API - all other parameters are ignored
 			try:

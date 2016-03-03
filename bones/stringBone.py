@@ -54,7 +54,12 @@ class stringBone( baseBone ):
 		return ( {"name":name,"mode":mode,"target":target,"type":"string"} )
 
 	def __init__(self, caseSensitive = True, multiple=False, languages=None, *args, **kwargs ):
+		logging.error(args)
+		logging.error(kwargs)
 		super( stringBone, self ).__init__( *args, **kwargs )
+
+		logging.error(self)
+		logging.error(caseSensitive)
 		if not caseSensitive and not self.indexed:
 			raise ValueError("Creating a case-insensitive index without actually writing the index is nonsense.")
 		self.caseSensitive = caseSensitive

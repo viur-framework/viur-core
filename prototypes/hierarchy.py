@@ -533,6 +533,8 @@ class Hierarchy(BasicApplication):
 			raise errors.Unauthorized()
 
 		parentSkel = self.viewSkel()
+		logging.error("ViewSkel")
+		logging.error(parentSkel)
 
 		if not parentSkel.fromDB(parent):
 			if not str(parent) in [str(x["key"]) for x in self.getAvailableRootNodes()]:
