@@ -3,7 +3,7 @@ from server.render.jinja2.utils import jinjaGlobal, jinjaFilter
 import random
 
 @jinjaGlobal
-def randomList(start = 0, end = 0, amount = 0):
+def randomList(render, start = 0, end = 0, amount = 0):
 	"""
 	Jinja2 global: Generates a randomized list of integers.
 
@@ -23,7 +23,7 @@ def randomList(start = 0, end = 0, amount = 0):
 	return random.sample(range(start, end), amount)
 
 @jinjaFilter
-def sortList(l, sortField, keyField="key", reverse=False):
+def sortList(render, l, sortField, keyField="key", reverse=False):
 	"""
 	Jinja2 filter: Sorts a list containng dict entries by a field.
 
@@ -36,7 +36,7 @@ def sortList(l, sortField, keyField="key", reverse=False):
 	:return: The sorted list of dict.
 	:rtype: list of dict
 	"""
-	assert isList(l, ofDict=True)
+	assert isList(render, l, ofDict=True)
 
 	fields = sortField.split(".")
 	sortedItems = {}
@@ -68,7 +68,7 @@ def sortList(l, sortField, keyField="key", reverse=False):
 	return sortedList
 
 @jinjaFilter
-def shuffleList(l, amount=0):
+def shuffleList(render, l, amount=0):
 	"""
 	Jinja2 filter: Shuffles a list.
 	Optionally returns the first ``amount`` items.
@@ -90,7 +90,7 @@ def shuffleList(l, amount=0):
 	return l
 
 @jinjaFilter
-def listAttr(l, attrName):
+def listAttr(render, l, attrName):
 	"""
 	Jinja2 filter: Returns a list of fields from a list of dict, e. g. a list of keys.
 
@@ -99,7 +99,7 @@ def listAttr(l, attrName):
 	:param attrName:
 	:return:
 	"""
-	assert isList(l, ofDict=True)
+	assert isList(render, l, ofDict=True)
 	attrList = []
 
 	for i in l:
@@ -111,7 +111,7 @@ def listAttr(l, attrName):
 	return attrList
 
 @jinjaFilter
-def isList(l, ofDict = False):
+def isList(render, l, ofDict = False):
 	"""
 	Jinja2 filter: Checks if an object is a list.
 

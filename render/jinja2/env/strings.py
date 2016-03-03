@@ -3,7 +3,7 @@ from server.render.jinja2.utils import jinjaGlobal, jinjaFilter
 import json
 
 @jinjaFilter
-def clearString(s, words):
+def clearString(render, s, words):
 	"""
 	Jinja2 filter: Remove words from a string.
 
@@ -22,7 +22,7 @@ def clearString(s, words):
 	return s
 
 @jinjaFilter
-def parseJSON(s):
+def parseJSON(render, s):
 	"""
 	Jinja2 filter: Parses a JSON-string into a dict.
 

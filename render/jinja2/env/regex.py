@@ -3,7 +3,7 @@ from server.render.jinja2.utils import jinjaGlobal
 import re
 
 @jinjaGlobal
-def regexMatch(pattern, string, flags = 0):
+def regexMatch(render, pattern, string, flags = 0):
 	"""
 	Jinja2 global: Match a string for regular expression pattern.
 	This function internally runs re.match().
@@ -23,7 +23,7 @@ def regexMatch(pattern, string, flags = 0):
 	return re.match(pattern,string)
 
 @jinjaGlobal
-def regexReplace(s, pattern, replace):
+def regexReplace(render, s, pattern, replace):
 	"""
 	Jinja2 global: Replace string by regular expression pattern.
 
@@ -42,7 +42,7 @@ def regexReplace(s, pattern, replace):
 	return re.sub(pattern, replace, s)
 
 @jinjaGlobal
-def regexSearch(s, pattern, flags = 0):
+def regexSearch(render, s, pattern, flags = 0):
 	"""
 	Jinja2 global: Search a string for regular expression pattern.
 	This function internally runs re.search().

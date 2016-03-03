@@ -4,7 +4,7 @@ from logging import critical, error, warning, debug, info
 import pprint
 
 @jinjaGlobal
-def logging(msg, kind = "info"):
+def logging(render, msg, kind = "info"):
 	"""
 	Jinja2 global: Write log-level entry.
 	The function shall be used for debug and tracing purposes.
@@ -30,7 +30,7 @@ def logging(msg, kind = "info"):
 		info(msg)
 
 @jinjaGlobal
-def pprint(obj):
+def pprint(render, obj):
 	"""
 	Jinja2 global: Provides a pprint function that renders into HTML.
 	The function shall be used for debug purposes.

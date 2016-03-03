@@ -3,7 +3,7 @@ from server.render.jinja2.utils import jinjaGlobal
 from datetime import datetime
 
 @jinjaGlobal
-def now():
+def now(render):
 	"""
 	Jinja2 global: Returns the current date and time.
 

@@ -3,7 +3,7 @@ from server import session
 from server.render.jinja2.utils import jinjaGlobal
 
 @jinjaGlobal
-def getSession():
+def getSession(render):
 	"""
 	Jinja2 global: Allows templates to store variables server-side inside the session.
 
@@ -18,7 +18,7 @@ def getSession():
 	return session.current.get("JinjaSpace")
 
 @jinjaGlobal
-def setSession(name, value):
+def setSession(render, name, value):
 	"""
 	Jinja2 global: Allows templates to store variables on server-side inside the session.
 
@@ -30,7 +30,7 @@ def setSession(name, value):
 	:param value: Value to store with name.
 	:type value: any
 	"""
-	sessionData = getSession()
+	sessionData = getSession(render)
 	sessionData[name] = value
 	session.current["JinjaSpace"] = sessionData
 	session.current.markChanged()

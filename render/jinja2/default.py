@@ -695,49 +695,7 @@ class Render( object ):
 			lineCount += 1
 		return( headers, body )
 
-
-
-
-
-	# JINJA2 ENV ------------------------------------------------------------------------------------------------------
-	# ---------- JINJA2 ENV -------------------------------------------------------------------------------------------
-	# --------------------- JINJA2 ENV --------------------------------------------------------------------------------
-
-
 	def getEnv(self):
-		if not "env" in dir(self):
-			loaders = self.getLoaders()
-			self.env = Environment(loader=loaders, extensions=["jinja2.ext.do", "jinja2.ext.loopcontrols"])
-
-			for name, func in jinjaUtils.getGlobals().items():
-				logging.debug("Adding global '%s'" % name)
-				self.env.globals[name] = func
-
-			for name, func in jinjaUtils.getFilters().items():
-				logging.debug("Adding filter '%s'" % name)
-				self.env.filters[name] = func
-
-			for ext in jinjaUtils.getExtensions():
-				logging.debug("Adding extension '%s'" % ext)
-				self.env.add_extension(ext)
-
-
-		return self.env
-
-
-
-	def svg(self,name,params):
-		import re
-		svgtpl=""
-		if os.path.isfile( os.path.join( os.getcwd(), "html", "svg",name+".svg" ) ):
-			svgtpl=self.getEnv().get_template("svg/%s.svg"%name).render(params=params)
-			if "<!" in svgtpl:
-				svgtpl= re.sub("<!.*?>\n","",svgtpl) #remove Doctype & comments
-			if "<?" in svgtpl:
-				svgtpl= re.sub("<\?.*?>\n","",svgtpl) #remove xml head
-		return svgtpl
-
-	def getEnv2(self):
 		"""
 		Constucts the Jinja2 environment.
 
@@ -748,86 +706,28 @@ class Render( object ):
 		:rtype jinja2.Environment
 		"""
 
-		if not "env" in dir( self ):
+		if not "env" in dir(self):
 			loaders = self.getLoaders()
 			self.env = Environment(loader=loaders, extensions=["jinja2.ext.do", "jinja2.ext.loopcontrols"])
 
-			# Globals (functions)
-			functions = [
-				"execRequest",
-				"getConf",
-				"getCurrentUser",
-				"getEntry",
-				"getHostURL",
-				"getLanguage",
-				"getList",
-				"getResizedURL",
-				"getSecurityKey",
-				"getSession",
-				"getSkel",
-				"logging",
-				"moduleName",
-				"modulePath",
-				"now",
-				"parseJSON",
-				"pprint",
-				"regexMatch",
-				"regexReplace",
-				"regexSearch",
-				"requestParams",
-				"setSession",
-				"updateURL",
-			]
-
-			for fn in functions:
-				name = "j2glob" + fn[0].upper() + fn[1:]
-				if name in dir(self) and callable(getattr(self, name)):
-					self.env.globals[fn] = getattr(self, name)
-				else:
-					logging.warning("Function '%s' defined but not implemented" % name)
-
+			# Translation remains global
 			self.env.globals["_"] = _
-
-			# Filters
-			filters = [
-				"fileSize",
-				"shortKey",
-				"className",
-				"urlencode",
-			]
-
-			for flt in filters:
-				name = "j2flt" + flt[0].upper() + flt[1:]
-				if name in dir(self) and callable(getattr(self, name)):
-					self.env.filters[flt] = getattr(self, name)
-
 			self.env.filters["tr"] = _
 
-			if "jinjaEnv" in dir(self.parent):
-				self.env = self.parent.jinjaEnv(self.env)
+			# Import functions.
+			for name, func in jinjaUtils.getGlobals().items():
+				logging.debug("Adding global '%s'" % name)
+				self.env.globals[name] = lambda *args, **kwargs: func(self, *args, **kwargs)
+
+			# Import filters.
+			for name, func in jinjaUtils.getFilters().items():
+				logging.debug("Adding filter '%s'" % name)
+				self.env.filters[name] = lambda *args, **kwargs: func(self, *args, **kwargs)
+
+			# Import extensions.
+			for ext in jinjaUtils.getExtensions():
+				logging.debug("Adding extension '%s'" % ext)
+				self.env.add_extension(ext)
 
 		return self.env
 
-
-
-	def moduleName(self):
-		"""
-		Jinja2 global: Retrieve name of current module where this renderer is used within.
-
-		:return: Returns the name of the current module, or empty string if there is no module set.
-		"""
-		if self.parent and "moduleName" in dir(self.parent):
-			return self.parent.moduleName
-
-		return ""
-
-	def modulePath(self):
-		"""
-		Jinja2 global: Retrieve path of current module the renderer is used within.
-
-		:return: Returns the path of the current module, or empty string if there is no module set.
-		"""
-		if self.parent and "modulePath" in dir(self.parent):
-			return self.parent.modulePath
-
-		return ""
