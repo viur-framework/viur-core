@@ -6,6 +6,17 @@ import logging
 import hashlib
 import copy
 
+
+__systemIsIntitialized_ = False
+
+def setSystemInitialized():
+	global __systemIsIntitialized_
+	__systemIsIntitialized_ = True
+
+def getSystemInitialized():
+	global __systemIsIntitialized_
+	return __systemIsIntitialized_
+
 class boneFactory(object):
 	def __init__(self, cls, args, kwargs):
 		super(boneFactory, self).__init__()
@@ -15,7 +26,7 @@ class boneFactory(object):
 		self.idx=1
 
 	def __call__(self, *args, **kwargs):
-		return self.cls(__finalize_=True, *self.args, **self.kwargs)
+		return self.cls(*self.args, **self.kwargs)
 
 	def __repr__(self):
 		return "%sFactory" % self.cls.__name__
@@ -26,7 +37,7 @@ class baseBone(object): # One Bone:
 	type = "hidden"
 
 	def __new__(cls, *args, **kwargs):
-		if "__finalize_" in kwargs.keys():
+		if getSystemInitialized():
 			return super(baseBone, cls).__new__(cls, *args, **kwargs)
 		else:
 			return boneFactory(cls, args, kwargs)

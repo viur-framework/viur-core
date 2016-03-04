@@ -142,12 +142,9 @@ class CustomUser( List ):
 			return( self.render.loginSucceeded( ) )
 		if not name or not password or not securitykey.validate( skey ):
 			return( self.render.login( self.loginSkel() ) )
-		logging.error(self.viewSkel().kindName)
-		logging.error(name)
 		query = db.Query( self.viewSkel().kindName )
 		res  = query.filter( "name.idx >=", name.lower()).get()
 		if res is None:
-			logging.error("x1")
 			res = {"password":"", "status":0, "name":"","name.idx":"" }
 		if "password_salt" in res.keys(): #Its the new, more secure passwd
 			passwd = pbkdf2( password[ : conf["viur.maxPasswordLength"] ], res["password_salt"] )
@@ -155,21 +152,16 @@ class CustomUser( List ):
 			passwd = sha512( password.encode("UTF-8")+conf["viur.salt"] ).hexdigest()
 		isOkay = True
 		if not utils.safeStringComparison(res["password"], unicode(passwd)):
-			logging.error("x2")
 			isOkay = False
 		if res["status"] < 10:
-			logging.error("x3")
 			isOkay = False
 		if not utils.safeStringComparison(res[ "name.idx" ], name.lower()):
-			logging.error("x4")
 			isOkay = False
 		if not isOkay:
-			logging.error("x5")
 			skel=self.loginSkel()
 			skel["name"].fromClient("name",{"name":name} )
 			return( self.render.login( skel, loginFailed=True )  )
 		else:
-			logging.error("x6")
 			if not "password_salt" in res.keys(): #Update the password to the new, more secure format
 				res[ "password_salt" ] = utils.generateRandomString( 13 )
 				res[ "password" ] = pbkdf2( password[ : conf["viur.maxPasswordLength"] ], res["password_salt"] )
