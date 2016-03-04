@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
-from server.bones.relationalBone import relationalBone
 from server import db
 from server.errors import ReadFromClientError
 from server.utils import normalizeKey
