@@ -35,11 +35,12 @@ class DefaultRender( object ):
 						boneType = "hierarchy"
 					elif isinstance( _bone, bones.treeItemBone ):
 						boneType = "treeitem"
-					elif isinstance( _bone, bones.extendedRelationalBone ):
-						boneType = "extendedrelational"
-						res[key]["using"] = self.renderSkelStructure( _bone.using() )
 					else:
 						boneType = "relational"
+						if _bone.using is not None:
+							res[key]["using"] = self.renderSkelStructure(_bone.using())
+						else:
+							res[key]["using"] = None
 					res[key]["type"]="%s.%s" % (boneType,_bone.type)
 					res[key]["module"] = _bone.module
 					res[key]["multiple"]=_bone.multiple
