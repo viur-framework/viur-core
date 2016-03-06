@@ -79,12 +79,16 @@ class relationalBone( baseBone ):
 		if refKeys:
 			if not "key" in refKeys:
 				raise AttributeError("'key' must be included in refKeys!")
-			self.refKeys=refKeys
+			self.refKeys = refKeys
+		else:
+			self.refKeys = ["key", "name"]
 
 		if parentKeys:
 			if not "key" in parentKeys:
 				raise AttributeError("'key' must be included in parentKeys!")
 			self.parentKeys=parentKeys
+		else:
+			self.parentKeys = ["key", "name"]
 		self.using = using
 
 	def unserialize( self, name, expando ):
@@ -250,7 +254,11 @@ class relationalBone( baseBone ):
 		for k,v in data.items():
 			if k.startswith( name ):
 				k = k.replace( name, "", 1)
-				idx,bname = k.split(".")
+				try:
+					idx, bname = k.split(".")
+				except ValueError:
+					# We got some garbarge as input; don't try to parse it
+					continue
 				if not idx in tmpRes.keys():
 					tmpRes[ idx ] = {}
 				if bname in tmpRes[ idx ].keys():
@@ -302,10 +310,11 @@ class relationalBone( baseBone ):
 			tmp["key"] = r["dest"]["key"]
 			r["dest"] = tmp
 			# Rebuild the refSkel data
-			refSkel = self.using()
-			if not refSkel.fromClient( r["rel"] ):
-				for k,v in refSkel.errors.items():
-					errorDict[ "%s.%s.%s" % (name,tmpList.index(r),k) ] = v
+			if self.using is not None:
+				refSkel = self.using()
+				if not refSkel.fromClient( r["rel"] ):
+					for k,v in refSkel.errors.items():
+						errorDict[ "%s.%s.%s" % (name,tmpList.index(r),k) ] = v
 		self.value = tmpList
 		if len( errorDict.keys() ):
 			return( ReadFromClientError( errorDict, True ) )
@@ -375,7 +384,7 @@ class relationalBone( baseBone ):
 				if _type=="dest" and key not in self.refKeys:
 					logging.warning( "Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (key,name) )
 					raise RuntimeError()
-				if _type=="rel" and key not in self.using().keys():
+				if _type=="rel" and (self.using is None or key not in self.using().keys()):
 					logging.warning( "Invalid filtering! %s is not a bone in 'using' of %s" % (key,name) )
 					raise RuntimeError()
 				if len( tmpdata ) > 1:
@@ -413,7 +422,7 @@ class relationalBone( baseBone ):
 			if _type=="dest" and not param in self.refKeys:
 				logging.warning( "Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (param,name) )
 				raise RuntimeError()
-			if _type=="rel" and not param in self.using().keys():
+			if _type=="rel" and (self.using is None or param not in self.using().keys()):
 				logging.warning( "Invalid filtering! %s is not a bone in 'using' of %s" % (param,name) )
 				raise RuntimeError()
 			if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
