@@ -36,7 +36,8 @@ class relationalBone( baseBone ):
 		If you filter a list by relational properties, this will also use the old data! (Eg. filtering A's list by
 		B's new name won't return any result)
 	"""
-
+	refKeys = ["key", "name"]
+	parentKeys = ["key", "name"]
 
 	def __init__( self, type=None, module=None, refKeys=None, parentKeys=None, multiple=True, format="$(name)", using=None, *args, **kwargs):
 		"""
@@ -80,15 +81,12 @@ class relationalBone( baseBone ):
 			if not "key" in refKeys:
 				raise AttributeError("'key' must be included in refKeys!")
 			self.refKeys = refKeys
-		else:
-			self.refKeys = ["key", "name"]
 
 		if parentKeys:
 			if not "key" in parentKeys:
 				raise AttributeError("'key' must be included in parentKeys!")
 			self.parentKeys=parentKeys
-		else:
-			self.parentKeys = ["key", "name"]
+
 		self.using = using
 
 	def unserialize( self, name, expando ):
@@ -244,12 +242,7 @@ class relationalBone( baseBone ):
 			:type data: Dict
 			:returns: None or String
 		"""
-		if name in data.keys():
-			value = data[ name ]
-		else:
-			value = None
 		self.value = []
-		res = []
 		tmpRes = {}
 		for k,v in data.items():
 			if k.startswith( name ):
@@ -270,7 +263,7 @@ class relationalBone( baseBone ):
 					tmpRes[ idx ][bname] = v
 		tmpList = [ (k,v) for k,v in tmpRes.items() ]
 		tmpList.sort( key=lambda k: k[0] )
-		tmpList = [{"rel":v,"dest":{"key":v["key"]}} for k,v in tmpList]
+		tmpList = [{"reltmp":v,"dest":{"key":v["key"]}} for k,v in tmpList]
 		errorDict = {}
 		for r in tmpList[:]:
 			# Rebuild the referenced entity data
@@ -310,11 +303,14 @@ class relationalBone( baseBone ):
 			tmp["key"] = r["dest"]["key"]
 			r["dest"] = tmp
 			# Rebuild the refSkel data
+			tmp = {}
 			if self.using is not None:
 				refSkel = self.using()
-				if not refSkel.fromClient( r["rel"] ):
+				if not refSkel.fromClient( r["reltmp"] ):
 					for k,v in refSkel.errors.items():
 						errorDict[ "%s.%s.%s" % (name,tmpList.index(r),k) ] = v
+				r["rel"] = refSkel.serialize()
+				del r["reltmp"]
 		self.value = tmpList
 		if len( errorDict.keys() ):
 			return( ReadFromClientError( errorDict, True ) )

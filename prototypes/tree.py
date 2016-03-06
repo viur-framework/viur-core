@@ -287,7 +287,12 @@ class Tree(BasicApplication):
 		:raises: :exc:`server.errors.NotFound`, if *node* could not be found.
 		:raises: :exc:`server.errors.NotAcceptable`, if anything else than "node" or "leaf" is provided to *skelType*.
 		"""
-		skel = self.viewSkel(skelType)
+		if skelType not in ["node", "leaf"]:
+			raise errors.NotAcceptable()
+		if skelType=="node":
+			skel = self.viewNodeSkel()
+		else:
+			skel = self.viewLeafSkel()
 		if skel is None:
 			raise errors.NotAcceptable()
 
