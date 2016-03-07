@@ -833,6 +833,23 @@ class RelSkel( object ):
 			self.__dataDict__[ key ] = bone
 		self.__isInitialized_ = True
 
+	@classmethod
+	def fromSkel(cls, skelCls, *args):
+		"""
+			Creates a relSkel from a skeleton-class using only the bones explicitly named
+			in *args
+		:param skelCls:
+		:param args:
+		:return:
+		"""
+		skel = cls()
+		skel.__isInitialized_ = False
+		for key in args:
+			if key in dir(skelCls):
+				skel[key] = getattr(skelCls, key)(skelCls.kindName)
+		skel.__isInitialized_ = True
+		return skel
+
 	def __setitem__(self, name, value):
 		if value is None and name in self.__dataDict__.keys():
 			del self.__dataDict__[ name ]
