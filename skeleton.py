@@ -897,6 +897,26 @@ class RelSkel( object ):
 			self.errors = {}
 		return( complete )
 
+	def unserialize(self, values):
+		"""
+			Loads 'values' into this skeleton
+		:param values:
+		:return:
+		"""
+		for bkey,_bone in self.items():
+			if isinstance( _bone, baseBone ):
+				if bkey=="key":
+					try:
+						# Reading the value from db.Entity
+						_bone.value = str( values.key() )
+					except:
+						# Is it in the dict?
+						if "key" in values.keys():
+							_bone.value = str( values["key"] )
+						else: #Ingore the key value
+							pass
+				else:
+					_bone.unserialize( bkey, values )
 
 
 class SkelList( list ):
