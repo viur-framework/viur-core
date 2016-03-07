@@ -9,6 +9,7 @@ from time import time
 from datetime import datetime
 import logging
 
+
 class relationalBone( baseBone ):
 	"""
 		This is our magic class implementing relations.
@@ -90,8 +91,11 @@ class relationalBone( baseBone ):
 		self.using = using
 
 	def unserialize( self, name, expando ):
+		from server.skeleton import RelSkel, skeletonByKind
 		if name in expando.keys():
 			val = expando[ name ]
+			logging.error("kkkkk")
+			logging.error(val)
 			if self.multiple:
 				self.value = []
 				if not val:
@@ -99,14 +103,31 @@ class relationalBone( baseBone ):
 				if isinstance(val, list):
 					for res in val:
 						try:
-							self.value.append(json.loads(res))
+							data = json.loads(res)
+							logging.error(skeletonByKind(self.type))
+							relSkel = RelSkel.fromSkel(skeletonByKind(self.type), "name")
+							relSkel.unserialize(data["dest"])
+							if self.using is not None:
+								usingSkel = self.using()
+								usingSkel.unserialize(data["rel"])
+							else:
+								usingSkel = None
+							self.value.append({"dest": relSkel, "rel": usingSkel})
 						except:
+							raise
 							pass
 				else:
 					try:
 						value = json.loads(val)
 						if isinstance( value, dict ):
-							self.value.append( value )
+							relSkel = RelSkel.fromSkel(skeletonByKind(self.type), *self.refKeys)
+							relSkel.unserialize(value["dest"])
+							if self.using is not None:
+								usingSkel = self.using()
+								usingSkel.unserialize(value["rel"])
+							else:
+								usingSkel = None
+							self.value.append({"dest": relSkel, "rel": usingSkel})
 					except:
 						pass
 			else:
@@ -133,7 +154,7 @@ class relationalBone( baseBone ):
 			self._dbValue = dict( self.value.items() )
 		else:
 			self._dbValue = None
-
+		logging.error(self.value)
 		return True
 
 	def serialize(self, name, entity ):

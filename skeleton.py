@@ -928,7 +928,6 @@ class RelSkel( object ):
 					_bone.unserialize( bkey, values )
 
 
-
 class SkelList( list ):
 	"""
 		This class is used to hold multiple skeletons together with other, commonly used information.

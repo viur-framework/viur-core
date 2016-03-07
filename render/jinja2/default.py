@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from server.bones import baseBone, dateBone, selectOneBone, relationalBone, stringBone
 import time
 from string import Template
 from server import bones, utils, request, session, conf, errors, securitykey
@@ -295,6 +296,16 @@ class Render( object ):
 					res[ key ] = _bone.value
 			elif isinstance( _bone, selectMultiBone ):
 				res[ key ] = [ (Render.KeyValueWrapper( val, _bone.values[ val ] ) if val in _bone.values.keys() else val)  for val in _bone.value ]
+			elif isinstance(_bone, relationalBone):
+				if isinstance(_bone.value, list):
+					tmpList = []
+					for k in _bone.value:
+						tmpList.append({"dest": self.collectSkelData(k["dest"]),
+				                        "rel": self.collectSkelData(k["rel"]) if k["rel"] else None})
+					res[key] = tmpList
+				elif isinstance(_bone.value, dict):
+					res[key] = {"dest": self.collectSkelData(_bone.value["dest"]),
+					            "rel": self.collectSkelData(_bone.value["rel"]) if _bone.value["rel"] else None}
 			elif( isinstance( _bone, bones.baseBone ) ):
 				res[ key ] = _bone.value
 			if key in res.keys() and isinstance( res[key], list ):

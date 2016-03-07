@@ -88,6 +88,16 @@ class DefaultRender( object ):
 						res[key] = _bone.value.strftime("%d.%m.%Y")
 					else:
 						res[key] = _bone.value.strftime("%H:%M:%S")
+			elif( isinstance(_bone, bones.relationalBone)):
+				if isinstance(_bone.value, list):
+					tmpList = []
+					for k in _bone.value:
+						tmpList.append({"dest": self.renderSkelValues(k["dest"]),
+				                        "rel": self.renderSkelValues(k["rel"]) if k["rel"] else None})
+					res[key] = tmpList
+				elif isinstance(_bone.value, dict):
+					res[key] = {"dest": self.renderSkelValues(_bone.value["dest"]),
+					            "rel": self.renderSkelValues(_bone.value["rel"]) if _bone.value["rel"] else None}
 			elif( isinstance( _bone, bones.baseBone ) ):
 				res[key] = _bone.value
 		return res
