@@ -107,6 +107,13 @@ class TaskHandler:
 				session.current["user"] = env["user"]
 			if "lang" in env.keys() and env["lang"]:
 				request.current.get().language = env["lang"]
+			if "custom" in env.keys() and conf["viur.tasks.customEnvironmentHandler"]:
+				# Check if we need to restore additional enviromental data
+				assert isinstance(conf["viur.tasks.customEnvironmentHandler"], tuple) \
+					and len(conf["viur.tasks.customEnvironmentHandler"])==2 \
+					and callable(conf["viur.tasks.customEnvironmentHandler"][1]), \
+					"Your customEnvironmentHandler must be a tuple of two callable if set!"
+				conf["viur.tasks.customEnvironmentHandler"][1](env["custom"])
 		if cmd=="rel":
 			caller = conf["viur.mainApp"]
 			pathlist = [x for x in funcPath.split("/") if x]
@@ -269,6 +276,13 @@ def callDeferred( func ):
 				env["lang"] = request.current.get().language
 			except AttributeError: #This isn't originating from a normal request
 				pass
+			if conf["viur.tasks.customEnvironmentHandler"]:
+				# Check if this project relies on additional environmental variables and serialize them too
+				assert isinstance(conf["viur.tasks.customEnvironmentHandler"], tuple) \
+					and len(conf["viur.tasks.customEnvironmentHandler"])==2 \
+					and callable(conf["viur.tasks.customEnvironmentHandler"][0]), \
+					"Your customEnvironmentHandler must be a tuple of two callable if set!"
+				env["custom"] = conf["viur.tasks.customEnvironmentHandler"][0]()
 			pickled = json.dumps((command, (funcPath, args, kwargs, env)))
 			task = taskqueue.Task(payload=pickled, **taskargs)
 			return task.add(queue, transactional=transactional)

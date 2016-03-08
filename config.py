@@ -63,7 +63,7 @@ conf = {
 	"viur.session.persistentFieldsOnLogin": [], #If set, these Fields will survive the session.reset() called on user/login
 	"viur.session.persistentFieldsOnLogout": [], #If set, these Fields will survive the session.reset() called on user/logout
 
-	"viur.tasks.startBackendOnDemand": True, #If true, allows the task module to start a backend immediately (instead of waiting for the cronjob)
+	"viur.tasks.customEnvironmentHandler": None, #If set, must be a tuple of two functions serializing/restoring additional enviromental data in deferred requests
 
 
 }
