@@ -27,7 +27,6 @@ class CallableTaskBase:
 	id = None
 	name = None
 	descr = None
-	direct = False #If true, this task will be called instantly (60 sec timelimit!), else it will be defered to the backend
 	kindName = "server-task"
 	
 	def canCall( self ):
@@ -137,8 +136,6 @@ class TaskHandler:
 	
 	def index(self, *args, **kwargs):
 		global _callableTasks, _periodicTasks
-		#if not backends.get_backend(): #Assert this only runs on a backend server (No Timelimit)
-		#	return
 		logging.debug("Starting maintenance-run")
 		checkUpdate() #Let the update-module verify the database layout first
 		logging.debug("Updatecheck complete")
@@ -211,20 +208,7 @@ class TaskHandler:
 			return( self.render.add( skel ) )
 		if not securitykey.validate( skey ):
 			raise errors.PreconditionFailed()
-		if task.direct:
-			task.execute( **skel.getValues() )
-		else:
-			dbObj = db.Entity("viur-queued-tasks")
-			for k, v in skel.getValues().items():
-				dbObj[ k ] =  json.dumps(v)
-			dbObj["taskid"] = taskID
-			db.Put( dbObj )
-			id = str( dbObj.key() )
-			if conf["viur.tasks.startBackendOnDemand"]:
-				if request.current.get().isDevServer:
-					conf["viur.mainApp"]._tasks.index()
-				else:
-					taskqueue.add( url="/_tasks" )
+		task.execute( **skel.getValues() )
 		return self.render.addItemSuccess( skel )
 	execute.exposed = True
 	
@@ -351,7 +335,6 @@ class DisableApplicationTask( CallableTaskBase ):
 	id = "viur-disable-server"
 	name = "Enable or disable the application"
 	descr = "This will enable or disable the application."
-	direct = True #If true, this task will be called instantly (60 sec timelimit!), else it will be defered to the backend
 	kindName = "server-task"
 	
 	def canCall( self ):
