@@ -729,5 +729,9 @@ class Render( object ):
 				logging.debug("Adding extension '%s'" % ext)
 				self.env.add_extension(ext)
 
+			# Import module-specific environment, if available.
+			if "jinjaEnv" in dir(self.parent):
+				self.env = self.parent.jinjaEnv(self.env)
+
 		return self.env
 

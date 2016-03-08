@@ -3,25 +3,6 @@ from server.render.jinja2.utils import jinjaGlobal, jinjaFilter
 import json
 
 @jinjaFilter
-def clearString(render, s, words):
-	"""
-	Jinja2 filter: Remove words from a string.
-
-	:param s: Input string to be modified.
-	:type s: str
-
-	:param words: List of words to be removed from ``s``.
-	:type words: list of str
-
-	:return: The modified string.
-	:rtype: str
-	"""
-	for w in words:
-		s = s.replace(w, "")
-
-	return s
-
-@jinjaFilter
 def parseJSON(render, s):
 	"""
 	Jinja2 filter: Parses a JSON-string into a dict.
@@ -33,4 +14,9 @@ def parseJSON(render, s):
 				Returns None if no JSON could be parsed.
 	:rtype: dict
 	"""
-	return json.loads(s) or None
+	try:
+		ret = json.loads(s)
+	except ValueError:
+		ret = None
+
+	return ret

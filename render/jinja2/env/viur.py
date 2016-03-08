@@ -299,13 +299,6 @@ def getList(render, module, skel = "viewSkel", _noEmptyFilter = False, *args, **
 	return SkelListWrapper(mylist)
 
 @jinjaGlobal
-def getResizedURL(render, dlkey):
-	"""
-	Jinja2 global: Returns the serving URL for a download key.
-	"""
-	return get_serving_url(dlkey)
-
-@jinjaGlobal
 def getSecurityKey(render, **kwargs):
 	"""
 	Jinja2 global: Creates a new ViUR security key.

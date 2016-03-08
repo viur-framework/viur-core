@@ -4,7 +4,7 @@ from logging import critical, error, warning, debug, info
 import pprint
 
 @jinjaGlobal
-def logging(render, msg, kind = "info"):
+def logging(render, msg, kind = "info", **kwargs):
 	"""
 	Jinja2 global: Write log-level entry.
 	The function shall be used for debug and tracing purposes.
@@ -19,15 +19,15 @@ def logging(render, msg, kind = "info"):
 	kind = kind.lower()
 
 	if kind == "critical":
-		critical(msg)
+		critical(msg, **kwargs)
 	elif kind == "error":
-		error(msg)
+		error(msg, **kwargs)
 	elif kind == "warning":
-		warning(msg)
+		warning(msg, **kwargs)
 	elif kind == "debug":
-		debug(msg)
+		debug(msg, **kwargs)
 	else:
-		info(msg)
+		info(msg, **kwargs)
 
 @jinjaGlobal
 def pprint(render, obj):
