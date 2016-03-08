@@ -26,7 +26,9 @@ class boneFactory(object):
 		self.idx=1
 
 	def __call__(self, *args, **kwargs):
-		return self.cls(*self.args, **self.kwargs)
+		tmpDict = self.kwargs.copy()
+		tmpDict.update(kwargs)
+		return self.cls(*(self.args+args), **tmpDict)
 
 	def __repr__(self):
 		return "%sFactory" % self.cls.__name__

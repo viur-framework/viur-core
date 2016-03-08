@@ -246,7 +246,7 @@ class Skeleton( object ):
 			tmpList.sort( key=lambda x: x[1].idx )
 			for key, bone in tmpList:
 				#bone = copy.copy( bone )
-				bone = bone()
+				bone = bone(_kindName=self.kindName)
 				self.__dataDict__[ key ] = bone
 			if self.enforceUniqueValuesFor:
 				uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)

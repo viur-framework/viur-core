@@ -50,8 +50,8 @@ class DefaultRender( object ):
 						res[key]["type"]="%s.%s" % (boneType,_bone.type)
 						res[key]["multiple"]=_bone.multiple
 				if ( isinstance( _bone, bones.selectOneBone ) or  isinstance( _bone, bones.selectMultiBone ) ):
-					res[key]["values"] = dict( [(k,_(v)) for (k,v) in _bone.values.items() ] )
-					#res[key]["valuesOrder"] = _bone.valuesOrder
+					res[key]["values"] =  _bone.values
+					res[key]["valuesOrder"] = list(_bone.values.keys())
 					#res[key]["sortBy"] = _bone.sortBy
 				if ( isinstance( _bone, bones.dateBone ) ):
 					res[key]["time"] = _bone.time

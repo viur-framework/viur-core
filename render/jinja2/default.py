@@ -259,9 +259,7 @@ class Render( object ):
 						res[key]["multiple"]=_bone.multiple
 						res[key]["format"] = _bone.format
 					if( isinstance( _bone, bones.selectOneBone ) or isinstance( _bone, bones.selectMultiBone ) ):
-						res[key]["values"] = OrderedDict([(k,_(v)) for (k,v) in _bone.values.items() ])
-						#res[key]["valuesOrder"] = _bone.valuesOrder
-						#res[key]["sortBy"] = _bone.sortBy
+						res[key]["values"] =  _bone.values
 					if( isinstance( _bone, bones.dateBone ) ):
 						res[key]["time"] = _bone.time
 						res[key]["date"] = _bone.date

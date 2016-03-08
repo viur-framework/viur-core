@@ -23,6 +23,10 @@ class selectMultiBone( baseBone ):
 			:type sortBy: String
 		"""
 		super( selectMultiBone, self ).__init__( defaultValue=defaultValue, *args, **kwargs )
+		if "_kindName" in kwargs.keys():
+			kindName = kwargs["_kindName"]
+		else:
+			kindName = "unknownKind"
 		if "sortBy" in kwargs.keys():
 			raise DeprecationWarning("The sortBy parameter is deprecated. Please use an orderedDict for 'values' instead")
 		if isinstance(values, dict) and not isinstance(values, OrderedDict):
@@ -39,7 +43,9 @@ class selectMultiBone( baseBone ):
 				vals.sort(key=lambda x: x[1])
 			self.values = OrderedDict(vals)
 		elif isinstance(values, set):
-			raise NotImplementedError("Not yet implemented")
+			vals = [(x, _("models.%s.%s" % (kindName, x))) for x in values]
+			vals.sort(key=lambda x: x[1])
+			self.values = OrderedDict(vals)
 		elif isinstance(values, OrderedDict):
 			self.values = values
 
