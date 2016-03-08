@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from server.bones import baseBone, dateBone, selectOneBone, relationalBone, stringBone
+from server.bones import baseBone, boneFactory, dateBone, selectOneBone, relationalBone, stringBone
 from collections import OrderedDict
 from threading import local
 from server import db
@@ -241,11 +241,12 @@ class Skeleton( object ):
 
 			for key in dir(self):
 				bone = getattr( self, key )
-				if not "__" in key and isinstance( bone , baseBone ):
+				if not "__" in key and isinstance( bone , boneFactory ):
 					tmpList.append( (key, bone) )
 			tmpList.sort( key=lambda x: x[1].idx )
 			for key, bone in tmpList:
-				bone = copy.copy( bone )
+				#bone = copy.copy( bone )
+				bone = bone()
 				self.__dataDict__[ key ] = bone
 			if self.enforceUniqueValuesFor:
 				uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
@@ -267,8 +268,10 @@ class Skeleton( object ):
 			del self.__dataDict__[ name ]
 		elif isinstance( value, baseBone ):
 			self.__dataDict__[ name ] = value
+		elif isinstance( value, boneFactory ):
+			self.__dataDict__[ name ] = value()
 		elif value:
-			raise ValueError("Expected a instance of baseBone or None, got %s instead." % type(value))
+			raise ValueError("Expected a instance of baseBone, a boneFactory or None, got %s instead." % type(value))
 
 	def __getitem__(self, name ):
 		return( self.__dataDict__[name] )
@@ -822,21 +825,40 @@ class RelSkel( object ):
 		tmpList = []
 		for key in dir(self):
 			bone = getattr( self, key )
-			if not "__" in key and isinstance( bone , baseBone ):
+			if not "__" in key and isinstance( bone , boneFactory ):
 				tmpList.append( (key, bone) )
 		tmpList.sort( key=lambda x: x[1].idx )
 		for key, bone in tmpList:
-			bone = copy.copy( bone )
+			bone = bone() #copy.copy( bone )
 			self.__dataDict__[ key ] = bone
 		self.__isInitialized_ = True
+
+	@classmethod
+	def fromSkel(cls, skelCls, *args):
+		"""
+			Creates a relSkel from a skeleton-class using only the bones explicitly named
+			in *args
+		:param skelCls:
+		:param args:
+		:return:
+		"""
+		skel = cls()
+		skel.__isInitialized_ = False
+		for key in args:
+			if key in dir(skelCls):
+				skel[key] = getattr(skelCls, key)(skelCls.kindName)
+		skel.__isInitialized_ = True
+		return skel
 
 	def __setitem__(self, name, value):
 		if value is None and name in self.__dataDict__.keys():
 			del self.__dataDict__[ name ]
 		elif isinstance( value, baseBone ):
 			self.__dataDict__[ name ] = value
+		elif isinstance( value, boneFactory ):
+			self.__dataDict__[ name ] = value()
 		else:
-			raise ValueError("Expected a instance of baseBone or None, got %s instead." % type(value))
+			raise ValueError("Expected a instance of baseBone, a boneFactory or None, got %s instead." % type(value))
 
 	def __getitem__(self, name ):
 		return( self.__dataDict__[name] )
@@ -875,6 +897,26 @@ class RelSkel( object ):
 			self.errors = {}
 		return( complete )
 
+	def unserialize(self, values):
+		"""
+			Loads 'values' into this skeleton
+		:param values:
+		:return:
+		"""
+		for bkey,_bone in self.items():
+			if isinstance( _bone, baseBone ):
+				if bkey=="key":
+					try:
+						# Reading the value from db.Entity
+						_bone.value = str( values.key() )
+					except:
+						# Is it in the dict?
+						if "key" in values.keys():
+							_bone.value = str( values["key"] )
+						else: #Ingore the key value
+							pass
+				else:
+					_bone.unserialize( bkey, values )
 
 
 class SkelList( list ):

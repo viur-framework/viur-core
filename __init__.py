@@ -636,6 +636,7 @@ def setup( modules, render=None, default="jinja2" ):
 	"""
 	import skeletons
 	from server.skeleton import Skeleton
+	from server.bones import bone
 
 	conf["viur.skeletons"] = {}
 	for modelKey in dir( skeletons ):
@@ -669,6 +670,7 @@ def setup( modules, render=None, default="jinja2" ):
 	conf["viur.mainApp"] = buildApp( modules, render, default )
 	renderPrefix = [ "/%s" % x for x in dir( render ) if (not x.startswith("_") and x!=default) ]+[""]
 	conf["viur.wsgiApp"] = webapp.WSGIApplication( [(r'/(.*)', BrowseHandler)] )
+	bone.setSystemInitialized()
 	runStartupTasks() #Add a deferred call to run all queued startup tasks
 	return( conf["viur.wsgiApp"] )
 	

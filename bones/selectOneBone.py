@@ -8,7 +8,7 @@ class selectOneBone( baseBone ):
 	def generageSearchWidget(target,name="SELECTONE BONE",values=[]):
 		return ( {"name":name,"values":values,"target":target,"type":"selectone"} )
 
-	def __init__( self,  values = {}, defaultValue=None, sortBy="keys", *args, **kwargs ):
+	def __init__( self,  values = {}, defaultValue=None, sortBy="keys", valuesOrder = None, *args, **kwargs ):
 		"""
 			Creates a new selectOneBone
 			:param defaultValue: List of keys which will be checked by default
@@ -20,10 +20,12 @@ class selectOneBone( baseBone ):
 			:type sortBy: String
 		"""
 		super( selectOneBone, self ).__init__( defaultValue=defaultValue,  *args,  **kwargs )
-		if not sortBy in ["keys","values"]:
+		if not sortBy in ["keys", "values"]:
 			raise ValueError( "sortBy must be \"keys\" or \"values\"" )
+
 		self.sortBy = sortBy
 		self.values = values
+		self.valuesOrder = valuesOrder or []
 	
 	def fromClient( self, name, data ):
 		"""
