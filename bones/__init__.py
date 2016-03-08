@@ -9,7 +9,6 @@ from server.bones.selectOneBone import selectOneBone
 from server.bones.selectMultiBone import selectMultiBone, selectAccessMultiBone
 from server.bones.booleanBone import booleanBone
 from server.bones.relationalBone import relationalBone
-from server.bones.extendedRelationalBone import extendedRelationalBone
 from server.bones.treeItemBone import treeItemBone
 from server.bones.treeDirBone import treeDirBone
 from server.bones.hierarchyBone import hierarchyBone

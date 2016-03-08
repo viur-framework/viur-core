@@ -897,6 +897,15 @@ class RelSkel( object ):
 			self.errors = {}
 		return( complete )
 
+	def serialize(self):
+		class FakeEntity(dict):
+			def set(self, key, value, indexed=False):
+				self[key] = value
+		dbObj = FakeEntity()
+		for key, _bone in self.items():
+			dbObj = _bone.serialize( key, dbObj )
+		return dbObj
+
 	def unserialize(self, values):
 		"""
 			Loads 'values' into this skeleton
