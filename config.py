@@ -16,7 +16,6 @@ conf = {
 
 	"viur.cacheEnvironmentKey": None, #If set, this function will be called for each cache-attempt and the result will be included in the computed cache-key
 	"viur.capabilities": [], #Extended functionality of the whole System (For module-dependend functionality advertise this in the module configuration (adminInfo)
-	"viur.config.whitelist": [], #Whitelist for config values made available in the Jinja2 environment
 	"viur.contentSecurityPolicy": None, #If set, viur will emit a CSP http-header with each request. Use the csp module to set this property
 
 	"viur.db.caching" : 2, #Cache strategy used by the database. 2: Aggressive, 1: Safe, 0: Off

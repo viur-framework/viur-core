@@ -105,25 +105,6 @@ def execRequest(render, path, *args, **kwargs):
 	return resstr
 
 @jinjaGlobal
-def getConf(render):
-	"""
-	Jinja2 global: Allows for accessing the ViUR application config.
-
-	The returned dict only contains config entries which are listed in the "viur.config.whitelist"
-	configuration key. Everything else will not be made available.
-
-	:return: All whitelisted ViUR configuration parameters.
-	:rtype: dict
-	"""
-	retconf = {}
-
-	for ele in conf:
-		if ele in conf["viur.config.whitelist"]:
-			retconf.update({ele: conf[ele]})
-
-	return retconf
-
-@jinjaGlobal
 def getCurrentUser(render):
 	"""
 	Jinja2 global: Returns the current user from the session, or None if not logged in.
