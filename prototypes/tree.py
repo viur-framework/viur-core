@@ -287,7 +287,14 @@ class Tree(BasicApplication):
 		:raises: :exc:`server.errors.NotFound`, if *node* could not be found.
 		:raises: :exc:`server.errors.NotAcceptable`, if anything else than "node" or "leaf" is provided to *skelType*.
 		"""
-		skel = self.viewSkel(skelType)
+
+		if skelType == "node":
+			skel = self.viewNodeSkel()
+		elif skelType == "leaf":
+			skel = self.viewLeafSkel()
+		else:
+			raise errors.NotAcceptable()
+
 		if skel is None:
 			raise errors.NotAcceptable()
 
@@ -331,7 +338,14 @@ class Tree(BasicApplication):
 		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		"""
-		skel = self.viewSkel(skelType)
+
+		if skelType == "node":
+			skel = self.viewNodeSkel()
+		elif skelType == "leaf":
+			skel = self.viewLeafSkel()
+		else:
+			raise errors.NotAcceptable()
+
 		if skel is None:
 			raise errors.NotAcceptable()
 		if not len(key):
@@ -373,8 +387,11 @@ class Tree(BasicApplication):
 		else:
 			skey = ""
 
-		skel = self.addSkel(skelType)
-		if skel is None:
+		if skelType == "node":
+			skel = self.addNodeSkel()
+		elif skelType == "leaf":
+			skel = self.addLeafSkel()
+		else:
 			raise errors.NotAcceptable()
 
 		parentNodeSkel = self.editNodeSkel()
@@ -427,8 +444,11 @@ class Tree(BasicApplication):
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-		skel = self.editSkel(skelType)
-		if skel is None:
+		if skelType == "node":
+			skel = self.editNodeSkel()
+		elif skelType == "leaf":
+			skel = self.editLeafSkel()
+		else:
 			raise errors.NotAcceptable()
 
 		if not skel.fromDB( key ):
@@ -480,7 +500,8 @@ class Tree(BasicApplication):
 		elif skelType == "leaf":
 			skel = self.viewLeafSkel()
 		else:
-			raise( errors.NotAcceptable() )
+			raise errors.NotAcceptable()
+
 		if "skey" in kwargs:
 			skey = kwargs["skey"]
 		else:
@@ -525,8 +546,11 @@ class Tree(BasicApplication):
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-		srcSkel = self.editSkel(skelType)
-		if skelType is None:
+		if skelType == "node":
+			srcSkel = self.editNodeSkel()
+		elif skelType == "leaf":
+			srcSkel = self.editLeafSkel()
+		else:
 			raise errors.NotAcceptable()
 
 		if "skey" in kwargs:
