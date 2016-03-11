@@ -846,7 +846,7 @@ class RelSkel( object ):
 		skel.__isInitialized_ = False
 		for key in args:
 			if key in dir(skelCls):
-				skel[key] = getattr(skelCls, key)(skelCls.kindName)
+				skel[key] = getattr(skelCls, key)(_kindName=skelCls.kindName)
 		skel.__isInitialized_ = True
 		return skel
 
