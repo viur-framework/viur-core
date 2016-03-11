@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
 from collections import OrderedDict
+import logging
 
 class selectOneBone( baseBone ):
 	type = "selectone"
@@ -26,7 +27,7 @@ class selectOneBone( baseBone ):
 		else:
 			kindName = "unknownKind"
 		if "sortBy" in kwargs.keys():
-			raise DeprecationWarning("The sortBy parameter is deprecated. Please use an orderedDict for 'values' instead")
+			logging.warning("The sortBy parameter is deprecated. Please use an orderedDict for 'values' instead")
 		if isinstance(values, dict) and not isinstance(values, OrderedDict):
 			vals = list(values.items())
 			if "sortBy" in kwargs.keys():

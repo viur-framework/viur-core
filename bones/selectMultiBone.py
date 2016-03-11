@@ -28,7 +28,7 @@ class selectMultiBone( baseBone ):
 		else:
 			kindName = "unknownKind"
 		if "sortBy" in kwargs.keys():
-			raise DeprecationWarning("The sortBy parameter is deprecated. Please use an orderedDict for 'values' instead")
+			logging.warning("The sortBy parameter is deprecated. Please use an orderedDict for 'values' instead")
 		if isinstance(values, dict) and not isinstance(values, OrderedDict):
 			vals = list(values.items())
 			if "sortBy" in kwargs.keys():
