@@ -90,12 +90,28 @@ class relationalBone( baseBone ):
 
 		self.using = using
 
-	def unserialize( self, name, expando ):
+	def _restoreValueFromDatastore(self, val):
+		"""
+			Restores one of our values (including the Rel- and Using-Skel) from the serialized data read from the datastore
+			:param value: Json-Encoded datastore property
+			:return: Our Value (with restored RelSkel and using-Skel)
+		"""
+		value = json.loads(val)
 		from server.skeleton import RelSkel, skeletonByKind
+		assert isinstance(value, dict), "Read something from the datastore thats not a dict: %s" % str(type(value))
+		relSkel = RelSkel.fromSkel(skeletonByKind(self.type), *self.refKeys)
+		relSkel.unserialize(value["dest"])
+		if self.using is not None:
+			usingSkel = self.using()
+			usingSkel.unserialize(value["rel"])
+		else:
+			usingSkel = None
+		return {"dest": relSkel, "rel": usingSkel}
+
+
+	def unserialize( self, name, expando ):
 		if name in expando.keys():
 			val = expando[ name ]
-			logging.error("kkkkk")
-			logging.error(val)
 			if self.multiple:
 				self.value = []
 				if not val:
@@ -103,58 +119,41 @@ class relationalBone( baseBone ):
 				if isinstance(val, list):
 					for res in val:
 						try:
-							data = json.loads(res)
-							logging.error(skeletonByKind(self.type))
-							relSkel = RelSkel.fromSkel(skeletonByKind(self.type), "name")
-							relSkel.unserialize(data["dest"])
-							if self.using is not None:
-								usingSkel = self.using()
-								usingSkel.unserialize(data["rel"])
-							else:
-								usingSkel = None
-							self.value.append({"dest": relSkel, "rel": usingSkel})
+							self.value.append(self._restoreValueFromDatastore(res))
 						except:
-							raise
+							raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 							pass
 				else:
 					try:
-						value = json.loads(val)
-						if isinstance( value, dict ):
-							relSkel = RelSkel.fromSkel(skeletonByKind(self.type), *self.refKeys)
-							relSkel.unserialize(value["dest"])
-							if self.using is not None:
-								usingSkel = self.using()
-								usingSkel.unserialize(value["rel"])
-							else:
-								usingSkel = None
-							self.value.append({"dest": relSkel, "rel": usingSkel})
+						self.value.append(self._restoreValueFromDatastore(val))
 					except:
+						raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 						pass
 			else:
 				if isinstance( val, list ) and len( val )>0:
 					try:
-						self.value = json.loads(val[0])
+						self.value.append(self._restoreValueFromDatastore(val[0]))
 					except:
+						raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 						pass
 				else:
 					if val:
 						try:
-							self.value = json.loads(val)
+							self.value.append(self._restoreValueFromDatastore(val))
 						except:
+							raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 							pass
 					else:
 						self.value = None
 
 		else:
 			self.value = None
-
 		if isinstance( self.value, list ):
 			self._dbValue = self.value[ : ]
 		elif isinstance( self.value, dict ):
 			self._dbValue = dict( self.value.items() )
 		else:
 			self._dbValue = None
-		logging.error(self.value)
 		return True
 
 	def serialize(self, name, entity ):
@@ -168,10 +167,14 @@ class relationalBone( baseBone ):
 			if self.multiple:
 				res = []
 				for val in self.value:
-					res.append( json.dumps( val ) )
+					r = {"rel": val["rel"].serialize() if val["rel"] else None,
+					     "dest": val["dest"].serialize() if val["dest"] else None}
+					res.append( json.dumps( r ) )
 				entity.set( name, res, False )
 			else:
-				entity.set( name, json.dumps( self.value ), False )
+				r = {"rel": self.value["rel"].serialize() if self.value["rel"] else None,
+				     "dest": self.value["dest"].serialize() if self.value["dest"] else None}
+				entity.set(name, json.dumps(r), False)
 				#Copy attrs of our referenced entity in
 				if self.indexed:
 					for k, v in self.value.items():
@@ -209,11 +212,11 @@ class relationalBone( baseBone ):
 				data = [x for x in values if x["dest"]["key"] == dbObj["dest.key"]][0]
 				if self.indexed: #We dont store more than key and kinds, and these dont change
 					#Write our (updated) values in
-					for k, v in data["dest"].items():
+					for k, v in data["dest"].serialize():
 						dbObj[ "dest."+k ] = v
 					for k,v in parentValues.items():
 						dbObj[ "src."+k ] = v
-					for k, v in data["rel"].items():
+					for k, v in data["rel"].serialize():
 						dbObj[ "rel."+k ] = v
 					dbObj[ "viur_delayed_update_tag" ] = time()
 					db.Put( dbObj )
@@ -224,14 +227,14 @@ class relationalBone( baseBone ):
 			dbObj = db.Entity( "viur-relations" , parent=db.Key( key ) ) #skel.kindName+"_"+self.type+"_"+key
 
 			if not self.indexed: #Dont store more than key and kinds, as they aren't used anyway
-				dbObj[ "dest.key" ] = val["dest"]["key"]
+				dbObj[ "dest.key" ] = val["dest"]["key"].value
 				dbObj[ "src.key" ] = key
 			else:
-				for k, v in val["dest"].items():
+				for k, v in val["dest"].serialize():
 					dbObj[ "dest."+k ] = v
 				for k,v in parentValues.items():
 					dbObj[ "src."+k ] = v
-				for k, v in val["rel"].items():
+				for k, v in val["rel"].serialize():
 					dbObj[ "rel."+k ] = v
 
 			dbObj[ "viur_delayed_update_tag" ] = time()
@@ -263,6 +266,7 @@ class relationalBone( baseBone ):
 			:type data: Dict
 			:returns: None or String
 		"""
+		from server.skeleton import RelSkel, skeletonByKind
 		self.value = []
 		tmpRes = {}
 		for k,v in data.items():
@@ -272,6 +276,7 @@ class relationalBone( baseBone ):
 					idx, bname = k.split(".")
 				except ValueError:
 					# We got some garbarge as input; don't try to parse it
+					raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 					continue
 				if not idx in tmpRes.keys():
 					tmpRes[ idx ] = {}
@@ -304,9 +309,7 @@ class relationalBone( baseBone ):
 						isEntryFromBackup = True
 				elif  isinstance(self._dbValue, list):
 					for dbVal in self._dbValue:
-
-
-						if dbVal["dest"]["key"]==str(r):
+						if dbVal["dest"]["key"].value==str(r):
 							entry = dbVal
 							isEntryFromBackup = True
 				if not isEntryFromBackup:
@@ -322,7 +325,9 @@ class relationalBone( baseBone ):
 				continue
 			tmp = { k: entry[k] for k in entry.keys() if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ) }
 			tmp["key"] = r["dest"]["key"]
-			r["dest"] = tmp
+			relSkel = RelSkel.fromSkel(skeletonByKind(self.type), *self.refKeys)
+			relSkel.unserialize(tmp)
+			r["dest"] = relSkel
 			# Rebuild the refSkel data
 			tmp = {}
 			if self.using is not None:
@@ -330,9 +335,17 @@ class relationalBone( baseBone ):
 				if not refSkel.fromClient( r["reltmp"] ):
 					for k,v in refSkel.errors.items():
 						errorDict[ "%s.%s.%s" % (name,tmpList.index(r),k) ] = v
-				r["rel"] = refSkel.serialize()
-				del r["reltmp"]
-		self.value = tmpList
+				r["rel"] = refSkel
+			else:
+				r["rel"] = None
+			del r["reltmp"]
+		if self.multiple:
+			self.value = tmpList
+		else:
+			if tmpList:
+				self.value = tmpList[0]
+			else:
+				self.value = None
 		if len( errorDict.keys() ):
 			return( ReadFromClientError( errorDict, True ) )
 

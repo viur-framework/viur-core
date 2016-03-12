@@ -833,6 +833,8 @@ class RelSkel( object ):
 			self.__dataDict__[ key ] = bone
 		self.__isInitialized_ = True
 
+	key = baseBone( descr="key", readOnly=True, visible=False )
+
 	@classmethod
 	def fromSkel(cls, skelCls, *args):
 		"""
@@ -904,6 +906,8 @@ class RelSkel( object ):
 		dbObj = FakeEntity()
 		for key, _bone in self.items():
 			dbObj = _bone.serialize( key, dbObj )
+		if "key" in self.keys(): #Write the key seperatly, as the base-bone doesn't store it
+			dbObj["key"] = self["key"].value
 		return dbObj
 
 	def unserialize(self, values):

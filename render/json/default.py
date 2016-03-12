@@ -93,11 +93,11 @@ class DefaultRender( object ):
 					tmpList = []
 					for k in _bone.value:
 						tmpList.append({"dest": self.renderSkelValues(k["dest"]),
-				                        "rel": self.renderSkelValues(k["rel"]) if k["rel"] else None})
+				                        "rel": self.renderSkelValues(k["rel"]) if ("rel" in k.keys() and k["rel"]) else None})
 					res[key] = tmpList
 				elif isinstance(_bone.value, dict):
 					res[key] = {"dest": self.renderSkelValues(_bone.value["dest"]),
-					            "rel": self.renderSkelValues(_bone.value["rel"]) if _bone.value["rel"] else None}
+					            "rel": self.renderSkelValues(_bone.value["rel"]) if ("rel" in _bone.value.keys() and _bone.value["rel"]) else None}
 			elif( isinstance( _bone, bones.baseBone ) ):
 				res[key] = _bone.value
 		return res
