@@ -132,14 +132,14 @@ class relationalBone( baseBone ):
 			else:
 				if isinstance( val, list ) and len( val )>0:
 					try:
-						self.value.append(self._restoreValueFromDatastore(val[0]))
+						self.value = self._restoreValueFromDatastore(val[0])
 					except:
 						raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 						pass
 				else:
 					if val:
 						try:
-							self.value.append(self._restoreValueFromDatastore(val))
+							self.value = self._restoreValueFromDatastore(val)
 						except:
 							raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 							pass
