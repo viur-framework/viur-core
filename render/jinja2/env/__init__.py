@@ -3,7 +3,6 @@
 import \
 	date, \
 	debug, \
-	list, \
 	regex, \
 	session, \
 	strings, \
