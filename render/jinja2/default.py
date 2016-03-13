@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import env # <- this must remain here!
 import utils as jinjaUtils
 from server import conf, bones, utils, request, session, conf, errors, securitykey, prototypes
 from server.skeleton import Skeleton, RelSkel
@@ -80,6 +79,8 @@ class Render( object ):
 	reparentSuccessTemplate = "reparent_success"
 	setIndexSuccessTemplate = "setindex_success"
 	cloneSuccessTemplate = "clone_success"
+
+	__haveEnvImported_ = False
 	
 	class KeyValueWrapper:
 		"""
@@ -120,6 +121,10 @@ class Render( object ):
 
 	def __init__(self, parent=None, *args, **kwargs ):
 		super( Render, self ).__init__(*args, **kwargs)
+		if not Render.__haveEnvImported_:
+			# We defer loading our plugins to this point to avoid circular imports
+			import env
+			Render.__haveEnvImported_ = True
 		self.parent = parent
 
 	
