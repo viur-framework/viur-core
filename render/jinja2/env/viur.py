@@ -433,6 +433,12 @@ def urlencode(render, val):
 
 	return quote_plus(val)
 
+'''
+This has been disabled until we are sure
+	a) what use-cases it has
+	b) how it's best implemented
+	c) doesn't introduce any XSS vulnerability
+  - TS 13.03.2016
 @jinjaFilter
 def className(render, s):
 	"""
@@ -451,6 +457,7 @@ def className(render, s):
 		return " ".join(l)
 
 	return ""
+'''
 
 @jinjaFilter
 def shortKey(render, val):
