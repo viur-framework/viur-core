@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
+
 import env # <- this must remain here!
 import utils as jinjaUtils
-
 from server import conf, bones, utils, request, session, conf, errors, securitykey, prototypes
 from server.skeleton import Skeleton, RelSkel
 from server.bones import *
@@ -161,6 +161,10 @@ class Render( object ):
 						template+stylePostfix+".html", 
 						os.path.join(  lang, template+".html"), 
 						template+".html" ]
+		for fn in fnames: #check subfolders
+			prefix = template.split("_")[0]
+			if os.path.isfile(os.path.join(os.getcwd(), "html", prefix, fn)):
+				return ( "%s/%s" % (prefix, fn ) )
 		for fn in fnames: #Check the templatefolder of the application
 			if os.path.isfile( os.path.join( os.getcwd(), htmlpath, fn ) ):
 				self.checkForOldLinePrefix( os.path.join( os.getcwd(), htmlpath, fn ) )
@@ -241,8 +245,7 @@ class Render( object ):
 						res[key]["multiple"]=_bone.multiple
 						res[key]["format"] = _bone.format
 					if( isinstance( _bone, bones.selectOneBone ) or isinstance( _bone, bones.selectMultiBone ) ):
-						res[key]["values"] = dict( [(k,_(v)) for (k,v) in _bone.values.items() ] )
-						res[key]["sortBy"] = _bone.sortBy
+						res[key]["values"] =  _bone.values
 					if( isinstance( _bone, bones.dateBone ) ):
 						res[key]["time"] = _bone.time
 						res[key]["date"] = _bone.date
@@ -256,6 +259,43 @@ class Render( object ):
 						res[key]["languages"] = _bone.languages 
 		return( res )
 	
+	def collectSkelData( self, skel ):
+		"""
+			Prepares values of one :class:`server.db.skeleton.Skeleton` or a list of skeletons for output.
+
+			:param skel: Skeleton which structure will be processed.
+			:type skel: server.db.skeleton.Skeleton
+
+			:returns: A dictionary or list of dictionaries.
+			:rtype: dict
+		"""
+		if isinstance( skel, list ):
+			return( [ self.collectSkelData(x) for x in skel ] )
+		res = {}
+		for key,_bone in skel.items():
+			if isinstance( _bone, selectOneBone ):
+				if _bone.value in _bone.values.keys():
+					res[ key ] = Render.KeyValueWrapper( _bone.value, _bone.values[ _bone.value ] )
+				else:
+					res[ key ] = _bone.value
+			elif isinstance( _bone, selectMultiBone ):
+				res[ key ] = [ (Render.KeyValueWrapper( val, _bone.values[ val ] ) if val in _bone.values.keys() else val)  for val in _bone.value ]
+			elif isinstance(_bone, relationalBone):
+				if isinstance(_bone.value, list):
+					tmpList = []
+					for k in _bone.value:
+						tmpList.append({"dest": self.collectSkelData(k["dest"]),
+				                        "rel": self.collectSkelData(k["rel"]) if k["rel"] else None})
+					res[key] = tmpList
+				elif isinstance(_bone.value, dict):
+					res[key] = {"dest": self.collectSkelData(_bone.value["dest"]),
+					            "rel": self.collectSkelData(_bone.value["rel"]) if _bone.value["rel"] else None}
+			elif( isinstance( _bone, bones.baseBone ) ):
+				res[ key ] = _bone.value
+			if key in res.keys() and isinstance( res[key], list ):
+				res[key] = ListWrapper( res[key] )
+		return( res )
+
 	def add(self, skel, tpl=None, *args, **kwargs):
 		"""
 			Renders a page for adding an entry.

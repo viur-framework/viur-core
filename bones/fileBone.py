@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from server.bones import treeItemBone
-from server import db, skeleton, request
+from server import db, request
 from server.utils import normalizeKey
 
 from hashlib import sha256
@@ -17,22 +17,22 @@ class fileBone(treeItemBone):
 		if self.value is None:
 			return( [] )
 		elif isinstance( self.value, dict ):
-			return( [self.value["dlkey"]] )
+			return( [self.value["dest"]["dlkey"].value] )
 		elif isinstance( self.value, list ):
-			return( [x["key"] for x in self.value])
+			return( [x["dest"]["dlkey"].value for x in self.value])
 
 	def unserialize( self, name, expando ):
 		res = super( fileBone, self ).unserialize( name, expando )
 		if not request.current.get().isDevServer:
 			# Rewrite all "old" Serving-URLs to https if we are not on the development-server
-			if isinstance(self.value, dict) and "servingurl" in self.value.keys():
-				if self.value["servingurl"].startswith("http://"):
-					self.value["servingurl"] = self.value["servingurl"].replace("http://","https://")
+			if isinstance(self.value, dict) and "servingurl" in self.value["dest"].keys():
+				if self.value["dest"]["servingurl"].startswith("http://"):
+					self.value["dest"]["servingurl"] = self.value["dest"]["servingurl"].replace("http://","https://")
 			elif isinstance( self.value, list ):
 				for val in self.value:
-					if isinstance(val, dict) and "servingurl" in val.keys():
-						if val["servingurl"].startswith("http://"):
-							val["servingurl"] = val["servingurl"].replace("http://","https://")
+					if isinstance(val, dict) and "servingurl" in val["dest"].keys():
+						if val["dest"]["servingurl"].startswith("http://"):
+							val["dest"]["servingurl"] = val["dest"]["servingurl"].replace("http://","https://")
 		return( res )
 
 	def refresh(self, boneName, skel):

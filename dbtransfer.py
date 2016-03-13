@@ -478,7 +478,7 @@ def iterImport(module, target, exportKey, cursor=None, amount=0):
 	if result.status_code == 200:
 		res = pickle.loads(result.content.decode("HEX"))
 		skel = skeletonByKind(module)()
-		logging.info("%s: %d entries fetched" % (module, len(res["values"])))
+		logging.info("%s: %d new entries fetched, total %d entries fetched" % (module, len(res["values"]), amount))
 
 		if len(res["values"]) == 0:
 			try:
@@ -494,6 +494,10 @@ def iterImport(module, target, exportKey, cursor=None, amount=0):
 			for k in list(entry.keys())[:]:
 				if isinstance(entry[k], str):
 					entry[k] = entry[k].decode("UTF-8")
+
+			if not "key" in entry.keys():
+				entry["key"] = entry["id"]
+
 
 			key = db.Key(encoded=utils.normalizeKey(entry["key"]))
 			dbEntry = db.Entity(kind=key.kind(), parent=key.parent(), id=key.id(), name=key.name())#maybe some more fixes here ?

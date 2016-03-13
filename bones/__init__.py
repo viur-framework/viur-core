@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from server.bones.bone import baseBone
+from server.bones.bone import baseBone, boneFactory
 from server.bones.stringBone import stringBone
 from server.bones.textBone import textBone
 from server.bones.numericBone import numericBone
@@ -9,7 +9,6 @@ from server.bones.selectOneBone import selectOneBone
 from server.bones.selectMultiBone import selectMultiBone, selectAccessMultiBone
 from server.bones.booleanBone import booleanBone
 from server.bones.relationalBone import relationalBone
-from server.bones.extendedRelationalBone import extendedRelationalBone
 from server.bones.treeItemBone import treeItemBone
 from server.bones.treeDirBone import treeDirBone
 from server.bones.hierarchyBone import hierarchyBone

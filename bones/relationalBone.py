@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
 from server import db
+from server.errors import ReadFromClientError
+from server.utils import normalizeKey
 from google.appengine.api import search
 import json
 from time import time
 from datetime import datetime
 import logging
-from server.utils import normalizeKey
+
 
 class relationalBone( baseBone ):
 	"""
@@ -35,39 +37,30 @@ class relationalBone( baseBone ):
 		If you filter a list by relational properties, this will also use the old data! (Eg. filtering A's list by
 		B's new name won't return any result)
 	"""
+	refKeys = ["key", "name"]
+	parentKeys = ["key", "name"]
 
-
-	type = None
-	module = None
-	refKeys = ["key","name"]
-	parentKeys = ["key","name"]
-
-	@staticmethod
-	def generageSearchWidget(target,module,name="RELATIONAL BONE"):
-		return ( {"name":name,"target":target,"type":"relational","module":module} )
-
-	def __init__( self, type=None, module=None, refKeys=None, parentKeys=None, multiple=False, format="$(name)",  *args,**kwargs):
+	def __init__( self, type=None, module=None, refKeys=None, parentKeys=None, multiple=True, format="$(name)", using=None, *args, **kwargs):
 		"""
 			Initialize a new relationalBone.
-
 			:param type: KindName of the referenced property.
-			:type type: str
+			:type type: String
 			:param module: Name of the modul which should be used to select entities of kind "type". If not set,
 				the value of "type" will be used (the kindName must match the moduleName)
-			:type type: str
+			:type type: String
 			:param refKeys: A list of properties to include from the referenced property. These properties will be
-				available in the template without having to fetch the referenced property. Filtering is also only possible
+				avaiable in the template without having to fetch the referenced property. Filtering is also only possible
 				by properties named here!
-			:type refKeys: list<str>
+			:type refKeys: List of Strings
 			:param parentKeys: A list of properties from the current skeleton to include. If mixing filtering by
 				relational properties and properties of the class itself, these must be named here.
 			:type parentKeys: List of Strings
 			:param multiple: If True, allow referencing multiple Elements of the given class. (Eg. n:n-relation.
 				otherwise its n:1 )
-			:type multiple: bool
+			:type multiple: False
 			:param format: Hint for the admin how to display such an relation. See admin/utils.py:formatString for
 				more information
-			:type format: str
+			:type format: String
 		"""
 		baseBone.__init__( self, *args, **kwargs )
 		self.multiple = multiple
@@ -88,12 +81,33 @@ class relationalBone( baseBone ):
 		if refKeys:
 			if not "key" in refKeys:
 				raise AttributeError("'key' must be included in refKeys!")
-			self.refKeys=refKeys
+			self.refKeys = refKeys
 
 		if parentKeys:
 			if not "key" in parentKeys:
 				raise AttributeError("'key' must be included in parentKeys!")
 			self.parentKeys=parentKeys
+
+		self.using = using
+
+	def _restoreValueFromDatastore(self, val):
+		"""
+			Restores one of our values (including the Rel- and Using-Skel) from the serialized data read from the datastore
+			:param value: Json-Encoded datastore property
+			:return: Our Value (with restored RelSkel and using-Skel)
+		"""
+		value = json.loads(val)
+		from server.skeleton import RelSkel, skeletonByKind
+		assert isinstance(value, dict), "Read something from the datastore thats not a dict: %s" % str(type(value))
+		relSkel = RelSkel.fromSkel(skeletonByKind(self.type), *self.refKeys)
+		relSkel.unserialize(value["dest"])
+		if self.using is not None:
+			usingSkel = self.using()
+			usingSkel.unserialize(value["rel"])
+		else:
+			usingSkel = None
+		return {"dest": relSkel, "rel": usingSkel}
+
 
 	def unserialize( self, name, expando ):
 		if name in expando.keys():
@@ -105,43 +119,43 @@ class relationalBone( baseBone ):
 				if isinstance(val, list):
 					for res in val:
 						try:
-							self.value.append(json.loads(res))
+							self.value.append(self._restoreValueFromDatastore(res))
 						except:
+							raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 							pass
 				else:
 					try:
-						value = json.loads(val)
-						if isinstance( value, dict ):
-							self.value.append( value )
+						self.value.append(self._restoreValueFromDatastore(val))
 					except:
+						raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 						pass
 			else:
 				if isinstance( val, list ) and len( val )>0:
 					try:
-						self.value = json.loads(val[0])
+						self.value = self._restoreValueFromDatastore(val[0])
 					except:
+						raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 						pass
 				else:
 					if val:
 						try:
-							self.value = json.loads(val)
+							self.value = self._restoreValueFromDatastore(val)
 						except:
+							raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 							pass
 					else:
 						self.value = None
 
 		else:
 			self.value = None
-
 		if isinstance( self.value, list ):
 			self._dbValue = self.value[ : ]
 		elif isinstance( self.value, dict ):
 			self._dbValue = dict( self.value.items() )
 		else:
 			self._dbValue = None
-
 		return True
-	
+
 	def serialize(self, name, entity ):
 		if not self.value:
 			entity.set( name, None, False )
@@ -153,29 +167,22 @@ class relationalBone( baseBone ):
 			if self.multiple:
 				res = []
 				for val in self.value:
-					res.append( json.dumps( val ) )
+					r = {"rel": val["rel"].serialize() if val["rel"] else None,
+					     "dest": val["dest"].serialize() if val["dest"] else None}
+					res.append( json.dumps( r ) )
 				entity.set( name, res, False )
 			else:
-				entity.set( name, json.dumps( self.value ), False )
+				r = {"rel": self.value["rel"].serialize() if self.value["rel"] else None,
+				     "dest": self.value["dest"].serialize() if self.value["dest"] else None}
+				entity.set(name, json.dumps(r), False)
 				#Copy attrs of our referenced entity in
 				if self.indexed:
 					for k, v in self.value.items():
 						if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ):
 							entity[ "%s.%s" % (name,k) ] = v
 		return entity
-	
-	def postSavedHandler( self, boneName, skel, key, dbfields ):
-		def isIndexable( val ):
-			if isinstance( val, unicode ) or isinstance(val, str):
-				if len( val )>=500:
-					return False
-			if isinstance( val, list ):
-				for x in val:
-					if isinstance( x, unicode ) or isinstance( x, str ):
-						if( len( x )>= 500 ):
-							return False
-			return True
 
+	def postSavedHandler( self, boneName, skel, key, dbfields ):
 		if not self.value:
 			values = []
 		elif isinstance( self.value, dict ):
@@ -196,26 +203,21 @@ class relationalBone( baseBone ):
 
 		for dbObj in dbVals.iter():
 			try:
-				if not dbObj[ "dest.key" ] in [ x["key"] for x in values ]: #Relation has been removed
+				if not dbObj[ "dest.key" ] in [ x["dest"]["key"] for x in values ]: #Relation has been removed
 					db.Delete( dbObj.key() )
 					continue
 			except: #This entry is corrupt
 				db.Delete( dbObj.key() )
 			else: # Relation: Updated
-				data = [ x for x in values if x["key"] == dbObj[ "dest.key" ] ][0]
-				if self.multiple and self.indexed: #We dont store more than key and kinds, and these dont change
-					for k,v in parentValues.items(): #Write our (updated) values in
-						if not isIndexable(v):
-							dbObj[ "src."+k ] = None
-							logging.error("Cannot index property src.%s of relationalBone %s" % (k,boneName))
-						else:
-							dbObj[ "src."+k ] = v
-					for k, v in data.items():
-						if not isIndexable(v):
-							dbObj[ "dest."+k ] = None
-							logging.error("Cannot index property dest.%s of relationalBone %s" % (k,boneName))
-						else:
-							dbObj[ "dest."+k ] = v
+				data = [x for x in values if x["dest"]["key"] == dbObj["dest.key"]][0]
+				if self.indexed: #We dont store more than key and kinds, and these dont change
+					#Write our (updated) values in
+					for k, v in data["dest"].serialize():
+						dbObj[ "dest."+k ] = v
+					for k,v in parentValues.items():
+						dbObj[ "src."+k ] = v
+					for k, v in data["rel"].serialize():
+						dbObj[ "rel."+k ] = v
 					dbObj[ "viur_delayed_update_tag" ] = time()
 					db.Put( dbObj )
 				values.remove( data )
@@ -224,40 +226,28 @@ class relationalBone( baseBone ):
 		for val in values:
 			dbObj = db.Entity( "viur-relations" , parent=db.Key( key ) ) #skel.kindName+"_"+self.type+"_"+key
 
-			# !!!ViUR re-design compatibility!!!
-			if "id" in val.keys() and not "key" in val.keys():
-				val["key"] = val["id"]
-
-			if not self.multiple or not self.indexed: #Dont store more than key and kinds, as they aren't used anyway
-				dbObj[ "dest.key" ] = val["key"]
+			if not self.indexed: #Dont store more than key and kinds, as they aren't used anyway
+				dbObj[ "dest.key" ] = val["dest"]["key"].value
 				dbObj[ "src.key" ] = key
 			else:
-				for k, v in val.items():
-					if not isIndexable(v):
-						dbObj[ "dest."+k ] = None
-						logging.error("Cannot index property dest.%s of relationalBone %s" % (k,boneName))
-					else:
-						dbObj[ "dest."+k ] = v
+				for k, v in val["dest"].serialize():
+					dbObj[ "dest."+k ] = v
 				for k,v in parentValues.items():
-					if not isIndexable(v):
-						dbObj[ "src."+k ] = None
-						logging.error("Cannot index property src.%s of relationalBone %s" % (k,boneName))
-					else:
-						dbObj[ "src."+k ] = v
+					dbObj[ "src."+k ] = v
+				for k, v in val["rel"].serialize():
+					dbObj[ "rel."+k ] = v
+
 			dbObj[ "viur_delayed_update_tag" ] = time()
 			dbObj[ "viur_src_kind" ] = skel.kindName #The kind of the entry referencing
-			#dbObj[ "viur_src_key" ] = str( id ) #The id of the entry referencing
+			#dbObj[ "viur_src_key" ] = str( key ) #The key of the entry referencing
 			dbObj[ "viur_src_property" ] = boneName #The key of the bone referencing
-			#dbObj[ "viur_dest_key" ] = val[ "key" ]
+			#dbObj[ "viur_dest_key" ] = val["key"]
 			dbObj[ "viur_dest_kind" ] = self.type
 			db.Put( dbObj )
-		
+
 	def postDeletedHandler( self, skel, key, id ):
-		db.Delete( [x for x in db.Query( "viur-relations" ).ancestor( db.Key( id ) ).run( keysOnly=True ) ] ) #skel.kindName+"_"+self.type+"_"+key
-	
-	def rebuildData(self, *args, **kwargs ):
-		pass
-	
+		db.Delete( [x for x in db.Query( "viur-relations" ).ancestor( db.Key( id ) ).run( keysOnly=True ) ] )
+
 	def isInvalid( self, key ):
 		return True
 
@@ -269,115 +259,95 @@ class relationalBone( baseBone ):
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
-			
+
 			:param name: Our name in the skeleton
 			:type name: String
 			:param data: *User-supplied* request-data
 			:type data: Dict
 			:returns: None or String
 		"""
-		if name in data.keys():
-			value = data[ name ]
-		else:
-			value = []
-
-			for k,v in data.items():
-				if k.startswith( name ):
-					k = k.replace( name, "", 1)
-					try:
-						idx = int(k)
-					except:
-						continue
-
-					value.insert(idx, v)
-
-			if len(value)==0:
-				value = None
-			elif len(value)==1:
-				value = value[1]
-
+		from server.skeleton import RelSkel, skeletonByKind
 		self.value = []
-		res = []
-
-		if not value:
-			return "Invalid value entered"
-
-		if self.multiple:
-			if not isinstance( value, list ):
-				if value:
-					if value.find("\n")!=-1:
-						for val in value.replace("\r\n","\n").split("\n"):
-							valstr = val
-
-							if valstr and self.isInvalid(  valstr  ):
-								res.append(  valstr )
+		tmpRes = {}
+		for k,v in data.items():
+			if k.startswith( name ):
+				k = k.replace( name, "", 1)
+				try:
+					idx, bname = k.split(".")
+				except ValueError:
+					# We got some garbarge as input; don't try to parse it
+					raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
+					continue
+				if not idx in tmpRes.keys():
+					tmpRes[ idx ] = {}
+				if bname in tmpRes[ idx ].keys():
+					if isinstance( tmpRes[ idx ][bname], list ):
+						tmpRes[ idx ][bname].append( v )
 					else:
-						valstr =  value
-						if valstr and self.isInvalid(  valstr ):
-							res.append( valstr )
-
-			else:
-				for val in value:
-					valstr =  val 
-					if valstr and self.isInvalid( valstr  ):
-						res.append( valstr )
-
-		else:
-			valstr = value 
-			if valstr and self.isInvalid( valstr ):
-				res.append( valstr )
-		
-		if len( res ) == 0:
-			return "No value entered"
-
-		for r in res:
-			isEntryFromBackup = False #If the referenced entry has been deleted, restore information from 
+						tmpRes[ idx ][bname] = [ tmpRes[ idx ][bname], v ]
+				else:
+					tmpRes[ idx ][bname] = v
+		tmpList = [ (k,v) for k,v in tmpRes.items() ]
+		tmpList.sort( key=lambda k: k[0] )
+		tmpList = [{"reltmp":v,"dest":{"key":v["key"]}} for k,v in tmpList]
+		errorDict = {}
+		for r in tmpList[:]:
+			# Rebuild the referenced entity data
+			isEntryFromBackup = False #If the referenced entry has been deleted, restore information from
+			entry = None
 
 			try:
-				entry = db.Get( db.Key( r ) )
-
+				entry = db.Get( db.Key( r["dest"]["key"] ) )
 			except: #Invalid key or something like that
 
-				if isinstance(self._dbValue, dict):
-					# !!!ViUR re-design compatibility!!!
-					if "id" in self._dbValue.keys() and not "key" in self._dbValue.keys():
-						self._dbValue["key"] = self._dbValue["id"]
+				logging.info( "Invalid reference key >%s< detected on bone '%s'",
+				              r["dest"]["key"], name )
 
-					if normalizeKey(self._dbValue["key"]) == normalizeKey(r):
+				if isinstance(self._dbValue, dict):
+					if self._dbValue["dest"]["key"]==str(r):
 						entry = self._dbValue
 						isEntryFromBackup = True
-
-				elif isinstance(self._dbValue, list):
+				elif  isinstance(self._dbValue, list):
 					for dbVal in self._dbValue:
-						if normalizeKey(dbVal["key"])==normalizeKey(r):
+						if dbVal["dest"]["key"].value==str(r):
 							entry = dbVal
 							isEntryFromBackup = True
-
 				if not isEntryFromBackup:
 					if not self.multiple: #We can stop here :/
-						return "Invalid entry selected"
-					else:
-						continue
-
+						return( "Invalid entry selected" )
+				else:
+					tmpList.remove( r )
+					continue
 			if not entry or (not isEntryFromBackup and not entry.key().kind()==self.type): #Entry does not exist or has wrong type (is from another module)
 				if entry:
-					logging.error("I've got a key which kind doesn't match my type! (got %s, but expected %s)" % (entry.key().kind(), self.type))
+					logging.error("I got a key, which kind doesn't match my type! (Got: %s, my type %s)" % ( entry.key().kind(), self.type ) )
+				tmpList.remove( r )
 				continue
-
-			if not self.multiple:
-				self.value = { k: entry[k] for k in entry.keys() if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ) }
-				self.value["key"] = r
-				return None
-
+			tmp = { k: entry[k] for k in entry.keys() if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ) }
+			tmp["key"] = r["dest"]["key"]
+			relSkel = RelSkel.fromSkel(skeletonByKind(self.type), *self.refKeys)
+			relSkel.unserialize(tmp)
+			r["dest"] = relSkel
+			# Rebuild the refSkel data
+			tmp = {}
+			if self.using is not None:
+				refSkel = self.using()
+				if not refSkel.fromClient( r["reltmp"] ):
+					for k,v in refSkel.errors.items():
+						errorDict[ "%s.%s.%s" % (name,tmpList.index(r),k) ] = v
+				r["rel"] = refSkel
 			else:
-				tmp = { k: entry[k] for k in entry.keys() if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ) }
-				tmp["key"] = r
-				self.value.append( tmp )
-
-		if not self.value:
-			return "No value entered"
-
-		return None
+				r["rel"] = None
+			del r["reltmp"]
+		if self.multiple:
+			self.value = tmpList
+		else:
+			if tmpList:
+				self.value = tmpList[0]
+			else:
+				self.value = None
+		if len( errorDict.keys() ):
+			return( ReadFromClientError( errorDict, True ) )
 
 	def _rewriteQuery(self, name, skel, dbFilter, rawFilter ):
 		"""
@@ -386,47 +356,38 @@ class relationalBone( baseBone ):
 		"""
 		origFilter = dbFilter.datastoreQuery
 		origSortOrders = dbFilter.getOrders()
-
 		if isinstance( origFilter, db.MultiQuery):
 			raise NotImplementedError("Doing a relational Query with multiple=True and \"IN or !=\"-filters is currently unsupported!")
-
 		dbFilter.datastoreQuery = type( dbFilter.datastoreQuery )( "viur-relations" ) #skel.kindName+"_"+self.type+"_"+name
 		dbFilter.filter("viur_src_kind =", skel.kindName )
 		dbFilter.filter("viur_dest_kind =", self.type )
 		dbFilter.filter("viur_src_property", name )
-
 		if dbFilter._origCursor: #Merge the cursor in again (if any)
 			dbFilter.cursor( dbFilter._origCursor )
-
 		if origFilter:
 			for k,v in origFilter.items(): #Merge old filters in
 				#Ensure that all non-relational-filters are in parentKeys
 				if k=="__key__":
 					# We must process the key-property separately as its meaning changes as we change the datastore kind were querying
 					if isinstance( v, list ) or isinstance(v, tuple):
-						logging.warning( "Invalid filtering! Doing an relational Query on %s with multiple id= filters is unsupported!" % (name) )
+						logging.warning( "Invalid filtering! Doing an relational Query on %s with multiple key= filters is unsupported!" % (name) )
 						raise RuntimeError()
 					if not isinstance(v, db.Key ):
 						v = db.Key( v )
 					dbFilter.ancestor( v )
 					continue
-				if not (k if not " " in k else k.split(" ")[0]) in self.parentKeys:
+				if not (k if " " not in k else k.split(" ")[0]) in self.parentKeys:
 					logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
 					raise RuntimeError()
 				dbFilter.filter( "src.%s" % k, v )
-
-		# Take original sort order
-		orderList = []
-		for k,d in origSortOrders: #Merge old sort orders in
-			if not k in self.parentKeys:
-				logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
-				raise RuntimeError()
-
-			orderList.append( ("src.%s" % k, d) )
-
-		if orderList:
-			dbFilter.order( *orderList )
-
+			orderList = []
+			for k,d in origSortOrders: #Merge old sort orders in
+				if not k in self.parentKeys:
+					logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
+					raise RuntimeError()
+				orderList.append( ("src.%s" % k, d) )
+			if orderList:
+				dbFilter.order( *orderList )
 		return( name, skel, dbFilter, rawFilter )
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
@@ -438,46 +399,36 @@ class relationalBone( baseBone ):
 			logging.warning( "Invalid searchfilter! %s is not indexed!" % name )
 			raise RuntimeError()
 		if len( myKeys ) > 0: #We filter by some properties
-			if self.multiple: #We have a n:m relation, so we
-				# create a new Filter based on our SubType and copy the parameters
-				if dbFilter.getKind()!="viur-relations":
-					name, skel, dbFilter, rawFilter = self._rewriteQuery( name, skel, dbFilter, rawFilter )
+			if dbFilter.getKind()!="viur-relations":
+				name, skel, dbFilter, rawFilter = self._rewriteQuery( name, skel, dbFilter, rawFilter )
 			# Merge the relational filters in
 			for key in myKeys:
 				value = rawFilter[ key ]
 				tmpdata = key.split("$")
-				key = tmpdata[0].split(".")[1]
+				try:
+					unused, _type, key = tmpdata[0].split(".")
+					assert _type in ["dest","rel"]
+				except:
+					continue
 				#Ensure that the relational-filter is in refKeys
-				if not key in self.refKeys:
+				if _type=="dest" and key not in self.refKeys:
 					logging.warning( "Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (key,name) )
+					raise RuntimeError()
+				if _type=="rel" and (self.using is None or key not in self.using().keys()):
+					logging.warning( "Invalid filtering! %s is not a bone in 'using' of %s" % (key,name) )
 					raise RuntimeError()
 				if len( tmpdata ) > 1:
 					if tmpdata[1]=="lt":
-						if self.multiple:
-							dbFilter.filter( "dest.%s <" % key, value )
-						else:
-							dbFilter.filter( "%s.%s <" % (name, key), value )
+						dbFilter.filter( "%s.%s <" % (_type,key), value )
 					elif tmpdata[1]=="gt":
-						if self.multiple:
-							dbFilter.filter( "dest.%s >" % key, value )
-						else:
-							dbFilter.filter( "%s.%s >" % (name, key), value )
+						dbFilter.filter( "%s.%s >" % (_type,key), value )
+					elif tmpdata[1]=="lk":
+						dbFilter.filter( "%s.%s >=" % (_type,key), value )
+						dbFilter.filter( "%s.%s <" % (_type,key), value+u"\ufffd" )
 					else:
-						if self.multiple:
-							dbFilter.filter( "dest.%s =" % key, value )
-						else:
-							dbFilter.filter( "%s.%s =" % (name, key), value )
+						dbFilter.filter( "%s.%s =" % (_type,key), value )
 				else:
-					if self.multiple:
-						if isinstance( value, list ):
-							dbFilter.filter( "dest.%s IN" % key, value )
-						else:
-							dbFilter.filter( "dest.%s =" % key, value )
-					else:
-						if isinstance( value, list):
-							dbFilter.filter( "%s.%s IN" % (name, key), value )
-						else:
-							dbFilter.filter( "%s.%s =" % (name, key), value )
+					dbFilter.filter( "%s.%s =" % (_type,key), value )
 			dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
 			dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings) )
 		elif name in rawFilter.keys() and rawFilter[ name ].lower()=="none":
@@ -489,35 +440,31 @@ class relationalBone( baseBone ):
 		if origFilter is None or not "orderby" in rawFilter.keys(): #This query is unsatisfiable or not sorted
 			return( dbFilter )
 		if "orderby" in list(rawFilter.keys()) and isinstance(rawFilter["orderby"], basestring) and rawFilter["orderby"].startswith( "%s." % name ):
-			if self.multiple:
-				if not dbFilter.getKind()=="viur-relations": #This query has not been rewritten (yet)
-					name, skel, dbFilter, rawFilter = self._rewriteQuery( name, skel, dbFilter, rawFilter )
-				key = rawFilter["orderby"]
-				param = key.split(".")[1]
-				if not param in self.refKeys:
-					logging.warning( "Invalid ordering! %s is not in refKeys of RelationalBone %s!" % (param,name) )
-					raise RuntimeError()
-				if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
-					order = ( "dest."+param, db.DESCENDING )
-				else:
-					order = ( "dest."+param, db.ASCENDING )
-				dbFilter = dbFilter.order( order )
-				dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
-				dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings))
-			else: #Not multiple
-				key = rawFilter["orderby"]
-				param = key.split(".")[1]
-				if not param in self.refKeys:
-					logging.warning( "Invalid ordering! %s is not in refKeys of RelationalBone %s!" % (param,name) )
-					raise RuntimeError()
-				if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
-					order = ( "%s.%s" % (name,param), db.DESCENDING )
-				else:
-					order = ( "%s.%s"% (name,param), db.ASCENDING )
-				dbFilter = dbFilter.order( order )
+			if not dbFilter.getKind()=="viur-relations": #This query has not been rewritten (yet)
+				name, skel, dbFilter, rawFilter = self._rewriteQuery( name, skel, dbFilter, rawFilter )
+			key = rawFilter["orderby"]
+			try:
+				unused, _type, param = key.split(".")
+				assert _type in ["dest","rel"]
+			except:
+				return( dbFilter ) #We cant parse that
+				#Ensure that the relational-filter is in refKeys
+			if _type=="dest" and not param in self.refKeys:
+				logging.warning( "Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (param,name) )
+				raise RuntimeError()
+			if _type=="rel" and (self.using is None or param not in self.using().keys()):
+				logging.warning( "Invalid filtering! %s is not a bone in 'using' of %s" % (param,name) )
+				raise RuntimeError()
+			if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
+				order = ( "%s.%s" % (_type,param), db.DESCENDING )
+			else:
+				order = ( "%s.%s" % (_type,param), db.ASCENDING )
+			dbFilter = dbFilter.order( order )
+			dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
+			dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings))
 		return( dbFilter )
 
-	def getSearchDocumentFields(self, name):
+	def getSearchDocumentFields(self, name): #FIXME
 		if not self.value:
 			return( [] )
 		if self.multiple:
@@ -527,10 +474,10 @@ class relationalBone( baseBone ):
 		res = []
 		for rel in data:
 			for k, v in rel.items():
-				res.append( search.TextField( name=( "%s_%s" % (name, k) ).replace(".", "_"), value=unicode( v ) ) )
+				res.append( search.TextField( name="%s%s" % (name, k), value=unicode( v ) ) )
 		return( res )
 
-	def filterHook(self, name, query, param, value ):
+	def filterHook(self, name, query, param, value ): #FIXME
 		"""
 			Hook installed by buildDbFilter.
 			This rewrites all filters added to the query after buildDbFilter has been run to match the
@@ -545,7 +492,7 @@ class relationalBone( baseBone ):
 			refKey = param.replace( "%s." % name, "" )
 			if " " in refKey: #Strip >, < or = params
 				refKey = refKey[ :refKey.find(" ")]
-			if not refKey in self.refKeys:
+			if refKey not in self.refKeys:
 				logging.warning( "Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (refKey,name) )
 				raise RuntimeError()
 			if self.multiple:
@@ -561,20 +508,20 @@ class relationalBone( baseBone ):
 			srcKey = param
 			if " " in srcKey:
 				srcKey = srcKey[ : srcKey.find(" ")] #Cut <, >, and =
-			if srcKey == "__key__": #Rewrite id= filter as its meaning has changed
+			if srcKey == "__key__": #Rewrite key= filter as its meaning has changed
 				if isinstance( value, list ) or isinstance( value, tuple ):
-					logging.warning( "Invalid filtering! Doing an relational Query on %s with multiple id= filters is unsupported!" % (name) )
+					logging.warning( "Invalid filtering! Doing an relational Query on %s with multiple key= filters is unsupported!" % (name) )
 					raise RuntimeError()
 				if not isinstance( value, db.Key ):
 					value = db.Key( value )
 				query.ancestor( value )
 				return( None )
-			if not srcKey in self.parentKeys:
+			if srcKey not in self.parentKeys:
 				logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (srcKey,name) )
 				raise RuntimeError()
 			return( "src.%s" % param, value )
 
-	def orderHook(self, name, query, orderings ):
+	def orderHook(self, name, query, orderings ): #FIXME
 		"""
 			Hook installed by buildDbFilter.
 			This rewrites all orderings added to the query after buildDbFilter has been run to match the
@@ -589,13 +536,13 @@ class relationalBone( baseBone ):
 				orderKey = order[0]
 			else:
 				orderKey = order
-			if orderKey.startswith("dest.") or orderKey.startswith("src."):
+			if orderKey.startswith("dest.") or orderKey.startswith("rel.") or orderKey.startswith("src."):
 				#This is already valid for our relational index
 				res.append( order )
 				continue
 			if orderKey.startswith("%s." % name ):
 				k = orderKey.replace( "%s." % name, "" )
-				if not k in self.refKeys:
+				if k not in self.refKeys:
 					logging.warning( "Invalid ordering! %s is not in refKeys of RelationalBone %s!" % (k,name) )
 					raise RuntimeError()
 				if not self.multiple:
@@ -611,7 +558,7 @@ class relationalBone( baseBone ):
 					res.append( order )
 					continue
 				else:
-					if not orderKey in self.parentKeys:
+					if orderKey not in self.parentKeys:
 						logging.warning( "Invalid ordering! %s is not in parentKeys of RelationalBone %s!" % (orderKey,name) )
 						raise RuntimeError()
 					if isinstance( order, tuple ):
@@ -624,26 +571,58 @@ class relationalBone( baseBone ):
 		"""
 			Refresh all values we might have cached from other entities.
 		"""
+		def updateInplace(valDict):
+			"""
+				Fetches the entity referenced by valDict["dest.key"] and updates all dest.* keys
+				accordingly
+			"""
+			if "dest" not in valDict.keys():
+				logging.error("Invalid dictionary in updateInplace: %s" % valDict)
+				return False
+
+			if "key" in valDict["dest"].keys():
+				originalKey = valDict["dest"]["key"]
+			# !!!ViUR re-design compatibility!!!
+			elif "id" in valDict["dest"].keys():
+				originalKey = valDict["dest"]["id"]
+			else:
+				logging.error("Invalid dictionary in updateInplace: %s" % valDict)
+				return False
+
+			entityKey = normalizeKey(originalKey)
+			if originalKey != entityKey or "key" not in valDict["dest"].keys():
+				logging.info("Rewriting %s to %s" % (originalKey, entityKey))
+				valDict["dest"]["key"] = entityKey
+
+			# Try to update referenced values;
+			# If the entity does not exist with this key, ignore
+			# (key was overidden above to have a new appid when transferred).
+			try:
+				newValues = db.Get(entityKey)
+				assert newValues is not None
+			except db.EntityNotFoundError:
+				#This entity has been deleted
+				logging.info("The key %s does not exist" % entityKey)
+				return False
+			except:
+				raise
+
+			for key in valDict["dest"].keys():
+				if key in ["key", "id"]: # !!!ViUR re-design compatibility!!!
+					continue
+				elif key in newValues.keys():
+					valDict["dest"][key] = newValues[key]
+
+			return True
+
 		if not self.value:
 			return
 
 		logging.info("Refreshing relationalBone %s of %s" % (boneName, skel.kindName))
 
-		if isinstance(self.value, dict):
-			if "key" in self.value.keys():
-				self.fromClient(boneName, {boneName: normalizeKey(self.value["key"])})
-
-			# !!!ViUR re-design compatibility!!!
-			elif "id" in self.value.keys():
-				self.fromClient(boneName, {boneName: normalizeKey(self.value["id"])})
+		if isinstance( self.value, dict ):
+			updateInplace(self.value)
 
 		elif isinstance( self.value, list ):
-			tmpList = []
-			for data in self.value:
-				if isinstance(data, dict) and "key" in data.keys():
-					tmpList.append(normalizeKey(data["key"]))
-				# !!!ViUR re-design compatibility!!!
-				elif isinstance(data, dict) and "id" in data.keys():
-					tmpList.append(normalizeKey(data["id"]))
-
-			self.fromClient(boneName, {boneName: tmpList})
+			for k in self.value:
+				updateInplace(k)

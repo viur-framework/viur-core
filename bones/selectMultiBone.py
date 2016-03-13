@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
+from collections import OrderedDict
+import logging
 
 class selectMultiBone( baseBone ):
 	type = "selectmulti"
@@ -9,7 +11,7 @@ class selectMultiBone( baseBone ):
 		return ( {"name":name,"target":target,"type":"selectmulti","values":values} )
 
 
-	def __init__( self, defaultValue=[],  values = {}, sortBy="keys", *args, **kwargs ):
+	def __init__( self, defaultValue=[], values={}, *args, **kwargs ):
 		"""
 			Creates a new SelectMultiBone
 			:param defaultValue: List of keys which will be checked by default
@@ -21,10 +23,31 @@ class selectMultiBone( baseBone ):
 			:type sortBy: String
 		"""
 		super( selectMultiBone, self ).__init__( defaultValue=defaultValue, *args, **kwargs )
-		if not sortBy in ["keys","values"]:
-			raise ValueError( "sortBy must be \"keys\" or \"values\"" )
-		self.sortBy = sortBy
-		self.values = values
+		if "_kindName" in kwargs.keys():
+			kindName = kwargs["_kindName"]
+		else:
+			kindName = "unknownKind"
+		if "sortBy" in kwargs.keys():
+			logging.warning("The sortBy parameter is deprecated. Please use an orderedDict for 'values' instead")
+		if isinstance(values, dict) and not isinstance(values, OrderedDict):
+			vals = list(values.items())
+			if "sortBy" in kwargs.keys():
+				sortBy = kwargs["sortBy"]
+				if not sortBy in ["keys","values"]:
+					raise ValueError( "sortBy must be \"keys\" or \"values\"" )
+				if sortBy=="keys":
+					vals.sort(key=lambda x: x[0])
+				else:
+					vals.sort(key=lambda x: x[1])
+			else:
+				vals.sort(key=lambda x: x[1])
+			self.values = OrderedDict(vals)
+		elif isinstance(values, set):
+			vals = [(x, _("models.%s.%s" % (kindName, x))) for x in values]
+			vals.sort(key=lambda x: x[1])
+			self.values = OrderedDict(vals)
+		elif isinstance(values, OrderedDict):
+			self.values = values
 
 	def fromClient( self, name, data ):
 		"""

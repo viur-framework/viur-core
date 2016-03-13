@@ -35,11 +35,12 @@ class DefaultRender( object ):
 						boneType = "hierarchy"
 					elif isinstance( _bone, bones.treeItemBone ):
 						boneType = "treeitem"
-					elif isinstance( _bone, bones.extendedRelationalBone ):
-						boneType = "extendedrelational"
-						res[key]["using"] = self.renderSkelStructure( _bone.using() )
 					else:
 						boneType = "relational"
+						if _bone.using is not None:
+							res[key]["using"] = self.renderSkelStructure(_bone.using())
+						else:
+							res[key]["using"] = None
 					res[key]["type"]="%s.%s" % (boneType,_bone.type)
 					res[key]["module"] = _bone.module
 					res[key]["multiple"]=_bone.multiple
@@ -49,8 +50,9 @@ class DefaultRender( object ):
 						res[key]["type"]="%s.%s" % (boneType,_bone.type)
 						res[key]["multiple"]=_bone.multiple
 				if ( isinstance( _bone, bones.selectOneBone ) or  isinstance( _bone, bones.selectMultiBone ) ):
-					res[key]["values"] = dict( [(k,_(v)) for (k,v) in _bone.values.items() ] )
-					res[key]["sortBy"] = _bone.sortBy
+					res[key]["values"] =  _bone.values
+					res[key]["valuesOrder"] = list(_bone.values.keys())
+					#res[key]["sortBy"] = _bone.sortBy
 				if ( isinstance( _bone, bones.dateBone ) ):
 					res[key]["time"] = _bone.time
 					res[key]["date"] = _bone.date
@@ -86,6 +88,16 @@ class DefaultRender( object ):
 						res[key] = _bone.value.strftime("%d.%m.%Y")
 					else:
 						res[key] = _bone.value.strftime("%H:%M:%S")
+			elif( isinstance(_bone, bones.relationalBone)):
+				if isinstance(_bone.value, list):
+					tmpList = []
+					for k in _bone.value:
+						tmpList.append({"dest": self.renderSkelValues(k["dest"]),
+				                        "rel": self.renderSkelValues(k["rel"]) if ("rel" in k.keys() and k["rel"]) else None})
+					res[key] = tmpList
+				elif isinstance(_bone.value, dict):
+					res[key] = {"dest": self.renderSkelValues(_bone.value["dest"]),
+					            "rel": self.renderSkelValues(_bone.value["rel"]) if ("rel" in _bone.value.keys() and _bone.value["rel"]) else None}
 			elif( isinstance( _bone, bones.baseBone ) ):
 				res[key] = _bone.value
 		return res
