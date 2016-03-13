@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from server.bones import treeItemBone
-from server import db, skeleton, request
+from server import db, request
 from server.utils import normalizeKey
 
 from hashlib import sha256
