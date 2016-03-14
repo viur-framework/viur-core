@@ -750,7 +750,8 @@ class Render( object ):
 		:returns: Extended Jinja2 environment.
 		:rtype jinja2.Environment
 		"""
-
+		def mkLambda(func, s):
+			return lambda *args, **kwargs: func(s, *args, **kwargs)
 		if not "env" in dir(self):
 			loaders = self.getLoaders()
 			self.env = Environment(loader=loaders, extensions=["jinja2.ext.do", "jinja2.ext.loopcontrols"])
@@ -762,12 +763,12 @@ class Render( object ):
 			# Import functions.
 			for name, func in jinjaUtils.getGlobals().items():
 				logging.debug("Adding global '%s'" % name)
-				self.env.globals[name] = lambda *args, **kwargs: func(self, *args, **kwargs)
+				self.env.globals[name] = mkLambda(func, self)
 
 			# Import filters.
 			for name, func in jinjaUtils.getFilters().items():
 				logging.debug("Adding filter '%s'" % name)
-				self.env.filters[name] = lambda *args, **kwargs: func(self, *args, **kwargs)
+				self.env.filters[name] = mkLambda(func, self)
 
 			# Import extensions.
 			for ext in jinjaUtils.getExtensions():
