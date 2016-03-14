@@ -289,12 +289,18 @@ class Render( object ):
 				if isinstance(_bone.value, list):
 					tmpList = []
 					for k in _bone.value:
-						tmpList.append({"dest": self.collectSkelData(k["dest"]),
-				                        "rel": self.collectSkelData(k["rel"]) if k["rel"] else None})
+						if _bone.using is None:
+							tmpList.append(self.collectSkelData(k["dest"]))
+						else:
+							tmpList.append({"dest": self.collectSkelData(k["dest"]),
+				                                "rel": self.collectSkelData(k["rel"]) if k["rel"] else None})
 					res[key] = tmpList
 				elif isinstance(_bone.value, dict):
-					res[key] = {"dest": self.collectSkelData(_bone.value["dest"]),
-					            "rel": self.collectSkelData(_bone.value["rel"]) if _bone.value["rel"] else None}
+					if _bone.using is None:
+						res[key] = self.collectSkelData(_bone.value["dest"])
+					else:
+						res[key] = {"dest": self.collectSkelData(_bone.value["dest"]),
+						            "rel": self.collectSkelData(_bone.value["rel"]) if _bone.value["rel"] else None}
 			elif( isinstance( _bone, bones.baseBone ) ):
 				res[ key ] = _bone.value
 			if key in res.keys() and isinstance( res[key], list ):
