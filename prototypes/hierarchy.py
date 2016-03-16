@@ -10,7 +10,6 @@ from server.prototypes import BasicApplication
 from server.skeleton import Skeleton
 from server.tasks import callDeferred
 
-
 class HierarchySkel(Skeleton):
 	parententry = baseBone(descr="Parent", visible=False, indexed=True, readOnly=True)
 	parentrepo = baseBone(descr="BaseRepo", visible=False, indexed=True, readOnly=True)
@@ -26,6 +25,7 @@ class HierarchySkel(Skeleton):
 			self["parententry"].value = utils.normalizeKey(self["parententry"].value)
 		if self["parentrepo"].value:
 			self["parentrepo"].value = utils.normalizeKey(self["parentrepo"].value)
+
 		super(HierarchySkel, self).refresh()
 
 

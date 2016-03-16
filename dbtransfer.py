@@ -1,30 +1,25 @@
 #!/usr/bin/python2
 # -*- coding: utf-8 -*-
-from server.config import conf
-import logging
-import pickle
-from server.skeleton import skeletonByKind, listKnownSkeletons
+import logging, pickle, json, collections, cgi, urllib
 from datetime import datetime
-from server.render.json.default import DefaultRender
-from server import db
-from server import request
-from server import errors
-from google.appengine.api import datastore, datastore_types
-from google.appengine.datastore import datastore_query
-from google.appengine.ext.blobstore import BlobInfo
-import json
-from server import exposed
-from google.appengine.ext import blobstore
-from google.appengine.api.images import get_serving_url
-import collections
-import cgi
-from itertools import izip
-from tasks import CallableTask, CallableTaskBase, callDeferred
+
+from server import db, request, errors, conf, exposed, utils
 from server.bones import *
-from server.skeleton import Skeleton
-from server import utils
-import urllib
-from google.appengine.api import urlfetch
+from server.skeleton import Skeleton, skeletonByKind, listKnownSkeletons
+from server.tasks import CallableTask, CallableTaskBase, callDeferred
+
+from server.prototypes.hierarchy import HierarchySkel
+from server.prototypes.tree import TreeLeafSkel
+
+from server.render.json.default import DefaultRender
+
+from google.appengine.api import datastore, datastore_types, urlfetch
+from google.appengine.ext import blobstore
+from google.appengine.ext.blobstore import BlobInfo
+from google.appengine.api.images import get_serving_url
+from google.appengine.datastore import datastore_query
+
+from itertools import izip
 from hashlib import sha256
 
 
@@ -500,11 +495,39 @@ def iterImport(module, target, exportKey, cursor=None, amount=0):
 
 
 			key = db.Key(encoded=utils.normalizeKey(entry["key"]))
-			dbEntry = db.Entity(kind=key.kind(), parent=key.parent(), id=key.id(), name=key.name())#maybe some more fixes here ?
+
+			# Special case: Convert old module root nodes!!!
+			if module.endswith("_rootNode") and key.name() and "_modul_" in key.name():
+				name = key.name().replace("_modul_", "_module_")
+			else:
+				name = key.name()
+
+			dbEntry = db.Entity(kind=key.kind(), parent=key.parent(), id=key.id(), name=name)
 
 			for k in entry.keys():
-				if k != "key":
-					dbEntry[k] = entry[k]
+				if k == "key":
+					continue
+
+				dbEntry[k] = entry[k]
+
+				# Special case: Convert old module root nodes!!!
+				if (isinstance(skel, (HierarchySkel, TreeLeafSkel))
+				    and k in ["parentdir", "parententry", "parentrepo"]
+				    and entry[k]):
+
+					key = db.Key(encoded=str(entry[k]))
+					if key.parent():
+						parent = db.Key(encoded=utils.normalizeKey(key.parent()))
+					else:
+						parent = None
+
+					if key.id_or_name() and "_modul_" in str(key.id_or_name()):
+						name = key.id_or_name().replace("_modul_", "_module_")
+					else:
+						name = key.id_or_name()
+
+					dbEntry[k] = str(db.Key.from_path(key.kind(), name, parent=parent))
+
 
 			db.Put(dbEntry)
 			skel.fromDB(str(dbEntry.key()))
