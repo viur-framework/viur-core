@@ -15,11 +15,11 @@ class fileBone(treeItemBone):
 
 	def getReferencedBlobs(self):
 		if self.value is None:
-			return( [] )
+			return []
 		elif isinstance( self.value, dict ):
-			return( [self.value["dest"]["dlkey"].value] )
+			return [self.value["dest"]["dlkey"].value]
 		elif isinstance( self.value, list ):
-			return( [x["dest"]["dlkey"].value for x in self.value])
+			return [x["dest"]["dlkey"].value for x in self.value]
 
 	def unserialize( self, name, expando ):
 		res = super( fileBone, self ).unserialize( name, expando )
@@ -28,30 +28,34 @@ class fileBone(treeItemBone):
 			if isinstance(self.value, dict) and "servingurl" in self.value["dest"].keys():
 				if self.value["dest"]["servingurl"].startswith("http://"):
 					self.value["dest"]["servingurl"] = self.value["dest"]["servingurl"].replace("http://","https://")
+
 			elif isinstance( self.value, list ):
 				for val in self.value:
 					if isinstance(val, dict) and "servingurl" in val["dest"].keys():
 						if val["dest"]["servingurl"].startswith("http://"):
 							val["dest"]["servingurl"] = val["dest"]["servingurl"].replace("http://","https://")
-		return( res )
+		return res
 
 	def refresh(self, boneName, skel):
 		"""
 			Refresh all values we might have cached from other entities.
 		"""
 
-		def updateInplace(valDict):
+		def updateInplace(relDict):
+			if isinstance(relDict, dict) and "dest" in relDict.keys():
+				valDict = relDict["dest"]
+			else:
+				logging.error("Invalid dictionary in updateInplace: %s" % relDict)
+				return
+
 			if "key" in valDict.keys():
-				originalKey = valDict["key"]
-			# !!!ViUR re-design compatibility!!!
-			elif "id" in valDict.keys() and "key" not in valDict.keys():
-				originalKey = valDict["id"]
+				originalKey = valDict["key"].value
 			else:
 				logging.error("Broken fileBone dict")
 				return
 
 			entityKey = normalizeKey(originalKey)
-			if originalKey != entityKey or "key" not in valDict.keys():
+			if originalKey != entityKey:
 				logging.info("Rewriting %s to %s" % (originalKey, entityKey))
 				valDict["key"] = originalKey
 
@@ -59,27 +63,29 @@ class fileBone(treeItemBone):
 			# from the corresponding viur-blobimportmap entity.
 			if "dlkey" in valDict.keys():
 				try:
-					oldKeyHash = sha256(valDict["dlkey"]).hexdigest().encode("hex")
+					oldKeyHash = sha256(valDict["dlkey"].value).hexdigest().encode("hex")
 
 					logging.info("Trying to fetch entry from blobimportmap with hash %s" % oldKeyHash)
 					res = db.Get(db.Key.from_path("viur-blobimportmap", oldKeyHash))
 				except:
 					res = None
 
-				if res and res["oldkey"] == valDict["dlkey"]:
-					valDict["dlkey"] = res["newkey"]
-					valDict["servingurl"] = res["servingurl"]
+				if res and res["oldkey"] == valDict["dlkey"].value:
+					valDict["dlkey"].value = res["newkey"]
+					valDict["servingurl"].value = res["servingurl"]
 
-					logging.info("Refreshing file dlkey %s (%s)" % (valDict["dlkey"], valDict["servingurl"]))
+					logging.info("Refreshing file dlkey %s (%s)" % (valDict["dlkey"].value,
+					                                                valDict["servingurl"].value))
 
 		if not self.value:
 			return
 
 		logging.info("Refreshing fileBone %s of %s" % (boneName, skel.kindName))
+		super(fileBone, self).refresh(boneName, skel)
 
 		if isinstance(self.value, dict):
 			updateInplace(self.value)
 
-		elif isinstance( self.value, list ):
+		elif isinstance(self.value, list):
 			for k in self.value:
 				updateInplace(k)

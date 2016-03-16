@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import utils as jinjaUtils
-from server import conf, bones, utils, request, session, conf, errors, securitykey, prototypes
+from wrap import ListWrapper, SkelListWrapper
+from server import bones, utils, request, errors, securitykey
 from server.skeleton import Skeleton, RelSkel
 from server.bones import *
 
@@ -9,39 +10,6 @@ from collections import OrderedDict
 from jinja2 import Environment, FileSystemLoader, ChoiceLoader
 
 import os, logging, codecs
-
-class ListWrapper( list ):
-	"""
-		Monkey-Patching for lists.
-		Allows collecting sub-properties by using []
-		Example: [ {"key":"1"}, {"key":"2"} ]["key"] --> ["1","2"]
-	"""
-	def __init__( self, src ):
-		"""
-			Initializes this wrapper by copying the values from src
-		"""
-		self.extend( src )
-	
-	def __getitem__( self, key ):
-		if isinstance( key, int ):
-			return( super( ListWrapper, self ).__getitem__( key ) )
-		res = []
-		for obj in self:
-			if isinstance( obj, dict ) and key in obj.keys():
-				res.append( obj[ key ] )
-			elif key in dir( obj ):
-				res.append( getattr( obj, key ) )
-		return( ListWrapper(res) )
-
-class SkelListWrapper( ListWrapper ):
-	"""
-		Like ListWrapper, but takes the additional properties
-		of skellist into account - namely cursor and customQueryInfo.
-	"""
-	def __init__( self, src ):
-		super( SkelListWrapper, self ).__init__( src )
-		self.cursor = src.cursor
-		self.customQueryInfo = src.customQueryInfo
 
 class Render( object ):
 	"""

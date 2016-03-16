@@ -3,6 +3,7 @@ from server import utils, request, conf, prototypes
 from server.skeleton import Skeleton, RelSkel
 
 from server.render.jinja2.utils import jinjaGlobal, jinjaFilter
+from server.render.jinja2.wrap import ListWrapper, SkelListWrapper
 
 from urllib import urlencode, quote_plus
 from hashlib import sha512

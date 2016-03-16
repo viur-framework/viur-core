@@ -99,8 +99,22 @@ class relationalBone( baseBone ):
 		value = json.loads(val)
 		from server.skeleton import RelSkel, skeletonByKind
 		assert isinstance(value, dict), "Read something from the datastore thats not a dict: %s" % str(type(value))
+
 		relSkel = RelSkel.fromSkel(skeletonByKind(self.type), *self.refKeys)
+
+		# !!!ViUR re-design compatibility!!!
+		if not "dest" in value.keys():
+			nvalue = dict()
+			nvalue["dest"] = value
+			value = nvalue
+
+		if "id" in value["dest"].keys() and not "key" in value["dest"].keys():
+			value["dest"]["key"] = value["dest"]["id"]
+			del value["dest"]["id"]
+		# UNTIL HERE!
+
 		relSkel.unserialize(value["dest"])
+
 		if self.using is not None:
 			usingSkel = self.using()
 			usingSkel.unserialize(value["rel"])
@@ -112,10 +126,13 @@ class relationalBone( baseBone ):
 	def unserialize( self, name, expando ):
 		if name in expando.keys():
 			val = expando[ name ]
+
 			if self.multiple:
 				self.value = []
+
 				if not val:
 					return True
+
 				if isinstance(val, list):
 					for res in val:
 						try:
@@ -123,12 +140,14 @@ class relationalBone( baseBone ):
 						except:
 							raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 							pass
+
 				else:
 					try:
 						self.value.append(self._restoreValueFromDatastore(val))
 					except:
 						raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 						pass
+
 			else:
 				if isinstance( val, list ) and len( val )>0:
 					try:
@@ -136,6 +155,7 @@ class relationalBone( baseBone ):
 					except:
 						raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 						pass
+
 				else:
 					if val:
 						try:
@@ -148,12 +168,14 @@ class relationalBone( baseBone ):
 
 		else:
 			self.value = None
+
 		if isinstance( self.value, list ):
 			self._dbValue = self.value[ : ]
 		elif isinstance( self.value, dict ):
 			self._dbValue = dict( self.value.items() )
 		else:
 			self._dbValue = None
+
 		return True
 
 	def serialize(self, name, entity ):
@@ -168,12 +190,12 @@ class relationalBone( baseBone ):
 				res = []
 				for val in self.value:
 					r = {"rel": val["rel"].serialize() if val["rel"] else None,
-					     "dest": val["dest"].serialize() if val["dest"] else None}
+						 "dest": val["dest"].serialize() if val["dest"] else None}
 					res.append( json.dumps( r ) )
 				entity.set( name, res, False )
 			else:
 				r = {"rel": self.value["rel"].serialize() if self.value["rel"] else None,
-				     "dest": self.value["dest"].serialize() if self.value["dest"] else None}
+					 "dest": self.value["dest"].serialize() if self.value["dest"] else None}
 				entity.set(name, json.dumps(r), False)
 				#Copy attrs of our referenced entity in
 				if self.indexed:
@@ -301,7 +323,7 @@ class relationalBone( baseBone ):
 			except: #Invalid key or something like that
 
 				logging.info( "Invalid reference key >%s< detected on bone '%s'",
-				              r["dest"]["key"], name )
+							  r["dest"]["key"], name )
 
 				if isinstance(self._dbValue, dict):
 					if self._dbValue["dest"]["key"]==str(r):
@@ -571,58 +593,58 @@ class relationalBone( baseBone ):
 		"""
 			Refresh all values we might have cached from other entities.
 		"""
-		def updateInplace(valDict):
+		def updateInplace(relDict):
 			"""
 				Fetches the entity referenced by valDict["dest.key"] and updates all dest.* keys
 				accordingly
 			"""
-			if "dest" not in valDict.keys():
-				logging.error("Invalid dictionary in updateInplace: %s" % valDict)
-				return False
+			if isinstance(relDict, dict) and "dest" in relDict.keys():
+				valDict = relDict["dest"]
+			else:
+				logging.error("Invalid dictionary in updateInplace: %s" % relDict)
+				return
 
-			if "key" in valDict["dest"].keys():
-				originalKey = valDict["dest"]["key"]
-			# !!!ViUR re-design compatibility!!!
-			elif "id" in valDict["dest"].keys():
-				originalKey = valDict["dest"]["id"]
+			if "key" in valDict.keys():
+				originalKey = valDict["key"].value
 			else:
 				logging.error("Invalid dictionary in updateInplace: %s" % valDict)
-				return False
+				return
 
 			entityKey = normalizeKey(originalKey)
-			if originalKey != entityKey or "key" not in valDict["dest"].keys():
+			if originalKey != entityKey:
 				logging.info("Rewriting %s to %s" % (originalKey, entityKey))
-				valDict["dest"]["key"] = entityKey
+				valDict["key"].value = entityKey
 
 			# Try to update referenced values;
 			# If the entity does not exist with this key, ignore
 			# (key was overidden above to have a new appid when transferred).
+			newValues = None
+
 			try:
 				newValues = db.Get(entityKey)
 				assert newValues is not None
 			except db.EntityNotFoundError:
 				#This entity has been deleted
 				logging.info("The key %s does not exist" % entityKey)
-				return False
 			except:
 				raise
 
-			for key in valDict["dest"].keys():
-				if key in ["key", "id"]: # !!!ViUR re-design compatibility!!!
-					continue
-				elif key in newValues.keys():
-					valDict["dest"][key] = newValues[key]
+			if newValues:
+				for key in valDict.keys():
+					if key == "key":
+						continue
 
-			return True
+					elif key in newValues.keys():
+						valDict[key].unserialize(key, newValues)
 
 		if not self.value:
 			return
 
 		logging.info("Refreshing relationalBone %s of %s" % (boneName, skel.kindName))
 
-		if isinstance( self.value, dict ):
+		if isinstance(self.value, dict):
 			updateInplace(self.value)
 
-		elif isinstance( self.value, list ):
+		elif isinstance(self.value, list):
 			for k in self.value:
 				updateInplace(k)
