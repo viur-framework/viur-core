@@ -252,12 +252,13 @@ class relationalBone( baseBone ):
 				dbObj[ "dest.key" ] = val["dest"]["key"].value
 				dbObj[ "src.key" ] = key
 			else:
-				for k, v in val["dest"].serialize():
+				for k, v in val["dest"].serialize().items():
 					dbObj[ "dest."+k ] = v
 				for k,v in parentValues.items():
 					dbObj[ "src."+k ] = v
-				for k, v in val["rel"].serialize():
-					dbObj[ "rel."+k ] = v
+				if self.using is not None:
+					for k, v in val["rel"].serialize().items():
+						dbObj[ "rel."+k ] = v
 
 			dbObj[ "viur_delayed_update_tag" ] = time()
 			dbObj[ "viur_src_kind" ] = skel.kindName #The kind of the entry referencing
