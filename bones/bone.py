@@ -18,12 +18,15 @@ def getSystemInitialized():
 	return __systemIsIntitialized_
 
 class boneFactory(object):
+	IDX = 1
+	
 	def __init__(self, cls, args, kwargs):
 		super(boneFactory, self).__init__()
 		self.cls = cls
 		self.args = args
 		self.kwargs = kwargs
-		self.idx=1
+		self.idx = boneFactory.IDX
+		boneFactory.IDX += 1
 
 	def __call__(self, *args, **kwargs):
 		tmpDict = self.kwargs.copy()
