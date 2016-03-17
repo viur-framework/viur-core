@@ -350,7 +350,7 @@ class DbTransfer( object ):
 # --- export ---
 @CallableTask
 class TaskExportKind( CallableTaskBase ):
-	id = "exportkind"
+	key = "exportkind"
 	name = u"Export data kinds to other app"
 	descr = u"Copies the selected data to the given target application"
 	direct = True
@@ -424,7 +424,7 @@ def exportItems( module, target, importKey, startCursor, endCursor):
 
 @CallableTask
 class TaskImportKind( CallableTaskBase ):
-	id = "importkind"
+	key = "importkind"
 	name = u"Import data kinds from other app"
 	descr = u"Copies the selected data from the given source application"
 	direct = True

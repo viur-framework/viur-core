@@ -979,7 +979,7 @@ class TaskUpdateSearchIndex( CallableTaskBase ):
 	This tasks loads and saves *every* entity of the given module.
 	This ensures an updated searchIndex and verifies consistency of this data.
 	"""
-	id = "rebuildsearchIndex"
+	key = "rebuildsearchIndex"
 	name = u"Rebuild search index"
 	descr = u"This task can be called to update search indexes and relational information."
 
@@ -1071,7 +1071,7 @@ class TaskUpdateOneEntity(CallableTaskBase):
 	
 	It shall be used for debug and testing purposes.
 	"""
-	id = "updateoneentity"
+	key = "updateoneentity"
 	name = u"Refresh single entity"
 	descr = u"This task can be called to update search indexes and relational information of ONE entitiy."
 	direct = True

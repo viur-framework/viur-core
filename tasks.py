@@ -191,7 +191,7 @@ class TaskHandler:
 		class extList( list ):
 			pass
 		# FIXME: here we have another id attribute. Check if that should be renamed to key <sk>
-		res = extList( [{"key": x.id, "name":_(x.name), "descr":_(x.descr) } for x in _callableTasks.values() if x().canCall()] )
+		res = extList( [{"key": x.key, "name":_(x.name), "descr":_(x.descr) } for x in _callableTasks.values() if x().canCall()] )
 		res.cursor = None
 		return( self.render.list( res ) )
 	list.exposed=True
@@ -315,7 +315,7 @@ def CallableTask( fn ):
 	its API
 	"""
 	global _callableTasks
-	_callableTasks[ fn.id ] = fn
+	_callableTasks[ fn.key ] = fn
 	return( fn )
 
 def StartupTask( fn ):
@@ -346,7 +346,7 @@ class DisableApplicationTask( CallableTaskBase ):
 	"""
 		Allows en- or disabling the application.
 	"""
-	id = "viur-disable-server"
+	key = "viur-disable-server"
 	name = "Enable or disable the application"
 	descr = "This will enable or disable the application."
 	kindName = "server-task"
