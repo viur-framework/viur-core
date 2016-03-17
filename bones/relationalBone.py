@@ -117,7 +117,8 @@ class relationalBone( baseBone ):
 
 		if self.using is not None:
 			usingSkel = self.using()
-			usingSkel.unserialize(value["rel"])
+			if value["rel"] is not None:
+				usingSkel.unserialize(value["rel"])
 		else:
 			usingSkel = None
 		return {"dest": relSkel, "rel": usingSkel}
@@ -199,9 +200,16 @@ class relationalBone( baseBone ):
 				entity.set(name, json.dumps(r), False)
 				#Copy attrs of our referenced entity in
 				if self.indexed:
-					for k, v in self.value.items():
-						if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ):
-							entity[ "%s.%s" % (name,k) ] = v
+					destData = self.value["dest"].serialize()
+					for k, v in destData.items():
+						entity[ "%s.dest.%s" % (name,k) ] = v
+					if self.using is not None and self.value["rel"]:
+						relData = self.value["rel"].serialize()
+						for k, v in relData.items():
+							entity[ "%s.rel.%s" % (name,k) ] = v
+					#for k, v in self.value.items():
+					#	if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ):
+					#		entity[ "%s.%s" % (name,k) ] = v
 		return entity
 
 	def postSavedHandler( self, boneName, skel, key, dbfields ):
@@ -321,7 +329,7 @@ class relationalBone( baseBone ):
 
 			try:
 				entry = db.Get( db.Key( r["dest"]["key"] ) )
-			except: #Invalid key or something like that
+			except: #Invalid key or something like thatmnn
 
 				logging.info( "Invalid reference key >%s< detected on bone '%s'",
 							  r["dest"]["key"], name )
@@ -413,7 +421,8 @@ class relationalBone( baseBone ):
 				dbFilter.order( *orderList )
 		return( name, skel, dbFilter, rawFilter )
 
-	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
+	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
+		from server.skeleton import RelSkel, skeletonByKind
 		origFilter = dbFilter.datastoreQuery
 		if origFilter is None:  #This query is unsatisfiable
 			return( dbFilter )
@@ -422,38 +431,63 @@ class relationalBone( baseBone ):
 			logging.warning( "Invalid searchfilter! %s is not indexed!" % name )
 			raise RuntimeError()
 		if len( myKeys ) > 0: #We filter by some properties
-			if dbFilter.getKind()!="viur-relations":
+			if dbFilter.getKind()!="viur-relations" and self.multiple:
 				name, skel, dbFilter, rawFilter = self._rewriteQuery( name, skel, dbFilter, rawFilter )
+			relSkel = RelSkel.fromSkel(skeletonByKind(self.type), *self.refKeys)
 			# Merge the relational filters in
 			for key in myKeys:
 				value = rawFilter[ key ]
-				tmpdata = key.split("$")
 				try:
-					unused, _type, key = tmpdata[0].split(".")
+					unused, _type, key = key.split(".",2)
 					assert _type in ["dest","rel"]
 				except:
-					continue
-				#Ensure that the relational-filter is in refKeys
-				if _type=="dest" and key not in self.refKeys:
-					logging.warning( "Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (key,name) )
-					raise RuntimeError()
-				if _type=="rel" and (self.using is None or key not in self.using().keys()):
-					logging.warning( "Invalid filtering! %s is not a bone in 'using' of %s" % (key,name) )
-					raise RuntimeError()
-				if len( tmpdata ) > 1:
-					if tmpdata[1]=="lt":
-						dbFilter.filter( "%s.%s <" % (_type,key), value )
-					elif tmpdata[1]=="gt":
-						dbFilter.filter( "%s.%s >" % (_type,key), value )
-					elif tmpdata[1]=="lk":
-						dbFilter.filter( "%s.%s >=" % (_type,key), value )
-						dbFilter.filter( "%s.%s <" % (_type,key), value+u"\ufffd" )
+					if self.using is None:
+						# This will be a "dest" query
+						_type = "dest"
+						try:
+							unused, key = key.split(".",1)
+						except:
+							print key
+							raise
+							continue
 					else:
-						dbFilter.filter( "%s.%s =" % (_type,key), value )
-				else:
-					dbFilter.filter( "%s.%s =" % (_type,key), value )
-			dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
-			dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings) )
+						continue
+
+				# just use the first part of "key" to check against our refSkel / relSkel (strip any leading .something and $something)
+				checkKey = key
+				if "." in checkKey:
+					checkKey = checkKey.split(".")[0]
+				if "$" in checkKey:
+					checkKey = checkKey.split("$")[0]
+				if _type=="dest":
+					#Ensure that the relational-filter is in refKeys
+					if checkKey not in self.refKeys:
+						logging.warning( "Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (key,name) )
+						raise RuntimeError()
+					# Iterate our relSkel and let these bones write their filters in
+					for bname, bone in relSkel.items():
+						if checkKey == bname:
+							newFilter = {key: value}
+							if self.multiple:
+								bone.buildDBFilter(bname, relSkel, dbFilter, newFilter, prefix=(prefix or "")+"dest.")
+							else:
+								bone.buildDBFilter(bname, relSkel, dbFilter, newFilter, prefix=(prefix or "")+name+".dest.")
+				elif _type=="rel":
+					#Ensure that the relational-filter is in refKeys
+					if self.using is None or checkKey not in self.using().keys():
+						logging.warning( "Invalid filtering! %s is not a bone in 'using' of %s" % (key,name) )
+						raise RuntimeError()
+					# Iterate our usingSkel and let these bones write their filters in
+					for bname, bone in self.using().items():
+						if key.startswith(bname):
+							newFilter = {key: value}
+							if self.multiple:
+								bone.buildDBFilter(bname, relSkel, dbFilter, newFilter, prefix=(prefix or "")+"rel.")
+							else:
+								bone.buildDBFilter(bname, relSkel, dbFilter, newFilter, prefix=(prefix or "")+name+".rel.")
+			if self.multiple:
+				dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
+				dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings) )
 		elif name in rawFilter.keys() and rawFilter[ name ].lower()=="none":
 			dbFilter = dbFilter.filter( "%s =" % name, None )
 		return( dbFilter )

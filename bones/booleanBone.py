@@ -73,13 +73,13 @@ class booleanBone( baseBone ):
 				self.value = False
 		return( True )
 
-	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):	
+	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
 		if name in rawFilter.keys():
 			val = rawFilter[ name ]
 			if str(val) in self.trueStrs:
 				val = True
 			else:
 				val = False
-			return( super( booleanBone, self ).buildDBFilter( name, skel, dbFilter, {name:val} ) )
+			return( super( booleanBone, self ).buildDBFilter( name, skel, dbFilter, {name:val}, prefix=prefix ) )
 		else:
 			return( dbFilter )

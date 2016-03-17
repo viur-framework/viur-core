@@ -180,7 +180,7 @@ class baseBone(object): # One Bone:
 			self.value = expando[ name ]
 		return( True )
 
-	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
+	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
 		"""
 			Parses the searchfilter a client specified in his Request into
 			something understood by the datastore.
@@ -254,18 +254,18 @@ class baseBone(object): # One Bone:
 				if isinstance( value, list ):
 					continue
 				if tmpdata[2]=="lt":
-					dbFilter.filter( tmpdata[0] + " <" , value )
+					dbFilter.filter( (prefix or "")+tmpdata[0] + " <" , value )
 				elif tmpdata[2]=="gt":
-					dbFilter.filter( tmpdata[0] + " >",  value )
+					dbFilter.filter( (prefix or "")+tmpdata[0] + " >",  value )
 				elif tmpdata[2]=="lk":
-					dbFilter.filter( tmpdata[0],  value )
+					dbFilter.filter( (prefix or "")+tmpdata[0],  value )
 				else:
-					dbFilter.filter( tmpdata[0],  value )
+					dbFilter.filter( (prefix or "")+tmpdata[0],  value )
 			else:
 				if isinstance( value, list ):
-					dbFilter.filter( key+" IN", value )
+					dbFilter.filter( (prefix or "")+key+" IN", value )
 				else:
-					dbFilter.filter( key, value )
+					dbFilter.filter( (prefix or "")+key, value )
 		return( dbFilter )
 
 	def buildDBSort( self, name, skel, dbFilter, rawFilter ):

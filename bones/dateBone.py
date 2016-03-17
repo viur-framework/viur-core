@@ -246,10 +246,10 @@ class dateBone( baseBone ):
 			value = tz.normalize( value.replace( tzinfo=utc).astimezone( tz ) )
 		self.value = value
 
-	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
+	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
 		for key in [ x for x in rawFilter.keys() if x.startswith(name) ]:
 			if not self.fromClient( key, rawFilter ): #Parsing succeeded
-				super( dateBone, self ).buildDBFilter( name, skel, dbFilter, {key:datetime.now().strptime( self.value.strftime( "%d.%m.%Y %H:%M:%S" ), "%d.%m.%Y %H:%M:%S"  )} )
+				super( dateBone, self ).buildDBFilter( name, skel, dbFilter, {key:datetime.now().strptime( self.value.strftime( "%d.%m.%Y %H:%M:%S" ), "%d.%m.%Y %H:%M:%S"  )}, prefix=prefix )
 		return( dbFilter )
 
 	def performMagic( self, isAdd ):

@@ -137,7 +137,7 @@ class spatialBone( baseBone ):
 			return
 		self.value = expando[name+".lat.val"], expando[name+".lng.val"]
 
-	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
+	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
 		"""
 			Parses the searchfilter a client specified in his Request into
 			something understood by the datastore.
@@ -158,6 +158,7 @@ class spatialBone( baseBone ):
 			:type rawFilter: dict
 			:returns: The modified :class:`server.db.Query`
 		"""
+		assert prefix is None, "You cannot use spatial data in a relation for now"
 		if name+".lat" in rawFilter.keys() and name+".lng" in rawFilter.keys():
 			try:
 				lat = float(rawFilter[name+".lat"])

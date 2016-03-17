@@ -73,7 +73,7 @@ class selectOneBone( baseBone ):
 				return( None )
 		return( "No or invalid value selected" )
 
-	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
+	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
 		mode="str"
 		if all( [ isinstance( val, int ) for val in self.values.keys() ] ):
 			filter = dict( [ ( k, int( v ) ) for k,v in rawFilter.items() if k==name or k.startswith("%s$" % name ) ] )
@@ -81,4 +81,4 @@ class selectOneBone( baseBone ):
 			filter = dict( [ ( k, float( v ) ) for k,v in rawFilter.items() if k==name or k.startswith("%s$" % name ) ] )
 		else:
 			filter=rawFilter
-		return( super( selectOneBone, self ).buildDBFilter( name, skel, dbFilter, filter ) )
+		return( super( selectOneBone, self ).buildDBFilter( name, skel, dbFilter, filter, prefix ) )

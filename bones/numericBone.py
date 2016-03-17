@@ -85,9 +85,9 @@ class numericBone( baseBone ):
 			else:
 				self.value = float( expando[ name ] )
 
-	def buildDBFilter( self, name, skel, dbFilter, rawFilter ):
+	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
 		if not self.precision:
 			filter = dict( [ ( k, int( v ) ) for k,v in rawFilter.items() if k.startswith( name ) ] )
 		else:
 			filter = dict( [ ( k, float( v ) ) for k,v in rawFilter.items() if k.startswith( name ) ] )
-		return( super( numericBone, self ).buildDBFilter( name, skel, dbFilter, filter ) )
+		return( super( numericBone, self ).buildDBFilter( name, skel, dbFilter, filter, prefix ) )
