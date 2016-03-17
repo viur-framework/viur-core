@@ -26,14 +26,14 @@ class fileBone(treeItemBone):
 		if not request.current.get().isDevServer:
 			# Rewrite all "old" Serving-URLs to https if we are not on the development-server
 			if isinstance(self.value, dict) and "servingurl" in self.value["dest"].keys():
-				if self.value["dest"]["servingurl"].startswith("http://"):
-					self.value["dest"]["servingurl"] = self.value["dest"]["servingurl"].replace("http://","https://")
+				if self.value["dest"]["servingurl"].value.startswith("http://"):
+					self.value["dest"]["servingurl"] = self.value["dest"]["servingurl"].value.replace("http://","https://")
 
 			elif isinstance( self.value, list ):
 				for val in self.value:
 					if isinstance(val, dict) and "servingurl" in val["dest"].keys():
-						if val["dest"]["servingurl"].startswith("http://"):
-							val["dest"]["servingurl"] = val["dest"]["servingurl"].replace("http://","https://")
+						if val["dest"]["servingurl"].value.startswith("http://"):
+							val["dest"]["servingurl"] = val["dest"]["servingurl"].value.replace("http://","https://")
 		return res
 
 	def refresh(self, boneName, skel):
