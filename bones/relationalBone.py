@@ -40,7 +40,7 @@ class relationalBone( baseBone ):
 	refKeys = ["key", "name"]
 	parentKeys = ["key", "name"]
 
-	def __init__( self, type=None, module=None, refKeys=None, parentKeys=None, multiple=True, format="$(name)", using=None, *args, **kwargs):
+	def __init__( self, type=None, module=None, refKeys=None, parentKeys=None, multiple=False, format="$(name)", using=None, *args, **kwargs):
 		"""
 			Initialize a new relationalBone.
 			:param type: KindName of the referenced property.

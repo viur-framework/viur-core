@@ -28,7 +28,6 @@ class fileBone(treeItemBone):
 			if isinstance(self.value, dict) and "servingurl" in self.value["dest"].keys():
 				if self.value["dest"]["servingurl"].value.startswith("http://"):
 					self.value["dest"]["servingurl"].value = self.value["dest"]["servingurl"].value.replace("http://","https://")
-
 			elif isinstance( self.value, list ):
 				for val in self.value:
 					if isinstance(val, dict) and "servingurl" in val["dest"].keys():
