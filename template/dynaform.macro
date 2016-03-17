@@ -247,7 +247,7 @@
 {%- endmacro -%}
 
 {% macro dynaform_tr(bone_name,bone,Skel,form,markMandatoryFields=True) %}
-	##set debug=False
+	{% set debug=False %}
 	{% if bone.type == "hidden" %}     
 		<input type="hidden" name="{{ bone_name }}" value="{{Skel.value[bone_name] }}" />   
 	{% else %}

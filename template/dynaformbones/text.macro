@@ -1,49 +1,51 @@
 {%- macro textbone( bone_name,bone,value ) -%}
-<!-- ############################### TEXT: {{bone_name}} ####################################### -->
+    <!-- ############################### TEXT: {{bone_name}} ####################################### -->
 
-	{% set readonly = "" %}
-	{% if bone.readOnly %}
-		{% set readonly = 'readonly="readonly"'	%}
-	{%endif%}
-	
-
-	{% if not bone.visible %}
-		<input {{readonly}} type="hidden" name="{{ bone_name }}" value="{{ value }}" />
-	{% else %}
-
-	<textarea {{readonly}} name="{{ bone_name }}" class="viur_uielement viur_textinput {%if bone.validHtml %}tinymcetextedit{% endif %}" id="mceEditor{{bone_name}}">{{ value|default("",true) }}</textarea>
+    {% set readonly = "" %}
+    {% if bone.readOnly %}
+        {% set readonly = 'readonly="readonly"'	 %}
+    {% endif %}
 
 
-	
-         {%if bone.validHtml %}
-		<script type="text/javascript">
-                 var tinymceoptions{{bone_name}}=clone (tinymceoptions);
-        $(function() {
-			##if bone.params and bone.params["width"]
-				tinymceoptions{{bone_name}}["width"]="{{bone.params['width']}}";
-			##endif
-			##if bone.params and bone.params["height"]
-				tinymceoptions{{bone_name}}["height"]="{{bone.params['height']}}";
-			##endif
-				 $( "#mceEditor{{bone_name}}" ).tinymce(tinymceoptions{{bone_name}});
-    });
-		</script>
-                    {% else %}
+    {% if not bone.visible %}
+        <input {{ readonly }} type="hidden" name="{{ bone_name }}" value="{{ value }}"/>
+    {% else %}
 
-                   <style TYPE="text/css">
-                    #mceEditor{{bone_name}} {
-                        ##if bone.params and bone.params["width"]
-				width:{{bone.params['width']}};
-			##endif
-			##if bone.params and bone.params["height"]
-				height:{{bone.params['height']}};
-			##endif
-                    }
-                    </style>
+        <textarea {{ readonly }} name="{{ bone_name }}"
+                                 class="viur_uielement viur_textinput {% if bone.validHtml %}tinymcetextedit{% endif %}"
+                                 id="mceEditor{{ bone_name }}">{{ value|default("",true) }}</textarea>
 
-		{% endif %}
-		
- {% endif %} {# endvisible ... #}
+
+
+        {% if bone.validHtml %}
+            <script type="text/javascript">
+                var tinymceoptions{{bone_name}} = clone(tinymceoptions);
+                $(function () {
+                    {% if bone.params and bone.params["width"] %}
+                        tinymceoptions{{bone_name}}["width"] = "{{bone.params['width']}}";
+                    {% endif %}
+                    {% if bone.params and bone.params["height"] %}
+                        tinymceoptions{{bone_name}}["height"] = "{{bone.params['height']}}";
+                    {% endif %}
+                    $("#mceEditor{{bone_name}}").tinymce(tinymceoptions{{bone_name}});
+                });
+            </script>
+        {% else %}
+
+            <style TYPE="text/css">
+                #mceEditor{{bone_name}} {
+                {% if bone.params and bone.params["width"] %}
+                    width:{{bone.params['width']}};
+                {% endif %}
+                {% if bone.params and bone.params["height"] %}
+                    height:{{bone.params['height']}};
+                {% endif %}
+                }
+            </style>
+
+        {% endif %}
+
+    {% endif %} {# endvisible ... #}
 
 
 {%- endmacro -%}
