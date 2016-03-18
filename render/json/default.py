@@ -76,11 +76,14 @@ class DefaultRender( object ):
 	
 	def renderSkelValues( self, skel ):
 		"""Prepares Values of one Skeleton for Output"""
-		if isinstance( skel, dict ):
-			return( skel )
+		if skel is None:
+			return None
+		elif isinstance(skel, dict):
+			return skel
+
 		res = {}
-		for key,_bone in skel.items():
-			if isinstance( _bone, bones.dateBone ):
+		for key, _bone in skel.items():
+			if isinstance(_bone, bones.dateBone):
 				if _bone.value:
 					if _bone.date and _bone.time:
 						res[key] = _bone.value.strftime("%d.%m.%Y %H:%M:%S")
@@ -88,18 +91,27 @@ class DefaultRender( object ):
 						res[key] = _bone.value.strftime("%d.%m.%Y")
 					else:
 						res[key] = _bone.value.strftime("%H:%M:%S")
-			elif( isinstance(_bone, bones.relationalBone)):
+				else:
+					res[key] = None
+
+			elif isinstance(_bone, bones.relationalBone):
 				if isinstance(_bone.value, list):
 					tmpList = []
+
 					for k in _bone.value:
 						tmpList.append({"dest": self.renderSkelValues(k["dest"]),
-				                        "rel": self.renderSkelValues(k["rel"]) if ("rel" in k.keys() and k["rel"]) else None})
+				                        "rel": self.renderSkelValues(k.get("rel"))})
 					res[key] = tmpList
+
 				elif isinstance(_bone.value, dict):
 					res[key] = {"dest": self.renderSkelValues(_bone.value["dest"]),
-					            "rel": self.renderSkelValues(_bone.value["rel"]) if ("rel" in _bone.value.keys() and _bone.value["rel"]) else None}
-			elif( isinstance( _bone, bones.baseBone ) ):
+					            "rel": self.renderSkelValues(_bone.value.get("rel"))}
+				else:
+					res[key] = None
+
+			elif isinstance(_bone, bones.baseBone):
 				res[key] = _bone.value
+
 		return res
 		
 	def renderEntry( self, skel, actionName ):
