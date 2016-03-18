@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from server import utils, request, conf, prototypes
+from server import utils, request, conf, prototypes, securitykey
 from server.skeleton import Skeleton, RelSkel
 
 from server.render.jinja2.utils import jinjaGlobal, jinjaFilter
@@ -285,7 +285,7 @@ def getSecurityKey(render, **kwargs):
 	"""
 	Jinja2 global: Creates a new ViUR security key.
 	"""
-	return securitykey.create(kwargs)
+	return securitykey.create(**kwargs)
 
 @jinjaGlobal
 def getSkel(render, module, skel = "viewSkel", subSkel = None):
