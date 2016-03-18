@@ -298,19 +298,35 @@ class relationalBone( baseBone ):
 			:returns: None or String
 		"""
 		from server.skeleton import RelSkel, skeletonByKind
+
 		self.value = []
 		tmpRes = {}
-		for k,v in data.items():
-			if k.startswith( name ):
-				k = k.replace( name, "", 1)
-				try:
-					idx, bname = k.split(".")
-				except ValueError:
-					# We got some garbarge as input; don't try to parse it
-					raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
+
+		for k, v in data.items():
+			if k.startswith(name):
+				k = k.replace(name, "", 1)
+
+				if "." in k:
+					try:
+						idx, bname = k.split(".")
+					except ValueError:
+						# We got some garbarge as input; don't try to parse it
+						raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
+						continue
+
+				elif k.isdigit() and self.using is None:
+					idx = k
+					bname = "key"
+				elif self.using is None and not self.multiple:
+					idx = "0"
+					bname = "key"
+				else:
+					raise ValueError # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 					continue
+
 				if not idx in tmpRes.keys():
 					tmpRes[ idx ] = {}
+
 				if bname in tmpRes[ idx ].keys():
 					if isinstance( tmpRes[ idx ][bname], list ):
 						tmpRes[ idx ][bname].append( v )
@@ -318,10 +334,12 @@ class relationalBone( baseBone ):
 						tmpRes[ idx ][bname] = [ tmpRes[ idx ][bname], v ]
 				else:
 					tmpRes[ idx ][bname] = v
+
 		tmpList = [ (k,v) for k,v in tmpRes.items() ]
 		tmpList.sort( key=lambda k: k[0] )
 		tmpList = [{"reltmp":v,"dest":{"key":v["key"]}} for k,v in tmpList]
 		errorDict = {}
+
 		for r in tmpList[:]:
 			# Rebuild the referenced entity data
 			isEntryFromBackup = False #If the referenced entry has been deleted, restore information from
@@ -343,24 +361,27 @@ class relationalBone( baseBone ):
 						if dbVal["dest"]["key"].value==str(r):
 							entry = dbVal
 							isEntryFromBackup = True
+
 				if not isEntryFromBackup:
 					if not self.multiple: #We can stop here :/
 						return( "Invalid entry selected" )
 				else:
 					tmpList.remove( r )
 					continue
+
 			if not entry or (not isEntryFromBackup and not entry.key().kind()==self.type): #Entry does not exist or has wrong type (is from another module)
 				if entry:
 					logging.error("I got a key, which kind doesn't match my type! (Got: %s, my type %s)" % ( entry.key().kind(), self.type ) )
 				tmpList.remove( r )
 				continue
+
 			tmp = { k: entry[k] for k in entry.keys() if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ) }
 			tmp["key"] = r["dest"]["key"]
 			relSkel = RelSkel.fromSkel(skeletonByKind(self.type), *self.refKeys)
 			relSkel.unserialize(tmp)
 			r["dest"] = relSkel
+
 			# Rebuild the refSkel data
-			tmp = {}
 			if self.using is not None:
 				refSkel = self.using()
 				if not refSkel.fromClient( r["reltmp"] ):
@@ -370,6 +391,7 @@ class relationalBone( baseBone ):
 			else:
 				r["rel"] = None
 			del r["reltmp"]
+
 		if self.multiple:
 			self.value = tmpList
 		else:
@@ -377,8 +399,9 @@ class relationalBone( baseBone ):
 				self.value = tmpList[0]
 			else:
 				self.value = None
+
 		if len( errorDict.keys() ):
-			return( ReadFromClientError( errorDict, True ) )
+			return ReadFromClientError( errorDict, True )
 
 	def _rewriteQuery(self, name, skel, dbFilter, rawFilter ):
 		"""
