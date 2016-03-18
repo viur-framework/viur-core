@@ -211,7 +211,7 @@ class baseBone(object): # One Bone:
 			assert isinstance( key, db.Key )
 			return( key )
 
-		if name == "key" and "key" in rawFilter.keys():
+		if name == "key" and "key" in rawFilter.keys() and prefix is None:
 			if isinstance( rawFilter["key"], list ):
 
 				keyList = [ fromShortKey( key  ) for key in rawFilter["key"] ]
@@ -244,12 +244,15 @@ class baseBone(object): # One Bone:
 
 		if len( myKeys ) == 0:
 			return( dbFilter )
-		if not self.indexed:
+
+		if not self.indexed and name != "key":
 			logging.warning( "Invalid searchfilter! %s is not indexed!" % name )
 			raise RuntimeError()
+
 		for key in myKeys:
 			value = rawFilter[ key ]
 			tmpdata = key.partition("$")
+
 			if len( tmpdata ) > 2:
 				if isinstance( value, list ):
 					continue
@@ -266,7 +269,8 @@ class baseBone(object): # One Bone:
 					dbFilter.filter( (prefix or "")+key+" IN", value )
 				else:
 					dbFilter.filter( (prefix or "")+key, value )
-		return( dbFilter )
+
+		return dbFilter
 
 	def buildDBSort( self, name, skel, dbFilter, rawFilter ):
 		"""
