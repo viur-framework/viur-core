@@ -176,7 +176,7 @@ def getEntry(render, module, key=None, skel = "viewSkel"):
 	return False
 
 @jinjaGlobal
-def getHostURL(render, forceSSL = False, *args, **kwargs):
+def getHostUrl(render, forceSSL = False, *args, **kwargs):
 	"""
 	Jinja2 global: Retrieve hostname with protocol.
 
