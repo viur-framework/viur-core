@@ -17,20 +17,24 @@ class DefaultRender( object ):
 		res = OrderedDict()
 		for key, _bone in skel.items() :
 			if( isinstance( _bone, bones.baseBone ) ):
-				res[ key ] = {	"descr": _(_bone.descr),
-						"type": _bone.type,
-						"visible":_bone.visible,
-						"required": _bone.required,
-						"readonly": _bone.readOnly,
-						"params": _bone.params
-						}
+
+				res[ key ] = {
+					"descr": _(_bone.descr),
+					"type": _bone.type,
+					"visible":_bone.visible,
+					"required": _bone.required,
+					"readonly": _bone.readOnly,
+					"params": _bone.params
+				}
+
 				if key in skel.errors.keys():
-					res[ key ][ "error" ] = skel.errors[ key ]
+					res[key]["error"] = skel.errors[ key ]
 				elif any( [x.startswith("%s." % key) for x in skel.errors.keys()]):
-					res[ key ][ "error" ] = {k:v for k,v in skel.errors.items() if k.startswith("%s." % key )}
+					res[key]["error"] = {k:v for k,v in skel.errors.items() if k.startswith("%s." % key )}
 				else:
-					res[ key ][ "error" ] = None
-				if isinstance( _bone, bones.relationalBone ):
+					res[key]["error"] = None
+
+				if isinstance(_bone, bones.relationalBone):
 					if isinstance( _bone, bones.hierarchyBone ):
 						boneType = "hierarchy"
 					elif isinstance( _bone, bones.treeItemBone ):
@@ -41,32 +45,40 @@ class DefaultRender( object ):
 							res[key]["using"] = self.renderSkelStructure(_bone.using())
 						else:
 							res[key]["using"] = None
+
 					res[key]["type"]="%s.%s" % (boneType,_bone.type)
 					res[key]["module"] = _bone.module
 					res[key]["multiple"]=_bone.multiple
 					res[key]["format"] = _bone.format
-				if( isinstance( _bone, bones.treeDirBone ) ):
-						boneType = "treedir"
-						res[key]["type"]="%s.%s" % (boneType,_bone.type)
-						res[key]["multiple"]=_bone.multiple
-				if ( isinstance( _bone, bones.selectOneBone ) or  isinstance( _bone, bones.selectMultiBone ) ):
-					res[key]["values"] =  _bone.values
+
+				if isinstance(_bone, bones.treeDirBone):
+					boneType = "treedir"
+					res[key]["type"]="%s.%s" % (boneType,_bone.type)
+					res[key]["multiple"]=_bone.multiple
+
+				if isinstance(_bone, bones.selectOneBone) or isinstance(_bone, bones.selectMultiBone):
+					res[key]["values"] = _bone.values
 					res[key]["valuesOrder"] = list(_bone.values.keys())
-					#res[key]["sortBy"] = _bone.sortBy
-				if ( isinstance( _bone, bones.dateBone ) ):
+
+				if isinstance(_bone, bones.dateBone):
 					res[key]["time"] = _bone.time
 					res[key]["date"] = _bone.date
-				if( isinstance( _bone, bones.textBone ) ):
+
+				if isinstance(_bone, bones.textBone):
 					res[key]["validHtml"] = _bone.validHtml
-				if( isinstance( _bone, bones.stringBone ) ):
+
+				if isinstance(_bone, bones.stringBone):
 					res[key]["multiple"] = _bone.multiple
-				if( isinstance( _bone, bones.numericBone )):
+
+				if isinstance(_bone, bones.numericBone):
 					res[key]["precision"] = _bone.precision
 					res[key]["min"] = _bone.min
 					res[key]["max"] = _bone.max
-				if( isinstance( _bone, bones.textBone ) ) or ( isinstance( _bone, bones.stringBone ) ):
+
+				if isinstance(_bone, bones.textBone) or isinstance(_bone, bones.stringBone):
 					res[key]["languages"] = _bone.languages
-		return( [ (key, val) for key, val in res.items()] )
+
+		return [(key, val) for key, val in res.items()]
 	
 	def renderTextExtension(self, ext ):
 		e = ext()
@@ -115,19 +127,22 @@ class DefaultRender( object ):
 		return res
 		
 	def renderEntry( self, skel, actionName ):
-		if isinstance( skel, list ):
-			vals = [ self.renderSkelValues( x ) for x in skel ]
-			struct = self.renderSkelStructure( skel[0] )
+		if isinstance(skel, list):
+			vals = [self.renderSkelValues(x) for x in skel]
+			struct = self.renderSkelStructure(skel[0])
 		else:
-			vals = self.renderSkelValues( skel )
-			struct = self.renderSkelStructure( skel )
-		res = {	"values": vals, 
-			"structure": struct,
-			"action": actionName }
-		request.current.get().response.headers['Content-Type'] = "application/json"
-		return( json.dumps( res ) )
+			vals = self.renderSkelValues(skel)
+			struct = self.renderSkelStructure(skel)
 
-	
+		res = {
+			"values": vals,
+			"structure": struct,
+			"action": actionName
+		}
+
+		request.current.get().response.headers['Content-Type'] = "application/json"
+		return json.dumps(res)
+
 	def view( self, skel, listname="view", *args, **kwargs ):
 		return( self.renderEntry( skel, "view" ) )
 		
