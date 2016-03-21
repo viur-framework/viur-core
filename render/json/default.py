@@ -57,8 +57,7 @@ class DefaultRender( object ):
 					res[key]["multiple"]=_bone.multiple
 
 				if isinstance(_bone, bones.selectOneBone) or isinstance(_bone, bones.selectMultiBone):
-					res[key]["values"] = _bone.values
-					res[key]["valuesOrder"] = list(_bone.values.keys())
+					res[key]["values"] = [(k, v) for k, v in _bone.values.items()]
 
 				if isinstance(_bone, bones.dateBone):
 					res[key]["time"] = _bone.time
