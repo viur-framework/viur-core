@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
-from collections import OrderedDict, Iterable
+from collections import OrderedDict
 import logging
 
 class selectOneBone( baseBone ):
