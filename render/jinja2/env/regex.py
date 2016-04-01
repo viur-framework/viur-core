@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-from server.render.jinja2.utils import jinjaGlobal
+from server.render.jinja2.utils import jinjaGlobalFunction
 import re
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def regexMatch(render, pattern, string, flags = 0):
 	"""
 	Jinja2 global: Match a string for regular expression pattern.
@@ -22,7 +22,7 @@ def regexMatch(render, pattern, string, flags = 0):
 	"""
 	return re.match(pattern,string)
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def regexReplace(render, s, pattern, replace):
 	"""
 	Jinja2 global: Replace string by regular expression pattern.
@@ -41,7 +41,7 @@ def regexReplace(render, s, pattern, replace):
 	"""
 	return re.sub(pattern, replace, s)
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def regexSearch(render, s, pattern, flags = 0):
 	"""
 	Jinja2 global: Search a string for regular expression pattern.

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-
 import utils as jinjaUtils
 from wrap import ListWrapper, SkelListWrapper
+
 from server import bones, utils, request, errors, securitykey
 from server.skeleton import Skeleton, RelSkel
 from server.bones import *
@@ -726,6 +726,7 @@ class Render( object ):
 		"""
 		def mkLambda(func, s):
 			return lambda *args, **kwargs: func(s, *args, **kwargs)
+
 		if not "env" in dir(self):
 			loaders = self.getLoaders()
 			self.env = Environment(loader=loaders, extensions=["jinja2.ext.do", "jinja2.ext.loopcontrols"])
@@ -735,18 +736,18 @@ class Render( object ):
 			self.env.filters["tr"] = _
 
 			# Import functions.
-			for name, func in jinjaUtils.getGlobals().items():
-				logging.debug("Adding global '%s'" % name)
+			for name, func in jinjaUtils.getGlobalFunctions().items():
+				logging.debug("Adding global function'%s'" % name)
 				self.env.globals[name] = mkLambda(func, self)
 
 			# Import filters.
-			for name, func in jinjaUtils.getFilters().items():
-				logging.debug("Adding filter '%s'" % name)
+			for name, func in jinjaUtils.getGlobalFilters().items():
+				logging.debug("Adding global filter '%s'" % name)
 				self.env.filters[name] = mkLambda(func, self)
 
 			# Import extensions.
-			for ext in jinjaUtils.getExtensions():
-				logging.debug("Adding extension '%s'" % ext)
+			for ext in jinjaUtils.getGlobalExtensions():
+				logging.debug("Adding global extension '%s'" % ext)
 				self.env.add_extension(ext)
 
 			# Import module-specific environment, if available.

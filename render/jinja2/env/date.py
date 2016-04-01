@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-from server.render.jinja2.utils import jinjaGlobal
+from server.render.jinja2.utils import jinjaGlobalFunction
 from datetime import datetime as datetime_orig, date as date_orig, time as time_orig, timedelta as timedelta_orig
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def dateTime(render):
 	"""
 	Jinja2 global: Returns the datetime class
@@ -12,7 +12,7 @@ def dateTime(render):
 	"""
 	return datetime_orig
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def date(render):
 	"""
 	Jinja2 global: Returns the date class
@@ -22,7 +22,7 @@ def date(render):
 	"""
 	return date_orig
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def time(render):
 	"""
 	Jinja2 global: Returns the time class
@@ -33,7 +33,7 @@ def time(render):
 	return time_orig
 
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def timedelta(render):
 	"""
 	Jinja2 global: Returns the timedelta class

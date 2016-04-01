@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-from server.render.jinja2.utils import jinjaGlobal, jinjaFilter
+from server.render.jinja2.utils import jinjaGlobalFunction, jinjaGlobalFilter
 from logging import critical, error, warning, debug, info
 import pprint
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def logging(render, msg, kind = "info", **kwargs):
 	"""
 	Jinja2 global: Write log-level entry.
@@ -29,7 +29,7 @@ def logging(render, msg, kind = "info", **kwargs):
 	else:
 		info(msg, **kwargs)
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def pprint(render, obj):
 	"""
 	Jinja2 global: Provides a pprint function that renders into HTML.

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 from server import session
-from server.render.jinja2.utils import jinjaGlobal
+from server.render.jinja2.utils import jinjaGlobalFunction
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def getSession(render):
 	"""
 	Jinja2 global: Allows templates to store variables server-side inside the session.
@@ -17,7 +17,7 @@ def getSession(render):
 
 	return session.current.get("JinjaSpace")
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def setSession(render, name, value):
 	"""
 	Jinja2 global: Allows templates to store variables on server-side inside the session.
