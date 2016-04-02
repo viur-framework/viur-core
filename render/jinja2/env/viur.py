@@ -2,7 +2,7 @@
 from server import utils, request, conf, prototypes, securitykey
 from server.skeleton import Skeleton, RelSkel
 
-from server.render.jinja2.utils import jinjaGlobal, jinjaFilter
+from server.render.jinja2.utils import jinjaGlobalFunction, jinjaGlobalFilter
 from server.render.jinja2.wrap import ListWrapper, SkelListWrapper
 
 from urllib import urlencode, quote_plus
@@ -10,11 +10,10 @@ from hashlib import sha512
 
 from google.appengine.ext import db
 from google.appengine.api import memcache, users
-from google.appengine.api.images import get_serving_url
 
-import logging, re
+import logging
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def execRequest(render, path, *args, **kwargs):
 	"""
 	Jinja2 global: Perform an internal Request.
@@ -105,7 +104,7 @@ def execRequest(render, path, *args, **kwargs):
 
 	return resstr
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def getCurrentUser(render):
 	"""
 	Jinja2 global: Returns the current user from the session, or None if not logged in.
@@ -115,7 +114,7 @@ def getCurrentUser(render):
 	"""
 	return utils.getCurrentUser()
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def getEntry(render, module, key=None, skel = "viewSkel"):
 	"""
 	Jinja2 global: Fetch an entry from a given module, and return the data as a dict,
@@ -175,7 +174,7 @@ def getEntry(render, module, key=None, skel = "viewSkel"):
 
 	return False
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def getHostUrl(render, forceSSL = False, *args, **kwargs):
 	"""
 	Jinja2 global: Retrieve hostname with protocol.
@@ -191,7 +190,7 @@ def getHostUrl(render, forceSSL = False, *args, **kwargs):
 
 	return url
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def getLanguage(render, resolveAlias = False):
 	"""
 	Jinja2 global: Returns the language used for this request.
@@ -207,7 +206,7 @@ def getLanguage(render, resolveAlias = False):
 	return lang
 
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def moduleName(render):
 	"""
 	Jinja2 global: Retrieve name of current module where this renderer is used within.
@@ -219,7 +218,7 @@ def moduleName(render):
 
 	return ""
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def modulePath(render):
 	"""
 	Jinja2 global: Retrieve path of current module the renderer is used within.
@@ -231,7 +230,7 @@ def modulePath(render):
 
 	return ""
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def getList(render, module, skel = "viewSkel", _noEmptyFilter = False, *args, **kwargs):
 	"""
 	Jinja2 global: Fetches a list of entries which match the given filter criteria.
@@ -280,14 +279,14 @@ def getList(render, module, skel = "viewSkel", _noEmptyFilter = False, *args, **
 
 	return SkelListWrapper(mylist)
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def getSecurityKey(render, **kwargs):
 	"""
 	Jinja2 global: Creates a new ViUR security key.
 	"""
 	return securitykey.create(**kwargs)
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def getSkel(render, module, skel = "viewSkel", subSkel = None):
 	"""
 	Jinja2 global: Returns the skeleton structure instead of data for a module.
@@ -321,7 +320,7 @@ def getSkel(render, module, skel = "viewSkel", subSkel = None):
 
 	return False
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def requestParams(render):
 	"""
 	Jinja2 global: Allows for accessing the request-parameters from the template.
@@ -338,7 +337,7 @@ def requestParams(render):
 
 	return res
 
-@jinjaGlobal
+@jinjaGlobalFunction
 def updateURL(render, **kwargs):
 	"""
 	Jinja2 global: Constructs a new URL based on the current requests url.
@@ -366,9 +365,7 @@ def updateURL(render, **kwargs):
 
 	return "?" + urlencode(tmpparams).replace("&", "&amp;")
 
-
-
-@jinjaFilter
+@jinjaGlobalFilter
 def fileSize(render, value, binary=False):
 	"""
 	Jinja2 filter: Format the value in an 'human-readable' file size (i.e. 13 kB, 4.1 MB, 102 Bytes, etc).
@@ -413,7 +410,7 @@ def fileSize(render, value, binary=False):
 
 	return '%.1f %s' % ((base * bytes / unit), prefix)
 
-@jinjaFilter
+@jinjaGlobalFilter
 def urlencode(render, val):
 	"""
 	Jinja2 filter: Make a string URL-safe.
@@ -440,7 +437,7 @@ This has been disabled until we are sure
 	b) how it's best implemented
 	c) doesn't introduce any XSS vulnerability
   - TS 13.03.2016
-@jinjaFilter
+@jinjaGlobalFilter
 def className(render, s):
 	"""
 	Jinja2 filter: Converts a URL or name into a CSS-class name, by replacing slashes by underscores.
@@ -460,7 +457,7 @@ def className(render, s):
 	return ""
 '''
 
-@jinjaFilter
+@jinjaGlobalFilter
 def shortKey(render, val):
 	"""
 	Jinja2 filter: Make a shortkey from an entity-key.
@@ -477,4 +474,3 @@ def shortKey(render, val):
 		return k.id_or_name()
 	except:
 		return None
-

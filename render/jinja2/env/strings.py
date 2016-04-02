@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-from server.render.jinja2.utils import jinjaGlobal, jinjaFilter
+from server.render.jinja2.utils import jinjaGlobalFunction, jinjaGlobalFilter
 import json
 
-@jinjaFilter
+@jinjaGlobalFilter
 def parseJSON(render, s):
 	"""
 	Jinja2 filter: Parses a JSON-string into a dict.

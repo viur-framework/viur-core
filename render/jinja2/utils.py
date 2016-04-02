@@ -4,29 +4,29 @@ __jinjaGlobals_ = {}
 __jinjaFilters_ = {}
 __jinjaExtensions_ = []
 
-def getGlobals():
+def getGlobalFunctions():
 	return __jinjaGlobals_
 
-def getFilters():
+def getGlobalFilters():
 	return __jinjaFilters_
 
-def getExtensions():
+def getGlobalExtensions():
 	return __jinjaExtensions_
 
 
-def jinjaGlobal(f):
+def jinjaGlobalFunction(f):
 	"""
 	Decorator, marks a function as a Jinja2 global.
 	"""
 	__jinjaGlobals_[f.__name__] = f
 
-def jinjaFilter(f):
+def jinjaGlobalFilter(f):
 	"""
 	Decorator, marks a function as a Jinja2 filter.
 	"""
 	__jinjaFilters_[f.__name__] = f
 
-def jinjaExtension(ext):
+def jinjaGlobalExtension(ext):
 	"""
 	Function for activating extensions in Jinja2.
 	"""
