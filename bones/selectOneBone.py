@@ -10,7 +10,7 @@ class selectOneBone( baseBone ):
 	def generageSearchWidget(target,name="SELECTONE BONE",values=[]):
 		return ( {"name":name,"values":values,"target":target,"type":"selectone"} )
 
-	def __init__( self,  values = {}, defaultValue=None, *args, **kwargs ):
+	def __init__(self, values = {}, defaultValue = None, *args, **kwargs):
 		"""
 			Creates a new selectOneBone
 			:param defaultValue: List of keys which will be checked by default
@@ -21,33 +21,46 @@ class selectOneBone( baseBone ):
 				translated) values
 			:type sortBy: String
 		"""
-		super( selectOneBone, self ).__init__( defaultValue=defaultValue,  *args,  **kwargs )
+		super( selectOneBone, self ).__init__( defaultValue=defaultValue, *args, **kwargs )
+
 		if "_kindName" in kwargs.keys():
 			kindName = kwargs["_kindName"]
 		else:
 			kindName = "unknownKind"
+
 		if "sortBy" in kwargs.keys():
 			logging.warning("The sortBy parameter is deprecated. Please use an orderedDict for 'values' instead")
+
 		if isinstance(values, dict) and not isinstance(values, OrderedDict):
 			vals = list(values.items())
+
 			if "sortBy" in kwargs.keys():
 				sortBy = kwargs["sortBy"]
+
 				if not sortBy in ["keys","values"]:
 					raise ValueError( "sortBy must be \"keys\" or \"values\"" )
-				if sortBy=="keys":
+
+				if sortBy == "keys":
 					vals.sort(key=lambda x: x[0])
 				else:
 					vals.sort(key=lambda x: x[1])
 			else:
 				vals.sort(key=lambda x: x[1])
+
 			self.values = OrderedDict(vals)
+
 		elif isinstance(values, set):
 			vals = [(x, _("models.%s.%s" % (kindName, x))) for x in values]
 			vals.sort(key=lambda x: x[1])
 			self.values = OrderedDict(vals)
+
+		elif isinstance(values, list):
+			self.values = OrderedDict([(x, x) for x in values])
+
 		elif isinstance(values, OrderedDict):
 			self.values = values
-	
+
+
 	def fromClient( self, name, data ):
 		"""
 			Reads a value from the client.
