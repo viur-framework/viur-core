@@ -21,31 +21,41 @@ _periodicTaskID = 1L #Used to determine bound functions
 
 
 class CallableTaskBase:
-	"""Base class for user-callable tasks.
-	Must be subclassed.
 	"""
-	id = None
-	name = None
-	descr = None
+		Base class for user-callable tasks.
+		Must be subclassed.
+	"""
+	key = None  # Unique identifier for this task
+	name = None  # Human-Readable name
+	descr = None  # Human-Readable description
 	kindName = "server-task"
 	
 	def canCall( self ):
-		"""Checks wherever the current user can execute this task
-		@returns bool
+		"""
+			Checks wherever the current user can execute this task
+			@returns bool
 		"""
 		return( False )
 		
 	def dataSkel(self):
+		"""
+			If additional data is needed, return a skeleton-instance here.
+			These values are then passed to *execute*.
+		"""
 		return( None )
 		
 	
 	def execute(self):
+		"""
+			The actual code that should be run goes here.
+		"""
 		raise NotImplemented()
 	
 class TaskHandler:
-	"""Task Handler.
-	Handles calling of Tasks (queued and periodic), and performs updatececks
-	Do not Modify. Do not Subclass.
+	"""
+		Task Handler.
+		Handles calling of Tasks (queued and periodic), and performs updatececks
+		Do not Modify. Do not Subclass.
 	"""
 	adminInfo = None
 
