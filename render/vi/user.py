@@ -16,9 +16,3 @@ class UserRender(user):
 			return json.dumps("OKAY")
 
 		return json.dumps("OKAY:NOADMIN")
-
-	def logoutSuccess(self, **kwargs ):
-		raise errors.Redirect("/vi/s/logout.html")
-
-	def login( self, skel, **kwargs ):
-		raise errors.Redirect("/vi/s/login.html")

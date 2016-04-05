@@ -31,8 +31,8 @@ class userSkel(Skeleton):
 	                        defaultValue="10", required=True, indexed=True)
 
 	# One-Time Password Verification
-	otpid = stringBone(descr="OTP serial", required=True, indexed=True, searchable=True)
-	otpkey = stringBone(descr="OTP hex key", required=True, indexed=True)
+	otpid = stringBone(descr="OTP serial", required=False, indexed=True, searchable=True)
+	otpkey = stringBone(descr="OTP hex key", required=False, indexed=True)
 	otptimedrift = numericBone(descr="OTP time drift", readOnly=True, defaultValue=0)
 
 
@@ -225,17 +225,18 @@ class Otp2Factor( object ):
 
 	def canHandle(self, userKey):
 		user = db.Get(userKey)
-		return all([(x in user.keys() and user[x]) for x in ["otpid", "otpkey", "otptimedrift"]])
+		return all([(x in user.keys() and user[x]) for x in ["otpid", "otpkey"]])
 
 	def startProcessing(self, userKey):
 		user = db.Get(userKey)
-		if all([(x in user.keys() and user[x]) for x in ["otpid", "otpkey", "otptimedrift"]]):
+		if all([(x in user.keys() and user[x]) for x in ["otpid", "otpkey"]]):
 			logging.info( "OTP wanted for user" )
 			session.current["_otp_user"] = {	"uid": str(userKey),
 								"otpid": user["otpid"],
 								"otpkey": user["otpkey"],
 								"otptimedrift": user["otptimedrift"],
-								"timestamp": time() }
+								"timestamp": time(),
+			                    "failures": 0}
 			session.current.markChanged()
 			return self.userModule.render.loginSucceeded()
 		return None
@@ -258,7 +259,7 @@ class Otp2Factor( object ):
 			return( ("00"*(8-(len(hexStr)/2))+hexStr).decode("hex") )
 
 		idx = int( time()/60.0 ) # Current time index
-		idx += int(timeDrift)
+		idx += int(timeDrift or 0)
 		res = []
 		for slot in range( idx-self.windowSize, idx+self.windowSize ):
 			currHash= hmac.new( secret.decode("HEX"), asBytes(slot), hashlib.sha1 ).digest()
