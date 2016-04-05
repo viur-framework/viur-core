@@ -286,11 +286,13 @@ class textBone( baseBone ):
 			assert isinstance(self.value, dict), "The value shall already contain a dict, something is wrong here."
 
 			if self.validHtml:
-				return( [ search.HtmlField( name=name, value=unicode( self.value[lang] ), language=lang ) for lang in self.languages ] )
+				return [search.HtmlField(name=name, value=unicode( self.value.get(lang, "")), language=lang)
+				        for lang in self.languages]
 			else:
-				return( [ search.TextField( name=name, value=unicode( self.value[lang] ), language=lang ) for lang in self.languages ] )
+				return [search.TextField(name=name, value=unicode( self.value.get(lang, "")), language=lang)
+				        for lang in self.languages]
 		else:
 			if self.validHtml:
-				return( [ search.HtmlField( name=name, value=unicode( self.value ) ) ] )
+				return [search.HtmlField( name=name, value=unicode(self.value))]
 			else:
-				return( [ search.TextField( name=name, value=unicode( self.value ) ) ] )
+				return [search.TextField( name=name, value=unicode(self.value))]

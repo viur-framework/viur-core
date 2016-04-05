@@ -14,11 +14,11 @@ class fileBone(treeItemBone):
 		super( fileBone, self ).__init__( format=format, *args, **kwargs )
 
 	def getReferencedBlobs(self):
-		if self.value is None:
+		if self.value is None or not "dlkey" in self.refKeys:
 			return []
-		elif isinstance( self.value, dict ):
+		elif isinstance(self.value, dict):
 			return [self.value["dest"]["dlkey"].value]
-		elif isinstance( self.value, list ):
+		elif isinstance(self.value, list):
 			return [x["dest"]["dlkey"].value for x in self.value]
 
 	def unserialize( self, name, expando ):
