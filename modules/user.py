@@ -48,7 +48,7 @@ class UserPassword(object):
 
 	@classmethod
 	def getAuthMethodName(*args,**kwargs):
-		return (u"X-VIUR-AUTH-User-Password")
+		return u"X-VIUR-AUTH-User-Password"
 
 	class loginSkel(RelSkel):
 		name = emailBone( descr="E-Mail",  required=True, caseSensitive=False, indexed=True )
@@ -106,9 +106,9 @@ class UserPassword(object):
 	def pwrecover( self, authtoken=None, skey=None, *args, **kwargs ):
 		if authtoken:
 			data = securitykey.validate( authtoken )
-			if data and isinstance( data, dict ) and "userid" in data.keys() and "password" in data.keys():
+			if data and isinstance( data, dict ) and "userKey" in data.keys() and "password" in data.keys():
 				skel = self.editSkel()
-				assert skel.fromDB( data["userid"] )
+				assert skel.fromDB( data["userKey"] )
 				skel["password"].value = data["password"]
 				skel.toDB()
 				return (self.render.view(skel, "user_passwordrecover_success"))
@@ -134,7 +134,7 @@ class UserPassword(object):
 				pass
 			user["changedate"] = datetime.datetime.now()
 			db.Put( user )
-			key = securitykey.create( 60*60*24, userid=str( user.key() ), password=skel["password"].value )
+			key = securitykey.create( 60*60*24, userKey=str( user.key() ), password=skel["password"].value )
 			self.sendPasswordRecoveryEmail( str( user.key() ), key )
 			return (self.render.view(skel, "user_passwordrecover_mail_sent"))
 
@@ -142,7 +142,7 @@ class UserPassword(object):
 	def verify(self,  skey,  *args,  **kwargs ):
 		data = securitykey.validate( skey )
 		skel = self.baseSkel()
-		if not data or not isinstance( data,  dict ) or not "userid" in data or not skel.fromDB( data["userid"] ):
+		if not data or not isinstance( data,  dict ) or not "userKey" in data or not skel.fromDB( data["userKey"] ):
 			return self.render.verifyFailed()
 		if self.registrationAdminVerificationRequired:
 			skel["status"].value = 2
@@ -151,16 +151,16 @@ class UserPassword(object):
 		skel.toDB()
 		return self.render.verifySuccess( data )
 
-	def sendVerificationEmail(self, userID, skey ):
+	def sendVerificationEmail(self, userKey, skey ):
 		skel = self.viewSkel()
-		assert skel.fromDB(userID)
+		assert skel.fromDB(userKey)
 		skel["skey"] = baseBone( descr="Skey" )
 		skel["skey"].value = skey
 		utils.sendEMail( [skel["name"].value], self.verifyEmailAddressMail, skel )
 
-	def sendPasswordRecoveryEmail(self, userID, skey ):
+	def sendPasswordRecoveryEmail(self, userKey, skey ):
 		skel = self.viewSkel()
-		assert skel.fromDB(userID)
+		assert skel.fromDB(userKey)
 		skel["skey"] = baseBone( descr="Skey" )
 		skel["skey"].value = skey
 		utils.sendEMail( [skel["name"].value], self.passwordRecoveryMail, skel )
@@ -175,7 +175,7 @@ class GoogleAccount(object):
 
 	@classmethod
 	def getAuthMethodName(*args,**kwargs):
-		return (u"X-VIUR-AUTH-Google-Account")
+		return u"X-VIUR-AUTH-Google-Account"
 
 	@exposed
 	@forceSSL
@@ -221,17 +221,17 @@ class Otp2Factor( object ):
 
 	@classmethod
 	def get2FactorMethodName(*args,**kwargs):
-		return (u"X-VIUR-2Factor-Otp")
+		return u"X-VIUR-2Factor-Otp"
 
-	def canHandle(self, userId):
-		user = db.Get(userId)
+	def canHandle(self, userKey):
+		user = db.Get(userKey)
 		return all([(x in user.keys() and user[x]) for x in ["otpid", "otpkey", "otptimedrift"]])
 
-	def startProcessing(self, userId):
-		user = db.Get(userId)
+	def startProcessing(self, userKey):
+		user = db.Get(userKey)
 		if all([(x in user.keys() and user[x]) for x in ["otpid", "otpkey", "otptimedrift"]]):
 			logging.info( "OTP wanted for user" )
-			session.current["_otp_user"] = {	"uid": str(userId),
+			session.current["_otp_user"] = {	"uid": str(userKey),
 								"otpid": user["otpid"],
 								"otpkey": user["otpkey"],
 								"otptimedrift": user["otptimedrift"],
@@ -290,15 +290,15 @@ class Otp2Factor( object ):
 		logging.debug(int(otptoken) in validTokens)
 
 		if int(otptoken) in validTokens:
-			userId = session.current["_otp_user"]["uid"]
+			userKey = session.current["_otp_user"]["uid"]
 			del session.current["_otp_user" ]
 			session.current.markChanged()
 			idx = validTokens.index(int(otptoken))
 			if abs(idx - self.windowSize) > 2:
 				# The time-drift accumulates to more than 2 minutes, update our
 				# clock-drift value accordingly
-				self.updateTimeDrift(userId, idx - self.windowSize)
-			return self.userModule.secondFactorSucceeded(self, userId)
+				self.updateTimeDrift(userKey, idx - self.windowSize)
+			return self.userModule.secondFactorSucceeded(self, userKey)
 		else:
 			token["failures"] += 1
 			session.current["_otp_user"] = token
@@ -307,22 +307,22 @@ class Otp2Factor( object ):
 
 
 
-	def updateTimeDrift(self, userId, idx):
+	def updateTimeDrift(self, userKey, idx):
 		"""
 			Updates the clock-drift value.
 			The value is only changed in 1/10 steps, so that a late submit by an user doesn't skew
 			it out of bounds. Maximum change per call is 0.3 minutes.
-			:param userId: For which user should the update occour
+			:param userKey: For which user should the update occour
 			:param idx: How many steps before/behind was that token
 			:return:
 		"""
-		def updateTransaction(userId, idx):
-			user = db.Get(userId)
+		def updateTransaction(userKey, idx):
+			user = db.Get(userKey)
 			if not "otptimedrift" in user.keys() or not isinstance(user["otptimedrift"],float):
 				user["otptimedrift"] = 0.0
 			user["otptimedrift"] += min(max(0.1*idx,-0.3),0.3)
 			db.Put(user)
-		db.RunInTransaction(updateTransaction, userId, idx)
+		db.RunInTransaction(updateTransaction, userKey, idx)
 
 class User(List):
 	kindName = "user"
@@ -332,20 +332,21 @@ class User(List):
 	verifyEmailAddressMail = "user_verify_address"
 	passwordRecoveryMail = "user_password_recovery"
 
-	authenticationProviders = [UserPassword,GoogleAccount]
+	authenticationProviders = [UserPassword, GoogleAccount]
 	secondFactorProviders = [Otp2Factor]
 
-	validAuthenticationMethods = [(UserPassword, Otp2Factor),(UserPassword, None)]
+	validAuthenticationMethods = [(UserPassword, Otp2Factor), (UserPassword, None), (GoogleAccount, None)]
 
-	adminInfo = {   "name": "User",
-					"handler": "list",
-					"icon": "icons/modules/users.svg",
-				}
+	adminInfo = {
+		"name": "User",
+		"handler": "list",
+		"icon": "icons/modules/users.svg"
+	}
 
 	def __init__(self, moduleName, modulePath, *args, **kwargs):
 		super(User, self).__init__(moduleName, modulePath, *args, **kwargs)
 
-		# Initialize the payment-providers
+		# Initialize the login-providers
 		self.initializedAuthenticationProviders = {}
 		self.initializedSecondFactorProviders = {}
 
@@ -354,62 +355,116 @@ class User(List):
 			self.initializedAuthenticationProviders[pInstance.__class__.__name__.lower()] = pInstance
 
 			#Also put it as an object into self, so that any exposed function is reachable
-			setattr( self, "auth_%s" % pInstance.__class__.__name__.lower(), pInstance )
-			logging.error("auth_%s" % pInstance.__class__.__name__.lower() )
+			setattr(self, "auth_%s" % pInstance.__class__.__name__.lower(), pInstance)
+			#logging.info("auth_%s" % pInstance.__class__.__name__.lower() )
 
 		for p in self.secondFactorProviders:
 			pInstance = p(self, modulePath+"/f2_%s" % p.__name__.lower())
 			self.initializedAuthenticationProviders[pInstance.__class__.__name__.lower()] = pInstance
 
 			#Also put it as an object into self, so that any exposed function is reachable
-			setattr( self, "f2_%s" % pInstance.__class__.__name__.lower(), pInstance )
-			logging.error("f2_%s" % pInstance.__class__.__name__.lower() )
+			setattr(self, "f2_%s" % pInstance.__class__.__name__.lower(), pInstance)
+			#logging.info("f2_%s" % pInstance.__class__.__name__.lower() )
+
+	def extendAccessRights(self, skel):
+		accessRights = skel["access"].values.copy()
+
+		for right in conf["viur.accessRights"]:
+			accessRights[ right ] = _( right )
+
+		skel["access"].values = accessRights
+
+	def addSkel(self):
+		admin = False
+		skel = super(User, self).addSkel()
+
+		user = utils.getCurrentUser()
+		if user and user["access"] and ("%s-add" % self.moduleName in user["access"] or "root" in user["access"]):
+			admin = True
+
+		if not admin:
+			'''
+			if self.registrationEmailVerificationRequired:
+				defaultStatusValue = 1
+			elif self.registrationAdminVerificationRequired:
+				defaultStatusValue = 2
+			else: #No further verification required
+				defaultStatusValue = 10
+
+			skel["status"].readOnly = True
+			skel["status"].value = defaultStatusValue
+			skel["status"].visible = False
+
+			skel["access"].readOnly = True
+			skel["access"].value = []
+			skel["access"].visible = False
+			'''
+			pass
+		else:
+			self.extendAccessRights(skel)
+
+		skel["name"].readOnly = False #Dont enforce readonly name in user/add
+		skel["password"] = passwordBone( descr="Password", required=True )
+		return skel
+
+	def editSkel(self, *args,  **kwargs):
+		skel = super(User, self).editSkel()
+		self.extendAccessRights(skel)
+
+		skel["password"] = passwordBone( descr="Passwort", required=False )
+
+		user = utils.getCurrentUser()
+		skel["name"].readOnly = skel["access"].readOnly = skel["status"].readOnly = user and "root" in user["access"]
+
+		return skel
 
 	def secondFactorProviderByClass(self, cls):
 		return getattr(self, "f2_%s" % cls.__name__.lower())
 
-	def getCurrentUser( self, *args, **kwargs ):
+	def getCurrentUser(self, *args, **kwargs):
 		return session.current.get("user")
 
-	def continueAuthenticationFlow(self, caller, userId):
-		session.current["_mayBeUserId"] = str(userId)
+	def continueAuthenticationFlow(self, caller, userKey):
+		session.current["_mayBeUserKey"] = str(userKey)
 		session.current.markChanged()
 		for authProvider, secondFactor in self.validAuthenticationMethods:
 			if secondFactor is None:
 				# We allow sign-in without a second factor
-				return self.authenticateUser(userId)
+				return self.authenticateUser(userKey)
 			
 			if isinstance(caller, authProvider):
 				# This Auth-Request was issued from this authenticationProvider
 				secondFactorProvider = self.secondFactorProviderByClass(secondFactor)
 
-				if secondFactorProvider.canHandle(userId):
+				if secondFactorProvider.canHandle(userKey):
 					# We choose the first second factor provider which claims it can verify that user
-					return secondFactorProvider.startProcessing(userId)
+					return secondFactorProvider.startProcessing(userKey)
 
 		# Whoops.. This user logged in successfully - but we have no second factor provider willing to confirm it
 		raise errors.NotAcceptable("There are no more authentication methods to try") # Sorry...
 
-	def secondFactorSucceeded(self, secondFactor, userId):
+	def secondFactorSucceeded(self, secondFactor, userKey):
 		logging.debug("Got SecondFactorSucceeded call from %s." % secondFactor)
-		if str(session.current["_mayBeUserId"]) != str(userId):
-			raise errors.Forbidden()
-		return self.authenticateUser(userId)
 
-	def authenticateUser(self, userId, **kwargs):
+		if str(session.current["_mayBeUserKey"]) != str(userKey):
+			raise errors.Forbidden()
+
+		return self.authenticateUser(userKey)
+
+	def authenticateUser(self, userKey, **kwargs):
 		"""
-			Performs Log-In for the current session and the given userId.
+			Performs Log-In for the current session and the given userKey.
 
 			This resets the current session: All fields not explicitly marked as persistent
 			by conf["viur.session.persistentFieldsOnLogin"] are gone afterwards.
 
 			:param authProvider: Which authentication-provider issued the authenticateUser request
 			:type authProvider: object
-			:param userId: The (DB-)Key of the user we shall authenticate
-			:type userId: db.Key
+			:param userKey: The (DB-)Key of the user we shall authenticate
+			:type userKey: db.Key
 		"""
-		res = db.Get(userId)
-		assert res, "Unable to authenticate unknown user %s" % userId
+		res = db.Get(userKey)
+		assert res, "Unable to authenticate unknown user %s" % userKey
 
 		oldSession = {k:v for k,v in session.current.items()} #Store all items in the current session
 		session.current.reset()
@@ -424,53 +479,57 @@ class User(List):
 		
 		for key in ["name", "status", "access"]:
 			try:
-				session.current["user"][ key ] = res[ key ]
+				session.current["user"][key] = res[key]
 			except:
 				pass
 		
-		session.current["user"]["id"] = str( res.key() )
+		session.current["user"]["key"] = str(res.key())
 		if not "access" in session.current["user"].keys() or not session.current["user"]["access"]:
 			session.current["user"]["access"] = []
 			
 		session.current.markChanged()
 		self.onLogin()
+
 		return self.render.loginSucceeded(**kwargs)
 
 	@exposed
-	def logout( self,  skey="", *args,  **kwargs ): #fixme
+	def logout(self, skey="", *args,  **kwargs): #fixme
 		user = session.current.get("user")
 		if not user:
 			raise errors.Unauthorized()
-		#if not securitykey.validate( skey ):
+
+		#if not securitykey.validate(skey):
 		#	raise errors.PreconditionFailed()
+
 		session.current["user"] = None
 		return self.render.logoutSuccess()
 
 	@exposed
-	def login(self,*args,**kwargs):
-		self.render.login(self.validAuthenticationMethods)
+	def login(self, *args, **kwargs):
+		raise errors.NotAcceptable()
 
 	def onLogin(self):
 		usr = self.getCurrentUser()
 		logging.info( "User logged in: %s" % usr["name"])
 
 	@exposed
-	def edit( self,  *args,  **kwargs ):
+	def edit(self,  *args,  **kwargs):
 		if len( args ) == 0 and not "key" in kwargs and session.current.get("user"):
-			kwargs["id"] = session.current.get("user")["key"]
+			kwargs["key"] = session.current.get("user")["key"]
 
-		return super( User, self ).edit( *args,  **kwargs )
+		return super(User, self).edit( *args,  **kwargs )
 
 	@exposed
 	def view(self, key, *args, **kwargs):
 		"""
-			Allow a special id "self" to reference always the current user
+			Allow a special key "self" to reference always the current user
 		"""
-		if key=="self":
+		if key == "self":
 			user = self.getCurrentUser()
 			if user:
-				return( super( User, self ).view( user["key"], *args, **kwargs ) )
-		return super( User, self ).view( key, *args, **kwargs )
+				return super(User, self).view(user["key"], *args, **kwargs)
+
+		return super(User, self ).view( key, *args, **kwargs)
 
 	def canView(self, skel):
 		user = self.getCurrentUser()
@@ -484,19 +543,21 @@ class User(List):
 		return False
 
 	@exposed
-	def getAuthMethod( self, *args, **kwargs ):
+	def getAuthMethods(self, *args, **kwargs):
 		"""Inform tools like Viur-Admin which authentication to use"""
-		res=[]
-		for auth,secondFactor in self.validAuthenticationMethods:
-			res.append(auth.getAuthMethodName())
-		return( json.dumps(res) )
+		res = []
 
-	def onItemDeleted( self, skel ):
+		for auth, secondFactor in self.validAuthenticationMethods:
+			res.append([auth.getAuthMethodName(), secondFactor.get2FactorMethodName() if secondFactor else None])
+
+		return json.dumps(res)
+
+	def onItemDeleted(self, skel):
 		"""
 			Invalidate all sessions of that user
 		"""
-		super( User, self ).onItemDeleted( skel )
-		session.killSessionByUser( str( skel["key"].value ) )
+		super(User, self).onItemDeleted(skel)
+		session.killSessionByUser(str(skel["key"].value))
 
 @StartupTask
 def createNewUserIfNotExists():

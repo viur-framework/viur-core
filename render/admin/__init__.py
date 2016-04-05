@@ -92,15 +92,24 @@ def dumpConfig( adminTree ):
 def canAccess( *args, **kwargs ):
 	user = utils.getCurrentUser()
 	if user and ("root" in user["access"] or "admin" in user["access"]):
-		return( True )
+		return True
+
 	pathList = request.current.get().pathlist
-	if len( pathList )>=2 and pathList[1] == "skey":
+
+	if len( pathList ) >= 2 and pathList[1] == "skey":
 		# Give the user the chance to login :)
-		return( True )
-	if len( pathList )>=3 and pathList[1] == "user" and (pathList[2].startswith("auth_") or pathList[2].startswith("f2_") or pathList[2] == "getAuthMethod"):
+		return True
+
+	if (len( pathList ) >= 3
+	    and pathList[1] == "user"
+	    and (pathList[2].startswith("auth_")
+	            or pathList[2].startswith("f2_")
+	            or pathList[2] == "getAuthMethods")):
+
 		# Give the user the chance to login :)
-		return( True )
-	return( False )
+		return True
+
+	return False
 
 def _postProcessAppObj( obj ):
 	obj.skey = genSkey

@@ -102,15 +102,16 @@ def canAccess( *args, **kwargs ):
 def index(*args, **kwargs):
 	if request.current.get().isDevServer or request.current.get().isSSLConnection:
 		if canAccess():
-			raise( errors.Redirect("/vi/s/admin.html") )
+			raise errors.Redirect("/vi/s/main.html")
 		else:
-			raise( errors.Redirect("/vi/user/login") )
+			raise errors.Redirect("/vi/user/login")
 	else:
 		appVersion = app_identity.get_default_version_hostname()
+
 		if canAccess():
-			raise( errors.Redirect("https://%s/vi/s/admin.html" % appVersion) )
+			raise errors.Redirect("https://%s/vi/s/main.html" % appVersion)
 		else:
-			raise( errors.Redirect("https://%s/vi/user/login" % appVersion) )
+			raise errors.Redirect("https://%s/vi/user/login" % appVersion)
 index.exposed=True
 
 def _postProcessAppObj( obj ):
