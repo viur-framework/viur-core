@@ -139,7 +139,7 @@ class UserPassword(object):
 			return (self.render.view(skel, "user_passwordrecover_mail_sent"))
 
 	@exposed
-	def verify(self,  skey,  *args,  **kwargs ):
+	def verify(self, skey, *args,  **kwargs ):
 		data = securitykey.validate( skey )
 		skel = self.baseSkel()
 		if not data or not isinstance( data,  dict ) or not "userKey" in data or not skel.fromDB( data["userKey"] ):
@@ -179,7 +179,7 @@ class GoogleAccount(object):
 
 	@exposed
 	@forceSSL
-	def login( self, skey="", *args, **kwargs ):
+	def login(self, skey="", *args, **kwargs):
 		def updateCurrentUser():
 			currentUser = users.get_current_user()
 			uid = currentUser.user_id()
@@ -238,17 +238,18 @@ class Otp2Factor( object ):
 								"timestamp": time(),
 			                    "failures": 0}
 			session.current.markChanged()
-			return self.userModule.render.loginSucceeded()
+			return self.userModule.render.loginSucceeded(msg="ONE-TIME-PASSWORD")
+
 		return None
 
 	class otpSkel( RelSkel ):
-		otptoken = stringBone( descr="Token", required=True, caseSensitive=False, indexed=True )
+		otptoken = stringBone(descr="Token", required=True, caseSensitive=False, indexed=True)
 
 	def generateOtps(self, secret, timeDrift):
 		"""
 			Generates all valid tokens for the given secret
 		"""
-		def asBytes( valIn):
+		def asBytes(valIn):
 			"""
 				Returns the integer in binary representation
 			"""
@@ -274,39 +275,47 @@ class Otp2Factor( object ):
 
 	@exposed
 	@forceSSL
-	def otp(self, otptoken=None, skey=None, *args, **kwargs ):
+	def otp(self, otptoken = None, skey = None, *args, **kwargs ):
 		token = session.current.get("_otp_user")
 		if not token:
 			raise errors.Forbidden()
 
-		if token["failures"]>3:
+		if otptoken is None:
+			self.userModule.render.edit(self.otpSkel())
+
+		if not securitykey.validate(skey):
+			raise errors.PreconditionFailed()
+
+		if token["failures"] > 3:
 			raise errors.Forbidden("Maximum amount of authentication retries exceeded")
 
-		if not otptoken or not skey:
-			return self.userModule.render.edit(self.otpSkel(), otpFailed=False)
-
 		validTokens = self.generateOtps(token["otpkey"], token["otptimedrift"])
-		logging.debug(int(otptoken) )
-		logging.debug(validTokens)
-		logging.debug(int(otptoken) in validTokens)
+		otptoken = utils.parseInt(otptoken)
 
-		if int(otptoken) in validTokens:
+		logging.debug(otptoken)
+		logging.debug(validTokens)
+		logging.debug(otptoken in validTokens)
+
+		if otptoken in validTokens:
 			userKey = session.current["_otp_user"]["uid"]
+
 			del session.current["_otp_user" ]
 			session.current.markChanged()
+
 			idx = validTokens.index(int(otptoken))
+
 			if abs(idx - self.windowSize) > 2:
 				# The time-drift accumulates to more than 2 minutes, update our
 				# clock-drift value accordingly
 				self.updateTimeDrift(userKey, idx - self.windowSize)
+
 			return self.userModule.secondFactorSucceeded(self, userKey)
-		else:
-			token["failures"] += 1
-			session.current["_otp_user"] = token
-			session.current.markChanged()
-			return self.userModule.render.edit( self.OtpSkel(), otpFailed=True, tpl="user_otp")
 
+		token["failures"] += 1
+		session.current["_otp_user"] = token
+		session.current.markChanged()
 
+		return self.userModule.render.edit(self.otpSkel(), loginFailed=True)
 
 	def updateTimeDrift(self, userKey, idx):
 		"""
