@@ -244,6 +244,7 @@ class Render( object ):
 		"""
 		if isinstance( skel, list ):
 			return( [ self.collectSkelData(x) for x in skel ] )
+
 		res = {}
 		for key,_bone in skel.items():
 			if isinstance( _bone, selectOneBone ):

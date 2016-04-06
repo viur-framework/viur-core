@@ -311,7 +311,7 @@ class relationalBone( baseBone ):
 						idx, bname = k.split(".")
 					except ValueError:
 						# We got some garbarge as input; don't try to parse it
-						raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
+						#raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 						continue
 
 				elif k.isdigit() and self.using is None:
@@ -447,31 +447,39 @@ class relationalBone( baseBone ):
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
 		from server.skeleton import RelSkel, skeletonByKind
 		origFilter = dbFilter.datastoreQuery
+
 		if origFilter is None:  #This query is unsatisfiable
 			return( dbFilter )
+
 		myKeys = [ x for x in rawFilter.keys() if x.startswith( "%s." % name ) ]
+
 		if len( myKeys ) > 0 and not self.indexed:
 			logging.warning( "Invalid searchfilter! %s is not indexed!" % name )
 			raise RuntimeError()
+
 		if len( myKeys ) > 0: #We filter by some properties
+
 			if dbFilter.getKind()!="viur-relations" and self.multiple:
 				name, skel, dbFilter, rawFilter = self._rewriteQuery( name, skel, dbFilter, rawFilter )
+
 			relSkel = RelSkel.fromSkel(skeletonByKind(self.type), *self.refKeys)
+
 			# Merge the relational filters in
-			for key in myKeys:
-				value = rawFilter[ key ]
+			for myKey in myKeys:
+				value = rawFilter[ myKey ]
+
 				try:
-					unused, _type, key = key.split(".",2)
+					unused, _type, key = myKey.split(".",2)
 					assert _type in ["dest","rel"]
 				except:
 					if self.using is None:
 						# This will be a "dest" query
 						_type = "dest"
 						try:
-							unused, key = key.split(".",1)
+							unused, key = myKey.split(".", 1)
 						except:
-							print key
-							raise
+							print(unused, key)
+							raise #fixme: This is for development reasons.
 							continue
 					else:
 						continue
@@ -480,13 +488,17 @@ class relationalBone( baseBone ):
 				checkKey = key
 				if "." in checkKey:
 					checkKey = checkKey.split(".")[0]
+
 				if "$" in checkKey:
 					checkKey = checkKey.split("$")[0]
+
 				if _type=="dest":
+
 					#Ensure that the relational-filter is in refKeys
 					if checkKey not in self.refKeys:
 						logging.warning( "Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (key,name) )
 						raise RuntimeError()
+
 					# Iterate our relSkel and let these bones write their filters in
 					for bname, bone in relSkel.items():
 						if checkKey == bname:
@@ -495,11 +507,14 @@ class relationalBone( baseBone ):
 								bone.buildDBFilter(bname, relSkel, dbFilter, newFilter, prefix=(prefix or "")+"dest.")
 							else:
 								bone.buildDBFilter(bname, relSkel, dbFilter, newFilter, prefix=(prefix or "")+name+".dest.")
+
 				elif _type=="rel":
+
 					#Ensure that the relational-filter is in refKeys
 					if self.using is None or checkKey not in self.using().keys():
 						logging.warning( "Invalid filtering! %s is not a bone in 'using' of %s" % (key,name) )
 						raise RuntimeError()
+
 					# Iterate our usingSkel and let these bones write their filters in
 					for bname, bone in self.using().items():
 						if key.startswith(bname):
@@ -508,12 +523,15 @@ class relationalBone( baseBone ):
 								bone.buildDBFilter(bname, relSkel, dbFilter, newFilter, prefix=(prefix or "")+"rel.")
 							else:
 								bone.buildDBFilter(bname, relSkel, dbFilter, newFilter, prefix=(prefix or "")+name+".rel.")
+
 			if self.multiple:
 				dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
 				dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings) )
-		elif name in rawFilter.keys() and rawFilter[ name ].lower()=="none":
-			dbFilter = dbFilter.filter( "%s =" % name, None )
-		return( dbFilter )
+
+		elif name in rawFilter.keys() and rawFilter[ name ].lower() == "none":
+			dbFilter = dbFilter.filter("%s =" % name, None)
+
+		return dbFilter
 
 	def buildDBSort( self, name, skel, dbFilter, rawFilter ):
 		origFilter = dbFilter.datastoreQuery
