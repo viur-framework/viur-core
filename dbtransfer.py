@@ -164,7 +164,12 @@ class DbTransfer( object ):
 		for k in list(entry.keys())[:]:
 			if isinstance(entry[k],str):
 				entry[k] = entry[k].decode("UTF-8")
-		key = db.Key( encoded=entry["key"] )
+		if "key" in entry.keys():
+			key = db.Key( encoded=entry["key"] )
+		elif "id" in entry.keys():
+			key = db.Key(encoded=entry["id"])
+		else:
+			raise AttributeError()
 		logging.error( key.kind() )
 		logging.error( key.id() )
 		logging.error( key.name() )
