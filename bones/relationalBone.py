@@ -139,14 +139,12 @@ class relationalBone( baseBone ):
 						try:
 							self.value.append(self._restoreValueFromDatastore(res))
 						except:
-							raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 							pass
 
 				else:
 					try:
 						self.value.append(self._restoreValueFromDatastore(val))
 					except:
-						raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 						pass
 
 			else:
@@ -154,7 +152,6 @@ class relationalBone( baseBone ):
 					try:
 						self.value = self._restoreValueFromDatastore(val[0])
 					except:
-						raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 						pass
 
 				else:
@@ -162,7 +159,6 @@ class relationalBone( baseBone ):
 						try:
 							self.value = self._restoreValueFromDatastore(val)
 						except:
-							raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 							pass
 					else:
 						self.value = None
@@ -311,7 +307,6 @@ class relationalBone( baseBone ):
 						idx, bname = k.split(".")
 					except ValueError:
 						# We got some garbarge as input; don't try to parse it
-						#raise # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 						continue
 
 				elif k.isdigit() and self.using is None:
@@ -321,7 +316,6 @@ class relationalBone( baseBone ):
 					idx = "0"
 					bname = "key"
 				else:
-					raise ValueError # Fixme: We're raising currently to detect more bugs instead of silently suppressing them
 					continue
 
 				if not idx in tmpRes.keys():
@@ -478,8 +472,6 @@ class relationalBone( baseBone ):
 						try:
 							unused, key = myKey.split(".", 1)
 						except:
-							print(unused, key)
-							raise #fixme: This is for development reasons.
 							continue
 					else:
 						continue
