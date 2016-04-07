@@ -422,10 +422,10 @@ class User(List):
 
 		user = utils.getCurrentUser()
 
-		lockFiedls = not (user and "root" in user["access"])  # If we aren't root, make certain fields read-only
-		skel["name"].readOnly = lockFiedls
-		skel["access"].readOnly = lockFiedls
-		skel["status"].readOnly = lockFiedls
+		lockFields = not (user and "root" in user["access"])  # If we aren't root, make certain fields read-only
+		skel["name"].readOnly = lockFields
+		skel["access"].readOnly = lockFields
+		skel["status"].readOnly = lockFields
 
 		return skel
 
