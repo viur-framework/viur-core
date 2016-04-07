@@ -424,7 +424,8 @@ class User(List):
 		skel["password"] = passwordBone( descr="Passwort", required=False )
 
 		user = utils.getCurrentUser()
-		skel["name"].readOnly = skel["access"].readOnly = skel["status"].readOnly = user and "root" in user["access"]
+		skel["name"].readOnly = skel["access"].readOnly = skel["status"].readOnly = \
+			not (user and "root" in user["access"])
 
 		return skel
 
