@@ -5,20 +5,7 @@ import json
 class UserRender(user):
 
 	def loginSucceeded(self, **kwargs):
-		if "thirdPartyLogin" in kwargs.keys() and kwargs["thirdPartyLogin"]:
+		if kwargs.get("thirdPartyLogin", False):
 			raise errors.Redirect("/vi")
 
-		if session.current.get("_otp_user"):
-			return json.dumps("OKAY:OTP")
-
-		user = utils.getCurrentUser()
-		if user and ("admin" in user["access"] or "root" in user["access"]):
-			return json.dumps("OKAY")
-
-		return json.dumps("OKAY:NOADMIN")
-
-	def logoutSuccess(self, **kwargs ):
-		raise errors.Redirect("/vi/s/logout.html")
-
-	def login( self, skel, **kwargs ):
-		raise errors.Redirect("/vi/s/login.html")
+		return super(UserRender, self).loginSucceeded(**kwargs)

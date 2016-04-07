@@ -89,28 +89,32 @@ def dumpConfig( adminTree ):
 def canAccess( *args, **kwargs ):
 	user = utils.getCurrentUser()
 	if user and ("root" in user["access"] or "admin" in user["access"]):
-		return( True )
+		return True
+
 	pathList = request.current.get().pathlist
-	if len( pathList )>=2 and pathList[1] == "skey":
+
+	if len( pathList ) >= 2 and pathList[1] == "skey":
 		# Give the user the chance to login :)
-		return( True )
-	if len( pathList )>=3 and pathList[1] == "user" and (pathList[2].startswith("auth_") or pathList[2].startswith("f2_") or pathList[2] == "getAuthMethod" or pathList[2] == "login"):
+		return True
+
+	if (len( pathList ) >= 3
+	    and pathList[1] == "user"
+	    and (pathList[2].startswith("auth_")
+	            or pathList[2].startswith("f2_")
+	            or pathList[2] == "getAuthMethods")):
+
 		# Give the user the chance to login :)
-		return( True )
-	return( False )
+		return True
+
+	return False
 
 def index(*args, **kwargs):
 	if request.current.get().isDevServer or request.current.get().isSSLConnection:
-		if canAccess():
-			raise( errors.Redirect("/vi/s/admin.html") )
-		else:
-			raise( errors.Redirect("/vi/user/login") )
+		raise errors.Redirect("/vi/s/main.html")
 	else:
 		appVersion = app_identity.get_default_version_hostname()
-		if canAccess():
-			raise( errors.Redirect("https://%s/vi/s/admin.html" % appVersion) )
-		else:
-			raise( errors.Redirect("https://%s/vi/user/login" % appVersion) )
+		raise errors.Redirect("https://%s/vi/s/main.html" % appVersion)
+
 index.exposed=True
 
 def _postProcessAppObj( obj ):
