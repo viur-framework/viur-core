@@ -5,7 +5,7 @@ from server.skeleton import Skeleton, RelSkel
 from server.render.jinja2.utils import jinjaGlobalFunction, jinjaGlobalFilter
 from server.render.jinja2.wrap import ListWrapper, SkelListWrapper
 
-from urllib import urlencode, quote_plus
+import urllib
 from hashlib import sha512
 
 from google.appengine.ext import db
@@ -363,7 +363,7 @@ def updateURL(render, **kwargs):
 		else:
 			tmpparams[key] = value
 
-	return "?" + urlencode(tmpparams).replace("&", "&amp;")
+	return "?" + urllib.urlencode(tmpparams).replace("&", "&amp;")
 
 @jinjaGlobalFilter
 def fileSize(render, value, binary=False):
@@ -429,7 +429,7 @@ def urlencode(render, val):
 	if isinstance(val, unicode):
 		val = val.encode("UTF-8")
 
-	return quote_plus(val)
+	return urllib.quote_plus(val)
 
 '''
 This has been disabled until we are sure
