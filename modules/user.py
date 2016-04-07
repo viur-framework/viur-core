@@ -225,7 +225,7 @@ class Otp2Factor( object ):
 
 	def canHandle(self, userKey):
 		user = db.Get(userKey)
-		return all([(x in user.keys() and user[x]) for x in ["otpid", "otpkey"]])
+		return all([(x in user.keys() and user[x]) for x in ["otpid", "otpkey", "otptimedrift"]])
 
 	def startProcessing(self, userKey):
 		user = db.Get(userKey)
@@ -236,7 +236,7 @@ class Otp2Factor( object ):
 								"otpkey": user["otpkey"],
 								"otptimedrift": user["otptimedrift"],
 								"timestamp": time(),
-			                    "failures": 0}
+								"failures": 0}
 			session.current.markChanged()
 			return self.userModule.render.loginSucceeded(msg="ONE-TIME-PASSWORD")
 
@@ -260,7 +260,7 @@ class Otp2Factor( object ):
 			return( ("00"*(8-(len(hexStr)/2))+hexStr).decode("hex") )
 
 		idx = int( time()/60.0 ) # Current time index
-		idx += int(timeDrift or 0)
+		idx += int(timeDrift)
 		res = []
 		for slot in range( idx-self.windowSize, idx+self.windowSize ):
 			currHash= hmac.new( secret.decode("HEX"), asBytes(slot), hashlib.sha1 ).digest()
@@ -290,7 +290,11 @@ class Otp2Factor( object ):
 			raise errors.Forbidden("Maximum amount of authentication retries exceeded")
 
 		validTokens = self.generateOtps(token["otpkey"], token["otptimedrift"])
-		otptoken = utils.parseInt(otptoken)
+		try:
+			otptoken = int(otptoken)
+		except:
+			# We got a non-numeric token - this cant be correct
+			self.userModule.render.edit(self.otpSkel())
 
 		logging.debug(otptoken)
 		logging.debug(validTokens)
@@ -310,12 +314,12 @@ class Otp2Factor( object ):
 				self.updateTimeDrift(userKey, idx - self.windowSize)
 
 			return self.userModule.secondFactorSucceeded(self, userKey)
+		else:
+			token["failures"] += 1
+			session.current["_otp_user"] = token
+			session.current.markChanged()
 
-		token["failures"] += 1
-		session.current["_otp_user"] = token
-		session.current.markChanged()
-
-		return self.userModule.render.edit(self.otpSkel(), loginFailed=True)
+			return self.userModule.render.edit(self.otpSkel(), loginFailed=True)
 
 	def updateTimeDrift(self, userKey, idx):
 		"""
@@ -380,20 +384,15 @@ class User(List):
 		accessRights = skel["access"].values.copy()
 
 		for right in conf["viur.accessRights"]:
-			accessRights[ right ] = _( right )
+			accessRights[right] = _(right)
 
 		skel["access"].values = accessRights
 
 	def addSkel(self):
-		admin = False
 		skel = super(User, self).addSkel()
 
 		user = utils.getCurrentUser()
 		if user and user["access"] and ("%s-add" % self.moduleName in user["access"] or "root" in user["access"]):
-			admin = True
-
-		if not admin:
-			'''
 			if self.registrationEmailVerificationRequired:
 				defaultStatusValue = 1
 			elif self.registrationAdminVerificationRequired:
@@ -408,13 +407,11 @@ class User(List):
 			skel["access"].readOnly = True
 			skel["access"].value = []
 			skel["access"].visible = False
-			'''
-			pass
 		else:
 			self.extendAccessRights(skel)
 
-		skel["name"].readOnly = False #Dont enforce readonly name in user/add
-		skel["password"] = passwordBone( descr="Password", required=True )
+		skel["name"].readOnly = False  # Dont enforce readonly name in user/add
+		skel["password"] = passwordBone(descr="Password", required=True)
 		return skel
 
 	def editSkel(self, *args,  **kwargs):
@@ -424,8 +421,11 @@ class User(List):
 		skel["password"] = passwordBone( descr="Passwort", required=False )
 
 		user = utils.getCurrentUser()
-		skel["name"].readOnly = skel["access"].readOnly = skel["status"].readOnly = \
-			not (user and "root" in user["access"])
+
+		lockFiedls = not (user and "root" in user["access"])  # If we aren't root, make certain fields read-only
+		skel["name"].readOnly = lockFiedls
+		skel["access"].readOnly = lockFiedls
+		skel["status"].readOnly = lockFiedls
 
 		return skel
 
@@ -504,20 +504,20 @@ class User(List):
 		return self.render.loginSucceeded(**kwargs)
 
 	@exposed
-	def logout(self, skey="", *args,  **kwargs): #fixme
+	def logout(self, skey="", *args,  **kwargs):
 		user = session.current.get("user")
 		if not user:
 			raise errors.Unauthorized()
 
-		#if not securitykey.validate(skey):
-		#	raise errors.PreconditionFailed()
+		if not securitykey.validate(skey):
+			raise errors.PreconditionFailed()
 
 		session.current["user"] = None
 		return self.render.logoutSuccess()
 
 	@exposed
 	def login(self, *args, **kwargs):
-		raise errors.NotAcceptable()
+		self.render.login(self.validAuthenticationMethods)
 
 	def onLogin(self):
 		usr = self.getCurrentUser()

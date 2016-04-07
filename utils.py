@@ -265,24 +265,3 @@ def normalizeKey( key ):
 
 	return str(db.Key.from_path(key.kind(), key.id_or_name(), parent=parent))
 
-
-def parseInt(val, leave=True):
-	"""
-	Parses an integer object from val, if possible.
-
-
-	"""
-	if isinstance(val, (int, float)):
-		return int(val)
-	elif isinstance(val, (str, unicode)):
-		sval = unicode(val)
-
-		if not sval.strip():
-			return 0
-		elif all([x in u"0123456789" for x in sval]):
-			return int(sval)
-
-	if leave:
-		return val
-
-	return 0
