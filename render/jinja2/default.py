@@ -2,8 +2,8 @@
 import utils as jinjaUtils
 from wrap import ListWrapper, SkelListWrapper
 
-from server import bones, utils, request, errors, securitykey
-from server.skeleton import Skeleton, RelSkel
+from server import utils, request, errors, securitykey
+from server.skeleton import Skeleton, RelSkel, skeletonByKind
 from server.bones import *
 
 from collections import OrderedDict
@@ -178,8 +178,80 @@ class Render( object ):
 			htmlpath = self.htmlpath
 		else:
 			htmlpath = "html/"
-		return( ChoiceLoader( [FileSystemLoader( htmlpath ), FileSystemLoader( "server/template/" )] ) )
 
+		return ChoiceLoader([FileSystemLoader(htmlpath), FileSystemLoader("server/template/")])
+
+	def renderBoneStructure(self, bone):
+		"""
+		Renders the structure of a bone.
+
+		This function is used by :func:`renderSkelStructure`.
+		can be overridden and super-called from a custom renderer.
+
+		:param bone: The bone which structure should be rendered.
+		:type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
+
+		:return: A dict containing the rendered attributes.
+		:rtype: dict
+		"""
+
+		# Base bone contents.
+		ret = {
+			"descr": _(bone.descr),
+	        "type": bone.type,
+			"required":bone.required,
+			"params":bone.params,
+			"visible": bone.visible,
+			"readOnly": bone.readOnly
+		}
+
+		if isinstance(bone, relationalBone):
+			if isinstance(bone, hierarchyBone):
+				boneType = "hierarchy"
+			elif isinstance(bone, treeItemBone):
+				boneType = "treeitem"
+			else:
+				boneType = "relational"
+
+			ret.update({
+				"type": "%s.%s" % (boneType, bone.type),
+				"module": bone.module,
+				"multiple": bone.multiple,
+				"format": bone.format,
+				"using": self.renderSkelStructure(bone.using()) if bone.using else None,
+				"relskel": self.renderSkelStructure(RelSkel.fromSkel(skeletonByKind(bone.type), *bone.refKeys))
+			})
+
+		elif isinstance(bone, selectOneBone) or isinstance(bone, selectMultiBone):
+			ret.update({
+				"values": bone.values
+			})
+
+		elif isinstance(bone, dateBone):
+			ret.update({
+				"date": bone.date,
+	            "time": bone.time
+			})
+
+		elif isinstance(bone, numericBone):
+			ret.update({
+				"precision": bone.precision,
+		        "min": bone.min,
+				"max": bone.max
+			})
+
+		elif isinstance(bone, textBone):
+			ret.update({
+				"validHtml": bone.validHtml,
+				"languages": bone.languages
+			})
+
+		elif isinstance(bone, stringBone):
+			ret.update({
+				"languages": bone.languages
+			})
+
+		return ret
 
 	def renderSkelStructure(self, skel):
 		"""
@@ -192,91 +264,94 @@ class Render( object ):
 			:rtype: dict
 		"""
 		res = OrderedDict()
-		for key, _bone in skel.items():
-			if "__" not in key:
-				if( isinstance( _bone, bones.baseBone ) ):
-					res[ key ] = {	"descr":  _(_bone.descr ), 
-							"type": _bone.type,
-							"required":_bone.required,
-							"params":_bone.params,
-							"visible": _bone.visible,
-							"readOnly": _bone.readOnly
-							}
-					if key in skel.errors.keys():
-						res[ key ][ "error" ] = skel.errors[ key ]
+
+		for key, bone in skel.items():
+			if "__" in key or not isinstance(bone, baseBone):
+				continue
+
+			res[key] = self.renderBoneStructure(bone)
+
+			if key in skel.errors.keys():
+				res[key]["error"] = skel.errors[ key ]
+			else:
+				res[key]["error"] = None
+
+		return res
+
+	def renderBoneValue(self, bone):
+		"""
+		Renders the value of a bone.
+
+		This function is used by :func:`collectSkelData`.
+		It can be overridden and super-called from a custom renderer.
+
+		:param bone: The bone which value should be rendered.
+		:type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
+
+		:return: A dict containing the rendered attributes.
+		:rtype: dict
+		"""
+
+		if isinstance(bone, selectOneBone):
+			if bone.value in bone.values.keys():
+				return Render.KeyValueWrapper(bone.value, bone.values[bone.value])
+			return bone.value
+		elif isinstance(bone, selectMultiBone):
+			return [(Render.KeyValueWrapper(val, bone.values[val])
+			            if val in bone.values.keys() else val)
+			                for val in bone.value]
+		elif isinstance(bone, relationalBone):
+			if isinstance(bone.value, list):
+				tmpList = []
+				for k in bone.value:
+					if bone.using is None:
+						tmpList.append(self.collectSkelData(k["dest"]))
 					else:
-						res[ key ][ "error" ] = None
-					if isinstance( _bone, bones.relationalBone ):
-						if isinstance( _bone, bones.hierarchyBone ):
-							boneType = "hierarchy."+_bone.type
-						elif isinstance( _bone, bones.treeItemBone ):
-							boneType = "treeitem."+_bone.type
-						else:
-							boneType = "relational."+_bone.type
-						res[key]["type"] = boneType
-						res[key]["module"] = _bone.module
-						res[key]["multiple"]=_bone.multiple
-						res[key]["format"] = _bone.format
-					if( isinstance( _bone, bones.selectOneBone ) or isinstance( _bone, bones.selectMultiBone ) ):
-						res[key]["values"] =  _bone.values
-					if( isinstance( _bone, bones.dateBone ) ):
-						res[key]["time"] = _bone.time
-						res[key]["date"] = _bone.date
-					if( isinstance( _bone, bones.numericBone )):
-						res[key]["precision"] = _bone.precision
-						res[key]["min"] = _bone.min
-						res[key]["max"] = _bone.max
-					if( isinstance( _bone, bones.textBone ) ):
-						res[key]["validHtml"] = _bone.validHtml
-					if( isinstance( _bone, bones.textBone ) ) or ( isinstance( _bone, bones.stringBone ) ):
-						res[key]["languages"] = _bone.languages 
-		return( res )
-	
-	def collectSkelData( self, skel ):
+						tmpList.append({
+							"dest": self.collectSkelData(k["dest"]),
+			                "rel": self.collectSkelData(k["rel"]) if k["rel"] else None
+						})
+				return tmpList
+			elif isinstance(bone.value, dict):
+				if bone.using is None:
+					return self.collectSkelData(bone.value["dest"])
+				return {
+					"dest": self.collectSkelData(bone.value["dest"]),
+					"rel": self.collectSkelData(bone.value["rel"]) if bone.value["rel"] else None
+				}
+			else:
+				return None
+		else:
+			return bone.value
+
+		return None
+
+
+	def collectSkelData(self, skel):
 		"""
 			Prepares values of one :class:`server.db.skeleton.Skeleton` or a list of skeletons for output.
 
-			:param skel: Skeleton which structure will be processed.
+			:param skel: Skeleton which contents will be processed.
 			:type skel: server.db.skeleton.Skeleton
 
 			:returns: A dictionary or list of dictionaries.
-			:rtype: dict
+			:rtype: dict | list
 		"""
-		if isinstance( skel, list ):
-			return( [ self.collectSkelData(x) for x in skel ] )
+		if isinstance(skel, list):
+			return [self.collectSkelData(x) for x in skel]
 
 		res = {}
-		for key,_bone in skel.items():
-			if isinstance( _bone, selectOneBone ):
-				if _bone.value in _bone.values.keys():
-					res[ key ] = Render.KeyValueWrapper( _bone.value, _bone.values[ _bone.value ] )
-				else:
-					res[ key ] = _bone.value
-			elif isinstance( _bone, selectMultiBone ):
-				res[ key ] = [ (Render.KeyValueWrapper( val, _bone.values[ val ] ) if val in _bone.values.keys() else val)  for val in _bone.value ]
-			elif isinstance(_bone, relationalBone):
-				if isinstance(_bone.value, list):
-					tmpList = []
-					for k in _bone.value:
-						if _bone.using is None:
-							tmpList.append(self.collectSkelData(k["dest"]))
-						else:
-							tmpList.append({"dest": self.collectSkelData(k["dest"]),
-				                                "rel": self.collectSkelData(k["rel"]) if k["rel"] else None})
-					res[key] = tmpList
-				elif isinstance(_bone.value, dict):
-					if _bone.using is None:
-						res[key] = self.collectSkelData(_bone.value["dest"])
-					else:
-						res[key] = {"dest": self.collectSkelData(_bone.value["dest"]),
-						            "rel": self.collectSkelData(_bone.value["rel"]) if _bone.value["rel"] else None}
-				else:
-					res[key] = None
-			elif( isinstance( _bone, bones.baseBone ) ):
-				res[ key ] = _bone.value
-			if key in res.keys() and isinstance( res[key], list ):
-				res[key] = ListWrapper( res[key] )
-		return( res )
+		for key, bone in skel.items():
+			val = self.renderBoneValue(bone)
+			if val is None:
+				continue
+
+			res[key] = val
+
+			if isinstance(res[key], list):
+				res[key] = ListWrapper(res[key])
+
+		return res
 
 	def add(self, skel, tpl=None, *args, **kwargs):
 		"""
@@ -491,7 +566,7 @@ class Render( object ):
 
 		return( template.render( skel=res, **kwargs ) )
 	
-## Extended functionality for the Tree-Application ##
+	## Extended functionality for the Tree-Application ##
 	def listRootNodeContents( self, subdirs, entries, tpl=None, **kwargs):
 		"""
 			Renders the contents of a given RootNode.
