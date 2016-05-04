@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
-import json
-from server import bones
+from server.bones import *
 from collections import OrderedDict
 from xml.dom import minidom
 from datetime import datetime, date, time
-import logging
 
 def serializeXML( data ):
 	def recursiveSerializer( data, element ):
@@ -50,60 +48,106 @@ class DefaultRender( object ):
 	
 	def __init__(self, parent=None, *args, **kwargs ):
 		super( DefaultRender,  self ).__init__( *args, **kwargs )
-	
-	def renderSkelStructure(self, skel ):
-		"""Dumps the Structure of a Skeleton"""
-		if isinstance( skel, dict ):
-			return( None )
-		res = OrderedDict()
-		for key, bone in skel.items() :
-			if "__" not in key:
-				_bone = getattr( skel, key )
-				if( isinstance( _bone, bones.baseBone ) ):
-					res[ key ] = {	"descr": _(_bone.descr), 
-								"type": _bone.type, 
-								"visible":_bone.visible,
-								"required": _bone.required,
-								"readonly": _bone.readOnly, 
-								"params": _bone.params
-								}
-					if key in skel.errors.keys():
-						res[ key ][ "error" ] = skel.errors[ key ]
-					else:
-						res[ key ][ "error" ] = None
-					if isinstance( _bone, bones.relationalBone ):
-						if isinstance( _bone, bones.hierarchyBone ):
-							boneType = "hierarchy"
-						elif isinstance( _bone, bones.treeItemBone ):
-							boneType = "treeitem"
-						else:
-							boneType = "relational"
-						res[key]["type"]="%s.%s" % (boneType,_bone.type)
-						res[key]["module"] = _bone.module
-						res[key]["multiple"]=_bone.multiple
-						res[key]["format"] = _bone.format
-					if( isinstance( _bone, bones.treeDirBone ) ):
-							boneType = "treedir"
-							res[key]["type"]="%s.%s" % (boneType,_bone.type)
-							res[key]["multiple"]=_bone.multiple
-					if ( isinstance( _bone, bones.selectOneBone ) or  isinstance( _bone, bones.selectMultiBone ) ):
-						res[key]["values"] = dict( [(k,_(v)) for (k,v) in _bone.values.items() ] )
-						res[key]["sortBy"] = _bone.sortBy
-					if ( isinstance( _bone, bones.dateBone ) ):
-						res[key]["time"] = _bone.time
-						res[key]["date"] = _bone.date
-					if( isinstance( _bone, bones.textBone ) ):
-						res[key]["validHtml"] = _bone.validHtml
-					if( isinstance( _bone, bones.stringBone ) ):
-						res[key]["multiple"] = _bone.multiple
-					if( isinstance( _bone, bones.numericBone )):
-						res[key]["precision"] = _bone.precision
-						res[key]["min"] = _bone.min
-						res[key]["max"] = _bone.max
-					if( isinstance( _bone, bones.textBone ) ) or ( isinstance( _bone, bones.stringBone ) ):
-						res[key]["languages"] = _bone.languages 
 
-		return( [ (key, val) for key, val in res.items()] )
+	def renderBoneStructure(self, bone):
+		"""
+		Renders the structure of a bone.
+
+		This function is used by :func:`renderSkelStructure`.
+		can be overridden and super-called from a custom renderer.
+
+		:param bone: The bone which structure should be rendered.
+		:type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
+
+		:return: A dict containing the rendered attributes.
+		:rtype: dict
+		"""
+
+		# Base bone contents.
+		ret = {
+			"descr": _(bone.descr),
+	        "type": bone.type,
+			"required":bone.required,
+			"params":bone.params,
+			"visible": bone.visible,
+			"readOnly": bone.readOnly
+		}
+
+		if isinstance(bone, relationalBone):
+			if isinstance(bone, hierarchyBone):
+				boneType = "hierarchy"
+			elif isinstance(bone, treeItemBone):
+				boneType = "treeitem"
+			else:
+				boneType = "relational"
+
+			ret.update({
+				"type": "%s.%s" % (boneType, bone.type),
+				"module": bone.module,
+				"multiple": bone.multipe,
+				"format": bone.format
+			})
+
+		elif isinstance(bone, selectOneBone) or isinstance(bone, selectMultiBone):
+			ret.update({
+				"values": bone.values
+			})
+
+		elif isinstance(bone, dateBone):
+			ret.update({
+				"date": bone.date,
+	            "time": bone.time
+			})
+
+		elif isinstance(bone, numericBone):
+			ret.update({
+				"precision": bone.precision,
+		        "min": bone.min,
+				"max": bone.max
+			})
+
+		elif isinstance(bone, textBone):
+			ret.update({
+				"validHtml": bone.validHtml,
+				"languages": bone.languages
+			})
+
+		elif isinstance(bone, stringBone):
+			ret.update({
+				"languages": bone.languages
+			})
+
+		return ret
+
+	def renderSkelStructure(self, skel):
+		"""
+		Dumps the structure of a :class:`server.db.skeleton.Skeleton`.
+
+		:param skel: Skeleton which structure will be processed.
+		:type skel: server.db.skeleton.Skeleton
+
+		:returns: The rendered dictionary.
+		:rtype: dict
+		"""
+		if isinstance(skel, dict):
+			return None
+
+		res = OrderedDict()
+
+		for key, bone in skel.items():
+			if "__" in key or not isinstance(bone, baseBone):
+				continue
+
+			res[key] = self.renderBoneStructure(bone)
+
+			if key in skel.errors.keys():
+				res[key]["error"] = skel.errors[ key ]
+			elif any( [x.startswith("%s." % key) for x in skel.errors.keys()]):
+				res[key]["error"] = {k:v for k,v in skel.errors.items() if k.startswith("%s." % key )}
+			else:
+				res[key]["error"] = None
+
+		return [(key, val) for key, val in res.items()]
 	
 	def renderTextExtension(self, ext ):
 		e = ext()
@@ -111,24 +155,70 @@ class DefaultRender( object ):
 				"descr": _( e.descr ), 
 				"skel": self.renderSkelStructure( e.dataSkel() ) } )
 	
-	def renderSkelValues( self, skel ):
-		"""Prepares Values of one Skeleton for Output"""
-		if isinstance( skel, dict ):
-			return( skel )
+	def renderBoneValue(self, bone):
+		"""
+		Renders the value of a bone.
+
+		This function is used by :func:`collectSkelData`.
+		It can be overridden and super-called from a custom renderer.
+
+		:param bone: The bone which value should be rendered.
+		:type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
+
+		:return: A dict containing the rendered attributes.
+		:rtype: dict
+		"""
+		if isinstance(bone, dateBone):
+			if bone.value:
+				if bone.date and bone.time:
+					return bone.value.strftime("%d.%m.%Y %H:%M:%S")
+				elif bone.date:
+					return bone.value.strftime("%d.%m.%Y")
+
+				return bone.value.strftime("%H:%M:%S")
+
+		elif isinstance(bone, relationalBone):
+
+			if isinstance(bone.value, list):
+				tmpList = []
+
+				for k in bone.value:
+					tmpList.append({
+						"dest": self.renderSkelValues(k["dest"]),
+			            "rel": self.renderSkelValues(k.get("rel"))
+					})
+
+				return tmpList
+
+			elif isinstance(bone.value, dict):
+				return {
+					"dest": self.renderSkelValues(bone.value["dest"]),
+				    "rel": self.renderSkelValues(bone.value.get("rel"))
+				}
+		else:
+			return bone.value
+
+		return None
+
+	def renderSkelValues(self, skel):
+		"""
+		Prepares values of one :class:`server.db.skeleton.Skeleton` or a list of skeletons for output.
+
+		:param skel: Skeleton which contents will be processed.
+		:type skel: server.db.skeleton.Skeleton
+
+		:returns: A dictionary or list of dictionaries.
+		:rtype: dict
+		"""
+		if skel is None:
+			return None
+		elif isinstance(skel, dict):
+			return skel
+
 		res = {}
-		for key in dir( skel ):
-			if "__" not in key:
-				_bone = getattr( skel, key )
-				if isinstance( _bone, bones.dateBone ):
-					if _bone.value:
-						if _bone.date and _bone.time:
-							res[key] = _bone.value.strftime("%d.%m.%Y %H:%M:%S")
-						elif _bone.date:
-							res[key] = _bone.value.strftime("%d.%m.%Y")
-						else:
-							res[key] = _bone.value.strftime("%H:%M:%S")
-				elif( isinstance( _bone, bones.baseBone ) ):
-					res[key] = _bone.value
+		for key, bone in skel.items():
+			res[key] = self.renderBoneValue(bone)
+
 		return res
 		
 	def view( self, skel, listname="view", *args, **kwargs ):
