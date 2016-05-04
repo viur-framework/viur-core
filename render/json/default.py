@@ -1,127 +1,186 @@
 # -*- coding: utf-8 -*-
 import json
-from server import bones
 from collections import OrderedDict
-from server import errors, request
+from server import errors, request, bones
+from server.skeleton import RelSkel, skeletonByKind
 
-class DefaultRender( object ):
+class DefaultRender(object):
 	
-	def __init__(self, parent=None, *args, **kwargs ):
-		super( DefaultRender,  self ).__init__( *args, **kwargs )
+	def __init__(self, parent = None, *args, **kwargs):
+		super(DefaultRender,  self).__init__(*args, **kwargs)
 		self.parent = parent
-	
-	def renderSkelStructure(self, skel ):
-		"""Dumps the Structure of a Skeleton"""
-		if isinstance( skel, dict ):
-			return( None )
+
+	def renderBoneStructure(self, bone):
+		"""
+		Renders the structure of a bone.
+
+		This function is used by `renderSkelStructure`.
+		can be overridden and super-called from a custom renderer.
+
+		:param bone: The bone which structure should be rendered.
+		:type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
+
+		:return: A dict containing the rendered attributes.
+		:rtype: dict
+		"""
+
+		# Base bone contents.
+		ret = {
+			"descr": _(bone.descr),
+	        "type": bone.type,
+			"required": bone.required,
+			"params": bone.params,
+			"visible": bone.visible,
+			"readonly": bone.readOnly
+		}
+
+		if isinstance(bone, bones.relationalBone):
+			if isinstance(bone, bones.hierarchyBone):
+				boneType = "hierarchy"
+			elif isinstance(bone, bones.treeItemBone):
+				boneType = "treeitem"
+			elif isinstance(bone, bones.treeDirBone):
+				boneType = "treedir"
+			else:
+				boneType = "relational"
+
+			ret.update({
+				"type": "%s.%s" % (boneType, bone.type),
+				"module": bone.module,
+				"multiple": bone.multiple,
+				"format": bone.format,
+				"using": self.renderSkelStructure(bone.using()) if bone.using else None,
+				"relskel": self.renderSkelStructure(RelSkel.fromSkel(skeletonByKind(bone.type), *bone.refKeys))
+			})
+
+		elif isinstance(bone, bones.selectOneBone) or isinstance(bone, bones.selectMultiBone):
+			ret.update({
+				"values": [(k, v) for k, v in bone.values.items()]
+			})
+
+		elif isinstance(bone, bones.dateBone):
+			ret.update({
+				"date": bone.date,
+	            "time": bone.time
+			})
+
+		elif isinstance(bone, bones.numericBone):
+			ret.update({
+				"precision": bone.precision,
+		        "min": bone.min,
+				"max": bone.max
+			})
+
+		elif isinstance(bone, bones.textBone):
+			ret.update({
+				"validHtml": bone.validHtml,
+				"languages": bone.languages
+			})
+
+		elif isinstance(bone, bones.stringBone):
+			ret.update({
+				"multiple": bone.multiple,
+				"languages": bone.languages
+			})
+
+		return ret
+
+	def renderSkelStructure(self, skel):
+		"""
+		Dumps the structure of a :class:`server.db.skeleton.Skeleton`.
+
+		:param skel: Skeleton which structure will be processed.
+		:type skel: server.db.skeleton.Skeleton
+
+		:returns: The rendered dictionary.
+		:rtype: dict
+		"""
+		if isinstance(skel, dict):
+			return None
 		res = OrderedDict()
-		for key, _bone in skel.items() :
-			if( isinstance( _bone, bones.baseBone ) ):
+		for key, bone in skel.items():
+			if "__" in key or not isinstance(bone, bones.baseBone):
+				continue
 
-				res[ key ] = {
-					"descr": _(_bone.descr),
-					"type": _bone.type,
-					"visible":_bone.visible,
-					"required": _bone.required,
-					"readonly": _bone.readOnly,
-					"params": _bone.params
-				}
+			res[key] = self.renderBoneStructure(bone)
 
-				if key in skel.errors.keys():
-					res[key]["error"] = skel.errors[ key ]
-				elif any( [x.startswith("%s." % key) for x in skel.errors.keys()]):
-					res[key]["error"] = {k:v for k,v in skel.errors.items() if k.startswith("%s." % key )}
-				else:
-					res[key]["error"] = None
-
-				if isinstance(_bone, bones.relationalBone):
-					if isinstance( _bone, bones.hierarchyBone ):
-						boneType = "hierarchy"
-					elif isinstance( _bone, bones.treeItemBone ):
-						boneType = "treeitem"
-					else:
-						boneType = "relational"
-					if _bone.using is not None:
-						res[key]["using"] = self.renderSkelStructure(_bone.using())
-					else:
-						res[key]["using"] = None
-
-					res[key]["type"]="%s.%s" % (boneType,_bone.type)
-					res[key]["module"] = _bone.module
-					res[key]["multiple"]=_bone.multiple
-					res[key]["format"] = _bone.format
-
-				if isinstance(_bone, bones.treeDirBone):
-					boneType = "treedir"
-					res[key]["type"]="%s.%s" % (boneType,_bone.type)
-					res[key]["multiple"]=_bone.multiple
-
-				if isinstance(_bone, bones.selectOneBone) or isinstance(_bone, bones.selectMultiBone):
-					res[key]["values"] = [(k, v) for k, v in _bone.values.items()]
-
-				if isinstance(_bone, bones.dateBone):
-					res[key]["time"] = _bone.time
-					res[key]["date"] = _bone.date
-
-				if isinstance(_bone, bones.textBone):
-					res[key]["validHtml"] = _bone.validHtml
-
-				if isinstance(_bone, bones.stringBone):
-					res[key]["multiple"] = _bone.multiple
-
-				if isinstance(_bone, bones.numericBone):
-					res[key]["precision"] = _bone.precision
-					res[key]["min"] = _bone.min
-					res[key]["max"] = _bone.max
-
-				if isinstance(_bone, bones.textBone) or isinstance(_bone, bones.stringBone):
-					res[key]["languages"] = _bone.languages
-
+			if key in skel.errors.keys():
+				res[key]["error"] = skel.errors[ key ]
+			elif any( [x.startswith("%s." % key) for x in skel.errors.keys()]):
+				res[key]["error"] = {k:v for k,v in skel.errors.items() if k.startswith("%s." % key )}
+			else:
+				res[key]["error"] = None
 		return [(key, val) for key, val in res.items()]
-	
+
 	def renderTextExtension(self, ext ):
 		e = ext()
 		return( {"name": e.name, 
 				"descr": _( e.descr ), 
 				"skel": self.renderSkelStructure( e.dataSkel() ) } )
-	
-	def renderSkelValues( self, skel ):
-		"""Prepares Values of one Skeleton for Output"""
+
+	def renderBoneValue(self, bone):
+		"""
+		Renders the value of a bone.
+
+		This function is used by :func:`collectSkelData`.
+		It can be overridden and super-called from a custom renderer.
+
+		:param bone: The bone which value should be rendered.
+		:type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
+
+		:return: A dict containing the rendered attributes.
+		:rtype: dict
+		"""
+		if isinstance(bone, bones.dateBone):
+			if bone.value:
+				if bone.date and bone.time:
+					return bone.value.strftime("%d.%m.%Y %H:%M:%S")
+				elif bone.date:
+					return bone.value.strftime("%d.%m.%Y")
+
+				return bone.value.strftime("%H:%M:%S")
+
+		elif isinstance(bone, bones.relationalBone):
+
+			if isinstance(bone.value, list):
+				tmpList = []
+
+				for k in bone.value:
+					tmpList.append({
+						"dest": self.renderSkelValues(k["dest"]),
+			            "rel": self.renderSkelValues(k.get("rel"))
+					})
+
+				return tmpList
+
+			elif isinstance(bone.value, dict):
+				return {
+					"dest": self.renderSkelValues(bone.value["dest"]),
+				    "rel": self.renderSkelValues(bone.value.get("rel"))
+				}
+		else:
+			return bone.value
+
+		return None
+
+	def renderSkelValues(self, skel):
+		"""
+		Prepares values of one :class:`server.db.skeleton.Skeleton` or a list of skeletons for output.
+
+		:param skel: Skeleton which contents will be processed.
+		:type skel: server.db.skeleton.Skeleton
+
+		:returns: A dictionary or list of dictionaries.
+		:rtype: dict
+		"""
 		if skel is None:
 			return None
 		elif isinstance(skel, dict):
 			return skel
 
 		res = {}
-		for key, _bone in skel.items():
-			if isinstance(_bone, bones.dateBone):
-				if _bone.value:
-					if _bone.date and _bone.time:
-						res[key] = _bone.value.strftime("%d.%m.%Y %H:%M:%S")
-					elif _bone.date:
-						res[key] = _bone.value.strftime("%d.%m.%Y")
-					else:
-						res[key] = _bone.value.strftime("%H:%M:%S")
-				else:
-					res[key] = None
-
-			elif isinstance(_bone, bones.relationalBone):
-				if isinstance(_bone.value, list):
-					tmpList = []
-
-					for k in _bone.value:
-						tmpList.append({"dest": self.renderSkelValues(k["dest"]),
-				                        "rel": self.renderSkelValues(k.get("rel"))})
-					res[key] = tmpList
-
-				elif isinstance(_bone.value, dict):
-					res[key] = {"dest": self.renderSkelValues(_bone.value["dest"]),
-					            "rel": self.renderSkelValues(_bone.value.get("rel"))}
-				else:
-					res[key] = None
-
-			elif isinstance(_bone, bones.baseBone):
-				res[key] = _bone.value
+		for key, bone in skel.items():
+			res[key] = self.renderBoneValue(bone)
 
 		return res
 		
@@ -139,70 +198,79 @@ class DefaultRender( object ):
 			"action": actionName
 		}
 
-		request.current.get().response.headers['Content-Type'] = "application/json"
+		request.current.get().response.headers["Content-Type"] = "application/json"
 		return json.dumps(res)
 
-	def view( self, skel, listname="view", *args, **kwargs ):
-		return( self.renderEntry( skel, "view" ) )
+	def view(self, skel, listname="view", *args, **kwargs):
+		return self.renderEntry(skel, "view")
 		
-	def add( self, skel, **kwargs ):
-		return( self.renderEntry( skel, "add" ) )
+	def add(self, skel, **kwargs):
+		return self.renderEntry(skel, "add")
 
-	def edit( self, skel, **kwargs ):
-		return( self.renderEntry( skel, "edit" ) )
+	def edit(self, skel, **kwargs):
+		return self.renderEntry(skel, "edit")
 
-	def list( self, skellist, **kwargs ):
+	def list(self, skellist, **kwargs):
 		res = {}
 		skels = []
+
 		for skel in skellist:
-			skels.append( self.renderSkelValues( skel ) )
+			skels.append(self.renderSkelValues(skel))
+
 		res["skellist"] = skels
-		if( len( skellist )>0 ):
-			res["structure"] = self.renderSkelStructure( skellist[0] )
+
+		if len(skellist) > 0:
+			res["structure"] = self.renderSkelStructure(skellist[0])
 		else:
 			res["structure"] = None
+
 		res["cursor"] = skellist.cursor
 		res["action"] = "list"
-		request.current.get().response.headers['Content-Type'] = "application/json"
-		return( json.dumps( res ) )
+		request.current.get().response.headers["Content-Type"] = "application/json"
+		return json.dumps(res)
 
-	def editItemSuccess(self, skel, **kwargs ):
-		return( self.renderEntry( skel, "editSuccess" ) )
+	def editItemSuccess(self, skel, **kwargs):
+		return self.renderEntry(skel, "editSuccess")
 		
-	def addItemSuccess(self, skel, **kwargs ):
-		return( self.renderEntry( skel, "addSuccess" ) )
+	def addItemSuccess(self, skel, **kwargs):
+		return self.renderEntry(skel, "addSuccess")
 		
-	def deleteItemSuccess(self, skel, **kwargs ):
-		return( self.renderEntry( skel, "deleteSuccess" ) )
+	def deleteItemSuccess(self, skel, **kwargs):
+		return self.renderEntry(skel, "deleteSuccess")
 
-	def addDirSuccess(self, *args, **kwargs ):
-		return( json.dumps( "OKAY") )
+	def addDirSuccess(self, *args, **kwargs):
+		return json.dumps("OKAY")
 
 	def listRootNodes(self, rootNodes ):
-		return( json.dumps( rootNodes ) )
+		return json.dumps(rootNodes)
 		
-	def listRootNodeContents(self, subdirs, entrys, **kwargs ):
-		res = { "subdirs": subdirs }
+	def listRootNodeContents(self, subdirs, entrys, **kwargs):
+		res = {
+			"subdirs": subdirs
+		}
+		
 		skels = []
+
 		for skel in entrys:
 			skels.append( self.renderSkelValues( skel ) )
+
 		res["entrys"] = skels
-		return( json.dumps( res ) )
+		return json.dumps(res)
 	
-	def renameSuccess(self, *args, **kwargs ):
-		return( json.dumps( "OKAY") )
+	def renameSuccess(self, *args, **kwargs):
+		return json.dumps("OKAY")
 
-	def copySuccess(self, *args, **kwargs ):
-		return( json.dumps( "OKAY") )
+	def copySuccess(self, *args, **kwargs):
+		return json.dumps("OKAY")
 
-	def deleteSuccess(self, *args, **kwargs ):
-		return( json.dumps( "OKAY") )
+	def deleteSuccess(self, *args, **kwargs):
+		return json.dumps("OKAY")
 
-	def reparentSuccess(self, *args, **kwargs ):
-		return( json.dumps( "OKAY") )
+	def reparentSuccess(self, *args, **kwargs):
+		return json.dumps("OKAY")
 
-	def setIndexSuccess(self, *args, **kwargs ):
-		return( json.dumps( "OKAY") )
+	def setIndexSuccess(self, *args, **kwargs):
+		return json.dumps("OKAY")
 
-	def cloneSuccess(self, *args, **kwargs ):
-		return( json.dumps( "OKAY") )
+	def cloneSuccess(self, *args, **kwargs):
+		return json.dumps("OKAY")
