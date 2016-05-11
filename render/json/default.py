@@ -41,10 +41,10 @@ class DefaultRender( object ):
 						boneType = "treeitem"
 					else:
 						boneType = "relational"
-						if _bone.using is not None:
-							res[key]["using"] = self.renderSkelStructure(_bone.using())
-						else:
-							res[key]["using"] = None
+					if _bone.using is not None:
+						res[key]["using"] = self.renderSkelStructure(_bone.using())
+					else:
+						res[key]["using"] = None
 
 					res[key]["type"]="%s.%s" % (boneType,_bone.type)
 					res[key]["module"] = _bone.module
