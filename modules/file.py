@@ -272,7 +272,7 @@ class File( Tree ):
 						)
 						fileSkel.toDB()
 						res.append( fileSkel )
-						self.onItemUploaded(self, fileSkel)
+						self.onItemUploaded(fileSkel, **kwargs)
 			else:
 				#We got a anonymous upload (a file not registered in any rootNode yet)
 				for upload in self.getUploads():
@@ -312,7 +312,7 @@ class File( Tree ):
 					)
 					fileSkel.toDB()
 					res.append( fileSkel )
-					self.onItemUploaded(self, fileSkel)
+					self.onItemUploaded(fileSkel, **kwargs)
 			for r in res:
 				logging.info("Got a successfull upload: %s (%s)" % (r["name"].value, r["dlkey"].value ) )
 
