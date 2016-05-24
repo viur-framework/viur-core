@@ -270,6 +270,8 @@ class Render( object ):
 					else:
 						res[key] = {"dest": self.collectSkelData(_bone.value["dest"]),
 						            "rel": self.collectSkelData(_bone.value["rel"]) if _bone.value["rel"] else None}
+				else:
+					res[key] = None
 			elif( isinstance( _bone, bones.baseBone ) ):
 				res[ key ] = _bone.value
 			if key in res.keys() and isinstance( res[key], list ):
