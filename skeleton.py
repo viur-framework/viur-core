@@ -368,12 +368,13 @@ class Skeleton( object ):
 					oldBlobLockObj = db.Get(db.Key.from_path("viur-blob-locks",str(k)))
 				except:
 					oldBlobLockObj = None
-			if skel.enforceUniqueValuesFor: # Remember the old lock-object (if any) we might need to delete
-				uniqueProperty = (skel.enforceUniqueValuesFor[0] if isinstance( skel.enforceUniqueValuesFor, tuple ) else skel.enforceUniqueValuesFor)
-				if "%s.uniqueIndexValue" % uniqueProperty in dbObj.keys():
-					oldUniquePropertyValue = dbObj[ "%s.uniqueIndexValue" % uniqueProperty ]
-				else:
-					oldUniquePropertyValue = None
+
+			# Remember old hashes for bones that must have an unique value
+			oldUniqeValues = {}
+			for boneName, boneInstance in skel.items():
+				if boneInstance.unique:
+					if "%s.uniqueIndexValue" % oldUniqeValues in dbObj.keys():
+						oldUniqeValues[boneName] = dbObj["%s.uniqueIndexValue" % oldUniqeValues]
 
 			# Merge the values from mergeFrom in
 			for key, bone in skel.items():
@@ -388,10 +389,7 @@ class Skeleton( object ):
 				if not _bone.indexed:
 					unindexed_properties += newKeys
 				blobList.update( _bone.getReferencedBlobs() )
-				#if _bone.searchable and not skel.searchIndex:
-				#	tags += [ tag for tag in _bone.getSearchTags() if (tag not in tags and len(tag)<400) ]
-			#if tags:
-			#	dbObj["viur_tags"] = tags
+
 			if clearUpdateTag:
 				dbObj["viur_delayed_update_tag"] = 0 #Mark this entity as Up-to-date.
 			else:
@@ -400,26 +398,27 @@ class Skeleton( object ):
 			dbObj = skel.preProcessSerializedData( dbObj )
 			if self.writeRandomIndex: # Write our Random-Index if requested
 				dbObj["viur_randomidx"] = random()
-			if skel.enforceUniqueValuesFor:
-				uniqueProperty = (skel.enforceUniqueValuesFor[0] if isinstance( skel.enforceUniqueValuesFor, tuple ) else skel.enforceUniqueValuesFor)
-				# Check if the property is really unique
-				newVal = skel[ uniqueProperty ].getUniquePropertyIndexValue()
-				lockObj = None
-				if newVal is not None:
-					try:
-						lockObj = db.Get( db.Key.from_path( "%s_uniquePropertyIndex" % skel.kindName, newVal ) )
+			# Lock hashes from bones that must have unique values
+			newUniqeValues = {}
+			for boneName, boneInstance in skel.items():
+				if boneInstance.unique:
+					# Check if the property is really unique
+					newUniqeValues[boneName] = skel[boneName].getUniquePropertyIndexValue()
+					if newUniqeValues[boneName] is not None:
 						try:
-							ourKey = str( dbObj.key() )
-						except: #Its not an update but an insert, no key yet
-							ourKey = None
-						if lockObj["references"] != ourKey: #This value has been claimed, and that not by us
-							raise ValueError("The value of property %s has been recently claimed!" % uniqueProperty )
-					except db.EntityNotFoundError: #No lockObj found for that value, we can use that
-						pass
-					dbObj[ "%s.uniqueIndexValue" % uniqueProperty ] = newVal
-				else:
-					if "%s.uniqueIndexValue" % uniqueProperty in dbObj.keys():
-						del dbObj[ "%s.uniqueIndexValue" % uniqueProperty ]
+							lockObj = db.Get(db.Key.from_path("%s_%s_uniquePropertyIndex" % (skel.kindName, boneName), newUniqeValues[boneName]))
+							try:
+								ourKey = str(dbObj.key())
+							except: #Its not an update but an insert, no key yet
+								ourKey = None
+							if lockObj["references"] != ourKey: #This value has been claimed, and that not by us
+								raise ValueError("The value of property %s has been recently claimed!" % boneName )
+							dbObj["%s.uniqueIndexValue" % boneName] = newUniqeValues[boneName]
+						except db.EntityNotFoundError: #No lockObj found for that value, we can use that
+							pass
+					else:
+						if "%s.uniqueIndexValue" % boneName in dbObj.keys():
+							del dbObj["%s.uniqueIndexValue" % boneName]
 			if not skel.searchIndex:
 				# We generate the searchindex using the full skel, not this (maybe incomplete one)
 				tags = []
@@ -451,18 +450,19 @@ class Skeleton( object ):
 				blobLockObj["has_old_blob_references"] = False
 				blobLockObj["is_stale"] = False
 				db.Put( blobLockObj )
-			if skel.enforceUniqueValuesFor:
-				# Now update/create/delete the lock-object
-				if newVal != oldUniquePropertyValue or not lockObj:
-					if oldUniquePropertyValue is not None:
-						try:
-							db.Delete( db.Key.from_path( "%s_uniquePropertyIndex" % skel.kindName, oldUniquePropertyValue ) )
-						except:
-							logging.warning("Cannot delete stale lock-object")
-					if newVal is not None:
-						newLockObj = db.Entity( "%s_uniquePropertyIndex" % skel.kindName, name=newVal )
-						newLockObj["references"] = str( dbObj.key() )
-						db.Put( newLockObj )
+			for boneName, boneInstance in skel.items():
+				if boneInstance.unique:
+					# Now update/create/delete missing lock-objects
+					if boneName not in oldUniqeValues.keys() or oldUniqeValues[boneName] != newUniqeValues[boneName]:
+						if boneName in oldUniqeValues.keys():
+							try:
+								db.Delete(db.Key.from_path( "%s_%s_uniquePropertyIndex" % (skel.kindName, boneName), oldUniqeValues[boneName]) )
+							except:
+								logging.warning("Cannot delete stale lock-object")
+						if newUniqeValues[boneName] is not None:
+							newLockObj = db.Entity( "%s_%s_uniquePropertyIndex" % (skel.kindName, boneName), name=newUniqeValues[boneName])
+							newLockObj["references"] = str(dbObj.key())
+							db.Put(newLockObj)
 			return( str( dbObj.key() ), dbObj, skel )
 		# END of txnUpdate subfunction
 
@@ -554,6 +554,7 @@ class Skeleton( object ):
 		"""
 			Deletes the entity associated with the current Skeleton from the data store.
 		"""
+		raise NotImplementedError() # Fixme - This has to be reworked to adapt the new bone-uniques
 		def txnDelete( key ):
 			if self.enforceUniqueValuesFor:
 				#Ensure that we delete any lock objects remaining for this entry
@@ -696,21 +697,21 @@ class Skeleton( object ):
 				complete = False
 				logging.info("%s throws error: %s" % (key, error))
 
-		if self.enforceUniqueValuesFor:
-			uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
-			newVal = self[ uniqueProperty].getUniquePropertyIndexValue()
-			if newVal is not None:
-				try:
-					dbObj = db.Get( db.Key.from_path( "%s_uniquePropertyIndex" % self.kindName, newVal  ) )
-					if dbObj["references"] != self["key"].value: #This valus is taken (sadly, not by us)
-						complete = False
-						if isinstance( self.enforceUniqueValuesFor, tuple ):
-							errorMsg = _(self.enforceUniqueValuesFor[1])
-						else:
-							errorMsg = _("This value is not available")
-						self.errors[ uniqueProperty ] = errorMsg
-				except db.EntityNotFoundError:
-					pass
+		for boneName, boneInstance in self.items():
+			if boneInstance.unique:
+				newVal = boneInstance.getUniquePropertyIndexValue()
+				if newVal is not None:
+					try:
+						dbObj = db.Get(db.Key.from_path("%s_%s_uniquePropertyIndex" % (self.kindName, boneName), newVal))
+						if dbObj["references"] != self["key"].value: #This valus is taken (sadly, not by us)
+							complete = False
+							if isinstance(boneInstance.unique, unicode):
+								errorMsg = _(boneInstance.unique)
+							else:
+								errorMsg = _("This value is not available")
+							self.errors[boneName] = errorMsg
+					except db.EntityNotFoundError:
+						pass
 
 		if( len(data) == 0
 		    or (len(data) == 1 and "key" in data)
