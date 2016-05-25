@@ -18,17 +18,26 @@ import json
 
 class userSkel(Skeleton):
 	kindName = "user"
-	enforceUniqueValuesFor = "name", "That E-Mail address is already taken" #Important! Duplicate usernames will cause trouble!
 
-	name = emailBone(descr="E-Mail", required=True, readOnly=True, caseSensitive=False, searchable=True, indexed=True)
+	# Properties required by google and custom auth
+	name = emailBone(descr="E-Mail", required=True, readOnly=True, caseSensitive=False, searchable=True, indexed=True, unique=True)
+
+	# Properties required by custom auth
 	password = passwordBone(descr="Password", required=False, readOnly=True, visible=False)
 
+	# Properties required by google auth
+	uid = stringBone(descr="Google's UserID", indexed=True, required=True, readOnly=True, unique=True)
+	gaeadmin = selectOneBone(descr="Is GAE Admin", values={0:"No", 1:"Yes"}, defaultValue=0, readOnly=True)
+
+
+	# Generic properties
 	access = selectAccessMultiBone(descr="Access rights", values={"root": "Superuser"}, indexed=True)
 	status = selectOneBone(descr="Account status", values = {   1: "Waiting for email verification",
 	                                                            2: "Waiting for verification through admin",
 	                                                            5: "Account disabled",
 	                                                            10: "Active" },
 	                        defaultValue="10", required=True, indexed=True)
+	lastlogin = dateBone(descr="Last Login", readOnly=True, indexed=True)
 
 	# One-Time Password Verification
 	otpid = stringBone(descr="OTP serial", required=False, indexed=True, searchable=True)
