@@ -373,8 +373,8 @@ class Skeleton( object ):
 			oldUniqeValues = {}
 			for boneName, boneInstance in skel.items():
 				if boneInstance.unique:
-					if "%s.uniqueIndexValue" % oldUniqeValues in dbObj.keys():
-						oldUniqeValues[boneName] = dbObj["%s.uniqueIndexValue" % oldUniqeValues]
+					if "%s.uniqueIndexValue" % boneName in dbObj.keys():
+						oldUniqeValues[boneName] = dbObj["%s.uniqueIndexValue" % boneName]
 
 			# Merge the values from mergeFrom in
 			for key, bone in skel.items():
@@ -413,9 +413,9 @@ class Skeleton( object ):
 								ourKey = None
 							if lockObj["references"] != ourKey: #This value has been claimed, and that not by us
 								raise ValueError("The value of property %s has been recently claimed!" % boneName )
-							dbObj["%s.uniqueIndexValue" % boneName] = newUniqeValues[boneName]
 						except db.EntityNotFoundError: #No lockObj found for that value, we can use that
 							pass
+						dbObj["%s.uniqueIndexValue" % boneName] = newUniqeValues[boneName]
 					else:
 						if "%s.uniqueIndexValue" % boneName in dbObj.keys():
 							del dbObj["%s.uniqueIndexValue" % boneName]
@@ -453,16 +453,19 @@ class Skeleton( object ):
 			for boneName, boneInstance in skel.items():
 				if boneInstance.unique:
 					# Now update/create/delete missing lock-objects
-					if boneName not in oldUniqeValues.keys() or oldUniqeValues[boneName] != newUniqeValues[boneName]:
-						if boneName in oldUniqeValues.keys():
-							try:
-								db.Delete(db.Key.from_path( "%s_%s_uniquePropertyIndex" % (skel.kindName, boneName), oldUniqeValues[boneName]) )
-							except:
-								logging.warning("Cannot delete stale lock-object")
-						if newUniqeValues[boneName] is not None:
-							newLockObj = db.Entity( "%s_%s_uniquePropertyIndex" % (skel.kindName, boneName), name=newUniqeValues[boneName])
-							newLockObj["references"] = str(dbObj.key())
-							db.Put(newLockObj)
+					if boneName in oldUniqeValues.keys():
+						# We have to delete the old lock
+						try:
+							db.Delete(db.Key.from_path( "%s_%s_uniquePropertyIndex" % (skel.kindName, boneName), oldUniqeValues[boneName]) )
+							logging.error("DELETED")
+						except:
+							logging.error("************")
+							logging.warning("Cannot delete stale lock-object")
+					if newUniqeValues[boneName] is not None:
+						# Lock the new value
+						newLockObj = db.Entity( "%s_%s_uniquePropertyIndex" % (skel.kindName, boneName), name=newUniqeValues[boneName])
+						newLockObj["references"] = str(dbObj.key())
+						db.Put(newLockObj)
 			return( str( dbObj.key() ), dbObj, skel )
 		# END of txnUpdate subfunction
 
@@ -550,21 +553,26 @@ class Skeleton( object ):
 		"""
 
 
-	def delete( self ):
+	def delete(self):
 		"""
 			Deletes the entity associated with the current Skeleton from the data store.
 		"""
-		raise NotImplementedError() # Fixme - This has to be reworked to adapt the new bone-uniques
-		def txnDelete( key ):
-			if self.enforceUniqueValuesFor:
-				#Ensure that we delete any lock objects remaining for this entry
-				uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
-				try:
-					dbObj = db.Get( db.Key( key ) )
-					if  "%s.uniqueIndexValue" % uniqueProperty in dbObj.keys():
-						db.Delete( db.Key.from_path( "%s_uniquePropertyIndex" % self.kindName, dbObj[ "%s.uniqueIndexValue" % uniqueProperty ] ) )
-				except db.EntityNotFoundError:
-					pass
+		def txnDelete(key, skel):
+			dbObj = db.Get(db.Key(key)) # Fetch the raw object as we might have to clear locks
+			for boneName, bone in skel.items():
+				# Ensure that we delete any value-lock objects remaining for this entry
+				if bone.unique:
+					try:
+						logging.error("x1")
+						logging.error(dbObj.keys())
+						if "%s.uniqueIndexValue" % boneName in dbObj.keys():
+							logging.error("x2")
+							db.Delete(db.Key.from_path(
+								"%s_%s_uniquePropertyIndex" % (skel.kindName, boneName),
+								dbObj["%s.uniqueIndexValue" % boneName]))
+					except db.EntityNotFoundError:
+						raise
+						pass
 			# Delete the blob-key lock object
 			try:
 				lockObj = db.Get(db.Key.from_path("viur-blob-locks", str(key)))
@@ -572,31 +580,32 @@ class Skeleton( object ):
 				lockObj = None
 			if lockObj is not None:
 				if lockObj["old_blob_references"] is None and lockObj["active_blob_references"] is None:
-					db.Delete( lockObj ) #Nothing to do here
-				elif lockObj["old_blob_references"] is None:
-					lockObj["old_blob_references"] = lockObj["active_blob_references"]
-				elif lockObj["active_blob_references"] is None:
-					pass #Nothing to do here
+					db.Delete(lockObj) #Nothing to do here
 				else:
-					lockObj["old_blob_references"] += lockObj["active_blob_references"]
-				lockObj["active_blob_references"] = []
-				lockObj["is_stale"] = True
-				lockObj["has_old_blob_references"] = True
-				db.Put(lockObj)
-			db.Delete( db.Key( key ) )
+					if lockObj["old_blob_references"] is None:
+						# No old stale entries, move active_blob_references -> old_blob_references
+						lockObj["old_blob_references"] = lockObj["active_blob_references"]
+					elif lockObj["active_blob_references"] is not None:
+						# Append the current references to the list of old & stale references
+						lockObj["old_blob_references"] += lockObj["active_blob_references"]
+					lockObj["active_blob_references"] = [] # There are no active ones left
+					lockObj["is_stale"] = True
+					lockObj["has_old_blob_references"] = True
+					db.Put(lockObj)
+			db.Delete(db.Key(key))
 		key = self.__currentDbKey_
 		if key is None:
 			raise ValueError("This skeleton is not in the database (anymore?)!")
-		skel = type( self )()
-		if not skel.fromDB( key ):
+		skel = type(self)()
+		if not skel.fromDB(key):
 			raise ValueError("This skeleton is not in the database (anymore?)!")
-		db.RunInTransactionOptions(db.TransactionOptions(xg=True), txnDelete, key )
+		db.RunInTransactionOptions(db.TransactionOptions(xg=True), txnDelete, key, skel)
 		for boneName, _bone in skel.items():
-			_bone.postDeletedHandler( skel, boneName, key )
-		skel.postDeletedHandler( key )
+			_bone.postDeletedHandler(skel, boneName, key)
+		skel.postDeletedHandler(key)
 		if self.searchIndex:
 			try:
-				search.Index( name=self.searchIndex ).remove( "s_"+str(key) )
+				search.Index(name=self.searchIndex).remove("s_"+str(key))
 			except:
 				pass
 		self.__currentDbKey_ = None
