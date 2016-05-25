@@ -117,7 +117,7 @@ class Skeleton( object ):
 
 	def __getattribute__(self, item):
 		isOkay = False
-		if item.startswith("_") or item in ["kindName","searchIndex", "enforceUniqueValuesFor","all","fromDB",
+		if item.startswith("_") or item in ["kindName","searchIndex","all","fromDB",
 						    "toDB", "items","keys","values","setValues","getValues","errors","fromClient",
 						    "preProcessBlobLocks","preProcessSerializedData","postSavedHandler",
 						    "postDeletedHandler", "delete","clone","getSearchDocumentFields","subSkels",
@@ -144,7 +144,6 @@ class Skeleton( object ):
 
 	kindName = "" # To which kind we save our data to
 	searchIndex = None # If set, use this name as the index-name for the GAE search API
-	enforceUniqueValuesFor = None # If set, enforce that the values of that bone are unique.
 	subSkels = {} # List of pre-defined sub-skeletons of this type
 
 
@@ -231,10 +230,6 @@ class Skeleton( object ):
 		if _cloneFrom:
 			for key, bone in _cloneFrom.__dataDict__.items():
 				self.__dataDict__[ key ] = copy.deepcopy( bone )
-			if self.enforceUniqueValuesFor:
-				uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
-				if not uniqueProperty in self.keys():
-					raise( ValueError("Cant enforce unique variables for unknown bone %s" % uniqueProperty ) )
 		else:
 			tmpList = []
 
@@ -247,10 +242,8 @@ class Skeleton( object ):
 				#bone = copy.copy( bone )
 				bone = bone(_kindName=self.kindName)
 				self.__dataDict__[ key ] = bone
-			if self.enforceUniqueValuesFor:
-				uniqueProperty = (self.enforceUniqueValuesFor[0] if isinstance( self.enforceUniqueValuesFor, tuple ) else self.enforceUniqueValuesFor)
-				if not uniqueProperty in [ key for (key,bone) in tmpList ]:
-					raise( ValueError("Cant enforce unique variables for unknown bone %s" % uniqueProperty ) )
+		if "enforceUniqueValuesFor" in dir(self) and self.enforceUniqueValuesFor is not None:
+			raise NotImplementedError("enforceUniqueValuesFor is not supported anymore. Set unique=True on your bone.")
 		self.__isInitialized_ = True
 
 	def clone(self):
