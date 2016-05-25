@@ -121,7 +121,7 @@ class Skeleton( object ):
 						    "toDB", "items","keys","values","setValues","getValues","errors","fromClient",
 						    "preProcessBlobLocks","preProcessSerializedData","postSavedHandler",
 						    "postDeletedHandler", "delete","clone","getSearchDocumentFields","subSkels",
-						    "subSkel","refresh","writeRandomIndex"]:
+						    "subSkel","refresh"]:
 			isOkay = True
 		elif not "_Skeleton__isInitialized_" in dir( self ):
 			isOkay = True
@@ -145,7 +145,6 @@ class Skeleton( object ):
 	kindName = "" # To which kind we save our data to
 	searchIndex = None # If set, use this name as the index-name for the GAE search API
 	enforceUniqueValuesFor = None # If set, enforce that the values of that bone are unique.
-	writeRandomIndex = False # If set, allow orderby 'random' queries
 	subSkels = {} # List of pre-defined sub-skeletons of this type
 
 
@@ -396,8 +395,6 @@ class Skeleton( object ):
 				dbObj["viur_delayed_update_tag"] = time() #Mark this entity as dirty, so the background-task will catch it up and update its references.
 			dbObj.set_unindexed_properties( unindexed_properties )
 			dbObj = skel.preProcessSerializedData( dbObj )
-			if self.writeRandomIndex: # Write our Random-Index if requested
-				dbObj["viur_randomidx"] = random()
 			try:
 				ourKey = str(dbObj.key())
 			except: # Its not an update but an insert, no key yet
