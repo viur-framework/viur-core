@@ -398,6 +398,10 @@ class Skeleton( object ):
 			dbObj = skel.preProcessSerializedData( dbObj )
 			if self.writeRandomIndex: # Write our Random-Index if requested
 				dbObj["viur_randomidx"] = random()
+			try:
+				ourKey = str(dbObj.key())
+			except: # Its not an update but an insert, no key yet
+				ourKey = None
 			# Lock hashes from bones that must have unique values
 			newUniqeValues = {}
 			for boneName, boneInstance in skel.items():
@@ -407,10 +411,6 @@ class Skeleton( object ):
 					if newUniqeValues[boneName] is not None:
 						try:
 							lockObj = db.Get(db.Key.from_path("%s_%s_uniquePropertyIndex" % (skel.kindName, boneName), newUniqeValues[boneName]))
-							try:
-								ourKey = str(dbObj.key())
-							except: #Its not an update but an insert, no key yet
-								ourKey = None
 							if lockObj["references"] != ourKey: #This value has been claimed, and that not by us
 								raise ValueError("The value of property %s has been recently claimed!" % boneName )
 						except db.EntityNotFoundError: #No lockObj found for that value, we can use that
@@ -426,7 +426,7 @@ class Skeleton( object ):
 					if _bone.searchable:
 						tags += [ tag for tag in _bone.getSearchTags() if (tag not in tags and len(tag)<400) ]
 				dbObj["viur_tags"] = tags
-			db.Put( dbObj ) #Write the core entry back
+			db.Put(dbObj) # Write the core entry back
 			# Now write the blob-lock object
 			blobList = skel.preProcessBlobLocks( blobList )
 			if blobList is None:
@@ -444,7 +444,7 @@ class Skeleton( object ):
 				oldBlobLockObj["is_stale"] = False
 				db.Put( oldBlobLockObj )
 			else: #We need to create a new blob-lock-object
-				blobLockObj = db.Entity( "viur-blob-locks", name=str( dbObj.key() ) )
+				blobLockObj = db.Entity("viur-blob-locks", name=str( dbObj.key()))
 				blobLockObj["active_blob_references"] = list(blobList)
 				blobLockObj["old_blob_references"] = []
 				blobLockObj["has_old_blob_references"] = False
@@ -452,25 +452,31 @@ class Skeleton( object ):
 				db.Put( blobLockObj )
 			for boneName, boneInstance in skel.items():
 				if boneInstance.unique:
-					# Now update/create/delete missing lock-objects
-					if boneName in oldUniqeValues.keys():
-						# We have to delete the old lock
+					# Update/create/delete missing lock-objects
+					if boneName in oldUniqeValues.keys() and oldUniqeValues[boneName]!=newUniqeValues[boneName]:
+						# We had an old lock and its value changed
 						try:
-							db.Delete(db.Key.from_path( "%s_%s_uniquePropertyIndex" % (skel.kindName, boneName), oldUniqeValues[boneName]) )
-							logging.error("DELETED")
-						except:
-							logging.error("************")
-							logging.warning("Cannot delete stale lock-object")
+							# Try to delete the old lock
+							oldLockObj = db.Get(db.Key.from_path("%s_%s_uniquePropertyIndex" % (skel.kindName, boneName), oldUniqeValues[boneName]))
+							if oldLockObj["references"] != ourKey:
+								# We've been supposed to have that lock - but we don't.
+								# Don't remove that lock as it now belongs to a different entry
+								logging.critical("Detected Database corruption! A Value-Lock had been reassigned!")
+							else:
+								# It's our lock which we don't need anymore
+								db.Delete(db.Key.from_path("%s_%s_uniquePropertyIndex" % (skel.kindName, boneName), oldUniqeValues[boneName]))
+						except db.EntityNotFoundError as e:
+							logging.critical("Detected Database corruption! Could not delete stale lock-object!")
 					if newUniqeValues[boneName] is not None:
 						# Lock the new value
-						newLockObj = db.Entity( "%s_%s_uniquePropertyIndex" % (skel.kindName, boneName), name=newUniqeValues[boneName])
+						newLockObj = db.Entity("%s_%s_uniquePropertyIndex" % (skel.kindName, boneName), name=newUniqeValues[boneName])
 						newLockObj["references"] = str(dbObj.key())
 						db.Put(newLockObj)
 			return( str( dbObj.key() ), dbObj, skel )
 		# END of txnUpdate subfunction
 
 		key = self.__currentDbKey_
-		if not isinstance(clearUpdateTag,bool):
+		if not isinstance(clearUpdateTag, bool):
 			raise ValueError("Got an unsupported type %s for clearUpdateTag. toDB doesn't accept a key argument any more!" % str(type(clearUpdateTag)))
 
 		# Allow bones to perform outstanding "magic" operations before saving to db
