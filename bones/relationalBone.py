@@ -305,15 +305,16 @@ class relationalBone( baseBone ):
 				if "." in k:
 					try:
 						idx, bname = k.split(".")
+						idx = int(idx)
 					except ValueError:
 						# We got some garbarge as input; don't try to parse it
 						continue
 
 				elif k.isdigit() and self.using is None:
-					idx = k
+					idx = int(k)
 					bname = "key"
 				elif self.using is None and not self.multiple:
-					idx = "0"
+					idx = 0
 					bname = "key"
 				else:
 					continue
