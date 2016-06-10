@@ -105,8 +105,10 @@ class stringBone( baseBone ):
 						if not self.caseSensitive:
 							if isinstance( val, basestring ):
 								entity.set( "%s.%s.idx" % (name, lang), val.lower(), self.indexed )
+							elif isinstance(val, list):
+								entity.set("%s.%s.idx" % (name, lang), [x.lower() for x in val if isinstance(x, basestring)], self.indexed)
 							else:
-								entity.set( "%s.%s.idx" % (name, lang), [x.lower for x in val], self.indexed )
+								logging.warning("Invalid type in serialize, got %s", str(type(val)))
 					else:
 						# Fill in None for all remaining languages (needed for sort!)
 						if self.indexed:
