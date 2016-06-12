@@ -470,7 +470,7 @@ class BrowseHandler(webapp.RequestHandler):
 		# Prevent Hash-collision attacks
 		assert len( self.request.arguments() ) < conf["viur.maxPostParamsCount"]
 		# Fill the (surprisingly empty) kwargs dict with named request params
-		tmpArgs = dict( (k,self.request.get_all(k)) for k in self.request.arguments() )
+		tmpArgs = dict((k,self.request.get_all(k)) for k in self.request.arguments() if k is not None)
 		for key in tmpArgs.keys()[ : ]:
 			if len( tmpArgs[ key ] ) == 0:
 				continue
