@@ -10,7 +10,7 @@ class fileBone(treeItemBone):
 	type = "file"
 	refKeys = ["name", "meta_mime", "metamime", "mimetype", "dlkey", "servingurl", "size"]
 	
-	def __init__(self, format="$(name)",*args, **kwargs ):
+	def __init__(self, format="$(dest.name)",*args, **kwargs ):
 		super( fileBone, self ).__init__( format=format, *args, **kwargs )
 
 	def getReferencedBlobs(self):
