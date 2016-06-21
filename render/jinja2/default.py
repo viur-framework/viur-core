@@ -377,18 +377,21 @@ class Render( object ):
 			tpl = self.parent.addTemplate
 
 		tpl = tpl or self.addTemplate
-		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		skeybone = bones.baseBone( descr="SecurityKey",  readOnly=True, visible=False )
+		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
+
+		skeybone = baseBone(descr="SecurityKey", readOnly=True, visible=False)
 		skeybone.value = securitykey.create()
 		skel["skey"] = skeybone
+
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
 			if isinstance(skel, Skeleton):
 				super( Skeleton, skel ).__setattr__( "errors", {} )
 			elif isinstance(skel, RelSkel):
 				super( RelSkel, skel ).__setattr__( "errors", {} )
-		return template.render( skel={"structure":self.renderSkelStructure(skel),
+
+		return template.render(skel={"structure":self.renderSkelStructure(skel),
 		                                "errors":skel.errors,
-		                                "value":self.collectSkelData(skel) }, **kwargs )
+		                                "value":self.collectSkelData(skel) }, **kwargs)
 
 	def edit(self, skel, tpl=None, **kwargs):
 		"""
@@ -414,15 +417,18 @@ class Render( object ):
 			tpl = self.parent.editTemplate
 
 		tpl = tpl or self.editTemplate
-		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		skeybone = bones.baseBone( descr="SecurityKey",  readOnly=True, visible=False )
+		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
+
+		skeybone = baseBone(descr="SecurityKey", readOnly=True, visible=False)
 		skeybone.value = securitykey.create()
-		skel["skey"]  = skeybone
+		skel["skey"] = skeybone
+
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
 			if isinstance(skel, Skeleton):
 				super( Skeleton, skel ).__setattr__( "errors", {} )
 			elif isinstance(skel, RelSkel):
 				super( RelSkel, skel ).__setattr__( "errors", {} )
+
 		return template.render( skel={"structure": self.renderSkelStructure(skel),
 		                                "errors": skel.errors,
 		                                "value": self.collectSkelData(skel) }, **kwargs )
