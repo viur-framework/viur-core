@@ -662,5 +662,5 @@ def createNewUserIfNotExists():
 					addSkel.toDB()
 				except:
 					return
-				logging.warn("Created a new adminuser for you! Username: %s, Password: %s" % (uname,pw) )
-				utils.sendEMailToAdmins( "Your new ViUR password", "ViUR created a new adminuser for you! Username: %s, Password: %s" % (uname,pw) )
+				logging.warn("ViUR created a new admin-user for you! Username: %s, Password: %s" % (uname,pw) )
+				utils.sendEMailToAdmins( "Your new ViUR password", "ViUR created a new admin-user for you! Username: %s, Password: %s" % (uname,pw) )
