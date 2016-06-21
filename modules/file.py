@@ -255,7 +255,8 @@ class File( Tree ):
 						except Exception, err:
 							height = width = 0
 							logging.error("some error occurred while trying to fetch the image header with dimensions")
-							logging.exception(err)
+							#logging.exception(err)
+
 						fileSkel.setValues(
 								{
 									"name": utils.escapeString( fileName ),
