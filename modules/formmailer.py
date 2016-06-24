@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
-from server.skeleton import Skeleton
+from server.skeleton import RelSkel
 from server import errors, utils, securitykey
 from server.bones import baseBone
 
-class MailSkel(Skeleton):
-	kindName=None
+class MailSkel(RelSkel):
 	changedate = None #Changedates won't apply here
 
 class Formmailer(object): #fixme
@@ -18,7 +17,7 @@ class Formmailer(object): #fixme
 
 	def index( self, *args, **kwargs ):
 		if not self.canUse():
-			raise errors.HTTPError(401) #Unauthorized
+			raise errors.Forbidden() #Unauthorized
 		skel = self.mailSkel()
 		if len( kwargs ) == 0:
 			return self.render.add( skel=skel, failed=False)
@@ -35,6 +34,9 @@ class Formmailer(object): #fixme
 		self.onItemAdded( skel )
 		return self.render.addItemSuccess( skel )
 	index.exposed = True
+
+	def canUse(self):
+		return False
 
 	def mailSkel(self):
 		raise NotImplementedError("You must implement the \"mailSkel\" function!")
