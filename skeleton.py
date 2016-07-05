@@ -1015,15 +1015,21 @@ class TaskUpdateSearchIndex( CallableTaskBase ):
 
 
 	def execute( self, module, compact="", *args, **kwargs ):
+		usr = utils.getCurrentUser()
+		if not usr:
+			logging.warning("Don't know who to inform after rebuilding finished")
+			notify = None
+		else:
+			notify = usr["name"]
 		if module == "*":
 			for module in listKnownSkeletons():
 				logging.info("Rebuilding search index for module '%s'" % module)
-				processChunk(module, compact, None)
+				processChunk(module, compact, None,  notify=notify)
 		else:
-			processChunk(module, compact, None)
+			processChunk(module, compact, None, notify=notify)
 
 @callDeferred
-def processChunk(module, compact, cursor, allCount = 0):
+def processChunk(module, compact, cursor, allCount=0, notify=None):
 	"""
 		Processes 100 Entries and calls the next batch
 	"""
@@ -1031,13 +1037,10 @@ def processChunk(module, compact, cursor, allCount = 0):
 	if not Skel:
 		logging.error("TaskUpdateSearchIndex: Invalid module")
 		return
-
 	query = Skel().all().cursor( cursor )
 	count = 0
-
 	for key in query.run(100, keysOnly=True):
 		count += 1
-
 		try:
 			skel = Skel()
 			skel.fromDB(str(key))
@@ -1046,22 +1049,21 @@ def processChunk(module, compact, cursor, allCount = 0):
 				skel.delete()
 			skel.refresh()
 			skel.toDB()
-
 		except Exception as e:
 			logging.error("Updating %s failed" % str(key) )
 			logging.exception( e )
-
 	newCursor = query.getCursor()
-
 	logging.info("END processChunk %s, %d records refreshed" % (module, count))
 	if count and newCursor and newCursor.urlsafe() != cursor:
 		# Start processing of the next chunk
-		processChunk(module, compact, newCursor.urlsafe(), allCount + count)
+		processChunk(module, compact, newCursor.urlsafe(), allCount + count, notify)
 	else:
 		try:
-			utils.sendEMailToAdmins("Rebuild search index finished for %s" % module,
-			                        "ViUR finished to rebuild the search index for module %s.\n"
-			                        "%d records updated in total on this kind." % (module, allCount))
+			if notify:
+				txt = ( "Subject: Rebuild search index finished for %s\n\n"+
+			                "ViUR finished to rebuild the search index for module %s.\n"+
+			                "%d records updated in total on this kind.") % (module, module, allCount)
+				utils.sendEMail([notify], txt, None)
 		except: #OverQuota, whatever
 			pass
 
