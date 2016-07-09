@@ -32,7 +32,7 @@ class numericBone( baseBone ):
 		self.min = min
 		self.max = max
 
-	def fromClient( self, name, data ):
+	def fromClient( self, valuesCache, name, data ):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -54,36 +54,36 @@ class numericBone( baseBone ):
 		try:
 			value = str( value ).replace(",", ".", 1)
 		except:
-			self.value = None
+			valuesCache[name] = None
 			return( "Invalid value entered" )
 		if self.precision and ( str( value ).replace(".","",1).replace("-", "", 1).isdigit() ) and float( value )>=self.min and float( value )<=self.max:
-				self.value = round( float( value ), self.precision )
+				valuesCache[name] = round( float( value ), self.precision )
 				return( None )
 		elif not self.precision and ( str( value ).replace("-", "", 1).isdigit() ) and int( value )>=self.min and int( value )<=self.max:
-				self.value = int( value )
+				valuesCache[name] = int( value )
 				return( None )
 		else:
-			self.value = None
+			valuesCache[name] = None
 			return( "Invalid value entered" )
 	
-	def serialize( self, name, entity ):
-		if isinstance( self.value,  float ) and self.value!= self.value: # NaN
+	def serialize( self, valuesCache, name, entity ):
+		if isinstance( valuesCache[name],  float ) and valuesCache[name]!= valuesCache[name]: # NaN
 			entity.set( name, None, self.indexed )
 		else:
-			entity.set( name, self.value, self.indexed )
+			entity.set( name, valuesCache[name], self.indexed )
 		return( entity )
 		
-	def unserialize( self, name, expando ):
+	def unserialize( self, valuesCache ,name, expando ):
 		if not name in expando.keys():
-			self.value = None
+			valuesCache[name] = None
 			return
 		if expando[ name ]==None or not str(expando[ name ]).replace(".", "", 1).lstrip("-").isdigit():
-			self.value = None
+			valuesCache[name] = None
 		else:
 			if not self.precision:
-				self.value = int( expando[ name ] )
+				valuesCache[name] = int( expando[ name ] )
 			else:
-				self.value = float( expando[ name ] )
+				valuesCache[name] = float( expando[ name ] )
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
 		if not self.precision:

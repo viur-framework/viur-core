@@ -494,7 +494,7 @@ class List(BasicApplication):
 
 		.. seealso:: :func:`add`
 		"""
-		logging.info("Entry added: %s" % skel["key"].value )
+		logging.info("Entry added: %s" % skel["key"] )
 
 		user = utils.getCurrentUser()
 		if user:
@@ -513,7 +513,7 @@ class List(BasicApplication):
 
 		.. seealso:: :func:`edit`
 		"""
-		logging.info("Entry changed: %s" % skel["key"].value )
+		logging.info("Entry changed: %s" % skel["key"] )
 
 		user = utils.getCurrentUser()
 		if user:
@@ -546,7 +546,7 @@ class List(BasicApplication):
 
 		.. seealso:: :func:`delete`
 		"""
-		logging.info("Entry deleted: %s" % skel["key"].value )
+		logging.info("Entry deleted: %s" % skel["key"] )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )

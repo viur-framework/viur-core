@@ -250,6 +250,11 @@ def getList(render, module, skel = "viewSkel", _noEmptyFilter = False, *args, **
 	or None on error case.
 	:rtype: dict
 	"""
+	logging.error("in JINJA getList")
+	logging.error(module)
+	logging.error(skel)
+	logging.error(args)
+	logging.error(kwargs)
 	if not module in dir(conf["viur.mainApp"]):
 		logging.error("Jinja2-Render can't fetch a list from an unknown module %s!" % module)
 		return False

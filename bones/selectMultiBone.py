@@ -60,7 +60,7 @@ class selectMultiBone( baseBone ):
 		elif isinstance(values, OrderedDict):
 			self.values = values
 
-	def fromClient( self, name, data ):
+	def fromClient( self, valuesCache, name, data ):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -79,7 +79,7 @@ class selectMultiBone( baseBone ):
 			values = data[ name ]
 		else:
 			values = None
-		self.value = []
+		valuesCache[name] = []
 		if not values:
 			return( "No item selected" )
 		if not isinstance( values, list ):
@@ -89,8 +89,8 @@ class selectMultiBone( baseBone ):
 				values = []
 		for name, value in self.values.items():
 			if str(name) in [str(x) for x in values]:
-				self.value.append( name )
-		if len( self.value )>0:
+				valuesCache[name].append( name )
+		if len( valuesCache[name] )>0:
 			return( None )
 		else:
 			return( "No item selected" )

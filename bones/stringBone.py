@@ -313,11 +313,11 @@ class stringBone( baseBone ):
 				dbFilter.order( order )
 		return( dbFilter )
 
-	def getSearchTags(self):
+	def getSearchTags(self, valuesCache, name):
 		res = []
-		if not self.value:
+		if not valuesCache[name]:
 			return (res)
-		value = self.value
+		value = valuesCache[name]
 		if self.languages and isinstance(value, dict):
 			if self.multiple:
 				for lang in value.values():
@@ -355,25 +355,25 @@ class stringBone( baseBone ):
 
 		return (res)
 
-	def getSearchDocumentFields(self, name):
+	def getSearchDocumentFields(self, valuesCache, name):
 		"""
 			Returns a list of search-fields (GAE search API) for this bone.
 		"""
 		res = []
 		if self.languages:
-			if self.value is not None:
+			if valuesCache[name] is not None:
 				for lang in self.languages:
-					if lang in self.value.keys():
-						res.append( search.TextField( name=name, value=unicode( self.value[lang]), language=lang ) ) 
+					if lang in valuesCache[name].keys():
+						res.append( search.TextField( name=name, value=unicode( valuesCache[name][lang]), language=lang ) ) 
 		else:
-			res.append( search.TextField( name=name, value=unicode( self.value ) ) )
+			res.append( search.TextField( name=name, value=unicode( valuesCache[name] ) ) )
 		return( res )
 
-	def getUniquePropertyIndexValue( self ):
+	def getUniquePropertyIndexValue(self, valuesCache, name):
 		"""
 			Returns an hash for our current value, used to store in the uniqueProptertyValue index.
 		"""
-		if not self.value and not self.required: #Dont enforce a unique property on an empty string if we are required=False
+		if not valuesCache[name] and not self.required: #Dont enforce a unique property on an empty string if we are required=False
 			return( None )
-		return( super( stringBone, self).getUniquePropertyIndexValue())
+		return( super( stringBone, self).getUniquePropertyIndexValue(valuesCache, name))
 

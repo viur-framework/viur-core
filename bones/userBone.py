@@ -17,7 +17,8 @@ class userBone(relationalBone):
 		self.creationMagic = creationMagic
 		self.updateMagic = updateMagic
 
-	def performMagic( self, isAdd ):
+	def performMagic( self, isAdd, *args, **kwargs ):
+		return
 		if self.updateMagic or (self.creationMagic and isAdd):
 			user = conf["viur.mainApp"].user.getCurrentUser()
 			if user:

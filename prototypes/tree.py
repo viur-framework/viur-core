@@ -18,9 +18,9 @@ class TreeLeafSkel( Skeleton ):
 		res = super( TreeLeafSkel, self ).fromDB( *args, **kwargs )
 
 		# Heal missing parent-repo values
-		if res and not self["parentrepo"].value:
+		if res and not self["parentrepo"]:
 			try:
-				dbObj = db.Get( self["key"].value )
+				dbObj = db.Get( self["key"] )
 			except:
 				return res
 
@@ -33,16 +33,16 @@ class TreeLeafSkel( Skeleton ):
 				except:
 					return res
 
-			self["parentrepo"].value = str( dbObj.key() )
+			self["parentrepo"] = str( dbObj.key() )
 			self.toDB()
 
 		return res
 
 	def refresh(self):
-		if self["parentdir"].value:
-			self["parentdir"].value = utils.normalizeKey(self["parentdir"].value)
-		if self["parentrepo"].value:
-			self["parentrepo"].value = utils.normalizeKey(self["parentrepo"].value)
+		if self["parentdir"]:
+			self["parentdir"] = utils.normalizeKey(self["parentdir"])
+		if self["parentrepo"]:
+			self["parentrepo"] = utils.normalizeKey(self["parentrepo"])
 		super( TreeLeafSkel, self ).refresh()
 
 class TreeNodeSkel( TreeLeafSkel ):
@@ -176,10 +176,10 @@ class Tree(BasicApplication):
 		res = [ self.render.collectSkelData( nodeSkel ) ]
 
 		for x in range(0,99):
-			if not nodeSkel["parentdir"].value:
+			if not nodeSkel["parentdir"]:
 				break
 
-			parentdir = nodeSkel["parentdir"].value
+			parentdir = nodeSkel["parentdir"]
 
 			nodeSkel = self.viewNodeSkel()
 			if not nodeSkel.fromDB( parentdir ):
@@ -307,14 +307,14 @@ class Tree(BasicApplication):
 		query = skel.all()
 
 		if "search" in kwargs.keys() and kwargs["search"]:
-			query.filter( "parentrepo =", str(nodeSkel["key"].value) )
+			query.filter( "parentrepo =", str(nodeSkel["key"]) )
 		else:
-			query.filter( "parentdir =", str(nodeSkel["key"].value) )
+			query.filter( "parentdir =", str(nodeSkel["key"]) )
 
 		query.mergeExternalFilter( kwargs )
 		res = query.fetch( )
 
-		return self.render.list( res, node=str(nodeSkel["key"].value) )
+		return self.render.list( res, node=str(nodeSkel["key"]) )
 
 	@exposed
 	def view( self, skelType, key, *args, **kwargs ):
@@ -412,8 +412,8 @@ class Tree(BasicApplication):
 		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
 
-		skel["parentdir"].value = str( node )
-		skel["parentrepo"].value = parentNodeSkel["parentrepo"].value or str( node )
+		skel["parentdir"] = str( node )
+		skel["parentrepo"] = parentNodeSkel["parentrepo"] or str( node )
 
 		skel.toDB()
 		self.onItemAdded( skel )
@@ -595,10 +595,10 @@ class Tree(BasicApplication):
 		if not securitykey.validate( skey, acceptSessionKey=True ):
 			raise errors.PreconditionFailed()
 
-		srcSkel["parentdir"].value = str( destNode )
-		srcSkel["parentrepo"].value = destSkel["parentrepo"].value #Fixme: Need to recursive fixing to parentrepo?
+		srcSkel["parentdir"] = str( destNode )
+		srcSkel["parentrepo"] = destSkel["parentrepo"] #Fixme: Need to recursive fixing to parentrepo?
 		srcSkel.toDB()
-		self.updateParentRepo( key, destSkel["parentrepo"].value )
+		self.updateParentRepo( key, destSkel["parentrepo"] )
 
 		return self.render.editItemSuccess(srcSkel, skelType=skelType, action="move", destNode = destSkel )
 
@@ -829,7 +829,7 @@ class Tree(BasicApplication):
 
 		.. seealso:: :func:`add`
 		"""
-		logging.info("Entry added: %s" % skel["key"].value )
+		logging.info("Entry added: %s" % skel["key"] )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
@@ -846,7 +846,7 @@ class Tree(BasicApplication):
 
 		.. seealso:: :func:`edit`
 		"""
-		logging.info("Entry changed: %s" % skel["key"].value )
+		logging.info("Entry changed: %s" % skel["key"] )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
@@ -881,7 +881,7 @@ class Tree(BasicApplication):
 
 		.. seealso:: :func:`delete`
 		"""
-		logging.info("Entry deleted: %s (%s)" % ( skel["key"].value, type(skel) ) )
+		logging.info("Entry deleted: %s (%s)" % ( skel["key"], type(skel) ) )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )

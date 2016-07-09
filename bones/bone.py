@@ -18,10 +18,36 @@ def getSystemInitialized():
 	return __systemIsIntitialized_
 
 
+class boneFactory(object):
+	IDX = 1
+
+	def __init__(self, cls, args, kwargs):
+		super(boneFactory, self).__init__()
+		self.cls = cls
+		self.args = args
+		self.kwargs = kwargs
+		self.idx = boneFactory.IDX
+		boneFactory.IDX += 1
+
+	def __call__(self, *args, **kwargs):
+		tmpDict = self.kwargs.copy()
+		tmpDict.update(kwargs)
+		return self.cls(*(self.args + args), **tmpDict)
+
+	def __repr__(self):
+		return "%sFactory" % self.cls.__name__
+
+
 class baseBone(object): # One Bone:
 	hasDBField = True
 	type = "hidden"
 
+
+	def __new__(cls, *args, **kwargs):
+		if getSystemInitialized():
+			return super(baseBone, cls).__new__(cls, *args, **kwargs)
+		else:
+			return boneFactory(cls, args, kwargs)
 
 	def __init__(	self, descr="", defaultValue=None, required=False, params=None, multiple=False,
 			indexed=False, searchable=False, vfunc=None, readOnly=False, visible=True, unique=False, **kwargs ):
@@ -70,18 +96,7 @@ class baseBone(object): # One Bone:
 		self.required = required
 		self.params = params
 		self.multiple = multiple
-		if self.multiple:
-			self.value = []
-		else:
-			self.value = None
-		if defaultValue!=None:
-			if callable( defaultValue ):
-				self.value = defaultValue( self )
-			else:
-				self.value = defaultValue
-		else:
-			if "defaultValue" in dir(self) and callable( self.defaultValue ):
-				self.value = self.defaultValue()
+		self.defaultValue = defaultValue
 		self.indexed = indexed
 		self.searchable = searchable
 		if vfunc:
@@ -94,7 +109,7 @@ class baseBone(object): # One Bone:
 			raise AssertionError("canUse is deprecated! Use isInvalid instead!")
 		_boneCounter.count += 1
 		
-	def fromClient( self, name, data ):
+	def fromClient( self, valuesCache, name, data ):
 		"""
 			Reads a value from the client.
 			If this value is valis for this bone,
@@ -115,7 +130,7 @@ class baseBone(object): # One Bone:
 			value = None
 		err = self.isInvalid( value )
 		if not err:
-			self.value = value
+			valuesCache[name] = value
 			return( True )
 		else:
 			return( err )
@@ -142,7 +157,7 @@ class baseBone(object): # One Bone:
 		return( entity )
 	serialize.injectValueCache = True
 
-	def unserialize( self, name, expando ):
+	def unserialize( self, valuesCache, name, expando ):
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -154,7 +169,7 @@ class baseBone(object): # One Bone:
 			:returns: bool
 		"""
 		if name in expando.keys():
-			self.value = expando[ name ]
+			valuesCache[name] = expando[ name ]
 		return( True )
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
@@ -287,7 +302,7 @@ class baseBone(object): # One Bone:
 		return( dbFilter )
 
 
-	def getSearchTags(self):
+	def getSearchTags(self, valuesCache, name):
 		"""
 			Returns a list of Strings which will be included in the
 			fulltext-index for this bone.
@@ -301,37 +316,37 @@ class baseBone(object): # One Bone:
 			:return: List of Strings
 		"""
 		res = []
-		if not self.value:
+		if not valuesCache[name]:
 			return( res )
-		for line in unicode(self.value).lower().splitlines():
+		for line in unicode(valuesCache[name]).lower().splitlines():
 			for key in line.split(" "):
 				key = "".join( [ c for c in key if c.lower() in conf["viur.searchValidChars"] ] )
 				if key and key not in res and len(key)>3:
 					res.append( key )
 		return( res )
 	
-	def getSearchDocumentFields(self, name):
+	def getSearchDocumentFields(self, valuesCache, name):
 		"""
 			Returns a list of search-fields (GAE search API) for this bone.
 		"""
-		return( [ search.TextField( name=name, value=unicode( self.value ) ) ] )
+		return( [ search.TextField( name=name, value=unicode( valuesCache[name] ) ) ] )
 	
-	def getUniquePropertyIndexValue( self ):
+	def getUniquePropertyIndexValue( self, valuesCache, name ):
 		"""
 			Returns an hash for our current value, used to store in the uniqueProptertyValue index.
 		"""
-		if self.value is None:
+		if valuesCache[name] is None:
 			return( None )
 		h = hashlib.sha256()
-		h.update( unicode( self.value ).encode("UTF-8") )
+		h.update( unicode( valuesCache[name] ).encode("UTF-8") )
 		res = h.hexdigest()
-		if isinstance( self.value, int ) or isinstance( self.value, float ) or isinstance( self.value, long ):
+		if isinstance( valuesCache[name], int ) or isinstance( valuesCache[name], float ) or isinstance( valuesCache[name], long ):
 			return("I-%s" % res )
-		elif isinstance( self.value, str ) or isinstance( self.value, unicode ):
+		elif isinstance( valuesCache[name], str ) or isinstance( valuesCache[name], unicode ):
 			return("S-%s" % res )
-		raise NotImplementedError("Type %s can't be safely used in an uniquePropertyIndex" % type( self.value) )
+		raise NotImplementedError("Type %s can't be safely used in an uniquePropertyIndex" % type(valuesCache[name]) )
 
-	def getReferencedBlobs( self ):
+	def getReferencedBlobs( self, valuesCache, name ):
 		"""
 			Returns the list of blob keys referenced from this bone
 		"""
@@ -346,7 +361,7 @@ class baseBone(object): # One Bone:
 		pass #We do nothing by default
 	performMagic.injectValueCache = True
 
-	def postSavedHandler( self, boneName, skel, key, dbObj ):
+	def postSavedHandler( self, valuesCache, boneName, skel, key, dbObj ):
 		"""
 			Can be overridden to perform further actions after the main entity has been written.
 

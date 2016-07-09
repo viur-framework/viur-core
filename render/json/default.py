@@ -119,7 +119,7 @@ class DefaultRender(object):
 				"descr": _( e.descr ), 
 				"skel": self.renderSkelStructure( e.dataSkel() ) } )
 
-	def renderBoneValue(self, bone):
+	def renderBoneValue(self, bone, skel, key):
 		"""
 		Renders the value of a bone.
 
@@ -133,30 +133,30 @@ class DefaultRender(object):
 		:rtype: dict
 		"""
 		if bone.type == "date" or bone.type.startswith("date."):
-			if bone.value:
+			if skel[key]:
 				if bone.date and bone.time:
-					return bone.value.strftime("%d.%m.%Y %H:%M:%S")
+					return skel[key].strftime("%d.%m.%Y %H:%M:%S")
 				elif bone.date:
-					return bone.value.strftime("%d.%m.%Y")
+					return skel[key].strftime("%d.%m.%Y")
 
-				return bone.value.strftime("%H:%M:%S")
+				return skel[key].strftime("%H:%M:%S")
 		elif isinstance(bone, bones.relationalBone):
-			if isinstance(bone.value, list):
+			if isinstance(skel[key], list):
 				tmpList = []
-				for k in bone.value:
+				for k in skel[key]:
 					tmpList.append({
 						"dest": self.renderSkelValues(k["dest"]),
 			            "rel": self.renderSkelValues(k.get("rel"))
 					})
 
 				return tmpList
-			elif isinstance(bone.value, dict):
+			elif isinstance(skel[key], dict):
 				return {
-					"dest": self.renderSkelValues(bone.value["dest"]),
-				    "rel": self.renderSkelValues(bone.value.get("rel"))
+					"dest": self.renderSkelValues(skel[key]["dest"]),
+				    "rel": self.renderSkelValues(skel[key].get("rel"))
 				}
 		else:
-			return bone.value
+			return skel[key]
 
 		return None
 
@@ -177,7 +177,7 @@ class DefaultRender(object):
 
 		res = {}
 		for key, bone in skel.items():
-			res[key] = self.renderBoneValue(bone)
+			res[key] = self.renderBoneValue(bone, skel, key)
 
 		return res
 		
@@ -216,8 +216,10 @@ class DefaultRender(object):
 
 		res["skellist"] = skels
 
-		res["structure"] = self.renderSkelStructure(skellist.baseSkel)
-		
+		if skellist:
+			res["structure"] = self.renderSkelStructure(skellist.baseSkel)
+		else:
+			res["structure"] = None
 		res["cursor"] = skellist.cursor
 		res["action"] = "list"
 		request.current.get().response.headers["Content-Type"] = "application/json"

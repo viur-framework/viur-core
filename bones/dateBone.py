@@ -83,7 +83,7 @@ class dateBone( baseBone ):
 		self.time=time
 		self.localize = localize
 
-	def fromClient( self, name, data ):
+	def fromClient( self,valuesCache, name, data ):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -102,24 +102,24 @@ class dateBone( baseBone ):
 			value = data[ name ]
 		else:
 			value = None
-		self.value = None
+		valuesCache[name] = None
 		if str( value ).replace("-",  "",  1).replace(".","",1).isdigit():
 			if int(value) < -1*(2**30) or int(value)>(2**31)-2:
 				return( "Invalid value entered" )
-			self.value = ExtendedDateTime.fromtimestamp( float(value) )
+			valuesCache[name] = ExtendedDateTime.fromtimestamp( float(value) )
 			return( None )
 		elif not self.date and self.time:
 			try:
 				if str( value ).count(":")>1:
 					(hour, minute, second) = [int(x.strip()) for x in str( value ).split(":")]
-					self.value = time( hour=hour, minute=minute, second=second )
+					valuesCache[name] = time( hour=hour, minute=minute, second=second )
 					return( None )
 				elif str( value ).count(":")>0:
 					(hour, minute) = [int(x.strip()) for x in str( value ).split(":")]
-					self.value = time( hour=hour, minute=minute )
+					valuesCache[name] = time( hour=hour, minute=minute )
 					return( None )
 				elif str( value ).replace("-",  "",  1).isdigit():
-					self.value = time( second=int(value) )
+					valuesCache[name] = time( second=int(value) )
 					return( None )
 			except:
 				return( "Invalid value entered" )
@@ -131,32 +131,32 @@ class dateBone( baseBone ):
 					tmpRes += timedelta( seconds= int( str(value)[3:] ) )
 				except:
 					pass
-			self.value = tmpRes
+			valuesCache[name] = tmpRes
 			return( None )
 		else:
 			try:
 				if " " in value: # Date with time
 					try: #Times with seconds
 						if "-" in value: #ISO Date
-							self.value = ExtendedDateTime.strptime(str( value ), "%Y-%m-%d %H:%M:%S")
+							valuesCache[name] = ExtendedDateTime.strptime(str( value ), "%Y-%m-%d %H:%M:%S")
 						elif "/" in value: #Ami Date
-							self.value = ExtendedDateTime.strptime(str( value ), "%m/%d/%Y %H:%M:%S")
+							valuesCache[name] = ExtendedDateTime.strptime(str( value ), "%m/%d/%Y %H:%M:%S")
 						else: # European Date
-							self.value = ExtendedDateTime.strptime(str( value ), "%d.%m.%Y %H:%M:%S")
+							valuesCache[name] = ExtendedDateTime.strptime(str( value ), "%d.%m.%Y %H:%M:%S")
 					except:
 						if "-" in value: #ISO Date
-							self.value = ExtendedDateTime.strptime(str( value ), "%Y-%m-%d %H:%M")
+							valuesCache[name] = ExtendedDateTime.strptime(str( value ), "%Y-%m-%d %H:%M")
 						elif "/" in value: #Ami Date
-							self.value = ExtendedDateTime.strptime(str( value ), "%m/%d/%Y %H:%M")
+							valuesCache[name] = ExtendedDateTime.strptime(str( value ), "%m/%d/%Y %H:%M")
 						else: # European Date
-							self.value = ExtendedDateTime.strptime(str( value ), "%d.%m.%Y %H:%M")
+							valuesCache[name] = ExtendedDateTime.strptime(str( value ), "%d.%m.%Y %H:%M")
 				else:
 					if "-" in value: #ISO Date
-						self.value = ExtendedDateTime.strptime(str( value ), "%Y-%m-%d")
+						valuesCache[name] = ExtendedDateTime.strptime(str( value ), "%Y-%m-%d")
 					elif "/" in value: #Ami Date
-						self.value = ExtendedDateTime.strptime(str( value ), "%m/%d/%Y")
+						valuesCache[name] = ExtendedDateTime.strptime(str( value ), "%m/%d/%Y")
 					else:
-						self.value =ExtendedDateTime.strptime(str( value ), "%d.%m.%Y")
+						valuesCache[name] =ExtendedDateTime.strptime(str( value ), "%d.%m.%Y")
 				return( None )
 			except:
 				return( "Invalid value entered" )

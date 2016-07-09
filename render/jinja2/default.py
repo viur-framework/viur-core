@@ -205,7 +205,7 @@ class Render( object ):
 			"readOnly": bone.readOnly
 		}
 
-		if isinstance(bone, relationalBone):
+		if bone.type == "relational" or bone.type.startswith("relational."):
 			if isinstance(bone, hierarchyBone):
 				boneType = "hierarchy"
 			elif isinstance(bone, treeItemBone):
@@ -222,31 +222,31 @@ class Render( object ):
 				"relskel": self.renderSkelStructure(RelSkel.fromSkel(skeletonByKind(bone.type), *bone.refKeys))
 			})
 
-		elif isinstance(bone, selectOneBone) or isinstance(bone, selectMultiBone):
+		elif bone.type == "selectone" or bone.type.startswith("selectone.") or bone.type == "selectmulti" or bone.type.startswith("selectmulti."):
 			ret.update({
 				"values": bone.values
 			})
 
-		elif isinstance(bone, dateBone):
+		elif bone.type == "date" or bone.type.startswith("date."):
 			ret.update({
 				"date": bone.date,
 	            "time": bone.time
 			})
 
-		elif isinstance(bone, numericBone):
+		elif bone.type == "numeric" or bone.type.startswith("numeric."):
 			ret.update({
 				"precision": bone.precision,
 		        "min": bone.min,
 				"max": bone.max
 			})
 
-		elif isinstance(bone, textBone):
+		elif bone.type == "text" or bone.type.startswith("text."):
 			ret.update({
 				"validHtml": bone.validHtml,
 				"languages": bone.languages
 			})
 
-		elif isinstance(bone, stringBone):
+		elif bone.type == "str" or bone.type.startswith("str."):
 			ret.update({
 				"languages": bone.languages
 			})
@@ -278,7 +278,7 @@ class Render( object ):
 
 		return res
 
-	def renderBoneValue(self, bone):
+	def renderBoneValue(self, bone, skel, key):
 		"""
 		Renders the value of a bone.
 
@@ -292,18 +292,17 @@ class Render( object ):
 		:rtype: dict
 		"""
 
-		if isinstance(bone, selectOneBone):
-			if bone.value in bone.values.keys():
-				return Render.KeyValueWrapper(bone.value, bone.values[bone.value])
+		if bone.type=="selectone" or bone.type.startswith("selectone."):
+			if skel[key] in bone.values.keys():
+				return Render.KeyValueWrapper(skel[key], bone.values[skel[key]])
 			return bone.value
-		elif isinstance(bone, selectMultiBone):
-			return [(Render.KeyValueWrapper(val, bone.values[val])
-			            if val in bone.values.keys() else val)
-			                for val in bone.value]
-		elif isinstance(bone, relationalBone):
-			if isinstance(bone.value, list):
+		elif bone.type=="selectmulti" or bone.type.startswith("selectmulti."):
+			return [(Render.KeyValueWrapper(val, bone.values[val]) if val in bone.values.keys() else val) for val in skel[key]]
+		elif bone.type=="relational" or bone.type.startswith("relational."):
+			logging.error("Bone Relational render value %s", skel[key])
+			if isinstance(skel[key], list):
 				tmpList = []
-				for k in bone.value:
+				for k in skel[key]:
 					if bone.using is None:
 						tmpList.append(self.collectSkelData(k["dest"]))
 					else:
@@ -312,17 +311,17 @@ class Render( object ):
 			                "rel": self.collectSkelData(k["rel"]) if k["rel"] else None
 						})
 				return tmpList
-			elif isinstance(bone.value, dict):
+			elif isinstance(skel[key], dict):
 				if bone.using is None:
-					return self.collectSkelData(bone.value["dest"])
+					return self.collectSkelData(skel[key]["dest"])
 				return {
-					"dest": self.collectSkelData(bone.value["dest"]),
-					"rel": self.collectSkelData(bone.value["rel"]) if bone.value["rel"] else None
+					"dest": self.collectSkelData(skel[key]["dest"]),
+					"rel": self.collectSkelData(skel[key]["rel"]) if skel[key]["rel"] else None
 				}
 			else:
 				return None
 		else:
-			return bone.value
+			return skel[key]
 
 		return None
 
@@ -337,12 +336,12 @@ class Render( object ):
 			:returns: A dictionary or list of dictionaries.
 			:rtype: dict | list
 		"""
+		logging.error("collectSkelData %s", skel)
 		if isinstance(skel, list):
 			return [self.collectSkelData(x) for x in skel]
-
 		res = {}
 		for key, bone in skel.items():
-			val = self.renderBoneValue(bone)
+			val = self.renderBoneValue(bone, skel, key)
 			if val is None:
 				continue
 
