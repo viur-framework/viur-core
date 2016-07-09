@@ -63,33 +63,33 @@ class stringBone( baseBone ):
 		self.languages = languages
 		self.multiple = multiple
 
-	def serialize( self, name, entity ):
+	def serialize( self, valuesCache, name, entity ):
 		for k in entity.keys(): #Remove any old data
 			if k.startswith("%s." % name ):
 				del entity[ k ]
 		if not self.languages:
 			if self.caseSensitive:
-				return( super( stringBone, self ).serialize( name, entity ) )
+				return( super( stringBone, self ).serialize( valuesCache, name, entity ) )
 			else:
 				if name != "key":
-					entity.set( name, self.value, self.indexed )
-					if self.value is None:
+					entity.set( name, valuesCache[name], self.indexed )
+					if valuesCache[name] is None:
 						entity.set( name+".idx", None, self.indexed )
-					elif isinstance( self.value, list ):
-						entity.set( name+".idx", [unicode( x ).lower() for x in self.value], self.indexed )
+					elif isinstance( valuesCache[name], list ):
+						entity.set( name+".idx", [unicode( x ).lower() for x in valuesCache[name]], self.indexed )
 					else:
-						entity.set( name+".idx", unicode( self.value ).lower(), self.indexed )
+						entity.set( name+".idx", unicode( valuesCache[name] ).lower(), self.indexed )
 		else: #Write each language separately
-			if not self.value:
+			if not valuesCache.get(name, None):
 				return( entity )
-			if isinstance( self.value, basestring ) or (isinstance( self.value, list ) and self.multiple): #Convert from old format
+			if isinstance( valuesCache[name], basestring ) or (isinstance( valuesCache[name], list ) and self.multiple): #Convert from old format
 				lang = self.languages[0]
-				entity.set( "%s.%s" % (name, lang), self.value, self.indexed )
+				entity.set( "%s.%s" % (name, lang), valuesCache[name], self.indexed )
 				if not self.caseSensitive:
-					if isinstance( self.value, basestring ):
-						entity.set( "%s.%s.idx" % (name, lang), self.value.lower(), self.indexed )
+					if isinstance( valuesCache[name], basestring ):
+						entity.set( "%s.%s.idx" % (name, lang), valuesCache[name].lower(), self.indexed )
 					else:
-						entity.set( "%s.%s.idx" % (name, lang), [x.lower for x in self.value], self.indexed )
+						entity.set( "%s.%s.idx" % (name, lang), [x.lower for x in valuesCache[name]], self.indexed )
 				# Fill in None for all remaining languages (needed for sort!)
 				if self.indexed:
 					for lang in self.languages[ 1: ]:
@@ -97,11 +97,11 @@ class stringBone( baseBone ):
 						if not self.caseSensitive:
 							entity.set( "%s.%s.idx" % (name, lang), "", self.indexed )
 			else:
-				assert isinstance( self.value, dict)
+				assert isinstance( valuesCache[name], dict)
 				for lang in self.languages:
-					if lang in self.value.keys():
-						val = self.value[ lang ]
-						entity.set( "%s.%s" % (name, lang), self.value[lang], self.indexed )
+					if lang in valuesCache[name].keys():
+						val = valuesCache[name][ lang ]
+						entity.set( "%s.%s" % (name, lang), valuesCache[name][lang], self.indexed )
 						if not self.caseSensitive:
 							if isinstance( val, basestring ):
 								entity.set( "%s.%s.idx" % (name, lang), val.lower(), self.indexed )
@@ -116,8 +116,9 @@ class stringBone( baseBone ):
 							if not self.caseSensitive:
 								entity.set( "%s.%s.idx" % (name, lang), "", self.indexed )
 		return( entity )
+	serialize.injectValueCache = True
 		
-	def unserialize( self, name, expando ):
+	def unserialize(self, valuesCache, name, expando):
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -130,21 +131,22 @@ class stringBone( baseBone ):
 		"""
 		if not self.languages:
 			if name in expando.keys():
-				self.value = expando[ name ]
+				valuesCache[name] = expando[name]
 		else:
-			self.value = LanguageWrapper( self.languages )
+			valuesCache[name] = LanguageWrapper( self.languages )
 			for lang in self.languages:
 				if "%s.%s" % ( name, lang ) in expando.keys():
 					val = expando[ "%s.%s" % ( name, lang ) ]
 					if isinstance( val, list ) and not self.multiple:
 						val = ", ".join( val )
-					self.value[ lang ] = val
-			if not self.value.keys(): #Got nothing
+					valuesCache[name][lang] = val
+			if not valuesCache[name].keys(): #Got nothing
 				if name in expando.keys(): #Old (non-multi-lang) format
-					self.value[ self.languages[0] ] = expando[ name ]
+					valuesCache[name][ self.languages[0] ] = expando[ name ]
 		return( True )
+	unserialize.injectValueCache = True
 
-	def fromClient( self, name, data ):
+	def fromClient( self, valuesCache, name, data ):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -164,49 +166,49 @@ class stringBone( baseBone ):
 		else:
 			value = None
 		if self.multiple and self.languages:
-			self.value = LanguageWrapper( self.languages )
+			valuesCache[name] = LanguageWrapper( self.languages )
 			for lang in self.languages:
-				self.value[ lang ] = []
+				valuesCache[name][ lang ] = []
 				if "%s.%s" % ( name, lang ) in data.keys():
 					val = data["%s.%s" % ( name, lang )]
 					if isinstance( val, basestring ):
-						self.value[ lang ].append( utils.escapeString( val ) )
+						valuesCache[name][ lang ].append( utils.escapeString( val ) )
 					elif isinstance( val, list ):
 						for v in val:
-							self.value[ lang ].append( utils.escapeString( v ) )
-			if not any( self.value.values() ):
+							valuesCache[name][ lang ].append( utils.escapeString( v ) )
+			if not any( valuesCache[name].values() ):
 				return( "No value entered" )
 			else:
 				return( None )
 		elif self.multiple and not self.languages:
-			self.value = []
+			valuesCache[name] = []
 			if not value:
 				return( "No value entered" )
 			if not isinstance( value, list ):
 				value = [value]
 			for val in value:
 				if not self.isInvalid( val ):
-					self.value.append( utils.escapeString( val ) )
-			if( len( self.value ) > 0):
-				self.value = self.value[0:254] #Max 254 Keys
+					valuesCache[name].append( utils.escapeString( val ) )
+			if( len( valuesCache[name] ) > 0):
+				valuesCache[name] = valuesCache[name][0:254] #Max 254 Keys
 				return( None )
 			else:
 				return( "No valid value entered" )
 		elif not self.multiple and self.languages:
-			self.value = LanguageWrapper( self.languages )
+			valuesCache[name] = LanguageWrapper( self.languages )
 			err = None
 			for lang in self.languages:
 				if "%s.%s" % ( name, lang ) in data.keys():
 					val = data["%s.%s" % ( name, lang )]
 					tmpErr = self.isInvalid( val )
 					if not tmpErr:
-						self.value[ lang ] = utils.escapeString( val )
+						valuesCache[name][ lang ] = utils.escapeString( val )
 					else:
 						err = tmpErr
 			if err:
 				return( err )
 			else:
-				if len( self.value.keys() )==0: #No valid value
+				if len( valuesCache[name].keys() )==0: #No valid value
 					return( "No value entered" )
 			return( None )
 			
@@ -214,12 +216,13 @@ class stringBone( baseBone ):
 			err = self.isInvalid( value )
 			if not err:
 				if not value:
-					self.value = u""
+					valuesCache[name] = u""
 					return( "No value entered" )
-				self.value = utils.escapeString( value )
+				valuesCache[name] = utils.escapeString( value )
 				return( None )
 			else:
 				return( err )
+	fromClient.injectValueCache = True
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
 		if not name in rawFilter.keys() and not any( [(x.startswith(name+"$") or x.startswith(name+".")) for x in rawFilter.keys()] ):

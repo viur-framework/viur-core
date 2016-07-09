@@ -17,35 +17,10 @@ def getSystemInitialized():
 	global __systemIsIntitialized_
 	return __systemIsIntitialized_
 
-class boneFactory(object):
-	IDX = 1
-	
-	def __init__(self, cls, args, kwargs):
-		super(boneFactory, self).__init__()
-		self.cls = cls
-		self.args = args
-		self.kwargs = kwargs
-		self.idx = boneFactory.IDX
-		boneFactory.IDX += 1
-
-	def __call__(self, *args, **kwargs):
-		tmpDict = self.kwargs.copy()
-		tmpDict.update(kwargs)
-		return self.cls(*(self.args+args), **tmpDict)
-
-	def __repr__(self):
-		return "%sFactory" % self.cls.__name__
-
 
 class baseBone(object): # One Bone:
 	hasDBField = True
 	type = "hidden"
-
-	def __new__(cls, *args, **kwargs):
-		if getSystemInitialized():
-			return super(baseBone, cls).__new__(cls, *args, **kwargs)
-		else:
-			return boneFactory(cls, args, kwargs)
 
 
 	def __init__(	self, descr="", defaultValue=None, required=False, params=None, multiple=False,
@@ -153,7 +128,7 @@ class baseBone(object): # One Bone:
 		if value==None:
 			return( "No value entered" )
 
-	def serialize( self, name, entity ):
+	def serialize( self, valuesCache, name, entity ):
 		"""
 			Serializes this bone into something we
 			can write into the datastore.
@@ -163,8 +138,9 @@ class baseBone(object): # One Bone:
 			:returns: dict
 		"""
 		if name != "key":
-			entity.set( name, self.value, self.indexed )
+			entity.set( name, valuesCache[name], self.indexed )
 		return( entity )
+	serialize.injectValueCache = True
 
 	def unserialize( self, name, expando ):
 		"""
@@ -361,13 +337,14 @@ class baseBone(object): # One Bone:
 		"""
 		return( [] )
 
-	def performMagic( self, isAdd ):
+	def performMagic( self, valuesCache, name, isAdd ):
 		"""
 			This function applies "magically" functionality which f.e. inserts the current Date or the current user.
 			@param isAdd: Signals whereever this is an add or edit operation.
 			:type isAdd: bool
 		"""
 		pass #We do nothing by default
+	performMagic.injectValueCache = True
 
 	def postSavedHandler( self, boneName, skel, key, dbObj ):
 		"""

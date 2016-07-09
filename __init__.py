@@ -47,6 +47,7 @@ import urlparse
 from string import Template
 from StringIO import StringIO
 import logging
+from time import time
 
 ### Multi-Language Part
 try:
@@ -318,12 +319,16 @@ class BrowseHandler(webapp.RequestHandler):
 	"""
 	
 	def get(self, path="/", *args, **kwargs): #Accept a HTTP-GET request
+		t1 = time()
 		if path=="_ah/start" or path=="_ah/warmup": #Warmup request
 			self.response.out.write("OK")
 			return
 
 		self.isPostRequest = False
 		self.processRequest( path, *args, **kwargs )
+		t2 = time()
+		#self.response.clear()
+		#self.response.out.write(str(t2-t1))
 
 	def post(self, path="/", *args, **kwargs): #Accept a HTTP-POST request
 		self.isPostRequest = True

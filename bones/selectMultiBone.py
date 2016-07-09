@@ -95,19 +95,21 @@ class selectMultiBone( baseBone ):
 		else:
 			return( "No item selected" )
 	
-	def serialize( self, name, entity ):
-		if not self.value or len( self.value ) == 0:
+	def serialize( self, valuesCache, name, entity ):
+		if not valuesCache[name] or len(valuesCache[name]) == 0:
 			entity.set( name, None, self.indexed )
 		else:
-			entity.set( name, self.value, self.indexed )
+			entity.set( name, valuesCache[name], self.indexed )
 		return( entity )
+	serialize.injectValueCache = True
 
-	def unserialize( self, name, expando ):
+	def unserialize( self, valuesCache, name, expando ):
 		if name in expando.keys():
-			self.value = expando[ name ]
-		if not self.value:
-			self.value = []
+			valuesCache[name] = expando[ name ]
+		if not valuesCache[name]:
+			valuesCache[name] = []
 		return( True )
+	unserialize.injectValueCache = True
 
 class selectAccessMultiBone( selectMultiBone ):
 	type = "selectmulti.access"

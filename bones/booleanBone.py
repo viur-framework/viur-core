@@ -53,7 +53,7 @@ class booleanBone( baseBone ):
 			entity.set( name, self.value, self.indexed )
 		return( entity )
 
-	def unserialize( self, name, expando ):
+	def unserialize(self, valuesCache, name, expando):
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -68,10 +68,11 @@ class booleanBone( baseBone ):
 		if name in expando.keys():
 			val = expando[ name ]
 			if str( val ) in self.trueStrs:
-				self.value = True
+				valuesCache[name] = True
 			else:
-				self.value = False
-		return( True )
+				valuesCache[name] = False
+		return True
+	unserialize.injectValueCache = True
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
 		if name in rawFilter.keys():

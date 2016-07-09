@@ -171,8 +171,16 @@ class List(BasicApplication):
 		query = self.listFilter( self.viewSkel().all().mergeExternalFilter( kwargs ) ) #Access control
 		if query is None:
 			raise errors.Unauthorized()
-
-		return self.render.list( query.fetch() )
+		from time import time
+		t1 = time()
+		res = query.fetch()
+		t2 = time()
+		fr = self.render.list( res )
+		t3 = time()
+		logging.error("FetchTime: %s", (t2 - t1))
+		logging.error("RenderTime: %s", (t3 - t2))
+		logging.error(self.viewSkel().times)
+		return fr
 
 	@forceSSL
 	@exposed

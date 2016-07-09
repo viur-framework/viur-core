@@ -335,7 +335,7 @@ def StartupTask( fn ):
 		Wrapped functions must not take any arguments.
 	"""
 	global _startupTasks
-	_startupTasks.append( fn )
+	#_startupTasks.append( fn )
 	return( fn )
 
 @callDeferred
