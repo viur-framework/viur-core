@@ -20,4 +20,4 @@ class UserRender( user ):
 		raise errors.Redirect("/vi/s/logout.html")
 
 	def login( self, skel, **kwargs ):
-		raise errors.Redirect("/vi/s/login.html")
+		raise errors.Redirect(kwargs["url"])
