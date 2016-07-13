@@ -1,17 +1,32 @@
 # -*- coding: utf-8 -*-
 
+import datetime
+import json
+
 from server.render.json.default import DefaultRender as default
-from server.render.json.user import UserRender as user
-from server.render.json.file import FileRender as file
+from server.render.json.user import UserRender
 from server.skeleton import Skeleton
 from server import conf
+from server import errors
 from server import securitykey
 from server import utils
 from server import request
 from server import session
-import datetime, json
+
 
 __all__=[ default ]
+
+
+class user(UserRender):
+	def loginSucceeded( self,  **kwargs ):
+		return "OKAY"
+
+	def login( self, skel, **kwargs ):
+		if not request.current.get().isDevServer:
+			return json.dumps({"url": kwargs["url"]})
+		else:
+			raise errors.Redirect(kwargs["url"])
+
 
 def genSkey( *args,  **kwargs ):
 	return json.dumps( securitykey.create() ) 

@@ -682,7 +682,7 @@ class Render( object ):
 		"""
 			Renders a page to display a single item
 			@param skel: Skeleton which contains the data of the entity
-			@type skel: Skeleton
+			@type skel: Skeleton|dict
 			@param tpl: Name of an different template, which should be used instead of the default one
 			@param: tpl: String
 		"""
