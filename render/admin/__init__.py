@@ -5,6 +5,7 @@ import json
 
 from server.render.json.default import DefaultRender as default
 from server.render.json.user import UserRender
+from server.render.json.file import FileRender as file
 from server.skeleton import Skeleton
 from server import conf
 from server import errors
