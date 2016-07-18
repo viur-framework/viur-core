@@ -248,7 +248,8 @@ class Render( object ):
 
 		elif isinstance(bone, stringBone):
 			ret.update({
-				"languages": bone.languages
+				"languages": bone.languages,
+				"multiple": bone.multiple
 			})
 
 		return ret
