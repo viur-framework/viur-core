@@ -20,6 +20,7 @@ from time import time
 __cacheLockTime__ = 42 #Prevent an entity from creeping into the cache for 42 Secs if it just has been altered.
 __cacheTime__ = 15*60 #15 Mins
 __CacheKeyPrefix__ ="viur-db-cache:" #Our Memcache-Namespace. Dont use that for other purposes
+__MemCacheBatchSize__ = 30
 
 
 def PutAsync( entities, **kwargs ):
@@ -153,29 +154,21 @@ def Get( keys, **kwargs ):
 			tmpRes = []
 			keyList = [ str(x) for x in keys ]
 			while keyList: #Fetch in Batches of 30 entries, as the max size for bulk_get is limited to 32MB
-				currentBatch = keyList[ : 30]
-				keyList = keyList[ 30: ]
+				currentBatch = keyList[:__MemCacheBatchSize__]
+				keyList = keyList[__MemCacheBatchSize__:]
 				cacheRes.update( memcache.get_multi( currentBatch, namespace=__CacheKeyPrefix__) )
 			#Fetch the rest from DB
 			missigKeys = [ x for x in keys if not str(x) in cacheRes.keys() ]
 			dbRes = [ Entity.FromDatastoreEntity(x) for x in datastore.Get( missigKeys ) if x is not None ]
-			#Cache what we had fetched
-			cacheMap = {}
-			for res in dbRes:
-				cacheMap[ str(res.key() ) ] = res
-				if len( str( cacheMap ) ) > 800000:
-					#Were approaching the 1MB limit
-					try:
-						memcache.set_multi( cacheMap, time=__cacheTime__ , namespace=__CacheKeyPrefix__ )
-					except:
-						pass
-					cacheMap = {}
-			if cacheMap:
-				# Cache the remaining entries
+			# Cache what we had fetched
+			saveIdx = 0
+			while len(dbRes)>saveIdx*__MemCacheBatchSize__:
+				cacheMap = {str(obj.key()): obj for obj in dbRes[saveIdx*__MemCacheBatchSize__:(saveIdx+1)*__MemCacheBatchSize__]}
 				try:
 					memcache.set_multi( cacheMap, time=__cacheTime__ , namespace=__CacheKeyPrefix__ )
 				except:
 					pass
+				saveIdx += 1
 			for key in [ str(x) for x in keys ]:
 				if key in cacheRes.keys():
 					tmpRes.append( cacheRes[ key ] )
