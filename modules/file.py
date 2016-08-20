@@ -116,6 +116,8 @@ class File( Tree ):
 			"icon": "icons/modules/my_files.svg", #Icon for this modul
 			}
 
+	blobCacheTime = 60*60*24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
+
 	def decodeFileName(self, name):
 		# http://code.google.com/p/googleappengine/issues/detail?id=2749
 		# Open since Sept. 2010, claimed to be fixed in Version 1.7.2 (September 18, 2012)
@@ -339,6 +341,8 @@ class File( Tree ):
 			raise errors.NotFound()
 		request.current.get().response.clear()
 		request.current.get().response.headers['Content-Type'] = str(info.content_type)
+		if self.blobCacheTime:
+			request.current.get().response.headers['Cache-Control'] = "public, max-age=%s" % self.blobCacheTime
 		request.current.get().response.headers[blobstore.BLOB_KEY_HEADER] = str(blobKey)
 		return("")
 
