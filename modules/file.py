@@ -516,7 +516,7 @@ def doCleanupDeletedFiles(cursor = None):
 	newCursor = query.getCursor()
 
 	if gotAtLeastOne and newCursor and newCursor.urlsafe() != cursor:
-		doCleanupDeletedFiles( newCursor.urlsafe() )
+		doCleanupDeletedFiles(newCursor.urlsafe())
 
 @PeriodicTask( 60*4 )
 def startDeleteWeakReferences():
@@ -524,7 +524,7 @@ def startDeleteWeakReferences():
 		Delete all weak file references older than a day.
 		If that file isn't referenced elsewhere, it's deleted, too.
 	"""
-	doDeleteWeakReferences((datetime.now()-timedelta(days=1)).strftime("%d.%m.%Y %H:%M:%S"))
+	doDeleteWeakReferences((datetime.now() - timedelta(days = 1)).strftime("%d.%m.%Y %H:%M:%S"))
 
 def doDeleteWeakReferences(timeStamp, cursor = None):
 	skelCls = skeletonByKind("file")
@@ -549,4 +549,4 @@ def doDeleteWeakReferences(timeStamp, cursor = None):
 	newCursor = q.getCursor()
 
 	if gotAtLeastOne and newCursor and newCursor.urlsafe() != cursor:
-		doDeleteWeakReferences( timeStamp, newCursor.urlsafe() )
+		doDeleteWeakReferences(timeStamp, newCursor.urlsafe())
