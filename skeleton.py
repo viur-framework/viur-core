@@ -702,7 +702,7 @@ class Skeleton( object ):
 				continue
 
 			error = _bone.fromClient( key, data )
-			if isinstance( error, ReadFromClientError ):
+			if isinstance( error, errors.ReadFromClientError ):
 				self.errors.update( error.errors )
 				if error.forceFail:
 					complete = False
@@ -904,7 +904,7 @@ class RelSkel( object ):
 			if _bone.readOnly:
 				continue
 			error = _bone.fromClient( key, data )
-			if isinstance( error, ReadFromClientError ):
+			if isinstance( error, errors.ReadFromClientError ):
 				self.errors.update( error.errors )
 				if error.forceFail:
 					complete = False
