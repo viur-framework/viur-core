@@ -470,7 +470,7 @@ class User(List):
 		skel.access.values = accessRights
 
 	def addSkel(self):
-		skel = super(User, self).addSkel()
+		skel = super(User, self).addSkel().clone()
 		user = utils.getCurrentUser()
 		if not (user and user["access"] and ("%s-add" % self.moduleName in user["access"] or "root" in user["access"])):
 			skel.status.readOnly = True

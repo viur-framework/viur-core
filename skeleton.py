@@ -51,8 +51,6 @@ class MetaSkel( type ):
 			MetaSkel._skelCache[ kindName ] = cls
 		for key in dir( cls ):
 			if isinstance( getattr( cls, key ), baseBone ):
-				if key.lower()!=key:
-					raise AttributeError( "Bonekeys must be lowercase" )
 				if "." in key:
 					raise AttributeError( "Bonekeys cannot not contain a dot (.) - got %s" % key )
 				if key in MetaSkel.__reservedKeywords_:
@@ -732,11 +730,11 @@ class Skeleton( object ):
 
 		for boneName, boneInstance in self.items():
 			if boneInstance.unique:
-				newVal = boneInstance.getUniquePropertyIndexValue()
+				newVal = boneInstance.getUniquePropertyIndexValue(self.valuesCache, boneName)
 				if newVal is not None:
 					try:
 						dbObj = db.Get(db.Key.from_path("%s_%s_uniquePropertyIndex" % (self.kindName, boneName), newVal))
-						if dbObj["references"] != self["key"].value: #This valus is taken (sadly, not by us)
+						if dbObj["references"] != self["key"]: #This valus is taken (sadly, not by us)
 							complete = False
 							if isinstance(boneInstance.unique, unicode):
 								errorMsg = _(boneInstance.unique)
@@ -777,8 +775,6 @@ class MetaRelSkel( type ):
 	def __init__( cls, name, bases, dct ):
 		for key in dir( cls ):
 			if isinstance( getattr( cls, key ), baseBone ):
-				if key.lower()!=key:
-					raise AttributeError( "Bonekeys must be lowercase" )
 				if "." in key:
 					raise AttributeError( "Bonekeys cannot not contain a dot (.) - got %s" % key )
 				if key in MetaRelSkel.__reservedKeywords_:
@@ -865,7 +861,7 @@ class RelSkel( object ):
 				self.valuesCache[key] = None
 		tmpList.sort( key=lambda x: x[1].idx )
 		for key, bone in tmpList:
-			bone = bone() #copy.copy( bone )
+			bone = bone #copy.copy( bone )
 			self.__dataDict__[ key ] = bone
 		self.__isInitialized_ = True
 
@@ -884,7 +880,8 @@ class RelSkel( object ):
 		skel.__isInitialized_ = False
 		for key in args:
 			if key in dir(skelCls):
-				skel[key] = getattr(skelCls, key)(_kindName=skelCls.kindName)
+				setattr(skel, key, getattr(skelCls, key))
+				skel[key] = None
 		skel.__isInitialized_ = True
 		return skel
 

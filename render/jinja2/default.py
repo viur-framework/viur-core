@@ -292,7 +292,6 @@ class Render( object ):
 		:return: A dict containing the rendered attributes.
 		:rtype: dict
 		"""
-
 		if bone.type=="selectone" or bone.type.startswith("selectone."):
 			if skel[key] in bone.values.keys():
 				return Render.KeyValueWrapper(skel[key], bone.values[skel[key]])
@@ -322,6 +321,8 @@ class Render( object ):
 			else:
 				return None
 		else:
+			#logging.error("RETURNING")
+			#logging.error((skel[key]))
 			return skel[key]
 
 		return None
@@ -337,7 +338,7 @@ class Render( object ):
 			:returns: A dictionary or list of dictionaries.
 			:rtype: dict | list
 		"""
-		logging.error("collectSkelData %s", skel)
+		#logging.error("collectSkelData %s", skel)
 		if isinstance(skel, list):
 			return [self.collectSkelData(x) for x in skel]
 		res = {}

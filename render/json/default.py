@@ -46,12 +46,12 @@ class DefaultRender(object):
 				boneType = "relational"
 
 			ret.update({
-				"type": "%s.%s" % (boneType, bone.type),
+				"type": "%s.%s" % (boneType, bone.kind),
 				"module": bone.module,
 				"multiple": bone.multiple,
 				"format": bone.format,
 				"using": self.renderSkelStructure(bone.using()) if bone.using else None,
-				"relskel": self.renderSkelStructure(RelSkel.fromSkel(skeletonByKind(bone.type), *bone.refKeys))
+				"relskel": self.renderSkelStructure(RelSkel.fromSkel(skeletonByKind(bone.kind), *bone.refKeys))
 			})
 
 

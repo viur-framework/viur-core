@@ -7,7 +7,7 @@ from hashlib import sha256
 import logging
 
 class fileBone(treeItemBone):
-	type = "file"
+	kind = "file"
 	refKeys = ["name", "meta_mime", "metamime", "mimetype", "dlkey", "servingurl", "size"]
 	
 	def __init__(self, format="$(dest.name)",*args, **kwargs ):
@@ -17,9 +17,9 @@ class fileBone(treeItemBone):
 		if valuesCache[name] is None or not "dlkey" in self.refKeys:
 			return []
 		elif isinstance(valuesCache[name], dict):
-			return [valuesCache[name]["dest"]["dlkey"].value]
+			return [valuesCache[name]["dest"]["dlkey"]]
 		elif isinstance(valuesCache[name], list):
-			return [x["dest"]["dlkey"].value for x in valuesCache[name]]
+			return [x["dest"]["dlkey"] for x in valuesCache[name]]
 
 	def unserialize( self, valuesCache, name, expando ):
 		res = super( fileBone, self ).unserialize( valuesCache, name, expando )

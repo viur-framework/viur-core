@@ -39,13 +39,15 @@ class relationalBone( baseBone ):
 	"""
 	refKeys = ["key", "name"]
 	parentKeys = ["key", "name"]
+	type = "relational"
+	kind = None
 
-	def __init__(self, type=None, module=None, refKeys=None, parentKeys=None, multiple=False,
-	                format="$(dest.name)", using=None, *args, **kwargs):
+	def __init__(self, kind=None, module=None, refKeys=None, parentKeys=None, multiple=False,
+	             format="$(dest.name)", using=None, *args, **kwargs):
 		"""
 			Initialize a new relationalBone.
-			:param type: KindName of the referenced property.
-			:type type: String
+			:param kind: KindName of the referenced property.
+			:type kind: String
 			:param module: Name of the modul which should be used to select entities of kind "type". If not set,
 				the value of "type" will be used (the kindName must match the moduleName)
 			:type type: String
@@ -66,17 +68,17 @@ class relationalBone( baseBone ):
 		baseBone.__init__( self, *args, **kwargs )
 		self.multiple = multiple
 		self.format = format
-		self._dbValue = None #Store the original result fetched from the db here so we have that information in case a referenced entity has been deleted
+		#self._dbValue = None #Store the original result fetched from the db here so we have that information in case a referenced entity has been deleted
 
-		if type:
-			self.type = type
+		if kind:
+			self.kind = kind
 
 		if module:
 			self.module = module
-		elif self.type:
-			self.module = self.type
+		elif self.kind:
+			self.module = self.kind
 
-		if self.type is None or self.module is None:
+		if self.kind is None or self.module is None:
 			raise NotImplementedError("Type and Module of relationalbone's must not be None")
 
 		if refKeys:
@@ -101,7 +103,7 @@ class relationalBone( baseBone ):
 		from server.skeleton import RelSkel, skeletonByKind
 		assert isinstance(value, dict), "Read something from the datastore thats not a dict: %s" % str(type(value))
 
-		relSkel = RelSkel.fromSkel(skeletonByKind(self.type), *self.refKeys)
+		relSkel = RelSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
 
 		# !!!ViUR re-design compatibility!!!
 		if not "dest" in value.keys():
@@ -131,6 +133,7 @@ class relationalBone( baseBone ):
 			if self.multiple:
 				valuesCache[name] = []
 				if not val:
+					logging.error("x1")
 					return True
 				if isinstance(val, list):
 					for res in val:
@@ -143,29 +146,33 @@ class relationalBone( baseBone ):
 					try:
 						valuesCache[name].append(self._restoreValueFromDatastore(val))
 					except:
+						raise
 						pass
 			else:
+				valuesCache[name] = None
 				if isinstance( val, list ) and len( val )>0:
 					try:
 						valuesCache[name] = self._restoreValueFromDatastore(val[0])
 					except:
+						raise
 						pass
 				else:
 					if val:
 						try:
 							valuesCache[name] = self._restoreValueFromDatastore(val)
 						except:
+							raise
 							pass
 					else:
 						valuesCache[name] = None
 		else:
 			valuesCache[name] = None
-		if isinstance( valuesCache[name], list ):
-			self._dbValue = valuesCache[name][ : ]
-		elif isinstance( valuesCache[name], dict ):
-			self._dbValue = dict( valuesCache[name].items() )
-		else:
-			self._dbValue = None
+		#if isinstance( valuesCache[name], list ):
+		#	self._dbValue = valuesCache[name][ : ]
+		#elif isinstance( valuesCache[name], dict ):
+		#	self._dbValue = dict( valuesCache[name].items() )
+		#else:
+		#	self._dbValue = None
 		return True
 
 	def serialize(self, valuesCache, name, entity ):
@@ -202,6 +209,8 @@ class relationalBone( baseBone ):
 		return entity
 
 	def postSavedHandler( self, valuesCache, boneName, skel, key, dbfields ):
+		logging.error("postSavedHandler")
+		logging.error((valuesCache, boneName, skel, key, dbfields))
 		if not valuesCache[boneName]:
 			values = []
 		elif isinstance( valuesCache[boneName], dict ):
@@ -215,9 +224,9 @@ class relationalBone( baseBone ):
 			if parentKey in dbfields.keys():
 				parentValues[ parentKey ] = dbfields[ parentKey ]
 
-		dbVals = db.Query( "viur-relations" ).ancestor( db.Key( key ) ) #skel.kindName+"_"+self.type+"_"+key
+		dbVals = db.Query( "viur-relations" ).ancestor( db.Key( key ) ) #skel.kindName+"_"+self.kind+"_"+key
 		dbVals.filter("viur_src_kind =", skel.kindName )
-		dbVals.filter("viur_dest_kind =", self.type )
+		dbVals.filter("viur_dest_kind =", self.kind)
 		dbVals.filter("viur_src_property =", boneName )
 
 		for dbObj in dbVals.iter():
@@ -231,19 +240,20 @@ class relationalBone( baseBone ):
 				data = [x for x in values if x["dest"]["key"] == dbObj["dest.key"]][0]
 				if self.indexed: #We dont store more than key and kinds, and these dont change
 					#Write our (updated) values in
-					for k, v in data["dest"].serialize():
+					for k, v in data["dest"].serialize().items():
 						dbObj[ "dest."+k ] = v
 					for k,v in parentValues.items():
 						dbObj[ "src."+k ] = v
-					for k, v in data["rel"].serialize():
-						dbObj[ "rel."+k ] = v
+					if self.using is not None:
+						for k, v in data["rel"].serialize():
+							dbObj[ "rel."+k ] = v
 					dbObj[ "viur_delayed_update_tag" ] = time()
 					db.Put( dbObj )
 				values.remove( data )
 
 		# Add any new Relation
 		for val in values:
-			dbObj = db.Entity( "viur-relations" , parent=db.Key( key ) ) #skel.kindName+"_"+self.type+"_"+key
+			dbObj = db.Entity( "viur-relations" , parent=db.Key( key ) ) #skel.kindName+"_"+self.kind+"_"+key
 
 			if not self.indexed: #Dont store more than key and kinds, as they aren't used anyway
 				dbObj[ "dest.key" ] = val["dest"]["key"]
@@ -262,7 +272,7 @@ class relationalBone( baseBone ):
 			#dbObj[ "viur_src_key" ] = str( key ) #The key of the entry referencing
 			dbObj[ "viur_src_property" ] = boneName #The key of the bone referencing
 			#dbObj[ "viur_dest_key" ] = val["key"]
-			dbObj[ "viur_dest_kind" ] = self.type
+			dbObj[ "viur_dest_kind" ] = self.kind
 			db.Put( dbObj )
 
 	def postDeletedHandler( self, skel, key, id ):
@@ -327,7 +337,10 @@ class relationalBone( baseBone ):
 		tmpList.sort( key=lambda k: k[0] )
 		tmpList = [{"reltmp":v,"dest":{"key":v["key"]}} for k,v in tmpList]
 		errorDict = {}
-
+		logging.error("Got Tmplist")
+		logging.error(tmpList)
+		if not tmpList and self.required:
+			return "No value selected!"
 		for r in tmpList[:]:
 			# Rebuild the referenced entity data
 			isEntryFromBackup = False #If the referenced entry has been deleted, restore information from
@@ -340,11 +353,11 @@ class relationalBone( baseBone ):
 				logging.info( "Invalid reference key >%s< detected on bone '%s'",
 							  r["dest"]["key"], name )
 
-				if isinstance(self._dbValue, dict):
+				if 0 and isinstance(self._dbValue, dict):
 					if self._dbValue["dest"]["key"]==str(r):
 						entry = self._dbValue
 						isEntryFromBackup = True
-				elif  isinstance(self._dbValue, list):
+				elif 0 and isinstance(self._dbValue, list):
 					for dbVal in self._dbValue:
 						if dbVal["dest"]["key"]==str(r):
 							entry = dbVal
@@ -357,15 +370,15 @@ class relationalBone( baseBone ):
 					tmpList.remove( r )
 					continue
 
-			if not entry or (not isEntryFromBackup and not entry.key().kind()==self.type): #Entry does not exist or has wrong type (is from another module)
+			if not entry or (not isEntryFromBackup and not entry.key().kind()==self.kind): #Entry does not exist or has wrong type (is from another module)
 				if entry:
-					logging.error("I got a key, which kind doesn't match my type! (Got: %s, my type %s)" % ( entry.key().kind(), self.type ) )
+					logging.error("I got a key, which kind doesn't match my type! (Got: %s, my type %s)" % ( entry.key().kind(), self.kind))
 				tmpList.remove( r )
 				continue
 
 			tmp = { k: entry[k] for k in entry.keys() if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ) }
 			tmp["key"] = r["dest"]["key"]
-			relSkel = RelSkel.fromSkel(skeletonByKind(self.type), *self.refKeys)
+			relSkel = RelSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
 			relSkel.unserialize(tmp)
 			r["dest"] = relSkel
 
@@ -400,9 +413,9 @@ class relationalBone( baseBone ):
 		origSortOrders = dbFilter.getOrders()
 		if isinstance( origFilter, db.MultiQuery):
 			raise NotImplementedError("Doing a relational Query with multiple=True and \"IN or !=\"-filters is currently unsupported!")
-		dbFilter.datastoreQuery = type( dbFilter.datastoreQuery )( "viur-relations" ) #skel.kindName+"_"+self.type+"_"+name
+		dbFilter.datastoreQuery = type( dbFilter.datastoreQuery )( "viur-relations" ) #skel.kindName+"_"+self.kind+"_"+name
 		dbFilter.filter("viur_src_kind =", skel.kindName )
-		dbFilter.filter("viur_dest_kind =", self.type )
+		dbFilter.filter("viur_dest_kind =", self.kind)
 		dbFilter.filter("viur_src_property", name )
 		if dbFilter._origCursor: #Merge the cursor in again (if any)
 			dbFilter.cursor( dbFilter._origCursor )
@@ -450,7 +463,7 @@ class relationalBone( baseBone ):
 			if dbFilter.getKind()!="viur-relations" and self.multiple:
 				name, skel, dbFilter, rawFilter = self._rewriteQuery( name, skel, dbFilter, rawFilter )
 
-			relSkel = RelSkel.fromSkel(skeletonByKind(self.type), *self.refKeys)
+			relSkel = RelSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
 
 			# Merge the relational filters in
 			for myKey in myKeys:
