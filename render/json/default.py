@@ -3,6 +3,7 @@ import json
 from collections import OrderedDict
 from server import errors, request, bones
 from server.skeleton import RelSkel, skeletonByKind
+import logging
 
 class DefaultRender(object):
 	

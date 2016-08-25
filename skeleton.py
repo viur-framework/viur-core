@@ -32,7 +32,6 @@ class MetaSkel( type ):
 	def __init__( cls, name, bases, dct ):
 		kindName = cls.kindName
 		if kindName and kindName in MetaSkel._skelCache.keys():
-			isOkay = False
 			relNewFileName = inspect.getfile(cls).replace( os.getcwd(),"" )
 			relOldFileName = inspect.getfile( MetaSkel._skelCache[ kindName ] ).replace( os.getcwd(),"" )
 			if relNewFileName.strip(os.path.sep).startswith("server"):
@@ -41,7 +40,6 @@ class MetaSkel( type ):
 			elif relOldFileName.strip(os.path.sep).startswith("server"):
 				#The old one was from server - override it
 				MetaSkel._skelCache[ kindName ] = cls
-				isOkay = True
 			else:
 				raise ValueError("Duplicate definition for %s in %s and %s" % (kindName, relNewFileName, relOldFileName) )
 		#	raise NotImplementedError("Duplicate definition of %s" % kindName)
@@ -73,33 +71,6 @@ def listKnownSkeletons():
 	return list(MetaSkel._skelCache.keys())[:]
 
 
-class BoneWr_apper(object):
-	__undefinedConst__ = object()
-
-	def __init__(self, boneObj, boneKey, valuesCache):
-		super(BoneWrapper, self).__init__()
-		self._boneObj = boneObj
-		self._boneKey = boneKey
-		self._valuesCache = valuesCache
-
-	def __getattr__(self, item):
-		if item=="value":
-			return self._valuesCache.get(self._boneKey, None)
-		prop = getattr(self._boneObj, item)
-		if callable(prop) and "injectValueCache" in dir(prop) and prop.injectValueCache:
-			return lambda *args, **kwargs: prop(self._valuesCache, *args, **kwargs)
-		else:
-			return prop
-
-	def __setattr__(self, key, value):
-		if key=="value":
-			self._valuesCache[self._boneKey] = value
-		elif key in ["_boneObj", "_boneKey", "_valuesCache"]:
-			super(BoneWrapper, self).__setattr__(key, value)
-		else:
-			#raise ValueError("Do not do that!")
-			setattr(self._boneObj, key, value)
-
 class Skeleton( object ):
 	""" 
 		This is a container-object holding information about one database entity.
@@ -122,25 +93,35 @@ class Skeleton( object ):
 	__metaclass__ = MetaSkel
 
 	def __setattr__(self, key, value):
-		if "_Skeleton__isInitialized_" in dir( self ) and not key in ["_Skeleton__currentDbKey_", "valuesCache"]:
-			raise AttributeError("You cannot directly modify the skeleton instance. Use [] instead!")
-		if not "__dataDict__" in dir( self ):
-			super( Skeleton, self ).__setattr__( "__dataDict__", OrderedDict() )
-		if not "__" in key:
-			if isinstance( value , baseBone ):
-				self.__dataDict__[ key ] =  value
-			elif key in self.__dataDict__.keys(): #Allow setting a bone to None again
-				self.__dataDict__[ key ] =  value
-		super( Skeleton, self ).__setattr__( key, value )
+		if "_Skeleton__isInitialized_" in dir(self):
+			if not key in ["_Skeleton__currentDbKey_", "valuesCache", "isClonedInstance"] and not self.isClonedInstance:
+				raise AttributeError("You cannot directly modify the skeleton instance. Use [] instead!")
+			if not "__dataDict__" in dir( self ):
+				super(Skeleton, self).__setattr__("__dataDict__", OrderedDict())
+			if not "__" in key:
+				if isinstance(value , baseBone):
+					self.__dataDict__[key] =  value
+				elif value is None and key in self.__dataDict__.keys(): #Allow setting a bone to None again
+					self.__dataDict__[key] =  value
+				elif key not in ["valuesCache"]:
+					raise ValueError("You tried to do what?")
+		super( Skeleton, self ).__setattr__(key, value)
 
 	def __delattr__(self, key):
-		if "_Skeleton__isInitialized_" in dir( self ):
+		if "_Skeleton__isInitialized_" in dir(self) and not self.isClonedInstance:
 			raise AttributeError("You cannot directly modify the skeleton instance. Use [] instead!")
+		del self.__dataDict__[key]
 
-		if( key in dir( self ) ):
-			super( Skeleton, self ).__delattr__( key )
-		else:
-			del self.__dataDict__[key]
+	# if not self.isClonedInstance:
+	#	raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
+	# if value is None and name in self.__dataDict__.keys():
+	#	del self.__dataDict__[ name ]
+	# elif isinstance( value, baseBone ):
+	#	self.__dataDict__[ name ] = value
+	# elif value:
+	#	raise ValueError("Expected a instance of baseBone or None, got %s instead." % type(value))
+
+
 
 	def __getattribute__(self, item):
 		isOkay = False
@@ -148,9 +129,9 @@ class Skeleton( object ):
 						    "toDB", "items","keys","values","setValues","getValues","errors","fromClient",
 						    "preProcessBlobLocks","preProcessSerializedData","postSavedHandler",
 						    "postDeletedHandler", "delete","clone","getSearchDocumentFields","subSkels",
-						    "subSkel","refresh", "valuesCache", "getValuesCache", "setValuesCache", "times"]:
+						    "subSkel","refresh", "valuesCache", "getValuesCache", "setValuesCache", "isClonedInstance"]:
 			isOkay = True
-		elif not "_Skeleton__isInitialized_" in dir( self ):
+		elif not "_Skeleton__isInitialized_" in dir(self):
 			isOkay = True
 		if isOkay:
 			return( super( Skeleton, self ).__getattribute__(item ))
@@ -215,6 +196,7 @@ class Skeleton( object ):
 			:rtype: server.skeleton.Skeleton
 		"""
 		skel = cls()
+		skel.isClonedInstance = True  # Unlock that skel for a moment sothat we can remove bones (which is a safe operation)
 
 		if "*" in skel.subSkels.keys():
 			boneList = skel.subSkels["*"][:]
@@ -243,6 +225,7 @@ class Skeleton( object ):
 			if not keepBone: #Remove that bone from the skeleton
 				skel[key] = None
 
+		skel.isClonedInstance = False  # Relock it
 		return skel
 
 
@@ -261,20 +244,21 @@ class Skeleton( object ):
 		self.valuesCache = {}
 		if _cloneFrom:
 			for key, bone in _cloneFrom.__dataDict__.items():
-				self.__dataDict__[ key ] = copy.deepcopy( bone )
+				self.__dataDict__[key] = copy.deepcopy(bone)
+				self.__dataDict__[key].isClonedInstance = True
+			self.isClonedInstance = True
 		else:
 			tmpList = []
-
 			for key in dir(self):
-				bone = getattr( self, key )
-				if not "__" in key and isinstance( bone , boneFactory ):
-					tmpList.append( (key, bone) )
-			tmpList.sort( key=lambda x: x[1].idx )
+				bone = getattr(self, key)
+				if not "__" in key and isinstance(bone , baseBone):
+					tmpList.append((key, bone))
+			tmpList.sort(key=lambda x: x[1].idx)
+			#logging.error(tmpList)
 			for key, bone in tmpList:
-				#bone = copy.copy( bone )
-				bone = bone(_kindName=self.kindName)
-				self.__dataDict__[ key ] = bone
+				self.__dataDict__[key] = bone
 				self.valuesCache[key] = None
+			self.isClonedInstance = False
 		if "enforceUniqueValuesFor" in dir(self) and self.enforceUniqueValuesFor is not None:
 			raise NotImplementedError("enforceUniqueValuesFor is not supported anymore. Set unique=True on your bone.")
 		self.__isInitialized_ = True
@@ -294,24 +278,23 @@ class Skeleton( object ):
 		"""
 		return( type( self )( _cloneFrom=self ) )
 
-	def __setitem__(self, name, value):
-		self.valuesCache[name] = value
-		return
-		if value is None and name in self.__dataDict__.keys():
-			del self.__dataDict__[ name ]
-		elif isinstance( value, baseBone ):
-			self.__dataDict__[ name ] = value
-		elif isinstance( value, boneFactory ):
-			self.__dataDict__[ name ] = value()
-		elif value:
-			raise ValueError("Expected a instance of baseBone, a boneFactory or None, got %s instead." % type(value))
+	def __setitem__(self, key, value):
+		self.valuesCache[key] = value
+		#if not self.isClonedInstance:
+		#	raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
+		#if value is None and name in self.__dataDict__.keys():
+		#	del self.__dataDict__[ name ]
+		#elif isinstance( value, baseBone ):
+		#	self.__dataDict__[ name ] = value
+		#elif value:
+		#	raise ValueError("Expected a instance of baseBone or None, got %s instead." % type(value))
 
-	def __getitem__(self, name ):
-		return self.valuesCache.get(name, None)
-		return( BoneWrapper(self.__dataDict__[name], name, self.valuesCache) )
+	def __getitem__(self, key):
+		return self.valuesCache.get(key, None)
 
 	def __delitem__(self, key):
-		del self.__dataDict__[ key ]
+		del self.valuesCache[key]
+		#del self.__dataDict__[ key ]
 
 	def all(self):
 		"""
@@ -650,7 +633,6 @@ class Skeleton( object ):
 				pass
 		self.__currentDbKey_ = None
 
-	times = {}
 
 	def setValues( self, values, key=False ):
 		"""
@@ -671,7 +653,7 @@ class Skeleton( object ):
 			:type key: server.db.Key | None
 		"""
 		for bkey,_bone in self.items():
-			if 1 or isinstance( _bone, baseBone ):
+			if isinstance( _bone, baseBone ):
 				if bkey=="key":
 					try:
 						# Reading the value from db.Entity
@@ -683,13 +665,7 @@ class Skeleton( object ):
 						else: #Ingore the key value
 							pass
 				else:
-					t1 = time()
-					logging.error(_bone.unserialize)
 					_bone.unserialize( self.valuesCache, bkey, values )
-					t2 = time()
-					if not bkey in Skeleton.times:
-						Skeleton.times[bkey] = 0
-					Skeleton.times[bkey] += (t2-t1)
 
 		if key is not False:
 			assert key is None or isinstance( key, db.Key ), "Key must be None or a db.Key instance"
@@ -913,7 +889,7 @@ class RelSkel( object ):
 		return skel
 
 	def __setitem__(self, name, value):
-		self.__dataDict__[name] = value
+		self.valuesCache[name] = value
 		return
 		if value is None and name in self.__dataDict__.keys():
 			del self.__dataDict__[ name ]
@@ -928,7 +904,7 @@ class RelSkel( object ):
 		return( self.valuesCache[name] )
 
 	def __delitem__(self, key):
-		del self.__dataDict__[ key ]
+		del self.valuesCache[ key ]
 
 	def fromClient( self, data ):
 		"""

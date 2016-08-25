@@ -41,13 +41,14 @@ class boneFactory(object):
 class baseBone(object): # One Bone:
 	hasDBField = True
 	type = "hidden"
+	isClonedInstance = False
 
 
-	def __new__(cls, *args, **kwargs):
-		if getSystemInitialized():
-			return super(baseBone, cls).__new__(cls, *args, **kwargs)
-		else:
-			return boneFactory(cls, args, kwargs)
+	#def __new__(cls, *args, **kwargs):
+	#	if getSystemInitialized():
+	#		return super(baseBone, cls).__new__(cls, *args, **kwargs)
+	#	else:
+	#		return boneFactory(cls, args, kwargs)
 
 	def __init__(	self, descr="", defaultValue=None, required=False, params=None, multiple=False,
 			indexed=False, searchable=False, vfunc=None, readOnly=False, visible=True, unique=False, **kwargs ):
@@ -92,6 +93,7 @@ class baseBone(object): # One Bone:
 		for x in ["defaultvalue", "readonly"]:
 			if x in kwargs.keys():
 				raise NotImplementedError("%s is not longer supported" % x )
+		self.isClonedInstance = False
 		self.descr = descr
 		self.required = required
 		self.params = params
@@ -108,7 +110,12 @@ class baseBone(object): # One Bone:
 		if "canUse" in dir( self ):
 			raise AssertionError("canUse is deprecated! Use isInvalid instead!")
 		_boneCounter.count += 1
-		
+
+	def __setattr__(self, key, value):
+		if not self.isClonedInstance and getSystemInitialized() and key!= "isClonedInstance":
+			raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
+		super(baseBone, self).__setattr__(key, value)
+
 	def fromClient( self, valuesCache, name, data ):
 		"""
 			Reads a value from the client.

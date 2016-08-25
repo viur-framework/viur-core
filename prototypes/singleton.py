@@ -55,7 +55,7 @@ class Singleton(BasicApplication):
 		:return: Returns a Skeleton instance for viewing the singleton entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel(*args, **kwargs)
+		return self._resolveSkelCls(*args, **kwargs)()
 
 	def editSkel( self, *args, **kwargs ):
 		"""
@@ -69,7 +69,7 @@ class Singleton(BasicApplication):
 		:return: Returns a Skeleton instance for editing the entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel(*args, **kwargs)
+		return self._resolveSkelCls(*args, **kwargs)()
 
 ## External exposed functions
 

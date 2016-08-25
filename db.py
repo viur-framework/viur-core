@@ -5,7 +5,6 @@ from google.appengine.api import memcache
 from google.appengine.api import search
 from server.config import conf
 import logging
-from time import time
 
 
 """
@@ -848,10 +847,7 @@ class Query( object ):
 			raise NotImplementedError("This query is not limited! You must specify an upper bound using limit() between 1 and 100")
 		from server.skeleton import SkelList
 		res = SkelList( self.srcSkel )
-		t1 = time()
 		dbRes = self.run( amount )
-		t2 = time()
-		logging.error("DB-Time %s", (t2-t1))
 		res.customQueryInfo = self.customQueryInfo
 		if dbRes is None:
 			return( res )

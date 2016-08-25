@@ -46,7 +46,7 @@ class List(BasicApplication):
 		:return: Returns a Skeleton instance for viewing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel(*args, **kwargs)
+		return self._resolveSkelCls(*args, **kwargs)()
 
 	def addSkel( self, *args, **kwargs ):
 		"""
@@ -60,7 +60,7 @@ class List(BasicApplication):
 		:return: Returns a Skeleton instance for adding an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel(*args, **kwargs)
+		return self._resolveSkelCls(*args, **kwargs)()
 
 	def editSkel( self, *args, **kwargs ):
 		"""
@@ -74,7 +74,7 @@ class List(BasicApplication):
 		:return: Returns a Skeleton instance for editing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel(*args, **kwargs)
+		return self._resolveSkelCls(*args, **kwargs)()
 
 ## External exposed functions
 
@@ -171,16 +171,8 @@ class List(BasicApplication):
 		query = self.listFilter( self.viewSkel().all().mergeExternalFilter( kwargs ) ) #Access control
 		if query is None:
 			raise errors.Unauthorized()
-		from time import time
-		t1 = time()
 		res = query.fetch()
-		t2 = time()
-		fr = self.render.list( res )
-		t3 = time()
-		logging.error("FetchTime: %s", (t2 - t1))
-		logging.error("RenderTime: %s", (t3 - t2))
-		logging.error(self.viewSkel().times)
-		return fr
+		return self.render.list( res )
 
 	@forceSSL
 	@exposed

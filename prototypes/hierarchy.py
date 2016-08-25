@@ -70,7 +70,7 @@ class Hierarchy(BasicApplication):
 		:return: Returns a Skeleton instance for viewing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel(*args, **kwargs)
+		return self._resolveSkelCls(*args, **kwargs)()
 
 	def addSkel(self, *args, **kwargs):
 		"""
@@ -84,7 +84,7 @@ class Hierarchy(BasicApplication):
 		:return: Returns a Skeleton instance for adding an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel(*args, **kwargs)
+		return self._resolveSkelCls(*args, **kwargs)()
 
 	def editSkel(self, *args, **kwargs):
 		"""
@@ -98,7 +98,7 @@ class Hierarchy(BasicApplication):
 		:return: Returns a Skeleton instance for editing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel(*args, **kwargs)
+		return self._resolveSkelCls(*args, **kwargs)()
 
 	def getRootNode(self, entryKey):
 		"""
