@@ -248,7 +248,8 @@ class Render( object ):
 
 		elif bone.type == "str" or bone.type.startswith("str."):
 			ret.update({
-				"languages": bone.languages
+				"languages": bone.languages,
+				"multiple": bone.multiple
 			})
 
 		return ret
