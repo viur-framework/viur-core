@@ -29,7 +29,9 @@ class MetaSkel( type ):
 		relNewFileName = inspect.getfile(cls).replace(os.getcwd(), "")
 
 		# Automatic determination of the kindName, if the class is not part of the server.
-		if not cls.kindName and not relNewFileName.strip(os.path.sep).startswith("server"):
+		if (not cls.kindName
+		    and not relNewFileName.strip(os.path.sep).startswith("server")
+			and not "viur_doc_build" in dir(sys)):
 			if cls.__name__.endswith("Skel"):
 				cls.kindName = cls.__name__.lower()[:-4]
 			else:
