@@ -1,19 +1,15 @@
 # -*- coding: utf-8 -*-
-
+from server import db, utils, conf, errors
 from server.bones import baseBone, boneFactory, dateBone, selectOneBone, relationalBone, stringBone
+from server.tasks import CallableTask, CallableTaskBase, callDeferred
+
 from collections import OrderedDict
 from threading import local
-from server import db
 from time import time
-from google.appengine.api import search
-from server.config import conf
-from server import utils
-from server.tasks import CallableTask, CallableTaskBase, callDeferred
-import inspect, os, sys
-from server.errors import ReadFromClientError
-import logging, copy
-from random import random
 
+import inspect, os, sys, logging, copy
+
+from google.appengine.api import search
 
 class BoneCounter(local):
 	def __init__(self):
@@ -27,47 +23,63 @@ class MetaSkel( type ):
 		It is used to enforce several restrictions on bone names, etc.
 	"""
 	_skelCache = {}
-	__reservedKeywords_ = [ "self", "cursor", "amount", "orderby", "orderdir",
-	                        "style", "items", "keys", "values" ]
-	def __init__( cls, name, bases, dct ):
-		kindName = cls.kindName
-		if kindName and kindName in MetaSkel._skelCache.keys():
-			isOkay = False
-			relNewFileName = inspect.getfile(cls).replace( os.getcwd(),"" )
-			relOldFileName = inspect.getfile( MetaSkel._skelCache[ kindName ] ).replace( os.getcwd(),"" )
+	__reservedKeywords_ = ["self", "cursor", "amount", "orderby", "orderdir", "style", "items", "keys", "values"]
+
+	def __init__(cls, name, bases, dct):
+		relNewFileName = inspect.getfile(cls).replace(os.getcwd(), "")
+
+		# Automatic determination of the kindName, if the class is not part of the server.
+		if not cls.kindName and not relNewFileName.strip(os.path.sep).startswith("server"):
+			if cls.__name__.endswith("Skel"):
+				cls.kindName = cls.__name__.lower()[:-4]
+			else:
+				cls.kindName = cls.__name__.lower()
+
+		if cls.kindName and cls.kindName in MetaSkel._skelCache.keys():
+			relOldFileName = inspect.getfile(MetaSkel._skelCache[cls.kindName]).replace(os.getcwd(), "")
+
 			if relNewFileName.strip(os.path.sep).startswith("server"):
 				#The currently processed skeleton is from the server.* package
 				pass
+
 			elif relOldFileName.strip(os.path.sep).startswith("server"):
 				#The old one was from server - override it
-				MetaSkel._skelCache[ kindName ] = cls
-				isOkay = True
-			else:
-				raise ValueError("Duplicate definition for %s in %s and %s" % (kindName, relNewFileName, relOldFileName) )
-		#	raise NotImplementedError("Duplicate definition of %s" % kindName)
-		relFileName = inspect.getfile(cls).replace( os.getcwd(),"" )
-		if not relFileName.strip(os.path.sep).startswith("skeletons") and not relFileName.strip(os.path.sep).startswith("server"): # and any( [isinstance(x,baseBone) for x in [ getattr(cls,y) for y in dir( cls ) if not y.startswith("_") ] ] ):
-			if not "viur_doc_build" in dir(sys): #Do not check while documentation build
-				raise NotImplementedError("Skeletons must be defined in /skeletons/")
-		if kindName:
-			MetaSkel._skelCache[ kindName ] = cls
-		for key in dir( cls ):
-			if isinstance( getattr( cls, key ), baseBone ):
-				if key.lower()!=key:
-					raise AttributeError( "Bonekeys must be lowercase" )
-				if "." in key:
-					raise AttributeError( "Bonekeys cannot not contain a dot (.) - got %s" % key )
-				if key in MetaSkel.__reservedKeywords_:
-					raise AttributeError( "Your bone cannot have any of the following keys: %s" % str( MetaSkel.__reservedKeywords_ ) )
-			if key == "postProcessSerializedData":
-				raise AttributeError( "postProcessSerializedData is deprecated! Use postSavedHandler instead." )
-		return( super( MetaSkel, cls ).__init__( name, bases, dct ) )
+				MetaSkel._skelCache[cls.kindName] = cls
 
-def skeletonByKind( kindName ):
+			else:
+				raise ValueError("Duplicate definition for %s in %s and %s" %
+				                    (cls.kindName, relNewFileName, relOldFileName))
+
+		relFileName = inspect.getfile(cls).replace( os.getcwd(),"" )
+
+		if (not relFileName.strip(os.path.sep).startswith("skeletons")
+		    and not relFileName.strip(os.path.sep).startswith("server")
+		    and not "viur_doc_build" in dir(sys)): #Do not check while documentation build
+				raise NotImplementedError("Skeletons must be defined in /skeletons/")
+
+		if cls.kindName:
+			MetaSkel._skelCache[cls.kindName] = cls
+
+		for key in dir(cls):
+			if isinstance(getattr(cls, key), baseBone):
+				if key.lower() != key:
+					raise AttributeError("Invalid bone '%s': Bone keys must be in lower-case order" % key)
+
+				if "." in key:
+					raise AttributeError("Invalid bone '%s': Bone keys may not contain a dot (.)" % key )
+
+				if key in MetaSkel.__reservedKeywords_:
+					raise AttributeError("Invalid bone '%s': Bone cannot have any of the following names: %s" %
+					                        (key, str(MetaSkel.__reservedKeywords_)))
+
+		super(MetaSkel, cls).__init__(name, bases, dct)
+
+def skeletonByKind(kindName):
 	if not kindName:
-		return( None )
+		return None
+
 	assert kindName in MetaSkel._skelCache, "Unknown skeleton '%s'" % kindName
-	return MetaSkel._skelCache[ kindName ]
+	return MetaSkel._skelCache[kindName]
 
 def listKnownSkeletons():
 	return list(MetaSkel._skelCache.keys())[:]
@@ -81,9 +93,9 @@ class Skeleton( object ):
 		The Skeleton stores its bones in an :class:`OrderedDict`-Instance, so the definition order of the
 		contained bones remains constant.
 
-		:ivar id: This bone stores the current database key of this entity. \
+		:ivar key: This bone stores the current database key of this entity. \
 		Assigning to this bones value is dangerous and does *not* affect the actual key its stored in.
-		:vartype id: server.bones.baseBone
+		:vartype key: server.bones.baseBone
 
 		:ivar creationdate: The date and time where this entity has been created.
 		:vartype creationdate: server.bones.dateBone
@@ -145,7 +157,6 @@ class Skeleton( object ):
 	kindName = "" # To which kind we save our data to
 	searchIndex = None # If set, use this name as the index-name for the GAE search API
 	subSkels = {} # List of pre-defined sub-skeletons of this type
-
 
 	# The "key" bone stores the current database key of this skeleton.
 	# Warning: Assigning to this bones value is dangerous and does *not* affect the actual key
