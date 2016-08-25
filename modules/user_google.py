@@ -104,9 +104,9 @@ class GoogleUser( List ):
 			session.current.reset()
 			db.RunInTransaction( updateCurrentUser )
 			self.onLogin()
-			return( self.render.loginSucceeded( ) )
+			return self.render.loginSucceeded( )
 		else:
-			raise( errors.Redirect( users.create_login_url( self.modulPath+"/login") ) )
+			return self.render.login({}, url=users.create_login_url( self.modulPath+"/login") )
 	login.exposed = True
 	login.forceSSL = True
 
