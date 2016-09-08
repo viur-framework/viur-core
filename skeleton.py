@@ -98,12 +98,9 @@ class Skeleton( object ):
 				super(Skeleton, self).__setattr__("__dataDict__", OrderedDict())
 			if not "__" in key:
 				if isinstance(value , baseBone):
-					self.__dataDict__[key] = value
-					self.__dataDict__[key].parent = self
+					self.__dataDict__[key] =  value
 				elif value is None and key in self.__dataDict__.keys(): #Allow setting a bone to None again
-					self.__dataDict__[key] = None
-					self.__dataDict__[key].parent = None
-
+					self.__dataDict__[key] =  value
 				elif key not in ["valuesCache"]:
 					raise ValueError("You tried to do what?")
 		super( Skeleton, self ).__setattr__(key, value)
@@ -246,7 +243,7 @@ class Skeleton( object ):
 		if _cloneFrom:
 			for key, bone in _cloneFrom.__dataDict__.items():
 				self.__dataDict__[key] = copy.deepcopy(bone)
-
+				self.__dataDict__[key].isClonedInstance = True
 			self.isClonedInstance = True
 		else:
 			tmpList = []

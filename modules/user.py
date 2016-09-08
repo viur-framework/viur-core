@@ -487,18 +487,17 @@ class User(List):
 		return skel
 
 	def editSkel(self, *args,  **kwargs):
-		skel = super(User, self).editSkel().clone()
+		skel = super(User, self).editSkel()
 		self.extendAccessRights(skel)
 
-		skel.password = passwordBone(descr="Passwort", required=False)
+		skel["password"] = passwordBone( descr="Passwort", required=False )
 
 		user = utils.getCurrentUser()
 
 		lockFields = not (user and "root" in user["access"])  # If we aren't root, make certain fields read-only
-
-		skel.name.readOnly = lockFields
-		skel.access.readOnly = lockFields
-		skel.status.readOnly = lockFields
+		skel["name"].readOnly = lockFields
+		skel["access"].readOnly = lockFields
+		skel["status"].readOnly = lockFields
 
 		return skel
 

@@ -93,7 +93,7 @@ class baseBone(object): # One Bone:
 		for x in ["defaultvalue", "readonly"]:
 			if x in kwargs.keys():
 				raise NotImplementedError("%s is not longer supported" % x )
-		self.parent = None
+		self.isClonedInstance = False
 		self.descr = descr
 		self.required = required
 		self.params = params
@@ -109,11 +109,10 @@ class baseBone(object): # One Bone:
 		self.idx = _boneCounter.count
 		if "canUse" in dir( self ):
 			raise AssertionError("canUse is deprecated! Use isInvalid instead!")
-
 		_boneCounter.count += 1
 
 	def __setattr__(self, key, value):
-		if getSystemInitialized() and key != "parent" and self.parent and not self.parent.isClonedInstance:
+		if not self.isClonedInstance and getSystemInitialized() and key!= "isClonedInstance":
 			raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
 		super(baseBone, self).__setattr__(key, value)
 

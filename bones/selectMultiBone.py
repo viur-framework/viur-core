@@ -87,9 +87,9 @@ class selectMultiBone( baseBone ):
 				values = values.split( ":" )
 			else:
 				values = []
-		for key, value in self.values.items():
-			if str(key) in [str(x) for x in values]:
-				valuesCache[name].append(key)
+		for name, value in self.values.items():
+			if str(name) in [str(x) for x in values]:
+				valuesCache[name].append( name )
 		if len( valuesCache[name] )>0:
 			return( None )
 		else:
