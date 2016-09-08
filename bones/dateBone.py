@@ -216,7 +216,6 @@ class dateBone( baseBone ):
 			res = self.readLocalized( datetime.now().strptime( res.strftime( "%d.%m.%Y %H:%M:%S" ), "%d.%m.%Y %H:%M:%S"  ) )
 		entity.set( name, res, self.indexed )
 		return( entity )
-	serialize.injectValueCache = True
 
 	def unserialize(self, valuesCache, name, expando):
 		if not name in expando.keys():
@@ -234,8 +233,7 @@ class dateBone( baseBone ):
 			# We got garbarge from the datastore
 			valuesCache[name] = None
 		return
-	unserialize.injectValueCache = True
-	
+
 	def setLocalized(self, valuesCache, name, value):
 		""" Converts a Date read from DB (UTC) to the requesters local time"""
 		valuesCache[name] = value
@@ -247,7 +245,6 @@ class dateBone( baseBone ):
 			tz = pytz.timezone( timeZone )
 			value = tz.normalize( value.replace( tzinfo=utc).astimezone( tz ) )
 		valuesCache[name] = value
-	setLocalized.injectValueCache = True
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
 		for key in [ x for x in rawFilter.keys() if x.startswith(name) ]:
@@ -258,4 +255,3 @@ class dateBone( baseBone ):
 	def performMagic( self, valuesCache, name, isAdd ):
 		if (self.creationMagic and isAdd) or self.updateMagic:
 			self.setLocalized( valuesCache, name, ExtendedDateTime.now() )
-	performMagic.injectValueCache = True

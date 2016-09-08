@@ -101,7 +101,6 @@ class selectMultiBone( baseBone ):
 		else:
 			entity.set( name, valuesCache[name], self.indexed )
 		return( entity )
-	serialize.injectValueCache = True
 
 	def unserialize( self, valuesCache, name, expando ):
 		if name in expando.keys():
@@ -109,7 +108,6 @@ class selectMultiBone( baseBone ):
 		if not valuesCache[name]:
 			valuesCache[name] = []
 		return( True )
-	unserialize.injectValueCache = True
 
 class selectAccessMultiBone( selectMultiBone ):
 	type = "selectmulti.access"

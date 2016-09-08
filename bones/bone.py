@@ -162,7 +162,6 @@ class baseBone(object): # One Bone:
 		if name != "key":
 			entity.set( name, valuesCache[name], self.indexed )
 		return( entity )
-	serialize.injectValueCache = True
 
 	def unserialize( self, valuesCache, name, expando ):
 		"""
@@ -366,7 +365,6 @@ class baseBone(object): # One Bone:
 			:type isAdd: bool
 		"""
 		pass #We do nothing by default
-	performMagic.injectValueCache = True
 
 	def postSavedHandler( self, valuesCache, boneName, skel, key, dbObj ):
 		"""

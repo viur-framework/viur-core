@@ -72,7 +72,6 @@ class booleanBone( baseBone ):
 			else:
 				valuesCache[name] = False
 		return True
-	unserialize.injectValueCache = True
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
 		if name in rawFilter.keys():

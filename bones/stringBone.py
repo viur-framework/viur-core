@@ -116,8 +116,7 @@ class stringBone( baseBone ):
 							if not self.caseSensitive:
 								entity.set( "%s.%s.idx" % (name, lang), "", self.indexed )
 		return( entity )
-	serialize.injectValueCache = True
-		
+
 	def unserialize(self, valuesCache, name, expando):
 		"""
 			Inverse of serialize. Evaluates whats
@@ -144,7 +143,6 @@ class stringBone( baseBone ):
 				if name in expando.keys(): #Old (non-multi-lang) format
 					valuesCache[name][ self.languages[0] ] = expando[ name ]
 		return( True )
-	unserialize.injectValueCache = True
 
 	def fromClient( self, valuesCache, name, data ):
 		"""
@@ -222,7 +220,6 @@ class stringBone( baseBone ):
 				return( None )
 			else:
 				return( err )
-	fromClient.injectValueCache = True
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
 		if not name in rawFilter.keys() and not any( [(x.startswith(name+"$") or x.startswith(name+".")) for x in rawFilter.keys()] ):
