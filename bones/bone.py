@@ -93,7 +93,7 @@ class baseBone(object): # One Bone:
 		for x in ["defaultvalue", "readonly"]:
 			if x in kwargs.keys():
 				raise NotImplementedError("%s is not longer supported" % x )
-		self.isClonedInstance = False
+		self.isClonedInstance = getSystemInitialized()
 		self.descr = descr
 		self.required = required
 		self.params = params
