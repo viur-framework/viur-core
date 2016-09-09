@@ -99,6 +99,7 @@ class Skeleton( object ):
 			if not "__" in key:
 				if isinstance(value , baseBone):
 					self.__dataDict__[key] =  value
+					self.valuesCache[key] = None
 				elif value is None and key in self.__dataDict__.keys(): #Allow setting a bone to None again
 					self.__dataDict__[key] =  value
 				elif key not in ["valuesCache"]:
@@ -244,6 +245,7 @@ class Skeleton( object ):
 			for key, bone in _cloneFrom.__dataDict__.items():
 				self.__dataDict__[key] = copy.deepcopy(bone)
 				self.__dataDict__[key].isClonedInstance = True
+			self.valuesCache = copy.deepcopy(_cloneFrom.valuesCache)
 			self.isClonedInstance = True
 		else:
 			tmpList = []
