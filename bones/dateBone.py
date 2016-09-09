@@ -248,8 +248,9 @@ class dateBone( baseBone ):
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
 		for key in [ x for x in rawFilter.keys() if x.startswith(name) ]:
-			if not self.fromClient( key, rawFilter ): #Parsing succeeded
-				super( dateBone, self ).buildDBFilter( name, skel, dbFilter, {key:datetime.now().strptime( self.value.strftime( "%d.%m.%Y %H:%M:%S" ), "%d.%m.%Y %H:%M:%S"  )}, prefix=prefix )
+			resDict = {}
+			if not self.fromClient( resDict, key, rawFilter ): #Parsing succeeded
+				super( dateBone, self ).buildDBFilter( name, skel, dbFilter, {key:datetime.now().strptime(resDict[key].strftime( "%d.%m.%Y %H:%M:%S" ), "%d.%m.%Y %H:%M:%S"  )}, prefix=prefix )
 		return( dbFilter )
 
 	def performMagic( self, valuesCache, name, isAdd ):
