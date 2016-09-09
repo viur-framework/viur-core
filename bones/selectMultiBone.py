@@ -105,7 +105,9 @@ class selectMultiBone( baseBone ):
 	def unserialize( self, valuesCache, name, expando ):
 		if name in expando.keys():
 			valuesCache[name] = expando[ name ]
-		if not valuesCache[name]:
+			if not valuesCache[name]:
+				valuesCache[name] = []
+		else:
 			valuesCache[name] = []
 		return( True )
 
