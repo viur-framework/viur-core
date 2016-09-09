@@ -517,9 +517,10 @@ class Render( object ):
 		except errors.HTTPException as e: #Not found - try default fallbacks FIXME: !!!
 			tpl = "list"
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		for x in range(0, len( skellist ) ):
-			skellist.append( self.collectSkelData( skellist.pop(0) ) )
-		return( template.render( skellist=SkelListWrapper(skellist), **kwargs ) )
+		resList = []
+		for skel in skellist:
+			resList.append( self.collectSkelData(skel) )
+		return( template.render( skellist=SkelListWrapper(resList, skellist), **kwargs ) )
 	
 	def listRootNodes(self, repos, tpl=None, **kwargs ):
 		"""
