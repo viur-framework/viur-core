@@ -133,7 +133,6 @@ class relationalBone( baseBone ):
 			if self.multiple:
 				valuesCache[name] = []
 				if not val:
-					logging.error("x1")
 					return True
 				if isinstance(val, list):
 					for res in val:
@@ -300,10 +299,10 @@ class relationalBone( baseBone ):
 
 		valuesCache[name] = []
 		tmpRes = {}
-
+		clientPrefix = "%s." % name
 		for k, v in data.items():
-			if k.startswith(name):
-				k = k.replace(name, "", 1)
+			if k.startswith(clientPrefix):
+				k = k.replace(clientPrefix, "", 1)
 
 				if "." in k:
 					try:
