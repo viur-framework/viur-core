@@ -4,7 +4,7 @@ from server.config import conf
 
 
 class userBone(relationalBone):
-	type = "user"
+	kind = "user"
 	datafields = ["name"]
 
 	def __init__( self,  creationMagic=False, updateMagic=False, *args,  **kwargs ):
