@@ -258,7 +258,7 @@ class Skeleton( object ):
 			for key, bone in tmpList:
 				self.__dataDict__[key] = bone
 				self.valuesCache[key] = None
-			self.isClonedInstance = False
+			self.isClonedInstance = not self.kindName in listKnownSkeletons()
 		if "enforceUniqueValuesFor" in dir(self) and self.enforceUniqueValuesFor is not None:
 			raise NotImplementedError("enforceUniqueValuesFor is not supported anymore. Set unique=True on your bone.")
 		self.__isInitialized_ = True
@@ -279,6 +279,10 @@ class Skeleton( object ):
 		return( type( self )( _cloneFrom=self ) )
 
 	def __setitem__(self, key, value):
+		if isinstance(value, baseBone):
+			raise AttributeError("Don't assign this bone object as skel[\"%s\"] = ... anymore to the skeleton. "
+			                        "Use skel.%s = ... for bone to skeleton assignment!" % (key, key))
+
 		self.valuesCache[key] = value
 		#if not self.isClonedInstance:
 		#	raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
@@ -531,7 +535,6 @@ class Skeleton( object ):
 					pass
 
 		for boneName, bone in skel.items():
-			logging.error(bone.postSavedHandler)
 			bone.postSavedHandler(self.valuesCache, boneName, skel, key, dbObj)
 
 		skel.postSavedHandler(key, dbObj)
@@ -684,12 +687,7 @@ class Skeleton( object ):
 			:returns: Dictionary, where the keys are the bones and the values the current values.
 			:rtype: dict
 		"""
-		res = {}
-
-		for key,_bone in self.items():
-			res[ key ] = _bone.value
-
-		return( res )
+		return self.valuesCache.copy()
 
 	def fromClient( self, data ):
 		"""
@@ -1044,12 +1042,12 @@ class TaskUpdateSearchIndex( CallableTaskBase ):
 
 		skel = Skeleton(self.kindName)
 
-		skel["module"] = selectOneBone( descr="Module", values={ x: x for x in modules}, required=True )
+		skel.module = selectOneBone( descr="Module", values={ x: x for x in modules}, required=True )
 		def verifyCompact( val ):
 			if not val or val.lower()=="no" or val=="YES":
 				return( None )
 			return("Must be \"No\" or uppercase \"YES\" (very dangerous!)")
-		skel["compact"] = stringBone( descr="Recreate Entities", vfunc=verifyCompact, required=False, defaultValue="NO" )
+		skel.compact = stringBone(descr="Recreate Entities", vfunc=verifyCompact, required=False, defaultValue="NO")
 
 		return( skel )
 
@@ -1133,7 +1131,7 @@ class TaskUpdateOneEntity(CallableTaskBase):
 
 	def dataSkel(self):
 		skel = Skeleton(self.kindName)
-		skel["key"] = stringBone(descr=u"Entity key", required=True)
+		skel.key = stringBone(descr=u"Entity key", required=True)
 		return skel
 
 	def execute(self, key, *args, **kwargs):

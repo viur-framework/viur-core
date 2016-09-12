@@ -202,10 +202,9 @@ class TaskHandler:
 		global _callableTasks
 		class extList( list ):
 			pass
-		# FIXME: here we have another id attribute. Check if that should be renamed to key <sk>
 		res = extList( [{"key": x.key, "name":_(x.name), "descr":_(x.descr) } for x in _callableTasks.values() if x().canCall()] )
 		res.cursor = None
-		return json.dumps([])
+		res.baseSkel = {}
 		return( self.render.list( res ) )
 	list.exposed=True
 	
