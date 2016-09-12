@@ -98,6 +98,7 @@ class TaskHandler:
 		"""
 		from server import session
 		global _deferedTasks
+
 		req = request.current.get().request
 		if 'X-AppEngine-TaskName' not in req.headers:
 			logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
@@ -107,6 +108,7 @@ class TaskHandler:
 			logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
 			raise errors.Forbidden()
 		cmd, data = json.loads( req.body )
+
 		try:
 			funcPath, args, kwargs, env = data
 		except ValueError: #We got an old call without an frozen environment
@@ -152,7 +154,6 @@ class TaskHandler:
 	deferred.exposed=True
 	
 	def index(self, *args, **kwargs):
-		return
 		global _callableTasks, _periodicTasks
 		logging.debug("Starting maintenance-run")
 		checkUpdate() #Let the update-module verify the database layout first
@@ -262,7 +263,7 @@ def callDeferred( func ):
 			req = None
 		if req is not None and "HTTP_X_APPENGINE_TASKRETRYCOUNT".lower() in [x.lower() for x in os.environ.keys()] and not "DEFERED_TASK_CALLED" in dir( req ): #This is the deferred call
 			req.DEFERED_TASK_CALLED = True #Defer recursive calls to an deferred function again.
-			#return( func( self, *args, **kwargs ) )
+			return( func( self, *args, **kwargs ) )
 		else:
 			try:
 				funcPath = "%s/%s" % (self.modulePath, func.func_name )
@@ -337,7 +338,7 @@ def StartupTask( fn ):
 		Wrapped functions must not take any arguments.
 	"""
 	global _startupTasks
-	#_startupTasks.append( fn )
+	_startupTasks.append( fn )
 	return( fn )
 
 @callDeferred
@@ -346,7 +347,6 @@ def runStartupTasks():
 		Runs all queued startupTasks.
 		Do not call directly!
 	"""
-	return
 	global _startupTasks
 	for st in _startupTasks:
 		st()
