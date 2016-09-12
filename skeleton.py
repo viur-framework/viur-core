@@ -96,7 +96,7 @@ class Skeleton( object ):
 				raise AttributeError("You cannot directly modify the skeleton instance. Use [] instead!")
 			if not "__dataDict__" in dir( self ):
 				super(Skeleton, self).__setattr__("__dataDict__", OrderedDict())
-			if not "__" in key:
+			if not "__" in key and key != "isClonedInstance":
 				if isinstance(value , baseBone):
 					self.__dataDict__[key] =  value
 					self.valuesCache[key] = None
@@ -222,7 +222,7 @@ class Skeleton( object ):
 						break
 
 			if not keepBone: #Remove that bone from the skeleton
-				skel[key] = None
+				delattr(skel, key)
 
 		skel.isClonedInstance = False  # Relock it
 		return skel
