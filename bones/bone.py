@@ -111,6 +111,16 @@ class baseBone(object): # One Bone:
 			raise AssertionError("canUse is deprecated! Use isInvalid instead!")
 		_boneCounter.count += 1
 
+	def getDefaultValue(self):
+		if callable(self.defaultValue):
+			return self.defaultValue()
+		elif isinstance(self.defaultValue, list):
+			return self.defaultValue[:]
+		elif isinstance(self.defaultValue, dict):
+			return
+		else:
+			return self.defaultValue
+
 	def __setattr__(self, key, value):
 		if not self.isClonedInstance and getSystemInitialized() and key!= "isClonedInstance":
 			raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")

@@ -99,7 +99,7 @@ class Skeleton( object ):
 			if not "__" in key and key != "isClonedInstance":
 				if isinstance(value , baseBone):
 					self.__dataDict__[key] =  value
-					self.valuesCache[key] = None
+					self.valuesCache[key] = value.getDefaultValue()
 				elif value is None and key in self.__dataDict__.keys(): #Allow setting a bone to None again
 					self.__dataDict__[key] =  value
 				elif key not in ["valuesCache"]:
@@ -257,7 +257,7 @@ class Skeleton( object ):
 			#logging.error(tmpList)
 			for key, bone in tmpList:
 				self.__dataDict__[key] = bone
-				self.valuesCache[key] = None
+				self.valuesCache[key] = bone.getDefaultValue()
 			self.isClonedInstance = False
 		if "enforceUniqueValuesFor" in dir(self) and self.enforceUniqueValuesFor is not None:
 			raise NotImplementedError("enforceUniqueValuesFor is not supported anymore. Set unique=True on your bone.")
