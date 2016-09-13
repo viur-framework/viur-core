@@ -349,7 +349,10 @@ class Query( object ):
 			:rtype: server.db.Query
 		"""
 		from server.bones import baseBone, relationalBone
-
+		if "id" in filters.keys():
+			self.datastoreQuery = None
+			logging.error("Filtering by id is no longer supported. Use key instead.")
+			return self
 		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
 		if self.datastoreQuery is None: #This query is allready unsatifiable and adding more constrains to this wont change this
