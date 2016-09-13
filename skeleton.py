@@ -258,7 +258,7 @@ class Skeleton( object ):
 			for key, bone in tmpList:
 				self.__dataDict__[key] = bone
 				self.valuesCache[key] = None
-			self.isClonedInstance = not self.kindName in listKnownSkeletons()
+			self.isClonedInstance = False
 		if "enforceUniqueValuesFor" in dir(self) and self.enforceUniqueValuesFor is not None:
 			raise NotImplementedError("enforceUniqueValuesFor is not supported anymore. Set unique=True on your bone.")
 		self.__isInitialized_ = True
@@ -687,7 +687,7 @@ class Skeleton( object ):
 			:returns: Dictionary, where the keys are the bones and the values the current values.
 			:rtype: dict
 		"""
-		return self.valuesCache.copy()
+		return self.valuesCache
 
 	def fromClient( self, data ):
 		"""
