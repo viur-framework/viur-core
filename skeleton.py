@@ -241,6 +241,7 @@ class Skeleton( object ):
 		self.__currentDbKey_ = None
 		self.__dataDict__ = OrderedDict()
 		self.valuesCache = {}
+
 		if _cloneFrom:
 			for key, bone in _cloneFrom.__dataDict__.items():
 				self.__dataDict__[key] = copy.deepcopy(bone)
@@ -248,6 +249,8 @@ class Skeleton( object ):
 			self.valuesCache = copy.deepcopy(_cloneFrom.valuesCache)
 			self.isClonedInstance = True
 		else:
+			self.postInit()
+
 			tmpList = []
 			for key in dir(self):
 				bone = getattr(self, key)
@@ -262,6 +265,9 @@ class Skeleton( object ):
 		if "enforceUniqueValuesFor" in dir(self) and self.enforceUniqueValuesFor is not None:
 			raise NotImplementedError("enforceUniqueValuesFor is not supported anymore. Set unique=True on your bone.")
 		self.__isInitialized_ = True
+
+	def postInit(self):
+		pass
 
 	def setValuesCache(self, cache):
 		self.valuesCache = cache
