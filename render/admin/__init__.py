@@ -89,6 +89,11 @@ def dumpConfig( adminTree ):
 		res["viur.defaultlangsvalues"] = conf["viur.defaultlangsvalues"]
 	return json.dumps( res )
 
+def getVersion(*args, **kwargs):
+	# We force the patch-level of our version to be always zero for security reasons
+	return json.dumps((conf["viur.version"][0], conf["viur.version"][1], 0))
+getVersion.exposed=True
+
 def canAccess( *args, **kwargs ):
 	user = utils.getCurrentUser()
 	if user and ("root" in user["access"] or "admin" in user["access"]):
@@ -96,7 +101,7 @@ def canAccess( *args, **kwargs ):
 
 	pathList = request.current.get().pathlist
 
-	if len( pathList ) >= 2 and pathList[1] == "skey":
+	if len( pathList ) >= 2 and pathList[1] in ["skey", "getVersion"]:
 		# Give the user the chance to login :)
 		return True
 
@@ -120,4 +125,5 @@ def _postProcessAppObj( obj ):
 	obj.getStructure.exposed = True
 	obj.canAccess = canAccess
 	obj.setLanguage = setLanguage
+	obj.getVersion = getVersion
 	return obj

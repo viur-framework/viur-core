@@ -24,11 +24,11 @@
  See file LICENSE for more information.
 """
 
-__version__ = (-99,-99,-99) #Which API do we expose to our application
+__version__ = (-99,-99,-99)  # Which API do we expose to our application
 
 import sys, traceback, os, inspect
 
-#All (optional) 3rd-party modules in our libs-directory
+# All (optional) 3rd-party modules in our libs-directory
 cwd = os.path.abspath(os.path.dirname(__file__))
 
 for lib in os.listdir( os.path.join(cwd, "libs") ):
@@ -48,6 +48,9 @@ from string import Template
 from StringIO import StringIO
 import logging
 from time import time
+
+# Copy our Version into the config so that our renders can access it
+conf["viur.version"] = __version__
 
 ### Multi-Language Part
 try:
