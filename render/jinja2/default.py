@@ -295,7 +295,7 @@ class Render( object ):
 		if bone.type=="selectone" or bone.type.startswith("selectone."):
 			if skel[key] in bone.values.keys():
 				return Render.KeyValueWrapper(skel[key], bone.values[skel[key]])
-			return bone.value
+			return skel[key]
 		elif bone.type=="selectmulti" or bone.type.startswith("selectmulti."):
 			return [(Render.KeyValueWrapper(val, bone.values[val]) if val in bone.values.keys() else val) for val in skel[key]]
 		elif bone.type=="relational" or bone.type.startswith("relational."):
@@ -379,10 +379,10 @@ class Render( object ):
 
 		tpl = tpl or self.addTemplate
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-
+		skel = skel.clone()  # Fixme!
 		skeybone = baseBone(descr="SecurityKey", readOnly=True, visible=False)
-		skeybone.value = securitykey.create()
-		skel["skey"] = skeybone
+		skel.skey = skeybone
+		skel["skey"] = securitykey.create()
 
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
 			if isinstance(skel, Skeleton):
@@ -419,10 +419,10 @@ class Render( object ):
 
 		tpl = tpl or self.editTemplate
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-
+		skel = skel.clone()  # Fixme!
 		skeybone = baseBone(descr="SecurityKey", readOnly=True, visible=False)
-		skeybone.value = securitykey.create()
-		skel["skey"] = skeybone
+		skel.skey = skeybone
+		skel["skey"] = securitykey.create()
 
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
 			if isinstance(skel, Skeleton):
