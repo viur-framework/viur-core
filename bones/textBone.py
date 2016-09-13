@@ -53,11 +53,14 @@ class HtmlSerializer( HTMLParser.HTMLParser ): #html.parser.HTMLParser
 		""" Delete all tags except for legal ones """
 		if self.validHtml and tag in self.validHtml["validTags"]:
 			self.result = self.result + '<' + tag
+			isBlankTarget = False
 			for k, v in attrs:
 				if not tag in self.validHtml["validAttrs"].keys() or not k in self.validHtml["validAttrs"][ tag ]:
 					continue					
 				if k.lower()[0:2] != 'on' and v.lower()[0:10] != 'javascript':
 					self.result = '%s %s="%s"' % (self.result, k, v)
+				if tag=="a" and k=="target" and v.lower()=="_blank":
+					isBlankTarget = True
 			if "style" in [ k for (k,v) in attrs ]:
 				syleRes = {}
 				styles = [ v for (k,v) in attrs if k=="style"][0].split(";")
@@ -68,6 +71,8 @@ class HtmlSerializer( HTMLParser.HTMLParser ): #html.parser.HTMLParser
 						syleRes[ style ] = value
 				if len( syleRes.keys() ):
 					self.result += " style=\"%s\"" % "; ".join( [("%s: %s" % (k,v)) for (k,v) in syleRes.items()] )
+			if isBlankTarget:
+				self.result += " rel=\"noopener noreferrer\""
 			if tag in self.validHtml["singleTags"]:
 				self.result = self.result + ' />'
 			else:
