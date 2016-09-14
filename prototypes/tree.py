@@ -905,5 +905,5 @@ class Tree(BasicApplication):
 
 
 Tree.admin = True
-Tree.jinja2 = True
+Tree.html = True
 Tree.vi = True

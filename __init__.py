@@ -308,8 +308,8 @@ def buildApp( config, renderers, default=None, *args, **kwargs ):
 
 	if default in rendlist and "renderEmail" in dir (rendlist[ default ]["default"]()):
 		conf["viur.emailRenderer"] = rendlist[ default ]["default"]().renderEmail
-	elif "jinja2" in list(rendlist.keys()):
-		conf["viur.emailRenderer"] = rendlist[ "jinja2" ]["default"]().renderEmail
+	elif "html" in list(rendlist.keys()):
+		conf["viur.emailRenderer"] = rendlist[ "html" ]["default"]().renderEmail
 
 	return res
 
@@ -629,7 +629,7 @@ class BrowseHandler(webapp.RequestHandler):
 		session.current.save( self )
 
 
-def setup( modules, render=None, default="jinja2" ):
+def setup( modules, render=None, default="html" ):
 	"""
 		Define whats going to be served by this instance.
 
@@ -638,8 +638,8 @@ def setup( modules, render=None, default="jinja2" ):
 		:param renders: Usually the module *server.renders*, or a dictionary renderName => renderClass.
 		:type renders: module | dict
 		:param default: Name of the renderer, which will form the root of the application.\
-		This will be the renderer, which wont get a prefix, usually jinja2. \
-		(=> /user instead of /jinja2/user)
+		This will be the renderer, which wont get a prefix, usually html. \
+		(=> /user instead of /html/user)
 		:type default: str
 	"""
 	import skeletons

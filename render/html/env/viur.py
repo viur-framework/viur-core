@@ -2,8 +2,8 @@
 from server import utils, request, conf, prototypes, securitykey
 from server.skeleton import Skeleton, RelSkel
 
-from server.render.jinja2.utils import jinjaGlobalFunction, jinjaGlobalFilter
-from server.render.jinja2.wrap import ListWrapper, SkelListWrapper
+from server.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
+from server.render.html.wrap import ListWrapper, SkelListWrapper
 
 import urllib
 from hashlib import sha512

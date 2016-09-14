@@ -1164,5 +1164,5 @@ class Hierarchy(BasicApplication):
 
 
 Hierarchy.admin = True
-Hierarchy.jinja2 = True
+Hierarchy.html = True
 Hierarchy.vi = True

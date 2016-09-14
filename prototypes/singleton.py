@@ -309,5 +309,5 @@ class Singleton(BasicApplication):
 		pass
 
 Singleton.admin=True
-Singleton.jinja2=True
+Singleton.html=True
 Singleton.vi=True

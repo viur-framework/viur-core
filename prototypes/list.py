@@ -545,5 +545,5 @@ class List(BasicApplication):
 
 
 List.admin = True
-List.jinja2 = True
+List.html = True
 List.vi = True

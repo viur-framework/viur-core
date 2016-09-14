@@ -232,7 +232,7 @@ class TaskHandler:
 	execute.exposed = True
 	
 TaskHandler.admin = True	
-TaskHandler.jinja2 = True
+TaskHandler.html = True
 
 ## Decorators ##
 
