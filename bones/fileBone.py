@@ -35,7 +35,7 @@ class fileBone(treeItemBone):
 							val["dest"]["servingurl"] = val["dest"]["servingurl"].replace("http://","https://")
 		return res
 
-	def refresh(self, boneName, skel):
+	def refresh(self, valuesCache, boneName, skel):
 		"""
 			Refresh all values we might have cached from other entities.
 		"""
@@ -76,15 +76,15 @@ class fileBone(treeItemBone):
 					logging.info("Refreshing file dlkey %s (%s)" % (valDict["dlkey"],
 					                                                valDict["servingurl"]))
 
-		if not self.value:
+		if not valuesCache[boneName]:
 			return
 
 		logging.info("Refreshing fileBone %s of %s" % (boneName, skel.kindName))
-		super(fileBone, self).refresh(boneName, skel)
+		super(fileBone, self).refresh(valuesCache, boneName, skel)
 
-		if isinstance(self.value, dict):
-			updateInplace(self.value)
+		if isinstance(valuesCache[boneName], dict):
+			updateInplace(valuesCache[boneName])
 
-		elif isinstance(self.value, list):
-			for k in self.value:
+		elif isinstance(valuesCache[boneName], list):
+			for k in valuesCache[boneName]:
 				updateInplace(k)

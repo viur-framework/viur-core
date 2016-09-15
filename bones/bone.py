@@ -407,7 +407,7 @@ class baseBone(object): # One Bone:
 		"""
 		pass
 
-	def refresh(self, boneName, skel):
+	def refresh(self, valuesCache, boneName, skel):
 		"""
 			Refresh all values we might have cached from other entities.
 		"""

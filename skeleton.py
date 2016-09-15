@@ -762,7 +762,7 @@ class Skeleton( object ):
 			if not isinstance( bone, baseBone ):
 				continue
 			if "refresh" in dir( bone ):
-				bone.refresh( key, self )
+				bone.refresh( self.valuesCache, key, self )
 
 
 class MetaRelSkel( type ):
@@ -1011,7 +1011,7 @@ def updateRelations( destID, minChangeTime, cursor=None ):
 			logging.warning("Cannot update stale reference to %s (referenced from %s)" % (str(srcRel.key().parent()), str(srcRel.key())))
 			continue
 		for key,_bone in skel.items():
-			_bone.refresh( key, skel )
+			_bone.refresh(skel.valuesCache, key, skel)
 		skel.toDB( clearUpdateTag=True )
 	if len(updateList)==5:
 		updateRelations( destID, minChangeTime, updateListQuery.getCursor().urlsafe() )
@@ -1040,7 +1040,7 @@ class TaskUpdateSearchIndex( CallableTaskBase ):
 	def dataSkel(self):
 		modules = ["*"] + listKnownSkeletons()
 
-		skel = Skeleton(self.kindName)
+		skel = Skeleton(self.kindName).clone()
 
 		skel.module = selectOneBone( descr="Module", values={ x: x for x in modules}, required=True )
 		def verifyCompact( val ):
@@ -1130,7 +1130,7 @@ class TaskUpdateOneEntity(CallableTaskBase):
 		return user is not None and "root" in user["access"]
 
 	def dataSkel(self):
-		skel = Skeleton(self.kindName)
+		skel = Skeleton(self.kindName).clone()
 		skel.key = stringBone(descr=u"Entity key", required=True)
 		return skel
 

@@ -208,8 +208,6 @@ class relationalBone( baseBone ):
 		return entity
 
 	def postSavedHandler( self, valuesCache, boneName, skel, key, dbfields ):
-		logging.error("postSavedHandler")
-		logging.error((valuesCache, boneName, skel, key, dbfields))
 		if not valuesCache[boneName]:
 			values = []
 		elif isinstance( valuesCache[boneName], dict ):
@@ -663,7 +661,7 @@ class relationalBone( baseBone ):
 						res.append( "src.%s" % orderKey )
 		return( res )
 
-	def refresh(self, boneName, skel):
+	def refresh(self, valuesCache, boneName, skel):
 		"""
 			Refresh all values we might have cached from other entities.
 		"""
@@ -709,16 +707,16 @@ class relationalBone( baseBone ):
 						continue
 
 					elif key in newValues.keys():
-						valDict[key].unserialize(key, newValues)
+						getattr(valDict,key).unserialize(valDict.valuesCache, key, newValues)
 
-		if not self:
+		if not valuesCache[boneName]:
 			return
 
 		logging.info("Refreshing relationalBone %s of %s" % (boneName, skel.kindName))
 
-		if isinstance(self.value, dict):
-			updateInplace(self.value)
+		if isinstance(valuesCache[boneName], dict):
+			updateInplace(valuesCache[boneName])
 
-		elif isinstance(self.value, list):
-			for k in self.value:
+		elif isinstance(valuesCache[boneName], list):
+			for k in valuesCache[boneName]:
 				updateInplace(k)
