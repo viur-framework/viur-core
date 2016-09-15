@@ -299,7 +299,6 @@ class Render( object ):
 		elif bone.type=="selectmulti" or bone.type.startswith("selectmulti."):
 			return [(Render.KeyValueWrapper(val, bone.values[val]) if val in bone.values.keys() else val) for val in skel[key]]
 		elif bone.type=="relational" or bone.type.startswith("relational."):
-			logging.error("Bone Relational render value %s", skel[key])
 			if isinstance(skel[key], list):
 				tmpList = []
 				for k in skel[key]:
@@ -823,17 +822,17 @@ class Render( object ):
 
 			# Import functions.
 			for name, func in jinjaUtils.getGlobalFunctions().items():
-				logging.debug("Adding global function'%s'" % name)
+				#logging.debug("Adding global function'%s'" % name)
 				self.env.globals[name] = mkLambda(func, self)
 
 			# Import filters.
 			for name, func in jinjaUtils.getGlobalFilters().items():
-				logging.debug("Adding global filter '%s'" % name)
+				#logging.debug("Adding global filter '%s'" % name)
 				self.env.filters[name] = mkLambda(func, self)
 
 			# Import extensions.
 			for ext in jinjaUtils.getGlobalExtensions():
-				logging.debug("Adding global extension '%s'" % ext)
+				#logging.debug("Adding global extension '%s'" % ext)
 				self.env.add_extension(ext)
 
 			# Import module-specific environment, if available.
