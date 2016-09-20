@@ -17,12 +17,10 @@ class userBone(relationalBone):
 		self.creationMagic = creationMagic
 		self.updateMagic = updateMagic
 
-	def performMagic( self, isAdd, *args, **kwargs ):
-		return
+	def performMagic(self, valuesCache, key, isAdd, *args, **kwargs):
 		if self.updateMagic or (self.creationMagic and isAdd):
 			user = conf["viur.mainApp"].user.getCurrentUser()
 			if user:
-				return self.fromClient( "user", {"user": str(user["key"]) } )
-			else:
-				return self.fromClient( "user", {} )
-		
+				return self.fromClient(valuesCache, key, {key: str(user["key"])})
+
+			return self.fromClient(valuesCache, key, {})

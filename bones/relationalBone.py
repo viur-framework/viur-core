@@ -299,7 +299,10 @@ class relationalBone( baseBone ):
 		tmpRes = {}
 		clientPrefix = "%s." % name
 		for k, v in data.items():
-			if k.startswith(clientPrefix):
+			if k.startswith(clientPrefix) or k == name:
+				if k == name:
+					clientPrefix = name
+
 				k = k.replace(clientPrefix, "", 1)
 
 				if "." in k:
