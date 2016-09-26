@@ -26,7 +26,7 @@ def generateRandomString( length=13 ):
 				for x in range( length ) ] ) )
 
 	
-def sendEMail( dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None ):
+def sendEMail( dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,*args,**kwargs ):
 	"""
 	General purpose function for sending e-mail.
 
@@ -80,7 +80,8 @@ def sendEMail( dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None
 		logging.warning("Sending emails disabled by config[viur.emailRecipientOverride]")
 		return
 
-	headers, data = conf["viur.emailRenderer"]( skel, name, dests )
+	headers, data = conf["viur.emailRenderer"]( skel, name, dests,**kwargs )
+
 	xheader = {}
 
 	if "references" in headers.keys():

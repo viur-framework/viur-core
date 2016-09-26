@@ -746,7 +746,7 @@ class Render( object ):
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		return template.render( **kwargs )
 
-	def renderEmail(self, skel, tpl, dests ):
+	def renderEmail(self, skel, tpl, dests,**kwargs ):
 		"""
 			Renders an email.
 
@@ -778,7 +778,7 @@ class Render( object ):
 				template = self.getEnv().get_template( tpl+".email" )
 		else:
 			template = self.getEnv().from_string( tpl )
-		data = template.render( skel=res, dests=dests, user=user )
+		data = template.render( skel=res, dests=dests, user=user,**kwargs )
 		body = False
 		lineCount=0
 		for line in data.splitlines():
