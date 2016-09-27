@@ -967,8 +967,15 @@ def updateRelations( destID, minChangeTime, cursor=None ):
 	if cursor:
 		updateListQuery.cursor( cursor )
 	updateList = updateListQuery.run(limit=5)
+
 	for srcRel in updateList:
-		skel = skeletonByKind( srcRel["viur_src_kind"] )()
+		try:
+			skel = skeletonByKind(srcRel["viur_src_kind"])()
+		except AssertionError:
+			db.Delete(str(srcRel.key()))
+			logging.info("Deleting %s which refers to unknown kind %s" % (str(srcRel.key()), srcRel["viur_src_kind"]))
+			continue
+
 		if not skel.fromDB( str(srcRel.key().parent()) ):
 			logging.warning("Cannot update stale reference to %s (referenced from %s)" % (str(srcRel.key().parent()), str(srcRel.key())))
 			continue
