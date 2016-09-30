@@ -972,7 +972,6 @@ def updateRelations( destID, minChangeTime, cursor=None ):
 		try:
 			skel = skeletonByKind(srcRel["viur_src_kind"])()
 		except AssertionError:
-			db.Delete(str(srcRel.key()))
 			logging.info("Deleting %s which refers to unknown kind %s" % (str(srcRel.key()), srcRel["viur_src_kind"]))
 			continue
 
