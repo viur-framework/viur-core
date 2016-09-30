@@ -718,3 +718,32 @@ class relationalBone( baseBone ):
 		elif isinstance(self.value, list):
 			for k in self.value:
 				updateInplace(k)
+
+
+	def getSearchTags(self):
+		from server.skeleton import RelSkel
+
+		def getValues(res, entry):
+			for part in ["dest", "rel"]:
+				if not isinstance(entry.get(part), RelSkel):
+					continue
+
+				for k, bone in entry[part].items():
+					if bone.indexed:
+						for tag in bone.getSearchTags():
+							if tag not in res:
+								res.append(tag)
+
+		res = []
+		if not self.value:
+			return res
+
+		value = self.value
+
+		if self.multiple:
+			for val in value:
+				getValues(res, val)
+		else:
+			getValues(res, value)
+
+		return res
