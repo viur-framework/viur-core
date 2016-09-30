@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from server.render.jinja2.utils import jinjaGlobalFunction, jinjaGlobalFilter
+from server.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
 import json
 
 @jinjaGlobalFilter

@@ -98,7 +98,7 @@ class spatialBone( baseBone ):
 				return False
 
 
-	def serialize( self, name, entity ):
+	def serialize( self, valuesCache, name, entity ):
 		"""
 			Serializes this bone into something we
 			can write into the datastore.
@@ -107,8 +107,8 @@ class spatialBone( baseBone ):
 			:type name: String
 			:returns: dict
 		"""
-		if self.value and not self.isInvalid(self.value):
-			lat, lng = self.value
+		if valuesCache[name] and not self.isInvalid(valuesCache[name]):
+			lat, lng = valuesCache[name]
 			entity.set( name+".lat.val", lat, self.indexed )
 			entity.set( name+".lng.val", lng, self.indexed )
 			if self.indexed:
@@ -121,7 +121,7 @@ class spatialBone( baseBone ):
 		logging.error( entity[name+".lng.tiles"] )
 		return( entity )
 		
-	def unserialize( self, name, expando ):
+	def unserialize( self, valuesCache, name, expando ):
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -133,9 +133,9 @@ class spatialBone( baseBone ):
 			:returns: bool
 		"""
 		if not name+".lat.val" in expando.keys() or not name+".lng.val":
-			self.value = None
+			valuesCache[name] = None
 			return
-		self.value = expando[name+".lat.val"], expando[name+".lng.val"]
+		valuesCache[name] = expando[name+".lat.val"], expando[name+".lng.val"]
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
 		"""

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from server import session
-from server.render.jinja2.utils import jinjaGlobalFunction
+from server.render.html.utils import jinjaGlobalFunction
 
 @jinjaGlobalFunction
 def getSession(render):

@@ -54,16 +54,16 @@ class fileBaseSkel( TreeLeafSkel ):
 	def refresh(self):
 		# Update from blobimportmap
 		try:
-			oldKeyHash = sha256(self["dlkey"].value).hexdigest().encode("hex")
+			oldKeyHash = sha256(self["dlkey"]).hexdigest().encode("hex")
 			res = db.Get( db.Key.from_path("viur-blobimportmap", oldKeyHash))
 		except:
 			res = None
 
-		if res and res["oldkey"] == self["dlkey"].value:
-			self["dlkey"].value = res["newkey"]
-			self["servingurl"].value = res["servingurl"]
+		if res and res["oldkey"] == self["dlkey"]:
+			self["dlkey"] = res["newkey"]
+			self["servingurl"] = res["servingurl"]
 
-			logging.info("Refreshing file dlkey %s (%s)" % (self["dlkey"].value, self["servingurl"].value))
+			logging.info("Refreshing file dlkey %s (%s)" % (self["dlkey"], self["servingurl"]))
 
 		super(fileBaseSkel, self).refresh()
 
@@ -71,25 +71,25 @@ class fileBaseSkel( TreeLeafSkel ):
 		"""
 			Ensure that our dlkey is locked even if we don't have a filebone here
 		"""
-		locks.add( self["dlkey"].value )
+		locks.add( self["dlkey"] )
 		return( locks )
 
 	def fromDB( self, *args, **kwargs ):
 		r = super( fileBaseSkel, self ).fromDB( *args, **kwargs )
-		if not self["mimetype"].value:
-			if self["meta_mime"].value:
-				self["mimetype"].value = self["meta_mime"].value
-			elif self["metamime"].value:
-				self["mimetype"].value = self["metamime"].value
+		if not self["mimetype"]:
+			if self["meta_mime"]:
+				self["mimetype"] = self["meta_mime"]
+			elif self["metamime"]:
+				self["mimetype"] = self["metamime"]
 		return( r )
 
 	def setValues( self, values, key=False ):
 		r = super( fileBaseSkel, self ).setValues( values, key )
-		if not self["mimetype"].value:
-			if self["meta_mime"].value:
-				self["mimetype"].value = self["meta_mime"].value
-			elif self["metamime"].value:
-				self["mimetype"].value = self["metamime"].value
+		if not self["mimetype"]:
+			if self["meta_mime"]:
+				self["mimetype"] = self["meta_mime"]
+			elif self["metamime"]:
+				self["mimetype"] = self["metamime"]
 		return( r )
 
 class fileNodeSkel( TreeNodeSkel ):
@@ -115,6 +115,8 @@ class File( Tree ):
 			"handler": "tree.simple.file",  #Which handler to invoke
 			"icon": "icons/modules/my_files.svg", #Icon for this modul
 			}
+
+	blobCacheTime = 60*60*24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
 
 	def decodeFileName(self, name):
 		# http://code.google.com/p/googleappengine/issues/detail?id=2749
@@ -265,7 +267,7 @@ class File( Tree ):
 									"dlkey": str(upload.key()),
 									"servingurl": servingURL,
 									"parentdir": str(node),
-									"parentrepo": nodeSkel["parentrepo"].value,
+									"parentrepo": nodeSkel["parentrepo"],
 									"weak": False,
 									"width": width,
 									"height": height
@@ -315,7 +317,7 @@ class File( Tree ):
 					res.append( fileSkel )
 					self.onItemUploaded(fileSkel)
 			for r in res:
-				logging.info("Got a successfull upload: %s (%s)" % (r["name"].value, r["dlkey"].value ) )
+				logging.info("Got a successfull upload: %s (%s)" % (r["name"], r["dlkey"] ) )
 
 			user = utils.getCurrentUser()
 			if user:
@@ -339,6 +341,8 @@ class File( Tree ):
 			raise errors.NotFound()
 		request.current.get().response.clear()
 		request.current.get().response.headers['Content-Type'] = str(info.content_type)
+		if self.blobCacheTime:
+			request.current.get().response.headers['Cache-Control'] = "public, max-age=%s" % self.blobCacheTime
 		request.current.get().response.headers[blobstore.BLOB_KEY_HEADER] = str(blobKey)
 		return("")
 
@@ -382,7 +386,7 @@ class File( Tree ):
 		if user and "root" in user["access"]:
 			return True
 
-		return self.isOwnUserRootNode( str( skel["key"].value ) )
+		return self.isOwnUserRootNode( str( skel["key"] ) )
 
 	def canEdit( self, skelType, skel=None ):
 		user = utils.getCurrentUser()
@@ -485,7 +489,7 @@ def doDeleteWeakReferences( timeStamp, cursor ):
 	query = skelCls().all().filter("weak =", True).filter("creationdate <", datetime.strptime(timeStamp,"%d.%m.%Y %H:%M:%S") ).cursor( cursor )
 	for skel in query.fetch(99):
 		# FIXME: Is that still needed? See hotfix/weakfile
-		anyRel = any(db.Query("viur-relations").filter("dest.key =", skel["key"].value).run(1, keysOnly=True))
+		anyRel = any(db.Query("viur-relations").filter("dest.key =", skel["key"]).run(1, keysOnly=True))
 		if anyRel:
 			logging.debug("doDeleteWeakReferences: found relations with that file - don't delete!")
 			continue

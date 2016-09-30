@@ -2,8 +2,8 @@
 from server import utils, request, conf, prototypes, securitykey
 from server.skeleton import Skeleton, RelSkel
 
-from server.render.jinja2.utils import jinjaGlobalFunction, jinjaGlobalFilter
-from server.render.jinja2.wrap import ListWrapper, SkelListWrapper
+from server.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
+from server.render.html.wrap import ListWrapper, SkelListWrapper
 
 import urllib
 from hashlib import sha512
@@ -253,31 +253,21 @@ def getList(render, module, skel = "viewSkel", _noEmptyFilter = False, *args, **
 	if not module in dir(conf["viur.mainApp"]):
 		logging.error("Jinja2-Render can't fetch a list from an unknown module %s!" % module)
 		return False
-
 	caller = getattr( conf["viur.mainApp"], module)
 	if not skel in dir( caller ):
 		logging.error("Jinja2-Render cannot fetch a list with an unknown skeleton %s!" % skel)
 		return False
-
 	if _noEmptyFilter: #Test if any value of kwargs is an empty list
 		if any( [isinstance(x,list) and not len(x) for x in kwargs.values()] ):
 			return []
-
 	query = getattr(caller, skel)().all()
 	query.mergeExternalFilter(kwargs)
-
 	if "listFilter" in dir(caller):
 		query = caller.listFilter(query)
-
 	if query is None:
 		return None
-
 	mylist = query.fetch()
-
-	for x in range(0, len(mylist)):
-		mylist.append(render.collectSkelData(mylist.pop(0)))
-
-	return SkelListWrapper(mylist)
+	return SkelListWrapper([render.collectSkelData(x) for x in mylist], mylist)
 
 @jinjaGlobalFunction
 def getSecurityKey(render, **kwargs):

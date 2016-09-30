@@ -28,7 +28,11 @@ class SkelListWrapper(ListWrapper):
 		Like ListWrapper, but takes the additional properties
 		of skellist into account - namely cursor and customQueryInfo.
 	"""
-	def __init__( self, src ):
+	def __init__( self, src, origQuery=None ):
 		super( SkelListWrapper, self ).__init__( src )
-		self.cursor = src.cursor
-		self.customQueryInfo = src.customQueryInfo
+		if origQuery is not None:
+			self.cursor = origQuery.cursor
+			self.customQueryInfo = origQuery.customQueryInfo
+		else:
+			self.cursor = src.cursor
+			self.customQueryInfo = src.customQueryInfo

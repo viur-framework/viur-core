@@ -28,7 +28,7 @@ class BasicApplication(object):
 				if not rightName in conf["viur.accessRights"]:
 					conf["viur.accessRights"].append(rightName)
 
-	def _resolveSkel(self, *args, **kwargs):
+	def _resolveSkelCls(self, *args, **kwargs):
 		"""
 		Retrieve the generally associated :class:`server.skeleton.Skeleton` that is used by
 		the application.
@@ -44,4 +44,4 @@ class BasicApplication(object):
 		:rtype: server.skeleton.Skeleton
 		"""
 
-		return skeletonByKind(self.kindName if self.kindName else unicode(type(self).__name__).lower())()
+		return skeletonByKind(self.kindName if self.kindName else unicode(type(self).__name__).lower())

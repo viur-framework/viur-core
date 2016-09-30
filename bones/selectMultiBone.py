@@ -60,7 +60,7 @@ class selectMultiBone( baseBone ):
 		elif isinstance(values, OrderedDict):
 			self.values = values
 
-	def fromClient( self, name, data ):
+	def fromClient( self, valuesCache, name, data ):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -79,7 +79,7 @@ class selectMultiBone( baseBone ):
 			values = data[ name ]
 		else:
 			values = None
-		self.value = []
+		valuesCache[name] = []
 		if not values:
 			return( "No item selected" )
 		if not isinstance( values, list ):
@@ -87,26 +87,28 @@ class selectMultiBone( baseBone ):
 				values = values.split( ":" )
 			else:
 				values = []
-		for name, value in self.values.items():
-			if str(name) in [str(x) for x in values]:
-				self.value.append( name )
-		if len( self.value )>0:
+		for key, value in self.values.items():
+			if str(key) in [str(x) for x in values]:
+				valuesCache[name].append(key)
+		if len( valuesCache[name] )>0:
 			return( None )
 		else:
 			return( "No item selected" )
 	
-	def serialize( self, name, entity ):
-		if not self.value or len( self.value ) == 0:
+	def serialize( self, valuesCache, name, entity ):
+		if not valuesCache[name] or len(valuesCache[name]) == 0:
 			entity.set( name, None, self.indexed )
 		else:
-			entity.set( name, self.value, self.indexed )
+			entity.set( name, valuesCache[name], self.indexed )
 		return( entity )
 
-	def unserialize( self, name, expando ):
+	def unserialize( self, valuesCache, name, expando ):
 		if name in expando.keys():
-			self.value = expando[ name ]
-		if not self.value:
-			self.value = []
+			valuesCache[name] = expando[ name ]
+			if not valuesCache[name]:
+				valuesCache[name] = []
+		else:
+			valuesCache[name] = []
 		return( True )
 
 class selectAccessMultiBone( selectMultiBone ):

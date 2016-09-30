@@ -205,7 +205,7 @@ class Render( object ):
 			"readOnly": bone.readOnly
 		}
 
-		if isinstance(bone, relationalBone):
+		if bone.type == "relational" or bone.type.startswith("relational."):
 			if isinstance(bone, hierarchyBone):
 				boneType = "hierarchy"
 			elif isinstance(bone, treeItemBone):
@@ -222,31 +222,31 @@ class Render( object ):
 				"relskel": self.renderSkelStructure(RelSkel.fromSkel(skeletonByKind(bone.type), *bone.refKeys))
 			})
 
-		elif isinstance(bone, selectOneBone) or isinstance(bone, selectMultiBone):
+		elif bone.type == "selectone" or bone.type.startswith("selectone.") or bone.type == "selectmulti" or bone.type.startswith("selectmulti."):
 			ret.update({
 				"values": bone.values
 			})
 
-		elif isinstance(bone, dateBone):
+		elif bone.type == "date" or bone.type.startswith("date."):
 			ret.update({
 				"date": bone.date,
 	            "time": bone.time
 			})
 
-		elif isinstance(bone, numericBone):
+		elif bone.type == "numeric" or bone.type.startswith("numeric."):
 			ret.update({
 				"precision": bone.precision,
 		        "min": bone.min,
 				"max": bone.max
 			})
 
-		elif isinstance(bone, textBone):
+		elif bone.type == "text" or bone.type.startswith("text."):
 			ret.update({
 				"validHtml": bone.validHtml,
 				"languages": bone.languages
 			})
 
-		elif isinstance(bone, stringBone):
+		elif bone.type == "str" or bone.type.startswith("str."):
 			ret.update({
 				"languages": bone.languages,
 				"multiple": bone.multiple
@@ -279,7 +279,7 @@ class Render( object ):
 
 		return res
 
-	def renderBoneValue(self, bone):
+	def renderBoneValue(self, bone, skel, key):
 		"""
 		Renders the value of a bone.
 
@@ -292,19 +292,16 @@ class Render( object ):
 		:return: A dict containing the rendered attributes.
 		:rtype: dict
 		"""
-
-		if isinstance(bone, selectOneBone):
-			if bone.value in bone.values.keys():
-				return Render.KeyValueWrapper(bone.value, bone.values[bone.value])
-			return bone.value
-		elif isinstance(bone, selectMultiBone):
-			return [(Render.KeyValueWrapper(val, bone.values[val])
-			            if val in bone.values.keys() else val)
-			                for val in bone.value]
-		elif isinstance(bone, relationalBone):
-			if isinstance(bone.value, list):
+		if bone.type=="selectone" or bone.type.startswith("selectone."):
+			if skel[key] in bone.values.keys():
+				return Render.KeyValueWrapper(skel[key], bone.values[skel[key]])
+			return skel[key]
+		elif bone.type=="selectmulti" or bone.type.startswith("selectmulti."):
+			return [(Render.KeyValueWrapper(val, bone.values[val]) if val in bone.values.keys() else val) for val in skel[key]]
+		elif bone.type=="relational" or bone.type.startswith("relational."):
+			if isinstance(skel[key], list):
 				tmpList = []
-				for k in bone.value:
+				for k in skel[key]:
 					if bone.using is None:
 						tmpList.append(self.collectSkelData(k["dest"]))
 					else:
@@ -313,17 +310,19 @@ class Render( object ):
 			                "rel": self.collectSkelData(k["rel"]) if k["rel"] else None
 						})
 				return tmpList
-			elif isinstance(bone.value, dict):
+			elif isinstance(skel[key], dict):
 				if bone.using is None:
-					return self.collectSkelData(bone.value["dest"])
+					return self.collectSkelData(skel[key]["dest"])
 				return {
-					"dest": self.collectSkelData(bone.value["dest"]),
-					"rel": self.collectSkelData(bone.value["rel"]) if bone.value["rel"] else None
+					"dest": self.collectSkelData(skel[key]["dest"]),
+					"rel": self.collectSkelData(skel[key]["rel"]) if skel[key]["rel"] else None
 				}
 			else:
 				return None
 		else:
-			return bone.value
+			#logging.error("RETURNING")
+			#logging.error((skel[key]))
+			return skel[key]
 
 		return None
 
@@ -338,12 +337,12 @@ class Render( object ):
 			:returns: A dictionary or list of dictionaries.
 			:rtype: dict | list
 		"""
+		#logging.error("collectSkelData %s", skel)
 		if isinstance(skel, list):
 			return [self.collectSkelData(x) for x in skel]
-
 		res = {}
 		for key, bone in skel.items():
-			val = self.renderBoneValue(bone)
+			val = self.renderBoneValue(bone, skel, key)
 			if val is None:
 				continue
 
@@ -379,10 +378,10 @@ class Render( object ):
 
 		tpl = tpl or self.addTemplate
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-
+		skel = skel.clone()  # Fixme!
 		skeybone = baseBone(descr="SecurityKey", readOnly=True, visible=False)
-		skeybone.value = securitykey.create()
-		skel["skey"] = skeybone
+		skel.skey = skeybone
+		skel["skey"] = securitykey.create()
 
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
 			if isinstance(skel, Skeleton):
@@ -419,10 +418,10 @@ class Render( object ):
 
 		tpl = tpl or self.editTemplate
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-
+		skel = skel.clone()  # Fixme!
 		skeybone = baseBone(descr="SecurityKey", readOnly=True, visible=False)
-		skeybone.value = securitykey.create()
-		skel["skey"] = skeybone
+		skel.skey = skeybone
+		skel["skey"] = securitykey.create()
 
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
 			if isinstance(skel, Skeleton):
@@ -517,9 +516,10 @@ class Render( object ):
 		except errors.HTTPException as e: #Not found - try default fallbacks FIXME: !!!
 			tpl = "list"
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		for x in range(0, len( skellist ) ):
-			skellist.append( self.collectSkelData( skellist.pop(0) ) )
-		return( template.render( skellist=SkelListWrapper(skellist), **kwargs ) )
+		resList = []
+		for skel in skellist:
+			resList.append( self.collectSkelData(skel) )
+		return( template.render( skellist=SkelListWrapper(resList, skellist), **kwargs ) )
 	
 	def listRootNodes(self, repos, tpl=None, **kwargs ):
 		"""
@@ -746,7 +746,7 @@ class Render( object ):
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		return template.render( **kwargs )
 
-	def renderEmail(self, skel, tpl, dests ):
+	def renderEmail(self, skel, tpl, dests,**kwargs ):
 		"""
 			Renders an email.
 
@@ -778,7 +778,7 @@ class Render( object ):
 				template = self.getEnv().get_template( tpl+".email" )
 		else:
 			template = self.getEnv().from_string( tpl )
-		data = template.render( skel=res, dests=dests, user=user )
+		data = template.render( skel=res, dests=dests, user=user,**kwargs )
 		body = False
 		lineCount=0
 		for line in data.splitlines():
@@ -822,17 +822,17 @@ class Render( object ):
 
 			# Import functions.
 			for name, func in jinjaUtils.getGlobalFunctions().items():
-				logging.debug("Adding global function'%s'" % name)
+				#logging.debug("Adding global function'%s'" % name)
 				self.env.globals[name] = mkLambda(func, self)
 
 			# Import filters.
 			for name, func in jinjaUtils.getGlobalFilters().items():
-				logging.debug("Adding global filter '%s'" % name)
+				#logging.debug("Adding global filter '%s'" % name)
 				self.env.filters[name] = mkLambda(func, self)
 
 			# Import extensions.
 			for ext in jinjaUtils.getGlobalExtensions():
-				logging.debug("Adding global extension '%s'" % ext)
+				#logging.debug("Adding global extension '%s'" % ext)
 				self.env.add_extension(ext)
 
 			# Import module-specific environment, if available.

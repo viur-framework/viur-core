@@ -98,6 +98,7 @@ class TaskHandler:
 		"""
 		from server import session
 		global _deferedTasks
+
 		req = request.current.get().request
 		if 'X-AppEngine-TaskName' not in req.headers:
 			logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
@@ -107,6 +108,7 @@ class TaskHandler:
 			logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
 			raise errors.Forbidden()
 		cmd, data = json.loads( req.body )
+
 		try:
 			funcPath, args, kwargs, env = data
 		except ValueError: #We got an old call without an frozen environment
@@ -200,9 +202,9 @@ class TaskHandler:
 		global _callableTasks
 		class extList( list ):
 			pass
-		# FIXME: here we have another id attribute. Check if that should be renamed to key <sk>
 		res = extList( [{"key": x.key, "name":_(x.name), "descr":_(x.descr) } for x in _callableTasks.values() if x().canCall()] )
 		res.cursor = None
+		res.baseSkel = {}
 		return( self.render.list( res ) )
 	list.exposed=True
 	
@@ -230,7 +232,7 @@ class TaskHandler:
 	execute.exposed = True
 	
 TaskHandler.admin = True	
-TaskHandler.jinja2 = True
+TaskHandler.html = True
 
 ## Decorators ##
 

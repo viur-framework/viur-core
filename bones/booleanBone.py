@@ -15,7 +15,7 @@ class booleanBone( baseBone ):
 		defaultValue = defaultValue
 		super( booleanBone, self ).__init__( defaultValue=defaultValue,  *args,  **kwargs )
 
-	def fromClient( self, name, data ):
+	def fromClient( self, valuesCache, name, data ):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -35,12 +35,12 @@ class booleanBone( baseBone ):
 		else:
 			return("No value entered!")
 		if str( value ) in self.trueStrs:
-			self.value = True
+			valuesCache[name] = True
 		else:
-			self.value = False
+			valuesCache[name] = False
 		return( None )
 	
-	def serialize( self, name, entity ):
+	def serialize( self, valuesCache, name, entity ):
 		"""
 			Serializes this bone into something we
 			can write into the datastore.
@@ -50,10 +50,10 @@ class booleanBone( baseBone ):
 			:returns: dict
 		"""
 		if name != "key":
-			entity.set( name, self.value, self.indexed )
+			entity.set( name, valuesCache.get(name, False), self.indexed )
 		return( entity )
 
-	def unserialize( self, name, expando ):
+	def unserialize(self, valuesCache, name, expando):
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -68,10 +68,10 @@ class booleanBone( baseBone ):
 		if name in expando.keys():
 			val = expando[ name ]
 			if str( val ) in self.trueStrs:
-				self.value = True
+				valuesCache[name] = True
 			else:
-				self.value = False
-		return( True )
+				valuesCache[name] = False
+		return True
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
 		if name in rawFilter.keys():

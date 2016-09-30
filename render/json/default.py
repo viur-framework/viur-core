@@ -3,6 +3,7 @@ import json
 from collections import OrderedDict
 from server import errors, request, bones
 from server.skeleton import RelSkel, skeletonByKind
+import logging
 
 class DefaultRender(object):
 	
@@ -27,14 +28,14 @@ class DefaultRender(object):
 		# Base bone contents.
 		ret = {
 			"descr": _(bone.descr),
-	        "type": bone.type,
+	                "type": bone.type,
 			"required": bone.required,
 			"params": bone.params,
 			"visible": bone.visible,
 			"readonly": bone.readOnly
 		}
 
-		if isinstance(bone, bones.relationalBone):
+		if bone.type == "relational" or bone.type.startswith("relational."):
 			if isinstance(bone, bones.hierarchyBone):
 				boneType = "hierarchy"
 			elif isinstance(bone, bones.treeItemBone):
@@ -45,39 +46,40 @@ class DefaultRender(object):
 				boneType = "relational"
 
 			ret.update({
-				"type": "%s.%s" % (boneType, bone.type),
+				"type": "%s.%s" % (boneType, bone.kind),
 				"module": bone.module,
 				"multiple": bone.multiple,
 				"format": bone.format,
 				"using": self.renderSkelStructure(bone.using()) if bone.using else None,
-				"relskel": self.renderSkelStructure(RelSkel.fromSkel(skeletonByKind(bone.type), *bone.refKeys))
+				"relskel": self.renderSkelStructure(RelSkel.fromSkel(skeletonByKind(bone.kind), *bone.refKeys))
 			})
 
-		elif isinstance(bone, bones.selectOneBone) or isinstance(bone, bones.selectMultiBone):
+
+		elif bone.type == "selectone" or bone.type.startswith("selectone.") or bone.type == "selectmulti" or bone.type.startswith("selectmulti."):
 			ret.update({
 				"values": [(k, v) for k, v in bone.values.items()]
 			})
 
-		elif isinstance(bone, bones.dateBone):
+		elif bone.type == "date" or bone.type.startswith("date."):
 			ret.update({
 				"date": bone.date,
 	            "time": bone.time
 			})
 
-		elif isinstance(bone, bones.numericBone):
+		elif bone.type == "numeric" or bone.type.startswith("numeric."):
 			ret.update({
 				"precision": bone.precision,
 		        "min": bone.min,
 				"max": bone.max
 			})
 
-		elif isinstance(bone, bones.textBone):
+		elif bone.type == "text" or bone.type.startswith("text."):
 			ret.update({
 				"validHtml": bone.validHtml,
 				"languages": bone.languages
 			})
 
-		elif isinstance(bone, bones.stringBone):
+		elif bone.type == "str" or bone.type.startswith("str."):
 			ret.update({
 				"multiple": bone.multiple,
 				"languages": bone.languages
@@ -99,8 +101,8 @@ class DefaultRender(object):
 			return None
 		res = OrderedDict()
 		for key, bone in skel.items():
-			if "__" in key or not isinstance(bone, bones.baseBone):
-				continue
+			#if "__" in key or not isinstance(bone, bones.baseBone):
+			#	continue
 
 			res[key] = self.renderBoneStructure(bone)
 
@@ -118,7 +120,7 @@ class DefaultRender(object):
 				"descr": _( e.descr ), 
 				"skel": self.renderSkelStructure( e.dataSkel() ) } )
 
-	def renderBoneValue(self, bone):
+	def renderBoneValue(self, bone, skel, key):
 		"""
 		Renders the value of a bone.
 
@@ -131,35 +133,31 @@ class DefaultRender(object):
 		:return: A dict containing the rendered attributes.
 		:rtype: dict
 		"""
-		if isinstance(bone, bones.dateBone):
-			if bone.value:
+		if bone.type == "date" or bone.type.startswith("date."):
+			if skel[key]:
 				if bone.date and bone.time:
-					return bone.value.strftime("%d.%m.%Y %H:%M:%S")
+					return skel[key].strftime("%d.%m.%Y %H:%M:%S")
 				elif bone.date:
-					return bone.value.strftime("%d.%m.%Y")
+					return skel[key].strftime("%d.%m.%Y")
 
-				return bone.value.strftime("%H:%M:%S")
-
+				return skel[key].strftime("%H:%M:%S")
 		elif isinstance(bone, bones.relationalBone):
-
-			if isinstance(bone.value, list):
+			if isinstance(skel[key], list):
 				tmpList = []
-
-				for k in bone.value:
+				for k in skel[key]:
 					tmpList.append({
 						"dest": self.renderSkelValues(k["dest"]),
 			            "rel": self.renderSkelValues(k.get("rel"))
 					})
 
 				return tmpList
-
-			elif isinstance(bone.value, dict):
+			elif isinstance(skel[key], dict):
 				return {
-					"dest": self.renderSkelValues(bone.value["dest"]),
-				    "rel": self.renderSkelValues(bone.value.get("rel"))
+					"dest": self.renderSkelValues(skel[key]["dest"]),
+				    "rel": self.renderSkelValues(skel[key].get("rel"))
 				}
 		else:
-			return bone.value
+			return skel[key]
 
 		return None
 
@@ -180,7 +178,7 @@ class DefaultRender(object):
 
 		res = {}
 		for key, bone in skel.items():
-			res[key] = self.renderBoneValue(bone)
+			res[key] = self.renderBoneValue(bone, skel, key)
 
 		return res
 		
@@ -219,11 +217,10 @@ class DefaultRender(object):
 
 		res["skellist"] = skels
 
-		if len(skellist) > 0:
-			res["structure"] = self.renderSkelStructure(skellist[0])
+		if skellist:
+			res["structure"] = self.renderSkelStructure(skellist.baseSkel)
 		else:
 			res["structure"] = None
-
 		res["cursor"] = skellist.cursor
 		res["action"] = "list"
 		request.current.get().response.headers["Content-Type"] = "application/json"

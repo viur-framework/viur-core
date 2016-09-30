@@ -55,7 +55,7 @@ class Singleton(BasicApplication):
 		:return: Returns a Skeleton instance for viewing the singleton entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel(*args, **kwargs)
+		return self._resolveSkelCls(*args, **kwargs)()
 
 	def editSkel( self, *args, **kwargs ):
 		"""
@@ -69,7 +69,7 @@ class Singleton(BasicApplication):
 		:return: Returns a Skeleton instance for editing the entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel(*args, **kwargs)
+		return self._resolveSkelCls(*args, **kwargs)()
 
 ## External exposed functions
 
@@ -289,7 +289,7 @@ class Singleton(BasicApplication):
 
 		.. seealso:: :func:`edit`
 		"""
-		logging.info("Entry changed: %s" % skel["key"].value )
+		logging.info("Entry changed: %s" % skel["key"] )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
@@ -309,5 +309,5 @@ class Singleton(BasicApplication):
 		pass
 
 Singleton.admin=True
-Singleton.jinja2=True
+Singleton.html=True
 Singleton.vi=True

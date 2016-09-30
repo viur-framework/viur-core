@@ -24,11 +24,11 @@
  See file LICENSE for more information.
 """
 
-__version__ = (-99,-99,-99) #Which API do we expose to our application
+__version__ = (-99,-99,-99)  # Which API do we expose to our application
 
 import sys, traceback, os, inspect
 
-#All (optional) 3rd-party modules in our libs-directory
+# All (optional) 3rd-party modules in our libs-directory
 cwd = os.path.abspath(os.path.dirname(__file__))
 
 for lib in os.listdir( os.path.join(cwd, "libs") ):
@@ -47,6 +47,10 @@ import urlparse
 from string import Template
 from StringIO import StringIO
 import logging
+from time import time
+
+# Copy our Version into the config so that our renders can access it
+conf["viur.version"] = __version__
 
 ### Multi-Language Part
 try:
@@ -304,8 +308,8 @@ def buildApp( config, renderers, default=None, *args, **kwargs ):
 
 	if default in rendlist and "renderEmail" in dir (rendlist[ default ]["default"]()):
 		conf["viur.emailRenderer"] = rendlist[ default ]["default"]().renderEmail
-	elif "jinja2" in list(rendlist.keys()):
-		conf["viur.emailRenderer"] = rendlist[ "jinja2" ]["default"]().renderEmail
+	elif "html" in list(rendlist.keys()):
+		conf["viur.emailRenderer"] = rendlist[ "html" ]["default"]().renderEmail
 
 	return res
 
@@ -318,12 +322,16 @@ class BrowseHandler(webapp.RequestHandler):
 	"""
 	
 	def get(self, path="/", *args, **kwargs): #Accept a HTTP-GET request
+		t1 = time()
 		if path=="_ah/start" or path=="_ah/warmup": #Warmup request
 			self.response.out.write("OK")
 			return
 
 		self.isPostRequest = False
 		self.processRequest( path, *args, **kwargs )
+		t2 = time()
+		#self.response.clear()
+		#self.response.out.write(str(t2-t1))
 
 	def post(self, path="/", *args, **kwargs): #Accept a HTTP-POST request
 		self.isPostRequest = True
@@ -621,7 +629,7 @@ class BrowseHandler(webapp.RequestHandler):
 		session.current.save( self )
 
 
-def setup( modules, render=None, default="jinja2" ):
+def setup( modules, render=None, default="html" ):
 	"""
 		Define whats going to be served by this instance.
 
@@ -630,8 +638,8 @@ def setup( modules, render=None, default="jinja2" ):
 		:param renders: Usually the module *server.renders*, or a dictionary renderName => renderClass.
 		:type renders: module | dict
 		:param default: Name of the renderer, which will form the root of the application.\
-		This will be the renderer, which wont get a prefix, usually jinja2. \
-		(=> /user instead of /jinja2/user)
+		This will be the renderer, which wont get a prefix, usually html. \
+		(=> /user instead of /html/user)
 		:type default: str
 	"""
 	import skeletons

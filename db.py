@@ -19,6 +19,7 @@ import logging
 __cacheLockTime__ = 42 #Prevent an entity from creeping into the cache for 42 Secs if it just has been altered.
 __cacheTime__ = 15*60 #15 Mins
 __CacheKeyPrefix__ ="viur-db-cache:" #Our Memcache-Namespace. Dont use that for other purposes
+__MemCacheBatchSize__ = 30
 
 
 def PutAsync( entities, **kwargs ):
@@ -152,29 +153,21 @@ def Get( keys, **kwargs ):
 			tmpRes = []
 			keyList = [ str(x) for x in keys ]
 			while keyList: #Fetch in Batches of 30 entries, as the max size for bulk_get is limited to 32MB
-				currentBatch = keyList[ : 30]
-				keyList = keyList[ 30: ]
+				currentBatch = keyList[:__MemCacheBatchSize__]
+				keyList = keyList[__MemCacheBatchSize__:]
 				cacheRes.update( memcache.get_multi( currentBatch, namespace=__CacheKeyPrefix__) )
 			#Fetch the rest from DB
 			missigKeys = [ x for x in keys if not str(x) in cacheRes.keys() ]
 			dbRes = [ Entity.FromDatastoreEntity(x) for x in datastore.Get( missigKeys ) if x is not None ]
-			#Cache what we had fetched
-			cacheMap = {}
-			for res in dbRes:
-				cacheMap[ str(res.key() ) ] = res
-				if len( str( cacheMap ) ) > 800000:
-					#Were approaching the 1MB limit
-					try:
-						memcache.set_multi( cacheMap, time=__cacheTime__ , namespace=__CacheKeyPrefix__ )
-					except:
-						pass
-					cacheMap = {}
-			if cacheMap:
-				# Cache the remaining entries
+			# Cache what we had fetched
+			saveIdx = 0
+			while len(dbRes)>saveIdx*__MemCacheBatchSize__:
+				cacheMap = {str(obj.key()): obj for obj in dbRes[saveIdx*__MemCacheBatchSize__:(saveIdx+1)*__MemCacheBatchSize__]}
 				try:
 					memcache.set_multi( cacheMap, time=__cacheTime__ , namespace=__CacheKeyPrefix__ )
 				except:
 					pass
+				saveIdx += 1
 			for key in [ str(x) for x in keys ]:
 				if key in cacheRes.keys():
 					tmpRes.append( cacheRes[ key ] )
@@ -356,12 +349,15 @@ class Query( object ):
 			:rtype: server.db.Query
 		"""
 		from server.bones import baseBone, relationalBone
-
+		if "id" in filters.keys():
+			self.datastoreQuery = None
+			logging.error("Filtering by id is no longer supported. Use key instead.")
+			return self
 		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
 		if self.datastoreQuery is None: #This query is allready unsatifiable and adding more constrains to this wont change this
 			return( self )
-		skel = self.srcSkel.clone()
+		skel = self.srcSkel
 		if skel.searchIndex and "search" in filters.keys(): #We perform a Search via Google API - all other parameters are ignored
 			try:
 				searchRes = search.Index( name=skel.searchIndex ).search( query=search.Query( query_string=filters["search"], options=search.QueryOptions( limit=25 ) ) )
@@ -413,7 +409,7 @@ class Query( object ):
 				self.datastoreQuery[ k ] = v
 		if "cursor" in filters.keys() and filters["cursor"] and filters["cursor"].lower()!="none":
 			self.cursor( filters["cursor"] )
-		if "amount" in list(filters.keys()) and str(filters["amount"]).isdigit() and int( filters["amount"] ) >0 and int( filters["amount"] ) <= 99:
+		if "amount" in list(filters.keys()) and str(filters["amount"]).isdigit() and int( filters["amount"] ) >0 and int( filters["amount"] ) <= 500:
 			self.limit( int(filters["amount"]) )
 		if "postProcessSearchFilter" in dir( skel ):
 			skel.postProcessSearchFilter( self, filters )
@@ -850,7 +846,7 @@ class Query( object ):
 		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
 		amount = limit if limit!=-1 else self.amount
-		if amount < 1 or amount > 100:
+		if amount < 1 or amount > 500:
 			raise NotImplementedError("This query is not limited! You must specify an upper bound using limit() between 1 and 100")
 		from server.skeleton import SkelList
 		res = SkelList( self.srcSkel )
@@ -859,9 +855,11 @@ class Query( object ):
 		if dbRes is None:
 			return( res )
 		for e in dbRes:
-			s = self.srcSkel.clone()
-			s.setValues( e, key=e.key() )
-			res.append( s )
+			#s = self.srcSkel.clone()
+			valueCache = {}
+			self.srcSkel.setValuesCache(valueCache)
+			self.srcSkel.setValues( e, key=e.key() )
+			res.append( self.srcSkel.getValuesCache() )
 		try:
 			c = self.datastoreQuery.GetCursor()
 			if c:
@@ -952,9 +950,9 @@ class Query( object ):
 		res = self.get()
 		if res is None:
 			return( None )
-		s = self.srcSkel.clone()
-		s.setValues( res, key=res.key() )
-		return( s )
+		#s = self.srcSkel.clone()
+		self.srcSkel.setValues( res, key=res.key() )
+		return self.srcSkel
 	
 	def count( self, limit=1000, **kwargs ):
 		"""

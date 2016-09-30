@@ -61,7 +61,7 @@ class selectOneBone( baseBone ):
 			self.values = values
 
 
-	def fromClient( self, name, data ):
+	def fromClient( self, valuesCache, name, data ):
 		"""
 			Reads a value from the client.
 			If this value is valis for this bone,
@@ -82,7 +82,7 @@ class selectOneBone( baseBone ):
 			value = None
 		for key in self.values.keys():
 			if str(key)==str(value):
-				self.value = key
+				valuesCache[name] = key
 				return( None )
 		return( "No or invalid value selected" )
 

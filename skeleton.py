@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from server.bones import baseBone, boneFactory, dateBone, selectOneBone, relationalBone, stringBone
+from server.bones import baseBone, dateBone, selectOneBone, relationalBone, stringBone, boneFactory
 from collections import OrderedDict
 from threading import local
 from server import db
@@ -32,7 +32,6 @@ class MetaSkel( type ):
 	def __init__( cls, name, bases, dct ):
 		kindName = cls.kindName
 		if kindName and kindName in MetaSkel._skelCache.keys():
-			isOkay = False
 			relNewFileName = inspect.getfile(cls).replace( os.getcwd(),"" )
 			relOldFileName = inspect.getfile( MetaSkel._skelCache[ kindName ] ).replace( os.getcwd(),"" )
 			if relNewFileName.strip(os.path.sep).startswith("server"):
@@ -41,7 +40,6 @@ class MetaSkel( type ):
 			elif relOldFileName.strip(os.path.sep).startswith("server"):
 				#The old one was from server - override it
 				MetaSkel._skelCache[ kindName ] = cls
-				isOkay = True
 			else:
 				raise ValueError("Duplicate definition for %s in %s and %s" % (kindName, relNewFileName, relOldFileName) )
 		#	raise NotImplementedError("Duplicate definition of %s" % kindName)
@@ -53,8 +51,6 @@ class MetaSkel( type ):
 			MetaSkel._skelCache[ kindName ] = cls
 		for key in dir( cls ):
 			if isinstance( getattr( cls, key ), baseBone ):
-				if key.lower()!=key:
-					raise AttributeError( "Bonekeys must be lowercase" )
 				if "." in key:
 					raise AttributeError( "Bonekeys cannot not contain a dot (.) - got %s" % key )
 				if key in MetaSkel.__reservedKeywords_:
@@ -71,6 +67,7 @@ def skeletonByKind( kindName ):
 
 def listKnownSkeletons():
 	return list(MetaSkel._skelCache.keys())[:]
+
 
 class Skeleton( object ):
 	""" 
@@ -94,26 +91,36 @@ class Skeleton( object ):
 	__metaclass__ = MetaSkel
 
 	def __setattr__(self, key, value):
-		if "_Skeleton__isInitialized_" in dir( self ) and not key in ["_Skeleton__currentDbKey_"]:
-			logging.error(key)
-			raise AttributeError("You cannot directly modify the skeleton instance. Use [] instead!")
-		if not "__dataDict__" in dir( self ):
-			super( Skeleton, self ).__setattr__( "__dataDict__", OrderedDict() )
-		if not "__" in key:
-			if isinstance( value , baseBone ):
-				self.__dataDict__[ key ] =  value
-			elif key in self.__dataDict__.keys(): #Allow setting a bone to None again
-				self.__dataDict__[ key ] =  value
-		super( Skeleton, self ).__setattr__( key, value )
+		if "_Skeleton__isInitialized_" in dir(self):
+			if not key in ["_Skeleton__currentDbKey_", "valuesCache", "isClonedInstance"] and not self.isClonedInstance:
+				raise AttributeError("You cannot directly modify the skeleton instance. Use [] instead!")
+			if not "__dataDict__" in dir( self ):
+				super(Skeleton, self).__setattr__("__dataDict__", OrderedDict())
+			if not "__" in key and key != "isClonedInstance":
+				if isinstance(value , baseBone):
+					self.__dataDict__[key] =  value
+					self.valuesCache[key] = value.getDefaultValue()
+				elif value is None and key in self.__dataDict__.keys(): #Allow setting a bone to None again
+					self.__dataDict__[key] =  value
+				elif key not in ["valuesCache"]:
+					raise ValueError("You tried to do what?")
+		super( Skeleton, self ).__setattr__(key, value)
 
 	def __delattr__(self, key):
-		if "_Skeleton__isInitialized_" in dir( self ):
+		if "_Skeleton__isInitialized_" in dir(self) and not self.isClonedInstance:
 			raise AttributeError("You cannot directly modify the skeleton instance. Use [] instead!")
+		del self.__dataDict__[key]
 
-		if( key in dir( self ) ):
-			super( Skeleton, self ).__delattr__( key )
-		else:
-			del self.__dataDict__[key]
+	# if not self.isClonedInstance:
+	#	raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
+	# if value is None and name in self.__dataDict__.keys():
+	#	del self.__dataDict__[ name ]
+	# elif isinstance( value, baseBone ):
+	#	self.__dataDict__[ name ] = value
+	# elif value:
+	#	raise ValueError("Expected a instance of baseBone or None, got %s instead." % type(value))
+
+
 
 	def __getattribute__(self, item):
 		isOkay = False
@@ -121,26 +128,30 @@ class Skeleton( object ):
 						    "toDB", "items","keys","values","setValues","getValues","errors","fromClient",
 						    "preProcessBlobLocks","preProcessSerializedData","postSavedHandler",
 						    "postDeletedHandler", "delete","clone","getSearchDocumentFields","subSkels",
-						    "subSkel","refresh"]:
+						    "subSkel","refresh", "valuesCache", "getValuesCache", "setValuesCache", "isClonedInstance"]:
 			isOkay = True
-		elif not "_Skeleton__isInitialized_" in dir( self ):
+		elif not "_Skeleton__isInitialized_" in dir(self):
 			isOkay = True
 		if isOkay:
 			return( super( Skeleton, self ).__getattribute__(item ))
+		elif item in self.__dataDict__.keys():
+			return self.__dataDict__[item]
 		else:
 			raise AttributeError("Use [] to access your bones!")
 
 	def __contains__(self, item):
-		return( item in self.__dataDict__.keys() )
+		return item in self.__dataDict__.keys()
 
 	def items(self):
-		return( self.__dataDict__.items() )
+		return self.__dataDict__.items()
+		return [(key, BoneWrapper(value, key, self.valuesCache)) for (key, value) in self.__dataDict__.items()]
 
 	def keys(self):
-		return( self.__dataDict__.keys() )
+		return self.__dataDict__.keys()
 
 	def values(self):
-		return( self.__dataDict__.values() )
+		return self.__dataDict__.values()
+		return [BoneWrapper(value, key, self.valuesCache) for (key,value) in self.__dataDict__.items()]
 
 	kindName = "" # To which kind we save our data to
 	searchIndex = None # If set, use this name as the index-name for the GAE search API
@@ -184,6 +195,7 @@ class Skeleton( object ):
 			:rtype: server.skeleton.Skeleton
 		"""
 		skel = cls()
+		skel.isClonedInstance = True  # Unlock that skel for a moment sothat we can remove bones (which is a safe operation)
 
 		if "*" in skel.subSkels.keys():
 			boneList = skel.subSkels["*"][:]
@@ -210,8 +222,9 @@ class Skeleton( object ):
 						break
 
 			if not keepBone: #Remove that bone from the skeleton
-				skel[key] = None
+				delattr(skel, key)
 
+		skel.isClonedInstance = False  # Relock it
 		return skel
 
 
@@ -227,24 +240,34 @@ class Skeleton( object ):
 		self.errors = {}
 		self.__currentDbKey_ = None
 		self.__dataDict__ = OrderedDict()
+		self.valuesCache = {}
 		if _cloneFrom:
 			for key, bone in _cloneFrom.__dataDict__.items():
-				self.__dataDict__[ key ] = copy.deepcopy( bone )
+				self.__dataDict__[key] = copy.deepcopy(bone)
+				self.__dataDict__[key].isClonedInstance = True
+			self.valuesCache = copy.deepcopy(_cloneFrom.valuesCache)
+			self.isClonedInstance = True
 		else:
 			tmpList = []
-
 			for key in dir(self):
-				bone = getattr( self, key )
-				if not "__" in key and isinstance( bone , boneFactory ):
-					tmpList.append( (key, bone) )
-			tmpList.sort( key=lambda x: x[1].idx )
+				bone = getattr(self, key)
+				if not "__" in key and isinstance(bone , baseBone):
+					tmpList.append((key, bone))
+			tmpList.sort(key=lambda x: x[1].idx)
+			#logging.error(tmpList)
 			for key, bone in tmpList:
-				#bone = copy.copy( bone )
-				bone = bone(_kindName=self.kindName)
-				self.__dataDict__[ key ] = bone
+				self.__dataDict__[key] = bone
+				self.valuesCache[key] = bone.getDefaultValue()
+			self.isClonedInstance = False
 		if "enforceUniqueValuesFor" in dir(self) and self.enforceUniqueValuesFor is not None:
 			raise NotImplementedError("enforceUniqueValuesFor is not supported anymore. Set unique=True on your bone.")
 		self.__isInitialized_ = True
+
+	def setValuesCache(self, cache):
+		self.valuesCache = cache
+
+	def getValuesCache(self):
+		return self.valuesCache
 
 	def clone(self):
 		"""
@@ -255,21 +278,27 @@ class Skeleton( object ):
 		"""
 		return( type( self )( _cloneFrom=self ) )
 
-	def __setitem__(self, name, value):
-		if value is None and name in self.__dataDict__.keys():
-			del self.__dataDict__[ name ]
-		elif isinstance( value, baseBone ):
-			self.__dataDict__[ name ] = value
-		elif isinstance( value, boneFactory ):
-			self.__dataDict__[ name ] = value()
-		elif value:
-			raise ValueError("Expected a instance of baseBone, a boneFactory or None, got %s instead." % type(value))
+	def __setitem__(self, key, value):
+		if isinstance(value, baseBone):
+			raise AttributeError("Don't assign this bone object as skel[\"%s\"] = ... anymore to the skeleton. "
+			                        "Use skel.%s = ... for bone to skeleton assignment!" % (key, key))
 
-	def __getitem__(self, name ):
-		return( self.__dataDict__[name] )
+		self.valuesCache[key] = value
+		#if not self.isClonedInstance:
+		#	raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
+		#if value is None and name in self.__dataDict__.keys():
+		#	del self.__dataDict__[ name ]
+		#elif isinstance( value, baseBone ):
+		#	self.__dataDict__[ name ] = value
+		#elif value:
+		#	raise ValueError("Expected a instance of baseBone or None, got %s instead." % type(value))
+
+	def __getitem__(self, key):
+		return self.valuesCache.get(key, None)
 
 	def __delitem__(self, key):
-		del self.__dataDict__[ key ]
+		del self.valuesCache[key]
+		#del self.__dataDict__[ key ]
 
 	def all(self):
 		"""
@@ -368,19 +397,20 @@ class Skeleton( object ):
 					if "%s.uniqueIndexValue" % boneName in dbObj.keys():
 						oldUniqeValues[boneName] = dbObj["%s.uniqueIndexValue" % boneName]
 
-			# Merge the values from mergeFrom in
-			for key, bone in skel.items():
-				if key in mergeFrom.keys() and mergeFrom[ key ]:
-					bone.mergeFrom( mergeFrom[ key ] )
-
+			## Merge the values from mergeFrom in
+			#for key, bone in skel.items():
+			#	if key in mergeFrom.keys() and mergeFrom[ key ]:
+			#		bone.mergeFrom( mergeFrom[ key ] )
+			logging.error(mergeFrom.getValuesCache())
+			skel.setValuesCache(mergeFrom.getValuesCache())
 			unindexed_properties = []
 			for key, _bone in skel.items():
 				tmpKeys = dbObj.keys()
-				dbObj = _bone.serialize( key, dbObj )
+				dbObj = _bone.serialize( mergeFrom.valuesCache, key, dbObj )
 				newKeys = [ x for x in dbObj.keys() if not x in tmpKeys ] #These are the ones that the bone added
 				if not _bone.indexed:
 					unindexed_properties += newKeys
-				blobList.update( _bone.getReferencedBlobs() )
+				blobList.update( _bone.getReferencedBlobs(self.valuesCache, key) )
 
 			if clearUpdateTag:
 				dbObj["viur_delayed_update_tag"] = 0 #Mark this entity as Up-to-date.
@@ -397,7 +427,7 @@ class Skeleton( object ):
 			for boneName, boneInstance in skel.items():
 				if boneInstance.unique:
 					# Check if the property is really unique
-					newUniqeValues[boneName] = skel[boneName].getUniquePropertyIndexValue()
+					newUniqeValues[boneName] = boneInstance.getUniquePropertyIndexValue(self.valuesCache, boneName)
 					if newUniqeValues[boneName] is not None:
 						try:
 							lockObj = db.Get(db.Key.from_path("%s_%s_uniquePropertyIndex" % (skel.kindName, boneName), newUniqeValues[boneName]))
@@ -414,7 +444,7 @@ class Skeleton( object ):
 				tags = []
 				for key, _bone in skel.items():
 					if _bone.searchable:
-						tags += [ tag for tag in _bone.getSearchTags() if (tag not in tags and len(tag)<400) ]
+						tags += [ tag for tag in _bone.getSearchTags(self.valuesCache, key) if (tag not in tags and len(tag)<400) ]
 				dbObj["viur_tags"] = tags
 			db.Put(dbObj) # Write the core entry back
 			# Now write the blob-lock object
@@ -471,7 +501,7 @@ class Skeleton( object ):
 
 		# Allow bones to perform outstanding "magic" operations before saving to db
 		for bkey,_bone in self.items():
-			_bone.performMagic( isAdd=(key==None) )
+			_bone.performMagic( self.valuesCache, bkey, isAdd=(key==None) )
 
 		# Run our SaveTxn
 		if db.IsInTransaction():
@@ -481,14 +511,14 @@ class Skeleton( object ):
 			                                                txnUpdate, key, self, clearUpdateTag)
 
 		# Perform post-save operations (postProcessSerializedData Hook, Searchindex, ..)
-		self["key"].value = str(key)
+		self["key"] = str(key)
 		self.__currentDbKey_ = str(key)
 		if self.searchIndex: #Add a Document to the index if an index specified
 			fields = []
 
 			for boneName, bone in skel.items():
 				if bone.searchable:
-					fields.extend(bone.getSearchDocumentFields(boneName))
+					fields.extend(bone.getSearchDocumentFields(self.valuesCache, boneName))
 
 			fields = skel.getSearchDocumentFields( fields )
 			if fields:
@@ -505,7 +535,7 @@ class Skeleton( object ):
 					pass
 
 		for boneName, bone in skel.items():
-			bone.postSavedHandler(boneName, skel, key, dbObj)
+			bone.postSavedHandler(self.valuesCache, boneName, skel, key, dbObj)
 
 		skel.postSavedHandler(key, dbObj)
 
@@ -606,6 +636,7 @@ class Skeleton( object ):
 				pass
 		self.__currentDbKey_ = None
 
+
 	def setValues( self, values, key=False ):
 		"""
 			Load *values* into Skeleton, without validity checks.
@@ -629,15 +660,15 @@ class Skeleton( object ):
 				if bkey=="key":
 					try:
 						# Reading the value from db.Entity
-						_bone.value = str( values.key() )
+						self.valuesCache[bkey] = str( values.key() )
 					except:
 						# Is it in the dict?
 						if "key" in values.keys():
-							_bone.value = str( values["key"] )
+							self.valuesCache[bkey] = str( values["key"] )
 						else: #Ingore the key value
 							pass
 				else:
-					_bone.unserialize( bkey, values )
+					_bone.unserialize( self.valuesCache, bkey, values )
 
 		if key is not False:
 			assert key is None or isinstance( key, db.Key ), "Key must be None or a db.Key instance"
@@ -647,7 +678,7 @@ class Skeleton( object ):
 				self["key"].value = ""
 			else:
 				self.__currentDbKey_ = str( key )
-				self["key"].value = self.__currentDbKey_
+				self["key"] = self.__currentDbKey_
 
 	def getValues(self):
 		"""
@@ -656,12 +687,7 @@ class Skeleton( object ):
 			:returns: Dictionary, where the keys are the bones and the values the current values.
 			:rtype: dict
 		"""
-		res = {}
-
-		for key,_bone in self.items():
-			res[ key ] = _bone.value
-
-		return( res )
+		return self.valuesCache
 
 	def fromClient( self, data ):
 		"""
@@ -690,7 +716,7 @@ class Skeleton( object ):
 			if _bone.readOnly:
 				continue
 
-			error = _bone.fromClient( key, data )
+			error = _bone.fromClient( self.valuesCache, key, data )
 			if isinstance( error, ReadFromClientError ):
 				self.errors.update( error.errors )
 				if error.forceFail:
@@ -704,11 +730,11 @@ class Skeleton( object ):
 
 		for boneName, boneInstance in self.items():
 			if boneInstance.unique:
-				newVal = boneInstance.getUniquePropertyIndexValue()
+				newVal = boneInstance.getUniquePropertyIndexValue(self.valuesCache, boneName)
 				if newVal is not None:
 					try:
 						dbObj = db.Get(db.Key.from_path("%s_%s_uniquePropertyIndex" % (self.kindName, boneName), newVal))
-						if dbObj["references"] != self["key"].value: #This valus is taken (sadly, not by us)
+						if dbObj["references"] != self["key"]: #This valus is taken (sadly, not by us)
 							complete = False
 							if isinstance(boneInstance.unique, unicode):
 								errorMsg = _(boneInstance.unique)
@@ -736,7 +762,7 @@ class Skeleton( object ):
 			if not isinstance( bone, baseBone ):
 				continue
 			if "refresh" in dir( bone ):
-				bone.refresh( key, self )
+				bone.refresh( self.valuesCache, key, self )
 
 
 class MetaRelSkel( type ):
@@ -749,8 +775,6 @@ class MetaRelSkel( type ):
 	def __init__( cls, name, bases, dct ):
 		for key in dir( cls ):
 			if isinstance( getattr( cls, key ), baseBone ):
-				if key.lower()!=key:
-					raise AttributeError( "Bonekeys must be lowercase" )
 				if "." in key:
 					raise AttributeError( "Bonekeys cannot not contain a dot (.) - got %s" % key )
 				if key in MetaRelSkel.__reservedKeywords_:
@@ -797,7 +821,7 @@ class RelSkel( object ):
 
 	def __getattribute__(self, item):
 		isOkay = False
-		if item.startswith("_") or item in [ "items","keys","values","setValues","errors","fromClient" ]:
+		if item.startswith("_") or item in [ "items","keys","values","setValues","errors","fromClient", "times" ]:
 			isOkay = True
 		elif not "_Skeleton__isInitialized_" in dir( self ):
 			isOkay = True
@@ -828,14 +852,16 @@ class RelSkel( object ):
 		super(RelSkel, self).__init__(*args, **kwargs)
 		self.errors = {}
 		self.__dataDict__ = OrderedDict()
+		self.valuesCache = {}
 		tmpList = []
 		for key in dir(self):
 			bone = getattr( self, key )
-			if not "__" in key and isinstance( bone , boneFactory ):
+			if not "__" in key and (isinstance( bone , boneFactory ) or isinstance(bone, baseBone)):
 				tmpList.append( (key, bone) )
+				self.valuesCache[key] = None
 		tmpList.sort( key=lambda x: x[1].idx )
 		for key, bone in tmpList:
-			bone = bone() #copy.copy( bone )
+			bone = bone #copy.copy( bone )
 			self.__dataDict__[ key ] = bone
 		self.__isInitialized_ = True
 
@@ -854,11 +880,14 @@ class RelSkel( object ):
 		skel.__isInitialized_ = False
 		for key in args:
 			if key in dir(skelCls):
-				skel[key] = getattr(skelCls, key)(_kindName=skelCls.kindName)
+				setattr(skel, key, getattr(skelCls, key))
+				skel[key] = None
 		skel.__isInitialized_ = True
 		return skel
 
 	def __setitem__(self, name, value):
+		self.valuesCache[name] = value
+		return
 		if value is None and name in self.__dataDict__.keys():
 			del self.__dataDict__[ name ]
 		elif isinstance( value, baseBone ):
@@ -869,10 +898,10 @@ class RelSkel( object ):
 			raise ValueError("Expected a instance of baseBone, a boneFactory or None, got %s instead." % type(value))
 
 	def __getitem__(self, name ):
-		return( self.__dataDict__[name] )
+		return( self.valuesCache[name] )
 
 	def __delitem__(self, key):
-		del self.__dataDict__[ key ]
+		del self.valuesCache[ key ]
 
 	def fromClient( self, data ):
 		"""
@@ -892,7 +921,7 @@ class RelSkel( object ):
 		for key,_bone in self.items():
 			if _bone.readOnly:
 				continue
-			error = _bone.fromClient( key, data )
+			error = _bone.fromClient( self.valuesCache, key, data )
 			if isinstance( error, ReadFromClientError ):
 				self.errors.update( error.errors )
 				if error.forceFail:
@@ -911,9 +940,9 @@ class RelSkel( object ):
 				self[key] = value
 		dbObj = FakeEntity()
 		for key, _bone in self.items():
-			dbObj = _bone.serialize( key, dbObj )
+			dbObj = _bone.serialize( self.valuesCache, key, dbObj )
 		if "key" in self.keys(): #Write the key seperatly, as the base-bone doesn't store it
-			dbObj["key"] = self["key"].value
+			dbObj["key"] = self["key"]
 		return dbObj
 
 	def unserialize(self, values):
@@ -927,15 +956,15 @@ class RelSkel( object ):
 				if bkey=="key":
 					try:
 						# Reading the value from db.Entity
-						_bone.value = str( values.key() )
+						self.valuesCache[bkey] = str( values.key() )
 					except:
 						# Is it in the dict?
 						if "key" in values.keys():
-							_bone.value = str( values["key"] )
+							self.valuesCache[bkey] = str( values["key"] )
 						else: #Ingore the key value
 							pass
 				else:
-					_bone.unserialize( bkey, values )
+					_bone.unserialize( self.valuesCache, bkey, values )
 
 
 class SkelList( list ):
@@ -957,6 +986,15 @@ class SkelList( list ):
 		self.baseSkel = baseSkel
 		self.cursor = None
 
+	def __iter__(self):
+		for cacheItem in super(SkelList, self).__iter__():
+			self.baseSkel.setValuesCache(cacheItem)
+			yield self.baseSkel
+
+	def pop(self, index=None):
+		item = super(SkelList, self).pop(index)
+		self.baseSkel.setValuesCache(item)
+		return self.baseSkel
 
 ### Tasks ###
 
@@ -979,7 +1017,7 @@ def updateRelations( destID, minChangeTime, cursor=None ):
 			logging.warning("Cannot update stale reference to %s (referenced from %s)" % (str(srcRel.key().parent()), str(srcRel.key())))
 			continue
 		for key,_bone in skel.items():
-			_bone.refresh( key, skel )
+			_bone.refresh(skel.valuesCache, key, skel)
 		skel.toDB( clearUpdateTag=True )
 	if len(updateList)==5:
 		updateRelations( destID, minChangeTime, updateListQuery.getCursor().urlsafe() )
@@ -1008,14 +1046,14 @@ class TaskUpdateSearchIndex( CallableTaskBase ):
 	def dataSkel(self):
 		modules = ["*"] + listKnownSkeletons()
 
-		skel = Skeleton(self.kindName)
+		skel = Skeleton(self.kindName).clone()
 
-		skel["module"] = selectOneBone( descr="Module", values={ x: x for x in modules}, required=True )
+		skel.module = selectOneBone( descr="Module", values={ x: x for x in modules}, required=True )
 		def verifyCompact( val ):
 			if not val or val.lower()=="no" or val=="YES":
 				return( None )
 			return("Must be \"No\" or uppercase \"YES\" (very dangerous!)")
-		skel["compact"] = stringBone( descr="Recreate Entities", vfunc=verifyCompact, required=False, defaultValue="NO" )
+		skel.compact = stringBone(descr="Recreate Entities", vfunc=verifyCompact, required=False, defaultValue="NO")
 
 		return( skel )
 
@@ -1098,8 +1136,8 @@ class TaskUpdateOneEntity(CallableTaskBase):
 		return user is not None and "root" in user["access"]
 
 	def dataSkel(self):
-		skel = Skeleton(self.kindName)
-		skel["key"] = stringBone(descr=u"Entity key", required=True)
+		skel = Skeleton(self.kindName).clone()
+		skel.key = stringBone(descr=u"Entity key", required=True)
 		return skel
 
 	def execute(self, key, *args, **kwargs):

@@ -63,7 +63,9 @@ conf = {
 	"viur.session.persistentFieldsOnLogin": [], #If set, these Fields will survive the session.reset() called on user/login
 	"viur.session.persistentFieldsOnLogout": [], #If set, these Fields will survive the session.reset() called on user/logout
 
-	"viur.tasks.customEnvironmentHandler": None, #If set, must be a tuple of two functions serializing/restoring additional enviromental data in deferred requests
+	"viur.tasks.customEnvironmentHandler": None, #If set, must be a tuple of two functions serializing/restoring additional enviromental data in deferred requests,
+
+	"viur.version": None, #Will be set to server.__version__ in server.__init__
 
 
 }

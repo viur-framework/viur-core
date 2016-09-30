@@ -70,13 +70,13 @@ class passwordBone( stringBone ):
 			return("Your password isn't strong enough!")
 		return False
 
-	def serialize( self, name, entity ):
-		if self.value and self.value != "":
+	def serialize( self, valuesCache, name, entity ):
+		if valuesCache.get(name,None) and valuesCache[name] != "":
 			salt = ''.join( [ random.choice(string.ascii_lowercase + string.ascii_uppercase + string.digits) for x in range(self.saltLength) ] )
-			passwd = pbkdf2( self.value[ : conf["viur.maxPasswordLength"] ], salt )
+			passwd = pbkdf2( valuesCache[name][ : conf["viur.maxPasswordLength"] ], salt )
 			entity.set( name, passwd, self.indexed )
 			entity.set( "%s_salt" % name, salt, self.indexed )
 		return( entity )
 
-	def unserialize( self, name, values ):
+	def unserialize( self, valuesCache, name, values ):
 		return( {name: ""} )

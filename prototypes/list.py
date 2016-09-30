@@ -46,7 +46,7 @@ class List(BasicApplication):
 		:return: Returns a Skeleton instance for viewing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel(*args, **kwargs)
+		return self._resolveSkelCls(*args, **kwargs)()
 
 	def addSkel( self, *args, **kwargs ):
 		"""
@@ -60,7 +60,7 @@ class List(BasicApplication):
 		:return: Returns a Skeleton instance for adding an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel(*args, **kwargs)
+		return self._resolveSkelCls(*args, **kwargs)()
 
 	def editSkel( self, *args, **kwargs ):
 		"""
@@ -74,7 +74,7 @@ class List(BasicApplication):
 		:return: Returns a Skeleton instance for editing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel(*args, **kwargs)
+		return self._resolveSkelCls(*args, **kwargs)()
 
 ## External exposed functions
 
@@ -171,8 +171,8 @@ class List(BasicApplication):
 		query = self.listFilter( self.viewSkel().all().mergeExternalFilter( kwargs ) ) #Access control
 		if query is None:
 			raise errors.Unauthorized()
-
-		return self.render.list( query.fetch() )
+		res = query.fetch()
+		return self.render.list( res )
 
 	@forceSSL
 	@exposed
@@ -486,7 +486,7 @@ class List(BasicApplication):
 
 		.. seealso:: :func:`add`
 		"""
-		logging.info("Entry added: %s" % skel["key"].value )
+		logging.info("Entry added: %s" % skel["key"] )
 
 		user = utils.getCurrentUser()
 		if user:
@@ -505,7 +505,7 @@ class List(BasicApplication):
 
 		.. seealso:: :func:`edit`
 		"""
-		logging.info("Entry changed: %s" % skel["key"].value )
+		logging.info("Entry changed: %s" % skel["key"] )
 
 		user = utils.getCurrentUser()
 		if user:
@@ -538,12 +538,12 @@ class List(BasicApplication):
 
 		.. seealso:: :func:`delete`
 		"""
-		logging.info("Entry deleted: %s" % skel["key"].value )
+		logging.info("Entry deleted: %s" % skel["key"] )
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
 
 
 List.admin = True
-List.jinja2 = True
+List.html = True
 List.vi = True

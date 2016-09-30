@@ -21,10 +21,10 @@ class HierarchySkel(Skeleton):
 		return dbfields
 
 	def refresh(self):
-		if self["parententry"].value:
-			self["parententry"].value = utils.normalizeKey(self["parententry"].value)
-		if self["parentrepo"].value:
-			self["parentrepo"].value = utils.normalizeKey(self["parentrepo"].value)
+		if self["parententry"]:
+			self["parententry"] = utils.normalizeKey(self["parententry"])
+		if self["parentrepo"]:
+			self["parentrepo"] = utils.normalizeKey(self["parentrepo"])
 
 		super(HierarchySkel, self).refresh()
 
@@ -70,7 +70,7 @@ class Hierarchy(BasicApplication):
 		:return: Returns a Skeleton instance for viewing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel(*args, **kwargs)
+		return self._resolveSkelCls(*args, **kwargs)()
 
 	def addSkel(self, *args, **kwargs):
 		"""
@@ -84,7 +84,7 @@ class Hierarchy(BasicApplication):
 		:return: Returns a Skeleton instance for adding an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel(*args, **kwargs)
+		return self._resolveSkelCls(*args, **kwargs)()
 
 	def editSkel(self, *args, **kwargs):
 		"""
@@ -98,7 +98,7 @@ class Hierarchy(BasicApplication):
 		:return: Returns a Skeleton instance for editing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkel(*args, **kwargs)
+		return self._resolveSkelCls(*args, **kwargs)()
 
 	def getRootNode(self, entryKey):
 		"""
@@ -242,7 +242,7 @@ class Hierarchy(BasicApplication):
 				    and "languages" in dir(nameBone)
 				    and nameBone.languages):
 					skel.setValues(obj)
-					return unicode(skel["name"].value)
+					return unicode(skel["name"])
 
 			return None
 
@@ -645,8 +645,8 @@ class Hierarchy(BasicApplication):
 
 		if not securitykey.validate(skey, acceptSessionKey=True):
 			raise errors.PreconditionFailed()
-		skel["parententry"].value = str(parent)
-		skel["parentrepo"].value = str(self.getRootNode(parent).key())
+		skel["parententry"] = str(parent)
+		skel["parentrepo"] = str(self.getRootNode(parent).key())
 		key = skel.toDB()
 		self.onItemAdded(skel)
 		self.onItemChanged(skel)
@@ -712,16 +712,16 @@ class Hierarchy(BasicApplication):
 			skel.fromDB(old_key)
 
 			for k, v in skel.items():
-				logging.debug("BEFORE %s = >%s<", (k, v.value))
+				logging.debug("BEFORE %s = >%s<", (k, skel[k]))
 
 			skel = skel.clone()
 			# skel.setValues( {}, key=None )
 
 			for k, v in skel.items():
-				logging.debug("BEHIND %s = >%s<", (k, v.value))
+				logging.debug("BEHIND %s = >%s<", (k, skel[k]))
 
-			skel["parententry"].value = toParent
-			skel["parentrepo"].value = toRepo
+			skel["parententry"] = toParent
+			skel["parentrepo"] = toRepo
 
 			new_key = skel.toDB()
 			self.onItemCloned(skel)
@@ -1011,7 +1011,7 @@ class Hierarchy(BasicApplication):
 
 		.. seealso:: :func:`add`
 		"""
-		logging.info("Entry added: %s" % skel["key"].value)
+		logging.info("Entry added: %s" % skel["key"])
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
@@ -1028,7 +1028,7 @@ class Hierarchy(BasicApplication):
 
 		.. seealso:: :func:`edit`
 		"""
-		logging.info("Entry changed: %s" % skel["key"].value)
+		logging.info("Entry changed: %s" % skel["key"])
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
@@ -1059,7 +1059,7 @@ class Hierarchy(BasicApplication):
 
 		.. seealso:: :func:`delete`
 		"""
-		logging.info("Entry deleted: %s" % skel["key"].value)
+		logging.info("Entry deleted: %s" % skel["key"])
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
@@ -1077,7 +1077,7 @@ class Hierarchy(BasicApplication):
 		.. seealso:: :func:`reparent`
 		"""
 		logging.debug("data: %r, %r", skel, skel.keys())
-		logging.info("Entry reparented: %s" % skel["key"].value)
+		logging.info("Entry reparented: %s" % skel["key"])
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
@@ -1106,7 +1106,7 @@ class Hierarchy(BasicApplication):
 
 		.. seealso:: :func:`setIndex`
 		"""
-		logging.info("Entry has a new index: %s" % skel["key"].value)
+		logging.info("Entry has a new index: %s" % skel["key"])
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
@@ -1123,7 +1123,7 @@ class Hierarchy(BasicApplication):
 
 		.. seealso:: :func:`_clone`
 		"""
-		logging.info("Entry cloned: %s" % skel["key"].value)
+		logging.info("Entry cloned: %s" % skel["key"])
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
@@ -1164,5 +1164,5 @@ class Hierarchy(BasicApplication):
 
 
 Hierarchy.admin = True
-Hierarchy.jinja2 = True
+Hierarchy.html = True
 Hierarchy.vi = True

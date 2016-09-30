@@ -10,7 +10,7 @@ class colorBone( baseBone ):
 		assert mode in ["rgb", "rgba"]
 		self.mode = mode
 
-	def fromClient( self, name, data ):
+	def fromClient( self, valuesCache, name, data ):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -47,7 +47,7 @@ class colorBone( baseBone ):
 			if len(value)==6 or len(value)==7:
 				if len (value)==6:
 					value="#"+value
-				self.value=value
+				valuesCache[name]=value
 				return (None)
 			else:
 				return( "Invalid value entered" )
@@ -55,7 +55,7 @@ class colorBone( baseBone ):
 			if len(value)==8 or len(value)==9:
 				if len (value)==8:
 					value="#"+value
-				self.value=value
+				valuesCache[name]=value
 				return (None)
 			else:
 				return( "Invalid value entered" )

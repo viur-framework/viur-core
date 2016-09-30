@@ -53,11 +53,14 @@ class HtmlSerializer( HTMLParser.HTMLParser ): #html.parser.HTMLParser
 		""" Delete all tags except for legal ones """
 		if self.validHtml and tag in self.validHtml["validTags"]:
 			self.result = self.result + '<' + tag
+			isBlankTarget = False
 			for k, v in attrs:
 				if not tag in self.validHtml["validAttrs"].keys() or not k in self.validHtml["validAttrs"][ tag ]:
 					continue					
 				if k.lower()[0:2] != 'on' and v.lower()[0:10] != 'javascript':
 					self.result = '%s %s="%s"' % (self.result, k, v)
+				if tag=="a" and k=="target" and v.lower()=="_blank":
+					isBlankTarget = True
 			if "style" in [ k for (k,v) in attrs ]:
 				syleRes = {}
 				styles = [ v for (k,v) in attrs if k=="style"][0].split(";")
@@ -68,6 +71,8 @@ class HtmlSerializer( HTMLParser.HTMLParser ): #html.parser.HTMLParser
 						syleRes[ style ] = value
 				if len( syleRes.keys() ):
 					self.result += " style=\"%s\"" % "; ".join( [("%s: %s" % (k,v)) for (k,v) in syleRes.items()] )
+			if isBlankTarget:
+				self.result += " rel=\"noopener noreferrer\""
 			if tag in self.validHtml["singleTags"]:
 				self.result = self.result + ' />'
 			else:
@@ -123,9 +128,9 @@ class textBone( baseBone ):
 		self.languages = languages
 		self.validHtml = validHtml
 		if self.languages:
-			self.value = LanguageWrapper( self.languages )
+			self.defaultValue = LanguageWrapper( self.languages )
 
-	def serialize( self, name, entity ):
+	def serialize( self, valuesCache, name, entity ):
 		"""
 			Fills this bone with user generated content
 
@@ -142,17 +147,17 @@ class textBone( baseBone ):
 				if k.startswith("%s." % name ):
 					del entity[ k ]
 			for lang in self.languages:
-				if lang in self.value.keys():
-					val = self.value[ lang ]
+				if lang in valuesCache[name].keys():
+					val = valuesCache[name][ lang ]
 					if not val or (not HtmlSerializer().santinize(val).strip() and not "<img " in val):
 						#This text is empty (ie. it might contain only an empty <p> tag
 						continue
 					entity[ "%s.%s" % (name, lang) ] = val
 		else:
-			entity.set( name, self.value, self.indexed )
+			entity.set( name, valuesCache[name], self.indexed )
 		return( entity )
 		
-	def unserialize( self, name, expando ):
+	def unserialize( self, valuesCache, name, expando ):
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -165,22 +170,22 @@ class textBone( baseBone ):
 		"""
 		if not self.languages:
 			if name in expando.keys():
-				self.value = expando[ name ]
+				valuesCache[name] = expando[ name ]
 		else:
-			self.value = LanguageWrapper( self.languages )
+			valuesCache[name] = LanguageWrapper( self.languages )
 			for lang in self.languages:
 				if "%s.%s" % ( name, lang ) in expando.keys():
-					self.value[ lang ] = expando[ "%s.%s" % ( name, lang ) ]
-			if not self.value.keys(): #Got nothing
+					valuesCache[name][ lang ] = expando[ "%s.%s" % ( name, lang ) ]
+			if not valuesCache[name].keys(): #Got nothing
 				if name in expando.keys(): #Old (non-multi-lang) format
-					self.value[ self.languages[0] ] = expando[ name ]
+					valuesCache[name][ self.languages[0] ] = expando[ name ]
 				for lang in self.languages:
-					if not lang in self.value.keys() and "%s_%s" % ( name, lang ) in expando.keys():
-						self.value[ lang ] = expando[ "%s_%s" % ( name, lang ) ]
+					if not lang in valuesCache[name].keys() and "%s_%s" % ( name, lang ) in expando.keys():
+						valuesCache[name][ lang ] = expando[ "%s_%s" % ( name, lang ) ]
 
 		return( True )
 	
-	def fromClient( self, name, data ):
+	def fromClient( self, valuesCache, name, data ):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -196,13 +201,13 @@ class textBone( baseBone ):
 			:returns: None or String
 		"""
 		if self.languages:
-			self.value = LanguageWrapper( self.languages )
+			valuesCache[name] = LanguageWrapper( self.languages )
 			for lang in self.languages:
 				if "%s.%s" % (name,lang ) in data.keys():
 					val = data[ "%s.%s" % (name,lang ) ]
 					if not self.isInvalid( val ): #Returns None on success, error-str otherwise
-						self.value[ lang ] = HtmlSerializer( self.validHtml ).santinize( val )
-			if not any( self.value.values() ):
+						valuesCache[name][ lang ] = HtmlSerializer( self.validHtml ).santinize( val )
+			if not any( valuesCache[name].values() ):
 				return( "No / invalid values entered" )
 			else:
 				return( None )
@@ -212,28 +217,28 @@ class textBone( baseBone ):
 			else:
 				value = None
 			if not value:
-				self.value =""
+				valuesCache[name] =""
 				return( "No value entered" )
 			if not isinstance( value, str ) and not isinstance( value, unicode ):
 				value = unicode(value)
 			err = self.isInvalid( value )
 			if not err:
-				self.value = HtmlSerializer( self.validHtml ).santinize( value )
+				valuesCache[name] = HtmlSerializer( self.validHtml ).santinize( value )
 				return( None )
 			else:
 				return( "Invalid value entered" )
 
-	def getReferencedBlobs(self):
+	def getReferencedBlobs(self, valuesCache, name):
 		"""
 			Test for /file/download/ links inside our text body.
 			Doesn't check for actual <a href=> or <img src=> yet.
 		"""
 		newFileKeys = []
 		if self.languages:
-			if self.value:
+			if valuesCache[name]:
 				for lng in self.languages:
-					if lng in self.value.keys():
-						val = self.value[ lng ]
+					if lng in valuesCache[name].keys():
+						val = valuesCache[name][ lng ]
 						if not val:
 							continue
 						idx = val.find("/file/download/")
@@ -245,24 +250,24 @@ class textBone( baseBone ):
 								newFileKeys.append( fk )
 							idx = val.find("/file/download/", seperatorIdx)
 		else:
-			if self.value:
-				idx = self.value.find("/file/download/")
+			if valuesCache[name]:
+				idx = valuesCache[name].find("/file/download/")
 				while idx!=-1:
 					idx += 15
-					seperatorIdx = min( [ x for x in [self.value.find("/",idx), self.value.find("\"",idx)] if x!=-1] )
-					fk = self.value[ idx:seperatorIdx]
+					seperatorIdx = min( [ x for x in [valuesCache[name].find("/",idx), valuesCache[name].find("\"",idx)] if x!=-1] )
+					fk = valuesCache[name][ idx:seperatorIdx]
 					if not fk in newFileKeys:
 						newFileKeys.append( fk )
-					idx = self.value.find("/file/download/", seperatorIdx)
+					idx = valuesCache[name].find("/file/download/", seperatorIdx)
 		return( newFileKeys )
 
 
-	def getSearchTags(self):
+	def getSearchTags(self, valuesCache, name):
 		res = []
-		if not self.value:
+		if not valuesCache[name]:
 			return( res )
 		if self.languages:
-			for v in self.value.values():
+			for v in valuesCache[name].values():
 				value = HtmlSerializer( None ).santinize( v.lower() )
 				for line in unicode(value).splitlines():
 					for key in line.split(" "):
@@ -270,7 +275,7 @@ class textBone( baseBone ):
 						if key and key not in res and len(key)>3:
 							res.append( key.lower() )
 		else:
-			value = HtmlSerializer( None ).santinize( self.value.lower() )
+			value = HtmlSerializer( None ).santinize( valuesCache[name].lower() )
 			for line in unicode(value).splitlines():
 				for key in line.split(" "):
 					key = "".join( [ c for c in key if c.lower() in conf["viur.searchValidChars"]  ] )
@@ -278,21 +283,21 @@ class textBone( baseBone ):
 						res.append( key.lower() )
 		return( res )
 		
-	def getSearchDocumentFields(self, name):
+	def getSearchDocumentFields(self, valuesCache, name):
 		"""
 			Returns a list of search-fields (GAE search API) for this bone.
 		"""
 		if self.languages:
-			assert isinstance(self.value, dict), "The value shall already contain a dict, something is wrong here."
+			assert isinstance(valuesCache[name], dict), "The value shall already contain a dict, something is wrong here."
 
 			if self.validHtml:
-				return [search.HtmlField(name=name, value=unicode( self.value.get(lang, "")), language=lang)
+				return [search.HtmlField(name=name, value=unicode( valuesCache[name].get(lang, "")), language=lang)
 				        for lang in self.languages]
 			else:
-				return [search.TextField(name=name, value=unicode( self.value.get(lang, "")), language=lang)
+				return [search.TextField(name=name, value=unicode( valuesCache[name].get(lang, "")), language=lang)
 				        for lang in self.languages]
 		else:
 			if self.validHtml:
-				return [search.HtmlField( name=name, value=unicode(self.value))]
+				return [search.HtmlField( name=name, value=unicode(valuesCache[name]))]
 			else:
-				return [search.TextField( name=name, value=unicode(self.value))]
+				return [search.TextField( name=name, value=unicode(valuesCache[name]))]
