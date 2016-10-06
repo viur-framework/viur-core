@@ -219,7 +219,7 @@ class Render( object ):
 				"multiple": bone.multiple,
 				"format": bone.format,
 				"using": self.renderSkelStructure(bone.using()) if bone.using else None,
-				"relskel": self.renderSkelStructure(RelSkel.fromSkel(skeletonByKind(bone.type), *bone.refKeys))
+				"relskel": self.renderSkelStructure(RelSkel.fromSkel(skeletonByKind(bone.kind), *bone.refKeys))
 			})
 
 		elif bone.type == "selectone" or bone.type.startswith("selectone.") or bone.type == "selectmulti" or bone.type.startswith("selectmulti."):
