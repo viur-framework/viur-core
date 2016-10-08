@@ -161,3 +161,8 @@ def setXContentTypeNoSniff(enable):
 		conf["viur.security.xContentTypeOptions"] = enable
 	else:
 		raise ValueError("enable must be one of True | False")
+
+def setXPermittedCrossDomainPolicies(value):
+	if value not in [None, "none", "master-only", "by-content-type", "all"]:
+		raise ValueError("value [None, \"none\", \"master-only\", \"by-content-type\", \"all\"]")
+	conf["viur.security.xPermittedCrossDomainPolicies"] = value

@@ -59,6 +59,7 @@ conf = {
 	"viur.security.xFrameOptions": ("sameorigin", None), # If set, ViUR will emit a X-Frame-Options header,
 	"viur.security.xXssProtection": True, # ViUR will emit a X-XSS-Protection header if set (the default),
 	"viur.security.xContentTypeOptions": True, # ViUR will emit X-Content-Type-Options: nosniff Header unless set to False
+	"viur.security.xPermittedCrossDomainPolicies": "none",  # Unless set to logical none; ViUR will emit a X-Permitted-Cross-Domain-Policies with each request
 	"viur.session.lifeTime": 60*60, #Default is 60 minutes lifetime for ViUR sessions
 	"viur.session.persistentFieldsOnLogin": [], #If set, these Fields will survive the session.reset() called on user/login
 	"viur.session.persistentFieldsOnLogout": [], #If set, these Fields will survive the session.reset() called on user/logout

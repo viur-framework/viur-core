@@ -419,6 +419,8 @@ class BrowseHandler(webapp.RequestHandler):
 			elif mode=="allow-from":
 				assert uri is not None and (uri.lower().startswith("https://") or uri.lower().startswith("http://"))
 				self.response.headers["X-Frame-Options"] = "allow-from %s" % uri
+		if conf["viur.security.xPermittedCrossDomainPolicies"] is not None:
+			self.response.headers["X-Permitted-Cross-Domain-Policies"] = conf["viur.security.xPermittedCrossDomainPolicies"]
 		if sharedConf["viur.disabled"] and not (users.is_current_user_admin() or "HTTP_X_QUEUE_NAME".lower() in [x.lower() for x in os.environ.keys()] ): #FIXME: Validate this works
 			self.response.set_status( 503 ) #Service unavailable
 			tpl = Template( open("server/template/error.html", "r").read() )
@@ -679,6 +681,9 @@ def setup( modules, render=None, default="html" ):
 	renderPrefix = [ "/%s" % x for x in dir( render ) if (not x.startswith("_") and x!=default) ]+[""]
 	conf["viur.wsgiApp"] = webapp.WSGIApplication( [(r'/(.*)', BrowseHandler)] )
 	bone.setSystemInitialized()
+	# Assert that all security releated headers are in a sane state
+	assert conf["viur.security.xPermittedCrossDomainPolicies"] in [None, "none", "master-only", "by-content-type", "all"], \
+		"conf[\"viur.security.xPermittedCrossDomainPolicies\"] must be one of [None, \"none\", \"master-only\", \"by-content-type\", \"all\"]"
 	runStartupTasks() #Add a deferred call to run all queued startup tasks
 	return( conf["viur.wsgiApp"] )
 	
