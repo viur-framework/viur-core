@@ -50,7 +50,8 @@ def addCspRule(objectType, srcOrDirective, enforceMode="monitor"):
 	else:
 		if not objectType in conf["viur.security.contentSecurityPolicy"][enforceMode].keys():
 			conf["viur.security.contentSecurityPolicy"][enforceMode][objectType] = []
-		conf["viur.security.contentSecurityPolicy"][enforceMode][objectType].append(srcOrDirective)
+		if not srcOrDirective in conf["viur.security.contentSecurityPolicy"][enforceMode][objectType]:
+			conf["viur.security.contentSecurityPolicy"][enforceMode][objectType].append(srcOrDirective)
 
 
 def _rebuildCspHeaderCache():
