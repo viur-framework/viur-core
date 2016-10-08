@@ -142,7 +142,8 @@ class Skeleton( object ):
 						    "toDB", "items","keys","values","setValues","getValues","errors","fromClient",
 						    "preProcessBlobLocks","preProcessSerializedData","postSavedHandler",
 						    "postDeletedHandler", "delete","clone","getSearchDocumentFields","subSkels",
-						    "subSkel","refresh", "valuesCache", "getValuesCache", "setValuesCache", "isClonedInstance"]:
+						    "subSkel","refresh", "valuesCache", "getValuesCache", "setValuesCache",
+						    "isClonedInstance", "setBoneValue"]:
 			isOkay = True
 		elif not "_Skeleton__isInitialized_" in dir(self):
 			isOkay = True
@@ -703,6 +704,27 @@ class Skeleton( object ):
 		"""
 		return self.valuesCache
 
+	def setBoneValue(self, boneName, value, append=False):
+		"""
+			Allow setting a bones value without calling fromClient or assigning to valuesCache directly.
+			Santy-Checks are performed; if the value is invalid, that bone flips back to its original
+			(default) value and false is returned.
+
+			:param boneName: The Bone which should be modified
+			:type boneName: str
+			:param value: The value that should be assigned. It's type depends on the type of that bone
+			:type value: object
+			:param append: If true, the given value is appended to the values of that bone instead of
+			replacing it. Only supported on bones with multiple=True
+			:type append: bool
+			:return: Wherever that operation succeeded or not.
+			:rtype: bool
+		"""
+		bone = getattr(self, boneName, None)
+		if not isinstance(bone, baseBone):
+			raise ValueError("%s is no valid bone on this skeleton (%s)" % (boneName, str(self)))
+		return bone.setBoneValue(self.valuesCache, boneName, value, append)
+
 	def fromClient( self, data ):
 		"""
 			Load supplied *data* into Skeleton.
@@ -978,6 +1000,27 @@ class RelSkel( object ):
 							pass
 				else:
 					_bone.unserialize( self.valuesCache, bkey, values )
+
+	def setBoneValue(self, boneName, value, append=False):
+		"""
+			Allow setting a bones value without calling fromClient or assigning to valuesCache directly.
+			Santy-Checks are performed; if the value is invalid, that bone flips back to its original
+			(default) value and false is returned.
+
+			:param boneName: The Bone which should be modified
+			:type boneName: str
+			:param value: The value that should be assigned. It's type depends on the type of that bone
+			:type value: object
+			:param append: If true, the given value is appended to the values of that bone instead of
+			replacing it. Only supported on bones with multiple=True
+			:type append: bool
+			:return: Wherever that operation succeeded or not.
+			:rtype: bool
+		"""
+		bone = getattr(self, boneName, None)
+		if not isinstance(bone, baseBone):
+			raise ValueError("%s is no valid bone on this skeleton (%s)" % (boneName, str(self)))
+		return bone.setBoneValue(self.valuesCache, boneName, value, append)
 
 
 class SkelList( list ):

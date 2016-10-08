@@ -91,7 +91,7 @@ class relationalBone( baseBone ):
 				raise AttributeError("'key' must be included in parentKeys!")
 			self.parentKeys=parentKeys
 
-		self.using = None #using
+		self.using = using
 
 	def _restoreValueFromDatastore(self, val):
 		"""
@@ -752,3 +752,87 @@ class relationalBone( baseBone ):
 			getValues(res, value)
 
 		return res
+
+	def setBoneValue(self, valuesCache, boneName, value, append, *args, **kwargs):
+		"""
+			Set our value to 'value'.
+			Santy-Checks are performed; if the value is invalid, we flip our value back to its original
+			(default) value and return false.
+
+			:param valuesCache: Dictionary with the current values from the skeleton we belong to
+			:type valuesCache: dict
+			:param boneName: The Bone which should be modified
+			:type boneName: str
+			:param value: The value that should be assigned. It's type depends on the type of that bone
+			:type boneName: object
+			:param append: If true, the given value is appended to the values of that bone instead of
+			replacing it. Only supported on bones with multiple=True
+			:type append: bool
+			:return: Wherever that operation succeeded or not.
+			:rtype: bool
+		"""
+		from server.skeleton import RelSkel, skeletonByKind
+		def relSkelFromKey(key):
+			if not isinstance(key, db.Key):
+				key = db.Key(encoded=key)
+			if not key.kind() == self.kind:
+				logging.error("I got a key, which kind doesn't match my type! (Got: %s, my type %s)" % ( key().kind(), self.kind))
+				return None
+			entity = db.Get(key)
+			if not entity:
+				logging.error("Key %s not found" % str(key))
+				return None
+			relSkel = RelSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
+			relSkel.unserialize(entity)
+			return relSkel
+		if append and not self.multiple:
+			raise ValueError("Bone %s is not multiple, cannot append!" % boneName)
+		if not self.multiple and not self.using:
+			if not (isinstance(value, str) or isinstance(value, db.Key)):
+				raise ValueError("You must supply exactly one Database-Key to %s" % boneName)
+			realValue = (value, None)
+		elif not self.multiple and self.using:
+			if not isinstance(value, tuple) or len(value) != 2 or \
+				not (isinstance(value[0], str) or isinstance(value[0], db.Key)) or \
+				not isinstance(value[1], self.using):
+					raise ValueError("You must supply a tuple of (Database-Key, relSkel) to %s" % boneName)
+			realValue = value
+		elif self.multiple and not self.using:
+			if not (isinstance(value, str) or isinstance(value, db.Key)) and not (isinstance(value, list)) \
+				and all([isinstance(x, str) or isinstance(x, db.Key) for x in value]):
+					raise ValueError("You must supply a Database-Key or a list hereof to %s" % boneName)
+			if isinstance(value, list):
+				realValue = [(x, None) for x in value]
+			else:
+				realValue = [(value, None)]
+		else:  # which means (self.multiple and self.using)
+			if not (isinstance(value, tuple) and len(value) == 2 and \
+				        (isinstance(value[0], str) or isinstance(value[0], db.Key)) \
+					and isinstance(value[1], self.using)) and not (isinstance(value, list) and
+					all((isinstance(x, tuple) and len(x)==2 and \
+					(isinstance(x[0], str) or isinstance(x[0], db.Key)) \
+					and isinstance(x[1], self.using) for x in value))):
+						raise ValueError("You must supply (db.Key, RelSkel) or a list hereof to %s" % boneName)
+			if not isinstance(value, list):
+				realValue = [value]
+			else:
+				realValue = value
+		if not self.multiple:
+			relSkel = relSkelFromKey(realValue[0])
+			if not relSkel:
+				return False
+			valuesCache[boneName] = {"dest": relSkel, "rel": realValue[1]}
+		else:
+			tmpRes = []
+			for val in realValue:
+				relSkel = relSkelFromKey(val[0])
+				if not relSkel:
+					return False
+				tmpRes.append({"dest": relSkel, "rel": val[1]})
+			if append:
+				if not isinstance(valuesCache[boneName], list):
+					valuesCache[boneName] = []
+				valuesCache[boneName].extend(tmpRes)
+			else:
+				valuesCache[boneName] = tmpRes
+		return True
