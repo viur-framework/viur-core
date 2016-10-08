@@ -53,7 +53,12 @@ conf = {
 
 	"viur.salt": "ViUR-CMS",  #Default salt which will be used for eg. passwords. Once the application is used, this must not change!
 	"viur.searchValidChars": "abcdefghijklmnopqrstuvwxyz0123456789",  #Characters valid for the internal search functionality (all other chars are ignored)
-	"viur.security.contentSecurityPolicy": None, #If set, viur will emit a CSP http-header with each request. Use security.addCspRule to set this property
+	"viur.security.contentSecurityPolicy": {'enforce': {'style-src': ['self', 'unsafe-inline'],  # unsafe-inline currently required for textBones
+	                                                    'default-src': ['self'],
+	                                                    'img-src': ['self', '*.ggpht.com', '*.googleusercontent.com'],  # Serving-URLs of file-Bones will point to these
+	                                                    'script-src': ['self'],
+	                                                    'frame-src': ['self', 'www.google.com', 'drive.google.com', 'accounts.google.com']}  # Required to login with google
+	                                        }, #If set, viur will emit a CSP http-header with each request. Use security.addCspRule to set this property
 	"viur.security.strictTransportSecurity": None, #If set, viur will emit a HSTS http-header with each request. Use security.enableStrictTransportSecurity to set this property
 	"viur.security.publicKeyPins": None, #If set, viur will emit a Public Key Pins http-header with each request. Use security.setPublicKeyPins to set this property
 	"viur.security.xFrameOptions": ("sameorigin", None), # If set, ViUR will emit a X-Frame-Options header,
@@ -82,7 +87,7 @@ class SharedConf():
 		:warning: Changes here are replicated between **ALL** instances!\
 		Don't use this feature for real-time, high-traffic inter-instance communication.
 	"""
-	class SharedConfData( db.Expando ): # DB-Representation 
+	class SharedConfData( db.Expando ): # DB-Representation
 		pass
 
 	data = {
@@ -93,10 +98,10 @@ class SharedConf():
 	ctime = datetime(2000, 1, 1, 0, 0, 0)
 	updateInterval = timedelta(seconds=60) #Every 60 Secs
 	keyName = "viur-sharedconf"
-	
+
 	def __init__(self):
 		disabled = self["viur.disabled"] #Read the config if it exists
-	
+
 	def __getitem__(self, key):
 		currTime = datetime.now()
 		if currTime>self.ctime+self.updateInterval:
@@ -116,7 +121,7 @@ class SharedConf():
 					data.put()
 				memcache.set( self.keyName, self.data, 60*60*24 )
 		return( self.data[ key ] )
-		
+
 	def __setitem__(self, key, value ):
 		self.data[ key ] = value
 		memcache.set( self.keyName, self.data, 60*60*24 )
@@ -128,7 +133,7 @@ class SharedConf():
 		else:
 			setattr( data, key, value )
 		data.put()
-	
+
 
 if "viur_doc_build" in dir(sys):
 	from mock import MagicMock

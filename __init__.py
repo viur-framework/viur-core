@@ -675,6 +675,9 @@ def setup( modules, render=None, default="html" ):
 	conf["viur.mainApp"] = buildApp( modules, render, default )
 	renderPrefix = [ "/%s" % x for x in dir( render ) if (not x.startswith("_") and x!=default) ]+[""]
 	conf["viur.wsgiApp"] = webapp.WSGIApplication( [(r'/(.*)', BrowseHandler)] )
+	# Ensure that our Content Security Policy Header Cache gets build
+	from server import securityheaders
+	securityheaders._rebuildCspHeaderCache()
 	bone.setSystemInitialized()
 	# Assert that all security releated headers are in a sane state
 	if conf["viur.security.contentSecurityPolicy"] and conf["viur.security.contentSecurityPolicy"]["_headerCache"]:
