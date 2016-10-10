@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from server import errors, exposed
 
-class Site( object ):
+class Site(object):
 	adminInfo = None
 
 	def __init__(self, *args, **kwargs):
@@ -12,11 +12,13 @@ class Site( object ):
 	def index( self,template="index",*arg,**kwargs ):
 		if ".." in template or "/" in template:
 			return
+
 		try:
+
 			template = self.render.getEnv().get_template( self.render.getTemplateFileName( "sites/"+template ) )
 		except:
 			raise errors.NotFound()
+
 		return template.render()
 
-Site.jinja2 = True
-Site.vi = True
+Site.html = True

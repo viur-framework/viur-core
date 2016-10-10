@@ -395,8 +395,8 @@ class File( Tree ):
 	def onItemUploaded(self, skel):
 		pass
 		
-File.json=True
-File.jinja2=True
+File.json = True
+File.html = True
 
 @PeriodicTask( 60*4 )
 def startCheckForUnreferencedBlobs():
