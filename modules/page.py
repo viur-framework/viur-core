@@ -39,5 +39,5 @@ class Page( Hierarchy ):
 	def canView( self, id ):
 		return( True )
 	
-Page.jinja2 = True
+Page.html = True
 Page.json = True

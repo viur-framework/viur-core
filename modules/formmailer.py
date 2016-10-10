@@ -48,4 +48,4 @@ class Formmailer(object): #fixme
 	def onItemAdded( self, skel ):
 		pass
 
-Formmailer.jinja2=True
+Formmailer.html = True
