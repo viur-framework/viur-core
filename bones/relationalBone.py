@@ -242,7 +242,7 @@ class relationalBone( baseBone ):
 					for k,v in parentValues.items():
 						dbObj[ "src."+k ] = v
 					if self.using is not None:
-						for k, v in data["rel"].serialize():
+						for k, v in data["rel"].serialize().items():
 							dbObj[ "rel."+k ] = v
 					dbObj[ "viur_delayed_update_tag" ] = time()
 					db.Put( dbObj )
