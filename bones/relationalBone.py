@@ -242,7 +242,7 @@ class relationalBone( baseBone ):
 					for k,v in parentValues.items():
 						dbObj[ "src."+k ] = v
 					if self.using is not None:
-						for k, v in data["rel"].serialize():
+						for k, v in data["rel"].serialize().items():
 							dbObj[ "rel."+k ] = v
 					dbObj[ "viur_delayed_update_tag" ] = time()
 					db.Put( dbObj )
@@ -725,7 +725,7 @@ class relationalBone( baseBone ):
 				updateInplace(k)
 
 
-	def getSearchTags(self):
+	def getSearchTags(self, values, key):
 		from server.skeleton import RelSkel
 
 		def getValues(res, entry):
@@ -735,15 +735,15 @@ class relationalBone( baseBone ):
 
 				for k, bone in entry[part].items():
 					if bone.indexed:
-						for tag in bone.getSearchTags():
+						for tag in bone.getSearchTags(entry[part], k):
 							if tag not in res:
 								res.append(tag)
 
 		res = []
-		if not self.value:
+		if not values.get(key):
 			return res
 
-		value = self.value
+		value = values[key]
 
 		if self.multiple:
 			for val in value:
