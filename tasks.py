@@ -58,6 +58,7 @@ class TaskHandler:
 		Do not Modify. Do not Subclass.
 	"""
 	adminInfo = None
+	retryCountWarningThreshold = 25
 
 	def __init__(self, moduleName, modulePath ):
 		pass
@@ -97,6 +98,7 @@ class TaskHandler:
 			This catches one defered call and routes it to its destination
 		"""
 		from server import session
+		from server import utils
 		global _deferedTasks
 
 		req = request.current.get().request
@@ -107,8 +109,15 @@ class TaskHandler:
 		if in_prod and req.environ.get("REMOTE_ADDR") != "0.1.0.2":
 			logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
 			raise errors.Forbidden()
+		# Check if the retry count exceeds our warning threshold
+		retryCount = req.headers.get("X-Appengine-Taskretrycount", None)
+		if retryCount:
+			if int(retryCount) == self.retryCountWarningThreshold:
+				utils.sendEMailToAdmins("Deferred task retry count exceeded warning threshold",
+				                        "Task %s will now be retried for the %sth time." % (
+					                        req.headers.get("X-Appengine-Taskname", ""),
+					                        retryCount))
 		cmd, data = json.loads( req.body )
-
 		try:
 			funcPath, args, kwargs, env = data
 		except ValueError: #We got an old call without an frozen environment
