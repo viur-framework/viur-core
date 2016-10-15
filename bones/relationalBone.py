@@ -307,7 +307,7 @@ class relationalBone( baseBone ):
 
 				if "." in k:
 					try:
-						idx, bname = k.split(".")
+						idx, bname = k.split(".", 1)
 						idx = int(idx)
 					except ValueError:
 						# We got some garbarge as input; don't try to parse it
@@ -337,8 +337,6 @@ class relationalBone( baseBone ):
 		tmpList.sort( key=lambda k: k[0] )
 		tmpList = [{"reltmp":v,"dest":{"key":v["key"]}} for k,v in tmpList]
 		errorDict = {}
-		logging.error("Got Tmplist")
-		logging.error(tmpList)
 		if not tmpList and self.required:
 			return "No value selected!"
 		for r in tmpList[:]:
@@ -836,3 +834,27 @@ class relationalBone( baseBone ):
 			else:
 				valuesCache[boneName] = tmpRes
 		return True
+
+	def getReferencedBlobs( self, valuesCache, name ):
+		"""
+			Returns the list of blob keys referenced from this bone
+		"""
+		def blobsFromSkel(skel):
+			blobList = set()
+			for key, _bone in skel.items():
+				blobList.update(_bone.getReferencedBlobs(skel.valuesCache, key))
+			return blobList
+		res = set()
+		if name in valuesCache.keys():
+			if isinstance(valuesCache[name], list):
+				for myDict in valuesCache[name]:
+					if myDict["dest"]:
+						res.update(blobsFromSkel(myDict["dest"]))
+					if myDict["rel"]:
+						res.update(blobsFromSkel(myDict["rel"]))
+			elif isinstance(valuesCache[name], dict):
+				if valuesCache[name]["dest"]:
+					res.update(blobsFromSkel(valuesCache[name]["dest"]))
+				if valuesCache[name]["rel"]:
+					res.update(blobsFromSkel(valuesCache[name]["rel"]))
+		return res
