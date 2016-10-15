@@ -416,7 +416,6 @@ class Skeleton( object ):
 			#for key, bone in skel.items():
 			#	if key in mergeFrom.keys() and mergeFrom[ key ]:
 			#		bone.mergeFrom( mergeFrom[ key ] )
-			logging.error(mergeFrom.getValuesCache())
 			skel.setValuesCache(mergeFrom.getValuesCache())
 			unindexed_properties = []
 			for key, _bone in skel.items():
@@ -466,6 +465,8 @@ class Skeleton( object ):
 			blobList = skel.preProcessBlobLocks( blobList )
 			if blobList is None:
 				raise ValueError("Did you forget to return the bloblist somewhere inside getReferencedBlobs()?")
+			if None in blobList:
+				raise ValueError("None is not a valid blobKey.")
 			if oldBlobLockObj is not None:
 				oldBlobs = set(oldBlobLockObj["active_blob_references"] if oldBlobLockObj["active_blob_references"] is not None else [])
 				removedBlobs = oldBlobs-blobList
