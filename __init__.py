@@ -394,14 +394,11 @@ class BrowseHandler(webapp.RequestHandler):
 		#Add CSP headers early (if any)
 		if conf["viur.security.contentSecurityPolicy"] and conf["viur.security.contentSecurityPolicy"]["_headerCache"]:
 			for k,v in conf["viur.security.contentSecurityPolicy"]["_headerCache"].items():
-				assert k.startswith("Content-Security-Policy"), "Got unexpected header in conf['viur.security.contentSecurityPolicy']['_headerCache']"
 				self.response.headers[k] = v
 		if self.isSSLConnection: #Check for HTST and PKP headers only if we have a secure channel.
 			if conf["viur.security.strictTransportSecurity"]:
-				assert conf["viur.security.strictTransportSecurity"].startswith("max-age"), "Got unexpected header in conf['viur.security.strictTransportSecurity']"
 				self.response.headers["Strict-Transport-Security"] = conf["viur.security.strictTransportSecurity"]
 			if conf["viur.security.publicKeyPins"]:
-				assert conf["viur.security.publicKeyPins"].startswith("pin-"), "Got unexpected header in conf['viur.security.publicKeyPins']"
 				self.response.headers["Public-Key-Pins"] = conf["viur.security.publicKeyPins"]
 		# Check for X-Security-Headers we shall emit
 		if conf["viur.security.xContentTypeOptions"]:
@@ -413,12 +410,12 @@ class BrowseHandler(webapp.RequestHandler):
 				self.response.headers["X-XSS-Protection"] = "0"
 		if conf["viur.security.xFrameOptions"] is not None and isinstance(conf["viur.security.xFrameOptions"], tuple):
 			mode, uri = conf["viur.security.xFrameOptions"]
-			assert mode in ["deny", "sameorigin","allow-from"]
 			if mode in ["deny", "sameorigin"]:
 				self.response.headers["X-Frame-Options"] = mode
 			elif mode=="allow-from":
-				assert uri is not None and (uri.lower().startswith("https://") or uri.lower().startswith("http://"))
 				self.response.headers["X-Frame-Options"] = "allow-from %s" % uri
+		if conf["viur.security.xPermittedCrossDomainPolicies"] is not None:
+			self.response.headers["X-Permitted-Cross-Domain-Policies"] = conf["viur.security.xPermittedCrossDomainPolicies"]
 		if sharedConf["viur.disabled"] and not (users.is_current_user_admin() or "HTTP_X_QUEUE_NAME".lower() in [x.lower() for x in os.environ.keys()] ): #FIXME: Validate this works
 			self.response.set_status( 503 ) #Service unavailable
 			tpl = Template( open("server/template/error.html", "r").read() )
@@ -678,7 +675,29 @@ def setup( modules, render=None, default="html" ):
 	conf["viur.mainApp"] = buildApp( modules, render, default )
 	renderPrefix = [ "/%s" % x for x in dir( render ) if (not x.startswith("_") and x!=default) ]+[""]
 	conf["viur.wsgiApp"] = webapp.WSGIApplication( [(r'/(.*)', BrowseHandler)] )
+	# Ensure that our Content Security Policy Header Cache gets build
+	from server import securityheaders
+	securityheaders._rebuildCspHeaderCache()
 	bone.setSystemInitialized()
+	# Assert that all security releated headers are in a sane state
+	if conf["viur.security.contentSecurityPolicy"] and conf["viur.security.contentSecurityPolicy"]["_headerCache"]:
+		for k, v in conf["viur.security.contentSecurityPolicy"]["_headerCache"].items():
+			assert k.startswith(
+				"Content-Security-Policy"), "Got unexpected header in conf['viur.security.contentSecurityPolicy']['_headerCache']"
+	if conf["viur.security.strictTransportSecurity"]:
+		assert conf["viur.security.strictTransportSecurity"].startswith(
+			"max-age"), "Got unexpected header in conf['viur.security.strictTransportSecurity']"
+	if conf["viur.security.publicKeyPins"]:
+		assert conf["viur.security.publicKeyPins"].startswith(
+			"pin-"), "Got unexpected header in conf['viur.security.publicKeyPins']"
+	assert conf["viur.security.xPermittedCrossDomainPolicies"] in [None, "none", "master-only", "by-content-type", "all"], \
+		"conf[\"viur.security.xPermittedCrossDomainPolicies\"] must be one of [None, \"none\", \"master-only\", \"by-content-type\", \"all\"]"
+	if conf["viur.security.xFrameOptions"] is not None and isinstance(conf["viur.security.xFrameOptions"], tuple):
+		mode, uri = conf["viur.security.xFrameOptions"]
+		assert mode in ["deny", "sameorigin", "allow-from"]
+		if mode == "allow-from":
+			assert uri is not None and (
+			uri.lower().startswith("https://") or uri.lower().startswith("http://"))
 	runStartupTasks() #Add a deferred call to run all queued startup tasks
 	return( conf["viur.wsgiApp"] )
 	

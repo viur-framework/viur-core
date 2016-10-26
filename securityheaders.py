@@ -50,8 +50,8 @@ def addCspRule(objectType, srcOrDirective, enforceMode="monitor"):
 	else:
 		if not objectType in conf["viur.security.contentSecurityPolicy"][enforceMode].keys():
 			conf["viur.security.contentSecurityPolicy"][enforceMode][objectType] = []
-		conf["viur.security.contentSecurityPolicy"][enforceMode][objectType].append(srcOrDirective)
-	_rebuildCspHeaderCache()
+		if not srcOrDirective in conf["viur.security.contentSecurityPolicy"][enforceMode][objectType]:
+			conf["viur.security.contentSecurityPolicy"][enforceMode][objectType].append(srcOrDirective)
 
 
 def _rebuildCspHeaderCache():
@@ -161,3 +161,8 @@ def setXContentTypeNoSniff(enable):
 		conf["viur.security.xContentTypeOptions"] = enable
 	else:
 		raise ValueError("enable must be one of True | False")
+
+def setXPermittedCrossDomainPolicies(value):
+	if value not in [None, "none", "master-only", "by-content-type", "all"]:
+		raise ValueError("value [None, \"none\", \"master-only\", \"by-content-type\", \"all\"]")
+	conf["viur.security.xPermittedCrossDomainPolicies"] = value

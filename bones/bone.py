@@ -423,3 +423,29 @@ class baseBone(object): # One Bone:
 			logging.error("Ignoring values from conflicting boneType (%s is not a instance of %s)!" % (other, type(self)))
 			return
 		self.value = copy.deepcopy( other.value )
+
+	def setBoneValue(self, valuesCache, boneName, value, append, *args, **kwargs):
+		"""
+			Set our value to 'value'.
+			Santy-Checks are performed; if the value is invalid, we flip our value back to its original
+			(default) value and return false.
+
+			:param valuesCache: Dictionary with the current values from the skeleton we belong to
+			:type valuesCache: dict
+			:param boneName: The Bone which should be modified
+			:type boneName: str
+			:param value: The value that should be assigned. It's type depends on the type of that bone
+			:type boneName: object
+			:param append: If true, the given value is appended to the values of that bone instead of
+			replacing it. Only supported on bones with multiple=True
+			:type append: bool
+			:return: Wherever that operation succeeded or not.
+			:rtype: bool
+		"""
+		if append:
+			raise ValueError("append is not possible on %s bones" % self.type)
+		res = self.fromClient(valuesCache, boneName, {boneName: value})
+		if not res:
+			return True
+		else:
+			return False

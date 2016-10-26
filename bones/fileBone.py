@@ -11,15 +11,18 @@ class fileBone(treeItemBone):
 	refKeys = ["name", "meta_mime", "metamime", "mimetype", "dlkey", "servingurl", "size"]
 	
 	def __init__(self, format="$(dest.name)",*args, **kwargs ):
+		assert "dlkey" in self.refKeys, "You cannot remove dlkey from refKeys!"
 		super( fileBone, self ).__init__( format=format, *args, **kwargs )
 
 	def getReferencedBlobs(self, valuesCache, name):
-		if valuesCache[name] is None or not "dlkey" in self.refKeys:
+		if valuesCache[name] is None:
 			return []
 		elif isinstance(valuesCache[name], dict):
 			return [valuesCache[name]["dest"]["dlkey"]]
 		elif isinstance(valuesCache[name], list):
 			return [x["dest"]["dlkey"] for x in valuesCache[name]]
+		else:
+			raise ValueError("Unknown value for bone %s (%s)" % (name, str(type(valuesCache[name]))))
 
 	def unserialize( self, valuesCache, name, expando ):
 		res = super( fileBone, self ).unserialize( valuesCache, name, expando )
