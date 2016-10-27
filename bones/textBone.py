@@ -95,6 +95,12 @@ class HtmlSerializer(HTMLParser.HTMLParser):  # html.parser.HTMLParser
 					# Styles are handled below
 					styles = v.split(";")
 					continue
+				elif k == "src":
+					# We ensure that any src tag starts with an actual url
+					checker = v.lower()
+					if not (checker.startswith("http://") or checker.startswith("https://") or \
+						checker.startswith("/")):
+						continue
 				if not tag in self.validHtml["validAttrs"].keys() or not k in \
 					self.validHtml["validAttrs"][tag]:
 					# That attribute is not valid on this tag
