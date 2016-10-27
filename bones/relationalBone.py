@@ -276,7 +276,7 @@ class relationalBone( baseBone ):
 		db.Delete( [x for x in db.Query( "viur-relations" ).ancestor( db.Key( id ) ).run( keysOnly=True ) ] )
 
 	def isInvalid( self, key ):
-		return True
+		return False
 
 	def fromClient( self, valuesCache, name, data ):
 		"""
@@ -294,7 +294,6 @@ class relationalBone( baseBone ):
 			:returns: None or String
 		"""
 		from server.skeleton import RelSkel, skeletonByKind
-
 		valuesCache[name] = []
 		tmpRes = {}
 		clientPrefix = "%s." % name
@@ -337,6 +336,7 @@ class relationalBone( baseBone ):
 		tmpList.sort( key=lambda k: k[0] )
 		tmpList = [{"reltmp":v,"dest":{"key":v["key"]}} for k,v in tmpList]
 		errorDict = {}
+		forceFail = False
 		if not tmpList and self.required:
 			return "No value selected!"
 		for r in tmpList[:]:
@@ -386,21 +386,35 @@ class relationalBone( baseBone ):
 				if not refSkel.fromClient( r["reltmp"] ):
 					for k,v in refSkel.errors.items():
 						errorDict[ "%s.%s.%s" % (name,tmpList.index(r),k) ] = v
+						forceFail = True
 				r["rel"] = refSkel
 			else:
 				r["rel"] = None
 			del r["reltmp"]
 
 		if self.multiple:
+			cleanList = []
+			for item in tmpList:
+				err = self.isInvalid(item)
+				if err:
+					errorDict["%s.%s" % (name, tmpList.index(item))] = err
+				else:
+					cleanList.append(item)
+			if not cleanList:
+				errorDict[name] = "No value selected"
 			valuesCache[name] = tmpList
 		else:
 			if tmpList:
-				valuesCache[name] = tmpList[0]
+				val = tmpList[0]
 			else:
-				valuesCache[name] = None
-
-		if len( errorDict.keys() ):
-			return ReadFromClientError( errorDict, True )
+				val = None
+			err = self.isInvalid(val)
+			if not err:
+				valuesCache[name] = val
+				if val is None:
+					errorDict[name] = "No value selected"
+		if len(errorDict.keys()):
+			return ReadFromClientError(errorDict, forceFail)
 
 	def _rewriteQuery(self, name, skel, dbFilter, rawFilter ):
 		"""
