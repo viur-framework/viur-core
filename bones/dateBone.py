@@ -98,69 +98,72 @@ class dateBone( baseBone ):
 			:type data: dict
 			:returns: str or None
 		"""
-		if name in data.keys():
-			value = data[ name ]
-		else:
+		rawValue = data.get(name, None)
+		if not rawValue:
 			value = None
-		valuesCache[name] = None
-		if str( value ).replace("-",  "",  1).replace(".","",1).isdigit():
-			if int(value) < -1*(2**30) or int(value)>(2**31)-2:
-				return( "Invalid value entered" )
-			valuesCache[name] = ExtendedDateTime.fromtimestamp( float(value) )
-			return( None )
+		elif str(rawValue).replace("-",  "",  1).replace(".","",1).isdigit():
+			if int(rawValue) < -1*(2**30) or int(rawValue)>(2**31)-2:
+				value = False  # its invalid
+			else:
+				value = ExtendedDateTime.fromtimestamp( float(rawValue) )
 		elif not self.date and self.time:
 			try:
-				if str( value ).count(":")>1:
-					(hour, minute, second) = [int(x.strip()) for x in str( value ).split(":")]
-					valuesCache[name] = time( hour=hour, minute=minute, second=second )
-					return( None )
-				elif str( value ).count(":")>0:
-					(hour, minute) = [int(x.strip()) for x in str( value ).split(":")]
-					valuesCache[name] = time( hour=hour, minute=minute )
-					return( None )
-				elif str( value ).replace("-",  "",  1).isdigit():
-					valuesCache[name] = time( second=int(value) )
-					return( None )
+				if str(rawValue).count(":")>1:
+					(hour, minute, second) = [int(x.strip()) for x in str(rawValue).split(":")]
+					value = time(hour=hour, minute=minute, second=second)
+				elif str(rawValue).count(":")>0:
+					(hour, minute) = [int(x.strip()) for x in str(rawValue).split(":")]
+					value = time(hour=hour, minute=minute)
+				elif str(rawValue).replace("-",  "",  1).isdigit():
+					value = time(second=int(rawValue))
+				else:
+					value = False  # its invalid
 			except:
-				return( "Invalid value entered" )
-			return( False )
-		elif str( value ).lower().startswith("now"):
+				value = False
+		elif str(rawValue).lower().startswith("now"):
 			tmpRes = ExtendedDateTime.now()
-			if len( str( value ) )>4:
+			if len(str(rawValue))>4:
 				try:
-					tmpRes += timedelta( seconds= int( str(value)[3:] ) )
+					tmpRes += timedelta(seconds= int(str(rawValue)[3:]))
 				except:
 					pass
-			valuesCache[name] = tmpRes
-			return( None )
+			value = tmpRes
 		else:
 			try:
-				if " " in value: # Date with time
-					try: #Times with seconds
-						if "-" in value: #ISO Date
-							valuesCache[name] = ExtendedDateTime.strptime(str( value ), "%Y-%m-%d %H:%M:%S")
-						elif "/" in value: #Ami Date
-							valuesCache[name] = ExtendedDateTime.strptime(str( value ), "%m/%d/%Y %H:%M:%S")
-						else: # European Date
-							valuesCache[name] = ExtendedDateTime.strptime(str( value ), "%d.%m.%Y %H:%M:%S")
+				if " " in rawValue:  # Date with time
+					try:  # Times with seconds
+						if "-" in rawValue:  # ISO Date
+							value = ExtendedDateTime.strptime(str(rawValue), "%Y-%m-%d %H:%M:%S")
+						elif "/" in rawValue:  # Ami Date
+							value = ExtendedDateTime.strptime(str(rawValue), "%m/%d/%Y %H:%M:%S")
+						else:  # European Date
+							value = ExtendedDateTime.strptime(str(rawValue), "%d.%m.%Y %H:%M:%S")
 					except:
-						if "-" in value: #ISO Date
-							valuesCache[name] = ExtendedDateTime.strptime(str( value ), "%Y-%m-%d %H:%M")
-						elif "/" in value: #Ami Date
-							valuesCache[name] = ExtendedDateTime.strptime(str( value ), "%m/%d/%Y %H:%M")
-						else: # European Date
-							valuesCache[name] = ExtendedDateTime.strptime(str( value ), "%d.%m.%Y %H:%M")
+						if "-" in rawValue:  # ISO Date
+							value = ExtendedDateTime.strptime(str(rawValue), "%Y-%m-%d %H:%M")
+						elif "/" in rawValue:  # Ami Date
+							value = ExtendedDateTime.strptime(str(rawValue), "%m/%d/%Y %H:%M")
+						else:  # European Date
+							value = ExtendedDateTime.strptime(str(rawValue), "%d.%m.%Y %H:%M")
 				else:
-					if "-" in value: #ISO Date
-						valuesCache[name] = ExtendedDateTime.strptime(str( value ), "%Y-%m-%d")
-					elif "/" in value: #Ami Date
-						valuesCache[name] = ExtendedDateTime.strptime(str( value ), "%m/%d/%Y")
-					else:
-						valuesCache[name] =ExtendedDateTime.strptime(str( value ), "%d.%m.%Y")
-				return( None )
+					if "-" in rawValue:  # ISO (Date only)
+						value = ExtendedDateTime.strptime(str(rawValue), "%Y-%m-%d")
+					elif "/" in rawValue:  # Ami (Date only)
+						value = ExtendedDateTime.strptime(str(rawValue), "%m/%d/%Y")
+					else:  # European (Date only)
+						value =ExtendedDateTime.strptime(str(rawValue), "%d.%m.%Y")
 			except:
-				return( "Invalid value entered" )
-			return( "Invalid value entered" )
+				value = False  # its invalid
+		if value is False:
+			return "Invalid value entered"
+		else:
+			err = self.isInvalid(value)
+			if not err:
+				valuesCache[name] = value
+				if value is None:
+					return "No value entered"
+			return err
+
 
 	def guessTimeZone(self):
 		"""
