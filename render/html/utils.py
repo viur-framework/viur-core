@@ -19,12 +19,14 @@ def jinjaGlobalFunction(f):
 	Decorator, marks a function as a Jinja2 global.
 	"""
 	__jinjaGlobals_[f.__name__] = f
+	return f
 
 def jinjaGlobalFilter(f):
 	"""
 	Decorator, marks a function as a Jinja2 filter.
 	"""
 	__jinjaFilters_[f.__name__] = f
+	return f
 
 def jinjaGlobalExtension(ext):
 	"""
@@ -32,4 +34,5 @@ def jinjaGlobalExtension(ext):
 	"""
 	if ext not in __jinjaExtensions_:
 		__jinjaExtensions_.append(ext)
+	return ext
 

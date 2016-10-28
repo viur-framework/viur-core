@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-
-from server import utils, request, conf, prototypes, securitykey
+from server import utils, request, conf, prototypes, securitykey, errors
 from server.skeleton import Skeleton, RelSkel
-
 from server.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
 from server.render.html.wrap import ListWrapper, SkelListWrapper
-
 import urllib
 from hashlib import sha512
-
 from google.appengine.ext import db
 from google.appengine.api import memcache, users
-
+from collections import OrderedDict
+import string
 import logging
 
 @jinjaGlobalFunction
@@ -464,3 +462,60 @@ def shortKey(render, val):
 		return k.id_or_name()
 	except:
 		return None
+
+@jinjaGlobalFunction
+def renderEditBone(render, skel, boneName, style=None):
+	if not isinstance(skel, dict) or not all([x in skel.keys() for x in ["errors", "structure", "value"]]):
+		raise ValueError("This does not look like an editable Skeleton!")
+	boneParams = skel["structure"].get(boneName)
+	if not boneParams:
+		raise ValueError("Bone %s is not part of that skeleton" % boneName)
+	boneType = boneParams["type"]
+	fileName = "bones_" + boneType
+	while fileName:
+		try:
+			fn = render.getTemplateFileName(fileName)
+			break
+		except errors.NotFound:
+			if "." in fileName:
+				fileName, unused = fileName.rsplit(".", 1)
+			else:
+				fn = render.getTemplateFileName("bones_bone")
+				break
+	tpl = render.getEnv().get_template(fn)
+	return  tpl.render(boneName=boneName, boneParams=boneParams, boneValue=skel["value"].get(boneName, None))
+
+	return boneType
+
+
+@jinjaGlobalFunction
+def renderEditForm(render, skel, ignore=None, hide=None, style=None):
+	if not isinstance(skel, dict) or not all([x in skel.keys() for x in ["errors", "structure", "value"]]):
+		raise ValueError("This does not look like an editable Skeleton!")
+	res = u""
+	sectionTpl = render.getEnv().get_template(render.getTemplateFileName("dynaform_section"))
+	rowTpl = render.getEnv().get_template(render.getTemplateFileName("dynaform_row"))
+	sections = OrderedDict()
+	for boneName, boneParams in skel["structure"].items():
+		category = _("server.render.html.default_category")
+		if "params" in boneParams.keys() and isinstance(boneParams["params"],dict):
+			category = boneParams["params"].get("category", category)
+		if not category in sections.keys():
+			sections[category] = []
+		sections[category].append((boneName, boneParams))
+	for category, boneList in sections.items():
+		categoryContent = u""
+		for boneName, boneParams in boneList:
+			boneWasInvalid = isinstance(skel["errors"], dict) and boneName in skel["errors"].keys()
+			editWidget = renderEditBone(render, skel, boneName)
+			categoryContent += rowTpl.render(boneName = boneName,
+			                                 boneParams = boneParams,
+			                                 boneWasInvalid = boneWasInvalid,
+			                                 editWidget = editWidget)
+		res += sectionTpl.render(categoryName=category,
+		                         categoryClassName = "".join([x for x in category if x in string.ascii_letters]),
+		                         categoryContent = categoryContent)
+
+
+	return res
+

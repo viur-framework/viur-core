@@ -214,7 +214,7 @@ class Render( object ):
 				boneType = "relational"
 
 			ret.update({
-				"type": "%s.%s" % (boneType, bone.type),
+				"type": bone.type,
 				"module": bone.module,
 				"multiple": bone.multiple,
 				"format": bone.format,
