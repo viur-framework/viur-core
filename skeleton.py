@@ -58,7 +58,7 @@ class MetaSkel( type ):
 		    and not "viur_doc_build" in dir(sys)): #Do not check while documentation build
 				raise NotImplementedError("Skeletons must be defined in /skeletons/")
 
-		if cls.kindName:
+		if cls.kindName and cls.kindName is not __undefindedC__:
 			MetaSkel._skelCache[cls.kindName] = cls
 
 		for key in dir(cls):
