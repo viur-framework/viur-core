@@ -38,8 +38,8 @@
 		struct={}
 	{% endif%}
 {# Element rendern #}
-	{%set formattpl = format_renderer(bone_name,bone,Skel,form,format)%}
-	{%if regex_search("^mask_+",format|string)%}
+
+	{%if regexSearch("^mask_+",format|string)%}
 		{% set savetpl = {"tpl":formattpl}%}
 		{%- for bone_name, bone in struct -%}
 			{% if not bone_name in ignor%}
@@ -54,7 +54,7 @@
 				{{element_renderer(bone_name,hidden,bone,Skel,form,format,formattpl)}}
 			{%- endif -%}
 		{%- endfor -%}
-	{%- endif -%}  
+	{%- endif -%}
 
 	{# Error handling #}
 	{%- if Skel.errors|length>0 -%}
@@ -78,11 +78,11 @@
 {% macro element_renderer(bone_name,hidden,bone,Skel,form,format,formattpl) %}
 	{% if bone.type == "hidden" or bone_name in hidden %}     
 		<input type="hidden" name="{{ bone_name }}" value="{{Skel.value[bone_name] }}" />
-		{%if regex_search("^mask_+",format|string)%}
+		{%if regexSearch("^mask_+",format|string)%}
 			{{formattpl}}
 		{%endif%}   
 	{% elif bone.visible  %}
-		{%if regex_search("^mask_+",format|string)%}
+		{%if regexSearch("^mask_+",format|string)%}
 			{%set descr = descr_renderer(bone_name,bone,Skel,form) %}
 			{%set value = value_renderer(bone_name,bone,Skel,form) %}
 			{{formattpl|replace("$"+bone_name+"_descr",descr)|replace("$"+bone_name,value)}}
@@ -91,7 +91,7 @@
 			{%set value = value_renderer(bone_name,bone,Skel,form) %}
 			{{formattpl|replace("$descr",descr)|replace("$value",value)}}
 			{%endif%}
-	{%elif not bone.visible and regex_search("^mask_+",format|string)%}
+	{%elif not bone.visible and regexSearch("^mask_+",format|string)%}
 		{{formattpl}}	{# im Mask-mode muss das ersetzte TPL zurückgegeben werden#}
 	{%- endif -%}
 {% endmacro %}
@@ -201,130 +201,4 @@
 {%endmacro%}
 
 
-
-
-{#ALTE DYNAFORM#}
-{# \/ \/ \/ \/#}
-{%- macro render_dynaform(Skel,ignor=[],form="",modulename="",markMandatoryFields=True) -%}
-
-	{% if not Skel["structure"] and not modulename==""%}
-		{% set renderskel = "viewskel"%}
-		{% if modulename=="contact"%}
-			{% set renderskel = "mailSkel"%}
-		{% endif%}
-		{% set stuct = getSkel(modulename,renderskel).items() %}
-	{% else %}
-		{% set stuct = Skel["structure"].items() %}
-	{% endif%}
-
-	{%if not Skel["structure"]%}
-	 	{% set tmpSkel ={}%}
-		{% do tmpSkel.update({"value":Skel, "errors":{}}) %}
-		{% set Skel = tmpSkel %}
-	{% endif %}
-
-
-	{%- for bone_name, bone in stuct -%}
-		{% if not bone_name in ignor%}
-			{{dynaform_tr(bone_name,bone,Skel,form,markMandatoryFields)}}
-		{%- endif -%}
-	{%- endfor -%} 
-
-	{# Error handling #}
-	{%- if Skel.errors|length>0 -%}
-		<strong>{{_("Please correct your inputs!")}}</strong><br />
-		{{_("Not all required entry fields have been filled:") + " "}}
-        {%- set first=True -%}
-		{%- for errornoame in Skel.errors -%}
-			{%-if Skel.errors[errornoame]!=None and Skel["structure"][errornoame].required -%}
-				{{ "," if not first }} <span class="mandatory">{{Skel["structure"][errornoame].descr}}</span>
-                {%-set first=False -%}
-			{%- endif -%}
-		{%- endfor -%}
-		<br />
-		<br />
-	{%- endif -%}
-{%- endmacro -%}
-
-{% macro dynaform_tr(bone_name,bone,Skel,form,markMandatoryFields=True) %}
-	{% set debug=False %}
-	{% if bone.type == "hidden" %}     
-		<input type="hidden" name="{{ bone_name }}" value="{{Skel.value[bone_name] }}" />   
-	{% else %}
-		{% if bone.visible %}   
-				<dt class="td_formdescr{% if bone_name in Skel.errors and Skel.errors[bone_name] %} msg warning{% endif %} td_formdescr_{{bone_name}}"
-					{% if bone.descr|length()>25 %}
-						colspan="2" style="width: 100%;"        
-					{% endif %}    
-				>
-					<div class="span_formdescr
-						{% if bone.descr|length()>25 %}
-							span_formdescrbig
-						{% endif %}
-					">
-						{{ bone.descr }}
-						{%if markMandatoryFields and bone.required and not bone.readOnly and Skel["structure"] %}
-							*
-						{% endif %}
-						{% if debug %}
-							{{bone.type}}
-						{% endif %}
-					</div>
-					{% if bone.params and bone.params["hint"] %}
-						<button title="{{bone.params["hint"]}}" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-icon" role="button" aria-disabled="false">
-							<span class="ui-button-icon-pri	mary ui-icon ui-icon-lightbulb"></span>
-							<span class="ui-button-text">info</span>
-						</button>
-					{% endif %}  
-			  
-				</dt>
-			{% if  bone.descr|length()>25 %}  
-					<dd colspan="2"  class="td_formfield">
-			{% else %} 
-					<dd  class="td_formfield">
-			{% endif %} 
-		{% endif %}  
-			{% set customBone =  render_custombone( bone_name,bone,Skel.value[bone_name],form ) %}
-			{% if customBone|trim %} {#We got a customBone for this #}
-				{{ customBone }}
-			{%- elif bone.type == "str" or bone.type.startswith("str.") -%} 
-				{{ stringbone( bone_name,bone,Skel.value[bone_name] ) }}
-			{%- elif bone.type == "numeric" or bone.type.startswith("numeric.") -%}
-				{{ numericbone( bone_name,bone,Skel.value[bone_name] ) }}
-			{%- elif bone.type == "password"  or bone.type.startswith("password.")-%}
-				{{ passwordbone( bone_name,bone,Skel.value[bone_name] ) }}
-			{%- elif bone.type == "captcha"  or bone.type.startswith("captcha.")-%}  
-				{{ captchabone( bone_name,bone,Skel.value[bone_name] ) }}
-			{%- elif bone.type == "date"  or bone.type.startswith("date.")-%}
-				{{datebone(bone_name,bone,Skel.value[bone_name])}} 
-			{%- elif bone.type == "selectone" or bone.type.startswith("selectone.")%}
-				{{ selectonebone( bone_name,bone,Skel.value[bone_name] ) }}
-			{%- elif bone.type == "selectmulti" or bone.type.startswith("selectmulti.") %}     
-				{{ selectmultibone( bone_name,bone,Skel.value[bone_name] ) or bone.type.startswith("treeitem.") }}
-			{%- elif bone.type == "bool" or bone.type.startswith("bool.") %}     
-				{{ booleanbone( bone_name,bone,Skel.value[bone_name] ) }}
-			{%- elif bone.type == "text" or bone.type.startswith("text.") -%}
-				{{ textbone( bone_name,bone,Skel.value[bone_name] ) or bone.type.startswith("treeitem.") }}
-			{%- elif bone.type.startswith("treeitem.file") -%}
-				{{ fileBone( bone_name, bone, Skel.value[bone_name] ) or bone.type.startswith("treeitem.") }}
-			{%- elif bone.type=="relational" or bone.type.startswith("relational.") -%}
-				{{ relational( bone_name, bone, Skel.value[bone_name] ) }}
-			{%- elif bone.type == "hierarchy" or bone.type.startswith("hierarchy.") %}
-				{{ hierarchy( bone_name, bone, Skel.value[bone_name] ) }}
-			{%- elif bone.type=="treeitem" or bone.type.startswith("treeitem.") %}
-				<input type="hidden" name="{{ bone_name }}" value="{{Skel.value[bone_name].id }}" />   
-			<!-- 	Treeitem -->
-			{#	{{hierarchy( bone_name, bone, Skel.value[bone_name] ) }} #}				
-			{%- else -%}<!--Defaultbonerenderer -->
-				{{ render_custombone( bone_name,bone,Skel.value[bone_name] ) }}
-			{%- endif -%}
-			{% if debug %}
-				<br /><br /><textarea>{{bone}}</textarea>
-			{% endif %}
-	
-		{% if bone.visible %}
-			</dd>
-		{% endif %}
-	{%- endif -%}
-{% endmacro %}
 

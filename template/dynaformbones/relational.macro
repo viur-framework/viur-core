@@ -1,4 +1,5 @@
 {%- macro relational( bone_name, bone, value ) -%}
+    {#
 	{% if not bone.visible %}
 		{% if bone.multiple and value %}
 			<input type="hidden" name="{{ bone_name }}" value="{% for val in value %}{{val.id}}
@@ -147,4 +148,5 @@
 			relBoneRebuild_{{boneKey}}( );
 		</script>
 	{% endif %}
+     #}
 {%- endmacro -%}
