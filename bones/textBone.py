@@ -208,32 +208,33 @@ class textBone( baseBone ):
 			:returns: None or String
 		"""
 		if self.languages:
-			valuesCache[name] = LanguageWrapper( self.languages )
+			lastError = None
+			valuesCache[name] = LanguageWrapper(self.languages)
 			for lang in self.languages:
-				if "%s.%s" % (name,lang ) in data.keys():
-					val = data[ "%s.%s" % (name,lang ) ]
-					if not self.isInvalid( val ): #Returns None on success, error-str otherwise
-						valuesCache[name][ lang ] = HtmlSerializer( self.validHtml ).santinize( val )
-			if not any( valuesCache[name].values() ):
-				return( "No / invalid values entered" )
-			else:
-				return( None )
+				if "%s.%s" % (name,lang) in data.keys():
+					val = data["%s.%s" % (name,lang)]
+					err = self.isInvalid(val) #Returns None on success, error-str otherwise
+					if not err:
+						valuesCache[name][lang] = HtmlSerializer(self.validHtml).santinize(val)
+					else:
+						lastError = err
+			if not any(valuesCache[name].values()) and not lastError:
+				lastError = "No / invalid values entered"
+			return lastError
 		else:
 			if name in data.keys():
-				value = data[ name ]
+				value = data[name]
 			else:
 				value = None
 			if not value:
-				valuesCache[name] =""
-				return( "No value entered" )
-			if not isinstance( value, str ) and not isinstance( value, unicode ):
+				valuesCache[name] = ""
+				return "No value entered"
+			if not isinstance(value, str) and not isinstance(value, unicode):
 				value = unicode(value)
-			err = self.isInvalid( value )
+			err = self.isInvalid(value)
 			if not err:
-				valuesCache[name] = HtmlSerializer( self.validHtml ).santinize( value )
-				return( None )
-			else:
-				return( "Invalid value entered" )
+				valuesCache[name] = HtmlSerializer(self.validHtml).santinize(value)
+			return err
 
 	def getReferencedBlobs(self, valuesCache, name):
 		"""

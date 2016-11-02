@@ -47,24 +47,27 @@ class numericBone( baseBone ):
 			:type data: Dict
 			:returns: None or String
 		"""
-		if name in data.keys():
-			value = data[ name ]
-		else:
-			value = None
-		try:
-			value = str( value ).replace(",", ".", 1)
-		except:
-			valuesCache[name] = None
-			return( "Invalid value entered" )
-		if self.precision and ( str( value ).replace(".","",1).replace("-", "", 1).isdigit() ) and float( value )>=self.min and float( value )<=self.max:
-				valuesCache[name] = round( float( value ), self.precision )
-				return( None )
-		elif not self.precision and ( str( value ).replace("-", "", 1).isdigit() ) and int( value )>=self.min and int( value )<=self.max:
-				valuesCache[name] = int( value )
-				return( None )
-		else:
-			valuesCache[name] = None
-			return( "Invalid value entered" )
+		rawValue = data.get(name, None)
+		value = None
+		if rawValue:
+			try:
+				rawValue = str(rawValue).replace(",", ".", 1)
+			except:
+				value = None
+			else:
+				if self.precision and (str(rawValue).replace(".","",1).replace("-", "", 1).isdigit()) and float(rawValue)>=self.min and float(rawValue)<=self.max:
+					value = round(float(rawValue), self.precision)
+				elif not self.precision and (str(rawValue).replace("-", "", 1).isdigit()) and int(rawValue)>=self.min and int(rawValue)<=self.max:
+					value = int(rawValue)
+				else:
+					value = None
+		err = self.isInvalid(value)
+		if not err:
+			valuesCache[name] = value
+			if value is None:
+				return "No value entered"
+		return err
+
 	
 	def serialize( self, valuesCache, name, entity ):
 		if isinstance( valuesCache[name],  float ) and valuesCache[name]!= valuesCache[name]: # NaN

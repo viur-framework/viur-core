@@ -35,11 +35,16 @@ class booleanBone( baseBone ):
 		else:
 			return("No value entered!")
 		if str( value ) in self.trueStrs:
-			valuesCache[name] = True
+			value = True
 		else:
-			valuesCache[name] = False
-		return( None )
-	
+			value = False
+		err = self.isInvalid(value)
+		if not err:
+			valuesCache[name] = value
+			return True
+		else:
+			return err
+
 	def serialize( self, valuesCache, name, entity ):
 		"""
 			Serializes this bone into something we

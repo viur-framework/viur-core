@@ -76,24 +76,29 @@ class selectMultiBone( baseBone ):
 			:returns: None or String
 		"""
 		if name in data.keys():
-			values = data[ name ]
+			values = data[name]
 		else:
 			values = None
-		valuesCache[name] = []
 		if not values:
-			return( "No item selected" )
-		if not isinstance( values, list ):
-			if isinstance( values, basestring):
-				values = values.split( ":" )
+			return "No item selected"
+		if not isinstance(values, list):
+			if isinstance(values, basestring):
+				values = values.split(":")
 			else:
 				values = []
+		lastErr = None
+		valuesCache[name] = []
 		for key, value in self.values.items():
 			if str(key) in [str(x) for x in values]:
-				valuesCache[name].append(key)
-		if len( valuesCache[name] )>0:
-			return( None )
+				err = self.isInvalid(key)
+				if not err:
+					valuesCache[name].append(key)
+				else:
+					lastErr = err
+		if len(valuesCache[name])>0:
+			return lastErr
 		else:
-			return( "No item selected" )
+			return "No item selected"
 	
 	def serialize( self, valuesCache, name, entity ):
 		if not valuesCache[name] or len(valuesCache[name]) == 0:

@@ -77,14 +77,16 @@ class selectOneBone( baseBone ):
 			:returns: None or String
 		"""
 		if name in data.keys():
-			value = data[ name ]
+			value = data[name]
 		else:
 			value = None
 		for key in self.values.keys():
 			if str(key)==str(value):
-				valuesCache[name] = key
-				return( None )
-		return( "No or invalid value selected" )
+				err = self.isInvalid(key)
+				if not err:
+					valuesCache[name] = key
+				return err
+		return "No or invalid value selected"
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
 		mode="str"

@@ -148,7 +148,7 @@ class stringBone( baseBone ):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
-			store this value and return None.
+			store this rawValue and return None.
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
@@ -160,66 +160,72 @@ class stringBone( baseBone ):
 			:returns: str or None
 		"""
 		if name in data.keys():
-			value = data[ name ]
+			rawValue = data[ name ]
 		else:
-			value = None
+			rawValue = None
+		res = None
+		lastError = None
 		if self.multiple and self.languages:
-			valuesCache[name] = LanguageWrapper( self.languages )
+			res = LanguageWrapper(self.languages)
 			for lang in self.languages:
-				valuesCache[name][ lang ] = []
-				if "%s.%s" % ( name, lang ) in data.keys():
-					val = data["%s.%s" % ( name, lang )]
-					if isinstance( val, basestring ):
-						valuesCache[name][ lang ].append( utils.escapeString( val ) )
-					elif isinstance( val, list ):
+				res[lang] = []
+				if "%s.%s" % (name, lang) in data.keys():
+					val = data["%s.%s" % (name, lang)]
+					if isinstance(val, basestring):
+						err = self.isInvalid(val)
+						if not err:
+							res[lang].append(utils.escapeString(val))
+						else:
+							lastError = err
+					elif isinstance(val, list):
 						for v in val:
-							valuesCache[name][ lang ].append( utils.escapeString( v ) )
-			if not any( valuesCache[name].values() ):
-				return( "No value entered" )
-			else:
-				return( None )
+							err = self.isInvalid(v)
+							if not err:
+								res[lang].append(utils.escapeString(v))
+							else:
+								lastError = err
+			if not any(res.values()) and not lastError:
+				lastError = "No rawValue entered"
 		elif self.multiple and not self.languages:
-			valuesCache[name] = []
-			if not value:
-				return( "No value entered" )
-			if not isinstance( value, list ):
-				value = [value]
-			for val in value:
-				if not self.isInvalid( val ):
-					valuesCache[name].append( utils.escapeString( val ) )
-			if( len( valuesCache[name] ) > 0):
-				valuesCache[name] = valuesCache[name][0:254] #Max 254 Keys
-				return( None )
+			res = []
+			if not rawValue:
+				lastError = "No rawValue entered"
 			else:
-				return( "No valid value entered" )
-		elif not self.multiple and self.languages:
-			valuesCache[name] = LanguageWrapper( self.languages )
-			err = None
-			for lang in self.languages:
-				if "%s.%s" % ( name, lang ) in data.keys():
-					val = data["%s.%s" % ( name, lang )]
-					tmpErr = self.isInvalid( val )
-					if not tmpErr:
-						valuesCache[name][ lang ] = utils.escapeString( val )
+				if not isinstance( rawValue, list ):
+					rawValue = [rawValue]
+				for val in rawValue:
+					err = self.isInvalid(val)
+					if not err:
+						res.append(utils.escapeString(val))
 					else:
-						err = tmpErr
-			if err:
-				return( err )
-			else:
-				if len( valuesCache[name].keys() )==0: #No valid value
-					return( "No value entered" )
-			return( None )
-			
+						lastError = err
+				if len(res) > 0:
+					res = res[0:254]  # Max 254 character 
+				else:
+					lastError = "No valid rawValue entered"
+		elif not self.multiple and self.languages:
+			res = LanguageWrapper( self.languages )
+			for lang in self.languages:
+				if "%s.%s" % (name, lang) in data.keys():
+					val = data["%s.%s" % (name, lang)]
+					err = self.isInvalid(val)
+					if not err:
+						res[lang] = utils.escapeString(val)
+					else:
+						lastError = err
+			if len(res.keys())==0 and not lastError:
+				lastError = "No rawValue entered"
 		else:
-			err = self.isInvalid( value )
+			err = self.isInvalid(rawValue)
 			if not err:
-				if not value:
-					valuesCache[name] = u""
-					return( "No value entered" )
-				valuesCache[name] = utils.escapeString( value )
-				return( None )
+				res = utils.escapeString(rawValue)
 			else:
-				return( err )
+				lastError = err
+			if not rawValue and not lastError:
+				lastError = "No rawValue entered"
+		valuesCache[name] = res
+		return lastError
+				
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
 		if not name in rawFilter.keys() and not any( [(x.startswith(name+"$") or x.startswith(name+".")) for x in rawFilter.keys()] ):
