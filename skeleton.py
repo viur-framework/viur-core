@@ -280,6 +280,10 @@ class Skeleton( object ):
 
 	def setValuesCache(self, cache):
 		self.valuesCache = cache
+		if "key" in cache.keys():
+			self.__currentDbKey_ = cache["key"]
+		else:
+			self.__currentDbKey_ = None
 
 	def getValuesCache(self):
 		return self.valuesCache
