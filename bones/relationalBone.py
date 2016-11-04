@@ -294,6 +294,7 @@ class relationalBone( baseBone ):
 			:returns: None or String
 		"""
 		from server.skeleton import RefSkel, skeletonByKind
+		oldValues = valuesCache.get(name, None)
 		valuesCache[name] = []
 		tmpRes = {}
 		clientPrefix = "%s." % name
@@ -350,28 +351,26 @@ class relationalBone( baseBone ):
 
 				logging.info( "Invalid reference key >%s< detected on bone '%s'",
 							  r["dest"]["key"], name )
-
-				if 0 and isinstance(self._dbValue, dict):
-					if self._dbValue["dest"]["key"]==str(r):
-						entry = self._dbValue
+				if isinstance(oldValues, dict):
+					if oldValues["dest"]["key"]==str(r["dest"]["key"]):
+						entry = oldValues["dest"].serialize()
 						isEntryFromBackup = True
-				elif 0 and isinstance(self._dbValue, list):
-					for dbVal in self._dbValue:
-						if dbVal["dest"]["key"]==str(r):
-							entry = dbVal
+				elif isinstance(oldValues, list):
+					for dbVal in oldValues:
+						if dbVal["dest"]["key"]==str(r["dest"]["key"]):
+							entry = dbVal["dest"].serialize()
 							isEntryFromBackup = True
-
 				if not isEntryFromBackup:
 					if not self.multiple: #We can stop here :/
 						return( "Invalid entry selected" )
-				else:
-					tmpList.remove( r )
-					continue
+					else:
+						tmpList.remove(r)
+						continue
 
 			if not entry or (not isEntryFromBackup and not entry.key().kind()==self.kind): #Entry does not exist or has wrong type (is from another module)
 				if entry:
 					logging.error("I got a key, which kind doesn't match my type! (Got: %s, my type %s)" % ( entry.key().kind(), self.kind))
-				tmpList.remove( r )
+				tmpList.remove(r)
 				continue
 
 			tmp = { k: entry[k] for k in entry.keys() if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ) }
