@@ -97,7 +97,7 @@ class BaseSkeleton(object):
 						    "preProcessBlobLocks","preProcessSerializedData","postSavedHandler",
 						    "postDeletedHandler", "delete","clone","getSearchDocumentFields","subSkels",
 						    "subSkel","refresh", "valuesCache", "getValuesCache", "setValuesCache",
-						    "isClonedInstance", "setBoneValue"]:
+						    "isClonedInstance", "setBoneValue", "unserialize", "serialize"]:
 			isOkay = True
 		elif not "_BaseSkeleton__isInitialized_" in dir(self):
 			isOkay = True
@@ -122,7 +122,7 @@ class BaseSkeleton(object):
 
 
 	@classmethod
-	def subSkel(cls, name, *args):
+	def subSkel(cls, name, *args, **kwargs):
 		"""
 			Creates a new sub-skeleton as part of the current skeleton.
 
@@ -142,7 +142,8 @@ class BaseSkeleton(object):
 			:return: The sub-skeleton of the specified type.
 			:rtype: server.skeleton.Skeleton
 		"""
-		skel = cls()
+		cloned = kwargs.get("cloned", False)
+		skel = cls(cloned=cloned)
 		skel.isClonedInstance = True  # Unlock that skel for a moment sothat we can remove bones (which is a safe operation)
 
 		if "*" in skel.subSkels.keys():
@@ -172,7 +173,7 @@ class BaseSkeleton(object):
 			if not keepBone: #Remove that bone from the skeleton
 				delattr(skel, key)
 
-		skel.isClonedInstance = False  # Relock it
+		skel.isClonedInstance = cloned  # Relock it if necessary
 		return skel
 
 	def __init__( self, cloned=False, _cloneFrom=None, *args,  **kwargs ):
@@ -690,7 +691,7 @@ class Skeleton(BaseSkeleton):
 
 		# END of txnUpdate subfunction
 
-		key = self["key"]
+		key = self["key"] or None
 		if not isinstance(clearUpdateTag, bool):
 			raise ValueError(
 				"Got an unsupported type %s for clearUpdateTag. toDB doesn't accept a key argument any more!" % str(
@@ -847,28 +848,6 @@ class RelSkel(BaseSkeleton):
 		contained bones remains constant.
 	"""
 
-	@classmethod
-	def fromSkel(cls, skelCls, *args):
-		"""
-			Creates a relSkel from a skeleton-class using only the bones explicitly named
-			in *args
-		:param skelCls:
-		:param args:
-		:return:
-		"""
-		skel = cls()
-		# Remove the __isInitialized_ marker sothat we can write directly to __dataDict__ (which is a
-		# safe operation in this case as RelSkels must not be subclassed and therefore cannot contain
-		# class-level bones
-		super(BaseSkeleton, skel).__delattr__("_BaseSkeleton__isInitialized_")
-		for key in args:
-			if key in dir(skelCls):
-				setattr(skel, key, getattr(skelCls, key))
-				skel[key] = None
-		super(BaseSkeleton, skel).__setattr__("_BaseSkeleton__isInitialized_", True)
-		return skel
-
-
 	def fromClient( self, data ):
 		"""
 			Reads the data supplied by data.
@@ -932,6 +911,28 @@ class RelSkel(BaseSkeleton):
 				else:
 					_bone.unserialize( self.valuesCache, bkey, values )
 
+
+class RefSkel(RelSkel):
+	@classmethod
+	def fromSkel(cls, skelCls, *args):
+		"""
+			Creates a relSkel from a skeleton-class using only the bones explicitly named
+			in *args
+		:param skelCls:
+		:param args:
+		:return:
+		"""
+		skel = cls(cloned=True)
+		# Remove the __isInitialized_ marker sothat we can write directly to __dataDict__ (which is a
+		# safe operation in this case as RelSkels must not be subclassed and therefore cannot contain
+		# class-level bones
+		#super(BaseSkeleton, skel).__delattr__("_BaseSkeleton__isInitialized_")
+		for key in args:
+			if key in dir(skelCls):
+				setattr(skel, key, getattr(skelCls, key))
+				skel[key] = None
+		#super(BaseSkeleton, skel).__setattr__("_BaseSkeleton__isInitialized_", True)
+		return skel
 
 class SkelList( list ):
 	"""

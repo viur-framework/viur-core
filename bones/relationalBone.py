@@ -293,7 +293,7 @@ class relationalBone( baseBone ):
 			:type data: Dict
 			:returns: None or String
 		"""
-		from server.skeleton import RelSkel, skeletonByKind
+		from server.skeleton import RefSkel, skeletonByKind
 		valuesCache[name] = []
 		tmpRes = {}
 		clientPrefix = "%s." % name
@@ -376,7 +376,7 @@ class relationalBone( baseBone ):
 
 			tmp = { k: entry[k] for k in entry.keys() if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ) }
 			tmp["key"] = r["dest"]["key"]
-			relSkel = RelSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
+			relSkel = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
 			relSkel.unserialize(tmp)
 			r["dest"] = relSkel
 
