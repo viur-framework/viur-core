@@ -995,13 +995,12 @@ class TaskUpdateSearchIndex( CallableTaskBase ):
 	This tasks loads and saves *every* entity of the given module.
 	This ensures an updated searchIndex and verifies consistency of this data.
 	"""
-	key = "rebuildsearchIndex"
+	key = "rebuildSearchIndex"
 	name = u"Rebuild search index"
 	descr = u"This task can be called to update search indexes and relational information."
 
-	direct = True
 
-	def canCall( self ):
+	def canCall(self):
 		"""
 		Checks wherever the current user can execute this task
 		:returns: bool
@@ -1011,20 +1010,17 @@ class TaskUpdateSearchIndex( CallableTaskBase ):
 
 	def dataSkel(self):
 		modules = ["*"] + listKnownSkeletons()
-
-		skel = RelSkel()
-
+		skel = BaseSkeleton(cloned=True)
 		skel.module = selectOneBone( descr="Module", values={ x: x for x in modules}, required=True )
-		def verifyCompact( val ):
+		def verifyCompact(val):
 			if not val or val.lower()=="no" or val=="YES":
-				return( None )
-			return("Must be \"No\" or uppercase \"YES\" (very dangerous!)")
+				return None
+			return "Must be \"No\" or uppercase \"YES\" (very dangerous!)"
 		skel.compact = stringBone(descr="Recreate Entities", vfunc=verifyCompact, required=False, defaultValue="NO")
+		return skel
 
-		return( skel )
 
-
-	def execute( self, module, compact="", *args, **kwargs ):
+	def execute(self, module, compact="", *args, **kwargs):
 		usr = utils.getCurrentUser()
 		if not usr:
 			logging.warning("Don't know who to inform after rebuilding finished")
@@ -1086,7 +1082,7 @@ class TaskUpdateOneEntity(CallableTaskBase):
 	"""
 	This tasks loads and saves *one* entity with the given key.
 	This ensures an updated searchIndex and verifies consistency of this data.
-	
+
 	It shall be used for debug and testing purposes.
 	"""
 	key = "updateoneentity"
