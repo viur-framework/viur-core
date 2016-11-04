@@ -72,7 +72,7 @@ class BaseSkeleton(object):
 	def __setattr__(self, key, value):
 		if "_BaseSkeleton__isInitialized_" in dir(self):
 			if not key in ["valuesCache", "isClonedInstance"] and not self.isClonedInstance:
-				raise AttributeError("You cannot directly modify the skeleton instance. Use [] instead!")
+				raise AttributeError("You cannot directly modify the skeleton instance. Grab a copy using .clone() first!")
 			if not "__dataDict__" in dir( self ):
 				super(BaseSkeleton, self).__setattr__("__dataDict__", OrderedDict())
 			if not "__" in key and key != "isClonedInstance":
@@ -87,7 +87,7 @@ class BaseSkeleton(object):
 
 	def __delattr__(self, key):
 		if "_BaseSkeleton__isInitialized_" in dir(self) and not self.isClonedInstance:
-			raise AttributeError("You cannot directly modify the skeleton instance. Use [] instead!")
+			raise AttributeError("You cannot directly modify the skeleton instance. Grab a copy using .clone() first!")
 		del self.__dataDict__[key]
 
 	def __getattribute__(self, item):
@@ -175,7 +175,7 @@ class BaseSkeleton(object):
 		skel.isClonedInstance = False  # Relock it
 		return skel
 
-	def __init__( self, _cloneFrom=None, *args,  **kwargs ):
+	def __init__( self, cloned=False, _cloneFrom=None, *args,  **kwargs ):
 		"""
 			Initializes a Skeleton.
 			
@@ -201,9 +201,13 @@ class BaseSkeleton(object):
 			tmpList.sort(key=lambda x: x[1].idx)
 			#logging.error(tmpList)
 			for key, bone in tmpList:
-				self.__dataDict__[key] = bone
+				if cloned:
+					self.__dataDict__[key] = copy.deepcopy(bone)
+					self.__dataDict__[key].isClonedInstance = True
+				else:
+					self.__dataDict__[key] = bone
 				self.valuesCache[key] = bone.getDefaultValue()
-			self.isClonedInstance = False
+			self.isClonedInstance = cloned
 		if "enforceUniqueValuesFor" in dir(self) and self.enforceUniqueValuesFor is not None:
 			raise NotImplementedError("enforceUniqueValuesFor is not supported anymore. Set unique=True on your bone.")
 		self.__isInitialized_ = True
@@ -221,7 +225,21 @@ class BaseSkeleton(object):
 			:returns: The stand-alone copy of the object.
 			:rtype: Skeleton
 		"""
-		return( type( self )( _cloneFrom=self ) )
+		return type(self)(_cloneFrom=self)
+
+	def ensureIsCloned(self):
+		"""
+			Ensure that we are a instance that can be modified.
+			If we are, just self is returned (it's a no-op), otherwise
+			we'll return a cloned copy.
+
+			:return: A copy from self or just self itself
+			:rtype: BaseSkeleton
+		"""
+		if self.isClonedInstance:
+			return self
+		else:
+			return self.clone()
 
 	def __setitem__(self, key, value):
 		if isinstance(value, baseBone):
