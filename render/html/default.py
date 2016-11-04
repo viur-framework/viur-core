@@ -3,7 +3,7 @@ import utils as jinjaUtils
 from wrap import ListWrapper, SkelListWrapper
 
 from server import utils, request, errors, securitykey
-from server.skeleton import Skeleton, RelSkel, skeletonByKind
+from server.skeleton import Skeleton, BaseSkeleton, RefSkel, skeletonByKind
 from server.bones import *
 
 from collections import OrderedDict
@@ -219,7 +219,7 @@ class Render( object ):
 				"multiple": bone.multiple,
 				"format": bone.format,
 				"using": self.renderSkelStructure(bone.using()) if bone.using else None,
-				"relskel": self.renderSkelStructure(RelSkel.fromSkel(skeletonByKind(bone.kind), *bone.refKeys))
+				"relskel": self.renderSkelStructure(RefSkel.fromSkel(skeletonByKind(bone.kind), *bone.refKeys))
 			})
 
 		elif bone.type == "selectone" or bone.type.startswith("selectone.") or bone.type == "selectmulti" or bone.type.startswith("selectmulti."):
@@ -384,10 +384,8 @@ class Render( object ):
 		skel["skey"] = securitykey.create()
 
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
-			if isinstance(skel, Skeleton):
-				super( Skeleton, skel ).__setattr__( "errors", {} )
-			elif isinstance(skel, RelSkel):
-				super( RelSkel, skel ).__setattr__( "errors", {} )
+			if isinstance(skel, BaseSkeleton):
+				super(BaseSkeleton, skel).__setattr__( "errors", {} )
 
 		return template.render(skel={"structure":self.renderSkelStructure(skel),
 		                                "errors":skel.errors,
@@ -424,10 +422,8 @@ class Render( object ):
 		skel["skey"] = securitykey.create()
 
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
-			if isinstance(skel, Skeleton):
-				super( Skeleton, skel ).__setattr__( "errors", {} )
-			elif isinstance(skel, RelSkel):
-				super( RelSkel, skel ).__setattr__( "errors", {} )
+			if isinstance(skel, BaseSkeleton):
+				super(Skeleton, skel).__setattr__( "errors", {} )
 
 		return template.render( skel={"structure": self.renderSkelStructure(skel),
 		                                "errors": skel.errors,
@@ -765,9 +761,9 @@ class Render( object ):
 		"""
 		headers = {}
 		user = utils.getCurrentUser()
-		if isinstance(skel, Skeleton) or isinstance(skel, RelSkel):
+		if isinstance(skel, BaseSkeleton):
 			res = self.collectSkelData( skel )
-		elif isinstance(skel, list) and all([(isinstance(x, Skeleton) or isinstance(x,RelSkel)) for x in skel]):
+		elif isinstance(skel, list) and all([isinstance(x, BaseSkeleton) for x in skel]):
 			res = [ self.collectSkelData( x ) for x in skel ]
 		else:
 			res = skel
