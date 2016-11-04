@@ -862,7 +862,7 @@ class RelSkel(BaseSkeleton):
 			@returns: True if the data was successfully read; False otherwise (eg. some required fields where missing or invalid)
 		"""
 		complete = True
-		super(RelSkel,self).__setattr__( "errors", {} )
+		super(BaseSkeleton, self).__setattr__("errors", {})
 		for key,_bone in self.items():
 			if _bone.readOnly:
 				continue
@@ -876,7 +876,7 @@ class RelSkel(BaseSkeleton):
 			if error  and _bone.required:
 				complete = False
 		if( len( data )==0 or (len(data)==1 and "key" in data) or ("nomissing" in data.keys() and str(data["nomissing"])=="1") ):
-			self.errors = {}
+			super(BaseSkeleton, self).__setattr__("errors", {})
 		return( complete )
 
 	def serialize(self):

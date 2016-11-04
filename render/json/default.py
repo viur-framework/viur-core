@@ -44,7 +44,6 @@ class DefaultRender(object):
 				boneType = "treedir"
 			else:
 				boneType = "relational"
-
 			ret.update({
 				"type": "%s.%s" % (boneType, bone.kind),
 				"module": bone.module,

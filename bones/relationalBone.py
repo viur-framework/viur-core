@@ -100,10 +100,10 @@ class relationalBone( baseBone ):
 			:return: Our Value (with restored RelSkel and using-Skel)
 		"""
 		value = extjson.loads(val)
-		from server.skeleton import RelSkel, skeletonByKind
+		from server.skeleton import RefSkel, skeletonByKind
 		assert isinstance(value, dict), "Read something from the datastore thats not a dict: %s" % str(type(value))
 
-		relSkel = RelSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
+		relSkel = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
 
 		# !!!ViUR re-design compatibility!!!
 		if not "dest" in value.keys():
@@ -458,7 +458,7 @@ class relationalBone( baseBone ):
 		return( name, skel, dbFilter, rawFilter )
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
-		from server.skeleton import RelSkel, skeletonByKind
+		from server.skeleton import RefSkel, skeletonByKind
 		origFilter = dbFilter.datastoreQuery
 
 		if origFilter is None:  #This query is unsatisfiable
@@ -475,7 +475,7 @@ class relationalBone( baseBone ):
 			if dbFilter.getKind()!="viur-relations" and self.multiple:
 				name, skel, dbFilter, rawFilter = self._rewriteQuery( name, skel, dbFilter, rawFilter )
 
-			relSkel = RelSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
+			relSkel = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
 
 			# Merge the relational filters in
 			for myKey in myKeys:
@@ -738,11 +738,11 @@ class relationalBone( baseBone ):
 
 
 	def getSearchTags(self, values, key):
-		from server.skeleton import RelSkel
+		from server.skeleton import BaseSkeleton
 
 		def getValues(res, entry):
 			for part in ["dest", "rel"]:
-				if not isinstance(entry.get(part), RelSkel):
+				if not isinstance(entry.get(part), BaseSkeleton):
 					continue
 
 				for k, bone in entry[part].items():
@@ -783,7 +783,7 @@ class relationalBone( baseBone ):
 			:return: Wherever that operation succeeded or not.
 			:rtype: bool
 		"""
-		from server.skeleton import RelSkel, skeletonByKind
+		from server.skeleton import RefSkel, skeletonByKind
 		def relSkelFromKey(key):
 			if not isinstance(key, db.Key):
 				key = db.Key(encoded=key)
@@ -794,7 +794,7 @@ class relationalBone( baseBone ):
 			if not entity:
 				logging.error("Key %s not found" % str(key))
 				return None
-			relSkel = RelSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
+			relSkel = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
 			relSkel.unserialize(entity)
 			return relSkel
 		if append and not self.multiple:
