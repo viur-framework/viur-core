@@ -58,7 +58,7 @@ class MetaSkel( type ):
 		    and not "viur_doc_build" in dir(sys)): #Do not check while documentation build
 				raise NotImplementedError("Skeletons must be defined in /skeletons/")
 
-		if cls.kindName:
+		if cls.kindName and cls.kindName is not __undefindedC__:
 			MetaSkel._skelCache[cls.kindName] = cls
 
 		for key in dir(cls):
@@ -280,6 +280,10 @@ class Skeleton( object ):
 
 	def setValuesCache(self, cache):
 		self.valuesCache = cache
+		if "key" in cache.keys():
+			self.__currentDbKey_ = cache["key"]
+		else:
+			self.__currentDbKey_ = None
 
 	def getValuesCache(self):
 		return self.valuesCache

@@ -154,7 +154,7 @@ class textBone( baseBone ):
 				if k.startswith("%s." % name ):
 					del entity[ k ]
 			for lang in self.languages:
-				if lang in valuesCache[name].keys():
+				if isinstance(valuesCache[name], dict) and lang in valuesCache[name].keys():
 					val = valuesCache[name][ lang ]
 					if not val or (not HtmlSerializer().santinize(val).strip() and not "<img " in val):
 						#This text is empty (ie. it might contain only an empty <p> tag
