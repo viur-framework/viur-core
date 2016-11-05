@@ -272,7 +272,7 @@ class BaseSkeleton(object):
 			current skeleton instance.
 
 			:warning: Performs no error-checking for invalid values! Its possible to set invalid values
-			which may break the serialize/deserialize function of the related bone!
+				which may break the serialize/deserialize function of the related bone!
 
 			If no bone could be found for a given key, this key is ignored. Any values of other bones
 			not mentioned in *values* remain unchanged.
@@ -325,7 +325,7 @@ class BaseSkeleton(object):
 			:param value: The value that should be assigned. It's type depends on the type of that bone
 			:type value: object
 			:param append: If true, the given value is appended to the values of that bone instead of
-			replacing it. Only supported on bones with multiple=True
+				replacing it. Only supported on bones with multiple=True
 			:type append: bool
 			:return: Wherever that operation succeeded or not.
 			:rtype: bool
@@ -534,7 +534,7 @@ class Skeleton(BaseSkeleton):
 			To read a Skeleton object from the data store, see :func:`~server.skeleton.Skeleton.fromDB`.
 
 			:param clearUpdateTag: If True, this entity won't be marked dirty;
-			This avoids from being fetched by the background task updating relations.
+				This avoids from being fetched by the background task updating relations.
 			:type clearUpdateTag: bool
 
 			:returns: The data store key of the entity.
@@ -892,9 +892,11 @@ class RelSkel(BaseSkeleton):
 
 	def unserialize(self, values):
 		"""
-			Loads 'values' into this skeleton
-		:param values:
-		:return:
+			Loads 'values' into this skeleton.
+
+			:param values: Dict with values we'll assign to our bones
+			:type values: dict | db.Entry
+			:return:
 		"""
 		for bkey,_bone in self.items():
 			if isinstance( _bone, baseBone ):
@@ -917,10 +919,14 @@ class RefSkel(RelSkel):
 	def fromSkel(cls, skelCls, *args):
 		"""
 			Creates a relSkel from a skeleton-class using only the bones explicitly named
-			in *args
-		:param skelCls:
-		:param args:
-		:return:
+			in \*args
+
+			:param skelCls: A class or instance of BaseSkel we'll adapt the model from
+			:type skelCls: BaseSkeleton
+			:param args: List of bone names we'll adapt
+			:type args: list of str
+			:return: A new instance of RefSkel
+			:rtype: RefSkel
 		"""
 		skel = cls(cloned=True)
 		# Remove the __isInitialized_ marker sothat we can write directly to __dataDict__ (which is a

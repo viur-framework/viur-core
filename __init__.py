@@ -88,11 +88,13 @@ def translate( key, **kwargs ):
 	To support internationalization, it is simply done this way:
 
 	.. code-block:: python
+
 		txt = _( "Hello {{user}}!", user="John Doe" ) + " - "  + _( "Welcome to ViUR" )
 
 	Language support is also provided in Jinja2-templates like this:
 
-	.. code-block:: jinja2
+	.. code-block:: jinja
+
 		{{ _( "Hello {{user}}!", user="John Doe" ) }} - {{ _( "Welcome to ViUR" ) }}
 
 	This will both output "Hello John Doe! - Welcome to ViUR" in an english-configured language environment,
@@ -101,15 +103,16 @@ def translate( key, **kwargs ):
 	The current session language (or default language) can be overridden with ``_lang``, e.g.
 
 	.. code-block:: python
+
 		txt = _( "Hello {{user}}!", user="John Doe" ) + " - "  + _( "Welcome to ViUR", lang="en" )
 
 	will result in "Hallo John Doe! - Welcome to ViUR" in a german-configured language environment.
 
-	:param key: The key value that should be translated; If no key is found in the configured language,\
-	key is directly used.
+	:param key: The key value that should be translated; If no key is found in the configured language,
+		key is directly used.
 	:type key: str
-	:param kwargs: May contain place-holders replaced as ``{{placeholer}}`` within the key or translation.\
-	The special-value ``_lang`` overrides the current language setting.
+	:param kwargs: May contain place-holders replaced as ``{{placeholer}}`` within the key or translation.
+		The special-value ``_lang`` overrides the current language setting.
 
 	:return: Translated text or key, with replaced placeholders, if given.
 	:rtype: str

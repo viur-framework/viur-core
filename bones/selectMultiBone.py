@@ -14,6 +14,7 @@ class selectMultiBone( baseBone ):
 	def __init__(self, defaultValue=[], values={}, *args, **kwargs):
 		"""
 			Creates a new SelectMultiBone
+
 			:param defaultValue: List of keys which will be checked by default
 			:type defaultValue: List
 			:param values: Dict of key->value pairs from which the user can choose from. Values will be translated

@@ -16,6 +16,7 @@ class HTTPException( Exception ):
 		:type descr: str
 
 		"""
+		super(HTTPException, self).__init__()
 		self.status = status
 		self.name = name
 		self.descr = descr
@@ -184,7 +185,7 @@ class ReadFromClientError( object ):
 	"""
 		ReadFromClientError
 
-		Internal use only. Used as a __return-value__ (its not raised!) to transport information on errors
+		Internal use only. Used as a **return-value** (its not raised!) to transport information on errors
 		from fromClient in bones to the surrounding skeleton class
 	"""
 	def __init__(self, errors, forceFail=False):
