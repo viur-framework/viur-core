@@ -97,7 +97,7 @@ class BaseSkeleton(object):
 						    "preProcessBlobLocks","preProcessSerializedData","postSavedHandler",
 						    "postDeletedHandler", "delete","clone","getSearchDocumentFields","subSkels",
 						    "subSkel","refresh", "valuesCache", "getValuesCache", "setValuesCache",
-						    "isClonedInstance", "setBoneValue", "unserialize", "serialize"]:
+						    "isClonedInstance", "setBoneValue", "unserialize", "serialize", "ensureIsCloned"]:
 			isOkay = True
 		elif not "_BaseSkeleton__isInitialized_" in dir(self):
 			isOkay = True
