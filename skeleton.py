@@ -262,6 +262,7 @@ class Skeleton( object ):
 				self.__dataDict__[key].isClonedInstance = True
 			self.valuesCache = copy.deepcopy(_cloneFrom.valuesCache)
 			self.isClonedInstance = True
+			self.errors = copy.deepcopy(_cloneFrom.errors)
 		else:
 			tmpList = []
 			for key in dir(self):
