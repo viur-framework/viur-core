@@ -1,0 +1,9 @@
+<div id="vi_0_db_produkt_edit_Details_bn_{{ boneName }}" class="vi-boneEditor inputGroup">
+    {% for key, descr in boneParams["values"].items() %}
+        <div class="radio">
+            <input id="vi_checkbox_{{ boneName }}_{{ key }}" class="radio-input" type="checkbox" name="{{ boneName }}"
+                   value="{{ key }}" {% if boneValue and key in boneValue %} checked="checked"{% endif %}>
+            <label for="vi_checkbox_{{ boneName }}_{{ key }}" class="radio-label">{{ descr }}</label>
+        </div>
+    {% endfor %}
+</div>
