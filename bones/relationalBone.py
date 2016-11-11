@@ -100,10 +100,10 @@ class relationalBone( baseBone ):
 			:return: Our Value (with restored RelSkel and using-Skel)
 		"""
 		value = extjson.loads(val)
-		from server.skeleton import RelSkel, skeletonByKind
+		from server.skeleton import RefSkel, skeletonByKind
 		assert isinstance(value, dict), "Read something from the datastore thats not a dict: %s" % str(type(value))
 
-		relSkel = RelSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
+		relSkel = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
 
 		# !!!ViUR re-design compatibility!!!
 		if not "dest" in value.keys():
@@ -293,7 +293,8 @@ class relationalBone( baseBone ):
 			:type data: Dict
 			:returns: None or String
 		"""
-		from server.skeleton import RelSkel, skeletonByKind
+		from server.skeleton import RefSkel, skeletonByKind
+		oldValues = valuesCache.get(name, None)
 		valuesCache[name] = []
 		tmpRes = {}
 		clientPrefix = "%s." % name
@@ -350,33 +351,31 @@ class relationalBone( baseBone ):
 
 				logging.info( "Invalid reference key >%s< detected on bone '%s'",
 							  r["dest"]["key"], name )
-
-				if 0 and isinstance(self._dbValue, dict):
-					if self._dbValue["dest"]["key"]==str(r):
-						entry = self._dbValue
+				if isinstance(oldValues, dict):
+					if oldValues["dest"]["key"]==str(r["dest"]["key"]):
+						entry = oldValues["dest"].serialize()
 						isEntryFromBackup = True
-				elif 0 and isinstance(self._dbValue, list):
-					for dbVal in self._dbValue:
-						if dbVal["dest"]["key"]==str(r):
-							entry = dbVal
+				elif isinstance(oldValues, list):
+					for dbVal in oldValues:
+						if dbVal["dest"]["key"]==str(r["dest"]["key"]):
+							entry = dbVal["dest"].serialize()
 							isEntryFromBackup = True
-
 				if not isEntryFromBackup:
 					if not self.multiple: #We can stop here :/
 						return( "Invalid entry selected" )
-				else:
-					tmpList.remove( r )
-					continue
+					else:
+						tmpList.remove(r)
+						continue
 
 			if not entry or (not isEntryFromBackup and not entry.key().kind()==self.kind): #Entry does not exist or has wrong type (is from another module)
 				if entry:
 					logging.error("I got a key, which kind doesn't match my type! (Got: %s, my type %s)" % ( entry.key().kind(), self.kind))
-				tmpList.remove( r )
+				tmpList.remove(r)
 				continue
 
 			tmp = { k: entry[k] for k in entry.keys() if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ) }
 			tmp["key"] = r["dest"]["key"]
-			relSkel = RelSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
+			relSkel = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
 			relSkel.unserialize(tmp)
 			r["dest"] = relSkel
 
@@ -458,7 +457,7 @@ class relationalBone( baseBone ):
 		return( name, skel, dbFilter, rawFilter )
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
-		from server.skeleton import RelSkel, skeletonByKind
+		from server.skeleton import RefSkel, skeletonByKind
 		origFilter = dbFilter.datastoreQuery
 
 		if origFilter is None:  #This query is unsatisfiable
@@ -475,7 +474,7 @@ class relationalBone( baseBone ):
 			if dbFilter.getKind()!="viur-relations" and self.multiple:
 				name, skel, dbFilter, rawFilter = self._rewriteQuery( name, skel, dbFilter, rawFilter )
 
-			relSkel = RelSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
+			relSkel = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
 
 			# Merge the relational filters in
 			for myKey in myKeys:
@@ -738,11 +737,11 @@ class relationalBone( baseBone ):
 
 
 	def getSearchTags(self, values, key):
-		from server.skeleton import RelSkel
+		from server.skeleton import BaseSkeleton
 
 		def getValues(res, entry):
 			for part in ["dest", "rel"]:
-				if not isinstance(entry.get(part), RelSkel):
+				if not isinstance(entry.get(part), BaseSkeleton):
 					continue
 
 				for k, bone in entry[part].items():
@@ -783,7 +782,7 @@ class relationalBone( baseBone ):
 			:return: Wherever that operation succeeded or not.
 			:rtype: bool
 		"""
-		from server.skeleton import RelSkel, skeletonByKind
+		from server.skeleton import RefSkel, skeletonByKind
 		def relSkelFromKey(key):
 			if not isinstance(key, db.Key):
 				key = db.Key(encoded=key)
@@ -794,7 +793,7 @@ class relationalBone( baseBone ):
 			if not entity:
 				logging.error("Key %s not found" % str(key))
 				return None
-			relSkel = RelSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
+			relSkel = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
 			relSkel.unserialize(entity)
 			return relSkel
 		if append and not self.multiple:

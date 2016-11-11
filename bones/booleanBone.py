@@ -41,7 +41,7 @@ class booleanBone( baseBone ):
 		err = self.isInvalid(value)
 		if not err:
 			valuesCache[name] = value
-			return True
+			return False
 		else:
 			return err
 
