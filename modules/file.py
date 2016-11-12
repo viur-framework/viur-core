@@ -458,7 +458,7 @@ def startDeleteWeakReferences():
 		Delete all weak file references older than a day.
 		If that file isn't referenced elsewhere, it's deleted, too.
 	"""
-	doDeleteWeakReferences((datetime.now() - timedelta(days = 1)).strftime("%d.%m.%Y %H:%M:%S"))
+	doDeleteWeakReferences((datetime.now() - timedelta(days = 1)).strftime("%d.%m.%Y %H:%M:%S"), None)
 
 
 def doDeleteWeakReferences(timeStamp, cursor):

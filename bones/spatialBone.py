@@ -142,6 +142,7 @@ class spatialBone( baseBone ):
 			Parses the searchfilter a client specified in his Request into
 			something understood by the datastore.
 			This function must:
+
 				* Ignore all filters not targeting this bone
 				* Safely handle malformed data in rawFilter
 					(this parameter is directly controlled by the client)
