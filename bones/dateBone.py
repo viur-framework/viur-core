@@ -66,7 +66,7 @@ class dateBone( baseBone ):
 			:param time: Should this bone contain time information?
 			:type time: bool
 			:param localize: Automatically convert this time into the users timezone? Only valid if this bone
-                contains date and time-information!
+                                contains date and time-information!
 			:type localize: bool
 		"""
 		baseBone.__init__( self,  *args,  **kwargs )

@@ -3,7 +3,7 @@ import utils as jinjaUtils
 from wrap import ListWrapper, SkelListWrapper
 
 from server import utils, request, errors, securitykey
-from server.skeleton import Skeleton, RelSkel, skeletonByKind
+from server.skeleton import Skeleton, BaseSkeleton, RefSkel, skeletonByKind
 from server.bones import *
 
 from collections import OrderedDict
@@ -19,9 +19,11 @@ class Render( object ):
 		First, the default jinja2-api is exposed to your templates. See http://jinja.pocoo.org/ for
 		more information. Second, we'll pass data das global variables to templates depending on the
 		current action.
+
 			- For list() we'll pass `skellist` - a :py:class:`server.render.jinja2.default.SkelListWrapper` instance
 			- For view(): skel - a dictionary with values from the skeleton prepared for use inside html
 			- For add()/edit: a dictionary as `skel` with `values`, `structure` and `errors` as keys.
+
 		Third, a bunch of global filters (like urlencode) and functions (getEntry, ..) are available  to templates.
 
 		See the ViUR Documentation for more information about functions and data available to jinja2 templates.
@@ -153,8 +155,9 @@ class Render( object ):
 			This method checks the given template for lines starting with "##" - the old, now unsupported
 			Line-Prefix. Bail out if such prefixes are used. This is a temporary safety measure; will be
 			removed after 01.05.2017.
-		:param fn: The filename to check
-		:return:
+
+			:param fn: The filename to check
+			:return:
 		"""
 		if not "_safeTemplatesCache" in dir( self ):
 			self._safeTemplatesCache = [] #Scan templates at most once per instance
@@ -219,7 +222,7 @@ class Render( object ):
 				"multiple": bone.multiple,
 				"format": bone.format,
 				"using": self.renderSkelStructure(bone.using()) if bone.using else None,
-				"relskel": self.renderSkelStructure(RelSkel.fromSkel(skeletonByKind(bone.kind), *bone.refKeys))
+				"relskel": self.renderSkelStructure(RefSkel.fromSkel(skeletonByKind(bone.kind), *bone.refKeys))
 			})
 
 		elif bone.type == "selectone" or bone.type.startswith("selectone.") or bone.type == "selectmulti" or bone.type.startswith("selectmulti."):
@@ -362,7 +365,7 @@ class Render( object ):
 
 			A jinja2-macro, which builds such kind of forms, is shipped with the server.
 
-			Any data in **kwargs is passed unmodified to the template.
+			Any data in \*\*kwargs is passed unmodified to the template.
 
 			:param skel: Skeleton of the entry which should be created.
 			:type skel: server.db.skeleton.Skeleton
@@ -384,10 +387,8 @@ class Render( object ):
 		skel["skey"] = securitykey.create()
 
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
-			if isinstance(skel, Skeleton):
-				super( Skeleton, skel ).__setattr__( "errors", {} )
-			elif isinstance(skel, RelSkel):
-				super( RelSkel, skel ).__setattr__( "errors", {} )
+			if isinstance(skel, BaseSkeleton):
+				super(BaseSkeleton, skel).__setattr__( "errors", {} )
 
 		return template.render(skel={"structure":self.renderSkelStructure(skel),
 		                                "errors":skel.errors,
@@ -402,7 +403,7 @@ class Render( object ):
 
 			A jinja2-macro, which builds such kind of forms, is shipped with the server.
 
-			Any data in **kwargs is passed unmodified to the template.
+			Any data in \*\*kwargs is passed unmodified to the template.
 
 			:param skel: Skeleton of the entry which should be modified.
 			:type skel: server.db.skeleton.Skeleton
@@ -424,10 +425,8 @@ class Render( object ):
 		skel["skey"] = securitykey.create()
 
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
-			if isinstance(skel, Skeleton):
-				super( Skeleton, skel ).__setattr__( "errors", {} )
-			elif isinstance(skel, RelSkel):
-				super( RelSkel, skel ).__setattr__( "errors", {} )
+			if isinstance(skel, BaseSkeleton):
+				super(Skeleton, skel).__setattr__( "errors", {} )
 
 		return template.render( skel={"structure": self.renderSkelStructure(skel),
 		                                "errors": skel.errors,
@@ -497,7 +496,7 @@ class Render( object ):
 		"""
 			Renders a list of entries.
 
-			Any data in **kwargs is passed unmodified to the template.
+			Any data in \*\*kwargs is passed unmodified to the template.
 
 			:param skellist: List of Skeletons with entries to display.
 			:type skellist: server.db.skeleton.SkelList
@@ -549,7 +548,7 @@ class Render( object ):
 		"""
 			Renders a single entry.
 
-			Any data in **kwargs is passed unmodified to the template.
+			Any data in \*\*kwargs is passed unmodified to the template.
 
 			:param skel: Skeleton to be displayed.
 			:type skellist: server.db.skeleton.Skeleton
@@ -754,7 +753,7 @@ class Render( object ):
 			:type skel: server.db.skeleton.Skeleton | dict
 
 			:param tpl: Name of the email-template to use. If this string is longer than 100 characters,
-			this string is interpreted as the template contents instead of its filename.
+				this string is interpreted as the template contents instead of its filename.
 			:type tpl: str
 
 			:param dests: Destination recipients.
@@ -765,9 +764,9 @@ class Render( object ):
 		"""
 		headers = {}
 		user = utils.getCurrentUser()
-		if isinstance(skel, Skeleton) or isinstance(skel, RelSkel):
+		if isinstance(skel, BaseSkeleton):
 			res = self.collectSkelData( skel )
-		elif isinstance(skel, list) and all([(isinstance(x, Skeleton) or isinstance(x,RelSkel)) for x in skel]):
+		elif isinstance(skel, list) and all([isinstance(x, BaseSkeleton) for x in skel]):
 			res = [ self.collectSkelData( x ) for x in skel ]
 		else:
 			res = skel
@@ -801,13 +800,13 @@ class Render( object ):
 
 	def getEnv(self):
 		"""
-		Constucts the Jinja2 environment.
+			Constucts the Jinja2 environment.
 
-		If an application specifies an jinja2Env function, this function
-		can alter the environment before its used to parse any template.
+			If an application specifies an jinja2Env function, this function
+			can alter the environment before its used to parse any template.
 
-		:returns: Extended Jinja2 environment.
-		:rtype jinja2.Environment
+			:returns: Extended Jinja2 environment.
+			:rtype: jinja2.Environment
 		"""
 		def mkLambda(func, s):
 			return lambda *args, **kwargs: func(s, *args, **kwargs)

@@ -232,9 +232,9 @@ class TaskHandler:
 			skey = kwargs["skey"]
 		else:
 			skey = ""
-		if not skel.fromClient( kwargs ) or len(kwargs)==0 or skey=="" or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
-			return( self.render.add( skel ) )
-		if not securitykey.validate( skey ):
+		if len(kwargs)==0 or skey=="" or not skel.fromClient(kwargs) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
+			return self.render.add( skel )
+		if not securitykey.validate(skey):
 			raise errors.PreconditionFailed()
 		task.execute( **skel.getValues() )
 		return self.render.addItemSuccess( skel )
