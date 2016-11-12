@@ -1,0 +1,7 @@
+<div class="vi-boneEditor inputGroup">
+    <select class="select" name="{{ boneName }}" id="vi_0_db_produkt_edit_Allgemein_bn_kauftenauch">
+        {% for key, descr in boneParams["values"].items() %}
+            <option value="{{ key }}" {% if boneValue==key %} selected="selected"{% endif %}>{{ descr }}</option>
+        {% endfor %}
+    </select>
+</div>
