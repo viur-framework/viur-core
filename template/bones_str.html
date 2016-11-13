@@ -1,0 +1,78 @@
+<div class="vi-boneEditor" xmlns="http://www.w3.org/1999/html">
+    {% set readOnly = "" %}
+    {% if boneParams.readOnly %}
+        {% set readOnly = 'readonly="readonly"' %}
+    {% endif %}
+    {% if boneParams.multiple and boneParams.languages %}
+        <div class="vi-boneTranslator" id="vi_0_db_produkt_edit_Allgemein_bn_name">
+            <div class="vi-boneEditor">
+                {% for lang in boneParams.languages %}
+                    <div class="vi-languageWrapper js_viur_bones_str_languageWrapper" data-name="{{ boneName }}"
+                         data-lang="{{ lang }}">
+                        <div class="js_viur_bones_str_multiStrWrapper">
+                            {% if boneValue %}
+                                {% for val in boneValue.get(lang, []) %}
+                                    <div class="js_viur_bones_str_singleStrWrapper">
+                                        <input class="input js_viur_bones_str_translatedSingle" type="text"
+                                               name="{{ boneName }}.{{ lang }}"
+                                               value="{{ val }}">
+                                        <button class="button js_viur_bones_str_delteSingleStrWrapper">Delete</button>
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
+                            <button class="button js_viur_bones_str_addSingleStrWrapper">Add</button>
+                        </div>
+                    </div>
+                {% endfor %}
+                <select class="select js_viur_bones_str_languageSelector" name="{{ boneName }}_language_selector"
+                        data-name="{{ boneName }}"
+                        id="vi_0_db_produkt_edit_Allgemein_bn_kauftenauch">
+                    {% for lang in boneParams.languages %}
+                        <option value="{{ lang }}">{{ lang }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    {% elif not boneParams.multiple and boneParams.languages %}
+        <div class="vi-boneTranslator" id="vi_0_db_produkt_edit_Allgemein_bn_name">
+            <div class="vi-boneEditor">
+                {% for lang in boneParams.languages %}
+                    <div class="vi-languageWrapper js_viur_bones_str_languageWrapper" data-name="{{ boneName }}"
+                         data-lang="{{ lang }}">
+                        <input class="input" type="text"
+                               name="{{ boneName }}.{{ lang }}"
+                               value="{% if boneValue %}{{ boneValue.get(lang,"") }}{% endif %}">
+                    </div>
+                {% endfor %}
+            </div>
+            <select class="select js_viur_bones_str_languageSelector" name="{{ boneName }}_language_selector"
+                    data-name="{{ boneName }}"
+                    id="vi_0_db_produkt_edit_Allgemein_bn_kauftenauch">
+                {% for lang in boneParams.languages %}
+                    <option value="{{ lang }}">{{ lang }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    {% elif boneParams.multiple and not boneParams.languages %}
+        <div class="js_viur_bones_str_multiStrWrapper" data-name="{{ boneName }}">
+            {% if boneValue %}
+                {% for val in boneValue %}
+                    <div class="js_viur_bones_str_singleStrWrapper">
+                        <input class="input js_viur_bones_str_translatedSingle" type="text"
+                               name="{{ boneName }}"
+                               value="{{ val }}">
+                        <button class="button js_viur_bones_str_delteSingleStrWrapper">Delete</button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+            <button class="button js_viur_bones_str_addSingleStrWrapper">Add</button>
+        </div>
+    {% else %}
+        {% if not boneParams.visible %}
+            <input {{ readonly }} type="hidden" name="{{ boneName }}" value="{{ boneValue or "" }}"/>
+        {% else %}
+            <input class="input" type="text" name="{{ boneName }}" value="{{ boneValue or "" }}" {{ readonly }}>
+        {% endif %}
+    {% endif %}
+
+</div>

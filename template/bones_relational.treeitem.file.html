@@ -1,0 +1,78 @@
+{% if not boneParams.multiple %}
+    {# Single #}
+    <div class="vi-file inputGroup inputGroupFile {% if not boneParams.readOnly %}js_viur_bones_file_uploadableInputGroup{% endif %} {% if not boneValue %}isEmpty{% endif %}"
+         data-name="{{ boneName }}"
+         data-multiple="0">
+        <div class="vi-fileBone-previewImg"
+             style="background-image: url(https://lh3.googleusercontent.com/TQFr6JDH1tKAHO0fl80hFTCYwooKAuxdxe0wb6kYVadC3vvwQACAVy63p4y47VzEb86vNfKwp7pjBgm-MnwwkxLX=s150)">
+        </div>
+        <span class="input{% if boneParams.readOnly %} is-readonly{% endif %}">{% if boneValue %}
+            {{ boneValue.name }}{% endif %}</span>
+        {% if not boneParams.readOnly %}
+            <button class="btn icon edit js_viur_bones_file_uploadFileButton" type="button" data-name="{{ boneName }}">
+                Upload
+            </button>
+            <button class="btn icon cancel btn-vDanger js_viur_bones_file_removeFile" type="button">Entfernen</button>
+            <span class="uploader" style="width: 300px; height: 50px;"></span>
+        {% endif %}
+        <input type="hidden" name="{{ boneName }}.0.key" value="{% if boneValue %}{{ boneValue.key }}{% endif %}">
+
+    </div>
+{% else %}
+    {# Multiple #}
+    <div class="vi-boneEditor can-upload" id="vi_0_db_produkt_edit_Allgemein_bn_images">
+        <div class="vi-selection js_viur_bones_file_reordableArea" data-name="{{ boneName }}">
+            {% if boneValue %}
+                {% for value in boneValue %}
+                    <div class="vi-file inputGroup inputGroupFile js_viur_bones_file_reordableItem" data-multiple="1"
+                         {% if not boneParams.readOnly %}draggable="true"{% endif %}>
+                        <div class="vi-fileMultiBone-previewImg"
+                             style="background-image: url(https://lh3.ggpht.com/_DxEjeyW0oiWYfHUg7g6GIJei67Vqd8B_y-kXOV9tdcTOig-6ON3WLRIGSud51hMp3Crq2BprU9XXi3I4xNiLSCM=s150)">
+                        </div>
+                        <span class="input {% if boneParams.readOnly %}is-readonly{% endif %}">{{ value.name }}</span>
+                        {% if not boneParams.readOnly %}
+                            <button class="btn icon edit is-disabled js_viur_bones_file_uploadFileButton" type="button">
+                                Bearbeiten
+                            </button>
+                            <button class="btn icon cancel btn-vDanger is-disabled js_viur_bones_file_removeFile"
+                                    type="button">Entfernen
+                            </button>
+                            <span class="uploader" style="width: 300px; height: 50px;"></span>
+                        {% endif %}
+                        <input type="hidden" name="{{ boneName }}.{{ loop.index0 }}.key" value="{{ value.key }}">
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+        {% if not boneParams.readOnly %}
+            <button class="btn icon edit js_viur_bones_file_addFiles" type="button">
+            Hinzufügen
+        {% endif %}
+        </button>
+
+    </div>
+{% endif %}
+<style type="text/css">
+    .reodableAreaInsertAfter {
+        margin-bottom: 40px;
+    }
+
+    .reodableAreaInsertBefore {
+        margin-top: 40px;
+    }
+
+    .reodableAreaItemIsDragged {
+        opacity: 0.2;
+    }
+
+    .js_viur_bones_file_reordableArea {
+        padding-bottom: 20px;
+        padding-top: 20px;
+        border: 1px solid red;
+    }
+
+    .js_viur_bones_file_reordableItem {
+        border: 1px solid green;
+    }
+</style>
+
