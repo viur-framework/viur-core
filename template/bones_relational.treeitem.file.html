@@ -4,7 +4,7 @@
          data-name="{{ boneName }}"
          data-multiple="0">
         <div class="vi-fileBone-previewImg"
-             style="background-image: url(https://lh3.googleusercontent.com/TQFr6JDH1tKAHO0fl80hFTCYwooKAuxdxe0wb6kYVadC3vvwQACAVy63p4y47VzEb86vNfKwp7pjBgm-MnwwkxLX=s150)">
+             {% if boneValue and boneValue.servingurl %}style="background-image: url({{ boneValue.servingurl }}=s150)"{% endif %}>
         </div>
         <span class="input{% if boneParams.readOnly %} is-readonly{% endif %}">{% if boneValue %}
             {{ boneValue.name }}{% endif %}</span>
@@ -27,7 +27,7 @@
                     <div class="vi-file inputGroup inputGroupFile js_viur_bones_file_reordableItem" data-multiple="1"
                          {% if not boneParams.readOnly %}draggable="true"{% endif %}>
                         <div class="vi-fileMultiBone-previewImg"
-                             style="background-image: url(https://lh3.ggpht.com/_DxEjeyW0oiWYfHUg7g6GIJei67Vqd8B_y-kXOV9tdcTOig-6ON3WLRIGSud51hMp3Crq2BprU9XXi3I4xNiLSCM=s150)">
+                             {% if value.servingurl %}style="background-image: url({{ value.servingurl }}=s150)"{% endif %}>
                         </div>
                         <span class="input {% if boneParams.readOnly %}is-readonly{% endif %}">{{ value.name }}</span>
                         {% if not boneParams.readOnly %}
@@ -53,6 +53,12 @@
     </div>
 {% endif %}
 <style type="text/css">
+    .vi-fileMultiBone-previewImg, .vi-fileBone-previewImg {
+        width: 100px;
+        height: 100px;
+        display: block;
+    }
+
     .reodableAreaInsertAfter {
         margin-bottom: 40px;
     }

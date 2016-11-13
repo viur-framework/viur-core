@@ -72,6 +72,7 @@ $(document).ready(function () {
                 inputGroup.find("span[class='input']").html("");
                 inputGroup.find("span[class='uploader']").children().remove();
                 inputGroup.find("input[type='hidden']").val("");
+                inputGroup.find("div[class~='vi-fileMultiBone-previewImg'], div[class~='vi-fileBone-previewImg']").css("background-image", "");
                 inputGroup.toggleClass("isEmpty", true);
             }
 
@@ -112,6 +113,12 @@ $(document).ready(function () {
                 inputGroup.find("span[class='input']").append(document.createTextNode(fileData.name));
                 inputGroup.find("span[class='uploader']").children().remove();
                 inputGroup.find("input[type='hidden']").val(fileData.key);
+                if (fileData.servingurl) {
+                    inputGroup.find("div[class~='vi-fileMultiBone-previewImg'], div[class~='vi-fileBone-previewImg']").css("background-image", "url("+fileData.servingurl+"=s150)")
+                } else {
+                    inputGroup.find("div[class~='vi-fileMultiBone-previewImg'], div[class~='vi-fileBone-previewImg']").css("background-image", "")
+                }
+
                 inputGroup.toggleClass("isEmpty", false);
             }
         }
