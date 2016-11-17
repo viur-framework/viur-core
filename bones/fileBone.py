@@ -8,8 +8,8 @@ import logging
 
 class fileBone(treeItemBone):
 	kind = "file"
-	refKeys = ["name", "meta_mime", "metamime", "mimetype", "dlkey", "servingurl", "size"]
-	
+	refKeys = ["key", "name", "meta_mime", "metamime", "mimetype", "dlkey", "servingurl", "size"]
+
 	def __init__(self, format="$(dest.name)",*args, **kwargs ):
 		assert "dlkey" in self.refKeys, "You cannot remove dlkey from refKeys!"
 		super( fileBone, self ).__init__( format=format, *args, **kwargs )
