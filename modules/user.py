@@ -289,7 +289,7 @@ class GoogleAccount(object):
 				else:
 					userSkel["gaeadmin"] = False
 				assert userSkel.toDB()
-			return self.userModule.authenticateUser(userSkel["key"], thirdPartyLogin=True)
+			return self.userModule.continueAuthenticationFlow(self, userSkel["key"])
 		raise errors.Redirect( users.create_login_url( self.modulePath+"/login") )
 
 class Otp2Factor( object ):
@@ -515,11 +515,11 @@ class User(List):
 		session.current["_mayBeUserKey"] = str(userKey)
 		session.current.markChanged()
 		for authProvider, secondFactor in self.validAuthenticationMethods:
-			if secondFactor is None:
-				# We allow sign-in without a second factor
-				return self.authenticateUser(userKey)
-			
 			if isinstance(caller, authProvider):
+				if secondFactor is None:
+					# We allow sign-in without a second factor
+					return self.authenticateUser(userKey)
+
 				# This Auth-Request was issued from this authenticationProvider
 				secondFactorProvider = self.secondFactorProviderByClass(secondFactor)
 
