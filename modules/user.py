@@ -292,17 +292,17 @@ class GoogleAccount(object):
 			return self.userModule.continueAuthenticationFlow(self, userSkel["key"])
 		raise errors.Redirect( users.create_login_url( self.modulePath+"/login") )
 
-class Otp2Factor( object ):
+class TimeBasedOTP(object):
 	windowSize = 5
 
 	def __init__(self, userModule, modulePath):
-		super(Otp2Factor, self).__init__()
+		super(TimeBasedOTP, self).__init__()
 		self.userModule = userModule
 		self.modulePath = modulePath
 
 	@classmethod
 	def get2FactorMethodName(*args,**kwargs):
-		return u"X-VIUR-2Factor-Otp"
+		return u"X-VIUR-2FACTOR-TimeBasedOTP"
 
 	def canHandle(self, userKey):
 		user = db.Get(userKey)
@@ -319,7 +319,7 @@ class Otp2Factor( object ):
 								"timestamp": time(),
 								"failures": 0}
 			session.current.markChanged()
-			return self.userModule.render.loginSucceeded(msg="ONE-TIME-PASSWORD")
+			return self.userModule.render.loginSucceeded(msg="X-VIUR-2FACTOR-TimeBasedOTP")
 
 		return None
 
@@ -428,9 +428,9 @@ class User(List):
 	passwordRecoveryMail = "user_password_recovery"
 
 	authenticationProviders = [UserPassword, GoogleAccount]
-	secondFactorProviders = [Otp2Factor]
+	secondFactorProviders = [TimeBasedOTP]
 
-	validAuthenticationMethods = [(UserPassword, Otp2Factor), (UserPassword, None), (GoogleAccount, None)]
+	validAuthenticationMethods = [(UserPassword, TimeBasedOTP), (UserPassword, None), (GoogleAccount, None)]
 
 	adminInfo = {
 		"name": "User",
