@@ -413,7 +413,7 @@ class BaseSkeleton(object):
 
 class MetaSkel(MetaBaseSkel):
 	def __init__(cls, name, bases, dct):
-		super(MetaBaseSkel, cls).__init__(name, bases, dct)
+		super(MetaSkel, cls).__init__(name, bases, dct)
 		relNewFileName = inspect.getfile(cls).replace(os.getcwd(), "")
 
 		# Automatic determination of the kindName, if the class is not part of the server.

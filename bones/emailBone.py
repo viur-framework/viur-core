@@ -21,7 +21,7 @@ class emailBone( stringBone ):
 		except:
 			return "Invalid email entered"
 		isValid = True
-		validChars = string.ascii_letters + string.digits + "!#$%&'*+-/=?^_`{|}~"
+		validChars = string.ascii_letters + string.digits + "!#$%&'*+-/=?^_`{|}~."
 		unicodeLowerBound = u"\u0080"
 		unicodeUpperBound = u"\U0010FFFF"
 		for char in account:
