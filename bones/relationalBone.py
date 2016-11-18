@@ -113,7 +113,7 @@ class relationalBone( baseBone ):
 			nvalue["dest"] = value
 			value = nvalue
 
-		if "id" in value["dest"].keys() and not "key" in value["dest"].keys():
+		if "id" in value["dest"].keys() and not("key" in value["dest"].keys() and value["dest"]["key"]):
 			value["dest"]["key"] = value["dest"]["id"]
 			del value["dest"]["id"]
 		# UNTIL HERE!
