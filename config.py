@@ -34,8 +34,8 @@ conf = {
 		"viur.importPassword": None, # Activates the Database import API if set. Must be exactly 32 chars. *Everyone* knowing this password can rewrite the whole database!
 		"viur.requestPreprocessor": None, # Allows the application to register a function that's called before the request gets routed
 		"viur.debug.traceExceptions": False, #If enabled, user-generated exceptions from the server.errors module won't be caught and handled
-		"viur.debug.traceExternalCallRouting": True, #If enabled, ViUR will log which (exposed) function are called from outside with what arguments
-		"viur.debug.traceInternalCallRouting": True, #If enabled, ViUR will log which (internal-exposed) function are called from templates with what arguments
+		"viur.debug.traceExternalCallRouting": False, #If enabled, ViUR will log which (exposed) function are called from outside with what arguments
+		"viur.debug.traceInternalCallRouting": False, #If enabled, ViUR will log which (internal-exposed) function are called from templates with what arguments
 		"viur.debug.traceQueries": True, #If enabled, we log all datastore queries performed
 		"viur.errorHandler": None, #If set, ViUR call this function instead of rendering the viur.errorTemplate if an exception occurs
 		"viur.errorTemplate": "server/template/error.html", #Path to the template to render if an unhandled error occurs. This is a Python String-template, *not* a jinja2 one!
@@ -44,7 +44,8 @@ conf = {
 		"viur.session.persistentFieldsOnLogout": [], #If set, these Fields will survive the session.reset() called on user/logout
 		"viur.session.lifeTime": 60*60, #Default is 60 minutes lifetime for ViUR sessions
 		"bugsnag.apiKey": None #If set, ViUR will report Errors to bugsnag
-	}
+}
+
 
 
 class SharedConf(  ):
