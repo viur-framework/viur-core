@@ -308,7 +308,13 @@ def buildApp( config, renderers, default=None, *args, **kwargs ):
 			logging.warning("The Export-API is enabled. Everyone having that key can read the whole database!")
 
 		setattr( res, "dbtransfer", DbTransfer() )
-
+	if conf["viur.debug.traceExternalCallRouting"] or conf["viur.debug.traceInternalCallRouting"]:
+		from server import utils
+		try:
+			utils.sendEMailToAdmins("Debug mode enabled",
+			                        "ViUR just started a new Instance with calltracing enabled! This will log sensitive information!")
+		except:  # OverQuota, whatever
+			pass  # Dont render this instance unusable
 	if default in rendlist and "renderEmail" in dir (rendlist[ default ]["default"]()):
 		conf["viur.emailRenderer"] = rendlist[ default ]["default"]().renderEmail
 	elif "html" in list(rendlist.keys()):

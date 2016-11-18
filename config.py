@@ -20,9 +20,9 @@ conf = {
 
 	"viur.db.caching" : 2, #Cache strategy used by the database. 2: Aggressive, 1: Safe, 0: Off
 	"viur.debug.traceExceptions": False, #If enabled, user-generated exceptions from the server.errors module won't be caught and handled
-	"viur.debug.traceExternalCallRouting": True, #If enabled, ViUR will log which (exposed) function are called from outside with what arguments
-	"viur.debug.traceInternalCallRouting": True, #If enabled, ViUR will log which (internal-exposed) function are called from templates with what arguments
-	"viur.debug.traceQueries": True, #If enabled, we log all datastore queries performed
+	"viur.debug.traceExternalCallRouting": False, #If enabled, ViUR will log which (exposed) function are called from outside with what arguments
+	"viur.debug.traceInternalCallRouting": False, #If enabled, ViUR will log which (internal-exposed) function are called from templates with what arguments
+	"viur.debug.traceQueries": False, #If enabled, we log all datastore queries performed
 	"viur.defaultLanguage": "en", #Unless overridden by the Project: Use english as default language
 	"viur.disableCache": False, #If set to true, the decorator @enableCache from server.cache has no effect
 	"viur.domainLanguageMapping": {},  #Maps Domains to alternative default languages
