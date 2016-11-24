@@ -504,9 +504,15 @@ def renderEditForm(render, skel, ignore=None, hide=None, style=None):
 			sections[category] = []
 		sections[category].append((boneName, boneParams))
 	for category, boneList in sections.items():
+		allReadOnly = True
+		allHidden = True
 		categoryContent = u""
 		for boneName, boneParams in boneList:
 			boneWasInvalid = isinstance(skel["errors"], dict) and boneName in skel["errors"].keys()
+			if not boneParams["readOnly"]:
+				allReadOnly = False
+			if boneParams["visible"]:
+				allHidden = False
 			editWidget = renderEditBone(render, skel, boneName)
 			categoryContent += rowTpl.render(boneName = boneName,
 			                                 boneParams = boneParams,
@@ -514,7 +520,9 @@ def renderEditForm(render, skel, ignore=None, hide=None, style=None):
 			                                 editWidget = editWidget)
 		res += sectionTpl.render(categoryName=category,
 		                         categoryClassName = "".join([x for x in category if x in string.ascii_letters]),
-		                         categoryContent = categoryContent)
+		                         categoryContent = categoryContent,
+		                         allReadOnly = allReadOnly,
+		                         allHidden = allHidden)
 
 
 	return res
