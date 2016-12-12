@@ -346,7 +346,7 @@ def updateURL(render, **kwargs):
 
 	for key, value in list(kwargs.items()):
 		if value is None:
-			if value in tmpparams.keys():
+			if key in tmpparams.keys():
 				del tmpparams[ key ]
 		else:
 			tmpparams[key] = value
