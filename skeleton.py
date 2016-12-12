@@ -959,6 +959,7 @@ class SkelList( list ):
 		super( SkelList, self ).__init__()
 		self.baseSkel = baseSkel
 		self.cursor = None
+		self.customQueryInfo = {}
 
 	def __iter__(self):
 		for cacheItem in super(SkelList, self).__iter__():
