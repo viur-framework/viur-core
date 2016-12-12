@@ -346,14 +346,9 @@ class Render( object ):
 		res = {}
 		for key, bone in skel.items():
 			val = self.renderBoneValue(bone, skel, key)
-			if val is None:
-				continue
-
 			res[key] = val
-
 			if isinstance(res[key], list):
 				res[key] = ListWrapper(res[key])
-
 		return res
 
 	def add(self, skel, tpl=None, *args, **kwargs):
