@@ -10,6 +10,7 @@ class ListWrapper( list ):
 		"""
 			Initializes this wrapper by copying the values from src
 		"""
+		super(ListWrapper, self).__init__()
 		self.extend( src )
 	
 	def __getitem__( self, key ):
