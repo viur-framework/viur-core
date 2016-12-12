@@ -409,7 +409,7 @@ class Query( object ):
 				self.datastoreQuery[ k ] = v
 		if "cursor" in filters.keys() and filters["cursor"] and filters["cursor"].lower()!="none":
 			self.cursor( filters["cursor"] )
-		if "amount" in list(filters.keys()) and str(filters["amount"]).isdigit() and int( filters["amount"] ) >0 and int( filters["amount"] ) <= 500:
+		if "amount" in list(filters.keys()) and str(filters["amount"]).isdigit() and int( filters["amount"] ) >0 and int( filters["amount"] ) <= 100:
 			self.limit( int(filters["amount"]) )
 		if "postProcessSearchFilter" in dir( skel ):
 			skel.postProcessSearchFilter( self, filters )
@@ -846,7 +846,7 @@ class Query( object ):
 		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
 		amount = limit if limit!=-1 else self.amount
-		if amount < 1 or amount > 500:
+		if amount < 1 or amount > 100:
 			raise NotImplementedError("This query is not limited! You must specify an upper bound using limit() between 1 and 100")
 		from server.skeleton import SkelList
 		res = SkelList( self.srcSkel )
