@@ -651,20 +651,31 @@ def createNewUserIfNotExists():
 	"""
 		Create a new Admin user, if the userDB is empty
 	"""
-	if "user" in dir(conf["viur.mainApp"]):# We have a user module
-		userMod = getattr(conf["viur.mainApp"], "user")
-		if isinstance( userMod, User ) and "addSkel" in dir(userMod): #Its our user module :)
-			if not db.Query( userMod.addSkel().kindName ).get(): #There's currently no user in the database
-				addSkel = skeletonByKind(userMod.addSkel().kindName)() # Ensure we have the full skeleton
-				uname = "admin@%s.appspot.com" % app_identity.get_application_id()
-				pw = utils.generateRandomString( 13 )
-				addSkel["name"] = uname
-				addSkel["status"] = 10 # Ensure its enabled right away
-				addSkel["access"] = ["root"]
-				addSkel["password"] = pw
-				try:
-					addSkel.toDB()
-				except:
-					return
-				logging.warn("ViUR created a new admin-user for you! Username: %s, Password: %s" % (uname,pw) )
-				utils.sendEMailToAdmins( "Your new ViUR password", "ViUR created a new admin-user for you! Username: %s, Password: %s" % (uname,pw) )
+	userMod = getattr(conf["viur.mainApp"], "user")
+
+	if (userMod # We have a user module
+	    and isinstance(userMod, User)
+	    and "addSkel" in dir(userMod)
+	    and "validAuthenticationMethods" in dir(userMod) #Its our user module :)
+		and any([x[0] is UserPassword for x in userMod.validAuthenticationMethods])): #It uses UserPassword login
+
+		if not db.Query(userMod.addSkel().kindName).get(): #There's currently no user in the database
+			addSkel = skeletonByKind(userMod.addSkel().kindName)() # Ensure we have the full skeleton
+
+			uname = "admin@%s.appspot.com" % app_identity.get_application_id()
+			pw = utils.generateRandomString(13)
+
+			addSkel["name"] = uname
+			addSkel["status"] = 10 # Ensure its enabled right away
+			addSkel["access"] = ["root"]
+			addSkel["password"] = pw
+
+			try:
+				addSkel.toDB()
+			except:
+				logging.error("Something went wrong when trying to add admin user")
+				return
+
+			logging.warning("ViUR created a new admin-user for you! Username: %s, Password: %s" % (uname, pw))
+			utils.sendEMailToAdmins("Your new ViUR password",
+			                        "ViUR created a new admin-user for you! Username: %s, Password: %s" % (uname, pw))
