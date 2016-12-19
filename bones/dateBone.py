@@ -172,22 +172,25 @@ class dateBone( baseBone ):
 		"""
 		timeZone = "UTC" # Default fallback
 		try:
-			#Check the local cache first
+			# Check the local cache first
 			if "timeZone" in request.current.requestData().keys():
 				return( request.current.requestData()["timeZone"] )
 			headers = request.current.get().request.headers
 			if "X-Appengine-Country" in headers.keys():
 				country = headers["X-Appengine-Country"]
-			else: # Maybe local development Server - no way to guess it here
+			else:  # Maybe local development Server - no way to guess it here
 				return( timeZone )
 			tzList = pytz.country_timezones[ country ]
-		except: #Non-User generated request (deferred call; task queue etc), or no pytz
+		except:  # Non-User generated request (deferred call; task queue etc), or no pytz
 			return( timeZone )
-		if len( tzList ) == 1: # Fine - the country has exactly one timezone
+		if len( tzList ) == 1:  # Fine - the country has exactly one timezone
 			timeZone = tzList[ 0 ]
-		elif country.lower()=="us": # Fallback for the US
+		elif country.lower()=="us":  # Fallback for the US
 			timeZone = "EST"
-		else: #The user is in a Country which has more than one timezone
+		elif country.lower() == "de":  # For some freaking reason Germany is listed with two timezones
+			timeZone = "Europe/Berlin"
+		else:  # The user is in a Country which has more than one timezone
+			# Fixme: Is there any equivalent of EST for australia?
 			pass
 		request.current.requestData()["timeZone"] = timeZone #Cache the result
 		return( timeZone ) 
@@ -195,7 +198,7 @@ class dateBone( baseBone ):
 	def readLocalized(self, value ):
 		"""Read a (probably localized Value) from the Client and convert it back to UTC"""
 		res = value
-		if 1 or not self.localize or not value or not isinstance( value, datetime) :
+		if not self.localize or not value or not isinstance( value, datetime) :
 			return( res )
 		#Nomalize the Date to UTC
 		timeZone = self.guessTimeZone()
