@@ -180,10 +180,6 @@ class GaeSession:
 		"""
 		if self.changed:
 			serialized = base64.b64encode( pickle.dumps(self.session, protocol=pickle.HIGHEST_PROTOCOL ) )
-			if len(serialized)>620000 and len(serialized)<=920000:
-				logging.warning("Your session is very large (%s bytes)! It cannot be larger than 900KB!" % len( serialized ) )
-			elif len(serialized)>920000:
-				logging.critical("Your session stores too much data! Expect failure!")
 			self.getSessionKey( req )
 			# Get the current user id
 			userid = None
