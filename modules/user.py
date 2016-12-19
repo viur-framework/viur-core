@@ -41,7 +41,7 @@ class userSkel(Skeleton):
 
 	# One-Time Password Verification
 	otpid = stringBone(descr="OTP serial", required=False, indexed=True, searchable=True)
-	otpkey = stringBone(descr="OTP hex key", required=False, indexed=True)
+	otpkey = credentialBone(descr="OTP hex key", required=False, indexed=True)
 	otptimedrift = numericBone(descr="OTP time drift", readOnly=True, defaultValue=0)
 
 
