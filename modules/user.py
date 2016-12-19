@@ -102,18 +102,20 @@ class UserPassword(object):
 		# We do this exactly that way to avoid timing attacks
 
 		# Check if the username matches
-		if len(res[ "name.idx" ]) != len(name.lower()):
+		storedUserName = res.get("name.idx", "")
+		if len(storedUserName) != len(name.lower()):
 			isOkay = False
 		else:
-			for x, y in izip(res[ "name.idx" ], name.lower()):
+			for x, y in izip(storedUserName, name.lower()):
 				if x != y:
 					isOkay = False
 
 		# Check if the password matches
-		if len(res["password"]) != len(passwd):
+		storedPasswordHash = res.get("password", "")
+		if len(storedPasswordHash) != len(passwd):
 			isOkay = False
 		else:
-			for x, y in izip(res["password"], passwd):
+			for x, y in izip(storedPasswordHash, passwd):
 				if x != y:
 					isOkay = False
 
