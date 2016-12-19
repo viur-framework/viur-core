@@ -588,14 +588,22 @@ class User(List):
 
 	@exposed
 	def logout(self, skey="", *args,  **kwargs):
+		"""
+			Implements the logout action. It also terminates the current session (all keys not listed
+			in viur.session.persistentFieldsOnLogout will be lost).
+		"""
 		user = session.current.get("user")
 		if not user:
 			raise errors.Unauthorized()
-
 		if not securitykey.validate(skey):
 			raise errors.PreconditionFailed()
-
-		session.current["user"] = None
+		oldSession = {k: v for k, v in session.current.items()}  # Store all items in the current session
+		session.current.reset()
+		# Copy the persistent fields over
+		for k in conf["viur.session.persistentFieldsOnLogout"]:
+			if k in oldSession.keys():
+				session.current[k] = oldSession[k]
+		del oldSession
 		return self.render.logoutSuccess()
 
 	@exposed
