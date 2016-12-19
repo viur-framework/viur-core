@@ -248,6 +248,7 @@ class UserPassword(object):
 
 
 class GoogleAccount(object):
+	registrationEnabled = False
 
 	def __init__(self, userModule, modulePath):
 		super(GoogleAccount, self).__init__()
@@ -270,6 +271,10 @@ class GoogleAccount(object):
 				# We'll try again - checking if there's already an user with that email
 				userSkel = addSkel().all().filter("name.idx =", currentUser.email().lower()).getSkel()
 				if not userSkel: # Still no luck - it's a completely new user
+					if not self.registrationEnabled and not users.is_current_user_admin():
+						# Registration is disabled, it's a new user and that user is not admin
+						logging.warning("Denying registration of %s", currentUser.email())
+						raise errors.Forbidden("Registration for new users is disabled")
 					userSkel = addSkel() # We'll add a new user
 				userSkel["uid"] = uid
 				userSkel["name"] = currentUser.email()
