@@ -26,7 +26,7 @@ def generateRandomString( length=13 ):
 				for x in range( length ) ] ) )
 
 	
-def sendEMail( dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,*args,**kwargs ):
+def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None, *args, **kwargs):
 	"""
 	General purpose function for sending e-mail.
 
