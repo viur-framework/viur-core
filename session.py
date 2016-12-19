@@ -269,17 +269,16 @@ class GaeSession:
 
 			:warning: Everything (except the current language) is flushed.
 		"""
-		try:
-			lang = self.session[ "language" ]
-		except:
-			lang = None
+		lang = self.session.get("language")
+		if self.key:
+			db.Delete(db.Key.from_path(self.kindName, self.key))
 		self.key = None
 		self.sslKey = None
 		self.sessionSecurityKey = None
 		self.changed = True
 		self.session = {}
 		if lang:
-			self.session[ "language" ] = lang
+			self.session["language"] = lang
 			
 	def getSessionKey( self, req=None ):
 		"""
