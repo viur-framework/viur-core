@@ -9,6 +9,11 @@ from time import time
 import inspect, os, sys, logging, copy
 from google.appengine.api import search
 
+try:
+	import pytz
+except:
+	pytz = None
+
 class BoneCounter(local):
 	def __init__(self):
 		self.count = 0
@@ -455,17 +460,19 @@ class Skeleton(BaseSkeleton):
 	# The "key" bone stores the current database key of this skeleton.
 	# Warning: Assigning to this bones value is dangerous and does *not* affect the actual key
 	# its stored in
-	key = baseBone( descr="key", readOnly=True, visible=False )
+	key = baseBone(descr="key", readOnly=True, visible=False)
 
 	# The date (including time) when this entry has been created
-	creationdate = dateBone( descr="created at",
-	                         readOnly=True, visible=False,
-	                         creationMagic=True, indexed=True  )
+	creationdate = dateBone(descr="created at",
+	                        readOnly=True, visible=False,
+	                        creationMagic=True, indexed=True,
+	                        localize=bool(pytz))
 
 	# The last date (including time) when this entry has been updated
-	changedate = dateBone( descr="updated at",
-	                       readOnly=True, visible=False,
-	                       updateMagic=True, indexed=True, )
+	changedate = dateBone(descr="updated at",
+	                        readOnly=True, visible=False,
+	                        updateMagic=True, indexed=True,
+	                        localize=bool(pytz))
 
 	def __init__(self, *args, **kwargs):
 		super(Skeleton, self).__init__(*args, **kwargs)

@@ -123,7 +123,7 @@ class UserPassword(object):
 
 		if not isOkay:
 			skel=self.loginSkel()
-			skel["name"].fromClient("name",{"name":name} )
+			skel.fromClient({"name": name, "nomissing": "1"})
 			return self.userModule.render.login(skel, loginFailed=True)
 		else:
 			if not "password_salt" in res.keys(): #Update the password to the new, more secure format
