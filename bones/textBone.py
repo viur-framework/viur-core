@@ -120,8 +120,7 @@ class textBone( baseBone ):
 	def generageSearchWidget(target,name="TEXT BONE",mode="equals"):
 		return ( {"name":name,"mode":mode,"target":target,"type":"text"} )
 
-
-	def __init__( self, validHtml=__undefinedC__, indexed=False, languages=None, *args, **kwargs ):
+	def __init__( self, validHtml=__undefinedC__, indexed=False, languages=None, maxLength=200000, *args, **kwargs ):
 		baseBone.__init__( self,  *args, **kwargs )
 		if indexed:
 			raise NotImplementedError("indexed=True is not supported on textBones")
@@ -134,6 +133,7 @@ class textBone( baseBone ):
 			raise ValueError("languages must be None or a list of strings ")
 		self.languages = languages
 		self.validHtml = validHtml
+		self.maxLength = maxLength
 		if self.languages:
 			self.defaultValue = LanguageWrapper( self.languages )
 
@@ -235,6 +235,16 @@ class textBone( baseBone ):
 			if not err:
 				valuesCache[name] = HtmlSerializer(self.validHtml).santinize(value)
 			return err
+
+	def isInvalid( self, value ):
+		"""
+			Returns None if the value would be valid for
+			this bone, an error-message otherwise.
+		"""
+		if value==None:
+			return "No value entered"
+		if len(value) > self.maxLength:
+			return "Maximum length exceeded"
 
 	def getReferencedBlobs(self, valuesCache, name):
 		"""
