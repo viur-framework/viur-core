@@ -692,7 +692,7 @@ class relationalBone( baseBone ):
 				logging.error("Invalid dictionary in updateInplace: %s" % relDict)
 				return
 
-			if "key" in valDict.keys():
+			if "key" in valDict.keys() and valDict["key"]:
 				originalKey = valDict["key"]
 			else:
 				logging.error("Invalid dictionary in updateInplace: %s" % valDict)
