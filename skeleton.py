@@ -85,7 +85,7 @@ class BaseSkeleton(object):
 					self.__dataDict__[key] =  value
 					self.valuesCache[key] = value.getDefaultValue()
 				elif value is None and key in self.__dataDict__.keys(): #Allow setting a bone to None again
-					self.__dataDict__[key] =  value
+					del self.__dataDict__[key]
 				elif key not in ["valuesCache"]:
 					raise ValueError("You tried to do what?")
 		super(BaseSkeleton, self).__setattr__(key, value)
