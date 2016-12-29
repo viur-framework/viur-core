@@ -1061,7 +1061,7 @@ def processChunk(module, compact, cursor, allCount=0, notify=None):
 		return
 	query = Skel().all().cursor( cursor )
 	count = 0
-	for key in query.run(100, keysOnly=True):
+	for key in query.run(25, keysOnly=True):
 		count += 1
 		try:
 			skel = Skel()
@@ -1074,6 +1074,7 @@ def processChunk(module, compact, cursor, allCount=0, notify=None):
 		except Exception as e:
 			logging.error("Updating %s failed" % str(key) )
 			logging.exception( e )
+			raise
 	newCursor = query.getCursor()
 	logging.info("END processChunk %s, %d records refreshed" % (module, count))
 	if count and newCursor and newCursor.urlsafe() != cursor:
