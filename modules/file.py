@@ -42,8 +42,13 @@ class fileBaseSkel(TreeLeafSkel):
 		if res and res["oldkey"] == self["dlkey"]:
 			self["dlkey"] = res["newkey"]
 			self["servingurl"] = res["servingurl"]
-
 			logging.info("Refreshing file dlkey %s (%s)" % (self["dlkey"], self["servingurl"]))
+		else:
+			if self["servingurl"]:
+				try:
+					self["servingurl"] = images.get_serving_url(self["dlkey"])
+				except Exception as e:
+					logging.exception(e)
 		super(fileBaseSkel, self).refresh()
 
 	def preProcessBlobLocks(self, locks):
