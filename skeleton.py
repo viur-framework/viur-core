@@ -1070,7 +1070,7 @@ def processChunk(module, compact, cursor, allCount=0, notify=None):
 				raise NotImplementedError() #FIXME: This deletes the __currentKey__ property..
 				skel.delete()
 			skel.refresh()
-			skel.toDB()
+			skel.toDB(clearUpdateTag=True)
 		except Exception as e:
 			logging.error("Updating %s failed" % str(key) )
 			logging.exception( e )
