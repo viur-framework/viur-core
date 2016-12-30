@@ -12,7 +12,7 @@ class BasicApplication(object):
 	application. For more information, refer to the function :func:`_resolveSkel`.
 	:vartype kindName: str
 
-	:ivar render: will be set to the appropriate render instance like html json or admin/vi renderer on runtime
+	:ivar render: will be set to the appropriate render instance at runtime
 	"""
 
 	kindName = None  # The generic kindname for this module.
