@@ -1,6 +1,7 @@
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 from server import conf
 from server.skeleton import skeletonByKind
+
 
 class BasicApplication(object):
 	"""
@@ -10,9 +11,11 @@ class BasicApplication(object):
 	This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the \
 	application. For more information, refer to the function :func:`_resolveSkel`.
 	:vartype kindName: str
+
+	:ivar render: will be set to the appropriate render instance like html json or admin/vi renderer on runtime
 	"""
 
-	kindName = None # The generic kindname for this module.
+	kindName = None  # The generic kindname for this module.
 
 	adminInfo = None
 	accessRights = None
@@ -20,6 +23,7 @@ class BasicApplication(object):
 	def __init__(self, moduleName, modulePath, *args, **kwargs):
 		self.moduleName = moduleName
 		self.modulePath = modulePath
+		self.render = None
 
 		if self.adminInfo and self.accessRights:
 			for r in self.accessRights:
