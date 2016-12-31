@@ -167,9 +167,9 @@ class UserPassword(object):
 				pass
 			user["changedate"] = datetime.datetime.now()
 			db.Put(user)
-			skel = self.userModule.viewSkel()
+			skel = self.userModule.viewSkel().ensureIsCloned()
 			assert skel.fromDB(user.key())
-			skel["skey"] = baseBone(descr="Skey")
+			skel.skey = baseBone(descr="Skey")
 			skel["skey"] = securitykey.create(60*60*24, userKey=str(user.key()), password=skel["password"])
 			utils.sendEMail([skel["name"]], self.userModule.passwordRecoveryMail, skel)
 			return self.userModule.render.view(skel, self.passwordRecoveryInstuctionsSendTemplate)
