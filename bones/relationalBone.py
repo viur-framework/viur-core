@@ -789,7 +789,7 @@ class relationalBone( baseBone ):
 			if not isinstance(key, db.Key):
 				key = db.Key(encoded=key)
 			if not key.kind() == self.kind:
-				logging.error("I got a key, which kind doesn't match my type! (Got: %s, my type %s)" % ( key().kind(), self.kind))
+				logging.error("I got a key, which kind doesn't match my type! (Got: %s, my type %s)" % (key.kind(), self.kind))
 				return None
 			entity = db.Get(key)
 			if not entity:
