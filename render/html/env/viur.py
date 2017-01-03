@@ -34,15 +34,21 @@ def execRequest(render, path, *args, **kwargs):
 	if conf["viur.disableCache"] or request.current.get().disableCache: #Caching disabled by config
 		cachetime = 0
 
+	cacheEnvKey = None
+	if conf["viur.cacheEnvironmentKey"]:
+		try:
+			cacheEnvKey = conf["viur.cacheEnvironmentKey"]()
+		except RuntimeError:
+			cachetime = 0
+
 	if cachetime:
 		#Calculate the cache key that entry would be stored under
 		tmpList = ["%s:%s" % (unicode(k), unicode(v)) for k,v in kwargs.items()]
 		tmpList.sort()
 		tmpList.extend(list(args))
 		tmpList.append(path)
-
-		if conf[ "viur.cacheEnvironmentKey" ]:
-			tmpList.append( conf[ "viur.cacheEnvironmentKey" ]() )
+		if cacheEnvKey is not None:
+			tmpList.append(cacheEnvKey)
 
 		try:
 			appVersion = request.current.get().request.environ["CURRENT_VERSION_ID"].split('.')[0]

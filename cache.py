@@ -80,7 +80,10 @@ def keyFromArgs( f, userSensitive, languageSensitive, evaluatedArgs, path, args,
 	if languageSensitive:
 		res[ "__lang" ] = request.current.get().language
 	if conf[ "viur.cacheEnvironmentKey" ]:
-		res[ "_cacheEnvironment"] = conf[ "viur.cacheEnvironmentKey" ]()
+		try:
+			res["_cacheEnvironment"] = conf["viur.cacheEnvironmentKey"]()
+		except RuntimeError:
+			return None
 	res[ "__path" ] = path #Different path might have different output (html,xml,..)
 	try:
 		appVersion = request.current.get().request.environ["CURRENT_VERSION_ID"].split('.')[0]
