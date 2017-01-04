@@ -2,7 +2,7 @@
 from server.bones import treeItemBone
 from server import db, request
 from server.utils import normalizeKey
-
+from google.appengine.api import images
 from hashlib import sha256
 import logging
 
@@ -92,6 +92,13 @@ class fileBone(treeItemBone):
 
 					logging.info("Refreshing file dlkey %s (%s)" % (valDict["dlkey"],
 					                                                valDict["servingurl"]))
+				else:
+					if valDict["servingurl"]:
+						try:
+							valDict["servingurl"] = images.get_serving_url(valDict["dlkey"])
+						except Exception as e:
+							logging.exception(e)
+
 
 		if not valuesCache[boneName]:
 			return

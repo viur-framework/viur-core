@@ -85,7 +85,7 @@ class BaseSkeleton(object):
 					self.__dataDict__[key] =  value
 					self.valuesCache[key] = value.getDefaultValue()
 				elif value is None and key in self.__dataDict__.keys(): #Allow setting a bone to None again
-					self.__dataDict__[key] =  value
+					del self.__dataDict__[key]
 				elif key not in ["valuesCache"]:
 					raise ValueError("You tried to do what?")
 		super(BaseSkeleton, self).__setattr__(key, value)
@@ -578,14 +578,13 @@ class Skeleton(BaseSkeleton):
 						oldUniqeValues[boneName] = dbObj["%s.uniqueIndexValue" % boneName]
 
 			## Merge the values from mergeFrom in
-			# for key, bone in skel.items():
-			#	if key in mergeFrom.keys() and mergeFrom[ key ]:
-			#		bone.mergeFrom( mergeFrom[ key ] )
-			skel.setValuesCache(mergeFrom.getValuesCache())
+			for key, bone in skel.items():
+				if key in mergeFrom.keys():
+					bone.mergeFrom(skel.valuesCache, key, mergeFrom)
 			unindexed_properties = []
 			for key, _bone in skel.items():
 				tmpKeys = dbObj.keys()
-				dbObj = _bone.serialize(mergeFrom.valuesCache, key, dbObj)
+				dbObj = _bone.serialize(skel.valuesCache, key, dbObj)
 				newKeys = [x for x in dbObj.keys() if
 				           not x in tmpKeys]  # These are the ones that the bone added
 				if not _bone.indexed:
@@ -1061,7 +1060,7 @@ def processChunk(module, compact, cursor, allCount=0, notify=None):
 		return
 	query = Skel().all().cursor( cursor )
 	count = 0
-	for key in query.run(100, keysOnly=True):
+	for key in query.run(25, keysOnly=True):
 		count += 1
 		try:
 			skel = Skel()
@@ -1070,10 +1069,11 @@ def processChunk(module, compact, cursor, allCount=0, notify=None):
 				raise NotImplementedError() #FIXME: This deletes the __currentKey__ property..
 				skel.delete()
 			skel.refresh()
-			skel.toDB()
+			skel.toDB(clearUpdateTag=True)
 		except Exception as e:
 			logging.error("Updating %s failed" % str(key) )
 			logging.exception( e )
+			raise
 	newCursor = query.getCursor()
 	logging.info("END processChunk %s, %d records refreshed" % (module, count))
 	if count and newCursor and newCursor.urlsafe() != cursor:

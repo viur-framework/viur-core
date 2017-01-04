@@ -164,6 +164,15 @@ class dateBone( baseBone ):
 					return "No value entered"
 			return err
 
+	def isInvalid(self, value):
+		"""
+			Ensure that year is >= 1900
+			Otherwise strftime will break later on.
+		"""
+		if isinstance(value, datetime):
+			if value.year < 1900:
+				return "Year must be >= 1900"
+		return super(dateBone, self).isInvalid(value)
 
 	def guessTimeZone(self):
 		"""

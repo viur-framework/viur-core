@@ -34,15 +34,21 @@ def execRequest(render, path, *args, **kwargs):
 	if conf["viur.disableCache"] or request.current.get().disableCache: #Caching disabled by config
 		cachetime = 0
 
+	cacheEnvKey = None
+	if conf["viur.cacheEnvironmentKey"]:
+		try:
+			cacheEnvKey = conf["viur.cacheEnvironmentKey"]()
+		except RuntimeError:
+			cachetime = 0
+
 	if cachetime:
 		#Calculate the cache key that entry would be stored under
 		tmpList = ["%s:%s" % (unicode(k), unicode(v)) for k,v in kwargs.items()]
 		tmpList.sort()
 		tmpList.extend(list(args))
 		tmpList.append(path)
-
-		if conf[ "viur.cacheEnvironmentKey" ]:
-			tmpList.append( conf[ "viur.cacheEnvironmentKey" ]() )
+		if cacheEnvKey is not None:
+			tmpList.append(cacheEnvKey)
 
 		try:
 			appVersion = request.current.get().request.environ["CURRENT_VERSION_ID"].split('.')[0]
@@ -144,7 +150,7 @@ def getEntry(render, module, key=None, skel = "viewSkel"):
 		skel = getattr(obj, skel)()
 
 		if isinstance(obj, prototypes.singleton.Singleton) and not key:
-			#We fetching the entry from a singleton - No key needed
+			# We fetching the entry from a singleton - No key needed
 			key = str(db.Key.from_path(skel.kindName, obj.getKey()))
 		elif not key:
 			logging.info("getEntry called without a valid key")
@@ -153,7 +159,24 @@ def getEntry(render, module, key=None, skel = "viewSkel"):
 		if not isinstance(skel, Skeleton):
 			return False
 
-		if "listFilter" in dir(obj):
+		if "canView" in dir(obj):
+			if not skel.fromDB(key):
+				logging.info("getEntry: Entry %s not found" % (key,))
+				return None
+			if isinstance(obj, prototypes.singleton.Singleton):
+				isAllowed = obj.canView()
+			elif isinstance(obj, prototypes.tree.Tree):
+				k = db.Key(key)
+				if k.kind().endswith("_rootNode"):
+					isAllowed = obj.canView("node", skel)
+				else:
+					isAllowed = obj.canView("leaf", skel)
+			else:  # List and Hierarchies
+				isAllowed = obj.canView(skel)
+			if not isAllowed:
+				logging.error("getEntry: Access to %s denied from canView" % (key,))
+				return None
+		elif "listFilter" in dir(obj):
 			qry = skel.all().mergeExternalFilter({"key": str(key)})
 			qry = obj.listFilter(qry)
 			if not qry:
