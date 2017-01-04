@@ -578,14 +578,13 @@ class Skeleton(BaseSkeleton):
 						oldUniqeValues[boneName] = dbObj["%s.uniqueIndexValue" % boneName]
 
 			## Merge the values from mergeFrom in
-			# for key, bone in skel.items():
-			#	if key in mergeFrom.keys() and mergeFrom[ key ]:
-			#		bone.mergeFrom( mergeFrom[ key ] )
-			skel.setValuesCache(mergeFrom.getValuesCache())
+			for key, bone in skel.items():
+				if key in mergeFrom.keys():
+					bone.mergeFrom(skel.valuesCache, key, mergeFrom)
 			unindexed_properties = []
 			for key, _bone in skel.items():
 				tmpKeys = dbObj.keys()
-				dbObj = _bone.serialize(mergeFrom.valuesCache, key, dbObj)
+				dbObj = _bone.serialize(skel.valuesCache, key, dbObj)
 				newKeys = [x for x in dbObj.keys() if
 				           not x in tmpKeys]  # These are the ones that the bone added
 				if not _bone.indexed:

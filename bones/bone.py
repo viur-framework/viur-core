@@ -414,16 +414,16 @@ class baseBone(object): # One Bone:
 		"""
 		pass
 
-	def mergeFrom(self, other):
+	def mergeFrom(self, valuesCache, boneName, otherSkel):
 		"""
 			Clones the values from other into this instance
 		"""
-		if other is None:
+		if getattr(otherSkel, boneName) is None:
 			return
-		if not isinstance( other, type(self) ):
-			logging.error("Ignoring values from conflicting boneType (%s is not a instance of %s)!" % (other, type(self)))
+		if not isinstance(getattr(otherSkel, boneName), type(self)):
+			logging.error("Ignoring values from conflicting boneType (%s is not a instance of %s)!" % (getattr(otherSkel, boneName), type(self)))
 			return
-		self.value = copy.deepcopy( other.value )
+		valuesCache[boneName] = copy.deepcopy(otherSkel.valuesCache.get(boneName, None))
 
 	def setBoneValue(self, valuesCache, boneName, value, append, *args, **kwargs):
 		"""
