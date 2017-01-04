@@ -180,6 +180,9 @@ class DbTransfer( object ):
 				#if isinstance(val, dict) or isinstance(val, list):
 				#	val = pickle.dumps( val )
 				dbEntry[k] = val
+		if dbEntry.key().id():
+			# Ensure the Datastore knows that it's id is in use
+			datastore._GetConnection()._reserve_keys([dbEntry.key()])
 		db.Put( dbEntry )
 
 	@exposed
