@@ -335,6 +335,8 @@ class relationalBone( baseBone ):
 				else:
 					tmpRes[ idx ][bname] = v
 
+				break
+
 		tmpList = [(k,v) for k,v in tmpRes.items() if "key" in v.keys()]
 		tmpList.sort( key=lambda k: k[0] )
 		tmpList = [{"reltmp":v,"dest":{"key":v["key"]}} for k,v in tmpList]
