@@ -1,28 +1,27 @@
 # -*- coding: utf-8 -*-
 from server.bones import bone
 from server import request, utils
-import urllib
 from google.appengine.api import urlfetch
-import logging
+import urllib
 
-#Fixme: Read the global dict
 class captchaBone( bone.baseBone ):
 	type = "captcha"
 	
 	def __init__(self, publicKey=None, privateKey=None, *args,  **kwargs ):
 		bone.baseBone.__init__(self,  *args,  **kwargs )
-		self.value = publicKey
+		self.defaultValue = self.publicKey = publicKey
 		self.privateKey = privateKey
 		self.required = True
 		self.hasDBField = False
 	
-	def serialize( self, name, entity ):
-		return( entity )
+	def serialize(self, valuesCache, name, entity ):
+		return entity
 
-	def unserialize( self, name, values ):
-		return( {name: ""} )
-		
-	def fromClient( self, name, data ):
+	def unserialize(self, valuesCache, name, values):
+		valuesCache[name] = self.publicKey
+		return True
+
+	def fromClient(self, valuesCache, name, data):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
