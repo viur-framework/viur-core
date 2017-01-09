@@ -271,7 +271,10 @@ def callDeferred( func ):
 			req = None
 		if req is not None and "HTTP_X_APPENGINE_TASKRETRYCOUNT".lower() in [x.lower() for x in os.environ.keys()] and not "DEFERED_TASK_CALLED" in dir( req ): #This is the deferred call
 			req.DEFERED_TASK_CALLED = True #Defer recursive calls to an deferred function again.
-			return( func( self, *args, **kwargs ) )
+			if self is __undefinedFlag_:
+				return func(*args, **kwargs)
+			else:
+				return func(self, *args, **kwargs)
 		else:
 			try:
 				funcPath = "%s/%s" % (self.modulePath, func.func_name )
