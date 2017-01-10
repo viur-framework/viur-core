@@ -1,10 +1,12 @@
+ViUR® is a free software development framework for the Google App Engine™.
+More about ViUR can be found at http://www.viur.is/.
 
 DESCRIPTION
 ===========
 
-**ViUR** is an application development framework that mainly focuses to
+**ViUR®** is an application development framework that mainly focuses to
 implement cloud-based information systems on top of the
-[Google AppEngine™](http://appengine.google.com).
+[Google AppEngine™ platform](http://appengine.google.com).
 
 By design, ViUR-based applications are build upon simple, clear, flexible,
 extendible, versatile, high-scalable and easy-to-use concepts. To fit the
@@ -27,18 +29,19 @@ within the administration tools.
 
 ViUR currently exists of three parts:
 
-- The **server** is the core of a ViUR application. It provides the server-parts
-  of the web-application, a library of pre-defined data-models, modules, tools
-  and libraries for data management and much more, and several renders to
-  support different output kinds. (https://bitbucket.org/viur/server)
-- The **admin** is the client-based, cross-platform administration backend to
-  manage a ViUR application. It focuses on power-users that want to manage
-  their applications with the full power of a desktop client computer.
-  (https://bitbucket.org/viur/admin)
+- The **server** is the core of a ViUR application. It provides the
+  server-library of the web-application, providing pre-defined data-models,
+  modules, tools and libraries for data management and much more, and several
+  renders to support different output kinds.
+  (Download it at https://bitbucket.org/viur/server)
 - The **vi** (visual interface), is the web-based administration backend for
   ViUR written in pure HTML5, to provide an easy-to-access management tool
   that directly runs system-independently in the web-browser of any desktop or
-  even mobile devices. (https://bitbucket.org/viur/vi)
+  even mobile devices. (Download it at https://bitbucket.org/viur/vi)
+- The **admin** is the client-based, cross-platform administration backend to
+  manage a ViUR application. It focuses on power-users that want to manage
+  their applications with the full power of a desktop client computer.
+  (Download it at https://bitbucket.org/viur/admin)
 
 Both administration tools support the integration of application-specific
 plug-ins and can be used independently, depending on what is wanted and
@@ -57,25 +60,22 @@ you the best platform for development tasks with ViUR.
 QUICK START
 ===========
 
-To quickly build a running ViUR web-application, you only have to follow these
-few steps:
+To quickly setup a running ViUR web-application from scratch, follow these
+simple steps:
 
-1. Install the prerequisites (Python, Google App Engine SDK).
-2. Download server and desired admin packages.
-3. Create a project directory of your choice.
-4. Unpack server package under ``<project-dir>/server``.
-5. Run ``<project-dir>/server/setup.py``.
+1. Install the prerequisites (Python and Google App Engine SDK for your
+   operating system).
+2. Create an empty folder for your project.
+3. Download setup.py from http://www.viur.is/package/download/setup/latest and
+   save it into the newly created folder.
+4. Run ``setup.py`` from that folder - it will do the rest for you!
+5. Locally run the development server with ``dev_appserver.py <project-dir>``
+   or deploy it to the world with ``appcfg.py update <project-dir>``.
 
-Now you're done: Run
+Visit the official ViUR online documentation at http://docs.viur.is/latest for
+more information.
 
-	dev_appserver.py <project-dir>
-
-or deploy your app to the world with
-
-	appcfg.py update <project-dir>
-
-
-WHO CREATED VIUR?
+WHO CREATES VIUR?
 =================
 
 ViUR is developed and maintained by mausbrand Informationssysteme GmbH,
@@ -93,9 +93,12 @@ way is always appreciated.
 LICENSING
 =========
 
-ViUR is Copyright (C) 2012-2016 by mausbrand Informationssysteme GmbH.
+ViUR is Copyright (C) 2012-2017 by Mausbrand Informationssysteme GmbH.
 
-You may use, modify and distribute this software under the terms and conditions
-of the GNU Lesser General Public License (LGPL).
+Mausbrand and ViUR are registered trademarks of
+Mausbrand Informationssysteme GmbH.
+
+You may use, modify and distribute this software under the terms and
+conditions of the GNU Lesser General Public License (LGPL).
 
 See the file LICENSE provided in this package for more information.
