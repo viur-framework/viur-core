@@ -296,16 +296,19 @@ class relationalBone( baseBone ):
 			:returns: None or String
 		"""
 		from server.skeleton import RefSkel, skeletonByKind
+
 		oldValues = valuesCache.get(name, None)
 		valuesCache[name] = []
 		tmpRes = {}
+
 		clientPrefix = "%s." % name
+
 		for k, v in data.items():
 			if k.startswith(clientPrefix) or k == name:
 				if k == name:
-					clientPrefix = name
-
-				k = k.replace(clientPrefix, "", 1)
+					k = k.replace(name, "", 1)
+				else:
+					k = k.replace(clientPrefix, "", 1)
 
 				if "." in k:
 					try:
