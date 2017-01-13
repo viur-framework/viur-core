@@ -756,7 +756,7 @@ class relationalBone( baseBone ):
 								res.append(tag)
 
 		res = []
-		if not values.get(key):
+		if key not in values.keys() or not values[key]:
 			return res
 
 		value = values[key]
