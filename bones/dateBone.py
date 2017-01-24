@@ -101,30 +101,30 @@ class dateBone( baseBone ):
 		rawValue = data.get(name, None)
 		if not rawValue:
 			value = None
-		elif str(rawValue).replace("-",  "",  1).replace(".","",1).isdigit():
+		elif unicode(rawValue).replace("-",  "",  1).replace(".","",1).isdigit():
 			if int(rawValue) < -1*(2**30) or int(rawValue)>(2**31)-2:
 				value = False  # its invalid
 			else:
 				value = ExtendedDateTime.fromtimestamp( float(rawValue) )
 		elif not self.date and self.time:
 			try:
-				if str(rawValue).count(":")>1:
-					(hour, minute, second) = [int(x.strip()) for x in str(rawValue).split(":")]
+				if unicode(rawValue).count(":")>1:
+					(hour, minute, second) = [int(x.strip()) for x in unicode(rawValue).split(":")]
 					value = time(hour=hour, minute=minute, second=second)
-				elif str(rawValue).count(":")>0:
-					(hour, minute) = [int(x.strip()) for x in str(rawValue).split(":")]
+				elif unicode(rawValue).count(":")>0:
+					(hour, minute) = [int(x.strip()) for x in unicode(rawValue).split(":")]
 					value = time(hour=hour, minute=minute)
-				elif str(rawValue).replace("-",  "",  1).isdigit():
+				elif unicode(rawValue).replace("-",  "",  1).isdigit():
 					value = time(second=int(rawValue))
 				else:
 					value = False  # its invalid
 			except:
 				value = False
-		elif str(rawValue).lower().startswith("now"):
+		elif unicode(rawValue).lower().startswith("now"):
 			tmpRes = ExtendedDateTime.now()
-			if len(str(rawValue))>4:
+			if len(unicode(rawValue))>4:
 				try:
-					tmpRes += timedelta(seconds= int(str(rawValue)[3:]))
+					tmpRes += timedelta(seconds= int(unicode(rawValue)[3:]))
 				except:
 					pass
 			value = tmpRes
@@ -133,25 +133,25 @@ class dateBone( baseBone ):
 				if " " in rawValue:  # Date with time
 					try:  # Times with seconds
 						if "-" in rawValue:  # ISO Date
-							value = ExtendedDateTime.strptime(str(rawValue), "%Y-%m-%d %H:%M:%S")
+							value = ExtendedDateTime.strptime(unicode(rawValue), "%Y-%m-%d %H:%M:%S")
 						elif "/" in rawValue:  # Ami Date
-							value = ExtendedDateTime.strptime(str(rawValue), "%m/%d/%Y %H:%M:%S")
+							value = ExtendedDateTime.strptime(unicode(rawValue), "%m/%d/%Y %H:%M:%S")
 						else:  # European Date
-							value = ExtendedDateTime.strptime(str(rawValue), "%d.%m.%Y %H:%M:%S")
+							value = ExtendedDateTime.strptime(unicode(rawValue), "%d.%m.%Y %H:%M:%S")
 					except:
 						if "-" in rawValue:  # ISO Date
-							value = ExtendedDateTime.strptime(str(rawValue), "%Y-%m-%d %H:%M")
+							value = ExtendedDateTime.strptime(unicode(rawValue), "%Y-%m-%d %H:%M")
 						elif "/" in rawValue:  # Ami Date
-							value = ExtendedDateTime.strptime(str(rawValue), "%m/%d/%Y %H:%M")
+							value = ExtendedDateTime.strptime(unicode(rawValue), "%m/%d/%Y %H:%M")
 						else:  # European Date
-							value = ExtendedDateTime.strptime(str(rawValue), "%d.%m.%Y %H:%M")
+							value = ExtendedDateTime.strptime(unicode(rawValue), "%d.%m.%Y %H:%M")
 				else:
 					if "-" in rawValue:  # ISO (Date only)
-						value = ExtendedDateTime.strptime(str(rawValue), "%Y-%m-%d")
+						value = ExtendedDateTime.strptime(unicode(rawValue), "%Y-%m-%d")
 					elif "/" in rawValue:  # Ami (Date only)
-						value = ExtendedDateTime.strptime(str(rawValue), "%m/%d/%Y")
+						value = ExtendedDateTime.strptime(unicode(rawValue), "%m/%d/%Y")
 					else:  # European (Date only)
-						value =ExtendedDateTime.strptime(str(rawValue), "%d.%m.%Y")
+						value =ExtendedDateTime.strptime(unicode(rawValue), "%d.%m.%Y")
 			except:
 				value = False  # its invalid
 		if value is False:
