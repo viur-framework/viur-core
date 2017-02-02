@@ -421,7 +421,7 @@ class Render( object ):
 
 		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
 			if isinstance(skel, BaseSkeleton):
-				super(Skeleton, skel).__setattr__( "errors", {} )
+				super(BaseSkeleton, skel).__setattr__("errors", {})
 
 		return template.render( skel={"structure": self.renderSkelStructure(skel),
 		                                "errors": skel.errors,
