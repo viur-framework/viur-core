@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
+from server.bones.bone import getSystemInitialized
 from server import db
 from server.errors import ReadFromClientError
 from server.utils import normalizeKey
@@ -95,6 +96,23 @@ class relationalBone( baseBone ):
 
 		self.using = using
 
+		if getSystemInitialized():
+			from server.skeleton import RefSkel, skeletonByKind
+			self._refSkelCache = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
+			self._usingSkelCache = using() if using else None
+		else:
+			self._refSkelCache = None
+			self._usingSkelCache = None
+
+
+
+	def setSystemInitialized(self):
+		super(relationalBone, self).setSystemInitialized()
+		from server.skeleton import RefSkel, skeletonByKind
+		self._refSkelCache = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
+		self._usingSkelCache = self.using() if self.using else None
+
+
 	def _restoreValueFromDatastore(self, val):
 		"""
 			Restores one of our values (including the Rel- and Using-Skel) from the serialized data read from the datastore
@@ -102,10 +120,10 @@ class relationalBone( baseBone ):
 			:return: Our Value (with restored RelSkel and using-Skel)
 		"""
 		value = extjson.loads(val)
-		from server.skeleton import RefSkel, skeletonByKind
 		assert isinstance(value, dict), "Read something from the datastore thats not a dict: %s" % str(type(value))
 
-		relSkel = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
+		relSkel = self._refSkelCache
+		relSkel.setValuesCache({})
 
 		# !!!ViUR re-design compatibility!!!
 		if not "dest" in value.keys():
@@ -121,12 +139,14 @@ class relationalBone( baseBone ):
 		relSkel.unserialize(value["dest"])
 
 		if self.using is not None:
-			usingSkel = self.using()
+			usingSkel = self._usingSkelCache
+			usingSkel.setValuesCache({})
 			if value["rel"] is not None:
 				usingSkel.unserialize(value["rel"])
+			usingData = usingSkel.getValuesCache()
 		else:
-			usingSkel = None
-		return {"dest": relSkel, "rel": usingSkel}
+			usingData = None
+		return {"dest": relSkel.getValuesCache(), "rel": usingData}
 
 
 	def unserialize( self, valuesCache, name, expando ):
@@ -186,23 +206,44 @@ class relationalBone( baseBone ):
 		else:
 			if self.multiple:
 				res = []
+				refSkel = self._refSkelCache
+				usingSkel = self._usingSkelCache
 				for val in valuesCache[name]:
-					r = {"rel": val["rel"].serialize() if val["rel"] else None,
-						 "dest": val["dest"].serialize() if val["dest"] else None}
-					res.append( extjson.dumps( r ) )
+					if val["dest"]:
+						refSkel.setValuesCache(val["dest"])
+						refData = refSkel.serialize()
+					else:
+						refData = None
+					if usingSkel and val["rel"]:
+						usingSkel.setValuesCache(val["rel"])
+						usingData = usingSkel.serialize()
+					else:
+						usingData = None
+					r = {"rel": usingData, "dest": refData}
+					res.append(extjson.dumps(r))
 				entity.set( name, res, False )
 			else:
-				r = {"rel": valuesCache[name]["rel"].serialize() if valuesCache[name]["rel"] else None,
-					 "dest": valuesCache[name]["dest"].serialize() if valuesCache[name]["dest"] else None}
+				refSkel = self._refSkelCache
+				usingSkel = self._usingSkelCache
+				if valuesCache[name]["dest"]:
+					refSkel.setValuesCache(valuesCache[name]["dest"])
+					refData = refSkel.serialize()
+				else:
+					refData = None
+				if usingSkel and valuesCache[name]["rel"]:
+					usingSkel.setValuesCache(valuesCache[name]["rel"])
+					usingData = usingSkel.serialize()
+				else:
+					usingData = None
+				r = {"rel": usingData, "dest": refData}
 				entity.set(name, extjson.dumps(r), False)
 				#Copy attrs of our referenced entity in
 				if self.indexed:
-					destData = valuesCache[name]["dest"].serialize()
-					for k, v in destData.items():
-						entity[ "%s.dest.%s" % (name,k) ] = v
-					if self.using is not None and valuesCache[name]["rel"]:
-						relData = valuesCache[name]["rel"].serialize()
-						for k, v in relData.items():
+					if refData:
+						for k, v in refData.items():
+							entity[ "%s.dest.%s" % (name,k) ] = v
+					if usingData:
+						for k, v in usingData.items():
 							entity[ "%s.rel.%s" % (name,k) ] = v
 					#for k, v in valuesCache[name].items():
 					#	if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ):
@@ -239,12 +280,16 @@ class relationalBone( baseBone ):
 				data = [x for x in values if x["dest"]["key"] == dbObj["dest.key"]][0]
 				if self.indexed: #We dont store more than key and kinds, and these dont change
 					#Write our (updated) values in
-					for k, v in data["dest"].serialize().items():
+					refSkel = self._refSkelCache
+					refSkel.setValuesCache(data["dest"])
+					for k, v in refSkel.serialize().items():
 						dbObj[ "dest."+k ] = v
 					for k,v in parentValues.items():
 						dbObj[ "src."+k ] = v
 					if self.using is not None:
-						for k, v in data["rel"].serialize().items():
+						usingSkel = self._usingSkelCache
+						usingSkel.setValuesCache(data["rel"])
+						for k, v in usingSkel.serialize().items():
 							dbObj[ "rel."+k ] = v
 					dbObj[ "viur_delayed_update_tag" ] = time()
 					db.Put( dbObj )
@@ -258,12 +303,16 @@ class relationalBone( baseBone ):
 				dbObj[ "dest.key" ] = val["dest"]["key"]
 				dbObj[ "src.key" ] = key
 			else:
-				for k, v in val["dest"].serialize().items():
+				refSkel = self._refSkelCache
+				refSkel.setValuesCache(val["dest"])
+				for k, v in refSkel.serialize().items():
 					dbObj[ "dest."+k ] = v
 				for k,v in parentValues.items():
 					dbObj[ "src."+k ] = v
 				if self.using is not None:
-					for k, v in val["rel"].serialize().items():
+					usingSkel = self._usingSkelCache
+					usingSkel.setValuesCache(val["rel"])
+					for k, v in usingSkel.serialize().items():
 						dbObj[ "rel."+k ] = v
 
 			dbObj[ "viur_delayed_update_tag" ] = time()
@@ -295,7 +344,7 @@ class relationalBone( baseBone ):
 			:type data: Dict
 			:returns: None or String
 		"""
-		from server.skeleton import RefSkel, skeletonByKind
+		#from server.skeleton import RefSkel, skeletonByKind
 
 		oldValues = valuesCache.get(name, None)
 		valuesCache[name] = []
@@ -380,18 +429,20 @@ class relationalBone( baseBone ):
 
 			tmp = { k: entry[k] for k in entry.keys() if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ) }
 			tmp["key"] = r["dest"]["key"]
-			relSkel = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
+			relSkel = self._refSkelCache
+			relSkel.setValuesCache({})
 			relSkel.unserialize(tmp)
-			r["dest"] = relSkel
+			r["dest"] = relSkel.getValuesCache()
 
 			# Rebuild the refSkel data
 			if self.using is not None:
-				refSkel = self.using()
+				refSkel = self._usingSkelCache
+				refSkel.setValuesCache({})
 				if not refSkel.fromClient( r["reltmp"] ):
 					for k,v in refSkel.errors.items():
 						errorDict[ "%s.%s.%s" % (name,tmpList.index(r),k) ] = v
 						forceFail = True
-				r["rel"] = refSkel
+				r["rel"] = refSkel.getValuesCache()
 			else:
 				r["rel"] = None
 			del r["reltmp"]
@@ -857,22 +908,22 @@ class relationalBone( baseBone ):
 		"""
 			Returns the list of blob keys referenced from this bone
 		"""
-		def blobsFromSkel(skel):
+		def blobsFromSkel(skel, valuesCache):
 			blobList = set()
 			for key, _bone in skel.items():
-				blobList.update(_bone.getReferencedBlobs(skel.valuesCache, key))
+				blobList.update(_bone.getReferencedBlobs(valuesCache, key))
 			return blobList
 		res = set()
 		if name in valuesCache.keys():
 			if isinstance(valuesCache[name], list):
 				for myDict in valuesCache[name]:
 					if myDict["dest"]:
-						res.update(blobsFromSkel(myDict["dest"]))
+						res.update(blobsFromSkel(self._refSkelCache, myDict["dest"]))
 					if myDict["rel"]:
-						res.update(blobsFromSkel(myDict["rel"]))
+						res.update(blobsFromSkel(self._usingSkelCache, myDict["rel"]))
 			elif isinstance(valuesCache[name], dict):
 				if valuesCache[name]["dest"]:
-					res.update(blobsFromSkel(valuesCache[name]["dest"]))
+					res.update(blobsFromSkel(self._refSkelCache, valuesCache[name]["dest"]))
 				if valuesCache[name]["rel"]:
-					res.update(blobsFromSkel(valuesCache[name]["rel"]))
+					res.update(blobsFromSkel(self._usingSkelCache, valuesCache[name]["rel"]))
 		return res

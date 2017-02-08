@@ -11,7 +11,11 @@ __systemIsIntitialized_ = False
 
 def setSystemInitialized():
 	global __systemIsIntitialized_
+	from server.skeleton import listKnownSkeletons, skeletonByKind
 	__systemIsIntitialized_ = True
+	for skelKind in listKnownSkeletons():
+		skel = skeletonByKind(skelKind)
+		skel.setSystemInitialized()
 
 def getSystemInitialized():
 	global __systemIsIntitialized_
@@ -111,6 +115,13 @@ class baseBone(object): # One Bone:
 			raise AssertionError("canUse is deprecated! Use isInvalid instead!")
 		_boneCounter.count += 1
 
+	def setSystemInitialized(self):
+		"""
+			Can be overriden to initialize properties that depend on the Skeleton system being initialized
+		"""
+		pass
+
+
 	def getDefaultValue(self):
 		if callable(self.defaultValue):
 			return self.defaultValue()
@@ -122,7 +133,7 @@ class baseBone(object): # One Bone:
 			return self.defaultValue
 
 	def __setattr__(self, key, value):
-		if not self.isClonedInstance and getSystemInitialized() and key!= "isClonedInstance":
+		if not self.isClonedInstance and getSystemInitialized() and key!= "isClonedInstance" and not key.startswith("_"):
 			raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
 		super(baseBone, self).__setattr__(key, value)
 

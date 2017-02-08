@@ -142,18 +142,34 @@ class DefaultRender(object):
 				return skel[key].strftime("%H:%M:%S")
 		elif isinstance(bone, bones.relationalBone):
 			if isinstance(skel[key], list):
+				refSkel = bone._refSkelCache
+				usingSkel = bone._usingSkelCache
 				tmpList = []
 				for k in skel[key]:
+					refSkel.setValuesCache(k["dest"])
+					if usingSkel:
+						usingSkel.setValuesCache(k.get("rel", {}))
+						usingData = self.renderSkelValues(usingSkel)
+					else:
+						usingData = None
 					tmpList.append({
-						"dest": self.renderSkelValues(k["dest"]),
-			            "rel": self.renderSkelValues(k.get("rel"))
+						"dest": self.renderSkelValues(refSkel),
+						"rel": usingData
 					})
 
 				return tmpList
 			elif isinstance(skel[key], dict):
+				refSkel = bone._refSkelCache
+				usingSkel = bone._usingSkelCache
+				refSkel.setValuesCache(skel[key]["dest"])
+				if usingSkel:
+					usingSkel.setValuesCache(skel[key].get("rel", {}))
+					usingData = self.renderSkelValues(usingSkel)
+				else:
+					usingData = None
 				return {
-					"dest": self.renderSkelValues(skel[key]["dest"]),
-				    "rel": self.renderSkelValues(skel[key].get("rel"))
+					"dest": self.renderSkelValues(refSkel),
+					"rel": usingData
 				}
 		else:
 			return skel[key]

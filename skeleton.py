@@ -225,6 +225,15 @@ class BaseSkeleton(object):
 	def getValuesCache(self):
 		return self.valuesCache
 
+
+	@classmethod
+	def setSystemInitialized(cls):
+		for attrName in dir(cls):
+			bone = getattr(cls, attrName)
+			if isinstance(bone, baseBone):
+				bone.setSystemInitialized()
+
+
 	def clone(self):
 		"""
 			Creates a stand-alone copy of the current Skeleton object.

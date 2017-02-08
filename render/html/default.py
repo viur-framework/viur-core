@@ -305,21 +305,39 @@ class Render( object ):
 			if isinstance(skel[key], list):
 				tmpList = []
 				for k in skel[key]:
+					refSkel = bone._refSkelCache
+					refSkel.setValuesCache(k["dest"])
 					if bone.using is None:
-						tmpList.append(self.collectSkelData(k["dest"]))
+						tmpList.append(self.collectSkelData(refSkel))
 					else:
+						usingSkel = bone._usingSkelCache
+						if k["rel"]:
+							usingSkel.setValuesCache(k["rel"])
+							usingData = self.collectSkelData(usingSkel)
+						else:
+							usingData = None
 						tmpList.append({
-							"dest": self.collectSkelData(k["dest"]),
-			                "rel": self.collectSkelData(k["rel"]) if k["rel"] else None
+							"dest": self.collectSkelData(usingSkel),
+			                                "rel": usingData
 						})
 				return tmpList
 			elif isinstance(skel[key], dict):
+				refSkel = bone._refSkelCache
+				refSkel.setValuesCache(skel[key]["dest"])
 				if bone.using is None:
-					return self.collectSkelData(skel[key]["dest"])
-				return {
-					"dest": self.collectSkelData(skel[key]["dest"]),
-					"rel": self.collectSkelData(skel[key]["rel"]) if skel[key]["rel"] else None
-				}
+					return self.collectSkelData(refSkel)
+				else:
+					usingSkel = bone._usingSkelCache
+					if skel[key]["rel"]:
+						usingSkel.setValuesCache(skel[key]["rel"])
+						usingData = self.collectSkelData(usingSkel)
+					else:
+						usingData = None
+
+					return {
+						"dest": self.collectSkelData(refSkel),
+						"rel": usingData
+					}
 			else:
 				return None
 		else:
