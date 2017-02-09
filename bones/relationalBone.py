@@ -772,12 +772,12 @@ class relationalBone( baseBone ):
 				raise
 
 			if newValues:
-				for key in valDict.keys():
+				for key in self._refSkelCache.keys():
 					if key == "key":
 						continue
-
 					elif key in newValues.keys():
-						getattr(valDict,key).unserialize(valDict.valuesCache, key, newValues)
+						getattr(self._refSkelCache, key).unserialize(valDict, key, newValues)
+
 
 		if not valuesCache[boneName]:
 			return
