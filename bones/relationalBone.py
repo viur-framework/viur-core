@@ -407,12 +407,16 @@ class relationalBone( baseBone ):
 							  r["dest"]["key"], name )
 				if isinstance(oldValues, dict):
 					if oldValues["dest"]["key"]==str(r["dest"]["key"]):
-						entry = oldValues["dest"].serialize()
+						refSkel = self._refSkelCache
+						refSkel.setValuesCache(oldValues["dest"])
+						entry = refSkel.serialize()
 						isEntryFromBackup = True
 				elif isinstance(oldValues, list):
 					for dbVal in oldValues:
 						if dbVal["dest"]["key"]==str(r["dest"]["key"]):
-							entry = dbVal["dest"].serialize()
+							refSkel = self._refSkelCache
+							refSkel.setValuesCache(dbVal["dest"])
+							entry = refSkel.serialize()
 							isEntryFromBackup = True
 				if not isEntryFromBackup:
 					if not self.multiple: #We can stop here :/
