@@ -27,7 +27,8 @@ class MetaBaseSkel(type):
 		This is the meta class for Skeletons.
 		It is used to enforce several restrictions on bone names, etc.
 	"""
-	_skelCache = {}
+	_skelCache = {}  # Mapping kindName -> SkelCls
+	_allSkelClasses = set()  # List of all known skeleton classes (including Ref and Mail-Skels)
 
 	__reservedKeywords_ = [ "self", "cursor", "amount", "orderby", "orderdir",
 	                        "style", "items", "keys", "values" ]
@@ -40,6 +41,7 @@ class MetaBaseSkel(type):
 				if key in MetaBaseSkel.__reservedKeywords_:
 					raise AttributeError("Invalid bone '%s': Bone cannot have any of the following names: %s" %
 					                     (key, str(MetaBaseSkel.__reservedKeywords_)))
+		MetaBaseSkel._allSkelClasses.add(cls)
 		super(MetaBaseSkel, cls).__init__(name, bases, dct)
 
 def skeletonByKind(kindName):
@@ -51,6 +53,10 @@ def skeletonByKind(kindName):
 
 def listKnownSkeletons():
 	return list(MetaBaseSkel._skelCache.keys())[:]
+
+def iterAllSkelClasses():
+	for cls in MetaBaseSkel._allSkelClasses:
+		yield cls
 
 
 class BaseSkeleton(object):

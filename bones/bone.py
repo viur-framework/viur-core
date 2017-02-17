@@ -11,11 +11,10 @@ __systemIsIntitialized_ = False
 
 def setSystemInitialized():
 	global __systemIsIntitialized_
-	from server.skeleton import listKnownSkeletons, skeletonByKind
+	from server.skeleton import iterAllSkelClasses, skeletonByKind
 	__systemIsIntitialized_ = True
-	for skelKind in listKnownSkeletons():
-		skel = skeletonByKind(skelKind)
-		skel.setSystemInitialized()
+	for skelCls in iterAllSkelClasses():
+		skelCls.setSystemInitialized()
 
 def getSystemInitialized():
 	global __systemIsIntitialized_
