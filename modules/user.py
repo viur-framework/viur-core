@@ -384,10 +384,6 @@ class TimeBasedOTP(object):
 			# We got a non-numeric token - this cant be correct
 			self.userModule.render.edit(self.otpSkel())
 
-		logging.debug(otptoken)
-		logging.debug(validTokens)
-		logging.debug(otptoken in validTokens)
-
 		if otptoken in validTokens:
 			userKey = session.current["_otp_user"]["uid"]
 
