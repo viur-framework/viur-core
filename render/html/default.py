@@ -317,7 +317,7 @@ class Render( object ):
 						else:
 							usingData = None
 						tmpList.append({
-							"dest": self.collectSkelData(usingSkel),
+							"dest": self.collectSkelData(refSkel),
 			                                "rel": usingData
 						})
 				return tmpList
