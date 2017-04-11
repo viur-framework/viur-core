@@ -508,8 +508,6 @@ def renderEditBone(render, skel, boneName, style=None):
 	tpl = render.getEnv().get_template(fn)
 	return  tpl.render(boneName=boneName, boneParams=boneParams, boneValue=skel["value"].get(boneName, None))
 
-	return boneType
-
 
 @jinjaGlobalFunction
 def renderEditForm(render, skel, ignore=None, hide=None, style=None):
@@ -531,7 +529,7 @@ def renderEditForm(render, skel, ignore=None, hide=None, style=None):
 		allHidden = True
 		categoryContent = u""
 		for boneName, boneParams in boneList:
-			boneWasInvalid = isinstance(skel["errors"], dict) and boneName in skel["errors"].keys()
+			boneWasInvalid = isinstance(skel["errors"], dict) and skel["errors"].get(boneName, None)
 			if not boneParams["readOnly"]:
 				allReadOnly = False
 			if boneParams["visible"]:
