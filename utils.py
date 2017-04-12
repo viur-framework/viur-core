@@ -80,7 +80,11 @@ def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,
 		logging.warning("Sending emails disabled by config[viur.emailRecipientOverride]")
 		return
 
-	handler = conf.get("viur.emailHandler", _GAE_sendEMail)
+	handler = conf.get("viur.emailHandler")
+
+	if handler is None:
+		handler = _GAE_sendEMail
+
 	if not callable(handler):
 		logging.warning("Invalid emailHandler configured, no email will be sent.")
 		return False
