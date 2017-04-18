@@ -630,13 +630,15 @@ class User(List):
 			user = self.getCurrentUser()
 			if user:
 				return super(User, self).view(user["key"], *args, **kwargs)
+			else:
+				raise errors.Unauthorized()
 
 		return super(User, self ).view( key, *args, **kwargs)
 
 	def canView(self, skel):
 		user = self.getCurrentUser()
 		if user:
-			if skel["key"]==user["key"]:
+			if skel["key"] == user["key"]:
 				return True
 
 			if "root" in user["access"] or "user-view" in user["access"]:

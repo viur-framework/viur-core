@@ -106,9 +106,17 @@ def canAccess( *args, **kwargs ):
 	    and pathList[1] == "user"
 	    and (pathList[2].startswith("auth_")
 	            or pathList[2].startswith("f2_")
-	            or pathList[2] == "getAuthMethods")):
+	            or pathList[2] == "getAuthMethods"
+	            or pathList[2] == "logout")):
 
 		# Give the user the chance to login :)
+		return True
+
+	if (len(pathList) >= 4
+	    and pathList[1] == "user"
+	    and pathList[2] == "view"
+	    and pathList[3] == "self"):
+		# Give the user the chance to view himself.
 		return True
 
 	return False
