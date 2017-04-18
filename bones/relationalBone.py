@@ -892,14 +892,14 @@ class relationalBone( baseBone ):
 			relSkel = relSkelFromKey(realValue[0])
 			if not relSkel:
 				return False
-			valuesCache[boneName] = {"dest": relSkel, "rel": realValue[1]}
+			valuesCache[boneName] = {"dest": relSkel.getValuesCache(), "rel": realValue[1].getValuesCache() if realValue[1] else None}
 		else:
 			tmpRes = []
 			for val in realValue:
 				relSkel = relSkelFromKey(val[0])
 				if not relSkel:
 					return False
-				tmpRes.append({"dest": relSkel, "rel": val[1]})
+				tmpRes.append({"dest": relSkel.getValuesCache(), "rel": val[1].getValuesCache() if val[1] else None})
 			if append:
 				if not isinstance(valuesCache[boneName], list):
 					valuesCache[boneName] = []
