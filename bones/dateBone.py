@@ -257,8 +257,10 @@ class dateBone( baseBone ):
 		timeZone = self.guessTimeZone()
 		if timeZone!="UTC" and pytz:
 			utc = pytz.utc
-			tz = pytz.timezone( timeZone )
-			value = tz.normalize( value.replace( tzinfo=utc).astimezone( tz ) )
+			tz = pytz.timezone(timeZone)
+			value = tz.normalize(value.replace(tzinfo=utc).astimezone(tz))
+			value = ExtendedDateTime(value.year, value.month, value.day,
+						value.hour, value.minute, value.second)
 		valuesCache[name] = value
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):

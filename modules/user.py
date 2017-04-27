@@ -301,6 +301,7 @@ class GoogleAccount(object):
 
 class TimeBasedOTP(object):
 	windowSize = 5
+	otpTemplate = "user_login_timebasedotp"
 
 	def __init__(self, userModule, modulePath):
 		super(TimeBasedOTP, self).__init__()
@@ -380,7 +381,8 @@ class TimeBasedOTP(object):
 			otptoken = int(otptoken)
 		except:
 			# We got a non-numeric token - this cant be correct
-			self.userModule.render.edit(self.otpSkel())
+			self.userModule.render.edit(self.otpSkel(), tpl=self.otpTemplate)
+
 		if otptoken in validTokens:
 			userKey = session.current["_otp_user"]["uid"]
 
@@ -399,8 +401,7 @@ class TimeBasedOTP(object):
 			token["failures"] += 1
 			session.current["_otp_user"] = token
 			session.current.markChanged()
-
-			return self.userModule.render.edit(self.otpSkel(), loginFailed=True)
+			return self.userModule.render.edit(self.otpSkel(), loginFailed=True, tpl=self.otpTemplate)
 
 	def updateTimeDrift(self, userKey, idx):
 		"""
