@@ -358,7 +358,7 @@ class stringBone( baseBone ):
 
 		return (res)
 
-	def getSearchDocumentFields(self, valuesCache, name):
+	def getSearchDocumentFields(self, valuesCache, name, prefix = ""):
 		"""
 			Returns a list of search-fields (GAE search API) for this bone.
 		"""
@@ -367,10 +367,11 @@ class stringBone( baseBone ):
 			if valuesCache[name] is not None:
 				for lang in self.languages:
 					if lang in valuesCache[name].keys():
-						res.append( search.TextField( name=name, value=unicode( valuesCache[name][lang]), language=lang ) ) 
+						res.append(search.TextField(name=prefix + name, value=unicode(valuesCache[name][lang]), language=lang))
 		else:
-			res.append( search.TextField( name=name, value=unicode( valuesCache[name] ) ) )
-		return( res )
+			res.append(search.TextField(name=prefix + name, value=unicode(valuesCache[name])))
+
+		return res
 
 	def getUniquePropertyIndexValue(self, valuesCache, name):
 		"""

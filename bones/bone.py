@@ -342,11 +342,11 @@ class baseBone(object): # One Bone:
 					res.append( key )
 		return( res )
 	
-	def getSearchDocumentFields(self, valuesCache, name):
+	def getSearchDocumentFields(self, valuesCache, name, prefix = ""):
 		"""
 			Returns a list of search-fields (GAE search API) for this bone.
 		"""
-		return( [ search.TextField( name=name, value=unicode( valuesCache[name] ) ) ] )
+		return [search.TextField(name=prefix + name, value=unicode(valuesCache[name]))]
 	
 	def getUniquePropertyIndexValue( self, valuesCache, name ):
 		"""

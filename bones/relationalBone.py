@@ -577,19 +577,6 @@ class relationalBone( baseBone ):
 			dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings))
 		return( dbFilter )
 
-	def getSearchDocumentFields(self, valuesCache, name): #FIXME
-		if not valuesCache[name]:
-			return( [] )
-		if self.multiple:
-			data = valuesCache[name]
-		else:
-			data = [ valuesCache[name] ]
-		res = []
-		for rel in data:
-			for k, v in rel.items():
-				res.append( search.TextField( name="%s%s" % (name, k), value=unicode( v ) ) )
-		return( res )
-
 	def filterHook(self, name, query, param, value ): #FIXME
 		"""
 			Hook installed by buildDbFilter.
@@ -740,7 +727,6 @@ class relationalBone( baseBone ):
 			for k in valuesCache[boneName]:
 				updateInplace(k)
 
-
 	def getSearchTags(self, values, key):
 		from server.skeleton import BaseSkeleton
 
@@ -766,6 +752,48 @@ class relationalBone( baseBone ):
 				getValues(res, val)
 		else:
 			getValues(res, value)
+
+		return res
+
+	def getSearchDocumentFields(self, valuesCache, name, prefix=""):
+		"""
+		Generate fields for Google Search API
+		"""
+		res = []
+
+		if not valuesCache[name]:
+			return res
+
+		if self.multiple:
+			groups = {}
+
+			for rel in valuesCache[name]:
+
+				for sub in ["dest", "rel"]:
+					relskel = rel[sub]
+
+					for key, bone in relskel.items():
+						fields = bone.getSearchDocumentFields(relskel.getValuesCache(), key) #NO prefix here!
+
+						for field in fields:
+							if field.name not in groups:
+								groups[field.name] = []
+
+							if field.value not in groups[field.name]:
+								groups[field.name].append(field.value)
+
+			# In case of a multiple relationalBone, we're getting lost of search field types due to compound data fields.
+			for field, value in groups.items():
+				res.append(search.TextField(name=prefix + name + field, value=unicode(" ".join(value))))
+
+		else:
+			rel = valuesCache[name]
+
+			for sub in ["dest", "rel"]:
+				relskel = rel[sub]
+
+				for key, bone in relskel.items():
+					res.extend(bone.getSearchDocumentFields(relskel.getValuesCache(), key, prefix=prefix + name))
 
 		return res
 
