@@ -307,9 +307,9 @@ class BaseSkeleton(object):
 			assert key is None or isinstance( key, db.Key ), "Key must be None or a db.Key instance"
 
 			if key is None:
-				self["key"].value = ""
+				self["key"] = None
 			else:
-				self["key"] = str( key )
+				self["key"] = str(key)
 
 	def getValues(self):
 		"""
