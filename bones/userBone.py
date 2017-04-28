@@ -15,6 +15,9 @@ class userBone(relationalBone):
 
 			multiple = False #override
 
+		elif visible is None:
+			visible = True
+
 		super(userBone, self).__init__(multiple=multiple, visible=visible, *args, **kwargs)
 
 		self.creationMagic = creationMagic
