@@ -765,35 +765,18 @@ class relationalBone( baseBone ):
 			return res
 
 		if self.multiple:
-			groups = {}
-
-			for rel in valuesCache[name]:
-
+			for idx, rel in enumerate(valuesCache[name]):
 				for sub in ["dest", "rel"]:
-					relskel = rel[sub]
-
-					for key, bone in relskel.items():
-						fields = bone.getSearchDocumentFields(relskel.getValuesCache(), key) #NO prefix here!
-
-						for field in fields:
-							if field.name not in groups:
-								groups[field.name] = []
-
-							if field.value not in groups[field.name]:
-								groups[field.name].append(field.value)
-
-			# In case of a multiple relationalBone, we're getting lost of search field types due to compound data fields.
-			for field, value in groups.items():
-				res.append(search.TextField(name=prefix + name + field, value=unicode(" ".join(value))))
-
+					for key, bone in rel[sub].items():
+						res.extend(bone.getSearchDocumentFields(rel[sub].getValuesCache(), key,
+						                                        prefix=prefix + name + "_" + str(idx) + "_"))
 		else:
 			rel = valuesCache[name]
 
 			for sub in ["dest", "rel"]:
-				relskel = rel[sub]
-
-				for key, bone in relskel.items():
-					res.extend(bone.getSearchDocumentFields(relskel.getValuesCache(), key, prefix=prefix + name))
+				for key, bone in rel[sub].items():
+					res.extend(bone.getSearchDocumentFields(rel[sub].getValuesCache(), key,
+					                                        prefix=prefix + name))
 
 		return res
 
