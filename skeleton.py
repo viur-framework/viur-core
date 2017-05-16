@@ -453,13 +453,13 @@ class MetaSkel(MetaBaseSkel):
 class Skeleton(BaseSkeleton):
 	__metaclass__ = MetaSkel
 
-	kindName = __undefindedC__ # To which kind we save our data to
-	searchIndex = None # If set, use this name as the index-name for the GAE search API
-	subSkels = {} # List of pre-defined sub-skeletons of this type
+	kindName = __undefindedC__  # To which kind we save our data to
+	searchIndex = None  # If set, use this name as the index-name for the GAE search API
+	subSkels = {}  # List of pre-defined sub-skeletons of this type
 
 	# The "key" bone stores the current database key of this skeleton.
-	# Warning: Assigning to this bones value is dangerous and does *not* affect the actual key
-	# its stored in
+	# Warning: Assigning to this bones value now *will* set the key
+	# it gets stored in. Must be kept readOnly to avoid security-issues with add/edit.
 	key = baseBone(descr="key", readOnly=True, visible=False)
 
 	# The date (including time) when this entry has been created
