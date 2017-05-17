@@ -39,7 +39,7 @@ class HtmlSerializer( HTMLParser.HTMLParser ): #html.parser.HTMLParser
 		self.validHtml = validHtml
 
 	def handle_data(self, data):
-		data = unicode(data).strip() \
+		data = unicode(data) \
 			.replace("<", "&lt;") \
 			.replace(">", "&gt;") \
 			.replace("\"", "&quot;") \
