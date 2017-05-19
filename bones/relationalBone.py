@@ -296,16 +296,19 @@ class relationalBone( baseBone ):
 			:returns: None or String
 		"""
 		from server.skeleton import RefSkel, skeletonByKind
+
 		oldValues = valuesCache.get(name, None)
 		valuesCache[name] = []
 		tmpRes = {}
+
 		clientPrefix = "%s." % name
+
 		for k, v in data.items():
 			if k.startswith(clientPrefix) or k == name:
 				if k == name:
-					clientPrefix = name
-
-				k = k.replace(clientPrefix, "", 1)
+					k = k.replace(name, "", 1)
+				else:
+					k = k.replace(clientPrefix, "", 1)
 
 				if "." in k:
 					try:
@@ -753,7 +756,7 @@ class relationalBone( baseBone ):
 								res.append(tag)
 
 		res = []
-		if not values.get(key):
+		if key not in values.keys() or not values[key]:
 			return res
 
 		value = values[key]
@@ -801,18 +804,18 @@ class relationalBone( baseBone ):
 		if append and not self.multiple:
 			raise ValueError("Bone %s is not multiple, cannot append!" % boneName)
 		if not self.multiple and not self.using:
-			if not (isinstance(value, str) or isinstance(value, db.Key)):
+			if not (isinstance(value, basestring) or isinstance(value, db.Key)):
 				raise ValueError("You must supply exactly one Database-Key to %s" % boneName)
 			realValue = (value, None)
 		elif not self.multiple and self.using:
 			if not isinstance(value, tuple) or len(value) != 2 or \
-				not (isinstance(value[0], str) or isinstance(value[0], db.Key)) or \
+				not (isinstance(value[0], basestring) or isinstance(value[0], db.Key)) or \
 				not isinstance(value[1], self.using):
 					raise ValueError("You must supply a tuple of (Database-Key, relSkel) to %s" % boneName)
 			realValue = value
 		elif self.multiple and not self.using:
-			if not (isinstance(value, str) or isinstance(value, db.Key)) and not (isinstance(value, list)) \
-				and all([isinstance(x, str) or isinstance(x, db.Key) for x in value]):
+			if not (isinstance(value, basestring) or isinstance(value, db.Key)) and not (isinstance(value, list)) \
+				and all([isinstance(x, basestring) or isinstance(x, db.Key) for x in value]):
 					raise ValueError("You must supply a Database-Key or a list hereof to %s" % boneName)
 			if isinstance(value, list):
 				realValue = [(x, None) for x in value]
@@ -820,10 +823,10 @@ class relationalBone( baseBone ):
 				realValue = [(value, None)]
 		else:  # which means (self.multiple and self.using)
 			if not (isinstance(value, tuple) and len(value) == 2 and \
-				        (isinstance(value[0], str) or isinstance(value[0], db.Key)) \
+				        (isinstance(value[0], basestring) or isinstance(value[0], db.Key)) \
 					and isinstance(value[1], self.using)) and not (isinstance(value, list) and
 					all((isinstance(x, tuple) and len(x)==2 and \
-					(isinstance(x[0], str) or isinstance(x[0], db.Key)) \
+					(isinstance(x[0], basestring) or isinstance(x[0], db.Key)) \
 					and isinstance(x[1], self.using) for x in value))):
 						raise ValueError("You must supply (db.Key, RelSkel) or a list hereof to %s" % boneName)
 			if not isinstance(value, list):

@@ -614,10 +614,14 @@ class Skeleton(BaseSkeleton):
 							lockObj = db.Get(db.Key.from_path(
 								"%s_%s_uniquePropertyIndex" % (skel.kindName, boneName),
 								newUniqeValues[boneName]))
-							if lockObj[
-								"references"] != ourKey:  # This value has been claimed, and that not by us
+
+							if lockObj["references"] != ourKey:
+								# This value has been claimed, and that not by us
+
 								raise ValueError(
-									"The value of property %s has been recently claimed!" % boneName)
+									"The unique value '%s' of bone '%s' has been recently claimed!" %
+										(self.valuesCache[boneName], boneName))
+
 						except db.EntityNotFoundError:  # No lockObj found for that value, we can use that
 							pass
 						dbObj["%s.uniqueIndexValue" % boneName] = newUniqeValues[boneName]

@@ -81,6 +81,8 @@ class selectMultiBone( baseBone ):
 		else:
 			values = None
 		if not values:
+			if not self.required:
+				valuesCache[name] = []
 			return "No item selected"
 		if not isinstance(values, list):
 			if isinstance(values, basestring):
