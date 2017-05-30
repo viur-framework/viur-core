@@ -767,6 +767,9 @@ class relationalBone( baseBone ):
 		if self.multiple:
 			for idx, rel in enumerate(valuesCache[name]):
 				for sub in ["dest", "rel"]:
+					if not rel[sub]:
+						continue
+
 					for key, bone in rel[sub].items():
 						res.extend(bone.getSearchDocumentFields(rel[sub].getValuesCache(), key,
 						                                        prefix=prefix + name + "_" + str(idx) + "_"))
@@ -774,6 +777,9 @@ class relationalBone( baseBone ):
 			rel = valuesCache[name]
 
 			for sub in ["dest", "rel"]:
+				if not rel[sub]:
+					continue
+
 				for key, bone in rel[sub].items():
 					res.extend(bone.getSearchDocumentFields(rel[sub].getValuesCache(), key,
 					                                        prefix=prefix + name))
