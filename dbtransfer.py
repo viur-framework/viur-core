@@ -21,11 +21,14 @@ from google.appengine.datastore import datastore_query
 
 from itertools import izip
 from hashlib import sha256
+import email.header
+from quopri import decodestring
+from base64 import b64decode
 
 
 class DbTransfer( object ):
 	def __init__(self, *args, **kwargs ):
-		return( super( DbTransfer, self ).__init__())
+		super(DbTransfer, self).__init__()
 
 	def _checkKey(self, key, export=True):
 		"""
