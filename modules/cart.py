@@ -56,7 +56,7 @@ class Cart(List):
 			amt = None
 
 		if self.productSkel().fromDB( product ):
-			if not product in prods.keys():
+			if not product in prods:
 				prods[ product ] = { "amount" : 0 }
 
 			if amt and not bool( extend ):
@@ -115,7 +115,7 @@ class Cart(List):
 
 		prods = session.current.get("cart_products") or {}
 
-		if product in prods.keys():
+		if product in prods:
 			removed = prods[ product ][ "amount" ]
 
 			if all=="0" and prods[ product ][ "amount" ] > 1:

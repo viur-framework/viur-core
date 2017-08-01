@@ -72,7 +72,7 @@ def dumpConfig( adminTree ):
 				adminConfig[ key ] = app.adminInfo.copy()
 				adminConfig[ key ]["name"] = _(adminConfig[ key ]["name"])
 				adminConfig[ key ]["views"] = []
-				if "views" in app.adminInfo.keys():
+				if "views" in app.adminInfo:
 					for v in app.adminInfo["views"]:
 						tmp = v.copy()
 						tmp["name"] = _(tmp["name"])

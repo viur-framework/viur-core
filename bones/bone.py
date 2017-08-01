@@ -94,7 +94,7 @@ class baseBone(object): # One Bone:
 		from server.skeleton import _boneCounter
 		#Fallbacks for old non-CamelCase API
 		for x in ["defaultvalue", "readonly"]:
-			if x in kwargs.keys():
+			if x in kwargs:
 				raise NotImplementedError("%s is not longer supported" % x )
 		self.isClonedInstance = getSystemInitialized()
 		self.descr = descr
@@ -144,14 +144,14 @@ class baseBone(object): # One Bone:
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
-			
+
 			:param name: Our name in the skeleton
 			:type name: String
 			:param data: User-supplied request-data
 			:type data: dict
 			:returns: None or str
 		"""
-		if name in data.keys():
+		if name in data:
 			value = data[ name ]
 		else:
 			value = None
@@ -174,7 +174,7 @@ class baseBone(object): # One Bone:
 		"""
 			Serializes this bone into something we
 			can write into the datastore.
-			
+
 			:param name: The property-name this bone has in its Skeleton (not the description!)
 			:type name: String
 			:returns: dict
@@ -194,7 +194,7 @@ class baseBone(object): # One Bone:
 			:type expando: db.Entity
 			:returns: bool
 		"""
-		if name in expando.keys():
+		if name in expando:
 			valuesCache[name] = expando[ name ]
 		return( True )
 
@@ -207,7 +207,7 @@ class baseBone(object): # One Bone:
 				* Ignore all filters not targeting this bone
 				* Safely handle malformed data in rawFilter
 					(this parameter is directly controlled by the client)
-			
+
 			:param name: The property-name this bone has in its Skeleton (not the description!)
 			:type name: str
 			:param skel: The :class:`server.db.Query` this bone is part of
@@ -230,7 +230,7 @@ class baseBone(object): # One Bone:
 			assert isinstance( key, db.Key )
 			return( key )
 
-		if name == "key" and "key" in rawFilter.keys() and prefix is None:
+		if name == "key" and "key" in rawFilter and prefix is None:
 			if isinstance( rawFilter["key"], list ):
 
 				keyList = [ fromShortKey( key  ) for key in rawFilter["key"] ]
@@ -297,7 +297,7 @@ class baseBone(object): # One Bone:
 			the results, but by sorting them.
 			Again: rawFilter is controlled by the client, so you *must* expect and safely hande
 			malformed data!
-			
+
 			:param name: The property-name this bone has in its Skeleton (not the description!)
 			:type name: str
 			:param skel: The :class:`server.skeleton.Skeleton` instance this bone is part of
@@ -308,11 +308,11 @@ class baseBone(object): # One Bone:
 			:type rawFilter: dict
 			:returns: The modified :class:`server.db.Query`
 		"""
-		if "orderby" in list(rawFilter.keys()) and rawFilter["orderby"] == name:
+		if "orderby" in rawFilter and rawFilter["orderby"] == name:
 			if not self.indexed:
 				logging.warning( "Invalid ordering! %s is not indexed!" % name )
 				raise RuntimeError()
-			if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
+			if "orderdir" in rawFilter and rawFilter["orderdir"]=="1":
 				order = ( rawFilter["orderby"], db.DESCENDING )
 			else:
 				order = ( rawFilter["orderby"], db.ASCENDING )
@@ -339,7 +339,7 @@ class baseBone(object): # One Bone:
 				fulltext-search is used. If you enable the search-API
 				by setting a searchIndex on the skeleton, getSearchDocumentFields
 				is called instead.
-			
+
 			:return: List of Strings
 		"""
 		res = []
@@ -351,13 +351,13 @@ class baseBone(object): # One Bone:
 				if key and key not in res and len(key)>3:
 					res.append( key )
 		return( res )
-	
+
 	def getSearchDocumentFields(self, valuesCache, name):
 		"""
 			Returns a list of search-fields (GAE search API) for this bone.
 		"""
 		return( [ search.TextField( name=name, value=unicode( valuesCache[name] ) ) ] )
-	
+
 	def getUniquePropertyIndexValue( self, valuesCache, name ):
 		"""
 			Returns an hash for our current value, used to store in the uniqueProptertyValue index.

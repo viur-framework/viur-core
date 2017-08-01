@@ -132,22 +132,22 @@ def translate( key, **kwargs ):
 	res = None
 	lang = lang or conf["viur.defaultLanguage"]
 
-	if "_lang" in kwargs.keys():
+	if "_lang" in kwargs:
 		lang = kwargs[ "_lang" ]
 
-	if lang in conf["viur.languageAliasMap"].keys():
+	if lang in conf["viur.languageAliasMap"]:
 		lang = conf["viur.languageAliasMap"][ lang ]
 
 	if lang and lang in dir( translations ):
 		langDict = getattr(translations,lang)
 
-		if key.lower() in langDict.keys():
+		if key.lower() in langDict:
 			res = langDict[ key.lower() ]
 
 	if res is None and lang and lang in dir( servertrans ):
 		langDict = getattr(servertrans,lang)
 
-		if key.lower() in langDict.keys():
+		if key.lower() in langDict:
 			res = langDict[ key.lower() ]
 
 	if res is None and conf["viur.logMissingTranslations"]:
@@ -182,7 +182,7 @@ def setDefaultDomainLanguage( domain, lang ):
 		host = host[ 4: ]
 	conf["viur.domainLanguageMapping"][host] = lang.lower()
 
-### Multi-Language Part: END 
+### Multi-Language Part: END
 
 from server import session, errors
 from server.tasks import TaskHandler, runStartupTasks
@@ -234,7 +234,7 @@ def buildApp( config, renderers, default=None, *args, **kwargs ):
 	"""
 	class ExtendableObject( object ):
 		pass
-		
+
 	if isinstance( renderers,  dict ):
 		rendlist = renderers
 	else: # build up the dict from server.render
@@ -330,7 +330,7 @@ class BrowseHandler(webapp.RequestHandler):
 
 		:warning: Don't instantiate! Don't subclass! DON'T TOUCH! ;)
 	"""
-	
+
 	def get(self, path="/", *args, **kwargs): #Accept a HTTP-GET request
 		t1 = time()
 		if path=="_ah/start" or path=="_ah/warmup": #Warmup request
@@ -350,7 +350,7 @@ class BrowseHandler(webapp.RequestHandler):
 	def head(self, path="/", *args, **kwargs): #Accept a HTTP-HEAD request
 		self.isPostRequest = False
 		self.processRequest( path, *args, **kwargs )
-		
+
 	def selectLanguage( self, path ):
 		"""
 			Tries to select the best language for the current request.
@@ -361,7 +361,7 @@ class BrowseHandler(webapp.RequestHandler):
 		if conf["viur.languageMethod"] == "session":
 			# We store the language inside the session, try to load it from there
 			if not session.current.getLanguage():
-				if "X-Appengine-Country" in self.request.headers.keys():
+				if "X-Appengine-Country" in self.request.headers:
 					lng = self.request.headers["X-Appengine-Country"].lower()
 					if lng in conf["viur.availableLanguages"]+list( conf["viur.languageAliasMap"].keys() ):
 						session.current.setLanguage( lng )
@@ -375,7 +375,7 @@ class BrowseHandler(webapp.RequestHandler):
 			host = host[ host.find("://")+3: ].strip(" /") #strip http(s)://
 			if host.startswith("www."):
 				host = host[ 4: ]
-			if host in conf["viur.domainLanguageMapping"].keys():
+			if host in conf["viur.domainLanguageMapping"]:
 				self.language = conf["viur.domainLanguageMapping"][ host ]
 			else: # We have no language configured for this domain, try to read it from session
 				if session.current.getLanguage():
@@ -504,7 +504,7 @@ class BrowseHandler(webapp.RequestHandler):
 			self.response.out.write( res )
 			if bugsnag and conf["bugsnag.apiKey" ]:
 				bugsnag.configure( api_key=conf["bugsnag.apiKey" ] )
-				try: 
+				try:
 					user = conf["viur.mainApp"].user.getCurrentUser()
 				except:
 					user = "-unknown-"
@@ -516,7 +516,7 @@ class BrowseHandler(webapp.RequestHandler):
 				bugsnag.notify( e )
 		finally:
 			self.saveSession( )
-	
+
 
 	def findAndCall( self, path, *args, **kwargs ): #Do the actual work: process the request
 		# Prevent Hash-collision attacks
@@ -526,7 +526,7 @@ class BrowseHandler(webapp.RequestHandler):
 		for key in tmpArgs.keys()[ : ]:
 			if len( tmpArgs[ key ] ) == 0:
 				continue
-			if not key in kwargs.keys():
+			if not key in kwargs:
 				if len( tmpArgs[ key ] ) == 1:
 					kwargs[ key ] = tmpArgs[ key ][0]
 				else:
@@ -537,7 +537,7 @@ class BrowseHandler(webapp.RequestHandler):
 				else:
 					kwargs[key] = [ kwargs[key] ] + tmpArgs[key]
 		del tmpArgs
-		if "self" in kwargs.keys(): #self is reserved for bound methods
+		if "self" in kwargs: #self is reserved for bound methods
 			raise errors.BadRequest()
 		#Parse the URL
 		path = urlparse.urlparse( path ).path
@@ -666,7 +666,7 @@ def setup( modules, render=None, default="html" ):
 				if not skel.kindName:
 					# Looks like a common base-class for skeletons
 					continue
-				if skel.kindName in conf["viur.skeletons"].keys() and skel!=conf["viur.skeletons"][ skel.kindName ]:
+				if skel.kindName in conf["viur.skeletons"] and skel!=conf["viur.skeletons"][ skel.kindName ]:
 					# We have a conflict here, lets see if one skeleton is from server.*, and one from skeletons.*
 					relNewFileName = inspect.getfile(skel).replace( os.getcwd(),"" )
 					relOldFileName = inspect.getfile(conf["viur.skeletons"][ skel.kindName ]).replace( os.getcwd(),"" )
@@ -710,7 +710,7 @@ def setup( modules, render=None, default="html" ):
 			uri.lower().startswith("https://") or uri.lower().startswith("http://"))
 	runStartupTasks() #Add a deferred call to run all queued startup tasks
 	return( conf["viur.wsgiApp"] )
-	
+
 
 def run():
 	"""

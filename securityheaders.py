@@ -43,12 +43,12 @@ def addCspRule(objectType, srcOrDirective, enforceMode="monitor"):
 		[x in srcOrDirective for x in [";", "'", "\"", "\n", ","]]), "Invalid character in srcOrDirective!"
 	if conf["viur.security.contentSecurityPolicy"] is None:
 		conf["viur.security.contentSecurityPolicy"] = {"_headerCache": {}}
-	if not enforceMode in conf["viur.security.contentSecurityPolicy"].keys():
+	if not enforceMode in conf["viur.security.contentSecurityPolicy"]:
 		conf["viur.security.contentSecurityPolicy"][enforceMode] = {}
 	if objectType == "report-uri":
 		conf["viur.security.contentSecurityPolicy"][enforceMode]["report-uri"] = [srcOrDirective]
 	else:
-		if not objectType in conf["viur.security.contentSecurityPolicy"][enforceMode].keys():
+		if not objectType in conf["viur.security.contentSecurityPolicy"][enforceMode]:
 			conf["viur.security.contentSecurityPolicy"][enforceMode][objectType] = []
 		if not srcOrDirective in conf["viur.security.contentSecurityPolicy"][enforceMode][objectType]:
 			conf["viur.security.contentSecurityPolicy"][enforceMode][objectType].append(srcOrDirective)
@@ -63,7 +63,7 @@ def _rebuildCspHeaderCache():
 	conf["viur.security.contentSecurityPolicy"]["_headerCache"] = {}
 	for enforceMode in ["monitor", "enforce"]:
 		resStr = ""
-		if not enforceMode in conf["viur.security.contentSecurityPolicy"].keys():
+		if not enforceMode in conf["viur.security.contentSecurityPolicy"]:
 			continue
 		for key, values in conf["viur.security.contentSecurityPolicy"][enforceMode].items():
 			resStr += key

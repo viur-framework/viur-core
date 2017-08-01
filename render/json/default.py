@@ -6,7 +6,7 @@ from server.skeleton import RefSkel, skeletonByKind
 import logging
 
 class DefaultRender(object):
-	
+
 	def __init__(self, parent = None, *args, **kwargs):
 		super(DefaultRender,  self).__init__(*args, **kwargs)
 		self.parent = parent
@@ -105,9 +105,9 @@ class DefaultRender(object):
 
 			res[key] = self.renderBoneStructure(bone)
 
-			if key in skel.errors.keys():
+			if key in skel.errors:
 				res[key]["error"] = skel.errors[ key ]
-			elif any( [x.startswith("%s." % key) for x in skel.errors.keys()]):
+			elif any( [x.startswith("%s." % key) for x in skel.errors]):
 				res[key]["error"] = {k:v for k,v in skel.errors.items() if k.startswith("%s." % key )}
 			else:
 				res[key]["error"] = None
@@ -115,8 +115,8 @@ class DefaultRender(object):
 
 	def renderTextExtension(self, ext ):
 		e = ext()
-		return( {"name": e.name, 
-				"descr": _( e.descr ), 
+		return( {"name": e.name,
+				"descr": _( e.descr ),
 				"skel": self.renderSkelStructure( e.dataSkel() ) } )
 
 	def renderBoneValue(self, bone, skel, key):
@@ -196,7 +196,7 @@ class DefaultRender(object):
 			res[key] = self.renderBoneValue(bone, skel, key)
 
 		return res
-		
+
 	def renderEntry( self, skel, actionName ):
 		if isinstance(skel, list):
 			vals = [self.renderSkelValues(x) for x in skel]
@@ -216,7 +216,7 @@ class DefaultRender(object):
 
 	def view(self, skel, listname="view", *args, **kwargs):
 		return self.renderEntry(skel, "view")
-		
+
 	def add(self, skel, **kwargs):
 		return self.renderEntry(skel, "add")
 
@@ -243,10 +243,10 @@ class DefaultRender(object):
 
 	def editItemSuccess(self, skel, **kwargs):
 		return self.renderEntry(skel, "editSuccess")
-		
+
 	def addItemSuccess(self, skel, **kwargs):
 		return self.renderEntry(skel, "addSuccess")
-		
+
 	def deleteItemSuccess(self, skel, **kwargs):
 		return self.renderEntry(skel, "deleteSuccess")
 
@@ -255,12 +255,12 @@ class DefaultRender(object):
 
 	def listRootNodes(self, rootNodes ):
 		return json.dumps(rootNodes)
-		
+
 	def listRootNodeContents(self, subdirs, entrys, **kwargs):
 		res = {
 			"subdirs": subdirs
 		}
-		
+
 		skels = []
 
 		for skel in entrys:
@@ -268,7 +268,7 @@ class DefaultRender(object):
 
 		res["entrys"] = skels
 		return json.dumps(res)
-	
+
 	def renameSuccess(self, *args, **kwargs):
 		return json.dumps("OKAY")
 

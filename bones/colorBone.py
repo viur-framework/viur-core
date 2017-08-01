@@ -18,14 +18,14 @@ class colorBone( baseBone ):
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
-			
+
 			:param name: Our name in the skeleton
 			:type name: str
 			:param data: *User-supplied* request-data
 			:type data: dict
 			:returns: str or None
 		"""
-		if name in data.keys():
+		if name in data:
 			value = data[ name ]
 		else:
 			value = None

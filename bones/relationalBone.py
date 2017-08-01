@@ -126,12 +126,12 @@ class relationalBone( baseBone ):
 		relSkel.setValuesCache({})
 
 		# !!!ViUR re-design compatibility!!!
-		if not "dest" in value.keys():
+		if not "dest" in value:
 			nvalue = dict()
 			nvalue["dest"] = value
 			value = nvalue
 
-		if "id" in value["dest"].keys() and not("key" in value["dest"].keys() and value["dest"]["key"]):
+		if "id" in value["dest"] and not("key" in value["dest"] and value["dest"]["key"]):
 			value["dest"]["key"] = value["dest"]["id"]
 			del value["dest"]["id"]
 		# UNTIL HERE!
@@ -150,7 +150,7 @@ class relationalBone( baseBone ):
 
 
 	def unserialize( self, valuesCache, name, expando ):
-		if name in expando.keys():
+		if name in expando:
 			val = expando[ name ]
 			if self.multiple:
 				valuesCache[name] = []
@@ -261,7 +261,7 @@ class relationalBone( baseBone ):
 		parentValues = {}
 
 		for parentKey in self.parentKeys:
-			if parentKey in dbfields.keys():
+			if parentKey in dbfields:
 				parentValues[ parentKey ] = dbfields[ parentKey ]
 
 		dbVals = db.Query( "viur-relations" ).ancestor( db.Key( key ) ) #skel.kindName+"_"+self.kind+"_"+key
@@ -376,10 +376,10 @@ class relationalBone( baseBone ):
 				else:
 					continue
 
-				if not idx in tmpRes.keys():
+				if not idx in tmpRes:
 					tmpRes[ idx ] = {}
 
-				if bname in tmpRes[ idx ].keys():
+				if bname in tmpRes[ idx ]:
 					if isinstance( tmpRes[ idx ][bname], list ):
 						tmpRes[ idx ][bname].append( v )
 					else:
@@ -387,7 +387,7 @@ class relationalBone( baseBone ):
 				else:
 					tmpRes[ idx ][bname] = v
 
-		tmpList = [(k,v) for k,v in tmpRes.items() if "key" in v.keys()]
+		tmpList = [(k,v) for k,v in tmpRes.items() if "key" in v]
 		tmpList.sort( key=lambda k: k[0] )
 		tmpList = [{"reltmp":v,"dest":{"key":v["key"]}} for k,v in tmpList]
 		errorDict = {}
@@ -581,7 +581,7 @@ class relationalBone( baseBone ):
 				elif _type=="rel":
 
 					#Ensure that the relational-filter is in refKeys
-					if self.using is None or checkKey not in self.using().keys():
+					if self.using is None or checkKey not in self.using():
 						logging.warning( "Invalid filtering! %s is not a bone in 'using' of %s" % (key,name) )
 						raise RuntimeError()
 
@@ -598,16 +598,16 @@ class relationalBone( baseBone ):
 				dbFilter.setFilterHook( lambda s, filter, value: self.filterHook( name, s, filter, value))
 				dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings) )
 
-		elif name in rawFilter.keys() and rawFilter[ name ].lower() == "none":
+		elif name in rawFilter and rawFilter[ name ].lower() == "none":
 			dbFilter = dbFilter.filter("%s =" % name, None)
 
 		return dbFilter
 
 	def buildDBSort( self, name, skel, dbFilter, rawFilter ):
 		origFilter = dbFilter.datastoreQuery
-		if origFilter is None or not "orderby" in rawFilter.keys(): #This query is unsatisfiable or not sorted
+		if origFilter is None or not "orderby" in rawFilter: #This query is unsatisfiable or not sorted
 			return( dbFilter )
-		if "orderby" in list(rawFilter.keys()) and isinstance(rawFilter["orderby"], basestring) and rawFilter["orderby"].startswith( "%s." % name ):
+		if "orderby" in rawFilter and isinstance(rawFilter["orderby"], basestring) and rawFilter["orderby"].startswith( "%s." % name ):
 			if not dbFilter.getKind()=="viur-relations": #This query has not been rewritten (yet)
 				name, skel, dbFilter, rawFilter = self._rewriteQuery( name, skel, dbFilter, rawFilter )
 			key = rawFilter["orderby"]
@@ -620,10 +620,10 @@ class relationalBone( baseBone ):
 			if _type=="dest" and not param in self.refKeys:
 				logging.warning( "Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (param,name) )
 				raise RuntimeError()
-			if _type=="rel" and (self.using is None or param not in self.using().keys()):
+			if _type=="rel" and (self.using is None or param not in self.using()):
 				logging.warning( "Invalid filtering! %s is not a bone in 'using' of %s" % (param,name) )
 				raise RuntimeError()
-			if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
+			if "orderdir" in rawFilter  and rawFilter["orderdir"]=="1":
 				order = ( "%s.%s" % (_type,param), db.DESCENDING )
 			else:
 				order = ( "%s.%s" % (_type,param), db.ASCENDING )
@@ -744,13 +744,13 @@ class relationalBone( baseBone ):
 				Fetches the entity referenced by valDict["dest.key"] and updates all dest.* keys
 				accordingly
 			"""
-			if isinstance(relDict, dict) and "dest" in relDict.keys():
+			if isinstance(relDict, dict) and "dest" in relDict:
 				valDict = relDict["dest"]
 			else:
 				logging.error("Invalid dictionary in updateInplace: %s" % relDict)
 				return
 
-			if "key" in valDict.keys() and valDict["key"]:
+			if "key" in valDict and valDict["key"]:
 				originalKey = valDict["key"]
 			else:
 				logging.error("Invalid dictionary in updateInplace: %s" % valDict)
@@ -776,10 +776,10 @@ class relationalBone( baseBone ):
 				raise
 
 			if newValues:
-				for key in self._refSkelCache.keys():
+				for key in self._refSkelCache:
 					if key == "key":
 						continue
-					elif key in newValues.keys():
+					elif key in newValues:
 						getattr(self._refSkelCache, key).unserialize(valDict, key, newValues)
 
 
@@ -811,7 +811,7 @@ class relationalBone( baseBone ):
 								res.append(tag)
 
 		res = []
-		if key not in values.keys() or not values[key]:
+		if key not in values or not values[key]:
 			return res
 
 		value = values[key]
@@ -918,7 +918,7 @@ class relationalBone( baseBone ):
 				blobList.update(_bone.getReferencedBlobs(valuesCache, key))
 			return blobList
 		res = set()
-		if name in valuesCache.keys():
+		if name in valuesCache:
 			if isinstance(valuesCache[name], list):
 				for myDict in valuesCache[name]:
 					if myDict["dest"]:
