@@ -10,6 +10,7 @@ from google.appengine.api import memcache, users
 from collections import OrderedDict
 import string
 import logging
+import re, os
 
 @jinjaGlobalFunction
 def execRequest(render, path, *args, **kwargs):
@@ -550,3 +551,18 @@ def renderEditForm(render, skel, ignore=None, hide=None, style=None):
 
 	return res
 
+
+@jinjaGlobalFunction
+def icon(self, name, params={}):
+	svgtpl = ""
+	if os.path.isfile(os.path.join(os.getcwd(), "html", "icons", name + ".svg")):
+		svgtpl = self.getEnv().get_template("icons/%s.svg" % name).render(params=params)
+	if "<!" in svgtpl:
+		svgtpl = re.sub("<!.*?>\n", "", svgtpl) # remove Doctype & comments
+	if "<?" in svgtpl:
+		svgtpl = re.sub("<\?.*?>\n", "", svgtpl) # remove xml head
+	if "<svg" in svgtpl:
+		svgtpl = re.sub("<svg", "<svg class='icon'", svgtpl) # add icon class
+	else:
+		svgtpl = "["+name+"]"
+	return svgtpl
