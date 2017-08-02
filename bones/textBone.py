@@ -11,27 +11,24 @@ from server.config import conf
 import logging, string
 
 
-_attrsMargins = ["margin", "margin-left", "margin-right", "margin-top", "margin-bottom"]
-_attrsPadding = ["padding", "padding-left", "padding-right", "padding-top", "padding-bottom"]
-_attrsDescr = ["title", "alt"]
 _defaultTags = {
 	"validTags": [  # List of HTML-Tags which are valid
 		'b', 'a', 'i', 'u', 'span', 'div', 'p', 'img', 'ol', 'ul', 'li', 'abbr', 'sub', 'sup',
 		'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'br',
-		'hr', 'strong', 'blockquote'],
+		'hr', 'strong', 'blockquote', 'em'],
 	"validAttrs": {  # Mapping of valid parameters for each tag (if a tag is not listed here: no parameters allowed)
-		"a": ["href", "target"] + _attrsDescr,
+		"a": ["href", "target", "title"],
 		"abbr": ["title"],
 		"span": ["title"],
-		"img": ["src", "width", "height"] + _attrsDescr,
-		"table": ["border"] + _attrsDescr,
-		"td": ["colspan", "rowspan"]
+		"img": ["src", "srcset", "width", "height", "alt", "title"],
+		"td": ["colspan", "rowspan"],
+		"p": ["data-indent"],
+		"blockquote" : ["cite"]
 	},
 	"validStyles": [],  # List of CSS-Directives we allow
 	"validClasses": ["vitxt-*"],  # List of valid class-names that are valid
 	"singleTags": ["br", "img", "hr"]  # List of tags, which don't have a corresponding end tag
 }
-del _attrsDescr, _attrsPadding, _attrsMargins
 
 
 class HtmlSerializer(HTMLParser.HTMLParser):  # html.parser.HTMLParser
@@ -155,7 +152,7 @@ class HtmlSerializer(HTMLParser.HTMLParser):  # html.parser.HTMLParser
 			if tag in self.validHtml["singleTags"]:
 				# Single-Tags do have a visual representation; ensure it makes it into the result
 				self.flushCache()
-				self.result += cacheTagStart + ' />'
+				self.result += cacheTagStart + '>' # dont need slash in void elements in html5
 			else:
 				# We opened a 'normal' tag; push it on the cache so it can be discarded later if
 				# we detect it has no content
