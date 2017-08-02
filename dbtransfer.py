@@ -27,8 +27,6 @@ from base64 import b64decode
 
 
 class DbTransfer( object ):
-	def __init__(self, *args, **kwargs ):
-		super(DbTransfer, self).__init__()
 
 	def _checkKey(self, key, export=True):
 		"""
