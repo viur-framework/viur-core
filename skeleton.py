@@ -122,6 +122,10 @@ class BaseSkeleton(object):
 	def __contains__(self, item):
 		return item in self.__dataDict__
 
+	def __iter__(self):
+		for key in self.__dataDict__.keys():
+			yield key
+
 	def items(self):
 		return self.__dataDict__.items()
 
