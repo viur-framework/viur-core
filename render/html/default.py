@@ -124,7 +124,7 @@ class Render( object ):
 		else:
 			htmlpath = "html"
 		if not ignoreStyle\
-			and "style" in list( request.current.get().kwargs)\
+			and "style" in request.current.get().kwargs\
 			and all( [ x in validChars for x in request.current.get().kwargs["style"].lower() ] ):
 				stylePostfix = "_"+request.current.get().kwargs["style"]
 		else:
