@@ -776,7 +776,7 @@ class relationalBone( baseBone ):
 				raise
 
 			if newValues:
-				for key in self._refSkelCache:
+				for key in self._refSkelCache.keys():
 					if key == "key":
 						continue
 					elif key in newValues:

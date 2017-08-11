@@ -107,7 +107,7 @@ class DefaultRender(object):
 
 			if key in skel.errors:
 				res[key]["error"] = skel.errors[ key ]
-			elif any( [x.startswith("%s." % key) for x in skel.errors]):
+			elif any( [x.startswith("%s." % key) for x in skel.errors.keys()]):
 				res[key]["error"] = {k:v for k,v in skel.errors.items() if k.startswith("%s." % key )}
 			else:
 				res[key]["error"] = None

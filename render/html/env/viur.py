@@ -361,7 +361,7 @@ def updateURL(render, **kwargs):
 	tmpparams = {}
 	tmpparams.update(request.current.get().kwargs)
 
-	for key in tmpparams.keys():
+	for key in list(tmpparams.keys()):
 		if key[0] == "_":
 			del tmpparams[ key ]
 		elif isinstance( tmpparams[ key ], unicode ):
