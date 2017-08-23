@@ -240,7 +240,8 @@ class TaskHandler:
 		return self.render.addItemSuccess( skel )
 	execute.exposed = True
 	
-TaskHandler.admin = True	
+TaskHandler.admin = True
+TaskHandler.vi = True
 TaskHandler.html = True
 
 ## Decorators ##
