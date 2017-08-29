@@ -80,6 +80,25 @@ def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,
 		logging.warning("Sending emails disabled by config[viur.emailRecipientOverride]")
 		return
 
+	handler = conf.get("viur.emailHandler")
+
+	if handler is None:
+		handler = _GAE_sendEMail
+
+	if not callable(handler):
+		logging.warning("Invalid emailHandler configured, no email will be sent.")
+		return False
+
+
+	logging.error("CALLING %s" % str(handler))
+
+	return handler(dests, name, skel, extraFiles=extraFiles, cc=cc, bcc=bcc, replyTo=replyTo, *args, **kwargs)
+
+
+def _GAE_sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None, *args, **kwargs):
+	"""
+	Internal function for using Google App Engine Email processing API. 
+	"""
 	headers, data = conf["viur.emailRenderer"]( skel, name, dests,**kwargs )
 
 	xheader = {}
@@ -135,7 +154,8 @@ def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,
 	if len( extraFiles )> 0:
 		message.attachments = extraFiles
 	
-	message.send( )
+	message.send()
+	return True
 
 def sendEMailToAdmins( subject, body, sender=None ):
 	"""

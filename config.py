@@ -27,6 +27,8 @@ conf = {
 	"viur.disableCache": False, #If set to true, the decorator @enableCache from server.cache has no effect
 	"viur.domainLanguageMapping": {},  #Maps Domains to alternative default languages
 
+	"viur.emailHandler": None,  # Allow for setting a custom email handler, like sendgrid. This must point to a function
+								# having equivalent parameters than utils.sendEMail().
 	"viur.emailRecipientOverride": None, #If set, all outgoing emails will be send to this address (overriding the 'dests'-parameter in utils.sendEmail)
 	"viur.emailSenderOverride": None, #If set, this sender will be used, regardless of what the templates advertise as sender
 	"viur.errorHandler": None, #If set, ViUR call this function instead of rendering the viur.errorTemplate if an exception occurs

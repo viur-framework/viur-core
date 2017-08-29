@@ -28,11 +28,12 @@ class DefaultRender(object):
 		# Base bone contents.
 		ret = {
 			"descr": _(bone.descr),
-	                "type": bone.type,
+	        "type": bone.type,
 			"required": bone.required,
 			"params": bone.params,
 			"visible": bone.visible,
-			"readonly": bone.readOnly
+			"readonly": bone.readOnly,
+			"unique": bone.unique
 		}
 
 		if bone.type == "relational" or bone.type.startswith("relational."):
