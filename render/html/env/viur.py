@@ -553,16 +553,11 @@ def renderEditForm(render, skel, ignore=None, hide=None, style=None):
 
 
 @jinjaGlobalFunction
-def icon(self, name, params={}):
-	svgtpl = ""
-	if os.path.isfile(os.path.join(os.getcwd(), "html", "icons", name + ".svg")):
-		svgtpl = self.getEnv().get_template("icons/%s.svg" % name).render(params=params)
-	if "<!" in svgtpl:
-		svgtpl = re.sub("<!.*?>\n", "", svgtpl) # remove Doctype & comments
-	if "<?" in svgtpl:
-		svgtpl = re.sub("<\?.*?>\n", "", svgtpl) # remove xml head
-	if "<svg" in svgtpl:
-		svgtpl = re.sub("<svg", "<svg class='icon'", svgtpl) # add icon class
-	else:
-		svgtpl = "["+name+"]"
-	return svgtpl
+def embedSvg(self, name):
+	if any([x in name for x in ["..", "~", "/"]]):
+		return u""
+	try:
+		return open(os.path.join(os.getcwd(), "html", "icons", name + ".svg"), "rb").read().decode("UTF-8")
+	except Exception as e:
+		logging.exception(e)
+		return ""
