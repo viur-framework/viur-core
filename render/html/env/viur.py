@@ -10,7 +10,7 @@ from google.appengine.api import memcache, users
 from collections import OrderedDict
 import string
 import logging
-import re, os
+import os
 
 @jinjaGlobalFunction
 def execRequest(render, path, *args, **kwargs):
