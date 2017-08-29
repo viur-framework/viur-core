@@ -207,7 +207,7 @@ class Hierarchy(BasicApplication):
 		for e in entrys:
 			self.deleteRecursive(str(e.key()))
 			vs = self.editSkel()
-			vs.setValues(e, key=e.key())
+			vs.setValues(e)
 			vs.delete()
 
 
