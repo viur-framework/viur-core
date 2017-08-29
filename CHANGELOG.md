@@ -7,9 +7,11 @@
 ## [2.0.3] - 2017-08-30
 
 ### Changed
+ - If URL-Based language method is used and none is set, also evaluate X-Appengine-Country as a hint which language should be used 
  - Descriptions of selectOne/selectMultiBone are now translated before passed to the template
  
 ### Fixed
+ - Prevent an exception if querying an selectOneBone which has an empty values dict
  - Clone function in hierarchy moving entries instead of duplicating them
 
 
