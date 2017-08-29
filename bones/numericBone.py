@@ -97,4 +97,5 @@ class numericBone( baseBone ):
 		return( super( numericBone, self ).buildDBFilter( name, skel, dbFilter, filter, prefix ) )
 
 	def getSearchDocumentFields(self, valuesCache, name, prefix = ""):
-		return [search.NumberField(name=prefix + name, value=valuesCache[name])]
+		if isinstance(valuesCache.get(name), int) or isinstance(valuesCache.get(name), float):
+			return [search.NumberField(name=prefix + name, value=valuesCache[name])]
