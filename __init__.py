@@ -391,7 +391,7 @@ class BrowseHandler(webapp.RequestHandler):
 					self.language = session.current.getLanguage()
 				elif "X-Appengine-Country" in self.request.headers.keys():
 					lng = self.request.headers["X-Appengine-Country"].lower()
-					if lng in conf["viur.availableLanguages"] + list(conf["viur.languageAliasMap"].keys()):
+					if lng in conf["viur.availableLanguages"] or lng in conf["viur.languageAliasMap"]:
 						self.language = lng
 		return( path )
 
