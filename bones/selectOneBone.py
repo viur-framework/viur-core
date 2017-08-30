@@ -96,7 +96,7 @@ class selectOneBone( baseBone ):
 		mode="str"
 		if not self.values:
 			# catching corner case if that bone has no filled values (yet)
-			return dbFilter
+			raise RuntimeError()
 		elif all( [ isinstance( val, int ) for val in self.values.keys() ] ):
 			filter = dict( [ ( k, int( v ) ) for k,v in rawFilter.items() if k==name or k.startswith("%s$" % name ) ] )
 		elif all( [ isinstance( val, float ) for val in self.values.keys() ] ):
