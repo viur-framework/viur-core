@@ -73,7 +73,7 @@ class selectOneBone( baseBone ):
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
-			
+
 			:param name: Our name in the skeleton
 			:type name: String
 			:param data: *User-supplied* request-data
@@ -94,7 +94,10 @@ class selectOneBone( baseBone ):
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
 		mode="str"
-		if all( [ isinstance( val, int ) for val in self.values.keys() ] ):
+		if not self.values:
+			# catching corner case if that bone has no filled values (yet)
+			raise RuntimeError()
+		elif all( [ isinstance( val, int ) for val in self.values.keys() ] ):
 			filter = dict( [ ( k, int( v ) ) for k,v in rawFilter.items() if k==name or k.startswith("%s$" % name ) ] )
 		elif all( [ isinstance( val, float ) for val in self.values.keys() ] ):
 			filter = dict( [ ( k, float( v ) ) for k,v in rawFilter.items() if k==name or k.startswith("%s$" % name ) ] )
