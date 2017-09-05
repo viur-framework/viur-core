@@ -305,6 +305,9 @@ class textBone( baseBone ):
 		"""
 			Returns a list of search-fields (GAE search API) for this bone.
 		"""
+		if valuesCache.get(name) is None:
+			# If adding an entry using an subskel, our value might not have been set
+			return []
 		if self.languages:
 			assert isinstance(valuesCache[name], dict), "The value shall already contain a dict, something is wrong here."
 
