@@ -2,6 +2,7 @@
 from server.bones import baseBone
 from math import pow
 from google.appengine.api import search
+import logging
 
 class numericBone( baseBone ):
 	"""
@@ -89,12 +90,24 @@ class numericBone( baseBone ):
 			else:
 				valuesCache[name] = float( expando[ name ] )
 
-	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
-		if not self.precision:
-			filter = dict( [ ( k, int( v ) ) for k,v in rawFilter.items() if k.startswith( name ) ] )
-		else:
-			filter = dict( [ ( k, float( v ) ) for k,v in rawFilter.items() if k.startswith( name ) ] )
-		return( super( numericBone, self ).buildDBFilter( name, skel, dbFilter, filter, prefix ) )
+	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
+		updatedFilter = {}
+		for parmKey, paramValue in rawFilter.items():
+			if parmKey.startswith(name):
+				if parmKey != name and not parmKey.startswith(name+"$"):
+					# It's just another bone which name start's with our's
+					continue
+				try:
+					if not self.precision:
+						paramValue = int(paramValue)
+					else:
+						paramValue = float(paramValue)
+				except ValueError:
+					# The value we should filter by is garbage, cancel this query
+					logging.warning("Invalid filtering! Unparsable int/float supplied to numericBone %s" % name)
+					raise RuntimeError()
+				updatedFilter[parmKey] = paramValue
+		return super(numericBone, self).buildDBFilter(name, skel, dbFilter, updatedFilter, prefix)
 
 	def getSearchDocumentFields(self, valuesCache, name, prefix = ""):
 		if isinstance(valuesCache.get(name), int) or isinstance(valuesCache.get(name), float):
