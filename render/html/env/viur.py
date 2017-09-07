@@ -10,6 +10,7 @@ from google.appengine.api import memcache, users
 from collections import OrderedDict
 import string
 import logging
+import os
 
 @jinjaGlobalFunction
 def execRequest(render, path, *args, **kwargs):
@@ -548,3 +549,13 @@ def renderEditForm(render, skel, ignore=None, hide=None, style=None):
 
 	return res
 
+
+@jinjaGlobalFunction
+def embedSvg(self, name):
+	if any([x in name for x in ["..", "~", "/"]]):
+		return u""
+	try:
+		return open(os.path.join(os.getcwd(), "html", "icons", name + ".svg"), "rb").read().decode("UTF-8")
+	except Exception as e:
+		logging.exception(e)
+		return ""

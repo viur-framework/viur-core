@@ -404,12 +404,12 @@ class Order( List ):
 		"""
 		order = self.editSkel()
 		order.fromDB( orderKey )
-		if not str( order["state_complete"].value ) == "1":
+		if not str(order["state_complete"]) == "1":
 			session.current["order_"+order.kindName] = None
 			session.current.markChanged() #Fixme
 			self.setComplete( orderKey )
-			if order[ "payment_type" ].value in self.initializedPaymentProviders.keys():
-				pp = self.initializedPaymentProviders[ order[ "payment_type" ].value ]
+			if order["payment_type"] in self.initializedPaymentProviders.keys():
+				pp = self.initializedPaymentProviders[order["payment_type"]]
 				pp.startProcessing( step, orderKey )
 				#getattr( self, "paymentProvider_%s" % order.payment_type.value )( step, orderKey )
 

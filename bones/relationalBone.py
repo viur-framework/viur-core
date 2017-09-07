@@ -632,19 +632,6 @@ class relationalBone( baseBone ):
 			dbFilter.setOrderHook( lambda s, orderings: self.orderHook( name, s, orderings))
 		return( dbFilter )
 
-	def getSearchDocumentFields(self, valuesCache, name): #FIXME
-		if not valuesCache[name]:
-			return( [] )
-		if self.multiple:
-			data = valuesCache[name]
-		else:
-			data = [ valuesCache[name] ]
-		res = []
-		for rel in data:
-			for k, v in rel.items():
-				res.append( search.TextField( name="%s%s" % (name, k), value=unicode( v ) ) )
-		return( res )
-
 	def filterHook(self, name, query, param, value ): #FIXME
 		"""
 			Hook installed by buildDbFilter.
@@ -795,7 +782,6 @@ class relationalBone( baseBone ):
 			for k in valuesCache[boneName]:
 				updateInplace(k)
 
-
 	def getSearchTags(self, values, key):
 		from server.skeleton import BaseSkeleton
 
@@ -821,6 +807,37 @@ class relationalBone( baseBone ):
 				getValues(res, val)
 		else:
 			getValues(res, value)
+
+		return res
+
+	def getSearchDocumentFields(self, valuesCache, name, prefix=""):
+		"""
+		Generate fields for Google Search API
+		"""
+		res = []
+
+		if not valuesCache[name]:
+			return res
+
+		if self.multiple:
+			for idx, rel in enumerate(valuesCache[name]):
+				for sub in ["dest", "rel"]:
+					if not rel[sub]:
+						continue
+
+					for key, bone in rel[sub].items():
+						res.extend(bone.getSearchDocumentFields(rel[sub].getValuesCache(), key,
+						                                        prefix=prefix + name + "_" + str(idx) + "_"))
+		else:
+			rel = valuesCache[name]
+
+			for sub in ["dest", "rel"]:
+				if not rel[sub]:
+					continue
+
+				for key, bone in rel[sub].items():
+					res.extend(bone.getSearchDocumentFields(rel[sub].getValuesCache(), key,
+					                                        prefix=prefix + name))
 
 		return res
 

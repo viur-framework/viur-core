@@ -858,7 +858,7 @@ class Query( object ):
 			#s = self.srcSkel.clone()
 			valueCache = {}
 			self.srcSkel.setValuesCache(valueCache)
-			self.srcSkel.setValues( e, key=e.key() )
+			self.srcSkel.setValues(e)
 			res.append( self.srcSkel.getValuesCache() )
 		try:
 			c = self.datastoreQuery.GetCursor()
@@ -951,7 +951,7 @@ class Query( object ):
 		if res is None:
 			return( None )
 		#s = self.srcSkel.clone()
-		self.srcSkel.setValues( res, key=res.key() )
+		self.srcSkel.setValues(res)
 		return self.srcSkel
 
 	def count( self, limit=1000, **kwargs ):

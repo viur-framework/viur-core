@@ -154,7 +154,7 @@ class Singleton(BasicApplication):
 		key = db.Key.from_path( self.editSkel().kindName, self.getKey() )
 
 		if not skel.fromDB( str(key) ): #Its not there yet; we need to set the key again
-			skel.setValues( {}, key=key )
+			skel["key"] = str(key)
 
 		if (len(kwargs) == 0 # no data supplied
 		    or skey == "" #no skey provided

@@ -207,7 +207,7 @@ class Hierarchy(BasicApplication):
 		for e in entrys:
 			self.deleteRecursive(str(e.key()))
 			vs = self.editSkel()
-			vs.setValues(e, key=e.key())
+			vs.setValues(e)
 			vs.delete()
 
 
@@ -503,14 +503,17 @@ class Hierarchy(BasicApplication):
 		if not len(key):
 			raise errors.NotAcceptable()
 		skel = self.viewSkel()
-
-		if not skel.fromDB(key):
-			raise errors.NotFound()
-
-		if not self.canView(skel):
-			raise errors.Unauthorized()
-
-		self.onItemViewed(skel)
+		if key == u"structure":
+			# We dump just the structure of that skeleton, including it's default values
+			if not self.canView(None):
+				raise errors.Unauthorized()
+		else:
+			# We return a single entry for viewing
+			if not skel.fromDB(key):
+				raise errors.NotFound()
+			if not self.canView(skel):
+				raise errors.Unauthorized()
+			self.onItemViewed(skel)
 		return self.render.view(skel)
 
 	@exposed
@@ -839,12 +842,15 @@ class Hierarchy(BasicApplication):
 		- If the user has "root" access, viewing is generally allowed.
 		- If the user has the modules "view" permission (module-view) enabled, viewing is allowed.
 
+		If skel is None, it's a check if the current user is allowed to retrieve the skeleton structure
+		from this module (ie. there is or could be at least one entry that is visible to that user)
+
 		It should be overridden for a module-specific behavior.
 
 		.. seealso:: :func:`view`
 
 		:param skel: The Skeleton that should be viewed.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`server.skeleton.Skeleton` | None
 
 		:returns: True, if viewing is allowed, False otherwise.
 		:rtype: bool

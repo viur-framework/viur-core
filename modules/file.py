@@ -67,8 +67,8 @@ class fileBaseSkel(TreeLeafSkel):
 				self["mimetype"] = self["metamime"]
 		return r
 
-	def setValues(self, values, key=False):
-		r = super(fileBaseSkel, self).setValues(values, key)
+	def setValues(self, values):
+		r = super(fileBaseSkel, self).setValues(values)
 		if not self["mimetype"]:
 			if self["meta_mime"]:
 				self["mimetype"] = self["meta_mime"]

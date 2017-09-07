@@ -301,7 +301,7 @@ class textBone( baseBone ):
 						res.append( key.lower() )
 		return( res )
 
-	def getSearchDocumentFields(self, valuesCache, name):
+	def getSearchDocumentFields(self, valuesCache, name, prefix = ""):
 		"""
 			Returns a list of search-fields (GAE search API) for this bone.
 		"""
@@ -309,13 +309,13 @@ class textBone( baseBone ):
 			assert isinstance(valuesCache[name], dict), "The value shall already contain a dict, something is wrong here."
 
 			if self.validHtml:
-				return [search.HtmlField(name=name, value=unicode( valuesCache[name].get(lang, "")), language=lang)
+				return [search.HtmlField(name=prefix + name, value=unicode(valuesCache[name].get(lang, "")), language=lang)
 				        for lang in self.languages]
 			else:
-				return [search.TextField(name=name, value=unicode( valuesCache[name].get(lang, "")), language=lang)
+				return [search.TextField(name=prefix + name, value=unicode(valuesCache[name].get(lang, "")), language=lang)
 				        for lang in self.languages]
 		else:
 			if self.validHtml:
-				return [search.HtmlField( name=name, value=unicode(valuesCache[name]))]
+				return [search.HtmlField(name=prefix + name, value=unicode(valuesCache[name]))]
 			else:
-				return [search.TextField( name=name, value=unicode(valuesCache[name]))]
+				return [search.TextField(name=prefix + name, value=unicode(valuesCache[name]))]

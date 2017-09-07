@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
 from math import pow
+from google.appengine.api import search
 
 class numericBone( baseBone ):
 	"""
@@ -94,3 +95,7 @@ class numericBone( baseBone ):
 		else:
 			filter = dict( [ ( k, float( v ) ) for k,v in rawFilter.items() if k.startswith( name ) ] )
 		return( super( numericBone, self ).buildDBFilter( name, skel, dbFilter, filter, prefix ) )
+
+	def getSearchDocumentFields(self, valuesCache, name, prefix = ""):
+		if isinstance(valuesCache.get(name), int) or isinstance(valuesCache.get(name), float):
+			return [search.NumberField(name=prefix + name, value=valuesCache[name])]

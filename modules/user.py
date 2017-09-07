@@ -597,13 +597,19 @@ class User(List):
 			raise errors.Unauthorized()
 		if not securitykey.validate(skey):
 			raise errors.PreconditionFailed()
+
+		self.onLogout(user)
+
 		oldSession = {k: v for k, v in session.current.items()}  # Store all items in the current session
 		session.current.reset()
+
 		# Copy the persistent fields over
 		for k in conf["viur.session.persistentFieldsOnLogout"]:
 			if k in oldSession:
 				session.current[k] = oldSession[k]
+
 		del oldSession
+
 		return self.render.logoutSuccess()
 
 	@exposed
@@ -613,6 +619,9 @@ class User(List):
 	def onLogin(self):
 		usr = self.getCurrentUser()
 		logging.info( "User logged in: %s" % usr["name"])
+
+	def onLogout(self, usr):
+		logging.info( "User logged out: %s" % usr["name"])
 
 	@exposed
 	def edit(self,  *args,  **kwargs):
