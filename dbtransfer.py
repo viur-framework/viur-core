@@ -165,9 +165,9 @@ class DbTransfer( object ):
 		for k in list(entry.keys())[:]:
 			if isinstance(entry[k],str):
 				entry[k] = entry[k].decode("UTF-8")
-		if "key" in entry.keys():
+		if "key" in entry:
 			key = db.Key( encoded=entry["key"] )
-		elif "id" in entry.keys():
+		elif "id" in entry:
 			key = db.Key(encoded=entry["id"])
 		else:
 			raise AttributeError()
@@ -194,7 +194,7 @@ class DbTransfer( object ):
 			oldKeyHash = sha256(blobkey).hexdigest().encode("hex")
 			res = db.Get( db.Key.from_path("viur-blobimportmap", oldKeyHash))
 			if res:
-				if "available" in res.keys():
+				if "available" in res:
 					return json.dumps(res["available"])
 				else:
 					return json.dumps(True)
@@ -503,7 +503,7 @@ def iterImport(module, target, exportKey, cursor=None, amount=0):
 				if isinstance(entry[k], str):
 					entry[k] = entry[k].decode("UTF-8")
 
-			if not "key" in entry.keys():
+			if not "key" in entry:
 				entry["key"] = entry["id"]
 
 

@@ -18,7 +18,7 @@ class ExtendedDateTime( datetime ):
 	def totimestamp( self ):
 		"""Converts this DateTime-Object back into Unixtime"""
 		return( int( round( mktime( self.timetuple() ) ) ) )
-		 
+
 	def strftime(self, format ):
 		"""
 		Provides correct localized names for directives like %a which dont get translated on GAE properly
@@ -55,7 +55,7 @@ class dateBone( baseBone ):
 	def __init__( self,  creationMagic=False, updateMagic=False, date=True, time=True, localize=False, *args,  **kwargs ):
 		"""
 			Initializes a new dateBone.
-			
+
 			:param creationMagic: Use the current time as value when creating an entity; ignoring this bone if the
 				entity gets updated.
 			:type creationMagic: bool
@@ -91,7 +91,7 @@ class dateBone( baseBone ):
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
-			
+
 			:param name: Our name in the skeleton
 			:type name: str
 			:param data: *User-supplied* request-data
@@ -182,10 +182,10 @@ class dateBone( baseBone ):
 		timeZone = "UTC" # Default fallback
 		try:
 			# Check the local cache first
-			if "timeZone" in request.current.requestData().keys():
+			if "timeZone" in request.current.requestData():
 				return( request.current.requestData()["timeZone"] )
 			headers = request.current.get().request.headers
-			if "X-Appengine-Country" in headers.keys():
+			if "X-Appengine-Country" in headers:
 				country = headers["X-Appengine-Country"]
 			else:  # Maybe local development Server - no way to guess it here
 				return( timeZone )
@@ -202,7 +202,7 @@ class dateBone( baseBone ):
 			# Fixme: Is there any equivalent of EST for australia?
 			pass
 		request.current.requestData()["timeZone"] = timeZone #Cache the result
-		return( timeZone ) 
+		return( timeZone )
 
 	def readLocalized(self, value ):
 		"""Read a (probably localized Value) from the Client and convert it back to UTC"""
@@ -233,7 +233,7 @@ class dateBone( baseBone ):
 		return( entity )
 
 	def unserialize(self, valuesCache, name, expando):
-		if not name in expando.keys():
+		if not name in expando:
 			valuesCache[name] = None
 			return
 		valuesCache[name] = expando[ name ]
@@ -257,8 +257,10 @@ class dateBone( baseBone ):
 		timeZone = self.guessTimeZone()
 		if timeZone!="UTC" and pytz:
 			utc = pytz.utc
-			tz = pytz.timezone( timeZone )
-			value = tz.normalize( value.replace( tzinfo=utc).astimezone( tz ) )
+			tz = pytz.timezone(timeZone)
+			value = tz.normalize(value.replace(tzinfo=utc).astimezone(tz))
+			value = ExtendedDateTime(value.year, value.month, value.day,
+						value.hour, value.minute, value.second)
 		valuesCache[name] = value
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):

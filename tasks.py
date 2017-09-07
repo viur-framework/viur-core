@@ -29,28 +29,28 @@ class CallableTaskBase:
 	name = None  # Human-Readable name
 	descr = None  # Human-Readable description
 	kindName = "server-task"
-	
+
 	def canCall( self ):
 		"""
 			Checks wherever the current user can execute this task
 			@returns bool
 		"""
 		return( False )
-		
+
 	def dataSkel(self):
 		"""
 			If additional data is needed, return a skeleton-instance here.
 			These values are then passed to *execute*.
 		"""
 		return( None )
-		
-	
+
+
 	def execute(self):
 		"""
 			The actual code that should be run goes here.
 		"""
 		raise NotImplemented()
-	
+
 class TaskHandler:
 	"""
 		Task Handler.
@@ -62,7 +62,7 @@ class TaskHandler:
 
 	def __init__(self, moduleName, modulePath ):
 		pass
-	
+
 	def findBoundTask( self, task, obj=None, depth=0 ):
 		"""
 			Tries to locate the instance, this function belongs to.
@@ -92,7 +92,7 @@ class TaskHandler:
 				if res:
 					return( res )
 		return( None )
-	
+
 	def deferred(self, *args, **kwargs ):
 		"""
 			This catches one defered call and routes it to its destination
@@ -124,11 +124,11 @@ class TaskHandler:
 			env = None
 			funcPath, args, kwargs = data
 		if env:
-			if "user" in env.keys() and env["user"]:
+			if "user" in env and env["user"]:
 				session.current["user"] = env["user"]
-			if "lang" in env.keys() and env["lang"]:
+			if "lang" in env and env["lang"]:
 				request.current.get().language = env["lang"]
-			if "custom" in env.keys() and conf["viur.tasks.customEnvironmentHandler"]:
+			if "custom" in env and conf["viur.tasks.customEnvironmentHandler"]:
 				# Check if we need to restore additional enviromental data
 				assert isinstance(conf["viur.tasks.customEnvironmentHandler"], tuple) \
 					and len(conf["viur.tasks.customEnvironmentHandler"])==2 \
@@ -151,7 +151,7 @@ class TaskHandler:
 				logging.exception(e)
 				raise errors.RequestTimeout() #Task-API should retry
 		elif cmd=="unb":
-			if not funcPath in _deferedTasks.keys():
+			if not funcPath in _deferedTasks:
 				logging.error("Ive missed a defered task! %s(%s,%s)" % (funcPath,str(args), str(kwargs)))
 			try:
 				_deferedTasks[ funcPath](*args, **kwargs)
@@ -161,7 +161,7 @@ class TaskHandler:
 				logging.exception(e)
 				raise errors.RequestTimeout() #Task-API should retry
 	deferred.exposed=True
-	
+
 	def index(self, *args, **kwargs):
 		global _callableTasks, _periodicTasks
 		logging.debug("Starting maintenance-run")
@@ -191,7 +191,7 @@ class TaskHandler:
 		logging.debug("Periodic tasks complete")
 		for currentTask in db.Query("viur-queued-tasks").iter(): #Look for queued tasks
 			db.Delete( currentTask.key() )
-			if currentTask["taskid"] in _callableTasks.keys():
+			if currentTask["taskid"] in _callableTasks:
 				task = _callableTasks[ currentTask["taskid"] ]()
 				tmpDict = {}
 				for k in currentTask.keys():
@@ -205,7 +205,7 @@ class TaskHandler:
 					logging.exception( e )
 		logging.debug("Scheduled tasks complete")
 	index.exposed=True
-	
+
 	def list(self, *args, **kwargs ):
 		"""Lists all user-callabe tasks which are callable by this user"""
 		global _callableTasks
@@ -216,12 +216,12 @@ class TaskHandler:
 		res.baseSkel = {}
 		return( self.render.list( res ) )
 	list.exposed=True
-	
+
 	def execute(self, taskID, *args, **kwargs ):
 		"""Queues a specific task for the next maintenance run"""
 		global _callableTasks
 		from server import securitykey
-		if taskID in _callableTasks.keys():
+		if taskID in _callableTasks:
 			task = _callableTasks[ taskID ]()
 		else:
 			return
@@ -232,15 +232,15 @@ class TaskHandler:
 			skey = kwargs["skey"]
 		else:
 			skey = ""
-		if len(kwargs)==0 or skey=="" or not skel.fromClient(kwargs) or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1"):
+		if len(kwargs)==0 or skey=="" or not skel.fromClient(kwargs) or ("bounce" in kwargs and kwargs["bounce"]=="1"):
 			return self.render.add( skel )
 		if not securitykey.validate(skey):
 			raise errors.PreconditionFailed()
 		task.execute( **skel.getValues() )
 		return self.render.addItemSuccess( skel )
 	execute.exposed = True
-	
-TaskHandler.admin = True	
+
+TaskHandler.admin = True
 TaskHandler.html = True
 
 ## Decorators ##
@@ -374,7 +374,7 @@ class DisableApplicationTask( CallableTaskBase ):
 	name = "Enable or disable the application"
 	descr = "This will enable or disable the application."
 	kindName = "server-task"
-	
+
 	def canCall( self ):
 		"""
 			Checks wherever the current user can execute this task
@@ -389,7 +389,7 @@ class DisableApplicationTask( CallableTaskBase ):
 		skel.active = booleanBone( descr="Application active", required=True )
 		skel.descr = stringBone( descr="Reason for disabling", required=False )
 		return( skel )
-	
+
 	def execute(self, active, descr, *args, **kwargs):
 		if not active:
 			if descr:

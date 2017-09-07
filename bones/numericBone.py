@@ -28,7 +28,7 @@ class numericBone( baseBone ):
 		"""
 		baseBone.__init__( self,  *args,  **kwargs )
 		self.precision = precision
-		if not self.precision and "mode" in kwargs.keys() and kwargs["mode"]=="float": #Fallback for old API
+		if not self.precision and "mode" in kwargs and kwargs["mode"]=="float": #Fallback for old API
 			self.precision = 8
 		self.min = min
 		self.max = max
@@ -41,7 +41,7 @@ class numericBone( baseBone ):
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
-			
+
 			:param name: Our name in the skeleton
 			:type name: String
 			:param data: *User-supplied* request-data
@@ -69,16 +69,16 @@ class numericBone( baseBone ):
 				return "No value entered"
 		return err
 
-	
+
 	def serialize( self, valuesCache, name, entity ):
 		if isinstance( valuesCache[name],  float ) and valuesCache[name]!= valuesCache[name]: # NaN
 			entity.set( name, None, self.indexed )
 		else:
 			entity.set( name, valuesCache[name], self.indexed )
 		return( entity )
-		
+
 	def unserialize( self, valuesCache ,name, expando ):
-		if not name in expando.keys():
+		if not name in expando:
 			valuesCache[name] = None
 			return
 		if expando[ name ]==None or not str(expando[ name ]).replace(".", "", 1).lstrip("-").isdigit():

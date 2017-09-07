@@ -222,7 +222,7 @@ def getLanguage(render, resolveAlias = False):
 	:type resolveAlias: bool
 	"""
 	lang = request.current.get().language
-	if resolveAlias and lang in conf["viur.languageAliasMap"].keys():
+	if resolveAlias and lang in conf["viur.languageAliasMap"]:
 		lang = conf["viur.languageAliasMap"][ lang ]
 
 	return lang
@@ -370,7 +370,7 @@ def updateURL(render, **kwargs):
 
 	for key, value in list(kwargs.items()):
 		if value is None:
-			if key in tmpparams.keys():
+			if key in tmpparams:
 				del tmpparams[ key ]
 		else:
 			tmpparams[key] = value
@@ -489,7 +489,7 @@ def shortKey(render, val):
 
 @jinjaGlobalFunction
 def renderEditBone(render, skel, boneName, style=None):
-	if not isinstance(skel, dict) or not all([x in skel.keys() for x in ["errors", "structure", "value"]]):
+	if not isinstance(skel, dict) or not all([x in skel for x in ["errors", "structure", "value"]]):
 		raise ValueError("This does not look like an editable Skeleton!")
 	boneParams = skel["structure"].get(boneName)
 	if not boneParams:
@@ -509,12 +509,10 @@ def renderEditBone(render, skel, boneName, style=None):
 	tpl = render.getEnv().get_template(fn)
 	return  tpl.render(boneName=boneName, boneParams=boneParams, boneValue=skel["value"].get(boneName, None))
 
-	return boneType
-
 
 @jinjaGlobalFunction
 def renderEditForm(render, skel, ignore=None, hide=None, style=None):
-	if not isinstance(skel, dict) or not all([x in skel.keys() for x in ["errors", "structure", "value"]]):
+	if not isinstance(skel, dict) or not all([x in skel for x in ["errors", "structure", "value"]]):
 		raise ValueError("This does not look like an editable Skeleton!")
 	res = u""
 	sectionTpl = render.getEnv().get_template(render.getTemplateFileName("dynaform_section"))
@@ -522,9 +520,9 @@ def renderEditForm(render, skel, ignore=None, hide=None, style=None):
 	sections = OrderedDict()
 	for boneName, boneParams in skel["structure"].items():
 		category = _("server.render.html.default_category")
-		if "params" in boneParams.keys() and isinstance(boneParams["params"],dict):
+		if "params" in boneParams and isinstance(boneParams["params"],dict):
 			category = boneParams["params"].get("category", category)
-		if not category in sections.keys():
+		if not category in sections:
 			sections[category] = []
 		sections[category].append((boneName, boneParams))
 	for category, boneList in sections.items():
@@ -532,7 +530,7 @@ def renderEditForm(render, skel, ignore=None, hide=None, style=None):
 		allHidden = True
 		categoryContent = u""
 		for boneName, boneParams in boneList:
-			boneWasInvalid = isinstance(skel["errors"], dict) and boneName in skel["errors"].keys()
+			boneWasInvalid = isinstance(skel["errors"], dict) and skel["errors"].get(boneName, None)
 			if not boneParams["readOnly"]:
 				allReadOnly = False
 			if boneParams["visible"]:

@@ -22,32 +22,32 @@ import logging
 
 		currentSession["your_key"] = "your_data"
 		data = currentSession["your_key"]
-	
+
 	A get-method is provided for convenience.
 	It returns None instead of raising an Exception if the key is not found.
 """
-	
+
 class SessionWrapper( threading.local ):
 	cookieName = "viurCookie"
-	
+
 	def __init__( self, sessionFactory, *args, **kwargs ):
 		super( SessionWrapper, self ).__init__( *args, **kwargs )
 		self.factory = sessionFactory
-	
+
 	def load( self, req ):
 		if not "session" in dir( self ):
 			self.session = self.factory()
 		return( self.session.load( req ) )
-	
+
 	def __contains__( self, key ):
 		try:
 			return( key in self.session )
 		except AttributeError:
 			return( False )
-	
+
 	def __delitem__(self, key ):
 		del self.session[key]
-	
+
 	def __getitem__( self, key ):
 		try:
 			if key=="skeys":
@@ -66,7 +66,7 @@ class SessionWrapper( threading.local ):
 			return( self.session.get( key ) )
 		except AttributeError:
 			return( None )
-		
+
 	def __setitem__( self, key, item ):
 		try:
 			if key=="skeys":
@@ -74,7 +74,7 @@ class SessionWrapper( threading.local ):
 			self.session[ key ] = item
 		except AttributeError:
 			pass
-	
+
 	def save(self, req):
 		try:
 			return( self.session.save( req ))
@@ -92,7 +92,7 @@ class SessionWrapper( threading.local ):
 			self.session.markChanged()
 		except AttributeError:
 			pass
-	
+
 	def reset(self):
 		try:
 			return( self.session.reset() )
@@ -101,7 +101,7 @@ class SessionWrapper( threading.local ):
 
 	def getLanguage( self ):
 		try:
-			return( self.session.get( "language" ) ) 
+			return( self.session.get( "language" ) )
 		except AttributeError:
 			return( None )
 
@@ -129,7 +129,7 @@ class GaeSession:
 	plainCookieName = "viurHttpCookie"
 	sslCookieName = "viurSSLCookie"
 	kindName = "viur-session"
-	
+
 	"""Store Sessions inside the Big Table/Memcache"""
 
 	def load( self, req ):
@@ -145,7 +145,7 @@ class GaeSession:
 		self.sslKey = None
 		self.sessionSecurityKey = None
 		self.session = {}
-		if self.plainCookieName in req.request.cookies.keys():
+		if self.plainCookieName in req.request.cookies:
 			cookie = req.request.cookies[ self.plainCookieName ]
 			try:
 				data = db.Get( db.Key.from_path( self.kindName, cookie ) )
@@ -158,20 +158,20 @@ class GaeSession:
 
 				self.session = pickle.loads( base64.b64decode(data["data"]) )
 				self.sslKey = data["sslkey"]
-				if "skey" in data.keys():
+				if "skey" in data:
 					self.sessionSecurityKey = data["skey"]
 				else:
 					self.reset()
 				if data["lastseen"] < time()-5*60: #Refresh every 5 Minutes
 					self.changed = True
-			if req.isSSLConnection and not (self.sslCookieName in req.request.cookies.keys() and req.request.cookies[ self.sslCookieName ] == self.sslKey and self.sslKey ):
+			if req.isSSLConnection and not (self.sslCookieName in req.request.cookies and req.request.cookies[ self.sslCookieName ] == self.sslKey and self.sslKey ):
 				if self.sslKey:
 					logging.warning("Possible session hijack attempt! Session dropped.")
 				self.reset()
 				return( False )
 			self.key = str( cookie )
 			return( True )
-	
+
 	def save(self, req):
 		"""
 			Writes the session to the memcache/datastore.
@@ -208,8 +208,8 @@ class GaeSession:
 		"""
 			Returns True if the given *key* is set in the current session.
 		"""
-		return( key in self.session.keys() )
-	
+		return( key in self.session )
+
 	def __delitem__(self, key ):
 		"""
 			Removes a *key* from the session.
@@ -218,7 +218,7 @@ class GaeSession:
 		"""
 		del self.session[key]
 		self.changed = True
-	
+
 	def __getitem__( self, key ):
 		"""
 			Returns the value stored under the given *key*.
@@ -226,8 +226,8 @@ class GaeSession:
 			The key must exist.
 		"""
 		return( self.session[ key ] )
-	
-	def get( self, key ): 
+
+	def get( self, key ):
 		"""
 			Returns the value stored under the given key.
 
@@ -236,11 +236,11 @@ class GaeSession:
 
 			:return: Returns None if the key doesn't exist.
 		"""
-		if( key in self.session.keys() ):
+		if( key in self.session ):
 			return( self.session[ key ] )
 		else:
 			return( None )
-		
+
 	def __setitem__( self, key, item ):
 		"""
 			Stores a new value under the given key.
@@ -250,7 +250,7 @@ class GaeSession:
 		"""
 		self.session[ key ] = item
 		self.changed = True
-	
+
 	def markChanged(self):
 		"""
 			Explicitly mark the current session as changed.
@@ -259,7 +259,7 @@ class GaeSession:
 			not changed.
 		"""
 		self.changed = True
-		
+
 	def reset(self):
 		"""
 			Invalids the current session and starts a new one.
@@ -279,7 +279,7 @@ class GaeSession:
 		self.session = {}
 		if lang:
 			self.session["language"] = lang
-			
+
 	def getSessionKey( self, req=None ):
 		"""
 			Ensures that the current session is initialized
@@ -332,7 +332,7 @@ def killSessionByUser( user=None ):
 		query.filter( "user =", str(user) )
 	for key in query.iter(keysOnly=True):
 		db.Delete( key )
-	
+
 @PeriodicTask(60*4)
 def startClearSessions():
 	"""

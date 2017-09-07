@@ -14,7 +14,7 @@ import datetime, json
 __all__=[ default ]
 
 def genSkey( *args,  **kwargs ):
-	return json.dumps( securitykey.create() ) 
+	return json.dumps( securitykey.create() )
 genSkey.exposed=True
 
 def timestamp( *args, **kwargs):
@@ -70,7 +70,7 @@ def dumpConfig( adminTree ):
 				adminConfig[ key ] = app.adminInfo.copy()
 				adminConfig[ key ]["name"] = _(adminConfig[ key ]["name"])
 				adminConfig[ key ]["views"] = []
-				if "views" in app.adminInfo.keys():
+				if "views" in app.adminInfo:
 					for v in app.adminInfo["views"]:
 						tmp = v.copy()
 						tmp["name"] = _(tmp["name"])

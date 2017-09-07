@@ -159,7 +159,7 @@ class Singleton(BasicApplication):
 		if (len(kwargs) == 0 # no data supplied
 		    or skey == "" #no skey provided
 			or not skel.fromClient( kwargs ) # failure on reading into the bones
-			or ("bounce" in kwargs.keys() and kwargs["bounce"] == "1")): # review before changing
+			or ("bounce" in kwargs and kwargs["bounce"] == "1")): # review before changing
 			return self.render.edit( skel )
 
 		if not securitykey.validate( skey, acceptSessionKey=True ):
@@ -293,7 +293,7 @@ class Singleton(BasicApplication):
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
-		
+
 	def onItemViewed( self, skel ):
 		"""
 		Hook function that is called when viewing an entry.
