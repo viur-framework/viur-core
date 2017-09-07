@@ -7,12 +7,18 @@ class userBone(relationalBone):
 	kind = "user"
 	datafields = ["name"]
 
-	def __init__( self,  creationMagic=False, updateMagic=False, *args,  **kwargs ):
-		super( userBone, self ).__init__( *args, **kwargs )
+	def __init__(self, creationMagic=False, updateMagic=False, visible=None, multiple=False, *args, **kwargs):
 
 		if creationMagic or updateMagic:
-			self.visible = False
-			self.multiple = False
+			if visible is None:
+				visible = False #defaults
+
+			multiple = False #override
+
+		elif visible is None:
+			visible = True
+
+		super(userBone, self).__init__(multiple=multiple, visible=visible, *args, **kwargs)
 
 		self.creationMagic = creationMagic
 		self.updateMagic = updateMagic

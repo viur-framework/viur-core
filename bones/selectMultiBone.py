@@ -25,17 +25,17 @@ class selectMultiBone( baseBone ):
 		"""
 		super(selectMultiBone, self ).__init__(defaultValue=defaultValue, *args, **kwargs)
 
-		if "_kindName" in kwargs.keys():
+		if "_kindName" in kwargs:
 			kindName = kwargs["_kindName"]
 		else:
 			kindName = "unknownKind"
 
-		if "sortBy" in kwargs.keys():
+		if "sortBy" in kwargs:
 			logging.warning("The sortBy parameter is deprecated. Please use an orderedDict for 'values' instead")
 
 		if isinstance(values, dict) and not isinstance(values, OrderedDict):
 			vals = list(values.items())
-			if "sortBy" in kwargs.keys():
+			if "sortBy" in kwargs:
 				sortBy = kwargs["sortBy"]
 
 				if not sortBy in ["keys","values"]:
@@ -69,18 +69,20 @@ class selectMultiBone( baseBone ):
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
-			
+
 			:param name: Our name in the skeleton
 			:type name: String
 			:param data: *User-supplied* request-data
 			:type data: Dict
 			:returns: None or String
 		"""
-		if name in data.keys():
+		if name in data:
 			values = data[name]
 		else:
 			values = None
 		if not values:
+			if not self.required:
+				valuesCache[name] = []
 			return "No item selected"
 		if not isinstance(values, list):
 			if isinstance(values, basestring):
@@ -100,7 +102,7 @@ class selectMultiBone( baseBone ):
 			return lastErr
 		else:
 			return "No item selected"
-	
+
 	def serialize( self, valuesCache, name, entity ):
 		if not valuesCache[name] or len(valuesCache[name]) == 0:
 			entity.set( name, None, self.indexed )
@@ -109,7 +111,7 @@ class selectMultiBone( baseBone ):
 		return( entity )
 
 	def unserialize( self, valuesCache, name, expando ):
-		if name in expando.keys():
+		if name in expando:
 			valuesCache[name] = expando[ name ]
 			if not valuesCache[name]:
 				valuesCache[name] = []

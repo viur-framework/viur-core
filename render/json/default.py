@@ -6,7 +6,7 @@ from server.skeleton import RefSkel, skeletonByKind
 import logging
 
 class DefaultRender(object):
-	
+
 	def __init__(self, parent = None, *args, **kwargs):
 		super(DefaultRender,  self).__init__(*args, **kwargs)
 		self.parent = parent
@@ -28,11 +28,12 @@ class DefaultRender(object):
 		# Base bone contents.
 		ret = {
 			"descr": _(bone.descr),
-	                "type": bone.type,
+	        "type": bone.type,
 			"required": bone.required,
 			"params": bone.params,
 			"visible": bone.visible,
-			"readonly": bone.readOnly
+			"readonly": bone.readOnly,
+			"unique": bone.unique
 		}
 
 		if bone.type == "relational" or bone.type.startswith("relational."):
@@ -105,7 +106,7 @@ class DefaultRender(object):
 
 			res[key] = self.renderBoneStructure(bone)
 
-			if key in skel.errors.keys():
+			if key in skel.errors:
 				res[key]["error"] = skel.errors[ key ]
 			elif any( [x.startswith("%s." % key) for x in skel.errors.keys()]):
 				res[key]["error"] = {k:v for k,v in skel.errors.items() if k.startswith("%s." % key )}
@@ -115,8 +116,8 @@ class DefaultRender(object):
 
 	def renderTextExtension(self, ext ):
 		e = ext()
-		return( {"name": e.name, 
-				"descr": _( e.descr ), 
+		return( {"name": e.name,
+				"descr": _( e.descr ),
 				"skel": self.renderSkelStructure( e.dataSkel() ) } )
 
 	def renderBoneValue(self, bone, skel, key):
@@ -142,18 +143,34 @@ class DefaultRender(object):
 				return skel[key].strftime("%H:%M:%S")
 		elif isinstance(bone, bones.relationalBone):
 			if isinstance(skel[key], list):
+				refSkel = bone._refSkelCache
+				usingSkel = bone._usingSkelCache
 				tmpList = []
 				for k in skel[key]:
+					refSkel.setValuesCache(k["dest"])
+					if usingSkel:
+						usingSkel.setValuesCache(k.get("rel", {}))
+						usingData = self.renderSkelValues(usingSkel)
+					else:
+						usingData = None
 					tmpList.append({
-						"dest": self.renderSkelValues(k["dest"]),
-			            "rel": self.renderSkelValues(k.get("rel"))
+						"dest": self.renderSkelValues(refSkel),
+						"rel": usingData
 					})
 
 				return tmpList
 			elif isinstance(skel[key], dict):
+				refSkel = bone._refSkelCache
+				usingSkel = bone._usingSkelCache
+				refSkel.setValuesCache(skel[key]["dest"])
+				if usingSkel:
+					usingSkel.setValuesCache(skel[key].get("rel", {}))
+					usingData = self.renderSkelValues(usingSkel)
+				else:
+					usingData = None
 				return {
-					"dest": self.renderSkelValues(skel[key]["dest"]),
-				    "rel": self.renderSkelValues(skel[key].get("rel"))
+					"dest": self.renderSkelValues(refSkel),
+					"rel": usingData
 				}
 		else:
 			return skel[key]
@@ -180,7 +197,7 @@ class DefaultRender(object):
 			res[key] = self.renderBoneValue(bone, skel, key)
 
 		return res
-		
+
 	def renderEntry( self, skel, actionName ):
 		if isinstance(skel, list):
 			vals = [self.renderSkelValues(x) for x in skel]
@@ -200,7 +217,7 @@ class DefaultRender(object):
 
 	def view(self, skel, listname="view", *args, **kwargs):
 		return self.renderEntry(skel, "view")
-		
+
 	def add(self, skel, **kwargs):
 		return self.renderEntry(skel, "add")
 
@@ -227,10 +244,10 @@ class DefaultRender(object):
 
 	def editItemSuccess(self, skel, **kwargs):
 		return self.renderEntry(skel, "editSuccess")
-		
+
 	def addItemSuccess(self, skel, **kwargs):
 		return self.renderEntry(skel, "addSuccess")
-		
+
 	def deleteItemSuccess(self, skel, **kwargs):
 		return self.renderEntry(skel, "deleteSuccess")
 
@@ -239,12 +256,12 @@ class DefaultRender(object):
 
 	def listRootNodes(self, rootNodes ):
 		return json.dumps(rootNodes)
-		
+
 	def listRootNodeContents(self, subdirs, entrys, **kwargs):
 		res = {
 			"subdirs": subdirs
 		}
-		
+
 		skels = []
 
 		for skel in entrys:
@@ -252,7 +269,7 @@ class DefaultRender(object):
 
 		res["entrys"] = skels
 		return json.dumps(res)
-	
+
 	def renameSuccess(self, *args, **kwargs):
 		return json.dumps("OKAY")
 

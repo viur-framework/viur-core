@@ -86,7 +86,7 @@ class randomSliceBone( baseBone ):
 				raise RuntimeError()
 			return property, value
 
-		if "orderby" in list(rawFilter.keys()) and rawFilter["orderby"] == name:
+		if "orderby" in rawFilter and rawFilter["orderby"] == name:
 			# We select a random set of elements from that collection
 			assert not isinstance(dbFilter.datastoreQuery, db.MultiQuery), "Orderby random is not possible on a query that already uses an IN-filter!"
 			origFilter = dbFilter.datastoreQuery

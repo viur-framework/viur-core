@@ -27,18 +27,18 @@ class selectOneBone( baseBone ):
 		"""
 		super( selectOneBone, self ).__init__( defaultValue=defaultValue, *args, **kwargs )
 
-		if "_kindName" in kwargs.keys():
+		if "_kindName" in kwargs:
 			kindName = kwargs["_kindName"]
 		else:
 			kindName = "unknownKind"
 
-		if "sortBy" in kwargs.keys():
+		if "sortBy" in kwargs:
 			logging.warning("The sortBy parameter is deprecated. Please use an orderedDict for 'values' instead")
 
 		if isinstance(values, dict) and not isinstance(values, OrderedDict):
 			vals = list(values.items())
 
-			if "sortBy" in kwargs.keys():
+			if "sortBy" in kwargs:
 				sortBy = kwargs["sortBy"]
 
 				if not sortBy in ["keys","values"]:
@@ -73,14 +73,14 @@ class selectOneBone( baseBone ):
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
-			
+
 			:param name: Our name in the skeleton
 			:type name: String
 			:param data: *User-supplied* request-data
 			:type data: Dict
 			:returns: None or String
 		"""
-		if name in data.keys():
+		if name in data:
 			value = data[name]
 		else:
 			value = None
