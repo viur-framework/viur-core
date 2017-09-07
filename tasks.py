@@ -241,6 +241,7 @@ class TaskHandler:
 	execute.exposed = True
 
 TaskHandler.admin = True
+TaskHandler.vi = True
 TaskHandler.html = True
 
 ## Decorators ##
