@@ -25,7 +25,7 @@
  See file LICENSE for more information.
 """
 
-__version__ = (-99,-99,-99)  # Which API do we expose to our application
+__version__ = (2, 0, 3)  # Which API do we expose to our application
 
 import sys, traceback, os, inspect
 
@@ -389,6 +389,10 @@ class BrowseHandler(webapp.RequestHandler):
 			else: # This URL doesnt contain an language prefix, try to read it from session
 				if session.current.getLanguage():
 					self.language = session.current.getLanguage()
+				elif "X-Appengine-Country" in self.request.headers.keys():
+					lng = self.request.headers["X-Appengine-Country"].lower()
+					if lng in conf["viur.availableLanguages"] or lng in conf["viur.languageAliasMap"]:
+						self.language = lng
 		return( path )
 
 
