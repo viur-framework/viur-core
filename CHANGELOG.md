@@ -3,6 +3,32 @@
 
 ## [Unreleased]
 
+### Added
+- Retrieving the viewSkel Structure by calling modulePath/view/structure
+- embedSvg function to html render
+- onLogout hook to the user module
+- Expose the unique property in skel-structures in json render
+- viur.emailHandler config variable for easy integration of 3rd party email services
+
+### Changed
+- Listing and calling user-callable tasks is now also possible for the vi render
+- Internally switched to more efficient membership tests for dicts
+- Don't set skel["key"] to None if skel.delete() is called
+- Relational bones can now include properties from ref-/rel-skel bones in search indexes
+- Setting update- or creation-magic on userBones don't force them to be invisible anymore
+- *[Breaking]* Internal representation of relations are now dicts, not instances of Ref- or Rel-Skels
+
+### Fixed
+- Correctly handle None values in numericBones getSearchDocumentFields()
+- Added missing imports to dbtransfer.py
+- Usage of old Skeleton-API in orders module
+- Users without access to the vi/admin render couldn't logout using these renders
+- Type-mismatch in html-render causing errors if a RelSkel is present
+- Parsing dates containing non-unicode characters
+
+### Removed
+- *[Breaking]* "key"-Parameter from skeleton.setValues()
+
 
 ## [2.0.3] - 2017-08-30
 
