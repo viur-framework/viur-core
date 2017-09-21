@@ -467,7 +467,7 @@ class BrowseHandler(webapp.RequestHandler):
 			if conf["viur.debug.traceExceptions"]:
 				raise
 			self.response.clear()
-			self.response.set_status( e.status )
+			self.response.set_status(e.status, e.descr)
 			res = None
 			if conf["viur.errorHandler"]:
 				try:
