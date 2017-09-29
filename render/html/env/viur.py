@@ -497,8 +497,10 @@ def renderEditBone(render, skel, boneName):
 	if not boneParams:
 		raise ValueError("Bone %s is not part of that skeleton" % boneName)
 
-	boneType = boneParams["type"]
-	fileName = "bones_" + boneType
+	if not boneParams["visible"]:
+		fileName = "bones_hidden"
+	else:
+		fileName = "editform_bone_" + boneParams["type"]
 
 	while fileName:
 		try:
@@ -523,8 +525,8 @@ def renderEditForm(render, skel, ignore=None, hide=None):
 	
 	res = u""
 	
-	sectionTpl = render.getEnv().get_template(render.getTemplateFileName("dynaform_section"))
-	rowTpl = render.getEnv().get_template(render.getTemplateFileName("dynaform_row"))
+	sectionTpl = render.getEnv().get_template(render.getTemplateFileName("editform_category"))
+	rowTpl = render.getEnv().get_template(render.getTemplateFileName("editform_row"))
 	sections = OrderedDict()
 	for boneName, boneParams in skel["structure"].items():
 		category = _("server.render.html.default_category")

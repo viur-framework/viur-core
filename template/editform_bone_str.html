@@ -1,10 +1,10 @@
-<div class="vi-boneEditor" xmlns="http://www.w3.org/1999/html">
+<div class="vi-boneEditor">
     {% set readOnly = "" %}
     {% if boneParams.readOnly %}
         {% set readOnly = 'readonly="readonly"' %}
     {% endif %}
     {% if boneParams.multiple and boneParams.languages %}
-        <div class="vi-boneTranslator" id="vi_0_db_produkt_edit_Allgemein_bn_name">
+        <div class="vi-boneTranslator">
             <div class="vi-boneEditor">
                 {% for lang in boneParams.languages %}
                     <div class="vi-languageWrapper js_viur_bones_str_languageWrapper" data-name="{{ boneName }}"
@@ -68,11 +68,24 @@
             <button class="button js_viur_bones_str_addSingleStrWrapper">Add</button>
         </div>
     {% else %}
-        {% if not boneParams.visible %}
-            <input {{ readonly }} type="hidden" name="{{ boneName }}" value="{{ boneValue or "" }}"/>
-        {% else %}
-            <input class="input" type="text" name="{{ boneName }}" value="{{ boneValue or "" }}" {{ readonly }}>
-        {% endif %}
+        <input
+            name="{{ boneName }}"
+            type="{{ "email" if boneParams["type"] == "str.email" else "text" }}"
+            title="{{ _(boneParams["tooltip"] or boneParams["descr"] or boneName) }}"
+            placeholder="{{ _(boneParams["tooltip"] or boneParams["descr"] or boneName) }}"
+            class="input ignt-stringInput ignt-stringInput-v{{ boneName }}
+                {{ ' is-required ' if boneParams.required }} {{ ' is-readonly ' if boneParams.readOnly }}"
+            id="ignt-id-{{ boneName }}"
+            value="{{ boneValue|default("", true) }}"
+            {% if boneParams["maxlength"] %}
+                maxlength="{{ boneParams["maxlength"]|int }}"
+            {% endif %}
+            {% if boneWasInvalid %}
+                aria-invalid="true"
+            {% endif %}
+            {{ "required" if boneParams.required }}
+            {{ "readonly" if boneParams.readOnly }}
+		/>
     {% endif %}
 
 </div>
