@@ -26,12 +26,11 @@
     <textarea
         name="{{ boneName }}"
 		class="textarea ignt-textarea ignt-textarea-v{{ boneName }}
-			    {{ 'is-required' if bone.required }}
-                {{ 'is-readonly' if bone.readOnly }}"
+			    {{ 'is-required' if boneParams.required }}
+                {{ 'is-readonly' if boneParams.readOnly }}"
 			  id="ignt-id-{{ boneName }}"
         {{ "readonly" if boneParams.readOnly}}
-        {{ "required" if boneParams.required}}
-    >
-		{{ boneValue|default("",true) }}
+        {{ "required" if boneParams.required}}>
+		{{- boneValue|default("",true) -}}
 	</textarea>
 {% endif %}

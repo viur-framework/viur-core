@@ -3,7 +3,8 @@
            id="ignt-id-{{ boneName }}"
            type="checkbox"
            name="{{ boneName }}"
-           {{ "checked" if boneValue|string=="True" }}
+           value="true"
+           {{ "checked" if boneValue }}
            {{ "required" if boneParams["required"] }}
            {{ "readonly" if boneParams["readOnly"] }}
     />

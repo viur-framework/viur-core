@@ -498,7 +498,7 @@ def renderEditBone(render, skel, boneName):
 		raise ValueError("Bone %s is not part of that skeleton" % boneName)
 
 	if not boneParams["visible"]:
-		fileName = "bones_hidden"
+		fileName = "editform_bone_hidden"
 	else:
 		fileName = "editform_bone_" + boneParams["type"]
 
@@ -511,7 +511,7 @@ def renderEditBone(render, skel, boneName):
 			if "." in fileName:
 				fileName, unused = fileName.rsplit(".", 1)
 			else:
-				fn = render.getTemplateFileName("bones_bone")
+				fn = render.getTemplateFileName("editform_bone_bone")
 				break
 
 	tpl = render.getEnv().get_template(fn)
@@ -522,9 +522,9 @@ def renderEditBone(render, skel, boneName):
 def renderEditForm(render, skel, ignore=None, hide=None):
 	if not isinstance(skel, dict) or not all([x in skel.keys() for x in ["errors", "structure", "value"]]):
 		raise ValueError("This does not look like an editable Skeleton!")
-	
+
 	res = u""
-	
+
 	sectionTpl = render.getEnv().get_template(render.getTemplateFileName("editform_category"))
 	rowTpl = render.getEnv().get_template(render.getTemplateFileName("editform_row"))
 	sections = OrderedDict()
@@ -543,6 +543,7 @@ def renderEditForm(render, skel, ignore=None, hide=None):
 		categoryContent = u""
 
 		for boneName, boneParams in boneList:
+			print(boneName)
 			if ignore and boneName in ignore:
 				continue
 

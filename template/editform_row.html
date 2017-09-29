@@ -2,8 +2,8 @@
     <div class="inputGroup ignt-bone">
         <label
             class="label ignt-label
-            {% if boneParams.required %} is-required{% endif %}
-            {% if boneWasInvalid %} is-invalid{% endif %}">
+            {{ "is-required" if boneParams.required }}
+            {{ "is-invalid" if boneWasInvalid }}">
 			{{ boneParams.descr }}
 		</label>
 

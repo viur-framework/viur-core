@@ -8,7 +8,8 @@
     {{'readonly' if boneParams.readOnly}}
     {{'required' if boneParams.required}}
 >
-{%- for key, descr in boneParams["values"] %}
+
+{%- for key, descr in boneParams["values"].items() %}
     {% if loop.first %}
         <option value="" {{ "selected" if not boneValue }} {{ "disabled" if boneParams.required}} hidden>
             -
@@ -19,4 +20,5 @@
         {{ descr }}
     </option>
 {% endfor -%}
+
 </select>

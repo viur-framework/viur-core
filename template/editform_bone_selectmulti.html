@@ -5,8 +5,11 @@
                 class="check-input"
                 id="ignt-id-{{ boneName }}_{{ key }}"
                 name="{{ boneName }}"
+                value="{{ key }}"
                 type="checkbox"
-                {% if boneParams["readOnly"] %} readonly {% endif %}>
+                {{ "checked" if key in boneValue }}
+                {{ "readonly" if boneParams["readOnly"] }}>
+
             <label class="check-label" for="ignt-id-{{ boneName }}_{{ key }}">{{ descr }}</label>
         </div>
     {% endfor %}

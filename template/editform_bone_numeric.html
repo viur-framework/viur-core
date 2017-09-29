@@ -19,7 +19,7 @@
              {{ ' is-required ' if boneParams.required }} {{ ' is-readonly ' if boneParams.readOnly }}"
         {% if min %} min="{{ min }}" {% endif %}
         {% if max %} max="{{ max }}" {% endif %}
-        {% if boneParams.readOnly %} readonly {% endif %}
-        {% if boneParams.required %} required {% endif %}
+        {{ "readonly" if boneParams.readOnly }}
+        {{ "required" if boneParams.required }}
         {% if boneWasInvalid %} aria-invalid="true" {% endif %}
 />
