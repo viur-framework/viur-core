@@ -488,7 +488,7 @@ def shortKey(render, val):
 		return None
 
 @jinjaGlobalFunction
-def renderEditBone(render, skel, boneName, style=None):
+def renderEditBone(render, skel, boneName):
 	if not isinstance(skel, dict) or not all([x in skel for x in ["errors", "structure", "value"]]):
 		raise ValueError("This does not look like an editable Skeleton!")
 
@@ -517,7 +517,7 @@ def renderEditBone(render, skel, boneName, style=None):
 	return tpl.render(boneName=boneName, boneParams=boneParams, boneValue=skel["value"].get(boneName, None))
 
 @jinjaGlobalFunction
-def renderEditForm(render, skel, ignore=None, hide=None, readonly=None, style=None):
+def renderEditForm(render, skel, ignore=None, hide=None):
 	if not isinstance(skel, dict) or not all([x in skel.keys() for x in ["errors", "structure", "value"]]):
 		raise ValueError("This does not look like an editable Skeleton!")
 	
@@ -548,9 +548,6 @@ def renderEditForm(render, skel, ignore=None, hide=None, readonly=None, style=No
 
 			if hide and boneName in hide:
 				boneParams["visible"] = False
-
-			if readonly and boneName in readonly:
-				boneParams["readOnly"] = True
 
 			if not boneParams["readOnly"]:
 				allReadOnly = False
