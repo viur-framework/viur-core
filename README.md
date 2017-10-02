@@ -43,7 +43,7 @@ We take a great interest in your opinion about ViUR. We appreciate your feedback
 
 ## Credits
 
-ViUR is developed and maintained by [Mausbrand Informationssysteme GmbH](https://www.mausbrand.de), from Dortmund in Germany. We are a software company consisting of young, enthusiastic software developers, designers and social media experts, working on exciting projects for different kinds of customers. All of our newer projects are implemented with ViUR, from tiny web-pages to huge company intranets with hundreds of users.
+ViUR is developed and maintained by [Mausbrand Informationssysteme GmbH](https://www.mausbrand.de/en), from Dortmund in Germany. We are a software company consisting of young, enthusiastic software developers, designers and social media experts, working on exciting projects for different kinds of customers. All of our newer projects are implemented with ViUR, from tiny web-pages to huge company intranets with hundreds of users.
 
 Help of any kind to extend and improve or enhance this project in any kind or way is always appreciated.
 
