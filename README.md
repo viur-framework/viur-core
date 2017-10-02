@@ -17,7 +17,7 @@ simple steps:
 2. Create an empty folder for your project.
 3. Download setup.py from https://www.viur.is/package/download/setup/latest and save it into the newly created folder.
 4. Run ``setup.py`` from that folder - it will do the rest for you!
-5. Locally run the development server with ``dev_appserver.py <project-dir>``
+5. Locally run the development server with ``dev_appserver.py -A <your-project-key> <project-dir>``
    or deploy it to the world with ``gcloud app deploy --project <your-project-key> <your-project-dir>``.
 
 All quick start steps as shell command snippet:
