@@ -45,7 +45,7 @@ def serializeXML( data ):
 	return( recursiveSerializer( data, elem ).toprettyxml(encoding="UTF-8") )
 
 class DefaultRender( object ):
-	
+
 	def __init__(self, parent=None, *args, **kwargs ):
 		super( DefaultRender,  self ).__init__( *args, **kwargs )
 
@@ -140,7 +140,7 @@ class DefaultRender( object ):
 
 			res[key] = self.renderBoneStructure(bone)
 
-			if key in skel.errors.keys():
+			if key in skel.errors:
 				res[key]["error"] = skel.errors[ key ]
 			elif any( [x.startswith("%s." % key) for x in skel.errors.keys()]):
 				res[key]["error"] = {k:v for k,v in skel.errors.items() if k.startswith("%s." % key )}
@@ -148,13 +148,13 @@ class DefaultRender( object ):
 				res[key]["error"] = None
 
 		return [(key, val) for key, val in res.items()]
-	
+
 	def renderTextExtension(self, ext ):
 		e = ext()
-		return( {"name": e.name, 
-				"descr": _( e.descr ), 
+		return( {"name": e.name,
+				"descr": _( e.descr ),
 				"skel": self.renderSkelStructure( e.dataSkel() ) } )
-	
+
 	def renderBoneValue(self, bone):
 		"""
 		Renders the value of a bone.
@@ -220,13 +220,13 @@ class DefaultRender( object ):
 			res[key] = self.renderBoneValue(bone)
 
 		return res
-		
-	def view(self, skel, tpl = None, passThrough = None, *args, **kwargs):
-		res = {	"values": self.renderSkelValues( skel ), 
+
+	def view( self, skel, listname="view", passThrough = None, *args, **kwargs ):
+		res = {	"values": self.renderSkelValues( skel ),
 				"structure": self.renderSkelStructure( skel ) }
 		return( serializeXML( res ) )
-		
-	def add(self, skel, tpl = None, passThrough = None, **kwargs):
+
+	def add( self, skel, failed=False, listname="add", passThrough = None, **kwargs ):
 		return( self.view( skel ) )
 
 	def edit(self, skel, tpl=None, passThrough=None, **kwargs):
@@ -247,7 +247,7 @@ class DefaultRender( object ):
 
 	def editItemSuccess(self, skel, passThrough=None, **kwargs):
 		return( serializeXML("OKAY") )
-		
+
 	def addItemSuccess(self, skel, passThrough=None, **kwargs):
 		return( serializeXML("OKAY") )
 		

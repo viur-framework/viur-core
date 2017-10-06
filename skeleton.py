@@ -27,7 +27,8 @@ class MetaBaseSkel(type):
 		This is the meta class for Skeletons.
 		It is used to enforce several restrictions on bone names, etc.
 	"""
-	_skelCache = {}
+	_skelCache = {}  # Mapping kindName -> SkelCls
+	_allSkelClasses = set()  # List of all known skeleton classes (including Ref and Mail-Skels)
 
 	__reservedKeywords_ = [ "self", "cursor", "amount", "orderby", "orderdir",
 	                        "style", "items", "keys", "values" ]
@@ -40,6 +41,7 @@ class MetaBaseSkel(type):
 				if key in MetaBaseSkel.__reservedKeywords_:
 					raise AttributeError("Invalid bone '%s': Bone cannot have any of the following names: %s" %
 					                     (key, str(MetaBaseSkel.__reservedKeywords_)))
+		MetaBaseSkel._allSkelClasses.add(cls)
 		super(MetaBaseSkel, cls).__init__(name, bases, dct)
 
 def skeletonByKind(kindName):
@@ -52,9 +54,13 @@ def skeletonByKind(kindName):
 def listKnownSkeletons():
 	return list(MetaBaseSkel._skelCache.keys())[:]
 
+def iterAllSkelClasses():
+	for cls in MetaBaseSkel._allSkelClasses:
+		yield cls
+
 
 class BaseSkeleton(object):
-	""" 
+	"""
 		This is a container-object holding information about one database entity.
 
 		It has to be sub-classed with individual information about the kindName of the entities
@@ -84,7 +90,7 @@ class BaseSkeleton(object):
 				if isinstance(value , baseBone):
 					self.__dataDict__[key] =  value
 					self.valuesCache[key] = value.getDefaultValue()
-				elif value is None and key in self.__dataDict__.keys(): #Allow setting a bone to None again
+				elif value is None and key in self.__dataDict__: #Allow setting a bone to None again
 					del self.__dataDict__[key]
 				elif key not in ["valuesCache"]:
 					raise ValueError("You tried to do what?")
@@ -108,13 +114,17 @@ class BaseSkeleton(object):
 			isOkay = True
 		if isOkay:
 			return( super(BaseSkeleton, self).__getattribute__(item ))
-		elif item in self.__dataDict__.keys():
+		elif item in self.__dataDict__:
 			return self.__dataDict__[item]
 		else:
 			raise AttributeError("Use [] to access your bones!")
 
 	def __contains__(self, item):
-		return item in self.__dataDict__.keys()
+		return item in self.__dataDict__
+
+	def __iter__(self):
+		for key in self.__dataDict__.keys():
+			yield key
 
 	def items(self):
 		return self.__dataDict__.items()
@@ -151,7 +161,7 @@ class BaseSkeleton(object):
 		skel = cls(cloned=cloned)
 		skel.isClonedInstance = True  # Unlock that skel for a moment sothat we can remove bones (which is a safe operation)
 
-		if "*" in skel.subSkels.keys():
+		if "*" in skel.subSkels:
 			boneList = skel.subSkels["*"][:]
 		else:
 			boneList = []
@@ -159,7 +169,7 @@ class BaseSkeleton(object):
 		subSkelNames = [name] + list(args)
 
 		for name in subSkelNames:
-			if not name in skel.subSkels.keys():
+			if not name in skel.subSkels:
 				raise ValueError("Unknown sub-skeleton %s for skel %s" % (name, skel.kindName))
 			boneList.extend( skel.subSkels[name][:] )
 
@@ -184,7 +194,7 @@ class BaseSkeleton(object):
 	def __init__( self, cloned=False, _cloneFrom=None, *args,  **kwargs ):
 		"""
 			Initializes a Skeleton.
-			
+
 			:param kindName: If set, it overrides the kindName of the current class.
 			:type kindName: str
 		"""
@@ -224,6 +234,15 @@ class BaseSkeleton(object):
 
 	def getValuesCache(self):
 		return self.valuesCache
+
+
+	@classmethod
+	def setSystemInitialized(cls):
+		for attrName in dir(cls):
+			bone = getattr(cls, attrName)
+			if isinstance(bone, baseBone):
+				bone.setSystemInitialized()
+
 
 	def clone(self):
 		"""
@@ -270,7 +289,7 @@ class BaseSkeleton(object):
 		del self.valuesCache[key]
 		#del self.__dataDict__[ key ]
 
-	def setValues(self, values, key=False):
+	def setValues(self, values):
 		"""
 			Load *values* into Skeleton, without validity checks.
 
@@ -282,11 +301,9 @@ class BaseSkeleton(object):
 
 			If no bone could be found for a given key, this key is ignored. Any values of other bones
 			not mentioned in *values* remain unchanged.
-			
+
 			:param values: A dictionary with values.
 			:type values: dict
-			:param key: If given, this allows to set the current database unique key.
-			:type key: server.db.Key | None
 		"""
 		for bkey,_bone in self.items():
 			if isinstance( _bone, baseBone ):
@@ -296,20 +313,12 @@ class BaseSkeleton(object):
 						self.valuesCache[bkey] = str( values.key() )
 					except:
 						# Is it in the dict?
-						if "key" in values.keys():
+						if "key" in values:
 							self.valuesCache[bkey] = str( values["key"] )
 						else: #Ingore the key value
 							pass
 				else:
 					_bone.unserialize( self.valuesCache, bkey, values )
-
-		if key is not False:
-			assert key is None or isinstance( key, db.Key ), "Key must be None or a db.Key instance"
-
-			if key is None:
-				self["key"].value = ""
-			else:
-				self["key"] = str( key )
 
 	def getValues(self):
 		"""
@@ -353,7 +362,7 @@ class BaseSkeleton(object):
 			Bones with invalid values are set back to a safe default (None in most cases).
 			So its possible to call :func:`~server.skeleton.Skeleton.toDB` afterwards even if reading
 			data with this function failed (through this might violates the assumed consistency-model).
-			
+
 			:param data: Dictionary from which the data is read.
 			:type data: dict
 
@@ -397,7 +406,7 @@ class BaseSkeleton(object):
 
 		if( len(data) == 0
 		    or (len(data) == 1 and "key" in data)
-		    or ("nomissing" in data.keys() and str(data["nomissing"]) == "1" )):
+		    or ("nomissing" in data and str(data["nomissing"]) == "1" )):
 			super(BaseSkeleton, self).__setattr__( "errors", {} )
 
 		return( complete )
@@ -430,7 +439,7 @@ class MetaSkel(MetaBaseSkel):
 			else:
 				cls.kindName = cls.__name__.lower()
 		# Prevent duplicate definitions of skeletons
-		if cls.kindName and cls.kindName is not __undefindedC__ and cls.kindName in MetaBaseSkel._skelCache.keys():
+		if cls.kindName and cls.kindName is not __undefindedC__ and cls.kindName in MetaBaseSkel._skelCache:
 			relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]).replace(os.getcwd(), "")
 			if relNewFileName.strip(os.path.sep).startswith("server"):
 				# The currently processed skeleton is from the server.* package
@@ -574,12 +583,12 @@ class Skeleton(BaseSkeleton):
 			oldUniqeValues = {}
 			for boneName, boneInstance in skel.items():
 				if boneInstance.unique:
-					if "%s.uniqueIndexValue" % boneName in dbObj.keys():
+					if "%s.uniqueIndexValue" % boneName in dbObj:
 						oldUniqeValues[boneName] = dbObj["%s.uniqueIndexValue" % boneName]
 
 			## Merge the values from mergeFrom in
 			for key, bone in skel.items():
-				if key in mergeFrom.keys():
+				if key in mergeFrom:
 					bone.mergeFrom(skel.valuesCache, key, mergeFrom)
 			unindexed_properties = []
 			for key, _bone in skel.items():
@@ -614,15 +623,19 @@ class Skeleton(BaseSkeleton):
 							lockObj = db.Get(db.Key.from_path(
 								"%s_%s_uniquePropertyIndex" % (skel.kindName, boneName),
 								newUniqeValues[boneName]))
-							if lockObj[
-								"references"] != ourKey:  # This value has been claimed, and that not by us
+
+							if lockObj["references"] != ourKey:
+								# This value has been claimed, and that not by us
+
 								raise ValueError(
-									"The value of property %s has been recently claimed!" % boneName)
+									"The unique value '%s' of bone '%s' has been recently claimed!" %
+										(self.valuesCache[boneName], boneName))
+
 						except db.EntityNotFoundError:  # No lockObj found for that value, we can use that
 							pass
 						dbObj["%s.uniqueIndexValue" % boneName] = newUniqeValues[boneName]
 					else:
-						if "%s.uniqueIndexValue" % boneName in dbObj.keys():
+						if "%s.uniqueIndexValue" % boneName in dbObj:
 							del dbObj["%s.uniqueIndexValue" % boneName]
 			if not skel.searchIndex:
 				# We generate the searchindex using the full skel, not this (maybe incomplete one)
@@ -665,7 +678,7 @@ class Skeleton(BaseSkeleton):
 			for boneName, boneInstance in skel.items():
 				if boneInstance.unique:
 					# Update/create/delete missing lock-objects
-					if boneName in oldUniqeValues.keys() and oldUniqeValues[boneName] != \
+					if boneName in oldUniqeValues and oldUniqeValues[boneName] != \
 						newUniqeValues[boneName]:
 						# We had an old lock and its value changed
 						try:
@@ -794,7 +807,7 @@ class Skeleton(BaseSkeleton):
 					try:
 						logging.error("x1")
 						logging.error(dbObj.keys())
-						if "%s.uniqueIndexValue" % boneName in dbObj.keys():
+						if "%s.uniqueIndexValue" % boneName in dbObj:
 							logging.error("x2")
 							db.Delete(db.Key.from_path(
 								"%s_%s_uniquePropertyIndex" % (skel.kindName, boneName),
@@ -880,7 +893,7 @@ class RelSkel(BaseSkeleton):
 				self.errors[ key ] = error
 			if error  and _bone.required:
 				complete = False
-		if( len( data )==0 or (len(data)==1 and "key" in data) or ("nomissing" in data.keys() and str(data["nomissing"])=="1") ):
+		if( len( data )==0 or (len(data)==1 and "key" in data) or ("nomissing" in data and str(data["nomissing"])=="1") ):
 			super(BaseSkeleton, self).__setattr__("errors", {})
 		return( complete )
 
@@ -891,7 +904,7 @@ class RelSkel(BaseSkeleton):
 		dbObj = FakeEntity()
 		for key, _bone in self.items():
 			dbObj = _bone.serialize( self.valuesCache, key, dbObj )
-		if "key" in self.keys(): #Write the key seperatly, as the base-bone doesn't store it
+		if "key" in self: #Write the key seperatly, as the base-bone doesn't store it
 			dbObj["key"] = self["key"]
 		return dbObj
 
@@ -911,7 +924,7 @@ class RelSkel(BaseSkeleton):
 						self.valuesCache[bkey] = str( values.key() )
 					except:
 						# Is it in the dict?
-						if "key" in values.keys():
+						if "key" in values:
 							self.valuesCache[bkey] = str( values["key"] )
 						else: #Ingore the key value
 							pass
