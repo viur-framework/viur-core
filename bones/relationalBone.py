@@ -816,24 +816,26 @@ class relationalBone( baseBone ):
 				if bone.searchable:
 					res.extend(bone.getSearchDocumentFields(valuesCache, key, prefix=searchPrefix))
 
-			return res
 		value = valuesCache.get(name)
 		res = []
+
 		if not value:
-			return
+			return res
+
 		if self.multiple:
 			for idx, val in enumerate(value):
 				searchPrefix = "%s%s_%s" % (prefix, name, str(idx))
 				if val["dest"]:
-					res = getValues(res, self._refSkelCache, val["dest"], searchPrefix)
+					getValues(res, self._refSkelCache, val["dest"], searchPrefix)
 				if val["rel"]:
-					res = getValues(res, self._usingSkelCache, val["rel"], searchPrefix)
+					getValues(res, self._usingSkelCache, val["rel"], searchPrefix)
 		else:
 			searchPrefix = "%s%s" % (prefix, name)
 			if value["dest"]:
-				res = getValues(res, self._refSkelCache, value["dest"], searchPrefix)
+				getValues(res, self._refSkelCache, value["dest"], searchPrefix)
 			if value["rel"]:
-				res = getValues(res, self._usingSkelCache, value["rel"], searchPrefix)
+				getValues(res, self._usingSkelCache, value["rel"], searchPrefix)
+
 		return res
 
 
