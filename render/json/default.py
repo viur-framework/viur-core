@@ -215,16 +215,16 @@ class DefaultRender(object):
 		request.current.get().response.headers["Content-Type"] = "application/json"
 		return json.dumps(res)
 
-	def view(self, skel, tpl = None, passThrough = None, *args, **kwargs):
+	def view(self, skel, tpl = None, params = None, *args, **kwargs):
 		return self.renderEntry(skel, "view")
 
-	def add(self, skel, tpl = None, passThrough = None, **kwargs):
+	def add(self, skel, tpl = None, params = None, **kwargs):
 		return self.renderEntry(skel, "add")
 
-	def edit(self, skel, tpl = None, passThrough=None, **kwargs):
+	def edit(self, skel, tpl = None, params=None, **kwargs):
 		return self.renderEntry(skel, "edit")
 
-	def list(self, skellist, tpl = None, passThrough=None, **kwargs):
+	def list(self, skellist, tpl = None, params=None, **kwargs):
 		res = {}
 		skels = []
 
@@ -242,20 +242,20 @@ class DefaultRender(object):
 		request.current.get().response.headers["Content-Type"] = "application/json"
 		return json.dumps(res)
 
-	def editItemSuccess(self, skel, passThrough=None, **kwargs):
+	def editItemSuccess(self, skel, params=None, **kwargs):
 		return self.renderEntry(skel, "editSuccess")
 		
-	def addItemSuccess(self, skel, passThrough=None, **kwargs):
+	def addItemSuccess(self, skel, params=None, **kwargs):
 		return self.renderEntry(skel, "addSuccess")
 		
-	def addDirSuccess(self, rootNode,  path, dirname, passThrough=None, *args, **kwargs):
+	def addDirSuccess(self, rootNode,  path, dirname, params=None, *args, **kwargs):
 
 		return json.dumps("OKAY")
 
-	def listRootNodes(self, rootNodes, tpl=None, passThrough=None):
+	def listRootNodes(self, rootNodes, tpl=None, params=None):
 		return json.dumps(rootNodes)
 
-	def listRootNodeContents(self, subdirs, entrys, tpl=None, passThrough=None, **kwargs):
+	def listRootNodeContents(self, subdirs, entrys, tpl=None, params=None, **kwargs):
 
 		res = {
 			"subdirs": subdirs
@@ -269,20 +269,20 @@ class DefaultRender(object):
 		res["entrys"] = skels
 		return json.dumps(res)
 
-	def renameSuccess(self, rootNode, path, src, dest, passThrough=None, *args, **kwargs):
+	def renameSuccess(self, rootNode, path, src, dest, params=None, *args, **kwargs):
 		return json.dumps("OKAY")
 
-	def copySuccess(self, srcrepo, srcpath, name, destrepo, destpath, type, deleteold, passThrough=None, *args, **kwargs):
+	def copySuccess(self, srcrepo, srcpath, name, destrepo, destpath, type, deleteold, params=None, *args, **kwargs):
 		return json.dumps("OKAY")
 
-	def deleteSuccess(self, skel, passThrough=None, *args, **kwargs):
+	def deleteSuccess(self, skel, params=None, *args, **kwargs):
 		return json.dumps("OKAY")
 
-	def reparentSuccess(self, obj, tpl=None, passThrough=None, *args, **kwargs):
+	def reparentSuccess(self, obj, tpl=None, params=None, *args, **kwargs):
 		return json.dumps("OKAY")
 
-	def setIndexSuccess(self, obj, tpl=None, passThrough=None, *args, **kwargs):
+	def setIndexSuccess(self, obj, tpl=None, params=None, *args, **kwargs):
 		return json.dumps("OKAY")
 
-	def cloneSuccess(self, tpl=None, passThrough=None, *args, **kwargs):
+	def cloneSuccess(self, tpl=None, params=None, *args, **kwargs):
 		return json.dumps("OKAY")

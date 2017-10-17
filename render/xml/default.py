@@ -221,18 +221,18 @@ class DefaultRender( object ):
 
 		return res
 
-	def view( self, skel, listname="view", passThrough = None, *args, **kwargs ):
+	def view( self, skel, listname="view", params = None, *args, **kwargs ):
 		res = {	"values": self.renderSkelValues( skel ),
 				"structure": self.renderSkelStructure( skel ) }
 		return( serializeXML( res ) )
 
-	def add( self, skel, failed=False, listname="add", passThrough = None, **kwargs ):
+	def add( self, skel, failed=False, listname="add", params = None, **kwargs ):
 		return( self.view( skel ) )
 
-	def edit(self, skel, tpl=None, passThrough=None, **kwargs):
+	def edit(self, skel, tpl=None, params=None, **kwargs):
 		return( self.view( skel ) )
 
-	def list(self, skellist, tpl=None, passThrough=None, **kwargs):
+	def list(self, skellist, tpl=None, params=None, **kwargs):
 		res = {}
 		skels = []
 		for skel in skellist:
@@ -245,29 +245,29 @@ class DefaultRender( object ):
 		res["cursor"] = skellist.cursor
 		return( serializeXML( res ) )
 
-	def editItemSuccess(self, skel, passThrough=None, **kwargs):
+	def editItemSuccess(self, skel, params=None, **kwargs):
 		return( serializeXML("OKAY") )
 
-	def addItemSuccess(self, skel, passThrough=None, **kwargs):
+	def addItemSuccess(self, skel, params=None, **kwargs):
 		return( serializeXML("OKAY") )
 		
-	def addDirSuccess(self, rootNode,  path, dirname, passThrough=None, *args, **kwargs):
+	def addDirSuccess(self, rootNode,  path, dirname, params=None, *args, **kwargs):
 		return( serializeXML( "OKAY") )
 
-	def renameSuccess(self, rootNode, path, src, dest, passThrough=None, *args, **kwargs):
+	def renameSuccess(self, rootNode, path, src, dest, params=None, *args, **kwargs):
 		return( serializeXML( "OKAY") )
 
-	def copySuccess(self, srcrepo, srcpath, name, destrepo, destpath, type, deleteold, passThrough=None, *args, **kwargs):
+	def copySuccess(self, srcrepo, srcpath, name, destrepo, destpath, type, deleteold, params=None, *args, **kwargs):
 		return( serializeXML( "OKAY") )
 
-	def deleteSuccess(self, skel, passThrough=None, *args, **kwargs):
+	def deleteSuccess(self, skel, params=None, *args, **kwargs):
 		return( serializeXML( "OKAY") )
 
-	def reparentSuccess(self, obj, tpl=None, passThrough=None, *args, **kwargs):
+	def reparentSuccess(self, obj, tpl=None, params=None, *args, **kwargs):
 		return( serializeXML( "OKAY") )
 
-	def setIndexSuccess(self, obj, tpl=None, passThrough=None, *args, **kwargs):
+	def setIndexSuccess(self, obj, tpl=None, params=None, *args, **kwargs):
 		return( serializeXML( "OKAY") )
 
-	def cloneSuccess(self, tpl=None, passThrough=None, *args, **kwargs):
+	def cloneSuccess(self, tpl=None, params=None, *args, **kwargs):
 		return( serializeXML( "OKAY") )
