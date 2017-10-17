@@ -793,7 +793,7 @@ class relationalBone( baseBone ):
 		value = values.get(key)
 		res = []
 		if not value:
-			return
+			return res
 		if self.multiple:
 			for val in value:
 				if val["dest"]:
