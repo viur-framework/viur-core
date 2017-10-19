@@ -488,58 +488,82 @@ def shortKey(render, val):
 		return None
 
 @jinjaGlobalFunction
-def renderEditBone(render, skel, boneName, style=None):
+def renderEditBone(render, skel, boneName):
 	if not isinstance(skel, dict) or not all([x in skel for x in ["errors", "structure", "value"]]):
 		raise ValueError("This does not look like an editable Skeleton!")
+
 	boneParams = skel["structure"].get(boneName)
+
 	if not boneParams:
 		raise ValueError("Bone %s is not part of that skeleton" % boneName)
-	boneType = boneParams["type"]
-	fileName = "bones_" + boneType
+
+	if not boneParams["visible"]:
+		fileName = "editform_bone_hidden"
+	else:
+		fileName = "editform_bone_" + boneParams["type"]
+
 	while fileName:
 		try:
 			fn = render.getTemplateFileName(fileName)
 			break
+
 		except errors.NotFound:
 			if "." in fileName:
 				fileName, unused = fileName.rsplit(".", 1)
 			else:
-				fn = render.getTemplateFileName("bones_bone")
+				fn = render.getTemplateFileName("editform_bone_bone")
 				break
-	tpl = render.getEnv().get_template(fn)
-	return  tpl.render(boneName=boneName, boneParams=boneParams, boneValue=skel["value"].get(boneName, None))
 
+	tpl = render.getEnv().get_template(fn)
+
+	return tpl.render(boneName=boneName, boneParams=boneParams, boneValue=skel["value"].get(boneName, None))
 
 @jinjaGlobalFunction
-def renderEditForm(render, skel, ignore=None, hide=None, style=None):
-	if not isinstance(skel, dict) or not all([x in skel for x in ["errors", "structure", "value"]]):
+def renderEditForm(render, skel, ignore=None, hide=None):
+	if not isinstance(skel, dict) or not all([x in skel.keys() for x in ["errors", "structure", "value"]]):
 		raise ValueError("This does not look like an editable Skeleton!")
+
 	res = u""
-	sectionTpl = render.getEnv().get_template(render.getTemplateFileName("dynaform_section"))
-	rowTpl = render.getEnv().get_template(render.getTemplateFileName("dynaform_row"))
+
+	sectionTpl = render.getEnv().get_template(render.getTemplateFileName("editform_category"))
+	rowTpl = render.getEnv().get_template(render.getTemplateFileName("editform_row"))
 	sections = OrderedDict()
 	for boneName, boneParams in skel["structure"].items():
 		category = _("server.render.html.default_category")
-		if "params" in boneParams and isinstance(boneParams["params"],dict):
+		if "params" in boneParams and isinstance(boneParams["params"], dict):
 			category = boneParams["params"].get("category", category)
 		if not category in sections:
 			sections[category] = []
+
 		sections[category].append((boneName, boneParams))
+
 	for category, boneList in sections.items():
 		allReadOnly = True
 		allHidden = True
 		categoryContent = u""
+
 		for boneName, boneParams in boneList:
-			boneWasInvalid = isinstance(skel["errors"], dict) and skel["errors"].get(boneName, None)
+			print(boneName)
+			if ignore and boneName in ignore:
+				continue
+
+			boneWasInvalid = isinstance(skel["errors"], dict) and boneName in skel["errors"].keys()
+
+			if hide and boneName in hide:
+				boneParams["visible"] = False
+
 			if not boneParams["readOnly"]:
 				allReadOnly = False
+
 			if boneParams["visible"]:
 				allHidden = False
+
 			editWidget = renderEditBone(render, skel, boneName)
 			categoryContent += rowTpl.render(boneName = boneName,
 			                                 boneParams = boneParams,
 			                                 boneWasInvalid = boneWasInvalid,
 			                                 editWidget = editWidget)
+
 		res += sectionTpl.render(categoryName=category,
 		                         categoryClassName = "".join([x for x in category if x in string.ascii_letters]),
 		                         categoryContent = categoryContent,
