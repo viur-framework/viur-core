@@ -9,7 +9,7 @@
  - ignore/hide parameter to our renderEditForm jinja2 function
  - New parameter "params" to explicitly pass additional values to the template / json response
  - Retrieving the viewSkel Structure by calling modulePath/view/structure
- - __iter__ function to skeletons
+ - \_\_iter\_\_ function to skeletons
  - embedSvg function to html render
  - onLogout hook to the user module
  - Expose the unique property in skel-structures in json render
