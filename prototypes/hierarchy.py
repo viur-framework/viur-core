@@ -723,6 +723,7 @@ class Hierarchy(BasicApplication):
 			for k, v in skel.items():
 				logging.debug("BEHIND %s = >%s<", (k, skel[k]))
 
+			skel["key"] = None
 			skel["parententry"] = toParent
 			skel["parentrepo"] = toRepo
 
