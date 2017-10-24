@@ -227,7 +227,7 @@ class Render( object ):
 
 		elif bone.type == "selectone" or bone.type.startswith("selectone.") or bone.type == "selectmulti" or bone.type.startswith("selectmulti."):
 			ret.update({
-				"values": {k: _(v) for k,v in bone.values.items()}
+				"values": OrderedDict([(k, _(v)) for (k, v) in bone.values.items()])
 			})
 
 		elif bone.type == "date" or bone.type.startswith("date."):
