@@ -3,6 +3,8 @@
 
 ## [Unreleased]
 
+## [2.1.0] - 2017-10-25
+
 ### Added
  - New edit form templates following the ViUR ignite standard
  - Pass the error description of HTTPException to the underlying webob framework
