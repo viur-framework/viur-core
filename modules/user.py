@@ -368,26 +368,20 @@ class TimeBasedOTP(object):
 		token = session.current.get("_otp_user")
 		if not token:
 			raise errors.Forbidden()
-
 		if otptoken is None:
 			self.userModule.render.edit(self.otpSkel())
-
 		if not securitykey.validate(skey):
 			raise errors.PreconditionFailed()
-
 		if token["failures"] > 3:
 			raise errors.Forbidden("Maximum amount of authentication retries exceeded")
-
+		if len(token["otpkey"]) % 2 == 1:
+			raise errors.PreconditionFailed("The otp secret stored for this user is invalid (uneven length)")
 		validTokens = self.generateOtps(token["otpkey"], token["otptimedrift"])
 		try:
 			otptoken = int(otptoken)
 		except:
 			# We got a non-numeric token - this cant be correct
 			self.userModule.render.edit(self.otpSkel(), tpl=self.otpTemplate)
-
-		logging.debug(otptoken)
-		logging.debug(validTokens)
-		logging.debug(otptoken in validTokens)
 
 		if otptoken in validTokens:
 			userKey = session.current["_otp_user"]["uid"]
