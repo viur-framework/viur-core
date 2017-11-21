@@ -45,7 +45,7 @@ class relationalBone( baseBone ):
 	kind = None
 
 	def __init__(self, kind=None, module=None, refKeys=None, parentKeys=None, multiple=False,
-	             format="$(dest.name)", using=None, *args, **kwargs):
+	             format="$(dest.name)", using=None, updateLevel=0, *args, **kwargs):
 		"""
 			Initialize a new relationalBone.
 
@@ -67,6 +67,8 @@ class relationalBone( baseBone ):
 			:param format: Hint for the admin how to display such an relation. See admin/utils.py:formatString for
 				more information
 			:type format: String
+			:param updateLevel: level 0==always update refkeys (old behavior), 1==update refKeys only on rebuildSearchIndex, 2==write once on set, never update again refKeys
+			:type updateLevel: int
 		"""
 		baseBone.__init__( self, *args, **kwargs )
 		self.multiple = multiple
@@ -95,6 +97,7 @@ class relationalBone( baseBone ):
 			self.parentKeys=parentKeys
 
 		self.using = using
+		self.updateLevel = updateLevel
 
 		if getSystemInitialized():
 			from server.skeleton import RefSkel, skeletonByKind
@@ -321,6 +324,7 @@ class relationalBone( baseBone ):
 			dbObj[ "viur_src_property" ] = boneName #The key of the bone referencing
 			#dbObj[ "viur_dest_key" ] = val["key"]
 			dbObj[ "viur_dest_kind" ] = self.kind
+			dbObj["viur_relational_updateLevel"] = self.updateLevel
 			db.Put( dbObj )
 
 	def postDeletedHandler( self, skel, key, id ):
