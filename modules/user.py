@@ -31,11 +31,12 @@ class userSkel(Skeleton):
 
 
 	# Generic properties
-	access = selectAccessMultiBone(descr="Access rights", values={"root": "Superuser"}, indexed=True)
-	status = selectOneBone(descr="Account status", values = {   1: "Waiting for email verification",
-	                                                            2: "Waiting for verification through admin",
-	                                                            5: "Account disabled",
-	                                                            10: "Active" },
+	access = selectAccessBone(descr="Access rights", values={"root": "Superuser"}, indexed=True)
+	status = selectBone(descr="Account status",
+	                        values = {  1: "Waiting for email verification",
+                                        2: "Waiting for verification through admin",
+                                        5: "Account disabled",
+                                        10: "Active" },
 	                        defaultValue="10", required=True, indexed=True)
 	lastlogin = dateBone(descr="Last Login", readOnly=True, indexed=True)
 

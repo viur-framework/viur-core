@@ -84,13 +84,14 @@ class DefaultRender( object ):
 			ret.update({
 				"type": "%s.%s" % (boneType, bone.type),
 				"module": bone.module,
-				"multiple": bone.multipe,
+				"multiple": bone.multiple,
 				"format": bone.format
 			})
 
-		elif isinstance(bone, selectOneBone) or isinstance(bone, selectMultiBone):
+		elif isinstance(bone, selectBone):
 			ret.update({
-				"values": bone.values
+				"values": bone.values,
+				"multiple": bone.multiple
 			})
 
 		elif isinstance(bone, dateBone):
