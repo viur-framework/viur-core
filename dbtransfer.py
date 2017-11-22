@@ -371,7 +371,7 @@ class TaskExportKind( CallableTaskBase ):
 	def dataSkel(self):
 		modules = ["*"] + listKnownSkeletons()
 		skel = BaseSkeleton(cloned=True)
-		skel.module = selectOneBone( descr="Module", values={ x: x for x in modules}, required=True )
+		skel.module = selectBone( descr="Module", values={ x: x for x in modules}, required=True )
 		skel.target = stringBone( descr="URL to Target-Application", required=True, defaultValue="https://your-app-id.appspot.com/dbtransfer/storeEntry2" )
 		skel.importkey = stringBone( descr="Import-Key", required=True)
 		return skel
@@ -447,7 +447,7 @@ class TaskImportKind( CallableTaskBase ):
 
 		skel = BaseSkeleton(cloned=True)
 
-		skel.module = selectOneBone(descr="Module", values={x: x for x in modules}, required=True)
+		skel.module = selectBone(descr="Module", values={x: x for x in modules}, required=True)
 		skel.source = stringBone(descr="URL to Source-Application", required=True,
 		                                    defaultValue="https://<your-app-id>.appspot.com/dbtransfer/iterValues2")
 		skel.exportkey = stringBone(descr="Export-Key", required=True, defaultValue="")
@@ -549,4 +549,3 @@ def iterImport(module, target, exportKey, cursor=None, amount=0):
 			amount += 1
 
 		iterImport(module, target, exportKey, res["cursor"], amount)
-
