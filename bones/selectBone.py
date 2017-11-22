@@ -48,12 +48,12 @@ class selectBone(baseBone):
 			self.values = values
 
 	def fromClient(self, valuesCache, name, data):
-		value = data.get(name)
+		values = data.get(name)
 
 		# single case
 		if not self.multiple:
 			for key in self.values.keys():
-				if str(key) == str(value):
+				if str(key) == str(values):
 					err = self.isInvalid(key)
 					if not err:
 						valuesCache[name] = key
@@ -63,23 +63,23 @@ class selectBone(baseBone):
 			return "No or invalid value selected"
 
 		# multiple case
-		if not value:
+		if not values:
 			if not self.required:
 				valuesCache[name] = []
 
 			return "No item selected"
 
-		if not isinstance(value, list):
-			if isinstance(value, basestring):
-				value = value.split(":")
+		if not isinstance(values, list):
+			if isinstance(values, basestring):
+				values = values.split(":")
 			else:
-				value = []
+				values = []
 
 		lastErr = None
 		valuesCache[name] = []
 
 		for key, value in self.values.items():
-			if str(key) in [str(x) for x in value]:
+			if str(key) in [str(x) for x in values]:
 				err = self.isInvalid(key)
 				if not err:
 					valuesCache[name].append(key)
