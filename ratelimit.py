@@ -49,7 +49,20 @@ class RateLimit(object):
 			assert user, "Cannot decrement usage from guest!"
 			return user["key"]
 		else:
-			return request.current.get().request.remote_addr
+			remoteAddr = request.current.get().request.remote_addr
+			if "::" in remoteAddr:  # IPv6 in shorted form
+				# Fixme: Can this even happen on the appengine?
+				remoteAddr = remoteAddr.split(":")
+				blankIndex  = remoteAddr.index("")
+				missigParts = ["0000"] * (8 - len(remoteAddr))
+				remoteAddr = remoteAddr[:blankIndex] + missigParts + remoteAddr[blankIndex + 1:]
+				return ":".join(remoteAddr[:4])
+			elif ":" in remoteAddr:  # It's IPv6, so we remove the last 64 bits (interface id)
+				# as it is easily controlled by the user
+				return ":".join(remoteAddr.split(":")[4:])
+			else:  # It's IPv4, simply return that address
+				return remoteAddr
+
 
 	def _getCurrentTimeKey(self):
 		"""
