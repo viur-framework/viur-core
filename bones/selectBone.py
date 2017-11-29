@@ -53,7 +53,7 @@ class selectBone(baseBone):
 		# single case
 		if not self.multiple:
 			for key in self.values.keys():
-				if str(key) == str(values):
+				if unicode(key) == unicode(values):
 					err = self.isInvalid(key)
 					if not err:
 						valuesCache[name] = key
@@ -63,33 +63,34 @@ class selectBone(baseBone):
 			return "No or invalid value selected"
 
 		# multiple case
-		if not values:
-			if not self.required:
-				valuesCache[name] = []
+		else:
+			if not values:
+				if not self.required:
+					valuesCache[name] = []
+
+				return "No item selected"
+
+			if not isinstance(values, list):
+				if isinstance(values, basestring):
+					values = values.split(":")
+				else:
+					values = []
+
+			lastErr = None
+			valuesCache[name] = []
+
+			for key, value in self.values.items():
+				if unicode(key) in [unicode(x) for x in values]:
+					err = self.isInvalid(key)
+					if not err:
+						valuesCache[name].append(key)
+					else:
+						lastErr = err
+
+			if len(valuesCache[name]) > 0:
+				return lastErr
 
 			return "No item selected"
-
-		if not isinstance(values, list):
-			if isinstance(values, basestring):
-				values = values.split(":")
-			else:
-				values = []
-
-		lastErr = None
-		valuesCache[name] = []
-
-		for key, value in self.values.items():
-			if str(key) in [str(x) for x in values]:
-				err = self.isInvalid(key)
-				if not err:
-					valuesCache[name].append(key)
-				else:
-					lastErr = err
-
-		if len(valuesCache[name]) > 0:
-			return lastErr
-
-		return "No item selected"
 
 	def serialize(self, valuesCache, name, entity):
 		if not self.multiple:
