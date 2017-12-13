@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from server import db, utils, conf, errors
-from server.bones import baseBone, boneFactory, dateBone, selectOneBone, relationalBone, stringBone
+from server.bones import baseBone, boneFactory, keyBone, dateBone, selectOneBone, relationalBone, stringBone
 from server.tasks import CallableTask, CallableTaskBase, callDeferred
 from collections import OrderedDict
 from threading import local
@@ -469,7 +469,7 @@ class Skeleton(BaseSkeleton):
 	# The "key" bone stores the current database key of this skeleton.
 	# Warning: Assigning to this bones value now *will* set the key
 	# it gets stored in. Must be kept readOnly to avoid security-issues with add/edit.
-	key = baseBone(descr="key", readOnly=True, visible=False)
+	key = keyBone(descr="key", readOnly=True, visible=False)
 
 	# The date (including time) when this entry has been created
 	creationdate = dateBone(descr="created at",

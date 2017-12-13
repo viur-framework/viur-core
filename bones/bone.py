@@ -179,8 +179,7 @@ class baseBone(object): # One Bone:
 			:type name: String
 			:returns: dict
 		"""
-		if name != "key":
-			entity.set( name, valuesCache[name], self.indexed )
+		entity.set( name, valuesCache[name], self.indexed )
 		return( entity )
 
 	def unserialize( self, valuesCache, name, expando ):
