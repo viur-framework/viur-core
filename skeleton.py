@@ -88,7 +88,7 @@ class BaseSkeleton(object):
 				super(BaseSkeleton, self).__setattr__("__dataDict__", OrderedDict())
 			if not "__" in key and key != "isClonedInstance":
 				if isinstance(value , baseBone):
-					self.__dataDict__[key] =  value
+					self.__dataDict__[key] = value
 					self.valuesCache[key] = value.getDefaultValue()
 				elif value is None and key in self.__dataDict__: #Allow setting a bone to None again
 					del self.__dataDict__[key]
@@ -271,6 +271,9 @@ class BaseSkeleton(object):
 		if isinstance(value, baseBone):
 			raise AttributeError("Don't assign this bone object as skel[\"%s\"] = ... anymore to the skeleton. "
 			                        "Use skel.%s = ... for bone to skeleton assignment!" % (key, key))
+
+		elif isinstance(value, db.Key):
+			value = str(value)
 
 		self.valuesCache[key] = value
 		#if not self.isClonedInstance:
