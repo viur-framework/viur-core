@@ -270,7 +270,7 @@ class baseBone(object): # One Bone:
 
 		for key in myKeys:
 			value = rawFilter[ key ]
-			tmpdata = key.partition("$")
+			tmpdata = key.split("$")
 
 			if len( tmpdata ) > 2:
 				if isinstance( value, list ):
