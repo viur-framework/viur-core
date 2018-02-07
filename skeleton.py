@@ -434,7 +434,7 @@ class MetaSkel(MetaBaseSkel):
 			relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]).replace(os.getcwd(), "")
 			if relNewFileName.strip(os.path.sep).startswith("server"):
 				# The currently processed skeleton is from the server.* package
-				pass
+				return
 			elif relOldFileName.strip(os.path.sep).startswith("server"):
 				# The old one was from server - override it
 				MetaBaseSkel._skelCache[cls.kindName] = cls
