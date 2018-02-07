@@ -151,7 +151,7 @@ class textBone( baseBone ):
 			return( entity )
 		if self.languages:
 			for k in entity.keys(): #Remove any old data
-				if k.startswith("%s." % name ):
+				if k.startswith("%s." % name) or k.startswith("%s_" % name ) or k==name:
 					del entity[ k ]
 			for lang in self.languages:
 				if isinstance(valuesCache[name], dict) and lang in valuesCache[name].keys():
