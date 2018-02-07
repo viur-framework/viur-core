@@ -199,11 +199,11 @@ class relationalBone( baseBone ):
 				if self.indexed:
 					destData = valuesCache[name]["dest"].serialize()
 					for k, v in destData.items():
-						entity[ "%s.dest.%s" % (name,k) ] = v
+						entity.set("%s.dest.%s" % (name,k), v, self.indexed)
 					if self.using is not None and valuesCache[name]["rel"]:
 						relData = valuesCache[name]["rel"].serialize()
 						for k, v in relData.items():
-							entity[ "%s.rel.%s" % (name,k) ] = v
+							entity.set("%s.rel.%s" % (name,k), v, self.indexed)
 					#for k, v in valuesCache[name].items():
 					#	if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ):
 					#		entity[ "%s.%s" % (name,k) ] = v
