@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
 from time import time
-import HTMLParser, htmlentitydefs 
+import HTMLParser, htmlentitydefs
 from server import db
 from server.utils import markFileForDeletion
 from server.config import conf
@@ -14,7 +14,7 @@ _attrsSpacing = ["spacing","spacing-left","spacing-right","spacing-top","spacing
 _attrsDescr = ["title","alt"]
 _defaultTags = {
 	"validTags": [	'font','b', 'a', 'i', 'u', 'span', 'div','p', 'img', 'ol', 'ul','li','acronym', #List of HTML-Tags which are valid
-				'h1','h2','h3','h4','h5','h6', 'table', 'tr', 'td', 'th', 'br', 'hr', 'strong'], 
+				'h1','h2','h3','h4','h5','h6', 'table', 'tr', 'td', 'th', 'br', 'hr', 'strong'],
 	"validAttrs": {	"font": ["color"], #Mapping of valid parameters for each tag (if a tag is not listed here: no parameters allowed)
 					"a": ["href","target"]+_attrsDescr,
 					"acronym": ["title"],
@@ -24,7 +24,7 @@ _defaultTags = {
 					"img":[ "src","target", "width","height", "align" ]+_attrsDescr+_attrsMargins+_attrsSpacing,
 					"table": [ "width","align", "border", "cellspacing", "cellpadding" ]+_attrsDescr,
 					"td" : [ "colspan", "rowspan", "width", "height" ]+_attrsMargins+_attrsSpacing
-				}, 
+				},
 	"validStyles": ["font-weight","font-style","text-decoration","color", "display"], #List of CSS-Directives we allow
 	"singleTags": ["br","img", "hr"] # List of tags, which dont have a corresponding end tag
 }
@@ -35,7 +35,7 @@ class HtmlSerializer( HTMLParser.HTMLParser ): #html.parser.HTMLParser
 		global _defaultTags
 		HTMLParser.HTMLParser.__init__(self)
 		self.result = ""
-		self.openTagsList = [] 
+		self.openTagsList = []
 		self.validHtml = validHtml
 
 	def handle_data(self, data):
@@ -53,7 +53,7 @@ class HtmlSerializer( HTMLParser.HTMLParser ): #html.parser.HTMLParser
 		self.result += "&#%s;" % ( name )
 
 	def handle_entityref(self, name): #FIXME
-		if name in htmlentitydefs.entitydefs.keys(): 
+		if name in htmlentitydefs.entitydefs.keys():
 			self.result += "&%s;" % ( name )
 
 	def handle_starttag(self, tag, attrs):
@@ -62,8 +62,8 @@ class HtmlSerializer( HTMLParser.HTMLParser ): #html.parser.HTMLParser
 			self.result = self.result + '<' + tag
 			isBlankTarget = False
 			for k, v in attrs:
-				if not tag in self.validHtml["validAttrs"].keys() or not k in self.validHtml["validAttrs"][ tag ]:
-					continue					
+				if not tag in self.validHtml["validAttrs"] or not k in self.validHtml["validAttrs"][ tag ]:
+					continue
 				if k.lower()[0:2] != 'on' and v.lower()[0:10] != 'javascript':
 					self.result = '%s %s="%s"' % (self.result, k, v)
 				if tag=="a" and k=="target" and v.lower()=="_blank":
@@ -84,7 +84,7 @@ class HtmlSerializer( HTMLParser.HTMLParser ): #html.parser.HTMLParser
 				self.result = self.result + ' />'
 			else:
 				self.result = self.result + '>'
-				self.openTagsList.insert( 0, tag)    
+				self.openTagsList.insert( 0, tag)
 
 	def handle_endtag(self, tag):
 		if self.validHtml and tag in self.openTagsList:
@@ -98,11 +98,11 @@ class HtmlSerializer( HTMLParser.HTMLParser ): #html.parser.HTMLParser
 		""" Append missing closing tags """
 		for tag in self.openTagsList:
 			endTag = '</%s>' % tag
-			self.result += endTag 
-	
+			self.result += endTag
+
 	def santinize( self, instr ):
 		self.result = ""
-		self.openTagsList = [] 
+		self.openTagsList = []
 		self.feed( instr )
 		self.close()
 		self.cleanup()
@@ -154,7 +154,7 @@ class textBone( baseBone ):
 				if k.startswith("%s." % name ):
 					del entity[ k ]
 			for lang in self.languages:
-				if isinstance(valuesCache[name], dict) and lang in valuesCache[name].keys():
+				if isinstance(valuesCache[name], dict) and lang in valuesCache[name]:
 					val = valuesCache[name][ lang ]
 					if not val or (not HtmlSerializer().santinize(val).strip() and not "<img " in val):
 						#This text is empty (ie. it might contain only an empty <p> tag
@@ -163,7 +163,7 @@ class textBone( baseBone ):
 		else:
 			entity.set( name, valuesCache[name], self.indexed )
 		return( entity )
-		
+
 	def unserialize( self, valuesCache, name, expando ):
 		"""
 			Inverse of serialize. Evaluates whats
@@ -176,22 +176,22 @@ class textBone( baseBone ):
 			:type expando: :class:`db.Entity`
 		"""
 		if not self.languages:
-			if name in expando.keys():
+			if name in expando:
 				valuesCache[name] = expando[ name ]
 		else:
 			valuesCache[name] = LanguageWrapper( self.languages )
 			for lang in self.languages:
-				if "%s.%s" % ( name, lang ) in expando.keys():
+				if "%s.%s" % ( name, lang ) in expando:
 					valuesCache[name][ lang ] = expando[ "%s.%s" % ( name, lang ) ]
 			if not valuesCache[name].keys(): #Got nothing
-				if name in expando.keys(): #Old (non-multi-lang) format
+				if name in expando: #Old (non-multi-lang) format
 					valuesCache[name][ self.languages[0] ] = expando[ name ]
 				for lang in self.languages:
-					if not lang in valuesCache[name].keys() and "%s_%s" % ( name, lang ) in expando.keys():
+					if not lang in valuesCache[name] and "%s_%s" % ( name, lang ) in expando:
 						valuesCache[name][ lang ] = expando[ "%s_%s" % ( name, lang ) ]
 
 		return( True )
-	
+
 	def fromClient( self, valuesCache, name, data ):
 		"""
 			Reads a value from the client.
@@ -200,7 +200,7 @@ class textBone( baseBone ):
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
-			
+
 			:param name: Our name in the skeleton
 			:type name: String
 			:param data: *User-supplied* request-data
@@ -211,7 +211,7 @@ class textBone( baseBone ):
 			lastError = None
 			valuesCache[name] = LanguageWrapper(self.languages)
 			for lang in self.languages:
-				if "%s.%s" % (name,lang) in data.keys():
+				if "%s.%s" % (name,lang) in data:
 					val = data["%s.%s" % (name,lang)]
 					err = self.isInvalid(val) #Returns None on success, error-str otherwise
 					if not err:
@@ -222,7 +222,7 @@ class textBone( baseBone ):
 				lastError = "No / invalid values entered"
 			return lastError
 		else:
-			if name in data.keys():
+			if name in data:
 				value = data[name]
 			else:
 				value = None
@@ -255,7 +255,7 @@ class textBone( baseBone ):
 		if self.languages:
 			if valuesCache[name]:
 				for lng in self.languages:
-					if lng in valuesCache[name].keys():
+					if lng in valuesCache[name]:
 						val = valuesCache[name][ lng ]
 						if not val:
 							continue
@@ -300,22 +300,25 @@ class textBone( baseBone ):
 					if key and key not in res and len(key)>3:
 						res.append( key.lower() )
 		return( res )
-		
-	def getSearchDocumentFields(self, valuesCache, name):
+
+	def getSearchDocumentFields(self, valuesCache, name, prefix = ""):
 		"""
 			Returns a list of search-fields (GAE search API) for this bone.
 		"""
+		if valuesCache.get(name) is None:
+			# If adding an entry using an subskel, our value might not have been set
+			return []
 		if self.languages:
 			assert isinstance(valuesCache[name], dict), "The value shall already contain a dict, something is wrong here."
 
 			if self.validHtml:
-				return [search.HtmlField(name=name, value=unicode( valuesCache[name].get(lang, "")), language=lang)
+				return [search.HtmlField(name=prefix + name, value=unicode(valuesCache[name].get(lang, "")), language=lang)
 				        for lang in self.languages]
 			else:
-				return [search.TextField(name=name, value=unicode( valuesCache[name].get(lang, "")), language=lang)
+				return [search.TextField(name=prefix + name, value=unicode(valuesCache[name].get(lang, "")), language=lang)
 				        for lang in self.languages]
 		else:
 			if self.validHtml:
-				return [search.HtmlField( name=name, value=unicode(valuesCache[name]))]
+				return [search.HtmlField(name=prefix + name, value=unicode(valuesCache[name]))]
 			else:
-				return [search.TextField( name=name, value=unicode(valuesCache[name]))]
+				return [search.TextField(name=prefix + name, value=unicode(valuesCache[name]))]

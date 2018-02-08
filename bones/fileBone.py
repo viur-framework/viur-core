@@ -29,26 +29,26 @@ class fileBone(treeItemBone):
 		res = super( fileBone, self ).unserialize( valuesCache, name, expando )
 		if not request.current.get().isDevServer:
 			# Rewrite all "old" Serving-URLs to https if we are not on the development-server
-			if isinstance(valuesCache[name], dict) and "servingurl" in valuesCache[name]["dest"].keys():
+			if isinstance(valuesCache[name], dict) and "servingurl" in valuesCache[name]["dest"]:
 				if valuesCache[name]["dest"]["servingurl"].startswith("http://"):
 					valuesCache[name]["dest"]["servingurl"] = valuesCache[name]["dest"]["servingurl"].replace("http://","https://")
 			elif isinstance( valuesCache[name], list ):
 				for val in valuesCache[name]:
-					if isinstance(val, dict) and "servingurl" in val["dest"].keys():
+					if isinstance(val, dict) and "servingurl" in val["dest"]:
 						if val["dest"]["servingurl"].startswith("http://"):
 							val["dest"]["servingurl"] = val["dest"]["servingurl"].replace("http://","https://")
 		if isinstance(valuesCache[name], dict):
-			if not "mimetype" in valuesCache[name]["dest"].keys() or not valuesCache[name]["dest"]["mimetype"]:
-				if "meta_mime" in valuesCache[name]["dest"].keys() and valuesCache[name]["dest"]["meta_mime"]:
+			if not "mimetype" in valuesCache[name]["dest"] or not valuesCache[name]["dest"]["mimetype"]:
+				if "meta_mime" in valuesCache[name]["dest"] and valuesCache[name]["dest"]["meta_mime"]:
 					valuesCache[name]["dest"]["mimetype"] = valuesCache[name]["dest"]["meta_mime"]
-				elif "metamime" in valuesCache[name]["dest"].keys() and valuesCache[name]["dest"]["metamime"]:
+				elif "metamime" in valuesCache[name]["dest"] and valuesCache[name]["dest"]["metamime"]:
 					valuesCache[name]["dest"]["mimetype"] = valuesCache[name]["dest"]["metamime"]
 		elif isinstance(valuesCache[name], list):
 			for val in valuesCache[name]:
-				if not "mimetype" in val["dest"].keys() or not val["dest"]["mimetype"]:
-					if "meta_mime" in val["dest"].keys() and val["dest"]["meta_mime"]:
+				if not "mimetype" in val["dest"] or not val["dest"]["mimetype"]:
+					if "meta_mime" in val["dest"] and val["dest"]["meta_mime"]:
 						val["dest"]["mimetype"] = val["dest"]["meta_mime"]
-					elif "metamime" in val["dest"].keys() and val["dest"]["metamime"]:
+					elif "metamime" in val["dest"] and val["dest"]["metamime"]:
 						val["dest"]["mimetype"] = val["dest"]["metamime"]
 		return res
 
@@ -58,13 +58,13 @@ class fileBone(treeItemBone):
 		"""
 
 		def updateInplace(relDict):
-			if isinstance(relDict, dict) and "dest" in relDict.keys():
+			if isinstance(relDict, dict) and "dest" in relDict:
 				valDict = relDict["dest"]
 			else:
 				logging.error("Invalid dictionary in updateInplace: %s" % relDict)
 				return
 
-			if "key" in valDict.keys():
+			if "key" in valDict:
 				originalKey = valDict["key"]
 			else:
 				logging.error("Broken fileBone dict")
@@ -77,7 +77,7 @@ class fileBone(treeItemBone):
 
 			# Anyway, try to copy a dlkey and servingurl
 			# from the corresponding viur-blobimportmap entity.
-			if "dlkey" in valDict.keys():
+			if "dlkey" in valDict:
 				try:
 					oldKeyHash = sha256(valDict["dlkey"]).hexdigest().encode("hex")
 

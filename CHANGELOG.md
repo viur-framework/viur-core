@@ -3,6 +3,45 @@
 
 ## [Unreleased]
 
+## [2.1.0] - 2017-10-25
+
+### Added
+ - New edit form templates following the ViUR ignite standard
+ - Pass the error description of HTTPException to the underlying webob framework
+ - ignore/hide parameter to our renderEditForm jinja2 function
+ - New parameter "params" to explicitly pass additional values to the template / json response
+ - Retrieving the viewSkel Structure by calling modulePath/view/structure
+ - \_\_iter\_\_ function to skeletons
+ - embedSvg function to html render
+ - onLogout hook to the user module
+ - Expose the unique property in skel-structures in json render
+ - viur.emailHandler config variable for easy integration of 3rd party email services
+
+### Changed
+ - Pre-translate the descriptions of selectOne/selectMulti bones in add or edit calls (as done in views)
+ - Listing and calling user-callable tasks is now also possible for the vi render
+ - Internally switched to more efficient membership tests for dicts
+ - userBones with creation- or update-magic set are not forced to be invisible anymore
+ - Don't set skel["key"] to None if skel.delete() is called
+ - Relational bones can now include properties from ref-/rel-skel bones in search indexes
+ - Setting update- or creation-magic on userBones don't force them to be invisible anymore
+ - *[Breaking]* Internal representation of relations are now dicts, not instances of Ref- or Rel-Skels
+
+### Fixed
+ - handle ValueError in int() or float() in numericBone:buildDbFilter
+ - serializing a textBone failing in getSearchDocumentFields if valuesCache[name] is None
+ - Correctly handle None values in numericBones getSearchDocumentFields()
+ - Added missing imports to dbtransfer.py
+ - Several issues with writing search api indexes for relationalBones
+ - Usage of old Skeleton-API in orders module
+ - Users without access to the vi/admin render couldn't logout using these renders
+ - Call setSystemInitialized on all skeletons (not only skels having kindName set)
+ - Type-mismatch in html-render causing errors if a RelSkel is present
+ - Parsing dates containing non-unicode characters
+
+### Removed
+ - *[Breaking]* "key"-Parameter from skeleton.setValues()
+
 
 ## [2.0.3] - 2017-08-30
 

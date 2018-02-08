@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
 from math import pow
+from google.appengine.api import search
+import logging
 
 class numericBone( baseBone ):
 	"""
@@ -27,7 +29,7 @@ class numericBone( baseBone ):
 		"""
 		baseBone.__init__( self,  *args,  **kwargs )
 		self.precision = precision
-		if not self.precision and "mode" in kwargs.keys() and kwargs["mode"]=="float": #Fallback for old API
+		if not self.precision and "mode" in kwargs and kwargs["mode"]=="float": #Fallback for old API
 			self.precision = 8
 		self.min = min
 		self.max = max
@@ -40,7 +42,7 @@ class numericBone( baseBone ):
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
-			
+
 			:param name: Our name in the skeleton
 			:type name: String
 			:param data: *User-supplied* request-data
@@ -68,16 +70,16 @@ class numericBone( baseBone ):
 				return "No value entered"
 		return err
 
-	
+
 	def serialize( self, valuesCache, name, entity ):
 		if isinstance( valuesCache[name],  float ) and valuesCache[name]!= valuesCache[name]: # NaN
 			entity.set( name, None, self.indexed )
 		else:
 			entity.set( name, valuesCache[name], self.indexed )
 		return( entity )
-		
+
 	def unserialize( self, valuesCache ,name, expando ):
-		if not name in expando.keys():
+		if not name in expando:
 			valuesCache[name] = None
 			return
 		if expando[ name ]==None or not str(expando[ name ]).replace(".", "", 1).lstrip("-").isdigit():
@@ -88,9 +90,25 @@ class numericBone( baseBone ):
 			else:
 				valuesCache[name] = float( expando[ name ] )
 
-	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
-		if not self.precision:
-			filter = dict( [ ( k, int( v ) ) for k,v in rawFilter.items() if k.startswith( name ) ] )
-		else:
-			filter = dict( [ ( k, float( v ) ) for k,v in rawFilter.items() if k.startswith( name ) ] )
-		return( super( numericBone, self ).buildDBFilter( name, skel, dbFilter, filter, prefix ) )
+	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
+		updatedFilter = {}
+		for parmKey, paramValue in rawFilter.items():
+			if parmKey.startswith(name):
+				if parmKey != name and not parmKey.startswith(name+"$"):
+					# It's just another bone which name start's with our's
+					continue
+				try:
+					if not self.precision:
+						paramValue = int(paramValue)
+					else:
+						paramValue = float(paramValue)
+				except ValueError:
+					# The value we should filter by is garbage, cancel this query
+					logging.warning("Invalid filtering! Unparsable int/float supplied to numericBone %s" % name)
+					raise RuntimeError()
+				updatedFilter[parmKey] = paramValue
+		return super(numericBone, self).buildDBFilter(name, skel, dbFilter, updatedFilter, prefix)
+
+	def getSearchDocumentFields(self, valuesCache, name, prefix = ""):
+		if isinstance(valuesCache.get(name), int) or isinstance(valuesCache.get(name), float):
+			return [search.NumberField(name=prefix + name, value=valuesCache[name])]

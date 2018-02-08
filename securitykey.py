@@ -49,11 +49,11 @@ def create( duration=None, **kwargs ):
 	dbObj.set_unindexed_properties( [x for x in dbObj.keys() if not x=="until" ] )
 	db.Put( dbObj )
 	return( key )
-	
+
 def validate( key, acceptSessionKey=False ):
-	""" 
+	"""
 		Validates a onetime securitykey
-	
+
 		:type key: String
 		:param key: The key to validate
 		:type acceptSessionKey: Bool
@@ -68,7 +68,7 @@ def validate( key, acceptSessionKey=False ):
 	except:
 		return( False )
 	if dbObj:
-		if "session" in dbObj.keys() and dbObj["session"] is not None:
+		if "session" in dbObj and dbObj["session"] is not None:
 			if dbObj["session"] != currentSession.getSessionKey():
 				return( False )
 		db.Delete( dbObj.key() )

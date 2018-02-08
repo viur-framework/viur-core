@@ -14,7 +14,7 @@ def generateRandomString( length=13 ):
 	"""
 	Return a string containing random characters of given *length*.
 	Its safe to use this string in URLs or HTML.
-	
+
 	:type length: int
 	:param length: The desired length of the generated string.
 
@@ -25,7 +25,7 @@ def generateRandomString( length=13 ):
 				random.choice( string.ascii_lowercase + string.ascii_uppercase + string.digits )
 				for x in range( length ) ] ) )
 
-	
+
 def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None, *args, **kwargs):
 	"""
 	General purpose function for sending e-mail.
@@ -80,15 +80,34 @@ def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,
 		logging.warning("Sending emails disabled by config[viur.emailRecipientOverride]")
 		return
 
+	handler = conf.get("viur.emailHandler")
+
+	if handler is None:
+		handler = _GAE_sendEMail
+
+	if not callable(handler):
+		logging.warning("Invalid emailHandler configured, no email will be sent.")
+		return False
+
+
+	logging.error("CALLING %s" % str(handler))
+
+	return handler(dests, name, skel, extraFiles=extraFiles, cc=cc, bcc=bcc, replyTo=replyTo, *args, **kwargs)
+
+
+def _GAE_sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None, *args, **kwargs):
+	"""
+	Internal function for using Google App Engine Email processing API. 
+	"""
 	headers, data = conf["viur.emailRenderer"]( skel, name, dests,**kwargs )
 
 	xheader = {}
 
-	if "references" in headers.keys():
+	if "references" in headers:
 		xheader["References"] = headers["references"]
 
-	if "in-reply-to" in headers.keys():
-		xheader["In-Reply-To"] = headers["in-reply-to"]	
+	if "in-reply-to" in headers:
+		xheader["In-Reply-To"] = headers["in-reply-to"]
 
 	if xheader:
 		message = mail.EmailMessage(headers=xheader)
@@ -98,12 +117,12 @@ def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,
 
 	mailfrom = "viur@%s.appspotmail.com" % app_identity.get_application_id()
 
-	if "subject" in headers.keys():
+	if "subject" in headers:
 		message.subject =  "=?utf-8?B?%s?=" % base64.b64encode( headers["subject"].encode("UTF-8") )
 	else:
 		message.subject = "No Subject"
 
-	if "from" in headers.keys():
+	if "from" in headers:
 		mailfrom = headers["from"]
 
 	if conf["viur.emailSenderOverride"]:
@@ -134,14 +153,14 @@ def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,
 
 	if len( extraFiles )> 0:
 		message.attachments = extraFiles
-	
-	message.send( )
+	message.send()
+	return True
 
 def sendEMailToAdmins( subject, body, sender=None ):
 	"""
 		Sends an e-mail to the appengine administration of the current app.
 		(all users having access to the applications dashboard)
-		
+
 		:param subject: Defines the subject of the message.
 		:type subject: str
 
@@ -183,7 +202,7 @@ def markFileForDeletion( dlkey ):
 	if the file is in use somewhere. If it is still in use, the mark goes away, otherwise
 	the mark and the file are removed from the datastore. These delayed checks are necessary
 	due to database inconsistency.
-	
+
 	:type dlkey: str
 	:param dlkey: Unique download-key of the file that shall be marked for deletion.
 	"""

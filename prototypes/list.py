@@ -129,26 +129,30 @@ class List(BasicApplication):
 		if not len(key):
 			raise errors.NotAcceptable()
 		skel = self.viewSkel()
-
-		if "canView" in dir( self ):
-			if not skel.fromDB( key ):
-				raise errors.NotFound()
-
-			if not self.canView( skel ):
-				raise errors.Unauthorized()
-
+		if key == u"structure":
+			# We dump just the structure of that skeleton, including it's default values
+			if "canView" in dir(self):
+				if not self.canView(skel):
+					raise errors.Unauthorized()
+			else:
+				if self.listFilter(self.viewSkel().all()) is None:
+					raise errors.Unauthorized()
 		else:
-			queryObj = self.viewSkel().all().mergeExternalFilter( {"key":  key} )
-			queryObj = self.listFilter( queryObj ) #Access control
-
-			if queryObj is None:
-				raise errors.Unauthorized()
-
-			skel = queryObj.getSkel()
-			if not skel:
-				raise errors.NotFound()
-
-		self.onItemViewed( skel )
+			# We return a single entry for viewing
+			if "canView" in dir(self):
+				if not skel.fromDB(key):
+					raise errors.NotFound()
+				if not self.canView(skel):
+					raise errors.Unauthorized()
+			else:
+				queryObj = self.viewSkel().all().mergeExternalFilter({"key":  key})
+				queryObj = self.listFilter( queryObj ) #Access control
+				if queryObj is None:
+					raise errors.Unauthorized()
+				skel = queryObj.getSkel()
+				if not skel:
+					raise errors.NotFound()
+			self.onItemViewed( skel )
 		return self.render.view( skel )
 
 	@exposed
@@ -219,7 +223,7 @@ class List(BasicApplication):
 			or skey == "" # no security key
 			or not request.current.get().isPostRequest # failure if not using POST-method
 			or not skel.fromClient(kwargs) # failure on reading into the bones
-			or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1") # review before changing
+			or ("bounce" in kwargs and kwargs["bounce"]=="1") # review before changing
 	        ):
 
 			# render the skeleton in the version it could as far as it could be read.
@@ -265,7 +269,7 @@ class List(BasicApplication):
 			or skey == "" # no skey supplied
 	        or not request.current.get().isPostRequest # failure if not using POST-method
 	        or not skel.fromClient( kwargs ) # failure on reading into the bones
-	        or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1") # review before adding
+	        or ("bounce" in kwargs and kwargs["bounce"]=="1") # review before adding
 	        ):
 			# render the skeleton in the version it could as far as it could be read.
 			return self.render.add( skel )
@@ -525,7 +529,7 @@ class List(BasicApplication):
 		.. seealso:: :func:`view`
 		"""
 		pass
-	
+
 	def onItemDeleted( self, skel ):
 		"""
 		Hook function that is called after deleting an entry.

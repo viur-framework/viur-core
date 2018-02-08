@@ -485,7 +485,7 @@ ISO2CODES = {
 	"zm":"Zambia",
 	"zw":"Zimbabwe"
 	}
-	
+
 ISO2TOISO3 = { #Convert iso2 to iso3 codes
 	'yem': 'ye',
 	'bvt': 'bv',
@@ -510,21 +510,21 @@ ISO2TOISO3 = { #Convert iso2 to iso3 codes
 	'gtm': 'gt',
 	'lka': 'lk',
 	'aus': 'au',
-	'jam': 'jm', 
+	'jam': 'jm',
 	'pcn': 'pn',
-	'aut': 'at', 
+	'aut': 'at',
 	'ven': 've',
 	'vct': 'vc',
 	'mwi': 'mw',
 	'fin': 'fi',
 	'tkl': 'tk',
 	'rwa': 'rw',
-	'ant': 'an', 
-	'bih': 'ba', 
+	'ant': 'an',
+	'bih': 'ba',
 	'cpv': 'cv',
 	'tjk': 'tj',
 	'pse': 'ps',
-	'lca': 'lc', 
+	'lca': 'lc',
 	'geo': 'ge',
 	'atf': 'tf',
 	'nor': 'no',
@@ -743,9 +743,9 @@ class selectCountryBone( selectOneBone ):
 			self.values = OrderedDict(sorted(ISO3CODES.items(), key=lambda i: i[1]))
 
 		self.codes = codes
-		
+
 	def unserialize( self, valuesCache, name, expando ):
-		if name in expando.keys():
+		if name in expando:
 			value = expando[ name ]
 			if isinstance(value, basestring) and len(value)==3 and self.codes==self.ISO2: #We got an ISO3 code from the db, but are using ISO2
 				try:
@@ -756,9 +756,9 @@ class selectCountryBone( selectOneBone ):
 				inv = { v: k for k, v in ISO2TOISO3.items() } #Inverted map
 				try:
 					valuesCache[name] = inv[ value ]
-				except: 
+				except:
 					pass
 			else:
-				if value in self.values.keys():
+				if value in self.values:
 					valuesCache[name] = value
 		return( True )

@@ -51,7 +51,7 @@ class Render( object ):
 	cloneSuccessTemplate = "clone_success"
 
 	__haveEnvImported_ = False
-	
+
 	class KeyValueWrapper:
 		"""
 			This holds one Key-Value pair for
@@ -67,13 +67,13 @@ class Render( object ):
 
 		def __str__( self ):
 			return( unicode( self.key ) )
-		
+
 		def __repr__( self ):
 			return( unicode( self.key ) )
-		
+
 		def __eq__( self, other ):
 			return( unicode( self ) == unicode( other ) )
-		
+
 		def __lt__( self, other ):
 			return( unicode( self ) < unicode( other ) )
 
@@ -97,7 +97,7 @@ class Render( object ):
 			Render.__haveEnvImported_ = True
 		self.parent = parent
 
-	
+
 	def getTemplateFileName( self, template, ignoreStyle=False ):
 		"""
 			Returns the filename of the template.
@@ -124,7 +124,7 @@ class Render( object ):
 		else:
 			htmlpath = "html"
 		if not ignoreStyle\
-			and "style" in list( request.current.get().kwargs.keys())\
+			and "style" in request.current.get().kwargs\
 			and all( [ x in validChars for x in request.current.get().kwargs["style"].lower() ] ):
 				stylePostfix = "_"+request.current.get().kwargs["style"]
 		else:
@@ -133,8 +133,8 @@ class Render( object ):
 		fnames = [ template+stylePostfix+".html", template+".html" ]
 		if lang:
 			fnames = [ 	os.path.join(  lang, template+stylePostfix+".html"),
-						template+stylePostfix+".html", 
-						os.path.join(  lang, template+".html"), 
+						template+stylePostfix+".html",
+						os.path.join(  lang, template+".html"),
 						template+".html" ]
 		for fn in fnames: #check subfolders
 			prefix = template.split("_")[0]
@@ -227,7 +227,7 @@ class Render( object ):
 
 		elif bone.type == "selectone" or bone.type.startswith("selectone.") or bone.type == "selectmulti" or bone.type.startswith("selectmulti."):
 			ret.update({
-				"values": {k: _(v) for k,v in bone.values.items()}
+				"values": OrderedDict([(k, _(v)) for (k, v) in bone.values.items()])
 			})
 
 		elif bone.type == "date" or bone.type.startswith("date."):
@@ -275,7 +275,7 @@ class Render( object ):
 
 			res[key] = self.renderBoneStructure(bone)
 
-			if key in skel.errors.keys():
+			if key in skel.errors:
 				res[key]["error"] = skel.errors[ key ]
 			else:
 				res[key]["error"] = None
@@ -296,30 +296,48 @@ class Render( object ):
 		:rtype: dict
 		"""
 		if bone.type=="selectone" or bone.type.startswith("selectone."):
-			if skel[key] in bone.values.keys():
+			if skel[key] in bone.values:
 				return Render.KeyValueWrapper(skel[key], bone.values[skel[key]])
 			return skel[key]
 		elif bone.type=="selectmulti" or bone.type.startswith("selectmulti."):
-			return [(Render.KeyValueWrapper(val, bone.values[val]) if val in bone.values.keys() else val) for val in skel[key]]
+			return [(Render.KeyValueWrapper(val, bone.values[val]) if val in bone.values else val) for val in skel[key]]
 		elif bone.type=="relational" or bone.type.startswith("relational."):
 			if isinstance(skel[key], list):
 				tmpList = []
 				for k in skel[key]:
+					refSkel = bone._refSkelCache
+					refSkel.setValuesCache(k["dest"])
 					if bone.using is None:
-						tmpList.append(self.collectSkelData(k["dest"]))
+						tmpList.append(self.collectSkelData(refSkel))
 					else:
+						usingSkel = bone._usingSkelCache
+						if k["rel"]:
+							usingSkel.setValuesCache(k["rel"])
+							usingData = self.collectSkelData(usingSkel)
+						else:
+							usingData = None
 						tmpList.append({
-							"dest": self.collectSkelData(k["dest"]),
-			                "rel": self.collectSkelData(k["rel"]) if k["rel"] else None
+							"dest": self.collectSkelData(refSkel),
+			                                "rel": usingData
 						})
 				return tmpList
 			elif isinstance(skel[key], dict):
+				refSkel = bone._refSkelCache
+				refSkel.setValuesCache(skel[key]["dest"])
 				if bone.using is None:
-					return self.collectSkelData(skel[key]["dest"])
-				return {
-					"dest": self.collectSkelData(skel[key]["dest"]),
-					"rel": self.collectSkelData(skel[key]["rel"]) if skel[key]["rel"] else None
-				}
+					return self.collectSkelData(refSkel)
+				else:
+					usingSkel = bone._usingSkelCache
+					if skel[key]["rel"]:
+						usingSkel.setValuesCache(skel[key]["rel"])
+						usingData = self.collectSkelData(usingSkel)
+					else:
+						usingData = None
+
+					return {
+						"dest": self.collectSkelData(refSkel),
+						"rel": usingData
+					}
 			else:
 				return None
 		else:
@@ -351,7 +369,7 @@ class Render( object ):
 				res[key] = ListWrapper(res[key])
 		return res
 
-	def add(self, skel, tpl=None, *args, **kwargs):
+	def add(self, skel, tpl=None, params=None, *args, **kwargs):
 		"""
 			Renders a page for adding an entry.
 
@@ -368,6 +386,9 @@ class Render( object ):
 			:param tpl: Name of a different template, which should be used instead of the default one.
 			:type tpl: str
 
+			:param params: Optional data that will be passed unmodified to the template
+			:type params: object
+
 			:return: Returns the emitted HTML response.
 			:rtype: str
 		"""
@@ -381,15 +402,16 @@ class Render( object ):
 		skel.skey = skeybone
 		skel["skey"] = securitykey.create()
 
-		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
+		if "nomissing" in request.current.get().kwargs and request.current.get().kwargs["nomissing"]=="1":
 			if isinstance(skel, BaseSkeleton):
 				super(BaseSkeleton, skel).__setattr__( "errors", {} )
 
-		return template.render(skel={"structure":self.renderSkelStructure(skel),
-		                                "errors":skel.errors,
-		                                "value":self.collectSkelData(skel) }, **kwargs)
+		return template.render(skel={	"structure":self.renderSkelStructure(skel),
+						"errors":skel.errors,
+						"value":self.collectSkelData(skel) },
+		                                params = params, **kwargs)
 
-	def edit(self, skel, tpl=None, **kwargs):
+	def edit(self, skel, tpl=None, params=None, **kwargs):
 		"""
 			Renders a page for modifying an entry.
 
@@ -406,6 +428,9 @@ class Render( object ):
 			:param tpl: Name of a different template, which should be used instead of the default one.
 			:type tpl: str
 
+			:param params: Optional data that will be passed unmodified to the template
+			:type params: object
+
 			:return: Returns the emitted HTML response.
 			:rtype: str
 		"""
@@ -419,55 +444,69 @@ class Render( object ):
 		skel.skey = skeybone
 		skel["skey"] = securitykey.create()
 
-		if "nomissing" in request.current.get().kwargs.keys() and request.current.get().kwargs["nomissing"]=="1":
+		if "nomissing" in request.current.get().kwargs and request.current.get().kwargs["nomissing"]=="1":
 			if isinstance(skel, BaseSkeleton):
-				super(Skeleton, skel).__setattr__( "errors", {} )
+				super(BaseSkeleton, skel).__setattr__("errors", {})
 
 		return template.render( skel={"structure": self.renderSkelStructure(skel),
 		                                "errors": skel.errors,
-		                                "value": self.collectSkelData(skel) }, **kwargs )
+		                                "value": self.collectSkelData(skel) },
+		                                params=params, **kwargs )
 
-	def addItemSuccess (self, skel, *args, **kwargs ):
+	def addItemSuccess(self, skel, tpl = None, params = None, *args, **kwargs):
 		"""
 			Renders a page, informing that the entry has been successfully created.
 
 			:param skel: Skeleton which contains the data of the new entity
 			:type skel: server.db.skeleton.Skeleton
 
+			:param tpl: Name of a different template, which should be used instead of the default one.
+			:type tpl: str
+
+			:param params: Optional data that will be passed unmodified to the template
+			:type params: object
+
 			:return: Returns the emitted HTML response.
 			:rtype: str
 		"""
-		tpl = self.addSuccessTemplate
-
-		if "addSuccessTemplate" in dir( self.parent ):
-			tpl = self.parent.addSuccessTemplate
+		if not tpl:
+			if "addSuccessTemplate" in dir( self.parent ):
+				tpl = self.parent.addSuccessTemplate
+			else:
+				tpl = self.addSuccessTemplate
 
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		res = self.collectSkelData( skel )
 
-		return( template.render( { "skel":res }, **kwargs ) )
+		return template.render({ "skel":res }, params=params, **kwargs)
 
-	def editItemSuccess (self, skel, *args, **kwargs ):
+	def editItemSuccess(self, skel, tpl = None, params = None, *args, **kwargs):
 		"""
 			Renders a page, informing that the entry has been successfully modified.
 
 			:param skel: Skeleton which contains the data of the modified entity
 			:type skel: server.db.skeleton.Skeleton
 
+			:param tpl: Name of a different template, which should be used instead of the default one.
+			:type tpl: str
+
+			:param params: Optional data that will be passed unmodified to the template
+			:type params: object
+
 			:return: Returns the emitted HTML response.
 			:rtype: str
 		"""
-		tpl = self.editSuccessTemplate
-
-		if "editSuccessTemplate" in dir( self.parent ):
-			tpl = self.parent.editSuccessTemplate
+		if not tpl:
+			if "editSuccessTemplate" in dir(self.parent):
+				tpl = self.parent.editSuccessTemplate
+			else:
+				tpl = self.editSuccessTemplate
 
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		res = self.collectSkelData( skel )
-
-		return( template.render( skel=res, **kwargs ) )
+		return template.render(skel=res, params=params, **kwargs)
 	
-	def deleteSuccess (self, *args, **kwargs ):
+	def deleteSuccess(self, skel, tpl = None, params = None, *args, **kwargs):
 		"""
 			Renders a page, informing that the entry has been successfully deleted.
 
@@ -475,19 +514,25 @@ class Render( object ):
 			List and Hierarchy pass the id of the deleted entry, while Tree passes
 			the rootNode and path.
 
+			:param params: Optional data that will be passed unmodified to the template
+			:type params: object
+
+			:param tpl: Name of a different template, which should be used instead of the default one.
+			:type tpl: str
+
 			:return: Returns the emitted HTML response.
 			:rtype: str
 		"""
-		tpl = self.deleteSuccessTemplate
-
-		if "deleteSuccessTemplate" in dir( self.parent ):
-			tpl = self.parent.deleteSuccessTemplate
+		if not tpl:
+			if "deleteSuccessTemplate" in dir(self.parent):
+				tpl = self.parent.deleteSuccessTemplate
+			else:
+				tpl = self.deleteSuccessTemplate
 
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-
-		return( template.render( **kwargs ) )
+		return template.render(params=params, **kwargs)
 	
-	def list( self, skellist, tpl=None, **kwargs ):
+	def list( self, skellist, tpl=None, params=None, **kwargs ):
 		"""
 			Renders a list of entries.
 
@@ -498,6 +543,9 @@ class Render( object ):
 
 			:param tpl: Name of a different template, which should be used instead of the default one.
 			:param: tpl: str
+
+			:param params: Optional data that will be passed unmodified to the template
+			:type params: object
 
 			:return: Returns the emitted HTML response.
 			:rtype: str
@@ -513,9 +561,9 @@ class Render( object ):
 		resList = []
 		for skel in skellist:
 			resList.append( self.collectSkelData(skel) )
-		return( template.render( skellist=SkelListWrapper(resList, skellist), **kwargs ) )
+		return template.render(skellist=SkelListWrapper(resList, skellist), params=params, **kwargs)
 	
-	def listRootNodes(self, repos, tpl=None, **kwargs ):
+	def listRootNodes(self, repos, tpl=None, params=None, **kwargs ):
 		"""
 			Renders a list of available repositories.
 
@@ -524,6 +572,9 @@ class Render( object ):
 
 			:param tpl: Name of a different template, which should be used instead of the default one.
 			:param: tpl: str
+
+			:param params: Optional data that will be passed unmodified to the template
+			:type params: object
 
 			:return: Returns the emitted HTML response.
 			:rtype: str
@@ -537,9 +588,9 @@ class Render( object ):
 		except errors.HTTPException as e: #Not found - try default fallbacks FIXME: !!!
 			tpl = "list"
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		return( template.render( repos=repos, **kwargs ) )
-	
-	def view( self, skel, tpl=None, **kwargs ):
+		return template.render(repos=repos, params=params, **kwargs)
+
+	def view( self, skel, tpl=None, params=None, **kwargs ):
 		"""
 			Renders a single entry.
 
@@ -550,6 +601,9 @@ class Render( object ):
 
 			:param tpl: Name of a different template, which should be used instead of the default one.
 			:param: tpl: str
+
+			:param params: Optional data that will be passed unmodified to the template
+			:type params: object
 
 			:return: Returns the emitted HTML response.
 			:rtype: str
@@ -564,11 +618,11 @@ class Render( object ):
 			res = self.collectSkelData( skel )
 		else:
 			res = skel
-
-		return( template.render( skel=res, **kwargs ) )
+		return template.render(skel=res, params=params, **kwargs)
 	
+
 	## Extended functionality for the Tree-Application ##
-	def listRootNodeContents( self, subdirs, entries, tpl=None, **kwargs):
+	def listRootNodeContents( self, subdirs, entries, tpl=None, params=None, **kwargs):
 		"""
 			Renders the contents of a given RootNode.
 
@@ -580,9 +634,12 @@ class Render( object ):
 
 			:param entries: List of entries of the current level
 			:type entries: server.db.skeleton.SkelList
-			
+
 			:param tpl: Name of a different template, which should be used instead of the default one
 			:param: tpl: str
+
+			:param params: Optional data that will be passed unmodified to the template
+			:type params: object
 
 			:return: Returns the emitted HTML response.
 			:rtype: str
@@ -592,9 +649,9 @@ class Render( object ):
 		else:
 			tpl = tpl or self.listRootNodeContentsTemplate
 		template= self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		return( template.render( subdirs=subdirs, entries=[self.collectSkelData( x ) for x in entries], **kwargs) )
+		return template.render(subdirs=subdirs, entries=[self.collectSkelData( x ) for x in entries], params=params, **kwargs)
 
-	def addDirSuccess(self, rootNode,  path, dirname, *args, **kwargs ):
+	def addDirSuccess(self, rootNode,  path, dirname, params=None, *args, **kwargs ):
 		"""
 			Renders a page, informing that the directory has been successfully created.
 
@@ -607,6 +664,9 @@ class Render( object ):
 			:param dirname: Name of the newly created directory
 			:type dirname: str
 
+			:param params: Optional data that will be passed unmodified to the template
+			:type params: object
+
 			:return: Returns the emitted HTML response.
 			:rtype: str
 		"""
@@ -615,9 +675,9 @@ class Render( object ):
 		if "addDirSuccessTemplate" in dir( self.parent ):
 			tpl = self.parent.addDirSuccessTemplate
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		return( template.render( rootNode=rootNode,  path=path, dirname=dirname ) )
+		return template.render(rootNode=rootNode,  path=path, dirname=dirname, params=params)
 
-	def renameSuccess(self, rootNode, path, src, dest, *args, **kwargs ):
+	def renameSuccess(self, rootNode, path, src, dest, params=None, *args, **kwargs ):
 		"""
 			Renders a page, informing that the entry has been successfully renamed.
 
@@ -633,6 +693,9 @@ class Render( object ):
 			:param dest: New name of the entry
 			:type dest: str
 
+			:param params: Optional data that will be passed unmodified to the template
+			:type params: object
+
 			:return: Returns the emitted HTML response.
 			:rtype: str
 		"""
@@ -640,12 +703,12 @@ class Render( object ):
 		if "renameSuccessTemplate" in dir( self.parent ):
 			tpl = self.parent.renameSuccessTemplate
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		return( template.render( rootNode=rootNode,  path=path, src=src, dest=dest ) )
+		return template.render(rootNode=rootNode,  path=path, src=src, dest=dest,params=params)
 
-	def copySuccess(self, srcrepo, srcpath, name, destrepo, destpath, type, deleteold, *args, **kwargs ):
+	def copySuccess(self, srcrepo, srcpath, name, destrepo, destpath, type, deleteold, params=None, *args, **kwargs ):
 		"""
 			Renders a page, informing that an entry has been successfully copied/moved.
-			
+
 			:param srcrepo: RootNode-key from which has been copied/moved
 			:type srcrepo: str
 
@@ -667,6 +730,9 @@ class Render( object ):
 			:param deleteold: "0": Copy, "1": Move
 			:type deleteold: str
 
+			:param params: Optional data that will be passed unmodified to the template
+			:type params: object
+
 			:return: Returns the emitted HTML response.
 			:rtype: str
 		"""
@@ -674,18 +740,21 @@ class Render( object ):
 		if "copySuccessTemplate" in dir( self.parent ):
 			tpl = self.parent.copySuccessTemplate
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		return( template.render( srcrepo=srcrepo, srcpath=srcpath, name=name, destrepo=destrepo, destpath=destpath, type=type, deleteold=deleteold ) )
+		return template.render(srcrepo=srcrepo, srcpath=srcpath, name=name, destrepo=destrepo, destpath=destpath, type=type, deleteold=deleteold, params=params)
 
 
-	def reparentSuccess(self, obj, tpl=None, **kwargs ):
+	def reparentSuccess(self, obj, tpl=None, params=None, **kwargs ):
 		"""
 			Renders a page informing that the item was successfully moved.
-			
+
 			:param obj: ndb.Expando instance of the item that was moved.
 			:type obj: ndb.Expando
 
 			:param tpl: Name of a different template, which should be used instead of the default one
 			:type tpl: str
+
+			:param params: Optional data that will be passed unmodified to the template
+			:type params: object
 		"""
 		if not tpl:
 			if "reparentSuccessTemplate" in dir( self.parent ):
@@ -694,9 +763,9 @@ class Render( object ):
 				tpl = self.reparentSuccessTemplate
 
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		return template.render( skel=skel, repoObj=obj, **kwargs )
+		return template.render(repoObj=obj, params=params, **kwargs)
 
-	def setIndexSuccess(self, obj, tpl=None, *args, **kwargs ):
+	def setIndexSuccess(self, obj, tpl=None, params=None, *args, **kwargs ):
 		"""
 			Renders a page informing that the items sortindex was successfully changed.
 
@@ -705,6 +774,9 @@ class Render( object ):
 
 			:param tpl: Name of a different template, which should be used instead of the default one
 			:type tpl: str
+
+			:param params: Optional data that will be passed unmodified to the template
+			:type params: object
 
 			:return: Returns the emitted HTML response.
 			:rtype: str
@@ -716,9 +788,9 @@ class Render( object ):
 				tpl = self.setIndexSuccessTemplate
 
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		return template.render( skel=obj, repoObj=obj, **kwargs )
+		return template.render( skel=obj, repoObj=obj, params=params, **kwargs )
 
-	def cloneSuccess(self, tpl=None, *args, **kwargs ):
+	def cloneSuccess(self, tpl=None, params=None, *args, **kwargs ):
 		"""
 			Renders a page informing that the items sortindex was successfully changed.
 
@@ -727,6 +799,9 @@ class Render( object ):
 
 			:param tpl: Name of a different template, which should be used instead of the default one
 			:type tpl: str
+
+			:param params: Optional data that will be passed unmodified to the template
+			:type params: object
 
 			:return: Returns the emitted HTML response.
 			:rtype: str
@@ -738,9 +813,9 @@ class Render( object ):
 				tpl = self.cloneSuccessTemplate
 
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
-		return template.render( **kwargs )
+		return template.render(params=params, **kwargs)
 
-	def renderEmail(self, skel, tpl, dests,**kwargs ):
+	def renderEmail(self, skel, tpl, dests, params=None,**kwargs ):
 		"""
 			Renders an email.
 
@@ -753,6 +828,9 @@ class Render( object ):
 
 			:param dests: Destination recipients.
 			:type dests: list | str
+
+			:param params: Optional data that will be passed unmodified to the template
+			:type params: object
 
 			:return: Returns a tuple consisting of email header and body.
 			:rtype: str, str
@@ -767,12 +845,12 @@ class Render( object ):
 			res = skel
 		if len(tpl)<101:
 			try:
-				template = self.getEnv().from_string(  codecs.open( "emails/"+tpl+".email", "r", "utf-8" ).read() ) 
+				template = self.getEnv().from_string(  codecs.open( "emails/"+tpl+".email", "r", "utf-8" ).read() )
 			except:
 				template = self.getEnv().get_template( tpl+".email" )
 		else:
 			template = self.getEnv().from_string( tpl )
-		data = template.render( skel=res, dests=dests, user=user,**kwargs )
+		data = template.render(skel=res, dests=dests, user=user, params=params, **kwargs)
 		body = False
 		lineCount=0
 		for line in data.splitlines():

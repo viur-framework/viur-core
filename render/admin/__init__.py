@@ -14,7 +14,7 @@ import datetime, json
 __all__=[ default ]
 
 def genSkey( *args,  **kwargs ):
-	return json.dumps( securitykey.create() ) 
+	return json.dumps( securitykey.create() )
 genSkey.exposed=True
 
 def timestamp( *args, **kwargs):
@@ -70,7 +70,7 @@ def dumpConfig( adminTree ):
 				adminConfig[ key ] = app.adminInfo.copy()
 				adminConfig[ key ]["name"] = _(adminConfig[ key ]["name"])
 				adminConfig[ key ]["views"] = []
-				if "views" in app.adminInfo.keys():
+				if "views" in app.adminInfo:
 					for v in app.adminInfo["views"]:
 						tmp = v.copy()
 						tmp["name"] = _(tmp["name"])
@@ -109,9 +109,17 @@ def canAccess( *args, **kwargs ):
 	    and pathList[1] == "user"
 	    and (pathList[2].startswith("auth_")
 	            or pathList[2].startswith("f2_")
-	            or pathList[2] == "getAuthMethods")):
+	            or pathList[2] == "getAuthMethods"
+	            or pathList[2] == "logout")):
 
 		# Give the user the chance to login :)
+		return True
+
+	if (len(pathList) >= 4
+	    and pathList[1] == "user"
+	    and pathList[2] == "view"
+	    and pathList[3] == "self"):
+		# Give the user the chance to view himself.
 		return True
 
 	return False

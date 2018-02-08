@@ -16,11 +16,11 @@ class LanguageWrapper( dict ):
 		but can also be used as a string, in which case it tries to
 		guess the correct language.
 	"""
-	
+
 	def __init__( self, languages ):
 		super( LanguageWrapper, self ).__init__()
 		self.languages = languages
-	
+
 	def __str__( self ):
 		return( unicode(self.resolve()) )
 
@@ -35,13 +35,13 @@ class LanguageWrapper( dict ):
 		if not lang:
 			lang = self.languages[ 0 ]
 		else:
-			if lang in conf["viur.languageAliasMap"].keys():
+			if lang in conf["viur.languageAliasMap"]:
 				lang = conf["viur.languageAliasMap"][ lang ]
-		if lang in self.keys() and self[ lang ] is not None and unicode( self[ lang ] ).strip(): #The users language is avaiable :)
+		if lang in self and self[ lang ] is not None and unicode( self[ lang ] ).strip(): #The users language is avaiable :)
 			return( self[ lang ] )
 		else: #We need to select another lang for him
 			for lang in self.languages:
-				if lang in self.keys() and self[ lang ]:
+				if lang in self and self[ lang ]:
 					return( self[ lang ] )
 		return( "" )
 
@@ -99,7 +99,7 @@ class stringBone( baseBone ):
 			else:
 				assert isinstance( valuesCache[name], dict)
 				for lang in self.languages:
-					if lang in valuesCache[name].keys():
+					if lang in valuesCache[name]:
 						val = valuesCache[name][ lang ]
 						entity.set( "%s.%s" % (name, lang), valuesCache[name][lang], self.indexed )
 						if not self.caseSensitive:
@@ -129,18 +129,17 @@ class stringBone( baseBone ):
 			:type expando: :class:`server.db.Entity`
 		"""
 		if not self.languages:
-			if name in expando.keys():
-				valuesCache[name] = expando[name]
+			valuesCache[name] = expando.get(name)
 		else:
 			valuesCache[name] = LanguageWrapper( self.languages )
 			for lang in self.languages:
-				if "%s.%s" % ( name, lang ) in expando.keys():
+				if "%s.%s" % ( name, lang ) in expando:
 					val = expando[ "%s.%s" % ( name, lang ) ]
 					if isinstance( val, list ) and not self.multiple:
 						val = ", ".join( val )
 					valuesCache[name][lang] = val
 			if not valuesCache[name].keys(): #Got nothing
-				if name in expando.keys(): #Old (non-multi-lang) format
+				if name in expando: #Old (non-multi-lang) format
 					valuesCache[name][ self.languages[0] ] = expando[ name ]
 		return( True )
 
@@ -152,14 +151,14 @@ class stringBone( baseBone ):
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
-			
+
 			:param name: Our name in the :class:`server.skeleton.Skeleton`
 			:type name: str
 			:param data: *User-supplied* request-data
 			:type data: dict
 			:returns: str or None
 		"""
-		if name in data.keys():
+		if name in data:
 			rawValue = data[ name ]
 		else:
 			rawValue = None
@@ -169,7 +168,7 @@ class stringBone( baseBone ):
 			res = LanguageWrapper(self.languages)
 			for lang in self.languages:
 				res[lang] = []
-				if "%s.%s" % (name, lang) in data.keys():
+				if "%s.%s" % (name, lang) in data:
 					val = data["%s.%s" % (name, lang)]
 					if isinstance(val, basestring):
 						err = self.isInvalid(val)
@@ -200,13 +199,13 @@ class stringBone( baseBone ):
 					else:
 						lastError = err
 				if len(res) > 0:
-					res = res[0:254]  # Max 254 character 
+					res = res[0:254]  # Max 254 character
 				else:
 					lastError = "No valid rawValue entered"
 		elif not self.multiple and self.languages:
 			res = LanguageWrapper( self.languages )
 			for lang in self.languages:
-				if "%s.%s" % (name, lang) in data.keys():
+				if "%s.%s" % (name, lang) in data:
 					val = data["%s.%s" % (name, lang)]
 					err = self.isInvalid(val)
 					if not err:
@@ -225,10 +224,10 @@ class stringBone( baseBone ):
 				lastError = "No rawValue entered"
 		valuesCache[name] = res
 		return lastError
-				
+
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
-		if not name in rawFilter.keys() and not any( [(x.startswith(name+"$") or x.startswith(name+".")) for x in rawFilter.keys()] ):
+		if not name in rawFilter and not any( [(x.startswith(name+"$") or x.startswith(name+".")) for x in rawFilter.keys()] ):
 			return( super( stringBone, self ).buildDBFilter( name, skel, dbFilter, rawFilter, prefix ) )
 		if not self.indexed:
 			logging.warning( "Invalid searchfilter! %s is not indexed!" % name )
@@ -249,7 +248,7 @@ class stringBone( baseBone ):
 				if not lang or not lang in self.languages:
 					lang = self.languages[ 0 ]
 			namefilter = "%s.%s" % (name, lang)
-		if name+"$lk" in rawFilter.keys(): #Do a prefix-match
+		if name+"$lk" in rawFilter: #Do a prefix-match
 			if not self.caseSensitive:
 				dbFilter.filter( (prefix or "")+namefilter +".idx >=", unicode( rawFilter[name+"$lk"] ).lower() )
 				dbFilter.filter( (prefix or "")+namefilter +".idx <", unicode( rawFilter[name+"$lk"]+u"\ufffd" ).lower() )
@@ -257,19 +256,19 @@ class stringBone( baseBone ):
 				dbFilter.filter( (prefix or "")+namefilter + " >=", unicode( rawFilter[name+"$lk"] ) )
 				dbFilter.filter( (prefix or "")+namefilter + " < ", unicode( rawFilter[name+"$lk"]+u"\ufffd" ) )
 			hasInequalityFilter = True
-		if name+"$gt" in rawFilter.keys(): #All entries after
+		if name+"$gt" in rawFilter: #All entries after
 			if not self.caseSensitive:
 				dbFilter.filter( (prefix or "")+namefilter +".idx >", unicode( rawFilter[name+"$gt"] ).lower() )
 			else:
 				dbFilter.filter( (prefix or "")+namefilter + " >", unicode( rawFilter[name+"$gt"] ) )
 			hasInequalityFilter = True
-		if name+"$lt" in rawFilter.keys(): #All entries before
+		if name+"$lt" in rawFilter: #All entries before
 			if not self.caseSensitive:
 				dbFilter.filter( (prefix or "")+namefilter +".idx <", unicode( rawFilter[name+"$lt"] ).lower() )
 			else:
 				dbFilter.filter( (prefix or "")+namefilter + " <", unicode( rawFilter[name+"$lt"] ) )
 			hasInequalityFilter = True
-		if name in rawFilter.keys(): #Normal, strict match
+		if name in rawFilter: #Normal, strict match
 			if not self.caseSensitive:
 				dbFilter.filter( (prefix or "")+namefilter+".idx", unicode( rawFilter[name] ).lower() )
 			else:
@@ -277,7 +276,7 @@ class stringBone( baseBone ):
 		return( dbFilter )
 
 	def buildDBSort( self, name, skel, dbFilter, rawFilter ):
-		if "orderby" in list(rawFilter.keys()) and (rawFilter["orderby"] == name or (isinstance(rawFilter["orderby"], basestring) and rawFilter["orderby"].startswith("%s."%name) and self.languages)):
+		if "orderby" in rawFilter and (rawFilter["orderby"] == name or (isinstance(rawFilter["orderby"], basestring) and rawFilter["orderby"].startswith("%s."%name) and self.languages)):
 			if not self.indexed:
 				logging.warning( "Invalid ordering! %s is not indexed!" % name )
 				raise RuntimeError()
@@ -300,7 +299,7 @@ class stringBone( baseBone ):
 					prop = name
 				else:
 					prop = name+".idx"
-			if "orderdir" in rawFilter.keys()  and rawFilter["orderdir"]=="1":
+			if "orderdir" in rawFilter  and rawFilter["orderdir"]=="1":
 				order = ( prop, db.DESCENDING )
 			else:
 				order = ( prop, db.ASCENDING )
@@ -358,7 +357,7 @@ class stringBone( baseBone ):
 
 		return (res)
 
-	def getSearchDocumentFields(self, valuesCache, name):
+	def getSearchDocumentFields(self, valuesCache, name, prefix = ""):
 		"""
 			Returns a list of search-fields (GAE search API) for this bone.
 		"""
@@ -366,11 +365,12 @@ class stringBone( baseBone ):
 		if self.languages:
 			if valuesCache[name] is not None:
 				for lang in self.languages:
-					if lang in valuesCache[name].keys():
-						res.append( search.TextField( name=name, value=unicode( valuesCache[name][lang]), language=lang ) ) 
+					if lang in valuesCache[name]:
+						res.append(search.TextField(name=prefix + name, value=unicode(valuesCache[name][lang]), language=lang))
 		else:
-			res.append( search.TextField( name=name, value=unicode( valuesCache[name] ) ) )
-		return( res )
+			res.append(search.TextField(name=prefix + name, value=unicode(valuesCache[name])))
+
+		return res
 
 	def getUniquePropertyIndexValue(self, valuesCache, name):
 		"""
