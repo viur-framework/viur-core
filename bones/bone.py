@@ -169,7 +169,7 @@ class baseBone(object): # One Bone:
 			:type name: String
 			:returns: dict
 		"""
-		if name != "key":
+		if name != "key" and name in valuesCache:
 			entity.set( name, valuesCache[name], self.indexed )
 		return( entity )
 

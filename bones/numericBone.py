@@ -70,6 +70,8 @@ class numericBone( baseBone ):
 
 	
 	def serialize( self, valuesCache, name, entity ):
+		if not name in valuesCache:
+			return entity
 		if isinstance( valuesCache[name],  float ) and valuesCache[name]!= valuesCache[name]: # NaN
 			entity.set( name, None, self.indexed )
 		else:
