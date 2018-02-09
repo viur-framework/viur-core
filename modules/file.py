@@ -8,7 +8,7 @@ from server.tasks import callDeferred, PeriodicTask
 from datetime import datetime, timedelta
 from urlparse import urlparse
 from quopri import decodestring
-from base64 import b64decode
+from base64 import urlsafe_b64decode
 from hashlib import sha256
 from google.appengine.ext import blobstore
 from google.appengine.api import images
@@ -116,7 +116,7 @@ class File(Tree):
 			elif "=" in name and not name.endswith("="): #Quoted Printable
 				return decodestring(name.encode("ascii")).decode("UTF-8")
 			else: #Maybe base64 encoded
-				return b64decode(name.encode("ascii")).decode("UTF-8")
+				return urlsafe_b64decode(name.encode("ascii")).decode("UTF-8")
 		except: #Sorry - I cant guess whats happend here
 			if isinstance(name, str) and not isinstance(name, unicode):
 				try:
