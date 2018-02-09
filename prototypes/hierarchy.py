@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import logging
+import logging, sys
 from datetime import datetime
 from time import time
 
@@ -13,7 +13,7 @@ from server.tasks import callDeferred
 class HierarchySkel(Skeleton):
 	parententry = baseBone(descr="Parent", visible=False, indexed=True, readOnly=True)
 	parentrepo = baseBone(descr="BaseRepo", visible=False, indexed=True, readOnly=True)
-	sortindex = numericBone(descr="SortIndex", mode="float", visible=False, indexed=True, readOnly=True)
+	sortindex = numericBone(descr="SortIndex", mode="float", visible=False, indexed=True, readOnly=True, max=sys.maxint)
 
 	def preProcessSerializedData(self, dbfields):
 		if not ("sortindex" in dbfields and dbfields["sortindex"]):

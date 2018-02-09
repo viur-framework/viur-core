@@ -222,29 +222,44 @@ class DefaultRender( object ):
 
 		return res
 
-	def view( self, skel, listname="view", params = None, *args, **kwargs ):
-		res = {	"values": self.renderSkelValues( skel ),
-				"structure": self.renderSkelStructure( skel ) }
-		return( serializeXML( res ) )
+	def renderEntry(self, skel, action, params = None):
+		res = {
+			"action": action,
+			"params": params,
+			"values": self.renderSkelValues(skel),
+			"structure": self.renderSkelStructure(skel)
+		}
 
-	def add( self, skel, failed=False, listname="add", params = None, **kwargs ):
-		return( self.view( skel ) )
+		return serializeXML(res)
 
-	def edit(self, skel, tpl=None, params=None, **kwargs):
-		return( self.view( skel ) )
+	def view( self, skel, action="view", params = None, *args, **kwargs):
+		return self.renderEntry(skel, action, params)
 
-	def list(self, skellist, tpl=None, params=None, **kwargs):
+	def add( self, skel, action="add", params = None, *args, **kwargs):
+		return self.renderEntry(skel, action, params)
+
+	def edit(self, skel, action="edit", params=None, *args, **kwargs):
+		return self.renderEntry(skel, action, params)
+
+	def list(self, skellist, action="list", tpl=None, params=None, **kwargs):
 		res = {}
 		skels = []
+
 		for skel in skellist:
 			skels.append( self.renderSkelValues( skel ) )
+
 		res["skellist"] = skels
+
 		if( len( skellist )>0 ):
 			res["structure"] = self.renderSkelStructure( skellist[0] )
 		else:
 			res["structure"] = None
+
+		res["action"] = action
+		res["params"] = params
 		res["cursor"] = skellist.cursor
-		return( serializeXML( res ) )
+
+		return serializeXML(res)
 
 	def editItemSuccess(self, skel, params=None, **kwargs):
 		return( serializeXML("OKAY") )

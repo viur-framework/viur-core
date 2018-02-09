@@ -443,7 +443,7 @@ class MetaSkel(MetaBaseSkel):
 			relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]).replace(os.getcwd(), "")
 			if relNewFileName.strip(os.path.sep).startswith("server"):
 				# The currently processed skeleton is from the server.* package
-				pass
+				return
 			elif relOldFileName.strip(os.path.sep).startswith("server"):
 				# The old one was from server - override it
 				MetaBaseSkel._skelCache[cls.kindName] = cls
@@ -590,14 +590,8 @@ class Skeleton(BaseSkeleton):
 			for key, bone in skel.items():
 				if key in mergeFrom:
 					bone.mergeFrom(skel.valuesCache, key, mergeFrom)
-			unindexed_properties = []
 			for key, _bone in skel.items():
-				tmpKeys = dbObj.keys()
 				dbObj = _bone.serialize(skel.valuesCache, key, dbObj)
-				newKeys = [x for x in dbObj.keys() if
-				           not x in tmpKeys]  # These are the ones that the bone added
-				if not _bone.indexed:
-					unindexed_properties += newKeys
 				blobList.update(_bone.getReferencedBlobs(self.valuesCache, key))
 
 			if clearUpdateTag:
@@ -605,7 +599,6 @@ class Skeleton(BaseSkeleton):
 			else:
 				dbObj[
 					"viur_delayed_update_tag"] = time()  # Mark this entity as dirty, so the background-task will catch it up and update its references.
-			dbObj.set_unindexed_properties(unindexed_properties)
 			dbObj = skel.preProcessSerializedData(dbObj)
 			try:
 				ourKey = str(dbObj.key())

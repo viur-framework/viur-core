@@ -199,7 +199,7 @@ class DefaultRender(object):
 
 		return res
 
-	def renderEntry( self, skel, actionName ):
+	def renderEntry(self, skel, actionName, params):
 		if isinstance(skel, list):
 			vals = [self.renderSkelValues(x) for x in skel]
 			struct = self.renderSkelStructure(skel[0])
@@ -210,22 +210,23 @@ class DefaultRender(object):
 		res = {
 			"values": vals,
 			"structure": struct,
-			"action": actionName
+			"action": actionName,
+			"params": params
 		}
 
 		request.current.get().response.headers["Content-Type"] = "application/json"
 		return json.dumps(res)
 
-	def view(self, skel, tpl = None, params = None, *args, **kwargs):
-		return self.renderEntry(skel, "view")
+	def view(self, skel, action="view", params = None, *args, **kwargs):
+		return self.renderEntry(skel, action, params)
 
-	def add(self, skel, tpl = None, params = None, **kwargs):
-		return self.renderEntry(skel, "add")
+	def add(self, skel, action = "add", params = None, **kwargs):
+		return self.renderEntry(skel, action, params)
 
-	def edit(self, skel, tpl = None, params=None, **kwargs):
-		return self.renderEntry(skel, "edit")
+	def edit(self, skel, action = "edit", params=None, **kwargs):
+		return self.renderEntry(skel, action, params)
 
-	def list(self, skellist, tpl = None, params=None, **kwargs):
+	def list(self, skellist, action = "list", params=None, **kwargs):
 		res = {}
 		skels = []
 
@@ -238,26 +239,27 @@ class DefaultRender(object):
 			res["structure"] = self.renderSkelStructure(skellist.baseSkel)
 		else:
 			res["structure"] = None
+
 		res["cursor"] = skellist.cursor
-		res["action"] = "list"
+		res["action"] = action
+		res["params"] = params
+
 		request.current.get().response.headers["Content-Type"] = "application/json"
 		return json.dumps(res)
 
 	def editItemSuccess(self, skel, params=None, **kwargs):
-		return self.renderEntry(skel, "editSuccess")
+		return self.renderEntry(skel, "editSuccess", params)
 		
 	def addItemSuccess(self, skel, params=None, **kwargs):
-		return self.renderEntry(skel, "addSuccess")
+		return self.renderEntry(skel, "addSuccess", params)
 		
 	def addDirSuccess(self, rootNode,  path, dirname, params=None, *args, **kwargs):
-
 		return json.dumps("OKAY")
 
 	def listRootNodes(self, rootNodes, tpl=None, params=None):
 		return json.dumps(rootNodes)
 
 	def listRootNodeContents(self, subdirs, entrys, tpl=None, params=None, **kwargs):
-
 		res = {
 			"subdirs": subdirs
 		}
