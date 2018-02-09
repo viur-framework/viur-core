@@ -11,7 +11,7 @@ class IndexMannager:
 		This works *only* if the number of different querys is limited.
 		Otherwise use the built-in page parameter for small result-sets and few pages.
 		If you have lots of different querys and large result-sets you can only generate next/previous links on the fly.
-	
+
 		.. Note::
 
 			The refreshAll Method is missing - intentionally. Whenever data changes you have to call
@@ -21,7 +21,7 @@ class IndexMannager:
 	"""
 
 	_dbType = "viur_indexes"
-	
+
 	def __init__(self, pageSize=10, maxPages=100):
 		"""
 		:param pageSize: How many items per page
@@ -34,7 +34,7 @@ class IndexMannager:
 		self.pageSize = pageSize
 		self.maxPages = maxPages
 		self._cache = {}
-	
+
 	def keyFromQuery(self, query ):
 		"""
 			Derives a unique Database-Key from a given query.
@@ -44,7 +44,7 @@ class IndexMannager:
 			:type query: DB.Query
 			:returns: string
 		"""
-		
+
 		assert isinstance( query, db.Query )
 		origFilter = [ (x, y) for x, y in query.getFilter().items() ]
 		for k, v in query.getOrders():
@@ -66,7 +66,7 @@ class IndexMannager:
 			:returns: []
 		"""
 		key = self.keyFromQuery( origQuery )
-		if key in self._cache.keys(): #We have it cached
+		if key in self._cache: #We have it cached
 			return( self._cache[ key ] )
 		#We dont have it cached - try to load it from DB
 		try:
@@ -80,7 +80,7 @@ class IndexMannager:
 		#Clone the original Query
 		queryRes = origQuery.clone( keysOnly=True ).datastoreQuery.Run( limit=self.maxPages*self.pageSize )
 		#Build-Up the index
-		res = [ ] 
+		res = [ ]
 		i = 0
 		previousCursor = None #The first page dosnt have any cursor
 		for discardedKey in queryRes:
@@ -93,20 +93,20 @@ class IndexMannager:
 			res.append( None )
 		entry = db.Entity( self._dbType, name=key )
 		entry[ "data" ] = json.dumps( res )
-		entry[ "creationdate" ] = datetime.now() 
+		entry[ "creationdate" ] = datetime.now()
 		db.Put( entry )
 		return( res )
 
 	def cursorForQuery(self, query, page ):
 		"""
 			Returns the starting-cursor for the given query and page using an index.
-		
+
 			.. WARNING:
 
 				Make sure the maximum count of different querys are limited!
 				If an attacker can choose the query freely, he can consume a lot
 				datastore quota per request!
-		
+
 			:param query: Query to get the cursor for
 			:type query: db.Query
 			:param page: Page the user wants to retrieve
@@ -119,7 +119,7 @@ class IndexMannager:
 			return( db.Cursor( urlsafe=pages[ page ] ) )
 		else:
 			return( None )
-	
+
 	def getPages(self, query ):
 		"""
 			Returns a list of all starting-cursors for this query.
@@ -127,12 +127,12 @@ class IndexMannager:
 			have any start-cursor
 		"""
 		return( self.getOrBuildIndex( query ) )
-		
+
 	def refreshIndex(self, query ):
 		"""
 			Refreshes the Index for the given query
 			(Actually it removes it from the db so it gets rebuild on next use)
-		
+
 			:param query: Query for which the index should be refreshed
 			:type query: db.Query
 		"""
@@ -141,5 +141,5 @@ class IndexMannager:
 			db.Delete( db.Key.from_path( self._dbType, key ) )
 		except db.EntityNotFoundError:
 			pass
-		if key in self._cache.keys():
+		if key in self._cache:
 			del self._cache[ key ]

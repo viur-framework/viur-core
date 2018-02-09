@@ -23,14 +23,14 @@ class booleanBone( baseBone ):
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
-			
+
 			:param name: Our name in the skeleton
 			:type name: str
 			:param data: *User-supplied* request-data
 			:type data: dict
 			:returns: str or None
 		"""
-		if name in data.keys():
+		if name in data:
 			value = data[ name ]
 		else:
 			return("No value entered!")
@@ -49,7 +49,7 @@ class booleanBone( baseBone ):
 		"""
 			Serializes this bone into something we
 			can write into the datastore.
-			
+
 			:param name: The property-name this bone has in its Skeleton (not the description!)
 			:type name: str
 			:returns: dict
@@ -70,7 +70,7 @@ class booleanBone( baseBone ):
 			:type expando: :class:`db.Entity`
 			:returns: bool
 		"""
-		if name in expando.keys():
+		if name in expando:
 			val = expando[ name ]
 			if str( val ) in self.trueStrs:
 				valuesCache[name] = True
@@ -79,7 +79,7 @@ class booleanBone( baseBone ):
 		return True
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
-		if name in rawFilter.keys():
+		if name in rawFilter:
 			val = rawFilter[ name ]
 			if str(val) in self.trueStrs:
 				val = True

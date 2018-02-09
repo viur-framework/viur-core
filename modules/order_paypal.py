@@ -28,7 +28,7 @@ class PayPal( object ):
 		PAYPAL_URL = ""
 
 		def __init__(self, currency=u"EUR", returnurl=None, cancelurl=None):
-			if not "paypal" in conf.keys():
+			if not "paypal" in conf:
 				self.signature_values = { #Set Sandbox-Credentials
 					'USER' : 'sdk-three_api1.sdk.com',
 					'PWD' : 'QFZCWN5HZM8VBG7Q',

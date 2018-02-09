@@ -18,7 +18,7 @@ class ExtendedDateTime( datetime ):
 	def totimestamp( self ):
 		"""Converts this DateTime-Object back into Unixtime"""
 		return( int( round( mktime( self.timetuple() ) ) ) )
-		 
+
 	def strftime(self, format ):
 		"""
 		Provides correct localized names for directives like %a which dont get translated on GAE properly
@@ -55,7 +55,7 @@ class dateBone( baseBone ):
 	def __init__( self,  creationMagic=False, updateMagic=False, date=True, time=True, localize=False, *args,  **kwargs ):
 		"""
 			Initializes a new dateBone.
-			
+
 			:param creationMagic: Use the current time as value when creating an entity; ignoring this bone if the
 				entity gets updated.
 			:type creationMagic: bool
@@ -91,7 +91,7 @@ class dateBone( baseBone ):
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
-			
+
 			:param name: Our name in the skeleton
 			:type name: str
 			:param data: *User-supplied* request-data
@@ -101,30 +101,30 @@ class dateBone( baseBone ):
 		rawValue = data.get(name, None)
 		if not rawValue:
 			value = None
-		elif str(rawValue).replace("-",  "",  1).replace(".","",1).isdigit():
+		elif unicode(rawValue).replace("-",  "",  1).replace(".","",1).isdigit():
 			if int(rawValue) < -1*(2**30) or int(rawValue)>(2**31)-2:
 				value = False  # its invalid
 			else:
 				value = ExtendedDateTime.fromtimestamp( float(rawValue) )
 		elif not self.date and self.time:
 			try:
-				if str(rawValue).count(":")>1:
-					(hour, minute, second) = [int(x.strip()) for x in str(rawValue).split(":")]
+				if unicode(rawValue).count(":")>1:
+					(hour, minute, second) = [int(x.strip()) for x in unicode(rawValue).split(":")]
 					value = time(hour=hour, minute=minute, second=second)
-				elif str(rawValue).count(":")>0:
-					(hour, minute) = [int(x.strip()) for x in str(rawValue).split(":")]
+				elif unicode(rawValue).count(":")>0:
+					(hour, minute) = [int(x.strip()) for x in unicode(rawValue).split(":")]
 					value = time(hour=hour, minute=minute)
-				elif str(rawValue).replace("-",  "",  1).isdigit():
+				elif unicode(rawValue).replace("-",  "",  1).isdigit():
 					value = time(second=int(rawValue))
 				else:
 					value = False  # its invalid
 			except:
 				value = False
-		elif str(rawValue).lower().startswith("now"):
+		elif unicode(rawValue).lower().startswith("now"):
 			tmpRes = ExtendedDateTime.now()
-			if len(str(rawValue))>4:
+			if len(unicode(rawValue))>4:
 				try:
-					tmpRes += timedelta(seconds= int(str(rawValue)[3:]))
+					tmpRes += timedelta(seconds= int(unicode(rawValue)[3:]))
 				except:
 					pass
 			value = tmpRes
@@ -133,25 +133,25 @@ class dateBone( baseBone ):
 				if " " in rawValue:  # Date with time
 					try:  # Times with seconds
 						if "-" in rawValue:  # ISO Date
-							value = ExtendedDateTime.strptime(str(rawValue), "%Y-%m-%d %H:%M:%S")
+							value = ExtendedDateTime.strptime(unicode(rawValue), "%Y-%m-%d %H:%M:%S")
 						elif "/" in rawValue:  # Ami Date
-							value = ExtendedDateTime.strptime(str(rawValue), "%m/%d/%Y %H:%M:%S")
+							value = ExtendedDateTime.strptime(unicode(rawValue), "%m/%d/%Y %H:%M:%S")
 						else:  # European Date
-							value = ExtendedDateTime.strptime(str(rawValue), "%d.%m.%Y %H:%M:%S")
+							value = ExtendedDateTime.strptime(unicode(rawValue), "%d.%m.%Y %H:%M:%S")
 					except:
 						if "-" in rawValue:  # ISO Date
-							value = ExtendedDateTime.strptime(str(rawValue), "%Y-%m-%d %H:%M")
+							value = ExtendedDateTime.strptime(unicode(rawValue), "%Y-%m-%d %H:%M")
 						elif "/" in rawValue:  # Ami Date
-							value = ExtendedDateTime.strptime(str(rawValue), "%m/%d/%Y %H:%M")
+							value = ExtendedDateTime.strptime(unicode(rawValue), "%m/%d/%Y %H:%M")
 						else:  # European Date
-							value = ExtendedDateTime.strptime(str(rawValue), "%d.%m.%Y %H:%M")
+							value = ExtendedDateTime.strptime(unicode(rawValue), "%d.%m.%Y %H:%M")
 				else:
 					if "-" in rawValue:  # ISO (Date only)
-						value = ExtendedDateTime.strptime(str(rawValue), "%Y-%m-%d")
+						value = ExtendedDateTime.strptime(unicode(rawValue), "%Y-%m-%d")
 					elif "/" in rawValue:  # Ami (Date only)
-						value = ExtendedDateTime.strptime(str(rawValue), "%m/%d/%Y")
+						value = ExtendedDateTime.strptime(unicode(rawValue), "%m/%d/%Y")
 					else:  # European (Date only)
-						value =ExtendedDateTime.strptime(str(rawValue), "%d.%m.%Y")
+						value =ExtendedDateTime.strptime(unicode(rawValue), "%d.%m.%Y")
 			except:
 				value = False  # its invalid
 		if value is False:
@@ -182,10 +182,10 @@ class dateBone( baseBone ):
 		timeZone = "UTC" # Default fallback
 		try:
 			# Check the local cache first
-			if "timeZone" in request.current.requestData().keys():
+			if "timeZone" in request.current.requestData():
 				return( request.current.requestData()["timeZone"] )
 			headers = request.current.get().request.headers
-			if "X-Appengine-Country" in headers.keys():
+			if "X-Appengine-Country" in headers:
 				country = headers["X-Appengine-Country"]
 			else:  # Maybe local development Server - no way to guess it here
 				return( timeZone )
@@ -202,7 +202,7 @@ class dateBone( baseBone ):
 			# Fixme: Is there any equivalent of EST for australia?
 			pass
 		request.current.requestData()["timeZone"] = timeZone #Cache the result
-		return( timeZone ) 
+		return( timeZone )
 
 	def readLocalized(self, value ):
 		"""Read a (probably localized Value) from the Client and convert it back to UTC"""
@@ -226,14 +226,14 @@ class dateBone( baseBone ):
 		return( res )
 
 	def serialize( self, valuesCache, name, entity ):
-		res = valuesCache[name]
+		res = valuesCache.get(name)
 		if res:
 			res = self.readLocalized( datetime.now().strptime( res.strftime( "%d.%m.%Y %H:%M:%S" ), "%d.%m.%Y %H:%M:%S"  ) )
 		entity.set( name, res, self.indexed )
 		return( entity )
 
 	def unserialize(self, valuesCache, name, expando):
-		if not name in expando.keys():
+		if not name in expando:
 			valuesCache[name] = None
 			return
 		valuesCache[name] = expando[ name ]

@@ -19,7 +19,7 @@ class Formmailer(BasicApplication):
 		if len(kwargs) == 0:
 			return self.render.add(skel=skel, failed=False)
 
-		if not skel.fromClient(kwargs) or not "skey" in kwargs.keys():
+		if not skel.fromClient(kwargs) or not "skey" in kwargs:
 			return self.render.add(skel=skel, failed=True)
 
 		if not securitykey.validate(kwargs["skey"]):

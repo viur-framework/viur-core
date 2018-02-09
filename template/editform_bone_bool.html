@@ -1,0 +1,12 @@
+<div class="switch">
+    <input class="switch-input ignt-booleanInput ignt-booleanInput-v{{ boneName }}"
+           id="ignt-id-{{ boneName }}"
+           type="checkbox"
+           name="{{ boneName }}"
+           value="true"
+           {{ "checked" if boneValue }}
+           {{ "required" if boneParams["required"] }}
+           {{ "readonly" if boneParams["readOnly"] }}
+    />
+    <label class="switch-label" for="ignt-id-{{ boneName }}"></label>
+</div>

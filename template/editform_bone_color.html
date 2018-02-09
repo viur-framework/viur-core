@@ -1,0 +1,12 @@
+<input name="{{ boneName }}"
+        type="color"
+        title="{{ _(boneParams["tooltip"] or boneParams["descr"] or boneName) }}"
+        id="ignt-id-{{boneName}}"
+        value="{{ boneValue|default("",true) }}"
+        class="input ignt-colorInput ignt-colorInput-v{{ boneName }}
+             {{ "is-required" if boneParams.required }}
+            {{ "is-readonly" if boneParams.readOnly }}"
+        {{ "readonly" if boneParams.readOnly }}
+        {{ "required" if boneParams.required }}
+        {% if boneWasInvalid %} aria-invalid="true" {% endif %}
+/>
