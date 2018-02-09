@@ -67,6 +67,8 @@ class stringBone( baseBone ):
 		for k in entity.keys(): #Remove any old data
 			if k.startswith("%s." % name) or k==name:
 				del entity[ k ]
+		if name not in valuesCache:
+			return entity
 		if not self.languages:
 			if self.caseSensitive:
 				return( super( stringBone, self ).serialize( valuesCache, name, entity ) )
