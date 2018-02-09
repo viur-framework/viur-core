@@ -226,7 +226,7 @@ class dateBone( baseBone ):
 		return( res )
 
 	def serialize( self, valuesCache, name, entity ):
-		res = valuesCache[name]
+		res = valuesCache.get(name)
 		if res:
 			res = self.readLocalized( datetime.now().strptime( res.strftime( "%d.%m.%Y %H:%M:%S" ), "%d.%m.%Y %H:%M:%S"  ) )
 		entity.set( name, res, self.indexed )

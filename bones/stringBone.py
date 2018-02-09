@@ -65,8 +65,10 @@ class stringBone( baseBone ):
 
 	def serialize( self, valuesCache, name, entity ):
 		for k in entity.keys(): #Remove any old data
-			if k.startswith("%s." % name ):
+			if k.startswith("%s." % name) or k==name:
 				del entity[ k ]
+		if name not in valuesCache:
+			return entity
 		if not self.languages:
 			if self.caseSensitive:
 				return( super( stringBone, self ).serialize( valuesCache, name, entity ) )
@@ -129,8 +131,7 @@ class stringBone( baseBone ):
 			:type expando: :class:`server.db.Entity`
 		"""
 		if not self.languages:
-			if name in expando:
-				valuesCache[name] = expando[name]
+			valuesCache[name] = expando.get(name)
 		else:
 			valuesCache[name] = LanguageWrapper( self.languages )
 			for lang in self.languages:

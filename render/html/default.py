@@ -453,35 +453,42 @@ class Render( object ):
 		                                "value": self.collectSkelData(skel) },
 		                                params=params, **kwargs )
 
-	def addItemSuccess (self, skel, params=None, *args, **kwargs ):
+	def addItemSuccess(self, skel, tpl = None, params = None, *args, **kwargs):
 		"""
 			Renders a page, informing that the entry has been successfully created.
 
 			:param skel: Skeleton which contains the data of the new entity
 			:type skel: server.db.skeleton.Skeleton
 
+			:param tpl: Name of a different template, which should be used instead of the default one.
+			:type tpl: str
+
 			:param params: Optional data that will be passed unmodified to the template
 			:type params: object
 
 			:return: Returns the emitted HTML response.
 			:rtype: str
 		"""
-		tpl = self.addSuccessTemplate
-
-		if "addSuccessTemplate" in dir( self.parent ):
-			tpl = self.parent.addSuccessTemplate
+		if not tpl:
+			if "addSuccessTemplate" in dir( self.parent ):
+				tpl = self.parent.addSuccessTemplate
+			else:
+				tpl = self.addSuccessTemplate
 
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		res = self.collectSkelData( skel )
 
 		return template.render({ "skel":res }, params=params, **kwargs)
 
-	def editItemSuccess (self, skel, params=None, *args, **kwargs ):
+	def editItemSuccess(self, skel, tpl = None, params = None, *args, **kwargs):
 		"""
 			Renders a page, informing that the entry has been successfully modified.
 
 			:param skel: Skeleton which contains the data of the modified entity
 			:type skel: server.db.skeleton.Skeleton
+
+			:param tpl: Name of a different template, which should be used instead of the default one.
+			:type tpl: str
 
 			:param params: Optional data that will be passed unmodified to the template
 			:type params: object
@@ -489,17 +496,17 @@ class Render( object ):
 			:return: Returns the emitted HTML response.
 			:rtype: str
 		"""
-		tpl = self.editSuccessTemplate
-
-		if "editSuccessTemplate" in dir( self.parent ):
-			tpl = self.parent.editSuccessTemplate
+		if not tpl:
+			if "editSuccessTemplate" in dir(self.parent):
+				tpl = self.parent.editSuccessTemplate
+			else:
+				tpl = self.editSuccessTemplate
 
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		res = self.collectSkelData( skel )
 		return template.render(skel=res, params=params, **kwargs)
 	
-	def deleteSuccess (self, skel, params=None, *args, **kwargs ):
-
+	def deleteSuccess(self, skel, tpl = None, params = None, *args, **kwargs):
 		"""
 			Renders a page, informing that the entry has been successfully deleted.
 
@@ -510,13 +517,17 @@ class Render( object ):
 			:param params: Optional data that will be passed unmodified to the template
 			:type params: object
 
+			:param tpl: Name of a different template, which should be used instead of the default one.
+			:type tpl: str
+
 			:return: Returns the emitted HTML response.
 			:rtype: str
 		"""
-		tpl = self.deleteSuccessTemplate
-
-		if "deleteSuccessTemplate" in dir( self.parent ):
-			tpl = self.parent.deleteSuccessTemplate
+		if not tpl:
+			if "deleteSuccessTemplate" in dir(self.parent):
+				tpl = self.parent.deleteSuccessTemplate
+			else:
+				tpl = self.deleteSuccessTemplate
 
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		return template.render(params=params, **kwargs)

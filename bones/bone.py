@@ -179,7 +179,8 @@ class baseBone(object): # One Bone:
 			:type name: String
 			:returns: dict
 		"""
-		entity.set( name, valuesCache[name], self.indexed )
+		if name in valuesCache:
+			entity.set( name, valuesCache[name], self.indexed )
 		return( entity )
 
 	def unserialize( self, valuesCache, name, expando ):
@@ -269,7 +270,7 @@ class baseBone(object): # One Bone:
 
 		for key in myKeys:
 			value = rawFilter[ key ]
-			tmpdata = key.partition("$")
+			tmpdata = key.split("$")
 
 			if len( tmpdata ) > 2:
 				if isinstance( value, list ):
