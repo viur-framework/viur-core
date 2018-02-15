@@ -147,11 +147,11 @@ class textBone( baseBone ):
 			:type entity: :class:`server.db.Entity`
 			:return: the modified :class:`server.db.Entity`
 		"""
-		if name == "key":
+		if name == "key" or not name in valuesCache:
 			return( entity )
 		if self.languages:
 			for k in entity.keys(): #Remove any old data
-				if k.startswith("%s." % name ):
+				if k.startswith("%s." % name) or k.startswith("%s_" % name ) or k==name:
 					del entity[ k ]
 			for lang in self.languages:
 				if isinstance(valuesCache[name], dict) and lang in valuesCache[name]:
@@ -159,7 +159,7 @@ class textBone( baseBone ):
 					if not val or (not HtmlSerializer().santinize(val).strip() and not "<img " in val):
 						#This text is empty (ie. it might contain only an empty <p> tag
 						continue
-					entity[ "%s.%s" % (name, lang) ] = val
+					entity.set("%s.%s" % (name, lang), val, self.indexed)
 		else:
 			entity.set( name, valuesCache[name], self.indexed )
 		return( entity )

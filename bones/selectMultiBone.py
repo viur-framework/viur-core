@@ -104,6 +104,8 @@ class selectMultiBone( baseBone ):
 			return "No item selected"
 
 	def serialize( self, valuesCache, name, entity ):
+		if not name in valuesCache:
+			return entity
 		if not valuesCache[name] or len(valuesCache[name]) == 0:
 			entity.set( name, None, self.indexed )
 		else:

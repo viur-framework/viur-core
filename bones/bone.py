@@ -179,7 +179,7 @@ class baseBone(object): # One Bone:
 			:type name: String
 			:returns: dict
 		"""
-		if name != "key":
+		if name != "key" and name in valuesCache:
 			entity.set( name, valuesCache[name], self.indexed )
 		return( entity )
 
@@ -270,7 +270,7 @@ class baseBone(object): # One Bone:
 
 		for key in myKeys:
 			value = rawFilter[ key ]
-			tmpdata = key.partition("$")
+			tmpdata = key.split("$")
 
 			if len( tmpdata ) > 2:
 				if isinstance( value, list ):
