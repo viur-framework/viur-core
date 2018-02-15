@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from google.appengine.api import memcache
 from server import request, utils
-import logging
 from datetime import datetime
 
 
@@ -11,8 +10,8 @@ class RateLimit(object):
 		This class is used to restrict access to certain functions to *maxRate* calls per minute.
 
 		Usage: Create an instance of this object in you modules __init__ function. then call
-		isRateAvailable before executing the action to check if there is quota available and
-		after executing the action decrementRate.
+		isQuotaAvailable before executing the action to check if there is quota available and
+		after executing the action decrementQuota.
 
 	"""
 
@@ -51,7 +50,6 @@ class RateLimit(object):
 		else:
 			remoteAddr = request.current.get().request.remote_addr
 			if "::" in remoteAddr:  # IPv6 in shorted form
-				# Fixme: Can this even happen on the appengine?
 				remoteAddr = remoteAddr.split(":")
 				blankIndex  = remoteAddr.index("")
 				missigParts = ["0000"] * (8 - len(remoteAddr))
@@ -96,8 +94,6 @@ class RateLimit(object):
 		memcacheKeys = []
 		for x in range(0, self.steps):
 			memcacheKeys.append("%s-%s-%s" % (self.resource, endPoint, keyBase % (currentStep - x)))
-		logging.error(memcacheKeys)
 		tmpRes = memcache.get_multi(memcacheKeys)
-		logging.error(tmpRes)
 		return sum(tmpRes.values()) <= self.maxRate
 
