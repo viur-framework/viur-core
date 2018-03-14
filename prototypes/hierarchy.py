@@ -5,29 +5,21 @@ from time import time
 
 from server import db, utils, errors, conf, request, securitykey
 from server import forcePost, forceSSL, exposed, internalExposed
-from server.bones import baseBone, numericBone
+from server.bones import baseBone, keyBone, numericBone
 from server.prototypes import BasicApplication
 from server.skeleton import Skeleton
 from server.tasks import callDeferred
 
 class HierarchySkel(Skeleton):
-	parententry = baseBone(descr="Parent", visible=False, indexed=True, readOnly=True)
-	parentrepo = baseBone(descr="BaseRepo", visible=False, indexed=True, readOnly=True)
+	parententry = keyBone(descr="Parent", visible=False, indexed=True, readOnly=True)
+	parentrepo = keyBone(descr="BaseRepo", visible=False, indexed=True, readOnly=True)
 	sortindex = numericBone(descr="SortIndex", mode="float", visible=False, indexed=True, readOnly=True, max=sys.maxint)
+
 
 	def preProcessSerializedData(self, dbfields):
 		if not ("sortindex" in dbfields and dbfields["sortindex"]):
 			dbfields["sortindex"] = time()
 		return dbfields
-
-	def refresh(self):
-		if self["parententry"]:
-			self["parententry"] = utils.normalizeKey(self["parententry"])
-		if self["parentrepo"]:
-			self["parentrepo"] = utils.normalizeKey(self["parentrepo"])
-
-		super(HierarchySkel, self).refresh()
-
 
 class Hierarchy(BasicApplication):
 	"""

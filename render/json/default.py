@@ -199,7 +199,7 @@ class DefaultRender(object):
 
 		return res
 
-	def renderEntry(self, skel, actionName, params):
+	def renderEntry(self, skel, actionName, params = None):
 		if isinstance(skel, list):
 			vals = [self.renderSkelValues(x) for x in skel]
 			struct = self.renderSkelStructure(skel[0])

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from server.bones.bone import baseBone, boneFactory
+from server.bones.keyBone import keyBone
 from server.bones.stringBone import stringBone
 from server.bones.textBone import textBone
 from server.bones.numericBone import numericBone

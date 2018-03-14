@@ -3,6 +3,9 @@
 
 ## [Unreleased]
 
+### Added
+- New keyBone() class introduced for a better distinction between bones containing an entity key and those which don't.
+
 ## [2.1.0] - 2017-10-25
 
 ### Added
@@ -77,7 +80,7 @@
 ## [2.0.1] - 2017-01-04
 
 ### Added
- - IDs of entries tranferred with dbtransfer are now marked as in-use inside the datastore
+ - IDs of entries transferred with dbtransfer are now marked as in-use inside the datastore
  - conf["viur.cacheEnvironmentKey"] can now raise RuntimeError to indicate that this request cannot be cached
  - Added the render attribute to BasicApplications
 
