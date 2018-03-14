@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from server import db, utils, conf, errors
-from server.bones import baseBone, boneFactory, dateBone, selectOneBone, relationalBone, stringBone
+from server.bones import baseBone, boneFactory, keyBone, dateBone, selectOneBone, relationalBone, stringBone
 from server.tasks import CallableTask, CallableTaskBase, callDeferred
 from collections import OrderedDict
 from threading import local
@@ -88,7 +88,7 @@ class BaseSkeleton(object):
 				super(BaseSkeleton, self).__setattr__("__dataDict__", OrderedDict())
 			if not "__" in key and key != "isClonedInstance":
 				if isinstance(value , baseBone):
-					self.__dataDict__[key] =  value
+					self.__dataDict__[key] = value
 					self.valuesCache[key] = value.getDefaultValue()
 				elif value is None and key in self.__dataDict__: #Allow setting a bone to None again
 					del self.__dataDict__[key]
@@ -271,6 +271,9 @@ class BaseSkeleton(object):
 		if isinstance(value, baseBone):
 			raise AttributeError("Don't assign this bone object as skel[\"%s\"] = ... anymore to the skeleton. "
 			                        "Use skel.%s = ... for bone to skeleton assignment!" % (key, key))
+
+		elif isinstance(value, db.Key):
+			value = str(value)
 
 		self.valuesCache[key] = value
 		#if not self.isClonedInstance:
@@ -469,7 +472,7 @@ class Skeleton(BaseSkeleton):
 	# The "key" bone stores the current database key of this skeleton.
 	# Warning: Assigning to this bones value now *will* set the key
 	# it gets stored in. Must be kept readOnly to avoid security-issues with add/edit.
-	key = baseBone(descr="key", readOnly=True, visible=False)
+	key = keyBone(descr="key", readOnly=True, visible=False)
 
 	# The date (including time) when this entry has been created
 	creationdate = dateBone(descr="created at",
