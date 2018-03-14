@@ -225,9 +225,10 @@ class Render( object ):
 				"relskel": self.renderSkelStructure(RefSkel.fromSkel(skeletonByKind(bone.kind), *bone.refKeys))
 			})
 
-		elif bone.type == "selectone" or bone.type.startswith("selectone.") or bone.type == "selectmulti" or bone.type.startswith("selectmulti."):
+		elif bone.type == "select" or bone.type.startswith("select."):
 			ret.update({
-				"values": OrderedDict([(k, _(v)) for (k, v) in bone.values.items()])
+				"values": OrderedDict([(k, _(v)) for (k, v) in bone.values.items()]),
+				"multiple": bone.multiple
 			})
 
 		elif bone.type == "date" or bone.type.startswith("date."):

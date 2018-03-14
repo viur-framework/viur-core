@@ -55,9 +55,10 @@ class DefaultRender(object):
 			})
 
 
-		elif bone.type == "selectone" or bone.type.startswith("selectone.") or bone.type == "selectmulti" or bone.type.startswith("selectmulti."):
+		elif bone.type == "select" or bone.type.startswith("select."):
 			ret.update({
-				"values": [(k, v) for k, v in bone.values.items()]
+				"values": [(k, v) for k, v in bone.values.items()],
+				"multiple": bone.multiple,
 			})
 
 		elif bone.type == "date" or bone.type.startswith("date."):

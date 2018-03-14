@@ -88,7 +88,7 @@ class baseBone(object): # One Bone:
 			:type visible: bool
 
 			.. NOTE::
-				The kwarg 'multiple' is not supported by all bones (fe. selectOneBone)
+				The kwarg 'multiple' is not supported by all bones
 
 		"""
 		from server.skeleton import _boneCounter

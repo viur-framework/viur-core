@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from server import db, utils, conf, errors
-from server.bones import baseBone, boneFactory, keyBone, dateBone, selectOneBone, relationalBone, stringBone
+from server.bones import baseBone, boneFactory, keyBone, dateBone, selectBone, relationalBone, stringBone
 from server.tasks import CallableTask, CallableTaskBase, callDeferred
 from collections import OrderedDict
 from threading import local
@@ -1033,7 +1033,7 @@ class TaskUpdateSearchIndex( CallableTaskBase ):
 	def dataSkel(self):
 		modules = ["*"] + listKnownSkeletons()
 		skel = BaseSkeleton(cloned=True)
-		skel.module = selectOneBone( descr="Module", values={ x: x for x in modules}, required=True )
+		skel.module = selectBone( descr="Module", values={ x: x for x in modules}, required=True )
 		def verifyCompact(val):
 			if not val or val.lower()=="no" or val=="YES":
 				return None
