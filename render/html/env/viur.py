@@ -213,6 +213,16 @@ def getHostUrl(render, forceSSL = False, *args, **kwargs):
 	return url
 
 @jinjaGlobalFunction
+def redirect(render, url):
+	"""
+	Jinja2 global: Redirect to another URL.
+
+	:param url: URL to redirect to.
+	:type url: str
+	"""
+	raise errors.Redirect(url)
+
+@jinjaGlobalFunction
 def getLanguage(render, resolveAlias = False):
 	"""
 	Jinja2 global: Returns the language used for this request.
