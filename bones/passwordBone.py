@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from server import utils
 from server.bones import stringBone
 from hashlib import sha256
 import hmac
@@ -60,23 +61,38 @@ class passwordBone( stringBone ):
 	def isInvalid(self, value):
 		if not value:
 			return False
-		if len(value)<self.minPasswordLength:
-			return "Password to short"
-		# Run our passwort test suite
+
+		if len(value) < self.minPasswordLength:
+			return _("The entered password is to short - it requires at least {{length}} characters.",
+			            length=self.minPasswordLength)
+
+		# Run our password test suite
 		testResults = []
 		for test in self.passwordTests:
 			testResults.append(test(value))
-		if sum(testResults)<self.passwordTestThreshold:
-			return("Your password isn't strong enough!")
+
+		if sum(testResults) < self.passwordTestThreshold:
+			return _("The entered password is too weak.")
+
 		return False
+
+	def fromClient( self, valuesCache, name, data ):
+		value = data.get(name)
+		err = self.isInvalid(value)
+		if not err:
+			valuesCache[name] = value
+
+		if not value:
+			return "No value entered"
 
 	def serialize( self, valuesCache, name, entity ):
 		if valuesCache.get(name,None) and valuesCache[name] != "":
-			salt = ''.join( [ random.choice(string.ascii_lowercase + string.ascii_uppercase + string.digits) for x in range(self.saltLength) ] )
+			salt = utils.generateRandomString(self.saltLength)
 			passwd = pbkdf2( valuesCache[name][ : conf["viur.maxPasswordLength"] ], salt )
 			entity.set( name, passwd, self.indexed )
 			entity.set( "%s_salt" % name, salt, self.indexed )
-		return( entity )
+
+		return entity
 
 	def unserialize( self, valuesCache, name, values ):
-		return( {name: ""} )
+		return {name: ""}
