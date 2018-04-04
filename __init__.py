@@ -25,7 +25,7 @@
  See file LICENSE for more information.
 """
 
-__version__ = (2, 1, 0)  # Which API do we expose to our application
+__version__ = (2, 2, 0)  # Which API do we expose to our application
 
 import sys, traceback, os, inspect
 

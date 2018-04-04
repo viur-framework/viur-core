@@ -3,6 +3,10 @@
 
 ## [Unreleased]
 
+
+
+## [2.2.0] - 2018-04-04
+
 ### Added
 - A new Rate-Limit module that can be used to prevent DoS / Brute-Force on certain resources.
 - New keyBone() class introduced for a better distinction between bones containing an entity key and those which don't.
@@ -17,7 +21,6 @@
 - Use urlsafe_b64decode for filename decoding (used by some old IE on WinXP). Fixes #38.
 - Prevent skeleton from the server to take precedence over the ones defined in the application.
 - The indexed-flag had been ignored on edit - causing all fields to be indexed. Fixes #34.
-
 
 
 ## [2.1.0] - 2017-10-25
