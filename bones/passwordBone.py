@@ -78,15 +78,14 @@ class passwordBone( stringBone ):
 
 	def fromClient( self, valuesCache, name, data ):
 		value = data.get(name)
+		if not value:
+			return "No value entered"
+
 		err = self.isInvalid(value)
-		if not err:
-			valuesCache[name] = value
-			return None
+		if err:
+			return err
 
-		if not value and not err:
-			err = "No value entered"
-
-		return err
+		valuesCache[name] = value
 
 	def serialize( self, valuesCache, name, entity ):
 		if valuesCache.get(name,None) and valuesCache[name] != "":
