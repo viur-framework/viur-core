@@ -13,11 +13,12 @@
 
 ### Changed
 - The new "params" Parameter introduced in 2.1.0 should now always have a default value (None)
-- *[Breaking]* Merged selectOneBone and selectMultiBone into a single selectBone which supports the multiple flag
+- Merged *selectOneBone* and *selectMultiBone* into a single *selectBone* which supports the multiple flag,
+  the previous bone names are still supported and cause a deprecation warning in the logs.
 
 ### Fixed
-- Exception causing toDB() to fail if a bone should be serialized which isn't in the valuesCache object. Fixes #7.
-- Prevent text/string Bones from restoring old (non-multilang data) if set back to empty values. Fixes #6.
+- Exception causing ``toDB()`` to fail if a bone should be serialized which isn't in the valuesCache object. Fixes #7.
+- Prevent text/string Bones from restoring old (non-multi-language data) if set back to empty values. Fixes #6.
 - Use urlsafe_b64decode for filename decoding (used by some old IE on WinXP). Fixes #38.
 - Prevent skeleton from the server to take precedence over the ones defined in the application.
 - The indexed-flag had been ignored on edit - causing all fields to be indexed. Fixes #34.
