@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-from server.bones import baseBone
-from time import time
-import HTMLParser, htmlentitydefs
-from server import db
-from server.utils import markFileForDeletion
-from server.config import conf
+import HTMLParser
+import htmlentitydefs
+
 from google.appengine.api import search
+
+from server import db
+from server.bones import baseBone
 from server.bones.stringBone import LanguageWrapper
-import logging
+from server.config import conf
 
 _attrsMargins = ["margin","margin-left","margin-right","margin-top","margin-bottom"]
 _attrsSpacing = ["spacing","spacing-left","spacing-right","spacing-top","spacing-bottom"]
@@ -268,17 +268,17 @@ class textBone( baseBone ):
 								newFileKeys.append( fk )
 							idx = val.find("/file/download/", seperatorIdx)
 		else:
-			if valuesCache[name]:
-				idx = valuesCache[name].find("/file/download/")
-				while idx!=-1:
+			values = valuesCache.get(name)
+			if values:
+				idx = values.find("/file/download/")
+				while idx != -1:
 					idx += 15
-					seperatorIdx = min( [ x for x in [valuesCache[name].find("/",idx), valuesCache[name].find("\"",idx)] if x!=-1] )
-					fk = valuesCache[name][ idx:seperatorIdx]
-					if not fk in newFileKeys:
-						newFileKeys.append( fk )
-					idx = valuesCache[name].find("/file/download/", seperatorIdx)
-		return( newFileKeys )
-
+					seperatorIdx = min([x for x in [values.find("/", idx), values.find("\"", idx)] if x != -1])
+					fk = values[idx:seperatorIdx]
+					if fk not in newFileKeys:
+						newFileKeys.append(fk)
+					idx = values.find("/file/download/", seperatorIdx)
+		return newFileKeys
 
 	def getSearchTags(self, valuesCache, name):
 		res = []
