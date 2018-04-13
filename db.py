@@ -453,7 +453,7 @@ class Query( object ):
 			filter, value = r
 
 		# Cast keys into string
-		if isinstance(value, datastore_types.Key):
+		if filter != datastore_types.KEY_SPECIAL_PROPERTY and isinstance(value, datastore_types.Key):
 			value = str(value)
 
 		if value!=None and (filter.endswith(" !=") or filter.lower().endswith(" in")):
