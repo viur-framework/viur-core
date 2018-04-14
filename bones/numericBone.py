@@ -114,3 +114,4 @@ class numericBone( baseBone ):
 	def getSearchDocumentFields(self, valuesCache, name, prefix = ""):
 		if isinstance(valuesCache.get(name), int) or isinstance(valuesCache.get(name), float):
 			return [search.NumberField(name=prefix + name, value=valuesCache[name])]
+		return []
