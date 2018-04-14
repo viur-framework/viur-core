@@ -228,7 +228,7 @@ class Hierarchy(BasicApplication):
 
 			skel = self.viewSkel()
 			if "name" in skel:
-				nameBone = skel["name"]
+				nameBone = getattr(skel, "name")
 
 				if (isinstance(nameBone, baseBone)
 				    and "languages" in dir(nameBone)
