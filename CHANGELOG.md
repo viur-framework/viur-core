@@ -5,19 +5,22 @@
 
 
 
-## [2.2.0-rc1] - 2018-04-17
+## [2.2.0-rc1] - 2018-04-19
 
 ### Added
 - A new Rate-Limit module that can be used to prevent DoS / Brute-Force on certain resources.
 - New keyBone() class introduced for a better distinction between bones containing an entity key and those which don't.
 
 ### Changed
+- Return descriptions in selectBones translated from our json render
 - More descriptive error messages returned from password bone
 - The new "params" Parameter introduced in 2.1.0 should now always have a default value (None)
 - Merged *selectOneBone* and *selectMultiBone* into a single *selectBone* which supports the multiple flag,
   the previous bone names are still supported and cause a deprecation warning in the logs.
 
 ### Fixed
+- Resolving the name of skeletons in prototypes/hierarchy when used on multi-lang bones
+- Unserializing of booleanBones failed if the database contained a unicode string
 - Several errors caused by None returned from getSearchDocumentFields / getSearchTags
 - Exception causing ``toDB()`` to fail if a bone should be serialized which isn't in the valuesCache object. Fixes #7.
 - Prevent text/string Bones from restoring old (non-multilang data) if set back to empty values. Fixes #6.
