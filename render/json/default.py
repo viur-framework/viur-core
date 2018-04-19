@@ -57,7 +57,7 @@ class DefaultRender(object):
 
 		elif bone.type == "select" or bone.type.startswith("select."):
 			ret.update({
-				"values": [(k, v) for k, v in bone.values.items()],
+				"values": [(k, _(v)) for k, v in bone.values.items()],
 				"multiple": bone.multiple,
 			})
 
