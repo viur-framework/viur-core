@@ -1,8 +1,8 @@
-# Changelog for the ViUR Server (https://github.com/viur-framework/server)
+# Changelog
 
+This file documents any relevant changes done to ViUR server since version 2.
 
 ## [Unreleased]
-
 
 
 ## [2.2.0-rc1] - 2018-04-19
