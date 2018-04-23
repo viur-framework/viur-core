@@ -15,7 +15,7 @@ This file documents any relevant changes done to ViUR server since version 2.
 - Return descriptions in selectBones translated from our json render
 - More descriptive error messages returned from password bone
 - The new "params" Parameter introduced in 2.1.0 should now always have a default value (None)
-- Merged *selectOneBone* and *selectMultiBone* into a single *selectBone* which supports the multiple flag,
+- *[Breaking]*: Merged *selectOneBone* and *selectMultiBone* into a single *selectBone* which supports the multiple flag,
   the previous bone names are still supported and cause a deprecation warning in the logs.
 
 ### Fixed
@@ -124,3 +124,4 @@ This file documents any relevant changes done to ViUR server since version 2.
 ## [2.0.0] - 2016-12-22
 
 ### (Start of changelog)
+Vi
