@@ -2,10 +2,7 @@
 
 This file documents any relevant changes done to ViUR server since version 2.
 
-## [Unreleased]
-
-
-## [2.2.0-rc1] - 2018-04-19
+## [2.2.0 Etna] - 2018-04-23
 
 ### Added
 - A new Rate-Limit module that can be used to prevent DoS / Brute-Force on certain resources.
@@ -124,4 +121,3 @@ This file documents any relevant changes done to ViUR server since version 2.
 ## [2.0.0] - 2016-12-22
 
 ### (Start of changelog)
-Vi
