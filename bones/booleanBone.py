@@ -4,7 +4,7 @@ import logging
 
 class booleanBone( baseBone ):
 	type = "bool"
-	trueStrs = [ str(True), "1", "yes" ]
+	trueStrs = [unicode(True), u"1", u"yes"]
 
 	@staticmethod
 	def generageSearchWidget(target,name="BOOLEAN BONE"):
@@ -72,7 +72,7 @@ class booleanBone( baseBone ):
 		"""
 		if name in expando:
 			val = expando[ name ]
-			if str( val ) in self.trueStrs:
+			if unicode(val) in self.trueStrs:
 				valuesCache[name] = True
 			else:
 				valuesCache[name] = False

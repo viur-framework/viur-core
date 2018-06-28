@@ -451,6 +451,11 @@ class Query( object ):
 				# no need for us to do anything
 				return( self )
 			filter, value = r
+
+		# Cast keys into string
+		if filter != datastore_types.KEY_SPECIAL_PROPERTY and isinstance(value, datastore_types.Key):
+			value = str(value)
+
 		if value!=None and (filter.endswith(" !=") or filter.lower().endswith(" in")):
 			if isinstance( self.datastoreQuery, datastore.MultiQuery ):
 				raise NotImplementedError("You cannot use multiple IN or != filter")

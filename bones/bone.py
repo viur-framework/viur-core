@@ -88,7 +88,7 @@ class baseBone(object): # One Bone:
 			:type visible: bool
 
 			.. NOTE::
-				The kwarg 'multiple' is not supported by all bones (fe. selectOneBone)
+				The kwarg 'multiple' is not supported by all bones
 
 		"""
 		from server.skeleton import _boneCounter
@@ -179,7 +179,7 @@ class baseBone(object): # One Bone:
 			:type name: String
 			:returns: dict
 		"""
-		if name != "key":
+		if name in valuesCache:
 			entity.set( name, valuesCache[name], self.indexed )
 		return( entity )
 

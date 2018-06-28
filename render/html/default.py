@@ -225,9 +225,10 @@ class Render( object ):
 				"relskel": self.renderSkelStructure(RefSkel.fromSkel(skeletonByKind(bone.kind), *bone.refKeys))
 			})
 
-		elif bone.type == "selectone" or bone.type.startswith("selectone.") or bone.type == "selectmulti" or bone.type.startswith("selectmulti."):
+		elif bone.type == "select" or bone.type.startswith("select."):
 			ret.update({
-				"values": OrderedDict([(k, _(v)) for (k, v) in bone.values.items()])
+				"values": OrderedDict([(k, _(v)) for (k, v) in bone.values.items()]),
+				"multiple": bone.multiple
 			})
 
 		elif bone.type == "date" or bone.type.startswith("date."):
@@ -295,12 +296,16 @@ class Render( object ):
 		:return: A dict containing the rendered attributes.
 		:rtype: dict
 		"""
-		if bone.type=="selectone" or bone.type.startswith("selectone."):
-			if skel[key] in bone.values:
-				return Render.KeyValueWrapper(skel[key], bone.values[skel[key]])
-			return skel[key]
-		elif bone.type=="selectmulti" or bone.type.startswith("selectmulti."):
-			return [(Render.KeyValueWrapper(val, bone.values[val]) if val in bone.values else val) for val in skel[key]]
+		if bone.type == "select" or bone.type.startswith("select."):
+			skelValue = skel[key]
+			if isinstance(skelValue, list):
+				return [
+					Render.KeyValueWrapper(val, bone.values[val]) if val in bone.values else val
+					for val in skelValue
+				]
+			elif skelValue in bone.values:
+				return Render.KeyValueWrapper(skelValue, bone.values[skelValue])
+			return skelValue
 		elif bone.type=="relational" or bone.type.startswith("relational."):
 			if isinstance(skel[key], list):
 				tmpList = []

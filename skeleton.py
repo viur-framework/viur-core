@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from server import db, utils, conf, errors
-from server.bones import baseBone, boneFactory, dateBone, selectOneBone, relationalBone, stringBone
+from server.bones import baseBone, boneFactory, keyBone, dateBone, selectBone, relationalBone, stringBone
 from server.tasks import CallableTask, CallableTaskBase, callDeferred
 from collections import OrderedDict
 from threading import local
@@ -88,7 +88,7 @@ class BaseSkeleton(object):
 				super(BaseSkeleton, self).__setattr__("__dataDict__", OrderedDict())
 			if not "__" in key and key != "isClonedInstance":
 				if isinstance(value , baseBone):
-					self.__dataDict__[key] =  value
+					self.__dataDict__[key] = value
 					self.valuesCache[key] = value.getDefaultValue()
 				elif value is None and key in self.__dataDict__: #Allow setting a bone to None again
 					del self.__dataDict__[key]
@@ -272,6 +272,9 @@ class BaseSkeleton(object):
 			raise AttributeError("Don't assign this bone object as skel[\"%s\"] = ... anymore to the skeleton. "
 			                        "Use skel.%s = ... for bone to skeleton assignment!" % (key, key))
 
+		elif isinstance(value, db.Key):
+			value = str(value)
+
 		self.valuesCache[key] = value
 		#if not self.isClonedInstance:
 		#	raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
@@ -443,7 +446,7 @@ class MetaSkel(MetaBaseSkel):
 			relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]).replace(os.getcwd(), "")
 			if relNewFileName.strip(os.path.sep).startswith("server"):
 				# The currently processed skeleton is from the server.* package
-				pass
+				return
 			elif relOldFileName.strip(os.path.sep).startswith("server"):
 				# The old one was from server - override it
 				MetaBaseSkel._skelCache[cls.kindName] = cls
@@ -469,7 +472,7 @@ class Skeleton(BaseSkeleton):
 	# The "key" bone stores the current database key of this skeleton.
 	# Warning: Assigning to this bones value now *will* set the key
 	# it gets stored in. Must be kept readOnly to avoid security-issues with add/edit.
-	key = baseBone(descr="key", readOnly=True, visible=False)
+	key = keyBone(descr="key", readOnly=True, visible=False)
 
 	# The date (including time) when this entry has been created
 	creationdate = dateBone(descr="created at",
@@ -590,14 +593,8 @@ class Skeleton(BaseSkeleton):
 			for key, bone in skel.items():
 				if key in mergeFrom:
 					bone.mergeFrom(skel.valuesCache, key, mergeFrom)
-			unindexed_properties = []
 			for key, _bone in skel.items():
-				tmpKeys = dbObj.keys()
 				dbObj = _bone.serialize(skel.valuesCache, key, dbObj)
-				newKeys = [x for x in dbObj.keys() if
-				           not x in tmpKeys]  # These are the ones that the bone added
-				if not _bone.indexed:
-					unindexed_properties += newKeys
 				blobList.update(_bone.getReferencedBlobs(self.valuesCache, key))
 
 			if clearUpdateTag:
@@ -605,7 +602,6 @@ class Skeleton(BaseSkeleton):
 			else:
 				dbObj[
 					"viur_delayed_update_tag"] = time()  # Mark this entity as dirty, so the background-task will catch it up and update its references.
-			dbObj.set_unindexed_properties(unindexed_properties)
 			dbObj = skel.preProcessSerializedData(dbObj)
 			try:
 				ourKey = str(dbObj.key())
@@ -1037,7 +1033,7 @@ class TaskUpdateSearchIndex( CallableTaskBase ):
 	def dataSkel(self):
 		modules = ["*"] + listKnownSkeletons()
 		skel = BaseSkeleton(cloned=True)
-		skel.module = selectOneBone( descr="Module", values={ x: x for x in modules}, required=True )
+		skel.module = selectBone( descr="Module", values={ x: x for x in modules}, required=True )
 		def verifyCompact(val):
 			if not val or val.lower()=="no" or val=="YES":
 				return None

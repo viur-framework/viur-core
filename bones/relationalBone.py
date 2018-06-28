@@ -241,10 +241,10 @@ class relationalBone( baseBone ):
 				if self.indexed:
 					if refData:
 						for k, v in refData.items():
-							entity[ "%s.dest.%s" % (name,k) ] = v
+							entity.set("%s.dest.%s" % (name,k), v, True)
 					if usingData:
 						for k, v in usingData.items():
-							entity[ "%s.rel.%s" % (name,k) ] = v
+							entity.set("%s.rel.%s" % (name,k), v, True)
 					#for k, v in valuesCache[name].items():
 					#	if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ):
 					#		entity[ "%s.%s" % (name,k) ] = v

@@ -72,6 +72,8 @@ class numericBone( baseBone ):
 
 
 	def serialize( self, valuesCache, name, entity ):
+		if not name in valuesCache:
+			return entity
 		if isinstance( valuesCache[name],  float ) and valuesCache[name]!= valuesCache[name]: # NaN
 			entity.set( name, None, self.indexed )
 		else:
@@ -112,3 +114,4 @@ class numericBone( baseBone ):
 	def getSearchDocumentFields(self, valuesCache, name, prefix = ""):
 		if isinstance(valuesCache.get(name), int) or isinstance(valuesCache.get(name), float):
 			return [search.NumberField(name=prefix + name, value=valuesCache[name])]
+		return []

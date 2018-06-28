@@ -55,9 +55,10 @@ class DefaultRender(object):
 			})
 
 
-		elif bone.type == "selectone" or bone.type.startswith("selectone.") or bone.type == "selectmulti" or bone.type.startswith("selectmulti."):
+		elif bone.type == "select" or bone.type.startswith("select."):
 			ret.update({
-				"values": [(k, v) for k, v in bone.values.items()]
+				"values": [(k, _(v)) for k, v in bone.values.items()],
+				"multiple": bone.multiple,
 			})
 
 		elif bone.type == "date" or bone.type.startswith("date."):
@@ -198,7 +199,7 @@ class DefaultRender(object):
 
 		return res
 
-	def renderEntry(self, skel, actionName, params):
+	def renderEntry(self, skel, actionName, params = None):
 		if isinstance(skel, list):
 			vals = [self.renderSkelValues(x) for x in skel]
 			struct = self.renderSkelStructure(skel[0])
