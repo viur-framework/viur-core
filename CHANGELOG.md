@@ -16,6 +16,7 @@ This file documents any relevant changes done to ViUR server since version 2.
   the previous bone names are still supported and cause a deprecation warning in the logs.
 
 ### Fixed
+- v2.2.1: Fixed bug in baseBone.buildDBFilter() relating to lt/gt/lk operators
 - Resolving the name of skeletons in prototypes/hierarchy when used on multi-lang bones
 - Unserializing of booleanBones failed if the database contained a unicode string
 - Several errors caused by None returned from getSearchDocumentFields / getSearchTags

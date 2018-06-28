@@ -272,14 +272,14 @@ class baseBone(object): # One Bone:
 			value = rawFilter[ key ]
 			tmpdata = key.split("$")
 
-			if len( tmpdata ) > 2:
+			if len( tmpdata ) > 1:
 				if isinstance( value, list ):
 					continue
-				if tmpdata[2]=="lt":
+				if tmpdata[1]=="lt":
 					dbFilter.filter( (prefix or "")+tmpdata[0] + " <" , value )
-				elif tmpdata[2]=="gt":
+				elif tmpdata[1]=="gt":
 					dbFilter.filter( (prefix or "")+tmpdata[0] + " >",  value )
-				elif tmpdata[2]=="lk":
+				elif tmpdata[1]=="lk":
 					dbFilter.filter( (prefix or "")+tmpdata[0],  value )
 				else:
 					dbFilter.filter( (prefix or "")+tmpdata[0],  value )
