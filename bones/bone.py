@@ -277,8 +277,12 @@ class baseBone(object): # One Bone:
 					continue
 				if tmpdata[1]=="lt":
 					dbFilter.filter( (prefix or "")+tmpdata[0] + " <" , value )
+					if tmpdata[1]=="le":
+						dbFilter.filter( (prefix or "")+tmpdata[0] + " <=" , value )
 				elif tmpdata[1]=="gt":
 					dbFilter.filter( (prefix or "")+tmpdata[0] + " >",  value )
+				elif tmpdata[1]=="ge":
+					dbFilter.filter( (prefix or "")+tmpdata[0] + " >=",  value )
 				elif tmpdata[1]=="lk":
 					dbFilter.filter( (prefix or "")+tmpdata[0],  value )
 				else:
