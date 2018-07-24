@@ -1076,7 +1076,7 @@ class Entity( datastore.Entity ):
 				value = None
 		super( Entity, self ).__setitem__( name, value )
 
-	def set( self, key, value, indexed=True ):
+	def set(self, key, value, indexed=True):
 		"""
 			Sets a property.
 
@@ -1091,11 +1091,16 @@ class Entity( datastore.Entity ):
 			empty string or not a string.
 			:raises: :exc:`BadValueError` if the value is not a supported type.
 		"""
-		if not indexed:
-			unindexed = list( self.getUnindexedProperties() )
-			if not key in unindexed:
-				self.setUnindexedProperties( unindexed+[key] )
-		self[ key ] = value
+		unindexed = list(self.getUnindexedProperties())
+
+		if not indexed and not key in unindexed:
+			unindexed.append(key)
+			self.setUnindexedProperties(unindexed)
+		elif indexed and key in unindexed:
+			unindexed.remove(key)
+			self.setUnindexedProperties(unindexed)
+
+		self[key] = value
 
 	@staticmethod
 	def FromDatastoreEntity( entity ):
