@@ -589,7 +589,7 @@ def embedSvg(self, name):
 	if any([x in name for x in ["..", "~", "/"]]):
 		return u""
 	try:
-		return open(os.path.join(os.getcwd(), "html", "icons", name + ".svg"), "rb").read().decode("UTF-8")
+		return open(os.path.join(os.getcwd(), "html", "embedsvg", name + ".svg"), "rb").read().decode("UTF-8")
 	except Exception as e:
 		logging.exception(e)
 		return ""
