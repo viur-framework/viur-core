@@ -225,12 +225,19 @@ class dateBone( baseBone ):
 			res = utc.normalize( res.astimezone( utc ) )
 		return( res )
 
-	def serialize( self, valuesCache, name, entity ):
+	def serialize(self, valuesCache, name, entity):
 		res = valuesCache.get(name)
 		if res:
 			res = self.readLocalized( datetime.now().strptime( res.strftime( "%d.%m.%Y %H:%M:%S" ), "%d.%m.%Y %H:%M:%S"  ) )
+
+			# Crop unwanted values to zero
+			if not self.time:
+				res = res.replace(hour=0, minute=0, second=0, microsecond=0)
+			elif not self.date:
+				res = res.replace(year=0, month=0, day=0)
+
 		entity.set( name, res, self.indexed )
-		return( entity )
+		return entity
 
 	def unserialize(self, valuesCache, name, expando):
 		if not name in expando:
