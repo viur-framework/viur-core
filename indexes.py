@@ -51,7 +51,7 @@ class IndexMannager:
 		for k, v in query.getOrders():
 			origFilter.append(("__%s =" % k, v))
 		if query.amount:
-			origFilter.append(("amount =", query.amount))
+			origFilter.append(("__pagesize =", self.pageSize))
 		origFilter.sort(key=lambda sx: sx[0])
 		filterKey = "".join(["%s%s" % (x, y) for x, y in origFilter])
 		return sha256(filterKey).hexdigest()
@@ -82,16 +82,18 @@ class IndexMannager:
 		queryRes = origQuery.clone(keysOnly=True).datastoreQuery.Run(limit=self.maxPages * self.pageSize)
 		# Build-Up the index
 		res = list()
-		i = 0
 		previousCursor = None  # The first page dosnt have any cursor
-		for discardedKey in queryRes:
-			if i % self.pageSize == 0:
+
+		# enumerate is slightly faster than a manual loop counter
+		for counter, discardedKey in enumerate(queryRes):
+			if counter % self.pageSize == 0:
 				res.append(previousCursor)
-			if i % self.pageSize == (self.pageSize - 1):
+			if counter % self.pageSize == (self.pageSize - 1):
 				previousCursor = str(queryRes.cursor().urlsafe())
-			i += 1
+
 		if not len(res):  # Ensure that the first page exists
 			res.append(None)
+
 		entry = db.Entity(self._dbType, name=key)
 		entry["data"] = json.dumps(res)
 		entry["creationdate"] = datetime.now()
@@ -141,5 +143,9 @@ class IndexMannager:
 			db.Delete(db.Key.from_path(self._dbType, key))
 		except db.EntityNotFoundError:
 			pass
-		if key in self._cache:
+
+		# try/except is faster than if clause
+		try:
 			del self._cache[key]
+		except:
+			pass
