@@ -272,26 +272,26 @@ class baseBone(object): # One Bone:
 			value = rawFilter[ key ]
 			tmpdata = key.split("$")
 
-			if len( tmpdata ) > 1:
-				if isinstance( value, list ):
+			if len(tmpdata) > 1:
+				if isinstance(value, list):
 					continue
-				if tmpdata[1]=="lt":
-					dbFilter.filter( (prefix or "")+tmpdata[0] + " <" , value )
-					if tmpdata[1]=="le":
-						dbFilter.filter( (prefix or "")+tmpdata[0] + " <=" , value )
-				elif tmpdata[1]=="gt":
-					dbFilter.filter( (prefix or "")+tmpdata[0] + " >",  value )
-				elif tmpdata[1]=="ge":
-					dbFilter.filter( (prefix or "")+tmpdata[0] + " >=",  value )
-				elif tmpdata[1]=="lk":
-					dbFilter.filter( (prefix or "")+tmpdata[0],  value )
+				if tmpdata[1] == "lt":
+					dbFilter.filter((prefix or "") + tmpdata[0] + " <", value)
+				elif tmpdata[1] == "le":
+					dbFilter.filter((prefix or "") + tmpdata[0] + " <=", value)
+				elif tmpdata[1] == "gt":
+					dbFilter.filter((prefix or "") + tmpdata[0] + " >",  value)
+				elif tmpdata[1] == "ge":
+					dbFilter.filter((prefix or "") + tmpdata[0] + " >=",  value)
+				elif tmpdata[1] == "lk":
+					dbFilter.filter((prefix or "") + tmpdata[0],  value)
 				else:
-					dbFilter.filter( (prefix or "")+tmpdata[0],  value )
+					dbFilter.filter((prefix or "") + tmpdata[0],  value)
 			else:
 				if isinstance( value, list ):
-					dbFilter.filter( (prefix or "")+key+" IN", value )
+					dbFilter.filter((prefix or "") + key + " IN", value)
 				else:
-					dbFilter.filter( (prefix or "")+key, value )
+					dbFilter.filter((prefix or "") + key, value)
 
 		return dbFilter
 
