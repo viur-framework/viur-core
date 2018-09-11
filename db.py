@@ -20,6 +20,7 @@ __cacheLockTime__ = 42 #Prevent an entity from creeping into the cache for 42 Se
 __cacheTime__ = 15*60 #15 Mins
 __CacheKeyPrefix__ ="viur-db-cache:" #Our Memcache-Namespace. Dont use that for other purposes
 __MemCacheBatchSize__ = 30
+__undefinedC__ = object()
 
 
 def PutAsync( entities, **kwargs ):
@@ -415,7 +416,7 @@ class Query( object ):
 			skel.postProcessSearchFilter( self, filters )
 		return( self )
 
-	def filter(self, filter, value=None ):
+	def filter(self, filter, value=__undefinedC__ ):
 		"""
 			Adds a filter to this query. #fixme: Better description required here...
 
@@ -479,7 +480,7 @@ class Query( object ):
 			self.datastoreQuery = MultiQuery( queries, origQuery.__orderings )
 			for k,v in origQuery.items():
 				self.datastoreQuery[ k ] = v
-		elif filter and value!=None:
+		elif filter and value is not __undefinedC__:
 			self.datastoreQuery[ filter ] = value
 		else:
 			raise NotImplementedError("Incorrect call to query.filter()!")
