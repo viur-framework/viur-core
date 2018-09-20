@@ -31,11 +31,12 @@ class userSkel(Skeleton):
 
 
 	# Generic properties
-	access = selectAccessMultiBone(descr="Access rights", values={"root": "Superuser"}, indexed=True)
-	status = selectOneBone(descr="Account status", values = {   1: "Waiting for email verification",
-	                                                            2: "Waiting for verification through admin",
-	                                                            5: "Account disabled",
-	                                                            10: "Active" },
+	access = selectAccessBone(descr="Access rights", values={"root": "Superuser"}, indexed=True)
+	status = selectBone(descr="Account status",
+	                        values = {  1: "Waiting for email verification",
+                                        2: "Waiting for verification through admin",
+                                        5: "Account disabled",
+                                        10: "Active" },
 	                        defaultValue="10", required=True, indexed=True)
 	lastlogin = dateBone(descr="Last Login", readOnly=True, indexed=True)
 
@@ -92,7 +93,7 @@ class UserPassword(object):
 		if res is None:
 			res = {"password":"", "status":0, "name":"","name.idx":""}
 
-		if "password_salt" in res.keys():  # Its the new, more secure passwd
+		if "password_salt" in res:  # Its the new, more secure passwd
 			passwd = pbkdf2(password[:conf["viur.maxPasswordLength"]], res["password_salt"])
 		else:
 			passwd = sha512(password.encode("UTF-8")+conf["viur.salt"]).hexdigest()
@@ -128,7 +129,7 @@ class UserPassword(object):
 			skel.fromClient({"name": name, "nomissing": "1"})
 			return self.userModule.render.login(skel, loginFailed=True)
 		else:
-			if not "password_salt" in res.keys(): #Update the password to the new, more secure format
+			if not "password_salt" in res: #Update the password to the new, more secure format
 				res[ "password_salt" ] = utils.generateRandomString( 13 )
 				res[ "password" ] = pbkdf2( password[ : conf["viur.maxPasswordLength"] ], res["password_salt"] )
 				db.Put(res)
@@ -140,7 +141,7 @@ class UserPassword(object):
 	def pwrecover( self, authtoken=None, skey=None, *args, **kwargs ):
 		if authtoken:
 			data = securitykey.validate(authtoken)
-			if data and isinstance(data, dict) and "userKey" in data.keys() and "password" in data.keys():
+			if data and isinstance(data, dict) and "userKey" in data and "password" in data:
 				skel = self.userModule.editSkel()
 				assert skel.fromDB(data["userKey"])
 				skel["password"] = data["password"]
@@ -233,7 +234,7 @@ class UserPassword(object):
 			or skey == "" # no skey supplied
 			or not request.current.get().isPostRequest # bail out if not using POST-method
 			or not skel.fromClient(kwargs) # failure on reading into the bones
-			or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1")): # review before adding
+			or ("bounce" in kwargs and kwargs["bounce"]=="1")): # review before adding
 				# render the skeleton in the version it could as far as it could be read.
 				return self.userModule.render.add(skel)
 		if not securitykey.validate(skey):
@@ -314,11 +315,11 @@ class TimeBasedOTP(object):
 
 	def canHandle(self, userKey):
 		user = db.Get(userKey)
-		return all([(x in user.keys() and (x=="otptimedrift" or bool(user[x]))) for x in ["otpid", "otpkey", "otptimedrift"]])
+		return all([(x in user and (x=="otptimedrift" or bool(user[x]))) for x in ["otpid", "otpkey", "otptimedrift"]])
 
 	def startProcessing(self, userKey):
 		user = db.Get(userKey)
-		if all([(x in user.keys() and user[x]) for x in ["otpid", "otpkey"]]):
+		if all([(x in user and user[x]) for x in ["otpid", "otpkey"]]):
 			logging.info( "OTP wanted for user" )
 			session.current["_otp_user"] = {	"uid": str(userKey),
 								"otpid": user["otpid"],
@@ -414,7 +415,7 @@ class TimeBasedOTP(object):
 		"""
 		def updateTransaction(userKey, idx):
 			user = db.Get(userKey)
-			if not "otptimedrift" in user.keys() or not isinstance(user["otptimedrift"],float):
+			if not "otptimedrift" in user or not isinstance(user["otptimedrift"],float):
 				user["otptimedrift"] = 0.0
 			user["otptimedrift"] += min(max(0.1*idx,-0.3),0.3)
 			db.Put(user)
@@ -556,25 +557,25 @@ class User(List):
 
 		oldSession = {k:v for k,v in session.current.items()} #Store all items in the current session
 		session.current.reset()
-		
+
 		# Copy the persistent fields over
 		for k in conf["viur.session.persistentFieldsOnLogin"]:
-			if k in oldSession.keys():
+			if k in oldSession:
 				session.current[ k ] = oldSession[ k ]
-		
+
 		del oldSession
 		session.current["user"] = {}
-		
+
 		for key in ["name", "status", "access"]:
 			try:
 				session.current["user"][key] = res[key]
 			except:
 				pass
-		
+
 		session.current["user"]["key"] = str(res.key())
-		if not "access" in session.current["user"].keys() or not session.current["user"]["access"]:
+		if not "access" in session.current["user"] or not session.current["user"]["access"]:
 			session.current["user"]["access"] = []
-			
+
 		session.current.markChanged()
 		self.onLogin()
 
@@ -591,13 +592,19 @@ class User(List):
 			raise errors.Unauthorized()
 		if not securitykey.validate(skey):
 			raise errors.PreconditionFailed()
+
+		self.onLogout(user)
+
 		oldSession = {k: v for k, v in session.current.items()}  # Store all items in the current session
 		session.current.reset()
+
 		# Copy the persistent fields over
 		for k in conf["viur.session.persistentFieldsOnLogout"]:
-			if k in oldSession.keys():
+			if k in oldSession:
 				session.current[k] = oldSession[k]
+
 		del oldSession
+
 		return self.render.logoutSuccess()
 
 	@exposed
@@ -607,6 +614,9 @@ class User(List):
 	def onLogin(self):
 		usr = self.getCurrentUser()
 		logging.info( "User logged in: %s" % usr["name"])
+
+	def onLogout(self, usr):
+		logging.info( "User logged out: %s" % usr["name"])
 
 	@exposed
 	def edit(self,  *args,  **kwargs):
@@ -624,13 +634,15 @@ class User(List):
 			user = self.getCurrentUser()
 			if user:
 				return super(User, self).view(user["key"], *args, **kwargs)
+			else:
+				raise errors.Unauthorized()
 
 		return super(User, self ).view( key, *args, **kwargs)
 
 	def canView(self, skel):
 		user = self.getCurrentUser()
 		if user:
-			if skel["key"]==user["key"]:
+			if skel["key"] == user["key"]:
 				return True
 
 			if "root" in user["access"] or "user-view" in user["access"]:

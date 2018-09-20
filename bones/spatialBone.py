@@ -120,7 +120,7 @@ class spatialBone( baseBone ):
 		logging.error( entity[name+".lat.tiles"] )
 		logging.error( entity[name+".lng.tiles"] )
 		return( entity )
-		
+
 	def unserialize( self, valuesCache, name, expando ):
 		"""
 			Inverse of serialize. Evaluates whats
@@ -132,7 +132,7 @@ class spatialBone( baseBone ):
 			:type expando: db.Entity
 			:returns: bool
 		"""
-		if not name+".lat.val" in expando.keys() or not name+".lng.val":
+		if not name+".lat.val" in expando or not name+".lng.val":
 			valuesCache[name] = None
 			return
 		valuesCache[name] = expando[name+".lat.val"], expando[name+".lng.val"]
@@ -160,7 +160,7 @@ class spatialBone( baseBone ):
 			:returns: The modified :class:`server.db.Query`
 		"""
 		assert prefix is None, "You cannot use spatial data in a relation for now"
-		if name+".lat" in rawFilter.keys() and name+".lng" in rawFilter.keys():
+		if name+".lat" in rawFilter and name+".lng" in rawFilter:
 			try:
 				lat = float(rawFilter[name+".lat"])
 				lng = float(rawFilter[name+".lng"])

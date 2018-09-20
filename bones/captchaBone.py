@@ -8,14 +8,14 @@ import json
 
 class captchaBone( bone.baseBone ):
 	type = "captcha"
-	
+
 	def __init__(self, publicKey=None, privateKey=None, *args,  **kwargs ):
 		bone.baseBone.__init__(self,  *args,  **kwargs )
 		self.defaultValue = self.publicKey = publicKey
 		self.privateKey = privateKey
 		self.required = True
 		self.hasDBField = False
-	
+
 	def serialize(self, valuesCache, name, entity ):
 		return entity
 
@@ -31,7 +31,7 @@ class captchaBone( bone.baseBone ):
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
-			
+
 			:param name: Our name in the skeleton
 			:type name: String
 			:param data: *User-supplied* request-data
@@ -45,11 +45,11 @@ class captchaBone( bone.baseBone ):
 			return None
 		if not "g-recaptcha-response" in data:
 			return u"No Captcha given!"
-		data = { 	"secret": self.privateKey,
+		data = {"secret": self.privateKey,
 				"remoteip": request.current.get().request.remote_addr,
 				"response": data["g-recaptcha-response"]
 			}
-		response = urlfetch.fetch(	url="https://www.google.com/recaptcha/api/siteverify",
+		response = urlfetch.fetch(url="https://www.google.com/recaptcha/api/siteverify",
 						payload=urllib.urlencode( data ),
 						method=urlfetch.POST,
 						headers={"Content-Type": "application/x-www-form-urlencoded"} )

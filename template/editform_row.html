@@ -1,0 +1,14 @@
+{% if boneParams.visible %}
+    <div class="inputGroup ignt-bone">
+        <label
+            class="label ignt-label
+            {{ "is-required" if boneParams.required }}
+            {{ "is-invalid" if boneWasInvalid }}">
+			{{ boneParams.descr }}
+		</label>
+
+        {{ editWidget }}
+    </div>
+{% else %}
+    {{ editWidget }}
+{% endif %}

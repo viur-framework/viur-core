@@ -3,7 +3,7 @@ from server import db, utils, errors, session, conf, securitykey
 from server import forcePost, forceSSL, exposed, internalExposed
 
 from server.prototypes import BasicApplication
-from server.bones import baseBone, numericBone
+from server.bones import baseBone, keyBone, numericBone
 from server.skeleton import Skeleton, skeletonByKind
 from server.tasks import callDeferred
 
@@ -11,9 +11,9 @@ from datetime import datetime
 import logging
 
 class TreeLeafSkel( Skeleton ):
-	parentdir = baseBone( descr="Parent", visible=False, indexed=True, readOnly=True )
-	parentrepo = baseBone( descr="BaseRepo", visible=False, indexed=True, readOnly=True )
-	
+	parentdir = keyBone(descr="Parent", indexed=True)
+	parentrepo = keyBone(descr="BaseRepo", indexed=True)
+
 	def fromDB( self, *args, **kwargs ):
 		res = super( TreeLeafSkel, self ).fromDB( *args, **kwargs )
 
@@ -24,10 +24,10 @@ class TreeLeafSkel( Skeleton ):
 			except:
 				return res
 
-			if not "parentdir" in dbObj.keys(): #RootNode
+			if not "parentdir" in dbObj: #RootNode
 				return res
 
-			while( "parentdir" in dbObj.keys() and dbObj["parentdir"] ):
+			while( "parentdir" in dbObj and dbObj["parentdir"] ):
 				try:
 					dbObj = db.Get( dbObj[ "parentdir" ] )
 				except:
@@ -37,13 +37,6 @@ class TreeLeafSkel( Skeleton ):
 			self.toDB()
 
 		return res
-
-	def refresh(self):
-		if self["parentdir"]:
-			self["parentdir"] = utils.normalizeKey(self["parentdir"])
-		if self["parentrepo"]:
-			self["parentrepo"] = utils.normalizeKey(self["parentrepo"])
-		super( TreeLeafSkel, self ).refresh()
 
 class TreeNodeSkel( TreeLeafSkel ):
 	pass
@@ -116,7 +109,7 @@ class Tree(BasicApplication):
 			count += 1
 
 		return count
-	
+
 	@callDeferred
 	def updateParentRepo( self, parentNode, newRepoKey, depth=0 ):
 		"""
@@ -225,9 +218,9 @@ class Tree(BasicApplication):
 		:returns: :class:`server.db.Entity`
 		"""
 		repo = db.Get( subRepo )
-		if "parentrepo" in repo.keys():
+		if "parentrepo" in repo:
 			return db.Get( repo["parentrepo"] )
-		elif "rootNode" in repo.keys() and str(repo["rootNode"])=="1":
+		elif "rootNode" in repo and str(repo["rootNode"])=="1":
 			return repo
 
 		return None
@@ -306,7 +299,7 @@ class Tree(BasicApplication):
 
 		query = skel.all()
 
-		if "search" in kwargs.keys() and kwargs["search"]:
+		if "search" in kwargs and kwargs["search"]:
 			query.filter( "parentrepo =", str(nodeSkel["key"]) )
 		else:
 			query.filter( "parentdir =", str(nodeSkel["key"]) )
@@ -344,18 +337,21 @@ class Tree(BasicApplication):
 			skel = self.viewLeafSkel()
 		else:
 			raise errors.NotAcceptable()
-
 		if skel is None:
 			raise errors.NotAcceptable()
 		if not len(key):
 			raise errors.NotAcceptable()
-		if not skel.fromDB( key ):
-			raise errors.NotFound()
-
-		if not self.canView( skelType, skel ):
-			raise errors.Unauthorized()
-
-		self.onItemViewed( skel )
+		if key == u"structure":
+			# We dump just the structure of that skeleton, including it's default values
+			if not self.canView(skelType, None):
+				raise errors.Unauthorized()
+		else:
+			# We return a single entry for viewing
+			if not skel.fromDB( key ):
+				raise errors.NotFound()
+			if not self.canView( skelType, skel ):
+				raise errors.Unauthorized()
+			self.onItemViewed( skel )
 		return self.render.view( skel )
 
 	@exposed
@@ -405,7 +401,7 @@ class Tree(BasicApplication):
 		    or skey == "" # no security key
 			#or not request.current.get().isPostRequest fixme: POST-method check missing? # failure if not using POST-method
 		    or not skel.fromClient( kwargs ) # failure on reading into the bones
-		    or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1") # review before adding
+		    or ("bounce" in kwargs and kwargs["bounce"]=="1") # review before adding
 		    ):
 			return self.render.add( skel )
 
@@ -460,7 +456,7 @@ class Tree(BasicApplication):
 		    or skey == ""  # no security key
 			#or not request.current.get().isPostRequest fixme: POST-method check missing?  # failure if not using POST-method
 		    or not skel.fromClient( kwargs ) # failure on reading into the bones
-		    or ("bounce" in list(kwargs.keys()) and kwargs["bounce"]=="1") # review before adding
+		    or ("bounce" in kwargs and kwargs["bounce"]=="1") # review before adding
 		    ):
 			return self.render.edit( skel )
 
@@ -572,7 +568,7 @@ class Tree(BasicApplication):
 		for x in range(0,99):
 			if str(currLevel.key())==key:
 				break
-			if "rootNode" in currLevel.keys() and currLevel["rootNode"]==1:
+			if "rootNode" in currLevel and currLevel["rootNode"]==1:
 				#We reached a rootNode
 				isValid=True
 				break
@@ -584,7 +580,7 @@ class Tree(BasicApplication):
 		#Test if key points to a rootNone
 		tmp = db.Get( key )
 
-		if "rootNode" in tmp.keys() and tmp["rootNode"]==1:
+		if "rootNode" in tmp and tmp["rootNode"]==1:
 			#Cant move a rootNode away..
 			raise errors.NotAcceptable()
 
@@ -602,7 +598,7 @@ class Tree(BasicApplication):
 
 		return self.render.editItemSuccess(srcSkel, skelType=skelType, action="move", destNode = destSkel )
 
-## Default accesscontrol functions 
+## Default accesscontrol functions
 
 	def canList( self, skelType, node ):
 		"""
@@ -638,7 +634,7 @@ class Tree(BasicApplication):
 			return True
 
 		return False
-		
+
 	def canView( self, skelType, skel ):
 		"""
 		Access control function for viewing permission.
@@ -650,6 +646,9 @@ class Tree(BasicApplication):
 		- If the user has "root" access, viewing is generally allowed.
 		- If the user has the modules "view" permission (module-view) enabled, viewing is allowed.
 
+		If skel is None, it's a check if the current user is allowed to retrieve the skeleton structure
+		from this module (ie. there is or could be at least one entry that is visible to that user)
+
 		It should be overridden for a module-specific behavior.
 
 		.. seealso:: :func:`view`
@@ -657,7 +656,7 @@ class Tree(BasicApplication):
 		:param skelType: Defines the type of node.
 		:type skelType: str
 		:param skel: The Skeleton that should be viewed.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`server.skeleton.Skeleton` | None
 
 		:returns: True, if viewing is allowed, False otherwise.
 		:rtype: bool
@@ -673,7 +672,7 @@ class Tree(BasicApplication):
 			return True
 
 		return False
-		
+
 	def canAdd( self, skelType, node ):
 		"""
 		Access control function for adding permission.
@@ -708,7 +707,7 @@ class Tree(BasicApplication):
 			return True
 
 		return False
-		
+
 	def canEdit( self, skelType, skel ):
 		"""
 		Access control function for modification permission.
@@ -743,7 +742,7 @@ class Tree(BasicApplication):
 			return True
 
 		return False
-		
+
 	def canDelete( self, skelType, skel ):
 		"""
 		Access control function for delete permission.
@@ -833,7 +832,7 @@ class Tree(BasicApplication):
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
-	
+
 	def onItemEdited( self, skel ):
 		"""
 		Hook function that is called after modifying an entry.
@@ -850,7 +849,7 @@ class Tree(BasicApplication):
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
-		
+
 	def onItemViewed( self, skel ):
 		"""
 		Hook function that is called when viewing an entry.
@@ -864,7 +863,7 @@ class Tree(BasicApplication):
 		.. seealso:: :func:`view`
 		"""
 		pass
-	
+
 
 	def onItemDeleted( self, skel ):
 		"""

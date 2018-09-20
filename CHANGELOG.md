@@ -1,7 +1,70 @@
-# Changelog for the ViUR Server (https://github.com/viur-framework/server)
+# Changelog
+
+This file documents any relevant changes done to ViUR server since version 2.
+
+## [2.2.0 Etna] - 2018-04-23
+
+### Added
+- A new Rate-Limit module that can be used to prevent DoS / Brute-Force on certain resources.
+- New keyBone() class introduced for a better distinction between bones containing an entity key and those which don't.
+
+### Changed
+- Return descriptions in selectBones translated from our json render
+- More descriptive error messages returned from password bone
+- The new "params" Parameter introduced in 2.1.0 should now always have a default value (None)
+- *[Breaking]*: Merged *selectOneBone* and *selectMultiBone* into a single *selectBone* which supports the multiple flag,
+  the previous bone names are still supported and cause a deprecation warning in the logs.
+
+### Fixed
+- v2.2.1: Fixed bug in baseBone.buildDBFilter() relating to lt/gt/lk operators
+- Resolving the name of skeletons in prototypes/hierarchy when used on multi-lang bones
+- Unserializing of booleanBones failed if the database contained a unicode string
+- Several errors caused by None returned from getSearchDocumentFields / getSearchTags
+- Exception causing ``toDB()`` to fail if a bone should be serialized which isn't in the valuesCache object. Fixes #7.
+- Prevent text/string Bones from restoring old (non-multilang data) if set back to empty values. Fixes #6.
+- Use urlsafe_b64decode for filename decoding (used by some old IE on WinXP). Fixes #38.
+- Prevent skeleton from the server to take precedence over the ones defined in the application.
+- The indexed-flag had been ignored on edit - causing all fields to be indexed. Fixes #34.
 
 
-## [Unreleased]
+## [2.1.0] - 2017-10-25
+
+### Added
+ - New edit form templates following the ViUR ignite standard
+ - Pass the error description of HTTPException to the underlying webob framework
+ - ignore/hide parameter to our renderEditForm jinja2 function
+ - New parameter "params" to explicitly pass additional values to the template / json response
+ - Retrieving the viewSkel Structure by calling modulePath/view/structure
+ - \_\_iter\_\_ function to skeletons
+ - embedSvg function to html render
+ - onLogout hook to the user module
+ - Expose the unique property in skel-structures in json render
+ - viur.emailHandler config variable for easy integration of 3rd party email services
+
+### Changed
+ - Pre-translate the descriptions of selectOne/selectMulti bones in add or edit calls (as done in views)
+ - Listing and calling user-callable tasks is now also possible for the vi render
+ - Internally switched to more efficient membership tests for dicts
+ - userBones with creation- or update-magic set are not forced to be invisible anymore
+ - Don't set skel["key"] to None if skel.delete() is called
+ - Relational bones can now include properties from ref-/rel-skel bones in search indexes
+ - Setting update- or creation-magic on userBones don't force them to be invisible anymore
+ - *[Breaking]* Internal representation of relations are now dicts, not instances of Ref- or Rel-Skels
+
+### Fixed
+ - handle ValueError in int() or float() in numericBone:buildDbFilter
+ - serializing a textBone failing in getSearchDocumentFields if valuesCache[name] is None
+ - Correctly handle None values in numericBones getSearchDocumentFields()
+ - Added missing imports to dbtransfer.py
+ - Several issues with writing search api indexes for relationalBones
+ - Usage of old Skeleton-API in orders module
+ - Users without access to the vi/admin render couldn't logout using these renders
+ - Call setSystemInitialized on all skeletons (not only skels having kindName set)
+ - Type-mismatch in html-render causing errors if a RelSkel is present
+ - Parsing dates containing non-unicode characters
+
+### Removed
+ - *[Breaking]* "key"-Parameter from skeleton.setValues()
 
 
 ## [2.0.3] - 2017-08-30
@@ -38,7 +101,7 @@
 ## [2.0.1] - 2017-01-04
 
 ### Added
- - IDs of entries tranferred with dbtransfer are now marked as in-use inside the datastore
+ - IDs of entries transferred with dbtransfer are now marked as in-use inside the datastore
  - conf["viur.cacheEnvironmentKey"] can now raise RuntimeError to indicate that this request cannot be cached
  - Added the render attribute to BasicApplications
 

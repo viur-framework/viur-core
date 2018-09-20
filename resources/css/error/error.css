@@ -55,7 +55,7 @@ a:active {text-decoration: none; color: #cc0000;}
 .clear {clear: both;display: block;overflow: hidden;visibility: hidden;width: 0;height: 0;}
 
 .logo {position: relative;
-       background: url(/ressources/meta/viur-logo-error.png);
+       background: url(/resources/meta/viur-logo-error.png);
        width: 140px;
        height: 150px;
        top: -3px;

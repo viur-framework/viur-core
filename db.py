@@ -84,11 +84,11 @@ def Put( entities, **kwargs ):
 				if entity.is_saved(): #Its an update
 					memcache.delete( str( entity.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
 	return( datastore.Put( entities, **kwargs ) )
-	
+
 def GetAsync( keys, **kwargs ):
 	"""
 		Asynchronously retrieves one or more entities from the data store.
-		
+
 		This function is identical to :func:`server.db.Get`, except that it
 		returns an asynchronous object. Call ``get_result()`` on the return value to
 		block on the call and get the results.
@@ -100,7 +100,7 @@ def GetAsync( keys, **kwargs ):
 		"""
 		def __init__( self, res ):
 			self.res = res
-		
+
 		def get_result( self ):
 			return( self.res )
 	if conf["viur.db.caching" ]>0 and not datastore.IsInTransaction():
@@ -111,7 +111,7 @@ def GetAsync( keys, **kwargs ):
 	#Either the result wasnt found, or we got a list of keys to fetch;
 	# --> no caching possible
 	return( datastore.GetAsync( keys, **kwargs ) )
-	
+
 def Get( keys, **kwargs ):
 	"""
 		Retrieve one or more entities from the data store.
@@ -157,7 +157,7 @@ def Get( keys, **kwargs ):
 				keyList = keyList[__MemCacheBatchSize__:]
 				cacheRes.update( memcache.get_multi( currentBatch, namespace=__CacheKeyPrefix__) )
 			#Fetch the rest from DB
-			missigKeys = [ x for x in keys if not str(x) in cacheRes.keys() ]
+			missigKeys = [ x for x in keys if not str(x) in cacheRes ]
 			dbRes = [ Entity.FromDatastoreEntity(x) for x in datastore.Get( missigKeys ) if x is not None ]
 			# Cache what we had fetched
 			saveIdx = 0
@@ -169,7 +169,7 @@ def Get( keys, **kwargs ):
 					pass
 				saveIdx += 1
 			for key in [ str(x) for x in keys ]:
-				if key in cacheRes.keys():
+				if key in cacheRes:
 					tmpRes.append( cacheRes[ key ] )
 				else:
 					for e in dbRes:
@@ -243,7 +243,7 @@ def DeleteAsync(keys, **kwargs):
 				assert isinstance( key, datastore_types.Key ) or isinstance( key, basestring )
 				memcache.delete( str( key ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
 	return( datastore.DeleteAsync( keys, **kwargs ) )
-	
+
 def Delete(keys, **kwargs):
 	"""
 		Deletes one or more entities from the data store.
@@ -278,7 +278,7 @@ class Query( object ):
 		Thin wrapper around datastore.Query to provide a consistent
 		(camelCase) API.
 	"""
-	
+
 	def __init__(self, kind, srcSkelClass=None, *args, **kwargs ):
 		super( Query, self ).__init__( )
 		self.datastoreQuery = datastore.Query( kind, *args, **kwargs )
@@ -336,7 +336,7 @@ class Query( object ):
 			Its safe to pass filters received from an external source (a user);
 			unknown/invalid filters will be ignored, so the query-object is kept in a
 			valid state even when processing malformed data.
-			
+
 			If complex queries are needed (e.g. filter by relations), this function
 			shall also be used.
 
@@ -349,7 +349,7 @@ class Query( object ):
 			:rtype: server.db.Query
 		"""
 		from server.bones import baseBone, relationalBone
-		if "id" in filters.keys():
+		if "id" in filters:
 			self.datastoreQuery = None
 			logging.error("Filtering by id is no longer supported. Use key instead.")
 			return self
@@ -358,7 +358,7 @@ class Query( object ):
 		if self.datastoreQuery is None: #This query is allready unsatifiable and adding more constrains to this wont change this
 			return( self )
 		skel = self.srcSkel
-		if skel.searchIndex and "search" in filters.keys(): #We perform a Search via Google API - all other parameters are ignored
+		if skel.searchIndex and "search" in filters: #We perform a Search via Google API - all other parameters are ignored
 			try:
 				searchRes = search.Index( name=skel.searchIndex ).search( query=search.Query( query_string=filters["search"], options=search.QueryOptions( limit=25 ) ) )
 			except search.QueryError: #We cant parse the query, treat it as verbatim
@@ -392,11 +392,11 @@ class Query( object ):
 			logging.exception(e)
 			self.datastoreQuery = None
 			return( self )
-		if "search" in filters.keys():
+		if "search" in filters:
 			if isinstance( filters["search"], list ):
 				taglist = [ "".join([y for y in unicode(x).lower() if y in conf["viur.searchValidChars"] ] ) for x in filters["search"] ]
 			else:
-				taglist = [ "".join([y for y in unicode(x).lower() if y in conf["viur.searchValidChars"] ]) for x in unicode(filters["search"]).split(" ")] 
+				taglist = [ "".join([y for y in unicode(x).lower() if y in conf["viur.searchValidChars"] ]) for x in unicode(filters["search"]).split(" ")]
 			assert not isinstance( self.datastoreQuery, datastore.MultiQuery ), "Searching using viur-tags is not possible on a query that already uses an IN-filter!"
 			origFilter = self.datastoreQuery
 			queries = []
@@ -407,14 +407,14 @@ class Query( object ):
 			self.datastoreQuery = datastore.MultiQuery( queries, origFilter.__orderings )
 			for k, v in origFilter.items():
 				self.datastoreQuery[ k ] = v
-		if "cursor" in filters.keys() and filters["cursor"] and filters["cursor"].lower()!="none":
+		if "cursor" in filters and filters["cursor"] and filters["cursor"].lower()!="none":
 			self.cursor( filters["cursor"] )
-		if "amount" in list(filters.keys()) and str(filters["amount"]).isdigit() and int( filters["amount"] ) >0 and int( filters["amount"] ) <= 100:
+		if "amount" in filters and str(filters["amount"]).isdigit() and int( filters["amount"] ) >0 and int( filters["amount"] ) <= 100:
 			self.limit( int(filters["amount"]) )
 		if "postProcessSearchFilter" in dir( skel ):
 			skel.postProcessSearchFilter( self, filters )
 		return( self )
-	
+
 	def filter(self, filter, value=None ):
 		"""
 			Adds a filter to this query. #fixme: Better description required here...
@@ -451,6 +451,11 @@ class Query( object ):
 				# no need for us to do anything
 				return( self )
 			filter, value = r
+
+		# Cast keys into string
+		if filter != datastore_types.KEY_SPECIAL_PROPERTY and isinstance(value, datastore_types.Key):
+			value = str(value)
+
 		if value!=None and (filter.endswith(" !=") or filter.lower().endswith(" in")):
 			if isinstance( self.datastoreQuery, datastore.MultiQuery ):
 				raise NotImplementedError("You cannot use multiple IN or != filter")
@@ -479,7 +484,7 @@ class Query( object ):
 		else:
 			raise NotImplementedError("Incorrect call to query.filter()!")
 		return( self )
-	
+
 	def order(self, *orderings):
 		"""
 			Specify a query sorting.
@@ -568,7 +573,7 @@ class Query( object ):
 		"""
 		self.datastoreQuery.Ancestor( ancestor )
 		return( self )
-	
+
 	def cursor( self, cursor, endCursor=None ):
 		"""
 			Sets the start cursor for this query.
@@ -600,14 +605,14 @@ class Query( object ):
 				raise ValueError("endCursor must be String, datastore_query.Cursor or None")
 
 		qo = self.datastoreQuery.__query_options
-		self.datastoreQuery.__query_options = datastore_query.QueryOptions(	keys_only=qo.keys_only, 
+		self.datastoreQuery.__query_options = datastore_query.QueryOptions(	keys_only=qo.keys_only,
 											produce_cursors=qo.produce_cursors,
 											start_cursor=cursor,
 											end_cursor=endCursor or qo.end_cursor,
 											projection=qo.projection )
 		self._origCursor = cursor
 		return( self )
-	
+
 	def limit( self, amount ):
 		"""
 			Sets the query limit to *amount* entities in the result.
@@ -622,7 +627,7 @@ class Query( object ):
 		"""
 		self.amount = amount
 		return self
-	
+
 	def isKeysOnly(self):
 		"""
 			Returns True if this query is configured as *keys only*, False otherwise.
@@ -658,7 +663,7 @@ class Query( object ):
 			return( None )
 
 		return( self.datastoreQuery.GetOrder() )
-	
+
 	def getFilter(self):
 		"""
 			Returns the filters applied to the current query as dictionary.
@@ -674,7 +679,7 @@ class Query( object ):
 				res.append( { k:v for (k, v) in qry.items() } )
 			return res
 		return( { k:v for (k, v) in self.datastoreQuery.items() } )
-	
+
 	def getOrders(self):
 		"""
 			Returns a list of orders applied to this query.
@@ -735,7 +740,7 @@ class Query( object ):
 		if self.datastoreQuery is None:
 			return
 		self.datastoreQuery.__kind = newKind
-		
+
 	def getAncestor(self):
 		"""
 			Returns the ancestor of this query (if any).
@@ -821,7 +826,7 @@ class Query( object ):
 				#Fixing the kind - it has been changed (probably by quering an relation)
 				res = [ x.parent() for x in res ]
 			return( Get( res ) )
-	
+
 	def fetch(self, limit=-1, **kwargs ):
 		"""
 			Run this query and fetch results as :class:`server.skeleton.SkelList`.
@@ -858,7 +863,7 @@ class Query( object ):
 			#s = self.srcSkel.clone()
 			valueCache = {}
 			self.srcSkel.setValuesCache(valueCache)
-			self.srcSkel.setValues( e, key=e.key() )
+			self.srcSkel.setValues(e)
 			res.append( self.srcSkel.getValuesCache() )
 		try:
 			c = self.datastoreQuery.GetCursor()
@@ -869,7 +874,7 @@ class Query( object ):
 		except AssertionError: #No Cursors avaiable on MultiQueries ( in or != )
 			res.cursor = None
 		return( res )
-	
+
 	def iter(self, keysOnly=False):
 		"""
 			Run this query and return an iterator for the results.
@@ -881,11 +886,11 @@ class Query( object ):
 			The disadvantage is, that is supports no caching yet.
 
 			This function intentionally ignores a limit set by :func:`server.db.Query.limit`.
-			
+
 			:warning: If iterating over a large result set, make sure the query supports cursors. \
 			Otherwise, it might not return all results as the AppEngine doesn't maintain the view \
 			for a query for more than ~30 seconds.
-			
+
 			:param keysOnly: If the query should be used to retrieve entity keys only.
 			:type keysOnly: bool
 		"""
@@ -900,7 +905,7 @@ class Query( object ):
 			lastCursor = None
 			while not stopYield:
 				try:
-					for res in self.datastoreQuery.Run( keys_only=keysOnly ): 
+					for res in self.datastoreQuery.Run( keys_only=keysOnly ):
 						yield res
 						try:
 							lastCursor = self.datastoreQuery.GetCursor()
@@ -918,7 +923,7 @@ class Query( object ):
 						q.cursor( lastCursor )
 						self.datastoreQuery = q.datastoreQuery
 						lastCursor = None
-	
+
 	def get( self ):
 		"""
 			Returns only the first entity of the current query.
@@ -933,7 +938,7 @@ class Query( object ):
 			return( None )
 		except TypeError: #Also Empty result-set
 			return( None )
-	
+
 	def getSkel( self ):
 		"""
 			Returns a matching :class:`server.db.skeleton.Skeleton` instance for the
@@ -941,7 +946,7 @@ class Query( object ):
 
 			Its only possible to use this function if this query has been created using
 			:func:`server.skeleton.Skeleton.all`.
-			
+
 			:returns: The Skeleton or None if the result-set is empty.
 			:rtype: :class:`server.skeleton.Skeleton`
 		"""
@@ -951,9 +956,9 @@ class Query( object ):
 		if res is None:
 			return( None )
 		#s = self.srcSkel.clone()
-		self.srcSkel.setValues( res, key=res.key() )
+		self.srcSkel.setValues(res)
 		return self.srcSkel
-	
+
 	def count( self, limit=1000, **kwargs ):
 		"""
 			Returns the number of entities that this query matches.
@@ -971,7 +976,7 @@ class Query( object ):
 			:rtype: int
 			"""
 		return( self.datastoreQuery.Count( limit, **kwargs ) )
-	
+
 	def clone(self, keysOnly=None):
 		"""
 			Returns a deep copy of the current query.
@@ -1024,7 +1029,7 @@ class Entity( datastore.Entity ):
 			:rtype: bool
 		"""
 		return( self.is_saved() )
-	
+
 	def entityGroup(self):
 		"""
 			Returns this entity's entity group as a Key.
@@ -1039,7 +1044,7 @@ class Entity( datastore.Entity ):
 			Returns this entity's unindexed properties, as a frozen set of strings.
 		"""
 		return( self.unindexed_properties() )
-	
+
 	def setUnindexedProperties(self, unindexed_properties):
 		"""
 			Sets the list of unindexed properties.
@@ -1070,8 +1075,8 @@ class Entity( datastore.Entity ):
 			if len( value ) == 0:
 				value = None
 		super( Entity, self ).__setitem__( name, value )
-	
-	def set( self, key, value, indexed=True ):
+
+	def set(self, key, value, indexed=True):
 		"""
 			Sets a property.
 
@@ -1086,11 +1091,16 @@ class Entity( datastore.Entity ):
 			empty string or not a string.
 			:raises: :exc:`BadValueError` if the value is not a supported type.
 		"""
-		if not indexed:
-			unindexed = list( self.getUnindexedProperties() )
-			if not key in unindexed:
-				self.setUnindexedProperties( unindexed+[key] )
-		self[ key ] = value
+		unindexed = list(self.getUnindexedProperties())
+
+		if not indexed and not key in unindexed:
+			unindexed.append(key)
+			self.setUnindexedProperties(unindexed)
+		elif indexed and key in unindexed:
+			unindexed.remove(key)
+			self.setUnindexedProperties(unindexed)
+
+		self[key] = value
 
 	@staticmethod
 	def FromDatastoreEntity( entity ):
@@ -1148,6 +1158,6 @@ ASCENDING = datastore_query.PropertyOrder.ASCENDING
 DESCENDING = datastore_query.PropertyOrder.DESCENDING
 
 __all__ = [	PutAsync, Put, GetAsync, Get, DeleteAsync, Delete, AllocateIdsAsync, AllocateIds, RunInTransaction, RunInTransactionCustomRetries, RunInTransactionOptions, TransactionOptions,
-		Error, BadValueError, BadPropertyError, BadRequestError, EntityNotFoundError, BadArgumentError, QueryNotFoundError, TransactionNotFoundError, Rollback, 
+		Error, BadValueError, BadPropertyError, BadRequestError, EntityNotFoundError, BadArgumentError, QueryNotFoundError, TransactionNotFoundError, Rollback,
 		TransactionFailedError, BadFilterError, BadQueryError, BadKeyError, BadKeyError, InternalError, NeedIndexError, ReferencePropertyResolveError, Timeout,
 		CommittedButStillApplying, Entity, Query, DatastoreQuery, MultiQuery, Cursor, KEY_SPECIAL_PROPERTY, ASCENDING, DESCENDING, IsInTransaction ]
