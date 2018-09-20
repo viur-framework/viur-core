@@ -365,7 +365,7 @@ class stringBone( baseBone ):
 		"""
 		res = []
 		if self.languages:
-			if valuesCache[name] is not None:
+			if valuesCache.get(name) is not None:
 				for lang in self.languages:
 					if lang in valuesCache[name]:
 						res.append(search.TextField(name=prefix + name, value=unicode(valuesCache[name][lang]), language=lang))
