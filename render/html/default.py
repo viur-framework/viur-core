@@ -255,6 +255,10 @@ class Render( object ):
 				"languages": bone.languages,
 				"multiple": bone.multiple
 			})
+		elif bone.type == "captcha" or bone.type.startswith("captcha."):
+			ret.update({
+				"publicKey": bone.publicKey,
+			})
 
 		return ret
 
