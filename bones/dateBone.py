@@ -234,7 +234,7 @@ class dateBone( baseBone ):
 			if not self.time:
 				res = res.replace(hour=0, minute=0, second=0, microsecond=0)
 			elif not self.date:
-				res = res.replace(year=0, month=0, day=0)
+				res = res.replace(year=1970, month=1, day=1)
 
 		entity.set( name, res, self.indexed )
 		return entity
