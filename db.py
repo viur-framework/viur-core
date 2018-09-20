@@ -363,8 +363,11 @@ class Query( object ):
 			try:
 				searchRes = search.Index( name=skel.searchIndex ).search( query=search.Query( query_string=filters["search"], options=search.QueryOptions( limit=25 ) ) )
 			except search.QueryError: #We cant parse the query, treat it as verbatim
-				qstr="\"%s\"" % filters["search"].replace("\"","")
-				searchRes = search.Index( name=skel.searchIndex ).search( query=search.Query( query_string=qstr, options=search.QueryOptions( limit=25 ) ) )
+				qstr = u"\"%s\"" % filters["search"].replace(u"\"",u"")
+				try:
+					searchRes = search.Index(name=skel.searchIndex).search(query=search.Query(query_string=qstr, options=search.QueryOptions(limit=25)))
+				except search.QueryError:  # Still cant parse it
+					searchRes = []
 			tmpRes = [ datastore_types.Key( encoded=x.doc_id[ 2: ] ) for x in searchRes ]
 			if tmpRes:
 				filters = []
