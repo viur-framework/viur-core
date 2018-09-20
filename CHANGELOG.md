@@ -2,6 +2,33 @@
 
 This file documents any relevant changes done to ViUR server since version 2.
 
+## [2.2.1] - (tba)
+
+### Added
+- A generic redirect function from Jinja templates
+
+### Changed
+- Upgraded captchaBone to recaptcha v2
+- uid bone of userSkeleton is not required anymore
+- Allow usage of None as value in Query().filter(), which is a valid type in datastore
+
+
+### Fixed
+- Filtering by dateBones with either date=False or time=False
+- Importing entities from pre 2.0 ViUR instances
+- Call doCleanupDeletedFiles and doDeleteWeakReferences deferred
+- Void unparsable search queries instead of raising an exception
+- Correctly handle an unset property in stringBone:getSearchDocumentFields
+- Correctly log the exception caught when raising an 500 Server-Error due to an unhandled exception in the code
+- Basic Syntax-Fixes for spatialBone
+- Prevent two words from being stuffed together if we remove an invalid html tag in textBone
+- Correctly remove an property from the unindexed_property list if the bone changes to indexed
+- Sorting in relational queries
+- Incorrect path to the viur logo in errro.css
+- Adapted default templates to work with the selectBone introduced in 2.2.0
+- baseBone.buildDBFilter() incorrectly handling lt/gt/lk operators
+
+
 ## [2.2.0 Etna] - 2018-04-23
 
 ### Added
@@ -16,7 +43,6 @@ This file documents any relevant changes done to ViUR server since version 2.
   the previous bone names are still supported and cause a deprecation warning in the logs.
 
 ### Fixed
-- v2.2.1: Fixed bug in baseBone.buildDBFilter() relating to lt/gt/lk operators
 - Resolving the name of skeletons in prototypes/hierarchy when used on multi-lang bones
 - Unserializing of booleanBones failed if the database contained a unicode string
 - Several errors caused by None returned from getSearchDocumentFields / getSearchTags
