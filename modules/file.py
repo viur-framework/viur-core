@@ -429,6 +429,7 @@ def startCleanupDeletedFiles():
 	doCleanupDeletedFiles()
 
 
+@callDeferred
 def doCleanupDeletedFiles(cursor = None):
 	maxIterCount = 2  # How often a file will be checked for deletion
 	gotAtLeastOne = False
@@ -466,6 +467,7 @@ def startDeleteWeakReferences():
 	doDeleteWeakReferences((datetime.now() - timedelta(days = 1)).strftime("%d.%m.%Y %H:%M:%S"), None)
 
 
+@callDeferred
 def doDeleteWeakReferences(timeStamp, cursor):
 	skelCls = skeletonByKind("file")
 	gotAtLeastOne = False

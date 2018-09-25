@@ -208,6 +208,8 @@ class DbTransfer( object ):
 		if not self._checkKey( key, export=False):
 			raise errors.Forbidden()
 		entry = pickle.loads( e.decode("HEX") )
+		if not "key" in entry and "id" in entry:
+			entry["key"] = entry["id"]
 		for k in list(entry.keys())[:]:
 			if isinstance(entry[k],str):
 				entry[k] = entry[k].decode("UTF-8")
@@ -221,7 +223,10 @@ class DbTransfer( object ):
 			if k!="key":
 				val = entry[k]
 				dbEntry[k] = val
-		db.Put( dbEntry )
+		db.Put(dbEntry)
+		if dbEntry.key().id():
+			# Ensure the Datastore knows that it's id is in use
+			datastore._GetConnection()._reserve_keys([dbEntry.key()])
 		try:
 			skel =  skeletonByKind( key.kind() )()
 		except:

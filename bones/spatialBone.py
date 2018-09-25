@@ -54,11 +54,11 @@ class spatialBone( baseBone ):
 			:param gridDimensions: Number of sub-regions the map will be divided in
 			:type gridDimensions: (int, int)
 		"""
-		baseBone.__init__( self, indexed, *args,  **kwargs )
+		baseBone.__init__( self, *args, indexed=indexed, **kwargs )
 		assert indexed, "spatialBone must be indexed! You want to search using it - don't you?"
-		assert isinstance(boundsLat, tuple) and len(boundsLat, 2), "boundsLat must be a tuple of (int, int)"
-		assert isinstance(boundsLng, tuple) and len(boundsLng, 2), "boundsLng must be a tuple of (int, int)"
-		assert isinstance(gridDimensions, tuple) and len(gridDimensions, 2), "gridDimensions must be a tuple of (int, int)"
+		assert isinstance(boundsLat, tuple) and len(boundsLat) == 2, "boundsLat must be a tuple of (int, int)"
+		assert isinstance(boundsLng, tuple) and len(boundsLng) == 2, "boundsLng must be a tuple of (int, int)"
+		assert isinstance(gridDimensions, tuple) and len(gridDimensions) == 2, "gridDimensions must be a tuple of (int, int)"
 		self.boundsLat = boundsLat
 		self.boundsLng = boundsLng
 		self.gridDimensions = gridDimensions
