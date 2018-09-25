@@ -2,7 +2,11 @@
 
 This file documents any relevant changes done to ViUR server since version 2.
 
-## [2.2.1] - (tba)
+## Unreleased
+
+
+
+## [2.2.1] - 2018-09-26
 
 ### Added
 - A generic redirect function from Jinja templates
@@ -12,8 +16,8 @@ This file documents any relevant changes done to ViUR server since version 2.
 - uid bone of userSkeleton is not required anymore
 - Allow usage of None as value in Query().filter(), which is a valid type in datastore
 
-
 ### Fixed
+- Saving skeletons containing a randomSliceBone due to signature mismatch in randomSliceBone:serialize()
 - Filtering by dateBones with either date=False or time=False
 - Importing entities from pre 2.0 ViUR instances
 - Call doCleanupDeletedFiles and doDeleteWeakReferences deferred
@@ -24,7 +28,7 @@ This file documents any relevant changes done to ViUR server since version 2.
 - Prevent two words from being stuffed together if we remove an invalid html tag in textBone
 - Correctly remove an property from the unindexed_property list if the bone changes to indexed
 - Sorting in relational queries
-- Incorrect path to the viur logo in errro.css
+- Incorrect path to the ViUR logo in error.css
 - Adapted default templates to work with the selectBone introduced in 2.2.0
 - baseBone.buildDBFilter() incorrectly handling lt/gt/lk operators
 
