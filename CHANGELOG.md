@@ -2,6 +2,16 @@
 
 This file documents any relevant changes done to ViUR server since version 2.
 
+## [2.3.0 Kilauea] - Unreleased
+
+### Added
+
+### Changed
+
+### Fixed
+- Replacing dateBone components by zero-values in case ``dateBone(date=False)`` or ``dateBone(time=False)`` is configured
+
+
 ## [2.2.0 Etna] - 2018-04-23
 
 ### Added
