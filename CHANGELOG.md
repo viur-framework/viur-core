@@ -7,7 +7,7 @@ This file documents any relevant changes done to ViUR server since version 2.
 
 
 
-## [2.2.1] - 2018-09-26
+## [2.3.0] Kilauea - 2018-09-28
 
 ### Added
 - A generic redirect function from Jinja templates
@@ -155,8 +155,8 @@ This file documents any relevant changes done to ViUR server since version 2.
 ### (Start of changelog)
 
 
-[Unreleased]: https://github.com/viur-framework/server/compare/v2.2.1...develop
-[2.2.1]: https://github.com/viur-framework/server/compare/v2.2.0...v2.2.1
+[Unreleased]: https://github.com/viur-framework/server/compare/v2.3.0...develop
+[2.3.0]: https://github.com/viur-framework/server/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/viur-framework/server/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/viur-framework/server/compare/v2.0.3...v2.1.0
 [2.0.3]: https://github.com/viur-framework/server/compare/v2.0.2...v2.0.3
