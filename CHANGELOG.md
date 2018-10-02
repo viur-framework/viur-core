@@ -8,7 +8,7 @@ This file documents any relevant changes done to ViUR server since version 2.
 (coming soon)
 
 
-## [2.3.0] Kilauea - 2018-09-28
+## [2.3.0] Kilauea - 2018-10-02
 
 ### Added
 - A generic `redirect()` function from Jinja templates
