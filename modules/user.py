@@ -26,7 +26,7 @@ class userSkel(Skeleton):
 	password = passwordBone(descr="Password", required=False, readOnly=True, visible=False)
 
 	# Properties required by google auth
-	uid = stringBone(descr="Google's UserID", indexed=True, required=True, readOnly=True, unique=True)
+	uid = stringBone(descr="Google's UserID", indexed=True, required=False, readOnly=True, unique=True)
 	gaeadmin = booleanBone(descr="Is GAE Admin", defaultValue=False, readOnly=True)
 
 

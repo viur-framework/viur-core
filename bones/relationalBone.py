@@ -260,9 +260,9 @@ class relationalBone( baseBone ):
 
 		parentValues = {}
 
-		for parentKey in self.parentKeys:
-			if parentKey in dbfields:
-				parentValues[ parentKey ] = dbfields[ parentKey ]
+		for parentKey in dbfields.keys():
+			if parentKey in self.parentKeys or any([parentKey.startswith(x+".") for x in self.parentKeys]):
+				parentValues[parentKey] = dbfields[parentKey]
 
 		dbVals = db.Query( "viur-relations" ).ancestor( db.Key( key ) ) #skel.kindName+"_"+self.kind+"_"+key
 		dbVals.filter("viur_src_kind =", skel.kindName )
@@ -502,18 +502,18 @@ class relationalBone( baseBone ):
 						v = db.Key( v )
 					dbFilter.ancestor( v )
 					continue
-				if not (k if " " not in k else k.split(" ")[0]) in self.parentKeys:
+				if not (k if "." not in k else k.split(".")[0]) in self.parentKeys:
 					logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
 					raise RuntimeError()
 				dbFilter.filter( "src.%s" % k, v )
-			orderList = []
-			for k,d in origSortOrders: #Merge old sort orders in
-				if not k in self.parentKeys:
-					logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
-					raise RuntimeError()
-				orderList.append( ("src.%s" % k, d) )
-			if orderList:
-				dbFilter.order( *orderList )
+		orderList = []
+		for k,d in origSortOrders: #Merge old sort orders in
+			if not k in self.parentKeys:
+				logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
+				raise RuntimeError()
+			orderList.append( ("src.%s" % k, d) )
+		if orderList:
+			dbFilter.order( *orderList )
 		return( name, skel, dbFilter, rawFilter )
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):

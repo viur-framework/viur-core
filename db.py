@@ -20,6 +20,7 @@ __cacheLockTime__ = 42 #Prevent an entity from creeping into the cache for 42 Se
 __cacheTime__ = 15*60 #15 Mins
 __CacheKeyPrefix__ ="viur-db-cache:" #Our Memcache-Namespace. Dont use that for other purposes
 __MemCacheBatchSize__ = 30
+__undefinedC__ = object()
 
 
 def PutAsync( entities, **kwargs ):
@@ -362,8 +363,11 @@ class Query( object ):
 			try:
 				searchRes = search.Index( name=skel.searchIndex ).search( query=search.Query( query_string=filters["search"], options=search.QueryOptions( limit=25 ) ) )
 			except search.QueryError: #We cant parse the query, treat it as verbatim
-				qstr="\"%s\"" % filters["search"].replace("\"","")
-				searchRes = search.Index( name=skel.searchIndex ).search( query=search.Query( query_string=qstr, options=search.QueryOptions( limit=25 ) ) )
+				qstr = u"\"%s\"" % filters["search"].replace(u"\"",u"")
+				try:
+					searchRes = search.Index(name=skel.searchIndex).search(query=search.Query(query_string=qstr, options=search.QueryOptions(limit=25)))
+				except search.QueryError:  # Still cant parse it
+					searchRes = []
 			tmpRes = [ datastore_types.Key( encoded=x.doc_id[ 2: ] ) for x in searchRes ]
 			if tmpRes:
 				filters = []
@@ -415,7 +419,7 @@ class Query( object ):
 			skel.postProcessSearchFilter( self, filters )
 		return( self )
 
-	def filter(self, filter, value=None ):
+	def filter(self, filter, value=__undefinedC__ ):
 		"""
 			Adds a filter to this query. #fixme: Better description required here...
 
@@ -479,7 +483,7 @@ class Query( object ):
 			self.datastoreQuery = MultiQuery( queries, origQuery.__orderings )
 			for k,v in origQuery.items():
 				self.datastoreQuery[ k ] = v
-		elif filter and value!=None:
+		elif filter and value is not __undefinedC__:
 			self.datastoreQuery[ filter ] = value
 		else:
 			raise NotImplementedError("Incorrect call to query.filter()!")
@@ -1076,7 +1080,7 @@ class Entity( datastore.Entity ):
 				value = None
 		super( Entity, self ).__setitem__( name, value )
 
-	def set( self, key, value, indexed=True ):
+	def set(self, key, value, indexed=True):
 		"""
 			Sets a property.
 
@@ -1091,11 +1095,16 @@ class Entity( datastore.Entity ):
 			empty string or not a string.
 			:raises: :exc:`BadValueError` if the value is not a supported type.
 		"""
-		if not indexed:
-			unindexed = list( self.getUnindexedProperties() )
-			if not key in unindexed:
-				self.setUnindexedProperties( unindexed+[key] )
-		self[ key ] = value
+		unindexed = list(self.getUnindexedProperties())
+
+		if not indexed and not key in unindexed:
+			unindexed.append(key)
+			self.setUnindexedProperties(unindexed)
+		elif indexed and key in unindexed:
+			unindexed.remove(key)
+			self.setUnindexedProperties(unindexed)
+
+		self[key] = value
 
 	@staticmethod
 	def FromDatastoreEntity( entity ):

@@ -25,7 +25,7 @@
  See file LICENSE for more information.
 """
 
-__version__ = (2, 2, 0)  # Which API do we expose to our application
+__version__ = (2, 3, 0)  # Which API do we expose to our application
 
 import sys, traceback, os, inspect
 
@@ -485,7 +485,8 @@ class BrowseHandler(webapp.RequestHandler):
 				res = tpl.safe_substitute( {"error_code": e.status, "error_name":e.name, "error_descr": e.descr} )
 			self.response.out.write( res )
 		except Exception as e: #Something got really wrong
-			logging.exception( "Viur caught an unhandled exception!" )
+			logging.error("Viur caught an unhandled exception!")
+			logging.exception(e)
 			self.response.clear()
 			self.response.set_status( 500 )
 			res = None

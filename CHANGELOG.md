@@ -2,7 +2,40 @@
 
 This file documents any relevant changes done to ViUR server since version 2.
 
-## [2.2.0 Etna] - 2018-04-23
+
+## [develop] - Current development version
+
+(coming soon)
+
+
+## [2.3.0] Kilauea - 2018-10-02
+
+### Added
+- A generic `redirect()` function from Jinja templates
+
+### Changed
+- Upgraded captchaBone to recaptcha v2
+- uid bone of userSkeleton is not required anymore
+- Allow usage of None as value in `Query().filter()`, which is a valid type in datastore
+
+### Fixed
+- Saving skeletons containing a `randomSliceBone` due to signature mismatch in `randomSliceBone.serialize()`
+- Correct filtering by `dateBone` with either `date=False` or `time=False`
+- Importing entities from pre 2.x ViUR instances
+- Call doCleanupDeletedFiles and doDeleteWeakReferences deferred
+- Avoid invalid search queries instead of raising an exception
+- Correctly handle an unset property in `stringBone.getSearchDocumentFields()`
+- Correctly log the exception caught when raising an 500 Server-Error due to an unhandled exception in the code
+- Basic Syntax-Fixes for `spatialBone`
+- Prevent two words from being stuffed together if we remove an invalid html tag in `textBone`
+- Correctly remove an property from the `unindexed_property` list if the bone changes to indexed
+- Sorting in relational queries
+- Incorrect path to the ViUR logo in error.css
+- Adapted default templates to work with the selectBone introduced in 2.2.0
+- `baseBone.buildDBFilter()` incorrectly handling lt/gt/lk operators
+
+
+## [2.2.0] Etna - 2018-04-23
 
 ### Added
 - A new Rate-Limit module that can be used to prevent DoS / Brute-Force on certain resources.
@@ -121,3 +154,13 @@ This file documents any relevant changes done to ViUR server since version 2.
 ## [2.0.0] - 2016-12-22
 
 ### (Start of changelog)
+
+
+[develop]: https://github.com/viur-framework/server/compare/v2.3.0...develop
+[2.3.0]: https://github.com/viur-framework/server/compare/v2.2.0...v2.3.0
+[2.2.0]: https://github.com/viur-framework/server/compare/v2.1.0...v2.2.0
+[2.1.0]: https://github.com/viur-framework/server/compare/v2.0.3...v2.1.0
+[2.0.3]: https://github.com/viur-framework/server/compare/v2.0.2...v2.0.3
+[2.0.2]: https://github.com/viur-framework/server/compare/v2.0.1...v2.0.2
+[2.0.1]: https://github.com/viur-framework/server/compare/v2.0.0...v2.0.1
+[2.0.0]: https://github.com/viur-framework/server/compare/v1.1.0...v2.0.0

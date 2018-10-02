@@ -85,6 +85,8 @@ class HtmlSerializer( HTMLParser.HTMLParser ): #html.parser.HTMLParser
 			else:
 				self.result = self.result + '>'
 				self.openTagsList.insert( 0, tag)
+		else:
+			self.result += " "
 
 	def handle_endtag(self, tag):
 		if self.validHtml and tag in self.openTagsList:
@@ -93,6 +95,8 @@ class HtmlSerializer( HTMLParser.HTMLParser ): #html.parser.HTMLParser
 				self.openTagsList.remove( endTag)
 				if endTag==tag:
 					break
+		else:
+			self.result += " "
 
 	def cleanup(self): #FIXME: vertauschte tags
 		""" Append missing closing tags """
@@ -103,7 +107,7 @@ class HtmlSerializer( HTMLParser.HTMLParser ): #html.parser.HTMLParser
 	def santinize( self, instr ):
 		self.result = ""
 		self.openTagsList = []
-		self.feed( instr )
+		self.feed(instr.replace("\n", " "))
 		self.close()
 		self.cleanup()
 		return( self.result )
