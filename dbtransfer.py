@@ -374,23 +374,18 @@ class TaskExportKind( CallableTaskBase ):
 		return user is not None and "root" in user["access"]
 
 	def dataSkel(self):
-		modules = ["*"] + listKnownSkeletons()
 		skel = BaseSkeleton(cloned=True)
-		skel.module = selectBone( descr="Module", values={ x: x for x in modules}, required=True )
+		skel.module = selectBone(descr="Kinds", values=listKnownSkeletons(), multiple=True, required=True)
 		skel.target = stringBone( descr="URL to Target-Application", required=True, defaultValue="https://your-app-id.appspot.com/dbtransfer/storeEntry2" )
 		skel.importkey = stringBone( descr="Import-Key", required=True)
 		return skel
 
-	def execute( self, module=None, target=None, importkey=None, *args, **kwargs ):
-		assert importkey
-		if module == "*":
-			for module in listKnownSkeletons():
-				iterExport(module, target, importkey, None)
-		else:
-			iterExport(module, target, importkey, None)
+	def execute(self, module, target, importkey, *args, **kwargs):
+		for mod in module:
+			iterExport(mod, target, importkey)
 
 @callDeferred
-def iterExport( module, target, importKey, cursor=None ):
+def iterExport(module, target, importKey, cursor=None):
 	"""
 		Processes 100 Entries and calls the next batch
 	"""
@@ -448,28 +443,20 @@ class TaskImportKind( CallableTaskBase ):
 		return user is not None and "root" in user["access"]
 
 	def dataSkel(self):
-		modules = ["*"] + listKnownSkeletons()
-
 		skel = BaseSkeleton(cloned=True)
 
-		skel.module = selectBone(descr="Module", values={x: x for x in modules}, required=True)
+		skel.module = selectBone(descr="Kinds", values=listKnownSkeletons(), multiple=True, required=True)
 		skel.source = stringBone(descr="URL to Source-Application", required=True,
 		                                    defaultValue="https://<your-app-id>.appspot.com/dbtransfer/iterValues2")
 		skel.exportkey = stringBone(descr="Export-Key", required=True, defaultValue="")
 
 		return skel
 
-	def execute( self, module=None, source=None, exportkey=None, *args, **kwargs ):
-		assert exportkey
-		if module == "*":
-			for module in listKnownSkeletons():
-				iterImport(module, source, exportkey, None)
-			#iterImport( "allergen", source, exportkey, None )
-		else:
-			iterImport( module, source, exportkey, None )
+	def execute(self, module, source, exportkey, *args, **kwargs):
+		for mod in module:
+			iterImport(mod, source, exportkey)
 
 @callDeferred
-#@noRetry
 def iterImport(module, target, exportKey, cursor=None, amount=0):
 	"""
 		Processes 100 Entries and calls the next batch
