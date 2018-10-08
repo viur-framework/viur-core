@@ -142,13 +142,17 @@ class DbTransfer( object ):
 					"parentdir": "",
 					"parentrepo": "",
 					"weak": False } )
+
+			oldkey = conf["viur.mainApp"].file.decodeFileName(oldkey)
 			oldKeyHash = sha256(oldkey).hexdigest().encode("hex")
+
 			e = db.Entity("viur-blobimportmap", name=oldKeyHash)
 			e["newkey"] = str(upload.key())
 			e["oldkey"] = oldkey
 			e["servingurl"] = servingURL
 			e["available"] = True
 			db.Put(e)
+
 		return( json.dumps( {"action":"addSuccess", "values":res } ) )
 
 	@exposed
