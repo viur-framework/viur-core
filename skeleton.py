@@ -441,24 +441,29 @@ class MetaSkel(MetaBaseSkel):
 				cls.kindName = cls.__name__.lower()[:-4]
 			else:
 				cls.kindName = cls.__name__.lower()
-		# Prevent duplicate definitions of skeletons
+		# Try to determine which skeleton definition takes precedence
 		if cls.kindName and cls.kindName is not __undefindedC__ and cls.kindName in MetaBaseSkel._skelCache:
 			relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]).replace(os.getcwd(), "")
-			if relNewFileName.strip(os.path.sep).startswith("server"):
-				# The currently processed skeleton is from the server.* package
+			idxOld = min([x for (x,y) in enumerate(conf["viur.skeleton.searchPath"]) if relOldFileName.startswith(y)]+[999])
+			idxNew = min([x for (x,y) in enumerate(conf["viur.skeleton.searchPath"]) if relNewFileName.startswith(y)]+[999])
+			if idxNew == 999:
+				# We could not determine a priority for this class as its from a path not listed in the config
+				raise NotImplementedError(
+					"Skeletons must be defined in a folder listed in conf[\"viur.skeleton.searchPath\"]")
+			elif idxOld < idxNew:  # Lower index takes precedence
+				# The currently processed skeleton has a lower priority than the one we already saw - just ignore it
 				return
-			elif relOldFileName.strip(os.path.sep).startswith("server"):
-				# The old one was from server - override it
+			elif idxOld > idxNew:
+				# The currently processed skeleton has a higher priority, use that from now
 				MetaBaseSkel._skelCache[cls.kindName] = cls
-			else:
+			else:  # They seem to be from the same Package - raise as something is messed up
 				raise ValueError("Duplicate definition for %s in %s and %s" %
 				                 (cls.kindName, relNewFileName, relOldFileName))
-		# Ensure that all skeletons are defined in /skeletons/
-		relFileName = inspect.getfile(cls).replace(os.getcwd(), "")
-		if (not relFileName.strip(os.path.sep).startswith("skeletons")
-		    and not relFileName.strip(os.path.sep).startswith("server")
+		# Ensure that all skeletons are defined in folders listed in conf["viur.skeleton.searchPath"]
+		if (not any([relNewFileName.startswith(x) for x in conf["viur.skeleton.searchPath"]])
 		    and not "viur_doc_build" in dir(sys)):  # Do not check while documentation build
-			raise NotImplementedError("Skeletons must be defined in /skeletons/")
+			raise NotImplementedError(
+				"Skeletons must be defined in a folder listed in conf[\"viur.skeleton.searchPath\"]")
 		if cls.kindName and cls.kindName is not __undefindedC__:
 			MetaBaseSkel._skelCache[cls.kindName] = cls
 

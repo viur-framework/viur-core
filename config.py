@@ -70,6 +70,7 @@ conf = {
 	"viur.session.lifeTime": 60*60, #Default is 60 minutes lifetime for ViUR sessions
 	"viur.session.persistentFieldsOnLogin": [], #If set, these Fields will survive the session.reset() called on user/login
 	"viur.session.persistentFieldsOnLogout": [], #If set, these Fields will survive the session.reset() called on user/logout
+	"viur.skeleton.searchPath": ["/skeletons/", "/server/"], # Priority, in which skeletons are loaded
 
 	"viur.tasks.customEnvironmentHandler": None, #If set, must be a tuple of two functions serializing/restoring additional enviromental data in deferred requests,
 
