@@ -27,7 +27,7 @@ class randomSliceBone( baseBone ):
 		self.slices = slices
 		self.sliceSize = sliceSize
 
-	def serialize( self, name, entity ):
+	def serialize(self, valuesCache, name, entity):
 		"""
 			Serializes this bone into something we
 			can write into the datastore.
