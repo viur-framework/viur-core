@@ -9,7 +9,7 @@ de = {
 	"const_day_6_short": u"Sam",
 	"const_day_0_long": u"Sonntag", #Ganze Tagesnamen (Start mit Sonntag)
 	"const_day_1_long": u"Montag",
-	"const_day_2_long": u"dienstag",
+	"const_day_2_long": u"Dienstag",
 	"const_day_3_long": u"Mittwoch",
 	"const_day_4_long": u"Donnerstag",
 	"const_day_5_long": u"Freitag",
