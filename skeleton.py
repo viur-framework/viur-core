@@ -652,7 +652,7 @@ class Skeleton(BaseSkeleton):
 				if not skel.searchIndex:
 					# We generate the search index using the full skel, not this (maybe incomplete one)
 					if bone.searchable and key in self.valuesCache:
-						tags += [tag for tag in _bone.getSearchTags(self.valuesCache, key)
+						tags += [tag for tag in bone.getSearchTags(self.valuesCache, key)
 						            if tag not in tags and len(tag) < 400]
 
 			if not skel.searchIndex:
