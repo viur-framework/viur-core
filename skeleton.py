@@ -801,13 +801,11 @@ class Skeleton(BaseSkeleton):
 				# Ensure that we delete any value-lock objects remaining for this entry
 				if bone.unique:
 					try:
-						logging.error("x1")
-						logging.error(dbObj.keys())
 						if "%s.uniqueIndexValue" % boneName in dbObj:
-							logging.error("x2")
 							db.Delete(db.Key.from_path(
 								"%s_%s_uniquePropertyIndex" % (skel.kindName, boneName),
 								dbObj["%s.uniqueIndexValue" % boneName]))
+
 					except db.EntityNotFoundError:
 						raise
 						pass
