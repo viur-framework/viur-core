@@ -590,19 +590,22 @@ class Skeleton(BaseSkeleton):
 					oldBlobLockObj = None
 
 			# Merge values and assemble unique properties
-			oldUniqeValues = {}
+			oldUniqueValues = {}
 			for key, bone in skel.items():
 				# Remember old hashes for bones that must have an unique value
 				if bone.unique:
 					if "%s.uniqueIndexValue" % key in dbObj:
-						oldUniqeValues[key] = dbObj["%s.uniqueIndexValue" % key]
+						oldUniqueValues[key] = dbObj["%s.uniqueIndexValue" % key]
 
 				# Merge the values from mergeFrom in
 				if key in mergeFrom:
 					bone.mergeFrom(skel.valuesCache, key, mergeFrom)
 
+				# Serialize bone into entity
+				dbObj = bone.serialize(skel.valuesCache, key, dbObj)
+
+				# Obtain referenced blobs
 				if key in self.valuesCache:
-					dbObj = bone.serialize(skel.valuesCache, key, dbObj)
 					blobList.update(bone.getReferencedBlobs(self.valuesCache, key))
 
 			if clearUpdateTag:
@@ -620,19 +623,19 @@ class Skeleton(BaseSkeleton):
 				ourKey = None
 
 			# Lock hashes from bones that must have unique values
-			newUniqeValues = {}
+			newUniqueValues = {}
 			tags = []
 
 			for key, bone in skel.items():
 				if bone.unique:
 					# Check if the property is really unique
-					newUniqeValues[key] = bone.getUniquePropertyIndexValue(self.valuesCache, key)
+					newUniqueValues[key] = bone.getUniquePropertyIndexValue(self.valuesCache, key)
 
-					if newUniqeValues[key] is not None:
+					if newUniqueValues[key] is not None:
 						try:
 							lockObj = db.Get(db.Key.from_path(
 								"%s_%s_uniquePropertyIndex" % (skel.kindName, key),
-								newUniqeValues[key]))
+								newUniqueValues[key]))
 
 							if lockObj["references"] != ourKey:
 								# This value has been claimed, and that not by us
@@ -643,7 +646,7 @@ class Skeleton(BaseSkeleton):
 
 						except db.EntityNotFoundError:  # No lockObj found for that value, we can use that
 							pass
-						dbObj["%s.uniqueIndexValue" % key] = newUniqeValues[key]
+						dbObj["%s.uniqueIndexValue" % key] = newUniqueValues[key]
 
 					else:
 						if "%s.uniqueIndexValue" % key in dbObj:
@@ -702,14 +705,14 @@ class Skeleton(BaseSkeleton):
 			for key, bone in skel.items():
 				if bone.unique:
 					# Update/create/delete missing lock-objects
-					if key in oldUniqeValues and oldUniqeValues[key] != newUniqeValues[key]:
+					if key in oldUniqueValues and oldUniqueValues[key] != newUniqueValues[key]:
 
 						# We had an old lock and its value changed
 						try:
 							# Try to delete the old lock
 							oldLockObj = db.Get(db.Key.from_path(
 								"%s_%s_uniquePropertyIndex" % (skel.kindName, key),
-								oldUniqeValues[key]))
+								oldUniqueValues[key]))
 							if oldLockObj["references"] != ourKey:
 								# We've been supposed to have that lock - but we don't.
 								# Don't remove that lock as it now belongs to a different entry
@@ -720,16 +723,16 @@ class Skeleton(BaseSkeleton):
 								db.Delete(db.Key.from_path(
 									"%s_%s_uniquePropertyIndex" % (
 									skel.kindName, key),
-									oldUniqeValues[key]))
+									oldUniqueValues[key]))
 						except db.EntityNotFoundError as e:
 							logging.critical(
 								"Detected Database corruption! Could not delete stale lock-object!")
 
-					if newUniqeValues[key] is not None:
+					if newUniqueValues[key] is not None:
 						# Lock the new value
 						newLockObj = db.Entity(
 							"%s_%s_uniquePropertyIndex" % (skel.kindName, key),
-							name=newUniqeValues[key])
+							name=newUniqueValues[key])
 						newLockObj["references"] = str(dbObj.key())
 						db.Put(newLockObj)
 
