@@ -251,6 +251,9 @@ class relationalBone( baseBone ):
 		return entity
 
 	def postSavedHandler( self, valuesCache, boneName, skel, key, dbfields ):
+		if boneName not in valuesCache:
+			return
+
 		if not valuesCache[boneName]:
 			values = []
 		elif isinstance( valuesCache[boneName], dict ):
@@ -773,7 +776,7 @@ class relationalBone( baseBone ):
 		if not valuesCache[boneName]:
 			return
 
-		logging.info("Refreshing relationalBone %s of %s" % (boneName, skel.kindName))
+		logging.debug("Refreshing relationalBone %s of %s" % (boneName, skel.kindName))
 
 		if isinstance(valuesCache[boneName], dict):
 			updateInplace(valuesCache[boneName])
