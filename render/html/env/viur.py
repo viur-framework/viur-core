@@ -373,7 +373,7 @@ def updateURL(render, **kwargs):
 	tmpparams.update(request.current.get().kwargs)
 
 	for key in list(tmpparams.keys()):
-		if key[0] == "_":
+		if not key or key[0] == "_":
 			del tmpparams[ key ]
 		elif isinstance( tmpparams[ key ], unicode ):
 			tmpparams[ key ] = tmpparams[ key ].encode("UTF-8", "ignore")
