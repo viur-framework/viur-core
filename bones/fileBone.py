@@ -29,12 +29,12 @@ class fileBone(treeItemBone):
 		res = super( fileBone, self ).unserialize( valuesCache, name, expando )
 		if not request.current.get().isDevServer:
 			# Rewrite all "old" Serving-URLs to https if we are not on the development-server
-			if isinstance(valuesCache[name], dict) and "servingurl" in valuesCache[name]["dest"]:
+			if isinstance(valuesCache[name], dict) and valuesCache[name]["dest"].get("servingurl"):
 				if valuesCache[name]["dest"]["servingurl"].startswith("http://"):
 					valuesCache[name]["dest"]["servingurl"] = valuesCache[name]["dest"]["servingurl"].replace("http://","https://")
 			elif isinstance( valuesCache[name], list ):
 				for val in valuesCache[name]:
-					if isinstance(val, dict) and "servingurl" in val["dest"]:
+					if isinstance(val, dict) and val["dest"].get("servingurl"):
 						if val["dest"]["servingurl"].startswith("http://"):
 							val["dest"]["servingurl"] = val["dest"]["servingurl"].replace("http://","https://")
 		if isinstance(valuesCache[name], dict):
