@@ -325,6 +325,8 @@ class stringBone( baseBone ):
 		if self.languages and isinstance(value, dict):
 			if self.multiple:
 				for lang in value.values():
+					if not lang:
+						continue
 					for val in lang:
 						for line in unicode(val).splitlines():
 							for key in line.split(" "):
