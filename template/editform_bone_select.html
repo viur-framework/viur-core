@@ -1,6 +1,6 @@
 {% if boneParams.multiple %}
-    <div class="optionGroup">
-        {% for key, descr in boneParams["values"].items() %}
+    <div class="option-group">
+        {% for key, descr in boneParams.values.items() %}
             <div class="check">
                 <input
                     class="check-input"
@@ -9,7 +9,7 @@
                     value="{{ key }}"
                     type="checkbox"
                     {{ "checked" if key in boneValue }}
-                    {{ "readonly" if boneParams["readOnly"] }}>
+                    {{ "readonly" if boneParams.readOnly }}>
 
                 <label class="check-label" for="ignt-id-{{ boneName }}_{{ key }}">{{ descr }}</label>
             </div>
@@ -17,16 +17,16 @@
     </div>
 {% else %}
     <select
-    id="ignt-id-{{ boneName }}"
-    name="{{ boneName }}"
-    class="select ignt-select ignt-select-v{{ boneName }}
-        {{ "is-required" if boneParams.required }}
-        {{ "is-readonly" if boneParams.readOnly }}
-        {{ "is-invalid" if boneWasInvalid }}"
-    {{'readonly' if boneParams.readOnly}}
-    {{'required' if boneParams.required}}
+		id="ignt-id-{{ boneName }}"
+		name="{{ boneName }}"
+		class="select ignt-select ignt-select--{{ boneName }}
+			{{ "is-required" if boneParams.required }}
+			{{ "is-readonly" if boneParams.readOnly }}
+			{{ "is-invalid" if boneWasInvalid else "is-valid" }}"
+		{{'readonly' if boneParams.readOnly}}
+		{{'required' if boneParams.required}}
     >
-        {%- for key, descr in boneParams["values"].items() %}
+        {%- for key, descr in boneParams.values.items() %}
             {% if loop.first %}
                 <option value="" {{ "selected" if not boneValue }} {{ "disabled" if boneParams.required}} hidden>
                     -

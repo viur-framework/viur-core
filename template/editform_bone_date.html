@@ -1,19 +1,21 @@
-<div id="ignt-id-{{ boneName }}" class="inputGroup">
-    {% if boneParams.date and boneParams.time %}
-        {# Current Webbrowsers dont support a datetime input yet so we'll split it up until they do #}
-        <input type="date" class="input" value="{% if boneValue %}{{ boneValue.strftime("%Y-%m-%d") }}{% endif %}"
-               name="{{ boneName }}-date" {% if boneParams.readOnly %}disabled="disabled"{% endif %}>
-        <input type="time" class="input" value="{% if boneValue %}{{ boneValue.strftime("%H:%M:%S") }}{% endif %}"
-               name="{{ boneName }}-time" {% if boneParams.readOnly %}disabled="disabled"{% endif %}>
-        <input type="hidden" value="{% if boneValue %}{{ boneValue.strftime("%Y-%M-%d") }}{% endif %}"
-               name="{{ boneName }}" class="js_viur_bones_date_doubleinput">
-    {% elif boneParams.date %}
-        <input type="date" class="input" value="{% if boneValue %}{{ boneValue.strftime("%Y-%m-%d") }}{% endif %}"
-               name="{{ boneName }}" {% if boneParams.readOnly %}disabled="disabled"{% endif %}>
-    {% elif boneParams.time %}
-        <input type="date" class="input" value="{% if boneValue %}{{ boneValue.strftime("%Y-%m-%d") }}{% endif %}"
-               name="{{ boneName }}" {% if boneParams.readOnly %}disabled="disabled"{% endif %}>
-    {% else %}
-        <!-- You messed up this datebone somehow -->
-    {% endif %}
+<div
+	id="ignt-id-{{ boneName }}"
+	class="input-group">
+	{% if boneParams.date and boneParams.time %}
+		{# Current Webbrowsers dont support a datetime input yet so we'll split it up until they do #}
+		<input type="date" class="input ignt-input ignt-input--date" value="{% if boneValue %}{{ boneValue.strftime("%Y-%m-%d") }}{% endif %}"
+			   name="{{ boneName }}-date" {% if boneParams.readOnly %}disabled="disabled"{% endif %}>
+		<input type="time" class="input ignt-input ignt-input--time" value="{% if boneValue %}{{ boneValue.strftime("%H:%M:%S") }}{% endif %}"
+			   name="{{ boneName }}-time" {% if boneParams.readOnly %}disabled="disabled"{% endif %}>
+		<input type="hidden" value="{% if boneValue %}{{ boneValue.strftime("%Y-%M-%d") }}{% endif %}"
+			   name="{{ boneName }}" class="js-viur-bones-date-doubleinput">
+	{% elif boneParams.date %}
+		<input type="date" class="input ignt-input ignt-input--date" value="{% if boneValue %}{{ boneValue.strftime("%Y-%m-%d") }}{% endif %}"
+			   name="{{ boneName }}" {% if boneParams.readOnly %}disabled="disabled"{% endif %}>
+	{% elif boneParams.time %}
+		<input type="time" class="input ignt-input ignt-input--time" value="{% if boneValue %}{{ boneValue.strftime("%H:%M:%S") }}{% endif %}"
+			   name="{{ boneName }}-time" {% if boneParams.readOnly %}disabled="disabled"{% endif %}>
+	{% else %}
+		<!-- You messed up this datebone somehow -->
+	{% endif %}
 </div>
