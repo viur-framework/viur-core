@@ -254,12 +254,12 @@ class relationalBone( baseBone ):
 		if boneName not in valuesCache:
 			return
 
-		if not valuesCache[boneName]:
+		if not valuesCache.get(boneName):
 			values = []
-		elif isinstance( valuesCache[boneName], dict ):
-			values = [ dict( (k,v) for k,v in valuesCache[boneName].items() ) ]
+		elif isinstance( valuesCache.get(boneName), dict ):
+			values = [ dict( (k,v) for k,v in valuesCache.get(boneName).items() ) ]
 		else:
-			values = [ dict( (k,v) for k,v in x.items() ) for x in valuesCache[boneName] ]
+			values = [ dict( (k,v) for k,v in x.items() ) for x in valuesCache.get(boneName) ]
 
 		parentValues = {}
 

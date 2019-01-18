@@ -286,10 +286,10 @@ class textBone( baseBone ):
 
 	def getSearchTags(self, valuesCache, name):
 		res = []
-		if not valuesCache[name]:
+		if not valuesCache.get(name):
 			return( res )
 		if self.languages:
-			for v in valuesCache[name].values():
+			for v in valuesCache.get(name).values():
 				value = HtmlSerializer( None ).santinize( v.lower() )
 				for line in unicode(value).splitlines():
 					for key in line.split(" "):
@@ -297,7 +297,7 @@ class textBone( baseBone ):
 						if key and key not in res and len(key)>3:
 							res.append( key.lower() )
 		else:
-			value = HtmlSerializer( None ).santinize( valuesCache[name].lower() )
+			value = HtmlSerializer( None ).santinize( valuesCache.get(name).lower() )
 			for line in unicode(value).splitlines():
 				for key in line.split(" "):
 					key = "".join( [ c for c in key if c.lower() in conf["viur.searchValidChars"]  ] )
