@@ -769,8 +769,8 @@ class relationalBone( baseBone ):
 				for key in self._refSkelCache.keys():
 					if key == "key":
 						continue
-					elif key in newValues:
-						getattr(self._refSkelCache, key).unserialize(valDict, key, newValues)
+
+					getattr(self._refSkelCache, key).unserialize(valDict, key, newValues)
 
 
 		if not valuesCache[boneName]:
