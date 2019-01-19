@@ -855,7 +855,8 @@ class Render( object ):
 		if len(tpl)<101:
 			try:
 				template = self.getEnv().from_string(  codecs.open( "emails/"+tpl+".email", "r", "utf-8" ).read() )
-			except:
+			except Exception as err:
+				logging.exception(err)
 				template = self.getEnv().get_template( tpl+".email" )
 		else:
 			template = self.getEnv().from_string( tpl )
