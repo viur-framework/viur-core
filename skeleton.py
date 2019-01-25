@@ -433,6 +433,13 @@ class MetaSkel(MetaBaseSkel):
 		super(MetaSkel, cls).__init__(name, bases, dct)
 		relNewFileName = inspect.getfile(cls).replace(os.getcwd(), "")
 
+		# Check if we have an abstract skeleton
+		if cls.__name__.endswith("AbstractSkel"):
+			# Ensure that it doesn't have a kindName
+			assert cls.kindName is __undefindedC__ or cls.kindName is None, "Abstract Skeletons can't have a kindName"
+			# Prevent any further processing by this class; it has to be sub-classed before it can be used
+			return
+
 		# Automatic determination of the kindName, if the class is not part of the server.
 		if (cls.kindName is __undefindedC__
 		    and not relNewFileName.strip(os.path.sep).startswith("server")
