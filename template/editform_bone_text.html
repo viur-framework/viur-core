@@ -1,22 +1,18 @@
-{% set readOnly = "" %}
-{% if boneParams.readOnly %}
-    {% set readOnly = 'readonly="readonly"' %}
-{% endif %}
 {% if boneParams.languages %}
     {% for lang in boneParams.languages %}
-        <div class="vi-languageWrapper js_viur_bones_text_languageWrapper" data-name="{{ boneName }}"
+        <div class="vi-language-wrapper js-viur-bones-text-language-wrapper" data-name="{{ boneName }}"
              data-lang="{{ lang }}">
             <textarea class="textarea vi-textarea" name="{{ boneName }}.{{ lang }}">
                 {%- if boneValue -%}{{ boneValue.get(lang,"") }}{%- endif -%}
             </textarea>
-            <div class="textarea vi-textarea vi-textBone-preview" style="display: none">
+            <div class="textarea vi-textarea vi-text-bone-preview" style="display: none">
                 {% if boneValue %}{{ boneValue.get(lang,"") }}{% endif %}
             </div>
-            <button class="btn textedit icon btn-vEdit" type="button">Text bearbeiten</button>
+            <button class="btn textedit icon btn--edit" type="button">Text bearbeiten</button>
         </div>
     {% endfor %}
 
-    <select class="select js_viur_bones_text_languageSelector" name="{{ boneName }}_language_selector"
+    <select class="select js-viur-bones-text-language-selector" name="{{ boneName }}_language_selector"
             data-name="{{ boneName }}">
         {% for lang in boneParams.languages %}
             <option value="{{ lang }}">{{ lang }}</option>
@@ -25,12 +21,14 @@
 {% else %}
     <textarea
         name="{{ boneName }}"
-		class="textarea ignt-textarea ignt-textarea-v{{ boneName }}
-			    {{ 'is-required' if boneParams.required }}
-                {{ 'is-readonly' if boneParams.readOnly }}"
-			  id="ignt-id-{{ boneName }}"
-        {{ "readonly" if boneParams.readOnly}}
-        {{ "required" if boneParams.required}}>
+		class="textarea ignt-textarea ignt-textarea--{{ boneName }}
+				{{ "is-required" if boneParams.required }}
+				{{ "is-readonly" if boneParams.readOnly }}
+				{{ "is-invalid" if boneWasInvalid else "is-valid" }}"
+		id="ignt-id-{{ boneName }}"
+        {{ "readonly" if boneParams.readOnly }}
+        {{ "required" if boneParams.required }}
+	>
 		{{- boneValue|default("",true) -}}
 	</textarea>
 {% endif %}

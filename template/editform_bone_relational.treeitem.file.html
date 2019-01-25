@@ -1,18 +1,18 @@
 {% if not boneParams.multiple %}
     {# Single #}
-    <div class="vi-file inputGroup inputGroupFile {% if not boneParams.readOnly %}js_viur_bones_file_uploadableInputGroup{% endif %} {% if not boneValue %}isEmpty{% endif %}"
+    <div class="vi-file input-group input-group-file {% if not boneParams.readOnly %}js-viur-bones-file_uploadableinput-group{% endif %} {% if not boneValue %}is-empty{% endif %}"
          data-name="{{ boneName }}"
          data-multiple="0">
-        <div class="vi-fileBone-previewImg"
+        <div class="vi-file-bone-preview-img"
              {% if boneValue and boneValue.servingurl %}style="background-image: url({{ boneValue.servingurl }}=s150)"{% endif %}>
         </div>
         <span class="input{% if boneParams.readOnly %} is-readonly{% endif %}">{% if boneValue %}
             {{ boneValue.name }}{% endif %}</span>
         {% if not boneParams.readOnly %}
-            <button class="btn icon edit js_viur_bones_file_uploadFileButton" type="button" data-name="{{ boneName }}">
+            <button class="btn icon edit js-viur-bones-file-upload-file-button" type="button" data-name="{{ boneName }}">
                 Upload
             </button>
-            <button class="btn icon cancel btn-vDanger js_viur_bones_file_removeFile" type="button">Entfernen</button>
+            <button class="btn icon cancel btn--danger js-viur-bones-file-remove-file" type="button">Entfernen</button>
             <span class="uploader" style="width: 300px; height: 50px;"></span>
         {% endif %}
         <input type="hidden" name="{{ boneName }}.0.key" value="{% if boneValue %}{{ boneValue.key }}{% endif %}">
@@ -20,21 +20,21 @@
     </div>
 {% else %}
     {# Multiple #}
-    <div class="vi-boneEditor can-upload" id="vi_0_db_produkt_edit_Allgemein_bn_images">
-        <div class="vi-selection js_viur_bones_file_reordableArea" data-name="{{ boneName }}">
+    <div class="vi-bone-editor can-upload" id="">
+        <div class="vi-selection js-viur-bones-file-reordable-area" data-name="{{ boneName }}">
             {% if boneValue %}
                 {% for value in boneValue %}
-                    <div class="vi-file inputGroup inputGroupFile js_viur_bones_file_reordableItem" data-multiple="1"
+                    <div class="vi-file input-group input-group-file js-viur-bones-file-reordable-item" data-multiple="1"
                          {% if not boneParams.readOnly %}draggable="true"{% endif %}>
-                        <div class="vi-fileMultiBone-previewImg"
+                        <div class="vi-file-multi-bone-preview-img"
                              {% if value.servingurl %}style="background-image: url({{ value.servingurl }}=s150)"{% endif %}>
                         </div>
                         <span class="input {% if boneParams.readOnly %}is-readonly{% endif %}">{{ value.name }}</span>
                         {% if not boneParams.readOnly %}
-                            <button class="btn icon edit is-disabled js_viur_bones_file_uploadFileButton" type="button">
+                            <button class="btn icon edit is-disabled js-viur-bones-file-upload-file-button" type="button">
                                 Bearbeiten
                             </button>
-                            <button class="btn icon cancel btn-vDanger is-disabled js_viur_bones_file_removeFile"
+                            <button class="btn icon cancel btn--danger is-disabled js-viur-bones-file-remove-file"
                                     type="button">Entfernen
                             </button>
                             <span class="uploader" style="width: 300px; height: 50px;"></span>
@@ -45,15 +45,16 @@
             {% endif %}
         </div>
         {% if not boneParams.readOnly %}
-            <button class="btn icon edit js_viur_bones_file_addFiles" type="button">
+            <button class="btn icon edit js-viur-bones-file-add-files" type="button">
             Hinzufügen
         {% endif %}
         </button>
 
     </div>
 {% endif %}
-<style type="text/css">
-    .vi-fileMultiBone-previewImg, .vi-fileBone-previewImg {
+<style>
+    .vi-file-multi-bone-preview-img,
+	.vi-file-bone-preview-img {
         width: 100px;
         height: 100px;
         display: block;
@@ -71,13 +72,13 @@
         opacity: 0.2;
     }
 
-    .js_viur_bones_file_reordableArea {
+    .js-viur-bones-file-reordable-area {
         padding-bottom: 20px;
         padding-top: 20px;
         border: 1px solid red;
     }
 
-    .js_viur_bones_file_reordableItem {
+    .js-viur-bones-file-reordable-item {
         border: 1px solid green;
     }
 </style>
