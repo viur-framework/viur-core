@@ -72,7 +72,6 @@ class dateBone( baseBone ):
 		baseBone.__init__( self,  *args,  **kwargs )
 		if creationMagic or updateMagic:
 			self.readonly = True
-			self.visible = False
 		self.creationMagic = creationMagic
 		self.updateMagic = updateMagic
 		if not( date or time ):
