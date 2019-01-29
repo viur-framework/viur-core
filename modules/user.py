@@ -434,6 +434,8 @@ class User(List):
 
 	validAuthenticationMethods = [(UserPassword, TimeBasedOTP), (UserPassword, None), (GoogleAccount, None)]
 
+	secondFactorTimeWindow = datetime.timedelta(minutes=10)
+
 	adminInfo = {
 		"name": "User",
 		"handler": "list",
@@ -515,6 +517,7 @@ class User(List):
 
 	def continueAuthenticationFlow(self, caller, userKey):
 		session.current["_mayBeUserKey"] = str(userKey)
+		session.current["_secondFactorStart"] = datetime.datetime.now()
 		session.current.markChanged()
 		for authProvider, secondFactor in self.validAuthenticationMethods:
 			if isinstance(caller, authProvider):
@@ -537,6 +540,10 @@ class User(List):
 
 		if str(session.current["_mayBeUserKey"]) != str(userKey):
 			raise errors.Forbidden()
+		# Assert that the second factor verification finished in time
+		if datetime.datetime.now() - session.current["_secondFactorStart"] > self.secondFactorTimeWindow:
+			raise errors.RequestTimeout()
+
 
 		return self.authenticateUser(userKey)
 
