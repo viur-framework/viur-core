@@ -83,7 +83,7 @@ def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,
 					tmpDests.append(newRecipient)
 			dests = tmpDests
 
-		elif isinstance(conf["viur.emailRecipientOverride"], str):
+		elif isinstance(conf["viur.emailRecipientOverride"], basestring):
 			if conf["viur.emailRecipientOverride"].startswith("@"):
 				dests = rewriteEmail(dests, conf["viur.emailRecipientOverride"])
 
