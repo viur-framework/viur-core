@@ -35,7 +35,7 @@ conf = {
 	"viur.errorTemplate": "server/template/error.html", #Path to the template to render if an unhandled error occurs. This is a Python String-template, *not* a jinja2 one!
 	"viur.exportPassword": None, # Activates the Database export API if set. Must be exactly 32 chars. *Everyone* knowing this password can dump the whole database!
 
-	"viur.forceSSL": False,  #If true, all requests must be encrypted (ignored on development server)
+	"viur.forceSSL": True,  #If true, all requests must be encrypted (ignored on development server)
 
 	"viur.importPassword": None, # Activates the Database import API if set. Must be exactly 32 chars. *Everyone* knowing this password can rewrite the whole database!
 
