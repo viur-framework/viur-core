@@ -65,17 +65,31 @@ def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,
 			:return:
 		"""
 		if isinstance( oldDests, list ):
-			return [rewriteEmail(x) for x in oldDests ]
+			return [rewriteEmail(x, newDest) for x in oldDests ]
 		else:
 			newAddress = oldDests.replace(".", "_dot_").replace("@", "_at_")
 			return "%s%s" % (newAddress, newDest)
 
 	if conf["viur.emailRecipientOverride"]:
 		logging.warning("Overriding destination %s with %s", dests, conf["viur.emailRecipientOverride"])
-		if conf["viur.emailRecipientOverride"].startswith("@"):
-			dests = rewriteEmail(dests, conf["viur.emailRecipientOverride"])
+
+		if isinstance(conf["viur.emailRecipientOverride"], list):
+			tmpDests = []
+			for newRecipient in conf["viur.emailRecipientOverride"]:
+				if newRecipient.startswith("@"):
+					# use extend here, because rewriteEmail returns a list if we have multiple oldDests
+					tmpDests.extend(rewriteEmail(dests, newRecipient))
+				else:
+					tmpDests.append(newRecipient)
+			dests = tmpDests
+
+		elif isinstance(conf["viur.emailRecipientOverride"], str):
+			if conf["viur.emailRecipientOverride"].startswith("@"):
+				dests = rewriteEmail(dests, conf["viur.emailRecipientOverride"])
+
 		else:
 			dests = conf["viur.emailRecipientOverride"]
+
 	elif conf["viur.emailRecipientOverride"] is False:
 		logging.warning("Sending emails disabled by config[viur.emailRecipientOverride]")
 		return
@@ -90,14 +104,14 @@ def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,
 		return False
 
 
-	logging.error("CALLING %s" % str(handler))
+	logging.debug("CALLING %s" % str(handler))
 
 	return handler(dests, name, skel, extraFiles=extraFiles, cc=cc, bcc=bcc, replyTo=replyTo, *args, **kwargs)
 
 
 def _GAE_sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None, *args, **kwargs):
 	"""
-	Internal function for using Google App Engine Email processing API. 
+	Internal function for using Google App Engine Email processing API.
 	"""
 	headers, data = conf["viur.emailRenderer"]( skel, name, dests,**kwargs )
 
