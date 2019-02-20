@@ -29,8 +29,8 @@ class fileBaseSkel(TreeLeafSkel):
 	mimetype = stringBone(descr="Mime-Info", readOnly=True, indexed=True )
 	weak = booleanBone(descr="Weak reference", indexed=True, readOnly=True, visible=False)
 	servingurl = stringBone(descr="Serving URL", readOnly=True)
-	width = numericBone(descr="Width", indexed=True, searchable=True)
-	height = numericBone(descr="Height", indexed=True, searchable=True)
+	width = numericBone(descr="Width", indexed=True, readOnly=True, searchable=True)
+	height = numericBone(descr="Height", indexed=True, readOnly=True, searchable=True)
 
 	def refresh(self):
 		# Update from blobimportmap
@@ -49,16 +49,6 @@ class fileBaseSkel(TreeLeafSkel):
 					self["servingurl"] = images.get_serving_url(self["dlkey"])
 				except Exception as e:
 					logging.exception(e)
-
-		try:
-			# only fetching the file header or all if the file is smaller than 1M
-			data = blobstore.fetch_data(self["dlkey"], 0, min(self["size"], 1000000))
-			image = images.Image(image_data=data)
-			self["height"] = image.height
-			self["width"] = image.width
-		except Exception as err:
-			logging.error("some error occurred while trying to fetch the image header with dimensions")
-			logging.exception(err)
 
 		super(fileBaseSkel, self).refresh()
 
