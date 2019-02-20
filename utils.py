@@ -54,41 +54,24 @@ def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,
 	:type replyTo: str
 	:param replyTo: A reply-to email address
 	"""
-
-	def rewriteEmail(oldDests, newDest):
-		"""
-			Rewrites each address in *oldDests* so that it will end with @newDest
-			:param oldDests: EMail-Address (or a list hereof) to rewrite
-			:type oldDests: str | list[str]
-			:param newDest: New Destination-Domain (eg "@mausbrand.de")
-			:type newDest: str
-			:return:
-		"""
-		if isinstance( oldDests, list ):
-			return [rewriteEmail(x, newDest) for x in oldDests ]
-		else:
-			newAddress = oldDests.replace(".", "_dot_").replace("@", "_at_")
-			return "%s%s" % (newAddress, newDest)
-
 	if conf["viur.emailRecipientOverride"]:
 		logging.warning("Overriding destination %s with %s", dests, conf["viur.emailRecipientOverride"])
 
-		if isinstance(conf["viur.emailRecipientOverride"], list):
-			tmpDests = []
-			for newRecipient in conf["viur.emailRecipientOverride"]:
-				if newRecipient.startswith("@"):
-					# use extend here, because rewriteEmail returns a list if we have multiple oldDests
-					tmpDests.extend(rewriteEmail(dests, newRecipient))
-				else:
-					tmpDests.append(newRecipient)
-			dests = tmpDests
+		oldDests = dests
+		if isinstance(oldDests, basestring):
+			oldDests = [oldDests]
 
-		elif isinstance(conf["viur.emailRecipientOverride"], basestring):
-			if conf["viur.emailRecipientOverride"].startswith("@"):
-				dests = rewriteEmail(dests, conf["viur.emailRecipientOverride"])
+		newDests = conf["viur.emailRecipientOverride"]
+		if isinstance(newDests, basestring):
+			newDests = [newDests]
 
-		else:
-			dests = conf["viur.emailRecipientOverride"]
+		dests = []
+		for newDest in newDests:
+			if newDest.startswith("@"):
+				for oldDest in oldDests:
+					dests.append(oldDest.replace(".", "_dot_").replace("@", "_at_") + newDest)
+			else:
+				dests.append(newDest)
 
 	elif conf["viur.emailRecipientOverride"] is False:
 		logging.warning("Sending emails disabled by config[viur.emailRecipientOverride]")
