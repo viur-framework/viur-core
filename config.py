@@ -9,8 +9,6 @@ apiVersion = 1 #What format do we use to store data in the bigtable
 #Conf is static, local Dictionary. Changes here are local to the current instance
 conf = {
 
-	"bugsnag.apiKey": None, #If set, ViUR will report Errors to bugsnag
-
 	"viur.accessRights": ["root","admin"],  #Accessrights available on this Application
 	"viur.availableLanguages": [], #List of language-codes, which are valid for this application
 

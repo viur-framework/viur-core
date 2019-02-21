@@ -187,29 +187,6 @@ def setDefaultDomainLanguage( domain, lang ):
 from server import session, errors
 from server.tasks import TaskHandler, runStartupTasks
 
-try:
-	import bugsnag
-	from google.appengine.api import app_identity
-	try:
-		appVersion = app_identity.get_default_version_hostname()
-		if ".appspot.com" in appVersion.lower():
-			appVersion = appVersion.replace(".appspot.com", "")
-			releaseStage = "production"
-		else:
-			appVersion = "-unknown-"
-			releaseStage = "development"
-	except:
-		appVersion = "-error-"
-		releaseStage = "production"
-	bugsnag.configure(	use_ssl=True,
-				release_stage = releaseStage,
-				auto_notify = False,
-				app_version=appVersion,
-				notify_release_stages = ["production"]
-				)
-except:
-	bugsnag = None
-
 def buildApp( config, renderers, default=None, *args, **kwargs ):
 	"""
 		Creates the application-context for the current instance.
@@ -507,18 +484,7 @@ class BrowseHandler(webapp.RequestHandler):
 					descr = descr.replace("<","&lt;").replace(">","&gt;").replace(" ", "&nbsp;").replace("\n", "<br />")
 				res = tpl.safe_substitute( {"error_code": "500", "error_name":"Internal Server Error", "error_descr": descr} )
 			self.response.out.write( res )
-			if bugsnag and conf["bugsnag.apiKey" ]:
-				bugsnag.configure( api_key=conf["bugsnag.apiKey" ] )
-				try:
-					user = conf["viur.mainApp"].user.getCurrentUser()
-				except:
-					user = "-unknown-"
-				try:
-					sessData = session.current.session.session
-				except:
-					sessData = None
-				bugsnag.configure_request( context=path, user_id=user, session_data=sessData )
-				bugsnag.notify( e )
+
 		finally:
 			self.saveSession( )
 
