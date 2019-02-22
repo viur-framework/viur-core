@@ -11,6 +11,45 @@ from jinja2 import Environment, FileSystemLoader, ChoiceLoader
 
 import os, logging, codecs
 
+
+class KeyValueWrapper:
+	"""
+		This holds one Key-Value pair for
+		selectOne/selectMulti Bones.
+
+		It allows to directly treat the key as string,
+		but still makes the translated description of that
+		key available.
+	"""
+
+	def __init__( self, key, descr ):
+		self.key = key
+		self.descr = _( descr )
+
+	def __str__( self ):
+		return (unicode( self.key ))
+
+	def __repr__( self ):
+		return (unicode( self.key ))
+
+	def __eq__( self, other ):
+		return (unicode( self ) == unicode( other ))
+
+	def __lt__( self, other ):
+		return (unicode( self ) < unicode( other ))
+
+	def __gt__( self, other ):
+		return (unicode( self ) > unicode( other ))
+
+	def __le__( self, other ):
+		return (unicode( self ) <= unicode( other ))
+
+	def __ge__( self, other ):
+		return (unicode( self ) >= unicode( other ))
+
+	def __trunc__( self ):
+		return (self.key.__trunc__())
+
 class Render( object ):
 	"""
 		The core jinja2 render.
@@ -52,42 +91,7 @@ class Render( object ):
 
 	__haveEnvImported_ = False
 
-	class KeyValueWrapper:
-		"""
-			This holds one Key-Value pair for
-			selectOne/selectMulti Bones.
-
-			It allows to directly treat the key as string,
-			but still makes the translated description of that
-			key available.
-		"""
-		def __init__( self, key, descr ):
-			self.key = key
-			self.descr = _( descr )
-
-		def __str__( self ):
-			return( unicode( self.key ) )
-
-		def __repr__( self ):
-			return( unicode( self.key ) )
-
-		def __eq__( self, other ):
-			return( unicode( self ) == unicode( other ) )
-
-		def __lt__( self, other ):
-			return( unicode( self ) < unicode( other ) )
-
-		def __gt__( self, other ):
-			return( unicode( self ) > unicode( other ) )
-
-		def __le__( self, other ):
-			return( unicode( self ) <= unicode( other ) )
-
-		def __ge__( self, other ):
-			return( unicode( self ) >= unicode( other ) )
-
-		def __trunc__( self ):
-			return( self.key.__trunc__() )
+	KeyValueWrapper = KeyValueWrapper
 
 	def __init__(self, parent=None, *args, **kwargs ):
 		super( Render, self ).__init__(*args, **kwargs)
