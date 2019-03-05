@@ -8,5 +8,5 @@ try:
 	import vi
 except ImportError:
 	import logging
-	logging.error("VI NOT AVAIABLE")
+	logging.error("VI NOT AVAILABLE")
 	pass

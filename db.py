@@ -875,7 +875,7 @@ class Query( object ):
 				res.cursor = c.urlsafe()
 			else:
 				res.cursor = None
-		except AssertionError: #No Cursors avaiable on MultiQueries ( in or != )
+		except AssertionError: #No Cursors available on MultiQueries ( in or != )
 			res.cursor = None
 		return( res )
 

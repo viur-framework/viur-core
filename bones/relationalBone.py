@@ -55,7 +55,7 @@ class relationalBone( baseBone ):
 				the value of "type" will be used (the kindName must match the moduleName)
 			:type type: String
 			:param refKeys: A list of properties to include from the referenced property. These properties will be
-				avaiable in the template without having to fetch the referenced property. Filtering is also only possible
+				available in the template without having to fetch the referenced property. Filtering is also only possible
 				by properties named here!
 			:type refKeys: List of Strings
 			:param parentKeys: A list of properties from the current skeleton to include. If mixing filtering by
