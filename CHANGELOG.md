@@ -8,8 +8,8 @@ This file documents any relevant changes done to ViUR server since version 2.
 ### Added
 - Pagesize to sha256 cache key
 - Providing less or equal and more or equal comparision filters in queries. ([#77](https://github.com/viur-framework/server/pull/77))
-- `_queue` Paramater to deferred calls. This allows to enqueue deferred tasks to other, custom defined task-queues. ([#133](https://github.com/viur-framework/server/pull/133))
-- Default template for captcha-bone ([#112](https://github.com/viur-framework/server/pull/112))
+- `_queue` Parameter to deferred calls. This allows to enqueue deferred tasks to other, custom defined task-queues. ([#133](https://github.com/viur-framework/server/pull/133))
+- Default template for captchaBone ([#112](https://github.com/viur-framework/server/pull/112))
 - getAvailableRootNodes stub ([#113](https://github.com/viur-framework/server/pull/113))
 
 ### Changed
@@ -18,12 +18,11 @@ This file documents any relevant changes done to ViUR server since version 2.
 - Force SSL by default ([#132](https://github.com/viur-framework/server/pull/132))
 - Limit the timewindow for second factor to 10 minutes ([#129](https://github.com/viur-framework/server/pull/129))
 - Polishing IndexManager ([#76](https://github.com/viur-framework/server/pull/76))
-- Use `.get()` for _servingurl_-test ([#114](https://github.com/viur-framework/server/pull/114))
-- Preventing looping over empty language entries in multiple stringBones ([#120](https://github.com/viur-framework/server/pull/120))
+- Improved internal handling of tests on servingurls ([#114](https://github.com/viur-framework/server/pull/114))
+- Preventing looping over empty language entries in in stringBone(mutiple=True) ([#120](https://github.com/viur-framework/server/pull/120))
 - Unified templates, removed camelcase, errorpage improved ([#123](https://github.com/viur-framework/server/pull/123))
-- Some valuesCache access improvements for more stability ([#125](https://github.com/viur-framework/server/pull/125))
+- Stability improvements on several bones ([#125](https://github.com/viur-framework/server/pull/125))
 - Log exception with traceback if loading or parsing of email templates fail ([#127](https://github.com/viur-framework/server/pull/127))
-- Removed registered tradmark symbol and capitalize Mausbrand, updated year, use https in viur.is link ([#135](https://github.com/viur-framework/server/pull/135))
 
 ### Fixed
 - Signature of serialize() in randomSliceBone ([#98](https://github.com/viur-framework/server/pull/98))
@@ -31,7 +30,7 @@ This file documents any relevant changes done to ViUR server since version 2.
 - Several typos ([#109](https://github.com/viur-framework/server/pull/109) [#140](https://github.com/viur-framework/server/pull/140))
 - RelationalBone: Check for bone in postSavedHandler ([#82](https://github.com/viur-framework/server/pull/82))
 - Prevent IndexError in updateURL if we received an empty parameter (?=1) and remove that param from the output ([#118](https://github.com/viur-framework/server/pull/118))
-- relationalBone.refresh() ([#119](https://github.com/viur-framework/server/pull/119))
+- Fixing relationalBone.refresh() to update translated bones also. ([#119](https://github.com/viur-framework/server/pull/119))
 
 ### Removed
 - pytz. It's now provided in the base repo 
