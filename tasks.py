@@ -33,7 +33,7 @@ class CallableTaskBase:
 	def canCall( self ):
 		"""
 			Checks wherever the current user can execute this task
-			@returns bool
+			:returns: bool
 		"""
 		return( False )
 
@@ -68,12 +68,12 @@ class TaskHandler:
 			Tries to locate the instance, this function belongs to.
 			If it succeeds in finding it, it returns the function and its instance (-> its "self").
 			Otherwise, None is returned.
-			@param task: A callable decorated with @PeriodicTask
-			@type task: callable
-			@param obj: Object, which will be scanned in the current iteration. None means start at conf["viur.mainApp"].
-			@type obj: object
-			@param depth: Current iteration depth.
-			@type depth: int
+			:param task: A callable decorated with @PeriodicTask
+			:type task: callable
+			:param obj: Object, which will be scanned in the current iteration. None means start at conf["viur.mainApp"].
+			:type obj: object
+			:param depth: Current iteration depth.
+			:type depth: int
 		"""
 		if depth>3 or not "periodicTaskID" in dir( task ): #Limit the maximum amount of recursions
 			return( None )
@@ -322,8 +322,8 @@ def PeriodicTask( intervall ):
 		Intervall defines a lower bound for the call-frequency for this task;
 		it will not be called faster than each intervall minutes.
 		(Note that the actual delay between two sequent might be much larger)
-		@param intervall: Call at most every intervall minutes. 0 means call as often as possible.
-		@type intervall: Int
+		:param intervall: Call at most every intervall minutes. 0 means call as often as possible.
+		:type intervall: Int
 	"""
 	def mkDecorator( fn ):
 		global _periodicTasks, _periodicTaskID
@@ -379,7 +379,7 @@ class DisableApplicationTask( CallableTaskBase ):
 	def canCall( self ):
 		"""
 			Checks wherever the current user can execute this task
-			@returns bool
+			:returns: bool
 		"""
 		return( users.is_current_user_admin() )
 

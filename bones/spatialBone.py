@@ -104,7 +104,7 @@ class spatialBone( baseBone ):
 			can write into the datastore.
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: String
+			:type name: str
 			:returns: dict
 		"""
 		if valuesCache[name] and not self.isInvalid(valuesCache[name]):
@@ -127,7 +127,7 @@ class spatialBone( baseBone ):
 			read from the datastore and populates
 			this bone accordingly.
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: String
+			:type name: str
 			:param expando: An instance of the dictionary-like db.Entity class
 			:type expando: db.Entity
 			:returns: bool

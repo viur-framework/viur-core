@@ -20,14 +20,14 @@ from functools import wraps
 viurCacheName = "viur-cache"
 
 
-	
+
 def keyFromArgs( f, userSensitive, languageSensitive, evaluatedArgs, path, args, kwargs ):
 	"""
 		Parses args and kwargs according to the information's given
-		by evaluatedArgs and argsOrder. Returns an unique key for this 
+		by evaluatedArgs and argsOrder. Returns an unique key for this
 		combination of arguments. This key is guaranteed to be stable for
 		subsequent calls with the same arguments and context( the current user)
-		
+
 		:param f: Callable which is inspected for its signature
 			(we need to figure out what positional arguments map to which key argument)
 		:type f: Callable
@@ -41,7 +41,7 @@ def keyFromArgs( f, userSensitive, languageSensitive, evaluatedArgs, path, args,
 			that function. This list *must* complete! Parameters not named here are ignored!
 		:type evaluatedArgs: List
 		:param path: Path to the function called but without parameters (ie. "/page/view")
-		:type path: String
+		:type path: str
 		:returns: The unique key derived
 	"""
 	res = {}
@@ -107,7 +107,7 @@ def wrapCallable(f, urls, userSensitive, languageSensitive, evaluatedArgs, maxCa
 		Does the actual work of wrapping a callable.
 		Use the decorator enableCache instead of calling this directly.
 	"""
-	
+
 	@wraps(f)
 	def wrapF( self, *args, **kwargs ):
 		currentRequest = request.current.get()
@@ -155,7 +155,7 @@ def wrapCallable(f, urls, userSensitive, languageSensitive, evaluatedArgs, maxCa
 def enableCache( urls, userSensitive=0, languageSensitive=False, evaluatedArgs=[], maxCacheTime=None  ):
 	"""
 		Decorator to mark a function cacheable.
-		Only functions decorated with enableCache are considered cacheable; 
+		Only functions decorated with enableCache are considered cacheable;
 		ViUR will never ever cache the result of a user-defined function otherwise.
 		Warning: It's not possible to cache the result of a function relying on reading/modifying
 		the environment (ie. setting custom http-headers). The only exception is the content-type header.
@@ -183,7 +183,7 @@ def enableCache( urls, userSensitive=0, languageSensitive=False, evaluatedArgs=[
 			Note: Its not erased from the db after that time, but it won't be served anymore.
 			If None, the cache stays valid forever (until manually erased by calling flushCache.
 		:type maxCacheTime: Int or None
-		
+
 	"""
 	assert not any( [x.startswith("_") for x in evaluatedArgs]), "A evaluated Parameter cannot start with an underscore!"
 	return lambda f: wrapCallable( f, urls, userSensitive, languageSensitive, evaluatedArgs, maxCacheTime )
@@ -195,7 +195,7 @@ def flushCache( prefix="/*" ):
 		the path-prefix.
 
 		:param prefix: Path or prefix that should be flushed.
-		:type prefix: String
+		:type prefix: str
 
 		Examples:
 			- "/" would flush the main page (and only that),

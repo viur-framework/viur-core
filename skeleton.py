@@ -868,9 +868,9 @@ class RelSkel(BaseSkeleton):
 			The ones which have been read correctly contain their data; the other ones are set back to a safe default (None in most cases)
 			So its possible to call save() afterwards even if reading data fromClient faild (through this might violates the assumed consitency-model!).
 
-			@param data: Dictionary from which the data is read
-			@type data: Dict
-			@returns: True if the data was successfully read; False otherwise (eg. some required fields where missing or invalid)
+			:param data: Dictionary from which the data is read
+			:type data: Dict
+			:returns: True if the data was successfully read; False otherwise (eg. some required fields where missing or invalid)
 		"""
 		complete = True
 		super(BaseSkeleton, self).__setattr__("errors", {})
@@ -964,7 +964,7 @@ class SkelList( list ):
 
 	def __init__( self, baseSkel ):
 		"""
-			@param baseSkel: The baseclass for all entries in this list
+			:param baseSkel: The baseclass for all entries in this list
 		"""
 		super( SkelList, self ).__init__()
 		self.baseSkel = baseSkel

@@ -33,7 +33,7 @@ class randomSliceBone( baseBone ):
 			float [0..1) as value for this bone.
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: String
+			:type name: str
 			:returns: dict
 		"""
 		entity.set(name, random(), True)

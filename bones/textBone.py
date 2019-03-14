@@ -206,7 +206,7 @@ class textBone( baseBone ):
 			is returned.
 
 			:param name: Our name in the skeleton
-			:type name: String
+			:type name: str
 			:param data: *User-supplied* request-data
 			:type data: Dict
 			:returns: None or String

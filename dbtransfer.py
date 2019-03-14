@@ -31,11 +31,11 @@ class DbTransfer( object ):
 	def _checkKey(self, key, export=True):
 		"""
 			Utility function to compare the given key with the keys stored in our conf in constant time
-			@param key: The key we should validate
-			@type key: string
-			@param export: If True, we validate against the export-key, otherwise the import-key
-			@type export: bool
-			@returns: True if the key is correct, False otherwise
+			:param key: The key we should validate
+			:type key: str
+			:param export: If True, we validate against the export-key, otherwise the import-key
+			:type export: bool
+			:returns: True if the key is correct, False otherwise
 		"""
 		isValid = True
 		if not isinstance( key, basestring ):

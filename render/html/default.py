@@ -732,7 +732,7 @@ class Render( object ):
 			:type destpath: str
 
 			:param type: "entry": Copy/Move an entry, everything else: Copy/Move an directory
-			:type type: string
+			:type type: str
 
 			:param deleteold: "0": Copy, "1": Move
 			:type deleteold: str

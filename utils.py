@@ -97,7 +97,7 @@ def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,
 
 def _GAE_sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None, *args, **kwargs):
 	"""
-	Internal function for using Google App Engine Email processing API. 
+	Internal function for using Google App Engine Email processing API.
 	"""
 	headers, data = conf["viur.emailRenderer"]( skel, name, dests,**kwargs )
 
@@ -249,9 +249,9 @@ def safeStringComparison(s1, s2):
 		This should prevent side-channel (timing) attacks
 		on passwords etc.
 		:param s1: First string to compare
-		:type s1: string | unicode
+		:type s1: str | unicode
 		:param s2: Second string to compare
-		:type s2: string | unicode
+		:type s2: str | unicode
 		:return: True if both strings are equal, False otherwise
 		:return type: bool
 	"""

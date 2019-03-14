@@ -54,7 +54,7 @@ def validate( key, acceptSessionKey=False ):
 	"""
 		Validates a onetime securitykey
 
-		:type key: String
+		:type key: str
 		:param key: The key to validate
 		:type acceptSessionKey: Bool
 		:param acceptSessionKey: If True, we also accept the session's skey
