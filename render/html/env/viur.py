@@ -553,7 +553,6 @@ def renderEditForm(render, skel, ignore=None, hide=None):
 		categoryContent = u""
 
 		for boneName, boneParams in boneList:
-			print(boneName)
 			if ignore and boneName in ignore:
 				continue
 

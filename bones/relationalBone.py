@@ -51,7 +51,7 @@ class relationalBone( baseBone ):
 
 			:param kind: KindName of the referenced property.
 			:type kind: String
-			:param module: Name of the modul which should be used to select entities of kind "type". If not set,
+			:param module: Name of the module which should be used to select entities of kind "type". If not set,
 				the value of "type" will be used (the kindName must match the moduleName)
 			:type type: String
 			:param refKeys: A list of properties to include from the referenced property. These properties will be

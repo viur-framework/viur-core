@@ -85,7 +85,7 @@ class Order( List ):
 	adminInfo = {
 		"name": "Orders", #Name of this module, as shown in ViUR Admin (will be translated at runtime)
 		"handler": "list.order",  #Which handler to invoke
-		"icon": "icons/modules/cart.svg", #Icon for this modul
+		"icon": "icons/modules/cart.svg", #Icon for this module
 		"filter":{"orderby":"creationdate","orderdir":1,"state_complete":"1" },
 		"columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"],
 		"views" : [	{ "name": u"Not shipped", "filter":{"state_archived": "0",  "state_complete":"1", "state_send":"0", "state_canceled":"0", "orderby":"creationdate","orderdir":1 }, "icon":"icons/status/order_not_shipped.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"]},

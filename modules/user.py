@@ -455,7 +455,6 @@ class User(List):
 
 			#Also put it as an object into self, so that any exposed function is reachable
 			setattr(self, "auth_%s" % pInstance.__class__.__name__.lower(), pInstance)
-			#logging.info("auth_%s" % pInstance.__class__.__name__.lower() )
 
 		for p in self.secondFactorProviders:
 			pInstance = p(self, modulePath+"/f2_%s" % p.__name__.lower())
@@ -463,7 +462,6 @@ class User(List):
 
 			#Also put it as an object into self, so that any exposed function is reachable
 			setattr(self, "f2_%s" % pInstance.__class__.__name__.lower(), pInstance)
-			#logging.info("f2_%s" % pInstance.__class__.__name__.lower() )
 
 	def extendAccessRights(self, skel):
 		accessRights = skel.access.values.copy()

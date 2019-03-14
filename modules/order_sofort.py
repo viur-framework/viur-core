@@ -39,14 +39,14 @@ class Sofort( object ):
 			"user_variable_4", "user_variable_5", "created"]
 		hashstr = "|".join( [ kwargs[key] for key in sortOrder ]+[conf["sofort"]["notificationpassword"]] )
 		if hashlib.sha512(hashstr.encode("utf-8")).hexdigest()!=kwargs["hash"]:
-			logging.error("RECIVED INVALID HASH FOR sofort (%s!=%s)" % ( hashlib.sha512(hashstr.encode("utf-8")).hexdigest(),kwargs["hash"] ) )
+			logging.error("RECEIVED INVALID HASH FOR sofort (%s!=%s)" % ( hashlib.sha512(hashstr.encode("utf-8")).hexdigest(),kwargs["hash"] ) )
 			return("INVALID HASH")
 		order = db.Get( db.Key( kwargs["user_variable_0"] ) )
 		if not order:
-			logging.error("RECIVED UNKNOWN ORDER by sofort (%s)" % ( kwargs["user_variable_0"] ) )
+			logging.error("RECEIVED UNKNOWN ORDER by sofort (%s)" % ( kwargs["user_variable_0"] ) )
 			return("UNKNOWN ORDER")
 		if ("%.2f" % order["price"]) != kwargs["amount"]:
-			logging.error("RECIVED INVALID AMOUNT PAYED sofort (%s!=%s)" % ( order["price"], kwargs["amount"] ) )
+			logging.error("RECEIVED INVALID AMOUNT PAYED sofort (%s!=%s)" % ( order["price"], kwargs["amount"] ) )
 			return("INVALID AMOUNT")
 		self.orderHandler.setPayed( kwargs["user_variable_0"] )
 		return("OKAY")

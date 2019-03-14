@@ -20,7 +20,7 @@ class HTTPException( Exception ):
 		self.status = status
 		self.name = name
 		self.descr = descr
-	
+
 	def process( self ):
 		pass
 
@@ -75,7 +75,7 @@ class NotFound( HTTPException ):
 	"""
 		NotFound
 
-		Usually raised in view() methods from application if the given id is invalid.
+		Usually raised in view() methods from application if the given key is invalid.
 	"""
 	def __init__( self, descr="The requested resource could not be found." ):
 		super( NotFound, self ).__init__(  status=404, name = "Not Found", descr=descr )
@@ -84,7 +84,7 @@ class MethodNotAllowed( HTTPException ):
 	"""
 		MethodNotAllowed
 
-		Raised if a function is accessed which dosn't have the @exposed / @internalExposed decorator or
+		Raised if a function is accessed which doesn't have the @exposed / @internalExposed decorator or
 		if the request arrived using get, but the function has the @forcePost flag.
 	"""
 	def __init__( self, descr="Method Not Allowed" ):
@@ -125,7 +125,7 @@ class PreconditionFailed( HTTPException ):
 	"""
 	def __init__( self, descr="Precondition Failed" ):
 		super( PreconditionFailed, self ).__init__(  status=412, name = "Precondition Failed", descr=descr )
-		
+
 class RequestTooLarge( HTTPException ):
 	"""
 		RequestTooLarge
@@ -162,7 +162,7 @@ class NotImplemented( HTTPException ):
 	"""
 	def __init__( self, descr="Not Implemented" ):
 		super( NotImplemented, self ).__init__(  status=501, name = "Not Implemented", descr=descr )
-		
+
 class BadGateway( HTTPException ):
 	"""
 		BadGateway
@@ -171,7 +171,7 @@ class BadGateway( HTTPException ):
 	"""
 	def __init__( self, descr="Bad Gateway" ):
 		super( BadGateway, self ).__init__(  status=502, name = "Bad Gateway", descr=descr )
-		
+
 class ServiceUnavailable( HTTPException ):
 	"""
 		ServiceUnavailable

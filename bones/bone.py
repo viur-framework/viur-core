@@ -418,7 +418,7 @@ class baseBone(object): # One Bone:
 			:param boneName: Name of this bone
 			:type boneName: String
 			:param key: The old Database Key of hte entity we've deleted
-			:type id: String
+			:type key: String
 		"""
 		pass
 

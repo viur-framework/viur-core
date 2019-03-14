@@ -216,7 +216,6 @@ class BaseSkeleton(object):
 				if not "__" in key and isinstance(bone , baseBone):
 					tmpList.append((key, bone))
 			tmpList.sort(key=lambda x: x[1].idx)
-			#logging.error(tmpList)
 			for key, bone in tmpList:
 				if cloned:
 					self.__dataDict__[key] = copy.deepcopy(bone)

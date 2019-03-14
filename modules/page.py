@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
-from server.skeleton import Skeleton
 from server.prototypes.hierarchy import Hierarchy, HierarchySkel
 from server.bones import *
-from server import db
-from server import session, errors
-import logging
 
 class pageSkel( HierarchySkel ):
 	kindName="page"
@@ -13,17 +9,17 @@ class pageSkel( HierarchySkel ):
 	descr = textBone( descr="Content", required=True, searchable=True )
 
 class Page( Hierarchy ):
-	adminInfo = {	"name": "Sites", #Name of this modul, as shown in ViUR Admin (will be translated at runtime)
+	adminInfo = {	"name": "Sites", #Name of this module, as shown in ViUR Admin (will be translated at runtime)
 				"handler": "hierarchy",  #Which handler to invoke
-				"icon": "icons/modules/hierarchy.svg", #Icon for this modul
-				"formatstring": "$(name)", 
-				"filters" : { 	
+				"icon": "icons/modules/hierarchy.svg", #Icon for this module
+				"formatstring": "$(name)",
+				"filters" : {
 							None: { "filter":{ },
 									"icon":"icons/modules/hierarchy.svg",
 									"columns":["name", "language", "isactive"]
 							},
 					},
-				"previewURL": "/page/view/{{id}}"
+				"previewURL": "/page/view/{{key}}"
 				}
 
 	viewTemplate = "page_view"
@@ -35,9 +31,9 @@ class Page( Hierarchy ):
 
 	def canList( self, parent ):
 		return( True )
-		
-	def canView( self, id ):
+
+	def canView( self, key ):
 		return( True )
-	
+
 Page.html = True
 Page.json = True

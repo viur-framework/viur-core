@@ -19,11 +19,11 @@ class DriveVideoList(List):
 	listTemplate = "drive_video_list"
 	viewTemplate = "drive_video_view"
 
-	adminInfo = {"name": u"DriveVideos",  # Name of this modul, as shown in ViUR (will be translated at runtime)
+	adminInfo = {"name": u"DriveVideos",  # Name of this module, as shown in ViUR (will be translated at runtime)
 	             "handler": "list",  # Which handler to invoke
-	             "icon": "icons/modules/google_drive.svg",  # Icon for this modul
+	             "icon": "icons/modules/google_drive.svg",  # Icon for this module
 	             "filter": {"orderby": "name"},
-	             "columns": ["id", "title", "caption", "file_id"],
+	             "columns": ["key", "title", "caption", "file_id"],
 	             "sortIndex": 50}
 
 	def drive_changes(self, *args, **kwars):

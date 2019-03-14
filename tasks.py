@@ -168,7 +168,7 @@ class TaskHandler:
 		checkUpdate() #Let the update-module verify the database layout first
 		logging.debug("Updatecheck complete")
 		for task,intervall in _periodicTasks.items(): #Call all periodic tasks
-			if intervall: #Ensure this task dosn't get called to often
+			if intervall: #Ensure this task doesn't get called to often
 				try:
 					lastCall = db.Get( db.Key.from_path( "viur-task-interval", task.periodicTaskName ) )
 					if lastCall["date"] > datetime.now()-timedelta( minutes=intervall ):
