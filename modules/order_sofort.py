@@ -7,11 +7,12 @@ class Sofort( object ):
 	"""
 	Provides payments via Sofort.com (SOFORT-Classic).
 	You must set the following variables before using this:
-	viur.conf["sofort"] = {	"userid":"<your userid>",
-						"projectid":"<project-id>",
-						"projectpassword":"<project-password>",
-						"notificationpassword":"<notificationpassword>"
-						}
+	viur.conf["sofort"] = {
+		"userid":"<your userid>",
+		"projectid":"<project-id>",
+		"projectpassword":"<project-password>",
+		"notificationpassword":"<notificationpassword>"
+	}
 	"""
 
 	def __init__(self, orderHandler):

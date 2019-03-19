@@ -66,7 +66,7 @@ from server.modules.order_sofort import Sofort
 
 class Order( List ):
 	"""
-	Provides an unified orderingprocess with payment-handling.
+	Provides an unified ordering process with payment-handling.
 	This is encoded as a state machine.
 	"""
 
@@ -74,29 +74,110 @@ class Order( List ):
 	paymentProviders = [PayPal,Sofort]
 
 	states = [
-		"complete", # The user completed all steps of the process, he might got redirected to a paymentprovider
-		"payed", #This oder has been payed
-		"rts", #Ready to Ship
-		"send", # Goods got shipped
+		"complete",  # The user completed all steps of the process, he might got redirected to a paymentprovider
+		"payed",  # This oder has been payed
+		"rts",  # Ready to Ship
+		"send",  # Goods got shipped
 		"canceled",  # Order got canceled
-		"archived"  #This order has been executed
+		"archived"  # This order has been executed
 	]
 
 	adminInfo = {
-		"name": "Orders", #Name of this module, as shown in ViUR Admin (will be translated at runtime)
-		"handler": "list.order",  #Which handler to invoke
-		"icon": "icons/modules/cart.svg", #Icon for this module
-		"filter":{"orderby":"creationdate","orderdir":1,"state_complete":"1" },
-		"columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"],
-		"views" : [	{ "name": u"Not shipped", "filter":{"state_archived": "0",  "state_complete":"1", "state_send":"0", "state_canceled":"0", "orderby":"creationdate","orderdir":1 }, "icon":"icons/status/order_not_shipped.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"]},
-				{ "name": u"Unpaid", "filter":{"state_archived": "0", "state_complete":"1", "state_payed":"0","state_canceled":"0", "orderby":"creationdate","orderdir":1}, "icon":"icons/status/order_unpaid.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] },
-				{ "name": u"Paid","filter":{"state_archived": "0", "state_complete":"1", "state_payed":"1", "state_canceled":"0", "orderby":"creationdate","orderdir":1}, "icon":"icons/status/order_paid.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] },
-				{ "name": u"Shipped", "filter":{"state_archived": "0", "state_complete":"1", "state_canceled":"0", "state_send":"1","orderby":"changedate","orderdir":1}, "icon":"icons/status/order_shipped.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] },
-				{ "name": u"Ready to ship", "filter":{"state_archived": "0","state_canceled":"0",  "state_complete":"1", "state_send":"0","state_rts":"1","orderby":"changedate","orderdir":1}, "icon":"icons/status/order_ready.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] },
-				{ "name": u"Canceled", "filter":{"state_archived": "0", "state_canceled":"1", "state_complete":"1",  "orderby":"changedate","orderdir":1}, "icon":"icons/status/order_cancelled.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] },
-				{ "name": u"Archived", "filter":{"state_archived": "1", "state_complete":"1", "orderby":"changedate","orderdir":1}, "icon":"icons/status/archived.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] }
-			]
-		}
+		"name": "Orders",  # Name of this module, as shown in ViUR Admin (will be translated at runtime)
+		"handler": "list.order",  # Which handler to invoke
+		"icon": "icons/modules/cart.svg",  # Icon for this module
+		"filter": {
+			"orderby": "creationdate",
+			"orderdir": 1,
+			"state_complete": "1"
+		},
+		"columns": ["idx", "bill_firstname", "bill_lastname", "amt", "price", "creationdate"],
+		"views": [
+			{
+				"name": u"Not shipped",
+				"filter": {
+					"state_archived": "0",
+					"state_complete": "1",
+					"state_send": "0",
+					"state_canceled": "0",
+					"orderby": "creationdate",
+					"orderdir": 1
+				},
+				"icon": "icons/status/order_not_shipped.svg",
+				"columns": ["idx", "bill_firstname", "bill_lastname", "amt", "price", "creationdate"]
+			}, {
+				"name": u"Unpaid",
+				"filter": {
+					"state_archived": "0",
+					"state_complete": "1",
+					"state_payed": "0",
+					"state_canceled": "0",
+					"orderby": "creationdate",
+					"orderdir": 1
+				},
+				"icon": "icons/status/order_unpaid.svg",
+				"columns": ["idx", "bill_firstname", "bill_lastname", "amt", "price", "creationdate"]
+			}, {
+				"name": u"Paid",
+				"filter": {
+					"state_archived": "0",
+					"state_complete": "1",
+					"state_payed": "1",
+					"state_canceled": "0",
+					"orderby": "creationdate",
+					"orderdir": 1
+				},
+				"icon": "icons/status/order_paid.svg",
+				"columns": ["idx", "bill_firstname", "bill_lastname", "amt", "price", "creationdate"]
+			}, {
+				"name": u"Shipped",
+				"filter": {
+					"state_archived": "0",
+					"state_complete": "1",
+					"state_canceled": "0",
+					"state_send": "1",
+					"orderby": "changedate",
+					"orderdir": 1
+				},
+				"icon": "icons/status/order_shipped.svg",
+				"columns": ["idx", "bill_firstname", "bill_lastname", "amt", "price", "creationdate"]
+			}, {
+				"name": u"Ready to ship",
+				"filter": {
+					"state_archived": "0",
+					"state_canceled": "0",
+					"state_complete": "1",
+					"state_send": "0",
+					"state_rts": "1",
+					"orderby": "changedate",
+					"orderdir": 1
+				},
+				"icon": "icons/status/order_ready.svg",
+				"columns": ["idx", "bill_firstname", "bill_lastname", "amt", "price", "creationdate"]
+			}, {
+				"name": u"Canceled",
+				"filter": {
+					"state_archived": "0",
+					"state_canceled": "1",
+					"state_complete": "1",
+					"orderby": "changedate",
+					"orderdir": 1
+				},
+				"icon": "icons/status/order_cancelled.svg",
+				"columns": ["idx", "bill_firstname", "bill_lastname", "amt", "price", "creationdate"]
+			}, {
+				"name": u"Archived",
+				"filter": {
+					"state_archived": "1",
+					"state_complete": "1",
+					"orderby": "changedate",
+					"orderdir": 1
+				},
+				"icon": "icons/status/archived.svg",
+				"columns": ["idx", "bill_firstname", "bill_lastname", "amt", "price", "creationdate"]
+			}
+		]
+	}
 
 
 	def __init__(self, *args, **kwargs):
