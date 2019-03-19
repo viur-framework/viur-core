@@ -1,4 +1,4 @@
-
+# -*- coding: utf-8 -*-
 from datetime import datetime, timedelta
 from server.update import checkUpdate
 from server.config import conf, sharedConf
