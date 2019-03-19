@@ -33,7 +33,7 @@ def PutAsync( entities, **kwargs ):
 	"""
 	if isinstance( entities, Entity ):
 		entities._fixUnindexedProperties()
-	elif isinstance( entities, List ):
+	elif isinstance( entities, list ):
 		for entity in entities:
 			assert isinstance( entity, Entity )
 			entity._fixUnindexedProperties()
