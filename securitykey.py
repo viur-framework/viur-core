@@ -28,7 +28,7 @@ def create( duration=None, **kwargs ):
 		for up to duration-seconds
 
 		:param duration: Make this key valid for a fixed timeframe (and independend of the current session)
-		:type duration: Int or None
+		:type duration: int or None
 		:returns: The new onetime key
 	"""
 	key = generateRandomString()

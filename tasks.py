@@ -323,7 +323,7 @@ def PeriodicTask( intervall ):
 		it will not be called faster than each intervall minutes.
 		(Note that the actual delay between two sequent might be much larger)
 		:param intervall: Call at most every intervall minutes. 0 means call as often as possible.
-		:type intervall: Int
+		:type intervall: int
 	"""
 	def mkDecorator( fn ):
 		global _periodicTasks, _periodicTaskID

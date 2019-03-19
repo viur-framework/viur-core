@@ -131,7 +131,7 @@ class randomSliceBone( baseBone ):
 			:type result: list of list of :class:`server.db.Entity`
 			:param targetAmount: How many results should be returned from db.Query
 			:type targetAmount: int
-			:return: List of elements which should be returned from db.Query
+			:return: list of elements which should be returned from db.Query
 			:rtype: list of :class:`server.db.Entity`
 		"""
 		# res is a list of iterators at this point, chain them together

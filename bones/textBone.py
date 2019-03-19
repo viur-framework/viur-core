@@ -208,7 +208,7 @@ class textBone( baseBone ):
 			:param name: Our name in the skeleton
 			:type name: str
 			:param data: *User-supplied* request-data
-			:type data: Dict
+			:type data: dict
 			:returns: None or String
 		"""
 		if self.languages:

@@ -264,7 +264,7 @@ class Tree(BasicApplication):
 	@exposed
 	def list( self, skelType, node, *args, **kwargs ):
 		"""
-		List the entries and directorys of the given *skelType* under the given *node*.
+		List the entries and directories of the given *skelType* under the given *node*.
 		Any other supplied parameters are interpreted as filters for the elements displayed.
 
 		.. seealso:: :func:`canList`, :func:`server.db.mergeExternalFilter`

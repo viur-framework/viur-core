@@ -349,7 +349,7 @@ def requestParams(render):
 
 	These returned values are escaped, as users tend to use these in an unsafe manner.
 
-	:returns: Dict of parameter and values.
+	:returns: dict of parameter and values.
 	:rtype: dict
 	"""
 	res = {}

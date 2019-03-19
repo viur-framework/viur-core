@@ -28,7 +28,7 @@ class MetaBaseSkel(type):
 		It is used to enforce several restrictions on bone names, etc.
 	"""
 	_skelCache = {}  # Mapping kindName -> SkelCls
-	_allSkelClasses = set()  # List of all known skeleton classes (including Ref and Mail-Skels)
+	_allSkelClasses = set()  # list of all known skeleton classes (including Ref and Mail-Skels)
 
 	__reservedKeywords_ = [ "self", "cursor", "amount", "orderby", "orderdir",
 	                        "style", "items", "keys", "values" ]
@@ -869,7 +869,7 @@ class RelSkel(BaseSkeleton):
 			So its possible to call save() afterwards even if reading data fromClient faild (through this might violates the assumed consitency-model!).
 
 			:param data: Dictionary from which the data is read
-			:type data: Dict
+			:type data: dict
 			:returns: True if the data was successfully read; False otherwise (eg. some required fields where missing or invalid)
 		"""
 		complete = True
@@ -905,7 +905,7 @@ class RelSkel(BaseSkeleton):
 		"""
 			Loads 'values' into this skeleton.
 
-			:param values: Dict with values we'll assign to our bones
+			:param values: dict with values we'll assign to our bones
 			:type values: dict | db.Entry
 			:return:
 		"""
