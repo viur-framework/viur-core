@@ -40,7 +40,7 @@ def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,
 
 	:type skel: server.skeleton.Skeleton | dict | None
 	:param skel: The data made available to the template. In case of a Skeleton, its parsed the usual way;\
-	Dictionarys are passed unchanged.
+	Dictionaries are passed unchanged.
 
 	:type extraFiles: list of fileobjects
 	:param extraFiles: List of **open** fileobjects to be sent within the mail as attachments

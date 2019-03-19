@@ -66,7 +66,7 @@ class spatialBone( baseBone ):
 	def getGridSize(self):
 		"""
 			:return: the size of our sub-regions in (fractions-of-latitude, fractions-of-longitude)
-			:rtype: (float, flot)
+			:rtype: (float, float)
 		"""
 		latDelta = self.boundsLat[1]-self.boundsLat[0]
 		lngDelta = self.boundsLng[1]-self.boundsLng[0]
