@@ -23,9 +23,13 @@ _defaultTags = {
 		"img": ["src", "srcset", "width", "height", "alt", "title"],
 		"td": ["colspan", "rowspan"],
 		"p": ["data-indent"],
-		"blockquote" : ["cite"]
+		"blockquote": ["cite"]
 	},
-	"validStyles": [],  # List of CSS-Directives we allow
+	"validStyles": [
+		"width", "float",  # for images
+		"text-align",  # for general text alignment
+		"margin-left"  # for indent
+	],  # List of CSS-Directives we allow
 	"validClasses": ["vitxt-*"],  # List of valid class-names that are valid
 	"singleTags": ["br", "img", "hr"]  # List of tags, which don't have a corresponding end tag
 }
@@ -63,7 +67,7 @@ class HtmlSerializer(HTMLParser.HTMLParser):  # html.parser.HTMLParser
 
 	def flushCache(self):
 		"""
-			Flush pending tags into the result and push their corresponding end-tags onto the stak
+			Flush pending tags into the result and push their corresponding end-tags onto the stack
 		"""
 		for start, end in self.tagCache:
 			self.result += start
