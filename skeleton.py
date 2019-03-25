@@ -605,8 +605,7 @@ class Skeleton(BaseSkeleton):
 				dbObj = bone.serialize(skel.valuesCache, key, dbObj)
 
 				# Obtain referenced blobs
-				if key in self.valuesCache:
-					blobList.update(bone.getReferencedBlobs(self.valuesCache, key))
+				blobList.update(bone.getReferencedBlobs(self.valuesCache, key))
 
 			if clearUpdateTag:
 				# Mark this entity as Up-to-date.
@@ -654,7 +653,7 @@ class Skeleton(BaseSkeleton):
 
 				if not skel.searchIndex:
 					# We generate the search index using the full skel, not this (maybe incomplete one)
-					if bone.searchable and key in self.valuesCache:
+					if bone.searchable:
 						tags += [tag for tag in bone.getSearchTags(self.valuesCache, key)
 						            if tag not in tags and len(tag) < 400]
 
