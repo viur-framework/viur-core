@@ -15,7 +15,7 @@ import os, logging, codecs
 class KeyValueWrapper:
 	"""
 		This holds one Key-Value pair for
-		selectOne/selectMulti Bones.
+		selectBone Bones.
 
 		It allows to directly treat the key as string,
 		but still makes the translated description of that
@@ -91,7 +91,6 @@ class Render( object ):
 
 	__haveEnvImported_ = False
 
-	KeyValueWrapper = KeyValueWrapper
 
 	def __init__(self, parent=None, *args, **kwargs ):
 		super( Render, self ).__init__(*args, **kwargs)
@@ -308,11 +307,11 @@ class Render( object ):
 			skelValue = skel[key]
 			if isinstance(skelValue, list):
 				return [
-					Render.KeyValueWrapper(val, bone.values[val]) if val in bone.values else val
+					KeyValueWrapper(val, bone.values[val]) if val in bone.values else val
 					for val in skelValue
 				]
 			elif skelValue in bone.values:
-				return Render.KeyValueWrapper(skelValue, bone.values[skelValue])
+				return KeyValueWrapper(skelValue, bone.values[skelValue])
 			return skelValue
 		elif bone.type=="relational" or bone.type.startswith("relational."):
 			if isinstance(skel[key], list):
