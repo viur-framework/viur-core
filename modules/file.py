@@ -85,6 +85,27 @@ class fileNodeSkel(TreeNodeSkel):
 	name = stringBone(descr="Name", required=True, indexed=True, searchable=True)
 
 
+def decodeFileName(name):
+	# http://code.google.com/p/googleappengine/issues/detail?id=2749
+	# Open since Sept. 2010, claimed to be fixed in Version 1.7.2 (September 18, 2012)
+	# and still totally broken
+	try:
+		if name.startswith("=?"):  # RFC 2047
+			return unicode(email.Header.make_header(email.Header.decode_header(name + "\n")))
+		elif "=" in name and not name.endswith("="):  # Quoted Printable
+			return decodestring(name.encode("ascii")).decode("UTF-8")
+		else:  # Maybe base64 encoded
+			return urlsafe_b64decode(name.encode("ascii")).decode("UTF-8")
+	except:  # Sorry - I cant guess whats happend here
+		if isinstance(name, str) and not isinstance(name, unicode):
+			try:
+				return name.decode("UTF-8", "ignore")
+			except:
+				pass
+
+		return name
+
+
 class File(Tree):
 
 	viewLeafSkel = fileBaseSkel
@@ -106,25 +127,6 @@ class File(Tree):
 
 	blobCacheTime = 60*60*24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
 
-	def decodeFileName(self, name):
-		# http://code.google.com/p/googleappengine/issues/detail?id=2749
-		# Open since Sept. 2010, claimed to be fixed in Version 1.7.2 (September 18, 2012)
-		# and still totally broken
-		try:
-			if name.startswith("=?"): #RFC 2047
-				return unicode( email.Header.make_header(email.Header.decode_header(name + "\n")))
-			elif "=" in name and not name.endswith("="): #Quoted Printable
-				return decodestring(name.encode("ascii")).decode("UTF-8")
-			else: #Maybe base64 encoded
-				return urlsafe_b64decode(name.encode("ascii")).decode("UTF-8")
-		except: #Sorry - I cant guess whats happend here
-			if isinstance(name, str) and not isinstance(name, unicode):
-				try:
-					return name.decode("UTF-8", "ignore")
-				except:
-					pass
-
-			return name
 
 	def getUploads(self, field_name = None):
 		"""
@@ -232,7 +234,7 @@ class File(Tree):
 				parentRepo = None
 			# Handle the actual uploads
 			for upload in self.getUploads():
-				fileName = self.decodeFileName(upload.filename)
+				fileName = decodeFileName(upload.filename)
 				if str(upload.content_type).startswith("image/"):
 					try:
 						servingURL = images.get_serving_url(upload.key())
