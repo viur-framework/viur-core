@@ -28,12 +28,12 @@ def addCspRule(objectType, srcOrDirective, enforceMode="monitor"):
 			flood of violations-spam to your report-url.
 
 
-		@param objectType: For which type of objects should this directive be enforced? (script-src, img-src, ...)
-		@type objectType: string
-		@param srcOrDirective: Either a domain which should be white-listed or a CSP-Keyword like 'self', 'unsafe-inline', etc.
-		@type srcOrDirective: string
-		@param enforceMode: Should this directive be enforced or just logged?
-		@type enforceMode: 'monitor' or 'enforce'
+		:param objectType: For which type of objects should this directive be enforced? (script-src, img-src, ...)
+		:type objectType: str
+		:param srcOrDirective: Either a domain which should be white-listed or a CSP-Keyword like 'self', 'unsafe-inline', etc.
+		:type srcOrDirective: str
+		:param enforceMode: Should this directive be enforced or just logged?
+		:type enforceMode: 'monitor' or 'enforce'
 	"""
 	assert enforceMode in ["monitor", "enforce"], "enforceMode must be 'monitor' or 'enforce'!"
 	assert objectType in [  "default-src", "script-src", "object-src", "style-src", "img-src", "media-src",
@@ -123,9 +123,9 @@ def setXFrameOptions(action, uri=None):
 	"""
 		Sets X-Frame-Options to prevent click-jacking attacks.
 		:param action: off | deny | sameorigin | allow-from
-		:type action: string
+		:type action: str
 		:param uri: URL to whitelist
-		:type uri: string
+		:type uri: str
 		:return:
 	"""
 	if action=="off":

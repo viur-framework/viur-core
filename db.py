@@ -33,7 +33,7 @@ def PutAsync( entities, **kwargs ):
 	"""
 	if isinstance( entities, Entity ):
 		entities._fixUnindexedProperties()
-	elif isinstance( entities, List ):
+	elif isinstance( entities, list ):
 		for entity in entities:
 			assert isinstance( entity, Entity )
 			entity._fixUnindexedProperties()
@@ -196,7 +196,7 @@ def GetOrInsert( key, kindName=None, parent=None, **kwargs ):
 		:param key: The key which will be fetched or created. \
 		If key is a string, it will be used as the name for the new entity, therefore the \
 		collectionName is required in this case.
-		:type key: server.db.Key | String
+		:type key: server.db.Key | str
 		:param kindName: The data kind to use for that entity. Ignored if key is a db.Key.
 		:type kindName: str
 
@@ -693,7 +693,7 @@ class Query( object ):
 			Property is the name of the property used to sort, direction a bool
 			(false => ascending, True => descending).
 
-			:returns: List of orderings, in tuples (property,direction).
+			:returns: list of orderings, in tuples (property,direction).
 			:rtype: list
 		"""
 		try:
@@ -875,7 +875,7 @@ class Query( object ):
 				res.cursor = c.urlsafe()
 			else:
 				res.cursor = None
-		except AssertionError: #No Cursors avaiable on MultiQueries ( in or != )
+		except AssertionError: #No Cursors available on MultiQueries ( in or != )
 			res.cursor = None
 		return( res )
 

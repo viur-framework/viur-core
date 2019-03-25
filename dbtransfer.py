@@ -31,11 +31,11 @@ class DbTransfer( object ):
 	def _checkKey(self, key, export=True):
 		"""
 			Utility function to compare the given key with the keys stored in our conf in constant time
-			@param key: The key we should validate
-			@type key: string
-			@param export: If True, we validate against the export-key, otherwise the import-key
-			@type export: bool
-			@returns: True if the key is correct, False otherwise
+			:param key: The key we should validate
+			:type key: str
+			:param export: If True, we validate against the export-key, otherwise the import-key
+			:type export: bool
+			:returns: True if the key is correct, False otherwise
 		"""
 		isValid = True
 		if not isinstance( key, basestring ):
@@ -123,7 +123,6 @@ class DbTransfer( object ):
 
 	@exposed
 	def upload( self, oldkey, *args, **kwargs ):
-		logging.error("got UPLOADS")
 		res = []
 		for upload in self.getUploads():
 			fileName = self.decodeFileName( upload.filename )
@@ -171,9 +170,7 @@ class DbTransfer( object ):
 			key = db.Key(encoded=entry["id"])
 		else:
 			raise AttributeError()
-		logging.error( key.kind() )
-		logging.error( key.id() )
-		logging.error( key.name() )
+
 		dbEntry = db.Entity( kind=key.kind(), parent=key.parent(), id=key.id(), _app=key.app(), name=key.name() )#maybe some more fixes here ?
 		for k in entry.keys():
 			if k!="key":
@@ -215,9 +212,6 @@ class DbTransfer( object ):
 				entry[k] = entry[k].decode("UTF-8")
 		key = db.Key( encoded=utils.normalizeKey(entry["key"]) )
 
-		logging.info( key.kind() )
-		logging.info( key.id() )
-		logging.info( key.name() )
 		dbEntry = db.Entity( kind=key.kind(), parent=key.parent(), id=key.id(), name=key.name() )#maybe some more fixes here ?
 		for k in entry.keys():
 			if k!="key":

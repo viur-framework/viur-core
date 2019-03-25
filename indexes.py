@@ -43,7 +43,7 @@ class IndexMannager:
 
 			:param query: Query to derive key from
 			:type query: DB.Query
-			:returns: string
+			:returns: str
 		"""
 
 		assert isinstance(query, db.Query)
@@ -113,7 +113,7 @@ class IndexMannager:
 			:type query: db.Query
 			:param page: Page the user wants to retrieve
 			:type page: int
-			:returns: String-Cursor or None if no cursor is applicable
+			:returns: Cursor (type: str) or None if no cursor is applicable
 		"""
 		page = int(page)
 		pages = self.getOrBuildIndex(query)

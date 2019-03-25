@@ -8,7 +8,6 @@ apiVersion = 1 #What format do we use to store data in the bigtable
 
 #Conf is static, local Dictionary. Changes here are local to the current instance
 conf = {
-
 	"viur.accessRights": ["root","admin"],  #Accessrights available on this Application
 	"viur.availableLanguages": [], #List of language-codes, which are valid for this application
 
@@ -53,12 +52,15 @@ conf = {
 
 	"viur.salt": "ViUR-CMS",  #Default salt which will be used for eg. passwords. Once the application is used, this must not change!
 	"viur.searchValidChars": "abcdefghijklmnopqrstuvwxyz0123456789",  #Characters valid for the internal search functionality (all other chars are ignored)
-	"viur.security.contentSecurityPolicy": {'enforce': {'style-src': ['self', 'unsafe-inline'],  # unsafe-inline currently required for textBones
-	                                                    'default-src': ['self'],
-	                                                    'img-src': ['self', '*.ggpht.com', '*.googleusercontent.com'],  # Serving-URLs of file-Bones will point to these
-	                                                    'script-src': ['self'],
-	                                                    'frame-src': ['self', 'www.google.com', 'drive.google.com', 'accounts.google.com']}  # Required to login with google
-	                                        }, #If set, viur will emit a CSP http-header with each request. Use security.addCspRule to set this property
+	"viur.security.contentSecurityPolicy": { #If set, viur will emit a CSP http-header with each request. Use security.addCspRule to set this property
+		'enforce': {
+			'style-src': ['self', 'unsafe-inline'], #unsafe-inline currently required for textBones
+			'default-src': ['self'],
+			'img-src': ['self', '*.ggpht.com', '*.googleusercontent.com'], #Serving-URLs of file-Bones will point to these
+			'script-src': ['self'],
+			'frame-src': ['self', 'www.google.com', 'drive.google.com', 'accounts.google.com'] #Required to login with google
+		}
+	},
 	"viur.security.strictTransportSecurity": None, #If set, viur will emit a HSTS http-header with each request. Use security.enableStrictTransportSecurity to set this property
 	"viur.security.publicKeyPins": None, #If set, viur will emit a Public Key Pins http-header with each request. Use security.setPublicKeyPins to set this property
 	"viur.security.xFrameOptions": ("sameorigin", None), # If set, ViUR will emit a X-Frame-Options header,
@@ -72,8 +74,6 @@ conf = {
 	"viur.tasks.customEnvironmentHandler": None, #If set, must be a tuple of two functions serializing/restoring additional enviromental data in deferred requests,
 
 	"viur.version": None, #Will be set to server.__version__ in server.__init__
-
-
 }
 
 
