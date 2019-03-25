@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from server import db, request, errors
 import urllib
 from server.config import conf
@@ -9,9 +10,10 @@ class PayPal( object ):
 	By default the sandbox is used, to change this to productionmode,
 	set the following vars in viur.conf:
 
-	viur.conf["paypal"] = {	'USER' : '<your API username>',
-						'PWD' : '<your API password>',
-						'SIGNATURE' : '<your API signature>'
+	viur.conf["paypal"] = {
+		'USER' : '<your API username>',
+		'PWD' : '<your API password>',
+		'SIGNATURE' : '<your API signature>'
 	}
 	"""
 

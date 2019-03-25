@@ -116,7 +116,7 @@ class baseBone(object): # One Bone:
 
 	def setSystemInitialized(self):
 		"""
-			Can be overriden to initialize properties that depend on the Skeleton system being initialized
+			Can be overridden to initialize properties that depend on the Skeleton system being initialized
 		"""
 		pass
 
@@ -139,14 +139,14 @@ class baseBone(object): # One Bone:
 	def fromClient( self, valuesCache, name, data ):
 		"""
 			Reads a value from the client.
-			If this value is valis for this bone,
+			If this value is valid for this bone,
 			store this value and return None.
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
 
 			:param name: Our name in the skeleton
-			:type name: String
+			:type name: str
 			:param data: User-supplied request-data
 			:type data: dict
 			:returns: None or str
@@ -176,7 +176,7 @@ class baseBone(object): # One Bone:
 			can write into the datastore.
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: String
+			:type name: str
 			:returns: dict
 		"""
 		if name in valuesCache:
@@ -189,7 +189,7 @@ class baseBone(object): # One Bone:
 			read from the datastore and populates
 			this bone accordingly.
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: String
+			:type name: str
 			:param expando: An instance of the dictionary-like db.Entity class
 			:type expando: db.Entity
 			:returns: bool
@@ -386,7 +386,7 @@ class baseBone(object): # One Bone:
 	def performMagic( self, valuesCache, name, isAdd ):
 		"""
 			This function applies "magically" functionality which f.e. inserts the current Date or the current user.
-			@param isAdd: Signals whereever this is an add or edit operation.
+			:param isAdd: Signals whereever this is an add or edit operation.
 			:type isAdd: bool
 		"""
 		pass #We do nothing by default
@@ -396,7 +396,7 @@ class baseBone(object): # One Bone:
 			Can be overridden to perform further actions after the main entity has been written.
 
 			:param boneName: Name of this bone
-			:type boneName: String
+			:type boneName: str
 
 			:param skel: The skeleton this bone belongs to
 			:type skel: Skeleton
@@ -416,9 +416,9 @@ class baseBone(object): # One Bone:
 			:param skel: The skeleton this bone belongs to
 			:type skel: Skeleton
 			:param boneName: Name of this bone
-			:type boneName: String
-			:param key: The old Database Key of hte entity we've deleted
-			:type id: String
+			:type boneName: str
+			:param key: The old Database Key of the entity we've deleted
+			:type key: str
 		"""
 		pass
 

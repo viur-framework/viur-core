@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-import \
-	date, \
-	debug, \
-	regex, \
-	session, \
-	strings, \
-	viur
+import date
+import debug
+import regex
+import session
+import strings
+import viur

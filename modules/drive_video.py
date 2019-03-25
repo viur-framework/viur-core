@@ -19,12 +19,14 @@ class DriveVideoList(List):
 	listTemplate = "drive_video_list"
 	viewTemplate = "drive_video_view"
 
-	adminInfo = {"name": u"DriveVideos",  # Name of this modul, as shown in ViUR (will be translated at runtime)
-	             "handler": "list",  # Which handler to invoke
-	             "icon": "icons/modules/google_drive.svg",  # Icon for this modul
-	             "filter": {"orderby": "name"},
-	             "columns": ["id", "title", "caption", "file_id"],
-	             "sortIndex": 50}
+	adminInfo = {
+		"name": u"DriveVideos",  # Name of this module, as shown in ViUR (will be translated at runtime)
+		"handler": "list",  # Which handler to invoke
+		"icon": "icons/modules/google_drive.svg",  # Icon for this module
+		"filter": {"orderby": "name"},
+		"columns": ["id", "title", "caption", "file_id"],
+		"sortIndex": 50
+	}
 
 	def drive_changes(self, *args, **kwars):
 		if not self.canAdd():
@@ -39,14 +41,37 @@ class DriveVideoSkel(Skeleton):
 	kindName = "drivevideo"
 	searchIndex = "drivevideo"
 
-	file_id = stringBone(descr="File Id in Google Drive (Do not change this unless you know what you're doing)",
-	                     readOnly=False, required=True, indexed=True, searchable=True)
-	title = stringBone(descr="Video Title", required=True, indexed=True, searchable=True)
-	caption = stringBone(descr="Video Caption", required=False, indexed=True, searchable=True)
-	preview_image_url = stringBone(descr="Thumbnail Bild URL von Google", required=False, indexed=True,
-	                               searchable=True)
-	thumbnail_image = fileBone(descr=u"Thumbnail Bild", required=False, multiple=False,
-	                           params={"frontend_list_visible": True})
+	file_id = stringBone(
+		descr=u"File Id in Google Drive (Do not change this unless you know what you're doing)",
+		readOnly=False,
+		required=True,
+		indexed=True,
+		searchable=True
+	)
+	title = stringBone(
+		descr=u"Video Title",
+		required=True,
+		indexed=True,
+		searchable=True
+	)
+	caption = stringBone(
+		descr=u"Video Caption",
+		required=False,
+		indexed=True,
+		searchable=True
+	)
+	preview_image_url = stringBone(
+		descr=u"Thumbnail Bild URL von Google",
+		required=False,
+		indexed=True,
+		searchable=True
+	)
+	thumbnail_image = fileBone(
+		descr=u"Thumbnail Bild",
+		required=False,
+		multiple=False,
+		params={"frontend_list_visible": True}
+	)
 
 
 def get_credentials():

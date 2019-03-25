@@ -20,30 +20,79 @@ class userSkel(Skeleton):
 	kindName = "user"
 
 	# Properties required by google and custom auth
-	name = emailBone(descr="E-Mail", required=True, readOnly=True, caseSensitive=False, searchable=True, indexed=True, unique=True)
+	name = emailBone(
+		descr=u"E-Mail",
+		required=True,
+		readOnly=True,
+		caseSensitive=False,
+		searchable=True,
+		indexed=True,
+		unique=True
+	)
 
 	# Properties required by custom auth
-	password = passwordBone(descr="Password", required=False, readOnly=True, visible=False)
+	password = passwordBone(
+		descr=u"Password",
+		required=False,
+		readOnly=True,
+		visible=False
+	)
 
 	# Properties required by google auth
-	uid = stringBone(descr="Google's UserID", indexed=True, required=False, readOnly=True, unique=True)
-	gaeadmin = booleanBone(descr="Is GAE Admin", defaultValue=False, readOnly=True)
-
+	uid = stringBone(
+		descr=u"Google's UserID",
+		indexed=True,
+		required=False,
+		readOnly=True,
+		unique=True
+	)
+	gaeadmin = booleanBone(
+		descr=u"Is GAE Admin",
+		defaultValue=False,
+		readOnly=True
+	)
 
 	# Generic properties
-	access = selectAccessBone(descr="Access rights", values={"root": "Superuser"}, indexed=True)
-	status = selectBone(descr="Account status",
-	                        values = {  1: "Waiting for email verification",
-                                        2: "Waiting for verification through admin",
-                                        5: "Account disabled",
-                                        10: "Active" },
-	                        defaultValue="10", required=True, indexed=True)
-	lastlogin = dateBone(descr="Last Login", readOnly=True, indexed=True)
+	access = selectAccessBone(
+		descr=u"Access rights",
+		values={"root": "Superuser"},
+		indexed=True
+	)
+	status = selectBone(
+		descr=u"Account status",
+		values={
+			1: u"Waiting for email verification",
+			2: u"Waiting for verification through admin",
+			5: u"Account disabled",
+			10: u"Active"
+		},
+		defaultValue="10",
+		required=True,
+		indexed=True
+	)
+	lastlogin = dateBone(
+		descr=u"Last Login",
+		readOnly=True,
+		indexed=True
+	)
 
 	# One-Time Password Verification
-	otpid = stringBone(descr="OTP serial", required=False, indexed=True, searchable=True)
-	otpkey = credentialBone(descr="OTP hex key", required=False, indexed=True)
-	otptimedrift = numericBone(descr="OTP time drift", readOnly=True, defaultValue=0)
+	otpid = stringBone(
+		descr=u"OTP serial",
+		required=False,
+		indexed=True,
+		searchable=True
+	)
+	otpkey = credentialBone(
+		descr=u"OTP hex key",
+		required=False,
+		indexed=True
+	)
+	otptimedrift = numericBone(
+		descr=u"OTP time drift",
+		readOnly=True,
+		defaultValue=0
+	)
 
 
 class UserPassword(object):
@@ -455,7 +504,6 @@ class User(List):
 
 			#Also put it as an object into self, so that any exposed function is reachable
 			setattr(self, "auth_%s" % pInstance.__class__.__name__.lower(), pInstance)
-			#logging.info("auth_%s" % pInstance.__class__.__name__.lower() )
 
 		for p in self.secondFactorProviders:
 			pInstance = p(self, modulePath+"/f2_%s" % p.__name__.lower())
@@ -463,7 +511,6 @@ class User(List):
 
 			#Also put it as an object into self, so that any exposed function is reachable
 			setattr(self, "f2_%s" % pInstance.__class__.__name__.lower(), pInstance)
-			#logging.info("f2_%s" % pInstance.__class__.__name__.lower() )
 
 	def extendAccessRights(self, skel):
 		accessRights = skel.access.values.copy()

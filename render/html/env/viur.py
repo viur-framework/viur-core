@@ -349,7 +349,7 @@ def requestParams(render):
 
 	These returned values are escaped, as users tend to use these in an unsafe manner.
 
-	:returns: Dict of parameter and values.
+	:returns: dict of parameter and values.
 	:rtype: dict
 	"""
 	res = {}
@@ -553,7 +553,6 @@ def renderEditForm(render, skel, ignore=None, hide=None):
 		categoryContent = u""
 
 		for boneName, boneParams in boneList:
-			print(boneName)
 			if ignore and boneName in ignore:
 				continue
 

@@ -50,23 +50,23 @@ class relationalBone( baseBone ):
 			Initialize a new relationalBone.
 
 			:param kind: KindName of the referenced property.
-			:type kind: String
-			:param module: Name of the modul which should be used to select entities of kind "type". If not set,
+			:type kind: str
+			:param module: Name of the module which should be used to select entities of kind "type". If not set,
 				the value of "type" will be used (the kindName must match the moduleName)
-			:type type: String
+			:type type: str
 			:param refKeys: A list of properties to include from the referenced property. These properties will be
 				available in the template without having to fetch the referenced property. Filtering is also only possible
 				by properties named here!
-			:type refKeys: List of Strings
+			:type refKeys: list of str
 			:param parentKeys: A list of properties from the current skeleton to include. If mixing filtering by
 				relational properties and properties of the class itself, these must be named here.
-			:type parentKeys: List of Strings
+			:type parentKeys: list of str
 			:param multiple: If True, allow referencing multiple Elements of the given class. (Eg. n:n-relation.
 				otherwise its n:1 )
 			:type multiple: False
 			:param format: Hint for the admin how to display such an relation. See admin/utils.py:formatString for
 				more information
-			:type format: String
+			:type format: str
 		"""
 		baseBone.__init__( self, *args, **kwargs )
 		self.multiple = multiple
@@ -342,9 +342,9 @@ class relationalBone( baseBone ):
 			is returned.
 
 			:param name: Our name in the skeleton
-			:type name: String
+			:type name: str
 			:param data: *User-supplied* request-data
-			:type data: Dict
+			:type data: dict
 			:returns: None or String
 		"""
 		#from server.skeleton import RefSkel, skeletonByKind
