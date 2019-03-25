@@ -20,17 +20,15 @@ _defaultTags = {
 		"a": ["href", "target", "title"],
 		"abbr": ["title"],
 		"span": ["title"],
-		"img": ["src", "srcset", "width", "height", "alt", "title"],
+		"img": ["src", "srcset", "alt", "title"],
 		"td": ["colspan", "rowspan"],
 		"p": ["data-indent"],
 		"blockquote": ["cite"]
 	},
 	"validStyles": [
-		"width", "float",  # for images
-		"text-align",  # for general text alignment
-		"margin-left"  # for indent
+		"color"
 	],  # List of CSS-Directives we allow
-	"validClasses": ["vitxt-*"],  # List of valid class-names that are valid
+	"validClasses": ["vitxt-*", "viur-txt-*"],  # List of valid class-names that are valid
 	"singleTags": ["br", "img", "hr"]  # List of tags, which don't have a corresponding end tag
 }
 
@@ -86,8 +84,12 @@ class HtmlSerializer(HTMLParser.HTMLParser):  # html.parser.HTMLParser
 				k = k.strip()
 				v = v.strip()
 				if any([c in k for c in filterChars]) or any([c in v for c in filterChars]):
-					# Either the key or the value contains a character that's not supposed to be there
-					continue
+					if (k == "title" or k == "href") and not any([c in v for c in "\"'\\\0\r\n"]):
+						# If we have a title or href attribute, ignore @ and ()
+						pass
+					else:
+						# Either the key or the value contains a character that's not supposed to be there
+						continue
 				elif k == "class":
 					# Classes are handled below
 					classes = v.split(" ")
