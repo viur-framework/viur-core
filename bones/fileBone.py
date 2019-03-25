@@ -9,7 +9,7 @@ import logging
 class fileBone(treeItemBone):
 	kind = "file"
 	type = "relational.treeitem.file"
-	refKeys = ["name", "key", "meta_mime", "metamime", "mimetype", "dlkey", "servingurl", "size"]
+	refKeys = ["name", "key", "meta_mime", "metamime", "mimetype", "dlkey", "servingurl", "size", "width", "height"]
 
 	def __init__(self, format="$(dest.name)",*args, **kwargs ):
 		assert "dlkey" in self.refKeys, "You cannot remove dlkey from refKeys!"
