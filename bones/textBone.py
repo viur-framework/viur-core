@@ -193,7 +193,7 @@ class HtmlSerializer(HTMLParser.HTMLParser):  # html.parser.HTMLParser
 			endTag = '</%s>' % tag
 			self.result += endTag
 
-	def santinize(self, instr):
+	def sanitize(self, instr):
 		self.result = ""
 		self.openTagsList = []
 		self.feed(instr.replace("\n", " "))
@@ -249,7 +249,7 @@ class textBone( baseBone ):
 			for lang in self.languages:
 				if isinstance(valuesCache[name], dict) and lang in valuesCache[name]:
 					val = valuesCache[name][ lang ]
-					if not val or (not HtmlSerializer().santinize(val).strip() and not "<img " in val):
+					if not val or (not HtmlSerializer().sanitize(val).strip() and not "<img " in val):
 						#This text is empty (ie. it might contain only an empty <p> tag
 						continue
 					entity.set("%s.%s" % (name, lang), val, self.indexed)
@@ -308,7 +308,7 @@ class textBone( baseBone ):
 					val = data["%s.%s" % (name,lang)]
 					err = self.isInvalid(val) #Returns None on success, error-str otherwise
 					if not err:
-						valuesCache[name][lang] = HtmlSerializer(self.validHtml).santinize(val)
+						valuesCache[name][lang] = HtmlSerializer(self.validHtml).sanitize(val)
 					else:
 						lastError = err
 			if not any(valuesCache[name].values()) and not lastError:
@@ -326,7 +326,7 @@ class textBone( baseBone ):
 				value = unicode(value)
 			err = self.isInvalid(value)
 			if not err:
-				valuesCache[name] = HtmlSerializer(self.validHtml).santinize(value)
+				valuesCache[name] = HtmlSerializer(self.validHtml).sanitize(value)
 			return err
 
 	def isInvalid( self, value ):
@@ -379,14 +379,14 @@ class textBone( baseBone ):
 			return( res )
 		if self.languages:
 			for v in valuesCache.get(name).values():
-				value = HtmlSerializer( None ).santinize( v.lower() )
+				value = HtmlSerializer( None ).sanitize(v.lower())
 				for line in unicode(value).splitlines():
 					for key in line.split(" "):
 						key = "".join( [ c for c in key if c.lower() in conf["viur.searchValidChars"]  ] )
 						if key and key not in res and len(key)>3:
 							res.append( key.lower() )
 		else:
-			value = HtmlSerializer( None ).santinize( valuesCache.get(name).lower() )
+			value = HtmlSerializer( None ).sanitize(valuesCache.get(name).lower())
 			for line in unicode(value).splitlines():
 				for key in line.split(" "):
 					key = "".join( [ c for c in key if c.lower() in conf["viur.searchValidChars"]  ] )
