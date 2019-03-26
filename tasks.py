@@ -1,4 +1,4 @@
-
+# -*- coding: utf-8 -*-
 from datetime import datetime, timedelta
 from server.update import checkUpdate
 from server.config import conf, sharedConf
@@ -33,7 +33,7 @@ class CallableTaskBase:
 	def canCall( self ):
 		"""
 			Checks wherever the current user can execute this task
-			@returns bool
+			:returns: bool
 		"""
 		return( False )
 
@@ -68,12 +68,12 @@ class TaskHandler:
 			Tries to locate the instance, this function belongs to.
 			If it succeeds in finding it, it returns the function and its instance (-> its "self").
 			Otherwise, None is returned.
-			@param task: A callable decorated with @PeriodicTask
-			@type task: callable
-			@param obj: Object, which will be scanned in the current iteration. None means start at conf["viur.mainApp"].
-			@type obj: object
-			@param depth: Current iteration depth.
-			@type depth: int
+			:param task: A callable decorated with @PeriodicTask
+			:type task: callable
+			:param obj: Object, which will be scanned in the current iteration. None means start at conf["viur.mainApp"].
+			:type obj: object
+			:param depth: Current iteration depth.
+			:type depth: int
 		"""
 		if depth>3 or not "periodicTaskID" in dir( task ): #Limit the maximum amount of recursions
 			return( None )
@@ -168,7 +168,7 @@ class TaskHandler:
 		checkUpdate() #Let the update-module verify the database layout first
 		logging.debug("Updatecheck complete")
 		for task,intervall in _periodicTasks.items(): #Call all periodic tasks
-			if intervall: #Ensure this task dosn't get called to often
+			if intervall: #Ensure this task doesn't get called to often
 				try:
 					lastCall = db.Get( db.Key.from_path( "viur-task-interval", task.periodicTaskName ) )
 					if lastCall["date"] > datetime.now()-timedelta( minutes=intervall ):
@@ -252,8 +252,10 @@ def noRetry( f ):
 	def wrappedFunc( *args,  **kwargs ):
 		try:
 			f( *args,  **kwargs )
-		except:
+		except Exception as e:
+			logging.exception(e)
 			raise PermanentTaskFailure()
+
 	return( wrappedFunc )
 
 def callDeferred( func ):
@@ -322,8 +324,8 @@ def PeriodicTask( intervall ):
 		Intervall defines a lower bound for the call-frequency for this task;
 		it will not be called faster than each intervall minutes.
 		(Note that the actual delay between two sequent might be much larger)
-		@param intervall: Call at most every intervall minutes. 0 means call as often as possible.
-		@type intervall: Int
+		:param intervall: Call at most every intervall minutes. 0 means call as often as possible.
+		:type intervall: int
 	"""
 	def mkDecorator( fn ):
 		global _periodicTasks, _periodicTaskID
@@ -379,7 +381,7 @@ class DisableApplicationTask( CallableTaskBase ):
 	def canCall( self ):
 		"""
 			Checks wherever the current user can execute this task
-			@returns bool
+			:returns: bool
 		"""
 		return( users.is_current_user_admin() )
 

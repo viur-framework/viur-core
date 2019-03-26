@@ -40,7 +40,7 @@ def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,
 
 	:type skel: server.skeleton.Skeleton | dict | None
 	:param skel: The data made available to the template. In case of a Skeleton, its parsed the usual way;\
-	Dictionarys are passed unchanged.
+	Dictionaries are passed unchanged.
 
 	:type extraFiles: list of fileobjects
 	:param extraFiles: List of **open** fileobjects to be sent within the mail as attachments
@@ -54,28 +54,25 @@ def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,
 	:type replyTo: str
 	:param replyTo: A reply-to email address
 	"""
-
-	def rewriteEmail(oldDests, newDest):
-		"""
-			Rewrites each address in *oldDests* so that it will end with @newDest
-			:param oldDests: EMail-Address (or a list hereof) to rewrite
-			:type oldDests: str | list[str]
-			:param newDest: New Destination-Domain (eg "@mausbrand.de")
-			:type newDest: str
-			:return:
-		"""
-		if isinstance( oldDests, list ):
-			return [rewriteEmail(x) for x in oldDests ]
-		else:
-			newAddress = oldDests.replace(".", "_dot_").replace("@", "_at_")
-			return "%s%s" % (newAddress, newDest)
-
 	if conf["viur.emailRecipientOverride"]:
 		logging.warning("Overriding destination %s with %s", dests, conf["viur.emailRecipientOverride"])
-		if conf["viur.emailRecipientOverride"].startswith("@"):
-			dests = rewriteEmail(dests, conf["viur.emailRecipientOverride"])
-		else:
-			dests = conf["viur.emailRecipientOverride"]
+
+		oldDests = dests
+		if isinstance(oldDests, basestring):
+			oldDests = [oldDests]
+
+		newDests = conf["viur.emailRecipientOverride"]
+		if isinstance(newDests, basestring):
+			newDests = [newDests]
+
+		dests = []
+		for newDest in newDests:
+			if newDest.startswith("@"):
+				for oldDest in oldDests:
+					dests.append(oldDest.replace(".", "_dot_").replace("@", "_at_") + newDest)
+			else:
+				dests.append(newDest)
+
 	elif conf["viur.emailRecipientOverride"] is False:
 		logging.warning("Sending emails disabled by config[viur.emailRecipientOverride]")
 		return
@@ -90,14 +87,14 @@ def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,
 		return False
 
 
-	logging.error("CALLING %s" % str(handler))
+	logging.debug("CALLING %s" % str(handler))
 
 	return handler(dests, name, skel, extraFiles=extraFiles, cc=cc, bcc=bcc, replyTo=replyTo, *args, **kwargs)
 
 
 def _GAE_sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None, *args, **kwargs):
 	"""
-	Internal function for using Google App Engine Email processing API. 
+	Internal function for using Google App Engine Email processing API.
 	"""
 	headers, data = conf["viur.emailRenderer"]( skel, name, dests,**kwargs )
 
@@ -249,9 +246,9 @@ def safeStringComparison(s1, s2):
 		This should prevent side-channel (timing) attacks
 		on passwords etc.
 		:param s1: First string to compare
-		:type s1: string | unicode
+		:type s1: str | unicode
 		:param s2: Second string to compare
-		:type s2: string | unicode
+		:type s2: str | unicode
 		:return: True if both strings are equal, False otherwise
 		:return type: bool
 	"""

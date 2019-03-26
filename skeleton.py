@@ -28,7 +28,7 @@ class MetaBaseSkel(type):
 		It is used to enforce several restrictions on bone names, etc.
 	"""
 	_skelCache = {}  # Mapping kindName -> SkelCls
-	_allSkelClasses = set()  # List of all known skeleton classes (including Ref and Mail-Skels)
+	_allSkelClasses = set()  # list of all known skeleton classes (including Ref and Mail-Skels)
 
 	__reservedKeywords_ = [ "self", "cursor", "amount", "orderby", "orderdir",
 	                        "style", "items", "keys", "values" ]
@@ -216,7 +216,6 @@ class BaseSkeleton(object):
 				if not "__" in key and isinstance(bone , baseBone):
 					tmpList.append((key, bone))
 			tmpList.sort(key=lambda x: x[1].idx)
-			#logging.error(tmpList)
 			for key, bone in tmpList:
 				if cloned:
 					self.__dataDict__[key] = copy.deepcopy(bone)
@@ -869,9 +868,9 @@ class RelSkel(BaseSkeleton):
 			The ones which have been read correctly contain their data; the other ones are set back to a safe default (None in most cases)
 			So its possible to call save() afterwards even if reading data fromClient faild (through this might violates the assumed consitency-model!).
 
-			@param data: Dictionary from which the data is read
-			@type data: Dict
-			@returns: True if the data was successfully read; False otherwise (eg. some required fields where missing or invalid)
+			:param data: Dictionary from which the data is read
+			:type data: dict
+			:returns: True if the data was successfully read; False otherwise (eg. some required fields where missing or invalid)
 		"""
 		complete = True
 		super(BaseSkeleton, self).__setattr__("errors", {})
@@ -906,7 +905,7 @@ class RelSkel(BaseSkeleton):
 		"""
 			Loads 'values' into this skeleton.
 
-			:param values: Dict with values we'll assign to our bones
+			:param values: dict with values we'll assign to our bones
 			:type values: dict | db.Entry
 			:return:
 		"""
@@ -965,7 +964,7 @@ class SkelList( list ):
 
 	def __init__( self, baseSkel ):
 		"""
-			@param baseSkel: The baseclass for all entries in this list
+			:param baseSkel: The baseclass for all entries in this list
 		"""
 		super( SkelList, self ).__init__()
 		self.baseSkel = baseSkel

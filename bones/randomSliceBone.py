@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
-from math import pow, floor, ceil
 from server import db
-import logging
-from math import sqrt
 from random import random, sample, shuffle
 from itertools import chain
 
@@ -36,7 +33,7 @@ class randomSliceBone( baseBone ):
 			float [0..1) as value for this bone.
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: String
+			:type name: str
 			:returns: dict
 		"""
 		entity.set(name, random(), True)
@@ -134,7 +131,7 @@ class randomSliceBone( baseBone ):
 			:type result: list of list of :class:`server.db.Entity`
 			:param targetAmount: How many results should be returned from db.Query
 			:type targetAmount: int
-			:return: List of elements which should be returned from db.Query
+			:return: list of elements which should be returned from db.Query
 			:rtype: list of :class:`server.db.Entity`
 		"""
 		# res is a list of iterators at this point, chain them together

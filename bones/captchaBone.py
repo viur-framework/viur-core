@@ -33,9 +33,9 @@ class captchaBone( bone.baseBone ):
 			is returned.
 
 			:param name: Our name in the skeleton
-			:type name: String
+			:type name: str
 			:param data: *User-supplied* request-data
-			:type data: Dict
+			:type data: dict
 			:returns: None or String
 		"""
 		if request.current.get().isDevServer: #We dont enforce captchas on dev server
