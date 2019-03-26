@@ -11,6 +11,7 @@ This file documents any relevant changes done to ViUR server since version 2.
 - `_queue` Parameter to deferred calls. This allows to enqueue deferred tasks to other, custom defined task-queues. ([#133](https://github.com/viur-framework/server/pull/133))
 - Default template for captchaBone ([#112](https://github.com/viur-framework/server/pull/112))
 - getAvailableRootNodes stub ([#113](https://github.com/viur-framework/server/pull/113))
+- Provide logging of Stack-Trace if a noRetry Task failed ([#147](https://github.com/viur-framework/server/pull/147))
 
 ### Changed
 - Renamed folder "icons" to "embedsvg" ([#85](https://github.com/viur-framework/server/pull/85))
@@ -23,20 +24,26 @@ This file documents any relevant changes done to ViUR server since version 2.
 - Unified templates, removed camelcase, errorpage improved ([#123](https://github.com/viur-framework/server/pull/123))
 - Stability improvements on several bones ([#125](https://github.com/viur-framework/server/pull/125))
 - Log exception with traceback if loading or parsing of email templates fail ([#127](https://github.com/viur-framework/server/pull/127))
+- Dimensions (height and width) of an image are now provided by the refKeys of a fileBone ([#134](https://github.com/viur-framework/server/pull/134))
 
 ### Fixed
 - Signature of serialize() in randomSliceBone ([#98](https://github.com/viur-framework/server/pull/98))
 - Search for templates in the correct path if the htmlpath has been overridden by the class variable. ([#108](https://github.com/viur-framework/server/pull/108))
-- Several typos ([#109](https://github.com/viur-framework/server/pull/109) [#140](https://github.com/viur-framework/server/pull/140))
+- Several typos, readability and incorrect docstrings ([#109](https://github.com/viur-framework/server/pull/109) [#140](https://github.com/viur-framework/server/pull/140) [#143](https://github.com/viur-framework/server/pull/143))
 - RelationalBone: Check for bone in postSavedHandler ([#82](https://github.com/viur-framework/server/pull/82))
 - Prevent IndexError in updateURL if we received an empty parameter (?=1) and remove that param from the output ([#118](https://github.com/viur-framework/server/pull/118))
 - Fixing relationalBone.refresh() to update translated bones also. ([#119](https://github.com/viur-framework/server/pull/119))
+- Test in db.PutAsync ([#146](https://github.com/viur-framework/server/pull/146))
+- Allow in-tests in values of selectBone ([#139](https://github.com/viur-framework/server/pull/139))
+- The dbtransfer/upload to correctly obtain the oldBlobKey ([#103](https://github.com/viur-framework/server/pull/103))
+- Improved handling of email-recipient-override in utils.sendMail ([#136](https://github.com/viur-framework/server/pull/136))
 
 ### Removed
 - pytz. It's now provided in the base repo 
 - Several (commented) debugs and loggings ([#83](https://github.com/viur-framework/server/pull/83))
 - visible=False enforcement for magic dateBones ([#128](https://github.com/viur-framework/server/pull/128))
-
+- Google checkout module (was broken and not in use) ([#145](https://github.com/viur-framework/server/pull/145))
+- Bugsnag and all related parts from ViUR ([#138](https://github.com/viur-framework/server/pull/138))
 
 
 ## [2.3.0] Kilauea - 2018-10-02
