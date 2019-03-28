@@ -39,18 +39,20 @@ class fileBone(treeItemBone):
 						if val["dest"]["servingurl"].startswith("http://"):
 							val["dest"]["servingurl"] = val["dest"]["servingurl"].replace("http://","https://")
 		if isinstance(currentValue, dict):
-			if not "mimetype" in currentValue["dest"] or not currentValue["dest"]["mimetype"]:
-				if "meta_mime" in currentValue["dest"] and currentValue["dest"]["meta_mime"]:
-					currentValue["dest"]["mimetype"] = currentValue["dest"]["meta_mime"]
-				elif "metamime" in currentValue["dest"] and currentValue["dest"]["metamime"]:
-					currentValue["dest"]["mimetype"] = currentValue["dest"]["metamime"]
+			currentDestValue = currentValue["dest"]
+			if not "mimetype" in currentDestValue or not currentDestValue["mimetype"]:
+				if "meta_mime" in currentDestValue and currentDestValue["meta_mime"]:
+					currentDestValue["mimetype"] = currentDestValue["meta_mime"]
+				elif "metamime" in currentDestValue and currentDestValue["metamime"]:
+					currentDestValue["mimetype"] = currentDestValue["metamime"]
 		elif isinstance(currentValue, list):
 			for val in currentValue:
-				if not "mimetype" in val["dest"] or not val["dest"]["mimetype"]:
-					if "meta_mime" in val["dest"] and val["dest"]["meta_mime"]:
-						val["dest"]["mimetype"] = val["dest"]["meta_mime"]
-					elif "metamime" in val["dest"] and val["dest"]["metamime"]:
-						val["dest"]["mimetype"] = val["dest"]["metamime"]
+				currentDestValue = val["dest"]
+				if not "mimetype" in currentDestValue or not currentDestValue["mimetype"]:
+					if "meta_mime" in currentDestValue and currentDestValue["meta_mime"]:
+						currentDestValue["mimetype"] = currentDestValue["meta_mime"]
+					elif "metamime" in currentDestValue and currentDestValue["metamime"]:
+						currentDestValue["mimetype"] = currentDestValue["metamime"]
 		return res
 
 	def refresh(self, valuesCache, boneName, skel):
