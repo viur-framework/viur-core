@@ -84,7 +84,7 @@ class HtmlSerializer(HTMLParser.HTMLParser):  # html.parser.HTMLParser
 				k = k.strip()
 				v = v.strip()
 				if any([c in k for c in filterChars]) or any([c in v for c in filterChars]):
-					if (k == "title" or k == "href") and not any([c in v for c in "\"'\\\0\r\n"]):
+					if k in {"title", "href", "alt"} and not any([c in v for c in "\"'\\\0\r\n"]):
 						# If we have a title or href attribute, ignore @ and ()
 						pass
 					else:
