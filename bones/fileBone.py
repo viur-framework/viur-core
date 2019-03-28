@@ -27,24 +27,25 @@ class fileBone(treeItemBone):
 
 	def unserialize( self, valuesCache, name, expando ):
 		res = super( fileBone, self ).unserialize( valuesCache, name, expando )
+		currentValue = valuesCache[name]
 		if not request.current.get().isDevServer:
 			# Rewrite all "old" Serving-URLs to https if we are not on the development-server
-			if isinstance(valuesCache[name], dict) and valuesCache[name]["dest"].get("servingurl"):
-				if valuesCache[name]["dest"]["servingurl"].startswith("http://"):
-					valuesCache[name]["dest"]["servingurl"] = valuesCache[name]["dest"]["servingurl"].replace("http://","https://")
-			elif isinstance( valuesCache[name], list ):
-				for val in valuesCache[name]:
+			if isinstance(currentValue, dict) and currentValue["dest"].get("servingurl"):
+				if currentValue["dest"]["servingurl"].startswith("http://"):
+					currentValue["dest"]["servingurl"] = currentValue["dest"]["servingurl"].replace("http://","https://")
+			elif isinstance( currentValue, list ):
+				for val in currentValue:
 					if isinstance(val, dict) and val["dest"].get("servingurl"):
 						if val["dest"]["servingurl"].startswith("http://"):
 							val["dest"]["servingurl"] = val["dest"]["servingurl"].replace("http://","https://")
-		if isinstance(valuesCache[name], dict):
-			if not "mimetype" in valuesCache[name]["dest"] or not valuesCache[name]["dest"]["mimetype"]:
-				if "meta_mime" in valuesCache[name]["dest"] and valuesCache[name]["dest"]["meta_mime"]:
-					valuesCache[name]["dest"]["mimetype"] = valuesCache[name]["dest"]["meta_mime"]
-				elif "metamime" in valuesCache[name]["dest"] and valuesCache[name]["dest"]["metamime"]:
-					valuesCache[name]["dest"]["mimetype"] = valuesCache[name]["dest"]["metamime"]
-		elif isinstance(valuesCache[name], list):
-			for val in valuesCache[name]:
+		if isinstance(currentValue, dict):
+			if not "mimetype" in currentValue["dest"] or not currentValue["dest"]["mimetype"]:
+				if "meta_mime" in currentValue["dest"] and currentValue["dest"]["meta_mime"]:
+					currentValue["dest"]["mimetype"] = currentValue["dest"]["meta_mime"]
+				elif "metamime" in currentValue["dest"] and currentValue["dest"]["metamime"]:
+					currentValue["dest"]["mimetype"] = currentValue["dest"]["metamime"]
+		elif isinstance(currentValue, list):
+			for val in currentValue:
 				if not "mimetype" in val["dest"] or not val["dest"]["mimetype"]:
 					if "meta_mime" in val["dest"] and val["dest"]["meta_mime"]:
 						val["dest"]["mimetype"] = val["dest"]["meta_mime"]
