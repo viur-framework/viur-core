@@ -1,6 +1,6 @@
 {% if boneParams.multiple %}
     <div class="option-group">
-        {% for key, descr in boneParams.values.items() %}
+        {% for key, descr in boneParams["values"].items() %}
             <div class="check">
                 <input
                     class="check-input"
@@ -26,7 +26,7 @@
 		{{'readonly' if boneParams.readOnly}}
 		{{'required' if boneParams.required}}
     >
-        {%- for key, descr in boneParams.values.items() %}
+        {%- for key, descr in boneParams["values"].items() %}
             {% if loop.first %}
                 <option value="" {{ "selected" if not boneValue }} {{ "disabled" if boneParams.required}} hidden>
                     -
