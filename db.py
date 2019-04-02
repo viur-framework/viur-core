@@ -396,7 +396,7 @@ class Query( object ):
 			logging.exception(e)
 			self.datastoreQuery = None
 			return( self )
-		if "search" in filters:
+		if "search" in filters and filters["search"]:
 			if isinstance( filters["search"], list ):
 				taglist = [ "".join([y for y in unicode(x).lower() if y in conf["viur.searchValidChars"] ] ) for x in filters["search"] ]
 			else:

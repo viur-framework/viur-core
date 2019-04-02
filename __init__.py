@@ -620,36 +620,8 @@ def setup( modules, render=None, default="html" ):
 		(=> /user instead of /html/user)
 		:type default: str
 	"""
-	import skeletons
-	from server.skeleton import Skeleton
 	from server.bones import bone
 
-	conf["viur.skeletons"] = {}
-	for modelKey in dir( skeletons ):
-		skelCls = getattr( skeletons, modelKey )
-		for key in dir( skelCls ):
-			skel = getattr( skelCls, key )
-			try:
-				isSkelClass = issubclass( skel, Skeleton )
-			except TypeError:
-				continue
-			if isSkelClass:
-				if not skel.kindName:
-					# Looks like a common base-class for skeletons
-					continue
-				if skel.kindName in conf["viur.skeletons"] and skel!=conf["viur.skeletons"][ skel.kindName ]:
-					# We have a conflict here, lets see if one skeleton is from server.*, and one from skeletons.*
-					relNewFileName = inspect.getfile(skel).replace( os.getcwd(),"" )
-					relOldFileName = inspect.getfile(conf["viur.skeletons"][ skel.kindName ]).replace( os.getcwd(),"" )
-					if relNewFileName.strip(os.path.sep).startswith("server"):
-						#The currently processed skeleton is from the server.* package
-						continue
-					elif relOldFileName.strip(os.path.sep).startswith("server"):
-						#The old one was from server - override it
-						conf["viur.skeletons"][ skel.kindName ] = skel
-						continue
-					raise ValueError("Duplicate definition for %s" % skel.kindName)
-				conf["viur.skeletons"][ skel.kindName ] = skel
 	if not render:
 		import server.render
 		render = server.render
