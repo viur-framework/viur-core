@@ -620,6 +620,9 @@ def setup( modules, render=None, default="html" ):
 		(=> /user instead of /html/user)
 		:type default: str
 	"""
+	import skeletons	# This import is not used here but _must_ remain to ensure that the
+						# application's data models are explicitly imported at some place!
+
 	from server.bones import bone
 
 	if not render:
