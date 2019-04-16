@@ -867,7 +867,7 @@ class Order( List ):
 
 		for order in query.fetch():
 			gotAtLeastOne = True
-			self.setArchived(order["key"].value)
+			self.setArchived(order["key"])
 
 		newCursor = query.getCursor()
 
@@ -887,7 +887,7 @@ class Order( List ):
 
 		for order in query.fetch():
 			gotAtLeastOne = True
-			self.setArchived(order["key"].value)
+			self.setArchived(order["key"])
 
 		newCursor = query.getCursor()
 
