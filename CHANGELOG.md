@@ -27,6 +27,7 @@ This file documents any relevant changes done to ViUR server since version 2.
 - Dimensions (height and width) of an image are now provided by the refKeys of a fileBone ([#134](https://github.com/viur-framework/server/pull/134))
 
 ### Fixed
+- Invalid bone access in periodic tasks of modules/order.py ([#157](https://github.com/viur-framework/server/pull/157))
 - Signature of serialize() in randomSliceBone ([#98](https://github.com/viur-framework/server/pull/98))
 - Search for templates in the correct path if the htmlpath has been overridden by the class variable. ([#108](https://github.com/viur-framework/server/pull/108))
 - Several typos, readability and incorrect docstrings ([#109](https://github.com/viur-framework/server/pull/109) [#140](https://github.com/viur-framework/server/pull/140) [#143](https://github.com/viur-framework/server/pull/143))
