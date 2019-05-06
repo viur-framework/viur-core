@@ -207,7 +207,7 @@ class File(Tree):
 		return res
 
 	@exposed
-	def upload( self, node=None, *args, **kwargs ):
+	def upload(self, node=None, *args, **kwargs):
 		try:
 			canAdd = self.canAdd("leaf", node)
 		except:
@@ -216,6 +216,7 @@ class File(Tree):
 			for upload in self.getUploads():
 				upload.delete()
 			raise errors.Forbidden()
+
 		try:
 			res = []
 			if node:
@@ -228,14 +229,17 @@ class File(Tree):
 				else:
 					weak = False
 					parentDir = str(node)
-					parentRepo =  nodeSkel["parentrepo"]
+					parentRepo = nodeSkel["parentrepo"]
 			else:
 				weak = True
 				parentDir = None
 				parentRepo = None
+
 			# Handle the actual uploads
 			for upload in self.getUploads():
 				fileName = decodeFileName(upload.filename)
+				height = width = 0
+
 				if str(upload.content_type).startswith("image/"):
 					try:
 						servingURL = images.get_serving_url(upload.key())
@@ -247,20 +251,21 @@ class File(Tree):
 							servingURL = servingURL.replace("http://", "https://")
 					except:
 						servingURL = ""
+
+					try:
+						# only fetching the file header or all if the file is smaller than 1M
+						data = blobstore.fetch_data(upload.key(), 0, min(upload.size, 1000000))
+						image = images.Image(image_data=data)
+						height = image.height
+						width = image.width
+					except Exception as err:
+						logging.error("some error occurred while trying to fetch the image header with dimensions")
+						logging.exception(err)
+
 				else:
 					servingURL = ""
+
 				fileSkel = self.addLeafSkel()
-				try:
-					# only fetching the file header or all if the file is smaller than 1M
-					data = blobstore.fetch_data(upload.key(), 0, min(upload.size, 1000000))
-					image = images.Image(image_data=data)
-					height = image.height
-					width = image.width
-				except Exception, err:
-					height = width = 0
-					logging.error(
-						"some error occurred while trying to fetch the image header with dimensions")
-					logging.exception(err)
 
 				fileSkel.setValues(
 					{
@@ -279,19 +284,25 @@ class File(Tree):
 				fileSkel.toDB()
 				res.append(fileSkel)
 				self.onItemUploaded(fileSkel)
+
 			# Uploads stored successfully, generate response to the client
 			for r in res:
 				logging.info("Upload successful: %s (%s)" % (r["name"], r["dlkey"]))
 			user = utils.getCurrentUser()
+
 			if user:
 				logging.info("User: %s (%s)" % (user["name"], user["key"]))
-			return( self.render.addItemSuccess( res ) )
-		except Exception, err:
+
+			return self.render.addItemSuccess(res)
+
+		except Exception as err:
 			logging.exception(err)
+
 			for upload in self.getUploads():
 				upload.delete()
-				utils.markFileForDeletion( str(upload.key() ) )
-			raise( errors.InternalServerError() )
+				utils.markFileForDeletion(str(upload.key()))
+
+			raise errors.InternalServerError()
 
 	@exposed
 	def download(self, blobKey, fileName = "", download = "", *args, **kwargs):
