@@ -37,6 +37,7 @@ This file documents any relevant changes done to ViUR server since version 2.
 - Allow in-tests in values of selectBone ([#139](https://github.com/viur-framework/server/pull/139))
 - The dbtransfer/upload to correctly obtain the oldBlobKey ([#103](https://github.com/viur-framework/server/pull/103))
 - Improved handling of email-recipient-override in utils.sendMail ([#136](https://github.com/viur-framework/server/pull/136))
+- Allow setting a dateBone back to None again ([#155](https://github.com/viur-framework/server/pull/155))
 
 ### Removed
 - pytz. It's now provided in the base repo 

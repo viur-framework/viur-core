@@ -99,7 +99,7 @@ class dateBone( baseBone ):
 		"""
 		rawValue = data.get(name, None)
 		if not rawValue:
-			value = rawValue
+			value = None
 		elif unicode(rawValue).replace("-",  "",  1).replace(".","",1).isdigit():
 			if int(rawValue) < -1*(2**30) or int(rawValue)>(2**31)-2:
 				value = False  # its invalid
@@ -157,8 +157,8 @@ class dateBone( baseBone ):
 			return "Invalid value entered"
 		else:
 			err = self.isInvalid(value)
-			if not err:
-				valuesCache[name] = value if value else None
+			if not err or value is None:
+				valuesCache[name] = value
 				if value is None:
 					return "No value entered"
 			return err
