@@ -25,6 +25,7 @@ This file documents any relevant changes done to ViUR server since version 2.
 - Stability improvements on several bones ([#125](https://github.com/viur-framework/server/pull/125))
 - Log exception with traceback if loading or parsing of email templates fail ([#127](https://github.com/viur-framework/server/pull/127))
 - Dimensions (height and width) of an image are now provided by the refKeys of a fileBone ([#134](https://github.com/viur-framework/server/pull/134))
+- Dimensions will only fetch from blobstore if an image was uploaded. ([#161](https://github.com/viur-framework/server/pull/161))
 
 ### Fixed
 - Invalid bone access in periodic tasks of modules/order.py ([#157](https://github.com/viur-framework/server/pull/157))
