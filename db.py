@@ -209,7 +209,7 @@ def GetOrInsert( key, kindName=None, parent=None, **kwargs ):
 
 	def txn( key, kwargs ):
 		try:
-			res = datastore.Get( key )
+			res = Entity.FromDatastoreEntity(datastore.Get( key ))
 		except datastore_errors.EntityNotFoundError:
 			res = Entity( kind=key.kind(), parent=key.parent(), name=key.name(), id=key.id() )
 			for k, v in kwargs.items():
