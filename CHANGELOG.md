@@ -28,6 +28,7 @@ This file documents any relevant changes done to ViUR server since version 2.
 - Dimensions will only fetch from blobstore if an image was uploaded. ([#161](https://github.com/viur-framework/server/pull/161))
 
 ### Fixed
+- *[Severe]* Entries fetched with db.GetOrInsert and written with db.Put will now correctly flush the memcache ([#162](https://github.com/viur-framework/server/pull/162))
 - Invalid bone access in periodic tasks of modules/order.py ([#157](https://github.com/viur-framework/server/pull/157))
 - Signature of serialize() in randomSliceBone ([#98](https://github.com/viur-framework/server/pull/98))
 - Search for templates in the correct path if the htmlpath has been overridden by the class variable. ([#108](https://github.com/viur-framework/server/pull/108))
