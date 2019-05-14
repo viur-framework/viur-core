@@ -157,7 +157,7 @@ class dateBone( baseBone ):
 			return "Invalid value entered"
 		else:
 			err = self.isInvalid(value)
-			if not err:
+			if not err or value is None:
 				valuesCache[name] = value
 				if value is None:
 					return "No value entered"
