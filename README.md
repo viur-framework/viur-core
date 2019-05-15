@@ -1,18 +1,18 @@
 # ViUR server
 
-This is the core component of **ViUR**, a free software development framework for the [Google App Engine](https://appengine.google.com) written in Python.
+This is the core component of **ViUR**, a free software development framework for the [Google App Engine](https://appengine.google.com) written in [Python](https://python.org/).
 
 ## About
 
-ViUR provides a clear concept for implementing agile data management software that runs on top of the [Google App Engine](https://appengine.google.com) platform. Its underlying database is Googles Cloud Datastore, which is a scalable document database.
+ViUR provides a clear concept for implementing agile data management software. Its underlying database is Googles Cloud Datastore, which is a scalable document database.
 
 The ViUR framework targets to the implementation of information systems, which are integrated, web-based applications or services performing data management and deployment operations of any kind. Therefore, ViUR is explicitly not claimed to be a content management system, although content management can be a part of a ViUR information system.
 
 ## Getting started
 
-To get started with ViUR, check out our [base repository](https://github.com/viur-framework/base). It comes with a recently updated, pre-configured and well documented project template to immediatelly start from with your new project.
+To get started with ViUR, check out our [base repository](https://github.com/viur-framework/base). It comes with a recently updated, pre-configured and well documented project template to immediately start from with your new project.
 
-We also recommend to visit the [viur.is](https://www.viur.is/) to get latest news and documentation on ViUR.
+We also recommend to visit [viur.is](https://www.viur.is/) to get latest news and documentation on ViUR.
 
 ## Contributing
 
