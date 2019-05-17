@@ -6,7 +6,7 @@ This file documents any relevant changes done to ViUR server since version 2.
 ## [develop] - Current development version
 
 ### Fixed
-- spatialGuaranteedCorrectness on very sparse maps ([#165](https://github.com/viur-framework/server/pull/165))
+- spatialGuaranteedCorrectness of bones/spatial on very sparse maps ([#167](https://github.com/viur-framework/server/pull/167))
 
 
 

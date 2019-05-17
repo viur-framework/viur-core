@@ -240,10 +240,10 @@ class spatialBone( baseBone ):
 		# in between) we choose a arbitrary large value for that lower bound
 		expectedAmount = self.calculateInternalMultiQueryAmount(targetAmount)  # How many items we expect in each direction
 		limits = [
-			haversine(latRight[-1][name + ".lat.val"], lng, lat, lng) if latRight and len(latRight) == expectedAmount else 2 ^ 31,  # Lat - Right Side
-			haversine(latLeft[-1][name + ".lat.val"], lng, lat, lng) if latLeft and len(latLeft) == expectedAmount else 2 ^ 31,  # Lat - Left Side
-			haversine(lat, lngBottom[-1][name + ".lng.val"], lat, lng) if lngBottom and len(lngBottom) == expectedAmount else 2 ^ 31,  # Lng - Bottom
-			haversine(lat, lngTop[-1][name + ".lng.val"], lat, lng) if lngTop and len(lngTop) == expectedAmount else 2 ^ 31,  # Lng - Top
+			haversine(latRight[-1][name + ".lat.val"], lng, lat, lng) if latRight and len(latRight) == expectedAmount else 2 ** 31,  # Lat - Right Side
+			haversine(latLeft[-1][name + ".lat.val"], lng, lat, lng) if latLeft and len(latLeft) == expectedAmount else 2 ** 31,  # Lat - Left Side
+			haversine(lat, lngBottom[-1][name + ".lng.val"], lat, lng) if lngBottom and len(lngBottom) == expectedAmount else 2 ** 31,  # Lng - Bottom
+			haversine(lat, lngTop[-1][name + ".lng.val"], lat, lng) if lngTop and len(lngTop) == expectedAmount else 2 ** 31,  # Lng - Top
 			haversine(lat + gridSizeLat, lng, lat, lng),
 			haversine(lat, lng + gridSizeLng, lat, lng)
 		]
