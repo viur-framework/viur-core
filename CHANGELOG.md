@@ -209,7 +209,8 @@ This file documents any relevant changes done to ViUR server since version 2.
 ### (Start of changelog)
 
 
-[develop]: https://github.com/viur-framework/server/compare/v2.3.0...develop
+[develop]: https://github.com/viur-framework/server/compare/v2.4.0...develop
+[2.4.0]: https://github.com/viur-framework/server/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/viur-framework/server/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/viur-framework/server/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/viur-framework/server/compare/v2.0.3...v2.1.0
