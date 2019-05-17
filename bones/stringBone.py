@@ -37,7 +37,7 @@ class LanguageWrapper( dict ):
 		else:
 			if lang in conf["viur.languageAliasMap"]:
 				lang = conf["viur.languageAliasMap"][ lang ]
-		if lang in self and self[ lang ] is not None and unicode( self[ lang ] ).strip(): #The users language is avaiable :)
+		if lang in self and self[ lang ] is not None and unicode( self[ lang ] ).strip(): #The users language is available :)
 			return( self[ lang ] )
 		else: #We need to select another lang for him
 			for lang in self.languages:
@@ -325,6 +325,8 @@ class stringBone( baseBone ):
 		if self.languages and isinstance(value, dict):
 			if self.multiple:
 				for lang in value.values():
+					if not lang:
+						continue
 					for val in lang:
 						for line in unicode(val).splitlines():
 							for key in line.split(" "):

@@ -8,14 +8,13 @@ $(document).ready(function () {
         $("input[name='" + realBoneName + "']").val(val);
     }
 
-    $(".js_viur_bones_date_doubleinput").each(function () {
+    $(".js-viur-bones-date-doubleinput").each(function () {
         $("input[name='" + $(this).attr("name") + "-date']").change(function () {
             viurBonesDateUpdate($(this).attr("name"));
         });
         $("input[name='" + $(this).attr("name") + "-time']").change(function () {
             viurBonesDateUpdate($(this).attr("name"));
         })
-
     });
 
     // ---- Relational.Treeitem.File Bones ----
@@ -23,18 +22,18 @@ $(document).ready(function () {
     function viurBonesFileCreateNewInputGroup(reordableArea) {
         // Creates the HTML that represents one file inside a multiple file bone
         var tpl = "";
-        tpl += '<div class="vi-file inputGroup js_viur_bones_file_reordableItem" data-multiple="1" draggable="true">';
-        tpl += '<div class="vi-fileMultiBone-previewImg"></div>';
+        tpl += '<div class="vi-file input-group js-viur-bones-file-reordable-item" data-multiple="1" draggable="true">';
+        tpl += '<div class="vi-file-multi-bone-preview-img"></div>';
         tpl += '<span class="input"></span>';
-        tpl += '<button class="btn icon edit js_viur_bones_file_uploadFileButton" type="button">Bearbeiten</button>';
-        tpl += '<button class="btn icon cancel btn-vDanger js_viur_bones_file_removeFile" type="button">Entfernen</button>'
+        tpl += '<button class="btn icon edit js-viur-bones-file-upload-file-button" type="button">Bearbeiten</button>';
+        tpl += '<button class="btn icon cancel btn-vDanger js-viur-bones-file-remove-file" type="button">Entfernen</button>'
         tpl += '<span class="uploader"></span>';
         tpl += '<input type="hidden" name="' + reordableArea.data("name") + '.' + reordableArea.children().length + '.key" value="">';
         tpl += '</div>';
         var res = $(tpl);
         viurBonesFileRebindInputGroupEvents(res);
-        viurBonesFileRebindFileRemoveButton(res.find(".js_viur_bones_file_removeFile"));
-        viurBonesFileRebindFileUploadButton(res.find(".js_viur_bones_file_uploadFileButton"));
+        viurBonesFileRebindFileRemoveButton(res.find(".js-viur-bones-file-remove-file"));
+        viurBonesFileRebindFileUploadButton(res.find(".js-viur-bones-file-upload-file-button"));
         return res;
     }
 
@@ -51,14 +50,14 @@ $(document).ready(function () {
                 inputGroup.find("span[class='input']").html("");
                 inputGroup.find("span[class='uploader']").children().remove();
                 inputGroup.find("input[type='hidden']").val("");
-                inputGroup.toggleClass("isEmpty", true);
+                inputGroup.toggleClass("is-empty", true);
                 viurBonesFileUploadIn(inputGroup, ulElement.get()[0].files[0], false);
             });
             ulElement.click();
         });
     }
 
-    viurBonesFileRebindFileUploadButton($(".js_viur_bones_file_uploadFileButton"));
+    viurBonesFileRebindFileUploadButton($(".js-viur-bones-file-upload-file-button"));
 
     function viurBonesFileRebindFileRemoveButton(elems) {
         // Ensure that the delete button inside inputGroups works
@@ -72,20 +71,19 @@ $(document).ready(function () {
                 inputGroup.find("span[class='input']").html("");
                 inputGroup.find("span[class='uploader']").children().remove();
                 inputGroup.find("input[type='hidden']").val("");
-                inputGroup.find("div[class~='vi-fileMultiBone-previewImg'], div[class~='vi-fileBone-previewImg']").css("background-image", "");
-                inputGroup.toggleClass("isEmpty", true);
+                inputGroup.find("div[class~='vi-file-multi-bone-preview-img'], div[class~='vi-file-bone-preview-img']").css("background-image", "");
+                inputGroup.toggleClass("is-empty", true);
             }
-
         });
     }
 
-    viurBonesFileRebindFileRemoveButton($(".js_viur_bones_file_removeFile"));
+    viurBonesFileRebindFileRemoveButton($(".js-viur-bones-file-remove-file"));
 
     function viurBonesFileRebindInputGroupEvents(elems) {
         // Attaches the events needed to handle delete, upload & drag'n'drop inside an inputGroup
         elems.bind("dragstart", function (evt) {
             $(this).toggleClass("reodableAreaItemIsDragged", true);
-            // Our dragable elements don't have an id, so we'll use the index from our input
+            // Our draggable elements don't have an id, so we'll use the index from our input
             // field to identify the object which gets dragged later on
             evt.originalEvent.dataTransfer.setData("text", $(evt.target).find("input[type='hidden']").attr("name"));
         }).bind("dragend", function (evt) {
@@ -93,7 +91,7 @@ $(document).ready(function () {
         });
     }
 
-    viurBonesFileRebindInputGroupEvents($(".js_viur_bones_file_reordableItem"));
+    viurBonesFileRebindInputGroupEvents($(".js-viur-bones-file-reordable-item"));
 
 
     function viurBonesFileUploadIn(inputGroup, file, removeGroupOnFailure) {
@@ -114,12 +112,12 @@ $(document).ready(function () {
                 inputGroup.find("span[class='uploader']").children().remove();
                 inputGroup.find("input[type='hidden']").val(fileData.key);
                 if (fileData.servingurl) {
-                    inputGroup.find("div[class~='vi-fileMultiBone-previewImg'], div[class~='vi-fileBone-previewImg']").css("background-image", "url("+fileData.servingurl+"=s150)")
+                    inputGroup.find("div[class~='vi-file-multi-bone-preview-img'], div[class~='vi-file-bone-preview-img']").css("background-image", "url("+fileData.servingurl+"=s150)")
                 } else {
-                    inputGroup.find("div[class~='vi-fileMultiBone-previewImg'], div[class~='vi-fileBone-previewImg']").css("background-image", "")
+                    inputGroup.find("div[class~='vi-file-multi-bone-preview-img'], div[class~='vi-file-bone-preview-img']").css("background-image", "")
                 }
 
-                inputGroup.toggleClass("isEmpty", false);
+                inputGroup.toggleClass("is-empty", false);
             }
         }
 
@@ -149,7 +147,7 @@ $(document).ready(function () {
         });
     }
 
-    $(".js_viur_bones_file_reordableArea").bind("dragover", function (evt) {
+    $(".js-viur-bones-file-reordable-area").bind("dragover", function (evt) {
         // Determine where the drop should be placed and show an visual indicator
         var afterElement = null;
         $(this).children().each(function (idx) {
@@ -221,7 +219,7 @@ $(document).ready(function () {
     });
 
 
-    $(".js_viur_bones_file_addFiles").click(function () {
+    $(".js-viur-bones-file-add-files").click(function () {
         // The user clicked the button to add new files to a multiple=True fileBone. Open the chooser,
         // create a new inputGroup for each and start uploading
         var oldThis = $(this);
@@ -240,7 +238,7 @@ $(document).ready(function () {
         ulElement.click();
     });
 
-    $(".js_viur_bones_file_uploadableInputGroup").bind("dragenter dragover", function (evt) {
+    $(".js-viur-bones-file-uploadable-input-group").bind("dragenter dragover", function (evt) {
         // For multiple=False bones we'll also accept all drag events by default
         evt.preventDefault();
         return false;
@@ -266,51 +264,49 @@ $(document).ready(function () {
         });
     }
 
-    viurBonesStrRebindDeleteStrButton($(".js_viur_bones_str_delteSingleStrWrapper"));
+    viurBonesStrRebindDeleteStrButton($(".js-viur-bones-str-delte-single-str-wrapper"));
 
 
-    $(".js_viur_bones_str_languageSelector").change(function () {
+    $(".js-viur-bones-str-language-selector").change(function () {
         // Show the corresponding text field(s)
-        $(".js_viur_bones_str_languageWrapper[data-name='" + $(this).data("name") + "']").css("display", "none");
+        $(".js-viur-bones-str-language-wrapper[data-name='" + $(this).data("name") + "']").css("display", "none");
         var selector = "[data-name='" + $(this).data("name") + "'][data-lang='" + $(this).val() + "']";
-        $(".js_viur_bones_str_languageWrapper" + selector).css("display", "");
+        $(".js-viur-bones-str-language-wrapper" + selector).css("display", "");
     }).change();
 
 
-    $(".js_viur_bones_str_addSingleStrWrapper").click(function (evt) {
-        // create a new js_viur_bones_str_singleStrWrapper object and append it to the dom
-        var wrapDataObj = $(this).parents(".js_viur_bones_str_languageWrapper").first();
+    $(".js-viur-bones-str-add-single-str-wrapper").click(function (evt) {
+        // create a new js-viur-bones-str-single-str-wrapper object and append it to the dom
+        var wrapDataObj = $(this).parents(".js-viur-bones-str-language-wrapper").first();
         var boneName = "";
         if (wrapDataObj.length) {
             // We are multiple=True and have translations
             boneName = wrapDataObj.data("name") + '.' + wrapDataObj.data("lang");
         } else {
             // It's a multiple=True bone *without* translations
-            wrapDataObj = $(this).parents(".js_viur_bones_str_multiStrWrapper");
+            wrapDataObj = $(this).parents(".js-viur-bones-str-multi-str-wrapper");
             boneName = wrapDataObj.data("name");
         }
         var tpl = "";
-        tpl += '<div class="js_viur_bones_str_singleStrWrapper">';
-        tpl += '<input class="input js_viur_bones_str_translatedSingle" type="text"';
+        tpl += '<div class="js-viur-bones-str-single-str-wrapper">';
+        tpl += '<input class="input js-viur-bones-str-translated-single" type="text"';
         tpl += 'name="' + boneName + '"';
         tpl += 'value="">';
-        tpl += '<button class="button js_viur_bones_str_delteSingleStrWrapper">Delete</button>';
+        tpl += '<button class="button js-viur-bones-str-delte-single-str-wrapper">Delete</button>';
         tpl += '</div>';
         var singleStrWrapper = $(tpl);
         singleStrWrapper.insertBefore($(this));
-        viurBonesStrRebindDeleteStrButton(singleStrWrapper.find(".js_viur_bones_str_delteSingleStrWrapper"));
+        viurBonesStrRebindDeleteStrButton(singleStrWrapper.find(".js-viur-bones-str-delte-single-str-wrapper"));
         evt.preventDefault();
         return false;
-
     });
 
     // ---- Str Bones ----
 
-    $(".js_viur_bones_text_languageSelector").change(function () {
+    $(".js-viur-bones-text-language-selector").change(function () {
         // Show the corresponding text field
-        $(".js_viur_bones_text_languageWrapper[data-name='" + $(this).data("name") + "']").css("display", "none");
+        $(".js-viur-bones-text-language-wrapper[data-name='" + $(this).data("name") + "']").css("display", "none");
         var selector = "[data-name='" + $(this).data("name") + "'][data-lang='" + $(this).val() + "']";
-        $(".js_viur_bones_text_languageWrapper" + selector).css("display", "");
+        $(".js-viur-bones-text-language-wrapper" + selector).css("display", "");
     }).change();
-
 });

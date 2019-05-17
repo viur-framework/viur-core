@@ -11,9 +11,9 @@ class selectBone(baseBone):
 			Creates a new selectBone.
 
 			:param defaultValue: List of keys which will be checked by default
-			:type defaultValue: List
-			:param values: Dict of key->value pairs from which the user can choose from. Values will be translated
-			:type values: Dict
+			:type defaultValue: list
+			:param values: dict of key->value pairs from which the user can choose from. Values will be translated
+			:type values: dict
 		"""
 
 		if defaultValue is None and multiple:

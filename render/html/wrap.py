@@ -24,6 +24,18 @@ class ListWrapper( list ):
 				res.append( getattr( obj, key ) )
 		return( ListWrapper(res) )
 
+	def __contains__( self, item ):
+		if super( ListWrapper, self ).__contains__( item ):
+			return True
+
+		from server.render.html.default import KeyValueWrapper
+		for obj in self:
+			if isinstance( obj, KeyValueWrapper ):
+				if str( obj ) == item:
+					return True
+
+		return False
+
 class SkelListWrapper(ListWrapper):
 	"""
 		Like ListWrapper, but takes the additional properties

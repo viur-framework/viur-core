@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-import logging
 import json
 from datetime import datetime
 from hashlib import sha256
+
 from server import db
+
 
 class IndexMannager:
 	"""
@@ -25,35 +26,37 @@ class IndexMannager:
 	def __init__(self, pageSize=10, maxPages=100):
 		"""
 		:param pageSize: How many items per page
-		:type pageSkel: int
+		:type pageSize: int
 		:param maxPages: How many pages are build. Items become unreachable if the amount of items
 			exceed pageSize*maxPages (ie. if a forum-thread has more than pageSize*maxPages Posts, Posts
 			after that barrier won't show up).
-		:return:
+		:type maxPages: int
 		"""
 		self.pageSize = pageSize
 		self.maxPages = maxPages
 		self._cache = {}
 
-	def keyFromQuery(self, query ):
+	def keyFromQuery(self, query):
 		"""
 			Derives a unique Database-Key from a given query.
 			This Key is stable regardless in which order the filter have been applied
 
 			:param query: Query to derive key from
 			:type query: DB.Query
-			:returns: string
+			:returns: str
 		"""
 
-		assert isinstance( query, db.Query )
-		origFilter = [ (x, y) for x, y in query.getFilter().items() ]
+		assert isinstance(query, db.Query)
+		origFilter = [(x, y) for x, y in query.getFilter().items()]
 		for k, v in query.getOrders():
-			origFilter.append( ("__%s ="%k, v) )
-		origFilter.sort( key=lambda x: x[0] )
-		filterKey = "".join( ["%s%s" % (x, y) for x, y in origFilter ] )
-		return( sha256( filterKey ).hexdigest() )
+			origFilter.append(("__%s =" % k, v))
+		if query.amount:
+			origFilter.append(("__pagesize =", self.pageSize))
+		origFilter.sort(key=lambda sx: sx[0])
+		filterKey = "".join(["%s%s" % (x, y) for x, y in origFilter])
+		return sha256(filterKey).hexdigest()
 
-	def getOrBuildIndex(self, origQuery ):
+	def getOrBuildIndex(self, origQuery):
 		"""
 			Builds a specific index based on origQuery AND local variables (self.indexPage and self.indexMaxPage)
 			Returns a list of starting-cursors for each page.
@@ -61,45 +64,44 @@ class IndexMannager:
 
 			:param origQuery: Query to build the index for
 			:type origQuery: db.Query
-			:param key: DB-Key to save the index to
-			:type key: string
 			:returns: []
 		"""
-		key = self.keyFromQuery( origQuery )
-		if key in self._cache: #We have it cached
-			return( self._cache[ key ] )
-		#We dont have it cached - try to load it from DB
+		key = self.keyFromQuery(origQuery)
+		if key in self._cache:  # We have it cached
+			return self._cache[key]
+		# We don't have it cached - try to load it from DB
 		try:
-			index = db.Get( db.Key.from_path( self._dbType, key ) )
-			res = json.loads( index["data"] )
-			self._cache[ key ] = res
-			return( res )
-		except db.EntityNotFoundError: #Its not in the datastore, too
+			index = db.Get(db.Key.from_path(self._dbType, key))
+			res = json.loads(index["data"])
+			self._cache[key] = res
+			return res
+		except db.EntityNotFoundError:  # Its not in the datastore, too
 			pass
-		#We dont have this index yet.. Build it
-		#Clone the original Query
-		queryRes = origQuery.clone( keysOnly=True ).datastoreQuery.Run( limit=self.maxPages*self.pageSize )
-		#Build-Up the index
-		res = [ ]
-		i = 0
-		previousCursor = None #The first page dosnt have any cursor
-		for discardedKey in queryRes:
-			if i%self.pageSize==0:
-				res.append( previousCursor )
-			if i%self.pageSize==(self.pageSize-1) and i>1:
-				previousCursor = str( queryRes.cursor().urlsafe() )
-			i += 1
-		if len( res ) == 0: # Ensure that the first page exists
-			res.append( None )
-		entry = db.Entity( self._dbType, name=key )
-		entry[ "data" ] = json.dumps( res )
-		entry[ "creationdate" ] = datetime.now()
-		db.Put( entry )
-		return( res )
+		# We don't have this index yet.. Build it
+		# Clone the original Query
+		queryRes = origQuery.clone(keysOnly=True).datastoreQuery.Run(limit=self.maxPages * self.pageSize)
+		# Build-Up the index
+		res = list()
+		previousCursor = None  # The first page dosnt have any cursor
 
-	def cursorForQuery(self, query, page ):
-		"""
-			Returns the starting-cursor for the given query and page using an index.
+		# enumerate is slightly faster than a manual loop counter
+		for counter, discardedKey in enumerate(queryRes):
+			if counter % self.pageSize == 0:
+				res.append(previousCursor)
+			if counter % self.pageSize == (self.pageSize - 1):
+				previousCursor = str(queryRes.cursor().urlsafe())
+
+		if not len(res):  # Ensure that the first page exists
+			res.append(None)
+
+		entry = db.Entity(self._dbType, name=key)
+		entry["data"] = json.dumps(res)
+		entry["creationdate"] = datetime.now()
+		db.Put(entry)
+		return res
+
+	def cursorForQuery(self, query, page):
+		"""Returns the starting-cursor for the given query and page using an index.
 
 			.. WARNING:
 
@@ -111,24 +113,24 @@ class IndexMannager:
 			:type query: db.Query
 			:param page: Page the user wants to retrieve
 			:type page: int
-			:returns: String-Cursor or None if no cursor is applicable
+			:returns: Cursor (type: str) or None if no cursor is applicable
 		"""
 		page = int(page)
-		pages = self.getOrBuildIndex( query )
-		if page>0 and len( pages )>page:
-			return( db.Cursor( urlsafe=pages[ page ] ) )
+		pages = self.getOrBuildIndex(query)
+		if 0 < page < len(pages):
+			return db.Cursor(urlsafe=pages[page])
 		else:
-			return( None )
+			return None
 
-	def getPages(self, query ):
+	def getPages(self, query):
 		"""
 			Returns a list of all starting-cursors for this query.
 			The first element is always None as the first page doesn't
 			have any start-cursor
 		"""
-		return( self.getOrBuildIndex( query ) )
+		return self.getOrBuildIndex(query)
 
-	def refreshIndex(self, query ):
+	def refreshIndex(self, query):
 		"""
 			Refreshes the Index for the given query
 			(Actually it removes it from the db so it gets rebuild on next use)
@@ -136,10 +138,14 @@ class IndexMannager:
 			:param query: Query for which the index should be refreshed
 			:type query: db.Query
 		"""
-		key = self.keyFromQuery( query )
+		key = self.keyFromQuery(query)
 		try:
-			db.Delete( db.Key.from_path( self._dbType, key ) )
+			db.Delete(db.Key.from_path(self._dbType, key))
 		except db.EntityNotFoundError:
 			pass
-		if key in self._cache:
-			del self._cache[ key ]
+
+		# try/except is faster than if clause
+		try:
+			del self._cache[key]
+		except:
+			pass

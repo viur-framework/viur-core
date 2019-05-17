@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from server import db, errors
 from server.config import conf
 import hashlib, logging
@@ -6,11 +7,12 @@ class Sofort( object ):
 	"""
 	Provides payments via Sofort.com (SOFORT-Classic).
 	You must set the following variables before using this:
-	viur.conf["sofort"] = {	"userid":"<your userid>",
-						"projectid":"<project-id>",
-						"projectpassword":"<project-password>",
-						"notificationpassword":"<notificationpassword>"
-						}
+	viur.conf["sofort"] = {
+		"userid":"<your userid>",
+		"projectid":"<project-id>",
+		"projectpassword":"<project-password>",
+		"notificationpassword":"<notificationpassword>"
+	}
 	"""
 
 	def __init__(self, orderHandler):
@@ -39,14 +41,14 @@ class Sofort( object ):
 			"user_variable_4", "user_variable_5", "created"]
 		hashstr = "|".join( [ kwargs[key] for key in sortOrder ]+[conf["sofort"]["notificationpassword"]] )
 		if hashlib.sha512(hashstr.encode("utf-8")).hexdigest()!=kwargs["hash"]:
-			logging.error("RECIVED INVALID HASH FOR sofort (%s!=%s)" % ( hashlib.sha512(hashstr.encode("utf-8")).hexdigest(),kwargs["hash"] ) )
+			logging.error("RECEIVED INVALID HASH FOR sofort (%s!=%s)" % ( hashlib.sha512(hashstr.encode("utf-8")).hexdigest(),kwargs["hash"] ) )
 			return("INVALID HASH")
 		order = db.Get( db.Key( kwargs["user_variable_0"] ) )
 		if not order:
-			logging.error("RECIVED UNKNOWN ORDER by sofort (%s)" % ( kwargs["user_variable_0"] ) )
+			logging.error("RECEIVED UNKNOWN ORDER by sofort (%s)" % ( kwargs["user_variable_0"] ) )
 			return("UNKNOWN ORDER")
 		if ("%.2f" % order["price"]) != kwargs["amount"]:
-			logging.error("RECIVED INVALID AMOUNT PAYED sofort (%s!=%s)" % ( order["price"], kwargs["amount"] ) )
+			logging.error("RECEIVED INVALID AMOUNT PAYED sofort (%s!=%s)" % ( order["price"], kwargs["amount"] ) )
 			return("INVALID AMOUNT")
 		self.orderHandler.setPayed( kwargs["user_variable_0"] )
 		return("OKAY")

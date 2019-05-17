@@ -12,8 +12,14 @@ class Render( default.Render ): #Render user-data to xml
 	verifyFailedTemplate = "user_verify_failed"
 	passwdRecoverInfoTemplate = "user_passwdrecover_info"
 
-	def login( self, skel, tpl=None,  **kwargs ):
-		return( self.edit( skel,  tpl=(tpl or self.loginTemplate), **kwargs ) )
+	def login(self, authMethods, tpl=None,  **kwargs):
+		if "loginTemplate" in dir(self.parent):
+			tpl = tpl or self.parent.loginTemplate
+		else:
+			tpl = tpl or self.loginTemplate
+
+		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
+		return template.render(authMethods=authMethods, **kwargs)
 
 	def loginSucceeded( self, tpl=None, **kwargs ):
 		if "loginSuccessTemplate" in dir( self.parent ):

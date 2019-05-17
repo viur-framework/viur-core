@@ -11,6 +11,45 @@ from jinja2 import Environment, FileSystemLoader, ChoiceLoader
 
 import os, logging, codecs
 
+
+class KeyValueWrapper:
+	"""
+		This holds one Key-Value pair for
+		selectBone Bones.
+
+		It allows to directly treat the key as string,
+		but still makes the translated description of that
+		key available.
+	"""
+
+	def __init__( self, key, descr ):
+		self.key = key
+		self.descr = _( descr )
+
+	def __str__( self ):
+		return (unicode( self.key ))
+
+	def __repr__( self ):
+		return (unicode( self.key ))
+
+	def __eq__( self, other ):
+		return (unicode( self ) == unicode( other ))
+
+	def __lt__( self, other ):
+		return (unicode( self ) < unicode( other ))
+
+	def __gt__( self, other ):
+		return (unicode( self ) > unicode( other ))
+
+	def __le__( self, other ):
+		return (unicode( self ) <= unicode( other ))
+
+	def __ge__( self, other ):
+		return (unicode( self ) >= unicode( other ))
+
+	def __trunc__( self ):
+		return (self.key.__trunc__())
+
 class Render( object ):
 	"""
 		The core jinja2 render.
@@ -52,42 +91,6 @@ class Render( object ):
 
 	__haveEnvImported_ = False
 
-	class KeyValueWrapper:
-		"""
-			This holds one Key-Value pair for
-			selectOne/selectMulti Bones.
-
-			It allows to directly treat the key as string,
-			but still makes the translated description of that
-			key available.
-		"""
-		def __init__( self, key, descr ):
-			self.key = key
-			self.descr = _( descr )
-
-		def __str__( self ):
-			return( unicode( self.key ) )
-
-		def __repr__( self ):
-			return( unicode( self.key ) )
-
-		def __eq__( self, other ):
-			return( unicode( self ) == unicode( other ) )
-
-		def __lt__( self, other ):
-			return( unicode( self ) < unicode( other ) )
-
-		def __gt__( self, other ):
-			return( unicode( self ) > unicode( other ) )
-
-		def __le__( self, other ):
-			return( unicode( self ) <= unicode( other ) )
-
-		def __ge__( self, other ):
-			return( unicode( self ) >= unicode( other ) )
-
-		def __trunc__( self ):
-			return( self.key.__trunc__() )
 
 	def __init__(self, parent=None, *args, **kwargs ):
 		super( Render, self ).__init__(*args, **kwargs)
@@ -138,7 +141,7 @@ class Render( object ):
 						template+".html" ]
 		for fn in fnames: #check subfolders
 			prefix = template.split("_")[0]
-			if os.path.isfile(os.path.join(os.getcwd(), "html", prefix, fn)):
+			if os.path.isfile(os.path.join(os.getcwd(), htmlpath, prefix, fn)):
 				return ( "%s/%s" % (prefix, fn ) )
 		for fn in fnames: #Check the templatefolder of the application
 			if os.path.isfile( os.path.join( os.getcwd(), htmlpath, fn ) ):
@@ -304,11 +307,11 @@ class Render( object ):
 			skelValue = skel[key]
 			if isinstance(skelValue, list):
 				return [
-					Render.KeyValueWrapper(val, bone.values[val]) if val in bone.values else val
+					KeyValueWrapper(val, bone.values[val]) if val in bone.values else val
 					for val in skelValue
 				]
 			elif skelValue in bone.values:
-				return Render.KeyValueWrapper(skelValue, bone.values[skelValue])
+				return KeyValueWrapper(skelValue, bone.values[skelValue])
 			return skelValue
 		elif bone.type=="relational" or bone.type.startswith("relational."):
 			if isinstance(skel[key], list):
@@ -350,8 +353,6 @@ class Render( object ):
 			else:
 				return None
 		else:
-			#logging.error("RETURNING")
-			#logging.error((skel[key]))
 			return skel[key]
 
 		return None
@@ -514,7 +515,7 @@ class Render( object ):
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		res = self.collectSkelData( skel )
 		return template.render(skel=res, params=params, **kwargs)
-	
+
 	def deleteSuccess(self, skel, tpl = None, params = None, *args, **kwargs):
 		"""
 			Renders a page, informing that the entry has been successfully deleted.
@@ -540,7 +541,7 @@ class Render( object ):
 
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		return template.render(params=params, **kwargs)
-	
+
 	def list( self, skellist, tpl=None, params=None, **kwargs ):
 		"""
 			Renders a list of entries.
@@ -571,7 +572,7 @@ class Render( object ):
 		for skel in skellist:
 			resList.append( self.collectSkelData(skel) )
 		return template.render(skellist=SkelListWrapper(resList, skellist), params=params, **kwargs)
-	
+
 	def listRootNodes(self, repos, tpl=None, params=None, **kwargs ):
 		"""
 			Renders a list of available repositories.
@@ -628,7 +629,7 @@ class Render( object ):
 		else:
 			res = skel
 		return template.render(skel=res, params=params, **kwargs)
-	
+
 
 	## Extended functionality for the Tree-Application ##
 	def listRootNodeContents( self, subdirs, entries, tpl=None, params=None, **kwargs):
@@ -734,7 +735,7 @@ class Render( object ):
 			:type destpath: str
 
 			:param type: "entry": Copy/Move an entry, everything else: Copy/Move an directory
-			:type type: string
+			:type type: str
 
 			:param deleteold: "0": Copy, "1": Move
 			:type deleteold: str
@@ -855,7 +856,8 @@ class Render( object ):
 		if len(tpl)<101:
 			try:
 				template = self.getEnv().from_string(  codecs.open( "emails/"+tpl+".email", "r", "utf-8" ).read() )
-			except:
+			except Exception as err:
+				logging.exception(err)
 				template = self.getEnv().get_template( tpl+".email" )
 		else:
 			template = self.getEnv().from_string( tpl )
@@ -903,17 +905,14 @@ class Render( object ):
 
 			# Import functions.
 			for name, func in jinjaUtils.getGlobalFunctions().items():
-				#logging.debug("Adding global function'%s'" % name)
 				self.env.globals[name] = mkLambda(func, self)
 
 			# Import filters.
 			for name, func in jinjaUtils.getGlobalFilters().items():
-				#logging.debug("Adding global filter '%s'" % name)
 				self.env.filters[name] = mkLambda(func, self)
 
 			# Import extensions.
 			for ext in jinjaUtils.getGlobalExtensions():
-				#logging.debug("Adding global extension '%s'" % ext)
 				self.env.add_extension(ext)
 
 			# Import module-specific environment, if available.

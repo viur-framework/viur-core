@@ -349,7 +349,7 @@ def requestParams(render):
 
 	These returned values are escaped, as users tend to use these in an unsafe manner.
 
-	:returns: Dict of parameter and values.
+	:returns: dict of parameter and values.
 	:rtype: dict
 	"""
 	res = {}
@@ -373,7 +373,7 @@ def updateURL(render, **kwargs):
 	tmpparams.update(request.current.get().kwargs)
 
 	for key in list(tmpparams.keys()):
-		if key[0] == "_":
+		if not key or key[0] == "_":
 			del tmpparams[ key ]
 		elif isinstance( tmpparams[ key ], unicode ):
 			tmpparams[ key ] = tmpparams[ key ].encode("UTF-8", "ignore")
@@ -553,7 +553,6 @@ def renderEditForm(render, skel, ignore=None, hide=None):
 		categoryContent = u""
 
 		for boneName, boneParams in boneList:
-			print(boneName)
 			if ignore and boneName in ignore:
 				continue
 
@@ -589,7 +588,7 @@ def embedSvg(self, name):
 	if any([x in name for x in ["..", "~", "/"]]):
 		return u""
 	try:
-		return open(os.path.join(os.getcwd(), "html", "icons", name + ".svg"), "rb").read().decode("UTF-8")
+		return open(os.path.join(os.getcwd(), "html", "embedsvg", name + ".svg"), "rb").read().decode("UTF-8")
 	except Exception as e:
 		logging.exception(e)
 		return ""

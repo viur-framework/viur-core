@@ -28,7 +28,7 @@ def create( duration=None, **kwargs ):
 		for up to duration-seconds
 
 		:param duration: Make this key valid for a fixed timeframe (and independend of the current session)
-		:type duration: Int or None
+		:type duration: int or None
 		:returns: The new onetime key
 	"""
 	key = generateRandomString()
@@ -54,7 +54,7 @@ def validate( key, acceptSessionKey=False ):
 	"""
 		Validates a onetime securitykey
 
-		:type key: String
+		:type key: str
 		:param key: The key to validate
 		:type acceptSessionKey: Bool
 		:param acceptSessionKey: If True, we also accept the session's skey

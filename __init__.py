@@ -15,11 +15,11 @@
 
    I N F O R M A T I O N    S Y S T E M
 
- ViUR® SERVER
- Copyright 2012-2018 by mausbrand Informationssysteme GmbH
+ ViUR SERVER
+ Copyright 2012-2019 by Mausbrand Informationssysteme GmbH
 
- ViUR® is a free software development framework for the Google App Engine™.
- More about ViUR can be found at http://www.viur.is/.
+ ViUR is a free software development framework for the Google App Engine™.
+ More about ViUR can be found at https://www.viur.is/.
 
  Licensed under the GNU Lesser General Public License, version 3.
  See file LICENSE for more information.
@@ -186,29 +186,6 @@ def setDefaultDomainLanguage( domain, lang ):
 
 from server import session, errors
 from server.tasks import TaskHandler, runStartupTasks
-
-try:
-	import bugsnag
-	from google.appengine.api import app_identity
-	try:
-		appVersion = app_identity.get_default_version_hostname()
-		if ".appspot.com" in appVersion.lower():
-			appVersion = appVersion.replace(".appspot.com", "")
-			releaseStage = "production"
-		else:
-			appVersion = "-unknown-"
-			releaseStage = "development"
-	except:
-		appVersion = "-error-"
-		releaseStage = "production"
-	bugsnag.configure(	use_ssl=True,
-				release_stage = releaseStage,
-				auto_notify = False,
-				app_version=appVersion,
-				notify_release_stages = ["production"]
-				)
-except:
-	bugsnag = None
 
 def buildApp( config, renderers, default=None, *args, **kwargs ):
 	"""
@@ -507,18 +484,7 @@ class BrowseHandler(webapp.RequestHandler):
 					descr = descr.replace("<","&lt;").replace(">","&gt;").replace(" ", "&nbsp;").replace("\n", "<br />")
 				res = tpl.safe_substitute( {"error_code": "500", "error_name":"Internal Server Error", "error_descr": descr} )
 			self.response.out.write( res )
-			if bugsnag and conf["bugsnag.apiKey" ]:
-				bugsnag.configure( api_key=conf["bugsnag.apiKey" ] )
-				try:
-					user = conf["viur.mainApp"].user.getCurrentUser()
-				except:
-					user = "-unknown-"
-				try:
-					sessData = session.current.session.session
-				except:
-					sessData = None
-				bugsnag.configure_request( context=path, user_id=user, session_data=sessData )
-				bugsnag.notify( e )
+
 		finally:
 			self.saveSession( )
 
@@ -654,6 +620,9 @@ def setup( modules, render=None, default="html" ):
 		(=> /user instead of /html/user)
 		:type default: str
 	"""
+	import skeletons	# This import is not used here but _must_ remain to ensure that the
+						# application's data models are explicitly imported at some place!
+
 	from server.bones import bone
 
 	if not render:

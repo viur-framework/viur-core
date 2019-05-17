@@ -116,7 +116,7 @@ class baseBone(object): # One Bone:
 
 	def setSystemInitialized(self):
 		"""
-			Can be overriden to initialize properties that depend on the Skeleton system being initialized
+			Can be overridden to initialize properties that depend on the Skeleton system being initialized
 		"""
 		pass
 
@@ -139,28 +139,28 @@ class baseBone(object): # One Bone:
 	def fromClient( self, valuesCache, name, data ):
 		"""
 			Reads a value from the client.
-			If this value is valis for this bone,
+			If this value is valid for this bone,
 			store this value and return None.
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
 
 			:param name: Our name in the skeleton
-			:type name: String
+			:type name: str
 			:param data: User-supplied request-data
 			:type data: dict
 			:returns: None or str
 		"""
 		if name in data:
-			value = data[ name ]
+			value = data[name]
 		else:
 			value = None
-		err = self.isInvalid( value )
+		err = self.isInvalid(value)
 		if not err:
 			valuesCache[name] = value
-			return( True )
+			return None
 		else:
-			return( err )
+			return err
 
 	def isInvalid( self, value ):
 		"""
@@ -176,7 +176,7 @@ class baseBone(object): # One Bone:
 			can write into the datastore.
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: String
+			:type name: str
 			:returns: dict
 		"""
 		if name in valuesCache:
@@ -189,7 +189,7 @@ class baseBone(object): # One Bone:
 			read from the datastore and populates
 			this bone accordingly.
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: String
+			:type name: str
 			:param expando: An instance of the dictionary-like db.Entity class
 			:type expando: db.Entity
 			:returns: bool
@@ -272,22 +272,26 @@ class baseBone(object): # One Bone:
 			value = rawFilter[ key ]
 			tmpdata = key.split("$")
 
-			if len( tmpdata ) > 1:
-				if isinstance( value, list ):
+			if len(tmpdata) > 1:
+				if isinstance(value, list):
 					continue
-				if tmpdata[1]=="lt":
-					dbFilter.filter( (prefix or "")+tmpdata[0] + " <" , value )
-				elif tmpdata[1]=="gt":
-					dbFilter.filter( (prefix or "")+tmpdata[0] + " >",  value )
-				elif tmpdata[1]=="lk":
-					dbFilter.filter( (prefix or "")+tmpdata[0],  value )
+				if tmpdata[1] == "lt":
+					dbFilter.filter((prefix or "") + tmpdata[0] + " <", value)
+				elif tmpdata[1] == "le":
+					dbFilter.filter((prefix or "") + tmpdata[0] + " <=", value)
+				elif tmpdata[1] == "gt":
+					dbFilter.filter((prefix or "") + tmpdata[0] + " >",  value)
+				elif tmpdata[1] == "ge":
+					dbFilter.filter((prefix or "") + tmpdata[0] + " >=",  value)
+				elif tmpdata[1] == "lk":
+					dbFilter.filter((prefix or "") + tmpdata[0],  value)
 				else:
-					dbFilter.filter( (prefix or "")+tmpdata[0],  value )
+					dbFilter.filter((prefix or "") + tmpdata[0],  value)
 			else:
 				if isinstance( value, list ):
-					dbFilter.filter( (prefix or "")+key+" IN", value )
+					dbFilter.filter((prefix or "") + key + " IN", value)
 				else:
-					dbFilter.filter( (prefix or "")+key, value )
+					dbFilter.filter((prefix or "") + key, value)
 
 		return dbFilter
 
@@ -382,7 +386,7 @@ class baseBone(object): # One Bone:
 	def performMagic( self, valuesCache, name, isAdd ):
 		"""
 			This function applies "magically" functionality which f.e. inserts the current Date or the current user.
-			@param isAdd: Signals whereever this is an add or edit operation.
+			:param isAdd: Signals whereever this is an add or edit operation.
 			:type isAdd: bool
 		"""
 		pass #We do nothing by default
@@ -392,7 +396,7 @@ class baseBone(object): # One Bone:
 			Can be overridden to perform further actions after the main entity has been written.
 
 			:param boneName: Name of this bone
-			:type boneName: String
+			:type boneName: str
 
 			:param skel: The skeleton this bone belongs to
 			:type skel: Skeleton
@@ -412,9 +416,9 @@ class baseBone(object): # One Bone:
 			:param skel: The skeleton this bone belongs to
 			:type skel: Skeleton
 			:param boneName: Name of this bone
-			:type boneName: String
-			:param key: The old Database Key of hte entity we've deleted
-			:type id: String
+			:type boneName: str
+			:param key: The old Database Key of the entity we've deleted
+			:type key: str
 		"""
 		pass
 
