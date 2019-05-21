@@ -7,11 +7,13 @@ import extjson
 class recordBone(baseBone):
 	type = "record"
 
-	def __init__(self, using, format=None, *args, **kwargs):
-		super(recordBone, self).__init__(*args, **kwargs)
+	def __init__(self, using, format=None, indexed=False, multiple=True, *args, **kwargs):
+		super(recordBone, self).__init__(indexed=indexed, multiple=multiple, *args, **kwargs)
 
 		self.using = using
 		self.format = format
+		if not format or indexed or not multiple:
+			NotImplemented("A recordBone must not be indexed, must be multiple and must have a format set")
 
 		if getSystemInitialized():
 			self._usingSkelCache = using()
@@ -22,17 +24,6 @@ class recordBone(baseBone):
 		super(recordBone, self).setSystemInitialized()
 		self._usingSkelCache = self.using()
 
-	def __getattribute__(self, key):
-		# When no format was given, generate a format from the usingSkel.
-		if key == "format":
-			format = super(recordBone, self).__getattribute__(key)
-			if format:
-				return format
-
-			if getSystemInitialized():
-				return " ".join(["$(%s)" % k for k in self._usingSkelCache.keys()])
-
-		return super(recordBone, self).__getattribute__(key)
 
 	def _restoreValueFromDatastore(self, val):
 		"""
@@ -61,42 +52,21 @@ class recordBone(baseBone):
 		if self.multiple:
 			valuesCache[name] = []
 
-			if not val:
-				return True
+		if not val:
+			return True
 
-			if isinstance(val, list):
-				for res in val:
-					try:
-						valuesCache[name].append(self._restoreValueFromDatastore(res))
-					except:
-						raise
-						pass
-
-			else:
+		if isinstance(val, list):
+			for res in val:
 				try:
-					valuesCache[name].append(self._restoreValueFromDatastore(val))
+					valuesCache[name].append(self._restoreValueFromDatastore(res))
 				except:
 					raise
-					pass
 		else:
-			valuesCache[name] = None
+			try:
+				valuesCache[name].append(self._restoreValueFromDatastore(val))
+			except:
+				raise
 
-			if isinstance(val, list) and len(val) > 0:
-				try:
-					valuesCache[name] = self._restoreValueFromDatastore(val[0])
-				except:
-					raise
-					pass
-
-			else:
-				if val:
-					try:
-						valuesCache[name] = self._restoreValueFromDatastore(val)
-					except:
-						raise
-						pass
-				else:
-					valuesCache[name] = None
 
 		return True
 
@@ -104,33 +74,15 @@ class recordBone(baseBone):
 		if not valuesCache[name]:
 			entity.set(name, None, False)
 
-			if not self.multiple:
-				for k in entity.keys():
-					if k.startswith("%s." % name):
-						del entity[k]
-
 		else:
 			usingSkel = self._usingSkelCache
+			res = []
 
-			if self.multiple:
-				res = []
+			for val in valuesCache[name]:
+				usingSkel.setValuesCache(val)
+				res.append(extjson.dumps(usingSkel.serialize()))
 
-				for val in valuesCache[name]:
-					usingSkel.setValuesCache(val)
-					res.append(extjson.dumps(usingSkel.serialize()))
-
-				entity.set(name, res, False)
-
-			else:
-				usingSkel.setValuesCache(valuesCache[name])
-				usingData = usingSkel.serialize()
-
-				entity.set(name, extjson.dumps(usingData), False)
-
-				# Copy attrs of our referenced entity in
-				if self.indexed:
-					for k, v in usingData.items():
-						entity["%s.%s" % (name, k)] = v
+			entity.set(name, res, False)
 
 		return entity
 
@@ -200,32 +152,19 @@ class recordBone(baseBone):
 
 			tmpList[i] = usingSkel.getValuesCache()
 
-		if self.multiple:
-			cleanList = []
+		cleanList = []
 
-			for item in tmpList:
-				err = self.isInvalid(item)
-				if err:
-					errorDict["%s.%s" % (name, tmpList.index(item))] = err
-				else:
-					cleanList.append(item)
-
-			if not cleanList:
-				errorDict[name] = "No value selected"
-
-			valuesCache[name] = tmpList
-		else:
-			if tmpList:
-				val = tmpList[0]
+		for item in tmpList:
+			err = self.isInvalid(item)
+			if err:
+				errorDict["%s.%s" % (name, tmpList.index(item))] = err
 			else:
-				val = None
+				cleanList.append(item)
 
-			err = self.isInvalid(val)
+		if not cleanList:
+			errorDict[name] = "No value selected"
 
-			if not err:
-				valuesCache[name] = val
-				if val is None:
-					errorDict[name] = "No value selected"
+		valuesCache[name] = tmpList
 
 		if len(errorDict.keys()):
 			return ReadFromClientError(errorDict, forceFail)
@@ -247,12 +186,8 @@ class recordBone(baseBone):
 		if not value:
 			return res
 
-		if self.multiple:
-			for val in value:
-				res = getValues(res, self._usingSkelCache, val)
-
-		else:
-			res = getValues(res, self._usingSkelCache, value)
+		for val in value:
+			res = getValues(res, self._usingSkelCache, val)
 
 		return res
 
@@ -268,11 +203,8 @@ class recordBone(baseBone):
 		if not value:
 			return res
 
-		if self.multiple:
-			for idx, val in enumerate(value):
-				getValues(res, self._usingSkelCache, val, "%s%s_%s" % (prefix, name, str(idx)))
-		else:
-			getValues(res, self._usingSkelCache, value, "%s%s" % (prefix, name))
+		for idx, val in enumerate(value):
+			getValues(res, self._usingSkelCache, val, "%s%s_%s" % (prefix, name, str(idx)))
 
 		return res
 
