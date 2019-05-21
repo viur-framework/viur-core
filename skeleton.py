@@ -1137,3 +1137,92 @@ def processChunk(module, compact, cursor, allCount=0, notify=None):
 				utils.sendEMail([notify], txt, None)
 		except: #OverQuota, whatever
 			pass
+
+
+
+### Vacuum Relations
+
+@CallableTask
+class TaskVacuumRelations( CallableTaskBase ):
+	"""
+	Checks entries in viur-relations and verifies that the src-kind and it's relational-bone still exists.
+	"""
+	key = "vacuumRelations"
+	name = u"Vacuum viur-relations (dangerous)"
+	descr = u"Drop stale inbound relations for the given kind"
+
+
+	def canCall(self):
+		"""
+		Checks wherever the current user can execute this task
+		:returns: bool
+		"""
+		user = utils.getCurrentUser()
+		return user is not None and "root" in user["access"]
+
+	def dataSkel(self):
+		skel = BaseSkeleton(cloned=True)
+		skel.module = stringBone( descr="Module", required=True )
+		return skel
+
+
+	def execute(self, module, *args, **kwargs):
+		usr = utils.getCurrentUser()
+		if not usr:
+			logging.warning("Don't know who to inform after rebuilding finished")
+			notify = None
+		else:
+			notify = usr["name"]
+		processVacuumRelationsChunk(module.strip(), None, notify=notify)
+
+
+@callDeferred
+def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, notify=None):
+	"""
+		Processes 100 Entries and calls the next batch
+	"""
+	query = db.Query("viur-relations")
+	if module != "*":
+		query.filter("viur_src_kind =", module)
+	query.cursor(cursor)
+	countTotal = 0
+	countRemoved = 0
+	for relationObject in query.run(25):
+		countTotal += 1
+		srcKind = relationObject.get("viur_src_kind")
+		if not srcKind:
+			logging.critical("We got an relation-object without a srcKind!")
+			continue
+		srcProp = relationObject.get("viur_src_property")
+		if not srcProp:
+			logging.critical("We got an relation-object without a srcProp!")
+			continue
+		try:
+			skel = skeletonByKind(srcKind)()
+		except AssertionError:
+			# The referenced skeleton does not exist in this data model -> drop that relation object
+			logging.info("Deleting %r which refers to unknown kind %s", str(relationObject.key()), srcKind)
+			db.Delete(relationObject)
+			countRemoved += 1
+			continue
+		if srcProp not in skel:
+			logging.info("Deleting %r which refers to non-existing relationalBone %s of %s",
+						 str(relationObject.key()), srcProp, srcKind)
+			db.Delete(relationObject)
+			countRemoved += 1
+	newCursor = query.getCursor()
+	newTotalCount = allCount + countTotal
+	newRemovedCount = removedCount + countRemoved
+	logging.info("END processVacuumRelationsChunk %s, %d records processed, %s removed " % (module, newTotalCount, newRemovedCount))
+	if countTotal and newCursor and newCursor.urlsafe() != cursor:
+		# Start processing of the next chunk
+		processVacuumRelationsChunk(module, newCursor.urlsafe(), newTotalCount, newRemovedCount, notify)
+	else:
+		try:
+			if notify:
+				txt = ("Subject: Vaccum Relations finished for %s\n\n" +
+					   "ViUR finished to vaccum viur-relations.\n" +
+					   "%d records processed, %d entries removed") % (module, newTotalCount, newRemovedCount)
+				utils.sendEMail([notify], txt, None)
+		except:  # OverQuota, whatever
+			pass

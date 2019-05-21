@@ -5,7 +5,8 @@ This file documents any relevant changes done to ViUR server since version 2.
 
 ## [develop] - Current development version
 
-
+### Added
+- vacuumRelations task to remove relation-objects from bones/kinds that don't exist anymore from viur-relations ([#169](https://github.com/viur-framework/server/pull/169))
 
 ## [2.4.1] Agung - 2019-05-21
 
