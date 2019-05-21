@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from server.bones.selectOneBone import selectOneBone
+from server.bones.selectBone import selectBone
 from collections import OrderedDict
 
 ISO3CODES = {
@@ -728,12 +728,12 @@ ISO2TOISO3 = { #Convert iso2 to iso3 codes
 	'tha': 'th'
 	}
 
-class selectCountryBone( selectOneBone ):
+class selectCountryBone(selectBone):
 	ISO2 = 2
 	ISO3 = 3
 	def __init__( self, codes=ISO2, *args, **kwargs ):
 		global ISO2CODES, ISO3CODES
-		super(selectCountryBone, self).__init__(*args,  **kwargs)
+		super(selectBone, self).__init__(*args,  **kwargs)
 
 		assert codes in [self.ISO2, self.ISO3]
 

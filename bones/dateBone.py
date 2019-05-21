@@ -72,7 +72,6 @@ class dateBone( baseBone ):
 		baseBone.__init__( self,  *args,  **kwargs )
 		if creationMagic or updateMagic:
 			self.readonly = True
-			self.visible = False
 		self.creationMagic = creationMagic
 		self.updateMagic = updateMagic
 		if not( date or time ):
@@ -158,7 +157,7 @@ class dateBone( baseBone ):
 			return "Invalid value entered"
 		else:
 			err = self.isInvalid(value)
-			if not err:
+			if not err or value is None:
 				valuesCache[name] = value
 				if value is None:
 					return "No value entered"
@@ -225,12 +224,19 @@ class dateBone( baseBone ):
 			res = utc.normalize( res.astimezone( utc ) )
 		return( res )
 
-	def serialize( self, valuesCache, name, entity ):
-		res = valuesCache[name]
+	def serialize(self, valuesCache, name, entity):
+		res = valuesCache.get(name)
 		if res:
 			res = self.readLocalized( datetime.now().strptime( res.strftime( "%d.%m.%Y %H:%M:%S" ), "%d.%m.%Y %H:%M:%S"  ) )
+
+			# Crop unwanted values to zero
+			if not self.time:
+				res = res.replace(hour=0, minute=0, second=0, microsecond=0)
+			elif not self.date:
+				res = res.replace(year=1970, month=1, day=1)
+
 		entity.set( name, res, self.indexed )
-		return( entity )
+		return entity
 
 	def unserialize(self, valuesCache, name, expando):
 		if not name in expando:

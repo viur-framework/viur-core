@@ -15,17 +15,17 @@
 
    I N F O R M A T I O N    S Y S T E M
 
- ViUR® SERVER
- Copyright 2012-2017 by mausbrand Informationssysteme GmbH
+ ViUR SERVER
+ Copyright 2012-2019 by Mausbrand Informationssysteme GmbH
 
- ViUR® is a free software development framework for the Google App Engine™.
- More about ViUR can be found at http://www.viur.is/.
+ ViUR is a free software development framework for the Google App Engine™.
+ More about ViUR can be found at https://www.viur.is/.
 
  Licensed under the GNU Lesser General Public License, version 3.
  See file LICENSE for more information.
 """
 
-__version__ = (2, 1, 0)  # Which API do we expose to our application
+__version__ = (2, 3, 0)  # Which API do we expose to our application
 
 import sys, traceback, os, inspect
 
@@ -186,29 +186,6 @@ def setDefaultDomainLanguage( domain, lang ):
 
 from server import session, errors
 from server.tasks import TaskHandler, runStartupTasks
-
-try:
-	import bugsnag
-	from google.appengine.api import app_identity
-	try:
-		appVersion = app_identity.get_default_version_hostname()
-		if ".appspot.com" in appVersion.lower():
-			appVersion = appVersion.replace(".appspot.com", "")
-			releaseStage = "production"
-		else:
-			appVersion = "-unknown-"
-			releaseStage = "development"
-	except:
-		appVersion = "-error-"
-		releaseStage = "production"
-	bugsnag.configure(	use_ssl=True,
-				release_stage = releaseStage,
-				auto_notify = False,
-				app_version=appVersion,
-				notify_release_stages = ["production"]
-				)
-except:
-	bugsnag = None
 
 def buildApp( config, renderers, default=None, *args, **kwargs ):
 	"""
@@ -485,7 +462,8 @@ class BrowseHandler(webapp.RequestHandler):
 				res = tpl.safe_substitute( {"error_code": e.status, "error_name":e.name, "error_descr": e.descr} )
 			self.response.out.write( res )
 		except Exception as e: #Something got really wrong
-			logging.exception( "Viur caught an unhandled exception!" )
+			logging.error("Viur caught an unhandled exception!")
+			logging.exception(e)
 			self.response.clear()
 			self.response.set_status( 500 )
 			res = None
@@ -506,18 +484,7 @@ class BrowseHandler(webapp.RequestHandler):
 					descr = descr.replace("<","&lt;").replace(">","&gt;").replace(" ", "&nbsp;").replace("\n", "<br />")
 				res = tpl.safe_substitute( {"error_code": "500", "error_name":"Internal Server Error", "error_descr": descr} )
 			self.response.out.write( res )
-			if bugsnag and conf["bugsnag.apiKey" ]:
-				bugsnag.configure( api_key=conf["bugsnag.apiKey" ] )
-				try:
-					user = conf["viur.mainApp"].user.getCurrentUser()
-				except:
-					user = "-unknown-"
-				try:
-					sessData = session.current.session.session
-				except:
-					sessData = None
-				bugsnag.configure_request( context=path, user_id=user, session_data=sessData )
-				bugsnag.notify( e )
+
 		finally:
 			self.saveSession( )
 
@@ -653,36 +620,11 @@ def setup( modules, render=None, default="html" ):
 		(=> /user instead of /html/user)
 		:type default: str
 	"""
-	import skeletons
-	from server.skeleton import Skeleton
+	import skeletons	# This import is not used here but _must_ remain to ensure that the
+						# application's data models are explicitly imported at some place!
+
 	from server.bones import bone
 
-	conf["viur.skeletons"] = {}
-	for modelKey in dir( skeletons ):
-		skelCls = getattr( skeletons, modelKey )
-		for key in dir( skelCls ):
-			skel = getattr( skelCls, key )
-			try:
-				isSkelClass = issubclass( skel, Skeleton )
-			except TypeError:
-				continue
-			if isSkelClass:
-				if not skel.kindName:
-					# Looks like a common base-class for skeletons
-					continue
-				if skel.kindName in conf["viur.skeletons"] and skel!=conf["viur.skeletons"][ skel.kindName ]:
-					# We have a conflict here, lets see if one skeleton is from server.*, and one from skeletons.*
-					relNewFileName = inspect.getfile(skel).replace( os.getcwd(),"" )
-					relOldFileName = inspect.getfile(conf["viur.skeletons"][ skel.kindName ]).replace( os.getcwd(),"" )
-					if relNewFileName.strip(os.path.sep).startswith("server"):
-						#The currently processed skeleton is from the server.* package
-						continue
-					elif relOldFileName.strip(os.path.sep).startswith("server"):
-						#The old one was from server - override it
-						conf["viur.skeletons"][ skel.kindName ] = skel
-						continue
-					raise ValueError("Duplicate definition for %s" % skel.kindName)
-				conf["viur.skeletons"][ skel.kindName ] = skel
 	if not render:
 		import server.render
 		render = server.render

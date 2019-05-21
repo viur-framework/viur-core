@@ -3,6 +3,8 @@ from server.bones import bone
 from server import request, utils
 from google.appengine.api import urlfetch
 import urllib
+import logging
+import json
 
 class captchaBone( bone.baseBone ):
 	type = "captcha"
@@ -31,28 +33,27 @@ class captchaBone( bone.baseBone ):
 			is returned.
 
 			:param name: Our name in the skeleton
-			:type name: String
+			:type name: str
 			:param data: *User-supplied* request-data
-			:type data: Dict
+			:type data: dict
 			:returns: None or String
 		"""
 		if request.current.get().isDevServer: #We dont enforce captchas on dev server
-			return( None )
+			return None
 		user = utils.getCurrentUser()
 		if user and "root" in user["access"]: # Don't bother trusted users with this (not supported by admin/vi anyways)
-			return( None )
-		if not "recaptcha_challenge_field" in data or not "recaptcha_response_field" in data:
-			return( u"No Captcha given!" )
-		data = { 	"privatekey": self.privateKey,
+			return None
+		if not "g-recaptcha-response" in data:
+			return u"No Captcha given!"
+		data = {"secret": self.privateKey,
 				"remoteip": request.current.get().request.remote_addr,
-				"challenge": data["recaptcha_challenge_field"],
-				"response": data["recaptcha_response_field"]
+				"response": data["g-recaptcha-response"]
 			}
-		response = urlfetch.fetch(	url="http://www.google.com/recaptcha/api/verify",
+		response = urlfetch.fetch(url="https://www.google.com/recaptcha/api/siteverify",
 						payload=urllib.urlencode( data ),
 						method=urlfetch.POST,
 						headers={"Content-Type": "application/x-www-form-urlencoded"} )
-		if str(response.content).strip().lower().startswith("true"):
-			return( None )
+		if json.loads(response.content.decode("UTF-8")).get("success"):
+			return None
 		return( u"Invalid Captcha" )
 

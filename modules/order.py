@@ -14,7 +14,7 @@ import logging
 class OrderSkel( Skeleton ):
 	kindName = "order"
 
-	bill_gender = selectOneBone( descr=u"Bill-gender", required=True, values={"male":"Mr.", "female":"Mrs."} )
+	bill_gender = selectBone( descr=u"Bill-gender", required=True, values={"male":"Mr.", "female":"Mrs."} )
 	bill_firstname = stringBone( descr=u"Bill-first name", params={"indexed": True, "frontend_list_visible": True},required=True,unsharp=True )
 	bill_lastname = stringBone( descr=u"Bill-last name", params={"indexed": True, "frontend_list_visible": True},required=True,unsharp=True )
 	bill_street = stringBone( descr=u"Bill-street", params={"indexed": True, "frontend_list_visible": True},required=True )
@@ -34,16 +34,16 @@ class OrderSkel( Skeleton ):
 
 	price = numericBone( descr=u"Grand total", precision=2, required=True, readOnly=True, indexed=True )
 
-	state_complete = selectOneBone( descr=u"Complete", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False, indexed=True )
-	state_payed = selectOneBone( descr=u"Paid", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False, indexed=True )
-	state_send = selectOneBone( descr=u"Send", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False, indexed=True )
-	state_rts = selectOneBone( descr=u"Ready to ship", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False, indexed=True )
-	state_canceled = selectOneBone( descr=u"Canceled", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False, indexed=True )
-	state_archived = selectOneBone( descr=u"Archived", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False, indexed=True )
+	state_complete = selectBone( descr=u"Complete", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False, indexed=True )
+	state_payed = selectBone( descr=u"Paid", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False, indexed=True )
+	state_send = selectBone( descr=u"Send", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False, indexed=True )
+	state_rts = selectBone( descr=u"Ready to ship", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False, indexed=True )
+	state_canceled = selectBone( descr=u"Canceled", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False, indexed=True )
+	state_archived = selectBone( descr=u"Archived", values={"0":"No","1":"Yes"}, defaultValue=0, readOnly=True, required=True, visible=False, indexed=True )
 
 	idx = numericBone( descr=u"Order-number", required=True, readOnly=True, params={"indexed": True, "frontend_list_visible": True}, indexed=True )
-	shipping_type = selectOneBone( descr=u"Type of shipment", values={"0":"uninsured", "1":"insured"} , required=True)
-	payment_type  = selectOneBone( descr=u"Type of payment", values={"prepaid":"Bank-transfer", "pod":"Pay on Deliver", "paypal":"Paypal", "sofort":"Sofort"} , required=True)
+	shipping_type = selectBone( descr=u"Type of shipment", values={"0":"uninsured", "1":"insured"} , required=True)
+	payment_type  = selectBone( descr=u"Type of payment", values={"prepaid":"Bank-transfer", "pod":"Pay on Deliver", "paypal":"Paypal", "sofort":"Sofort"} , required=True)
 
 	subSkels = {
 		"billaddress":["bill_*", "extrashippingaddress"],
@@ -66,7 +66,7 @@ from server.modules.order_sofort import Sofort
 
 class Order( List ):
 	"""
-	Provides an unified orderingprocess with payment-handling.
+	Provides an unified ordering process with payment-handling.
 	This is encoded as a state machine.
 	"""
 
@@ -74,29 +74,110 @@ class Order( List ):
 	paymentProviders = [PayPal,Sofort]
 
 	states = [
-		"complete", # The user completed all steps of the process, he might got redirected to a paymentprovider
-		"payed", #This oder has been payed
-		"rts", #Ready to Ship
-		"send", # Goods got shipped
+		"complete",  # The user completed all steps of the process, he might got redirected to a paymentprovider
+		"payed",  # This oder has been payed
+		"rts",  # Ready to Ship
+		"send",  # Goods got shipped
 		"canceled",  # Order got canceled
-		"archived"  #This order has been executed
+		"archived"  # This order has been executed
 	]
 
 	adminInfo = {
-		"name": "Orders", #Name of this module, as shown in ViUR Admin (will be translated at runtime)
-		"handler": "list.order",  #Which handler to invoke
-		"icon": "icons/modules/cart.svg", #Icon for this modul
-		"filter":{"orderby":"creationdate","orderdir":1,"state_complete":"1" },
-		"columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"],
-		"views" : [	{ "name": u"Not shipped", "filter":{"state_archived": "0",  "state_complete":"1", "state_send":"0", "state_canceled":"0", "orderby":"creationdate","orderdir":1 }, "icon":"icons/status/order_not_shipped.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"]},
-				{ "name": u"Unpaid", "filter":{"state_archived": "0", "state_complete":"1", "state_payed":"0","state_canceled":"0", "orderby":"creationdate","orderdir":1}, "icon":"icons/status/order_unpaid.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] },
-				{ "name": u"Paid","filter":{"state_archived": "0", "state_complete":"1", "state_payed":"1", "state_canceled":"0", "orderby":"creationdate","orderdir":1}, "icon":"icons/status/order_paid.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] },
-				{ "name": u"Shipped", "filter":{"state_archived": "0", "state_complete":"1", "state_canceled":"0", "state_send":"1","orderby":"changedate","orderdir":1}, "icon":"icons/status/order_shipped.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] },
-				{ "name": u"Ready to ship", "filter":{"state_archived": "0","state_canceled":"0",  "state_complete":"1", "state_send":"0","state_rts":"1","orderby":"changedate","orderdir":1}, "icon":"icons/status/order_ready.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] },
-				{ "name": u"Canceled", "filter":{"state_archived": "0", "state_canceled":"1", "state_complete":"1",  "orderby":"changedate","orderdir":1}, "icon":"icons/status/order_cancelled.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] },
-				{ "name": u"Archived", "filter":{"state_archived": "1", "state_complete":"1", "orderby":"changedate","orderdir":1}, "icon":"icons/status/archived.svg", "columns":["idx","bill_firstname","bill_lastname","amt","price","creationdate"] }
-			]
-		}
+		"name": "Orders",  # Name of this module, as shown in ViUR Admin (will be translated at runtime)
+		"handler": "list.order",  # Which handler to invoke
+		"icon": "icons/modules/cart.svg",  # Icon for this module
+		"filter": {
+			"orderby": "creationdate",
+			"orderdir": 1,
+			"state_complete": "1"
+		},
+		"columns": ["idx", "bill_firstname", "bill_lastname", "amt", "price", "creationdate"],
+		"views": [
+			{
+				"name": u"Not shipped",
+				"filter": {
+					"state_archived": "0",
+					"state_complete": "1",
+					"state_send": "0",
+					"state_canceled": "0",
+					"orderby": "creationdate",
+					"orderdir": 1
+				},
+				"icon": "icons/status/order_not_shipped.svg",
+				"columns": ["idx", "bill_firstname", "bill_lastname", "amt", "price", "creationdate"]
+			}, {
+				"name": u"Unpaid",
+				"filter": {
+					"state_archived": "0",
+					"state_complete": "1",
+					"state_payed": "0",
+					"state_canceled": "0",
+					"orderby": "creationdate",
+					"orderdir": 1
+				},
+				"icon": "icons/status/order_unpaid.svg",
+				"columns": ["idx", "bill_firstname", "bill_lastname", "amt", "price", "creationdate"]
+			}, {
+				"name": u"Paid",
+				"filter": {
+					"state_archived": "0",
+					"state_complete": "1",
+					"state_payed": "1",
+					"state_canceled": "0",
+					"orderby": "creationdate",
+					"orderdir": 1
+				},
+				"icon": "icons/status/order_paid.svg",
+				"columns": ["idx", "bill_firstname", "bill_lastname", "amt", "price", "creationdate"]
+			}, {
+				"name": u"Shipped",
+				"filter": {
+					"state_archived": "0",
+					"state_complete": "1",
+					"state_canceled": "0",
+					"state_send": "1",
+					"orderby": "changedate",
+					"orderdir": 1
+				},
+				"icon": "icons/status/order_shipped.svg",
+				"columns": ["idx", "bill_firstname", "bill_lastname", "amt", "price", "creationdate"]
+			}, {
+				"name": u"Ready to ship",
+				"filter": {
+					"state_archived": "0",
+					"state_canceled": "0",
+					"state_complete": "1",
+					"state_send": "0",
+					"state_rts": "1",
+					"orderby": "changedate",
+					"orderdir": 1
+				},
+				"icon": "icons/status/order_ready.svg",
+				"columns": ["idx", "bill_firstname", "bill_lastname", "amt", "price", "creationdate"]
+			}, {
+				"name": u"Canceled",
+				"filter": {
+					"state_archived": "0",
+					"state_canceled": "1",
+					"state_complete": "1",
+					"orderby": "changedate",
+					"orderdir": 1
+				},
+				"icon": "icons/status/order_cancelled.svg",
+				"columns": ["idx", "bill_firstname", "bill_lastname", "amt", "price", "creationdate"]
+			}, {
+				"name": u"Archived",
+				"filter": {
+					"state_archived": "1",
+					"state_complete": "1",
+					"orderby": "changedate",
+					"orderdir": 1
+				},
+				"icon": "icons/status/archived.svg",
+				"columns": ["idx", "bill_firstname", "bill_lastname", "amt", "price", "creationdate"]
+			}
+		]
+	}
 
 
 	def __init__(self, *args, **kwargs):
@@ -786,7 +867,7 @@ class Order( List ):
 
 		for order in query.fetch():
 			gotAtLeastOne = True
-			self.setArchived(order["key"].value)
+			self.setArchived(order["key"])
 
 		newCursor = query.getCursor()
 
@@ -806,7 +887,7 @@ class Order( List ):
 
 		for order in query.fetch():
 			gotAtLeastOne = True
-			self.setArchived(order["key"].value)
+			self.setArchived(order["key"])
 
 		newCursor = query.getCursor()
 

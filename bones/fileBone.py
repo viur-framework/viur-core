@@ -9,7 +9,7 @@ import logging
 class fileBone(treeItemBone):
 	kind = "file"
 	type = "relational.treeitem.file"
-	refKeys = ["name", "key", "meta_mime", "metamime", "mimetype", "dlkey", "servingurl", "size"]
+	refKeys = ["name", "key", "meta_mime", "metamime", "mimetype", "dlkey", "servingurl", "size", "width", "height"]
 
 	def __init__(self, format="$(dest.name)",*args, **kwargs ):
 		assert "dlkey" in self.refKeys, "You cannot remove dlkey from refKeys!"
@@ -27,29 +27,32 @@ class fileBone(treeItemBone):
 
 	def unserialize( self, valuesCache, name, expando ):
 		res = super( fileBone, self ).unserialize( valuesCache, name, expando )
+		currentValue = valuesCache[name]
 		if not request.current.get().isDevServer:
 			# Rewrite all "old" Serving-URLs to https if we are not on the development-server
-			if isinstance(valuesCache[name], dict) and "servingurl" in valuesCache[name]["dest"]:
-				if valuesCache[name]["dest"]["servingurl"].startswith("http://"):
-					valuesCache[name]["dest"]["servingurl"] = valuesCache[name]["dest"]["servingurl"].replace("http://","https://")
-			elif isinstance( valuesCache[name], list ):
-				for val in valuesCache[name]:
-					if isinstance(val, dict) and "servingurl" in val["dest"]:
+			if isinstance(currentValue, dict) and currentValue["dest"].get("servingurl"):
+				if currentValue["dest"]["servingurl"].startswith("http://"):
+					currentValue["dest"]["servingurl"] = currentValue["dest"]["servingurl"].replace("http://","https://")
+			elif isinstance( currentValue, list ):
+				for val in currentValue:
+					if isinstance(val, dict) and val["dest"].get("servingurl"):
 						if val["dest"]["servingurl"].startswith("http://"):
 							val["dest"]["servingurl"] = val["dest"]["servingurl"].replace("http://","https://")
-		if isinstance(valuesCache[name], dict):
-			if not "mimetype" in valuesCache[name]["dest"] or not valuesCache[name]["dest"]["mimetype"]:
-				if "meta_mime" in valuesCache[name]["dest"] and valuesCache[name]["dest"]["meta_mime"]:
-					valuesCache[name]["dest"]["mimetype"] = valuesCache[name]["dest"]["meta_mime"]
-				elif "metamime" in valuesCache[name]["dest"] and valuesCache[name]["dest"]["metamime"]:
-					valuesCache[name]["dest"]["mimetype"] = valuesCache[name]["dest"]["metamime"]
-		elif isinstance(valuesCache[name], list):
-			for val in valuesCache[name]:
-				if not "mimetype" in val["dest"] or not val["dest"]["mimetype"]:
-					if "meta_mime" in val["dest"] and val["dest"]["meta_mime"]:
-						val["dest"]["mimetype"] = val["dest"]["meta_mime"]
-					elif "metamime" in val["dest"] and val["dest"]["metamime"]:
-						val["dest"]["mimetype"] = val["dest"]["metamime"]
+		if isinstance(currentValue, dict):
+			currentDestValue = currentValue["dest"]
+			if not "mimetype" in currentDestValue or not currentDestValue["mimetype"]:
+				if "meta_mime" in currentDestValue and currentDestValue["meta_mime"]:
+					currentDestValue["mimetype"] = currentDestValue["meta_mime"]
+				elif "metamime" in currentDestValue and currentDestValue["metamime"]:
+					currentDestValue["mimetype"] = currentDestValue["metamime"]
+		elif isinstance(currentValue, list):
+			for val in currentValue:
+				currentDestValue = val["dest"]
+				if not "mimetype" in currentDestValue or not currentDestValue["mimetype"]:
+					if "meta_mime" in currentDestValue and currentDestValue["meta_mime"]:
+						currentDestValue["mimetype"] = currentDestValue["meta_mime"]
+					elif "metamime" in currentDestValue and currentDestValue["metamime"]:
+						currentDestValue["mimetype"] = currentDestValue["metamime"]
 		return res
 
 	def refresh(self, valuesCache, boneName, skel):

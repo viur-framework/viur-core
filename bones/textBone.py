@@ -1,41 +1,45 @@
 # -*- coding: utf-8 -*-
-from server.bones import baseBone
-from time import time
-import HTMLParser, htmlentitydefs
-from server import db
-from server.utils import markFileForDeletion
-from server.config import conf
+import HTMLParser
+import htmlentitydefs
+
 from google.appengine.api import search
+
+from server import db
+from server.bones import baseBone
 from server.bones.stringBone import LanguageWrapper
-import logging
+from server.config import conf
+import logging, string
 
-_attrsMargins = ["margin","margin-left","margin-right","margin-top","margin-bottom"]
-_attrsSpacing = ["spacing","spacing-left","spacing-right","spacing-top","spacing-bottom"]
-_attrsDescr = ["title","alt"]
+
 _defaultTags = {
-	"validTags": [	'font','b', 'a', 'i', 'u', 'span', 'div','p', 'img', 'ol', 'ul','li','acronym', #List of HTML-Tags which are valid
-				'h1','h2','h3','h4','h5','h6', 'table', 'tr', 'td', 'th', 'br', 'hr', 'strong'],
-	"validAttrs": {	"font": ["color"], #Mapping of valid parameters for each tag (if a tag is not listed here: no parameters allowed)
-					"a": ["href","target"]+_attrsDescr,
-					"acronym": ["title"],
-					"div": ["align","width","height"]+_attrsMargins+_attrsSpacing,
-					"p":["align","width","height"]+_attrsMargins+_attrsSpacing,
-					"span":["align","width","height"]+_attrsMargins+_attrsSpacing,
-					"img":[ "src","target", "width","height", "align" ]+_attrsDescr+_attrsMargins+_attrsSpacing,
-					"table": [ "width","align", "border", "cellspacing", "cellpadding" ]+_attrsDescr,
-					"td" : [ "colspan", "rowspan", "width", "height" ]+_attrsMargins+_attrsSpacing
-				},
-	"validStyles": ["font-weight","font-style","text-decoration","color", "display"], #List of CSS-Directives we allow
-	"singleTags": ["br","img", "hr"] # List of tags, which dont have a corresponding end tag
+	"validTags": [  # List of HTML-Tags which are valid
+		'b', 'a', 'i', 'u', 'span', 'div', 'p', 'img', 'ol', 'ul', 'li', 'abbr', 'sub', 'sup',
+		'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'br',
+		'hr', 'strong', 'blockquote', 'em'],
+	"validAttrs": {  # Mapping of valid parameters for each tag (if a tag is not listed here: no parameters allowed)
+		"a": ["href", "target", "title"],
+		"abbr": ["title"],
+		"span": ["title"],
+		"img": ["src", "srcset", "alt", "title"],
+		"td": ["colspan", "rowspan"],
+		"p": ["data-indent"],
+		"blockquote": ["cite"]
+	},
+	"validStyles": [
+		"color"
+	],  # List of CSS-Directives we allow
+	"validClasses": ["vitxt-*", "viur-txt-*"],  # List of valid class-names that are valid
+	"singleTags": ["br", "img", "hr"]  # List of tags, which don't have a corresponding end tag
 }
-del _attrsDescr, _attrsSpacing, _attrsMargins
 
-class HtmlSerializer( HTMLParser.HTMLParser ): #html.parser.HTMLParser
-	def __init__(self, validHtml=None ):
+
+class HtmlSerializer(HTMLParser.HTMLParser):  # html.parser.HTMLParser
+	def __init__(self, validHtml=None):
 		global _defaultTags
 		HTMLParser.HTMLParser.__init__(self)
-		self.result = ""
-		self.openTagsList = []
+		self.result = ""  # The final result that will be returned
+		self.openTagsList = []  # List of tags that still need to be closed
+		self.tagCache = []  # Tuple of tags that have been processed but not written yet
 		self.validHtml = validHtml
 
 	def handle_data(self, data):
@@ -46,67 +50,156 @@ class HtmlSerializer( HTMLParser.HTMLParser ): #html.parser.HTMLParser
 			.replace("'", "&#39;") \
 			.replace("\n", "") \
 			.replace("\0", "")
-		if data:
+		if data.strip():
+			self.flushCache()
 			self.result += data
 
 	def handle_charref(self, name):
-		self.result += "&#%s;" % ( name )
+		self.flushCache()
+		self.result += "&#%s;" % (name)
 
-	def handle_entityref(self, name): #FIXME
+	def handle_entityref(self, name):  # FIXME
 		if name in htmlentitydefs.entitydefs.keys():
-			self.result += "&%s;" % ( name )
+			self.flushCache()
+			self.result += "&%s;" % (name)
+
+	def flushCache(self):
+		"""
+			Flush pending tags into the result and push their corresponding end-tags onto the stack
+		"""
+		for start, end in self.tagCache:
+			self.result += start
+			self.openTagsList.insert(0, end)
+		self.tagCache = []
 
 	def handle_starttag(self, tag, attrs):
 		""" Delete all tags except for legal ones """
+		filterChars = "\"'\\\0\r\n@()"
 		if self.validHtml and tag in self.validHtml["validTags"]:
-			self.result = self.result + '<' + tag
+			cacheTagStart = '<' + tag
 			isBlankTarget = False
+			styles = None
+			classes = None
 			for k, v in attrs:
-				if not tag in self.validHtml["validAttrs"] or not k in self.validHtml["validAttrs"][ tag ]:
+				k = k.strip()
+				v = v.strip()
+				if any([c in k for c in filterChars]) or any([c in v for c in filterChars]):
+					if k in {"title", "href", "alt"} and not any([c in v for c in "\"'\\\0\r\n"]):
+						# If we have a title or href attribute, ignore @ and ()
+						pass
+					else:
+						# Either the key or the value contains a character that's not supposed to be there
+						continue
+				elif k == "class":
+					# Classes are handled below
+					classes = v.split(" ")
+					continue
+				elif k == "style":
+					# Styles are handled below
+					styles = v.split(";")
+					continue
+				elif k == "src":
+					# We ensure that any src tag starts with an actual url
+					checker = v.lower()
+					if not (checker.startswith("http://") or checker.startswith("https://") or \
+						checker.startswith("/")):
+						continue
+				if not tag in self.validHtml["validAttrs"].keys() or not k in \
+					self.validHtml["validAttrs"][tag]:
+					# That attribute is not valid on this tag
 					continue
 				if k.lower()[0:2] != 'on' and v.lower()[0:10] != 'javascript':
-					self.result = '%s %s="%s"' % (self.result, k, v)
-				if tag=="a" and k=="target" and v.lower()=="_blank":
+					cacheTagStart += ' %s="%s"' % (k, v)
+				if tag == "a" and k == "target" and v.lower() == "_blank":
 					isBlankTarget = True
-			if "style" in [ k for (k,v) in attrs ]:
+			if styles:
 				syleRes = {}
-				styles = [ v for (k,v) in attrs if k=="style"][0].split(";")
 				for s in styles:
-					style = s[ : s.find(":") ].strip()
-					value = s[ s.find(":")+1 : ].strip()
-					if style in self.validHtml["validStyles"] and not any( [(x in value) for x in ["\"",":",";"]] ):
-						syleRes[ style ] = value
-				if len( syleRes.keys() ):
-					self.result += " style=\"%s\"" % "; ".join( [("%s: %s" % (k,v)) for (k,v) in syleRes.items()] )
+					style = s[: s.find(":")].strip()
+					value = s[s.find(":") + 1:].strip()
+					if any([c in style for c in filterChars]) or any(
+						[c in value for c in filterChars]):
+						# Either the key or the value contains a character that's not supposed to be there
+						continue
+					if value.lower().startswith("expression") or value.lower().startswith("import"):
+						# IE evaluates JS inside styles if the keyword expression is present
+						continue
+					if style in self.validHtml["validStyles"] and not any(
+						[(x in value) for x in ["\"", ":", ";"]]):
+						syleRes[style] = value
+				if len(syleRes.keys()):
+					cacheTagStart += " style=\"%s\"" % "; ".join(
+						[("%s: %s" % (k, v)) for (k, v) in syleRes.items()])
+			if classes:
+				validClasses = []
+				for currentClass in classes:
+					validClassChars = string.ascii_lowercase + string.ascii_uppercase + string.digits + "-"
+					if not all([x in validClassChars for x in currentClass]):
+						# The class contains invalid characters
+						continue
+					isOkay = False
+					for validClass in self.validHtml["validClasses"]:
+						# Check if the classname matches or is white-listed by a prefix
+						if validClass == currentClass:
+							isOkay = True
+							break
+						if validClass.endswith("*"):
+							validClass = validClass[:-1]
+							if currentClass.startswith(validClass):
+								isOkay = True
+								break
+					if isOkay:
+						validClasses.append(currentClass)
+				if validClasses:
+					cacheTagStart += " class=\"%s\"" % " ".join(validClasses)
 			if isBlankTarget:
-				self.result += " rel=\"noopener noreferrer\""
+				# Add rel tag to prevent the browser to pass window.opener around
+				cacheTagStart += " rel=\"noopener noreferrer\""
 			if tag in self.validHtml["singleTags"]:
-				self.result = self.result + ' />'
+				# Single-Tags do have a visual representation; ensure it makes it into the result
+				self.flushCache()
+				self.result += cacheTagStart + '>' # dont need slash in void elements in html5
 			else:
-				self.result = self.result + '>'
-				self.openTagsList.insert( 0, tag)
+				# We opened a 'normal' tag; push it on the cache so it can be discarded later if
+				# we detect it has no content
+				cacheTagStart += '>'
+				self.tagCache.append((cacheTagStart, tag))
+		else:
+			self.result += " "
 
 	def handle_endtag(self, tag):
-		if self.validHtml and tag in self.openTagsList:
-			for endTag in self.openTagsList[ : ]: #Close all currently open Tags until we reach the current one
-				self.result = "%s</%s>" % (self.result, endTag)
-				self.openTagsList.remove( endTag)
-				if endTag==tag:
-					break
+		if self.validHtml:
+			if self.tagCache:
+				# Check if that element is still on the cache
+				# and just silently drop the cache up to that point
+				if tag in [x[1] for x in self.tagCache] + self.openTagsList:
+					for tagCache in self.tagCache[::-1]:
+						self.tagCache.remove(tagCache)
+						if tagCache[1] == tag:
+							return
+			if tag in self.openTagsList:
+				# Close all currently open Tags until we reach the current one. If no one is found,
+				# we just close everything and ignore the tag that should have been closed
+				for endTag in self.openTagsList[:]:
+					self.result += "</%s>" % endTag
+					self.openTagsList.remove(endTag)
+					if endTag == tag:
+						break
 
-	def cleanup(self): #FIXME: vertauschte tags
+	def cleanup(self):  # FIXME: vertauschte tags
 		""" Append missing closing tags """
+		self.flushCache()
 		for tag in self.openTagsList:
 			endTag = '</%s>' % tag
 			self.result += endTag
 
-	def santinize( self, instr ):
+	def sanitize(self, instr):
 		self.result = ""
 		self.openTagsList = []
-		self.feed( instr )
+		self.feed(instr.replace("\n", " "))
 		self.close()
 		self.cleanup()
-		return( self.result )
+		return self.result
 
 
 
@@ -147,19 +240,19 @@ class textBone( baseBone ):
 			:type entity: :class:`server.db.Entity`
 			:return: the modified :class:`server.db.Entity`
 		"""
-		if name == "key":
+		if name == "key" or not name in valuesCache:
 			return( entity )
 		if self.languages:
 			for k in entity.keys(): #Remove any old data
-				if k.startswith("%s." % name ):
+				if k.startswith("%s." % name) or k.startswith("%s_" % name ) or k==name:
 					del entity[ k ]
 			for lang in self.languages:
 				if isinstance(valuesCache[name], dict) and lang in valuesCache[name]:
 					val = valuesCache[name][ lang ]
-					if not val or (not HtmlSerializer().santinize(val).strip() and not "<img " in val):
+					if not val or (not HtmlSerializer().sanitize(val).strip() and not "<img " in val):
 						#This text is empty (ie. it might contain only an empty <p> tag
 						continue
-					entity[ "%s.%s" % (name, lang) ] = val
+					entity.set("%s.%s" % (name, lang), val, self.indexed)
 		else:
 			entity.set( name, valuesCache[name], self.indexed )
 		return( entity )
@@ -202,9 +295,9 @@ class textBone( baseBone ):
 			is returned.
 
 			:param name: Our name in the skeleton
-			:type name: String
+			:type name: str
 			:param data: *User-supplied* request-data
-			:type data: Dict
+			:type data: dict
 			:returns: None or String
 		"""
 		if self.languages:
@@ -215,7 +308,7 @@ class textBone( baseBone ):
 					val = data["%s.%s" % (name,lang)]
 					err = self.isInvalid(val) #Returns None on success, error-str otherwise
 					if not err:
-						valuesCache[name][lang] = HtmlSerializer(self.validHtml).santinize(val)
+						valuesCache[name][lang] = HtmlSerializer(self.validHtml).sanitize(val)
 					else:
 						lastError = err
 			if not any(valuesCache[name].values()) and not lastError:
@@ -233,7 +326,7 @@ class textBone( baseBone ):
 				value = unicode(value)
 			err = self.isInvalid(value)
 			if not err:
-				valuesCache[name] = HtmlSerializer(self.validHtml).santinize(value)
+				valuesCache[name] = HtmlSerializer(self.validHtml).sanitize(value)
 			return err
 
 	def isInvalid( self, value ):
@@ -268,32 +361,32 @@ class textBone( baseBone ):
 								newFileKeys.append( fk )
 							idx = val.find("/file/download/", seperatorIdx)
 		else:
-			if valuesCache[name]:
-				idx = valuesCache[name].find("/file/download/")
-				while idx!=-1:
+			values = valuesCache.get(name)
+			if values:
+				idx = values.find("/file/download/")
+				while idx != -1:
 					idx += 15
-					seperatorIdx = min( [ x for x in [valuesCache[name].find("/",idx), valuesCache[name].find("\"",idx)] if x!=-1] )
-					fk = valuesCache[name][ idx:seperatorIdx]
-					if not fk in newFileKeys:
-						newFileKeys.append( fk )
-					idx = valuesCache[name].find("/file/download/", seperatorIdx)
-		return( newFileKeys )
-
+					seperatorIdx = min([x for x in [values.find("/", idx), values.find("\"", idx)] if x != -1])
+					fk = values[idx:seperatorIdx]
+					if fk not in newFileKeys:
+						newFileKeys.append(fk)
+					idx = values.find("/file/download/", seperatorIdx)
+		return newFileKeys
 
 	def getSearchTags(self, valuesCache, name):
 		res = []
-		if not valuesCache[name]:
+		if not valuesCache.get(name):
 			return( res )
 		if self.languages:
-			for v in valuesCache[name].values():
-				value = HtmlSerializer( None ).santinize( v.lower() )
+			for v in valuesCache.get(name).values():
+				value = HtmlSerializer( None ).sanitize(v.lower())
 				for line in unicode(value).splitlines():
 					for key in line.split(" "):
 						key = "".join( [ c for c in key if c.lower() in conf["viur.searchValidChars"]  ] )
 						if key and key not in res and len(key)>3:
 							res.append( key.lower() )
 		else:
-			value = HtmlSerializer( None ).santinize( valuesCache[name].lower() )
+			value = HtmlSerializer( None ).sanitize(valuesCache.get(name).lower())
 			for line in unicode(value).splitlines():
 				for key in line.split(" "):
 					key = "".join( [ c for c in key if c.lower() in conf["viur.searchValidChars"]  ] )

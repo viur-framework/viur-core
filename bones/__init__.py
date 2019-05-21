@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 
 from server.bones.bone import baseBone, boneFactory
+from server.bones.keyBone import keyBone
 from server.bones.stringBone import stringBone
 from server.bones.textBone import textBone
 from server.bones.numericBone import numericBone
 from server.bones.colorBone import colorBone
 from server.bones.credentialBone import credentialBone
-from server.bones.selectOneBone import selectOneBone
-from server.bones.selectMultiBone import selectMultiBone, selectAccessMultiBone
+from server.bones.selectBone import selectBone, selectOneBone, selectMultiBone, selectAccessBone
 from server.bones.booleanBone import booleanBone
 from server.bones.relationalBone import relationalBone
 from server.bones.treeItemBone import treeItemBone

@@ -1,44 +1,26 @@
 # ViUR server
 
-**ViUR** is a free software development framework for the [Google App Engine](https://appengine.google.com).
+This is the core component of **ViUR**, a free software development framework for the [Google App Engine](https://appengine.google.com) written in [Python](https://python.org/).
 
 ## About
 
-ViUR provides a clear concept for implementing agile data management software that runs on top of the [Google App Engine](https://appengine.google.com) platform. It is written in the [Python programming language](https://python.org) for a maximum flexibility and easy-to-manage code. Its underlying database is Googles Cloud Datastore, which is a scalable document database.
+ViUR provides a clear concept for implementing agile data management software. Its underlying database is Googles Cloud Datastore, which is a scalable document database.
 
 The ViUR framework targets to the implementation of information systems, which are integrated, web-based applications or services performing data management and deployment operations of any kind. Therefore, ViUR is explicitly not claimed to be a content management system, although content management can be a part of a ViUR information system.
 
-## Quick Start
+## Getting started
 
-To quickly setup a running ViUR web-application from scratch, follow these
-simple steps:
+To get started with ViUR, check out our [base repository](https://github.com/viur-framework/base). It comes with a recently updated, pre-configured and well documented project template to immediately start from with your new project.
 
-1. Install the prerequisites Python and [Google Cloud SDK for Python](https://cloud.google.com/sdk) for your operating system.
-2. Create an empty folder for your project.
-3. Download setup.py from https://www.viur.is/package/download/setup/latest and save it into the newly created folder.
-4. Run ``setup.py`` from that folder - it will do the rest for you!
-5. Locally run the development server with ``dev_appserver.py -A <your-project-key> <project-dir>``
-   or deploy it to the world with ``gcloud app deploy --project <your-project-key> <your-project-dir>``.
-
-All quick start steps as shell command snippet:
-
-```sh
-mkdir hello-viur                                                      # Setup project folder
-cd hello-viur                                                         # Change into this folder
-wget -qO setup.py https://www.viur.is/package/download/setup/latest   # Download latest setup
-python setup.py                                                       # Run ViUR setup tool
-dev_appserver.py -A hello-viur .                                      # Start Google App Engine
-```
-
-Visit the official [ViUR online documentation](https://docs.viur.is/latest) for more information.
+We also recommend to visit [viur.is](https://www.viur.is/) to get latest news and documentation on ViUR.
 
 ## Contributing
 
 We take a great interest in your opinion about ViUR. We appreciate your feedback and are looking forward to hear about your ideas. Share your visions or questions with us and participate in ongoing discussions.
 
-- [ViUR on the web](https://www.viur.is)
+- [ViUR website](https://www.viur.is)
 - [#ViUR on freenode IRC](https://webchat.freenode.net/?channels=viur)
-- [ViUR on Google Community](https://plus.google.com/communities/102034046048891029088)
+- [ViUR on GitHub](https://github.com/viur-framework)
 - [ViUR on Twitter](https://twitter.com/weloveViUR)
 
 ## Credits
@@ -49,7 +31,7 @@ Help of any kind to extend and improve or enhance this project in any kind or wa
 
 ## License
 
-ViUR is Copyright (C) 2012-2017 by Mausbrand Informationssysteme GmbH.
+Copyright (C) 2012-2019 by Mausbrand Informationssysteme GmbH.
 
 Mausbrand and ViUR are registered trademarks of Mausbrand Informationssysteme GmbH.
 

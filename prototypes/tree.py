@@ -3,7 +3,7 @@ from server import db, utils, errors, session, conf, securitykey
 from server import forcePost, forceSSL, exposed, internalExposed
 
 from server.prototypes import BasicApplication
-from server.bones import baseBone, numericBone
+from server.bones import baseBone, keyBone, numericBone
 from server.skeleton import Skeleton, skeletonByKind
 from server.tasks import callDeferred
 
@@ -11,8 +11,8 @@ from datetime import datetime
 import logging
 
 class TreeLeafSkel( Skeleton ):
-	parentdir = baseBone( descr="Parent", visible=False, indexed=True, readOnly=True )
-	parentrepo = baseBone( descr="BaseRepo", visible=False, indexed=True, readOnly=True )
+	parentdir = keyBone(descr="Parent", indexed=True)
+	parentrepo = keyBone(descr="BaseRepo", indexed=True)
 
 	def fromDB( self, *args, **kwargs ):
 		res = super( TreeLeafSkel, self ).fromDB( *args, **kwargs )
@@ -37,13 +37,6 @@ class TreeLeafSkel( Skeleton ):
 			self.toDB()
 
 		return res
-
-	def refresh(self):
-		if self["parentdir"]:
-			self["parentdir"] = utils.normalizeKey(self["parentdir"])
-		if self["parentrepo"]:
-			self["parentrepo"] = utils.normalizeKey(self["parentrepo"])
-		super( TreeLeafSkel, self ).refresh()
 
 class TreeNodeSkel( TreeLeafSkel ):
 	pass
@@ -271,7 +264,7 @@ class Tree(BasicApplication):
 	@exposed
 	def list( self, skelType, node, *args, **kwargs ):
 		"""
-		List the entries and directorys of the given *skelType* under the given *node*.
+		List the entries and directories of the given *skelType* under the given *node*.
 		Any other supplied parameters are interpreted as filters for the elements displayed.
 
 		.. seealso:: :func:`canList`, :func:`server.db.mergeExternalFilter`

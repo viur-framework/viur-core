@@ -11,6 +11,45 @@ from jinja2 import Environment, FileSystemLoader, ChoiceLoader
 
 import os, logging, codecs
 
+
+class KeyValueWrapper:
+	"""
+		This holds one Key-Value pair for
+		selectBone Bones.
+
+		It allows to directly treat the key as string,
+		but still makes the translated description of that
+		key available.
+	"""
+
+	def __init__( self, key, descr ):
+		self.key = key
+		self.descr = _( descr )
+
+	def __str__( self ):
+		return (unicode( self.key ))
+
+	def __repr__( self ):
+		return (unicode( self.key ))
+
+	def __eq__( self, other ):
+		return (unicode( self ) == unicode( other ))
+
+	def __lt__( self, other ):
+		return (unicode( self ) < unicode( other ))
+
+	def __gt__( self, other ):
+		return (unicode( self ) > unicode( other ))
+
+	def __le__( self, other ):
+		return (unicode( self ) <= unicode( other ))
+
+	def __ge__( self, other ):
+		return (unicode( self ) >= unicode( other ))
+
+	def __trunc__( self ):
+		return (self.key.__trunc__())
+
 class Render( object ):
 	"""
 		The core jinja2 render.
@@ -52,42 +91,6 @@ class Render( object ):
 
 	__haveEnvImported_ = False
 
-	class KeyValueWrapper:
-		"""
-			This holds one Key-Value pair for
-			selectOne/selectMulti Bones.
-
-			It allows to directly treat the key as string,
-			but still makes the translated description of that
-			key available.
-		"""
-		def __init__( self, key, descr ):
-			self.key = key
-			self.descr = _( descr )
-
-		def __str__( self ):
-			return( unicode( self.key ) )
-
-		def __repr__( self ):
-			return( unicode( self.key ) )
-
-		def __eq__( self, other ):
-			return( unicode( self ) == unicode( other ) )
-
-		def __lt__( self, other ):
-			return( unicode( self ) < unicode( other ) )
-
-		def __gt__( self, other ):
-			return( unicode( self ) > unicode( other ) )
-
-		def __le__( self, other ):
-			return( unicode( self ) <= unicode( other ) )
-
-		def __ge__( self, other ):
-			return( unicode( self ) >= unicode( other ) )
-
-		def __trunc__( self ):
-			return( self.key.__trunc__() )
 
 	def __init__(self, parent=None, *args, **kwargs ):
 		super( Render, self ).__init__(*args, **kwargs)
@@ -138,7 +141,7 @@ class Render( object ):
 						template+".html" ]
 		for fn in fnames: #check subfolders
 			prefix = template.split("_")[0]
-			if os.path.isfile(os.path.join(os.getcwd(), "html", prefix, fn)):
+			if os.path.isfile(os.path.join(os.getcwd(), htmlpath, prefix, fn)):
 				return ( "%s/%s" % (prefix, fn ) )
 		for fn in fnames: #Check the templatefolder of the application
 			if os.path.isfile( os.path.join( os.getcwd(), htmlpath, fn ) ):
@@ -225,9 +228,10 @@ class Render( object ):
 				"relskel": self.renderSkelStructure(RefSkel.fromSkel(skeletonByKind(bone.kind), *bone.refKeys))
 			})
 
-		elif bone.type == "selectone" or bone.type.startswith("selectone.") or bone.type == "selectmulti" or bone.type.startswith("selectmulti."):
+		elif bone.type == "select" or bone.type.startswith("select."):
 			ret.update({
-				"values": OrderedDict([(k, _(v)) for (k, v) in bone.values.items()])
+				"values": OrderedDict([(k, _(v)) for (k, v) in bone.values.items()]),
+				"multiple": bone.multiple
 			})
 
 		elif bone.type == "date" or bone.type.startswith("date."):
@@ -253,6 +257,10 @@ class Render( object ):
 			ret.update({
 				"languages": bone.languages,
 				"multiple": bone.multiple
+			})
+		elif bone.type == "captcha" or bone.type.startswith("captcha."):
+			ret.update({
+				"publicKey": bone.publicKey,
 			})
 
 		return ret
@@ -295,12 +303,16 @@ class Render( object ):
 		:return: A dict containing the rendered attributes.
 		:rtype: dict
 		"""
-		if bone.type=="selectone" or bone.type.startswith("selectone."):
-			if skel[key] in bone.values:
-				return Render.KeyValueWrapper(skel[key], bone.values[skel[key]])
-			return skel[key]
-		elif bone.type=="selectmulti" or bone.type.startswith("selectmulti."):
-			return [(Render.KeyValueWrapper(val, bone.values[val]) if val in bone.values else val) for val in skel[key]]
+		if bone.type == "select" or bone.type.startswith("select."):
+			skelValue = skel[key]
+			if isinstance(skelValue, list):
+				return [
+					KeyValueWrapper(val, bone.values[val]) if val in bone.values else val
+					for val in skelValue
+				]
+			elif skelValue in bone.values:
+				return KeyValueWrapper(skelValue, bone.values[skelValue])
+			return skelValue
 		elif bone.type=="relational" or bone.type.startswith("relational."):
 			if isinstance(skel[key], list):
 				tmpList = []
@@ -341,8 +353,6 @@ class Render( object ):
 			else:
 				return None
 		else:
-			#logging.error("RETURNING")
-			#logging.error((skel[key]))
 			return skel[key]
 
 		return None
@@ -453,35 +463,42 @@ class Render( object ):
 		                                "value": self.collectSkelData(skel) },
 		                                params=params, **kwargs )
 
-	def addItemSuccess (self, skel, params=None, *args, **kwargs ):
+	def addItemSuccess(self, skel, tpl = None, params = None, *args, **kwargs):
 		"""
 			Renders a page, informing that the entry has been successfully created.
 
 			:param skel: Skeleton which contains the data of the new entity
 			:type skel: server.db.skeleton.Skeleton
 
+			:param tpl: Name of a different template, which should be used instead of the default one.
+			:type tpl: str
+
 			:param params: Optional data that will be passed unmodified to the template
 			:type params: object
 
 			:return: Returns the emitted HTML response.
 			:rtype: str
 		"""
-		tpl = self.addSuccessTemplate
-
-		if "addSuccessTemplate" in dir( self.parent ):
-			tpl = self.parent.addSuccessTemplate
+		if not tpl:
+			if "addSuccessTemplate" in dir( self.parent ):
+				tpl = self.parent.addSuccessTemplate
+			else:
+				tpl = self.addSuccessTemplate
 
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		res = self.collectSkelData( skel )
 
 		return template.render({ "skel":res }, params=params, **kwargs)
 
-	def editItemSuccess (self, skel, params=None, *args, **kwargs ):
+	def editItemSuccess(self, skel, tpl = None, params = None, *args, **kwargs):
 		"""
 			Renders a page, informing that the entry has been successfully modified.
 
 			:param skel: Skeleton which contains the data of the modified entity
 			:type skel: server.db.skeleton.Skeleton
+
+			:param tpl: Name of a different template, which should be used instead of the default one.
+			:type tpl: str
 
 			:param params: Optional data that will be passed unmodified to the template
 			:type params: object
@@ -489,17 +506,17 @@ class Render( object ):
 			:return: Returns the emitted HTML response.
 			:rtype: str
 		"""
-		tpl = self.editSuccessTemplate
-
-		if "editSuccessTemplate" in dir( self.parent ):
-			tpl = self.parent.editSuccessTemplate
+		if not tpl:
+			if "editSuccessTemplate" in dir(self.parent):
+				tpl = self.parent.editSuccessTemplate
+			else:
+				tpl = self.editSuccessTemplate
 
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		res = self.collectSkelData( skel )
 		return template.render(skel=res, params=params, **kwargs)
-	
-	def deleteSuccess (self, skel, params=None, *args, **kwargs ):
 
+	def deleteSuccess(self, skel, tpl = None, params = None, *args, **kwargs):
 		"""
 			Renders a page, informing that the entry has been successfully deleted.
 
@@ -510,17 +527,21 @@ class Render( object ):
 			:param params: Optional data that will be passed unmodified to the template
 			:type params: object
 
+			:param tpl: Name of a different template, which should be used instead of the default one.
+			:type tpl: str
+
 			:return: Returns the emitted HTML response.
 			:rtype: str
 		"""
-		tpl = self.deleteSuccessTemplate
-
-		if "deleteSuccessTemplate" in dir( self.parent ):
-			tpl = self.parent.deleteSuccessTemplate
+		if not tpl:
+			if "deleteSuccessTemplate" in dir(self.parent):
+				tpl = self.parent.deleteSuccessTemplate
+			else:
+				tpl = self.deleteSuccessTemplate
 
 		template = self.getEnv().get_template( self.getTemplateFileName( tpl ) )
 		return template.render(params=params, **kwargs)
-	
+
 	def list( self, skellist, tpl=None, params=None, **kwargs ):
 		"""
 			Renders a list of entries.
@@ -551,7 +572,7 @@ class Render( object ):
 		for skel in skellist:
 			resList.append( self.collectSkelData(skel) )
 		return template.render(skellist=SkelListWrapper(resList, skellist), params=params, **kwargs)
-	
+
 	def listRootNodes(self, repos, tpl=None, params=None, **kwargs ):
 		"""
 			Renders a list of available repositories.
@@ -608,7 +629,7 @@ class Render( object ):
 		else:
 			res = skel
 		return template.render(skel=res, params=params, **kwargs)
-	
+
 
 	## Extended functionality for the Tree-Application ##
 	def listRootNodeContents( self, subdirs, entries, tpl=None, params=None, **kwargs):
@@ -714,7 +735,7 @@ class Render( object ):
 			:type destpath: str
 
 			:param type: "entry": Copy/Move an entry, everything else: Copy/Move an directory
-			:type type: string
+			:type type: str
 
 			:param deleteold: "0": Copy, "1": Move
 			:type deleteold: str
@@ -835,7 +856,8 @@ class Render( object ):
 		if len(tpl)<101:
 			try:
 				template = self.getEnv().from_string(  codecs.open( "emails/"+tpl+".email", "r", "utf-8" ).read() )
-			except:
+			except Exception as err:
+				logging.exception(err)
 				template = self.getEnv().get_template( tpl+".email" )
 		else:
 			template = self.getEnv().from_string( tpl )
@@ -883,17 +905,14 @@ class Render( object ):
 
 			# Import functions.
 			for name, func in jinjaUtils.getGlobalFunctions().items():
-				#logging.debug("Adding global function'%s'" % name)
 				self.env.globals[name] = mkLambda(func, self)
 
 			# Import filters.
 			for name, func in jinjaUtils.getGlobalFilters().items():
-				#logging.debug("Adding global filter '%s'" % name)
 				self.env.filters[name] = mkLambda(func, self)
 
 			# Import extensions.
 			for ext in jinjaUtils.getGlobalExtensions():
-				#logging.debug("Adding global extension '%s'" % ext)
 				self.env.add_extension(ext)
 
 			# Import module-specific environment, if available.

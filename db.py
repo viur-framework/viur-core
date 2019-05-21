@@ -20,6 +20,7 @@ __cacheLockTime__ = 42 #Prevent an entity from creeping into the cache for 42 Se
 __cacheTime__ = 15*60 #15 Mins
 __CacheKeyPrefix__ ="viur-db-cache:" #Our Memcache-Namespace. Dont use that for other purposes
 __MemCacheBatchSize__ = 30
+__undefinedC__ = object()
 
 
 def PutAsync( entities, **kwargs ):
@@ -32,7 +33,7 @@ def PutAsync( entities, **kwargs ):
 	"""
 	if isinstance( entities, Entity ):
 		entities._fixUnindexedProperties()
-	elif isinstance( entities, List ):
+	elif isinstance( entities, list ):
 		for entity in entities:
 			assert isinstance( entity, Entity )
 			entity._fixUnindexedProperties()
@@ -195,7 +196,7 @@ def GetOrInsert( key, kindName=None, parent=None, **kwargs ):
 		:param key: The key which will be fetched or created. \
 		If key is a string, it will be used as the name for the new entity, therefore the \
 		collectionName is required in this case.
-		:type key: server.db.Key | String
+		:type key: server.db.Key | str
 		:param kindName: The data kind to use for that entity. Ignored if key is a db.Key.
 		:type kindName: str
 
@@ -208,7 +209,7 @@ def GetOrInsert( key, kindName=None, parent=None, **kwargs ):
 
 	def txn( key, kwargs ):
 		try:
-			res = datastore.Get( key )
+			res = Entity.FromDatastoreEntity(datastore.Get( key ))
 		except datastore_errors.EntityNotFoundError:
 			res = Entity( kind=key.kind(), parent=key.parent(), name=key.name(), id=key.id() )
 			for k, v in kwargs.items():
@@ -362,8 +363,11 @@ class Query( object ):
 			try:
 				searchRes = search.Index( name=skel.searchIndex ).search( query=search.Query( query_string=filters["search"], options=search.QueryOptions( limit=25 ) ) )
 			except search.QueryError: #We cant parse the query, treat it as verbatim
-				qstr="\"%s\"" % filters["search"].replace("\"","")
-				searchRes = search.Index( name=skel.searchIndex ).search( query=search.Query( query_string=qstr, options=search.QueryOptions( limit=25 ) ) )
+				qstr = u"\"%s\"" % filters["search"].replace(u"\"",u"")
+				try:
+					searchRes = search.Index(name=skel.searchIndex).search(query=search.Query(query_string=qstr, options=search.QueryOptions(limit=25)))
+				except search.QueryError:  # Still cant parse it
+					searchRes = []
 			tmpRes = [ datastore_types.Key( encoded=x.doc_id[ 2: ] ) for x in searchRes ]
 			if tmpRes:
 				filters = []
@@ -392,7 +396,7 @@ class Query( object ):
 			logging.exception(e)
 			self.datastoreQuery = None
 			return( self )
-		if "search" in filters:
+		if "search" in filters and filters["search"]:
 			if isinstance( filters["search"], list ):
 				taglist = [ "".join([y for y in unicode(x).lower() if y in conf["viur.searchValidChars"] ] ) for x in filters["search"] ]
 			else:
@@ -415,7 +419,7 @@ class Query( object ):
 			skel.postProcessSearchFilter( self, filters )
 		return( self )
 
-	def filter(self, filter, value=None ):
+	def filter(self, filter, value=__undefinedC__ ):
 		"""
 			Adds a filter to this query. #fixme: Better description required here...
 
@@ -451,6 +455,11 @@ class Query( object ):
 				# no need for us to do anything
 				return( self )
 			filter, value = r
+
+		# Cast keys into string
+		if filter != datastore_types.KEY_SPECIAL_PROPERTY and isinstance(value, datastore_types.Key):
+			value = str(value)
+
 		if value!=None and (filter.endswith(" !=") or filter.lower().endswith(" in")):
 			if isinstance( self.datastoreQuery, datastore.MultiQuery ):
 				raise NotImplementedError("You cannot use multiple IN or != filter")
@@ -474,7 +483,7 @@ class Query( object ):
 			self.datastoreQuery = MultiQuery( queries, origQuery.__orderings )
 			for k,v in origQuery.items():
 				self.datastoreQuery[ k ] = v
-		elif filter and value!=None:
+		elif filter and value is not __undefinedC__:
 			self.datastoreQuery[ filter ] = value
 		else:
 			raise NotImplementedError("Incorrect call to query.filter()!")
@@ -684,7 +693,7 @@ class Query( object ):
 			Property is the name of the property used to sort, direction a bool
 			(false => ascending, True => descending).
 
-			:returns: List of orderings, in tuples (property,direction).
+			:returns: list of orderings, in tuples (property,direction).
 			:rtype: list
 		"""
 		try:
@@ -866,7 +875,7 @@ class Query( object ):
 				res.cursor = c.urlsafe()
 			else:
 				res.cursor = None
-		except AssertionError: #No Cursors avaiable on MultiQueries ( in or != )
+		except AssertionError: #No Cursors available on MultiQueries ( in or != )
 			res.cursor = None
 		return( res )
 
@@ -1071,7 +1080,7 @@ class Entity( datastore.Entity ):
 				value = None
 		super( Entity, self ).__setitem__( name, value )
 
-	def set( self, key, value, indexed=True ):
+	def set(self, key, value, indexed=True):
 		"""
 			Sets a property.
 
@@ -1086,11 +1095,16 @@ class Entity( datastore.Entity ):
 			empty string or not a string.
 			:raises: :exc:`BadValueError` if the value is not a supported type.
 		"""
-		if not indexed:
-			unindexed = list( self.getUnindexedProperties() )
-			if not key in unindexed:
-				self.setUnindexedProperties( unindexed+[key] )
-		self[ key ] = value
+		unindexed = list(self.getUnindexedProperties())
+
+		if not indexed and not key in unindexed:
+			unindexed.append(key)
+			self.setUnindexedProperties(unindexed)
+		elif indexed and key in unindexed:
+			unindexed.remove(key)
+			self.setUnindexedProperties(unindexed)
+
+		self[key] = value
 
 	@staticmethod
 	def FromDatastoreEntity( entity ):

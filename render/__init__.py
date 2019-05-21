@@ -1,3 +1,4 @@
+#-*- coding: utf-8 -*-
 import html
 import admin
 import xml
@@ -8,5 +9,5 @@ try:
 	import vi
 except ImportError:
 	import logging
-	logging.error("VI NOT AVAIABLE")
+	logging.error("VI NOT AVAILABLE")
 	pass

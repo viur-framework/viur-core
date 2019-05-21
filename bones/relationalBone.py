@@ -50,22 +50,23 @@ class relationalBone( baseBone ):
 			Initialize a new relationalBone.
 
 			:param kind: KindName of the referenced property.
-			:type kind: String
-			:param module: Name of the modul which should be used to select entities of kind "type". If not set,
+			:type kind: str
+			:param module: Name of the module which should be used to select entities of kind "type". If not set,
 				the value of "type" will be used (the kindName must match the moduleName)
-			:type type: String
+			:type type: str
 			:param refKeys: A list of properties to include from the referenced property. These properties will be
-				avaiable in the template without having to fetch the referenced property. Filtering is also only possible
+				available in the template without having to fetch the referenced property. Filtering is also only possible
 				by properties named here!
-			:type refKeys: List of Strings
+			:type refKeys: list of str
 			:param parentKeys: A list of properties from the current skeleton to include. If mixing filtering by
 				relational properties and properties of the class itself, these must be named here.
-			:type parentKeys: List of Strings
+			:type parentKeys: list of str
 			:param multiple: If True, allow referencing multiple Elements of the given class. (Eg. n:n-relation.
 				otherwise its n:1 )
 			:type multiple: False
 			:param format: Hint for the admin how to display such an relation. See admin/utils.py:formatString for
 				more information
+			:type format: str
 			:type format: String
 			:param updateLevel: level 0==always update refkeys (old behavior), 1==update refKeys only on rebuildSearchIndex, 2==write once on set, never update again refKeys
 			:type updateLevel: int
@@ -244,28 +245,31 @@ class relationalBone( baseBone ):
 				if self.indexed:
 					if refData:
 						for k, v in refData.items():
-							entity[ "%s.dest.%s" % (name,k) ] = v
+							entity.set("%s.dest.%s" % (name,k), v, True)
 					if usingData:
 						for k, v in usingData.items():
-							entity[ "%s.rel.%s" % (name,k) ] = v
+							entity.set("%s.rel.%s" % (name,k), v, True)
 					#for k, v in valuesCache[name].items():
 					#	if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ):
 					#		entity[ "%s.%s" % (name,k) ] = v
 		return entity
 
 	def postSavedHandler( self, valuesCache, boneName, skel, key, dbfields ):
-		if not valuesCache[boneName]:
+		if boneName not in valuesCache:
+			return
+
+		if not valuesCache.get(boneName):
 			values = []
-		elif isinstance( valuesCache[boneName], dict ):
-			values = [ dict( (k,v) for k,v in valuesCache[boneName].items() ) ]
+		elif isinstance( valuesCache.get(boneName), dict ):
+			values = [ dict( (k,v) for k,v in valuesCache.get(boneName).items() ) ]
 		else:
-			values = [ dict( (k,v) for k,v in x.items() ) for x in valuesCache[boneName] ]
+			values = [ dict( (k,v) for k,v in x.items() ) for x in valuesCache.get(boneName) ]
 
 		parentValues = {}
 
-		for parentKey in self.parentKeys:
-			if parentKey in dbfields:
-				parentValues[ parentKey ] = dbfields[ parentKey ]
+		for parentKey in dbfields.keys():
+			if parentKey in self.parentKeys or any([parentKey.startswith(x+".") for x in self.parentKeys]):
+				parentValues[parentKey] = dbfields[parentKey]
 
 		dbVals = db.Query( "viur-relations" ).ancestor( db.Key( key ) ) #skel.kindName+"_"+self.kind+"_"+key
 		dbVals.filter("viur_src_kind =", skel.kindName )
@@ -343,9 +347,9 @@ class relationalBone( baseBone ):
 			is returned.
 
 			:param name: Our name in the skeleton
-			:type name: String
+			:type name: str
 			:param data: *User-supplied* request-data
-			:type data: Dict
+			:type data: dict
 			:returns: None or String
 		"""
 		#from server.skeleton import RefSkel, skeletonByKind
@@ -506,18 +510,18 @@ class relationalBone( baseBone ):
 						v = db.Key( v )
 					dbFilter.ancestor( v )
 					continue
-				if not (k if " " not in k else k.split(" ")[0]) in self.parentKeys:
+				if not (k if "." not in k else k.split(".")[0]) in self.parentKeys:
 					logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
 					raise RuntimeError()
 				dbFilter.filter( "src.%s" % k, v )
-			orderList = []
-			for k,d in origSortOrders: #Merge old sort orders in
-				if not k in self.parentKeys:
-					logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
-					raise RuntimeError()
-				orderList.append( ("src.%s" % k, d) )
-			if orderList:
-				dbFilter.order( *orderList )
+		orderList = []
+		for k,d in origSortOrders: #Merge old sort orders in
+			if not k in self.parentKeys:
+				logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
+				raise RuntimeError()
+			orderList.append( ("src.%s" % k, d) )
+		if orderList:
+			dbFilter.order( *orderList )
 		return( name, skel, dbFilter, rawFilter )
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
@@ -770,14 +774,14 @@ class relationalBone( baseBone ):
 				for key in self._refSkelCache.keys():
 					if key == "key":
 						continue
-					elif key in newValues:
-						getattr(self._refSkelCache, key).unserialize(valDict, key, newValues)
+
+					getattr(self._refSkelCache, key).unserialize(valDict, key, newValues)
 
 
 		if not valuesCache[boneName]:
 			return
 
-		logging.info("Refreshing relationalBone %s of %s" % (boneName, skel.kindName))
+		logging.debug("Refreshing relationalBone %s of %s" % (boneName, skel.kindName))
 
 		if isinstance(valuesCache[boneName], dict):
 			updateInplace(valuesCache[boneName])

@@ -54,11 +54,11 @@ class spatialBone( baseBone ):
 			:param gridDimensions: Number of sub-regions the map will be divided in
 			:type gridDimensions: (int, int)
 		"""
-		baseBone.__init__( self, indexed, *args,  **kwargs )
+		baseBone.__init__( self, *args, indexed=indexed, **kwargs )
 		assert indexed, "spatialBone must be indexed! You want to search using it - don't you?"
-		assert isinstance(boundsLat, tuple) and len(boundsLat, 2), "boundsLat must be a tuple of (int, int)"
-		assert isinstance(boundsLng, tuple) and len(boundsLng, 2), "boundsLng must be a tuple of (int, int)"
-		assert isinstance(gridDimensions, tuple) and len(gridDimensions, 2), "gridDimensions must be a tuple of (int, int)"
+		assert isinstance(boundsLat, tuple) and len(boundsLat) == 2, "boundsLat must be a tuple of (int, int)"
+		assert isinstance(boundsLng, tuple) and len(boundsLng) == 2, "boundsLng must be a tuple of (int, int)"
+		assert isinstance(gridDimensions, tuple) and len(gridDimensions) == 2, "gridDimensions must be a tuple of (int, int)"
 		self.boundsLat = boundsLat
 		self.boundsLng = boundsLng
 		self.gridDimensions = gridDimensions
@@ -66,7 +66,7 @@ class spatialBone( baseBone ):
 	def getGridSize(self):
 		"""
 			:return: the size of our sub-regions in (fractions-of-latitude, fractions-of-longitude)
-			:rtype: (float, flot)
+			:rtype: (float, float)
 		"""
 		latDelta = self.boundsLat[1]-self.boundsLat[0]
 		lngDelta = self.boundsLng[1]-self.boundsLng[0]
@@ -104,7 +104,7 @@ class spatialBone( baseBone ):
 			can write into the datastore.
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: String
+			:type name: str
 			:returns: dict
 		"""
 		if valuesCache[name] and not self.isInvalid(valuesCache[name]):
@@ -127,7 +127,7 @@ class spatialBone( baseBone ):
 			read from the datastore and populates
 			this bone accordingly.
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: String
+			:type name: str
 			:param expando: An instance of the dictionary-like db.Entity class
 			:type expando: db.Entity
 			:returns: bool
@@ -238,14 +238,15 @@ class spatialBone( baseBone ):
 		# If a result further away than this distance there might be missing results before that result
 		# If there are no results in a give lane (f.e. because we are close the border and there is no point
 		# in between) we choose a arbitrary large value for that lower bound
+		expectedAmount = self.calculateInternalMultiQueryAmount(targetAmount)  # How many items we expect in each direction
 		limits = [
-				haversine(latRight[-1][name+".lat.val"], lng, lat, lng) if latRight else 2^31, # Lat - Right Side
-				haversine(latLeft[-1][name+".lat.val"], lng, lat, lng) if latLeft else 2^31, # Lat - Left Side
-				haversine(lat, lngBottom[-1][name+".lng.val"], lat, lng) if lngBottom else 2^31, # Lng - Bottom
-				haversine(lat, lngTop[-1][name+".lng.val"], lat, lng) if lngTop else 2^31, # Lng - Top
-				haversine(lat+gridSizeLat,lng,lat,lng),
-				haversine(lat,lng+gridSizeLng,lat,lng)
-			]
+			haversine(latRight[-1][name + ".lat.val"], lng, lat, lng) if latRight and len(latRight) == expectedAmount else 2 ** 31,  # Lat - Right Side
+			haversine(latLeft[-1][name + ".lat.val"], lng, lat, lng) if latLeft and len(latLeft) == expectedAmount else 2 ** 31,  # Lat - Left Side
+			haversine(lat, lngBottom[-1][name + ".lng.val"], lat, lng) if lngBottom and len(lngBottom) == expectedAmount else 2 ** 31,  # Lng - Bottom
+			haversine(lat, lngTop[-1][name + ".lng.val"], lat, lng) if lngTop and len(lngTop) == expectedAmount else 2 ** 31,  # Lng - Top
+			haversine(lat + gridSizeLat, lng, lat, lng),
+			haversine(lat, lng + gridSizeLng, lat, lng)
+		]
 		dbFilter.customQueryInfo["spatialGuaranteedCorrectness"] = min(limits)
 		logging.debug("SpatialGuaranteedCorrectness: %s", dbFilter.customQueryInfo["spatialGuaranteedCorrectness"])
 		# Filter duplicates

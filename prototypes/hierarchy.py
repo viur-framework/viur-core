@@ -1,33 +1,25 @@
 # -*- coding: utf-8 -*-
-import logging
+import logging, sys
 from datetime import datetime
 from time import time
 
 from server import db, utils, errors, conf, request, securitykey
 from server import forcePost, forceSSL, exposed, internalExposed
-from server.bones import baseBone, numericBone
+from server.bones import baseBone, keyBone, numericBone
 from server.prototypes import BasicApplication
 from server.skeleton import Skeleton
 from server.tasks import callDeferred
 
 class HierarchySkel(Skeleton):
-	parententry = baseBone(descr="Parent", visible=False, indexed=True, readOnly=True)
-	parentrepo = baseBone(descr="BaseRepo", visible=False, indexed=True, readOnly=True)
-	sortindex = numericBone(descr="SortIndex", mode="float", visible=False, indexed=True, readOnly=True)
+	parententry = keyBone(descr="Parent", visible=False, indexed=True, readOnly=True)
+	parentrepo = keyBone(descr="BaseRepo", visible=False, indexed=True, readOnly=True)
+	sortindex = numericBone(descr="SortIndex", mode="float", visible=False, indexed=True, readOnly=True, max=sys.maxint)
+
 
 	def preProcessSerializedData(self, dbfields):
 		if not ("sortindex" in dbfields and dbfields["sortindex"]):
 			dbfields["sortindex"] = time()
 		return dbfields
-
-	def refresh(self):
-		if self["parententry"]:
-			self["parententry"] = utils.normalizeKey(self["parententry"])
-		if self["parentrepo"]:
-			self["parentrepo"] = utils.normalizeKey(self["parentrepo"])
-
-		super(HierarchySkel, self).refresh()
-
 
 class Hierarchy(BasicApplication):
 	"""
@@ -189,6 +181,30 @@ class Hierarchy(BasicApplication):
 
 		return False
 
+	def getAvailableRootNodes(self, *args, **kwargs):
+		"""
+		Default function for providing a list of root node items.
+		This list is requested by several module-internal functions and *must* be
+		overridden by a custom functionality. The default stub for this function
+		returns an empty list.
+		An example implementation could be the following:
+		.. code-block:: python
+
+					def getAvailableRootNodes(self, *args, **kwargs):
+						q = db.Query(self.rootKindName)
+							ret = [{"key": str(e.key()),
+								"name": e.get("name", str(e.key().id_or_name()))}
+								for e in q.run(limit=25)]
+							return ret
+
+		:param args: Can be used in custom implementations.
+		:param kwargs: Can be used in custom implementations.
+		:return: Returns a list of dicts which must provide a "key" and a "name" entry with \
+					respective information.
+		:rtype: list of dict
+		"""
+		return []
+
 	@callDeferred
 	def deleteRecursive(self, key):
 		"""
@@ -236,7 +252,7 @@ class Hierarchy(BasicApplication):
 
 			skel = self.viewSkel()
 			if "name" in skel:
-				nameBone = skel["name"]
+				nameBone = getattr(skel, "name")
 
 				if (isinstance(nameBone, baseBone)
 				    and "languages" in dir(nameBone)

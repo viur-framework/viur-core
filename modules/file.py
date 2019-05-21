@@ -8,7 +8,7 @@ from server.tasks import callDeferred, PeriodicTask
 from datetime import datetime, timedelta
 from urlparse import urlparse
 from quopri import decodestring
-from base64 import b64decode
+from base64 import urlsafe_b64decode
 from hashlib import sha256
 from google.appengine.ext import blobstore
 from google.appengine.api import images
@@ -29,8 +29,8 @@ class fileBaseSkel(TreeLeafSkel):
 	mimetype = stringBone(descr="Mime-Info", readOnly=True, indexed=True )
 	weak = booleanBone(descr="Weak reference", indexed=True, readOnly=True, visible=False)
 	servingurl = stringBone(descr="Serving URL", readOnly=True)
-	width = numericBone(descr="Width", indexed=True, searchable=True)
-	height = numericBone(descr="Height", indexed=True, searchable=True)
+	width = numericBone(descr="Width", indexed=True, readOnly=True, searchable=True)
+	height = numericBone(descr="Height", indexed=True, readOnly=True, searchable=True)
 
 	def refresh(self):
 		# Update from blobimportmap
@@ -49,6 +49,7 @@ class fileBaseSkel(TreeLeafSkel):
 					self["servingurl"] = images.get_serving_url(self["dlkey"])
 				except Exception as e:
 					logging.exception(e)
+
 		super(fileBaseSkel, self).refresh()
 
 	def preProcessBlobLocks(self, locks):
@@ -85,6 +86,27 @@ class fileNodeSkel(TreeNodeSkel):
 	name = stringBone(descr="Name", required=True, indexed=True, searchable=True)
 
 
+def decodeFileName(name):
+	# http://code.google.com/p/googleappengine/issues/detail?id=2749
+	# Open since Sept. 2010, claimed to be fixed in Version 1.7.2 (September 18, 2012)
+	# and still totally broken
+	try:
+		if name.startswith("=?"):  # RFC 2047
+			return unicode(email.Header.make_header(email.Header.decode_header(name + "\n")))
+		elif "=" in name and not name.endswith("="):  # Quoted Printable
+			return decodestring(name.encode("ascii")).decode("UTF-8")
+		else:  # Maybe base64 encoded
+			return urlsafe_b64decode(name.encode("ascii")).decode("UTF-8")
+	except:  # Sorry - I cant guess whats happend here
+		if isinstance(name, str) and not isinstance(name, unicode):
+			try:
+				return name.decode("UTF-8", "ignore")
+			except:
+				pass
+
+		return name
+
+
 class File(Tree):
 
 	viewLeafSkel = fileBaseSkel
@@ -106,25 +128,6 @@ class File(Tree):
 
 	blobCacheTime = 60*60*24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
 
-	def decodeFileName(self, name):
-		# http://code.google.com/p/googleappengine/issues/detail?id=2749
-		# Open since Sept. 2010, claimed to be fixed in Version 1.7.2 (September 18, 2012)
-		# and still totally broken
-		try:
-			if name.startswith("=?"): #RFC 2047
-				return unicode( email.Header.make_header(email.Header.decode_header(name + "\n")))
-			elif "=" in name and not name.endswith("="): #Quoted Printable
-				return decodestring(name.encode("ascii")).decode("UTF-8")
-			else: #Maybe base64 encoded
-				return b64decode(name.encode("ascii")).decode("UTF-8")
-		except: #Sorry - I cant guess whats happend here
-			if isinstance(name, str) and not isinstance(name, unicode):
-				try:
-					return name.decode("UTF-8", "ignore")
-				except:
-					pass
-
-			return name
 
 	def getUploads(self, field_name = None):
 		"""
@@ -204,7 +207,7 @@ class File(Tree):
 		return res
 
 	@exposed
-	def upload( self, node=None, *args, **kwargs ):
+	def upload(self, node=None, *args, **kwargs):
 		try:
 			canAdd = self.canAdd("leaf", node)
 		except:
@@ -213,6 +216,7 @@ class File(Tree):
 			for upload in self.getUploads():
 				upload.delete()
 			raise errors.Forbidden()
+
 		try:
 			res = []
 			if node:
@@ -225,14 +229,17 @@ class File(Tree):
 				else:
 					weak = False
 					parentDir = str(node)
-					parentRepo =  nodeSkel["parentrepo"]
+					parentRepo = nodeSkel["parentrepo"]
 			else:
 				weak = True
 				parentDir = None
 				parentRepo = None
+
 			# Handle the actual uploads
 			for upload in self.getUploads():
-				fileName = self.decodeFileName(upload.filename)
+				fileName = decodeFileName(upload.filename)
+				height = width = 0
+
 				if str(upload.content_type).startswith("image/"):
 					try:
 						servingURL = images.get_serving_url(upload.key())
@@ -244,20 +251,21 @@ class File(Tree):
 							servingURL = servingURL.replace("http://", "https://")
 					except:
 						servingURL = ""
+
+					try:
+						# only fetching the file header or all if the file is smaller than 1M
+						data = blobstore.fetch_data(upload.key(), 0, min(upload.size, 1000000))
+						image = images.Image(image_data=data)
+						height = image.height
+						width = image.width
+					except Exception as err:
+						logging.error("some error occurred while trying to fetch the image header with dimensions")
+						logging.exception(err)
+
 				else:
 					servingURL = ""
+
 				fileSkel = self.addLeafSkel()
-				try:
-					# only fetching the file header or all if the file is smaller than 1M
-					data = blobstore.fetch_data(upload.key(), 0, min(upload.size, 1000000))
-					image = images.Image(image_data=data)
-					height = image.height
-					width = image.width
-				except Exception, err:
-					height = width = 0
-					logging.error(
-						"some error occurred while trying to fetch the image header with dimensions")
-					logging.exception(err)
 
 				fileSkel.setValues(
 					{
@@ -276,19 +284,25 @@ class File(Tree):
 				fileSkel.toDB()
 				res.append(fileSkel)
 				self.onItemUploaded(fileSkel)
+
 			# Uploads stored successfully, generate response to the client
 			for r in res:
 				logging.info("Upload successful: %s (%s)" % (r["name"], r["dlkey"]))
 			user = utils.getCurrentUser()
+
 			if user:
 				logging.info("User: %s (%s)" % (user["name"], user["key"]))
-			return( self.render.addItemSuccess( res ) )
-		except Exception, err:
+
+			return self.render.addItemSuccess(res)
+
+		except Exception as err:
 			logging.exception(err)
+
 			for upload in self.getUploads():
 				upload.delete()
-				utils.markFileForDeletion( str(upload.key() ) )
-			raise( errors.InternalServerError() )
+				utils.markFileForDeletion(str(upload.key()))
+
+			raise errors.InternalServerError()
 
 	@exposed
 	def download(self, blobKey, fileName = "", download = "", *args, **kwargs):
@@ -429,6 +443,7 @@ def startCleanupDeletedFiles():
 	doCleanupDeletedFiles()
 
 
+@callDeferred
 def doCleanupDeletedFiles(cursor = None):
 	maxIterCount = 2  # How often a file will be checked for deletion
 	gotAtLeastOne = False
@@ -466,6 +481,7 @@ def startDeleteWeakReferences():
 	doDeleteWeakReferences((datetime.now() - timedelta(days = 1)).strftime("%d.%m.%Y %H:%M:%S"), None)
 
 
+@callDeferred
 def doDeleteWeakReferences(timeStamp, cursor):
 	skelCls = skeletonByKind("file")
 	gotAtLeastOne = False

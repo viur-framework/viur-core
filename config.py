@@ -8,9 +8,6 @@ apiVersion = 1 #What format do we use to store data in the bigtable
 
 #Conf is static, local Dictionary. Changes here are local to the current instance
 conf = {
-
-	"bugsnag.apiKey": None, #If set, ViUR will report Errors to bugsnag
-
 	"viur.accessRights": ["root","admin"],  #Accessrights available on this Application
 	"viur.availableLanguages": [], #List of language-codes, which are valid for this application
 
@@ -35,7 +32,7 @@ conf = {
 	"viur.errorTemplate": "server/template/error.html", #Path to the template to render if an unhandled error occurs. This is a Python String-template, *not* a jinja2 one!
 	"viur.exportPassword": None, # Activates the Database export API if set. Must be exactly 32 chars. *Everyone* knowing this password can dump the whole database!
 
-	"viur.forceSSL": False,  #If true, all requests must be encrypted (ignored on development server)
+	"viur.forceSSL": True,  #If true, all requests must be encrypted (ignored on development server)
 
 	"viur.importPassword": None, # Activates the Database import API if set. Must be exactly 32 chars. *Everyone* knowing this password can rewrite the whole database!
 
@@ -47,7 +44,6 @@ conf = {
 	"viur.mainApp": None,  #Reference to our pre-build Application-Instance
 	"viur.maxPasswordLength": 512, #Prevent Denial of Service attacks using large inputs for pbkdf2
 	"viur.maxPostParamsCount": 250, #Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks
-	"viur.skeletons": None, #Dictionary of all models known to this instance
 
 	"viur.noSSLCheckUrls": ["/_tasks*", "/ah/*"], #List of Urls for which viur.forceSSL is ignored. Add an asterisk to mark that entry as a prefix (exact match otherwise)
 
@@ -55,12 +51,15 @@ conf = {
 
 	"viur.salt": "ViUR-CMS",  #Default salt which will be used for eg. passwords. Once the application is used, this must not change!
 	"viur.searchValidChars": "abcdefghijklmnopqrstuvwxyz0123456789",  #Characters valid for the internal search functionality (all other chars are ignored)
-	"viur.security.contentSecurityPolicy": {'enforce': {'style-src': ['self', 'unsafe-inline'],  # unsafe-inline currently required for textBones
-	                                                    'default-src': ['self'],
-	                                                    'img-src': ['self', '*.ggpht.com', '*.googleusercontent.com'],  # Serving-URLs of file-Bones will point to these
-	                                                    'script-src': ['self'],
-	                                                    'frame-src': ['self', 'www.google.com', 'drive.google.com', 'accounts.google.com']}  # Required to login with google
-	                                        }, #If set, viur will emit a CSP http-header with each request. Use security.addCspRule to set this property
+	"viur.security.contentSecurityPolicy": { #If set, viur will emit a CSP http-header with each request. Use security.addCspRule to set this property
+		'enforce': {
+			'style-src': ['self', 'unsafe-inline'], #unsafe-inline currently required for textBones
+			'default-src': ['self'],
+			'img-src': ['self', '*.ggpht.com', '*.googleusercontent.com'], #Serving-URLs of file-Bones will point to these
+			'script-src': ['self'],
+			'frame-src': ['self', 'www.google.com', 'drive.google.com', 'accounts.google.com'] #Required to login with google
+		}
+	},
 	"viur.security.strictTransportSecurity": None, #If set, viur will emit a HSTS http-header with each request. Use security.enableStrictTransportSecurity to set this property
 	"viur.security.publicKeyPins": None, #If set, viur will emit a Public Key Pins http-header with each request. Use security.setPublicKeyPins to set this property
 	"viur.security.xFrameOptions": ("sameorigin", None), # If set, ViUR will emit a X-Frame-Options header,
@@ -70,12 +69,11 @@ conf = {
 	"viur.session.lifeTime": 60*60, #Default is 60 minutes lifetime for ViUR sessions
 	"viur.session.persistentFieldsOnLogin": [], #If set, these Fields will survive the session.reset() called on user/login
 	"viur.session.persistentFieldsOnLogout": [], #If set, these Fields will survive the session.reset() called on user/logout
+	"viur.skeleton.searchPath": ["/skeletons/", "/server/"], # Priority, in which skeletons are loaded
 
 	"viur.tasks.customEnvironmentHandler": None, #If set, must be a tuple of two functions serializing/restoring additional enviromental data in deferred requests,
 
 	"viur.version": None, #Will be set to server.__version__ in server.__init__
-
-
 }
 
 
