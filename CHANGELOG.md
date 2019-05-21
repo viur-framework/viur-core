@@ -5,7 +5,8 @@ This file documents any relevant changes done to ViUR server since version 2.
 
 ## [develop] - Current development version
 
-
+### Added
+- updateLevel for relationalBones, to exclude specific bones from the automatic background update ([#170](https://github.com/viur-framework/server/pull/170))
 
 ## [2.4.1] Agung - 2019-05-21
 

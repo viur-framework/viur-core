@@ -1028,11 +1028,12 @@ class SkelList( list ):
 ### Tasks ###
 
 @callDeferred
-def updateRelations( destID, minChangeTime, cursor=None ):
+def updateRelations(destID, minChangeTime, cursor=None):
 	logging.debug("Starting updateRelations for %s ; minChangeTime %s", destID, minChangeTime)
-	updateListQuery = db.Query( "viur-relations" ).filter("dest.key =", destID ).filter("viur_delayed_update_tag <",minChangeTime).filter("viur_relational_updateLevel =", 0)
+	updateListQuery = db.Query("viur-relations").filter("dest.key =", destID) \
+		.filter("viur_delayed_update_tag <", minChangeTime).filter("viur_relational_updateLevel =", 0)
 	if cursor:
-		updateListQuery.cursor( cursor )
+		updateListQuery.cursor(cursor)
 	updateList = updateListQuery.run(limit=5)
 
 	for srcRel in updateList:

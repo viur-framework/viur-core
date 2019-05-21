@@ -68,7 +68,8 @@ class relationalBone( baseBone ):
 				more information
 			:type format: str
 			:type format: String
-			:param updateLevel: level 0==always update refkeys (old behavior), 1==update refKeys only on rebuildSearchIndex, 2==write once on set, never update again refKeys
+			:param updateLevel: level 0==always update refkeys (old behavior), 1==update refKeys only on
+				rebuildSearchIndex, 2==update only if explicitly set
 			:type updateLevel: int
 		"""
 		baseBone.__init__( self, *args, **kwargs )
@@ -777,8 +778,7 @@ class relationalBone( baseBone ):
 
 					getattr(self._refSkelCache, key).unserialize(valDict, key, newValues)
 
-
-		if not valuesCache[boneName]:
+		if not valuesCache[boneName] or self.updateLevel == 2:
 			return
 
 		logging.debug("Refreshing relationalBone %s of %s" % (boneName, skel.kindName))
