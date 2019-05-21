@@ -432,6 +432,13 @@ class MetaSkel(MetaBaseSkel):
 		super(MetaSkel, cls).__init__(name, bases, dct)
 		relNewFileName = inspect.getfile(cls).replace(os.getcwd(), "")
 
+		# Check if we have an abstract skeleton
+		if cls.__name__.endswith("AbstractSkel"):
+			# Ensure that it doesn't have a kindName
+			assert cls.kindName is __undefindedC__ or cls.kindName is None, "Abstract Skeletons can't have a kindName"
+			# Prevent any further processing by this class; it has to be sub-classed before it can be used
+			return
+
 		# Automatic determination of the kindName, if the class is not part of the server.
 		if (cls.kindName is __undefindedC__
 		    and not relNewFileName.strip(os.path.sep).startswith("server")
@@ -440,24 +447,29 @@ class MetaSkel(MetaBaseSkel):
 				cls.kindName = cls.__name__.lower()[:-4]
 			else:
 				cls.kindName = cls.__name__.lower()
-		# Prevent duplicate definitions of skeletons
+		# Try to determine which skeleton definition takes precedence
 		if cls.kindName and cls.kindName is not __undefindedC__ and cls.kindName in MetaBaseSkel._skelCache:
 			relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]).replace(os.getcwd(), "")
-			if relNewFileName.strip(os.path.sep).startswith("server"):
-				# The currently processed skeleton is from the server.* package
+			idxOld = min([x for (x,y) in enumerate(conf["viur.skeleton.searchPath"]) if relOldFileName.startswith(y)]+[999])
+			idxNew = min([x for (x,y) in enumerate(conf["viur.skeleton.searchPath"]) if relNewFileName.startswith(y)]+[999])
+			if idxNew == 999:
+				# We could not determine a priority for this class as its from a path not listed in the config
+				raise NotImplementedError(
+					"Skeletons must be defined in a folder listed in conf[\"viur.skeleton.searchPath\"]")
+			elif idxOld < idxNew:  # Lower index takes precedence
+				# The currently processed skeleton has a lower priority than the one we already saw - just ignore it
 				return
-			elif relOldFileName.strip(os.path.sep).startswith("server"):
-				# The old one was from server - override it
+			elif idxOld > idxNew:
+				# The currently processed skeleton has a higher priority, use that from now
 				MetaBaseSkel._skelCache[cls.kindName] = cls
-			else:
+			else:  # They seem to be from the same Package - raise as something is messed up
 				raise ValueError("Duplicate definition for %s in %s and %s" %
 				                 (cls.kindName, relNewFileName, relOldFileName))
-		# Ensure that all skeletons are defined in /skeletons/
-		relFileName = inspect.getfile(cls).replace(os.getcwd(), "")
-		if (not relFileName.strip(os.path.sep).startswith("skeletons")
-		    and not relFileName.strip(os.path.sep).startswith("server")
+		# Ensure that all skeletons are defined in folders listed in conf["viur.skeleton.searchPath"]
+		if (not any([relNewFileName.startswith(x) for x in conf["viur.skeleton.searchPath"]])
 		    and not "viur_doc_build" in dir(sys)):  # Do not check while documentation build
-			raise NotImplementedError("Skeletons must be defined in /skeletons/")
+			raise NotImplementedError(
+				"Skeletons must be defined in a folder listed in conf[\"viur.skeleton.searchPath\"]")
 		if cls.kindName and cls.kindName is not __undefindedC__:
 			MetaBaseSkel._skelCache[cls.kindName] = cls
 
@@ -563,106 +575,135 @@ class Skeleton(BaseSkeleton):
 		def txnUpdate(key, mergeFrom, clearUpdateTag):
 			blobList = set()
 			skel = type(mergeFrom)()
+
 			# Load the current values from Datastore or create a new, empty db.Entity
 			if not key:
 				dbObj = db.Entity(skel.kindName)
 				oldBlobLockObj = None
+
 			else:
 				k = db.Key(key)
 				assert k.kind() == skel.kindName, "Cannot write to invalid kind!"
+
 				try:
 					dbObj = db.Get(k)
+
 				except db.EntityNotFoundError:
 					dbObj = db.Entity(k.kind(), id=k.id(), name=k.name(), parent=k.parent())
+
 				else:
 					skel.setValues(dbObj)
+
 				try:
 					oldBlobLockObj = db.Get(db.Key.from_path("viur-blob-locks", str(k)))
+
 				except:
 					oldBlobLockObj = None
 
-			# Remember old hashes for bones that must have an unique value
-			oldUniqeValues = {}
-			for boneName, boneInstance in skel.items():
-				if boneInstance.unique:
-					if "%s.uniqueIndexValue" % boneName in dbObj:
-						oldUniqeValues[boneName] = dbObj["%s.uniqueIndexValue" % boneName]
-
-			## Merge the values from mergeFrom in
+			# Merge values and assemble unique properties
+			oldUniqueValues = {}
 			for key, bone in skel.items():
+				# Remember old hashes for bones that must have an unique value
+				if bone.unique:
+					if "%s.uniqueIndexValue" % key in dbObj:
+						oldUniqueValues[key] = dbObj["%s.uniqueIndexValue" % key]
+
+				# Merge the values from mergeFrom in
 				if key in mergeFrom:
 					bone.mergeFrom(skel.valuesCache, key, mergeFrom)
-			for key, _bone in skel.items():
-				dbObj = _bone.serialize(skel.valuesCache, key, dbObj)
-				blobList.update(_bone.getReferencedBlobs(self.valuesCache, key))
+
+				# Serialize bone into entity
+				dbObj = bone.serialize(skel.valuesCache, key, dbObj)
+
+				# Obtain referenced blobs
+				blobList.update(bone.getReferencedBlobs(self.valuesCache, key))
 
 			if clearUpdateTag:
-				dbObj["viur_delayed_update_tag"] = 0  # Mark this entity as Up-to-date.
+				# Mark this entity as Up-to-date.
+				dbObj["viur_delayed_update_tag"] = 0
 			else:
-				dbObj[
-					"viur_delayed_update_tag"] = time()  # Mark this entity as dirty, so the background-task will catch it up and update its references.
+				# Mark this entity as dirty, so the background-task will catch it up and update its references.
+				dbObj["viur_delayed_update_tag"] = time()
+
 			dbObj = skel.preProcessSerializedData(dbObj)
+
 			try:
 				ourKey = str(dbObj.key())
 			except:  # Its not an update but an insert, no key yet
 				ourKey = None
+
 			# Lock hashes from bones that must have unique values
-			newUniqeValues = {}
-			for boneName, boneInstance in skel.items():
-				if boneInstance.unique:
+			newUniqueValues = {}
+			tags = []
+
+			for key, bone in skel.items():
+				if bone.unique:
 					# Check if the property is really unique
-					newUniqeValues[boneName] = boneInstance.getUniquePropertyIndexValue(
-						self.valuesCache, boneName)
-					if newUniqeValues[boneName] is not None:
+					newUniqueValues[key] = bone.getUniquePropertyIndexValue(self.valuesCache, key)
+
+					if newUniqueValues[key] is not None:
 						try:
 							lockObj = db.Get(db.Key.from_path(
-								"%s_%s_uniquePropertyIndex" % (skel.kindName, boneName),
-								newUniqeValues[boneName]))
+								"%s_%s_uniquePropertyIndex" % (skel.kindName, key),
+								newUniqueValues[key]))
 
 							if lockObj["references"] != ourKey:
 								# This value has been claimed, and that not by us
 
 								raise ValueError(
 									"The unique value '%s' of bone '%s' has been recently claimed!" %
-										(self.valuesCache[boneName], boneName))
+										(self.valuesCache[key], key))
 
 						except db.EntityNotFoundError:  # No lockObj found for that value, we can use that
 							pass
-						dbObj["%s.uniqueIndexValue" % boneName] = newUniqeValues[boneName]
+						dbObj["%s.uniqueIndexValue" % key] = newUniqueValues[key]
+
 					else:
-						if "%s.uniqueIndexValue" % boneName in dbObj:
-							del dbObj["%s.uniqueIndexValue" % boneName]
+						if "%s.uniqueIndexValue" % key in dbObj:
+							del dbObj["%s.uniqueIndexValue" % key]
+
+				if not skel.searchIndex:
+					# We generate the search index using the full skel, not this (maybe incomplete one)
+					if bone.searchable:
+						tags += [tag for tag in bone.getSearchTags(self.valuesCache, key)
+						            if tag not in tags and len(tag) < 400]
+
 			if not skel.searchIndex:
-				# We generate the searchindex using the full skel, not this (maybe incomplete one)
-				tags = []
-				for key, _bone in skel.items():
-					if _bone.searchable:
-						tags += [tag for tag in _bone.getSearchTags(self.valuesCache, key) if
-						         (tag not in tags and len(tag) < 400)]
 				dbObj["viur_tags"] = tags
-			db.Put(dbObj)  # Write the core entry back
+
+			# Write the core entry back
+			db.Put(dbObj)
+
 			# Now write the blob-lock object
 			blobList = skel.preProcessBlobLocks(blobList)
+
 			if blobList is None:
 				raise ValueError(
 					"Did you forget to return the bloblist somewhere inside getReferencedBlobs()?")
+
 			if None in blobList:
 				raise ValueError("None is not a valid blobKey.")
+
 			if oldBlobLockObj is not None:
-				oldBlobs = set(oldBlobLockObj["active_blob_references"] if oldBlobLockObj[
-					                                                           "active_blob_references"] is not None else [])
+				oldBlobs = set(oldBlobLockObj["active_blob_references"]
+				                if oldBlobLockObj["active_blob_references"] is not None else [])
+
 				removedBlobs = oldBlobs - blobList
 				oldBlobLockObj["active_blob_references"] = list(blobList)
+
 				if oldBlobLockObj["old_blob_references"] is None:
 					oldBlobLockObj["old_blob_references"] = [x for x in removedBlobs]
 				else:
 					tmp = set(oldBlobLockObj["old_blob_references"] + [x for x in removedBlobs])
 					oldBlobLockObj["old_blob_references"] = [x for x in (tmp - blobList)]
-				oldBlobLockObj["has_old_blob_references"] = oldBlobLockObj[
-					                                            "old_blob_references"] is not None and len(
-					oldBlobLockObj["old_blob_references"]) > 0
+
+				oldBlobLockObj["has_old_blob_references"] = \
+					oldBlobLockObj["old_blob_references"] is not None \
+						and len(oldBlobLockObj["old_blob_references"]) > 0
+
 				oldBlobLockObj["is_stale"] = False
 				db.Put(oldBlobLockObj)
+
 			else:  # We need to create a new blob-lock-object
 				blobLockObj = db.Entity("viur-blob-locks", name=str(dbObj.key()))
 				blobLockObj["active_blob_references"] = list(blobList)
@@ -670,17 +711,18 @@ class Skeleton(BaseSkeleton):
 				blobLockObj["has_old_blob_references"] = False
 				blobLockObj["is_stale"] = False
 				db.Put(blobLockObj)
-			for boneName, boneInstance in skel.items():
-				if boneInstance.unique:
+
+			for key, bone in skel.items():
+				if bone.unique:
 					# Update/create/delete missing lock-objects
-					if boneName in oldUniqeValues and oldUniqeValues[boneName] != \
-						newUniqeValues[boneName]:
+					if key in oldUniqueValues and oldUniqueValues[key] != newUniqueValues[key]:
+
 						# We had an old lock and its value changed
 						try:
 							# Try to delete the old lock
 							oldLockObj = db.Get(db.Key.from_path(
-								"%s_%s_uniquePropertyIndex" % (skel.kindName, boneName),
-								oldUniqeValues[boneName]))
+								"%s_%s_uniquePropertyIndex" % (skel.kindName, key),
+								oldUniqueValues[key]))
 							if oldLockObj["references"] != ourKey:
 								# We've been supposed to have that lock - but we don't.
 								# Don't remove that lock as it now belongs to a different entry
@@ -690,19 +732,21 @@ class Skeleton(BaseSkeleton):
 								# It's our lock which we don't need anymore
 								db.Delete(db.Key.from_path(
 									"%s_%s_uniquePropertyIndex" % (
-									skel.kindName, boneName),
-									oldUniqeValues[boneName]))
+									skel.kindName, key),
+									oldUniqueValues[key]))
 						except db.EntityNotFoundError as e:
 							logging.critical(
 								"Detected Database corruption! Could not delete stale lock-object!")
-					if newUniqeValues[boneName] is not None:
+
+					if newUniqueValues[key] is not None:
 						# Lock the new value
 						newLockObj = db.Entity(
-							"%s_%s_uniquePropertyIndex" % (skel.kindName, boneName),
-							name=newUniqeValues[boneName])
+							"%s_%s_uniquePropertyIndex" % (skel.kindName, key),
+							name=newUniqueValues[key])
 						newLockObj["references"] = str(dbObj.key())
 						db.Put(newLockObj)
-			return (str(dbObj.key()), dbObj, skel)
+
+			return str(dbObj.key()), dbObj, skel
 
 		# END of txnUpdate subfunction
 
@@ -1004,6 +1048,7 @@ def updateRelations( destID, minChangeTime, cursor=None ):
 		for key,_bone in skel.items():
 			_bone.refresh(skel.valuesCache, key, skel)
 		skel.toDB( clearUpdateTag=True )
+
 	if len(updateList)==5:
 		updateRelations( destID, minChangeTime, updateListQuery.getCursor().urlsafe() )
 

@@ -252,8 +252,10 @@ def noRetry( f ):
 	def wrappedFunc( *args,  **kwargs ):
 		try:
 			f( *args,  **kwargs )
-		except:
+		except Exception as e:
+			logging.exception(e)
 			raise PermanentTaskFailure()
+
 	return( wrappedFunc )
 
 def callDeferred( func ):

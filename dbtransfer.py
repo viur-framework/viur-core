@@ -7,12 +7,10 @@ from server import db, request, errors, conf, exposed, utils
 from server.bones import *
 from server.skeleton import BaseSkeleton, skeletonByKind, listKnownSkeletons
 from server.tasks import CallableTask, CallableTaskBase, callDeferred
-
 from server.prototypes.hierarchy import HierarchySkel
 from server.prototypes.tree import TreeLeafSkel
-
 from server.render.json.default import DefaultRender
-
+from server.modules.file import decodeFileName
 from google.appengine.api import datastore, datastore_types, urlfetch
 from google.appengine.ext import blobstore
 from google.appengine.ext.blobstore import BlobInfo
@@ -21,9 +19,6 @@ from google.appengine.datastore import datastore_query
 
 from itertools import izip
 from hashlib import sha256
-import email.header
-from quopri import decodestring
-from base64 import b64decode
 
 
 class DbTransfer( object ):
@@ -76,24 +71,6 @@ class DbTransfer( object ):
 			raise errors.Forbidden()
 		return( pickle.dumps( db.Query("SharedConfData").get().key().app() ) ) #app_identity.get_application_id()
 
-	def decodeFileName(self, name):
-		# http://code.google.com/p/googleappengine/issues/detail?id=2749
-		# Open since Sept. 2010, claimed to be fixed in Version 1.7.2 (September 18, 2012)
-		# and still totally broken
-		try:
-			if name.startswith("=?"): #RFC 2047
-				return( unicode( email.Header.make_header( email.Header.decode_header(name+"\n") ) ) )
-			elif "=" in name and not name.endswith("="): #Quoted Printable
-				return( decodestring( name.encode("ascii") ).decode("UTF-8") )
-			else: #Maybe base64 encoded
-				return( b64decode( name.encode("ascii") ).decode("UTF-8") )
-		except: #Sorry - I cant guess whats happend here
-			if isinstance( name, str ) and not isinstance( name, unicode ):
-				try:
-					return( name.decode("UTF-8", "ignore") )
-				except:
-					pass
-			return( name )
 
 	def getUploads(self, field_name=None):
 		"""
@@ -125,7 +102,7 @@ class DbTransfer( object ):
 	def upload( self, oldkey, *args, **kwargs ):
 		res = []
 		for upload in self.getUploads():
-			fileName = self.decodeFileName( upload.filename )
+			fileName = decodeFileName(upload.filename)
 			if str( upload.content_type ).startswith("image/"):
 				try:
 					servingURL = get_serving_url( upload.key() )
@@ -141,13 +118,17 @@ class DbTransfer( object ):
 					"parentdir": "",
 					"parentrepo": "",
 					"weak": False } )
+
+			oldkey = decodeFileName(oldkey)
 			oldKeyHash = sha256(oldkey).hexdigest().encode("hex")
+
 			e = db.Entity("viur-blobimportmap", name=oldKeyHash)
 			e["newkey"] = str(upload.key())
 			e["oldkey"] = oldkey
 			e["servingurl"] = servingURL
 			e["available"] = True
 			db.Put(e)
+
 		return( json.dumps( {"action":"addSuccess", "values":res } ) )
 
 	@exposed

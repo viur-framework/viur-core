@@ -152,15 +152,15 @@ class baseBone(object): # One Bone:
 			:returns: None or str
 		"""
 		if name in data:
-			value = data[ name ]
+			value = data[name]
 		else:
 			value = None
-		err = self.isInvalid( value )
+		err = self.isInvalid(value)
 		if not err:
 			valuesCache[name] = value
-			return( True )
+			return None
 		else:
-			return( err )
+			return err
 
 	def isInvalid( self, value ):
 		"""
