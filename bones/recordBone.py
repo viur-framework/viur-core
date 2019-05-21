@@ -138,9 +138,6 @@ class recordBone(baseBone):
 		errorDict = {}
 		forceFail = False
 
-		if not tmpList and self.required:
-			return "No value selected!"
-
 		for i, r in enumerate(tmpList[:]):
 			usingSkel = self._usingSkelCache
 			usingSkel.setValuesCache({})
@@ -161,10 +158,13 @@ class recordBone(baseBone):
 			else:
 				cleanList.append(item)
 
-		if not cleanList:
-			errorDict[name] = "No value selected"
-
 		valuesCache[name] = tmpList
+
+		if not cleanList:
+			if not (self.required or errorDict):
+				# Returning a error will only cause a warning if we are not required
+				return "No value selected!"
+			errorDict[name] = "No value selected"
 
 		if len(errorDict.keys()):
 			return ReadFromClientError(errorDict, forceFail)
