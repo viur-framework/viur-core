@@ -6,6 +6,14 @@ This file documents any relevant changes done to ViUR server since version 2.
 ## [develop] - Current development version
 
 
+
+## [2.4.1] Agung - 2019-05-21
+
+### Fixed
+- Correctly expose our server-revision to the application ([#168](https://github.com/viur-framework/server/pull/168))
+- spatialGuaranteedCorrectness of bones/spatial on very sparse maps ([#167](https://github.com/viur-framework/server/pull/167))
+
+
 ## [2.4.0] Agung - 2019-05-17
 
 ### Added
