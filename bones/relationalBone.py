@@ -300,6 +300,7 @@ class relationalBone( baseBone ):
 						for k, v in usingSkel.serialize().items():
 							dbObj[ "rel."+k ] = v
 					dbObj[ "viur_delayed_update_tag" ] = time()
+					dbObj["viur_relational_updateLevel"] = self.updateLevel
 					db.Put( dbObj )
 				values.remove( data )
 
