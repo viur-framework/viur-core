@@ -5,10 +5,14 @@ This file documents any relevant changes done to ViUR server since version 2.
 
 ## [develop] - Current development version
 
+
+## [2.5.0] Vesuv - 2019-06-07
+
 ### Added
 
 - updateLevel for relationalBones, to exclude specific bones from the automatic background update ([#170](https://github.com/viur-framework/server/pull/170))
 - vacuumRelations task to remove relation-objects from bones/kinds that don't exist anymore from viur-relations ([#169](https://github.com/viur-framework/server/pull/169))
+- the new recordBone which can store multiple sets of data for the bones inside it's relskel ([#148](https://github.com/viur-framework/server/pull/148))
 
 ## [2.4.1] Agung - 2019-05-21
 
@@ -220,7 +224,9 @@ This file documents any relevant changes done to ViUR server since version 2.
 ### (Start of changelog)
 
 
-[develop]: https://github.com/viur-framework/server/compare/v2.4.0...develop
+[develop]: https://github.com/viur-framework/server/compare/v2.5.0...develop
+[2.5.0]: https://github.com/viur-framework/server/compare/v2.4.1...v2.5.0
+[2.4.1]: https://github.com/viur-framework/server/compare/v2.4.0...v2.4.1
 [2.4.0]: https://github.com/viur-framework/server/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/viur-framework/server/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/viur-framework/server/compare/v2.1.0...v2.2.0
