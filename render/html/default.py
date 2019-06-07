@@ -313,7 +313,8 @@ class Render( object ):
 			elif skelValue in bone.values:
 				return KeyValueWrapper(skelValue, bone.values[skelValue])
 			return skelValue
-		elif bone.type=="relational" or bone.type.startswith("relational."):
+
+		elif bone.type == "relational" or bone.type.startswith("relational."):
 			if isinstance(skel[key], list):
 				tmpList = []
 				for k in skel[key]:
@@ -350,8 +351,23 @@ class Render( object ):
 						"dest": self.collectSkelData(refSkel),
 						"rel": usingData
 					}
-			else:
-				return None
+
+		elif bone.type == "record" or bone.type.startswith("record."):
+			usingSkel = bone._usingSkelCache
+			value = skel[key]
+
+			if isinstance(value, list):
+				ret = []
+				for entry in value:
+					usingSkel.setValuesCache(entry)
+					ret.append(self.collectSkelData(usingSkel))
+
+				return ret
+
+			elif isinstance(value, dict):
+				usingSkel.setValuesCache(value)
+				return self.collectSkelData(usingSkel)
+
 		else:
 			return skel[key]
 
