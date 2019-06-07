@@ -54,6 +54,12 @@ class DefaultRender(object):
 				"relskel": self.renderSkelStructure(RefSkel.fromSkel(skeletonByKind(bone.kind), *bone.refKeys))
 			})
 
+		elif bone.type == "record" or bone.type.startswith("record."):
+			ret.update({
+				"multiple": bone.multiple,
+				"format": bone.format,
+				"using": self.renderSkelStructure(bone.using())
+			})
 
 		elif bone.type == "select" or bone.type.startswith("select."):
 			ret.update({

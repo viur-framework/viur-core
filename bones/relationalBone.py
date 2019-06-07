@@ -45,7 +45,7 @@ class relationalBone( baseBone ):
 	kind = None
 
 	def __init__(self, kind=None, module=None, refKeys=None, parentKeys=None, multiple=False,
-	             format="$(dest.name)", using=None, *args, **kwargs):
+	             format="$(dest.name)", using=None, updateLevel=0, *args, **kwargs):
 		"""
 			Initialize a new relationalBone.
 
@@ -67,6 +67,10 @@ class relationalBone( baseBone ):
 			:param format: Hint for the admin how to display such an relation. See admin/utils.py:formatString for
 				more information
 			:type format: str
+			:type format: String
+			:param updateLevel: level 0==always update refkeys (old behavior), 1==update refKeys only on
+				rebuildSearchIndex, 2==update only if explicitly set
+			:type updateLevel: int
 		"""
 		baseBone.__init__( self, *args, **kwargs )
 		self.multiple = multiple
@@ -95,6 +99,7 @@ class relationalBone( baseBone ):
 			self.parentKeys=parentKeys
 
 		self.using = using
+		self.updateLevel = updateLevel
 
 		if getSystemInitialized():
 			from server.skeleton import RefSkel, skeletonByKind
@@ -295,6 +300,7 @@ class relationalBone( baseBone ):
 						for k, v in usingSkel.serialize().items():
 							dbObj[ "rel."+k ] = v
 					dbObj[ "viur_delayed_update_tag" ] = time()
+					dbObj["viur_relational_updateLevel"] = self.updateLevel
 					db.Put( dbObj )
 				values.remove( data )
 
@@ -324,6 +330,7 @@ class relationalBone( baseBone ):
 			dbObj[ "viur_src_property" ] = boneName #The key of the bone referencing
 			#dbObj[ "viur_dest_key" ] = val["key"]
 			dbObj[ "viur_dest_kind" ] = self.kind
+			dbObj["viur_relational_updateLevel"] = self.updateLevel
 			db.Put( dbObj )
 
 	def postDeletedHandler( self, skel, key, id ):
@@ -772,8 +779,7 @@ class relationalBone( baseBone ):
 
 					getattr(self._refSkelCache, key).unserialize(valDict, key, newValues)
 
-
-		if not valuesCache[boneName]:
+		if not valuesCache[boneName] or self.updateLevel == 2:
 			return
 
 		logging.debug("Refreshing relationalBone %s of %s" % (boneName, skel.kindName))
