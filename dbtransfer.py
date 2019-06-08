@@ -21,7 +21,7 @@ from itertools import izip
 from hashlib import sha256
 
 
-class DbTransfer( object ):
+class DbTransfer(object):
 
 	def _checkKey(self, key, export=True):
 		"""
@@ -33,7 +33,7 @@ class DbTransfer( object ):
 			:returns: True if the key is correct, False otherwise
 		"""
 		isValid = True
-		if not isinstance( key, basestring ):
+		if not isinstance(key, basestring):
 			isValid = False
 		if export:
 			expectedKey = conf["viur.exportPassword"]
@@ -41,36 +41,34 @@ class DbTransfer( object ):
 			expectedKey = conf["viur.importPassword"]
 		if not expectedKey:
 			isValid = False
-		if len(key)!=len(expectedKey):
+		if len(key) != len(expectedKey):
 			isValid = False
-		for a,b in izip(str(key),str(expectedKey)):
-			if a!=b:
+		for a, b in izip(str(key), str(expectedKey)):
+			if a != b:
 				isValid = False
-		return( isValid )
+		return (isValid)
 
 	@exposed
 	def listModules(self, key):
-		if not self._checkKey( key, export=False):
+		if not self._checkKey(key, export=False):
 			raise errors.Forbidden()
-		return( pickle.dumps( listKnownSkeletons() ) )
+		return (pickle.dumps(listKnownSkeletons()))
 
 	@exposed
-	def getCfg(self, module, key ):
-		if not self._checkKey( key, export=False):
+	def getCfg(self, module, key):
+		if not self._checkKey(key, export=False):
 			raise errors.Forbidden()
-		skel = skeletonByKind( module )
+		skel = skeletonByKind(module)
 		assert skel is not None
 		res = skel()
 		r = DefaultRender()
-		return( pickle.dumps( r.renderSkelStructure(res)))
-
+		return (pickle.dumps(r.renderSkelStructure(res)))
 
 	@exposed
 	def getAppId(self, key, *args, **kwargs):
-		if not self._checkKey( key, export=False):
+		if not self._checkKey(key, export=False):
 			raise errors.Forbidden()
-		return( pickle.dumps( db.Query("SharedConfData").get().key().app() ) ) #app_identity.get_application_id()
-
+		return (pickle.dumps(db.Query("SharedConfData").get().key().app()))  # app_identity.get_application_id()
 
 	def getUploads(self, field_name=None):
 		"""
@@ -99,25 +97,25 @@ class DbTransfer( object ):
 			return results
 
 	@exposed
-	def upload( self, oldkey, *args, **kwargs ):
+	def upload(self, oldkey, *args, **kwargs):
 		res = []
 		for upload in self.getUploads():
 			fileName = decodeFileName(upload.filename)
-			if str( upload.content_type ).startswith("image/"):
+			if str(upload.content_type).startswith("image/"):
 				try:
-					servingURL = get_serving_url( upload.key() )
+					servingURL = get_serving_url(upload.key())
 				except:
 					servingURL = ""
 			else:
 				servingURL = ""
-			res.append( {	"name": fileName,
-					"size": upload.size,
-					"mimetype": upload.content_type,
-					"dlkey": str(upload.key()),
-					"servingurl": servingURL,
-					"parentdir": "",
-					"parentrepo": "",
-					"weak": False } )
+			res.append({"name": fileName,
+						"size": upload.size,
+						"mimetype": upload.content_type,
+						"dlkey": str(upload.key()),
+						"servingurl": servingURL,
+						"parentdir": "",
+						"parentrepo": "",
+						"weak": False})
 
 			oldkey = decodeFileName(oldkey)
 			oldKeyHash = sha256(oldkey).hexdigest().encode("hex")
@@ -129,48 +127,49 @@ class DbTransfer( object ):
 			e["available"] = True
 			db.Put(e)
 
-		return( json.dumps( {"action":"addSuccess", "values":res } ) )
+		return (json.dumps({"action": "addSuccess", "values": res}))
 
 	@exposed
-	def getUploadURL( self, key, *args, **kwargs ):
-		if not self._checkKey( key, export=False):
+	def getUploadURL(self, key, *args, **kwargs):
+		if not self._checkKey(key, export=False):
 			raise errors.Forbidden()
-		return( blobstore.create_upload_url( "/dbtransfer/upload"  ) )
+		return (blobstore.create_upload_url("/dbtransfer/upload"))
 
 	@exposed
-	def storeEntry(self, e, key ):
-		if not self._checkKey( key, export=False):
+	def storeEntry(self, e, key):
+		if not self._checkKey(key, export=False):
 			raise errors.Forbidden()
-		entry = pickle.loads( e )
+		entry = pickle.loads(e)
 		for k in list(entry.keys())[:]:
-			if isinstance(entry[k],str):
+			if isinstance(entry[k], str):
 				entry[k] = entry[k].decode("UTF-8")
 		if "key" in entry:
-			key = db.Key( encoded=entry["key"] )
+			key = db.Key(encoded=entry["key"])
 		elif "id" in entry:
 			key = db.Key(encoded=entry["id"])
 		else:
 			raise AttributeError()
 
-		dbEntry = db.Entity( kind=key.kind(), parent=key.parent(), id=key.id(), _app=key.app(), name=key.name() )#maybe some more fixes here ?
+		dbEntry = db.Entity(kind=key.kind(), parent=key.parent(), id=key.id(), _app=key.app(),
+							name=key.name())  # maybe some more fixes here ?
 		for k in entry.keys():
-			if k!="key":
+			if k != "key":
 				val = entry[k]
-				#if isinstance(val, dict) or isinstance(val, list):
+				# if isinstance(val, dict) or isinstance(val, list):
 				#	val = pickle.dumps( val )
 				dbEntry[k] = val
 		if dbEntry.key().id():
 			# Ensure the Datastore knows that it's id is in use
 			datastore._GetConnection()._reserve_keys([dbEntry.key()])
-		db.Put( dbEntry )
+		db.Put(dbEntry)
 
 	@exposed
-	def hasblob(self, blobkey, key ):
-		if not self._checkKey( key, export=False):
+	def hasblob(self, blobkey, key):
+		if not self._checkKey(key, export=False):
 			raise errors.Forbidden()
 		try:
 			oldKeyHash = sha256(blobkey).hexdigest().encode("hex")
-			res = db.Get( db.Key.from_path("viur-blobimportmap", oldKeyHash))
+			res = db.Get(db.Key.from_path("viur-blobimportmap", oldKeyHash))
 			if res:
 				if "available" in res:
 					return json.dumps(res["available"])
@@ -180,22 +179,22 @@ class DbTransfer( object ):
 			pass
 		return json.dumps(False)
 
-
 	@exposed
-	def storeEntry2(self, e, key ):
-		if not self._checkKey( key, export=False):
+	def storeEntry2(self, e, key):
+		if not self._checkKey(key, export=False):
 			raise errors.Forbidden()
-		entry = pickle.loads( e.decode("HEX") )
+		entry = pickle.loads(e.decode("HEX"))
 		if not "key" in entry and "id" in entry:
 			entry["key"] = entry["id"]
 		for k in list(entry.keys())[:]:
-			if isinstance(entry[k],str):
+			if isinstance(entry[k], str):
 				entry[k] = entry[k].decode("UTF-8")
-		key = db.Key( encoded=utils.normalizeKey(entry["key"]) )
+		key = db.Key(encoded=utils.normalizeKey(entry["key"]))
 
-		dbEntry = db.Entity( kind=key.kind(), parent=key.parent(), id=key.id(), name=key.name() )#maybe some more fixes here ?
+		dbEntry = db.Entity(kind=key.kind(), parent=key.parent(), id=key.id(),
+							name=key.name())  # maybe some more fixes here ?
 		for k in entry.keys():
-			if k!="key":
+			if k != "key":
 				val = entry[k]
 				dbEntry[k] = val
 		db.Put(dbEntry)
@@ -203,98 +202,98 @@ class DbTransfer( object ):
 			# Ensure the Datastore knows that it's id is in use
 			datastore._GetConnection()._reserve_keys([dbEntry.key()])
 		try:
-			skel =  skeletonByKind( key.kind() )()
+			skel = skeletonByKind(key.kind())()
 		except:
 			logging.error("Unknown Skeleton - skipping")
-		skel.fromDB( str(dbEntry.key()) )
+		skel.fromDB(str(dbEntry.key()))
 		skel.refresh()
 		skel.toDB(clearUpdateTag=True)
 
 	@staticmethod
 	def genDict(obj):
 		res = {}
-		for k,v in obj.items():
-			if not any( [isinstance(v,x) for x in [str, unicode, long, float, datetime, list, dict, bool, type(None)]] ):
+		for k, v in obj.items():
+			if not any([isinstance(v, x) for x in [str, unicode, long, float, datetime, list, dict, bool, type(None)]]):
 				logging.error("UNKNOWN TYPE %s" % str(type(v)))
-				v = unicode( v )
-				logging.error( v )
-			if isinstance( v, datastore_types.Text):
-				v = unicode( v )
-			elif isinstance(v ,datastore_types.Blob):
+				v = unicode(v)
+				logging.error(v)
+			if isinstance(v, datastore_types.Text):
+				v = unicode(v)
+			elif isinstance(v, datastore_types.Blob):
 				continue
-			elif isinstance(v ,datastore_types.BlobKey):
+			elif isinstance(v, datastore_types.BlobKey):
 				continue
-			elif isinstance(v ,datastore_types.ByteString):
-				v = str( v )
-			elif isinstance(v ,datastore_types.Category):
-				v = unicode( v )
-			elif isinstance(v ,datastore_types.Email):
-				v = unicode( v )
-			elif isinstance(v ,datastore_types.EmbeddedEntity):
+			elif isinstance(v, datastore_types.ByteString):
+				v = str(v)
+			elif isinstance(v, datastore_types.Category):
+				v = unicode(v)
+			elif isinstance(v, datastore_types.Email):
+				v = unicode(v)
+			elif isinstance(v, datastore_types.EmbeddedEntity):
 				continue
-			elif isinstance(v ,datastore_types.GeoPt):
+			elif isinstance(v, datastore_types.GeoPt):
 				continue
-			elif isinstance(v ,datastore_types.IM):
+			elif isinstance(v, datastore_types.IM):
 				continue
-			elif isinstance(v ,datastore_types.Link):
-				v = unicode( v )
-			elif isinstance(v ,datastore_types.PhoneNumber):
-				v = unicode( v )
-			elif isinstance(v ,datastore_types.PostalAddress):
-				v = unicode( v )
-			elif isinstance(v ,datastore_types.Rating):
-				v = long( v )
+			elif isinstance(v, datastore_types.Link):
+				v = unicode(v)
+			elif isinstance(v, datastore_types.PhoneNumber):
+				v = unicode(v)
+			elif isinstance(v, datastore_types.PostalAddress):
+				v = unicode(v)
+			elif isinstance(v, datastore_types.Rating):
+				v = long(v)
 			if "datastore" in str(type(v)):
 				logging.error(str(type(v)))
-			res[ k ] = v
-		res["key"] = str( obj.key() )
-		return( res )
+			res[k] = v
+		res["key"] = str(obj.key())
+		return (res)
 
 	@exposed
 	def exportDb(self, cursor=None, key=None, *args, **kwargs):
-		if not self._checkKey( key, export=True):
+		if not self._checkKey(key, export=True):
 			raise errors.Forbidden()
 		if cursor:
 			c = datastore_query.Cursor(urlsafe=cursor)
 		else:
 			c = None
-		q = datastore.Query( None, cursor=c )
+		q = datastore.Query(None, cursor=c)
 		r = []
 		for res in q.Run(limit=5):
-			r.append( self.genDict( res ) )
-		return( pickle.dumps( {"cursor": str(q.GetCursor().urlsafe()),"values":r}).encode("HEX"))
+			r.append(self.genDict(res))
+		return (pickle.dumps({"cursor": str(q.GetCursor().urlsafe()), "values": r}).encode("HEX"))
 
 	@exposed
 	def exportBlob(self, cursor=None, key=None):
-		if not self._checkKey( key, export=True):
+		if not self._checkKey(key, export=True):
 			raise errors.Forbidden()
 		q = BlobInfo.all()
 		if cursor is not None:
-			q.with_cursor( cursor )
+			q.with_cursor(cursor)
 		r = []
 		for res in q.run(limit=16):
-			r.append( str(res.key()) )
-		return( pickle.dumps( {"cursor": str(q.cursor()),"values":r}).encode("HEX"))
+			r.append(str(res.key()))
+		return (pickle.dumps({"cursor": str(q.cursor()), "values": r}).encode("HEX"))
 
 	@exposed
 	def exportBlob2(self, cursor=None, key=None):
-		if not self._checkKey( key, export=True):
+		if not self._checkKey(key, export=True):
 			raise errors.Forbidden()
 
 		q = BlobInfo.all()
 
 		if cursor is not None:
-			q.with_cursor( cursor )
+			q.with_cursor(cursor)
 
 		r = []
 		for res in q.run(limit=16):
 			r.append({"key": str(res.key()), "content_type": res.content_type})
 
-		return pickle.dumps( {"cursor": str(q.cursor()),"values":r}).encode("HEX")
+		return pickle.dumps({"cursor": str(q.cursor()), "values": r}).encode("HEX")
 
 	@exposed
 	def iterValues(self, module, cursor=None, key=None):
-		if not self._checkKey( key, export=True):
+		if not self._checkKey(key, export=True):
 			raise errors.Forbidden()
 
 		q = db.Query(module)
@@ -304,13 +303,13 @@ class DbTransfer( object ):
 
 		r = []
 		for res in q.run(limit=99):
-			r.append( self.genDict( res ) )
+			r.append(self.genDict(res))
 
-		return pickle.dumps({"cursor": str(q.getCursor().urlsafe()), "values": r} )
+		return pickle.dumps({"cursor": str(q.getCursor().urlsafe()), "values": r})
 
 	@exposed
 	def iterValues2(self, module, cursor=None, key=None):
-		if not self._checkKey( key, export=True):
+		if not self._checkKey(key, export=True):
 			raise errors.Forbidden()
 
 		q = db.Query(module)
@@ -326,7 +325,7 @@ class DbTransfer( object ):
 
 	@exposed
 	def getEntry(self, module, id, key=None):
-		if not self._checkKey( key, export=True):
+		if not self._checkKey(key, export=True):
 			raise errors.Forbidden()
 
 		res = db.Get(id)
@@ -338,26 +337,28 @@ class DbTransfer( object ):
 
 # --- export ---
 @CallableTask
-class TaskExportKind( CallableTaskBase ):
+class TaskExportKind(CallableTaskBase):
 	key = "exportkind"
 	name = u"Export data kinds to other app"
 	descr = u"Copies the selected data to the given target application"
 	direct = True
 
-	def canCall( self ):
+	def canCall(self):
 		user = utils.getCurrentUser()
 		return user is not None and "root" in user["access"]
 
 	def dataSkel(self):
 		skel = BaseSkeleton(cloned=True)
 		skel.module = selectBone(descr="Kinds", values=listKnownSkeletons(), multiple=True, required=True)
-		skel.target = stringBone( descr="URL to Target-Application", required=True, defaultValue="https://your-app-id.appspot.com/dbtransfer/storeEntry2" )
-		skel.importkey = stringBone( descr="Import-Key", required=True)
+		skel.target = stringBone(descr="URL to Target-Application", required=True,
+								 defaultValue="https://your-app-id.appspot.com/dbtransfer/storeEntry2")
+		skel.importkey = stringBone(descr="Import-Key", required=True)
 		return skel
 
 	def execute(self, module, target, importkey, *args, **kwargs):
 		for mod in module:
 			iterExport(mod, target, importkey)
+
 
 @callDeferred
 def iterExport(module, target, importKey, cursor=None):
@@ -365,11 +366,11 @@ def iterExport(module, target, importKey, cursor=None):
 		Processes 100 Entries and calls the next batch
 	"""
 	urlfetch.set_default_fetch_deadline(20)
-	Skel = skeletonByKind( module )
+	Skel = skeletonByKind(module)
 	if not Skel:
 		logging.error("TaskExportKind: Invalid module")
 		return
-	query = Skel().all().cursor( cursor )
+	query = Skel().all().cursor(cursor)
 
 	startCursor = cursor
 	query.run(100, keysOnly=True)
@@ -380,40 +381,41 @@ def iterExport(module, target, importKey, cursor=None):
 	if startCursor is None or startCursor != endCursor:
 		iterExport(module, target, importKey, endCursor)
 
+
 @callDeferred
-def exportItems( module, target, importKey, startCursor, endCursor):
-	Skel = skeletonByKind( module )
-	query = Skel().all().cursor( startCursor, endCursor )
+def exportItems(module, target, importKey, startCursor, endCursor):
+	Skel = skeletonByKind(module)
+	query = Skel().all().cursor(startCursor, endCursor)
 
 	for item in query.run(250):
-		flatItem = DbTransfer.genDict( item )
+		flatItem = DbTransfer.genDict(item)
 		formFields = {
 			"e": pickle.dumps(flatItem).encode("HEX"),
 			"key": importKey
 		}
-		result = urlfetch.fetch(        url=target,
-		                                payload=urllib.urlencode(formFields),
-		                                method=urlfetch.POST,
-		                                headers={'Content-Type': 'application/x-www-form-urlencoded'})
+		result = urlfetch.fetch(url=target,
+								payload=urllib.urlencode(formFields),
+								method=urlfetch.POST,
+								headers={'Content-Type': 'application/x-www-form-urlencoded'})
 
 	if startCursor == endCursor:
 		try:
 			utils.sendEMailToAdmins("Export of kind %s finished" % module,
-			                        "ViUR finished to export kind %s to %s.\n" % (module, target))
-		except: #OverQuota, whatever
+									"ViUR finished to export kind %s to %s.\n" % (module, target))
+		except:  # OverQuota, whatever
 			pass
 
 
 # --- import ---
 
 @CallableTask
-class TaskImportKind( CallableTaskBase ):
+class TaskImportKind(CallableTaskBase):
 	key = "importkind"
 	name = u"Import data kinds from other app"
 	descr = u"Copies the selected data from the given source application"
 	direct = True
 
-	def canCall( self ):
+	def canCall(self):
 		user = utils.getCurrentUser()
 		return user is not None and "root" in user["access"]
 
@@ -422,7 +424,7 @@ class TaskImportKind( CallableTaskBase ):
 
 		skel.module = selectBone(descr="Kinds", values=listKnownSkeletons(), multiple=True, required=True)
 		skel.source = stringBone(descr="URL to Source-Application", required=True,
-		                                    defaultValue="https://<your-app-id>.appspot.com/dbtransfer/iterValues2")
+								 defaultValue="https://<your-app-id>.appspot.com/dbtransfer/iterValues2")
 		skel.exportkey = stringBone(descr="Export-Key", required=True, defaultValue="")
 
 		return skel
@@ -431,6 +433,7 @@ class TaskImportKind( CallableTaskBase ):
 		for mod in module:
 			iterImport(mod, source, exportkey)
 
+
 @callDeferred
 def iterImport(module, target, exportKey, cursor=None, amount=0):
 	"""
@@ -438,17 +441,15 @@ def iterImport(module, target, exportKey, cursor=None, amount=0):
 	"""
 	urlfetch.set_default_fetch_deadline(20)
 
-	payload = { "module": module,
-                "key": exportKey}
+	payload = {"module": module,
+			   "key": exportKey}
 	if cursor:
 		payload.update({"cursor": cursor})
 
 	result = urlfetch.fetch(url=target,
-	                        payload=urllib.urlencode(payload),
+							payload=urllib.urlencode(payload),
 							method=urlfetch.POST,
 							headers={'Content-Type': 'application/x-www-form-urlencoded'})
-
-
 
 	if result.status_code == 200:
 		res = pickle.loads(result.content.decode("HEX"))
@@ -458,9 +459,9 @@ def iterImport(module, target, exportKey, cursor=None, amount=0):
 		if len(res["values"]) == 0:
 			try:
 				utils.sendEMailToAdmins("Import of kind %s finished with %d entities" % (module, amount),
-				                        "ViUR finished to import %d entities of "
+										"ViUR finished to import %d entities of "
 										"kind %s from %s.\n" % (amount, module, target))
-			except: #OverQuota, whatever
+			except:  # OverQuota, whatever
 				logging.error("Unable to send Email")
 
 			return
@@ -472,7 +473,6 @@ def iterImport(module, target, exportKey, cursor=None, amount=0):
 
 			if not "key" in entry:
 				entry["key"] = entry["id"]
-
 
 			key = db.Key(encoded=utils.normalizeKey(entry["key"]))
 
@@ -492,8 +492,8 @@ def iterImport(module, target, exportKey, cursor=None, amount=0):
 
 				# Special case: Convert old module root nodes!!!
 				if (isinstance(skel, (HierarchySkel, TreeLeafSkel))
-				    and k in ["parentdir", "parententry", "parentrepo"]
-				    and entry[k]):
+						and k in ["parentdir", "parententry", "parentrepo"]
+						and entry[k]):
 
 					key = db.Key(encoded=str(entry[k]))
 					if key.parent():
@@ -507,7 +507,6 @@ def iterImport(module, target, exportKey, cursor=None, amount=0):
 						name = key.id_or_name()
 
 					dbEntry[k] = str(db.Key.from_path(key.kind(), name, parent=parent))
-
 
 			db.Put(dbEntry)
 			skel.fromDB(str(dbEntry.key()))

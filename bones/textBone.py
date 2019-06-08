@@ -10,7 +10,6 @@ from server.bones.stringBone import LanguageWrapper
 from server.config import conf
 import logging, string
 
-
 _defaultTags = {
 	"validTags": [  # List of HTML-Tags which are valid
 		'b', 'a', 'i', 'u', 'span', 'div', 'p', 'img', 'ol', 'ul', 'li', 'abbr', 'sub', 'sup',
@@ -102,10 +101,10 @@ class HtmlSerializer(HTMLParser.HTMLParser):  # html.parser.HTMLParser
 					# We ensure that any src tag starts with an actual url
 					checker = v.lower()
 					if not (checker.startswith("http://") or checker.startswith("https://") or \
-						checker.startswith("/")):
+							checker.startswith("/")):
 						continue
 				if not tag in self.validHtml["validAttrs"].keys() or not k in \
-					self.validHtml["validAttrs"][tag]:
+																		 self.validHtml["validAttrs"][tag]:
 					# That attribute is not valid on this tag
 					continue
 				if k.lower()[0:2] != 'on' and v.lower()[0:10] != 'javascript':
@@ -118,14 +117,14 @@ class HtmlSerializer(HTMLParser.HTMLParser):  # html.parser.HTMLParser
 					style = s[: s.find(":")].strip()
 					value = s[s.find(":") + 1:].strip()
 					if any([c in style for c in filterChars]) or any(
-						[c in value for c in filterChars]):
+							[c in value for c in filterChars]):
 						# Either the key or the value contains a character that's not supposed to be there
 						continue
 					if value.lower().startswith("expression") or value.lower().startswith("import"):
 						# IE evaluates JS inside styles if the keyword expression is present
 						continue
 					if style in self.validHtml["validStyles"] and not any(
-						[(x in value) for x in ["\"", ":", ";"]]):
+							[(x in value) for x in ["\"", ":", ";"]]):
 						syleRes[style] = value
 				if len(syleRes.keys()):
 					cacheTagStart += " style=\"%s\"" % "; ".join(
@@ -158,7 +157,7 @@ class HtmlSerializer(HTMLParser.HTMLParser):  # html.parser.HTMLParser
 			if tag in self.validHtml["singleTags"]:
 				# Single-Tags do have a visual representation; ensure it makes it into the result
 				self.flushCache()
-				self.result += cacheTagStart + '>' # dont need slash in void elements in html5
+				self.result += cacheTagStart + '>'  # dont need slash in void elements in html5
 			else:
 				# We opened a 'normal' tag; push it on the cache so it can be discarded later if
 				# we detect it has no content
@@ -202,35 +201,35 @@ class HtmlSerializer(HTMLParser.HTMLParser):  # html.parser.HTMLParser
 		return self.result
 
 
-
-class textBone( baseBone ):
+class textBone(baseBone):
 	class __undefinedC__:
 		pass
 
 	type = "text"
 
 	@staticmethod
-	def generageSearchWidget(target,name="TEXT BONE",mode="equals"):
-		return ( {"name":name,"mode":mode,"target":target,"type":"text"} )
+	def generageSearchWidget(target, name="TEXT BONE", mode="equals"):
+		return ({"name": name, "mode": mode, "target": target, "type": "text"})
 
-	def __init__( self, validHtml=__undefinedC__, indexed=False, languages=None, maxLength=200000, *args, **kwargs ):
-		baseBone.__init__( self,  *args, **kwargs )
+	def __init__(self, validHtml=__undefinedC__, indexed=False, languages=None, maxLength=200000, *args, **kwargs):
+		baseBone.__init__(self, *args, **kwargs)
 		if indexed:
 			raise NotImplementedError("indexed=True is not supported on textBones")
 		if self.multiple:
 			raise NotImplementedError("multiple=True is not supported on textBones")
-		if validHtml==textBone.__undefinedC__:
+		if validHtml == textBone.__undefinedC__:
 			global _defaultTags
 			validHtml = _defaultTags
-		if not (languages is None or (isinstance( languages, list ) and len(languages)>0 and all( [isinstance(x,basestring) for x in languages] ))):
+		if not (languages is None or (isinstance(languages, list) and len(languages) > 0 and all(
+				[isinstance(x, basestring) for x in languages]))):
 			raise ValueError("languages must be None or a list of strings ")
 		self.languages = languages
 		self.validHtml = validHtml
 		self.maxLength = maxLength
 		if self.languages:
-			self.defaultValue = LanguageWrapper( self.languages )
+			self.defaultValue = LanguageWrapper(self.languages)
 
-	def serialize( self, valuesCache, name, entity ):
+	def serialize(self, valuesCache, name, entity):
 		"""
 			Fills this bone with user generated content
 
@@ -241,23 +240,23 @@ class textBone( baseBone ):
 			:return: the modified :class:`server.db.Entity`
 		"""
 		if name == "key" or not name in valuesCache:
-			return( entity )
+			return (entity)
 		if self.languages:
-			for k in entity.keys(): #Remove any old data
-				if k.startswith("%s." % name) or k.startswith("%s_" % name ) or k==name:
-					del entity[ k ]
+			for k in entity.keys():  # Remove any old data
+				if k.startswith("%s." % name) or k.startswith("%s_" % name) or k == name:
+					del entity[k]
 			for lang in self.languages:
 				if isinstance(valuesCache[name], dict) and lang in valuesCache[name]:
-					val = valuesCache[name][ lang ]
+					val = valuesCache[name][lang]
 					if not val or (not HtmlSerializer().sanitize(val).strip() and not "<img " in val):
-						#This text is empty (ie. it might contain only an empty <p> tag
+						# This text is empty (ie. it might contain only an empty <p> tag
 						continue
 					entity.set("%s.%s" % (name, lang), val, self.indexed)
 		else:
-			entity.set( name, valuesCache[name], self.indexed )
-		return( entity )
+			entity.set(name, valuesCache[name], self.indexed)
+		return (entity)
 
-	def unserialize( self, valuesCache, name, expando ):
+	def unserialize(self, valuesCache, name, expando):
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -270,22 +269,22 @@ class textBone( baseBone ):
 		"""
 		if not self.languages:
 			if name in expando:
-				valuesCache[name] = expando[ name ]
+				valuesCache[name] = expando[name]
 		else:
-			valuesCache[name] = LanguageWrapper( self.languages )
+			valuesCache[name] = LanguageWrapper(self.languages)
 			for lang in self.languages:
-				if "%s.%s" % ( name, lang ) in expando:
-					valuesCache[name][ lang ] = expando[ "%s.%s" % ( name, lang ) ]
-			if not valuesCache[name].keys(): #Got nothing
-				if name in expando: #Old (non-multi-lang) format
-					valuesCache[name][ self.languages[0] ] = expando[ name ]
+				if "%s.%s" % (name, lang) in expando:
+					valuesCache[name][lang] = expando["%s.%s" % (name, lang)]
+			if not valuesCache[name].keys():  # Got nothing
+				if name in expando:  # Old (non-multi-lang) format
+					valuesCache[name][self.languages[0]] = expando[name]
 				for lang in self.languages:
-					if not lang in valuesCache[name] and "%s_%s" % ( name, lang ) in expando:
-						valuesCache[name][ lang ] = expando[ "%s_%s" % ( name, lang ) ]
+					if not lang in valuesCache[name] and "%s_%s" % (name, lang) in expando:
+						valuesCache[name][lang] = expando["%s_%s" % (name, lang)]
 
-		return( True )
+		return (True)
 
-	def fromClient( self, valuesCache, name, data ):
+	def fromClient(self, valuesCache, name, data):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -304,9 +303,9 @@ class textBone( baseBone ):
 			lastError = None
 			valuesCache[name] = LanguageWrapper(self.languages)
 			for lang in self.languages:
-				if "%s.%s" % (name,lang) in data:
-					val = data["%s.%s" % (name,lang)]
-					err = self.isInvalid(val) #Returns None on success, error-str otherwise
+				if "%s.%s" % (name, lang) in data:
+					val = data["%s.%s" % (name, lang)]
+					err = self.isInvalid(val)  # Returns None on success, error-str otherwise
 					if not err:
 						valuesCache[name][lang] = HtmlSerializer(self.validHtml).sanitize(val)
 					else:
@@ -329,12 +328,12 @@ class textBone( baseBone ):
 				valuesCache[name] = HtmlSerializer(self.validHtml).sanitize(value)
 			return err
 
-	def isInvalid( self, value ):
+	def isInvalid(self, value):
 		"""
 			Returns None if the value would be valid for
 			this bone, an error-message otherwise.
 		"""
-		if value==None:
+		if value == None:
 			return "No value entered"
 		if len(value) > self.maxLength:
 			return "Maximum length exceeded"
@@ -349,16 +348,16 @@ class textBone( baseBone ):
 			if valuesCache[name]:
 				for lng in self.languages:
 					if lng in valuesCache[name]:
-						val = valuesCache[name][ lng ]
+						val = valuesCache[name][lng]
 						if not val:
 							continue
 						idx = val.find("/file/download/")
-						while idx!=-1:
+						while idx != -1:
 							idx += 15
-							seperatorIdx = min( [ x for x in [val.find("/",idx), val.find("\"",idx)] if x!=-1] )
-							fk = val[ idx:seperatorIdx]
+							seperatorIdx = min([x for x in [val.find("/", idx), val.find("\"", idx)] if x != -1])
+							fk = val[idx:seperatorIdx]
 							if not fk in newFileKeys:
-								newFileKeys.append( fk )
+								newFileKeys.append(fk)
 							idx = val.find("/file/download/", seperatorIdx)
 		else:
 			values = valuesCache.get(name)
@@ -376,25 +375,25 @@ class textBone( baseBone ):
 	def getSearchTags(self, valuesCache, name):
 		res = []
 		if not valuesCache.get(name):
-			return( res )
+			return (res)
 		if self.languages:
 			for v in valuesCache.get(name).values():
-				value = HtmlSerializer( None ).sanitize(v.lower())
+				value = HtmlSerializer(None).sanitize(v.lower())
 				for line in unicode(value).splitlines():
 					for key in line.split(" "):
-						key = "".join( [ c for c in key if c.lower() in conf["viur.searchValidChars"]  ] )
-						if key and key not in res and len(key)>3:
-							res.append( key.lower() )
+						key = "".join([c for c in key if c.lower() in conf["viur.searchValidChars"]])
+						if key and key not in res and len(key) > 3:
+							res.append(key.lower())
 		else:
-			value = HtmlSerializer( None ).sanitize(valuesCache.get(name).lower())
+			value = HtmlSerializer(None).sanitize(valuesCache.get(name).lower())
 			for line in unicode(value).splitlines():
 				for key in line.split(" "):
-					key = "".join( [ c for c in key if c.lower() in conf["viur.searchValidChars"]  ] )
-					if key and key not in res and len(key)>3:
-						res.append( key.lower() )
-		return( res )
+					key = "".join([c for c in key if c.lower() in conf["viur.searchValidChars"]])
+					if key and key not in res and len(key) > 3:
+						res.append(key.lower())
+		return (res)
 
-	def getSearchDocumentFields(self, valuesCache, name, prefix = ""):
+	def getSearchDocumentFields(self, valuesCache, name, prefix=""):
 		"""
 			Returns a list of search-fields (GAE search API) for this bone.
 		"""
@@ -402,14 +401,17 @@ class textBone( baseBone ):
 			# If adding an entry using an subskel, our value might not have been set
 			return []
 		if self.languages:
-			assert isinstance(valuesCache[name], dict), "The value shall already contain a dict, something is wrong here."
+			assert isinstance(valuesCache[name],
+							  dict), "The value shall already contain a dict, something is wrong here."
 
 			if self.validHtml:
-				return [search.HtmlField(name=prefix + name, value=unicode(valuesCache[name].get(lang, "")), language=lang)
-				        for lang in self.languages]
+				return [
+					search.HtmlField(name=prefix + name, value=unicode(valuesCache[name].get(lang, "")), language=lang)
+					for lang in self.languages]
 			else:
-				return [search.TextField(name=prefix + name, value=unicode(valuesCache[name].get(lang, "")), language=lang)
-				        for lang in self.languages]
+				return [
+					search.TextField(name=prefix + name, value=unicode(valuesCache[name].get(lang, "")), language=lang)
+					for lang in self.languages]
 		else:
 			if self.validHtml:
 				return [search.HtmlField(name=prefix + name, value=unicode(valuesCache[name]))]

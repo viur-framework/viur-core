@@ -15,6 +15,7 @@ from google.appengine.api import images
 import email.header
 import collections, logging, cgi, string
 
+
 class fileBaseSkel(TreeLeafSkel):
 	"""
 		Default file leaf skeleton.
@@ -26,7 +27,7 @@ class fileBaseSkel(TreeLeafSkel):
 	name = stringBone(descr="Filename", caseSensitive=False, indexed=True, searchable=True)
 	metamime = stringBone(descr="Mime-Info", readOnly=True, indexed=True, visible=False)
 	meta_mime = stringBone(descr="Mime-Info", readOnly=True, indexed=True, visible=False)
-	mimetype = stringBone(descr="Mime-Info", readOnly=True, indexed=True )
+	mimetype = stringBone(descr="Mime-Info", readOnly=True, indexed=True)
 	weak = booleanBone(descr="Weak reference", indexed=True, readOnly=True, visible=False)
 	servingurl = stringBone(descr="Serving URL", readOnly=True)
 	width = numericBone(descr="Width", indexed=True, readOnly=True, searchable=True)
@@ -36,7 +37,7 @@ class fileBaseSkel(TreeLeafSkel):
 		# Update from blobimportmap
 		try:
 			oldKeyHash = sha256(self["dlkey"]).hexdigest().encode("hex")
-			res = db.Get( db.Key.from_path("viur-blobimportmap", oldKeyHash))
+			res = db.Get(db.Key.from_path("viur-blobimportmap", oldKeyHash))
 		except:
 			res = None
 		if res and res["oldkey"] == self["dlkey"]:
@@ -108,7 +109,6 @@ def decodeFileName(name):
 
 
 class File(Tree):
-
 	viewLeafSkel = fileBaseSkel
 	editLeafSkel = fileBaseSkel
 	addLeafSkel = fileBaseSkel
@@ -126,10 +126,9 @@ class File(Tree):
 		"icon": "icons/modules/my_files.svg"
 	}
 
-	blobCacheTime = 60*60*24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
+	blobCacheTime = 60 * 60 * 24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
 
-
-	def getUploads(self, field_name = None):
+	def getUploads(self, field_name=None):
 		"""
 			Get uploads sent to this handler.
 			Cheeky borrowed from blobstore_handlers.py - © 2007 Google Inc.
@@ -155,10 +154,9 @@ class File(Tree):
 			results.extend(uploads)
 		return results
 
-
 	@callDeferred
 	def deleteRecursive(self, parentKey):
-		files = db.Query( self.editLeafSkel().kindName ).filter("parentdir =", parentKey).iter()
+		files = db.Query(self.editLeafSkel().kindName).filter("parentdir =", parentKey).iter()
 		for fileEntry in files:
 			utils.markFileForDeletion(fileEntry["dlkey"])
 			skel = self.editLeafSkel()
@@ -173,7 +171,7 @@ class File(Tree):
 				skel.delete()
 
 	@exposed
-	def getUploadURL( self, *args, **kwargs ):
+	def getUploadURL(self, *args, **kwargs):
 		skey = kwargs.get("skey", "")
 		if not self.canAdd("leaf", None):
 			raise errors.Forbidden()
@@ -197,7 +195,7 @@ class File(Tree):
 			for repo in repos:
 				if not "user" in repo:
 					continue
-				user = db.Query( "user" ).filter("uid =", repo.user).get()
+				user = db.Query("user").filter("uid =", repo.user).get()
 				if not user or not "name" in user:
 					continue
 				res.append({
@@ -305,7 +303,7 @@ class File(Tree):
 			raise errors.InternalServerError()
 
 	@exposed
-	def download(self, blobKey, fileName = "", download = "", *args, **kwargs):
+	def download(self, blobKey, fileName="", download="", *args, **kwargs):
 		"""
 		Download a file.
 
@@ -319,8 +317,10 @@ class File(Tree):
 		:type download: str
 		"""
 		if download == "1":
-			fname = "".join([c for c in fileName if c in string.ascii_lowercase+string.ascii_uppercase + string.digits+".-_"])
-			request.current.get().response.headers.add_header("Content-disposition", ("attachment; filename=%s" % (fname)).encode("UTF-8"))
+			fname = "".join(
+				[c for c in fileName if c in string.ascii_lowercase + string.ascii_uppercase + string.digits + ".-_"])
+			request.current.get().response.headers.add_header("Content-disposition",
+															  ("attachment; filename=%s" % (fname)).encode("UTF-8"))
 		info = blobstore.get(blobKey)
 		if not info:
 			raise errors.NotFound()
@@ -331,9 +331,8 @@ class File(Tree):
 		request.current.get().response.headers[blobstore.BLOB_KEY_HEADER] = str(blobKey)
 		return ""
 
-
 	@exposed
-	def view( self, *args, **kwargs ):
+	def view(self, *args, **kwargs):
 		"""
 			View or download a file.
 		"""
@@ -344,7 +343,7 @@ class File(Tree):
 				raise errors.Redirect("%s/download/%s" % (self.modulePath, args[0]))
 			elif len(args) > 1 and blobstore.get(args[1]):
 				raise errors.Redirect("%s/download/%s" % (self.modulePath, args[1]))
-			elif isinstance( e, TypeError ):
+			elif isinstance(e, TypeError):
 				raise errors.NotFound()
 			else:
 				raise e
@@ -358,7 +357,7 @@ class File(Tree):
 			raise errors.NotAcceptable()
 		return super(File, self).add(skelType, node, *args, **kwargs)
 
-	def canViewRootNode( self, repo ):
+	def canViewRootNode(self, repo):
 		user = utils.getCurrentUser()
 		return self.isOwnUserRootNode(repo) or (user and "root" in user["access"])
 
@@ -369,14 +368,13 @@ class File(Tree):
 		return self.isOwnUserRootNode(str(repo.key()))
 
 	def canCopy(self, srcRepo, destRepo, type, deleteold):
-		return self.isOwnUserRootNode(str( srcRepo.key()) and self.isOwnUserRootNode(str(destRepo.key())))
+		return self.isOwnUserRootNode(str(srcRepo.key()) and self.isOwnUserRootNode(str(destRepo.key())))
 
 	def canDelete(self, skelType, skel):
 		user = utils.getCurrentUser()
 		if user and "root" in user["access"]:
 			return True
 		return self.isOwnUserRootNode(str(skel["key"]))
-
 
 	def canEdit(self, skelType, skel=None):
 		user = utils.getCurrentUser()
@@ -385,11 +383,12 @@ class File(Tree):
 	def onItemUploaded(self, skel):
 		pass
 
+
 File.json = True
 File.html = True
 
 
-@PeriodicTask( 60*4 )
+@PeriodicTask(60 * 4)
 def startCheckForUnreferencedBlobs():
 	"""
 		Start searching for blob locks that have been recently freed
@@ -398,7 +397,7 @@ def startCheckForUnreferencedBlobs():
 
 
 @callDeferred
-def doCheckForUnreferencedBlobs(cursor = None):
+def doCheckForUnreferencedBlobs(cursor=None):
 	def getOldBlobKeysTxn(dbKey):
 		obj = db.Get(dbKey)
 		res = obj["old_blob_references"] or []
@@ -409,19 +408,20 @@ def doCheckForUnreferencedBlobs(cursor = None):
 			obj["old_blob_references"] = []
 			db.Put(obj)
 		return res
+
 	gotAtLeastOne = False
 	query = db.Query("viur-blob-locks").filter("has_old_blob_references", True).cursor(cursor)
 	for lockKey in query.run(100, keysOnly=True):
 		gotAtLeastOne = True
-		oldBlobKeys = db.RunInTransaction( getOldBlobKeysTxn, lockKey )
+		oldBlobKeys = db.RunInTransaction(getOldBlobKeysTxn, lockKey)
 		for blobKey in oldBlobKeys:
 			if db.Query("viur-blob-locks").filter("active_blob_references =", blobKey).get():
-				#This blob is referenced elsewhere
+				# This blob is referenced elsewhere
 				logging.info("Stale blob is still referenced, %s" % blobKey)
 				continue
 			# Add a marker and schedule it for deletion
-			fileObj = db.Query( "viur-deleted-files" ).filter( "dlkey", blobKey ).get()
-			if fileObj: #Its already marked
+			fileObj = db.Query("viur-deleted-files").filter("dlkey", blobKey).get()
+			if fileObj:  # Its already marked
 				logging.info("Stale blob already marked for deletion, %s" % blobKey)
 				return
 			fileObj = db.Entity("viur-deleted-files")
@@ -444,10 +444,10 @@ def startCleanupDeletedFiles():
 
 
 @callDeferred
-def doCleanupDeletedFiles(cursor = None):
+def doCleanupDeletedFiles(cursor=None):
 	maxIterCount = 2  # How often a file will be checked for deletion
 	gotAtLeastOne = False
-	query = db.Query("viur-deleted-files").cursor( cursor )
+	query = db.Query("viur-deleted-files").cursor(cursor)
 	for file in query.run(100):
 		gotAtLeastOne = True
 		if not "dlkey" in file:
@@ -472,20 +472,22 @@ def doCleanupDeletedFiles(cursor = None):
 		doCleanupDeletedFiles(newCursor.urlsafe())
 
 
-@PeriodicTask(60*4)
+@PeriodicTask(60 * 4)
 def startDeleteWeakReferences():
 	"""
 		Delete all weak file references older than a day.
 		If that file isn't referenced elsewhere, it's deleted, too.
 	"""
-	doDeleteWeakReferences((datetime.now() - timedelta(days = 1)).strftime("%d.%m.%Y %H:%M:%S"), None)
+	doDeleteWeakReferences((datetime.now() - timedelta(days=1)).strftime("%d.%m.%Y %H:%M:%S"), None)
 
 
 @callDeferred
 def doDeleteWeakReferences(timeStamp, cursor):
 	skelCls = skeletonByKind("file")
 	gotAtLeastOne = False
-	query = skelCls().all().filter("weak =", True).filter("creationdate <", datetime.strptime(timeStamp,"%d.%m.%Y %H:%M:%S")).cursor(cursor)
+	query = skelCls().all().filter("weak =", True).filter("creationdate <",
+														  datetime.strptime(timeStamp, "%d.%m.%Y %H:%M:%S")).cursor(
+		cursor)
 	for skel in query.fetch(99):
 		# FIXME: Is that still needed? See hotfix/weakfile
 		anyRel = any(db.Query("viur-relations").filter("dest.key =", skel["key"]).run(1, keysOnly=True))

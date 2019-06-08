@@ -2,20 +2,21 @@
 from server.bones import baseBone
 import logging
 
-class booleanBone( baseBone ):
+
+class booleanBone(baseBone):
 	type = "bool"
 	trueStrs = [unicode(True), u"1", u"yes"]
 
 	@staticmethod
-	def generageSearchWidget(target,name="BOOLEAN BONE"):
-		return ( {"name":name,"target":target,"type":"boolean"} )
+	def generageSearchWidget(target, name="BOOLEAN BONE"):
+		return ({"name": name, "target": target, "type": "boolean"})
 
-	def __init__( self, defaultValue=False, *args, **kwargs ):
+	def __init__(self, defaultValue=False, *args, **kwargs):
 		assert defaultValue in [True, False]
 		defaultValue = defaultValue
-		super( booleanBone, self ).__init__( defaultValue=defaultValue,  *args,  **kwargs )
+		super(booleanBone, self).__init__(defaultValue=defaultValue, *args, **kwargs)
 
-	def fromClient( self, valuesCache, name, data ):
+	def fromClient(self, valuesCache, name, data):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -31,10 +32,10 @@ class booleanBone( baseBone ):
 			:returns: str or None
 		"""
 		if name in data:
-			value = data[ name ]
+			value = data[name]
 		else:
-			return("No value entered!")
-		if str( value ) in self.trueStrs:
+			return ("No value entered!")
+		if str(value) in self.trueStrs:
 			value = True
 		else:
 			value = False
@@ -45,7 +46,7 @@ class booleanBone( baseBone ):
 		else:
 			return err
 
-	def serialize( self, valuesCache, name, entity ):
+	def serialize(self, valuesCache, name, entity):
 		"""
 			Serializes this bone into something we
 			can write into the datastore.
@@ -55,8 +56,8 @@ class booleanBone( baseBone ):
 			:returns: dict
 		"""
 		if name != "key":
-			entity.set( name, valuesCache.get(name, False), self.indexed )
-		return( entity )
+			entity.set(name, valuesCache.get(name, False), self.indexed)
+		return (entity)
 
 	def unserialize(self, valuesCache, name, expando):
 		"""
@@ -71,20 +72,20 @@ class booleanBone( baseBone ):
 			:returns: bool
 		"""
 		if name in expando:
-			val = expando[ name ]
+			val = expando[name]
 			if unicode(val) in self.trueStrs:
 				valuesCache[name] = True
 			else:
 				valuesCache[name] = False
 		return True
 
-	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
+	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		if name in rawFilter:
-			val = rawFilter[ name ]
+			val = rawFilter[name]
 			if str(val) in self.trueStrs:
 				val = True
 			else:
 				val = False
-			return( super( booleanBone, self ).buildDBFilter( name, skel, dbFilter, {name:val}, prefix=prefix ) )
+			return (super(booleanBone, self).buildDBFilter(name, skel, dbFilter, {name: val}, prefix=prefix))
 		else:
-			return( dbFilter )
+			return (dbFilter)

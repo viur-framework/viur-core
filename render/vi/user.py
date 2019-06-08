@@ -1,6 +1,7 @@
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 from server.render.json.user import UserRender as user
 import string, json
+
 
 class UserRender(user):
 
@@ -9,7 +10,7 @@ class UserRender(user):
 		This loginSuccess method generates a HTML site, which redirects by meta-refresh to the Vi,
 		but can also be easily read by Ajax requests.
 		"""
-		msg = "".join([x for x in kwargs.get("msg", "OKAY") if x in string.digits+string.ascii_letters+"-"])
+		msg = "".join([x for x in kwargs.get("msg", "OKAY") if x in string.digits + string.ascii_letters + "-"])
 
 		return """
 		<html>

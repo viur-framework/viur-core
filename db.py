@@ -6,7 +6,6 @@ from google.appengine.api import search
 from server.config import conf
 import logging
 
-
 """
 	Tiny wrapper around *google.appengine.api.datastore*.
 
@@ -16,14 +15,14 @@ import logging
 	requests from cache.
 """
 
-__cacheLockTime__ = 42 #Prevent an entity from creeping into the cache for 42 Secs if it just has been altered.
-__cacheTime__ = 15*60 #15 Mins
-__CacheKeyPrefix__ ="viur-db-cache:" #Our Memcache-Namespace. Dont use that for other purposes
+__cacheLockTime__ = 42  # Prevent an entity from creeping into the cache for 42 Secs if it just has been altered.
+__cacheTime__ = 15 * 60  # 15 Mins
+__CacheKeyPrefix__ = "viur-db-cache:"  # Our Memcache-Namespace. Dont use that for other purposes
 __MemCacheBatchSize__ = 30
 __undefinedC__ = object()
 
 
-def PutAsync( entities, **kwargs ):
+def PutAsync(entities, **kwargs):
 	"""
 		Asynchronously store one or more entities in the data store.
 
@@ -31,24 +30,25 @@ def PutAsync( entities, **kwargs ):
 		returns an asynchronous object. Call ``get_result()`` on the return value to
 		block on the call and get the results.
 	"""
-	if isinstance( entities, Entity ):
+	if isinstance(entities, Entity):
 		entities._fixUnindexedProperties()
-	elif isinstance( entities, list ):
+	elif isinstance(entities, list):
 		for entity in entities:
-			assert isinstance( entity, Entity )
+			assert isinstance(entity, Entity)
 			entity._fixUnindexedProperties()
-	if conf["viur.db.caching" ]>0:
-		if isinstance( entities, Entity ): #Just one:
-			if entities.is_saved(): #Its an update
-				memcache.delete( str( entities.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
-		elif isinstance( entities, list ):
+	if conf["viur.db.caching"] > 0:
+		if isinstance(entities, Entity):  # Just one:
+			if entities.is_saved():  # Its an update
+				memcache.delete(str(entities.key()), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__)
+		elif isinstance(entities, list):
 			for entity in entities:
-				assert isinstance( entity, Entity )
-				if entity.is_saved(): #Its an update
-					memcache.delete( str( entity.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
-	return( datastore.PutAsync( entities, **kwargs ) )
+				assert isinstance(entity, Entity)
+				if entity.is_saved():  # Its an update
+					memcache.delete(str(entity.key()), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__)
+	return (datastore.PutAsync(entities, **kwargs))
 
-def Put( entities, **kwargs ):
+
+def Put(entities, **kwargs):
 	"""
 		Store one or more entities in the data store.
 
@@ -69,24 +69,25 @@ def Put( entities, **kwargs ):
 
 		:raises: :exc:`TransactionFailedError`, if the action could not be committed.
 	"""
-	if isinstance( entities, Entity ):
+	if isinstance(entities, Entity):
 		entities._fixUnindexedProperties()
-	elif isinstance( entities, list ):
+	elif isinstance(entities, list):
 		for entity in entities:
-			assert isinstance( entity, Entity )
+			assert isinstance(entity, Entity)
 			entity._fixUnindexedProperties()
-	if conf["viur.db.caching" ]>0:
-		if isinstance( entities, Entity ): #Just one:
-			if entities.is_saved(): #Its an update
-				memcache.delete( str( entities.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
-		elif isinstance( entities, list ):
+	if conf["viur.db.caching"] > 0:
+		if isinstance(entities, Entity):  # Just one:
+			if entities.is_saved():  # Its an update
+				memcache.delete(str(entities.key()), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__)
+		elif isinstance(entities, list):
 			for entity in entities:
-				assert isinstance( entity, Entity )
-				if entity.is_saved(): #Its an update
-					memcache.delete( str( entity.key() ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
-	return( datastore.Put( entities, **kwargs ) )
+				assert isinstance(entity, Entity)
+				if entity.is_saved():  # Its an update
+					memcache.delete(str(entity.key()), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__)
+	return (datastore.Put(entities, **kwargs))
 
-def GetAsync( keys, **kwargs ):
+
+def GetAsync(keys, **kwargs):
 	"""
 		Asynchronously retrieves one or more entities from the data store.
 
@@ -94,26 +95,30 @@ def GetAsync( keys, **kwargs ):
 		returns an asynchronous object. Call ``get_result()`` on the return value to
 		block on the call and get the results.
 	"""
+
 	class AsyncResultWrapper:
 		"""
 			Wraps an result thats allready there into something looking
 			like an RPC-Object.
 		"""
-		def __init__( self, res ):
+
+		def __init__(self, res):
 			self.res = res
 
-		def get_result( self ):
-			return( self.res )
-	if conf["viur.db.caching" ]>0 and not datastore.IsInTransaction():
-		if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
-			res = memcache.get( str(keys), namespace=__CacheKeyPrefix__ )
-			if res:
-				return( AsyncResultWrapper( res ) )
-	#Either the result wasnt found, or we got a list of keys to fetch;
-	# --> no caching possible
-	return( datastore.GetAsync( keys, **kwargs ) )
+		def get_result(self):
+			return (self.res)
 
-def Get( keys, **kwargs ):
+	if conf["viur.db.caching"] > 0 and not datastore.IsInTransaction():
+		if isinstance(keys, datastore_types.Key) or isinstance(keys, basestring):  # Just one:
+			res = memcache.get(str(keys), namespace=__CacheKeyPrefix__)
+			if res:
+				return (AsyncResultWrapper(res))
+	# Either the result wasnt found, or we got a list of keys to fetch;
+	# --> no caching possible
+	return (datastore.GetAsync(keys, **kwargs))
+
+
+def Get(keys, **kwargs):
 	"""
 		Retrieve one or more entities from the data store.
 
@@ -139,53 +144,56 @@ def Get( keys, **kwargs ):
 		:returns: Entity or list of Entity objects corresponding to the specified key(s).
 		:rtype: :class:`server.db.Entity` | list of :class:`server.db.Entity`
 	"""
-	if conf["viur.db.caching" ]>0  and not datastore.IsInTransaction():
-		if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
-			res = memcache.get( str(keys), namespace=__CacheKeyPrefix__ )
-			if not res: #Not cached - fetch and cache it :)
-				res = Entity.FromDatastoreEntity( datastore.Get( keys, **kwargs ) )
-				res[ "key" ] = str( res.key() )
-				memcache.set( str(res.key() ), res, time=__cacheTime__, namespace=__CacheKeyPrefix__ )
-			return( res )
-		#Either the result wasnt found, or we got a list of keys to fetch;
-		elif isinstance( keys,list ):
-			#Check Memcache first
+	if conf["viur.db.caching"] > 0 and not datastore.IsInTransaction():
+		if isinstance(keys, datastore_types.Key) or isinstance(keys, basestring):  # Just one:
+			res = memcache.get(str(keys), namespace=__CacheKeyPrefix__)
+			if not res:  # Not cached - fetch and cache it :)
+				res = Entity.FromDatastoreEntity(datastore.Get(keys, **kwargs))
+				res["key"] = str(res.key())
+				memcache.set(str(res.key()), res, time=__cacheTime__, namespace=__CacheKeyPrefix__)
+			return (res)
+		# Either the result wasnt found, or we got a list of keys to fetch;
+		elif isinstance(keys, list):
+			# Check Memcache first
 			cacheRes = {}
 			tmpRes = []
-			keyList = [ str(x) for x in keys ]
-			while keyList: #Fetch in Batches of 30 entries, as the max size for bulk_get is limited to 32MB
+			keyList = [str(x) for x in keys]
+			while keyList:  # Fetch in Batches of 30 entries, as the max size for bulk_get is limited to 32MB
 				currentBatch = keyList[:__MemCacheBatchSize__]
 				keyList = keyList[__MemCacheBatchSize__:]
-				cacheRes.update( memcache.get_multi( currentBatch, namespace=__CacheKeyPrefix__) )
-			#Fetch the rest from DB
-			missigKeys = [ x for x in keys if not str(x) in cacheRes ]
-			dbRes = [ Entity.FromDatastoreEntity(x) for x in datastore.Get( missigKeys ) if x is not None ]
+				cacheRes.update(memcache.get_multi(currentBatch, namespace=__CacheKeyPrefix__))
+			# Fetch the rest from DB
+			missigKeys = [x for x in keys if not str(x) in cacheRes]
+			dbRes = [Entity.FromDatastoreEntity(x) for x in datastore.Get(missigKeys) if x is not None]
 			# Cache what we had fetched
 			saveIdx = 0
-			while len(dbRes)>saveIdx*__MemCacheBatchSize__:
-				cacheMap = {str(obj.key()): obj for obj in dbRes[saveIdx*__MemCacheBatchSize__:(saveIdx+1)*__MemCacheBatchSize__]}
+			while len(dbRes) > saveIdx * __MemCacheBatchSize__:
+				cacheMap = {str(obj.key()): obj for obj in
+							dbRes[saveIdx * __MemCacheBatchSize__:(saveIdx + 1) * __MemCacheBatchSize__]}
 				try:
-					memcache.set_multi( cacheMap, time=__cacheTime__ , namespace=__CacheKeyPrefix__ )
+					memcache.set_multi(cacheMap, time=__cacheTime__, namespace=__CacheKeyPrefix__)
 				except:
 					pass
 				saveIdx += 1
-			for key in [ str(x) for x in keys ]:
+			for key in [str(x) for x in keys]:
 				if key in cacheRes:
-					tmpRes.append( cacheRes[ key ] )
+					tmpRes.append(cacheRes[key])
 				else:
 					for e in dbRes:
-						if str( e.key() ) == key:
-							tmpRes.append ( e )
+						if str(e.key()) == key:
+							tmpRes.append(e)
 							break
 			if conf["viur.debug.traceQueries"]:
-				logging.debug( "Fetched a result-set from Datastore: %s total, %s from cache, %s from datastore" % (len(tmpRes),len( cacheRes.keys()), len( dbRes ) ) )
-			return( tmpRes )
-	if isinstance( keys, list ):
-		return( [ Entity.FromDatastoreEntity(x) for x in datastore.Get( keys, **kwargs ) ] )
+				logging.debug("Fetched a result-set from Datastore: %s total, %s from cache, %s from datastore" % (
+				len(tmpRes), len(cacheRes.keys()), len(dbRes)))
+			return (tmpRes)
+	if isinstance(keys, list):
+		return ([Entity.FromDatastoreEntity(x) for x in datastore.Get(keys, **kwargs)])
 	else:
-		return( Entity.FromDatastoreEntity( datastore.Get( keys, **kwargs ) ) )
+		return (Entity.FromDatastoreEntity(datastore.Get(keys, **kwargs)))
 
-def GetOrInsert( key, kindName=None, parent=None, **kwargs ):
+
+def GetOrInsert(key, kindName=None, parent=None, **kwargs):
 	"""
 		Either creates a new entity with the given key, or returns the existing one.
 
@@ -207,26 +215,27 @@ def GetOrInsert( key, kindName=None, parent=None, **kwargs ):
 		:rtype: server.db.Entity
 	"""
 
-	def txn( key, kwargs ):
+	def txn(key, kwargs):
 		try:
-			res = Entity.FromDatastoreEntity(datastore.Get( key ))
+			res = Entity.FromDatastoreEntity(datastore.Get(key))
 		except datastore_errors.EntityNotFoundError:
-			res = Entity( kind=key.kind(), parent=key.parent(), name=key.name(), id=key.id() )
+			res = Entity(kind=key.kind(), parent=key.parent(), name=key.name(), id=key.id())
 			for k, v in kwargs.items():
-				res[ k ] = v
-			datastore.Put( res )
-		return( res )
+				res[k] = v
+			datastore.Put(res)
+		return (res)
 
-	if not isinstance( key, datastore_types.Key ):
+	if not isinstance(key, datastore_types.Key):
 		try:
-			key = datastore_types.Key( encoded=key )
+			key = datastore_types.Key(encoded=key)
 		except:
 			assert kindName
-			key = datastore_types.Key.from_path( kindName, key, parent=parent )
+			key = datastore_types.Key.from_path(kindName, key, parent=parent)
 	if datastore.IsInTransaction():
 		return txn(key, kwargs)
 
-	return datastore.RunInTransaction( txn, key, kwargs )
+	return datastore.RunInTransaction(txn, key, kwargs)
+
 
 def DeleteAsync(keys, **kwargs):
 	"""
@@ -236,14 +245,15 @@ def DeleteAsync(keys, **kwargs):
 		returns an asynchronous object. Call ``get_result()`` on the return value to
 		block on the call and get the results.
 	"""
-	if conf["viur.db.caching" ]>0:
-		if isinstance( keys, datastore_types.Key ): #Just one:
-			memcache.delete( str( keys ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
-		elif isinstance( keys, list ):
+	if conf["viur.db.caching"] > 0:
+		if isinstance(keys, datastore_types.Key):  # Just one:
+			memcache.delete(str(keys), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__)
+		elif isinstance(keys, list):
 			for key in keys:
-				assert isinstance( key, datastore_types.Key ) or isinstance( key, basestring )
-				memcache.delete( str( key ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
-	return( datastore.DeleteAsync( keys, **kwargs ) )
+				assert isinstance(key, datastore_types.Key) or isinstance(key, basestring)
+				memcache.delete(str(key), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__)
+	return (datastore.DeleteAsync(keys, **kwargs))
+
 
 def Delete(keys, **kwargs):
 	"""
@@ -264,33 +274,33 @@ def Delete(keys, **kwargs):
 
 		:raises: :exc:`TransactionFailedError`, if the deletion could not be committed.
 	"""
-	if conf["viur.db.caching" ]>0:
-		if isinstance( keys, datastore_types.Key ) or isinstance( keys, basestring ): #Just one:
-			memcache.delete( str( keys ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
-		elif isinstance( keys, list ):
+	if conf["viur.db.caching"] > 0:
+		if isinstance(keys, datastore_types.Key) or isinstance(keys, basestring):  # Just one:
+			memcache.delete(str(keys), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__)
+		elif isinstance(keys, list):
 			for key in keys:
-				assert isinstance( key, datastore_types.Key ) or isinstance( key, basestring )
-				memcache.delete( str( key ), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__  )
-	return( datastore.Delete( keys, **kwargs ) )
+				assert isinstance(key, datastore_types.Key) or isinstance(key, basestring)
+				memcache.delete(str(key), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__)
+	return (datastore.Delete(keys, **kwargs))
 
 
-class Query( object ):
+class Query(object):
 	"""
 		Thin wrapper around datastore.Query to provide a consistent
 		(camelCase) API.
 	"""
 
-	def __init__(self, kind, srcSkelClass=None, *args, **kwargs ):
-		super( Query, self ).__init__( )
-		self.datastoreQuery = datastore.Query( kind, *args, **kwargs )
+	def __init__(self, kind, srcSkelClass=None, *args, **kwargs):
+		super(Query, self).__init__()
+		self.datastoreQuery = datastore.Query(kind, *args, **kwargs)
 		self.srcSkel = srcSkelClass
 		self.amount = 30
 		self._filterHook = None
 		self._orderHook = None
 		self._origCursor = None
-		self._customMultiQueryMerge = None # Sometimes, the default merge functionality from MultiQuery is not sufficient
-		self._calculateInternalMultiQueryAmount = None # Some (Multi-)Queries need a different amount of results per subQuery than actually returned
-		self.customQueryInfo = {} # Allow carrying custom data along with the query. Currently only used by spartialBone to record the guranteed correctnes
+		self._customMultiQueryMerge = None  # Sometimes, the default merge functionality from MultiQuery is not sufficient
+		self._calculateInternalMultiQueryAmount = None  # Some (Multi-)Queries need a different amount of results per subQuery than actually returned
+		self.customQueryInfo = {}  # Allow carrying custom data along with the query. Currently only used by spartialBone to record the guranteed correctnes
 		self.origKind = kind
 
 	def setFilterHook(self, hook):
@@ -309,7 +319,7 @@ class Query( object ):
 		"""
 		old = self._filterHook
 		self._filterHook = hook
-		return( old )
+		return (old)
 
 	def setOrderHook(self, hook):
 		"""
@@ -325,9 +335,9 @@ class Query( object ):
 		"""
 		old = self._orderHook
 		self._orderHook = hook
-		return( old )
+		return (old)
 
-	def mergeExternalFilter(self, filters ):
+	def mergeExternalFilter(self, filters):
 		"""
 			Safely merges filters according to the data model.
 
@@ -356,70 +366,76 @@ class Query( object ):
 			return self
 		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
-		if self.datastoreQuery is None: #This query is allready unsatifiable and adding more constrains to this wont change this
-			return( self )
+		if self.datastoreQuery is None:  # This query is allready unsatifiable and adding more constrains to this wont change this
+			return (self)
 		skel = self.srcSkel
-		if skel.searchIndex and "search" in filters: #We perform a Search via Google API - all other parameters are ignored
+		if skel.searchIndex and "search" in filters:  # We perform a Search via Google API - all other parameters are ignored
 			try:
-				searchRes = search.Index( name=skel.searchIndex ).search( query=search.Query( query_string=filters["search"], options=search.QueryOptions( limit=25 ) ) )
-			except search.QueryError: #We cant parse the query, treat it as verbatim
-				qstr = u"\"%s\"" % filters["search"].replace(u"\"",u"")
+				searchRes = search.Index(name=skel.searchIndex).search(
+					query=search.Query(query_string=filters["search"], options=search.QueryOptions(limit=25)))
+			except search.QueryError:  # We cant parse the query, treat it as verbatim
+				qstr = u"\"%s\"" % filters["search"].replace(u"\"", u"")
 				try:
-					searchRes = search.Index(name=skel.searchIndex).search(query=search.Query(query_string=qstr, options=search.QueryOptions(limit=25)))
+					searchRes = search.Index(name=skel.searchIndex).search(
+						query=search.Query(query_string=qstr, options=search.QueryOptions(limit=25)))
 				except search.QueryError:  # Still cant parse it
 					searchRes = []
-			tmpRes = [ datastore_types.Key( encoded=x.doc_id[ 2: ] ) for x in searchRes ]
+			tmpRes = [datastore_types.Key(encoded=x.doc_id[2:]) for x in searchRes]
 			if tmpRes:
 				filters = []
 				for x in tmpRes:
-					filters.append( datastore.Query( self.getKind(), { "%s =" % datastore_types.KEY_SPECIAL_PROPERTY: x } ) )
-				self.datastoreQuery = datastore.MultiQuery( filters, () )
+					filters.append(datastore.Query(self.getKind(), {"%s =" % datastore_types.KEY_SPECIAL_PROPERTY: x}))
+				self.datastoreQuery = datastore.MultiQuery(filters, ())
 			else:
 				self.datastoreQuery = None
-			return( self )
-		#bones = [ (getattr( skel, key ), key) for key in dir( skel ) if not "__" in key and isinstance( getattr( skel, key ) , baseBone ) ]
-		bones = [ (y,x) for x,y in skel.items() ]
+			return (self)
+		# bones = [ (getattr( skel, key ), key) for key in dir( skel ) if not "__" in key and isinstance( getattr( skel, key ) , baseBone ) ]
+		bones = [(y, x) for x, y in skel.items()]
 		try:
-			#First, filter non-relational bones
-			for bone, key in [ x for x in bones if not isinstance( x[0], relationalBone ) ]:
-				bone.buildDBFilter( key, skel, self, filters )
-			#Second, process orderings of non-relational bones
-			for bone, key in [ x for x in bones if not isinstance( x[0], relationalBone ) ]:
-				bone.buildDBSort( key, skel, self, filters )
-			#Now filter relational bones
-			for bone, key in [ x for x in bones if isinstance( x[0], relationalBone ) ]:
-				bone.buildDBFilter( key, skel, self, filters )
-			#finally process orderings of relational bones
-			for bone, key in [ x for x in bones if isinstance( x[0], relationalBone ) ]:
-				bone.buildDBSort( key, skel, self, filters )
+			# First, filter non-relational bones
+			for bone, key in [x for x in bones if not isinstance(x[0], relationalBone)]:
+				bone.buildDBFilter(key, skel, self, filters)
+			# Second, process orderings of non-relational bones
+			for bone, key in [x for x in bones if not isinstance(x[0], relationalBone)]:
+				bone.buildDBSort(key, skel, self, filters)
+			# Now filter relational bones
+			for bone, key in [x for x in bones if isinstance(x[0], relationalBone)]:
+				bone.buildDBFilter(key, skel, self, filters)
+			# finally process orderings of relational bones
+			for bone, key in [x for x in bones if isinstance(x[0], relationalBone)]:
+				bone.buildDBSort(key, skel, self, filters)
 		except RuntimeError as e:
 			logging.exception(e)
 			self.datastoreQuery = None
-			return( self )
+			return (self)
 		if "search" in filters and filters["search"]:
-			if isinstance( filters["search"], list ):
-				taglist = [ "".join([y for y in unicode(x).lower() if y in conf["viur.searchValidChars"] ] ) for x in filters["search"] ]
+			if isinstance(filters["search"], list):
+				taglist = ["".join([y for y in unicode(x).lower() if y in conf["viur.searchValidChars"]]) for x in
+						   filters["search"]]
 			else:
-				taglist = [ "".join([y for y in unicode(x).lower() if y in conf["viur.searchValidChars"] ]) for x in unicode(filters["search"]).split(" ")]
-			assert not isinstance( self.datastoreQuery, datastore.MultiQuery ), "Searching using viur-tags is not possible on a query that already uses an IN-filter!"
+				taglist = ["".join([y for y in unicode(x).lower() if y in conf["viur.searchValidChars"]]) for x in
+						   unicode(filters["search"]).split(" ")]
+			assert not isinstance(self.datastoreQuery,
+								  datastore.MultiQuery), "Searching using viur-tags is not possible on a query that already uses an IN-filter!"
 			origFilter = self.datastoreQuery
 			queries = []
-			for tag in taglist[:30]: #Limit to max 30 keywords
-				q = datastore.Query( kind=origFilter.__kind )
-				q[ "viur_tags" ] = tag
-				queries.append( q )
-			self.datastoreQuery = datastore.MultiQuery( queries, origFilter.__orderings )
+			for tag in taglist[:30]:  # Limit to max 30 keywords
+				q = datastore.Query(kind=origFilter.__kind)
+				q["viur_tags"] = tag
+				queries.append(q)
+			self.datastoreQuery = datastore.MultiQuery(queries, origFilter.__orderings)
 			for k, v in origFilter.items():
-				self.datastoreQuery[ k ] = v
-		if "cursor" in filters and filters["cursor"] and filters["cursor"].lower()!="none":
-			self.cursor( filters["cursor"] )
-		if "amount" in filters and str(filters["amount"]).isdigit() and int( filters["amount"] ) >0 and int( filters["amount"] ) <= 100:
-			self.limit( int(filters["amount"]) )
-		if "postProcessSearchFilter" in dir( skel ):
-			skel.postProcessSearchFilter( self, filters )
-		return( self )
+				self.datastoreQuery[k] = v
+		if "cursor" in filters and filters["cursor"] and filters["cursor"].lower() != "none":
+			self.cursor(filters["cursor"])
+		if "amount" in filters and str(filters["amount"]).isdigit() and int(filters["amount"]) > 0 and int(
+				filters["amount"]) <= 100:
+			self.limit(int(filters["amount"]))
+		if "postProcessSearchFilter" in dir(skel):
+			skel.postProcessSearchFilter(self, filters)
+		return (self)
 
-	def filter(self, filter, value=__undefinedC__ ):
+	def filter(self, filter, value=__undefinedC__):
 		"""
 			Adds a filter to this query. #fixme: Better description required here...
 
@@ -438,56 +454,56 @@ class Query( object ):
 			:rtype: server.db.Query
 		"""
 		if self.datastoreQuery is None:
-			#This query is already unsatisfiable and adding more constrains to this won't change this
-			return( self )
-		if isinstance( filter, dict ):
+			# This query is already unsatisfiable and adding more constrains to this won't change this
+			return (self)
+		if isinstance(filter, dict):
 			for k, v in filter.items():
-				self.filter( k, v )
-			return( self )
+				self.filter(k, v)
+			return (self)
 		if self._filterHook is not None:
 			try:
-				r = self._filterHook( self, filter, value )
+				r = self._filterHook(self, filter, value)
 			except RuntimeError:
 				self.datastoreQuery = None
-				return( self )
+				return (self)
 			if r is None:
 				# The Hook did something special directly on 'self' to apply that filter,
 				# no need for us to do anything
-				return( self )
+				return (self)
 			filter, value = r
 
 		# Cast keys into string
 		if filter != datastore_types.KEY_SPECIAL_PROPERTY and isinstance(value, datastore_types.Key):
 			value = str(value)
 
-		if value!=None and (filter.endswith(" !=") or filter.lower().endswith(" in")):
-			if isinstance( self.datastoreQuery, datastore.MultiQuery ):
+		if value != None and (filter.endswith(" !=") or filter.lower().endswith(" in")):
+			if isinstance(self.datastoreQuery, datastore.MultiQuery):
 				raise NotImplementedError("You cannot use multiple IN or != filter")
 			origQuery = self.datastoreQuery
 			queries = []
 			if filter.endswith("!="):
-				q = datastore.Query( kind=self.getKind() )
-				q[ "%s <" % filter.split(" ")[0] ] = value
-				queries.append( q )
-				q = datastore.Query( kind=self.getKind() )
-				q[ "%s >" % filter.split(" ")[0] ] = value
-				queries.append( q )
-			else: #IN filter
-				if not (isinstance( value, list ) or isinstance( value, tuple ) ):
+				q = datastore.Query(kind=self.getKind())
+				q["%s <" % filter.split(" ")[0]] = value
+				queries.append(q)
+				q = datastore.Query(kind=self.getKind())
+				q["%s >" % filter.split(" ")[0]] = value
+				queries.append(q)
+			else:  # IN filter
+				if not (isinstance(value, list) or isinstance(value, tuple)):
 					raise NotImplementedError("Value must be list or tuple if using IN filter!")
 				for val in value:
-					q = datastore.Query( kind=self.getKind() )
-					q[ "%s =" % filter.split(" ")[0] ] = val
-					q.Order( *origQuery.__orderings )
-					queries.append( q )
-			self.datastoreQuery = MultiQuery( queries, origQuery.__orderings )
-			for k,v in origQuery.items():
-				self.datastoreQuery[ k ] = v
+					q = datastore.Query(kind=self.getKind())
+					q["%s =" % filter.split(" ")[0]] = val
+					q.Order(*origQuery.__orderings)
+					queries.append(q)
+			self.datastoreQuery = MultiQuery(queries, origQuery.__orderings)
+			for k, v in origQuery.items():
+				self.datastoreQuery[k] = v
 		elif filter and value is not __undefinedC__:
-			self.datastoreQuery[ filter ] = value
+			self.datastoreQuery[filter] = value
 		else:
 			raise NotImplementedError("Incorrect call to query.filter()!")
-		return( self )
+		return (self)
 
 	def order(self, *orderings):
 		"""
@@ -544,19 +560,19 @@ class Query( object ):
 			elif isinstance(reqOrder, tuple):
 				fieldName = reqOrder[0]
 			else:
-				raise BadArgumentError("Dont know what to do with %s" % type(fieldName),)
+				raise BadArgumentError("Dont know what to do with %s" % type(fieldName), )
 		if self._orderHook is not None:
 			try:
-				orderings = self._orderHook( self, orderings )
+				orderings = self._orderHook(self, orderings)
 			except RuntimeError:
 				self.datastoreQuery = None
-				return( self )
+				return (self)
 			if orderings is None:
-				return( self )
+				return (self)
 		if self.datastoreQuery is None:
 			return
-		self.datastoreQuery.Order( *orderings )
-		return( self )
+		self.datastoreQuery.Order(*orderings)
+		return (self)
 
 	def ancestor(self, ancestor):
 		"""
@@ -575,10 +591,10 @@ class Query( object ):
 			:returns: Returns the query itself for chaining.
 			:rtype: server.db.Query
 		"""
-		self.datastoreQuery.Ancestor( ancestor )
-		return( self )
+		self.datastoreQuery.Ancestor(ancestor)
+		return (self)
 
-	def cursor( self, cursor, endCursor=None ):
+	def cursor(self, cursor, endCursor=None):
 		"""
 			Sets the start cursor for this query.
 
@@ -594,30 +610,30 @@ class Query( object ):
 			:returns: Returns the query itself for chaining.
 			:rtype: server.db.Query
 		"""
-		if isinstance( cursor, basestring ):
-			cursor = datastore_query.Cursor( urlsafe=cursor )
-		elif isinstance( cursor, datastore_query.Cursor ) or cursor==None:
+		if isinstance(cursor, basestring):
+			cursor = datastore_query.Cursor(urlsafe=cursor)
+		elif isinstance(cursor, datastore_query.Cursor) or cursor == None:
 			pass
 		else:
 			raise ValueError("Cursor must be String, datastore_query.Cursor or None")
 		if endCursor is not None:
-			if isinstance( endCursor, basestring ):
-				endCursor = datastore_query.Cursor( urlsafe=endCursor )
-			elif isinstance( cursor, datastore_query.Cursor ) or endCursor==None:
+			if isinstance(endCursor, basestring):
+				endCursor = datastore_query.Cursor(urlsafe=endCursor)
+			elif isinstance(cursor, datastore_query.Cursor) or endCursor == None:
 				pass
 			else:
 				raise ValueError("endCursor must be String, datastore_query.Cursor or None")
 
 		qo = self.datastoreQuery.__query_options
-		self.datastoreQuery.__query_options = datastore_query.QueryOptions(	keys_only=qo.keys_only,
-											produce_cursors=qo.produce_cursors,
-											start_cursor=cursor,
-											end_cursor=endCursor or qo.end_cursor,
-											projection=qo.projection )
+		self.datastoreQuery.__query_options = datastore_query.QueryOptions(keys_only=qo.keys_only,
+																		   produce_cursors=qo.produce_cursors,
+																		   start_cursor=cursor,
+																		   end_cursor=endCursor or qo.end_cursor,
+																		   projection=qo.projection)
 		self._origCursor = cursor
-		return( self )
+		return (self)
 
-	def limit( self, amount ):
+	def limit(self, amount):
 		"""
 			Sets the query limit to *amount* entities in the result.
 
@@ -638,7 +654,7 @@ class Query( object ):
 
 			:rtype: bool
 		"""
-		return( self.datastoreQuery.IsKeysOnly() )
+		return (self.datastoreQuery.IsKeysOnly())
 
 	def getQueryOptions(self):
 		"""
@@ -646,7 +662,7 @@ class Query( object ):
 
 			:rtype: datastore_query.QueryOptions
 		"""
-		return( self.datastoreQuery.GetQueryOptions() )
+		return (self.datastoreQuery.GetQueryOptions())
 
 	def getQuery(self):
 		"""
@@ -654,7 +670,7 @@ class Query( object ):
 
 			:rtype: datastore_query.Query
 		"""
-		return( self.datastoreQuery.GetQuery() )
+		return (self.datastoreQuery.GetQuery())
 
 	def getOrder(self):
 		"""
@@ -664,9 +680,9 @@ class Query( object ):
 			:rtype: datastore_query.Order or None
 		"""
 		if self.datastoreQuery is None:
-			return( None )
+			return (None)
 
-		return( self.datastoreQuery.GetOrder() )
+		return (self.datastoreQuery.GetOrder())
 
 	def getFilter(self):
 		"""
@@ -676,13 +692,13 @@ class Query( object ):
 			:rtype: dict
 		"""
 		if self.datastoreQuery is None:
-			return( None )
+			return (None)
 		elif isinstance(self.datastoreQuery, MultiQuery):
 			res = []
-			for qry in getattr(self.datastoreQuery,"_MultiQuery__bound_queries"):
-				res.append( { k:v for (k, v) in qry.items() } )
+			for qry in getattr(self.datastoreQuery, "_MultiQuery__bound_queries"):
+				res.append({k: v for (k, v) in qry.items()})
 			return res
-		return( { k:v for (k, v) in self.datastoreQuery.items() } )
+		return ({k: v for (k, v) in self.datastoreQuery.items()})
 
 	def getOrders(self):
 		"""
@@ -698,9 +714,9 @@ class Query( object ):
 		"""
 		try:
 			order = self.datastoreQuery.__orderings
-			return( [ (prop, dir) for (prop, dir) in order ] )
+			return ([(prop, dir) for (prop, dir) in order])
 		except:
-			return( [] )
+			return ([])
 
 	def getCursor(self):
 		"""
@@ -720,9 +736,9 @@ class Query( object ):
 			:raises: :exc:`AssertionError` if the query has not yet been run or cannot be compiled.
 		"""
 		if self.datastoreQuery is None:
-			return( None )
+			return (None)
 
-		return( self.datastoreQuery.GetCursor() )
+		return (self.datastoreQuery.GetCursor())
 
 	def getKind(self):
 		"""
@@ -731,10 +747,10 @@ class Query( object ):
 			:rtype: str
 		"""
 		if self.datastoreQuery is None:
-			return( None )
-		return( self.datastoreQuery.__kind )
+			return (None)
+		return (self.datastoreQuery.__kind)
 
-	def setKind( self, newKind ):
+	def setKind(self, newKind):
 		"""
 			Sets the kind of this query.
 
@@ -751,7 +767,7 @@ class Query( object ):
 
 			:rtype: str | None
 		"""
-		return( self.datastoreQuery.ancestor )
+		return (self.datastoreQuery.ancestor)
 
 	def run(self, limit=-1, keysOnly=False, **kwargs):
 		"""
@@ -779,59 +795,60 @@ class Query( object ):
 			another property is provided
 		"""
 		if self.datastoreQuery is None:
-			return( None )
-		origLimit = limit if limit!=-1 else self.amount
+			return (None)
+		origLimit = limit if limit != -1 else self.amount
 		kwargs["limit"] = origLimit
-		if not isinstance( self.datastoreQuery, datastore.MultiQuery ):
+		if not isinstance(self.datastoreQuery, datastore.MultiQuery):
 			internalKeysOnly = True
 		else:
 			internalKeysOnly = False
-		if conf["viur.db.caching" ]<2:
+		if conf["viur.db.caching"] < 2:
 			# Query-Caching is disabled, make this query keys-only if (and only if) explicitly requested for this query
 			internalKeysOnly = keysOnly
 		if self._customMultiQueryMerge:
 			# We do a really dirty trick here: Running the queries in our MultiQuery by hand, as
 			# we don't want the default sort&merge functionality from :class:`google.appengine.api.datastore.MultiQuery`
-			assert isinstance( self.datastoreQuery, MultiQuery), "Got a customMultiQueryMerge - but no multiQuery"
+			assert isinstance(self.datastoreQuery, MultiQuery), "Got a customMultiQueryMerge - but no multiQuery"
 			res = []
 			if self._calculateInternalMultiQueryAmount:
 				kwargs["limit"] = self._calculateInternalMultiQueryAmount(kwargs["limit"])
-			for qry in getattr(self.datastoreQuery,"_MultiQuery__bound_queries"):
-				res.append( qry.Run( keys_only=internalKeysOnly, **kwargs ) )
+			for qry in getattr(self.datastoreQuery, "_MultiQuery__bound_queries"):
+				res.append(qry.Run(keys_only=internalKeysOnly, **kwargs))
 			# As the results are now available, perform the actual merge
 			res = self._customMultiQueryMerge(self, res, origLimit)
 		else:
-			res = list( self.datastoreQuery.Run( keys_only=internalKeysOnly, **kwargs ) )
+			res = list(self.datastoreQuery.Run(keys_only=internalKeysOnly, **kwargs))
 		if conf["viur.debug.traceQueries"]:
 			kindName = self.getKind()
 			orders = self.getOrders()
 			filters = self.getFilter()
-			logging.debug("Queried %s with filter %s and orders %s. Returned %s results" % (kindName, filters, orders, len(res)))
-		if keysOnly and not internalKeysOnly: #Wanted key-only, but this wasn't directly possible
-			if len(res)>0 and res[0].key().kind()!=self.origKind and res[0].key().parent().kind()==self.origKind:
-				#Fixing the kind - it has been changed (probably by quering an relation)
-				res = [ x.key().parent() for x in res ]
+			logging.debug(
+				"Queried %s with filter %s and orders %s. Returned %s results" % (kindName, filters, orders, len(res)))
+		if keysOnly and not internalKeysOnly:  # Wanted key-only, but this wasn't directly possible
+			if len(res) > 0 and res[0].key().kind() != self.origKind and res[0].key().parent().kind() == self.origKind:
+				# Fixing the kind - it has been changed (probably by quering an relation)
+				res = [x.key().parent() for x in res]
 			if res and isinstance(res[0], datastore_types.Key):
 				return res
 			else:
-				return( [x.key() for x in res] )
-		elif keysOnly and internalKeysOnly: #Keys-only requested and we did it
-			if len(res)>0 and res[0].kind()!=self.origKind and res[0].parent().kind()==self.origKind:
-				#Fixing the kind - it has been changed (probably by quering an relation)
-				res = [ x.parent() for x in res ]
-			return( res )
-		elif not keysOnly and not internalKeysOnly: #Full query requested and we did it
-			if len(res)>0 and res[0].key().kind()!=self.origKind and res[0].key().parent().kind()==self.origKind:
-				#Fixing the kind - it has been changed (probably by quering an relation)
-				res = Get( [ x.key().parent() for x in res ] )
-			return( res )
-		else: #Well.. Full results requested, but we did keys-only
-			if len(res)>0 and res[0].kind()!=self.origKind and res[0].parent().kind()==self.origKind:
-				#Fixing the kind - it has been changed (probably by quering an relation)
-				res = [ x.parent() for x in res ]
-			return( Get( res ) )
+				return ([x.key() for x in res])
+		elif keysOnly and internalKeysOnly:  # Keys-only requested and we did it
+			if len(res) > 0 and res[0].kind() != self.origKind and res[0].parent().kind() == self.origKind:
+				# Fixing the kind - it has been changed (probably by quering an relation)
+				res = [x.parent() for x in res]
+			return (res)
+		elif not keysOnly and not internalKeysOnly:  # Full query requested and we did it
+			if len(res) > 0 and res[0].key().kind() != self.origKind and res[0].key().parent().kind() == self.origKind:
+				# Fixing the kind - it has been changed (probably by quering an relation)
+				res = Get([x.key().parent() for x in res])
+			return (res)
+		else:  # Well.. Full results requested, but we did keys-only
+			if len(res) > 0 and res[0].kind() != self.origKind and res[0].parent().kind() == self.origKind:
+				# Fixing the kind - it has been changed (probably by quering an relation)
+				res = [x.parent() for x in res]
+			return (Get(res))
 
-	def fetch(self, limit=-1, **kwargs ):
+	def fetch(self, limit=-1, **kwargs):
 		"""
 			Run this query and fetch results as :class:`server.skeleton.SkelList`.
 
@@ -854,30 +871,31 @@ class Query( object ):
 		"""
 		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
-		amount = limit if limit!=-1 else self.amount
+		amount = limit if limit != -1 else self.amount
 		if amount < 1 or amount > 100:
-			raise NotImplementedError("This query is not limited! You must specify an upper bound using limit() between 1 and 100")
+			raise NotImplementedError(
+				"This query is not limited! You must specify an upper bound using limit() between 1 and 100")
 		from server.skeleton import SkelList
-		res = SkelList( self.srcSkel )
-		dbRes = self.run( amount )
+		res = SkelList(self.srcSkel)
+		dbRes = self.run(amount)
 		res.customQueryInfo = self.customQueryInfo
 		if dbRes is None:
-			return( res )
+			return (res)
 		for e in dbRes:
-			#s = self.srcSkel.clone()
+			# s = self.srcSkel.clone()
 			valueCache = {}
 			self.srcSkel.setValuesCache(valueCache)
 			self.srcSkel.setValues(e)
-			res.append( self.srcSkel.getValuesCache() )
+			res.append(self.srcSkel.getValuesCache())
 		try:
 			c = self.datastoreQuery.GetCursor()
 			if c:
 				res.cursor = c.urlsafe()
 			else:
 				res.cursor = None
-		except AssertionError: #No Cursors available on MultiQueries ( in or != )
+		except AssertionError:  # No Cursors available on MultiQueries ( in or != )
 			res.cursor = None
-		return( res )
+		return (res)
 
 	def iter(self, keysOnly=False):
 		"""
@@ -898,24 +916,24 @@ class Query( object ):
 			:param keysOnly: If the query should be used to retrieve entity keys only.
 			:type keysOnly: bool
 		"""
-		if self.datastoreQuery is None: #Noting to pull here
+		if self.datastoreQuery is None:  # Noting to pull here
 			raise StopIteration()
-		if isinstance( self.datastoreQuery, datastore.MultiQuery ) and keysOnly:
+		if isinstance(self.datastoreQuery, datastore.MultiQuery) and keysOnly:
 			# Wanted KeysOnly, but MultiQuery is unable to give us that.
 			for res in self.datastoreQuery.Run():
 				yield res.key()
-		else: #The standard-case
+		else:  # The standard-case
 			stopYield = False
 			lastCursor = None
 			while not stopYield:
 				try:
-					for res in self.datastoreQuery.Run( keys_only=keysOnly ):
+					for res in self.datastoreQuery.Run(keys_only=keysOnly):
 						yield res
 						try:
 							lastCursor = self.datastoreQuery.GetCursor()
 						except Exception as e:
 							pass
-					stopYield = True # No more results to yield
+					stopYield = True  # No more results to yield
 				except:
 					if lastCursor is None:
 						stopYield = True
@@ -924,11 +942,11 @@ class Query( object ):
 					else:
 						logging.debug("Continuing iter() on fresh a query")
 						q = self.clone()
-						q.cursor( lastCursor )
+						q.cursor(lastCursor)
 						self.datastoreQuery = q.datastoreQuery
 						lastCursor = None
 
-	def get( self ):
+	def get(self):
 		"""
 			Returns only the first entity of the current query.
 
@@ -936,14 +954,14 @@ class Query( object ):
 			:rtype: dict
 		"""
 		try:
-			res = list( self.run( limit=1 ) )[0]
-			return( res )
-		except IndexError: #Empty result-set
-			return( None )
-		except TypeError: #Also Empty result-set
-			return( None )
+			res = list(self.run(limit=1))[0]
+			return (res)
+		except IndexError:  # Empty result-set
+			return (None)
+		except TypeError:  # Also Empty result-set
+			return (None)
 
-	def getSkel( self ):
+	def getSkel(self):
 		"""
 			Returns a matching :class:`server.db.skeleton.Skeleton` instance for the
 			current query.
@@ -958,12 +976,12 @@ class Query( object ):
 			raise NotImplementedError("This query has not been created using skel.all()")
 		res = self.get()
 		if res is None:
-			return( None )
-		#s = self.srcSkel.clone()
+			return (None)
+		# s = self.srcSkel.clone()
 		self.srcSkel.setValues(res)
 		return self.srcSkel
 
-	def count( self, limit=1000, **kwargs ):
+	def count(self, limit=1000, **kwargs):
 		"""
 			Returns the number of entities that this query matches.
 
@@ -979,7 +997,7 @@ class Query( object ):
 			:returns: The number of results.
 			:rtype: int
 			"""
-		return( self.datastoreQuery.Count( limit, **kwargs ) )
+		return (self.datastoreQuery.Count(limit, **kwargs))
 
 	def clone(self, keysOnly=None):
 		"""
@@ -994,37 +1012,38 @@ class Query( object ):
 		"""
 		if keysOnly is None:
 			keysOnly = self.isKeysOnly()
-		res = Query( self.getKind(), self.srcSkel, keys_only=keysOnly )
-		res.limit( self.amount )
+		res = Query(self.getKind(), self.srcSkel, keys_only=keysOnly)
+		res.limit(self.amount)
 		for k, v in self.getFilter().items():
-			res.filter( k, v )
+			res.filter(k, v)
 		orders = self.getOrders()
-		if len( orders )==1:
-			res.order( orders[0] )
-		elif len( orders ) > 1:
-			res.order( tuple( orders ) )
-		return( res )
+		if len(orders) == 1:
+			res.order(orders[0])
+		elif len(orders) > 1:
+			res.order(tuple(orders))
+		return (res)
 
 
-class Entity( datastore.Entity ):
+class Entity(datastore.Entity):
 	"""
 		Wraps ``datastore.Entity`` to prevent trying to add a string with more than 500 chars
 		to an index and providing a camelCase-API.
 	"""
-	def _fixUnindexedProperties( self ):
+
+	def _fixUnindexedProperties(self):
 		"""
 			Ensures that no property with strlen > 500 makes it into the index.
 		"""
-		unindexed = list( self.getUnindexedProperties() )
-		for k,v in self.items():
-			if isinstance( v, basestring ) and len( v )>=500 and not k in unindexed:
+		unindexed = list(self.getUnindexedProperties())
+		for k, v in self.items():
+			if isinstance(v, basestring) and len(v) >= 500 and not k in unindexed:
 				logging.warning("Your property %s cant be indexed!" % k)
-				unindexed.append( k )
-			elif isinstance( v, list ) or isinstance( v, tuple() ):
-				if any( [ isinstance(x,basestring) and len(x)>=500 for x in v] ) and not k in unindexed:
+				unindexed.append(k)
+			elif isinstance(v, list) or isinstance(v, tuple()):
+				if any([isinstance(x, basestring) and len(x) >= 500 for x in v]) and not k in unindexed:
 					logging.warning("Your property %s cant be indexed!" % k)
-					unindexed.append( k )
-		self.set_unindexed_properties( unindexed )
+					unindexed.append(k)
+		self.set_unindexed_properties(unindexed)
 
 	def isSaved(self):
 		"""
@@ -1032,7 +1051,7 @@ class Entity( datastore.Entity ):
 
 			:rtype: bool
 		"""
-		return( self.is_saved() )
+		return (self.is_saved())
 
 	def entityGroup(self):
 		"""
@@ -1041,13 +1060,13 @@ class Entity( datastore.Entity ):
 			Note that the returned Key will be incomplete if this is a a root entity
 			and its key is incomplete.
 		"""
-		return( self.entity_group() )
+		return (self.entity_group())
 
 	def getUnindexedProperties(self):
 		"""
 			Returns this entity's unindexed properties, as a frozen set of strings.
 		"""
-		return( self.unindexed_properties() )
+		return (self.unindexed_properties())
 
 	def setUnindexedProperties(self, unindexed_properties):
 		"""
@@ -1058,7 +1077,7 @@ class Entity( datastore.Entity ):
 
 			But it saves one db-write op per property listed here.
 		"""
-		self.set_unindexed_properties( unindexed_properties )
+		self.set_unindexed_properties(unindexed_properties)
 
 	def __setitem__(self, name, value):
 		"""
@@ -1072,13 +1091,13 @@ class Entity( datastore.Entity ):
 			empty string or not a string.
 			:raises: :exc:`BadValueError` if the value is not a supported type.
 		"""
-		if isinstance(value,list) or isinstance(value,tuple):
+		if isinstance(value, list) or isinstance(value, tuple):
 			# We cant store an empty list, so we catch any attempts
 			# and store None. As "does not exists" queries aren't
 			# possible anyway, this makes no difference
-			if len( value ) == 0:
+			if len(value) == 0:
 				value = None
-		super( Entity, self ).__setitem__( name, value )
+		super(Entity, self).__setitem__(name, value)
 
 	def set(self, key, value, indexed=True):
 		"""
@@ -1107,19 +1126,19 @@ class Entity( datastore.Entity ):
 		self[key] = value
 
 	@staticmethod
-	def FromDatastoreEntity( entity ):
+	def FromDatastoreEntity(entity):
 		"""
 			Converts a datastore.Entity into a :class:`db.server.Entity`.
 
 			Required, as ``datastore.Get()`` always returns a datastore.Entity
 			(and it seems that currently there is no valid way to change that).
 		"""
-		res = Entity(	entity.kind(), parent=entity.key().parent(), _app=entity.key().app(),
-				name=entity.key().name(), id=entity.key().id(),
-				unindexed_properties=entity.unindexed_properties(),
-				namespace=entity.namespace() )
-		res.update( entity )
-		return( res )
+		res = Entity(entity.kind(), parent=entity.key().parent(), _app=entity.key().app(),
+					 name=entity.key().name(), id=entity.key().id(),
+					 unindexed_properties=entity.unindexed_properties(),
+					 namespace=entity.namespace())
+		res.update(entity)
+		return (res)
 
 
 AllocateIdsAsync = datastore.AllocateIdsAsync
@@ -1156,12 +1175,16 @@ MultiQuery = datastore.MultiQuery
 Cursor = datastore_query.Cursor
 IsInTransaction = datastore.IsInTransaction
 
-#Consts
+# Consts
 KEY_SPECIAL_PROPERTY = datastore_types.KEY_SPECIAL_PROPERTY
 ASCENDING = datastore_query.PropertyOrder.ASCENDING
 DESCENDING = datastore_query.PropertyOrder.DESCENDING
 
-__all__ = [	PutAsync, Put, GetAsync, Get, DeleteAsync, Delete, AllocateIdsAsync, AllocateIds, RunInTransaction, RunInTransactionCustomRetries, RunInTransactionOptions, TransactionOptions,
-		Error, BadValueError, BadPropertyError, BadRequestError, EntityNotFoundError, BadArgumentError, QueryNotFoundError, TransactionNotFoundError, Rollback,
-		TransactionFailedError, BadFilterError, BadQueryError, BadKeyError, BadKeyError, InternalError, NeedIndexError, ReferencePropertyResolveError, Timeout,
-		CommittedButStillApplying, Entity, Query, DatastoreQuery, MultiQuery, Cursor, KEY_SPECIAL_PROPERTY, ASCENDING, DESCENDING, IsInTransaction ]
+__all__ = [PutAsync, Put, GetAsync, Get, DeleteAsync, Delete, AllocateIdsAsync, AllocateIds, RunInTransaction,
+		   RunInTransactionCustomRetries, RunInTransactionOptions, TransactionOptions,
+		   Error, BadValueError, BadPropertyError, BadRequestError, EntityNotFoundError, BadArgumentError,
+		   QueryNotFoundError, TransactionNotFoundError, Rollback,
+		   TransactionFailedError, BadFilterError, BadQueryError, BadKeyError, BadKeyError, InternalError,
+		   NeedIndexError, ReferencePropertyResolveError, Timeout,
+		   CommittedButStillApplying, Entity, Query, DatastoreQuery, MultiQuery, Cursor, KEY_SPECIAL_PROPERTY,
+		   ASCENDING, DESCENDING, IsInTransaction]

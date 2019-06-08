@@ -12,6 +12,7 @@ import string
 import logging
 import os
 
+
 @jinjaGlobalFunction
 def execRequest(render, path, *args, **kwargs):
 	"""
@@ -32,7 +33,7 @@ def execRequest(render, path, *args, **kwargs):
 	else:
 		cachetime = 0
 
-	if conf["viur.disableCache"] or request.current.get().disableCache: #Caching disabled by config
+	if conf["viur.disableCache"] or request.current.get().disableCache:  # Caching disabled by config
 		cachetime = 0
 
 	cacheEnvKey = None
@@ -43,8 +44,8 @@ def execRequest(render, path, *args, **kwargs):
 			cachetime = 0
 
 	if cachetime:
-		#Calculate the cache key that entry would be stored under
-		tmpList = ["%s:%s" % (unicode(k), unicode(v)) for k,v in kwargs.items()]
+		# Calculate the cache key that entry would be stored under
+		tmpList = ["%s:%s" % (unicode(k), unicode(v)) for k, v in kwargs.items()]
 		tmpList.sort()
 		tmpList.extend(list(args))
 		tmpList.append(path)
@@ -57,11 +58,11 @@ def execRequest(render, path, *args, **kwargs):
 			appVersion = ""
 			logging.error("Could not determine the current application id! Caching might produce unexpected results!")
 
-		tmpList.append( appVersion )
+		tmpList.append(appVersion)
 		mysha512 = sha512()
-		mysha512.update( unicode(tmpList).encode("UTF8") )
+		mysha512.update(unicode(tmpList).encode("UTF8"))
 		cacheKey = "jinja2_cache_%s" % mysha512.hexdigest()
-		res = memcache.get( cacheKey )
+		res = memcache.get(cacheKey)
 
 		if res:
 			return res
@@ -69,33 +70,33 @@ def execRequest(render, path, *args, **kwargs):
 	currentRequest = request.current.get()
 	tmp_params = currentRequest.kwargs.copy()
 	currentRequest.kwargs = {"__args": args, "__outer": tmp_params}
-	currentRequest.kwargs.update( kwargs )
+	currentRequest.kwargs.update(kwargs)
 	lastRequestState = currentRequest.internalRequest
 	currentRequest.internalRequest = True
 	caller = conf["viur.mainApp"]
 	pathlist = path.split("/")
 
 	for currpath in pathlist:
-		if currpath in dir( caller ):
-			caller = getattr( caller,currpath )
-		elif "index" in dir( caller ) and  hasattr( getattr( caller, "index" ), '__call__'):
-			caller = getattr( caller, "index" )
+		if currpath in dir(caller):
+			caller = getattr(caller, currpath)
+		elif "index" in dir(caller) and hasattr(getattr(caller, "index"), '__call__'):
+			caller = getattr(caller, "index")
 		else:
-			currentRequest.kwargs = tmp_params # Reset RequestParams
+			currentRequest.kwargs = tmp_params  # Reset RequestParams
 			currentRequest.internalRequest = lastRequestState
-			return( u"Path not found %s (failed Part was %s)" % ( path, currpath ) )
+			return (u"Path not found %s (failed Part was %s)" % (path, currpath))
 
 	if (not hasattr(caller, '__call__')
-		or ((not "exposed" in dir( caller )
-			    or not caller.exposed))
-		and (not "internalExposed" in dir( caller )
-				or not caller.internalExposed)):
-		currentRequest.kwargs = tmp_params # Reset RequestParams
+			or ((not "exposed" in dir(caller)
+				 or not caller.exposed))
+			and (not "internalExposed" in dir(caller)
+				 or not caller.internalExposed)):
+		currentRequest.kwargs = tmp_params  # Reset RequestParams
 		currentRequest.internalRequest = lastRequestState
-		return( u"%s not callable or not exposed" % str(caller) )
+		return (u"%s not callable or not exposed" % str(caller))
 
 	try:
-		resstr = caller( *args, **kwargs )
+		resstr = caller(*args, **kwargs)
 	except Exception as e:
 		logging.error("Caught execption in execRequest while calling %s" % path)
 		logging.exception(e)
@@ -109,6 +110,7 @@ def execRequest(render, path, *args, **kwargs):
 
 	return resstr
 
+
 @jinjaGlobalFunction
 def getCurrentUser(render):
 	"""
@@ -119,8 +121,9 @@ def getCurrentUser(render):
 	"""
 	return utils.getCurrentUser()
 
+
 @jinjaGlobalFunction
-def getEntry(render, module, key=None, skel = "viewSkel"):
+def getEntry(render, module, key=None, skel="viewSkel"):
 	"""
 	Jinja2 global: Fetch an entry from a given module, and return the data as a dict,
 	prepared for direct use in the output.
@@ -188,7 +191,7 @@ def getEntry(render, module, key=None, skel = "viewSkel"):
 			if not skel:
 				return None
 
-		else: # No Access-Test for this module
+		else:  # No Access-Test for this module
 			if not skel.fromDB(key):
 				return None
 
@@ -196,8 +199,9 @@ def getEntry(render, module, key=None, skel = "viewSkel"):
 
 	return False
 
+
 @jinjaGlobalFunction
-def getHostUrl(render, forceSSL = False, *args, **kwargs):
+def getHostUrl(render, forceSSL=False, *args, **kwargs):
 	"""
 	Jinja2 global: Retrieve hostname with protocol.
 
@@ -205,12 +209,13 @@ def getHostUrl(render, forceSSL = False, *args, **kwargs):
 	:rtype: str
 	"""
 	url = request.current.get().request.url
-	url = url[ :url.find("/", url.find("://")+5) ]
+	url = url[:url.find("/", url.find("://") + 5)]
 
 	if forceSSL and url.startswith("http://"):
 		url = "https://" + url[7:]
 
 	return url
+
 
 @jinjaGlobalFunction
 def redirect(render, url):
@@ -222,8 +227,9 @@ def redirect(render, url):
 	"""
 	raise errors.Redirect(url)
 
+
 @jinjaGlobalFunction
-def getLanguage(render, resolveAlias = False):
+def getLanguage(render, resolveAlias=False):
 	"""
 	Jinja2 global: Returns the language used for this request.
 
@@ -233,7 +239,7 @@ def getLanguage(render, resolveAlias = False):
 	"""
 	lang = request.current.get().language
 	if resolveAlias and lang in conf["viur.languageAliasMap"]:
-		lang = conf["viur.languageAliasMap"][ lang ]
+		lang = conf["viur.languageAliasMap"][lang]
 
 	return lang
 
@@ -250,6 +256,7 @@ def moduleName(render):
 
 	return ""
 
+
 @jinjaGlobalFunction
 def modulePath(render):
 	"""
@@ -262,8 +269,9 @@ def modulePath(render):
 
 	return ""
 
+
 @jinjaGlobalFunction
-def getList(render, module, skel = "viewSkel", _noEmptyFilter = False, *args, **kwargs):
+def getList(render, module, skel="viewSkel", _noEmptyFilter=False, *args, **kwargs):
 	"""
 	Jinja2 global: Fetches a list of entries which match the given filter criteria.
 
@@ -285,12 +293,12 @@ def getList(render, module, skel = "viewSkel", _noEmptyFilter = False, *args, **
 	if not module in dir(conf["viur.mainApp"]):
 		logging.error("Jinja2-Render can't fetch a list from an unknown module %s!" % module)
 		return False
-	caller = getattr( conf["viur.mainApp"], module)
-	if not skel in dir( caller ):
+	caller = getattr(conf["viur.mainApp"], module)
+	if not skel in dir(caller):
 		logging.error("Jinja2-Render cannot fetch a list with an unknown skeleton %s!" % skel)
 		return False
-	if _noEmptyFilter: #Test if any value of kwargs is an empty list
-		if any( [isinstance(x,list) and not len(x) for x in kwargs.values()] ):
+	if _noEmptyFilter:  # Test if any value of kwargs is an empty list
+		if any([isinstance(x, list) and not len(x) for x in kwargs.values()]):
 			return []
 	query = getattr(caller, skel)().all()
 	query.mergeExternalFilter(kwargs)
@@ -301,6 +309,7 @@ def getList(render, module, skel = "viewSkel", _noEmptyFilter = False, *args, **
 	mylist = query.fetch()
 	return SkelListWrapper([render.collectSkelData(x) for x in mylist], mylist)
 
+
 @jinjaGlobalFunction
 def getSecurityKey(render, **kwargs):
 	"""
@@ -308,8 +317,9 @@ def getSecurityKey(render, **kwargs):
 	"""
 	return securitykey.create(**kwargs)
 
+
 @jinjaGlobalFunction
-def getSkel(render, module, skel = "viewSkel", subSkel = None):
+def getSkel(render, module, skel="viewSkel", subSkel=None):
 	"""
 	Jinja2 global: Returns the skeleton structure instead of data for a module.
 
@@ -342,6 +352,7 @@ def getSkel(render, module, skel = "viewSkel", subSkel = None):
 
 	return False
 
+
 @jinjaGlobalFunction
 def requestParams(render):
 	"""
@@ -355,9 +366,10 @@ def requestParams(render):
 	res = {}
 
 	for k, v in request.current.get().kwargs.items():
-		res[ utils.escapeString( k ) ] = utils.escapeString( v )
+		res[utils.escapeString(k)] = utils.escapeString(v)
 
 	return res
+
 
 @jinjaGlobalFunction
 def updateURL(render, **kwargs):
@@ -374,18 +386,19 @@ def updateURL(render, **kwargs):
 
 	for key in list(tmpparams.keys()):
 		if not key or key[0] == "_":
-			del tmpparams[ key ]
-		elif isinstance( tmpparams[ key ], unicode ):
-			tmpparams[ key ] = tmpparams[ key ].encode("UTF-8", "ignore")
+			del tmpparams[key]
+		elif isinstance(tmpparams[key], unicode):
+			tmpparams[key] = tmpparams[key].encode("UTF-8", "ignore")
 
 	for key, value in list(kwargs.items()):
 		if value is None:
 			if key in tmpparams:
-				del tmpparams[ key ]
+				del tmpparams[key]
 		else:
 			tmpparams[key] = value
 
 	return "?" + urllib.urlencode(tmpparams).replace("&", "&amp;")
+
 
 @jinjaGlobalFilter
 def fileSize(render, value, binary=False):
@@ -432,6 +445,7 @@ def fileSize(render, value, binary=False):
 
 	return '%.1f %s' % ((base * bytes / unit), prefix)
 
+
 @jinjaGlobalFilter
 def urlencode(render, val):
 	"""
@@ -444,7 +458,7 @@ def urlencode(render, val):
 	:rtype: str
 	"""
 
-	#quote_plus fails if val is None
+	# quote_plus fails if val is None
 	if not val:
 		return ""
 
@@ -452,6 +466,7 @@ def urlencode(render, val):
 		val = val.encode("UTF-8")
 
 	return urllib.quote_plus(val)
+
 
 '''
 This has been disabled until we are sure
@@ -479,6 +494,7 @@ def className(render, s):
 	return ""
 '''
 
+
 @jinjaGlobalFilter
 def shortKey(render, val):
 	"""
@@ -492,10 +508,11 @@ def shortKey(render, val):
 	"""
 
 	try:
-		k = db.Key(encoded = unicode(val))
+		k = db.Key(encoded=unicode(val))
 		return k.id_or_name()
 	except:
 		return None
+
 
 @jinjaGlobalFunction
 def renderEditBone(render, skel, boneName):
@@ -527,6 +544,7 @@ def renderEditBone(render, skel, boneName):
 	tpl = render.getEnv().get_template(fn)
 
 	return tpl.render(boneName=boneName, boneParams=boneParams, boneValue=skel["value"].get(boneName, None))
+
 
 @jinjaGlobalFunction
 def renderEditForm(render, skel, ignore=None, hide=None):
@@ -568,17 +586,16 @@ def renderEditForm(render, skel, ignore=None, hide=None):
 				allHidden = False
 
 			editWidget = renderEditBone(render, skel, boneName)
-			categoryContent += rowTpl.render(boneName = boneName,
-			                                 boneParams = boneParams,
-			                                 boneWasInvalid = boneWasInvalid,
-			                                 editWidget = editWidget)
+			categoryContent += rowTpl.render(boneName=boneName,
+											 boneParams=boneParams,
+											 boneWasInvalid=boneWasInvalid,
+											 editWidget=editWidget)
 
 		res += sectionTpl.render(categoryName=category,
-		                         categoryClassName = "".join([x for x in category if x in string.ascii_letters]),
-		                         categoryContent = categoryContent,
-		                         allReadOnly = allReadOnly,
-		                         allHidden = allHidden)
-
+								 categoryClassName="".join([x for x in category if x in string.ascii_letters]),
+								 categoryContent=categoryContent,
+								 allReadOnly=allReadOnly,
+								 allHidden=allHidden)
 
 	return res
 

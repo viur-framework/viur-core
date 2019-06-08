@@ -10,17 +10,16 @@
 
 """
 
-
 from datetime import datetime, timedelta
 from server.utils import generateRandomString
 from server.session import current as currentSession
 from server import db, conf
 from server.tasks import PeriodicTask, callDeferred
 
-
 securityKeyKindName = "viur-securitykeys"
 
-def create( duration=None, **kwargs ):
+
+def create(duration=None, **kwargs):
 	"""
 		Creates a new onetime Securitykey for the current session
 		If duration is not set, this key is valid only for the current session.
@@ -34,23 +33,24 @@ def create( duration=None, **kwargs ):
 	key = generateRandomString()
 	if duration is None:
 		sessionDependend = True
-		duration = 30*60 # 30 Mins from now
+		duration = 30 * 60  # 30 Mins from now
 	else:
 		sessionDependend = False
-		duration = int( duration )
-	dbObj = db.Entity(securityKeyKindName, name=key )
+		duration = int(duration)
+	dbObj = db.Entity(securityKeyKindName, name=key)
 	for k, v in kwargs.items():
-		dbObj[ k ] = v
-	dbObj["until"] = datetime.now()+timedelta( seconds=duration )
+		dbObj[k] = v
+	dbObj["until"] = datetime.now() + timedelta(seconds=duration)
 	if sessionDependend:
 		dbObj["session"] = currentSession.getSessionKey()
 	else:
 		dbObj["session"] = None
-	dbObj.set_unindexed_properties( [x for x in dbObj.keys() if not x=="until" ] )
-	db.Put( dbObj )
-	return( key )
+	dbObj.set_unindexed_properties([x for x in dbObj.keys() if not x == "until"])
+	db.Put(dbObj)
+	return (key)
 
-def validate( key, acceptSessionKey=False ):
+
+def validate(key, acceptSessionKey=False):
 	"""
 		Validates a onetime securitykey
 
@@ -61,44 +61,45 @@ def validate( key, acceptSessionKey=False ):
 		:returns: False if the key was not valid for whatever reasons, the data (given during createSecurityKey) as dictionary or True if the dict is empty.
 	"""
 	if acceptSessionKey:
-		if key==currentSession.getSessionSecurityKey():
-			return( True )
+		if key == currentSession.getSessionSecurityKey():
+			return (True)
 	try:
-		dbObj = db.Get( db.Key.from_path( securityKeyKindName, key ) )
+		dbObj = db.Get(db.Key.from_path(securityKeyKindName, key))
 	except:
-		return( False )
+		return (False)
 	if dbObj:
 		if "session" in dbObj and dbObj["session"] is not None:
 			if dbObj["session"] != currentSession.getSessionKey():
-				return( False )
-		db.Delete( dbObj.key() )
-		if dbObj[ "until" ] < datetime.now(): #This key has expired
-			return( False )
-		res ={}
+				return (False)
+		db.Delete(dbObj.key())
+		if dbObj["until"] < datetime.now():  # This key has expired
+			return (False)
+		res = {}
 		for k in dbObj.keys():
-			res[ k ] = dbObj[ k ]
+			res[k] = dbObj[k]
 		del res["session"]
 		del res["until"]
 		if not res:
-			return( True )
-		return( res )
-	return( False )
+			return (True)
+		return (res)
+	return (False)
 
-@PeriodicTask(60*4)
+
+@PeriodicTask(60 * 4)
 def startClearSKeys():
 	"""
 		Removes old (expired) skeys
 	"""
-	doClearSKeys( (datetime.now()-timedelta(seconds=300)).strftime("%d.%m.%Y %H:%M:%S"), None )
+	doClearSKeys((datetime.now() - timedelta(seconds=300)).strftime("%d.%m.%Y %H:%M:%S"), None)
+
 
 @callDeferred
-def doClearSKeys( timeStamp, cursor ):
+def doClearSKeys(timeStamp, cursor):
 	gotAtLeastOne = False
-	query = db.Query( securityKeyKindName ).filter( "until <", datetime.strptime(timeStamp,"%d.%m.%Y %H:%M:%S") )
+	query = db.Query(securityKeyKindName).filter("until <", datetime.strptime(timeStamp, "%d.%m.%Y %H:%M:%S"))
 	for oldKey in query.run(100, keysOnly=True):
 		gotAtLeastOne = True
-		db.Delete( oldKey )
+		db.Delete(oldKey)
 	newCursor = query.getCursor()
-	if gotAtLeastOne and newCursor and newCursor.urlsafe()!=cursor:
-		doClearSKeys( timeStamp, newCursor.urlsafe() )
-
+	if gotAtLeastOne and newCursor and newCursor.urlsafe() != cursor:
+		doClearSKeys(timeStamp, newCursor.urlsafe())

@@ -4,15 +4,17 @@ from server import errors, utils, securitykey, exposed
 from server.bones import baseBone
 from server.prototypes.basic import BasicApplication
 
+
 class MailSkel(RelSkel):
-	changedate = None #Changedates won't apply here
+	changedate = None  # Changedates won't apply here
+
 
 class Formmailer(BasicApplication):
 
 	@exposed
 	def index(self, *args, **kwargs):
 		if not self.canUse():
-			raise errors.Forbidden() #Unauthorized
+			raise errors.Forbidden()  # Unauthorized
 
 		skel = self.mailSkel()
 
@@ -60,7 +62,8 @@ class Formmailer(BasicApplication):
 	def getOptions(self, skel):
 		return None
 
-	def onItemAdded( self, skel ):
+	def onItemAdded(self, skel):
 		pass
+
 
 Formmailer.html = True

@@ -3,6 +3,7 @@ from server.render.html.utils import jinjaGlobalFunction
 from datetime import date as date_orig, time as time_orig, timedelta as timedelta_orig
 from server.bones.dateBone import ExtendedDateTime as datetime_orig
 
+
 @jinjaGlobalFunction
 def dateTime(render):
 	"""
@@ -13,6 +14,7 @@ def dateTime(render):
 	"""
 	return datetime_orig
 
+
 @jinjaGlobalFunction
 def date(render):
 	"""
@@ -22,6 +24,7 @@ def date(render):
 	:rtype: date
 	"""
 	return date_orig
+
 
 @jinjaGlobalFunction
 def time(render):
@@ -43,4 +46,3 @@ def timedelta(render):
 	:rtype: timedelta
 	"""
 	return timedelta_orig
-

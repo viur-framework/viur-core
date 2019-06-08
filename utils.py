@@ -10,7 +10,7 @@ import logging
 from itertools import izip
 
 
-def generateRandomString( length=13 ):
+def generateRandomString(length=13):
 	"""
 	Return a string containing random characters of given *length*.
 	Its safe to use this string in URLs or HTML.
@@ -21,9 +21,9 @@ def generateRandomString( length=13 ):
 	:returns: A string with random characters of the given length.
 	:rtype: str
 	"""
-	return( ''.join( [
-				random.choice( string.ascii_lowercase + string.ascii_uppercase + string.digits )
-				for x in range( length ) ] ) )
+	return (''.join([
+		random.choice(string.ascii_lowercase + string.ascii_uppercase + string.digits)
+		for x in range(length)]))
 
 
 def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None, *args, **kwargs):
@@ -86,7 +86,6 @@ def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,
 		logging.warning("Invalid emailHandler configured, no email will be sent.")
 		return False
 
-
 	logging.debug("CALLING %s" % str(handler))
 
 	return handler(dests, name, skel, extraFiles=extraFiles, cc=cc, bcc=bcc, replyTo=replyTo, *args, **kwargs)
@@ -96,7 +95,7 @@ def _GAE_sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=
 	"""
 	Internal function for using Google App Engine Email processing API.
 	"""
-	headers, data = conf["viur.emailRenderer"]( skel, name, dests,**kwargs )
+	headers, data = conf["viur.emailRenderer"](skel, name, dests, **kwargs)
 
 	xheader = {}
 
@@ -111,11 +110,10 @@ def _GAE_sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=
 	else:
 		message = mail.EmailMessage()
 
-
 	mailfrom = "viur@%s.appspotmail.com" % app_identity.get_application_id()
 
 	if "subject" in headers:
-		message.subject =  "=?utf-8?B?%s?=" % base64.b64encode( headers["subject"].encode("UTF-8") )
+		message.subject = "=?utf-8?B?%s?=" % base64.b64encode(headers["subject"].encode("UTF-8"))
 	else:
 		message.subject = "No Subject"
 
@@ -125,20 +123,20 @@ def _GAE_sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=
 	if conf["viur.emailSenderOverride"]:
 		mailfrom = conf["viur.emailSenderOverride"]
 
-	if isinstance( dests, list ):
-		message.to = ", ".join( dests )
+	if isinstance(dests, list):
+		message.to = ", ".join(dests)
 	else:
 		message.to = dests
 
 	if cc:
-		if isinstance( cc, list ):
-			message.cc = ", ".join( cc )
+		if isinstance(cc, list):
+			message.cc = ", ".join(cc)
 		else:
 			message.cc = cc
 
 	if bcc:
-		if isinstance( bcc, list ):
-			message.bcc = ", ".join( bcc )
+		if isinstance(bcc, list):
+			message.bcc = ", ".join(bcc)
 		else:
 			message.bcc = bcc
 
@@ -146,14 +144,15 @@ def _GAE_sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=
 		message.reply_to = replyTo
 
 	message.sender = mailfrom
-	message.html = data.replace("\x00","").encode('ascii', 'xmlcharrefreplace')
+	message.html = data.replace("\x00", "").encode('ascii', 'xmlcharrefreplace')
 
-	if len( extraFiles )> 0:
+	if len(extraFiles) > 0:
 		message.attachments = extraFiles
 	message.send()
 	return True
 
-def sendEMailToAdmins( subject, body, sender=None ):
+
+def sendEMailToAdmins(subject, body, sender=None):
 	"""
 		Sends an e-mail to the appengine administration of the current app.
 		(all users having access to the applications dashboard)
@@ -170,10 +169,11 @@ def sendEMailToAdmins( subject, body, sender=None ):
 	if not sender:
 		sender = "viur@%s.appspotmail.com" % app_identity.get_application_id()
 
-	mail.send_mail_to_admins( sender, "=?utf-8?B?%s?=" % base64.b64encode( subject.encode("UTF-8") ),
-	                          body.encode('ascii', 'xmlcharrefreplace') )
+	mail.send_mail_to_admins(sender, "=?utf-8?B?%s?=" % base64.b64encode(subject.encode("UTF-8")),
+							 body.encode('ascii', 'xmlcharrefreplace'))
 
-def getCurrentUser( ):
+
+def getCurrentUser():
 	"""
 		Retrieve current user, if logged in.
 
@@ -186,12 +186,13 @@ def getCurrentUser( ):
 	"""
 	user = None
 
-	if "user" in dir( conf["viur.mainApp"] ): #Check for our custom user-api
+	if "user" in dir(conf["viur.mainApp"]):  # Check for our custom user-api
 		user = conf["viur.mainApp"].user.getCurrentUser()
 
-	return( user )
+	return (user)
 
-def markFileForDeletion( dlkey ):
+
+def markFileForDeletion(dlkey):
 	"""
 	Adds a marker to the data store that the file specified as *dlkey* can be deleted.
 
@@ -203,17 +204,18 @@ def markFileForDeletion( dlkey ):
 	:type dlkey: str
 	:param dlkey: Unique download-key of the file that shall be marked for deletion.
 	"""
-	fileObj = db.Query( "viur-deleted-files" ).filter( "dlkey", dlkey ).get()
+	fileObj = db.Query("viur-deleted-files").filter("dlkey", dlkey).get()
 
-	if fileObj: #Its allready marked
+	if fileObj:  # Its allready marked
 		return
 
-	fileObj = db.Entity( "viur-deleted-files" )
+	fileObj = db.Entity("viur-deleted-files")
 	fileObj["itercount"] = 0
-	fileObj["dlkey"] = str( dlkey )
-	db.Put( fileObj )
+	fileObj["dlkey"] = str(dlkey)
+	db.Put(fileObj)
 
-def escapeString( val, maxLength=254 ):
+
+def escapeString(val, maxLength=254):
 	"""
 		Quotes several characters and removes "\\\\n" and "\\\\0" to prevent XSS injection.
 
@@ -227,17 +229,17 @@ def escapeString( val, maxLength=254 ):
 		:rtype: str
 	"""
 	val = unicode(val).strip() \
-			.replace("<", "&lt;") \
-			.replace(">", "&gt;") \
-			.replace("\"", "&quot;") \
-			.replace("'", "&#39;") \
-			.replace("\n","") \
-			.replace("\0","")
+		.replace("<", "&lt;") \
+		.replace(">", "&gt;") \
+		.replace("\"", "&quot;") \
+		.replace("'", "&#39;") \
+		.replace("\n", "") \
+		.replace("\0", "")
 
 	if maxLength:
-		return( val[0:maxLength] )
+		return (val[0:maxLength])
 
-	return( val )
+	return (val)
 
 
 def safeStringComparison(s1, s2):
@@ -262,7 +264,8 @@ def safeStringComparison(s1, s2):
 			isOkay = False
 	return isOkay
 
-def normalizeKey( key ):
+
+def normalizeKey(key):
 	"""
 		Normalizes a datastore key (replacing _application with the current one)
 
@@ -281,4 +284,3 @@ def normalizeKey( key ):
 		parent = None
 
 	return str(db.Key.from_path(key.kind(), key.id_or_name(), parent=parent))
-

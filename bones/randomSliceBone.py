@@ -4,7 +4,8 @@ from server import db
 from random import random, sample, shuffle
 from itertools import chain
 
-class randomSliceBone( baseBone ):
+
+class randomSliceBone(baseBone):
 	"""
 		Simulates the orderby=random from SQL.
 		If you sort by this bone, the query will return a random set of elements from that query.
@@ -12,7 +13,7 @@ class randomSliceBone( baseBone ):
 
 	type = "randomslice"
 
-	def __init__(self, indexed=True, visible=False, readOnly=True, slices=2, sliceSize=0.5, *args,  **kwargs ):
+	def __init__(self, indexed=True, visible=False, readOnly=True, slices=2, sliceSize=0.5, *args, **kwargs):
 		"""
 			Initializes a new randomSliceBone.
 
@@ -20,7 +21,7 @@ class randomSliceBone( baseBone ):
 		"""
 		if not indexed or visible or not readOnly:
 			raise NotImplemented("A RandomSliceBone must be indexed, not visible and readonly!")
-		baseBone.__init__( self, indexed=True, visible=False, readOnly=True,  *args,  **kwargs )
+		baseBone.__init__(self, indexed=True, visible=False, readOnly=True, *args, **kwargs)
 		self.slices = slices
 		self.sliceSize = sliceSize
 
@@ -39,7 +40,7 @@ class randomSliceBone( baseBone ):
 		entity.set(name, random(), True)
 		return entity
 
-	def buildDBSort( self, name, skel, dbFilter, rawFilter ):
+	def buildDBSort(self, name, skel, dbFilter, rawFilter):
 		"""
 			Same as buildDBFilter, but this time its not about filtering
 			the results, but by sorting them.
@@ -60,6 +61,7 @@ class randomSliceBone( baseBone ):
 			:type rawFilter: dict
 			:returns: The modified :class:`server.db.Query`
 		"""
+
 		def applyFilterHook(dbfilter, property, value):
 			"""
 				Applies dbfilter._filterHook to the given filter if set,
@@ -85,27 +87,28 @@ class randomSliceBone( baseBone ):
 
 		if "orderby" in rawFilter and rawFilter["orderby"] == name:
 			# We select a random set of elements from that collection
-			assert not isinstance(dbFilter.datastoreQuery, db.MultiQuery), "Orderby random is not possible on a query that already uses an IN-filter!"
+			assert not isinstance(dbFilter.datastoreQuery,
+								  db.MultiQuery), "Orderby random is not possible on a query that already uses an IN-filter!"
 			origFilter = dbFilter.datastoreQuery
 			origKind = dbFilter.getKind()
 			queries = []
-			for unused in range(0,self.slices): #Fetch 3 Slices from the set
-				rndVal = random() # Choose our Slice center
+			for unused in range(0, self.slices):  # Fetch 3 Slices from the set
+				rndVal = random()  # Choose our Slice center
 				# Right Side
-				q = db.DatastoreQuery( kind=origKind )
+				q = db.DatastoreQuery(kind=origKind)
 				property, value = applyFilterHook(dbFilter, "%s <=" % name, rndVal)
 				q[property] = value
-				q.Order( (name, db.DESCENDING) )
-				queries.append( q )
+				q.Order((name, db.DESCENDING))
+				queries.append(q)
 				# Left Side
-				q = db.DatastoreQuery( kind=origKind )
+				q = db.DatastoreQuery(kind=origKind)
 				property, value = applyFilterHook(dbFilter, "%s >" % name, rndVal)
 				q[property] = value
-				queries.append( q )
+				queries.append(q)
 			dbFilter.datastoreQuery = db.MultiQuery(queries, None)
 			# Map the original filter back in
 			for k, v in origFilter.items():
-				dbFilter.datastoreQuery[ k ] = v
+				dbFilter.datastoreQuery[k] = v
 			dbFilter._customMultiQueryMerge = self.customMultiQueryMerge
 			dbFilter._calculateInternalMultiQueryAmount = self.calculateInternalMultiQueryAmount
 
@@ -118,8 +121,7 @@ class randomSliceBone( baseBone ):
 			:returns: The amount of elements db.Query should fetch on each subquery
 			:rtype: int
 		"""
-		return int(targetAmount*self.sliceSize)
-
+		return int(targetAmount * self.sliceSize)
 
 	def customMultiQueryMerge(self, dbFilter, result, targetAmount):
 		"""
@@ -139,7 +141,7 @@ class randomSliceBone( baseBone ):
 		# Remove duplicates
 		tmpDict = {}
 		for item in res:
-			tmpDict[ str(item.key()) ] = item
+			tmpDict[str(item.key())] = item
 		res = list(tmpDict.values())
 		# Slice the requested amount of results our 3times lager set
 		res = sample(res, min(len(res), targetAmount))

@@ -1,20 +1,20 @@
 # -*- coding: utf-8 -*-
 de = {
-	"const_day_0_short": u"Son", #Abkuerzungen Tagesnamen (Start mit Sonntag)
+	"const_day_0_short": u"Son",  # Abkuerzungen Tagesnamen (Start mit Sonntag)
 	"const_day_1_short": u"Mon",
 	"const_day_2_short": u"Die",
 	"const_day_3_short": u"Mit",
 	"const_day_4_short": u"Don",
 	"const_day_5_short": u"Fre",
 	"const_day_6_short": u"Sam",
-	"const_day_0_long": u"Sonntag", #Ganze Tagesnamen (Start mit Sonntag)
+	"const_day_0_long": u"Sonntag",  # Ganze Tagesnamen (Start mit Sonntag)
 	"const_day_1_long": u"Montag",
 	"const_day_2_long": u"Dienstag",
 	"const_day_3_long": u"Mittwoch",
 	"const_day_4_long": u"Donnerstag",
 	"const_day_5_long": u"Freitag",
 	"const_day_6_long": u"Samstag",
-	"const_month_1_short": u"Jan", #Abkuerzungen Monatsnamen
+	"const_month_1_short": u"Jan",  # Abkuerzungen Monatsnamen
 	"const_month_2_short": u"Feb",
 	"const_month_3_short": u"Mrz",
 	"const_month_4_short": u"Apr",
@@ -26,7 +26,7 @@ de = {
 	"const_month_10_short": u"Okt",
 	"const_month_11_short": u"Nov",
 	"const_month_12_short": u"Dez",
-	"const_month_1_long": u"Januar", #Ganze Monatsnamen
+	"const_month_1_long": u"Januar",  # Ganze Monatsnamen
 	"const_month_2_long": u"Februar",
 	"const_month_3_long": u"März",
 	"const_month_4_long": u"April",
@@ -38,35 +38,35 @@ de = {
 	"const_month_10_long": u"Oktober",
 	"const_month_11_long": u"November",
 	"const_month_12_long": u"Dezember",
-	"const_datetimeformat": u"%a %d %b %Y %H:%M:%S ", # Format: Datum mit Zeit
-	"const_timeformat": u"%H:%M:%S", # Format: Nur Zeit
-	"const_dateformat": u"%d.%m.%Y", # Format: Nur Datum
-	"search":u"Suche",
-	"list":u"Liste",
-	"my files":u"Meine Dateien",
-	"orders":u"Bestellungen",
-	"pages":u"Seiten",
-	"user":u"Benutzer",
-	"no value entered":u"Kein Wert angegeben",
-	"invalid emailaddress":u"Ungültige Emailadresse",
-	"invalid value entered":u"Ungültiger Wert eingegeben",
-	"invalid mode selected":u"Ungültiger Modus eingegeben",
-	"no item selected":u"Kein Element ausgewählt",
-	"no or invalid value selected":u"Kein oder ungültiger Wert ausgewählt",
-	"invalid path supplied":u"Ungültiger Pfad angegeben",
+	"const_datetimeformat": u"%a %d %b %Y %H:%M:%S ",  # Format: Datum mit Zeit
+	"const_timeformat": u"%H:%M:%S",  # Format: Nur Zeit
+	"const_dateformat": u"%d.%m.%Y",  # Format: Nur Datum
+	"search": u"Suche",
+	"list": u"Liste",
+	"my files": u"Meine Dateien",
+	"orders": u"Bestellungen",
+	"pages": u"Seiten",
+	"user": u"Benutzer",
+	"no value entered": u"Kein Wert angegeben",
+	"invalid emailaddress": u"Ungültige Emailadresse",
+	"invalid value entered": u"Ungültiger Wert eingegeben",
+	"invalid mode selected": u"Ungültiger Modus eingegeben",
+	"no item selected": u"Kein Element ausgewählt",
+	"no or invalid value selected": u"Kein oder ungültiger Wert ausgewählt",
+	"invalid path supplied": u"Ungültiger Pfad angegeben",
 	"grand total": u"Gesamtpreis",
 	"archived": u"Archiviert",
-	"not shipped":u"Nicht versendet",
-	"ready to ship":u"Versandbereit",
+	"not shipped": u"Nicht versendet",
+	"ready to ship": u"Versandbereit",
 	"shipped": u"Versendet",
 	"unpaid": u"Unbezahlt",
 	"created at": u"Erstellt am",
 	"updated at": u"Aktualisiert am",
 
-	"waiting for email verification":u"wartet auf Bestätigung der E-Mailadresse",
-	"waiting for verification through admin":u"warte auf Freischaltung durch Administrator",
-	"account disabled":u"deaktiviert",
-	"active":u"aktiv",
+	"waiting for email verification": u"wartet auf Bestätigung der E-Mailadresse",
+	"waiting for verification through admin": u"warte auf Freischaltung durch Administrator",
+	"account disabled": u"deaktiviert",
+	"active": u"aktiv",
 
 	# Titles
 	"mr.": u"Herr",

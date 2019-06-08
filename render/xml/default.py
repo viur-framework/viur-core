@@ -4,29 +4,30 @@ from collections import OrderedDict
 from xml.dom import minidom
 from datetime import datetime, date, time
 
-def serializeXML( data ):
-	def recursiveSerializer( data, element ):
+
+def serializeXML(data):
+	def recursiveSerializer(data, element):
 		if isinstance(data, dict):
 			element.setAttribute('ViurDataType', 'dict')
 			for key in data.keys():
-				childElement = recursiveSerializer(data[key], doc.createElement(key) )
-				element.appendChild( childElement )
+				childElement = recursiveSerializer(data[key], doc.createElement(key))
+				element.appendChild(childElement)
 		elif isinstance(data, (tuple, list)):
 			element.setAttribute('ViurDataType', 'list')
 			for value in data:
-				childElement = recursiveSerializer(value, doc.createElement('entry') )
-				element.appendChild( childElement )
+				childElement = recursiveSerializer(value, doc.createElement('entry'))
+				element.appendChild(childElement)
 		else:
-			if isinstance(data ,  bool):
+			if isinstance(data, bool):
 				element.setAttribute('ViurDataType', 'boolean')
-			elif isinstance( data, float ) or isinstance( data, int ):
+			elif isinstance(data, float) or isinstance(data, int):
 				element.setAttribute('ViurDataType', 'numeric')
-			elif isinstance( data, str ) or isinstance( data, unicode ):
+			elif isinstance(data, str) or isinstance(data, unicode):
 				element.setAttribute('ViurDataType', 'string')
-			elif isinstance( data, datetime ) or isinstance( data, date ) or isinstance( data, time ):
-				if isinstance( data, datetime ):
+			elif isinstance(data, datetime) or isinstance(data, date) or isinstance(data, time):
+				if isinstance(data, datetime):
 					element.setAttribute('ViurDataType', 'datetime')
-				elif isinstance( data, date ):
+				elif isinstance(data, date):
 					element.setAttribute('ViurDataType', 'date')
 				else:
 					element.setAttribute('ViurDataType', 'time')
@@ -36,18 +37,19 @@ def serializeXML( data ):
 				data = ""
 			else:
 				raise NotImplementedError("Type %s is not supported!" % type(data))
-			element.appendChild( doc.createTextNode( unicode(data) ) )
+			element.appendChild(doc.createTextNode(unicode(data)))
 		return element
 
 	dom = minidom.getDOMImplementation()
 	doc = dom.createDocument(None, u"ViurResult", None)
 	elem = doc.childNodes[0]
-	return( recursiveSerializer( data, elem ).toprettyxml(encoding="UTF-8") )
+	return (recursiveSerializer(data, elem).toprettyxml(encoding="UTF-8"))
 
-class DefaultRender( object ):
 
-	def __init__(self, parent=None, *args, **kwargs ):
-		super( DefaultRender,  self ).__init__( *args, **kwargs )
+class DefaultRender(object):
+
+	def __init__(self, parent=None, *args, **kwargs):
+		super(DefaultRender, self).__init__(*args, **kwargs)
 
 	def renderBoneStructure(self, bone):
 		"""
@@ -66,9 +68,9 @@ class DefaultRender( object ):
 		# Base bone contents.
 		ret = {
 			"descr": _(bone.descr),
-	        "type": bone.type,
-			"required":bone.required,
-			"params":bone.params,
+			"type": bone.type,
+			"required": bone.required,
+			"params": bone.params,
 			"visible": bone.visible,
 			"readOnly": bone.readOnly
 		}
@@ -97,13 +99,13 @@ class DefaultRender( object ):
 		elif isinstance(bone, dateBone):
 			ret.update({
 				"date": bone.date,
-	            "time": bone.time
+				"time": bone.time
 			})
 
 		elif isinstance(bone, numericBone):
 			ret.update({
 				"precision": bone.precision,
-		        "min": bone.min,
+				"min": bone.min,
 				"max": bone.max
 			})
 
@@ -142,19 +144,19 @@ class DefaultRender( object ):
 			res[key] = self.renderBoneStructure(bone)
 
 			if key in skel.errors:
-				res[key]["error"] = skel.errors[ key ]
-			elif any( [x.startswith("%s." % key) for x in skel.errors.keys()]):
-				res[key]["error"] = {k:v for k,v in skel.errors.items() if k.startswith("%s." % key )}
+				res[key]["error"] = skel.errors[key]
+			elif any([x.startswith("%s." % key) for x in skel.errors.keys()]):
+				res[key]["error"] = {k: v for k, v in skel.errors.items() if k.startswith("%s." % key)}
 			else:
 				res[key]["error"] = None
 
 		return [(key, val) for key, val in res.items()]
 
-	def renderTextExtension(self, ext ):
+	def renderTextExtension(self, ext):
 		e = ext()
-		return( {"name": e.name,
-				"descr": _( e.descr ),
-				"skel": self.renderSkelStructure( e.dataSkel() ) } )
+		return ({"name": e.name,
+				 "descr": _(e.descr),
+				 "skel": self.renderSkelStructure(e.dataSkel())})
 
 	def renderBoneValue(self, bone):
 		"""
@@ -186,7 +188,7 @@ class DefaultRender( object ):
 				for k in bone.value:
 					tmpList.append({
 						"dest": self.renderSkelValues(k["dest"]),
-			            "rel": self.renderSkelValues(k.get("rel"))
+						"rel": self.renderSkelValues(k.get("rel"))
 					})
 
 				return tmpList
@@ -194,7 +196,7 @@ class DefaultRender( object ):
 			elif isinstance(bone.value, dict):
 				return {
 					"dest": self.renderSkelValues(bone.value["dest"]),
-				    "rel": self.renderSkelValues(bone.value.get("rel"))
+					"rel": self.renderSkelValues(bone.value.get("rel"))
 				}
 		else:
 			return bone.value
@@ -222,7 +224,7 @@ class DefaultRender( object ):
 
 		return res
 
-	def renderEntry(self, skel, action, params = None):
+	def renderEntry(self, skel, action, params=None):
 		res = {
 			"action": action,
 			"params": params,
@@ -232,10 +234,10 @@ class DefaultRender( object ):
 
 		return serializeXML(res)
 
-	def view( self, skel, action="view", params = None, *args, **kwargs):
+	def view(self, skel, action="view", params=None, *args, **kwargs):
 		return self.renderEntry(skel, action, params)
 
-	def add( self, skel, action="add", params = None, *args, **kwargs):
+	def add(self, skel, action="add", params=None, *args, **kwargs):
 		return self.renderEntry(skel, action, params)
 
 	def edit(self, skel, action="edit", params=None, *args, **kwargs):
@@ -246,12 +248,12 @@ class DefaultRender( object ):
 		skels = []
 
 		for skel in skellist:
-			skels.append( self.renderSkelValues( skel ) )
+			skels.append(self.renderSkelValues(skel))
 
 		res["skellist"] = skels
 
-		if( len( skellist )>0 ):
-			res["structure"] = self.renderSkelStructure( skellist[0] )
+		if (len(skellist) > 0):
+			res["structure"] = self.renderSkelStructure(skellist[0])
 		else:
 			res["structure"] = None
 
@@ -262,28 +264,28 @@ class DefaultRender( object ):
 		return serializeXML(res)
 
 	def editItemSuccess(self, skel, params=None, **kwargs):
-		return( serializeXML("OKAY") )
+		return (serializeXML("OKAY"))
 
 	def addItemSuccess(self, skel, params=None, **kwargs):
-		return( serializeXML("OKAY") )
-		
-	def addDirSuccess(self, rootNode,  path, dirname, params=None, *args, **kwargs):
-		return( serializeXML( "OKAY") )
+		return (serializeXML("OKAY"))
+
+	def addDirSuccess(self, rootNode, path, dirname, params=None, *args, **kwargs):
+		return (serializeXML("OKAY"))
 
 	def renameSuccess(self, rootNode, path, src, dest, params=None, *args, **kwargs):
-		return( serializeXML( "OKAY") )
+		return (serializeXML("OKAY"))
 
 	def copySuccess(self, srcrepo, srcpath, name, destrepo, destpath, type, deleteold, params=None, *args, **kwargs):
-		return( serializeXML( "OKAY") )
+		return (serializeXML("OKAY"))
 
 	def deleteSuccess(self, skel, params=None, *args, **kwargs):
-		return( serializeXML( "OKAY") )
+		return (serializeXML("OKAY"))
 
 	def reparentSuccess(self, obj, tpl=None, params=None, *args, **kwargs):
-		return( serializeXML( "OKAY") )
+		return (serializeXML("OKAY"))
 
 	def setIndexSuccess(self, obj, tpl=None, params=None, *args, **kwargs):
-		return( serializeXML( "OKAY") )
+		return (serializeXML("OKAY"))
 
 	def cloneSuccess(self, tpl=None, params=None, *args, **kwargs):
-		return( serializeXML( "OKAY") )
+		return (serializeXML("OKAY"))

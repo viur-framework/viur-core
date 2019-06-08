@@ -9,7 +9,8 @@ from itertools import izip, starmap
 from server.config import conf
 import string, random
 
-def pbkdf2( password, salt, iterations=1001, keylen=42):
+
+def pbkdf2(password, salt, iterations=1001, keylen=42):
 	"""
 		An implementation of PBKDF2 (http://wikipedia.org/wiki/PBKDF2)
 		
@@ -20,15 +21,17 @@ def pbkdf2( password, salt, iterations=1001, keylen=42):
 		:license: BSD, see LICENSE for more details.
 	"""
 	_pack_int = Struct('>I').pack
-	if isinstance( password, unicode ):
+	if isinstance(password, unicode):
 		password = password.encode("UTF-8")
-	if isinstance( salt, unicode ):
+	if isinstance(salt, unicode):
 		salt = salt.encode("UTF-8")
 	mac = hmac.new(password, None, sha256)
+
 	def _pseudorandom(x, mac=mac):
 		h = mac.copy()
 		h.update(x)
 		return map(ord, h.digest())
+
 	buf = []
 	for block in xrange(1, -(-keylen // mac.digest_size) + 1):
 		rv = u = _pseudorandom(salt + _pack_int(block))
@@ -39,7 +42,7 @@ def pbkdf2( password, salt, iterations=1001, keylen=42):
 	return (''.join(map(chr, buf))[:keylen]).encode("hex")
 
 
-class passwordBone( stringBone ):
+class passwordBone(stringBone):
 	"""
 		A bone holding passwords.
 		This is always empty if read from the database.
@@ -51,11 +54,12 @@ class passwordBone( stringBone ):
 	saltLength = 13
 	minPasswordLength = 8
 	passwordTests = [
-				lambda val: val.lower()!=val, #Do we have upper-case characters?
-				lambda val: val.upper()!=val, #Do we have lower-case characters?
-				lambda val: any([x in val for x in "0123456789"]), #Do we have any digits?
-				lambda val: any([x not in (string.ascii_lowercase + string.ascii_uppercase + string.digits) for x in val]), #Special characters?
-			]
+		lambda val: val.lower() != val,  # Do we have upper-case characters?
+		lambda val: val.upper() != val,  # Do we have lower-case characters?
+		lambda val: any([x in val for x in "0123456789"]),  # Do we have any digits?
+		lambda val: any([x not in (string.ascii_lowercase + string.ascii_uppercase + string.digits) for x in val]),
+		# Special characters?
+	]
 	passwordTestThreshold = 3
 
 	def isInvalid(self, value):
@@ -64,7 +68,7 @@ class passwordBone( stringBone ):
 
 		if len(value) < self.minPasswordLength:
 			return _("The entered password is to short - it requires at least {{length}} characters.",
-			            length=self.minPasswordLength)
+					 length=self.minPasswordLength)
 
 		# Run our password test suite
 		testResults = []
@@ -76,7 +80,7 @@ class passwordBone( stringBone ):
 
 		return False
 
-	def fromClient( self, valuesCache, name, data ):
+	def fromClient(self, valuesCache, name, data):
 		value = data.get(name)
 		if not value:
 			return "No value entered"
@@ -87,14 +91,14 @@ class passwordBone( stringBone ):
 
 		valuesCache[name] = value
 
-	def serialize( self, valuesCache, name, entity ):
-		if valuesCache.get(name,None) and valuesCache[name] != "":
+	def serialize(self, valuesCache, name, entity):
+		if valuesCache.get(name, None) and valuesCache[name] != "":
 			salt = utils.generateRandomString(self.saltLength)
-			passwd = pbkdf2( valuesCache[name][ : conf["viur.maxPasswordLength"] ], salt )
-			entity.set( name, passwd, self.indexed )
-			entity.set( "%s_salt" % name, salt, self.indexed )
+			passwd = pbkdf2(valuesCache[name][: conf["viur.maxPasswordLength"]], salt)
+			entity.set(name, passwd, self.indexed)
+			entity.set("%s_salt" % name, salt, self.indexed)
 
 		return entity
 
-	def unserialize( self, valuesCache, name, values ):
+	def unserialize(self, valuesCache, name, values):
 		return {name: ""}

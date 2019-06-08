@@ -27,65 +27,66 @@ import logging
 	It returns None instead of raising an Exception if the key is not found.
 """
 
-class SessionWrapper( threading.local ):
+
+class SessionWrapper(threading.local):
 	cookieName = "viurCookie"
 
-	def __init__( self, sessionFactory, *args, **kwargs ):
-		super( SessionWrapper, self ).__init__( *args, **kwargs )
+	def __init__(self, sessionFactory, *args, **kwargs):
+		super(SessionWrapper, self).__init__(*args, **kwargs)
 		self.factory = sessionFactory
 
-	def load( self, req ):
-		if not "session" in dir( self ):
+	def load(self, req):
+		if not "session" in dir(self):
 			self.session = self.factory()
-		return( self.session.load( req ) )
+		return (self.session.load(req))
 
-	def __contains__( self, key ):
+	def __contains__(self, key):
 		try:
-			return( key in self.session )
+			return (key in self.session)
 		except AttributeError:
-			return( False )
+			return (False)
 
-	def __delitem__(self, key ):
+	def __delitem__(self, key):
 		del self.session[key]
 
-	def __getitem__( self, key ):
+	def __getitem__(self, key):
 		try:
-			if key=="skeys":
-				r = self.session.get( key )
-				assert r is None or isinstance(r,list)
-			return( self.session[ key ] )
+			if key == "skeys":
+				r = self.session.get(key)
+				assert r is None or isinstance(r, list)
+			return (self.session[key])
 		except AttributeError:
-			return( None )
+			return (None)
 
-	def get( self, key ):#fixme
+	def get(self, key):  # fixme
 		"""For compatibility with cherrypy"""
 		try:
-			if key=="skeys":
-				r = self.session.get( key )
-				assert r is None or isinstance(r,list)
-			return( self.session.get( key ) )
+			if key == "skeys":
+				r = self.session.get(key)
+				assert r is None or isinstance(r, list)
+			return (self.session.get(key))
 		except AttributeError:
-			return( None )
+			return (None)
 
-	def __setitem__( self, key, item ):
+	def __setitem__(self, key, item):
 		try:
-			if key=="skeys":
-				assert item is None or isinstance(item,list)
-			self.session[ key ] = item
+			if key == "skeys":
+				assert item is None or isinstance(item, list)
+			self.session[key] = item
 		except AttributeError:
 			pass
 
 	def save(self, req):
 		try:
-			return( self.session.save( req ))
+			return (self.session.save(req))
 		except AttributeError:
-			return( None )
+			return (None)
 
 	def getSessionKey(self, req=None):
 		try:
-			return( self.session.getSessionKey( req ) )
+			return (self.session.getSessionKey(req))
 		except AttributeError:
-			return( None )
+			return (None)
 
 	def markChanged(self):
 		try:
@@ -95,34 +96,33 @@ class SessionWrapper( threading.local ):
 
 	def reset(self):
 		try:
-			return( self.session.reset() )
+			return (self.session.reset())
 		except AttributeError:
 			pass
 
-	def getLanguage( self ):
+	def getLanguage(self):
 		try:
-			return( self.session.get( "language" ) )
+			return (self.session.get("language"))
 		except AttributeError:
-			return( None )
+			return (None)
 
-	def setLanguage( self, lang ):
+	def setLanguage(self, lang):
 		try:
-			self.session[ "language" ] = lang
+			self.session["language"] = lang
 		except AttributeError:
 			pass
 
 	def getSessionSecurityKey(self):
 		try:
-			return( self.session.getSessionSecurityKey() )
+			return (self.session.getSessionSecurityKey())
 		except AttributeError:
-			return( "" )
-
+			return ("")
 
 	def items(self):
 		try:
-			return( self.session.items() )
+			return (self.session.items())
 		except AttributeError:
-			return( [] )
+			return ([])
 
 
 class GaeSession:
@@ -132,7 +132,7 @@ class GaeSession:
 
 	"""Store Sessions inside the Big Table/Memcache"""
 
-	def load( self, req ):
+	def load(self, req):
 		"""
 			Initializes the Session.
 
@@ -146,31 +146,32 @@ class GaeSession:
 		self.sessionSecurityKey = None
 		self.session = {}
 		if self.plainCookieName in req.request.cookies:
-			cookie = req.request.cookies[ self.plainCookieName ]
+			cookie = req.request.cookies[self.plainCookieName]
 			try:
-				data = db.Get( db.Key.from_path( self.kindName, cookie ) )
+				data = db.Get(db.Key.from_path(self.kindName, cookie))
 			except:
-				return( False )
-			if data: #Loaded successfully from Memcache
-				if data["lastseen"] < time() - conf[ "viur.session.lifeTime" ]:
+				return (False)
+			if data:  # Loaded successfully from Memcache
+				if data["lastseen"] < time() - conf["viur.session.lifeTime"]:
 					# This session is too old
-					return( False )
+					return (False)
 
-				self.session = pickle.loads( base64.b64decode(data["data"]) )
+				self.session = pickle.loads(base64.b64decode(data["data"]))
 				self.sslKey = data["sslkey"]
 				if "skey" in data:
 					self.sessionSecurityKey = data["skey"]
 				else:
 					self.reset()
-				if data["lastseen"] < time()-5*60: #Refresh every 5 Minutes
+				if data["lastseen"] < time() - 5 * 60:  # Refresh every 5 Minutes
 					self.changed = True
-			if req.isSSLConnection and not (self.sslCookieName in req.request.cookies and req.request.cookies[ self.sslCookieName ] == self.sslKey and self.sslKey ):
+			if req.isSSLConnection and not (self.sslCookieName in req.request.cookies and req.request.cookies[
+				self.sslCookieName] == self.sslKey and self.sslKey):
 				if self.sslKey:
 					logging.warning("Possible session hijack attempt! Session dropped.")
 				self.reset()
-				return( False )
-			self.key = str( cookie )
-			return( True )
+				return (False)
+			self.key = str(cookie)
+			return (True)
 
 	def save(self, req):
 		"""
@@ -179,38 +180,40 @@ class GaeSession:
 			Does nothing, if the session hasn't been changed in the current request.
 		"""
 		if self.changed:
-			serialized = base64.b64encode( pickle.dumps(self.session, protocol=pickle.HIGHEST_PROTOCOL ) )
-			self.getSessionKey( req )
+			serialized = base64.b64encode(pickle.dumps(self.session, protocol=pickle.HIGHEST_PROTOCOL))
+			self.getSessionKey(req)
 			# Get the current user id
 			userid = None
 			try:
-				if "user" in dir( conf["viur.mainApp"] ): #Check for our custom user-api
+				if "user" in dir(conf["viur.mainApp"]):  # Check for our custom user-api
 					userid = conf["viur.mainApp"].user.getCurrentUser()["key"]
 			except:
 				pass
 			try:
-				dbSession = db.Entity( self.kindName, name=self.key )
+				dbSession = db.Entity(self.kindName, name=self.key)
 				dbSession["data"] = serialized
 				dbSession["sslkey"] = self.sslKey
 				dbSession["skey"] = self.sessionSecurityKey
 				dbSession["lastseen"] = time()
-				dbSession["user"] = str(userid) or "guest" #Store the userid inside the sessionobj, so we can kill specific sessions if needed
-				dbSession.set_unindexed_properties( ["data","sslkey" ] )
-				db.Put( dbSession )
+				dbSession["user"] = str(
+					userid) or "guest"  # Store the userid inside the sessionobj, so we can kill specific sessions if needed
+				dbSession.set_unindexed_properties(["data", "sslkey"])
+				db.Put(dbSession)
 			except (OverQuotaError, CapabilityDisabledError):
 				pass
-			req.response.headers.add_header( "Set-Cookie", bytes( "%s=%s; Max-Age=99999; Path=/; HttpOnly" % ( self.plainCookieName, self.key ) ) )
+			req.response.headers.add_header("Set-Cookie", bytes(
+				"%s=%s; Max-Age=99999; Path=/; HttpOnly" % (self.plainCookieName, self.key)))
 			if req.isSSLConnection:
-				req.response.headers.add_header( "Set-Cookie", bytes( "%s=%s; Max-Age=99999; Path=/; Secure; HttpOnly" % ( self.sslCookieName, self.sslKey ) ) )
+				req.response.headers.add_header("Set-Cookie", bytes(
+					"%s=%s; Max-Age=99999; Path=/; Secure; HttpOnly" % (self.sslCookieName, self.sslKey)))
 
-
-	def __contains__( self, key ):
+	def __contains__(self, key):
 		"""
 			Returns True if the given *key* is set in the current session.
 		"""
-		return( key in self.session )
+		return (key in self.session)
 
-	def __delitem__(self, key ):
+	def __delitem__(self, key):
 		"""
 			Removes a *key* from the session.
 
@@ -219,15 +222,15 @@ class GaeSession:
 		del self.session[key]
 		self.changed = True
 
-	def __getitem__( self, key ):
+	def __getitem__(self, key):
 		"""
 			Returns the value stored under the given *key*.
 
 			The key must exist.
 		"""
-		return( self.session[ key ] )
+		return (self.session[key])
 
-	def get( self, key ):
+	def get(self, key):
 		"""
 			Returns the value stored under the given key.
 
@@ -236,19 +239,19 @@ class GaeSession:
 
 			:return: Returns None if the key doesn't exist.
 		"""
-		if( key in self.session ):
-			return( self.session[ key ] )
+		if (key in self.session):
+			return (self.session[key])
 		else:
-			return( None )
+			return (None)
 
-	def __setitem__( self, key, item ):
+	def __setitem__(self, key, item):
 		"""
 			Stores a new value under the given key.
 
 			If that key exists before, its value is
 			overwritten.
 		"""
-		self.session[ key ] = item
+		self.session[key] = item
 		self.changed = True
 
 	def markChanged(self):
@@ -280,41 +283,45 @@ class GaeSession:
 		if lang:
 			self.session["language"] = lang
 
-	def getSessionKey( self, req=None ):
+	def getSessionKey(self, req=None):
 		"""
 			Ensures that the current session is initialized
 			and returns its session-key.
 		"""
 		self.changed = True
-		if self.key: # We are already initialized
-			return( self.key )
+		if self.key:  # We are already initialized
+			return (self.key)
 		if req is None:
 			from server.request import current
 			req = current.get()
-		self.key = ''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase + string.digits) for x in range(42))
+		self.key = ''.join(
+			random.choice(string.ascii_lowercase + string.ascii_uppercase + string.digits) for x in range(42))
 		if req.isSSLConnection:
-			self.sslKey = ''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase + string.digits) for x in range(42))
+			self.sslKey = ''.join(
+				random.choice(string.ascii_lowercase + string.ascii_uppercase + string.digits) for x in range(42))
 		else:
 			self.sslKey = ""
-		self.sessionSecurityKey = ''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase + string.digits) for x in range(13))
-		return( self.key )
+		self.sessionSecurityKey = ''.join(
+			random.choice(string.ascii_lowercase + string.ascii_uppercase + string.digits) for x in range(13))
+		return (self.key)
 
 	def getSessionSecurityKey(self):
 		"""
 			Returns the security key for this session.
 		"""
 		if self.sessionSecurityKey:
-			return( self.sessionSecurityKey )
-		return( "" )
+			return (self.sessionSecurityKey)
+		return ("")
 
 	def items(self):
 		"""
 			Returns all items in the current session.
 		"""
-		return( self.session.items() )
+		return (self.session.items())
+
 
 @callDeferred
-def killSessionByUser( user=None ):
+def killSessionByUser(user=None):
 	"""
 		Invalidates all active sessions for the given *user*.
 
@@ -326,29 +333,32 @@ def killSessionByUser( user=None ):
 		:param user: UserID, "guest" or None.
 		:type user: str | None
 	"""
-	logging.error("Invalidating all sessions for %s" % user )
-	query = db.Query( GaeSession.kindName )
+	logging.error("Invalidating all sessions for %s" % user)
+	query = db.Query(GaeSession.kindName)
 	if user is not None:
-		query.filter( "user =", str(user) )
+		query.filter("user =", str(user))
 	for key in query.iter(keysOnly=True):
-		db.Delete( key )
+		db.Delete(key)
 
-@PeriodicTask(60*4)
+
+@PeriodicTask(60 * 4)
 def startClearSessions():
 	"""
 		Removes old (expired) Sessions
 	"""
-	doClearSessions( time() - ( conf[ "viur.session.lifeTime" ] + 300 ), None )
+	doClearSessions(time() - (conf["viur.session.lifeTime"] + 300), None)
+
 
 @callDeferred
-def doClearSessions( timeStamp, cursor ):
+def doClearSessions(timeStamp, cursor):
 	gotAtLeastOne = False
-	query = db.Query( GaeSession.kindName ).filter( "lastseen <", timeStamp )
+	query = db.Query(GaeSession.kindName).filter("lastseen <", timeStamp)
 	for oldKey in query.run(100, keysOnly=True):
 		gotAtLeastOne = True
-		db.Delete( oldKey )
+		db.Delete(oldKey)
 	newCursor = query.getCursor()
-	if gotAtLeastOne and newCursor and newCursor.urlsafe()!=cursor:
-		doClearSessions( timeStamp, newCursor.urlsafe() )
+	if gotAtLeastOne and newCursor and newCursor.urlsafe() != cursor:
+		doClearSessions(timeStamp, newCursor.urlsafe())
 
-current = SessionWrapper( GaeSession )
+
+current = SessionWrapper(GaeSession)

@@ -7,37 +7,45 @@ from server import conf
 from server import securitykey
 import datetime
 
+__all__ = [default]
 
-__all__=[ default ]
 
-def genSkey( *args,  **kwargs ):
-	return( "<securityKey>%s</securityKey>" % securitykey.create() )
-genSkey.exposed=True
+def genSkey(*args, **kwargs):
+	return ("<securityKey>%s</securityKey>" % securitykey.create())
 
-def timestamp( *args, **kwargs):
+
+genSkey.exposed = True
+
+
+def timestamp(*args, **kwargs):
 	d = datetime.datetime.now()
-	return( serializeXML( d.strftime("%Y-%m-%dT%H-%M-%S") ) )
-timestamp.exposed=True
+	return (serializeXML(d.strftime("%Y-%m-%dT%H-%M-%S")))
 
-def generateAdminConfig( adminTree ):
+
+timestamp.exposed = True
+
+
+def generateAdminConfig(adminTree):
 	res = {}
-	for key in dir( adminTree ):
-		app = getattr( adminTree, key )
-		if "adminInfo" in dir( app ) and app.adminInfo:
-			res[ key ] = app.adminInfo
-	return( res )
-	
-def dumpConfig( adminConfig ):
-	return serializeXML( {
-		"capabilities": conf["viur.capabilities"], 
-		"modules": adminConfig
-		} )
+	for key in dir(adminTree):
+		app = getattr(adminTree, key)
+		if "adminInfo" in dir(app) and app.adminInfo:
+			res[key] = app.adminInfo
+	return (res)
 
-def _postProcessAppObj( obj ):
+
+def dumpConfig(adminConfig):
+	return serializeXML({
+		"capabilities": conf["viur.capabilities"],
+		"modules": adminConfig
+	})
+
+
+def _postProcessAppObj(obj):
 	obj.skey = genSkey
 	obj.timestamp = timestamp
-	adminConfig = generateAdminConfig( obj )
-	tmp = lambda *args, **kwargs: dumpConfig( adminConfig )
-	tmp.exposed=True
+	adminConfig = generateAdminConfig(obj)
+	tmp = lambda *args, **kwargs: dumpConfig(adminConfig)
+	tmp.exposed = True
 	obj.config = tmp
 	return obj

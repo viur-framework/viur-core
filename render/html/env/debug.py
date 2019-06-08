@@ -3,8 +3,9 @@ from server.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
 from logging import critical, error, warning, debug, info
 import pprint
 
+
 @jinjaGlobalFunction
-def logging(render, msg, kind = "info", **kwargs):
+def logging(render, msg, kind="info", **kwargs):
 	"""
 	Jinja2 global: Write log-level entry.
 	The function shall be used for debug and tracing purposes.
@@ -28,6 +29,7 @@ def logging(render, msg, kind = "info", **kwargs):
 		debug(msg, **kwargs)
 	else:
 		info(msg, **kwargs)
+
 
 @jinjaGlobalFunction
 def pprint(render, obj):

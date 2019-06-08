@@ -2,6 +2,7 @@
 from server import session
 from server.render.html.utils import jinjaGlobalFunction
 
+
 @jinjaGlobalFunction
 def getSession(render):
 	"""
@@ -16,6 +17,7 @@ def getSession(render):
 		session.current["JinjaSpace"] = {}
 
 	return session.current.get("JinjaSpace")
+
 
 @jinjaGlobalFunction
 def setSession(render, name, value):

@@ -2,6 +2,7 @@
 from server.config import conf
 import logging
 
+
 def addCspRule(objectType, srcOrDirective, enforceMode="monitor"):
 	"""
 		This function helps configuring and reporting of content security policy rules and violations.
@@ -36,8 +37,8 @@ def addCspRule(objectType, srcOrDirective, enforceMode="monitor"):
 		:type enforceMode: 'monitor' or 'enforce'
 	"""
 	assert enforceMode in ["monitor", "enforce"], "enforceMode must be 'monitor' or 'enforce'!"
-	assert objectType in [  "default-src", "script-src", "object-src", "style-src", "img-src", "media-src",
-				"frame-src", "font-src", "connect-src", "report-uri"]
+	assert objectType in ["default-src", "script-src", "object-src", "style-src", "img-src", "media-src",
+						  "frame-src", "font-src", "connect-src", "report-uri"]
 	assert conf["viur.mainApp"] is None, "You cannot modify CSP rules after server.buildApp() has been run!"
 	assert not any(
 		[x in srcOrDirective for x in [";", "'", "\"", "\n", ","]]), "Invalid character in srcOrDirective!"
@@ -80,7 +81,8 @@ def _rebuildCspHeaderCache():
 		else:
 			conf["viur.security.contentSecurityPolicy"]["_headerCache"]["Content-Security-Policy"] = resStr
 
-def enableStrictTransportSecurity(maxAge=365*24*60*60, includeSubDomains=False, preload=False):
+
+def enableStrictTransportSecurity(maxAge=365 * 24 * 60 * 60, includeSubDomains=False, preload=False):
 	"""
 		Enables HTTP strict transport security.
 
@@ -96,7 +98,8 @@ def enableStrictTransportSecurity(maxAge=365*24*60*60, includeSubDomains=False, 
 		conf["viur.security.strictTransportSecurity"] += "; preload"
 	pass
 
-def setPublicKeyPins(pins, method="sha256", maxAge=2*24*60*60, includeSubDomains=False, reportUri=None):
+
+def setPublicKeyPins(pins, method="sha256", maxAge=2 * 24 * 60 * 60, includeSubDomains=False, reportUri=None):
 	"""
 		Set certificate pins. There must be at *least* two pins.
 		See https://developer.mozilla.org/en/docs/Web/Security/Public_Key_Pinning for more details.
@@ -110,7 +113,7 @@ def setPublicKeyPins(pins, method="sha256", maxAge=2*24*60*60, includeSubDomains
 	for pin in pins:
 		assert not any([x in pin for x in "\"\n\r;"]), "Invalid Pin: %s" % pin
 	assert method in ["sha256"], "Method must be sha256 atm."
-	res = " ".join(["pin-%s=\"%s\";" %(method, pin) for pin in pins])
+	res = " ".join(["pin-%s=\"%s\";" % (method, pin) for pin in pins])
 	res += " max-age=%s" % maxAge
 	if includeSubDomains:
 		res += "; includeSubDomains"
@@ -118,6 +121,7 @@ def setPublicKeyPins(pins, method="sha256", maxAge=2*24*60*60, includeSubDomains
 		assert not any([x in reportUri for x in "\"\n\r;"]), "Invalid reportUri"
 		res += "; report-uri=\"%s\"" % reportUri
 	conf["viur.security.publicKeyPins"] = res
+
 
 def setXFrameOptions(action, uri=None):
 	"""
@@ -128,14 +132,15 @@ def setXFrameOptions(action, uri=None):
 		:type uri: str
 		:return:
 	"""
-	if action=="off":
+	if action == "off":
 		conf["viur.security.xFrameOptions"] = None
 	elif action in ["deny", "sameorigin"]:
 		conf["viur.security.xFrameOptions"] = (action, None)
-	elif action=="allow-from":
+	elif action == "allow-from":
 		if uri is None or not (uri.lower().startswith("https://") or uri.lower().startswith("http://")):
 			raise ValueError("If action is allow-from, an uri MUST be given and start with http(s)://")
 		conf["viur.security.xFrameOptions"] = (action, uri)
+
 
 def setXXssProtection(enable):
 	"""
@@ -161,6 +166,7 @@ def setXContentTypeNoSniff(enable):
 		conf["viur.security.xContentTypeOptions"] = enable
 	else:
 		raise ValueError("enable must be one of True | False")
+
 
 def setXPermittedCrossDomainPolicies(value):
 	if value not in [None, "none", "master-only", "by-content-type", "all"]:

@@ -10,16 +10,17 @@ from server.prototypes import BasicApplication
 from server.skeleton import Skeleton
 from server.tasks import callDeferred
 
+
 class HierarchySkel(Skeleton):
 	parententry = keyBone(descr="Parent", visible=False, indexed=True, readOnly=True)
 	parentrepo = keyBone(descr="BaseRepo", visible=False, indexed=True, readOnly=True)
 	sortindex = numericBone(descr="SortIndex", mode="float", visible=False, indexed=True, readOnly=True, max=sys.maxint)
 
-
 	def preProcessSerializedData(self, dbfields):
 		if not ("sortindex" in dbfields and dbfields["sortindex"]):
 			dbfields["sortindex"] = time()
 		return dbfields
+
 
 class Hierarchy(BasicApplication):
 	"""
@@ -143,7 +144,7 @@ class Hierarchy(BasicApplication):
 			key = "rep_user_%s" % str(thisuser["key"])
 			kindName = self.viewSkel().kindName + "_rootNode"
 			return db.GetOrInsert(key, kindName=kindName, creationdate=datetime.now(),
-			                      rootNode=1, user=str(thisuser["key"]))
+								  rootNode=1, user=str(thisuser["key"]))
 
 		return None
 
@@ -226,7 +227,6 @@ class Hierarchy(BasicApplication):
 			vs.setValues(e)
 			vs.delete()
 
-
 	## Internal exposed functions
 
 	@internalExposed
@@ -255,8 +255,8 @@ class Hierarchy(BasicApplication):
 				nameBone = getattr(skel, "name")
 
 				if (isinstance(nameBone, baseBone)
-				    and "languages" in dir(nameBone)
-				    and nameBone.languages):
+						and "languages" in dir(nameBone)
+						and nameBone.languages):
 					skel.setValues(obj)
 					return unicode(skel["name"])
 
@@ -605,11 +605,11 @@ class Hierarchy(BasicApplication):
 			raise errors.Unauthorized()
 
 		if (len(kwargs) == 0  # no data supplied
-		    or skey == ""  # no security key
-		    or not request.current.get().isPostRequest  # failure if not using POST-method
-		    or not skel.fromClient(kwargs)  # failure on reading into the bones
-		    or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before changing
-		    ):
+				or skey == ""  # no security key
+				or not request.current.get().isPostRequest  # failure if not using POST-method
+				or not skel.fromClient(kwargs)  # failure on reading into the bones
+				or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before changing
+		):
 			return self.render.edit(skel)
 
 		if not securitykey.validate(skey, acceptSessionKey=True):
@@ -655,11 +655,11 @@ class Hierarchy(BasicApplication):
 		skel = self.addSkel()
 
 		if (len(kwargs) == 0
-		    or skey == ""
-		    or not request.current.get().isPostRequest
-		    or not skel.fromClient(kwargs)
-		    or ("bounce" in kwargs and kwargs["bounce"] == "1")
-		    ):
+				or skey == ""
+				or not request.current.get().isPostRequest
+				or not skel.fromClient(kwargs)
+				or ("bounce" in kwargs and kwargs["bounce"] == "1")
+		):
 			return self.render.add(skel)
 
 		if not securitykey.validate(skey, acceptSessionKey=True):
@@ -708,7 +708,7 @@ class Hierarchy(BasicApplication):
 			toParent = toRepo
 
 		if not (self.isValidParent(fromParent)
-		        and self.isValidParent(toParent)):  # Ensure the parents exists
+				and self.isValidParent(toParent)):  # Ensure the parents exists
 			raise errors.NotAcceptable()
 
 		if not self.canAdd(toParent):
@@ -748,7 +748,7 @@ class Hierarchy(BasicApplication):
 			self.onItemChanged(skel)
 			self._clone(fromRepo, toRepo, old_key, new_key)
 
-		## Default accesscontrol functions
+	## Default accesscontrol functions
 
 	def canAdd(self, parent):
 		"""
@@ -810,7 +810,7 @@ class Hierarchy(BasicApplication):
 			return True
 
 		if user["access"] and ("%s-edit" % self.moduleName in user["access"]
-		                       or "%s-add" % self.moduleName in user["access"]):
+							   or "%s-add" % self.moduleName in user["access"]):
 			return True
 
 		return False
@@ -948,7 +948,7 @@ class Hierarchy(BasicApplication):
 		if user["access"] and "root" in user["access"]:
 			return (True)
 		if user["access"] and (
-					"%s-edit" % self.moduleName in user["access"] or "%s-add" % self.moduleName in user["access"]):
+				"%s-edit" % self.moduleName in user["access"] or "%s-add" % self.moduleName in user["access"]):
 			return (True)
 		return (False)
 
@@ -1151,7 +1151,7 @@ class Hierarchy(BasicApplication):
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-		## Renderer specific stuff
+	## Renderer specific stuff
 
 	def jinjaEnv(self, env):
 		"""

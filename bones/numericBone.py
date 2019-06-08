@@ -4,19 +4,21 @@ from math import pow
 from google.appengine.api import search
 import logging
 
-class numericBone( baseBone ):
+
+class numericBone(baseBone):
 	"""
 		Holds numeric values.
 		Can be used for ints and floats.
 		For floats, the precision can be specified in decimal-places.
 	"""
+
 	@staticmethod
-	def generageSearchWidget(target,name="NUMERIC BONE",mode="range"):
-		return ( {"name":name,"mode":mode,"target":target,"type":"numeric"} )
+	def generageSearchWidget(target, name="NUMERIC BONE", mode="range"):
+		return ({"name": name, "mode": mode, "target": target, "type": "numeric"})
 
 	type = "numeric"
 
-	def __init__(self, precision=0, min=-int( pow(2, 30) ), max=int( pow(2, 30) ), *args,  **kwargs ):
+	def __init__(self, precision=0, min=-int(pow(2, 30)), max=int(pow(2, 30)), *args, **kwargs):
 		"""
 			Initializes a new NumericBone.
 
@@ -27,14 +29,14 @@ class numericBone( baseBone ):
 			:param max: Maximum accepted value (including).
 			:type max: float
 		"""
-		baseBone.__init__( self,  *args,  **kwargs )
+		baseBone.__init__(self, *args, **kwargs)
 		self.precision = precision
-		if not self.precision and "mode" in kwargs and kwargs["mode"]=="float": #Fallback for old API
+		if not self.precision and "mode" in kwargs and kwargs["mode"] == "float":  # Fallback for old API
 			self.precision = 8
 		self.min = min
 		self.max = max
 
-	def fromClient( self, valuesCache, name, data ):
+	def fromClient(self, valuesCache, name, data):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -57,9 +59,11 @@ class numericBone( baseBone ):
 			except:
 				value = None
 			else:
-				if self.precision and (str(rawValue).replace(".","",1).replace("-", "", 1).isdigit()) and float(rawValue)>=self.min and float(rawValue)<=self.max:
+				if self.precision and (str(rawValue).replace(".", "", 1).replace("-", "", 1).isdigit()) and float(
+						rawValue) >= self.min and float(rawValue) <= self.max:
 					value = round(float(rawValue), self.precision)
-				elif not self.precision and (str(rawValue).replace("-", "", 1).isdigit()) and int(rawValue)>=self.min and int(rawValue)<=self.max:
+				elif not self.precision and (str(rawValue).replace("-", "", 1).isdigit()) and int(
+						rawValue) >= self.min and int(rawValue) <= self.max:
 					value = int(rawValue)
 				else:
 					value = None
@@ -70,33 +74,32 @@ class numericBone( baseBone ):
 				return "No value entered"
 		return err
 
-
-	def serialize( self, valuesCache, name, entity ):
+	def serialize(self, valuesCache, name, entity):
 		if not name in valuesCache:
 			return entity
-		if isinstance( valuesCache[name],  float ) and valuesCache[name]!= valuesCache[name]: # NaN
-			entity.set( name, None, self.indexed )
+		if isinstance(valuesCache[name], float) and valuesCache[name] != valuesCache[name]:  # NaN
+			entity.set(name, None, self.indexed)
 		else:
-			entity.set( name, valuesCache[name], self.indexed )
-		return( entity )
+			entity.set(name, valuesCache[name], self.indexed)
+		return (entity)
 
-	def unserialize( self, valuesCache ,name, expando ):
+	def unserialize(self, valuesCache, name, expando):
 		if not name in expando:
 			valuesCache[name] = None
 			return
-		if expando[ name ]==None or not str(expando[ name ]).replace(".", "", 1).lstrip("-").isdigit():
+		if expando[name] == None or not str(expando[name]).replace(".", "", 1).lstrip("-").isdigit():
 			valuesCache[name] = None
 		else:
 			if not self.precision:
-				valuesCache[name] = int( expando[ name ] )
+				valuesCache[name] = int(expando[name])
 			else:
-				valuesCache[name] = float( expando[ name ] )
+				valuesCache[name] = float(expando[name])
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		updatedFilter = {}
 		for parmKey, paramValue in rawFilter.items():
 			if parmKey.startswith(name):
-				if parmKey != name and not parmKey.startswith(name+"$"):
+				if parmKey != name and not parmKey.startswith(name + "$"):
 					# It's just another bone which name start's with our's
 					continue
 				try:
@@ -111,7 +114,7 @@ class numericBone( baseBone ):
 				updatedFilter[parmKey] = paramValue
 		return super(numericBone, self).buildDBFilter(name, skel, dbFilter, updatedFilter, prefix)
 
-	def getSearchDocumentFields(self, valuesCache, name, prefix = ""):
+	def getSearchDocumentFields(self, valuesCache, name, prefix=""):
 		if isinstance(valuesCache.get(name), int) or isinstance(valuesCache.get(name), float):
 			return [search.NumberField(name=prefix + name, value=valuesCache[name])]
 		return []

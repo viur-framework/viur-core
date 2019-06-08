@@ -5,11 +5,11 @@ from server.bones import *
 from server import errors, session, conf, request, exposed, internalExposed
 import json
 
+
 class Cart(List):
 	"""
 	Implements a cart module which can be used in combination with the order module.
 	"""
-
 
 	listTemplate = "order_viewcart"
 	adminInfo = None
@@ -49,31 +49,31 @@ class Cart(List):
 		if not isinstance(async, bool):
 			try:
 				async = bool(int(async))
-			except ValueError:
+				except ValueError:
 				async = False
 
 		if not (amt and all(x in "1234567890" for x in unicode(amt)) and int(amt) > 0):
 			amt = None
 
-		if self.productSkel().fromDB( product ):
+		if self.productSkel().fromDB(product):
 			if not product in prods:
-				prods[ product ] = { "amount" : 0 }
+				prods[product] = {"amount": 0}
 
-			if amt and not bool( extend ):
-				prods[ product ][ "amount" ] = int(amt)
+			if amt and not bool(extend):
+				prods[product]["amount"] = int(amt)
 			else:
 				if not amt:
 					amt = 1
 
-				prods[ product ][ "amount" ] += int(amt)
+				prods[product]["amount"] += int(amt)
 
 			session.current["cart_products"] = prods
 			session.current.markChanged()
 
 		if async:
-			return json.dumps({ "cartentries": self.entryCount(),
-			                    "cartsum": self.cartSum(),
-			                    "added": int( amt ) } )
+			return json.dumps({"cartentries": self.entryCount(),
+							   "cartsum": self.cartSum(),
+							   "added": int(amt)})
 
 		raise errors.Redirect("/%s/view" % self.moduleName)
 
@@ -86,14 +86,14 @@ class Cart(List):
 		prods = session.current.get("cart_products") or {}
 
 		if prods:
-			items = self.productSkel().all().mergeExternalFilter( {"key": list(prods.keys()) } ).fetch(limit=10)
+			items = self.productSkel().all().mergeExternalFilter({"key": list(prods.keys())}).fetch(limit=10)
 		else:
-			items = SkelList( self.productSkel )
+			items = SkelList(self.productSkel)
 
 		for skel in items:
 			skel["amt"] = numericBone(
-							descr="Quantity",
-							defaultValue=session.current["cart_products"][str(skel["key"].value)]["amount"])
+				descr="Quantity",
+				defaultValue=session.current["cart_products"][str(skel["key"].value)]["amount"])
 
 		return self.render.list(items)
 
@@ -116,12 +116,12 @@ class Cart(List):
 		prods = session.current.get("cart_products") or {}
 
 		if product in prods:
-			removed = prods[ product ][ "amount" ]
+			removed = prods[product]["amount"]
 
-			if all=="0" and prods[ product ][ "amount" ] > 1:
-				prods[ product ][ "amount" ] -= 1
+			if all == "0" and prods[product]["amount"] > 1:
+				prods[product]["amount"] -= 1
 			else:
-				del prods[ product ]
+				del prods[product]
 		else:
 			removed = 0
 
@@ -129,14 +129,14 @@ class Cart(List):
 		session.current.markChanged()
 
 		if async:
-			return json.dumps({ "cartentries": self.entryCount(),
-			                    "cartsum": self.cartSum(),
-			                    "removed": removed })
+			return json.dumps({"cartentries": self.entryCount(),
+							   "cartsum": self.cartSum(),
+							   "removed": removed})
 
 		raise errors.Redirect("/%s/view" % self.moduleName)
 
 	@internalExposed
-	def entryCount( self ):
+	def entryCount(self):
 		"""
 		Returns the products in the cart.
 
@@ -148,7 +148,7 @@ class Cart(List):
 		return len(prods.keys())
 
 	@internalExposed
-	def cartSum( self ):
+	def cartSum(self):
 		"""
 		This function should be overridden, to return the current cart total sum.
 

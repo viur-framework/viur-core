@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-from server import db, utils, session,  errors, conf, securitykey, exposed, forceSSL
+from server import db, utils, session, errors, conf, securitykey, exposed, forceSSL
 from server.prototypes import BasicApplication
 
 import logging
+
 
 class Singleton(BasicApplication):
 	"""
@@ -19,16 +20,16 @@ class Singleton(BasicApplication):
 	:vartype adminInfo: dict | callable
 	"""
 
-	accessRights = ["edit", "view"]                 # Possible access rights for this app
+	accessRights = ["edit", "view"]  # Possible access rights for this app
 
 	def adminInfo(self):
 		return {
-			"name": self.__class__.__name__,        # Module name as shown in the admin tools
-			"handler": "singleton",                 # Which handler to invoke
+			"name": self.__class__.__name__,  # Module name as shown in the admin tools
+			"handler": "singleton",  # Which handler to invoke
 			"icon": "icons/modules/singleton.svg",  # Icon for this module
 		}
 
-	def __init__( self, moduleName, modulePath, *args, **kwargs ):
+	def __init__(self, moduleName, modulePath, *args, **kwargs):
 		super(Singleton, self).__init__(moduleName, modulePath, *args, **kwargs)
 
 	def getKey(self):
@@ -43,7 +44,7 @@ class Singleton(BasicApplication):
 		"""
 		return "%s-modulekey" % self.editSkel().kindName
 
-	def viewSkel( self, *args, **kwargs ):
+	def viewSkel(self, *args, **kwargs):
 		"""
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for viewing the existing entry.
@@ -57,7 +58,7 @@ class Singleton(BasicApplication):
 		"""
 		return self._resolveSkelCls(*args, **kwargs)()
 
-	def editSkel( self, *args, **kwargs ):
+	def editSkel(self, *args, **kwargs):
 		"""
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for editing the existing entry.
@@ -71,10 +72,10 @@ class Singleton(BasicApplication):
 		"""
 		return self._resolveSkelCls(*args, **kwargs)()
 
-## External exposed functions
+	## External exposed functions
 
 	@exposed
-	def preview( self, skey, *args, **kwargs ):
+	def preview(self, skey, *args, **kwargs):
 		"""
 		Renders data for the entry, without reading it from the database.
 		This function allows to preview the entry without writing it to the database.
@@ -88,16 +89,16 @@ class Singleton(BasicApplication):
 		if not self.canPreview():
 			raise errors.Unauthorized()
 
-		if not securitykey.validate( skey ):
+		if not securitykey.validate(skey):
 			raise errors.PreconditionFailed()
 
 		skel = self.viewSkel()
-		skel.fromClient( kwargs )
+		skel.fromClient(kwargs)
 
-		return self.render.view( skel )
+		return self.render.view(skel)
 
 	@exposed
-	def view( self, *args, **kwargs ):
+	def view(self, *args, **kwargs):
 		"""
 		Prepares and renders the singleton entry for viewing.
 
@@ -112,20 +113,20 @@ class Singleton(BasicApplication):
 		"""
 
 		skel = self.viewSkel()
-		if not self.canView( ):
+		if not self.canView():
 			raise errors.Unauthorized()
 
-		key = str( db.Key.from_path( self.editSkel().kindName, self.getKey() ) )
+		key = str(db.Key.from_path(self.editSkel().kindName, self.getKey()))
 
 		if not skel.fromDB(key):
 			raise errors.NotFound()
 
-		self.onItemViewed( skel )
-		return self.render.view( skel )
+		self.onItemViewed(skel)
+		return self.render.view(skel)
 
 	@exposed
 	@forceSSL
-	def edit( self, *args, **kwargs ):
+	def edit(self, *args, **kwargs):
 		"""
 		Modify the existing entry, and render the entry, eventually with error notes on incorrect data.
 
@@ -148,43 +149,42 @@ class Singleton(BasicApplication):
 
 		skel = self.editSkel()
 
-		if not self.canEdit( ):
+		if not self.canEdit():
 			raise errors.Unauthorized()
 
-		key = db.Key.from_path( self.editSkel().kindName, self.getKey() )
+		key = db.Key.from_path(self.editSkel().kindName, self.getKey())
 
-		if not skel.fromDB( str(key) ): #Its not there yet; we need to set the key again
+		if not skel.fromDB(str(key)):  # Its not there yet; we need to set the key again
 			skel["key"] = str(key)
 
-		if (len(kwargs) == 0 # no data supplied
-		    or skey == "" #no skey provided
-			or not skel.fromClient( kwargs ) # failure on reading into the bones
-			or ("bounce" in kwargs and kwargs["bounce"] == "1")): # review before changing
-			return self.render.edit( skel )
+		if (len(kwargs) == 0  # no data supplied
+				or skey == ""  # no skey provided
+				or not skel.fromClient(kwargs)  # failure on reading into the bones
+				or ("bounce" in kwargs and kwargs["bounce"] == "1")):  # review before changing
+			return self.render.edit(skel)
 
-		if not securitykey.validate( skey, acceptSessionKey=True ):
+		if not securitykey.validate(skey, acceptSessionKey=True):
 			raise errors.PreconditionFailed()
 
-		skel.toDB( )
-		self.onItemEdited( skel )
-		return self.render.editItemSuccess( skel )
+		skel.toDB()
+		self.onItemEdited(skel)
+		return self.render.editItemSuccess(skel)
 
-
-	def getContents( self ):
+	def getContents(self):
 		"""
 		Returns the entity of this singleton application as :class:`server.skeleton.Skeleton` object.
 
 		:returns: The content as Skeleton provided by :func:`viewSkel`.
 		"""
 		skel = self.viewSkel()
-		key = str( db.Key.from_path( self.viewSkel().kindName, self.getKey() ) )
+		key = str(db.Key.from_path(self.viewSkel().kindName, self.getKey()))
 
-		if not skel.fromDB( key ):
+		if not skel.fromDB(key):
 			return None
 
 		return skel
 
-	def canPreview( self ):
+	def canPreview(self):
 		"""
 		Access control function for preview permission.
 
@@ -216,7 +216,7 @@ class Singleton(BasicApplication):
 
 		return False
 
-	def canEdit( self ):
+	def canEdit(self):
 		"""
 		Access control function for modification permission.
 
@@ -270,14 +270,14 @@ class Singleton(BasicApplication):
 		"""
 		user = utils.getCurrentUser()
 		if not user:
-			return( False )
+			return (False)
 		if user["access"] and "root" in user["access"]:
-			return( True )
+			return (True)
 		if user["access"] and "%s-view" % self.moduleName in user["access"]:
-			return( True )
-		return( False )
+			return (True)
+		return (False)
 
-	def onItemEdited( self, skel ):
+	def onItemEdited(self, skel):
 		"""
 		Hook function that is called after modifying the entry.
 
@@ -289,12 +289,12 @@ class Singleton(BasicApplication):
 
 		.. seealso:: :func:`edit`
 		"""
-		logging.info("Entry changed: %s" % skel["key"] )
+		logging.info("Entry changed: %s" % skel["key"])
 		user = utils.getCurrentUser()
 		if user:
-			logging.info("User: %s (%s)" % (user["name"], user["key"] ) )
+			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-	def onItemViewed( self, skel ):
+	def onItemViewed(self, skel):
 		"""
 		Hook function that is called when viewing an entry.
 
@@ -308,6 +308,7 @@ class Singleton(BasicApplication):
 		"""
 		pass
 
-Singleton.admin=True
-Singleton.html=True
-Singleton.vi=True
+
+Singleton.admin = True
+Singleton.html = True
+Singleton.vi = True

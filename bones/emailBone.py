@@ -5,9 +5,9 @@ import string
 from encodings import idna
 
 
-class emailBone( stringBone ):
+class emailBone(stringBone):
 	type = "str.email"
-	
+
 	def isInvalid(self, value):
 		if not value:
 			return "No value entered"
@@ -38,4 +38,3 @@ class emailBone( stringBone ):
 			return None
 		else:
 			return "Invalid email entered"
-

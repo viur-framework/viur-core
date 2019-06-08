@@ -2,8 +2,9 @@
 from server.render.html.utils import jinjaGlobalFunction
 import re
 
+
 @jinjaGlobalFunction
-def regexMatch(render, pattern, string, flags = 0):
+def regexMatch(render, pattern, string, flags=0):
 	"""
 	Jinja2 global: Match a string for regular expression pattern.
 	This function internally runs re.match().
@@ -20,7 +21,8 @@ def regexMatch(render, pattern, string, flags = 0):
 	:return: A matching object on success, else None.
 	:rtype: ``re.MatchObject``
 	"""
-	return re.match(pattern,string)
+	return re.match(pattern, string)
+
 
 @jinjaGlobalFunction
 def regexReplace(render, s, pattern, replace):
@@ -41,8 +43,9 @@ def regexReplace(render, s, pattern, replace):
 	"""
 	return re.sub(pattern, replace, s)
 
+
 @jinjaGlobalFunction
-def regexSearch(render, s, pattern, flags = 0):
+def regexSearch(render, s, pattern, flags=0):
 	"""
 	Jinja2 global: Search a string for regular expression pattern.
 	This function internally runs re.search().

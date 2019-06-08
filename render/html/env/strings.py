@@ -2,6 +2,7 @@
 from server.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
 import json
 
+
 @jinjaGlobalFilter
 def parseJSON(render, s):
 	"""

@@ -11,9 +11,9 @@ class userBone(relationalBone):
 
 		if creationMagic or updateMagic:
 			if visible is None:
-				visible = False #defaults
+				visible = False  # defaults
 
-			multiple = False #override
+			multiple = False  # override
 
 		elif visible is None:
 			visible = True

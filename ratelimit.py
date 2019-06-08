@@ -5,7 +5,6 @@ from datetime import datetime
 
 
 class RateLimit(object):
-
 	"""
 		This class is used to restrict access to certain functions to *maxRate* calls per minute.
 
@@ -32,7 +31,7 @@ class RateLimit(object):
 		self.maxRate = maxRate
 		self.minutes = minutes
 		self.steps = min(minutes, 5)
-		self.secondsPerStep = 60*(float(minutes)/float(self.steps))
+		self.secondsPerStep = 60 * (float(minutes) / float(self.steps))
 		assert method in ["ip", "user"], "method must be 'ip' or 'user'"
 		self.useUser = method == "user"
 
@@ -51,7 +50,7 @@ class RateLimit(object):
 			remoteAddr = request.current.get().request.remote_addr
 			if "::" in remoteAddr:  # IPv6 in shorted form
 				remoteAddr = remoteAddr.split(":")
-				blankIndex  = remoteAddr.index("")
+				blankIndex = remoteAddr.index("")
 				missigParts = ["0000"] * (8 - len(remoteAddr))
 				remoteAddr = remoteAddr[:blankIndex] + missigParts + remoteAddr[blankIndex + 1:]
 				return ":".join(remoteAddr[:4])
@@ -61,7 +60,6 @@ class RateLimit(object):
 			else:  # It's IPv4, simply return that address
 				return remoteAddr
 
-
 	def _getCurrentTimeKey(self):
 		"""
 		:return: the current lockperiod used in second position of the memcache key
@@ -69,7 +67,7 @@ class RateLimit(object):
 		dateTime = datetime.now()
 		key = dateTime.strftime("%Y-%m-%d-%%s")
 		secsinceMidnight = (dateTime - dateTime.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds()
-		currentStep = int(secsinceMidnight/self.secondsPerStep)
+		currentStep = int(secsinceMidnight / self.secondsPerStep)
 		return key % currentStep
 
 	def decrementQuota(self):
@@ -78,7 +76,7 @@ class RateLimit(object):
 		"""
 		memcacheKey = "%s-%s-%s" % (self.resource, self._getEndpointKey(), self._getCurrentTimeKey())
 		if memcache.incr(memcacheKey) is None:
-			memcache.set(memcacheKey, 1, 2*60*self.minutes)
+			memcache.set(memcacheKey, 1, 2 * 60 * self.minutes)
 
 	def isQuotaAvailable(self):
 		"""
@@ -89,11 +87,10 @@ class RateLimit(object):
 		endPoint = self._getEndpointKey()
 		dateTime = datetime.now()
 		secSinceMidnight = (dateTime - dateTime.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds()
-		currentStep = int(secSinceMidnight/self.secondsPerStep)
+		currentStep = int(secSinceMidnight / self.secondsPerStep)
 		keyBase = dateTime.strftime("%Y-%m-%d-%%s")
 		memcacheKeys = []
 		for x in range(0, self.steps):
 			memcacheKeys.append("%s-%s-%s" % (self.resource, endPoint, keyBase % (currentStep - x)))
 		tmpRes = memcache.get_multi(memcacheKeys)
 		return sum(tmpRes.values()) <= self.maxRate
-

@@ -24,7 +24,6 @@ class recordBone(baseBone):
 		super(recordBone, self).setSystemInitialized()
 		self._usingSkelCache = self.using()
 
-
 	def _restoreValueFromDatastore(self, val):
 		"""
 			Restores one of our values from the serialized data read from the datastore
@@ -67,7 +66,6 @@ class recordBone(baseBone):
 			except:
 				raise
 
-
 		return True
 
 	def serialize(self, valuesCache, name, entity):
@@ -93,7 +91,7 @@ class recordBone(baseBone):
 		clientPrefix = "%s." % name
 
 		for k, v in data.items():
-			#print(k, v)
+			# print(k, v)
 
 			if k.startswith(clientPrefix) or k == name:
 				if k == name:

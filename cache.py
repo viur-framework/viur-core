@@ -16,12 +16,10 @@ from functools import wraps
 	along with their requests.
 """
 
-
 viurCacheName = "viur-cache"
 
 
-
-def keyFromArgs( f, userSensitive, languageSensitive, evaluatedArgs, path, args, kwargs ):
+def keyFromArgs(f, userSensitive, languageSensitive, evaluatedArgs, path, args, kwargs):
 	"""
 		Parses args and kwargs according to the information's given
 		by evaluatedArgs and argsOrder. Returns an unique key for this
@@ -45,61 +43,61 @@ def keyFromArgs( f, userSensitive, languageSensitive, evaluatedArgs, path, args,
 		:returns: The unique key derived
 	"""
 	res = {}
-	argsOrder = list( f.__code__.co_varnames )[ 1 : f.__code__.co_argcount ]
+	argsOrder = list(f.__code__.co_varnames)[1: f.__code__.co_argcount]
 	# Map default values in
-	reversedArgsOrder = argsOrder[ : : -1]
-	for defaultValue in list( f.func_defaults or [] )[ : : -1]:
-		res[ reversedArgsOrder.pop( 0 ) ] = defaultValue
+	reversedArgsOrder = argsOrder[:: -1]
+	for defaultValue in list(f.func_defaults or [])[:: -1]:
+		res[reversedArgsOrder.pop(0)] = defaultValue
 	del reversedArgsOrder
 	# Map args in
-	setArgs = [] # Store a list of args already set by *args
-	for idx in range(0, min( len( args ), len( argsOrder ) ) ):
-		if argsOrder[ idx ] in evaluatedArgs:
-			setArgs.append( argsOrder[ idx ] )
-			res[ argsOrder[ idx ] ] = args[ idx ]
+	setArgs = []  # Store a list of args already set by *args
+	for idx in range(0, min(len(args), len(argsOrder))):
+		if argsOrder[idx] in evaluatedArgs:
+			setArgs.append(argsOrder[idx])
+			res[argsOrder[idx]] = args[idx]
 	# Last, we map the kwargs in
-	for k,v in kwargs.items():
+	for k, v in kwargs.items():
 		if k in evaluatedArgs:
 			if k in setArgs:
-				raise AssertionError("Got dupplicate arguments for %s" % k )
-			res[ k ] = v
+				raise AssertionError("Got dupplicate arguments for %s" % k)
+			res[k] = v
 	if userSensitive:
 		user = utils.getCurrentUser()
-		if userSensitive==1 and user: #We dont cache requests for each user seperately
-			return( None )
-		elif userSensitive==2:
+		if userSensitive == 1 and user:  # We dont cache requests for each user seperately
+			return (None)
+		elif userSensitive == 2:
 			if user:
-				res[ "__user" ] = "__ISUSER"
+				res["__user"] = "__ISUSER"
 			else:
-				res[ "__user" ] = None
-		elif userSensitive==3:
+				res["__user"] = None
+		elif userSensitive == 3:
 			if user:
-				res[ "__user" ] = user["key"]
+				res["__user"] = user["key"]
 			else:
-				res[ "__user" ] = None
+				res["__user"] = None
 	if languageSensitive:
-		res[ "__lang" ] = request.current.get().language
-	if conf[ "viur.cacheEnvironmentKey" ]:
+		res["__lang"] = request.current.get().language
+	if conf["viur.cacheEnvironmentKey"]:
 		try:
 			res["_cacheEnvironment"] = conf["viur.cacheEnvironmentKey"]()
 		except RuntimeError:
 			return None
-	res[ "__path" ] = path #Different path might have different output (html,xml,..)
+	res["__path"] = path  # Different path might have different output (html,xml,..)
 	try:
 		appVersion = request.current.get().request.environ["CURRENT_VERSION_ID"].split('.')[0]
 	except:
 		appVersion = ""
 		logging.error("Could not determine the current application id! Caching might produce unexpected results!")
-	res["__appVersion"] =appVersion
+	res["__appVersion"] = appVersion
 	# Last check, that every parameter is satisfied:
-	if not all ( [ x in res.keys() for x in argsOrder ] ):
+	if not all([x in res.keys() for x in argsOrder]):
 		# we have too few paramerts for this function; that wont work
 		return None
-	res = list( res.items() ) #Flatn our dict to a list
-	res.sort( key=lambda x: x[0] ) #sort by keys
+	res = list(res.items())  # Flatn our dict to a list
+	res.sort(key=lambda x: x[0])  # sort by keys
 	mysha512 = sha512()
-	mysha512.update( unicode(res).encode("UTF8") )
-	return( mysha512.hexdigest() )
+	mysha512.update(unicode(res).encode("UTF8"))
+	return (mysha512.hexdigest())
 
 
 def wrapCallable(f, urls, userSensitive, languageSensitive, evaluatedArgs, maxCacheTime):
@@ -109,50 +107,52 @@ def wrapCallable(f, urls, userSensitive, languageSensitive, evaluatedArgs, maxCa
 	"""
 
 	@wraps(f)
-	def wrapF( self, *args, **kwargs ):
+	def wrapF(self, *args, **kwargs):
 		currentRequest = request.current.get()
 		if conf["viur.disableCache"] or currentRequest.disableCache:
 			# Caching disabled
 			if conf["viur.disableCache"]:
-				logging.debug( "Caching is disabled by config" )
-			return( f( self, *args, **kwargs ) )
+				logging.debug("Caching is disabled by config")
+			return (f(self, *args, **kwargs))
 		# How many arguments are part of the way to the function called (and how many are just *args)
-		offset = -len( currentRequest.args) or len( currentRequest.pathlist )
-		path = "/"+"/".join( currentRequest.pathlist[ : offset ] )
+		offset = -len(currentRequest.args) or len(currentRequest.pathlist)
+		path = "/" + "/".join(currentRequest.pathlist[: offset])
 		if not path in urls:
 			# This path (possibly a sub-render) should not be cached
-			logging.debug( "Not caching for %s" % path )
-			return( f( self, *args, **kwargs ) )
-		key = keyFromArgs( f, userSensitive, languageSensitive, evaluatedArgs, path, args, kwargs )
+			logging.debug("Not caching for %s" % path)
+			return (f(self, *args, **kwargs))
+		key = keyFromArgs(f, userSensitive, languageSensitive, evaluatedArgs, path, args, kwargs)
 		if not key:
 			# Someting is wrong (possibly the parameter-count)
 			# Letz call f, but we knew already that this will clash
-			return( f( self, *args, **kwargs ) )
+			return (f(self, *args, **kwargs))
 		try:
-			dbRes = db.Get( db.Key.from_path( viurCacheName, key ) )
+			dbRes = db.Get(db.Key.from_path(viurCacheName, key))
 		except db.EntityNotFoundError:
 			dbRes = None
 		if dbRes:
 			if not maxCacheTime or \
-			  dbRes["creationtime"] > datetime.now()-timedelta( seconds=maxCacheTime ):
+					dbRes["creationtime"] > datetime.now() - timedelta(seconds=maxCacheTime):
 				# We store it unlimited or the cache is fresh enough
-				logging.debug( "This request was served from cache." )
-				currentRequest.response.headers['Content-Type'] = dbRes[ "content-type"].encode("UTF-8")
-				return( dbRes["data"] )
+				logging.debug("This request was served from cache.")
+				currentRequest.response.headers['Content-Type'] = dbRes["content-type"].encode("UTF-8")
+				return (dbRes["data"])
 		# If we made it this far, the request wasnt cached or too old; we need to rebuild it
-		res = f( self, *args, **kwargs )
-		dbEntity = db.Entity( viurCacheName, name=key )
-		dbEntity[ "data" ] = res
-		dbEntity[ "creationtime" ] = datetime.now()
-		dbEntity[ "path" ] = path
-		dbEntity[ "content-type"] = request.current.get().response.headers['Content-Type']
-		dbEntity.set_unindexed_properties( ["data","content-type"] ) #We can save 2 DB-Writs :)
-		db.Put( dbEntity )
-		logging.debug( "This request was a cache-miss. Cache has been updated." )
-		return( res )
+		res = f(self, *args, **kwargs)
+		dbEntity = db.Entity(viurCacheName, name=key)
+		dbEntity["data"] = res
+		dbEntity["creationtime"] = datetime.now()
+		dbEntity["path"] = path
+		dbEntity["content-type"] = request.current.get().response.headers['Content-Type']
+		dbEntity.set_unindexed_properties(["data", "content-type"])  # We can save 2 DB-Writs :)
+		db.Put(dbEntity)
+		logging.debug("This request was a cache-miss. Cache has been updated.")
+		return (res)
+
 	return wrapF
 
-def enableCache( urls, userSensitive=0, languageSensitive=False, evaluatedArgs=[], maxCacheTime=None  ):
+
+def enableCache(urls, userSensitive=0, languageSensitive=False, evaluatedArgs=[], maxCacheTime=None):
 	"""
 		Decorator to mark a function cacheable.
 		Only functions decorated with enableCache are considered cacheable;
@@ -185,11 +185,12 @@ def enableCache( urls, userSensitive=0, languageSensitive=False, evaluatedArgs=[
 		:type maxCacheTime: int or None
 
 	"""
-	assert not any( [x.startswith("_") for x in evaluatedArgs]), "A evaluated Parameter cannot start with an underscore!"
-	return lambda f: wrapCallable( f, urls, userSensitive, languageSensitive, evaluatedArgs, maxCacheTime )
+	assert not any([x.startswith("_") for x in evaluatedArgs]), "A evaluated Parameter cannot start with an underscore!"
+	return lambda f: wrapCallable(f, urls, userSensitive, languageSensitive, evaluatedArgs, maxCacheTime)
+
 
 @tasks.callDeferred
-def flushCache( prefix="/*" ):
+def flushCache(prefix="/*"):
 	"""
 		Flushes the cache. Its possible the flush only a part of the cache by specifying
 		the path-prefix.
@@ -202,13 +203,15 @@ def flushCache( prefix="/*" ):
 			- "/*" everything from the cache, "/page/*" everything from the page-module (default render),
 			- and "/page/view/*" only that specific subset of the page-module.
 	"""
-	items = db.Query( viurCacheName ).filter( "path =", prefix.rstrip("*") ).iter( keysOnly=True )
+	items = db.Query(viurCacheName).filter("path =", prefix.rstrip("*")).iter(keysOnly=True)
 	for item in items:
-		db.Delete( item )
+		db.Delete(item)
 	if prefix.endswith("*"):
-		items = db.Query( viurCacheName ).filter( "path >", prefix.rstrip("*") ).filter( "path <", prefix.rstrip("*")+u"\ufffd").iter( keysOnly=True )
+		items = db.Query(viurCacheName).filter("path >", prefix.rstrip("*")).filter("path <", prefix.rstrip(
+			"*") + u"\ufffd").iter(keysOnly=True)
 		for item in items:
-			db.Delete( item )
-	logging.debug("Flushing cache succeeded. Everything matching \"%s\" is gone." % prefix )
+			db.Delete(item)
+	logging.debug("Flushing cache succeeded. Everything matching \"%s\" is gone." % prefix)
 
-__all__ = [ "enableCache", "flushCache" ]
+
+__all__ = ["enableCache", "flushCache"]

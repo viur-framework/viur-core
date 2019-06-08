@@ -3,7 +3,8 @@ import time, json
 from string import Template
 import default
 
-class UserRender(default.DefaultRender): #Render user-data to json
+
+class UserRender(default.DefaultRender):  # Render user-data to json
 
 	def login(self, skel, **kwargs):
 		if kwargs.get("loginFailed", False):
@@ -11,7 +12,7 @@ class UserRender(default.DefaultRender): #Render user-data to json
 
 		return self.edit(skel, **kwargs)
 
-	def loginSucceeded(self, msg = "OKAY", **kwargs):
+	def loginSucceeded(self, msg="OKAY", **kwargs):
 		return json.dumps(msg)
 
 	def logoutSuccess(self, **kwargs):
@@ -19,7 +20,7 @@ class UserRender(default.DefaultRender): #Render user-data to json
 
 	def verifySuccess(self, skel, **kwargs):
 		return json.dumps("OKAY")
-	
+
 	def verifyFailed(self, **kwargs):
 		return json.dumps("FAILED")
 
@@ -28,6 +29,6 @@ class UserRender(default.DefaultRender): #Render user-data to json
 			return self.edit(skel, **kwargs)
 
 		return json.dumps(msg)
-	
+
 	def passwdRecover(self, *args, **kwargs):
 		return self.edit(*args, **kwargs)

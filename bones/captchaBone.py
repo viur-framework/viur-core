@@ -6,17 +6,18 @@ import urllib
 import logging
 import json
 
-class captchaBone( bone.baseBone ):
+
+class captchaBone(bone.baseBone):
 	type = "captcha"
 
-	def __init__(self, publicKey=None, privateKey=None, *args,  **kwargs ):
-		bone.baseBone.__init__(self,  *args,  **kwargs )
+	def __init__(self, publicKey=None, privateKey=None, *args, **kwargs):
+		bone.baseBone.__init__(self, *args, **kwargs)
 		self.defaultValue = self.publicKey = publicKey
 		self.privateKey = privateKey
 		self.required = True
 		self.hasDBField = False
 
-	def serialize(self, valuesCache, name, entity ):
+	def serialize(self, valuesCache, name, entity):
 		return entity
 
 	def unserialize(self, valuesCache, name, values):
@@ -38,22 +39,22 @@ class captchaBone( bone.baseBone ):
 			:type data: dict
 			:returns: None or String
 		"""
-		if request.current.get().isDevServer: #We dont enforce captchas on dev server
+		if request.current.get().isDevServer:  # We dont enforce captchas on dev server
 			return None
 		user = utils.getCurrentUser()
-		if user and "root" in user["access"]: # Don't bother trusted users with this (not supported by admin/vi anyways)
+		if user and "root" in user[
+			"access"]:  # Don't bother trusted users with this (not supported by admin/vi anyways)
 			return None
 		if not "g-recaptcha-response" in data:
 			return u"No Captcha given!"
 		data = {"secret": self.privateKey,
 				"remoteip": request.current.get().request.remote_addr,
 				"response": data["g-recaptcha-response"]
-			}
+				}
 		response = urlfetch.fetch(url="https://www.google.com/recaptcha/api/siteverify",
-						payload=urllib.urlencode( data ),
-						method=urlfetch.POST,
-						headers={"Content-Type": "application/x-www-form-urlencoded"} )
+								  payload=urllib.urlencode(data),
+								  method=urlfetch.POST,
+								  headers={"Content-Type": "application/x-www-form-urlencoded"})
 		if json.loads(response.content.decode("UTF-8")).get("success"):
 			return None
-		return( u"Invalid Captcha" )
-
+		return (u"Invalid Captcha")

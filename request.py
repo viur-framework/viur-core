@@ -2,7 +2,7 @@
 import threading
 
 
-class RequestWrapper( object ):
+class RequestWrapper(object):
 	"""
 		Request Wrapper.
 		Allows applications to access the current request
@@ -15,19 +15,20 @@ class RequestWrapper( object ):
 			from request import current as currentRequest
 			currentRequest.get().headers
 	"""
-		
-	def __init__( self,  *args, **kwargs ):
-		super( RequestWrapper, self ).__init__( *args, **kwargs )
+
+	def __init__(self, *args, **kwargs):
+		super(RequestWrapper, self).__init__(*args, **kwargs)
 		self.data = threading.local()
-	
-	def setRequest(self, request ):
+
+	def setRequest(self, request):
 		self.data.request = request
 		self.data.reqData = {}
 
-	def get( self ):
-		return( self.data.request )
-	
-	def requestData( self ):
-		return( self.data.reqData )
+	def get(self):
+		return (self.data.request)
+
+	def requestData(self):
+		return (self.data.reqData)
+
 
 current = RequestWrapper()
