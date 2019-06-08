@@ -1,3 +1,8 @@
+# UNSTABLE - UNUNSUABLE
+This will become the Python3 Port of the ViUR Server.
+This will be a mayor update and it's currently _NOT_ usuable.
+Use the original Python2 Version at https://github.com/viur-framework/server for now.
+
 # ViUR server
 
 This is the core component of **ViUR**, a free software development framework for the [Google App Engine](https://appengine.google.com) written in [Python](https://python.org/).
