@@ -11,11 +11,11 @@ from server.prototypes.hierarchy import HierarchySkel
 from server.prototypes.tree import TreeLeafSkel
 from server.render.json.default import DefaultRender
 from server.modules.file import decodeFileName
-from google.appengine.api import datastore, datastore_types, urlfetch
-from google.appengine.ext import blobstore
-from google.appengine.ext.blobstore import BlobInfo
-from google.appengine.api.images import get_serving_url
-from google.appengine.datastore import datastore_query
+#from google.appengine.api import datastore, datastore_types, urlfetch
+#from google.appengine.ext import blobstore
+#from google.appengine.ext.blobstore import BlobInfo
+#from google.appengine.api.images import get_serving_url
+#from google.appengine.datastore import datastore_query
 
 from itertools import izip
 from hashlib import sha256
@@ -215,10 +215,10 @@ class DbTransfer(object):
 		for k, v in obj.items():
 			if not any([isinstance(v, x) for x in [str, unicode, long, float, datetime, list, dict, bool, type(None)]]):
 				logging.error("UNKNOWN TYPE %s" % str(type(v)))
-				v = unicode(v)
+				v = str(v)
 				logging.error(v)
 			if isinstance(v, datastore_types.Text):
-				v = unicode(v)
+				v = str(v)
 			elif isinstance(v, datastore_types.Blob):
 				continue
 			elif isinstance(v, datastore_types.BlobKey):
@@ -226,9 +226,9 @@ class DbTransfer(object):
 			elif isinstance(v, datastore_types.ByteString):
 				v = str(v)
 			elif isinstance(v, datastore_types.Category):
-				v = unicode(v)
+				v = str(v)
 			elif isinstance(v, datastore_types.Email):
-				v = unicode(v)
+				v = str(v)
 			elif isinstance(v, datastore_types.EmbeddedEntity):
 				continue
 			elif isinstance(v, datastore_types.GeoPt):
@@ -236,11 +236,11 @@ class DbTransfer(object):
 			elif isinstance(v, datastore_types.IM):
 				continue
 			elif isinstance(v, datastore_types.Link):
-				v = unicode(v)
+				v = str(v)
 			elif isinstance(v, datastore_types.PhoneNumber):
-				v = unicode(v)
+				v = str(v)
 			elif isinstance(v, datastore_types.PostalAddress):
-				v = unicode(v)
+				v = str(v)
 			elif isinstance(v, datastore_types.Rating):
 				v = long(v)
 			if "datastore" in str(type(v)):

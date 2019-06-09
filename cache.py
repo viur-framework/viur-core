@@ -96,7 +96,7 @@ def keyFromArgs(f, userSensitive, languageSensitive, evaluatedArgs, path, args, 
 	res = list(res.items())  # Flatn our dict to a list
 	res.sort(key=lambda x: x[0])  # sort by keys
 	mysha512 = sha512()
-	mysha512.update(unicode(res).encode("UTF8"))
+	mysha512.update(str(res).encode("UTF8"))
 	return (mysha512.hexdigest())
 
 

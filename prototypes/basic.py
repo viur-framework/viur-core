@@ -48,4 +48,4 @@ class BasicApplication(object):
 		:rtype: server.skeleton.Skeleton
 		"""
 
-		return skeletonByKind(self.kindName if self.kindName else unicode(type(self).__name__).lower())
+		return skeletonByKind(self.kindName if self.kindName else str(type(self).__name__).lower())

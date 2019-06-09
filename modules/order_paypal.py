@@ -2,7 +2,7 @@
 from server import db, request, errors
 import urllib
 from server.config import conf
-from google.appengine.api import urlfetch
+#from google.appengine.api import urlfetch
 
 
 class PayPal(object):

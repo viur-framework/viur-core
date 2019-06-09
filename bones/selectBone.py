@@ -54,7 +54,7 @@ class selectBone(baseBone):
 		# single case
 		if not self.multiple:
 			for key in self.values.keys():
-				if unicode(key) == unicode(values):
+				if str(key) == str(values):
 					err = self.isInvalid(key)
 					if not err:
 						valuesCache[name] = key
@@ -81,7 +81,7 @@ class selectBone(baseBone):
 			valuesCache[name] = []
 
 			for key, value in self.values.items():
-				if unicode(key) in [unicode(x) for x in values]:
+				if str(key) in [str(x) for x in values]:
 					err = self.isInvalid(key)
 					if not err:
 						valuesCache[name].append(key)

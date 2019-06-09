@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from google.appengine.api import memcache
+#from google.appengine.api import memcache
 from server import request, utils
 from datetime import datetime
 

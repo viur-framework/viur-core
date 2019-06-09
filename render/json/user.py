@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import time, json
 from string import Template
-import default
+from . import default as DefaultRender
 
 
-class UserRender(default.DefaultRender):  # Render user-data to json
+class UserRender(DefaultRender):  # Render user-data to json
 
 	def login(self, skel, **kwargs):
 		if kwargs.get("loginFailed", False):

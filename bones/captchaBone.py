@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones import bone
 from server import request, utils
-from google.appengine.api import urlfetch
+#from google.appengine.api import urlfetch
 import urllib
 import logging
 import json

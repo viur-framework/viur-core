@@ -7,7 +7,7 @@ from collections import OrderedDict
 from threading import local
 from time import time
 import inspect, os, sys, logging, copy
-from google.appengine.api import search
+#from google.appengine.api import search
 
 try:
 	import pytz
@@ -545,7 +545,7 @@ class Skeleton(BaseSkeleton):
 			try:
 				key = db.Key(key)
 			except db.BadKeyError:
-				key = unicode(key)
+				key = str(key)
 				if key.isdigit():
 					key = long(key)
 				elif not len(key):

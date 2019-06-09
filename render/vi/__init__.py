@@ -4,7 +4,7 @@ from server.render.vi.default import DefaultRender as default
 from server.render.vi.user import UserRender as user
 from server.render.json.file import FileRender as file
 from server.skeleton import Skeleton
-from google.appengine.api import app_identity
+#from google.appengine.api import app_identity
 from server import conf
 from server import securitykey
 from server import utils

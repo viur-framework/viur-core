@@ -37,7 +37,7 @@ def serializeXML(data):
 				data = ""
 			else:
 				raise NotImplementedError("Type %s is not supported!" % type(data))
-			element.appendChild(doc.createTextNode(unicode(data)))
+			element.appendChild(doc.createTextNode(str(data)))
 		return element
 
 	dom = minidom.getDOMImplementation()

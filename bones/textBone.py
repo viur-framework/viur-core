@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-import HTMLParser
-import htmlentitydefs
+from html.parser import HTMLParser
+from html import entities as htmlentitydefs
 
-from google.appengine.api import search
+#from google.appengine.api import search
 
 from server import db
 from server.bones import baseBone
@@ -32,7 +32,7 @@ _defaultTags = {
 }
 
 
-class HtmlSerializer(HTMLParser.HTMLParser):  # html.parser.HTMLParser
+class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
 	def __init__(self, validHtml=None):
 		global _defaultTags
 		HTMLParser.HTMLParser.__init__(self)
@@ -42,7 +42,7 @@ class HtmlSerializer(HTMLParser.HTMLParser):  # html.parser.HTMLParser
 		self.validHtml = validHtml
 
 	def handle_data(self, data):
-		data = unicode(data) \
+		data = str(data) \
 			.replace("<", "&lt;") \
 			.replace(">", "&gt;") \
 			.replace("\"", "&quot;") \
@@ -322,7 +322,7 @@ class textBone(baseBone):
 				valuesCache[name] = ""
 				return "No value entered"
 			if not isinstance(value, str) and not isinstance(value, unicode):
-				value = unicode(value)
+				value = str(value)
 			err = self.isInvalid(value)
 			if not err:
 				valuesCache[name] = HtmlSerializer(self.validHtml).sanitize(value)
@@ -379,14 +379,14 @@ class textBone(baseBone):
 		if self.languages:
 			for v in valuesCache.get(name).values():
 				value = HtmlSerializer(None).sanitize(v.lower())
-				for line in unicode(value).splitlines():
+				for line in str(value).splitlines():
 					for key in line.split(" "):
 						key = "".join([c for c in key if c.lower() in conf["viur.searchValidChars"]])
 						if key and key not in res and len(key) > 3:
 							res.append(key.lower())
 		else:
 			value = HtmlSerializer(None).sanitize(valuesCache.get(name).lower())
-			for line in unicode(value).splitlines():
+			for line in str(value).splitlines():
 				for key in line.split(" "):
 					key = "".join([c for c in key if c.lower() in conf["viur.searchValidChars"]])
 					if key and key not in res and len(key) > 3:
@@ -406,14 +406,14 @@ class textBone(baseBone):
 
 			if self.validHtml:
 				return [
-					search.HtmlField(name=prefix + name, value=unicode(valuesCache[name].get(lang, "")), language=lang)
+					search.HtmlField(name=prefix + name, value=str(valuesCache[name].get(lang, "")), language=lang)
 					for lang in self.languages]
 			else:
 				return [
-					search.TextField(name=prefix + name, value=unicode(valuesCache[name].get(lang, "")), language=lang)
+					search.TextField(name=prefix + name, value=str(valuesCache[name].get(lang, "")), language=lang)
 					for lang in self.languages]
 		else:
 			if self.validHtml:
-				return [search.HtmlField(name=prefix + name, value=unicode(valuesCache[name]))]
+				return [search.HtmlField(name=prefix + name, value=str(valuesCache[name]))]
 			else:
-				return [search.TextField(name=prefix + name, value=unicode(valuesCache[name]))]
+				return [search.TextField(name=prefix + name, value=str(valuesCache[name]))]

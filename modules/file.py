@@ -6,12 +6,12 @@ from server.bones import *
 from server.prototypes.tree import Tree, TreeNodeSkel, TreeLeafSkel
 from server.tasks import callDeferred, PeriodicTask
 from datetime import datetime, timedelta
-from urlparse import urlparse
+#from urlparse import urlparse
 from quopri import decodestring
 from base64 import urlsafe_b64decode
 from hashlib import sha256
-from google.appengine.ext import blobstore
-from google.appengine.api import images
+#from google.appengine.ext import blobstore
+#from google.appengine.api import images
 import email.header
 import collections, logging, cgi, string
 
@@ -93,13 +93,13 @@ def decodeFileName(name):
 	# and still totally broken
 	try:
 		if name.startswith("=?"):  # RFC 2047
-			return unicode(email.Header.make_header(email.Header.decode_header(name + "\n")))
+			return str(email.Header.make_header(email.Header.decode_header(name + "\n")))
 		elif "=" in name and not name.endswith("="):  # Quoted Printable
 			return decodestring(name.encode("ascii")).decode("UTF-8")
 		else:  # Maybe base64 encoded
 			return urlsafe_b64decode(name.encode("ascii")).decode("UTF-8")
 	except:  # Sorry - I cant guess whats happend here
-		if isinstance(name, str) and not isinstance(name, unicode):
+		if isinstance(name, str) and not isinstance(name, str):
 			try:
 				return name.decode("UTF-8", "ignore")
 			except:

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-import html
-import admin
-import xml
-import json
+from . import html
+from . import admin
+from . import xml
+from . import json
 
 try:
 	# The VI-Render will only be available if the "vi" folder is present

@@ -14,7 +14,7 @@ from server.tasks import callDeferred
 class HierarchySkel(Skeleton):
 	parententry = keyBone(descr="Parent", visible=False, indexed=True, readOnly=True)
 	parentrepo = keyBone(descr="BaseRepo", visible=False, indexed=True, readOnly=True)
-	sortindex = numericBone(descr="SortIndex", mode="float", visible=False, indexed=True, readOnly=True, max=sys.maxint)
+	sortindex = numericBone(descr="SortIndex", mode="float", visible=False, indexed=True, readOnly=True, max=pow(2, 30))
 
 	def preProcessSerializedData(self, dbfields):
 		if not ("sortindex" in dbfields and dbfields["sortindex"]):
@@ -258,7 +258,7 @@ class Hierarchy(BasicApplication):
 						and "languages" in dir(nameBone)
 						and nameBone.languages):
 					skel.setValues(obj)
-					return unicode(skel["name"])
+					return str(skel["name"])
 
 			return None
 

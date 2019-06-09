@@ -52,7 +52,7 @@ class Cart(List):
 				except ValueError:
 				async = False
 
-		if not (amt and all(x in "1234567890" for x in unicode(amt)) and int(amt) > 0):
+		if not (amt and all(x in "1234567890" for x in str(amt)) and int(amt) > 0):
 			amt = None
 
 		if self.productSkel().fromDB(product):

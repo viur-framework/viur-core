@@ -7,7 +7,7 @@ from time import time
 from server.tasks import PeriodicTask, callDeferred
 from server import db
 from server.config import conf
-from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError, OverQuotaError
+#from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError, OverQuotaError
 import logging
 
 """

@@ -3,9 +3,9 @@ from datetime import datetime, timedelta
 from server.update import checkUpdate
 from server.config import conf, sharedConf
 from server import errors, request
-from google.appengine.api import users
-from google.appengine.api import taskqueue
-from google.appengine.ext.deferred import PermanentTaskFailure
+#from google.appengine.api import users
+#from google.appengine.api import taskqueue
+#from google.appengine.ext.deferred import PermanentTaskFailure
 from server import db
 from functools import wraps
 import json
@@ -16,7 +16,7 @@ _periodicTasks = {}
 _callableTasks = {}
 _deferedTasks = {}
 _startupTasks = []
-_periodicTaskID = 1L  # Used to determine bound functions
+_periodicTaskID = 1  # Used to determine bound functions
 
 
 class CallableTaskBase:

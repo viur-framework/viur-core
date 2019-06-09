@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-import utils as jinjaUtils
-from wrap import ListWrapper, SkelListWrapper
+from . import utils as jinjaUtils
+from .wrap import ListWrapper, SkelListWrapper
 
 from server import utils, request, errors, securitykey
 from server.skeleton import Skeleton, BaseSkeleton, RefSkel, skeletonByKind
@@ -27,25 +27,25 @@ class KeyValueWrapper:
 		self.descr = _(descr)
 
 	def __str__(self):
-		return (unicode(self.key))
+		return (str(self.key))
 
 	def __repr__(self):
-		return (unicode(self.key))
+		return (str(self.key))
 
 	def __eq__(self, other):
-		return (unicode(self) == unicode(other))
+		return (str(self) == str(other))
 
 	def __lt__(self, other):
-		return (unicode(self) < unicode(other))
+		return (str(self) < str(other))
 
 	def __gt__(self, other):
-		return (unicode(self) > unicode(other))
+		return (str(self) > str(other))
 
 	def __le__(self, other):
-		return (unicode(self) <= unicode(other))
+		return (str(self) <= str(other))
 
 	def __ge__(self, other):
-		return (unicode(self) >= unicode(other))
+		return (str(self) >= str(other))
 
 	def __trunc__(self):
 		return (self.key.__trunc__())
@@ -96,7 +96,7 @@ class Render(object):
 		super(Render, self).__init__(*args, **kwargs)
 		if not Render.__haveEnvImported_:
 			# We defer loading our plugins to this point to avoid circular imports
-			import env
+			from . import env
 			Render.__haveEnvImported_ = True
 		self.parent = parent
 

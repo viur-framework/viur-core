@@ -5,8 +5,8 @@ from server.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
 from server.render.html.wrap import ListWrapper, SkelListWrapper
 import urllib
 from hashlib import sha512
-from google.appengine.ext import db
-from google.appengine.api import memcache, users
+#from google.appengine.ext import db
+#from google.appengine.api import memcache, users
 from collections import OrderedDict
 import string
 import logging
@@ -45,7 +45,7 @@ def execRequest(render, path, *args, **kwargs):
 
 	if cachetime:
 		# Calculate the cache key that entry would be stored under
-		tmpList = ["%s:%s" % (unicode(k), unicode(v)) for k, v in kwargs.items()]
+		tmpList = ["%s:%s" % (unstricode(k), str(v)) for k, v in kwargs.items()]
 		tmpList.sort()
 		tmpList.extend(list(args))
 		tmpList.append(path)
@@ -60,7 +60,7 @@ def execRequest(render, path, *args, **kwargs):
 
 		tmpList.append(appVersion)
 		mysha512 = sha512()
-		mysha512.update(unicode(tmpList).encode("UTF8"))
+		mysha512.update(str(tmpList).encode("UTF8"))
 		cacheKey = "jinja2_cache_%s" % mysha512.hexdigest()
 		res = memcache.get(cacheKey)
 
@@ -508,7 +508,7 @@ def shortKey(render, val):
 	"""
 
 	try:
-		k = db.Key(encoded=unicode(val))
+		k = db.Key(encoded=str(val))
 		return k.id_or_name()
 	except:
 		return None

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones.bone import baseBone, getSystemInitialized
 from server.errors import ReadFromClientError
-import extjson
+import json
 
 
 class recordBone(baseBone):
@@ -32,7 +32,7 @@ class recordBone(baseBone):
 
 			:return: Our Value (with restored usingSkel data)
 		"""
-		value = extjson.loads(val)
+		value = json.loads(val)
 		assert isinstance(value, dict), "Read something from the datastore thats not a dict: %s" % str(type(value))
 
 		usingSkel = self._usingSkelCache
@@ -78,7 +78,7 @@ class recordBone(baseBone):
 
 			for val in valuesCache[name]:
 				usingSkel.setValuesCache(val)
-				res.append(extjson.dumps(usingSkel.serialize()))
+				res.append(json.dumps(usingSkel.serialize()))
 
 			entity.set(name, res, False)
 

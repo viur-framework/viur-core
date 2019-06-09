@@ -29,24 +29,24 @@ __version__ = (2, 5, 0)  # Which API do we expose to our application
 
 import sys, traceback, os, inspect
 
-# All (optional) 3rd-party modules in our libs-directory
-cwd = os.path.abspath(os.path.dirname(__file__))
-
-for lib in os.listdir(os.path.join(cwd, "libs")):
-	if not lib.lower().endswith(".zip"):  # Skip invalid file
-		continue
-	sys.path.insert(0, os.path.join(cwd, "libs", lib))
+## All (optional) 3rd-party modules in our libs-directory
+#cwd = os.path.abspath(os.path.dirname(__file__))
+#
+#for lib in os.listdir(os.path.join(cwd, "libs")):
+#	if not lib.lower().endswith(".zip"):  # Skip invalid file
+#		continue
+#	sys.path.insert(0, os.path.join(cwd, "libs", lib))
 
 from server.config import conf, sharedConf
 from server import request
 import server.languages as servertrans
-from google.appengine.ext import webapp
-from google.appengine.ext.webapp.util import run_wsgi_app
-from google.appengine.api import users
-import urlparse
+#from google.appengine.ext import webapp
+#from google.appengine.ext.webapp.util import run_wsgi_app
+#from google.appengine.api import users
+#import urlparse
 
 from string import Template
-from StringIO import StringIO
+#from StringIO import StringIO
 import logging
 from time import time
 
@@ -162,7 +162,7 @@ def translate(key, **kwargs):
 		res = key
 
 	for k, v in kwargs.items():
-		res = res.replace("{{%s}}" % k, unicode(v))
+		res = res.replace("{{%s}}" % k, str(v))
 
 	return (res)
 
@@ -308,7 +308,7 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 	return res
 
 
-class BrowseHandler(webapp.RequestHandler):
+class BrowseHandler(object):  #webapp.RequestHandler
 	"""
 		This class accepts the requests, collect its parameters and routes the request
 		to its destination function.
@@ -597,7 +597,7 @@ class BrowseHandler(webapp.RequestHandler):
 		try:
 			if (conf["viur.debug.traceExternalCallRouting"] and not self.internalRequest) or conf[
 				"viur.debug.traceInternalCallRouting"]:
-				logging.debug("Calling %s with args=%s and kwargs=%s" % (str(caller), unicode(args), unicode(kwargs)))
+				logging.debug("Calling %s with args=%s and kwargs=%s" % (str(caller), str(args), str(kwargs)))
 			self.response.out.write(caller(*self.args, **self.kwargs))
 		except TypeError as e:
 			if self.internalRequest:  # We provide that "service" only for requests originating from outside

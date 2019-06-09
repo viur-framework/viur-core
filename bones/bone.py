@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from google.appengine.api import search
+#from google.appengine.api import search
 from server.config import conf
 from server import db
 import logging
@@ -224,7 +224,7 @@ class baseBone(object):  # One Bone:
 				try:
 					key = db.Key(encoded=key)
 				except:
-					key = unicode(key)
+					key = str(key)
 					if key.isdigit():
 						key = long(key)
 					key = db.Key.from_path(skel.kindName, key)
@@ -352,7 +352,7 @@ class baseBone(object):  # One Bone:
 		res = []
 		if not valuesCache[name]:
 			return (res)
-		for line in unicode(valuesCache[name]).lower().splitlines():
+		for line in str(valuesCache[name]).lower().splitlines():
 			for key in line.split(" "):
 				key = "".join([c for c in key if c.lower() in conf["viur.searchValidChars"]])
 				if key and key not in res and len(key) > 3:
@@ -363,7 +363,7 @@ class baseBone(object):  # One Bone:
 		"""
 			Returns a list of search-fields (GAE search API) for this bone.
 		"""
-		return [search.TextField(name=prefix + name, value=unicode(valuesCache[name]))]
+		return [search.TextField(name=prefix + name, value=str(valuesCache[name]))]
 
 	def getUniquePropertyIndexValue(self, valuesCache, name):
 		"""

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime, timedelta
-from google.appengine.ext import db
-from google.appengine.api import memcache
+#from google.appengine.ext import db
+#from google.appengine.api import memcache
 import sys
 
 apiVersion = 1  # What format do we use to store data in the bigtable
@@ -141,7 +141,7 @@ class SharedConf():
 		Don't use this feature for real-time, high-traffic inter-instance communication.
 	"""
 
-	class SharedConfData(db.Expando):  # DB-Representation
+	class SharedConfData(object):  # DB-Representation
 		pass
 
 	data = {
@@ -194,4 +194,5 @@ if "viur_doc_build" in dir(sys):
 
 	sharedConf = MagicMock()
 else:
-	sharedConf = SharedConf()
+	sharedConf = object()
+	#sharedConf = SharedConf()

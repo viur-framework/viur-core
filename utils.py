@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 
-from google.appengine.api import memcache, app_identity, mail
-from google.appengine.ext import deferred
-import new, os
+#from google.appengine.api import memcache, app_identity, mail
+#from google.appengine.ext import deferred
+import os
 from server import db
 import string, random, base64
 from server import conf
 import logging
-from itertools import izip
+
 
 
 def generateRandomString(length=13):
@@ -228,7 +228,7 @@ def escapeString(val, maxLength=254):
 		:returns: The quoted string.
 		:rtype: str
 	"""
-	val = unicode(val).strip() \
+	val = str(val).strip() \
 		.replace("<", "&lt;") \
 		.replace(">", "&gt;") \
 		.replace("\"", "&quot;") \

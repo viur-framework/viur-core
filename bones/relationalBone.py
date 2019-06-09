@@ -4,8 +4,8 @@ from server.bones.bone import getSystemInitialized
 from server import db
 from server.errors import ReadFromClientError
 from server.utils import normalizeKey
-from google.appengine.api import search
-import extjson
+#from google.appengine.api import search
+import json
 from time import time
 from datetime import datetime
 import logging
@@ -121,7 +121,7 @@ class relationalBone(baseBone):
 			:param value: Json-Encoded datastore property
 			:return: Our Value (with restored RelSkel and using-Skel)
 		"""
-		value = extjson.loads(val)
+		value = json.loads(val)
 		assert isinstance(value, dict), "Read something from the datastore thats not a dict: %s" % str(type(value))
 
 		relSkel = self._refSkelCache
@@ -221,7 +221,7 @@ class relationalBone(baseBone):
 					else:
 						usingData = None
 					r = {"rel": usingData, "dest": refData}
-					res.append(extjson.dumps(r))
+					res.append(json.dumps(r))
 				entity.set(name, res, False)
 			else:
 				refSkel = self._refSkelCache
@@ -237,7 +237,7 @@ class relationalBone(baseBone):
 				else:
 					usingData = None
 				r = {"rel": usingData, "dest": refData}
-				entity.set(name, extjson.dumps(r), False)
+				entity.set(name, json.dumps(r), False)
 				# Copy attrs of our referenced entity in
 				if self.indexed:
 					if refData:

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-from google.appengine.api import datastore, datastore_types, datastore_errors
-from google.appengine.datastore import datastore_query, datastore_rpc
-from google.appengine.api import memcache
-from google.appengine.api import search
+#from google.appengine.api import datastore, datastore_types, datastore_errors
+#from google.appengine.datastore import datastore_query, datastore_rpc
+#from google.appengine.api import memcache
+#from google.appengine.api import search
 from server.config import conf
 import logging
 
@@ -410,11 +410,11 @@ class Query(object):
 			return (self)
 		if "search" in filters and filters["search"]:
 			if isinstance(filters["search"], list):
-				taglist = ["".join([y for y in unicode(x).lower() if y in conf["viur.searchValidChars"]]) for x in
+				taglist = ["".join([y for y in str(x).lower() if y in conf["viur.searchValidChars"]]) for x in
 						   filters["search"]]
 			else:
-				taglist = ["".join([y for y in unicode(x).lower() if y in conf["viur.searchValidChars"]]) for x in
-						   unicode(filters["search"]).split(" ")]
+				taglist = ["".join([y for y in str(x).lower() if y in conf["viur.searchValidChars"]]) for x in
+						   str(filters["search"]).split(" ")]
 			assert not isinstance(self.datastoreQuery,
 								  datastore.MultiQuery), "Searching using viur-tags is not possible on a query that already uses an IN-filter!"
 			origFilter = self.datastoreQuery
@@ -1024,7 +1024,7 @@ class Query(object):
 		return (res)
 
 
-class Entity(datastore.Entity):
+class Entity(object): #datastore.Entity
 	"""
 		Wraps ``datastore.Entity`` to prevent trying to add a string with more than 500 chars
 		to an index and providing a camelCase-API.
@@ -1141,44 +1141,44 @@ class Entity(datastore.Entity):
 		return (res)
 
 
-AllocateIdsAsync = datastore.AllocateIdsAsync
-AllocateIds = datastore.AllocateIds
-RunInTransaction = datastore.RunInTransaction
-RunInTransactionCustomRetries = datastore.RunInTransactionCustomRetries
-RunInTransactionOptions = datastore.RunInTransactionOptions
-TransactionOptions = datastore_rpc.TransactionOptions
+AllocateIdsAsync = NotImplementedError  # datastore.AllocateIdsAsync
+AllocateIds = NotImplementedError  # datastore.AllocateIds
+RunInTransaction = NotImplementedError  # datastore.RunInTransaction
+RunInTransactionCustomRetries = NotImplementedError  # datastore.RunInTransactionCustomRetries
+RunInTransactionOptions = NotImplementedError  # datastore.RunInTransactionOptions
+TransactionOptions = NotImplementedError  # datastore_rpc.TransactionOptions
 
-Key = datastore_types.Key
+Key = NotImplementedError  # datastore_types.Key
 
 ## Errors ##
-Error = datastore_errors.Error
-BadValueError = datastore_errors.BadValueError
-BadPropertyError = datastore_errors.BadPropertyError
-BadRequestError = datastore_errors.BadRequestError
-EntityNotFoundError = datastore_errors.EntityNotFoundError
-BadArgumentError = datastore_errors.BadArgumentError
-QueryNotFoundError = datastore_errors.QueryNotFoundError
-TransactionNotFoundError = datastore_errors.TransactionNotFoundError
-Rollback = datastore_errors.Rollback
-TransactionFailedError = datastore_errors.TransactionFailedError
-BadFilterError = datastore_errors.BadFilterError
-BadQueryError = datastore_errors.BadQueryError
-BadKeyError = datastore_errors.BadKeyError
-InternalError = datastore_errors.InternalError
-NeedIndexError = datastore_errors.NeedIndexError
-ReferencePropertyResolveError = datastore_errors.ReferencePropertyResolveError
-Timeout = datastore_errors.Timeout
-CommittedButStillApplying = datastore_errors.CommittedButStillApplying
+Error = NotImplementedError  # datastore_errors.Error
+BadValueError = NotImplementedError  # datastore_errors.BadValueError
+BadPropertyError = NotImplementedError  # datastore_errors.BadPropertyError
+BadRequestError = NotImplementedError  # datastore_errors.BadRequestError
+EntityNotFoundError = NotImplementedError  # datastore_errors.EntityNotFoundError
+BadArgumentError = NotImplementedError  # datastore_errors.BadArgumentError
+QueryNotFoundError = NotImplementedError  # datastore_errors.QueryNotFoundError
+TransactionNotFoundError = NotImplementedError  # datastore_errors.TransactionNotFoundError
+Rollback = NotImplementedError  # datastore_errors.Rollback
+TransactionFailedError = NotImplementedError  # datastore_errors.TransactionFailedError
+BadFilterError = NotImplementedError  # datastore_errors.BadFilterError
+BadQueryError = NotImplementedError  # datastore_errors.BadQueryError
+BadKeyError = NotImplementedError  # datastore_errors.BadKeyError
+InternalError = NotImplementedError  # datastore_errors.InternalError
+NeedIndexError = NotImplementedError  # datastore_errors.NeedIndexError
+ReferencePropertyResolveError = NotImplementedError  # datastore_errors.ReferencePropertyResolveError
+Timeout = NotImplementedError  # datastore_errors.Timeout
+CommittedButStillApplying = NotImplementedError  # datastore_errors.CommittedButStillApplying
 
-DatastoreQuery = datastore.Query
-MultiQuery = datastore.MultiQuery
-Cursor = datastore_query.Cursor
-IsInTransaction = datastore.IsInTransaction
+DatastoreQuery = NotImplementedError  # datastore.Query
+MultiQuery = NotImplementedError  # datastore.MultiQuery
+Cursor = NotImplementedError  # datastore_query.Cursor
+IsInTransaction = NotImplementedError  # datastore.IsInTransaction
 
 # Consts
-KEY_SPECIAL_PROPERTY = datastore_types.KEY_SPECIAL_PROPERTY
-ASCENDING = datastore_query.PropertyOrder.ASCENDING
-DESCENDING = datastore_query.PropertyOrder.DESCENDING
+KEY_SPECIAL_PROPERTY = NotImplementedError  # datastore_types.KEY_SPECIAL_PROPERTY
+ASCENDING = NotImplementedError  # datastore_query.PropertyOrder.ASCENDING
+DESCENDING = NotImplementedError  # datastore_query.PropertyOrder.DESCENDING
 
 __all__ = [PutAsync, Put, GetAsync, Get, DeleteAsync, Delete, AllocateIdsAsync, AllocateIds, RunInTransaction,
 		   RunInTransactionCustomRetries, RunInTransactionOptions, TransactionOptions,

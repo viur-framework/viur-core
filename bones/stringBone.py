@@ -5,7 +5,7 @@ from server import db
 from server import request
 from server import utils
 from server.session import current as currentSession
-from google.appengine.api import search
+#from google.appengine.api import search
 import logging
 
 
@@ -22,7 +22,7 @@ class LanguageWrapper(dict):
 		self.languages = languages
 
 	def __str__(self):
-		return (unicode(self.resolve()))
+		return (str(self.resolve()))
 
 	def resolve(self):
 		"""
@@ -37,7 +37,7 @@ class LanguageWrapper(dict):
 		else:
 			if lang in conf["viur.languageAliasMap"]:
 				lang = conf["viur.languageAliasMap"][lang]
-		if lang in self and self[lang] is not None and unicode(
+		if lang in self and self[lang] is not None and str(
 				self[lang]).strip():  # The users language is available :)
 			return (self[lang])
 		else:  # We need to select another lang for him
@@ -80,9 +80,9 @@ class stringBone(baseBone):
 					if valuesCache[name] is None:
 						entity.set(name + ".idx", None, self.indexed)
 					elif isinstance(valuesCache[name], list):
-						entity.set(name + ".idx", [unicode(x).lower() for x in valuesCache[name]], self.indexed)
+						entity.set(name + ".idx", [str(x).lower() for x in valuesCache[name]], self.indexed)
 					else:
-						entity.set(name + ".idx", unicode(valuesCache[name]).lower(), self.indexed)
+						entity.set(name + ".idx", str(valuesCache[name]).lower(), self.indexed)
 		else:  # Write each language separately
 			if not valuesCache.get(name, None):
 				return (entity)
@@ -256,30 +256,30 @@ class stringBone(baseBone):
 			namefilter = "%s.%s" % (name, lang)
 		if name + "$lk" in rawFilter:  # Do a prefix-match
 			if not self.caseSensitive:
-				dbFilter.filter((prefix or "") + namefilter + ".idx >=", unicode(rawFilter[name + "$lk"]).lower())
+				dbFilter.filter((prefix or "") + namefilter + ".idx >=", str(rawFilter[name + "$lk"]).lower())
 				dbFilter.filter((prefix or "") + namefilter + ".idx <",
-								unicode(rawFilter[name + "$lk"] + u"\ufffd").lower())
+								str(rawFilter[name + "$lk"] + u"\ufffd").lower())
 			else:
-				dbFilter.filter((prefix or "") + namefilter + " >=", unicode(rawFilter[name + "$lk"]))
-				dbFilter.filter((prefix or "") + namefilter + " < ", unicode(rawFilter[name + "$lk"] + u"\ufffd"))
+				dbFilter.filter((prefix or "") + namefilter + " >=", str(rawFilter[name + "$lk"]))
+				dbFilter.filter((prefix or "") + namefilter + " < ", str(rawFilter[name + "$lk"] + u"\ufffd"))
 			hasInequalityFilter = True
 		if name + "$gt" in rawFilter:  # All entries after
 			if not self.caseSensitive:
-				dbFilter.filter((prefix or "") + namefilter + ".idx >", unicode(rawFilter[name + "$gt"]).lower())
+				dbFilter.filter((prefix or "") + namefilter + ".idx >", str(rawFilter[name + "$gt"]).lower())
 			else:
-				dbFilter.filter((prefix or "") + namefilter + " >", unicode(rawFilter[name + "$gt"]))
+				dbFilter.filter((prefix or "") + namefilter + " >", str(rawFilter[name + "$gt"]))
 			hasInequalityFilter = True
 		if name + "$lt" in rawFilter:  # All entries before
 			if not self.caseSensitive:
-				dbFilter.filter((prefix or "") + namefilter + ".idx <", unicode(rawFilter[name + "$lt"]).lower())
+				dbFilter.filter((prefix or "") + namefilter + ".idx <", str(rawFilter[name + "$lt"]).lower())
 			else:
-				dbFilter.filter((prefix or "") + namefilter + " <", unicode(rawFilter[name + "$lt"]))
+				dbFilter.filter((prefix or "") + namefilter + " <", str(rawFilter[name + "$lt"]))
 			hasInequalityFilter = True
 		if name in rawFilter:  # Normal, strict match
 			if not self.caseSensitive:
-				dbFilter.filter((prefix or "") + namefilter + ".idx", unicode(rawFilter[name]).lower())
+				dbFilter.filter((prefix or "") + namefilter + ".idx", str(rawFilter[name]).lower())
 			else:
-				dbFilter.filter((prefix or "") + namefilter, unicode(rawFilter[name]))
+				dbFilter.filter((prefix or "") + namefilter, str(rawFilter[name]))
 		return (dbFilter)
 
 	def buildDBSort(self, name, skel, dbFilter, rawFilter):
@@ -336,7 +336,7 @@ class stringBone(baseBone):
 					if not lang:
 						continue
 					for val in lang:
-						for line in unicode(val).splitlines():
+						for line in str(val).splitlines():
 							for key in line.split(" "):
 								key = "".join([c for c in key if c.lower() in conf[
 									"viur.searchValidChars"]])
@@ -344,7 +344,7 @@ class stringBone(baseBone):
 									res.append(key.lower())
 			else:
 				for lang in value.values():
-					for line in unicode(lang).splitlines():
+					for line in str(lang).splitlines():
 						for key in line.split(" "):
 							key = "".join([c for c in key if
 										   c.lower() in conf["viur.searchValidChars"]])
@@ -353,14 +353,14 @@ class stringBone(baseBone):
 		else:
 			if self.multiple:
 				for val in value:
-					for line in unicode(val).splitlines():
+					for line in str(val).splitlines():
 						for key in line.split(" "):
 							key = "".join([c for c in key if
 										   c.lower() in conf["viur.searchValidChars"]])
 							if key and key not in res and len(key) > 1:
 								res.append(key.lower())
 			else:
-				for line in unicode(value).splitlines():
+				for line in str(value).splitlines():
 					for key in line.split(" "):
 						key = "".join(
 							[c for c in key if c.lower() in conf["viur.searchValidChars"]])
@@ -379,9 +379,9 @@ class stringBone(baseBone):
 				for lang in self.languages:
 					if lang in valuesCache[name]:
 						res.append(
-							search.TextField(name=prefix + name, value=unicode(valuesCache[name][lang]), language=lang))
+							search.TextField(name=prefix + name, value=str(valuesCache[name][lang]), language=lang))
 		else:
-			res.append(search.TextField(name=prefix + name, value=unicode(valuesCache[name])))
+			res.append(search.TextField(name=prefix + name, value=str(valuesCache[name])))
 
 		return res
 

@@ -5,7 +5,7 @@ from hashlib import sha256
 import hmac
 from struct import Struct
 from operator import xor
-from itertools import izip, starmap
+from itertools import starmap
 from server.config import conf
 import string, random
 
@@ -37,7 +37,7 @@ def pbkdf2(password, salt, iterations=1001, keylen=42):
 		rv = u = _pseudorandom(salt + _pack_int(block))
 		for i in xrange(iterations - 1):
 			u = _pseudorandom(''.join(map(chr, u)))
-			rv = starmap(xor, izip(rv, u))
+			rv = starmap(xor, zip(rv, u))
 		buf.extend(rv)
 	return (''.join(map(chr, buf))[:keylen]).encode("hex")
 

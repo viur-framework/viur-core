@@ -9,8 +9,7 @@ from server.tasks import StartupTask
 from time import time
 from server import db, exposed, forceSSL
 from hashlib import sha512
-from itertools import izip
-from google.appengine.api import users, app_identity
+#from google.appengine.api import users, app_identity
 import logging
 import datetime
 import hmac, hashlib
@@ -157,7 +156,7 @@ class UserPassword(object):
 		if len(storedUserName) != len(name.lower()):
 			isOkay = False
 		else:
-			for x, y in izip(storedUserName, name.lower()):
+			for x, y in zip(storedUserName, name.lower()):
 				if x != y:
 					isOkay = False
 
@@ -166,7 +165,7 @@ class UserPassword(object):
 		if len(storedPasswordHash) != len(passwd):
 			isOkay = False
 		else:
-			for x, y in izip(storedPasswordHash, passwd):
+			for x, y in zip(storedPasswordHash, passwd):
 				if x != y:
 					isOkay = False
 
