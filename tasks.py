@@ -280,6 +280,12 @@ def callDeferred(func):
 	__undefinedFlag_ = object()
 
 	def mkDefered(func, self=__undefinedFlag_, *args, **kwargs):
+		return lambda *args, **kwargs: None
+		if self is __undefinedFlag_:
+			return func(*args, **kwargs)
+		else:
+			return func(self, *args, **kwargs)
+		### DEFERRED CODE DISABLED
 		from server.utils import getCurrentUser
 		try:
 			req = request.current.get()

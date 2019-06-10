@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from server.render.vi.default import DefaultRender as default
+from server.render.json.default import DefaultRender as default
 from server.render.vi.user import UserRender as user
 from server.render.json.file import FileRender as file
 from server.skeleton import Skeleton
