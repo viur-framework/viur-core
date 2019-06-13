@@ -1,10 +1,36 @@
 # -*- coding: utf-8 -*-
-#from google.appengine.api import datastore, datastore_types, datastore_errors
-#from google.appengine.datastore import datastore_query, datastore_rpc
-#from google.appengine.api import memcache
-#from google.appengine.api import search
+# from google.appengine.api import datastore, datastore_types, datastore_errors
+# from google.appengine.datastore import datastore_query, datastore_rpc
+# from google.appengine.api import memcache
+# from google.appengine.api import search
 from server.config import conf
-import logging
+from server import utils
+import logging, threading
+from google.cloud import firestore
+from google.cloud.firestore_v1beta1 import _helpers
+from google.cloud.firestore_v1beta1 import field_path as field_path_module
+from google.cloud.firestore_v1beta1.proto import common_pb2
+from google.cloud.firestore_v1beta1.watch import Watch
+from google.api_core import exceptions
+from google.cloud import firestore
+from google.cloud.firestore_v1.proto import firestore_pb2_grpc
+from google.cloud.firestore_v1.proto import firestore_pb2
+from google.cloud.firestore_v1.proto import query_pb2
+from google.cloud.firestore_v1.types import Value as FirestoreValue
+from google.cloud.firestore_v1.proto import document_pb2, common_pb2
+from google.cloud.firestore_v1._helpers import encode_value, encode_dict, pbs_for_set_with_merge
+from google.cloud.firestore_v1beta1.gapic import enums
+from google.protobuf.pyext._message import MessageMapContainer as FirestoreMessageMapContainer
+from google.api_core import grpc_helpers
+from grpc._channel import _Rendezvous as GrpcRendezvousError
+from grpc import StatusCode as GrpcStatusCode
+from pprint import pprint
+from google.api_core.datetime_helpers import DatetimeWithNanoseconds
+from datetime import datetime
+from typing import Union, Tuple, List, Dict
+from time import time
+import google.auth
+from functools import partial
 
 """
 	Tiny wrapper around *google.appengine.api.datastore*.
@@ -21,6 +47,180 @@ __CacheKeyPrefix__ = "viur-db-cache:"  # Our Memcache-Namespace. Dont use that f
 __MemCacheBatchSize__ = 30
 __undefinedC__ = object()
 
+# Firestore specific stuff
+__OauthScopesFirestore__ = (
+	"https://www.googleapis.com/auth/cloud-platform",
+	"https://www.googleapis.com/auth/datastore",
+)
+__database__ = "projects/%s/databases/(default)" % utils.projectID
+__documentRoot__ = "projects/%s/databases/(default)/documents/" % utils.projectID
+__documentRootLen__ = len(__documentRoot__)  # A slice should be faster than fullKey.replace(__documentRoot__, "")
+__channel__ = grpc_helpers.create_channel("firestore.googleapis.com:443", scopes=__OauthScopesFirestore__)
+__firestoreStub__ = firestore_pb2_grpc.FirestoreStub(channel=__channel__)
+
+
+## Custom Datatypes
+
+class Entity(dict):  # datastore.Entity
+	"""
+		Wraps ``datastore.Entity`` to prevent trying to add a string with more than 500 chars
+		to an index and providing a camelCase-API.
+	"""
+	__slots__ = ["collection", "name"]
+
+	def __init__(self, collection, name=None, preFill=None):
+		if preFill:
+			super(Entity, self).__init__(**preFill)
+		else:
+			super(Entity, self).__init__()
+		self.collection = collection
+		self.name = name
+
+	def _fixUnindexedProperties(self):
+		"""
+			Ensures that no property with strlen > 500 makes it into the index.
+		"""
+		unindexed = list(self.getUnindexedProperties())
+		for k, v in self.items():
+			if isinstance(v, basestring) and len(v) >= 500 and not k in unindexed:
+				logging.warning("Your property %s cant be indexed!" % k)
+				unindexed.append(k)
+			elif isinstance(v, list) or isinstance(v, tuple()):
+				if any([isinstance(x, basestring) and len(x) >= 500 for x in v]) and not k in unindexed:
+					logging.warning("Your property %s cant be indexed!" % k)
+					unindexed.append(k)
+		self.set_unindexed_properties(unindexed)
+
+	def isSaved(self):
+		"""
+			Returns True if this entity has been saved to the data store.
+
+			:rtype: bool
+		"""
+		return (self.is_saved())
+
+	def entityGroup(self):
+		"""
+			Returns this entity's entity group as a Key.
+
+			Note that the returned Key will be incomplete if this is a a root entity
+			and its key is incomplete.
+		"""
+		return (self.entity_group())
+
+	def getUnindexedProperties(self):
+		"""
+			Returns this entity's unindexed properties, as a frozen set of strings.
+		"""
+		return (self.unindexed_properties())
+
+	def setUnindexedProperties(self, unindexed_properties):
+		"""
+			Sets the list of unindexed properties.
+
+			Properties listed here are *not* saved in an index;
+			its impossible to use them in a query filter / sort.
+
+			But it saves one db-write op per property listed here.
+		"""
+		self.set_unindexed_properties(unindexed_properties)
+
+	def __setitem__(self, name, value):
+		"""
+			Implements the [] operator. Used to set property value(s).
+
+			:param name: Name of the property to set.
+			:type name: str
+			:param value: Any value to set tot the property.
+
+			:raises: :exc:`BadPropertyError` if the property name is the \
+			empty string or not a string.
+			:raises: :exc:`BadValueError` if the value is not a supported type.
+		"""
+		if isinstance(value, list) or isinstance(value, tuple):
+			# We cant store an empty list, so we catch any attempts
+			# and store None. As "does not exists" queries aren't
+			# possible anyway, this makes no difference
+			if len(value) == 0:
+				value = None
+		super(Entity, self).__setitem__(name, value)
+
+	def set(self, key, value, indexed=True):
+		"""
+			Sets a property.
+
+			:param key: key of the property to set.
+			:type key: str
+			:param value: Any value to set tot the property.
+
+			:param indexed: Defines if the value is indexed.
+			:type indexed: bool
+
+			:raises: :exc:`BadPropertyError` if the property name is the \
+			empty string or not a string.
+			:raises: :exc:`BadValueError` if the value is not a supported type.
+		"""
+		unindexed = list(self.getUnindexedProperties())
+
+		if not indexed and not key in unindexed:
+			unindexed.append(key)
+			self.setUnindexedProperties(unindexed)
+		elif indexed and key in unindexed:
+			unindexed.remove(key)
+			self.setUnindexedProperties(unindexed)
+
+		self[key] = value
+
+	@staticmethod
+	def FromDatastoreEntity(entity):
+		"""
+			Converts a datastore.Entity into a :class:`db.server.Entity`.
+
+			Required, as ``datastore.Get()`` always returns a datastore.Entity
+			(and it seems that currently there is no valid way to change that).
+		"""
+		res = Entity(entity.kind(), parent=entity.key().parent(), _app=entity.key().app(),
+					 name=entity.key().name(), id=entity.key().id(),
+					 unindexed_properties=entity.unindexed_properties(),
+					 namespace=entity.namespace())
+		res.update(entity)
+		return (res)
+
+
+## Helper functions for dealing with protobuffs etc.
+
+_generateNewId = partial(utils.generateRandomString, length=20)
+
+
+def _protoValueToPythonVal(value: FirestoreValue) -> \
+		Union[None, bool, int, float, list, dict, str, bytes, datetime, Tuple[float, float]]:
+	"""
+	Constructs a native python type from it's google.cloud.firestore_v1.types.Value instance
+
+	:param value: The google.cloud.firestore_v1.types.Value to parse
+	:return: The native Python object for that value
+	"""
+	valType = value.WhichOneof("value_type")
+	if valType in {"boolean_value", "integer_value", "double_value", "string_value", "bytes_value", "reference_value"}:
+		return getattr(value, valType)
+	elif valType == "null_value":
+		return None
+	elif valType == "timestamp_value":
+		return datetime.fromtimestamp(value.timestamp_value.seconds)
+	elif valType == "array_value":
+		return [_protoValueToPythonVal(element) for element in value.array_value.values]
+	elif valType == "map_value":
+		return {key: _protoValueToPythonVal(value) for key, value in value.map_value.fields.items()}
+	elif valType == "geo_point_value":
+		return (value.geo_point_value.latitude, value.geo_point_value.longitude)
+	else:
+		raise ValueError("Value-Type '%s'not supported" % valType)
+
+
+def _protoMapToDict(ProtBufFields: FirestoreMessageMapContainer, keyPath: str) -> Entity:
+	collection, name = keyPath.split("/")
+	return Entity(collection, name, {key: _protoValueToPythonVal(value) for key, value in ProtBufFields.items()})
+
 
 def PutAsync(entities, **kwargs):
 	"""
@@ -30,6 +230,7 @@ def PutAsync(entities, **kwargs):
 		returns an asynchronous object. Call ``get_result()`` on the return value to
 		block on the call and get the results.
 	"""
+	raise NotImplementedError()
 	if isinstance(entities, Entity):
 		entities._fixUnindexedProperties()
 	elif isinstance(entities, list):
@@ -48,7 +249,7 @@ def PutAsync(entities, **kwargs):
 	return (datastore.PutAsync(entities, **kwargs))
 
 
-def Put(entities, **kwargs):
+def Put(entities: Union[Entity, List[Entity]], **kwargs) -> None:
 	"""
 		Store one or more entities in the data store.
 
@@ -69,6 +270,22 @@ def Put(entities, **kwargs):
 
 		:raises: :exc:`TransactionFailedError`, if the action could not be committed.
 	"""
+	if isinstance(entities, list):  # FIXME: Use a WriteBatch instead
+		for x in entities:
+			Put(x)
+	if not entities.name:
+		# This will be an add
+		entities.name = _generateNewId()
+		isAdd = True
+	documentPb = document_pb2.Document(name="%s%s/%s" % (__documentRoot__, entities.collection, entities.name),
+								fields=encode_dict(entities))
+	updateDocumentRequest = firestore_pb2.UpdateDocumentRequest(
+		document=documentPb,
+		update_mask=common_pb2.DocumentMask(field_paths=entities.keys()),
+	)
+	res = __firestoreStub__.UpdateDocument(updateDocumentRequest)
+	return  # FIXME: Return-Value? Keys/List of Keys?
+
 	if isinstance(entities, Entity):
 		entities._fixUnindexedProperties()
 	elif isinstance(entities, list):
@@ -95,6 +312,7 @@ def GetAsync(keys, **kwargs):
 		returns an asynchronous object. Call ``get_result()`` on the return value to
 		block on the call and get the results.
 	"""
+	raise NotImplementedError()
 
 	class AsyncResultWrapper:
 		"""
@@ -118,7 +336,7 @@ def GetAsync(keys, **kwargs):
 	return (datastore.GetAsync(keys, **kwargs))
 
 
-def Get(keys, **kwargs):
+def Get(keys: Union[str, List[str]], **kwargs) -> Union[None, dict, List[dict]]:
 	"""
 		Retrieve one or more entities from the data store.
 
@@ -144,6 +362,29 @@ def Get(keys, **kwargs):
 		:returns: Entity or list of Entity objects corresponding to the specified key(s).
 		:rtype: :class:`server.db.Entity` | list of :class:`server.db.Entity`
 	"""
+	if isinstance(keys, list):  # In this case issue a BatchGetDocumentsRequest to avoid multiple roundtrips
+		batchGetDocumentsRequest = firestore_pb2.BatchGetDocumentsRequest(
+			database=__database__,
+			documents=[__documentRoot__ + key for key in keys])
+		resultPromise = __firestoreStub__.BatchGetDocuments(batchGetDocumentsRequest)
+		# Documents returned are not guaranteed to be in the same order as requested, so we have to fix this first
+		tmpDict = {}
+		for item in resultPromise:
+			if item.found.name:  # We also get empty results for keys not found
+				tmpDict[item.found.name] = _protoMapToDict(item.found.fields, item.found.name[__documentRootLen__:])
+		return [tmpDict.get(__documentRoot__ + key) for key in keys]
+	else:  # We fetch a single Document and can use the simpler GetDocumentRequest
+		getDocumentRequest = firestore_pb2.GetDocumentRequest(name=__documentRoot__ + keys)
+		try:
+			resultPB = __firestoreStub__.GetDocument(getDocumentRequest)
+		except GrpcRendezvousError as e:
+			if e.code() == GrpcStatusCode.NOT_FOUND:
+				# If a given key is not found, we simply return None instead of raising an exception
+				return None
+			raise
+		return _protoMapToDict(resultPB.fields, keys)
+
+	## OLD Datastore-Code
 	if conf["viur.db.caching"] > 0 and not datastore.IsInTransaction():
 		if isinstance(keys, datastore_types.Key) or isinstance(keys, basestring):  # Just one:
 			res = memcache.get(str(keys), namespace=__CacheKeyPrefix__)
@@ -185,7 +426,7 @@ def Get(keys, **kwargs):
 							break
 			if conf["viur.debug.traceQueries"]:
 				logging.debug("Fetched a result-set from Datastore: %s total, %s from cache, %s from datastore" % (
-				len(tmpRes), len(cacheRes.keys()), len(dbRes)))
+					len(tmpRes), len(cacheRes.keys()), len(dbRes)))
 			return (tmpRes)
 	if isinstance(keys, list):
 		return ([Entity.FromDatastoreEntity(x) for x in datastore.Get(keys, **kwargs)])
@@ -1021,123 +1262,6 @@ class Query(object):
 			res.order(orders[0])
 		elif len(orders) > 1:
 			res.order(tuple(orders))
-		return (res)
-
-
-class Entity(object): #datastore.Entity
-	"""
-		Wraps ``datastore.Entity`` to prevent trying to add a string with more than 500 chars
-		to an index and providing a camelCase-API.
-	"""
-
-	def _fixUnindexedProperties(self):
-		"""
-			Ensures that no property with strlen > 500 makes it into the index.
-		"""
-		unindexed = list(self.getUnindexedProperties())
-		for k, v in self.items():
-			if isinstance(v, basestring) and len(v) >= 500 and not k in unindexed:
-				logging.warning("Your property %s cant be indexed!" % k)
-				unindexed.append(k)
-			elif isinstance(v, list) or isinstance(v, tuple()):
-				if any([isinstance(x, basestring) and len(x) >= 500 for x in v]) and not k in unindexed:
-					logging.warning("Your property %s cant be indexed!" % k)
-					unindexed.append(k)
-		self.set_unindexed_properties(unindexed)
-
-	def isSaved(self):
-		"""
-			Returns True if this entity has been saved to the data store.
-
-			:rtype: bool
-		"""
-		return (self.is_saved())
-
-	def entityGroup(self):
-		"""
-			Returns this entity's entity group as a Key.
-
-			Note that the returned Key will be incomplete if this is a a root entity
-			and its key is incomplete.
-		"""
-		return (self.entity_group())
-
-	def getUnindexedProperties(self):
-		"""
-			Returns this entity's unindexed properties, as a frozen set of strings.
-		"""
-		return (self.unindexed_properties())
-
-	def setUnindexedProperties(self, unindexed_properties):
-		"""
-			Sets the list of unindexed properties.
-
-			Properties listed here are *not* saved in an index;
-			its impossible to use them in a query filter / sort.
-
-			But it saves one db-write op per property listed here.
-		"""
-		self.set_unindexed_properties(unindexed_properties)
-
-	def __setitem__(self, name, value):
-		"""
-			Implements the [] operator. Used to set property value(s).
-
-			:param name: Name of the property to set.
-			:type name: str
-			:param value: Any value to set tot the property.
-
-			:raises: :exc:`BadPropertyError` if the property name is the \
-			empty string or not a string.
-			:raises: :exc:`BadValueError` if the value is not a supported type.
-		"""
-		if isinstance(value, list) or isinstance(value, tuple):
-			# We cant store an empty list, so we catch any attempts
-			# and store None. As "does not exists" queries aren't
-			# possible anyway, this makes no difference
-			if len(value) == 0:
-				value = None
-		super(Entity, self).__setitem__(name, value)
-
-	def set(self, key, value, indexed=True):
-		"""
-			Sets a property.
-
-			:param key: key of the property to set.
-			:type key: str
-			:param value: Any value to set tot the property.
-
-			:param indexed: Defines if the value is indexed.
-			:type indexed: bool
-
-			:raises: :exc:`BadPropertyError` if the property name is the \
-			empty string or not a string.
-			:raises: :exc:`BadValueError` if the value is not a supported type.
-		"""
-		unindexed = list(self.getUnindexedProperties())
-
-		if not indexed and not key in unindexed:
-			unindexed.append(key)
-			self.setUnindexedProperties(unindexed)
-		elif indexed and key in unindexed:
-			unindexed.remove(key)
-			self.setUnindexedProperties(unindexed)
-
-		self[key] = value
-
-	@staticmethod
-	def FromDatastoreEntity(entity):
-		"""
-			Converts a datastore.Entity into a :class:`db.server.Entity`.
-
-			Required, as ``datastore.Get()`` always returns a datastore.Entity
-			(and it seems that currently there is no valid way to change that).
-		"""
-		res = Entity(entity.kind(), parent=entity.key().parent(), _app=entity.key().app(),
-					 name=entity.key().name(), id=entity.key().id(),
-					 unindexed_properties=entity.unindexed_properties(),
-					 namespace=entity.namespace())
-		res.update(entity)
 		return (res)
 
 

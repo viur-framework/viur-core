@@ -7,8 +7,11 @@ from server import db
 import string, random, base64
 from server import conf
 import logging
+import google.auth
 
-
+# Determine which ProjectID we currently run in (as the app_identity module isn't available anymore)
+_, projectID = google.auth.default()
+del _
 
 def generateRandomString(length=13):
 	"""
