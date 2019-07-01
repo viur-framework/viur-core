@@ -13,7 +13,7 @@ class recordBone(baseBone):
 		self.using = using
 		self.format = format
 		if not format or indexed or not multiple:
-			NotImplemented("A recordBone must not be indexed, must be multiple and must have a format set")
+			raise NotImplementedError("A recordBone must not be indexed, must be multiple and must have a format set")
 
 		if getSystemInitialized():
 			self._usingSkelCache = using()
