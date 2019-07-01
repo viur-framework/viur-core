@@ -9,13 +9,13 @@ import copy
 class recordBone(baseBone):
 	type = "record"
 
-	def __init__(self, using, format=None, multiple=True, *args, **kwargs):
+	def __init__(self, using, format=None, multiple=True, indexed=False, *args, **kwargs):
 		super(recordBone, self).__init__(multiple=multiple, *args, **kwargs)
 
 		self.using = using
 		self.format = format
-		if not format or not multiple:
-			NotImplemented("A recordBone must be multiple and must have a format set")
+		if not format or indexed or not multiple:
+			raise NotImplementedError("A recordBone must not be indexed, must be multiple and must have a format set")
 
 		if getSystemInitialized():
 			self._usingSkelCache = using()
