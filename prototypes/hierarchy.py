@@ -730,14 +730,7 @@ class Hierarchy(BasicApplication):
 			skel = self.addSkel()
 			skel.fromDB(old_key)
 
-			for k, v in skel.items():
-				logging.debug("BEFORE %s = >%s<", k, skel[k])
-
 			skel = skel.clone()
-			# skel.setValues( {}, key=None )
-
-			for k, v in skel.items():
-				logging.debug("BEHIND %s = >%s<", k, skel[k])
 
 			skel["key"] = None
 			skel["parententry"] = toParent
