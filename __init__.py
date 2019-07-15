@@ -25,7 +25,7 @@
  See file LICENSE for more information.
 """
 
-__version__ = (2, 5, 0)  # Which API do we expose to our application
+__version__ = (-99, -99, -99)  # Which API do we expose to our application
 
 import sys, traceback, os, inspect
 
@@ -129,7 +129,7 @@ def translate(key, **kwargs):
 
 	if key is None:
 		return (None)
-	elif not isinstance(key, basestring):
+	elif not isinstance(key, str):
 		raise ValueError("Can only translate strings, got %s instead" % str(type(key)))
 
 	res = None

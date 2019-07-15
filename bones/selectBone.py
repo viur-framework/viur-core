@@ -72,7 +72,7 @@ class selectBone(baseBone):
 				return "No item selected"
 
 			if not isinstance(values, list):
-				if isinstance(values, basestring):
+				if isinstance(values, str):
 					values = values.split(":")
 				else:
 					values = []

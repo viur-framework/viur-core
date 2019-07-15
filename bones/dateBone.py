@@ -43,7 +43,7 @@ class ExtendedDateTime(datetime):
 			format = format.replace("%b", _("const_month_%s_short" % int(super(ExtendedDateTime, self).strftime("%m"))))
 		if "%B" in format:
 			format = format.replace("%B", _("const_month_%s_long" % int(super(ExtendedDateTime, self).strftime("%m"))))
-		return (super(ExtendedDateTime, self).strftime(format.encode("UTF-8")).decode("UTF-8"))
+		return super(ExtendedDateTime, self).strftime(format)
 
 
 class dateBone(baseBone):

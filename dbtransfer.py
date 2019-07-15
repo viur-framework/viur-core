@@ -33,7 +33,7 @@ class DbTransfer(object):
 			:returns: True if the key is correct, False otherwise
 		"""
 		isValid = True
-		if not isinstance(key, basestring):
+		if not isinstance(key, str):
 			isValid = False
 		if export:
 			expectedKey = conf["viur.exportPassword"]

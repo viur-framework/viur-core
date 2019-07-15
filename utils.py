@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-#from google.appengine.api import memcache, app_identity, mail
-#from google.appengine.ext import deferred
+# from google.appengine.api import memcache, app_identity, mail
+# from google.appengine.ext import deferred
 import os
 from server import db
 import string, random, base64
@@ -12,6 +12,23 @@ import google.auth
 # Determine which ProjectID we currently run in (as the app_identity module isn't available anymore)
 _, projectID = google.auth.default()
 del _
+
+from opencensus.ext.stackdriver import trace_exporter as stackdriver_exporter
+import opencensus.trace.tracer
+
+
+def initialize_tracer(project_id):
+	exporter = stackdriver_exporter.StackdriverExporter(
+		project_id=project_id
+	)
+	tracer = opencensus.trace.tracer.Tracer(exporter=exporter)
+
+	return tracer
+
+
+def getTracer():
+	return initialize_tracer("drspang-dev")
+
 
 def generateRandomString(length=13):
 	"""
@@ -61,11 +78,11 @@ def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,
 		logging.warning("Overriding destination %s with %s", dests, conf["viur.emailRecipientOverride"])
 
 		oldDests = dests
-		if isinstance(oldDests, basestring):
+		if isinstance(oldDests, str):
 			oldDests = [oldDests]
 
 		newDests = conf["viur.emailRecipientOverride"]
-		if isinstance(newDests, basestring):
+		if isinstance(newDests, str):
 			newDests = [newDests]
 
 		dests = []

@@ -73,7 +73,7 @@ class booleanBone(baseBone):
 		"""
 		if name in expando:
 			val = expando[name]
-			if unicode(val) in self.trueStrs:
+			if str(val) in self.trueStrs:
 				valuesCache[name] = True
 			else:
 				valuesCache[name] = False

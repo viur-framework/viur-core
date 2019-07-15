@@ -5,11 +5,12 @@ from server.config import conf
 from urllib import parse
 from string import Template
 from io import StringIO
-import logging
 import webob
 from server import session, errors
+from urllib.parse import urljoin
+from server import utils
+import logging
 
-translations = None
 
 
 class BrowseHandler():  # webapp.RequestHandler
@@ -22,7 +23,7 @@ class BrowseHandler():  # webapp.RequestHandler
 
 	# COPY START
 
-	def redirect(uri, permanent=False, abort=False, code=None, body=None,
+	def redirect(self, uri, permanent=False, abort=False, code=None, body=None,
 				 request=None, response=None):
 		"""Issues an HTTP redirect to the given relative URI.
 
@@ -51,8 +52,9 @@ class BrowseHandler():  # webapp.RequestHandler
 		:returns:
 			A :class:`Response` instance.
 		"""
+		request = self.request
+		response = self.response
 		if uri.startswith(('.', '/')):
-			request = request or get_request()
 			uri = str(urljoin(request.url, uri))
 
 		if code is None:
@@ -68,12 +70,6 @@ class BrowseHandler():  # webapp.RequestHandler
 			headers = response.headers.copy() if response is not None else []
 			headers['Location'] = uri
 			_abort(code, headers=headers)
-
-		if response is None:
-			request = request or get_request()
-			response = request.app.response_class()
-		else:
-			response.body = b""
 
 		response.headers['Location'] = uri
 		response.status = code
@@ -138,6 +134,7 @@ class BrowseHandler():  # webapp.RequestHandler
 		"""
 			Bring up the enviroment for this request, start processing and handle errors
 		"""
+		# with conf["viur.tracer"].span(name="request."):
 		# Check if it's a HTTP-Method we support
 		reqestMethod = self.request.method.lower()
 		if reqestMethod not in ["get", "post", "head"]:
@@ -211,7 +208,11 @@ class BrowseHandler():  # webapp.RequestHandler
 		except errors.Redirect as e:
 			if conf["viur.debug.traceExceptions"]:
 				raise
-			self.redirect(e.url.encode("UTF-8"))
+			try:
+				self.redirect(e.url)
+			except Exception as e:
+				logging.exception(e)
+				raise
 		except errors.HTTPException as e:
 			if conf["viur.debug.traceExceptions"]:
 				raise
@@ -228,7 +229,7 @@ class BrowseHandler():  # webapp.RequestHandler
 			if not res:
 				tpl = Template(open(conf["viur.errorTemplate"], "r").read())
 				res = tpl.safe_substitute({"error_code": e.status, "error_name": e.name, "error_descr": e.descr})
-			self.response.write(res)
+			self.response.write(res.encode("UTF-8"))
 		except Exception as e:  # Something got really wrong
 			logging.error("Viur caught an unhandled exception!")
 			logging.exception(e)
@@ -253,9 +254,11 @@ class BrowseHandler():  # webapp.RequestHandler
 																										   "<br />")
 				res = tpl.safe_substitute(
 					{"error_code": "500", "error_name": "Internal Server Error", "error_descr": descr})
-			self.response.write(res)
+			self.response.write(res.encode("UTF-8"))
 		finally:
 			self.saveSession()
+
+
 
 	def findAndCall(self, path, *args, **kwargs):  # Do the actual work: process the request
 		# Prevent Hash-collision attacks
@@ -322,15 +325,13 @@ class BrowseHandler():  # webapp.RequestHandler
 				and "forceSSL" in dir(caller) \
 				and caller.forceSSL \
 				and not self.request.host_url.lower().startswith("https://") \
-				and not "Development" in os.environ['SERVER_SOFTWARE']:
+				and not self.isDevServer:
 			raise (errors.PreconditionFailed("You must use SSL to access this ressource!"))
 		# Check for forcePost flag
 		if "forcePost" in dir(caller) and caller.forcePost and not self.isPostRequest:
 			raise (errors.MethodNotAllowed("You must use POST to access this ressource!"))
 		self.args = []
 		for arg in args:
-			logging.error(arg)
-			logging.error(type(arg))
 			if isinstance(arg, str):
 				self.args.append(arg)
 			else:
@@ -350,8 +351,8 @@ class BrowseHandler():  # webapp.RequestHandler
 		try:
 			if (conf["viur.debug.traceExternalCallRouting"] and not self.internalRequest) or conf[
 				"viur.debug.traceInternalCallRouting"]:
-				logging.debug("Calling %s with args=%s and kwargs=%s" % (str(caller), unicode(args), unicode(kwargs)))
-			self.response.write(str(caller(*self.args, **self.kwargs)))
+				logging.debug("Calling %s with args=%s and kwargs=%s" % (str(caller), str(args), str(kwargs)))
+			self.response.write(str(caller(*self.args, **self.kwargs)).encode("UTF-8"))
 		except TypeError as e:
 			if self.internalRequest:  # We provide that "service" only for requests originating from outside
 				raise

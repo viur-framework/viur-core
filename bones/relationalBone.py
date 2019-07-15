@@ -268,7 +268,7 @@ class relationalBone(baseBone):
 			if parentKey in self.parentKeys or any([parentKey.startswith(x + ".") for x in self.parentKeys]):
 				parentValues[parentKey] = dbfields[parentKey]
 
-		dbVals = db.Query("viur-relations").ancestor(db.Key(key))  # skel.kindName+"_"+self.kind+"_"+key
+		dbVals = db.Query("viur-relations")  # skel.kindName+"_"+self.kind+"_"+key
 		dbVals.filter("viur_src_kind =", skel.kindName)
 		dbVals.filter("viur_dest_kind =", self.kind)
 		dbVals.filter("viur_src_property =", boneName)
@@ -531,7 +531,7 @@ class relationalBone(baseBone):
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		from server.skeleton import RefSkel, skeletonByKind
-		origFilter = dbFilter.datastoreQuery
+		origFilter = dbFilter.filters
 
 		if origFilter is None:  # This query is unsatisfiable
 			return (dbFilter)
@@ -619,10 +619,10 @@ class relationalBone(baseBone):
 		return dbFilter
 
 	def buildDBSort(self, name, skel, dbFilter, rawFilter):
-		origFilter = dbFilter.datastoreQuery
+		origFilter = dbFilter.filters
 		if origFilter is None or not "orderby" in rawFilter:  # This query is unsatisfiable or not sorted
 			return (dbFilter)
-		if "orderby" in rawFilter and isinstance(rawFilter["orderby"], basestring) and rawFilter["orderby"].startswith(
+		if "orderby" in rawFilter and isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
 				"%s." % name):
 			if not dbFilter.getKind() == "viur-relations":  # This query has not been rewritten (yet)
 				name, skel, dbFilter, rawFilter = self._rewriteQuery(name, skel, dbFilter, rawFilter)
@@ -896,18 +896,18 @@ class relationalBone(baseBone):
 		if append and not self.multiple:
 			raise ValueError("Bone %s is not multiple, cannot append!" % boneName)
 		if not self.multiple and not self.using:
-			if not (isinstance(value, basestring) or isinstance(value, db.Key)):
+			if not (isinstance(value, str) or isinstance(value, db.Key)):
 				raise ValueError("You must supply exactly one Database-Key to %s" % boneName)
 			realValue = (value, None)
 		elif not self.multiple and self.using:
 			if not isinstance(value, tuple) or len(value) != 2 or \
-					not (isinstance(value[0], basestring) or isinstance(value[0], db.Key)) or \
+					not (isinstance(value[0], str) or isinstance(value[0], db.Key)) or \
 					not isinstance(value[1], self.using):
 				raise ValueError("You must supply a tuple of (Database-Key, relSkel) to %s" % boneName)
 			realValue = value
 		elif self.multiple and not self.using:
-			if not (isinstance(value, basestring) or isinstance(value, db.Key)) and not (isinstance(value, list)) \
-					and all([isinstance(x, basestring) or isinstance(x, db.Key) for x in value]):
+			if not (isinstance(value, str) or isinstance(value, db.Key)) and not (isinstance(value, list)) \
+					and all([isinstance(x, str) or isinstance(x, db.Key) for x in value]):
 				raise ValueError("You must supply a Database-Key or a list hereof to %s" % boneName)
 			if isinstance(value, list):
 				realValue = [(x, None) for x in value]
@@ -915,10 +915,10 @@ class relationalBone(baseBone):
 				realValue = [(value, None)]
 		else:  # which means (self.multiple and self.using)
 			if not (isinstance(value, tuple) and len(value) == 2 and \
-					(isinstance(value[0], basestring) or isinstance(value[0], db.Key)) \
+					(isinstance(value[0], str) or isinstance(value[0], db.Key)) \
 					and isinstance(value[1], self.using)) and not (isinstance(value, list) and
 																   all((isinstance(x, tuple) and len(x) == 2 and \
-																		(isinstance(x[0], basestring) or isinstance(
+																		(isinstance(x[0], str) or isinstance(
 																			x[0], db.Key)) \
 																		and isinstance(x[1], self.using) for x in
 																		value))):

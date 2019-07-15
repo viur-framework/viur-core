@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta
 from server.update import checkUpdate
 from server.config import conf, sharedConf
-from server import errors, request
+from server import errors, request, utils
 #from google.appengine.api import users
 #from google.appengine.api import taskqueue
 #from google.appengine.ext.deferred import PermanentTaskFailure
@@ -86,7 +86,7 @@ class TaskHandler:
 				continue
 			if callable(v) and "periodicTaskID" in dir(v) and str(v.periodicTaskID) == str(task.periodicTaskID):
 				return (v, obj)
-			if not isinstance(v, basestring) and not callable(v):
+			if not isinstance(v, str) and not callable(v):
 				res = self.findBoundTask(task, v, depth + 1)
 				if res:
 					return (res)
@@ -412,7 +412,8 @@ class DisableApplicationTask(CallableTaskBase):
 			Checks wherever the current user can execute this task
 			:returns: bool
 		"""
-		return (users.is_current_user_admin())
+		usr = utils.getCurrentUser()
+		return usr and usr["access"] and "root" in usr["access"]
 
 	def dataSkel(self):
 		from server.bones import booleanBone, stringBone

@@ -221,7 +221,7 @@ class textBone(baseBone):
 			global _defaultTags
 			validHtml = _defaultTags
 		if not (languages is None or (isinstance(languages, list) and len(languages) > 0 and all(
-				[isinstance(x, basestring) for x in languages]))):
+				[isinstance(x, str) for x in languages]))):
 			raise ValueError("languages must be None or a list of strings ")
 		self.languages = languages
 		self.validHtml = validHtml
@@ -321,7 +321,7 @@ class textBone(baseBone):
 			if not value:
 				valuesCache[name] = ""
 				return "No value entered"
-			if not isinstance(value, str) and not isinstance(value, unicode):
+			if not isinstance(value, str):
 				value = str(value)
 			err = self.isInvalid(value)
 			if not err:

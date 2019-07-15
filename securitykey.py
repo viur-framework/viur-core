@@ -45,9 +45,9 @@ def create(duration=None, **kwargs):
 		dbObj["session"] = currentSession.getSessionKey()
 	else:
 		dbObj["session"] = None
-	dbObj.set_unindexed_properties([x for x in dbObj.keys() if not x == "until"])
+	#dbObj.set_unindexed_properties([x for x in dbObj.keys() if not x == "until"])
 	db.Put(dbObj)
-	return (key)
+	return key
 
 
 def validate(key, acceptSessionKey=False):
@@ -63,15 +63,14 @@ def validate(key, acceptSessionKey=False):
 	if acceptSessionKey:
 		if key == currentSession.getSessionSecurityKey():
 			return (True)
-	try:
-		dbObj = db.Get(db.Key.from_path(securityKeyKindName, key))
-	except:
-		return (False)
+	if "/" in key:
+		return False
+	dbObj = db.Get((securityKeyKindName, key))
 	if dbObj:
 		if "session" in dbObj and dbObj["session"] is not None:
 			if dbObj["session"] != currentSession.getSessionKey():
 				return (False)
-		db.Delete(dbObj.key())
+		# db.Delete(dbObj.key())  # FIXME!
 		if dbObj["until"] < datetime.now():  # This key has expired
 			return (False)
 		res = {}

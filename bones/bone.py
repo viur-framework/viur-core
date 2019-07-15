@@ -22,36 +22,12 @@ def getSystemInitialized():
 	return __systemIsIntitialized_
 
 
-class boneFactory(object):
-	IDX = 1
-
-	def __init__(self, cls, args, kwargs):
-		super(boneFactory, self).__init__()
-		self.cls = cls
-		self.args = args
-		self.kwargs = kwargs
-		self.idx = boneFactory.IDX
-		boneFactory.IDX += 1
-
-	def __call__(self, *args, **kwargs):
-		tmpDict = self.kwargs.copy()
-		tmpDict.update(kwargs)
-		return self.cls(*(self.args + args), **tmpDict)
-
-	def __repr__(self):
-		return "%sFactory" % self.cls.__name__
-
 
 class baseBone(object):  # One Bone:
 	hasDBField = True
 	type = "hidden"
 	isClonedInstance = False
 
-	# def __new__(cls, *args, **kwargs):
-	#	if getSystemInitialized():
-	#		return super(baseBone, cls).__new__(cls, *args, **kwargs)
-	#	else:
-	#		return boneFactory(cls, args, kwargs)
 
 	def __init__(self, descr="", defaultValue=None, required=False, params=None, multiple=False,
 				 indexed=False, searchable=False, vfunc=None, readOnly=False, visible=True, unique=False, **kwargs):
@@ -91,11 +67,6 @@ class baseBone(object):  # One Bone:
 				The kwarg 'multiple' is not supported by all bones
 
 		"""
-		from server.skeleton import _boneCounter
-		# Fallbacks for old non-CamelCase API
-		for x in ["defaultvalue", "readonly"]:
-			if x in kwargs:
-				raise NotImplementedError("%s is not longer supported" % x)
 		self.isClonedInstance = getSystemInitialized()
 		self.descr = descr
 		self.required = required
@@ -109,10 +80,7 @@ class baseBone(object):  # One Bone:
 		self.readOnly = readOnly
 		self.visible = visible
 		self.unique = unique
-		self.idx = _boneCounter.count
-		if "canUse" in dir(self):
-			raise AssertionError("canUse is deprecated! Use isInvalid instead!")
-		_boneCounter.count += 1
+
 
 	def setSystemInitialized(self):
 		"""
@@ -220,7 +188,7 @@ class baseBone(object):  # One Bone:
 		"""
 
 		def fromShortKey(key):
-			if isinstance(key, basestring):
+			if isinstance(key, str):
 				try:
 					key = db.Key(encoded=key)
 				except:
@@ -372,12 +340,11 @@ class baseBone(object):  # One Bone:
 		if valuesCache[name] is None:
 			return (None)
 		h = hashlib.sha256()
-		h.update(unicode(valuesCache[name]).encode("UTF-8"))
+		h.update(str(valuesCache[name]).encode("UTF-8"))
 		res = h.hexdigest()
-		if isinstance(valuesCache[name], int) or isinstance(valuesCache[name], float) or isinstance(valuesCache[name],
-																									long):
+		if isinstance(valuesCache[name], int) or isinstance(valuesCache[name], float):
 			return ("I-%s" % res)
-		elif isinstance(valuesCache[name], str) or isinstance(valuesCache[name], unicode):
+		elif isinstance(valuesCache[name], str):
 			return ("S-%s" % res)
 		raise NotImplementedError("Type %s can't be safely used in an uniquePropertyIndex" % type(valuesCache[name]))
 

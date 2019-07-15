@@ -137,22 +137,18 @@ class UserPassword(object):
 			return self.userModule.render.login(self.loginSkel())
 
 		query = db.Query(self.userModule.viewSkel().kindName)
-		res = query.filter("name.idx >=", name.lower()).get()
+		res = query.filter("name_idx >=", name.lower()).get()
 
 		if res is None:
 			res = {"password": "", "status": 0, "name": "", "name.idx": ""}
 
-		if "password_salt" in res:  # Its the new, more secure passwd
-			passwd = pbkdf2(password[:conf["viur.maxPasswordLength"]], res["password_salt"])
-		else:
-			passwd = sha512(password.encode("UTF-8") + conf["viur.salt"]).hexdigest()
-
+		passwd = pbkdf2(password[:conf["viur.maxPasswordLength"]], res["password_salt"])
 		isOkay = True
 
 		# We do this exactly that way to avoid timing attacks
 
 		# Check if the username matches
-		storedUserName = res.get("name.idx", "")
+		storedUserName = res.get("name_idx", "")
 		if len(storedUserName) != len(name.lower()):
 			isOkay = False
 		else:
@@ -183,7 +179,7 @@ class UserPassword(object):
 				res["password"] = pbkdf2(password[: conf["viur.maxPasswordLength"]], res["password_salt"])
 				db.Put(res)
 
-			return self.userModule.continueAuthenticationFlow(self, res.key())
+			return self.userModule.continueAuthenticationFlow(self, (res.collection, res.name))
 
 	@exposed
 	def pwrecover(self, authtoken=None, skey=None, *args, **kwargs):
@@ -565,6 +561,9 @@ class User(List):
 		return getattr(self, "f2_%s" % cls.__name__.lower())
 
 	def getCurrentUser(self, *args, **kwargs):
+		#usr = session.current.get("user")
+		#if not usr:
+		#	session.current["user"] = {"name": "test@adm.de", "access": ["root"], "key": "VektIwimKhgWD2dBp10m"}
 		return session.current.get("user")
 
 	def continueAuthenticationFlow(self, caller, userKey):
@@ -630,7 +629,7 @@ class User(List):
 			except:
 				pass
 
-		session.current["user"]["key"] = str(res.key())
+		session.current["user"]["key"] = userKey
 		if not "access" in session.current["user"] or not session.current["user"]["access"]:
 			session.current["user"]["access"] = []
 
@@ -694,7 +693,7 @@ class User(List):
 		if key == "self":
 			user = self.getCurrentUser()
 			if user:
-				return super(User, self).view(user["key"], *args, **kwargs)
+				return super(User, self).view(user["key"][1], *args, **kwargs)
 			else:
 				raise errors.Unauthorized()
 

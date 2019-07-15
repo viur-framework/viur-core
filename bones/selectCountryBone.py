@@ -749,13 +749,13 @@ class selectCountryBone(selectBone):
 	def unserialize(self, valuesCache, name, expando):
 		if name in expando:
 			value = expando[name]
-			if isinstance(value, basestring) and len(
+			if isinstance(value, str) and len(
 					value) == 3 and self.codes == self.ISO2:  # We got an ISO3 code from the db, but are using ISO2
 				try:
 					valuesCache[name] = ISO2TOISO3[value]
 				except:
 					pass
-			elif isinstance(value, basestring) and len(
+			elif isinstance(value, str) and len(
 					value) == 2 and self.codes == self.ISO3:  # We got ISO2 code, wanted ISO3
 				inv = {v: k for k, v in ISO2TOISO3.items()}  # Inverted map
 				try:

@@ -7,7 +7,7 @@ from time import time
 from server.tasks import PeriodicTask, callDeferred
 from server import db
 from server.config import conf
-#from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError, OverQuotaError
+# from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError, OverQuotaError
 import logging
 
 """
@@ -148,8 +148,9 @@ class GaeSession:
 		if self.plainCookieName in req.request.cookies:
 			cookie = req.request.cookies[self.plainCookieName]
 			try:
-				data = db.Get(db.Key.from_path(self.kindName, cookie))
+				data = db.Get((self.kindName, cookie))
 			except:
+				raise
 				return (False)
 			if data:  # Loaded successfully from Memcache
 				if data["lastseen"] < time() - conf["viur.session.lifeTime"]:
@@ -179,33 +180,37 @@ class GaeSession:
 
 			Does nothing, if the session hasn't been changed in the current request.
 		"""
-		if self.changed:
-			serialized = base64.b64encode(pickle.dumps(self.session, protocol=pickle.HIGHEST_PROTOCOL))
-			self.getSessionKey(req)
-			# Get the current user id
-			userid = None
-			try:
-				if "user" in dir(conf["viur.mainApp"]):  # Check for our custom user-api
-					userid = conf["viur.mainApp"].user.getCurrentUser()["key"]
-			except:
-				pass
-			try:
-				dbSession = db.Entity(self.kindName, name=self.key)
-				dbSession["data"] = serialized
-				dbSession["sslkey"] = self.sslKey
-				dbSession["skey"] = self.sessionSecurityKey
-				dbSession["lastseen"] = time()
-				dbSession["user"] = str(
-					userid) or "guest"  # Store the userid inside the sessionobj, so we can kill specific sessions if needed
-				dbSession.set_unindexed_properties(["data", "sslkey"])
-				db.Put(dbSession)
-			except (OverQuotaError, CapabilityDisabledError):
-				pass
-			req.response.headers.add_header("Set-Cookie", bytes(
-				"%s=%s; Max-Age=99999; Path=/; HttpOnly" % (self.plainCookieName, self.key)))
-			if req.isSSLConnection:
-				req.response.headers.add_header("Set-Cookie", bytes(
-					"%s=%s; Max-Age=99999; Path=/; Secure; HttpOnly" % (self.sslCookieName, self.sslKey)))
+		try:
+			if self.changed or 1:  # Fixme!
+				serialized = base64.b64encode(pickle.dumps(self.session, protocol=pickle.HIGHEST_PROTOCOL))
+				self.getSessionKey(req)
+				# Get the current user id
+				userid = None
+				try:
+					if "user" in dir(conf["viur.mainApp"]):  # Check for our custom user-api
+						userid = conf["viur.mainApp"].user.getCurrentUser()["key"]
+				except:
+					pass
+				try:
+					dbSession = db.Entity(self.kindName, name=self.key)
+					dbSession["data"] = serialized
+					dbSession["sslkey"] = self.sslKey
+					dbSession["skey"] = self.sessionSecurityKey
+					dbSession["lastseen"] = time()
+					dbSession["user"] = str(
+						userid) or "guest"  # Store the userid inside the sessionobj, so we can kill specific sessions if needed
+					# dbSession.set_unindexed_properties(["data", "sslkey"])
+					db.Put(dbSession)
+				# except (OverQuotaError, CapabilityDisabledError):
+				except Exception as e:
+					logging.exception(e)
+					raise
+					pass
+				req.response.headerlist.append(("Set-Cookie", "%s=%s; Max-Age=99999; Path=/; HttpOnly" % (self.plainCookieName, self.key)))
+				if req.isSSLConnection:
+					req.response.headerlist.append(("Set-Cookie", "%s=%s; Max-Age=99999; Path=/; Secure; HttpOnly" % (self.sslCookieName, self.sslKey)))
+		except Exception as e:
+			logging.exception(e)
 
 	def __contains__(self, key):
 		"""
@@ -274,7 +279,7 @@ class GaeSession:
 		"""
 		lang = self.session.get("language")
 		if self.key:
-			db.Delete(db.Key.from_path(self.kindName, self.key))
+			db.Delete((self.kindName, self.key))
 		self.key = None
 		self.sslKey = None
 		self.sessionSecurityKey = None
