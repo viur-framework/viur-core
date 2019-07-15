@@ -10,7 +10,44 @@ from server import session, errors
 from urllib.parse import urljoin
 from server import utils
 import logging
+import google.cloud.logging
+from google.cloud.logging.handlers import CloudLoggingHandler
+from google.cloud.logging.resource import Resource
 
+translations = None
+
+client = google.cloud.logging.Client()
+loggingRessource = Resource(type="gae_app",
+			   labels={
+				   "project_id": "drspang-dev",
+				   "module_id": "default",
+				   "version_id": "ts-dev",
+				   "zone": "europe-west3-1"
+			   })
+
+reqLogger = client.logger("ViUR")
+
+
+class ViURDefaultLogger(CloudLoggingHandler):
+	def emit(self, record):
+		message = super(ViURDefaultLogger, self).format(record)
+		try:
+			currentReq = current.get()
+			TRACE = "projects/{}/traces/{}".format(client.project, currentReq._traceID)
+			currentReq.maxLogLevel = max(currentReq.maxLogLevel, record.levelno)
+		except:
+			TRACE = None
+		self.transport.send(
+			record,
+			message,
+			resource=self.resource,
+			labels=self.labels,
+			trace = TRACE
+		)
+
+handler = ViURDefaultLogger(client, name="ViUR-Messages", resource=Resource(type="gae_app", labels={}))
+google.cloud.logging.handlers.setup_logging(handler)
+logging.getLogger().setLevel(logging.DEBUG)
 
 
 class BrowseHandler():  # webapp.RequestHandler
@@ -84,6 +121,8 @@ class BrowseHandler():  # webapp.RequestHandler
 		super()
 		self.request = request
 		self.response = response
+		self.maxLogLevel = logging.DEBUG
+		self._traceID = request.headers.get('X-Cloud-Trace-Context') or utils.generateRandomString()
 
 	def selectLanguage(self, path: str):
 		"""
@@ -258,6 +297,28 @@ class BrowseHandler():  # webapp.RequestHandler
 		finally:
 			self.saveSession()
 
+			SEVERITY = "DEBUG"
+			if self.maxLogLevel >= 50:
+				SEVERITY = "CRITICAL"
+			elif self.maxLogLevel >= 40:
+				SEVERITY = "ERROR"
+			elif self.maxLogLevel >= 30:
+				SEVERITY = "WARNING"
+			elif self.maxLogLevel >= 20:
+				SEVERITY = "INFO"
+
+			TRACE = "projects/{}/traces/{}".format(client.project, self._traceID)
+
+			REQUEST = {
+				'requestMethod': self.request.method,
+				'requestUrl': self.request.url,
+				'status': 200, #self.request.status_code,
+				'userAgent': self.request.headers.get('USER-AGENT'),
+				'responseSize': self.response.content_length,
+				'latency': "0.123s",
+				'remoteIp': self.request.remote_addr
+			}
+			reqLogger.log_text("", client=client, severity=SEVERITY, http_request=REQUEST, trace=TRACE, resource=loggingRessource)
 
 
 	def findAndCall(self, path, *args, **kwargs):  # Do the actual work: process the request
