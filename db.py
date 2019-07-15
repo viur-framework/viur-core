@@ -85,11 +85,11 @@ class Entity(dict):  # datastore.Entity
 		"""
 		unindexed = list(self.getUnindexedProperties())
 		for k, v in self.items():
-			if isinstance(v, basestring) and len(v) >= 500 and not k in unindexed:
+			if isinstance(v, str) and len(v) >= 500 and not k in unindexed:
 				logging.warning("Your property %s cant be indexed!" % k)
 				unindexed.append(k)
 			elif isinstance(v, list) or isinstance(v, tuple()):
-				if any([isinstance(x, basestring) and len(x) >= 500 for x in v]) and not k in unindexed:
+				if any([isinstance(x, str) and len(x) >= 500 for x in v]) and not k in unindexed:
 					logging.warning("Your property %s cant be indexed!" % k)
 					unindexed.append(k)
 		self.set_unindexed_properties(unindexed)
@@ -163,14 +163,14 @@ class Entity(dict):  # datastore.Entity
 			empty string or not a string.
 			:raises: :exc:`BadValueError` if the value is not a supported type.
 		"""
-		unindexed = list(self.getUnindexedProperties())
+		# unindexed = list(self.getUnindexedProperties())
 
-		if not indexed and not key in unindexed:
-			unindexed.append(key)
-			self.setUnindexedProperties(unindexed)
-		elif indexed and key in unindexed:
-			unindexed.remove(key)
-			self.setUnindexedProperties(unindexed)
+		# if not indexed and not key in unindexed:
+		#	unindexed.append(key)
+		#	self.setUnindexedProperties(unindexed)
+		# elif indexed and key in unindexed:
+		#	unindexed.remove(key)
+		#	self.setUnindexedProperties(unindexed)
 
 		self[key] = value
 
@@ -281,8 +281,8 @@ def _protoValueToPythonVal(value: FirestoreValue) -> \
 		raise ValueError("Value-Type '%s'not supported" % valType)
 
 
-def _protoMapToEntry(ProtBufFields: FirestoreMessageMapContainer, keyPath: str) -> Entity:
-	collection, name = keyPath.split("/")
+def _protoMapToEntry(ProtBufFields: FirestoreMessageMapContainer, keyPath: Tuple[str, str]) -> Entity:
+	collection, name = keyPath
 	return Entity(collection, name, {key: _protoValueToPythonVal(value) for key, value in ProtBufFields.items()})
 
 
@@ -338,8 +338,8 @@ def Put(entities: Union[Entity, List[Entity]], **kwargs) -> None:
 		currentTransaction = __currentTransaction__.transactionKey
 	except AttributeError:
 		currentTransaction = None
-	if currentTransaction:
-		raise NotImplementedError() # FIXME: We must enqueue Writes to the transaction instead...
+	#if currentTransaction:
+	#	raise NotImplementedError()  # FIXME: We must enqueue Writes to the transaction instead...
 	if isinstance(entities, list):  # FIXME: Use a WriteBatch instead
 		for x in entities:
 			Put(x)
@@ -397,7 +397,7 @@ def GetAsync(keys, **kwargs):
 			return (self.res)
 
 	if conf["viur.db.caching"] > 0 and not datastore.IsInTransaction():
-		if isinstance(keys, datastore_types.Key) or isinstance(keys, basestring):  # Just one:
+		if isinstance(keys, datastore_types.Key) or isinstance(keys, str):  # Just one:
 			res = memcache.get(str(keys), namespace=__CacheKeyPrefix__)
 			if res:
 				return (AsyncResultWrapper(res))
@@ -406,7 +406,7 @@ def GetAsync(keys, **kwargs):
 	return (datastore.GetAsync(keys, **kwargs))
 
 
-def Get(keys: Union[str, List[str]], **kwargs) -> Union[None, dict, List[dict]]:
+def Get(keys: Union[Tuple[str, str], List[Tuple[str, str]]], **kwargs) -> Union[None, Entity, List[Entity]]:
 	"""
 		Retrieve one or more entities from the data store.
 
@@ -432,34 +432,40 @@ def Get(keys: Union[str, List[str]], **kwargs) -> Union[None, dict, List[dict]]:
 		:returns: Entity or list of Entity objects corresponding to the specified key(s).
 		:rtype: :class:`server.db.Entity` | list of :class:`server.db.Entity`
 	"""
-	try:
-		currentTransaction = __currentTransaction__.transactionKey
-	except AttributeError:
-		currentTransaction = None
-	if isinstance(keys, list):  # In this case issue a BatchGetDocumentsRequest to avoid multiple roundtrips
-		batchGetDocumentsRequest = firestore_pb2.BatchGetDocumentsRequest(
-			database=__database__,
-			documents=[__documentRoot__ + key for key in keys],
-			transaction=currentTransaction)
-		resultPromise = __firestoreStub__.BatchGetDocuments(batchGetDocumentsRequest)
-		# Documents returned are not guaranteed to be in the same order as requested, so we have to fix this first
-		tmpDict = {}
-		for item in resultPromise:
-			if item.found.name:  # We also get empty results for keys not found
-				tmpDict[item.found.name] = _protoMapToEntry(item.found.fields, item.found.name[__documentRootLen__:])
-		return [tmpDict.get(__documentRoot__ + key) for key in keys]
-	else:  # We fetch a single Document and can use the simpler GetDocumentRequest
-		getDocumentRequest = firestore_pb2.GetDocumentRequest(
-			name=__documentRoot__ + keys,
-			transaction=currentTransaction)
+	with utils.getTracer().span(name="db.Get"):
 		try:
-			resultPB = __firestoreStub__.GetDocument(getDocumentRequest)
-		except GrpcRendezvousError as e:
-			if e.code() == GrpcStatusCode.NOT_FOUND:
-				# If a given key is not found, we simply return None instead of raising an exception
-				return None
-			raise
-		return _protoMapToEntry(resultPB.fields, keys)
+			currentTransaction = __currentTransaction__.transactionKey
+		except AttributeError:
+			currentTransaction = None
+		if isinstance(keys, list):  # In this case issue a BatchGetDocumentsRequest to avoid multiple roundtrips
+			if any(["/" in collection or "/" in name for collection, name in keys]):
+				raise ValueError("Collections or Names must not contain a /")
+			batchGetDocumentsRequest = firestore_pb2.BatchGetDocumentsRequest(
+				database=__database__,
+				documents=["%s%s/%s" % (__documentRoot__, collection, name) for collection, name in keys],
+				transaction=currentTransaction)
+			resultPromise = __firestoreStub__.BatchGetDocuments(batchGetDocumentsRequest)
+			# Documents returned are not guaranteed to be in the same order as requested, so we have to fix this first
+			tmpDict = {}
+			for item in resultPromise:
+				if item.found.name:  # We also get empty results for keys not found
+					tmpDict[item.found.name] = _protoMapToEntry(item.found.fields, item.found.name[__documentRootLen__:])
+			return [tmpDict.get(__documentRoot__ + key) for key in keys]
+		else:  # We fetch a single Document and can use the simpler GetDocumentRequest
+			collection, name = keys
+			if "/" in collection or "/" in name:
+				raise ValueError("Collections or Names must not contain a /")
+			getDocumentRequest = firestore_pb2.GetDocumentRequest(
+				name="%s%s/%s" % (__documentRoot__, collection, name),
+				transaction=currentTransaction)
+			try:
+				resultPB = __firestoreStub__.GetDocument(getDocumentRequest)
+			except GrpcRendezvousError as e:
+				if e.code() == GrpcStatusCode.NOT_FOUND:
+					# If a given key is not found, we simply return None instead of raising an exception
+					return None
+				raise
+			return _protoMapToEntry(resultPB.fields, keys)
 
 	## OLD Datastore-Code
 	if conf["viur.db.caching"] > 0 and not datastore.IsInTransaction():
@@ -563,6 +569,7 @@ def DeleteAsync(keys, **kwargs):
 		returns an asynchronous object. Call ``get_result()`` on the return value to
 		block on the call and get the results.
 	"""
+	raise NotImplementedError()
 	if conf["viur.db.caching"] > 0:
 		if isinstance(keys, datastore_types.Key):  # Just one:
 			memcache.delete(str(keys), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__)
@@ -573,7 +580,7 @@ def DeleteAsync(keys, **kwargs):
 	return (datastore.DeleteAsync(keys, **kwargs))
 
 
-def Delete(keys, **kwargs):
+def Delete(keys: Union[Tuple[str, str], List[Tuple[str, str]]], **kwargs) -> None:
 	"""
 		Deletes one or more entities from the data store.
 
@@ -592,6 +599,20 @@ def Delete(keys, **kwargs):
 
 		:raises: :exc:`TransactionFailedError`, if the deletion could not be committed.
 	"""
+	if not isinstance(keys, list):
+		keys = [keys]
+	for collection, name in keys:
+		if "/" in collection or "/" in name:
+			raise ValueError("Collections or Names must not contain a /")
+		deleteDocumentRequest = firestore_pb2.DeleteDocumentRequest(name="%s%s/%s" % (__documentRoot__, collection, name))
+		try:
+			resultPB = __firestoreStub__.DeleteDocument(deleteDocumentRequest)
+		except GrpcRendezvousError as e:
+			if e.code() == GrpcStatusCode.NOT_FOUND:
+				# If a given key is not found, we simply return None instead of raising an exception
+				return None
+			raise
+	return
 	if conf["viur.db.caching"] > 0:
 		if isinstance(keys, datastore_types.Key) or isinstance(keys, basestring):  # Just one:
 			memcache.delete(str(keys), namespace=__CacheKeyPrefix__, seconds=__cacheLockTime__)
@@ -695,8 +716,8 @@ class Query(object):
 			return self
 		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
-		if self.datastoreQuery is None:  # This query is allready unsatifiable and adding more constrains to this wont change this
-			return (self)
+		if self.filters is None:  # This query is allready unsatifiable and adding more constrains to this wont change this
+			return self
 		skel = self.srcSkel
 		if skel.searchIndex and "search" in filters:  # We perform a Search via Google API - all other parameters are ignored
 			try:
@@ -941,14 +962,14 @@ class Query(object):
 			:returns: Returns the query itself for chaining.
 			:rtype: server.db.Query
 		"""
-		if isinstance(cursor, basestring):
+		if isinstance(cursor, str):
 			cursor = datastore_query.Cursor(urlsafe=cursor)
 		elif isinstance(cursor, datastore_query.Cursor) or cursor == None:
 			pass
 		else:
 			raise ValueError("Cursor must be String, datastore_query.Cursor or None")
 		if endCursor is not None:
-			if isinstance(endCursor, basestring):
+			if isinstance(endCursor, str):
 				endCursor = datastore_query.Cursor(urlsafe=endCursor)
 			elif isinstance(cursor, datastore_query.Cursor) or endCursor == None:
 				pass
@@ -1259,8 +1280,8 @@ class Query(object):
 				# We must merge (and sort) the results ourself
 				res = self._mergeMultiQueryResults(res)
 		else:  # We have just one single query
-			res = [_protoMapToEntry(tmpRes.document.fields, tmpRes.document.name[__documentRootLen__:]) for tmpRes in
-				   self._runSingleFilterQuery(self.filters, currentTransaction) if tmpRes.document.name]
+			res = [_protoMapToEntry(tmpRes.document.fields, tmpRes.document.name[__documentRootLen__:].split("/")) for
+				   tmpRes in self._runSingleFilterQuery(self.filters, currentTransaction) if tmpRes.document.name]
 		if conf["viur.debug.traceQueries"]:
 			kindName = self.getKind()
 			orders = self.getOrders()
@@ -1314,7 +1335,8 @@ class Query(object):
 				res.cursor = c.urlsafe()
 			else:
 				res.cursor = None
-		except AssertionError:  # No Cursors available on MultiQueries ( in or != )
+		except (AssertionError, AttributeError):  # No Cursors available on MultiQueries ( in or != )
+			# FIXME! AttributeError is always raised - need to fix cursors...
 			res.cursor = None
 		return (res)
 
@@ -1337,6 +1359,7 @@ class Query(object):
 			:param keysOnly: If the query should be used to retrieve entity keys only.
 			:type keysOnly: bool
 		"""
+		return self.run(99)  # Fixme!
 		if self.datastoreQuery is None:  # Noting to pull here
 			raise StopIteration()
 		if isinstance(self.datastoreQuery, datastore.MultiQuery) and keysOnly:
@@ -1488,9 +1511,35 @@ def _rollbackTransaction():
 	__currentTransaction__.transactionKey = None
 
 
+def IsInTransaction():
+	try:
+		currentTransaction = __currentTransaction__.transactionKey
+	except AttributeError:
+		currentTransaction = None
+	return currentTransaction is not None
+
+
+def RunInTransaction(callee, *args, **kwargs):
+	_beginTransaction()
+	try:
+		res = callee(*args, **kwargs)
+	except Exception as e:
+		logging.error("Error in TXN")
+		logging.exception(e)
+		_rollbackTransaction()
+	else:
+		_commitTransaction()
+		return res
+
+
+def RunInTransactionCustomRetries(*args, **kwargs):
+	raise NotImplementedError(
+		"Use RunInTransaction instead. Crossgroup transactions are now the default and can't be turned off")
+
+
 AllocateIdsAsync = NotImplementedError  # datastore.AllocateIdsAsync
 AllocateIds = NotImplementedError  # datastore.AllocateIds
-RunInTransaction = NotImplementedError  # datastore.RunInTransaction
+# RunInTransaction = NotImplementedError  # datastore.RunInTransaction
 RunInTransactionCustomRetries = NotImplementedError  # datastore.RunInTransactionCustomRetries
 RunInTransactionOptions = NotImplementedError  # datastore.RunInTransactionOptions
 TransactionOptions = NotImplementedError  # datastore_rpc.TransactionOptions
@@ -1520,7 +1569,7 @@ CommittedButStillApplying = NotImplementedError  # datastore_errors.CommittedBut
 DatastoreQuery = NotImplementedError  # datastore.Query
 MultiQuery = NotImplementedError  # datastore.MultiQuery
 Cursor = NotImplementedError  # datastore_query.Cursor
-IsInTransaction = NotImplementedError  # datastore.IsInTransaction
+# IsInTransaction = NotImplementedError  # datastore.IsInTransaction
 
 # Consts
 KEY_SPECIAL_PROPERTY = NotImplementedError  # datastore_types.KEY_SPECIAL_PROPERTY
