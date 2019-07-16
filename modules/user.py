@@ -14,7 +14,8 @@ import logging
 import datetime
 import hmac, hashlib
 import json
-
+from google.oauth2 import id_token
+from google.auth.transport import requests
 
 class userSkel(Skeleton):
 	kindName = "user"
@@ -308,40 +309,62 @@ class GoogleAccount(object):
 
 	@exposed
 	@forceSSL
-	def login(self, skey="", *args, **kwargs):
+	def login(self, skey="", token="", *args, **kwargs):
+		# FIXME: Check if already logged in
+		if not conf.get("viur.user.google.clientID"):
+			raise errors.PreconditionFailed()
+		if not skey or not token:
+			request.current.get().response.headers["Content-Type"] = "text/html"
+			# Fixme: Render with Jinja2?
+			tplStr = open("server/template/vi_user_google_login.html", "r").read()
+			tplStr = tplStr.replace("{{ clientID }}", conf["viur.user.google.clientID"])
+			return tplStr
+		if not securitykey.validate(skey):
+			raise errors.PreconditionFailed()
+		userInfo = id_token.verify_oauth2_token(token, requests.Request(), conf["viur.user.google.clientID"])
+		if userInfo['iss'] not in {'accounts.google.com', 'https://accounts.google.com'}:
+			raise ValueError('Wrong issuer.')
+		# Token looks valid :)
+		uid = userInfo['sub']
+		email = userInfo['email']
+		addSkel = skeletonByKind(self.userModule.addSkel().kindName)  # Ensure that we have the full skeleton
+		userSkel = addSkel().all().filter("uid =", uid).getSkel()
+		if not userSkel:
+			# We'll try again - checking if there's already an user with that email
+			userSkel = addSkel().all().filter("name.idx =", email.lower()).getSkel()
+			if not userSkel:  # Still no luck - it's a completely new user
+				if not self.registrationEnabled:
+					if userInfo.get("hd") and userInfo["hd"] in conf["viur.user.google.gsuiteDomains"]:
+						print("User is from domain - adding account")
+					else:
+						logging.warning("Denying registration of %s", email)
+						raise errors.Forbidden("Registration for new users is disabled")
+				userSkel = addSkel()  # We'll add a new user
+			userSkel["uid"] = uid
+			userSkel["name"] = email
+			isAdd = True
+		else:
+			isAdd = False
+		now = datetime.datetime.now()
+		if isAdd or (now - userSkel["lastlogin"]) > datetime.timedelta(minutes=30):
+			# Conserve DB-Writes: Update the user max once in 30 Minutes
+			userSkel["lastlogin"] = now
+			#if users.is_current_user_admin():
+			#	if not userSkel["access"]:
+			#		userSkel["access"] = []
+			#	if not "root" in userSkel["access"]:
+			#		userSkel["access"].append("root")
+			#	userSkel["gaeadmin"] = True
+			#else:
+			#	userSkel["gaeadmin"] = False
+			assert userSkel.toDB()
+		return self.userModule.continueAuthenticationFlow(self, (userSkel.kindName, userSkel["key"]))
+
 		if users.get_current_user():
-			addSkel = skeletonByKind(self.userModule.addSkel().kindName)  # Ensure that we have the full skeleton
+
 			currentUser = users.get_current_user()
 			uid = currentUser.user_id()
-			userSkel = addSkel().all().filter("uid =", uid).getSkel()
-			if not userSkel:
-				# We'll try again - checking if there's already an user with that email
-				userSkel = addSkel().all().filter("name.idx =", currentUser.email().lower()).getSkel()
-				if not userSkel:  # Still no luck - it's a completely new user
-					if not self.registrationEnabled and not users.is_current_user_admin():
-						# Registration is disabled, it's a new user and that user is not admin
-						logging.warning("Denying registration of %s", currentUser.email())
-						raise errors.Forbidden("Registration for new users is disabled")
-					userSkel = addSkel()  # We'll add a new user
-				userSkel["uid"] = uid
-				userSkel["name"] = currentUser.email()
-				isAdd = True
-			else:
-				isAdd = False
-			now = datetime.datetime.now()
-			if isAdd or (now - userSkel["lastlogin"]) > datetime.timedelta(minutes=30):
-				# Conserve DB-Writes: Update the user max once in 30 Minutes
-				userSkel["lastlogin"] = now
-				if users.is_current_user_admin():
-					if not userSkel["access"]:
-						userSkel["access"] = []
-					if not "root" in userSkel["access"]:
-						userSkel["access"].append("root")
-					userSkel["gaeadmin"] = True
-				else:
-					userSkel["gaeadmin"] = False
-				assert userSkel.toDB()
-			return self.userModule.continueAuthenticationFlow(self, userSkel["key"])
+
 		raise errors.Redirect(users.create_login_url(self.modulePath + "/login"))
 
 

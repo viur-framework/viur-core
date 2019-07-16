@@ -5,15 +5,39 @@ from server.skeleton import Skeleton, skeletonByKind
 from server.bones import *
 from server.prototypes.tree import Tree, TreeNodeSkel, TreeLeafSkel
 from server.tasks import callDeferred, PeriodicTask
-from datetime import datetime, timedelta
-#from urlparse import urlparse
 from quopri import decodestring
-from base64 import urlsafe_b64decode
+from base64 import urlsafe_b64decode, urlsafe_b64encode
 from hashlib import sha256
-#from google.appengine.ext import blobstore
-#from google.appengine.api import images
 import email.header
 import collections, logging, cgi, string
+from google.auth import compute_engine
+from datetime import datetime, timedelta
+from google.cloud import storage
+from server.utils import projectID
+import hashlib
+import hmac
+
+client = storage.Client.from_service_account_json("store_credentials.json")
+bucket = client.lookup_bucket("%s.appspot.com" % projectID)
+hmacKey = hashlib.sha3_384(open("store_credentials.json", "rb").read()).digest()  # FIXME: Persistent key from db?
+
+
+class injectStoreURLBone(baseBone):
+	def unserialize(self, valuesCache, name, expando):
+		if "dlkey" in expando:
+			valuesCache[name] = expando["dlkey"]
+			sigStr = "%s\0%s\0%s\0%s" % (expando["dlkey"], expando["name"], 0, (datetime.now() + timedelta(hours=1)).strftime("%Y%m%d%H%M"))
+			sigStr = urlsafe_b64encode(sigStr.encode("UTF-8"))
+			resstr = hmac.new(hmacKey, msg=sigStr, digestmod=hashlib.sha3_384).hexdigest()
+			valuesCache[name] = "/file/download/%s?sig=%s" % (sigStr.decode("ASCII"), resstr)
+
+
+def buildTemporaryURL(refSkel):
+	if not "name" in refSkel or not "dlkey" in refSkel:
+		return None
+	blob = bucket.get_blob("%s/%s" % (refSkel["dlkey"], refSkel["name"]))
+	if blob:
+		return blob.generate_signed_url(expiration=timedelta(hours=1), version="v4")
 
 
 class fileBaseSkel(TreeLeafSkel):
@@ -32,6 +56,7 @@ class fileBaseSkel(TreeLeafSkel):
 	servingurl = stringBone(descr="Serving URL", readOnly=True)
 	width = numericBone(descr="Width", indexed=True, readOnly=True, searchable=True)
 	height = numericBone(descr="Height", indexed=True, readOnly=True, searchable=True)
+	tempStoreURL = injectStoreURLBone(descr="Download-URL", visible=False, readOnly=True)
 
 	def refresh(self):
 		# Update from blobimportmap
@@ -173,11 +198,54 @@ class File(Tree):
 	@exposed
 	def getUploadURL(self, *args, **kwargs):
 		skey = kwargs.get("skey", "")
-		if not self.canAdd("leaf", None):
-			raise errors.Forbidden()
+		node = kwargs.get("node")
+		if node:
+			rootNode = self.getRootNode(node)
+			if not self.canAdd("leaf", rootNode):
+				raise errors.Forbidden()
+		else:
+			if not self.canAdd("leaf", None):
+				raise errors.Forbidden()
 		if not securitykey.validate(skey):
 			raise errors.PreconditionFailed()
-		return blobstore.create_upload_url("%s/upload" % self.modulePath)
+
+		targetKey = utils.generateRandomString()
+		conditions = [["starts-with", "$key", "%s/" % targetKey]]
+
+		policy = bucket.generate_upload_policy(conditions)
+		uploadUrl = "https://%s.storage.googleapis.com" % bucket.name
+		resDict = {
+			"url": uploadUrl,
+			"params": {
+				"key": "%s/file.dat" % targetKey,
+			}
+		}
+		for key, value in policy.items():
+			resDict["params"][key] = value
+
+		# Create a correspondingfile-lock object early, otherwise we would have to ensure that the file-lock object
+		# the user creates matches the file he had uploaded
+
+		fileSkel = self.addLeafSkel()
+		fileSkel["key"] = targetKey
+
+		fileSkel.setValues(
+			{
+				"name": "pending",
+				"size": 0,
+				"mimetype": "application/octetstream",
+				"dlkey": targetKey,
+				"servingurl": "",
+				"parentdir": "pending-%s" % utils.escapeString(node) if node else "",
+				"parentrepo": "",
+				"weak": True,
+				"width": 0,
+				"height": 0
+			}
+		)
+		fileSkel.toDB()
+
+		return self.render.view(resDict)
 
 	@internalExposed
 	def getAvailableRootNodes(self, name, *args, **kwargs):
@@ -187,9 +255,9 @@ class File(Tree):
 		repo = self.ensureOwnUserRootNode()
 		res = [{
 			"name": _("My Files"),
-			"key": str(repo.key())
+			"key": str(repo.name)
 		}]
-		if "root" in thisuser["access"]:
+		if 0 and "root" in thisuser["access"]:  # FIXME!
 			# Add at least some repos from other users
 			repos = db.Query(self.viewNodeSkel.kindName + "_rootNode").filter("type =", "user").run(100)
 			for repo in repos:
@@ -303,7 +371,7 @@ class File(Tree):
 			raise errors.InternalServerError()
 
 	@exposed
-	def download(self, blobKey, fileName="", download="", *args, **kwargs):
+	def download(self, blobKey, fileName="", download="", sig="", *args, **kwargs):
 		"""
 		Download a file.
 
@@ -316,20 +384,24 @@ class File(Tree):
 		:param download: Set header to attachment retrival, set explictly to "1" if download is wanted.
 		:type download: str
 		"""
-		if download == "1":
-			fname = "".join(
-				[c for c in fileName if c in string.ascii_lowercase + string.ascii_uppercase + string.digits + ".-_"])
-			request.current.get().response.headers.add_header("Content-disposition",
-															  ("attachment; filename=%s" % (fname)).encode("UTF-8"))
-		info = blobstore.get(blobKey)
-		if not info:
-			raise errors.NotFound()
-		request.current.get().response.clear()
-		request.current.get().response.headers['Content-Type'] = str(info.content_type)
-		if self.blobCacheTime:
-			request.current.get().response.headers['Cache-Control'] = "public, max-age=%s" % self.blobCacheTime
-		request.current.get().response.headers[blobstore.BLOB_KEY_HEADER] = str(blobKey)
-		return ""
+		if not sig:
+			raise errors.PreconditionFailed()
+		#if download == "1":
+		#	fname = "".join(
+		#		[c for c in fileName if c in string.ascii_lowercase + string.ascii_uppercase + string.digits + ".-_"])
+		#	request.current.get().response.headers.add_header("Content-disposition",
+		#													  ("attachment; filename=%s" % (fname)).encode("UTF-8"))
+		# First, validate the signature, otherwise we don't need to proceed any further
+		cmpSig = hmac.new(hmacKey, msg=blobKey.encode("ASCII"), digestmod=hashlib.sha3_384).hexdigest()
+		if not hmac.compare_digest(cmpSig, sig):
+			raise errors.Forbidden()
+		# Split the blobKey into the individual fields it should contain
+		dlKey, dlName, public, validUntil = urlsafe_b64decode(blobKey).decode("UTF-8").split("\0")
+		# Create a signed url and redirect the user
+		blob = bucket.get_blob("%s/%s" % (dlKey, dlName))
+		signed_url = blob.generate_signed_url(datetime.now()+timedelta(seconds=60))
+		raise errors.Redirect(signed_url)
+
 
 	@exposed
 	def view(self, *args, **kwargs):
@@ -352,9 +424,39 @@ class File(Tree):
 	@forceSSL
 	@forcePost
 	def add(self, skelType, node, *args, **kwargs):
-		# We can't add files directly (they need to be uploaded
-		if skelType != "node":
-			raise errors.NotAcceptable()
+		## We can't add files directly (they need to be uploaded
+		# if skelType != "node":
+		#	raise errors.NotAcceptable()
+		print("g1")
+		if skelType == "leaf":  # We need to handle leafs separately here
+			skey = kwargs.get("skey")
+			targetKey = kwargs.get("key")
+			if not skey or not securitykey.validate(skey) or not targetKey:
+				raise errors.PreconditionFailed()
+
+			skel = self.addLeafSkel()
+			if not skel.fromDB(targetKey):
+				raise errors.NotFound()
+			if not skel["parentdir"].startswith("pending-"):
+				raise errors.PreconditionFailed()
+			skel["parentdir"] = skel["parentdir"][8:]
+			rootNode = self.getRootNode(skel["parentdir"])
+			if not self.canAdd("leaf", rootNode):
+				raise errors.Forbidden()
+			blobs = list(bucket.list_blobs(prefix="%s/" % targetKey))
+			if len(blobs) != 1:
+				logging.error("Invalid number of blobs in folder")
+				logging.error(targetKey)
+				raise errors.PreconditionFailed()
+			blob = blobs[0]
+			skel["mimetype"] = utils.escapeString(blob.content_type)
+			skel["name"] = utils.escapeString(blob.name.replace("%s/" % targetKey, ""))
+			skel["size"] = blob.size
+			skel["rootnode"] = rootNode
+			skel["weak"] = False
+			skel.toDB()
+			return self.render.addItemSuccess(skel)
+
 		return super(File, self).add(skelType, node, *args, **kwargs)
 
 	def canViewRootNode(self, repo):

@@ -13,17 +13,16 @@ import logging
 import google.cloud.logging
 from google.cloud.logging.handlers import CloudLoggingHandler
 from google.cloud.logging.resource import Resource
+from time import time
 
 translations = None
 
 client = google.cloud.logging.Client()
 loggingRessource = Resource(type="gae_app",
-			   labels={
-				   "project_id": "drspang-dev",
-				   "module_id": "default",
-				   "version_id": "ts-dev",
-				   "zone": "europe-west3-1"
-			   })
+							labels={
+								"project_id": utils.projectID,
+								"module_id": "default",
+							})
 
 reqLogger = client.logger("ViUR")
 
@@ -42,8 +41,9 @@ class ViURDefaultLogger(CloudLoggingHandler):
 			message,
 			resource=self.resource,
 			labels=self.labels,
-			trace = TRACE
+			trace=TRACE
 		)
+
 
 handler = ViURDefaultLogger(client, name="ViUR-Messages", resource=Resource(type="gae_app", labels={}))
 google.cloud.logging.handlers.setup_logging(handler)
@@ -119,6 +119,7 @@ class BrowseHandler():  # webapp.RequestHandler
 
 	def __init__(self, request: webob.Request, response: webob.Response):
 		super()
+		self.startTime = time()
 		self.request = request
 		self.response = response
 		self.maxLogLevel = logging.DEBUG
@@ -238,6 +239,9 @@ class BrowseHandler():  # webapp.RequestHandler
 				host = host[host.find("://") + 3:].strip(" /")  # strip http(s)://
 				self.redirect("https://%s/" % host)
 				return
+		if path[:10] == "/_viur/dlf":
+			self.response.write("okay")
+			return
 		try:
 			session.current.load(self)  # self.request.cookies )
 			path = self.selectLanguage(path)
@@ -312,14 +316,14 @@ class BrowseHandler():  # webapp.RequestHandler
 			REQUEST = {
 				'requestMethod': self.request.method,
 				'requestUrl': self.request.url,
-				'status': 200, #self.request.status_code,
+				'status': self.response.status_code,
 				'userAgent': self.request.headers.get('USER-AGENT'),
 				'responseSize': self.response.content_length,
-				'latency': "0.123s",
+				'latency': "%0.3fs" % (time() - self.startTime),
 				'remoteIp': self.request.remote_addr
 			}
-			reqLogger.log_text("", client=client, severity=SEVERITY, http_request=REQUEST, trace=TRACE, resource=loggingRessource)
-
+			reqLogger.log_text("", client=client, severity=SEVERITY, http_request=REQUEST, trace=TRACE,
+							   resource=loggingRessource)
 
 	def findAndCall(self, path, *args, **kwargs):  # Do the actual work: process the request
 		# Prevent Hash-collision attacks

@@ -31,6 +31,7 @@ from typing import Union, Tuple, List, Dict, Iterable, Any
 from time import time
 import google.auth
 from functools import partial
+from server import request
 
 """
 	Tiny wrapper around *google.appengine.api.datastore*.
@@ -338,7 +339,7 @@ def Put(entities: Union[Entity, List[Entity]], **kwargs) -> None:
 		currentTransaction = __currentTransaction__.transactionKey
 	except AttributeError:
 		currentTransaction = None
-	#if currentTransaction:
+	# if currentTransaction:
 	#	raise NotImplementedError()  # FIXME: We must enqueue Writes to the transaction instead...
 	if isinstance(entities, list):  # FIXME: Use a WriteBatch instead
 		for x in entities:
@@ -432,40 +433,43 @@ def Get(keys: Union[Tuple[str, str], List[Tuple[str, str]]], **kwargs) -> Union[
 		:returns: Entity or list of Entity objects corresponding to the specified key(s).
 		:rtype: :class:`server.db.Entity` | list of :class:`server.db.Entity`
 	"""
-	with utils.getTracer().span(name="db.Get"):
+	if isinstance(keys, list):
+		kind = keys[0][0]
+	else:
+		kind = keys[0]
+	try:
+		currentTransaction = __currentTransaction__.transactionKey
+	except AttributeError:
+		currentTransaction = None
+	if isinstance(keys, list):  # In this case issue a BatchGetDocumentsRequest to avoid multiple roundtrips
+		if any(["/" in collection or "/" in name for collection, name in keys]):
+			raise ValueError("Collections or Names must not contain a /")
+		batchGetDocumentsRequest = firestore_pb2.BatchGetDocumentsRequest(
+			database=__database__,
+			documents=["%s%s/%s" % (__documentRoot__, collection, name) for collection, name in keys],
+			transaction=currentTransaction)
+		resultPromise = __firestoreStub__.BatchGetDocuments(batchGetDocumentsRequest)
+		# Documents returned are not guaranteed to be in the same order as requested, so we have to fix this first
+		tmpDict = {}
+		for item in resultPromise:
+			if item.found.name:  # We also get empty results for keys not found
+				tmpDict[item.found.name] = _protoMapToEntry(item.found.fields, item.found.name[__documentRootLen__:])
+		return [tmpDict.get(__documentRoot__ + key) for key in keys]
+	else:  # We fetch a single Document and can use the simpler GetDocumentRequest
+		collection, name = keys
+		if "/" in collection or "/" in name:
+			raise ValueError("Collections or Names must not contain a /")
+		getDocumentRequest = firestore_pb2.GetDocumentRequest(
+			name="%s%s/%s" % (__documentRoot__, collection, name),
+			transaction=currentTransaction)
 		try:
-			currentTransaction = __currentTransaction__.transactionKey
-		except AttributeError:
-			currentTransaction = None
-		if isinstance(keys, list):  # In this case issue a BatchGetDocumentsRequest to avoid multiple roundtrips
-			if any(["/" in collection or "/" in name for collection, name in keys]):
-				raise ValueError("Collections or Names must not contain a /")
-			batchGetDocumentsRequest = firestore_pb2.BatchGetDocumentsRequest(
-				database=__database__,
-				documents=["%s%s/%s" % (__documentRoot__, collection, name) for collection, name in keys],
-				transaction=currentTransaction)
-			resultPromise = __firestoreStub__.BatchGetDocuments(batchGetDocumentsRequest)
-			# Documents returned are not guaranteed to be in the same order as requested, so we have to fix this first
-			tmpDict = {}
-			for item in resultPromise:
-				if item.found.name:  # We also get empty results for keys not found
-					tmpDict[item.found.name] = _protoMapToEntry(item.found.fields, item.found.name[__documentRootLen__:])
-			return [tmpDict.get(__documentRoot__ + key) for key in keys]
-		else:  # We fetch a single Document and can use the simpler GetDocumentRequest
-			collection, name = keys
-			if "/" in collection or "/" in name:
-				raise ValueError("Collections or Names must not contain a /")
-			getDocumentRequest = firestore_pb2.GetDocumentRequest(
-				name="%s%s/%s" % (__documentRoot__, collection, name),
-				transaction=currentTransaction)
-			try:
-				resultPB = __firestoreStub__.GetDocument(getDocumentRequest)
-			except GrpcRendezvousError as e:
-				if e.code() == GrpcStatusCode.NOT_FOUND:
-					# If a given key is not found, we simply return None instead of raising an exception
-					return None
-				raise
-			return _protoMapToEntry(resultPB.fields, keys)
+			resultPB = __firestoreStub__.GetDocument(getDocumentRequest)
+		except GrpcRendezvousError as e:
+			if e.code() == GrpcStatusCode.NOT_FOUND:
+				# If a given key is not found, we simply return None instead of raising an exception
+				return None
+			raise
+		return _protoMapToEntry(resultPB.fields, keys)
 
 	## OLD Datastore-Code
 	if conf["viur.db.caching"] > 0 and not datastore.IsInTransaction():
@@ -517,7 +521,7 @@ def Get(keys: Union[Tuple[str, str], List[Tuple[str, str]]], **kwargs) -> Union[
 		return (Entity.FromDatastoreEntity(datastore.Get(keys, **kwargs)))
 
 
-def GetOrInsert(key, kindName=None, parent=None, **kwargs):
+def GetOrInsert(key: Tuple[str, str], **kwargs):
 	"""
 		Either creates a new entity with the given key, or returns the existing one.
 
@@ -538,6 +542,14 @@ def GetOrInsert(key, kindName=None, parent=None, **kwargs):
 		:returns: Returns the wanted Entity.
 		:rtype: server.db.Entity
 	"""
+	obj = Get(key)
+	if not obj:
+		e = Entity(collection=key[0], name=key[1])
+		for k,v in kwargs.items():
+			e[k] = v
+			Put(e)
+		return e
+	return obj
 
 	def txn(key, kwargs):
 		try:
@@ -604,7 +616,8 @@ def Delete(keys: Union[Tuple[str, str], List[Tuple[str, str]]], **kwargs) -> Non
 	for collection, name in keys:
 		if "/" in collection or "/" in name:
 			raise ValueError("Collections or Names must not contain a /")
-		deleteDocumentRequest = firestore_pb2.DeleteDocumentRequest(name="%s%s/%s" % (__documentRoot__, collection, name))
+		deleteDocumentRequest = firestore_pb2.DeleteDocumentRequest(
+			name="%s%s/%s" % (__documentRoot__, collection, name))
 		try:
 			resultPB = __firestoreStub__.DeleteDocument(deleteDocumentRequest)
 		except GrpcRendezvousError as e:
@@ -1520,15 +1533,16 @@ def IsInTransaction():
 
 
 def RunInTransaction(callee, *args, **kwargs):
-	_beginTransaction()
+	#_beginTransaction()
 	try:
 		res = callee(*args, **kwargs)
 	except Exception as e:
 		logging.error("Error in TXN")
 		logging.exception(e)
-		_rollbackTransaction()
+		#_rollbackTransaction()
+		raise
 	else:
-		_commitTransaction()
+		#_commitTransaction()
 		return res
 
 

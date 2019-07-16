@@ -302,7 +302,7 @@ class relationalBone(baseBone):
 
 		# Add any new Relation
 		for val in values:
-			dbObj = db.Entity("viur-relations", parent=db.Key(key))  # skel.kindName+"_"+self.kind+"_"+key
+			dbObj = db.Entity("viur-relations")  # skel.kindName+"_"+self.kind+"_"+key
 
 			if not self.indexed:  # Dont store more than key and kinds, as they aren't used anyway
 				dbObj["dest.key"] = val["dest"]["key"]
@@ -406,8 +406,9 @@ class relationalBone(baseBone):
 			entry = None
 
 			try:
-				entry = db.Get(db.Key(r["dest"]["key"]))
-			except:  # Invalid key or something like thatmnn
+				entry = db.Get((self.kind, r["dest"]["key"]))
+				assert entry
+			except:  # Invalid key or something like that
 
 				logging.info("Invalid reference key >%s< detected on bone '%s'",
 							 r["dest"]["key"], name)
@@ -432,13 +433,12 @@ class relationalBone(baseBone):
 						continue
 
 			if not entry or (
-					not isEntryFromBackup and not entry.key().kind() == self.kind):  # Entry does not exist or has wrong type (is from another module)
+					not isEntryFromBackup and not entry.collection == self.kind):  # Entry does not exist or has wrong type (is from another module)
 				if entry:
 					logging.error("I got a key, which kind doesn't match my type! (Got: %s, my type %s)" % (
 					entry.key().kind(), self.kind))
 				tmpList.remove(r)
 				continue
-
 			tmp = {k: entry[k] for k in entry.keys() if
 				   (k in self.refKeys or any([k.startswith("%s." % x) for x in self.refKeys]))}
 			tmp["key"] = r["dest"]["key"]
@@ -446,7 +446,6 @@ class relationalBone(baseBone):
 			relSkel.setValuesCache({})
 			relSkel.unserialize(tmp)
 			r["dest"] = relSkel.getValuesCache()
-
 			# Rebuild the refSkel data
 			if self.using is not None:
 				refSkel = self._usingSkelCache

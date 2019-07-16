@@ -318,7 +318,7 @@ class baseBone(object):  # One Bone:
 			:return: List of Strings
 		"""
 		res = []
-		if not valuesCache[name]:
+		if not valuesCache.get(name):
 			return (res)
 		for line in str(valuesCache[name]).lower().splitlines():
 			for key in line.split(" "):

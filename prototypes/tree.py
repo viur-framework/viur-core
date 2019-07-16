@@ -194,8 +194,8 @@ class Tree(BasicApplication):
 		"""
 		thisuser = conf["viur.mainApp"].user.getCurrentUser()
 		if thisuser:
-			key = "rep_user_%s" % str(thisuser["key"])
-			return db.GetOrInsert(key, self.viewLeafSkel().kindName + "_rootNode",
+			key = "rep_user_%s" % str(thisuser["key"][1])
+			return db.GetOrInsert((self.viewLeafSkel().kindName + "_rootNode", key),
 								  creationdate=datetime.now(), rootNode=1, user=str(thisuser["key"]))
 
 	def ensureOwnModuleRootNode(self):
@@ -207,7 +207,7 @@ class Tree(BasicApplication):
 		:rtype: :class:`server.db.Entity`
 		"""
 		key = "rep_module_repo"
-		return db.GetOrInsert(key, self.viewLeafSkel().kindName + "_rootNode",
+		return db.GetOrInsert((self.viewLeafSkel().kindName + "_rootNode", key),
 							  creationdate=datetime.now(), rootNode=1)
 
 	def getRootNode(self, subRepo):
@@ -219,12 +219,14 @@ class Tree(BasicApplication):
 
 		:returns: :class:`server.db.Entity`
 		"""
-		repo = db.Get(subRepo)
+		kindName = self.viewNodeSkel().kindName
+		repo = db.Get((kindName, subRepo))
+		if not repo:
+			return None
 		if "parentrepo" in repo:
-			return db.Get(repo["parentrepo"])
+			return db.Get((kindName, repo["parentrepo"]))
 		elif "rootNode" in repo and str(repo["rootNode"]) == "1":
 			return repo
-
 		return None
 
 	def isOwnUserRootNode(self, repo):

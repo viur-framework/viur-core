@@ -661,10 +661,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 			else:
 				# Mark this entity as dirty, so the background-task will catch it up and update its references.
 				dbObj["viur_delayed_update_tag"] = time()
-
 			dbObj = skel.preProcessSerializedData(dbObj)
 			try:
-				ourKey = str(dbObj.key())
+				ourKey = dbObj.name
 			except:  # Its not an update but an insert, no key yet
 				ourKey = None
 
@@ -699,7 +698,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 								 if tag not in tags and len(tag) < 400]
 			if not skel.searchIndex:
 				dbObj["viur_tags"] = tags
-
 			# Write the core entry back
 			db.Put(dbObj)
 
@@ -820,8 +818,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
 		skel.postSavedHandler(key, dbObj)
 
-		if not clearUpdateTag:
-			updateRelations(key, time() + 1)
+		#if not clearUpdateTag:  # FIXME!
+		#	updateRelations(key, time() + 1)
 
 		return (key)
 
@@ -1020,9 +1018,12 @@ class RefSkel(RelSkel):
 		# safe operation in this case as RelSkels must not be subclassed and therefore cannot contain
 		# class-level bones
 		# super(BaseSkeleton, skel).__delattr__("_BaseSkeleton__isInitialized_")
-		for key in args:
-			if key in dir(skelCls):
-				setattr(skel, key, getattr(skelCls, key))
+		srcSkel = skelCls()
+		skel.__boneNames__ = []
+		for key, bone in srcSkel.items():
+			if key in args:
+				setattr(skel, key, bone)
+				skel.__boneNames__.append(key)
 				skel[key] = None
 		# super(BaseSkeleton, skel).__setattr__("_BaseSkeleton__isInitialized_", True)
 		return skel

@@ -63,7 +63,7 @@ def validate(key, acceptSessionKey=False):
 	if acceptSessionKey:
 		if key == currentSession.getSessionSecurityKey():
 			return (True)
-	if "/" in key:
+	if not key or "/" in key:
 		return False
 	dbObj = db.Get((securityKeyKindName, key))
 	if dbObj:

@@ -4,7 +4,7 @@ from collections import OrderedDict
 from server import errors, request, bones
 from server.skeleton import RefSkel, skeletonByKind
 import logging
-
+from server.modules.file import buildTemporaryURL
 
 class DefaultRender(object):
 
@@ -165,7 +165,6 @@ class DefaultRender(object):
 						"dest": self.renderSkelValues(refSkel),
 						"rel": usingData
 					})
-
 				return tmpList
 			elif isinstance(skel[key], dict):
 				refSkel = bone._refSkelCache
@@ -177,7 +176,7 @@ class DefaultRender(object):
 				else:
 					usingData = None
 				return {
-					"dest": self.renderSkelValues(refSkel),
+					"dest": self.renderSkelValues(refSkel, injectDownloadURL=isinstance(bone, bones.fileBone)),
 					"rel": usingData
 				}
 		else:
@@ -185,7 +184,7 @@ class DefaultRender(object):
 
 		return None
 
-	def renderSkelValues(self, skel):
+	def renderSkelValues(self, skel, injectDownloadURL=False):
 		"""
 		Prepares values of one :class:`server.db.skeleton.Skeleton` or a list of skeletons for output.
 
@@ -199,11 +198,11 @@ class DefaultRender(object):
 			return None
 		elif isinstance(skel, dict):
 			return skel
-
 		res = {}
 		for key, bone in skel.items():
 			res[key] = self.renderBoneValue(bone, skel, key)
-
+		if injectDownloadURL:
+			res["tempStoreURL"] = buildTemporaryURL(skel)
 		return res
 
 	def renderEntry(self, skel, actionName, params=None):

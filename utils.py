@@ -13,22 +13,6 @@ import google.auth
 _, projectID = google.auth.default()
 del _
 
-from opencensus.ext.stackdriver import trace_exporter as stackdriver_exporter
-import opencensus.trace.tracer
-
-
-def initialize_tracer(project_id):
-	exporter = stackdriver_exporter.StackdriverExporter(
-		project_id=project_id
-	)
-	tracer = opencensus.trace.tracer.Tracer(exporter=exporter)
-
-	return tracer
-
-
-def getTracer():
-	return initialize_tracer("drspang-dev")
-
 
 def generateRandomString(length=13):
 	"""

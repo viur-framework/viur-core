@@ -327,7 +327,7 @@ class stringBone(baseBone):
 
 	def getSearchTags(self, valuesCache, name):
 		res = []
-		if not valuesCache[name]:
+		if not valuesCache.get(name):
 			return (res)
 		value = valuesCache[name]
 		if self.languages and isinstance(value, dict):
