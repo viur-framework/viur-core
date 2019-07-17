@@ -320,7 +320,7 @@ class BrowseHandler():  # webapp.RequestHandler
 				'userAgent': self.request.headers.get('USER-AGENT'),
 				'responseSize': self.response.content_length,
 				'latency': "%0.3fs" % (time() - self.startTime),
-				'remoteIp': self.request.remote_addr
+				'remoteIp': self.request.environ.get("HTTP_X_APPENGINE_USER_IP")
 			}
 			reqLogger.log_text("", client=client, severity=SEVERITY, http_request=REQUEST, trace=TRACE,
 							   resource=loggingRessource)

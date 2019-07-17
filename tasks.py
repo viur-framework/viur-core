@@ -11,6 +11,23 @@ from functools import wraps
 import json
 import logging
 import os, sys
+from google.cloud import tasks_v2
+from google.protobuf import timestamp_pb2
+
+_gaeApp = os.environ.get("GAE_APPLICATION")
+regionMap = {  # FIXME! Can we even determine the region like this?
+	"h": "europe-west3"
+}
+queueRegion = None
+if _gaeApp:
+	regionPrefix = _gaeApp.split("~")[0]
+	queueRegion = regionMap.get(regionPrefix)
+
+if not queueRegion:
+	# Probably local development server
+	logging.error("Taskqueue disabled, tasks will run inline!")
+
+taskClient = tasks_v2.CloudTasksClient()
 
 _periodicTasks = {}
 _callableTasks = {}
@@ -105,7 +122,7 @@ class TaskHandler:
 			logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
 			raise errors.Forbidden()
 		in_prod = (not req.environ.get("SERVER_SOFTWARE").startswith("Devel"))
-		if in_prod and req.environ.get("REMOTE_ADDR") != "0.1.0.2":
+		if in_prod and req.environ.get("HTTP_X_APPENGINE_USER_IP") != "0.1.0.2":
 			logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
 			raise errors.Forbidden()
 		# Check if the retry count exceeds our warning threshold
@@ -280,12 +297,15 @@ def callDeferred(func):
 	__undefinedFlag_ = object()
 
 	def mkDefered(func, self=__undefinedFlag_, *args, **kwargs):
-		return lambda *args, **kwargs: None
-		if self is __undefinedFlag_:
-			return func(*args, **kwargs)
-		else:
-			return func(self, *args, **kwargs)
-		### DEFERRED CODE DISABLED
+		if not queueRegion:
+			# Run tasks inline
+			logging.error("Running inline: %s" % func)
+			if self is __undefinedFlag_:
+				func(*args, **kwargs)
+			else:
+				func(self, *args, **kwargs)
+			return  # Ensure no result gets passed back
+
 		from server.utils import getCurrentUser
 		try:
 			req = request.current.get()
@@ -313,7 +333,7 @@ def callDeferred(func):
 			taskargs["url"] = "/_tasks/deferred"
 			transactional = kwargs.pop("_transactional", False)
 			taskargs["headers"] = {"Content-Type": "application/octet-stream"}
-			queue = kwargs.pop("_queue", "default")
+			queue = kwargs.pop("_queue", "default")  # Fixme: Default
 			# Try to preserve the important data from the current environment
 			env = {"user": None}
 			usr = getCurrentUser()
@@ -332,9 +352,31 @@ def callDeferred(func):
 					   and callable(conf["viur.tasks.customEnvironmentHandler"][0]), \
 					"Your customEnvironmentHandler must be a tuple of two callable if set!"
 				env["custom"] = conf["viur.tasks.customEnvironmentHandler"][0]()
-			pickled = json.dumps((command, (funcPath, args, kwargs, env)))
-			task = taskqueue.Task(payload=pickled, **taskargs)
-			return task.add(queue, transactional=transactional)
+			pickled = json.dumps((command, (funcPath, args, kwargs, env))).encode("UTF-8")
+			#task = taskqueue.Task(payload=pickled, **taskargs)
+			#return task.add(queue, transactional=transactional)
+
+			project = utils.projectID
+			location = queueRegion
+			parent = taskClient.queue_path(project, location, queue)
+			task = {
+				'app_engine_http_request': {  # Specify the type of request.
+					'http_method': 'POST',
+					'relative_uri': '/_tasks/deferred'
+				}
+			}
+			if taskargs.get("countdown"):
+				# We must send a Timestamp Protobuff instead of a date-string
+				timestamp = timestamp_pb2.Timestamp()
+				timestamp.FromDatetime(datetime.utcnow() + timedelta(seconds=taskargs["countdown"]))
+				task['schedule_time'] = timestamp
+			task['app_engine_http_request']['body'] = pickled
+
+			# Use the client to build and send the task.
+			response = taskClient.create_task(parent, task)
+
+			print('Created task {}'.format(response.name))
+
 
 	global _deferedTasks
 	_deferedTasks["%s.%s" % (func.__name__, func.__module__)] = func
