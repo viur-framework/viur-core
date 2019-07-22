@@ -305,6 +305,7 @@ def Put(entities: Union[Entity, List[Entity]], **kwargs) -> None:
 		if not entities.collection in currentTransaction["pendingChanges"]:
 			currentTransaction["pendingChanges"][entities.collection] = {}
 		currentTransaction["pendingChanges"][entities.collection][entities.name] = entities
+		currentTransaction["lastQueries"] = []  # We have a change where, void all previous queries
 		return
 	else:
 		# No transaction, write directly into firestore
@@ -594,6 +595,7 @@ def Delete(keys: Union[Tuple[str, str], List[Tuple[str, str]]], **kwargs) -> Non
 			if not collection in currentTransaction["pendingChanges"]:
 				currentTransaction["pendingChanges"][collection] = {}
 			currentTransaction["pendingChanges"][collection][name] = None
+			currentTransaction["lastQueries"] = []  # We have a change where, void all previous queries
 		else:
 			# No Txn - delete directly
 			deleteDocumentRequest = firestore_pb2.DeleteDocumentRequest(
@@ -635,9 +637,9 @@ class Query(object):
 		super(Query, self).__init__()
 		self.collection = collection
 		self.srcSkel = srcSkelClass
-		self.filters = {}
-		self.orders = []
-		self.amount = 30
+		self.filters: Union[None, Dict[str: Any], List[Dict[str: Any]]] = {}
+		self.orders: List[Tuple[str, enums.StructuredQuery.Direction]] = [(KEY_SPECIAL_PROPERTY, ASCENDING)]
+		self.amount: int = 30
 		self._filterHook = None
 		self._orderHook = None
 		self._origCursor = None
@@ -814,37 +816,41 @@ class Query(object):
 				# no need for us to do anything
 				return self
 			filter, value = r
-
-		if value is not None and \
-				(filter.endswith(" !=") or filter.lower().endswith(" in") or filter.lower().endswith(" ia")):
+		if " " not in filter:
+			# Ensure that an equality filter is explicitly postfixed with " ="
+			field = filter
+			op = "="
+		else:
+			field, op = filter.split(" ")
+		if value is not None and op.lower() in {"!=", "in", "ia"}:
 			if isinstance(self.filters, list):
 				raise NotImplementedError("You cannot use multiple IN or != filter")
 			origFilter = self.filters
 			self.filters = []
-			if filter.endswith("!="):
+			if op == "!=":
 				newFilter = {k: v for k, v in origFilter.items()}
-				newFilter["%s <" % filter.split(" ")[0]] = value
+				newFilter["%s <" % field] = value
 				self.filters.append(newFilter)
 				newFilter = {k: v for k, v in origFilter.items()}
-				newFilter["%s >" % filter.split(" ")[0]] = value
+				newFilter["%s >" % field] = value
 				self.filters.append(newFilter)
 			else:  # IN filter
 				if not (isinstance(value, list) or isinstance(value, tuple)):
 					raise NotImplementedError("Value must be list or tuple if using IN filter!")
 				for val in value:
 					newFilter = {k: v for k, v in origFilter.items()}
-					op = "=" if filter.lower().endswith(" in") else "AC"
-					newFilter["%s %s" % (filter.split(" ")[0], op)] = val
+					op = "=" if op.lower() == "in" else "AC"
+					newFilter["%s %s" % (field, op)] = val
 					self.filters.append(newFilter)
 		elif filter and value is not __undefinedC__:
-			# Ensure that an equality filter is explicitly postfixed with " ="
-			if not (filter[-2] == " " or filter[-3] == " "):
-				filter += " ="
 			if isinstance(self.filters, list):
 				for singeFilter in self.filters:
-					singeFilter[filter] = value
+					singeFilter["%s %s" % (field, op)] = value
 			else:  # It must be still a dict (we tested for None already above)
-				self.filters[filter] = value
+				self.filters["%s %s" % (field, op)] = value
+			if op in {"<", "<=", ">", ">="} and len(self.orders) > 0 and self.orders[0][0] != field:
+				self.order((field, ASCENDING), *self.orders)
+
 		else:
 			raise NotImplementedError("Incorrect call to query.filter()!")
 		return (self)
@@ -899,13 +905,21 @@ class Query(object):
 			:rtype: server.db.Query
 		"""
 		newOrderings = []
+		hasKeyOrdering = False
+		lastOrdering = ASCENDING
 		for reqOrder in orderings:
 			if isinstance(reqOrder, str):
 				fieldName = reqOrder
 				newOrderings.append((fieldName, ASCENDING))
+				if fieldName == KEY_SPECIAL_PROPERTY:
+					hasKeyOrdering = True
+				lastOrdering = ASCENDING
 			elif isinstance(reqOrder, tuple):
 				fieldName = reqOrder[0]
 				newOrderings.append((fieldName, reqOrder[1]))
+				if fieldName == KEY_SPECIAL_PROPERTY:
+					hasKeyOrdering = True
+				lastOrdering = reqOrder[1]
 			else:
 				raise BadArgumentError("Dont know what to do with %s" % type(fieldName), )
 		if self._orderHook is not None:
@@ -918,6 +932,8 @@ class Query(object):
 				return self
 		if self.filters is None:
 			return
+		if not hasKeyOrdering:
+			newOrderings.append((KEY_SPECIAL_PROPERTY, lastOrdering))
 		self.orders = newOrderings
 		return self
 
@@ -1246,12 +1262,8 @@ class Query(object):
 		"""
 
 		def mergeWithUpdatedEntry(entry, key):
-			logging.error("mergeWithUpdatedEntry %s %s" % (entry, key))
 			if not key in pendingWrites:
-				logging.error("KEy not in changed")
-				logging.error(pendingWrites)
 				return entry
-			logging.info("Entity already updated in TXN: %s" % (key))
 			return pendingWrites[key]
 
 		# Inplace merge returned entities with our pending changelist
@@ -1310,10 +1322,10 @@ class Query(object):
 					src = src[fv]
 			else:
 				if not fieldVars in src:
-					return None
+					return (str(type(None)), 0)
 				src = src[fieldVars]
 			# We must return this tuple because inter-type comparison isn't possible in Python3 anymore
-			return (str(type(src)), src)
+			return (str(type(src)), src if src is not None else 0)
 
 		# Check if we have an inequality filter which implies an sortorder
 		ineqFilter = None
@@ -1327,10 +1339,13 @@ class Query(object):
 		# FIXME: It seems there is no guaranteed order for returned entries if all fields included in orders are equal
 		# FIXME: At least it's not by key nor by change or creation date
 		# First, order by key
-		#entities.sort(key=lambda x: x.name, reverse=True)
+		# entities.sort(key=lambda x: x.name, reverse=True)
 		for orderField, direction in orders[::-1]:
-			entities.sort(key=partial(getVal, fieldVars=orderField, direction=direction),
-						  reverse=direction == DESCENDING)
+			if orderField == KEY_SPECIAL_PROPERTY:
+				entities.sort(key=lambda x: x.name, reverse=direction == DESCENDING)
+			else:
+				entities.sort(key=partial(getVal, fieldVars=orderField, direction=direction),
+							  reverse=direction == DESCENDING)
 
 		return entities
 
@@ -1417,6 +1432,8 @@ class Query(object):
 			filters = self.getFilter()
 			logging.debug(
 				"Queried %s with filter %s and orders %s. Returned %s results" % (kindName, filters, orders, len(res)))
+		if currentTransaction:
+			currentTransaction["lastQueries"].append((self, res))
 		return res
 
 	def fetch(self, limit=-1, **kwargs):
@@ -1626,6 +1643,7 @@ def _beginTransaction(readOnly: bool = False):
 	__currentTransaction__.transactionData = {
 		"transactionKey": result.transaction,
 		"pendingChanges": {},
+		"lastQueries": [],
 	}
 
 
@@ -1650,7 +1668,18 @@ def _commitTransaction():
 	commitRequest = firestore_pb2.CommitRequest(database=__database__, transaction=currentTransaction["transactionKey"],
 												writes=writes)
 	result = __firestoreStub__.Commit(commitRequest)
+	lastQueries = currentTransaction["lastQueries"]
 	__currentTransaction__.transactionData = None
+	for qry, res in lastQueries:
+		newRes = qry.run()
+		if res != newRes:
+			logging.error("Query mismatch after transaction!")
+			logging.error(qry)
+			logging.error(res)
+			logging.error(newRes)
+			raise AssertionError("Query mismatch after transaction!")
+		else:
+			logging.info("Query-Match from transaction :) %s" % (qry,))
 
 
 def _rollbackTransaction():
@@ -1730,7 +1759,7 @@ Cursor = NotImplementedError  # datastore_query.Cursor
 # IsInTransaction = NotImplementedError  # datastore.IsInTransaction
 
 # Consts
-KEY_SPECIAL_PROPERTY = NotImplementedError  # datastore_types.KEY_SPECIAL_PROPERTY
+KEY_SPECIAL_PROPERTY = "__name__"  # datastore_types.KEY_SPECIAL_PROPERTY
 ASCENDING = enums.StructuredQuery.Direction.ASCENDING
 DESCENDING = enums.StructuredQuery.Direction.DESCENDING
 
