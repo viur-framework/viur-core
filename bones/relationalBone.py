@@ -121,7 +121,10 @@ class relationalBone(baseBone):
 			:param value: Json-Encoded datastore property
 			:return: Our Value (with restored RelSkel and using-Skel)
 		"""
-		value = json.loads(val)
+		if isinstance(val, str):
+			value = json.loads(val)
+		else:
+			value = val
 		assert isinstance(value, dict), "Read something from the datastore thats not a dict: %s" % str(type(value))
 
 		relSkel = self._refSkelCache
@@ -221,7 +224,7 @@ class relationalBone(baseBone):
 					else:
 						usingData = None
 					r = {"rel": usingData, "dest": refData}
-					res.append(json.dumps(r))
+					res.append(r)
 				entity.set(name, res, False)
 			else:
 				refSkel = self._refSkelCache
@@ -237,9 +240,9 @@ class relationalBone(baseBone):
 				else:
 					usingData = None
 				r = {"rel": usingData, "dest": refData}
-				entity.set(name, json.dumps(r), False)
+				entity.set(name, r, False)
 				# Copy attrs of our referenced entity in
-				if self.indexed:
+				if 1 or self.indexed:  # FIXME!
 					if refData:
 						for k, v in refData.items():
 							entity.set("%s.dest.%s" % (name, k), v, True)
@@ -282,14 +285,14 @@ class relationalBone(baseBone):
 				db.Delete(dbObj.key())
 			else:  # Relation: Updated
 				data = [x for x in values if x["dest"]["key"] == dbObj["dest.key"]][0]
-				if self.indexed:  # We dont store more than key and kinds, and these dont change
+				if 1 or self.indexed:  # We dont store more than key and kinds, and these dont change Fixme!
 					# Write our (updated) values in
 					refSkel = self._refSkelCache
 					refSkel.setValuesCache(data["dest"])
 					for k, v in refSkel.serialize().items():
-						dbObj["dest." + k] = v
+						dbObj["dest_" + k] = v
 					for k, v in parentValues.items():
-						dbObj["src." + k] = v
+						dbObj["src_" + k] = v
 					if self.using is not None:
 						usingSkel = self._usingSkelCache
 						usingSkel.setValuesCache(data["rel"])
@@ -304,21 +307,21 @@ class relationalBone(baseBone):
 		for val in values:
 			dbObj = db.Entity("viur-relations")  # skel.kindName+"_"+self.kind+"_"+key
 
-			if not self.indexed:  # Dont store more than key and kinds, as they aren't used anyway
+			if 0 and not self.indexed:  # Dont store more than key and kinds, as they aren't used anyway FIXME!
 				dbObj["dest.key"] = val["dest"]["key"]
 				dbObj["src.key"] = key
 			else:
 				refSkel = self._refSkelCache
 				refSkel.setValuesCache(val["dest"])
 				for k, v in refSkel.serialize().items():
-					dbObj["dest." + k] = v
+					dbObj["dest_" + k] = v
 				for k, v in parentValues.items():
-					dbObj["src." + k] = v
+					dbObj["src_" + k] = v
 				if self.using is not None:
 					usingSkel = self._usingSkelCache
 					usingSkel.setValuesCache(val["rel"])
 					for k, v in usingSkel.serialize().items():
-						dbObj["rel." + k] = v
+						dbObj["rel_" + k] = v
 
 			dbObj["viur_delayed_update_tag"] = time()
 			dbObj["viur_src_kind"] = skel.kindName  # The kind of the entry referencing
@@ -488,13 +491,13 @@ class relationalBone(baseBone):
 			Rewrites a datastore query to operate on "viur-relations" instead of the original kind.
 			This is needed to perform relational queries on n:m relations.
 		"""
-		origFilter = dbFilter.datastoreQuery
-		origSortOrders = dbFilter.getOrders()
-		if isinstance(origFilter, db.MultiQuery):
+		origFilter = dbFilter.filters
+		origSortOrders = dbFilter.orders
+		if isinstance(origFilter, list):
 			raise NotImplementedError(
 				"Doing a relational Query with multiple=True and \"IN or !=\"-filters is currently unsupported!")
-		dbFilter.datastoreQuery = type(dbFilter.datastoreQuery)(
-			"viur-relations")  # skel.kindName+"_"+self.kind+"_"+name
+		dbFilter.filters = {}
+		dbFilter.collection = "viur-relations"
 		dbFilter.filter("viur_src_kind =", skel.kindName)
 		dbFilter.filter("viur_dest_kind =", self.kind)
 		dbFilter.filter("viur_src_property", name)
@@ -503,7 +506,7 @@ class relationalBone(baseBone):
 		if origFilter:
 			for k, v in origFilter.items():  # Merge old filters in
 				# Ensure that all non-relational-filters are in parentKeys
-				if k == "__key__":
+				if k == db.KEY_SPECIAL_PROPERTY:
 					# We must process the key-property separately as its meaning changes as we change the datastore kind were querying
 					if isinstance(v, list) or isinstance(v, tuple):
 						logging.warning(
@@ -517,16 +520,19 @@ class relationalBone(baseBone):
 				if not (k if "." not in k else k.split(".")[0]) in self.parentKeys:
 					logging.warning("Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k, name))
 					raise RuntimeError()
-				dbFilter.filter("src.%s" % k, v)
+				dbFilter.filter("src_%s" % k, v)
 		orderList = []
 		for k, d in origSortOrders:  # Merge old sort orders in
-			if not k in self.parentKeys:
+			if k == db.KEY_SPECIAL_PROPERTY:
+				orderList.append(("%s" % k, d))
+			elif not k in self.parentKeys:
 				logging.warning("Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k, name))
 				raise RuntimeError()
-			orderList.append(("src.%s" % k, d))
+			else:
+				orderList.append(("src_%s" % k, d))
 		if orderList:
 			dbFilter.order(*orderList)
-		return (name, skel, dbFilter, rawFilter)
+		return name, skel, dbFilter, rawFilter
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		from server.skeleton import RefSkel, skeletonByKind
@@ -537,12 +543,7 @@ class relationalBone(baseBone):
 
 		myKeys = [x for x in rawFilter.keys() if x.startswith("%s." % name)]
 
-		if len(myKeys) > 0 and not self.indexed:
-			logging.warning("Invalid searchfilter! %s is not indexed!" % name)
-			raise RuntimeError()
-
 		if len(myKeys) > 0:  # We filter by some properties
-
 			if dbFilter.getKind() != "viur-relations" and self.multiple:
 				name, skel, dbFilter, rawFilter = self._rewriteQuery(name, skel, dbFilter, rawFilter)
 
@@ -586,10 +587,10 @@ class relationalBone(baseBone):
 						if checkKey == bname:
 							newFilter = {key: value}
 							if self.multiple:
-								bone.buildDBFilter(bname, relSkel, dbFilter, newFilter, prefix=(prefix or "") + "dest.")
+								bone.buildDBFilter(bname, relSkel, dbFilter, newFilter, prefix=(prefix or "") + "dest_")
 							else:
 								bone.buildDBFilter(bname, relSkel, dbFilter, newFilter,
-												   prefix=(prefix or "") + name + ".dest.")
+												   prefix=(prefix or "") + name + "_dest_")
 
 				elif _type == "rel":
 
@@ -603,10 +604,10 @@ class relationalBone(baseBone):
 						if key.startswith(bname):
 							newFilter = {key: value}
 							if self.multiple:
-								bone.buildDBFilter(bname, relSkel, dbFilter, newFilter, prefix=(prefix or "") + "rel.")
+								bone.buildDBFilter(bname, relSkel, dbFilter, newFilter, prefix=(prefix or "") + "rel_")
 							else:
 								bone.buildDBFilter(bname, relSkel, dbFilter, newFilter,
-												   prefix=(prefix or "") + name + ".rel.")
+												   prefix=(prefix or "") + name + "_rel_")
 
 			if self.multiple:
 				dbFilter.setFilterHook(lambda s, filter, value: self.filterHook(name, s, filter, value))
@@ -639,9 +640,9 @@ class relationalBone(baseBone):
 				logging.warning("Invalid filtering! %s is not a bone in 'using' of %s" % (param, name))
 				raise RuntimeError()
 			if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
-				order = ("%s.%s" % (_type, param), db.DESCENDING)
+				order = ("%s_%s" % (_type, param), db.DESCENDING)
 			else:
-				order = ("%s.%s" % (_type, param), db.ASCENDING)
+				order = ("%s_%s" % (_type, param), db.ASCENDING)
 			dbFilter = dbFilter.order(order)
 			dbFilter.setFilterHook(lambda s, filter, value: self.filterHook(name, s, filter, value))
 			dbFilter.setOrderHook(lambda s, orderings: self.orderHook(name, s, orderings))
@@ -678,7 +679,7 @@ class relationalBone(baseBone):
 			srcKey = param
 			if " " in srcKey:
 				srcKey = srcKey[: srcKey.find(" ")]  # Cut <, >, and =
-			if srcKey == "__key__":  # Rewrite key= filter as its meaning has changed
+			if srcKey == db.KEY_SPECIAL_PROPERTY:  # Rewrite key= filter as its meaning has changed
 				if isinstance(value, list) or isinstance(value, tuple):
 					logging.warning(
 						"Invalid filtering! Doing an relational Query on %s with multiple key= filters is unsupported!" % (

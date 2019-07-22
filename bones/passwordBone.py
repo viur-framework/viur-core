@@ -96,8 +96,8 @@ class passwordBone(stringBone):
 		if valuesCache.get(name, None) and valuesCache[name] != "":
 			salt = utils.generateRandomString(self.saltLength)
 			passwd = pbkdf2(valuesCache[name][: conf["viur.maxPasswordLength"]], salt)
-			entity.set(name, passwd, self.indexed)
-			entity.set("%s_salt" % name, salt, self.indexed)
+			entity[name] = passwd
+			entity["%s_salt" % name] = salt
 
 		return entity
 

@@ -20,8 +20,8 @@ class credentialBone(stringBone):
 		"""
 			Update the value only if a new value is supplied.
 		"""
-		if valuesCache.get(name, None) and valuesCache[name] != "":
-			entity.set(name, valuesCache[name], self.indexed)
+		if valuesCache.get(name) and valuesCache[name] != "":
+			entity[name] = valuesCache[name]
 		return entity
 
 	def unserialize(self, valuesCache, name, values):

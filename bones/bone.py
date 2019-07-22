@@ -30,7 +30,7 @@ class baseBone(object):  # One Bone:
 
 
 	def __init__(self, descr="", defaultValue=None, required=False, params=None, multiple=False,
-				 indexed=False, searchable=False, vfunc=None, readOnly=False, visible=True, unique=False, **kwargs):
+				 searchable=False, vfunc=None, readOnly=False, visible=True, unique=False, **kwargs):
 		"""
 			Initializes a new Bone.
 
@@ -43,9 +43,6 @@ class baseBone(object):  # One Bone:
 			:type required: bool
 			:param multiple: If True, multiple values can be given. (ie. n:m relations instead of n:1)
 			:type multiple: bool
-			:param indexed: If True, this bone will be included in indexes. This is needed if you
-				want to run queries against this bone. If False, it will save datastore write-ops.
-			:type indexed: bool
 			:param searchable: If True, this bone will be included in the fulltext search. Can be used
 				without the need of also been indexed.
 			:type searchable: bool
@@ -67,13 +64,14 @@ class baseBone(object):  # One Bone:
 				The kwarg 'multiple' is not supported by all bones
 
 		"""
+		#if kwargs.get("indexed") is not None:
+		#	logging.warning("Indexed on bones is not supported anymore!")
 		self.isClonedInstance = getSystemInitialized()
 		self.descr = descr
 		self.required = required
 		self.params = params
 		self.multiple = multiple
 		self.defaultValue = defaultValue
-		self.indexed = indexed
 		self.searchable = searchable
 		if vfunc:
 			self.isInvalid = vfunc
@@ -148,8 +146,8 @@ class baseBone(object):  # One Bone:
 			:returns: dict
 		"""
 		if name in valuesCache:
-			entity.set(name, valuesCache[name], self.indexed)
-		return (entity)
+			entity[name] = valuesCache[name]
+		return entity
 
 	def unserialize(self, valuesCache, name, expando):
 		"""
@@ -235,10 +233,6 @@ class baseBone(object):  # One Bone:
 		if len(myKeys) == 0:
 			return (dbFilter)
 
-		if not self.indexed and name != "key":
-			logging.warning("Invalid searchfilter! %s is not indexed!" % name)
-			raise RuntimeError()
-
 		for key in myKeys:
 			value = rawFilter[key]
 			tmpdata = key.split("$")
@@ -284,9 +278,6 @@ class baseBone(object):  # One Bone:
 			:returns: The modified :class:`server.db.Query`
 		"""
 		if "orderby" in rawFilter and rawFilter["orderby"] == name:
-			if not self.indexed:
-				logging.warning("Invalid ordering! %s is not indexed!" % name)
-				raise RuntimeError()
 			if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
 				order = (rawFilter["orderby"], db.DESCENDING)
 			else:

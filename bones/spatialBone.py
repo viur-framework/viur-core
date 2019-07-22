@@ -110,17 +110,15 @@ class spatialBone(baseBone):
 		"""
 		if valuesCache[name] and not self.isInvalid(valuesCache[name]):
 			lat, lng = valuesCache[name]
-			entity.set(name + ".lat.val", lat, self.indexed)
-			entity.set(name + ".lng.val", lng, self.indexed)
-			if self.indexed:
+			entity[name + ".lat.val"] = lat
+			entity[name + ".lng.val"] = lng
+			if 1 or self.indexed:  # FIXME
 				gridSizeLat, gridSizeLng = self.getGridSize()
 				tileLat = int(floor((lat - self.boundsLat[0]) / gridSizeLat))
 				tileLng = int(floor((lng - self.boundsLng[0]) / gridSizeLng))
-				entity.set(name + ".lat.tiles", [tileLat - 1, tileLat, tileLat + 1], self.indexed)
-				entity.set(name + ".lng.tiles", [tileLng - 1, tileLng, tileLng + 1], self.indexed)
-		logging.error(entity[name + ".lat.tiles"])
-		logging.error(entity[name + ".lng.tiles"])
-		return (entity)
+				entity[name + ".lat.tiles"] = [tileLat - 1, tileLat, tileLat + 1]
+				entity[name + ".lng.tiles"] = [tileLng - 1, tileLng, tileLng + 1]
+		return entity
 
 	def unserialize(self, valuesCache, name, expando):
 		"""
@@ -173,7 +171,6 @@ class spatialBone(baseBone):
 				logging.debug("Values out of range in %s", name)
 				dbFilter.datastoreQuery = None
 				return
-			assert self.indexed
 			gridSizeLat, gridSizeLng = self.getGridSize()
 			tileLat = int(floor((lat - self.boundsLat[0]) / gridSizeLat))
 			tileLng = int(floor((lng - self.boundsLng[0]) / gridSizeLng))

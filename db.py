@@ -751,8 +751,8 @@ class Query(object):
 				bone.buildDBSort(key, skel, self, filters)
 		except RuntimeError as e:
 			logging.exception(e)
-			self.datastoreQuery = None
-			return (self)
+			self.filters = None
+			return self
 		if "search" in filters and filters["search"]:
 			if isinstance(filters["search"], list):
 				taglist = ["".join([y for y in str(x).lower() if y in conf["viur.searchValidChars"]]) for x in
@@ -810,7 +810,7 @@ class Query(object):
 				r = self._filterHook(self, filter, value)
 			except RuntimeError:
 				self.filters = None
-				return (self)
+				return self
 			if r is None:
 				# The Hook did something special directly on 'self' to apply that filter,
 				# no need for us to do anything
@@ -1109,9 +1109,7 @@ class Query(object):
 
 			:rtype: str
 		"""
-		if self.datastoreQuery is None:
-			return (None)
-		return (self.datastoreQuery.__kind)
+		return self.collection
 
 	def setKind(self, newKind):
 		"""
@@ -1336,10 +1334,7 @@ class Query(object):
 				break
 		if ineqFilter and (not orders or not orders[0][0] == ineqFilter):
 			orders = [(ineqFilter, ASCENDING)] + (orders or [])
-		# FIXME: It seems there is no guaranteed order for returned entries if all fields included in orders are equal
-		# FIXME: At least it's not by key nor by change or creation date
-		# First, order by key
-		# entities.sort(key=lambda x: x.name, reverse=True)
+
 		for orderField, direction in orders[::-1]:
 			if orderField == KEY_SPECIAL_PROPERTY:
 				entities.sort(key=lambda x: x.name, reverse=direction == DESCENDING)
@@ -1427,9 +1422,9 @@ class Query(object):
 					pendingWrites=currentTransaction["pendingChanges"][self.collection],
 					targetAmount=qryLimit)
 		if conf["viur.debug.traceQueries"]:
-			kindName = self.getKind()
-			orders = self.getOrders()
-			filters = self.getFilter()
+			kindName = self.origCollection
+			orders = self.orders
+			filters = self.filters
 			logging.debug(
 				"Queried %s with filter %s and orders %s. Returned %s results" % (kindName, filters, orders, len(res)))
 		if currentTransaction:

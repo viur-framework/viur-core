@@ -56,8 +56,6 @@ class stringBone(baseBone):
 
 	def __init__(self, caseSensitive=True, multiple=False, languages=None, *args, **kwargs):
 		super(stringBone, self).__init__(*args, **kwargs)
-		if not caseSensitive and not self.indexed:
-			raise ValueError("Creating a case-insensitive index without actually writing the index is nonsense.")
 		self.caseSensitive = caseSensitive
 		if not (languages is None or (isinstance(languages, list) and len(languages) > 0 and all(
 				[isinstance(x, str) for x in languages]))):
@@ -76,52 +74,49 @@ class stringBone(baseBone):
 				return (super(stringBone, self).serialize(valuesCache, name, entity))
 			else:
 				if name != "key":
-					entity.set(name, valuesCache[name], self.indexed)
+					entity[name] = valuesCache[name]
 					if valuesCache[name] is None:
-						entity.set(name + "_idx", None, self.indexed)
+						entity[name + "_idx"] = None
 					elif isinstance(valuesCache[name], list):
-						entity.set(name + "_idx", [str(x).lower() for x in valuesCache[name]], self.indexed)
+						entity[name + "_idx"] = [str(x).lower() for x in valuesCache[name]]
 					else:
-						entity.set(name + "_idx", str(valuesCache[name]).lower(), self.indexed)
+						entity[name + "_idx"] = str(valuesCache[name]).lower()
 		else:  # Write each language separately
 			if not valuesCache.get(name, None):
 				return (entity)
 			if isinstance(valuesCache[name], str) or (
 					isinstance(valuesCache[name], list) and self.multiple):  # Convert from old format
 				lang = self.languages[0]
-				entity.set("%s.%s" % (name, lang), valuesCache[name], self.indexed)
+				entity["%s.%s" % (name, lang)] = valuesCache[name]
 				if not self.caseSensitive:
 					if isinstance(valuesCache[name], str):
-						entity.set("%s.%s_idx" % (name, lang), valuesCache[name].lower(), self.indexed)
+						entity["%s.%s_idx" % (name, lang)] = valuesCache[name].lower()
 					else:
-						entity.set("%s.%s_idx" % (name, lang), [x.lower for x in valuesCache[name]], self.indexed)
+						entity["%s.%s_idx" % (name, lang)] = [x.lower for x in valuesCache[name]]
 				# Fill in None for all remaining languages (needed for sort!)
-				if self.indexed:
-					for lang in self.languages[1:]:
-						entity.set("%s.%s" % (name, lang), "", self.indexed)
-						if not self.caseSensitive:
-							entity.set("%s.%s_idx" % (name, lang), "", self.indexed)
+				for lang in self.languages[1:]:
+					entity["%s.%s" % (name, lang)] = ""
+					if not self.caseSensitive:
+						entity["%s.%s_idx" % (name, lang)] = ""
 			else:
 				assert isinstance(valuesCache[name], dict)
 				for lang in self.languages:
 					if lang in valuesCache[name]:
 						val = valuesCache[name][lang]
-						entity.set("%s.%s" % (name, lang), valuesCache[name][lang], self.indexed)
+						entity["%s.%s" % (name, lang)] = valuesCache[name][lang]
 						if not self.caseSensitive:
 							if isinstance(val, str):
-								entity.set("%s.%s_idx" % (name, lang), val.lower(), self.indexed)
+								entity["%s.%s_idx" % (name, lang)] = val.lower()
 							elif isinstance(val, list):
-								entity.set("%s.%s_idx" % (name, lang),
-										   [x.lower() for x in val if isinstance(x, str)], self.indexed)
+								entity["%s.%s_idx" % (name, lang)] = [x.lower() for x in val if isinstance(x, str)]
 							else:
 								logging.warning("Invalid type in serialize, got %s", str(type(val)))
 					else:
 						# Fill in None for all remaining languages (needed for sort!)
-						if self.indexed:
-							entity.set("%s.%s" % (name, lang), "", self.indexed)
-							if not self.caseSensitive:
-								entity.set("%s.%s_idx" % (name, lang), "", self.indexed)
-		return (entity)
+						entity["%s.%s" % (name, lang)] = ""
+						if not self.caseSensitive:
+							entity["%s.%s_idx" % (name, lang)] = ""
+		return entity
 
 	def unserialize(self, valuesCache, name, expando):
 		"""
@@ -235,9 +230,6 @@ class stringBone(baseBone):
 		if not name in rawFilter and not any(
 				[(x.startswith(name + "$") or x.startswith(name + ".")) for x in rawFilter.keys()]):
 			return (super(stringBone, self).buildDBFilter(name, skel, dbFilter, rawFilter, prefix))
-		if not self.indexed:
-			logging.warning("Invalid searchfilter! %s is not indexed!" % name)
-			raise RuntimeError()
 		hasInequalityFilter = False
 		if not self.languages:
 			namefilter = name
@@ -286,9 +278,6 @@ class stringBone(baseBone):
 		if "orderby" in rawFilter and (rawFilter["orderby"] == name or (
 				isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
 				"%s." % name) and self.languages)):
-			if not self.indexed:
-				logging.warning("Invalid ordering! %s is not indexed!" % name)
-				raise RuntimeError()
 			if self.languages:
 				lang = None
 				if rawFilter["orderby"].startswith("%s." % name):

@@ -78,10 +78,10 @@ class numericBone(baseBone):
 		if not name in valuesCache:
 			return entity
 		if isinstance(valuesCache[name], float) and valuesCache[name] != valuesCache[name]:  # NaN
-			entity.set(name, None, self.indexed)
+			entity[name] = None  # Fixme: bend to self.defaultValue?
 		else:
-			entity.set(name, valuesCache[name], self.indexed)
-		return (entity)
+			entity[name] = valuesCache[name]
+		return entity
 
 	def unserialize(self, valuesCache, name, expando):
 		if not name in expando:

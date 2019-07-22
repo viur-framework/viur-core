@@ -251,10 +251,10 @@ class textBone(baseBone):
 					if not val or (not HtmlSerializer().sanitize(val).strip() and not "<img " in val):
 						# This text is empty (ie. it might contain only an empty <p> tag
 						continue
-					entity.set("%s.%s" % (name, lang), val, self.indexed)
+					entity["%s.%s" % (name, lang)] = val
 		else:
-			entity.set(name, valuesCache[name], self.indexed)
-		return (entity)
+			entity[name] = valuesCache[name]
+		return entity
 
 	def unserialize(self, valuesCache, name, expando):
 		"""

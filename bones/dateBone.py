@@ -238,7 +238,7 @@ class dateBone(baseBone):
 			elif not self.date:
 				res = res.replace(year=1970, month=1, day=1)
 
-		entity.set(name, res, self.indexed)
+		entity[name] = res
 		return entity
 
 	def unserialize(self, valuesCache, name, expando):

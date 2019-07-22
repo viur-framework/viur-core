@@ -97,7 +97,7 @@ class selectBone(baseBone):
 		if not self.multiple:
 			return super(selectBone, self).serialize(valuesCache, name, entity)
 
-		entity.set(name, None if not valuesCache[name] else valuesCache[name], self.indexed)
+		entity[name] = valuesCache.get(name)
 		return entity
 
 	def unserialize(self, valuesCache, name, expando):

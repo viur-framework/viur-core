@@ -56,7 +56,7 @@ class booleanBone(baseBone):
 			:returns: dict
 		"""
 		if name != "key":
-			entity.set(name, valuesCache.get(name, False), self.indexed)
+			entity[name] = valuesCache.get(name, False)
 		return (entity)
 
 	def unserialize(self, valuesCache, name, expando):
