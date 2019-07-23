@@ -15,7 +15,6 @@ try:
 except:
 	pytz = None
 
-
 __undefindedC__ = object()
 
 
@@ -236,7 +235,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		"""
 		super(BaseSkeleton, self).__init__(*args, **kwargs)
 		self.errors = {}
-		#self.__dataDict__ = OrderedDict()
+		# self.__dataDict__ = OrderedDict()
 		self.valuesCache = {}
 		"""
 		if _cloneFrom:
@@ -620,10 +619,12 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		def txnUpdate(key, mergeFrom, clearUpdateTag):
 			blobList = set()
 			skel = type(mergeFrom)()
+			changeList = []
 
 			# Load the current values from Datastore or create a new, empty db.Entity
 			if not key:
 				dbObj = db.Entity(skel.kindName)
+				oldCopy = {}
 				oldBlobLockObj = None
 
 			else:
@@ -631,8 +632,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
 				if not dbObj:
 					dbObj = db.Entity(collection=self.kindName, name=key)
+					oldCopy = {}
 				else:
 					skel.setValues(dbObj)
+					oldCopy = {k: v for k, v in dbObj.items()}
 
 				try:
 					oldBlobLockObj = db.Get(("viur-blob-locks", key))
@@ -655,6 +658,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
 				# Obtain referenced blobs
 				blobList.update(bone.getReferencedBlobs(self.valuesCache, key))
+
+				# Check if the value has actually changed
+				if dbObj.get(key) != oldCopy.get(key):
+					changeList.append(key)
 			if clearUpdateTag:
 				# Mark this entity as Up-to-date.
 				dbObj["viur_delayed_update_tag"] = 0
@@ -755,10 +762,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 									"Detected Database corruption! A Value-Lock had been reassigned!")
 							else:
 								# It's our lock which we don't need anymore
-								db.Delete(db.Key.from_path(
-									"%s_%s_uniquePropertyIndex" % (
-										skel.kindName, key),
-									oldUniqueValues[key]))
+								db.Delete(("%s_%s_uniquePropertyIndex" % (skel.kindName, key),
+										   oldUniqueValues[key]))
 						except db.EntityNotFoundError as e:
 							logging.critical(
 								"Detected Database corruption! Could not delete stale lock-object!")
@@ -770,11 +775,12 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 							name=newUniqueValues[key])
 						newLockObj["references"] = dbObj.name
 						db.Put(newLockObj)
-			return dbObj.name, dbObj, skel
+			return dbObj.name, dbObj, skel, changeList
 
 		# END of txnUpdate subfunction
 
 		key = self["key"] or None
+		isAdd = key is None
 		if not isinstance(clearUpdateTag, bool):
 			raise ValueError(
 				"Got an unsupported type %s for clearUpdateTag. toDB doesn't accept a key argument any more!" % str(
@@ -782,13 +788,13 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
 		# Allow bones to perform outstanding "magic" operations before saving to db
 		for bkey, _bone in self.items():
-			_bone.performMagic(self.valuesCache, bkey, isAdd=(key == None))
+			_bone.performMagic(self.valuesCache, bkey, isAdd=isAdd)
 
 		# Run our SaveTxn
 		if db.IsInTransaction():
-			key, dbObj, skel = txnUpdate(key, self, clearUpdateTag)
+			key, dbObj, skel, changeList = txnUpdate(key, self, clearUpdateTag)
 		else:
-			key, dbObj, skel = db.RunInTransaction(txnUpdate, key, self, clearUpdateTag)
+			key, dbObj, skel, changeList = db.RunInTransaction(txnUpdate, key, self, clearUpdateTag)
 
 		# Perform post-save operations (postProcessSerializedData Hook, Searchindex, ..)
 		self["key"] = str(key)
@@ -818,10 +824,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
 		skel.postSavedHandler(key, dbObj)
 
-		#if not clearUpdateTag:  # FIXME!
-		#	updateRelations(key, time() + 1)
+		if not clearUpdateTag and not isAdd:
+			updateRelations(key, time() + 1, changeList if len(changeList) < 30 else None)
 
-		return (key)
+		return key
 
 	def preProcessBlobLocks(self, locks):
 		"""
@@ -1063,10 +1069,12 @@ class SkelList(list):
 ### Tasks ###
 
 @callDeferred
-def updateRelations(destID, minChangeTime, cursor=None):
-	logging.debug("Starting updateRelations for %s ; minChangeTime %s", destID, minChangeTime)
+def updateRelations(destID, minChangeTime, changeList, cursor=None):
+	logging.debug("Starting updateRelations for %s ; minChangeTime %s, Changelist: %s", destID, minChangeTime, changeList)
 	updateListQuery = db.Query("viur-relations").filter("dest.key =", destID) \
 		.filter("viur_delayed_update_tag <", minChangeTime).filter("viur_relational_updateLevel =", 0)
+	if changeList:
+		updateListQuery.filter("viur_foreign_keys IA", changeList)
 	if cursor:
 		updateListQuery.cursor(cursor)
 	updateList = updateListQuery.run(limit=5)
@@ -1078,16 +1086,16 @@ def updateRelations(destID, minChangeTime, cursor=None):
 			logging.info("Deleting %s which refers to unknown kind %s" % (str(srcRel.key()), srcRel["viur_src_kind"]))
 			continue
 
-		if not skel.fromDB(str(srcRel.key().parent())):
+		if not skel.fromDB(srcRel["src"]["key"]):
 			logging.warning("Cannot update stale reference to %s (referenced from %s)" % (
-				str(srcRel.key().parent()), str(srcRel.key())))
+				srcRel["src"]["key"], srcRel.name))
 			continue
 		for key, _bone in skel.items():
 			_bone.refresh(skel.valuesCache, key, skel)
 		skel.toDB(clearUpdateTag=True)
 
 	if len(updateList) == 5:
-		updateRelations(destID, minChangeTime, updateListQuery.getCursor().urlsafe())
+		updateRelations(destID, minChangeTime, changeList, updateListQuery.getCursor().urlsafe())
 
 
 @CallableTask

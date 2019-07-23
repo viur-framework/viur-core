@@ -3,7 +3,6 @@ from server.bones import baseBone
 from server.bones.bone import getSystemInitialized
 from server import db
 from server.errors import ReadFromClientError
-from server.utils import normalizeKey
 #from google.appengine.api import search
 import json
 from time import time
@@ -278,50 +277,53 @@ class relationalBone(baseBone):
 
 		for dbObj in dbVals.iter():
 			try:
-				if not dbObj["dest.key"] in [x["dest"]["key"] for x in values]:  # Relation has been removed
-					db.Delete(dbObj.key())
+				if not dbObj["dest"]["key"] in [x["dest"]["key"] for x in values]:  # Relation has been removed
+					db.Delete((dbObj.collection, dbObj.name))
 					continue
 			except:  # This entry is corrupt
-				db.Delete(dbObj.key())
+				db.Delete((dbObj.collection, dbObj.name))
 			else:  # Relation: Updated
-				data = [x for x in values if x["dest"]["key"] == dbObj["dest.key"]][0]
-				if 1 or self.indexed:  # We dont store more than key and kinds, and these dont change Fixme!
-					# Write our (updated) values in
-					refSkel = self._refSkelCache
-					refSkel.setValuesCache(data["dest"])
-					for k, v in refSkel.serialize().items():
-						dbObj["dest_" + k] = v
-					for k, v in parentValues.items():
-						dbObj["src_" + k] = v
-					if self.using is not None:
-						usingSkel = self._usingSkelCache
-						usingSkel.setValuesCache(data["rel"])
-						for k, v in usingSkel.serialize().items():
-							dbObj["rel." + k] = v
-					dbObj["viur_delayed_update_tag"] = time()
-					dbObj["viur_relational_updateLevel"] = self.updateLevel
-					db.Put(dbObj)
+				data = [x for x in values if x["dest"]["key"] == dbObj["dest"]["key"]][0]
+				# Write our (updated) values in
+				refSkel = self._refSkelCache
+				refSkel.setValuesCache(data["dest"])
+				dbObj["dest"] = refSkel.serialize()
+				#for k, v in refSkel.serialize().items():
+				#	dbObj["dest_" + k] = v
+				#for k, v in parentValues.items():
+				#	dbObj["src_" + k] = v
+				dbObj["src"] = parentValues
+				if self.using is not None:
+					usingSkel = self._usingSkelCache
+					usingSkel.setValuesCache(data["rel"])
+					#for k, v in usingSkel.serialize().items():
+					#	dbObj["rel." + k] = v
+					dbObj["rel"] = usingSkel.serialize()
+				dbObj["viur_delayed_update_tag"] = time()
+				dbObj["viur_relational_updateLevel"] = self.updateLevel
+				dbObj["viur_foreign_keys"] = self.refKeys
+				db.Put(dbObj)
 				values.remove(data)
 
 		# Add any new Relation
 		for val in values:
 			dbObj = db.Entity("viur-relations")  # skel.kindName+"_"+self.kind+"_"+key
 
-			if 0 and not self.indexed:  # Dont store more than key and kinds, as they aren't used anyway FIXME!
-				dbObj["dest.key"] = val["dest"]["key"]
-				dbObj["src.key"] = key
-			else:
-				refSkel = self._refSkelCache
-				refSkel.setValuesCache(val["dest"])
-				for k, v in refSkel.serialize().items():
-					dbObj["dest_" + k] = v
-				for k, v in parentValues.items():
-					dbObj["src_" + k] = v
-				if self.using is not None:
-					usingSkel = self._usingSkelCache
-					usingSkel.setValuesCache(val["rel"])
-					for k, v in usingSkel.serialize().items():
-						dbObj["rel_" + k] = v
+
+			refSkel = self._refSkelCache
+			refSkel.setValuesCache(val["dest"])
+			dbObj["dest"] = refSkel.serialize()
+			#for k, v in refSkel.serialize().items():
+			#	dbObj["dest_" + k] = v
+			#for k, v in parentValues.items():
+			#	dbObj["src_" + k] = v
+			dbObj["src"] = parentValues
+			if self.using is not None:
+				usingSkel = self._usingSkelCache
+				usingSkel.setValuesCache(val["rel"])
+				#for k, v in usingSkel.serialize().items():
+				#	dbObj["rel_" + k] = v
+				dbObj["rel"] = usingSkel.serialize()
 
 			dbObj["viur_delayed_update_tag"] = time()
 			dbObj["viur_src_kind"] = skel.kindName  # The kind of the entry referencing
@@ -330,6 +332,7 @@ class relationalBone(baseBone):
 			# dbObj[ "viur_dest_key" ] = val["key"]
 			dbObj["viur_dest_kind"] = self.kind
 			dbObj["viur_relational_updateLevel"] = self.updateLevel
+			dbObj["viur_foreign_keys"] = self.refKeys
 			db.Put(dbObj)
 
 	def postDeletedHandler(self, skel, key, id):
@@ -520,7 +523,7 @@ class relationalBone(baseBone):
 				if not (k if "." not in k else k.split(".")[0]) in self.parentKeys:
 					logging.warning("Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k, name))
 					raise RuntimeError()
-				dbFilter.filter("src_%s" % k, v)
+				dbFilter.filter("src.%s" % k, v)
 		orderList = []
 		for k, d in origSortOrders:  # Merge old sort orders in
 			if k == db.KEY_SPECIAL_PROPERTY:
@@ -529,7 +532,7 @@ class relationalBone(baseBone):
 				logging.warning("Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k, name))
 				raise RuntimeError()
 			else:
-				orderList.append(("src_%s" % k, d))
+				orderList.append(("src.%s" % k, d))
 		if orderList:
 			dbFilter.order(*orderList)
 		return name, skel, dbFilter, rawFilter
@@ -587,10 +590,10 @@ class relationalBone(baseBone):
 						if checkKey == bname:
 							newFilter = {key: value}
 							if self.multiple:
-								bone.buildDBFilter(bname, relSkel, dbFilter, newFilter, prefix=(prefix or "") + "dest_")
+								bone.buildDBFilter(bname, relSkel, dbFilter, newFilter, prefix=(prefix or "") + "dest.")
 							else:
 								bone.buildDBFilter(bname, relSkel, dbFilter, newFilter,
-												   prefix=(prefix or "") + name + "_dest_")
+												   prefix=(prefix or "") + name + ".dest.")
 
 				elif _type == "rel":
 
@@ -604,10 +607,10 @@ class relationalBone(baseBone):
 						if key.startswith(bname):
 							newFilter = {key: value}
 							if self.multiple:
-								bone.buildDBFilter(bname, relSkel, dbFilter, newFilter, prefix=(prefix or "") + "rel_")
+								bone.buildDBFilter(bname, relSkel, dbFilter, newFilter, prefix=(prefix or "") + "rel.")
 							else:
 								bone.buildDBFilter(bname, relSkel, dbFilter, newFilter,
-												   prefix=(prefix or "") + name + "_rel_")
+												   prefix=(prefix or "") + name + ".rel.")
 
 			if self.multiple:
 				dbFilter.setFilterHook(lambda s, filter, value: self.filterHook(name, s, filter, value))
@@ -640,9 +643,9 @@ class relationalBone(baseBone):
 				logging.warning("Invalid filtering! %s is not a bone in 'using' of %s" % (param, name))
 				raise RuntimeError()
 			if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
-				order = ("%s_%s" % (_type, param), db.DESCENDING)
+				order = ("%s.%s" % (_type, param), db.DESCENDING)
 			else:
-				order = ("%s_%s" % (_type, param), db.ASCENDING)
+				order = ("%s.%s" % (_type, param), db.ASCENDING)
 			dbFilter = dbFilter.order(order)
 			dbFilter.setFilterHook(lambda s, filter, value: self.filterHook(name, s, filter, value))
 			dbFilter.setOrderHook(lambda s, orderings: self.orderHook(name, s, orderings))
@@ -763,7 +766,7 @@ class relationalBone(baseBone):
 				logging.error("Invalid dictionary in updateInplace: %s" % valDict)
 				return
 
-			entityKey = normalizeKey(originalKey)
+			entityKey = originalKey
 			if originalKey != entityKey:
 				logging.info("Rewriting %s to %s" % (originalKey, entityKey))
 				valDict["key"] = entityKey
@@ -774,7 +777,7 @@ class relationalBone(baseBone):
 			newValues = None
 
 			try:
-				newValues = db.Get(entityKey)
+				newValues = db.Get((self.kind, entityKey))
 				assert newValues is not None
 			except db.EntityNotFoundError:
 				# This entity has been deleted

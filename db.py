@@ -397,7 +397,6 @@ def Get(keys: Union[Tuple[str, str], List[Tuple[str, str]]], **kwargs) -> Union[
 		currentTransaction = __currentTransaction__.transactionData
 		if currentTransaction:
 			def mergeWithUpdatedEntry(entry, collection, key):
-				logging.error("mergeWithUpdatedEntry %s %s %s" % (entry, collection, key))
 				if not collection in currentTransaction["pendingChanges"] or not \
 						key in currentTransaction["pendingChanges"][collection]:
 					return entry
@@ -1393,7 +1392,7 @@ class Query(object):
 					amount=qryLimit + additionalTransactionEntries))
 			# Wait for the actual results to arrive and convert the protobuffs to Entries
 			res = [
-				[_protoMapToEntry(tmpRes.document.fields, tmpRes.document.name[__documentRootLen__:]) for tmpRes in x if
+				[_protoMapToEntry(tmpRes.document.fields, tmpRes.document.name[__documentRootLen__:].split("/")) for tmpRes in x if
 				 tmpRes.document.name]
 				for x in res]
 			if additionalTransactionEntries:
@@ -1506,7 +1505,9 @@ class Query(object):
 			currentTransaction = None
 		if currentTransaction:
 			raise InvalidStateError("Iter is currently not supported in transactions")
-		return self.run(99)  # Fixme!
+		for x in self.run(999):  # Fixme!
+			yield x
+		return
 		if self.datastoreQuery is None:  # Noting to pull here
 			raise StopIteration()
 		if isinstance(self.datastoreQuery, datastore.MultiQuery) and keysOnly:

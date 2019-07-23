@@ -269,22 +269,3 @@ def safeStringComparison(s1, s2):
 	return isOkay
 
 
-def normalizeKey(key):
-	"""
-		Normalizes a datastore key (replacing _application with the current one)
-
-		:param key: Key to be normalized.
-
-		:return: Normalized key in string representation.
-	"""
-	if key is None:
-		return None
-
-	key = db.Key(encoded=str(key))
-
-	if key.parent():
-		parent = db.Key(encoded=normalizeKey(key.parent()))
-	else:
-		parent = None
-
-	return str(db.Key.from_path(key.kind(), key.id_or_name(), parent=parent))

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from server.bones import treeItemBone
 from server import db, request
-from server.utils import normalizeKey
 #from google.appengine.api import images
 from hashlib import sha256
 import logging
@@ -75,7 +74,7 @@ class fileBone(treeItemBone):
 				logging.error("Broken fileBone dict")
 				return
 
-			entityKey = normalizeKey(originalKey)
+			entityKey = originalKey
 			if originalKey != entityKey:
 				logging.info("Rewriting %s to %s" % (originalKey, entityKey))
 				valDict["key"] = originalKey
