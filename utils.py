@@ -8,6 +8,14 @@ import string, random, base64
 from server import conf
 import logging
 import google.auth
+from datetime import datetime, timedelta
+import hashlib
+import hmac
+from quopri import decodestring
+from base64 import urlsafe_b64decode, urlsafe_b64encode
+from hashlib import sha256
+import email.header
+
 
 # Determine which ProjectID we currently run in (as the app_identity module isn't available anymore)
 _, projectID = google.auth.default()
@@ -269,3 +277,12 @@ def safeStringComparison(s1, s2):
 	return isOkay
 
 
+def downloadUrlFor(folder, fileName, derived=False, expires=timedelta(hours=1)):
+	if derived:
+		filePath = "%s/derived/%s" % (folder, fileName)
+	else:
+		filePath = "%s/source/%s" % (folder, fileName)
+	sigStr = "%s\0%s" % (filePath, ((datetime.now() + expires).strftime("%Y%m%d%H%M") if expires else 0))
+	sigStr = urlsafe_b64encode(sigStr.encode("UTF-8"))
+	resstr = hmac.new(conf["viur.file.hmacKey"], msg=sigStr, digestmod=hashlib.sha3_384).hexdigest()
+	return "/file/download/%s?sig=%s" % (sigStr.decode("ASCII"), resstr)

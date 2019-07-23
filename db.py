@@ -517,8 +517,8 @@ def GetOrInsert(key: Tuple[str, str], **kwargs):
 		return obj
 
 	if IsInTransaction():
-		return txn(key)
-	return RunInTransaction(txn, key)
+		return txn(key, kwargs)
+	return RunInTransaction(txn, key, kwargs)
 
 	def txn(key, kwargs):
 		try:
@@ -1503,8 +1503,8 @@ class Query(object):
 			currentTransaction = __currentTransaction__.transactionData
 		except AttributeError:
 			currentTransaction = None
-		if currentTransaction:
-			raise InvalidStateError("Iter is currently not supported in transactions")
+		#if currentTransaction:
+		#	raise InvalidStateError("Iter is currently not supported in transactions")
 		for x in self.run(999):  # Fixme!
 			yield x
 		return

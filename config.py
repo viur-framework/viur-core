@@ -61,6 +61,13 @@ conf = {
 
 	# If true, all requests must be encrypted (ignored on development server)
 	"viur.forceSSL": True,
+
+	# Hmac-Key used to sign download urls - set automatically
+	"viur.file.hmacKey": None,
+
+	# Call-Map for file preprocessers
+	"viur.file.derivers": {},
+
 	# Activates the Database import API if set. Must be exactly 32 chars. *Everyone* knowing this password can rewrite the whole database!
 	"viur.importPassword": None,
 

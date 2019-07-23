@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 import json
 from collections import OrderedDict
-from server import errors, request, bones
+from server import errors, request, bones, utils
 from server.skeleton import RefSkel, skeletonByKind
 import logging
-from server.modules.file import buildTemporaryURL
 
 class DefaultRender(object):
 
@@ -151,6 +150,7 @@ class DefaultRender(object):
 				return skel[key].strftime("%H:%M:%S")
 		elif isinstance(bone, bones.relationalBone):
 			if isinstance(skel[key], list):
+				isFileBone = isinstance(bone, bones.fileBone)
 				refSkel = bone._refSkelCache
 				usingSkel = bone._usingSkelCache
 				tmpList = []
@@ -162,7 +162,7 @@ class DefaultRender(object):
 					else:
 						usingData = None
 					tmpList.append({
-						"dest": self.renderSkelValues(refSkel),
+						"dest": self.renderSkelValues(refSkel, injectDownloadURL=isFileBone),
 						"rel": usingData
 					})
 				return tmpList
@@ -201,8 +201,8 @@ class DefaultRender(object):
 		res = {}
 		for key, bone in skel.items():
 			res[key] = self.renderBoneValue(bone, skel, key)
-		if injectDownloadURL:
-			res["tempStoreURL"] = buildTemporaryURL(skel)
+		if injectDownloadURL and "dlkey" in skel and "name" in skel:
+			res["downloadUrl"] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False)
 		return res
 
 	def renderEntry(self, skel, actionName, params=None):

@@ -1079,20 +1079,21 @@ def updateRelations(destID, minChangeTime, changeList, cursor=None):
 		updateListQuery.cursor(cursor)
 	updateList = updateListQuery.run(limit=5)
 
+	def updateTxn(skel, key, srcRelKey):
+		if not skel.fromDB(key):
+			logging.warning("Cannot update stale reference to %s (referenced from %s)" % (key, srcRelKey))
+			return
+		for key, _bone in skel.items():
+			_bone.refresh(skel.valuesCache, key, skel)
+		skel.toDB(clearUpdateTag=True)
+
 	for srcRel in updateList:
 		try:
 			skel = skeletonByKind(srcRel["viur_src_kind"])()
 		except AssertionError:
 			logging.info("Deleting %s which refers to unknown kind %s" % (str(srcRel.key()), srcRel["viur_src_kind"]))
 			continue
-
-		if not skel.fromDB(srcRel["src"]["key"]):
-			logging.warning("Cannot update stale reference to %s (referenced from %s)" % (
-				srcRel["src"]["key"], srcRel.name))
-			continue
-		for key, _bone in skel.items():
-			_bone.refresh(skel.valuesCache, key, skel)
-		skel.toDB(clearUpdateTag=True)
+		db.RunInTransaction(updateTxn, skel, srcRel["src"]["key"], srcRel.name)
 
 	if len(updateList) == 5:
 		updateRelations(destID, minChangeTime, changeList, updateListQuery.getCursor().urlsafe())

@@ -417,7 +417,9 @@ class BrowseHandler():  # webapp.RequestHandler
 			if (conf["viur.debug.traceExternalCallRouting"] and not self.internalRequest) or conf[
 				"viur.debug.traceInternalCallRouting"]:
 				logging.debug("Calling %s with args=%s and kwargs=%s" % (str(caller), str(args), str(kwargs)))
-			self.response.write(str(caller(*self.args, **self.kwargs)).encode("UTF-8"))
+			res = caller(*self.args, **self.kwargs)
+			res = str(res).encode("UTF-8") if not isinstance(res, bytes) else res
+			self.response.write(res)
 		except TypeError as e:
 			if self.internalRequest:  # We provide that "service" only for requests originating from outside
 				raise

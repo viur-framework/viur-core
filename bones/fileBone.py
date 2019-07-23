@@ -1,19 +1,67 @@
 # -*- coding: utf-8 -*-
 from server.bones import treeItemBone
-from server import db, request
-#from google.appengine.api import images
+from server import db, request, conf
+from server.tasks import callDeferred
+# from google.appengine.api import images
 from hashlib import sha256
 import logging
+from typing import Union, Dict
+
+
+@callDeferred
+def ensureDerived(dlkey: str, name: str, deriveMap: Dict[str,Dict]):
+	"""
+	Ensure that pending thumbnails or other derived Files are build
+	:param dlkey:
+	:param name:
+	:param deriveMap:
+	:return:
+	"""
+	from server.skeleton import skeletonByKind
+	skel = skeletonByKind("file")()
+	assert skel.fromDB(dlkey)
+	if not skel["derived"]:
+		logging.info("No Derives for this file")
+		skel["derived"] = {}
+	didBuild = False
+	for fileName, params in deriveMap.items():
+		if not fileName in skel["derived"]:
+			deriveFuncMap = conf["viur.file.derivers"]
+			if not "callee" in params:
+				assert False
+			if not params["callee"] in deriveFuncMap:
+				raise NotImplementedError("Callee not registered")
+			callee = deriveFuncMap[params["callee"]]
+			callRes = callee(dlkey, name, fileName, params)
+			skel["derived"][fileName] = callRes
+			didBuild = True
+	if didBuild:
+		skel.toDB()
 
 
 class fileBone(treeItemBone):
 	kind = "file"
 	type = "relational.treeitem.file"
-	refKeys = ["name", "key", "meta_mime", "metamime", "mimetype", "dlkey", "servingurl", "size", "width", "height"]
+	refKeys = ["name", "key", "mimetype", "dlkey", "size", "width", "height", "derived"]
 
-	def __init__(self, format="$(dest.name)", *args, **kwargs):
+	def __init__(self, format="$(dest.name)", derive: Union[None, Dict[str, Dict]] = None, *args, **kwargs):
 		assert "dlkey" in self.refKeys, "You cannot remove dlkey from refKeys!"
 		super(fileBone, self).__init__(format=format, *args, **kwargs)
+		self.derive = derive
+
+	def postSavedHandler(self, valuesCache, boneName, skel, key, dbfields):
+		super(fileBone, self).postSavedHandler(valuesCache, boneName, skel, key, dbfields)
+		if boneName not in valuesCache:
+			return
+		if not valuesCache.get(boneName):
+			values = []
+		elif isinstance(valuesCache.get(boneName), dict):
+			values = [dict((k, v) for k, v in valuesCache.get(boneName).items())]
+		else:
+			values = [dict((k, v) for k, v in x.items()) for x in valuesCache.get(boneName)]
+		if self.derive:
+			for val in values:
+				ensureDerived(val["dest"]["dlkey"], val["dest"]["name"], self.derive)
 
 	def getReferencedBlobs(self, valuesCache, name):
 		if valuesCache[name] is None:
@@ -60,7 +108,7 @@ class fileBone(treeItemBone):
 		"""
 			Refresh all values we might have cached from other entities.
 		"""
-
+		"""
 		def updateInplace(relDict):
 			if isinstance(relDict, dict) and "dest" in relDict:
 				valDict = relDict["dest"]
@@ -115,3 +163,4 @@ class fileBone(treeItemBone):
 		elif isinstance(valuesCache[boneName], list):
 			for k in valuesCache[boneName]:
 				updateInplace(k)
+		"""

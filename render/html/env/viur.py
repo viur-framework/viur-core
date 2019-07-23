@@ -7,6 +7,7 @@ import urllib
 from hashlib import sha512
 #from google.appengine.ext import db
 #from google.appengine.api import memcache, users
+from datetime import timedelta
 from collections import OrderedDict
 import string
 import logging
@@ -609,3 +610,15 @@ def embedSvg(self, name):
 	except Exception as e:
 		logging.exception(e)
 		return ""
+
+
+@jinjaGlobalFunction
+def downloadUrlFor(render, fileObj, derived=None, expires=timedelta(hours=1)):
+	if not isinstance(fileObj, dict) or not "dlkey" in fileObj or not "name" in fileObj:
+		return None
+	if derived and (not "derived" in fileObj or not isinstance(fileObj["derived"], dict) or not derived in fileObj["derived"]):
+		return None
+	if derived:
+		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=derived, derived=True, expires=expires)
+	else:
+		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileObj["name"], derived=False, expires=expires)
