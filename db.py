@@ -34,6 +34,7 @@ from time import time
 import google.auth
 from functools import partial
 from server import request
+from google.protobuf import wrappers_pb2
 
 """
 	Tiny wrapper around *google.appengine.api.datastore*.
@@ -617,6 +618,22 @@ def Delete(keys: Union[Tuple[str, str], List[Tuple[str, str]]], **kwargs) -> Non
 	return (datastore.Delete(keys, **kwargs))
 
 
+class Cursor(object):
+	def __init__(self, lastEntry):
+		super(Cursor, self).__init__()
+
+
+def _valueFromEntry(entry: Entity, fieldPath: str) -> Any:
+	""
+	for field in fieldPath.split("."):
+		if field.isdigit() and isinstance(entry, list):
+			entry = entry[int(field)]
+		elif isinstance(entry, dict) and field in entry:
+			entry = entry[field]
+		else:
+			return None
+	return entry
+
 class Query(object):
 	"""
 		Base Class for querying the firestore
@@ -641,11 +658,13 @@ class Query(object):
 		self.amount: int = 30
 		self._filterHook = None
 		self._orderHook = None
-		self._origCursor = None
+		self._startCursor = None
+		self._endCursor = None
 		self._customMultiQueryMerge = None  # Sometimes, the default merge functionality from MultiQuery is not sufficient
 		self._calculateInternalMultiQueryAmount = None  # Some (Multi-)Queries need a different amount of results per subQuery than actually returned
 		self.customQueryInfo = {}  # Allow carrying custom data along with the query. Currently only used by spartialBone to record the guranteed correctnes
 		self.origCollection = collection
+		self._lastEntry = None
 
 	def setFilterHook(self, hook):
 		"""
@@ -936,27 +955,8 @@ class Query(object):
 		self.orders = newOrderings
 		return self
 
-	def ancestor(self, ancestor):
-		"""
-			Sets an ancestor for this query.
 
-			This restricts the query to only return result entities that are descended
-			from a given entity. In other words, all of the results will have the
-			ancestor as their parent, or parent's parent, and so on.
-
-			Raises BadArgumentError or BadKeyError if parent is not an existing Entity
-			or Key in the data store.
-
-			:param ancestor: Entity or Key. The key must be complete.
-			:type ancestor: server.db.Entity | Key
-
-			:returns: Returns the query itself for chaining.
-			:rtype: server.db.Query
-		"""
-		self.datastoreQuery.Ancestor(ancestor)
-		return (self)
-
-	def cursor(self, cursor, endCursor=None):
+	def setCursor(self, startCursor, endCursor=None):
 		"""
 			Sets the start cursor for this query.
 
@@ -972,28 +972,30 @@ class Query(object):
 			:returns: Returns the query itself for chaining.
 			:rtype: server.db.Query
 		"""
-		if isinstance(cursor, str):
-			cursor = datastore_query.Cursor(urlsafe=cursor)
-		elif isinstance(cursor, datastore_query.Cursor) or cursor == None:
+		def untrustedCursorHelper(cursor):
+			splits = str(cursor).split("_")
+			if len(splits) != 3:
+				raise InvalidCursorError("Invalid cursor format")
+			res = "%s_%s" % (splits[0], splits[1])
+			if not utils.hmacVerify(res, splits[2]):
+				raise InvalidCursorError("Cursor signature invalid")
+			return res
+		if isinstance(startCursor, str):
+			startCursor = untrustedCursorHelper(startCursor)
+		elif isinstance(startCursor, list) or startCursor is None:
 			pass
 		else:
-			raise ValueError("Cursor must be String, datastore_query.Cursor or None")
+			raise ValueError("startCursor must be String, datastore_query.Cursor or None")
 		if endCursor is not None:
 			if isinstance(endCursor, str):
-				endCursor = datastore_query.Cursor(urlsafe=endCursor)
-			elif isinstance(cursor, datastore_query.Cursor) or endCursor == None:
+				endCursor = untrustedCursorHelper(endCursor)
+			elif isinstance(endCursor, list) or endCursor is None:
 				pass
 			else:
 				raise ValueError("endCursor must be String, datastore_query.Cursor or None")
-
-		qo = self.datastoreQuery.__query_options
-		self.datastoreQuery.__query_options = datastore_query.QueryOptions(keys_only=qo.keys_only,
-																		   produce_cursors=qo.produce_cursors,
-																		   start_cursor=cursor,
-																		   end_cursor=endCursor or qo.end_cursor,
-																		   projection=qo.projection)
-		self._origCursor = cursor
-		return (self)
+		self._startCursor = startCursor
+		self._endCursor = endCursor
+		return self
 
 	def limit(self, amount):
 		"""
@@ -1080,7 +1082,7 @@ class Query(object):
 		except:
 			return ([])
 
-	def getCursor(self):
+	def getCursor(self, serializeForUntrustedUse=False):
 		"""
 			Get a valid cursor from the last run of this query.
 
@@ -1097,10 +1099,26 @@ class Query(object):
 
 			:raises: :exc:`AssertionError` if the query has not yet been run or cannot be compiled.
 		"""
-		if self.datastoreQuery is None:
-			return (None)
+		if not isinstance(self.filters, dict):
+			# Either a multi-query or an unsatisfiable query
+			return None
+		if not self._lastEntry:
+			# We did not run yet
+			return None
 
-		return (self.datastoreQuery.GetCursor())
+		res = []
+		for fieldPath, direction in self.orders:
+			if fieldPath == KEY_SPECIAL_PROPERTY:
+				res.append("%s/%s" % (self._lastEntry.collection, self._lastEntry.name))
+			else:
+				res.append(_valueFromEntry(self._lastEntry, fieldPath))
+		if serializeForUntrustedUse:
+			# We could simply fallback for a normal hash here as we sign it later again
+			hmacSigData = utils.hmacSign(res)
+			res = "%s_%s" % (self._lastEntry.name, hmacSigData)
+			hmacFullSig = utils.hmacSign(res)
+			res += "_"+hmacFullSig
+		return res
 
 	def getKind(self):
 		"""
@@ -1173,6 +1191,7 @@ class Query(object):
 			field=query_pb2.StructuredQuery.FieldReference(field_path=field),
 			direction=direction) for field, direction in orders if "%s =" % field not in filters)
 
+
 	def _buildProtoBuffForQuery(self, filters, orders, limit) -> google.cloud.firestore_v1.types.StructuredQuery:
 		"""
 			Constructs the corresponding protobuffer for the query given in by filters, orders and limit
@@ -1182,9 +1201,53 @@ class Query(object):
 			query protobuf.
 		"""
 		projection = None  # self._normalize_projection(self._projection)
-		orders = None  # self._normalize_orders()
-		start_at = None  # self._normalize_cursor(self._start_at, orders)
-		end_at = None  # self._normalize_cursor(self._end_at, orders)
+		def strCursorHelper(strCursor: str) -> List[Any]:
+			key, sig = strCursor.split("_")
+			entity = Get((self.collection, key))
+			if not entity:
+				raise InvalidCursorError("That cursor is void")
+			# Rebuild the original Tuple-Cursor
+			res = []
+			for fieldPath, direction in self.orders:
+				if fieldPath == KEY_SPECIAL_PROPERTY:
+					res.append("%s/%s" % (entity.collection, entity.name))
+				else:
+					res.append(_valueFromEntry(entity, fieldPath))
+
+			# Verify that this Tuple-Cursor still matches the values it had when it was created
+			hmacSigData = utils.hmacSign(res)
+			signedRes = "%s_%s" % (entity.name, hmacSigData)
+			if signedRes != strCursor:
+				# Looks like the entry has changed meanwhile...
+				raise InvalidCursorError("That cursor is void")
+			return res
+
+		if self._startCursor:
+			if isinstance(self._startCursor, str):
+				self._startCursor = strCursorHelper(self._startCursor)
+			if len(self._startCursor) != len(self.orders):
+				raise InvalidCursorError("startCursor does not match query")
+			if self._startCursor[-1].split("/")[0] != self.collection:
+				raise InvalidCursorError("startCursor is from a different collection")
+			cursorValues = [encode_value(f) for f in self._startCursor[:-1]]
+			# The last one is the document reference - and we have to treat it differently
+			cursorValues.append(document_pb2.Value(reference_value=__documentRoot__+self._startCursor[-1]))
+			startCursor = query_pb2.Cursor(values=cursorValues, before=False)
+		else:
+			startCursor = None
+		if self._endCursor:
+			if isinstance(self._endCursor, str):
+				self._endCursor = strCursorHelper(self._endCursor)
+			if len(self._endCursor) != len(self.orders):
+				raise InvalidCursorError("endCursor does not match query")
+			if self._endCursor[-1].split("/")[0] != self.collection:
+				raise InvalidCursorError("endCursor is from a different collection")
+			cursorValues = [encode_value(f) for f in self._endCursor[:-1]]
+			# The last one is the document reference - and we have to treat it differently
+			cursorValues.append(document_pb2.Value(reference_value=__documentRoot__+self._endCursor[-1]))
+			endCursor = query_pb2.Cursor(values=cursorValues, before=False)
+		else:
+			endCursor = None
 
 		query_kwargs = {
 			"select": projection,
@@ -1195,8 +1258,9 @@ class Query(object):
 			],
 			"where": self._buildFilterProtoBuff(filters),
 			"order_by": self._buildOrderProtoBuff(self.orders, filters),
-			"start_at": None,  # cursor_pb(start_at),
-			"end_at": None  # _cursor_pb(end_at),
+			"start_at": startCursor,  # cursor_pb(start_at),
+			"end_at": endCursor,  # _cursor_pb(end_at),
+			"limit": wrappers_pb2.Int32Value(value=limit)
 		}
 		# if self._offset is not None:
 		#	query_kwargs["offset"] = self._offset
@@ -1428,6 +1492,8 @@ class Query(object):
 				"Queried %s with filter %s and orders %s. Returned %s results" % (kindName, filters, orders, len(res)))
 		if currentTransaction:
 			currentTransaction["lastQueries"].append((self, res))
+		if res:
+			self._lastEntry = res[-1]
 		return res
 
 	def fetch(self, limit=-1, **kwargs):
@@ -1469,16 +1535,8 @@ class Query(object):
 			self.srcSkel.setValuesCache(valueCache)
 			self.srcSkel.setValues(e)
 			res.append(self.srcSkel.getValuesCache())
-		try:
-			c = self.datastoreQuery.GetCursor()
-			if c:
-				res.cursor = c.urlsafe()
-			else:
-				res.cursor = None
-		except (AssertionError, AttributeError):  # No Cursors available on MultiQueries ( in or != )
-			# FIXME! AttributeError is always raised - need to fix cursors...
-			res.cursor = None
-		return (res)
+		res.getCursor = lambda: self.getCursor(True)
+		return res
 
 	def iter(self, keysOnly=False):
 		"""
@@ -1619,7 +1677,13 @@ class Query(object):
 		return "<db.Query on %s with filters %s and orders %s>" % (self.collection, self.filters, self.orders)
 
 
-class InvalidStateError(Exception):
+class GenericDatabaseError(Exception):
+	pass
+
+class InvalidStateError(GenericDatabaseError):
+	pass
+
+class InvalidCursorError(GenericDatabaseError):
 	pass
 
 

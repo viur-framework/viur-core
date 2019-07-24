@@ -1046,13 +1046,15 @@ class SkelList(list):
 		:vartype cursor: str
 	"""
 
+	__slots__ = ["baseSkel", "getCursor", "customQueryInfo"]
+
 	def __init__(self, baseSkel):
 		"""
 			:param baseSkel: The baseclass for all entries in this list
 		"""
 		super(SkelList, self).__init__()
 		self.baseSkel = baseSkel
-		self.cursor = None
+		self.getCursor = lambda: None
 		self.customQueryInfo = {}
 
 	def __iter__(self):

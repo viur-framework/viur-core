@@ -15,14 +15,14 @@ from quopri import decodestring
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from hashlib import sha256
 import email.header
-
+from typing import Any
 
 # Determine which ProjectID we currently run in (as the app_identity module isn't available anymore)
 _, projectID = google.auth.default()
 del _
 
 
-def generateRandomString(length=13):
+def generateRandomString(length: int = 13):
 	"""
 	Return a string containing random characters of given *length*.
 	Its safe to use this string in URLs or HTML.
@@ -249,40 +249,27 @@ def escapeString(val, maxLength=254):
 		.replace("\0", "")
 
 	if maxLength:
-		return (val[0:maxLength])
+		return val[0:maxLength]
 
-	return (val)
-
-
-def safeStringComparison(s1, s2):
-	"""
-		Performs a string comparison in constant time.
-		This should prevent side-channel (timing) attacks
-		on passwords etc.
-		:param s1: First string to compare
-		:type s1: str | unicode
-		:param s2: Second string to compare
-		:type s2: str | unicode
-		:return: True if both strings are equal, False otherwise
-		:return type: bool
-	"""
-	isOkay = True
-	if type(s1) != type(s2):
-		isOkay = False  # We have a unicode/str messup here
-	if len(s1) != len(s2):
-		isOkay = False
-	for x, y in izip(s1, s2):
-		if x != y:
-			isOkay = False
-	return isOkay
+	return val
 
 
-def downloadUrlFor(folder, fileName, derived=False, expires=timedelta(hours=1)):
+def hmacSign(data: Any) -> str:
+	if not isinstance(data, bytes):
+		data = str(data).encode("UTF-8")
+	return hmac.new(conf["viur.file.hmacKey"], msg=data, digestmod=hashlib.sha3_384).hexdigest()
+
+
+def hmacVerify(data: Any, signature: str) -> bool:
+	return hmac.compare_digest(hmacSign(data), signature)
+
+
+def downloadUrlFor(folder: str, fileName: str, derived: bool = False, expires: timedelta = timedelta(hours=1)) -> str:
 	if derived:
 		filePath = "%s/derived/%s" % (folder, fileName)
 	else:
 		filePath = "%s/source/%s" % (folder, fileName)
 	sigStr = "%s\0%s" % (filePath, ((datetime.now() + expires).strftime("%Y%m%d%H%M") if expires else 0))
 	sigStr = urlsafe_b64encode(sigStr.encode("UTF-8"))
-	resstr = hmac.new(conf["viur.file.hmacKey"], msg=sigStr, digestmod=hashlib.sha3_384).hexdigest()
+	resstr = hmacSign(sigStr)
 	return "/file/download/%s?sig=%s" % (sigStr.decode("ASCII"), resstr)

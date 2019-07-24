@@ -236,10 +236,7 @@ class File(Tree):
 		)
 		fileSkel.toDB()
 		# Mark that entry dirty as we might never receive an add
-		e = db.Entity("viur-deleted-files")
-		e["dlkey"] = targetKey
-		e["itercount"] = 0
-		db.Put(e)
+		utils.markFileForDeletion(targetKey)
 
 		return self.render.view(resDict)
 
@@ -388,9 +385,7 @@ class File(Tree):
 		#	request.current.get().response.headers.add_header("Content-disposition",
 		#													  ("attachment; filename=%s" % (fname)).encode("UTF-8"))
 		# First, validate the signature, otherwise we don't need to proceed any further
-		cmpSig = hmac.new(conf["viur.file.hmacKey"], msg=blobKey.encode("ASCII"),
-						  digestmod=hashlib.sha3_384).hexdigest()
-		if not hmac.compare_digest(cmpSig, sig):
+		if not utils.hmacVerify(blobKey.encode("ASCII"), sig):
 			raise errors.Forbidden()
 		# Split the blobKey into the individual fields it should contain
 		dlPath, validUntil = urlsafe_b64decode(blobKey).decode("UTF-8").split("\0")

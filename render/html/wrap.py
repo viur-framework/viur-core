@@ -47,8 +47,8 @@ class SkelListWrapper(ListWrapper):
 	def __init__(self, src, origQuery=None):
 		super(SkelListWrapper, self).__init__(src)
 		if origQuery is not None:
-			self.cursor = origQuery.cursor
+			self.getCursor = origQuery.getCursor
 			self.customQueryInfo = origQuery.customQueryInfo
 		else:
-			self.cursor = src.cursor
+			self.getCursor = src.getCursor
 			self.customQueryInfo = src.customQueryInfo
