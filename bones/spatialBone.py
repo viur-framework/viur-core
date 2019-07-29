@@ -73,6 +73,7 @@ class spatialBone(baseBone):
 		lngDelta = float(self.boundsLng[1] - self.boundsLng[0])
 		return latDelta / float(self.gridDimensions[0]), lngDelta / float(self.gridDimensions[1])
 
+
 	def isInvalid(self, value):
 		"""
 			Tests, if the point given by 'value' is inside our boundaries.
