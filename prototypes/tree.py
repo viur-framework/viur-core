@@ -74,7 +74,7 @@ class Tree(BasicApplication):
 		super(Tree, self).__init__(moduleName, modulePath, *args, **kwargs)
 
 	@callDeferred
-	def deleteRecursive( self, nodeKey ):
+	def deleteRecursive(self, nodeKey):
 		"""
 		Recursively processes a delete request.
 
@@ -82,33 +82,23 @@ class Tree(BasicApplication):
 
 		:param key: URL-safe key of the node which children should be deleted.
 		:type key: str
-
-		:returns: The number of deleted objects.
-		:rtype: int
 		"""
-		count = 0
 
-		for f in db.Query( self.viewLeafSkel().kindName ).filter(
-							"parentdir", str(nodeKey) ).iter( keysOnly=True ):
+		for f in db.Query(self.viewLeafSkel().kindName).filter("parentdir", str(nodeKey)).iter(keysOnly=True):
 			s = self.viewLeafSkel()
-			if not s.fromDB( f ):
+			if not s.fromDB(f):
 				continue
 
 			s.delete()
-			count += 1
 
-		for d in db.Query( self.viewNodeSkel().kindName ).filter(
-							"parentdir", str(nodeKey) ).iter( keysOnly=True ):
-			count += self.deleteRecursive( str(d) )
+		for d in db.Query(self.viewNodeSkel().kindName).filter("parentdir", str(nodeKey)).iter(keysOnly=True):
+			self.deleteRecursive(str(d))
 
 			s = self.viewNodeSkel()
-			if not s.fromDB( d ):
+			if not s.fromDB(d):
 				continue
 
 			s.delete()
-			count += 1
-
-		return count
 
 	@callDeferred
 	def updateParentRepo( self, parentNode, newRepoKey, depth=0 ):

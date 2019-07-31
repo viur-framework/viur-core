@@ -5,6 +5,9 @@ This file documents any relevant changes done to ViUR server since version 2.
 
 ## [develop] - Current development version
 
+### Fixed
+- Removed counter on delete recursive in tree module. This is no longer possible since it works deferred.
+
 
 ## [2.5.0] Vesuv - 2019-06-07
 
