@@ -92,7 +92,6 @@ class Tree(BasicApplication):
 				continue
 			s.delete()
 		for d in db.Query(self.viewNodeSkel().kindName).filter("parentdir", str(nodeKey)).iter(keysOnly=True):
-			count += self.deleteRecursive(str(d))
 			self.deleteRecursive(str(d))
 			s = self.viewNodeSkel()
 			if not s.fromDB(d):
