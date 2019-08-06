@@ -68,9 +68,9 @@ class spatialBone( baseBone ):
 			:return: the size of our sub-regions in (fractions-of-latitude, fractions-of-longitude)
 			:rtype: (float, float)
 		"""
-		latDelta = self.boundsLat[1]-self.boundsLat[0]
-		lngDelta = self.boundsLng[1]-self.boundsLng[0]
-		return latDelta/self.gridDimensions[0], lngDelta/self.gridDimensions[1]
+		latDelta = float(self.boundsLat[1]-self.boundsLat[0])
+		lngDelta = float(self.boundsLng[1]-self.boundsLng[0])
+		return latDelta/float(self.gridDimensions[0]), lngDelta/float(self.gridDimensions[1])
 
 	def isInvalid( self, value ):
 		"""
@@ -107,7 +107,7 @@ class spatialBone( baseBone ):
 			:type name: str
 			:returns: dict
 		"""
-		if valuesCache[name] and not self.isInvalid(valuesCache[name]):
+		if valuesCache.get(name) and not self.isInvalid(valuesCache[name]):
 			lat, lng = valuesCache[name]
 			entity.set( name+".lat.val", lat, self.indexed )
 			entity.set( name+".lng.val", lng, self.indexed )
@@ -117,9 +117,7 @@ class spatialBone( baseBone ):
 				tileLng = int(floor((lng-self.boundsLng[0])/gridSizeLng))
 				entity.set( name+".lat.tiles", [tileLat-1,tileLat,tileLat+1], self.indexed )
 				entity.set( name+".lng.tiles", [tileLng-1,tileLng,tileLng+1], self.indexed )
-		logging.error( entity[name+".lat.tiles"] )
-		logging.error( entity[name+".lng.tiles"] )
-		return( entity )
+		return entity
 
 	def unserialize( self, valuesCache, name, expando ):
 		"""
@@ -136,6 +134,38 @@ class spatialBone( baseBone ):
 			valuesCache[name] = None
 			return
 		valuesCache[name] = expando[name+".lat.val"], expando[name+".lng.val"]
+
+	def fromClient( self, valuesCache, name, data ):
+		"""
+			Reads a value from the client.
+			If this value is valid for this bone,
+			store this value and return None.
+			Otherwise our previous value is
+			left unchanged and an error-message
+			is returned.
+
+			:param name: Our name in the skeleton
+			:type name: str
+			:param data: *User-supplied* request-data
+			:type data: dict
+			:returns: None or String
+		"""
+		rawLat = data.get("%s.lat" % name, None)
+		rawLng = data.get("%s.lng" % name, None)
+		if rawLat is None or rawLng is None:
+			return "No value entered"
+		try:
+			rawLat = float(rawLat)
+			rawLng = float(rawLng)
+			# Check for NaNs
+			assert rawLat == rawLat
+			assert rawLng == rawLng
+		except:
+			return "Invalid value entered"
+		err = self.isInvalid((rawLat, rawLng))
+		if err:
+			return err
+		valuesCache[name] = (rawLat, rawLng)
 
 	def buildDBFilter( self, name, skel, dbFilter, rawFilter, prefix=None ):
 		"""

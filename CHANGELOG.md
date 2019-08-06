@@ -5,6 +5,8 @@ This file documents any relevant changes done to ViUR server since version 2.
 
 ## [develop] - Current development version
 
+### Fixed
+- Added missing fromClient function to spatialBone so it can be set using Vi/Admin again
 
 ## [2.5.0] Vesuv - 2019-06-07
 
