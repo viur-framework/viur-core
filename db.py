@@ -1704,6 +1704,7 @@ def _beginTransaction(readOnly: bool = False):
 		"transactionKey": result.transaction,
 		"pendingChanges": {},
 		"lastQueries": [],
+		"transactionSuccessMarker": None,
 	}
 
 
@@ -1761,6 +1762,26 @@ def IsInTransaction():
 	except AttributeError:
 		currentTransaction = None
 	return currentTransaction is not None
+
+
+def acquireTransactionSuccessMarker() -> str:
+	"""
+		Generates a token that will be written to the firestore (under "viur-transactionmarker") if the transaction
+		completes successfully. Currently only used by deferredTasks to check if the task should actually execute
+		or if the transaction it was created in failed.
+	:return: Name of the entry in viur-transactionmarker
+	"""
+	try:
+		currentTransaction = __currentTransaction__.transactionData
+		assert currentTransaction
+	except (AttributeError, AssertionError):
+		raise InvalidStateError("acquireTransactionSuccessMarker cannot be called outside an transaction")
+	if not currentTransaction["transactionSuccessMarker"]:
+		e = Entity("viur-transactionmarker")
+		e["creationdate"] = datetime.now()
+		Put(e)
+		currentTransaction["transactionSuccessMarker"] = e.name
+	return currentTransaction["transactionSuccessMarker"]
 
 
 def RunInTransaction(callee, *args, **kwargs):

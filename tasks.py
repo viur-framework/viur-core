@@ -3,9 +3,6 @@ from datetime import datetime, timedelta
 from server.update import checkUpdate
 from server.config import conf, sharedConf
 from server import errors, request, utils
-#from google.appengine.api import users
-#from google.appengine.api import taskqueue
-#from google.appengine.ext.deferred import PermanentTaskFailure
 from server import db
 from functools import wraps
 import json
@@ -144,6 +141,13 @@ class TaskHandler:
 				session.current["user"] = env["user"]
 			if "lang" in env and env["lang"]:
 				request.current.get().language = env["lang"]
+			if "transactionMarker" in env:
+				marker = db.Get(("viur-transactionmarker", env["transactionMarker"]))
+				if not marker:
+					logging.info("Dropping task, transaction %s did not apply" % env["transactionMarker"])
+					return
+				else:
+					logging.info("Executing task, transaction %s did succeed" % env["transactionMarker"])
 			if "custom" in env and conf["viur.tasks.customEnvironmentHandler"]:
 				# Check if we need to restore additional enviromental data
 				assert isinstance(conf["viur.tasks.customEnvironmentHandler"], tuple) \
@@ -289,7 +293,7 @@ def noRetry(f):
 
 def callDeferred(func):
 	"""
-		This is a decorator, which allways calls the function deferred.
+		This is a decorator, which always calls the function deferred.
 		Unlike Googles implementation, this one works (with bound functions)
 	"""
 	if "viur_doc_build" in dir(sys):
@@ -313,7 +317,7 @@ def callDeferred(func):
 			req = None
 		if req is not None and "HTTP_X_APPENGINE_TASKRETRYCOUNT".lower() in [x.lower() for x in
 																			 os.environ.keys()] and not "DEFERED_TASK_CALLED" in dir(
-				req):  # This is the deferred call
+			req):  # This is the deferred call
 			req.DEFERED_TASK_CALLED = True  # Defer recursive calls to an deferred function again.
 			if self is __undefinedFlag_:
 				return func(*args, **kwargs)
@@ -345,6 +349,11 @@ def callDeferred(func):
 				env["lang"] = request.current.get().language
 			except AttributeError:  # This isn't originating from a normal request
 				pass
+			if db.IsInTransaction():
+				# We have to ensure transaction guarantees for that task also
+				env["transactionMarker"] = db.acquireTransactionSuccessMarker()
+				# We move that task at least 90 seconds into the future so the transaction has time to settle
+				taskargs["countdown"] = max(90, (taskargs.get("countdown") or 0))  # Countdown can be set to None
 			if conf["viur.tasks.customEnvironmentHandler"]:
 				# Check if this project relies on additional environmental variables and serialize them too
 				assert isinstance(conf["viur.tasks.customEnvironmentHandler"], tuple) \
@@ -353,8 +362,6 @@ def callDeferred(func):
 					"Your customEnvironmentHandler must be a tuple of two callable if set!"
 				env["custom"] = conf["viur.tasks.customEnvironmentHandler"][0]()
 			pickled = json.dumps((command, (funcPath, args, kwargs, env))).encode("UTF-8")
-			#task = taskqueue.Task(payload=pickled, **taskargs)
-			#return task.add(queue, transactional=transactional)
 
 			project = utils.projectID
 			location = queueRegion
@@ -377,31 +384,28 @@ def callDeferred(func):
 
 			print('Created task {}'.format(response.name))
 
-
 	global _deferedTasks
 	_deferedTasks["%s.%s" % (func.__name__, func.__module__)] = func
 	return (lambda *args, **kwargs: mkDefered(func, *args, **kwargs))
 
 
-def PeriodicTask(intervall):
+def PeriodicTask(interval):
 	"""
 		Decorator to call a function periodic during maintenance.
-		Intervall defines a lower bound for the call-frequency for this task;
+		Interval defines a lower bound for the call-frequency for this task;
 		it will not be called faster than each intervall minutes.
 		(Note that the actual delay between two sequent might be much larger)
-		:param intervall: Call at most every intervall minutes. 0 means call as often as possible.
-		:type intervall: int
+		:param interval: Call at most every interval minutes. 0 means call as often as possible.
+		:type interval: int
 	"""
-
 	def mkDecorator(fn):
 		global _periodicTasks, _periodicTaskID
-		_periodicTasks[fn] = intervall
+		_periodicTasks[fn] = interval
 		fn.periodicTaskID = _periodicTaskID
 		fn.periodicTaskName = "%s.%s" % (fn.__module__, fn.__name__)
 		_periodicTaskID += 1
-		return (fn)
-
-	return (mkDecorator)
+		return fn
+	return mkDecorator
 
 
 def CallableTask(fn):
