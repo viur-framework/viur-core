@@ -28,7 +28,7 @@ from grpc._channel import _Rendezvous as GrpcRendezvousError
 from grpc import StatusCode as GrpcStatusCode
 from pprint import pprint
 from google.api_core.datetime_helpers import DatetimeWithNanoseconds
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Union, Tuple, List, Dict, Iterable, Any
 from time import time
 import google.auth
@@ -634,6 +634,7 @@ def _valueFromEntry(entry: Entity, fieldPath: str) -> Any:
 			return None
 	return entry
 
+
 class Query(object):
 	"""
 		Base Class for querying the firestore
@@ -955,7 +956,6 @@ class Query(object):
 		self.orders = newOrderings
 		return self
 
-
 	def setCursor(self, startCursor, endCursor=None):
 		"""
 			Sets the start cursor for this query.
@@ -972,6 +972,7 @@ class Query(object):
 			:returns: Returns the query itself for chaining.
 			:rtype: server.db.Query
 		"""
+
 		def untrustedCursorHelper(cursor):
 			splits = str(cursor).split("_")
 			if len(splits) != 3:
@@ -980,6 +981,7 @@ class Query(object):
 			if not utils.hmacVerify(res, splits[2]):
 				raise InvalidCursorError("Cursor signature invalid")
 			return res
+
 		if isinstance(startCursor, str):
 			startCursor = untrustedCursorHelper(startCursor)
 		elif isinstance(startCursor, list) or startCursor is None:
@@ -1117,7 +1119,7 @@ class Query(object):
 			hmacSigData = utils.hmacSign(res)
 			res = "%s_%s" % (self._lastEntry.name, hmacSigData)
 			hmacFullSig = utils.hmacSign(res)
-			res += "_"+hmacFullSig
+			res += "_" + hmacFullSig
 		return res
 
 	def getKind(self):
@@ -1191,7 +1193,6 @@ class Query(object):
 			field=query_pb2.StructuredQuery.FieldReference(field_path=field),
 			direction=direction) for field, direction in orders if "%s =" % field not in filters)
 
-
 	def _buildProtoBuffForQuery(self, filters, orders, limit) -> google.cloud.firestore_v1.types.StructuredQuery:
 		"""
 			Constructs the corresponding protobuffer for the query given in by filters, orders and limit
@@ -1201,6 +1202,7 @@ class Query(object):
 			query protobuf.
 		"""
 		projection = None  # self._normalize_projection(self._projection)
+
 		def strCursorHelper(strCursor: str) -> List[Any]:
 			key, sig = strCursor.split("_")
 			entity = Get((self.collection, key))
@@ -1231,7 +1233,7 @@ class Query(object):
 				raise InvalidCursorError("startCursor is from a different collection")
 			cursorValues = [encode_value(f) for f in self._startCursor[:-1]]
 			# The last one is the document reference - and we have to treat it differently
-			cursorValues.append(document_pb2.Value(reference_value=__documentRoot__+self._startCursor[-1]))
+			cursorValues.append(document_pb2.Value(reference_value=__documentRoot__ + self._startCursor[-1]))
 			startCursor = query_pb2.Cursor(values=cursorValues, before=False)
 		else:
 			startCursor = None
@@ -1244,7 +1246,7 @@ class Query(object):
 				raise InvalidCursorError("endCursor is from a different collection")
 			cursorValues = [encode_value(f) for f in self._endCursor[:-1]]
 			# The last one is the document reference - and we have to treat it differently
-			cursorValues.append(document_pb2.Value(reference_value=__documentRoot__+self._endCursor[-1]))
+			cursorValues.append(document_pb2.Value(reference_value=__documentRoot__ + self._endCursor[-1]))
 			endCursor = query_pb2.Cursor(values=cursorValues, before=False)
 		else:
 			endCursor = None
@@ -1456,7 +1458,8 @@ class Query(object):
 					amount=qryLimit + additionalTransactionEntries))
 			# Wait for the actual results to arrive and convert the protobuffs to Entries
 			res = [
-				[_protoMapToEntry(tmpRes.document.fields, tmpRes.document.name[__documentRootLen__:].split("/")) for tmpRes in x if
+				[_protoMapToEntry(tmpRes.document.fields, tmpRes.document.name[__documentRootLen__:].split("/")) for
+				 tmpRes in x if
 				 tmpRes.document.name]
 				for x in res]
 			if additionalTransactionEntries:
@@ -1561,7 +1564,7 @@ class Query(object):
 			currentTransaction = __currentTransaction__.transactionData
 		except AttributeError:
 			currentTransaction = None
-		#if currentTransaction:
+		# if currentTransaction:
 		#	raise InvalidStateError("Iter is currently not supported in transactions")
 		for x in self.run(999):  # Fixme!
 			yield x
@@ -1680,10 +1683,16 @@ class Query(object):
 class GenericDatabaseError(Exception):
 	pass
 
+
 class InvalidStateError(GenericDatabaseError):
 	pass
 
+
 class InvalidCursorError(GenericDatabaseError):
+	pass
+
+
+class TimeoutError(GenericDatabaseError):
 	pass
 
 
@@ -1705,6 +1714,7 @@ def _beginTransaction(readOnly: bool = False):
 		"pendingChanges": {},
 		"lastQueries": [],
 		"transactionSuccessMarker": None,
+		"startTime": datetime.now()
 	}
 
 
@@ -1715,6 +1725,12 @@ def _commitTransaction():
 		currentTransaction = None
 	if not currentTransaction:
 		raise InvalidStateError("There is currently no transaction to commit.")
+	if datetime.now() - currentTransaction["startTime"] > timedelta(seconds=65):
+		# While firestore supports transactions for up to 270 Seconds, we limit this down to 60 as
+		# frondend-requests can't run longer anyway, longer running transactions are likely to fail anyway and
+		# we defer task exceution from transactions for only 90 seconds and we have to gurantee that we apply long
+		# before this (or never)
+		raise TimeoutError()
 	writes = []
 	for collection, changeMap in currentTransaction["pendingChanges"].items():
 		for name, entry in changeMap.items():
