@@ -10,6 +10,7 @@ import logging
 import os, sys
 from google.cloud import tasks_v2
 from google.protobuf import timestamp_pb2
+from typing import Dict, List, Callable
 
 _gaeApp = os.environ.get("GAE_APPLICATION")
 regionMap = {  # FIXME! Can we even determine the region like this?
@@ -26,12 +27,12 @@ if not queueRegion:
 
 taskClient = tasks_v2.CloudTasksClient()
 
-_periodicTasks = {}
+_periodicTasks: Dict[str, Dict[int, Callable]] = {}
 _callableTasks = {}
 _deferedTasks = {}
 _startupTasks = []
 _periodicTaskID = 1  # Used to determine bound functions
-
+_appengineServiceIPs = {"10.0.0.1", "0.1.0.1", "0.1.0.2"}
 
 class CallableTaskBase:
 	"""
@@ -112,14 +113,13 @@ class TaskHandler:
 		"""
 		from server import session
 		from server import utils
-		global _deferedTasks
+		global _deferedTasks, _appengineServiceIPs
 
 		req = request.current.get().request
 		if 'X-AppEngine-TaskName' not in req.headers:
 			logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
 			raise errors.Forbidden()
-		in_prod = (not req.environ.get("SERVER_SOFTWARE").startswith("Devel"))
-		if in_prod and req.environ.get("HTTP_X_APPENGINE_USER_IP") != "0.1.0.2":
+		if req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs:
 			logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
 			raise errors.Forbidden()
 		# Check if the retry count exceeds our warning threshold
@@ -184,30 +184,42 @@ class TaskHandler:
 
 	deferred.exposed = True
 
-	def index(self, *args, **kwargs):
-		global _callableTasks, _periodicTasks
-		logging.debug("Starting maintenance-run")
-		checkUpdate()  # Let the update-module verify the database layout first
-		logging.debug("Updatecheck complete")
-		for task, intervall in _periodicTasks.items():  # Call all periodic tasks
-			if intervall:  # Ensure this task doesn't get called to often
-				try:
-					lastCall = db.Get(db.Key.from_path("viur-task-interval", task.periodicTaskName))
-					if lastCall["date"] > datetime.now() - timedelta(minutes=intervall):
-						logging.debug("Skipping task %s - Has already run recently." % task.periodicTaskName)
-						continue
-				except db.EntityNotFoundError:
-					pass
+	def cron(self, cronName="default", *args, **kwargs):
+		global _callableTasks, _periodicTasks, _appengineServiceIPs
+		#logging.debug("Starting maintenance-run")
+		#checkUpdate()  # Let the update-module verify the database layout first
+		#logging.debug("Updatecheck complete")
+		req = request.current.get()
+		if not req.isDevServer:
+			if 'X-Appengine-Cron' not in req.request.headers:
+				logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Cron" was not set.')
+				raise errors.Forbidden()
+			if req.request.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs:
+				logging.critical('Detected an attempted XSRF attack. This request did not originate from Cron.')
+				raise errors.Forbidden()
+		if cronName not in _periodicTasks:
+			logging.warning("Got Cron request '%s' which doesn't have any tasks" % cronName)
+		for task, interval in _periodicTasks[cronName].items():  # Call all periodic tasks bound to that queue
+			periodicTaskName = "%s_%s" % (cronName, task.periodicTaskName)
+			if interval:  # Ensure this task doesn't get called to often
+				lastCall = db.Get(("viur-task-interval", periodicTaskName))
+				logging.error("Interval %s" % interval)
+				if lastCall and datetime.now() - lastCall["date"] < timedelta(minutes=interval):
+					logging.error(datetime.now())
+					logging.error(lastCall["date"])
+					logging.error(datetime.now() - lastCall["date"])
+					logging.debug("Skipping task %s - Has already run recently." % periodicTaskName)
+					continue
 			res = self.findBoundTask(task)
 			if res:  # Its bound, call it this way :)
 				t, s = res
 				t(s)
 			else:
 				task()  # It seems it wasnt bound - call it as a static method
-			logging.debug("Successfully called task %s" % task.periodicTaskName)
-			if intervall:
+			logging.debug("Successfully called task %s" % periodicTaskName)
+			if interval:
 				# Update its last-call timestamp
-				entry = db.Entity("viur-task-interval", name=task.periodicTaskName)
+				entry = db.Entity("viur-task-interval", name=periodicTaskName)
 				entry["date"] = datetime.now()
 				db.Put(entry)
 		logging.debug("Periodic tasks complete")
@@ -226,8 +238,7 @@ class TaskHandler:
 					logging.error("Error executing Task")
 					logging.exception(e)
 		logging.debug("Scheduled tasks complete")
-
-	index.exposed = True
+	cron.exposed = True
 
 	def list(self, *args, **kwargs):
 		"""Lists all user-callabe tasks which are callable by this user"""
@@ -389,20 +400,22 @@ def callDeferred(func):
 	return (lambda *args, **kwargs: mkDefered(func, *args, **kwargs))
 
 
-def PeriodicTask(interval):
+def PeriodicTask(interval=0, cronName="default"):
 	"""
 		Decorator to call a function periodic during maintenance.
 		Interval defines a lower bound for the call-frequency for this task;
-		it will not be called faster than each intervall minutes.
+		it will not be called faster than each interval minutes.
 		(Note that the actual delay between two sequent might be much larger)
 		:param interval: Call at most every interval minutes. 0 means call as often as possible.
 		:type interval: int
 	"""
 	def mkDecorator(fn):
 		global _periodicTasks, _periodicTaskID
-		_periodicTasks[fn] = interval
+		if not cronName in _periodicTasks:
+			_periodicTasks[cronName] = {}
+		_periodicTasks[cronName][fn] = interval
 		fn.periodicTaskID = _periodicTaskID
-		fn.periodicTaskName = "%s.%s" % (fn.__module__, fn.__name__)
+		fn.periodicTaskName = "%s_%s" % (fn.__module__, fn.__name__)
 		_periodicTaskID += 1
 		return fn
 	return mkDecorator

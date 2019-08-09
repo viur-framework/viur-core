@@ -791,7 +791,8 @@ class Query(object):
 			for k, v in origFilter.items():
 				self.datastoreQuery[k] = v
 		if "cursor" in filters and filters["cursor"] and filters["cursor"].lower() != "none":
-			self.cursor(filters["cursor"])
+			self.setCursor(filters["cursor"])
+			#self.cursor(filters["cursor"])
 		if "amount" in filters and str(filters["amount"]).isdigit() and int(filters["amount"]) > 0 and int(
 				filters["amount"]) <= 100:
 			self.limit(int(filters["amount"]))

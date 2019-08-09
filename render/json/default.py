@@ -245,8 +245,10 @@ class DefaultRender(object):
 			res["structure"] = self.renderSkelStructure(skellist.baseSkel)
 		else:
 			res["structure"] = None
-
-		res["cursor"] = skellist.cursor
+		try:
+			res["cursor"] = skellist.getCursor()
+		except:
+			res["cursor"] = None
 		res["action"] = action
 		res["params"] = params
 
