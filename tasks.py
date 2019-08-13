@@ -211,12 +211,17 @@ class TaskHandler:
 					logging.debug("Skipping task %s - Has already run recently." % periodicTaskName)
 					continue
 			res = self.findBoundTask(task)
-			if res:  # Its bound, call it this way :)
-				t, s = res
-				t(s)
+			try:
+				if res:  # Its bound, call it this way :)
+					t, s = res
+					t(s)
+				else:
+					task()  # It seems it wasnt bound - call it as a static method
+			except Exception as e:
+				logging.error("Error calling periodic task %s" % periodicTaskName)
+				logging.exception(e)
 			else:
-				task()  # It seems it wasnt bound - call it as a static method
-			logging.debug("Successfully called task %s" % periodicTaskName)
+				logging.debug("Successfully called task %s" % periodicTaskName)
 			if interval:
 				# Update its last-call timestamp
 				entry = db.Entity("viur-task-interval", name=periodicTaskName)

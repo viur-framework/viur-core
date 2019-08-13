@@ -18,7 +18,6 @@ from google.cloud.firestore_v1.proto import firestore_pb2
 from google.cloud.firestore_v1.proto import query_pb2
 from google.cloud.firestore_v1.types import Value as FirestoreValue
 from google.cloud.firestore_v1.proto import document_pb2, common_pb2
-from google.cloud.firestore_v1._helpers import encode_value, encode_dict, pbs_for_set_with_merge
 from google.cloud.firestore_v1beta1.gapic import enums
 from google.cloud.firestore_v1.proto import write_pb2
 # google_dot_cloud_dot_firestore__v1_dot_proto_dot_write__pb2._WRITE
@@ -30,11 +29,13 @@ from pprint import pprint
 from google.api_core.datetime_helpers import DatetimeWithNanoseconds
 from datetime import datetime, timedelta
 from typing import Union, Tuple, List, Dict, Iterable, Any
-from time import time
+from time import time, mktime
 import google.auth
 from functools import partial
 from server import request
-from google.protobuf import wrappers_pb2
+from google.protobuf import wrappers_pb2, struct_pb2, timestamp_pb2
+from collections import namedtuple
+from google.type import latlng_pb2
 
 """
 	Tiny wrapper around *google.appengine.api.datastore*.
@@ -63,8 +64,9 @@ __documentRootLen__ = len(__documentRoot__)  # A slice should be faster than ful
 __channel__ = grpc_helpers.create_channel("firestore.googleapis.com:443", scopes=__OauthScopesFirestore__)
 __firestoreStub__ = firestore_pb2_grpc.FirestoreStub(channel=__channel__)
 
-
 ## Custom Datatypes
+GeoPoint = namedtuple("GeoPoint", ["latitude", "longitude"])  # Fixme: Currently not used
+Key = namedtuple("dbKey", ["collection", "name"])
 
 
 class Entity(dict):  # datastore.Entity
@@ -209,7 +211,7 @@ _generateNewId = partial(utils.generateRandomString, length=20)
 
 
 def _protoValueToPythonVal(value: FirestoreValue) -> \
-		Union[None, bool, int, float, list, dict, str, bytes, datetime, Tuple[float, float]]:
+		Union[None, bool, int, float, list, dict, str, bytes, datetime, GeoPoint]:
 	"""
 	Constructs a native python type from it's google.cloud.firestore_v1.types.Value instance
 
@@ -222,13 +224,16 @@ def _protoValueToPythonVal(value: FirestoreValue) -> \
 	elif valType == "null_value":
 		return None
 	elif valType == "timestamp_value":
-		return datetime.fromtimestamp(value.timestamp_value.seconds)
+		return datetime.fromtimestamp(
+			# Shift by 1.000.000.000 to convert nano seconds as int to fractions of a second (float)
+			float(value.timestamp_value.seconds) + float(value.timestamp_value.nanos) / 1_000_000_000.0
+		)
 	elif valType == "array_value":
 		return [_protoValueToPythonVal(element) for element in value.array_value.values]
 	elif valType == "map_value":
 		return {key: _protoValueToPythonVal(value) for key, value in value.map_value.fields.items()}
 	elif valType == "geo_point_value":
-		return (value.geo_point_value.latitude, value.geo_point_value.longitude)
+		return GeoPoint(value.geo_point_value.latitude, value.geo_point_value.longitude)
 	else:
 		raise ValueError("Value-Type '%s'not supported" % valType)
 
@@ -236,6 +241,52 @@ def _protoValueToPythonVal(value: FirestoreValue) -> \
 def _protoMapToEntry(protBufFields: FirestoreMessageMapContainer, keyPath: Tuple[str, str]) -> Entity:
 	collection, name = keyPath
 	return Entity(collection, name, {key: _protoValueToPythonVal(value) for key, value in protBufFields.items()})
+
+
+def _pythonValToProtoValue(value: Union[None, bool, int, float, list, dict, str, bytes, datetime, GeoPoint]) \
+		-> document_pb2.Value:
+	"""Converts a native Python value into a Firestore protobuf ``Value``.
+
+	Args:
+		value (Union[NoneType, bool, int, float, datetime.datetime, \
+			str, bytes, dict, ~google.cloud.Firestore.GeoPoint]): A native
+			Python value to convert to a protobuf field.
+
+	Returns:
+		~google.cloud.firestore_v1.types.Value: A
+		value encoded as a Firestore protobuf.
+
+	Raises:
+		TypeError: If the ``value`` is not one of the accepted types.
+	"""
+	# FIXME: We have no solution for document references yet
+	if value is None:
+		return document_pb2.Value(null_value=struct_pb2.NULL_VALUE)
+	elif isinstance(value, bool):
+		# Bool is subtype of int, check first
+		return document_pb2.Value(boolean_value=value)
+	elif isinstance(value, int):
+		return document_pb2.Value(integer_value=value)
+	elif isinstance(value, float):
+		return document_pb2.Value(double_value=value)
+	elif isinstance(value, datetime):
+		seconds = int(mktime(value.timetuple()))
+		nanos = value.microsecond * 1000
+		return document_pb2.Value(timestamp_value=timestamp_pb2.Timestamp(seconds=seconds, nanos=nanos))
+	elif isinstance(value, str):
+		return document_pb2.Value(string_value=value)
+	elif isinstance(value, bytes):
+		return document_pb2.Value(bytes_value=value)
+	elif isinstance(value, GeoPoint):
+		return document_pb2.Value(geo_point_value=latlng_pb2.LatLng(latitude=value.latitude, longitude=value.longitude))
+	elif isinstance(value, list):
+		arrayVal = document_pb2.ArrayValue(values=[_pythonValToProtoValue(element) for element in value])
+		return document_pb2.Value(array_value=arrayVal)
+	elif isinstance(value, dict):
+		mapVal = document_pb2.MapValue(fields={k: _pythonValToProtoValue(v) for k, v in value.items()})
+		return document_pb2.Value(map_value=mapVal)
+	else:
+		raise TypeError("Cannot convert to a Firestore Value", value, "Invalid type", type(value))
 
 
 def PutAsync(entities, **kwargs):
@@ -300,7 +351,7 @@ def Put(entities: Union[Entity, List[Entity]], **kwargs) -> None:
 		entities.name = _generateNewId()
 		isAdd = True
 	documentPb = document_pb2.Document(name="%s%s/%s" % (__documentRoot__, entities.collection, entities.name),
-									   fields=encode_dict(entities))
+									   fields={key: _pythonValToProtoValue(value) for key, value in entities.items()})
 	if currentTransaction:
 		# We have to enqueue the writes to the transaction
 		if not entities.collection in currentTransaction["pendingChanges"]:
@@ -367,7 +418,7 @@ def GetAsync(keys, **kwargs):
 	return (datastore.GetAsync(keys, **kwargs))
 
 
-def Get(keys: Union[Tuple[str, str], List[Tuple[str, str]]], **kwargs) -> Union[None, Entity, List[Entity]]:
+def Get(keys: Union[Key, List[Key]], **kwargs) -> Union[None, Entity, List[Entity]]:
 	"""
 		Retrieve one or more entities from the data store.
 
@@ -486,7 +537,7 @@ def Get(keys: Union[Tuple[str, str], List[Tuple[str, str]]], **kwargs) -> Union[
 		return (Entity.FromDatastoreEntity(datastore.Get(keys, **kwargs)))
 
 
-def GetOrInsert(key: Tuple[str, str], **kwargs):
+def GetOrInsert(key: Key, **kwargs):
 	"""
 		Either creates a new entity with the given key, or returns the existing one.
 
@@ -562,7 +613,7 @@ def DeleteAsync(keys, **kwargs):
 	return (datastore.DeleteAsync(keys, **kwargs))
 
 
-def Delete(keys: Union[Tuple[str, str], List[Tuple[str, str]]], **kwargs) -> None:
+def Delete(keys: Union[Key, List[Key]], **kwargs) -> None:
 	"""
 		Deletes one or more entities from the data store.
 
@@ -792,7 +843,6 @@ class Query(object):
 				self.datastoreQuery[k] = v
 		if "cursor" in filters and filters["cursor"] and filters["cursor"].lower() != "none":
 			self.setCursor(filters["cursor"])
-			#self.cursor(filters["cursor"])
 		if "amount" in filters and str(filters["amount"]).isdigit() and int(filters["amount"]) > 0 and int(
 				filters["amount"]) <= 100:
 			self.limit(int(filters["amount"]))
@@ -1164,7 +1214,7 @@ class Query(object):
 			filter_pb = query_pb2.StructuredQuery.FieldFilter(
 				field=query_pb2.StructuredQuery.FieldReference(field_path=field),
 				op=self.operatorMap[opcode],
-				value=encode_value(value),
+				value=_pythonValToProtoValue(value),
 			)
 			return query_pb2.StructuredQuery.Filter(field_filter=filter_pb)
 
@@ -1232,7 +1282,7 @@ class Query(object):
 				raise InvalidCursorError("startCursor does not match query")
 			if self._startCursor[-1].split("/")[0] != self.collection:
 				raise InvalidCursorError("startCursor is from a different collection")
-			cursorValues = [encode_value(f) for f in self._startCursor[:-1]]
+			cursorValues = [_pythonValToProtoValue(f) for f in self._startCursor[:-1]]
 			# The last one is the document reference - and we have to treat it differently
 			cursorValues.append(document_pb2.Value(reference_value=__documentRoot__ + self._startCursor[-1]))
 			startCursor = query_pb2.Cursor(values=cursorValues, before=False)
@@ -1245,7 +1295,7 @@ class Query(object):
 				raise InvalidCursorError("endCursor does not match query")
 			if self._endCursor[-1].split("/")[0] != self.collection:
 				raise InvalidCursorError("endCursor is from a different collection")
-			cursorValues = [encode_value(f) for f in self._endCursor[:-1]]
+			cursorValues = [_pythonValToProtoValue(f) for f in self._endCursor[:-1]]
 			# The last one is the document reference - and we have to treat it differently
 			cursorValues.append(document_pb2.Value(reference_value=__documentRoot__ + self._endCursor[-1]))
 			endCursor = query_pb2.Cursor(values=cursorValues, before=False)
@@ -1740,7 +1790,7 @@ def _commitTransaction():
 			else:
 				documentPb = document_pb2.Document(
 					name="%s%s/%s" % (__documentRoot__, entry.collection, entry.name),
-					fields=encode_dict(entry))
+					fields={k: _pythonValToProtoValue(v) for k, v in entry.items()})
 				writes.append(
 					write_pb2.Write(update=documentPb, update_mask=common_pb2.DocumentMask(field_paths=entry.keys())))
 	commitRequest = firestore_pb2.CommitRequest(database=__database__, transaction=currentTransaction["transactionKey"],
@@ -1829,7 +1879,7 @@ AllocateIds = NotImplementedError  # datastore.AllocateIds
 # RunInTransactionOptions = NotImplementedError  # datastore.RunInTransactionOptions
 TransactionOptions = NotImplementedError  # datastore_rpc.TransactionOptions
 
-Key = NotImplementedError  # datastore_types.Key
+# Key = NotImplementedError  # datastore_types.Key
 
 ## Errors ##
 Error = NotImplementedError  # datastore_errors.Error
