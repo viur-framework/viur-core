@@ -82,40 +82,37 @@ class stringBone(baseBone):
 					else:
 						entity[name + "_idx"] = str(valuesCache[name]).lower()
 		else:  # Write each language separately
+			print("gggg1")
 			if not valuesCache.get(name, None):
 				return (entity)
+			print("gggg2")
 			if isinstance(valuesCache[name], str) or (
 					isinstance(valuesCache[name], list) and self.multiple):  # Convert from old format
 				lang = self.languages[0]
-				entity["%s.%s" % (name, lang)] = valuesCache[name]
+				entity["%s_%s" % (name, lang)] = valuesCache[name]
 				if not self.caseSensitive:
 					if isinstance(valuesCache[name], str):
-						entity["%s.%s_idx" % (name, lang)] = valuesCache[name].lower()
+						entity["%s_%s_idx" % (name, lang)] = valuesCache[name].lower()
 					else:
-						entity["%s.%s_idx" % (name, lang)] = [x.lower for x in valuesCache[name]]
+						entity["%s_%s_idx" % (name, lang)] = [x.lower for x in valuesCache[name]]
 				# Fill in None for all remaining languages (needed for sort!)
 				for lang in self.languages[1:]:
-					entity["%s.%s" % (name, lang)] = ""
+					entity["%s_%s" % (name, lang)] = ""
 					if not self.caseSensitive:
-						entity["%s.%s_idx" % (name, lang)] = ""
+						entity["%s_%s_idx" % (name, lang)] = ""
 			else:
 				assert isinstance(valuesCache[name], dict)
-				for lang in self.languages:
-					if lang in valuesCache[name]:
-						val = valuesCache[name][lang]
-						entity["%s.%s" % (name, lang)] = valuesCache[name][lang]
-						if not self.caseSensitive:
-							if isinstance(val, str):
-								entity["%s.%s_idx" % (name, lang)] = val.lower()
-							elif isinstance(val, list):
-								entity["%s.%s_idx" % (name, lang)] = [x.lower() for x in val if isinstance(x, str)]
-							else:
-								logging.warning("Invalid type in serialize, got %s", str(type(val)))
+				entity[name] = valuesCache[name]
+				if not self.caseSensitive:
+					if self.multiple:
+						entity["%s_idx" % name] = {k: [x.lower() for x in v] for k, v in valuesCache[name].items()}
 					else:
-						# Fill in None for all remaining languages (needed for sort!)
-						entity["%s.%s" % (name, lang)] = ""
-						if not self.caseSensitive:
-							entity["%s.%s_idx" % (name, lang)] = ""
+						entity["%s_idx" % name] = {k: v.lower() for k,v in valuesCache[name].items()}
+					#FIXME:
+					#	# Fill in None for all remaining languages (needed for sort!)
+					#	entity["%s_%s" % (name, lang)] = ""
+					#	if not self.caseSensitive:
+					#		entity["%s_%s_idx" % (name, lang)] = ""
 		return entity
 
 	def unserialize(self, valuesCache, name, expando):
@@ -133,16 +130,15 @@ class stringBone(baseBone):
 			valuesCache[name] = expando.get(name)
 		else:
 			valuesCache[name] = LanguageWrapper(self.languages)
-			for lang in self.languages:
-				if "%s.%s" % (name, lang) in expando:
-					val = expando["%s.%s" % (name, lang)]
-					if isinstance(val, list) and not self.multiple:
-						val = ", ".join(val)
-					valuesCache[name][lang] = val
-			if not valuesCache[name].keys():  # Got nothing
-				if name in expando:  # Old (non-multi-lang) format
-					valuesCache[name][self.languages[0]] = expando[name]
-		return (True)
+			storedVal = expando.get(name)
+			if isinstance(storedVal, dict):
+				valuesCache[name].update(storedVal)
+				# FIXME:
+				#if isinstance(val, list) and not self.multiple:
+				#	val = ", ".join(val)
+			elif isinstance(storedVal, str): # Old (non-multi-lang) format
+				valuesCache[name][self.languages[0]] = storedVal
+		return True
 
 	def fromClient(self, valuesCache, name, data):
 		"""

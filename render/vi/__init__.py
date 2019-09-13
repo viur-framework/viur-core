@@ -146,14 +146,14 @@ index.exposed = True
 
 
 def _postProcessAppObj(obj):
-	obj.skey = genSkey
-	obj.timestamp = timestamp
-	obj.config = lambda *args, **kwargs: dumpConfig(obj)
-	obj.config.exposed = True
-	obj.getStructure = lambda *args, **kwargs: getStructure(obj, *args, **kwargs)
-	obj.getStructure.exposed = True
-	obj.canAccess = canAccess
-	obj.setLanguage = setLanguage
-	obj.getVersion = getVersion
-	obj.index = index
+	obj["skey"] = genSkey
+	obj["timestamp"] = timestamp
+	obj["config"] = lambda *args, **kwargs: dumpConfig(obj)
+	obj["config"].exposed = True
+	obj["getStructure"] = lambda *args, **kwargs: getStructure(obj, *args, **kwargs)
+	obj["getStructure"].exposed = True
+	obj["canAccess"] = canAccess
+	obj["setLanguage"] = setLanguage
+	obj["getVersion"] = getVersion
+	obj["index"] = index
 	return obj

@@ -622,3 +622,11 @@ def downloadUrlFor(render, fileObj, derived=None, expires=timedelta(hours=1)):
 		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=derived, derived=True, expires=expires)
 	else:
 		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileObj["name"], derived=False, expires=expires)
+
+@jinjaGlobalFunction
+def seoUrlForEntry(render, *args, **kwargs):
+	return utils.seoUrlToEntry(*args, **kwargs)
+
+@jinjaGlobalFunction
+def seoUrlToFunction(render, *args, **kwargs):
+	return utils.seoUrlToFunction(*args, **kwargs)

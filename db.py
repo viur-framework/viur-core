@@ -133,26 +133,6 @@ class Entity(dict):  # datastore.Entity
 		"""
 		self.set_unindexed_properties(unindexed_properties)
 
-	def __setitem__(self, name, value):
-		"""
-			Implements the [] operator. Used to set property value(s).
-
-			:param name: Name of the property to set.
-			:type name: str
-			:param value: Any value to set tot the property.
-
-			:raises: :exc:`BadPropertyError` if the property name is the \
-			empty string or not a string.
-			:raises: :exc:`BadValueError` if the value is not a supported type.
-		"""
-		if isinstance(value, list) or isinstance(value, tuple):
-			# We cant store an empty list, so we catch any attempts
-			# and store None. As "does not exists" queries aren't
-			# possible anyway, this makes no difference
-			if len(value) == 0:
-				value = None
-		super(Entity, self).__setitem__(name, value)
-
 	def set(self, key, value, indexed=True):
 		"""
 			Sets a property.
@@ -1211,10 +1191,14 @@ class Query(object):
 
 		def mkFilterPb(key, value):
 			field, opcode = key.split(" ")
+			if field == KEY_SPECIAL_PROPERTY:  # We have to treat key filters differently
+				value = document_pb2.Value(reference_value="%s%s/%s" % (__documentRoot__, self.getKind(), value))
+			else:
+				value = _pythonValToProtoValue(value)
 			filter_pb = query_pb2.StructuredQuery.FieldFilter(
 				field=query_pb2.StructuredQuery.FieldReference(field_path=field),
 				op=self.operatorMap[opcode],
-				value=_pythonValToProtoValue(value),
+				value=value
 			)
 			return query_pb2.StructuredQuery.Filter(field_filter=filter_pb)
 
@@ -1660,10 +1644,8 @@ class Query(object):
 		try:
 			res = list(self.run(limit=1))[0]
 			return (res)
-		except IndexError:  # Empty result-set
-			return (None)
-		except TypeError:  # Also Empty result-set
-			return (None)
+		except (IndexError, TypeError):  # Empty result-set
+			return None
 
 	def getSkel(self):
 		"""

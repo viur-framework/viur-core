@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from server import utils, session, errors, conf, securitykey, request
 from server import forcePost, forceSSL, exposed, internalExposed
-
+from server.skeleton import Skeleton
 from server.prototypes import BasicApplication
 
 import logging
@@ -131,27 +131,14 @@ class List(BasicApplication):
 		skel = self.viewSkel()
 		if key == u"structure":
 			# We dump just the structure of that skeleton, including it's default values
-			if "canView" in dir(self):
-				if not self.canView(skel):
-					raise errors.Unauthorized()
-			else:
-				if self.listFilter(self.viewSkel().all()) is None:
-					raise errors.Unauthorized()
+			if not self.canView(skel):
+				raise errors.Unauthorized()
 		else:
 			# We return a single entry for viewing
-			if "canView" in dir(self):
-				if not skel.fromDB(key):
-					raise errors.NotFound()
-				if not self.canView(skel):
-					raise errors.Unauthorized()
-			else:
-				queryObj = self.viewSkel().all().mergeExternalFilter({"key": key})
-				queryObj = self.listFilter(queryObj)  # Access control
-				if queryObj is None:
-					raise errors.Unauthorized()
-				skel = queryObj.getSkel()
-				if not skel:
-					raise errors.NotFound()
+			if not skel.fromDB(key):
+				raise errors.NotFound()
+			if not self.canView(skel):
+				raise errors.Unauthorized()
 			self.onItemViewed(skel)
 		return self.render.view(skel)
 
@@ -313,6 +300,37 @@ class List(BasicApplication):
 
 		return self.render.deleteSuccess(skel)
 
+	@exposed
+	def index(self, *args, **kwargs):
+		"""
+		Default, SEO-Friendly fallback for view and list.
+
+		:param args:
+		:param kwargs:
+		:return:
+		"""
+		if args and args[0]:
+			# We probably have a Database or SEO-Key here
+			seoKey = "viurActiveSeoKeys AC"
+			skel = self.viewSkel().all().filter(seoKey, args[0]).getSkel()
+			if skel:
+				if not self.canView(skel):
+					raise errors.Forbidden()
+				self.onItemViewed(skel)
+				return self.render.view(skel)
+		# This was unsuccessfully, we'll render a list instead
+		if not kwargs:
+			kwargs = self.getDefaultListParams()
+		qry = self.viewSkel().all().mergeExternalFilter(kwargs)
+		qry = self.listFilter(qry)
+		if not qry:
+			raise errors.Forbidden()
+		res = qry.fetch()
+		return self.render.list(res)
+
+	def getDefaultListParams(self):
+		return {}
+
 	## Default access control functions
 
 	def listFilter(self, filter):
@@ -335,6 +353,25 @@ class List(BasicApplication):
 			return filter
 
 		return None
+
+	def canView(self, skel: Skeleton) -> bool:
+		"""
+		Checks if the current user can view the given entry.
+		Should be identical to what's allowed by listFilter.
+		By default, `meth:listFilter` is used to determine what's allowed and whats not; but this
+		method can be overridden for performance improvements (to eliminate that additional database access).
+		:param skel: The entry we check for
+		:return: True if the current session is authorized to view that entry, False otherwise
+		"""
+		logging.error("IN CAN VIEW")
+		queryObj = self.viewSkel().all().mergeExternalFilter({"key": skel["key"]})
+		queryObj = self.listFilter(queryObj)  # Access control
+		logging.error(queryObj)
+		if queryObj is None:
+			return False
+		if not queryObj.get():
+			return False
+		return True
 
 	def canAdd(self):
 		"""

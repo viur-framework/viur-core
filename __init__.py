@@ -238,16 +238,16 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 		res = ExtendableObject()
 
 	config._tasks = TaskHandler
-
+	resolverDict = {}
 	for moduleName in dir(config):  # iterate over all modules
 		if moduleName == "index":
 			continue
-
+		moduleClass = getattr(config, moduleName)
 		for renderName in list(rendlist.keys()):  # look, if a particular render should be built
 			if renderName in dir(getattr(config, moduleName)) \
 					and getattr(getattr(config, moduleName), renderName) == True:
 				modulePath = "%s/%s" % ("/" + renderName if renderName != default else "", moduleName)
-				obj = getattr(config, moduleName)(moduleName, modulePath)
+				obj = moduleClass(moduleName, modulePath)
 				if moduleName in rendlist[renderName]:  # we have a special render for this
 					obj.render = rendlist[renderName][moduleName](parent=obj)
 				else:  # Attach the default render
@@ -259,7 +259,48 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 					if not renderName in dir(res):
 						setattr(res, renderName, ExtendableObject())
 					setattr(getattr(res, renderName), moduleName, obj)
+				# Resolve-Dict
+				moduleFunctions = {}
+				for key in [x for x in dir(obj) if x[0]!="_"]:
+					prop = getattr(obj, key)
+					if getattr(prop, "exposed", None):
+						moduleFunctions[key] = prop
+				if renderName != default:
+					if not renderName in resolverDict:
+						resolverDict[renderName] = {}
+					targetResoveRender = resolverDict[renderName]
+				else:
+					targetResoveRender = resolverDict
+				for lang in conf["viur.availableLanguages"] or [conf["viur.defaultLanguage"]]:
+					# Map the module under each translation
+					if "seoLanguageMap" in dir(moduleClass) and lang in moduleClass.seoLanguageMap:
+						translatedModuleName = moduleClass.seoLanguageMap[lang]
+						if not translatedModuleName in targetResoveRender:
+							targetResoveRender[translatedModuleName] = {}
+						for fname, fcall in moduleFunctions.items():
+							targetResoveRender[translatedModuleName][fname] = fcall
+							# Map translated function names
+							if getattr(fcall, "seoLanguageMap", None) and lang in fcall.seoLanguageMap:
+								targetResoveRender[translatedModuleName][fcall.seoLanguageMap[lang]] = fcall
+				# Map the module also under it's original name
+				if not moduleName in targetResoveRender:
+					targetResoveRender[moduleName] = {}
+				for fname, fcall in moduleFunctions.items():
+					targetResoveRender[moduleName][fname] = fcall
+					# Map translated function names
+					if getattr(fcall, "seoLanguageMap", None):
+						for translatedFunctionName in fcall.seoLanguageMap.values():
+							targetResoveRender[moduleName][translatedFunctionName] = fcall
+				# Apply Renderers postProcess Filters
+				if "_postProcessAppObj" in rendlist[renderName]:
+					rendlist[renderName]["_postProcessAppObj"](targetResoveRender)
 
+		if "seoLanguageMap" in dir(moduleClass):
+			conf["viur.languageModuleMap"][moduleName] = moduleClass.seoLanguageMap
+
+	conf["viur.mainResolver"] = resolverDict
+
+	"""
 	if not isinstance(renderers, dict):  # Apply Renderers postProcess Filters
 		for renderName in list(rendlist.keys()):
 			rend = getattr(renderers, renderName)
@@ -278,7 +319,7 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 				else:
 					if renderName in dir(res):
 						setattr(res, renderName, rend["_postProcessAppObj"](getattr(res, renderName)))
-
+	"""
 	if conf["viur.exportPassword"] is not None or conf["viur.importPassword"] is not None:
 		# Enable the Database ex/import API
 		from server.dbtransfer import DbTransfer
@@ -383,8 +424,8 @@ def app(environ, start_response):
 ## Decorators ##
 def forceSSL(f):
 	"""
-		Decorator, which forces usage of an encrypted Cchannel for a given resource.
-		Has no effects on development-servers.
+		Decorator, which forces usage of an encrypted Channel for a given resource.
+		Has no effect on development-servers.
 	"""
 	f.forceSSL = True
 	return (f)
@@ -403,9 +444,20 @@ def exposed(f):
 		Decorator, which marks an function as exposed.
 
 		Only exposed functions are callable by http-requests.
+		Can optionally receive a dict of language->translated name to make that function
+		available under different names
 	"""
-	f.exposed = True
-	return (f)
+	if isinstance(f, dict):
+		# We received said dictionary:
+		def exposeWithTranslations(g):
+			g.exposed = True
+			g.seoLanguageMap = f
+			return g
+		return exposeWithTranslations
+	else:
+		f.exposed = True
+		f.seoLanguageMap = None
+		return f
 
 
 def internalExposed(f):

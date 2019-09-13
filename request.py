@@ -7,7 +7,7 @@ from string import Template
 from io import StringIO
 import webob
 from server import session, errors
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse, unquote
 from server import utils
 import logging
 import google.cloud.logging
@@ -15,7 +15,14 @@ from google.cloud.logging.handlers import CloudLoggingHandler
 from google.cloud.logging.resource import Resource
 from time import time
 
-translations = None
+### Multi-Language Part
+# FIXME: From Server.__init__?
+try:
+	import translations
+
+	conf["viur.availableLanguages"].extend([x for x in dir(translations) if (len(x) == 2 and not x.startswith("_"))])
+except ImportError:  # The Project doesnt use Multi-Language features
+	translations = None
 
 client = google.cloud.logging.Client()
 loggingRessource = Resource(type="gae_app",
@@ -131,7 +138,7 @@ class BrowseHandler():  # webapp.RequestHandler
 		"""
 		if translations is None:
 			# This project doesn't use the multi-language feature, nothing to do here
-			return (path)
+			return path
 		if conf["viur.languageMethod"] == "session":
 			# We store the language inside the session, try to load it from there
 			if not session.current.getLanguage():
@@ -155,8 +162,8 @@ class BrowseHandler():  # webapp.RequestHandler
 				if session.current.getLanguage():
 					self.language = session.current.getLanguage()
 		elif conf["viur.languageMethod"] == "url":
-			tmppath = urlparse.urlparse(path).path
-			tmppath = [urlparse.unquote(x) for x in tmppath.lower().strip("/").split("/")]
+			tmppath = urlparse(path).path
+			tmppath = [unquote(x) for x in tmppath.lower().strip("/").split("/")]
 			if len(tmppath) > 0 and tmppath[0] in conf["viur.availableLanguages"] + list(
 					conf["viur.languageAliasMap"].keys()):
 				self.language = tmppath[0]
@@ -168,7 +175,7 @@ class BrowseHandler():  # webapp.RequestHandler
 					lng = self.request.headers["X-Appengine-Country"].lower()
 					if lng in conf["viur.availableLanguages"] or lng in conf["viur.languageAliasMap"]:
 						self.language = lng
-		return (path)
+		return path
 
 	def processRequest(self):
 		"""
@@ -346,23 +353,23 @@ class BrowseHandler():  # webapp.RequestHandler
 		# Parse the URL
 		path = parse.urlparse(path).path
 		self.pathlist = [parse.unquote(x) for x in path.strip("/").split("/")]
-		caller = conf["viur.mainApp"]
+		caller = conf["viur.mainResolver"]
 		idx = 0  # Count how may items from *args we'd have consumed (so the rest can go into *args of the called func
 		for currpath in self.pathlist:
-			if "canAccess" in dir(caller) and not caller.canAccess():
+			if "canAccess" in caller and not caller["canAccess"]():
 				# We have a canAccess function guarding that object,
 				# and it returns False...
 				raise (errors.Unauthorized())
 			idx += 1
 			currpath = currpath.replace("-", "_").replace(".", "_")
-			if currpath in dir(caller):
-				caller = getattr(caller, currpath)
+			if currpath in caller:
+				caller = caller[currpath]
 				if (("exposed" in dir(caller) and caller.exposed) or ("internalExposed" in dir(
 						caller) and caller.internalExposed and self.internalRequest)) and hasattr(caller, '__call__'):
 					args = self.pathlist[idx:] + [x for x in args]  # Prepend the rest of Path to args
 					break
-			elif "index" in dir(caller):
-				caller = getattr(caller, "index")
+			elif "index" in caller:
+				caller = caller["index"]
 				if (("exposed" in dir(caller) and caller.exposed) or ("internalExposed" in dir(
 						caller) and caller.internalExposed and self.internalRequest)) and hasattr(caller, '__call__'):
 					args = self.pathlist[idx - 1:] + [x for x in args]
@@ -377,12 +384,12 @@ class BrowseHandler():  # webapp.RequestHandler
 					 self.pathlist[: idx]])))
 		if (not callable(caller) or ((not "exposed" in dir(caller) or not caller.exposed)) and (
 				not "internalExposed" in dir(caller) or not caller.internalExposed or not self.internalRequest)):
-			if "index" in dir(caller) \
-					and (callable(caller.index) \
-						 and ("exposed" in dir(caller.index) and caller.index.exposed) \
+			if "index" in caller \
+					and (callable(caller["index"]) \
+						 and ("exposed" in dir(caller["index"]) and caller["index"].exposed) \
 						 or ("internalExposed" in dir(
-						caller.index) and caller.index.internalExposed and self.internalRequest)):
-				caller = caller.index
+						caller["index"]) and caller["index"].internalExposed and self.internalRequest)):
+				caller = caller["index"]
 			else:
 				raise (errors.MethodNotAllowed())
 		# Check for forceSSL flag

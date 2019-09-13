@@ -185,22 +185,11 @@ class baseBone(object):  # One Bone:
 			:returns: The modified :class:`server.db.Query`
 		"""
 
-		def fromShortKey(key):
-			if isinstance(key, str):
-				try:
-					key = db.Key(encoded=key)
-				except:
-					key = str(key)
-					if key.isdigit():
-						key = long(key)
-					key = db.Key.from_path(skel.kindName, key)
-			assert isinstance(key, db.Key)
-			return (key)
-
 		if name == "key" and "key" in rawFilter and prefix is None:
 			if isinstance(rawFilter["key"], list):
+				raise NotImplementedError # FIXME!
 
-				keyList = [fromShortKey(key) for key in rawFilter["key"]]
+				keyList = rawFilter["key"]
 
 				if keyList:
 					origQuery = dbFilter.datastoreQuery
@@ -222,7 +211,7 @@ class baseBone(object):  # One Bone:
 
 			else:
 				try:
-					dbFilter.filter(db.KEY_SPECIAL_PROPERTY, fromShortKey(rawFilter["key"]))
+					dbFilter.filter(db.KEY_SPECIAL_PROPERTY, rawFilter["key"])
 				except:  # Invalid key or something
 					raise RuntimeError()
 

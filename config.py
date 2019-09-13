@@ -76,11 +76,18 @@ conf = {
 	# Defines how translations are applied. session: Per Session, url: inject language prefix in url, domain: one domain per language
 	"viur.languageMethod": "session",
 
+	# Maps modules to their translation (if set)
+	"viur.languageModuleMap": {},
+
 	# If true, ViUR will log missing translations in the datastore
 	"viur.logMissingTranslations": False,
 
 	# Reference to our pre-build Application-Instance
 	"viur.mainApp": None,
+
+	# Dictionary for Resolving functions for URLs
+	"viur.mainResolver": None,
+
 	# Prevent Denial of Service attacks using large inputs for pbkdf2
 	"viur.maxPasswordLength": 512,
 	# Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks

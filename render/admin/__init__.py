@@ -138,13 +138,13 @@ def canAccess(*args, **kwargs):
 
 
 def _postProcessAppObj(obj):
-	obj.skey = genSkey
-	obj.timestamp = timestamp
-	obj.config = lambda *args, **kwargs: dumpConfig(obj)
-	obj.config.exposed = True
-	obj.getStructure = lambda *args, **kwargs: getStructure(obj, *args, **kwargs)
-	obj.getStructure.exposed = True
-	obj.canAccess = canAccess
-	obj.setLanguage = setLanguage
-	obj.getVersion = getVersion
+	obj["skey"] = genSkey
+	obj["timestamp"] = timestamp
+	obj["config"] = lambda *args, **kwargs: dumpConfig(obj)
+	obj["config"].exposed = True
+	obj["getStructure"] = lambda *args, **kwargs: getStructure(obj, *args, **kwargs)
+	obj["getStructure"].exposed = True
+	obj["canAccess"] = canAccess
+	obj["setLanguage"] = setLanguage
+	obj["getVersion"] = getVersion
 	return obj

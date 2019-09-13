@@ -6,7 +6,7 @@ from server.tasks import CallableTask, CallableTaskBase, callDeferred
 from collections import OrderedDict
 from time import time
 import inspect, os, sys, logging, copy
-from typing import Union
+from typing import Union, Dict
 
 # from google.appengine.api import search
 
@@ -538,6 +538,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 						  updateMagic=True, indexed=True,
 						  localize=bool(pytz))
 
+	viurCurrentSeoKeys = stringBone(descr="Seo-Keys",
+									readOnly=True,
+									visible=False,
+									languages=conf["viur.availableLanguages"])
+
 	def __init__(self, *args, **kwargs):
 		super(Skeleton, self).__init__(*args, **kwargs)
 		assert self.kindName and self.kindName is not __undefindedC__, "You must set kindName on this skeleton!"
@@ -705,6 +710,70 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 								 if tag not in tags and len(tag) < 400]
 			if not skel.searchIndex:
 				dbObj["viur_tags"] = tags
+
+			# Ensure the SEO-Keys are up2date
+			lastRequestedSeoKeys = dbObj.get("viurLastRequestedSeoKeys") or {}
+			lastSetSeoKeys = dbObj.get("viurCurrentSeoKeys") or {}
+			currentSeoKeys = skel.getCurrentSEOKeys()
+			if not isinstance(dbObj.get("viurCurrentSeoKeys"), dict):
+				dbObj["viurCurrentSeoKeys"] = {}
+			if currentSeoKeys:
+				# Convert to lower-case and remove certain characters
+				for lang, value in list(currentSeoKeys.items()):
+					value = value.lower()
+					value = value.replace("<", "") \
+						.replace(">", "") \
+						.replace("\"", "") \
+						.replace("'", "") \
+						.replace("\n", "") \
+						.replace("\0", "") \
+						.replace("/", "") \
+						.replace("\\", "") \
+						.replace("?", "") \
+						.replace("&", "") \
+						.replace("#", "").strip()
+					currentSeoKeys[lang] = value
+			for language in (conf["viur.availableLanguages"] or [conf["viur.defaultLanguage"]]):
+				if currentSeoKeys and language in currentSeoKeys:
+					currentKey = currentSeoKeys[language]
+					if currentKey != lastRequestedSeoKeys.get(language):  # This one is new or has changed
+						newSeoKey = currentSeoKeys[language]
+						for _ in range(0, 3):
+							entryUsingKey = db.Query(self.kindName).filter("viurActiveSeoKeys AC", newSeoKey).get()
+							if entryUsingKey and entryUsingKey.name != dbObj.name:
+								# It's not unique; append a random string and try again
+								newSeoKey = "%s-%s" % (currentSeoKeys[language], utils.generateRandomString(5).lower())
+							else:
+								break
+						else:
+							raise ValueError("Could not generate an unique seo key in 3 attempts")
+					else:
+						newSeoKey = currentKey
+					lastSetSeoKeys[language] = newSeoKey
+				else:
+					# We'll use the database-key instead
+					lastSetSeoKeys[language] = dbObj.name
+				# Store the current, active key for that language
+				print(dbObj["viurCurrentSeoKeys"])
+				print(lastSetSeoKeys)
+				print(language)
+				print(lastSetSeoKeys[language])
+				dbObj["viurCurrentSeoKeys"][language] = lastSetSeoKeys[language]
+
+			if not dbObj.get("viurActiveSeoKeys"):
+				dbObj["viurActiveSeoKeys"] = []
+			for language, seoKey in lastSetSeoKeys.items():
+				if dbObj["viurCurrentSeoKeys"][language] not in dbObj["viurActiveSeoKeys"]:
+				# Ensure the current, active seo key is in the list of all seo keys
+					dbObj["viurActiveSeoKeys"].insert(0, seoKey)
+			if dbObj.name not in dbObj["viurActiveSeoKeys"]:
+				# Ensure that key is also in there
+				dbObj["viurActiveSeoKeys"].insert(0, dbObj.name)
+			# Trim to the last 200 used entries
+			dbObj["viurActiveSeoKeys"] = dbObj["viurActiveSeoKeys"][:200]
+			# Store lastRequestedKeys so further updates can run more efficient
+			dbObj["viurLastRequestedSeoKeys"] = currentSeoKeys
+
 			# Write the core entry back
 			db.Put(dbObj)
 
@@ -861,6 +930,16 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 			Can be overridden to perform further actions after the entity has been deleted
 			from the data store.
 		"""
+
+	def getCurrentSEOKeys(self) -> Union[None, Dict[str, str]]:
+		"""
+		Should be overridden to return a dictionary of language -> SEO-Friendly key
+		this entry should be reachable under. How theses names are derived are entirely up to the application.
+		If the name is already in use for this module, the server will automatically append some random string
+		to make it unique.
+		:return:
+		"""
+		return
 
 	def delete(self):
 		"""
@@ -1072,7 +1151,8 @@ class SkelList(list):
 
 @callDeferred
 def updateRelations(destID, minChangeTime, changeList, cursor=None):
-	logging.debug("Starting updateRelations for %s ; minChangeTime %s, Changelist: %s", destID, minChangeTime, changeList)
+	logging.debug("Starting updateRelations for %s ; minChangeTime %s, Changelist: %s", destID, minChangeTime,
+				  changeList)
 	updateListQuery = db.Query("viur-relations").filter("dest.key =", destID) \
 		.filter("viur_delayed_update_tag <", minChangeTime).filter("viur_relational_updateLevel =", 0)
 	if changeList:

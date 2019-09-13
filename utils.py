@@ -22,7 +22,7 @@ _, projectID = google.auth.default()
 del _
 
 
-def generateRandomString(length: int = 13):
+def generateRandomString(length: int = 13) -> str:
 	"""
 	Return a string containing random characters of given *length*.
 	Its safe to use this string in URLs or HTML.
@@ -273,3 +273,49 @@ def downloadUrlFor(folder: str, fileName: str, derived: bool = False, expires: t
 	sigStr = urlsafe_b64encode(sigStr.encode("UTF-8"))
 	resstr = hmacSign(sigStr)
 	return "/file/download/%s?sig=%s" % (sigStr.decode("ASCII"), resstr)
+
+def seoUrlToEntry(module, entry=None, skelType=None, language=None):
+	from server import request, conf
+	lang = request.current.get().language
+	if module in conf["viur.languageModuleMap"] and lang in conf["viur.languageModuleMap"][module]:
+		module = conf["viur.languageModuleMap"][module][lang]
+	if not entry:
+		return "/%s/%s" % (lang, module)
+	#elif isinstance(entry, dict):
+	else:
+		try:
+			currentSeoKeys = entry.get("viurCurrentSeoKeys")
+		except:
+			return "/%s/%s" % (lang, module)
+		if lang in (currentSeoKeys or {}):
+			seoKey = currentSeoKeys[lang]
+		elif "key" in entry:
+			seoKey = entry["key"]
+		elif "name" in dir(entry):
+			seoKey = entry.name
+		else:
+			return "/%s/%s" % (lang, module)
+		return "/%s/%s/%s" % (lang, module, seoKey)
+
+def seoUrlToFunction(module, function, render=None):
+	from server import request, conf
+	lang = request.current.get().language
+	if module in conf["viur.languageModuleMap"] and lang in conf["viur.languageModuleMap"][module]:
+		module = conf["viur.languageModuleMap"][module][lang]
+	pathComponents = ["", lang]
+	targetObject = conf["viur.mainResolver"]
+	if module in targetObject:
+		pathComponents.append(module)
+		targetObject = targetObject[module]
+	if render and render in targetObject:
+		pathComponents.append(render)
+		targetObject = targetObject[render]
+	if function in targetObject:
+		func = targetObject[function]
+		if getattr(func, "seoLanguageMap", None) and lang in func.seoLanguageMap:
+			pathComponents.append(func.seoLanguageMap[lang])
+		else:
+			pathComponents.append(function)
+	return "/".join(pathComponents)
+
+

@@ -17,5 +17,5 @@ genSkey.exposed = True
 
 
 def _postProcessAppObj(obj):  # Register our SKey function
-	obj.skey = genSkey
+	obj["skey"] = genSkey
 	return obj
