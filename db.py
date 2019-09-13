@@ -36,6 +36,7 @@ from server import request
 from google.protobuf import wrappers_pb2, struct_pb2, timestamp_pb2
 from collections import namedtuple
 from google.type import latlng_pb2
+from copy import deepcopy
 
 """
 	Tiny wrapper around *google.appengine.api.datastore*.
@@ -68,6 +69,14 @@ __firestoreStub__ = firestore_pb2_grpc.FirestoreStub(channel=__channel__)
 GeoPoint = namedtuple("GeoPoint", ["latitude", "longitude"])  # Fixme: Currently not used
 Key = namedtuple("dbKey", ["collection", "name"])
 
+_operatorMap = {
+	"<": enums.StructuredQuery.FieldFilter.Operator.LESS_THAN,
+	"<=": enums.StructuredQuery.FieldFilter.Operator.LESS_THAN_OR_EQUAL,
+	"=": enums.StructuredQuery.FieldFilter.Operator.EQUAL,
+	">=": enums.StructuredQuery.FieldFilter.Operator.GREATER_THAN_OR_EQUAL,
+	">": enums.StructuredQuery.FieldFilter.Operator.GREATER_THAN,
+	"AC": enums.StructuredQuery.FieldFilter.Operator.ARRAY_CONTAINS,
+}
 
 class Entity(dict):  # datastore.Entity
 	"""
@@ -665,20 +674,36 @@ def _valueFromEntry(entry: Entity, fieldPath: str) -> Any:
 			return None
 	return entry
 
+def _entryMatchesQuery(entry: Entity, singleFilter: dict) -> bool:
+	for filterStr, filterValue in singleFilter.items():
+		field, opcode = filterStr.split(" ")
+		operator = _operatorMap[opcode]
+		fieldValue = entry.get(field)
+		if operator == enums.StructuredQuery.FieldFilter.Operator.EQUAL:
+			if fieldValue != filterValue:  # Not equal - do not append
+				return False
+		elif operator == enums.StructuredQuery.FieldFilter.Operator.LESS_THAN:
+			if not fieldValue < filterValue:
+				return False
+		elif operator == enums.StructuredQuery.FieldFilter.Operator.GREATER_THAN:
+			if not fieldValue > filterValue:
+				return False
+		elif operator == enums.StructuredQuery.FieldFilter.Operator.LESS_THAN_OR_EQUAL:
+			if not fieldValue <= filterValue:
+				return False
+		elif operator == enums.StructuredQuery.FieldFilter.Operator.GREATER_THAN_OR_EQUAL:
+			if not fieldValue >= filterValue:
+				return False
+		elif operator == enums.StructuredQuery.FieldFilter.Operator.ARRAY_CONTAINS:
+			if not fieldValue in filterValue:
+				return False
+	return True
+
 
 class Query(object):
 	"""
 		Base Class for querying the firestore
 	"""
-
-	operatorMap = {
-		"<": enums.StructuredQuery.FieldFilter.Operator.LESS_THAN,
-		"<=": enums.StructuredQuery.FieldFilter.Operator.LESS_THAN_OR_EQUAL,
-		"=": enums.StructuredQuery.FieldFilter.Operator.EQUAL,
-		">=": enums.StructuredQuery.FieldFilter.Operator.GREATER_THAN_OR_EQUAL,
-		">": enums.StructuredQuery.FieldFilter.Operator.GREATER_THAN,
-		"AC": enums.StructuredQuery.FieldFilter.Operator.ARRAY_CONTAINS,
-	}
 
 	# Fixme: Typing for Skeleton-Class we can't import here?
 	def __init__(self, collection: str, srcSkelClass: Union[None, Any] = None, *args, **kwargs):
@@ -697,6 +722,7 @@ class Query(object):
 		self.customQueryInfo = {}  # Allow carrying custom data along with the query. Currently only used by spartialBone to record the guranteed correctnes
 		self.origCollection = collection
 		self._lastEntry = None
+		self._fulltextQueryString = None
 
 	def setFilterHook(self, hook):
 		"""
@@ -764,27 +790,15 @@ class Query(object):
 		if self.filters is None:  # This query is allready unsatifiable and adding more constrains to this wont change this
 			return self
 		skel = self.srcSkel
-		if skel.searchIndex and "search" in filters:  # We perform a Search via Google API - all other parameters are ignored
-			try:
-				searchRes = search.Index(name=skel.searchIndex).search(
-					query=search.Query(query_string=filters["search"], options=search.QueryOptions(limit=25)))
-			except search.QueryError:  # We cant parse the query, treat it as verbatim
-				qstr = u"\"%s\"" % filters["search"].replace(u"\"", u"")
-				try:
-					searchRes = search.Index(name=skel.searchIndex).search(
-						query=search.Query(query_string=qstr, options=search.QueryOptions(limit=25)))
-				except search.QueryError:  # Still cant parse it
-					searchRes = []
-			tmpRes = [datastore_types.Key(encoded=x.doc_id[2:]) for x in searchRes]
-			if tmpRes:
-				filters = []
-				for x in tmpRes:
-					filters.append(datastore.Query(self.getKind(), {"%s =" % datastore_types.KEY_SPECIAL_PROPERTY: x}))
-				self.datastoreQuery = datastore.MultiQuery(filters, ())
+		if "search" in filters:
+			if self.srcSkel.customDatabaseAdapter and self.srcSkel.customDatabaseAdapter.providesFulltextSeach:
+				self._fulltextQueryString = str(filters["search"])
 			else:
-				self.datastoreQuery = None
-			return (self)
-		# bones = [ (getattr( skel, key ), key) for key in dir( skel ) if not "__" in key and isinstance( getattr( skel, key ) , baseBone ) ]
+				logging.warning(
+					"Got a fulltext search query for %s which does not have a suitable customDatabaseAdapter"
+					% self.srcSkel.kindName
+				)
+				self.filters = None
 		bones = [(y, x) for x, y in skel.items()]
 		try:
 			# First, filter non-relational bones
@@ -803,24 +817,6 @@ class Query(object):
 			logging.exception(e)
 			self.filters = None
 			return self
-		if "search" in filters and filters["search"]:
-			if isinstance(filters["search"], list):
-				taglist = ["".join([y for y in str(x).lower() if y in conf["viur.searchValidChars"]]) for x in
-						   filters["search"]]
-			else:
-				taglist = ["".join([y for y in str(x).lower() if y in conf["viur.searchValidChars"]]) for x in
-						   str(filters["search"]).split(" ")]
-			assert not isinstance(self.datastoreQuery,
-								  datastore.MultiQuery), "Searching using viur-tags is not possible on a query that already uses an IN-filter!"
-			origFilter = self.datastoreQuery
-			queries = []
-			for tag in taglist[:30]:  # Limit to max 30 keywords
-				q = datastore.Query(kind=origFilter.__kind)
-				q["viur_tags"] = tag
-				queries.append(q)
-			self.datastoreQuery = datastore.MultiQuery(queries, origFilter.__orderings)
-			for k, v in origFilter.items():
-				self.datastoreQuery[k] = v
 		if "cursor" in filters and filters["cursor"] and filters["cursor"].lower() != "none":
 			self.setCursor(filters["cursor"])
 		if "amount" in filters and str(filters["amount"]).isdigit() and int(filters["amount"]) > 0 and int(
@@ -828,7 +824,7 @@ class Query(object):
 			self.limit(int(filters["amount"]))
 		if "postProcessSearchFilter" in dir(skel):
 			skel.postProcessSearchFilter(self, filters)
-		return (self)
+		return self
 
 	def filter(self, filter, value=__undefinedC__):
 		"""
@@ -1197,7 +1193,7 @@ class Query(object):
 				value = _pythonValToProtoValue(value)
 			filter_pb = query_pb2.StructuredQuery.FieldFilter(
 				field=query_pb2.StructuredQuery.FieldReference(field_path=field),
-				op=self.operatorMap[opcode],
+				op=_operatorMap[opcode],
 				value=value
 			)
 			return query_pb2.StructuredQuery.Filter(field_filter=filter_pb)
@@ -1374,37 +1370,9 @@ class Query(object):
 		resList = []
 		ineqFilter = None
 		for entry in tmpDict.values():
-			if not entry:
+			if not entry or not _entryMatchesQuery(entry, singleFilter):
 				continue
-			for filterStr, filterValue in singleFilter.items():
-				field, opcode = filterStr.split(" ")
-				operator = self.operatorMap[opcode]
-				fieldValue = entry.get(field)
-				if operator == enums.StructuredQuery.FieldFilter.Operator.EQUAL:
-					if fieldValue != filterValue:  # Not equal - do not append
-						break
-				elif operator == enums.StructuredQuery.FieldFilter.Operator.LESS_THAN:
-					ineqFilter = field
-					if not fieldValue < filterValue:
-						break
-				elif operator == enums.StructuredQuery.FieldFilter.Operator.GREATER_THAN:
-					ineqFilter = field
-					if not fieldValue > filterValue:
-						break
-				elif operator == enums.StructuredQuery.FieldFilter.Operator.LESS_THAN_OR_EQUAL:
-					ineqFilter = field
-					if not fieldValue <= filterValue:
-						break
-				elif operator == enums.StructuredQuery.FieldFilter.Operator.GREATER_THAN_OR_EQUAL:
-					ineqFilter = field
-					if not fieldValue >= filterValue:
-						break
-				elif operator == enums.StructuredQuery.FieldFilter.Operator.ARRAY_CONTAINS:
-					if not fieldValue in filterValue:
-						break
-			else:
-				# We did not reach a break - we can include that entry
-				resList.append(entry)
+			resList.append(entry)
 		# Final step: Sort and truncate to requested length
 		return self._resortResult(resList, singleFilter, self.orders)[:targetAmount]
 
@@ -1480,7 +1448,19 @@ class Query(object):
 			# match the query anymore (as we have pending writes which the firestore doesn't know about yet)
 			if self.collection in currentTransaction["pendingChanges"]:
 				additionalTransactionEntries = len(currentTransaction["pendingChanges"][self.collection])
-		if isinstance(self.filters, list):
+		if self._fulltextQueryString:
+			if currentTransaction:
+				raise InvalidStateError("Can't run fulltextSearch inside transactions!")
+			qryStr = self._fulltextQueryString
+			self._fulltextQueryString = None  # Reset, so the adapter can still work with this query
+			res = self.srcSkel.customDatabaseAdapter.fulltextSearch(qryStr, self)
+			if not self.srcSkel.customDatabaseAdapter.fulltextSearchGuaranteesQueryConstrains:
+				# Search might yield results that are not included in the listfilter
+				if isinstance(self.filters, dict):  # Just one
+					res = [x for x in res if _entryMatchesQuery(x, self.filters)]
+				else:  # Multi-Query, must match at least one
+					res = [x for x in res if any([_entryMatchesQuery(x, y) for y in self.filters])]
+		elif isinstance(self.filters, list):
 			# We have more than one query to run
 			if self._calculateInternalMultiQueryAmount:
 				qryLimit = self._calculateInternalMultiQueryAmount(qryLimit)
@@ -1599,7 +1579,7 @@ class Query(object):
 			currentTransaction = __currentTransaction__.transactionData
 		except AttributeError:
 			currentTransaction = None
-		# if currentTransaction:
+		# if currentTransaction:  # FIXME!
 		#	raise InvalidStateError("Iter is currently not supported in transactions")
 		for x in self.run(999):  # Fixme!
 			yield x
@@ -1696,18 +1676,13 @@ class Query(object):
 			:returns: The cloned query.
 			:rtype: server.db.Query
 		"""
-		if keysOnly is None:
-			keysOnly = self.isKeysOnly()
-		res = Query(self.getKind(), self.srcSkel, keys_only=keysOnly)
+		# FIXME: Is everything covered?
+		res = Query(self.getKind(), self.srcSkel)
 		res.limit(self.amount)
-		for k, v in self.getFilter().items():
-			res.filter(k, v)
-		orders = self.getOrders()
-		if len(orders) == 1:
-			res.order(orders[0])
-		elif len(orders) > 1:
-			res.order(tuple(orders))
-		return (res)
+		res.filters = deepcopy(self.filters)
+		res.orders = deepcopy(self.orders)
+		res._fulltextQueryString = self._fulltextQueryString
+		return res
 
 	def __repr__(self):
 		return "<db.Query on %s with filters %s and orders %s>" % (self.collection, self.filters, self.orders)

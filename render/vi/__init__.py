@@ -148,7 +148,7 @@ index.exposed = True
 def _postProcessAppObj(obj):
 	obj["skey"] = genSkey
 	obj["timestamp"] = timestamp
-	obj["config"] = lambda *args, **kwargs: dumpConfig(obj)
+	obj["config"] = lambda *args, **kwargs: dumpConfig(conf["viur.mainApp"].vi)
 	obj["config"].exposed = True
 	obj["getStructure"] = lambda *args, **kwargs: getStructure(obj, *args, **kwargs)
 	obj["getStructure"].exposed = True

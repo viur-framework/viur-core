@@ -6,7 +6,7 @@ from server.tasks import CallableTask, CallableTaskBase, callDeferred
 from collections import OrderedDict
 from time import time
 import inspect, os, sys, logging, copy
-from typing import Union, Dict
+from typing import Union, Dict, List
 
 # from google.appengine.api import search
 
@@ -516,9 +516,64 @@ class MetaSkel(MetaBaseSkel):
 			MetaBaseSkel._skelCache[cls.kindName] = cls
 
 
+class CustomDatabaseAdapter:
+	# Set to True if we can run a fulltext search using this database
+	providesFulltextSeach: bool = False
+	# Are results returned by `meth:fulltextSearch` guaranteed to also match the databaseQuery
+	fulltextSearchGuaranteesQueryConstrains = False
+	# Indicate that we can run more types of queries than originally supported by firestore
+	providesCustomQueries: bool = False
+
+	def preprocessEntry(self, entry: db.Entity, skel: BaseSkeleton, changeList: List[str], isAdd: bool) -> db.Entity:
+		"""
+		Can be overridden to add or alter the data of this entry before it's written to firestore.
+		Will always be called inside an transaction.
+		:param entry: The entry containing the serialized data of that skeleton
+		:param skel: The (complete) skeleton this skel.toDB() runs for
+		:param changeList: List of boneNames that are changed by this skel.toDB() call
+		:param isAdd: Is this an update or an add?
+		:return: The (maybe modified) entity
+		"""
+		return entry
+
+	def updateEntry(self, dbObj: db.Entity, skel: BaseSkeleton, changeList: List[str], isAdd: bool) -> None:
+		"""
+		Like `meth:preprocessEntry`, but runs after the transaction had completed.
+		Changes made to dbObj will be ignored.
+		:param entry: The entry containing the serialized data of that skeleton
+		:param skel: The (complete) skeleton this skel.toDB() runs for
+		:param changeList: List of boneNames that are changed by this skel.toDB() call
+		:param isAdd: Is this an update or an add?
+		"""
+		return
+
+	def deleteEntry(self, entry: db.Entity, skel: BaseSkeleton) -> None:
+		"""
+		Called, after an skeleton has been successfully deleted from firestore
+		:param entry: The db.Entity object containing an snapshot of the data that has been deleted
+		:param skel: The (complete) skeleton for which `meth:delete' had been called
+		"""
+		return
+
+	def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> List[db.Entity]:
+		"""
+		If this database supports fulltext searches, this method has to implement them.
+		If it's a plain fulltext search engine, leave 'prop:fulltextSearchGuaranteesQueryConstrains' set to False,
+		then the server will post-process the list of entries returned from this function and drop any entry that
+		cannot be returned due to other constrains set in 'param:databaseQuery'. If you can obey *every* constrain
+		set in that Query, we can skip this post-processing and save some CPU-cycles.
+		:param queryString: the string as received from the user (no quotation or other safety checks applied!)
+		:param databaseQuery: The query containing any constrains that returned entries must also match
+		:return:
+		"""
+		raise NotImplementedError
+
+
+
+
 class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 	kindName: str = __undefindedC__  # To which kind we save our data to
-	searchIndex: Union[str, None] = None  # If set, use this name as the index-name for the GAE search API
+	customDatabaseAdapter: Union[CustomDatabaseAdapter, None] = None
 	subSkels = {}  # List of pre-defined sub-skeletons of this type
 
 	# The "key" bone stores the current database key of this skeleton.
@@ -621,29 +676,29 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 			:rtype: str
 		"""
 
-		def txnUpdate(key, mergeFrom, clearUpdateTag):
+		def txnUpdate(dbKey, mergeFrom, clearUpdateTag):
 			blobList = set()
 			skel = type(mergeFrom)()
 			changeList = []
 
 			# Load the current values from Datastore or create a new, empty db.Entity
-			if not key:
+			if not dbKey:
 				dbObj = db.Entity(skel.kindName)
 				oldCopy = {}
 				oldBlobLockObj = None
 
 			else:
-				dbObj = db.Get((self.kindName, key))
+				dbObj = db.Get((self.kindName, dbKey))
 
 				if not dbObj:
-					dbObj = db.Entity(collection=self.kindName, name=key)
+					dbObj = db.Entity(collection=self.kindName, name=dbKey)
 					oldCopy = {}
 				else:
 					skel.setValues(dbObj)
 					oldCopy = {k: v for k, v in dbObj.items()}
 
 				try:
-					oldBlobLockObj = db.Get(("viur-blob-locks", key))
+					oldBlobLockObj = db.Get(("viur-blob-locks", dbKey))
 				except:
 					oldBlobLockObj = None
 			# Merge values and assemble unique properties
@@ -681,7 +736,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
 			# Lock hashes from bones that must have unique values
 			newUniqueValues = {}
-			tags = []
 			for key, bone in skel.items():
 				if bone.unique:
 					# Check if the property is really unique
@@ -702,14 +756,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					else:
 						if "%s_uniqueIndexValue" % key in dbObj:
 							del dbObj["%s_uniqueIndexValue" % key]
-
-				if not skel.searchIndex:
-					# We generate the search index using the full skel, not this (maybe incomplete one)
-					if bone.searchable:
-						tags += [tag for tag in bone.getSearchTags(self.valuesCache, key)
-								 if tag not in tags and len(tag) < 400]
-			if not skel.searchIndex:
-				dbObj["viur_tags"] = tags
 
 			# Ensure the SEO-Keys are up2date
 			lastRequestedSeoKeys = dbObj.get("viurLastRequestedSeoKeys") or {}
@@ -754,10 +800,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					# We'll use the database-key instead
 					lastSetSeoKeys[language] = dbObj.name
 				# Store the current, active key for that language
-				print(dbObj["viurCurrentSeoKeys"])
-				print(lastSetSeoKeys)
-				print(language)
-				print(lastSetSeoKeys[language])
 				dbObj["viurCurrentSeoKeys"][language] = lastSetSeoKeys[language]
 
 			if not dbObj.get("viurActiveSeoKeys"):
@@ -773,6 +815,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 			dbObj["viurActiveSeoKeys"] = dbObj["viurActiveSeoKeys"][:200]
 			# Store lastRequestedKeys so further updates can run more efficient
 			dbObj["viurLastRequestedSeoKeys"] = currentSeoKeys
+
+			if self.customDatabaseAdapter:
+				# Allow the custom DB Adapter to apply last minute changes to the object
+				dbObj = self.customDatabaseAdapter.preprocessEntry(dbObj, skel, changeList, dbKey==None)
 
 			# Write the core entry back
 			db.Put(dbObj)
@@ -867,26 +913,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
 		# Perform post-save operations (postProcessSerializedData Hook, Searchindex, ..)
 		self["key"] = str(key)
-		if self.searchIndex:  # Add a Document to the index if an index specified
-			fields = []
-
-			for boneName, bone in skel.items():
-				if bone.searchable:
-					fields.extend(bone.getSearchDocumentFields(self.valuesCache, boneName))
-
-			fields = skel.getSearchDocumentFields(fields)
-			if fields:
-				try:
-					doc = search.Document(doc_id="s_" + str(key), fields=fields)
-					search.Index(name=skel.searchIndex).put(doc)
-				except:
-					pass
-
-			else:  # Remove the old document (if any)
-				try:
-					search.Index(name=self.searchIndex).remove("s_" + str(key))
-				except:
-					pass
 
 		for boneName, bone in skel.items():
 			bone.postSavedHandler(self.valuesCache, boneName, skel, key, dbObj)
@@ -895,6 +921,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
 		if not clearUpdateTag and not isAdd:
 			updateRelations(key, time() + 1, changeList if len(changeList) < 30 else None)
+
+		# Inform the custom DB Adapter of the changes made to the entry
+		if self.customDatabaseAdapter:
+			self.customDatabaseAdapter.updateEntry(dbObj, skel, changeList, isAdd)
 
 		return key
 
@@ -982,6 +1012,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					lockObj["has_old_blob_references"] = True
 					db.Put(lockObj)
 			db.Delete(skelKey)
+			return dbObj
 
 		key = self["key"]
 		if key is None:
@@ -990,17 +1021,16 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		if not skel.fromDB(key):
 			raise ValueError("This skeleton is not in the database (anymore?)!")
 		if db.IsInTransaction():
-			txnDelete(key, skel)
+			dbObj = txnDelete(key, skel)
 		else:
-			db.RunInTransaction(txnDelete, key, skel)
+			dbObj = db.RunInTransaction(txnDelete, key, skel)
 		for boneName, _bone in skel.items():
 			_bone.postDeletedHandler(skel, boneName, key)
 		skel.postDeletedHandler(key)
-		if self.searchIndex:
-			try:
-				search.Index(name=self.searchIndex).remove("s_" + str(key))
-			except:
-				pass
+
+		# Inform the custom DB Adapter
+		if self.customDatabaseAdapter:
+			self.customDatabaseAdapter.deleteEntry(dbObj, skel)
 
 
 class RelSkel(BaseSkeleton):
