@@ -9,6 +9,7 @@ from itertools import starmap
 from server.config import conf
 import string, random
 import codecs
+from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 
 
 def pbkdf2(password, salt, iterations=1001, keylen=42):
@@ -82,14 +83,14 @@ class passwordBone(stringBone):
 		return False
 
 	def fromClient(self, valuesCache, name, data):
+		if not name in data:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
 		value = data.get(name)
 		if not value:
-			return "No value entered"
-
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value entered")]
 		err = self.isInvalid(value)
 		if err:
-			return err
-
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
 		valuesCache[name] = value
 
 	def serialize(self, valuesCache, name, entity):

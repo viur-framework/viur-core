@@ -8,6 +8,7 @@ import json
 from time import time
 from datetime import datetime
 import logging
+from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 
 
 class relationalBone(baseBone):
@@ -356,7 +357,9 @@ class relationalBone(baseBone):
 			:type data: dict
 			:returns: None or String
 		"""
-		# from server.skeleton import RefSkel, skeletonByKind
+		#return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Not yet fixed")]
+		if not name in data and not any(x.startswith("%s." % name) for x in data):
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
 
 		oldValues = valuesCache.get(name, None)
 		valuesCache[name] = []
@@ -402,7 +405,7 @@ class relationalBone(baseBone):
 		tmpList = [(k, v) for k, v in tmpRes.items() if "key" in v]
 		tmpList.sort(key=lambda k: k[0])
 		tmpList = [{"reltmp": v, "dest": {"key": v["key"]}} for k, v in tmpList]
-		errorDict = {}
+		errors = []
 		forceFail = False
 		if not tmpList and self.required:
 			return "No value selected!"
@@ -433,7 +436,7 @@ class relationalBone(baseBone):
 							isEntryFromBackup = True
 				if not isEntryFromBackup:
 					if not self.multiple:  # We can stop here :/
-						return ("Invalid entry selected")
+						return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid entry selected")]
 					else:
 						tmpList.remove(r)
 						continue
@@ -443,6 +446,9 @@ class relationalBone(baseBone):
 				if entry:
 					logging.error("I got a key, which kind doesn't match my type! (Got: %s, my type %s)" % (
 					entry.key().kind(), self.kind))
+					errors.append(
+						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "I got a key, which kind doesn't match my type!")
+					)
 				tmpList.remove(r)
 				continue
 			tmp = {k: entry[k] for k in entry.keys() if
@@ -457,9 +463,13 @@ class relationalBone(baseBone):
 				refSkel = self._usingSkelCache
 				refSkel.setValuesCache({})
 				if not refSkel.fromClient(r["reltmp"]):
-					for k, v in refSkel.errors.items():
-						errorDict["%s.%s.%s" % (name, tmpList.index(r), k)] = v
-						forceFail = True
+					for error in refSkel.errors:
+						errors.append(
+							ReadFromClientError(error.severity, "%s.%s.%s" % (name, tmpList.index(r), error.fieldPath), error.errorMessage)
+						)
+					#for k, v in refSkel.errors.items():
+					#	errorDict["%s.%s.%s" % (name, tmpList.index(r), k)] = v
+					#	forceFail = True
 				r["rel"] = refSkel.getValuesCache()
 			else:
 				r["rel"] = None
@@ -470,11 +480,17 @@ class relationalBone(baseBone):
 			for item in tmpList:
 				err = self.isInvalid(item)
 				if err:
-					errorDict["%s.%s" % (name, tmpList.index(item))] = err
+					errors.append(
+						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "%s.%s" % (name, tmpList.index(item)), err)
+					)
+					#errorDict["%s.%s" % (name, tmpList.index(item))] = err
 				else:
 					cleanList.append(item)
 			if not cleanList:
-				errorDict[name] = "No value selected"
+				errors.append(
+					ReadFromClientError(ReadFromClientError.Empty, name, "No value selected")
+				)
+				#errorDict[name] = "No value selected"
 			valuesCache[name] = tmpList
 		else:
 			if tmpList:
@@ -485,9 +501,12 @@ class relationalBone(baseBone):
 			if not err:
 				valuesCache[name] = val
 				if val is None:
-					errorDict[name] = "No value selected"
-		if len(errorDict.keys()):
-			return ReadFromClientError(errorDict, forceFail)
+					#errorDict[name] = "No value selected"
+					errors.append(
+						ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")
+					)
+		if errors:
+			return errors
 
 	def _rewriteQuery(self, name, skel, dbFilter, rawFilter):
 		"""

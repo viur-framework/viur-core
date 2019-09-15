@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
-#from google.appengine.api import search
+# from google.appengine.api import search
 from server.config import conf
 from server import db
 import logging
 import hashlib
 import copy
+from enum import Enum
+from dataclasses import dataclass
+from typing import Union, List
 
 __systemIsIntitialized_ = False
 
@@ -22,12 +25,24 @@ def getSystemInitialized():
 	return __systemIsIntitialized_
 
 
+class ReadFromClientErrorSeverity(Enum):
+	NotSet = 0
+	InvalidatesOther = 1
+	Empty = 2
+	Invalid = 3
+
+
+@dataclass
+class ReadFromClientError:
+	severity: ReadFromClientErrorSeverity
+	fieldPath: str
+	errorMessage: str
+
 
 class baseBone(object):  # One Bone:
 	hasDBField = True
 	type = "hidden"
 	isClonedInstance = False
-
 
 	def __init__(self, descr="", defaultValue=None, required=False, params=None, multiple=False,
 				 searchable=False, vfunc=None, readOnly=False, visible=True, unique=False, **kwargs):
@@ -64,7 +79,7 @@ class baseBone(object):  # One Bone:
 				The kwarg 'multiple' is not supported by all bones
 
 		"""
-		#if kwargs.get("indexed") is not None:
+		# if kwargs.get("indexed") is not None:
 		#	logging.warning("Indexed on bones is not supported anymore!")
 		self.isClonedInstance = getSystemInitialized()
 		self.descr = descr
@@ -78,7 +93,6 @@ class baseBone(object):  # One Bone:
 		self.readOnly = readOnly
 		self.visible = visible
 		self.unique = unique
-
 
 	def setSystemInitialized(self):
 		"""
@@ -102,7 +116,7 @@ class baseBone(object):  # One Bone:
 			raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
 		super(baseBone, self).__setattr__(key, value)
 
-	def fromClient(self, valuesCache, name, data):
+	def fromClient(self, valuesCache: dict, name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -117,16 +131,15 @@ class baseBone(object):  # One Bone:
 			:type data: dict
 			:returns: None or str
 		"""
-		if name in data:
-			value = data[name]
-		else:
-			value = None
+		if not name in data:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
+		value = data[name]
 		err = self.isInvalid(value)
 		if not err:
 			valuesCache[name] = value
 			return None
 		else:
-			return err
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, err)]
 
 	def isInvalid(self, value):
 		"""
@@ -134,7 +147,7 @@ class baseBone(object):  # One Bone:
 			this bone, an error-message otherwise.
 		"""
 		if value == None:
-			return ("No value entered")
+			return "No value entered"
 
 	def serialize(self, valuesCache, name, entity):
 		"""
@@ -187,7 +200,7 @@ class baseBone(object):  # One Bone:
 
 		if name == "key" and "key" in rawFilter and prefix is None:
 			if isinstance(rawFilter["key"], list):
-				raise NotImplementedError # FIXME!
+				raise NotImplementedError  # FIXME!
 
 				keyList = rawFilter["key"]
 
@@ -387,7 +400,7 @@ class baseBone(object):  # One Bone:
 			return
 		if not isinstance(getattr(otherSkel, boneName), type(self)):
 			logging.error("Ignoring values from conflicting boneType (%s is not a instance of %s)!" % (
-			getattr(otherSkel, boneName), type(self)))
+				getattr(otherSkel, boneName), type(self)))
 			return
 		valuesCache[boneName] = copy.deepcopy(otherSkel.valuesCache.get(boneName, None))
 

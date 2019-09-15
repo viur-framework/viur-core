@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
+from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import logging
 
 
@@ -8,7 +9,7 @@ class colorBone(baseBone):
 
 	def __init__(self, mode="rgb", *args, **kwargs):  # mode rgb/rgba
 		baseBone.__init__(self, *args, **kwargs)
-		assert mode in ["rgb", "rgba"]
+		assert mode in {"rgb", "rgba"}
 		self.mode = mode
 
 	def fromClient(self, valuesCache, name, data):
@@ -26,39 +27,34 @@ class colorBone(baseBone):
 			:type data: dict
 			:returns: str or None
 		"""
-		if name in data:
-			value = data[name]
-		else:
-			value = None
-		if self.mode != "rgb" and self.mode != "rgba":
-			return "Invalid mode selected"
-		if value is None:
-			if self.required:
-				return "No value selected"
+		if not name in data:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
+		value = data[name]
+		if not value:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")]
+		value = value.lower()
+		if value.count("#") > 1:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
+		for char in value:
+			if not char in "#0123456789abcdef":
+				return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
+		if self.mode == "rgb":
+			if len(value) == 3:
+				value = "#" + value
+			if len(value) == 4:
+				value = value[0:2] + value[1] + 2 * value[2] + 2 * value[3]
+			if len(value) == 6 or len(value) == 7:
+				if len(value) == 6:
+					value = "#" + value
 			else:
-				value = value.lower()
-				if value.count("#") > 1:
-					return "Invalid value entered"
-				for char in value:
-					if not char in "#0123456789abcdef":
-						return "Invalid value entered"
-				if self.mode == "rgb":
-					if len(value) == 3:
-						value = "#" + value
-					if len(value) == 4:
-						value = value[0:2] + value[1] + 2 * value[2] + 2 * value[3]
-					if len(value) == 6 or len(value) == 7:
-						if len(value) == 6:
-							value = "#" + value
-					else:
-						return "Invalid value entered"
-				if self.mode == "rgba":
-					if len(value) == 8 or len(value) == 9:
-						if len(value) == 8:
-							value = "#" + value
-					else:
-						return "Invalid value entered"
+				return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
+		if self.mode == "rgba":
+			if len(value) == 8 or len(value) == 9:
+				if len(value) == 8:
+					value = "#" + value
+			else:
+				return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
 		err = self.isInvalid(value)
-		if not err:
-			valuesCache[name] = value
-		return err
+		if err:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+		valuesCache[name] = value

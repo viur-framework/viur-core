@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
+from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import logging
 
 
@@ -31,10 +32,9 @@ class booleanBone(baseBone):
 			:type data: dict
 			:returns: str or None
 		"""
-		if name in data:
-			value = data[name]
-		else:
-			return ("No value entered!")
+		if not name in data:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
+		value = data[name]
 		if str(value) in self.trueStrs:
 			value = True
 		else:
@@ -44,7 +44,7 @@ class booleanBone(baseBone):
 			valuesCache[name] = value
 			return False
 		else:
-			return err
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, err)]
 
 	def serialize(self, valuesCache, name, entity):
 		"""

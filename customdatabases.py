@@ -7,7 +7,7 @@ from typing import Set, List
 from server.config import conf
 
 class ViurTagsSearchAdapter(CustomDatabaseAdapter):
-	providesFulltextSeach = True
+	providesFulltextSearch = True
 
 	def __init__(self, indexFields: Set[str], minLength: int = 3, enforceQueryConstraints: bool = False):
 		super(ViurTagsSearchAdapter, self).__init__()

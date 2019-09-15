@@ -791,7 +791,7 @@ class Query(object):
 			return self
 		skel = self.srcSkel
 		if "search" in filters:
-			if self.srcSkel.customDatabaseAdapter and self.srcSkel.customDatabaseAdapter.providesFulltextSeach:
+			if self.srcSkel.customDatabaseAdapter and self.srcSkel.customDatabaseAdapter.providesFulltextSearch:
 				self._fulltextQueryString = str(filters["search"])
 			else:
 				logging.warning(

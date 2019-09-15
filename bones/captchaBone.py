@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones import bone
 from server import request, utils
-#from google.appengine.api import urlfetch
+from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import urllib
 import logging
 import json
@@ -42,11 +42,10 @@ class captchaBone(bone.baseBone):
 		if request.current.get().isDevServer:  # We dont enforce captchas on dev server
 			return None
 		user = utils.getCurrentUser()
-		if user and "root" in user[
-			"access"]:  # Don't bother trusted users with this (not supported by admin/vi anyways)
-			return None
+		if user and "root" in user["access"]:
+			return  None # Don't bother trusted users with this (not supported by admin/vi anyways)
 		if not "g-recaptcha-response" in data:
-			return u"No Captcha given!"
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "No Captcha given!")]
 		data = {"secret": self.privateKey,
 				"remoteip": request.current.get().request.remote_addr,
 				"response": data["g-recaptcha-response"]
@@ -57,4 +56,4 @@ class captchaBone(bone.baseBone):
 								  headers={"Content-Type": "application/x-www-form-urlencoded"})
 		if json.loads(response.content.decode("UTF-8")).get("success"):
 			return None
-		return (u"Invalid Captcha")
+		return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid Captcha")]

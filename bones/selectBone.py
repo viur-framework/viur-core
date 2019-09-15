@@ -2,6 +2,7 @@
 from server.bones import baseBone
 from collections import OrderedDict
 import logging
+from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 
 
 class selectBone(baseBone):
@@ -49,49 +50,48 @@ class selectBone(baseBone):
 			self.values = values
 
 	def fromClient(self, valuesCache, name, data):
-		values = data.get(name)
-
+		if not name in data:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
+		values = data[name]
+		if not values:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")]
 		# single case
 		if not self.multiple:
 			for key in self.values.keys():
 				if str(key) == str(values):
 					err = self.isInvalid(key)
-					if not err:
-						valuesCache[name] = key
-
-					return err
-
-			return "No or invalid value selected"
-
+					if err:
+						return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+					valuesCache[name] = key
+					break
+			else:
+				return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "No or invalid value selected")]
 		# multiple case
 		else:
 			if not values:
 				if not self.required:
 					valuesCache[name] = []
-
-				return "No item selected"
-
+				return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No item selected")]
 			if not isinstance(values, list):
 				if isinstance(values, str):
 					values = values.split(":")
 				else:
 					values = []
-
-			lastErr = None
 			valuesCache[name] = []
-
+			errors = []
 			for key, value in self.values.items():
 				if str(key) in [str(x) for x in values]:
 					err = self.isInvalid(key)
 					if not err:
 						valuesCache[name].append(key)
 					else:
-						lastErr = err
-
-			if len(valuesCache[name]) > 0:
-				return lastErr
-
-			return "No item selected"
+						errors.append(
+							[ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+						)
+			if errors:
+				return errors
+			elif not valuesCache[name]:
+				return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No item selected")]
 
 	def serialize(self, valuesCache, name, entity):
 		if not self.multiple:

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from server.bones.bone import baseBone, getSystemInitialized
-from server.errors import ReadFromClientError
+from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import json
 
 
@@ -85,6 +85,7 @@ class recordBone(baseBone):
 		return entity
 
 	def fromClient(self, valuesCache, name, data):
+		return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Not yet fixed")]
 		valuesCache[name] = []
 		tmpRes = {}
 
@@ -133,7 +134,7 @@ class recordBone(baseBone):
 
 		tmpList = [tmpRes[k] for k in sorted(tmpRes.keys())]
 
-		errorDict = {}
+		errors = []
 		forceFail = False
 
 		for i, r in enumerate(tmpList[:]):

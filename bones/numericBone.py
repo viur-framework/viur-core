@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones import baseBone
 from math import pow
-#from google.appengine.api import search
+from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import logging
 
 
@@ -51,7 +51,9 @@ class numericBone(baseBone):
 			:type data: dict
 			:returns: None or String
 		"""
-		rawValue = data.get(name, None)
+		if not name in data:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
+		rawValue = data[name]
 		value = None
 		if rawValue:
 			try:
@@ -67,12 +69,12 @@ class numericBone(baseBone):
 					value = int(rawValue)
 				else:
 					value = None
+		if value is None:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value entered")]
 		err = self.isInvalid(value)
-		if not err:
-			valuesCache[name] = value
-			if value is None:
-				return "No value entered"
-		return err
+		if err:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+		valuesCache[name] = value
 
 	def serialize(self, valuesCache, name, entity):
 		if not name in valuesCache:

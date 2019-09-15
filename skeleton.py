@@ -2,13 +2,12 @@
 
 from server import db, utils, conf, errors
 from server.bones import baseBone, keyBone, dateBone, selectBone, relationalBone, stringBone
+from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from server.tasks import CallableTask, CallableTaskBase, callDeferred
 from collections import OrderedDict
 from time import time
 import inspect, os, sys, logging, copy
-from typing import Union, Dict, List
-
-# from google.appengine.api import search
+from typing import Union, Dict, List, Callable
 
 try:
 	import pytz
@@ -81,68 +80,6 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		:vartype changedate: server.bones.dateBone
 	"""
 
-	"""
-	def __setattr__(self, key, value):
-		if "_BaseSkeleton__isInitialized_" in dir(self):
-			if not key in ["valuesCache", "isClonedInstance"] and not self.isClonedInstance:
-				raise AttributeError(
-					"You cannot directly modify the skeleton instance. Grab a copy using .clone() first!")
-			if not "__dataDict__" in dir(self):
-				super(BaseSkeleton, self).__setattr__("__dataDict__", OrderedDict())
-			if not "__" in key and key != "isClonedInstance":
-				if isinstance(value, baseBone):
-					self.__dataDict__[key] = value
-					self.valuesCache[key] = value.getDefaultValue()
-				elif value is None and key in self.__dataDict__:  # Allow setting a bone to None again
-					del self.__dataDict__[key]
-				elif key not in ["valuesCache"]:
-					raise ValueError("You tried to do what?")
-		super(BaseSkeleton, self).__setattr__(key, value)
-
-	def __delattr__(self, key):
-		if "_BaseSkeleton__isInitialized_" in dir(self) and not self.isClonedInstance:
-			raise AttributeError("You cannot directly modify the skeleton instance. Grab a copy using .clone() first!")
-		del self.__dataDict__[key]
-
-	def __getattribute__(self, item):
-		isOkay = False
-		if item.startswith("_") or item in {"kindName", "searchIndex", "all", "fromDB",
-											"toDB", "items", "keys", "values", "setValues", "getValues", "errors",
-											"fromClient",
-											"preProcessBlobLocks", "preProcessSerializedData", "postSavedHandler",
-											"postDeletedHandler", "delete", "clone", "getSearchDocumentFields",
-											"subSkels",
-											"subSkel", "refresh", "valuesCache", "getValuesCache", "setValuesCache",
-											"isClonedInstance", "setBoneValue", "unserialize", "serialize",
-											"ensureIsCloned"}:
-			isOkay = True
-		elif not "_BaseSkeleton__isInitialized_" in dir(self):
-			isOkay = True
-		if isOkay:
-			return (super(BaseSkeleton, self).__getattribute__(item))
-		elif item in self.__dataDict__:
-			return self.__dataDict__[item]
-		else:
-			raise AttributeError("Use [] to access your bones!")
-
-
-	def __contains__(self, item):
-		return item in self.__dataDict__
-
-	def __iter__(self):
-		for key in self.__dataDict__.keys():
-			yield key
-
-	def items(self):
-		return self.__dataDict__.items()
-
-	def keys(self):
-		return self.__dataDict__.keys()
-
-	def values(self):
-		return self.__dataDict__.values()
-	"""
-
 	def items(self):
 		for key in self.__boneNames__:
 			prop = getattr(self, key)
@@ -161,7 +98,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 
 	def __setattr__(self, key, value):
 		if "_BaseSkeleton__isInitialized_" in dir(self):
-			if not key in ["valuesCache", "isClonedInstance"] and not self.isClonedInstance:
+			if not key in {"errors", "valuesCache", "isClonedInstance"} and not self.isClonedInstance:
 				raise AttributeError(
 					"You cannot directly modify the skeleton instance. Grab a copy using .clone() first!")
 		super(BaseSkeleton, self).__setattr__(key, value)
@@ -234,7 +171,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 			:type kindName: str
 		"""
 		super(BaseSkeleton, self).__init__(*args, **kwargs)
-		self.errors = {}
+		self.errors = []
 		# self.__dataDict__ = OrderedDict()
 		self.valuesCache = {}
 		"""
@@ -416,42 +353,26 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 			:rtype: bool
 		"""
 		complete = True
-		super(BaseSkeleton, self).__setattr__("errors", {})
+		self.errors = []
 
 		for key, _bone in self.items():
 			if _bone.readOnly:
 				continue
-			error = _bone.fromClient(self.valuesCache, key, data)
-			if isinstance(error, errors.ReadFromClientError):
-				self.errors.update(error.errors)
-				if error.forceFail:
-					complete = False
-			else:
-				self.errors[key] = error
-
-			if error and _bone.required:
-				complete = False
-				logging.info("%s throws error: %s" % (key, error))
-
-		for boneName, boneInstance in self.items():
-			if boneInstance.unique:
-				newVal = boneInstance.getUniquePropertyIndexValue(self.valuesCache, boneName)
-				if newVal is not None:
-					dbObj = db.Get(("%s_%s_uniquePropertyIndex" % (self.kindName, boneName), newVal))
-					if dbObj and dbObj["references"] != self["key"]:  # This valus is taken (sadly, not by us)
+			errors = _bone.fromClient(self.valuesCache, key, data)
+			if errors:
+				self.errors.extend(errors)
+				for error in errors:
+					if error.severity == ReadFromClientErrorSeverity.Empty and _bone.required \
+							or error.severity == ReadFromClientErrorSeverity.Invalid:
 						complete = False
-						if isinstance(boneInstance.unique, str):
-							errorMsg = _(boneInstance.unique)
-						else:
-							errorMsg = _("This value is not available")
-						self.errors[boneName] = errorMsg
 
-		if (len(data) == 0
-				or (len(data) == 1 and "key" in data)
-				or ("nomissing" in data and str(data["nomissing"]) == "1")):
-			super(BaseSkeleton, self).__setattr__("errors", {})
+		# FIXME!
+		# if (len(data) == 0
+		#		or (len(data) == 1 and "key" in data)
+		#		or ("nomissing" in data and str(data["nomissing"]) == "1")):
+		#	super(BaseSkeleton, self).__setattr__("errors", {})
 
-		return (complete)
+		return complete
 
 	def refresh(self):
 		"""
@@ -518,7 +439,7 @@ class MetaSkel(MetaBaseSkel):
 
 class CustomDatabaseAdapter:
 	# Set to True if we can run a fulltext search using this database
-	providesFulltextSeach: bool = False
+	providesFulltextSearch: bool = False
 	# Are results returned by `meth:fulltextSearch` guaranteed to also match the databaseQuery
 	fulltextSearchGuaranteesQueryConstrains = False
 	# Indicate that we can run more types of queries than originally supported by firestore
@@ -569,12 +490,11 @@ class CustomDatabaseAdapter:
 		raise NotImplementedError
 
 
-
-
 class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 	kindName: str = __undefindedC__  # To which kind we save our data to
 	customDatabaseAdapter: Union[CustomDatabaseAdapter, None] = None
 	subSkels = {}  # List of pre-defined sub-skeletons of this type
+	interBoneValidations: List[Callable] = []  # List of functions checking inter-bone dependencies
 
 	# The "key" bone stores the current database key of this skeleton.
 	# Warning: Assigning to this bones value now *will* set the key
@@ -610,6 +530,40 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 			:rtype: :class:`server.db.Query`
 		"""
 		return (db.Query(self.kindName, srcSkelClass=self))
+
+	def fromClient(self, data):
+		"""
+
+		:param data:
+		:return:
+		"""
+		# Load data into this skeleton
+		complete = super(Skeleton, self).fromClient(data)
+
+		# Check if all unique values are available
+		for boneName, boneInstance in self.items():
+			if boneInstance.unique:
+				newVal = boneInstance.getUniquePropertyIndexValue(self.valuesCache, boneName)
+				if newVal is not None:
+					dbObj = db.Get(("%s_%s_uniquePropertyIndex" % (self.kindName, boneName), newVal))
+					if dbObj and dbObj["references"] != self["key"]:  # This valus is taken (sadly, not by us)
+						complete = False
+						if isinstance(boneInstance.unique, str):
+							errorMsg = boneInstance.unique
+						else:
+							errorMsg = "This value is not available"
+						self.errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, boneName, errorMsg))
+
+		# Check inter-Bone dependencies
+		for checkFunc in self.interBoneValidations:
+			errors = checkFunc(self)
+			if errors:
+				for err in errors:
+					if err.severity.value > 1:
+						complete = False
+				self.errors.extend(errors)
+
+		return complete
 
 	def fromDB(self, key):
 		"""
@@ -806,7 +760,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				dbObj["viurActiveSeoKeys"] = []
 			for language, seoKey in lastSetSeoKeys.items():
 				if dbObj["viurCurrentSeoKeys"][language] not in dbObj["viurActiveSeoKeys"]:
-				# Ensure the current, active seo key is in the list of all seo keys
+					# Ensure the current, active seo key is in the list of all seo keys
 					dbObj["viurActiveSeoKeys"].insert(0, seoKey)
 			if dbObj.name not in dbObj["viurActiveSeoKeys"]:
 				# Ensure that key is also in there
@@ -818,7 +772,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
 			if self.customDatabaseAdapter:
 				# Allow the custom DB Adapter to apply last minute changes to the object
-				dbObj = self.customDatabaseAdapter.preprocessEntry(dbObj, skel, changeList, dbKey==None)
+				dbObj = self.customDatabaseAdapter.preprocessEntry(dbObj, skel, changeList, dbKey == None)
 
 			# Write the core entry back
 			db.Put(dbObj)

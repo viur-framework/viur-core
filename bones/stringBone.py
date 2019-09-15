@@ -5,7 +5,7 @@ from server import db
 from server import request
 from server import utils
 from server.session import current as currentSession
-#from google.appengine.api import search
+from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import logging
 
 
@@ -155,12 +155,10 @@ class stringBone(baseBone):
 			:type data: dict
 			:returns: str or None
 		"""
-		if name in data:
-			rawValue = data[name]
-		else:
-			rawValue = None
+		if not name in data and not any(x.startswith("%s." % name) for x in data):
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
 		res = None
-		lastError = None
+		errors = []
 		if self.multiple and self.languages:
 			res = LanguageWrapper(self.languages)
 			for lang in self.languages:
@@ -172,20 +170,29 @@ class stringBone(baseBone):
 						if not err:
 							res[lang].append(utils.escapeString(val))
 						else:
-							lastError = err
+							errors.append(
+								ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
+							)
 					elif isinstance(val, list):
 						for v in val:
 							err = self.isInvalid(v)
 							if not err:
 								res[lang].append(utils.escapeString(v))
 							else:
-								lastError = err
-			if not any(res.values()) and not lastError:
-				lastError = "No rawValue entered"
+								errors.append(
+									ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
+								)
+			if not any(res.values()) and not errors:
+				errors.append(
+					ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No rawValue entered")
+				)
 		elif self.multiple and not self.languages:
+			rawValue = data.get(name)
 			res = []
 			if not rawValue:
-				lastError = "No rawValue entered"
+				errors.append(
+					ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No rawValue entered")
+				)
 			else:
 				if not isinstance(rawValue, list):
 					rawValue = [rawValue]
@@ -194,11 +201,15 @@ class stringBone(baseBone):
 					if not err:
 						res.append(utils.escapeString(val))
 					else:
-						lastError = err
+						errors.append(
+							ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
+						)
 				if len(res) > 0:
 					res = res[0:254]  # Max 254 character
 				else:
-					lastError = "No valid rawValue entered"
+					errors.append(
+						ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No valid rawValue entered")
+					)
 		elif not self.multiple and self.languages:
 			res = LanguageWrapper(self.languages)
 			for lang in self.languages:
@@ -208,19 +219,29 @@ class stringBone(baseBone):
 					if not err:
 						res[lang] = utils.escapeString(val)
 					else:
-						lastError = err
-			if len(res.keys()) == 0 and not lastError:
-				lastError = "No rawValue entered"
+						errors.append(
+							ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
+						)
+			if len(res.keys()) == 0 and not errors:
+				errors.append(
+					ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No rawValue entered")
+				)
 		else:
+			rawValue = data.get(name)
 			err = self.isInvalid(rawValue)
 			if not err:
 				res = utils.escapeString(rawValue)
 			else:
-				lastError = err
-			if not rawValue and not lastError:
-				lastError = "No rawValue entered"
+				errors.append(
+					ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
+				)
+			if not rawValue and not errors:
+				errors.append(
+					ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No rawValue entered")
+				)
 		valuesCache[name] = res
-		return lastError
+		if errors:
+			return errors
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		if not name in rawFilter and not any(

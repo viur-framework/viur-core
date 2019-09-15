@@ -3,6 +3,7 @@ from server.bones import baseBone
 from server import request
 from time import time, mktime
 from datetime import time, datetime, timedelta
+from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import logging
 
 try:
@@ -98,9 +99,11 @@ class dateBone(baseBone):
 			:type data: dict
 			:returns: str or None
 		"""
-		rawValue = data.get(name, None)
+		if not name in data:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
+		rawValue = data[name]
 		if not rawValue:
-			value = None
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")]
 		elif str(rawValue).replace("-", "", 1).replace(".", "", 1).isdigit():
 			if int(rawValue) < -1 * (2 ** 30) or int(rawValue) > (2 ** 31) - 2:
 				value = False  # its invalid
@@ -155,14 +158,11 @@ class dateBone(baseBone):
 			except:
 				value = False  # its invalid
 		if value is False:
-			return "Invalid value entered"
-		else:
-			err = self.isInvalid(value)
-			if not err or value is None:
-				valuesCache[name] = value
-				if value is None:
-					return "No value entered"
-			return err
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
+		err = self.isInvalid(value)
+		if err:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+		valuesCache[name] = value
 
 	def isInvalid(self, value):
 		"""

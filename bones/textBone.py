@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
 from html.parser import HTMLParser
 from html import entities as htmlentitydefs
-
-#from google.appengine.api import search
-
 from server import db
 from server.bones import baseBone
 from server.bones.stringBone import LanguageWrapper
 from server.config import conf
 import logging, string
+from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 
 _defaultTags = {
 	"validTags": [  # List of HTML-Tags which are valid
@@ -300,7 +298,7 @@ class textBone(baseBone):
 			:returns: None or String
 		"""
 		if self.languages:
-			lastError = None
+			errors = []
 			valuesCache[name] = LanguageWrapper(self.languages)
 			for lang in self.languages:
 				if "%s.%s" % (name, lang) in data:
@@ -309,10 +307,16 @@ class textBone(baseBone):
 					if not err:
 						valuesCache[name][lang] = HtmlSerializer(self.validHtml).sanitize(val)
 					else:
-						lastError = err
-			if not any(valuesCache[name].values()) and not lastError:
-				lastError = "No / invalid values entered"
-			return lastError
+						errors.append(
+							[ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+						)
+			if not any(valuesCache[name].values()) and not errors:
+				errors.append(
+					[ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No / invalid values entered")]
+				)
+			if errors:
+				return errors
+			return None
 		else:
 			if name in data:
 				value = data[name]
@@ -320,13 +324,14 @@ class textBone(baseBone):
 				value = None
 			if not value:
 				valuesCache[name] = ""
-				return "No value entered"
+				return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value entered")]
 			if not isinstance(value, str):
 				value = str(value)
 			err = self.isInvalid(value)
 			if not err:
 				valuesCache[name] = HtmlSerializer(self.validHtml).sanitize(value)
-			return err
+			else:
+				return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
 
 	def isInvalid(self, value):
 		"""
