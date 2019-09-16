@@ -1506,7 +1506,7 @@ class Query(object):
 			logging.debug(
 				"Queried %s with filter %s and orders %s. Returned %s results" % (kindName, filters, orders, len(res)))
 		if currentTransaction:
-			currentTransaction["lastQueries"].append((self, res))
+			currentTransaction["lastQueries"].append((self, res, limit))
 		if res:
 			self._lastEntry = res[-1]
 		return res
@@ -1752,8 +1752,8 @@ def _commitTransaction():
 	result = __firestoreStub__.Commit(commitRequest)
 	lastQueries = currentTransaction["lastQueries"]
 	__currentTransaction__.transactionData = None
-	for qry, res in lastQueries:
-		newRes = qry.run()
+	for qry, res, limit in lastQueries:
+		newRes = qry.run(limit=limit)
 		if res != newRes:
 			logging.error("Query mismatch after transaction!")
 			logging.error(qry)

@@ -292,7 +292,7 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 	resolverDict = {}
 	for moduleName in dir(config):  # iterate over all modules
 		if moduleName == "index":
-			mapModule(getattr(config, "index"), "index", resolverDict)
+			mapModule(res, "index", resolverDict)
 			continue
 		moduleClass = getattr(config, moduleName)
 		for renderName in list(rendlist.keys()):  # look, if a particular render should be built
