@@ -18,7 +18,7 @@ class numericBone(baseBone):
 
 	type = "numeric"
 
-	def __init__(self, precision=0, min=-int(pow(2, 30)), max=int(pow(2, 30)), *args, **kwargs):
+	def __init__(self, precision=0, min=-int(pow(2, 30)), max=int(pow(2, 30)), defaultValue = None, *args, **kwargs):
 		"""
 			Initializes a new NumericBone.
 
@@ -29,7 +29,7 @@ class numericBone(baseBone):
 			:param max: Maximum accepted value (including).
 			:type max: float
 		"""
-		baseBone.__init__(self, *args, **kwargs)
+		super(numericBone, self).__init__(defaultValue=defaultValue, *args, **kwargs)
 		self.precision = precision
 		if not self.precision and "mode" in kwargs and kwargs["mode"] == "float":  # Fallback for old API
 			self.precision = 8
@@ -78,6 +78,7 @@ class numericBone(baseBone):
 
 	def serialize(self, valuesCache, name, entity):
 		if not name in valuesCache:
+			entity[name] = self.getDefaultValue()
 			return entity
 		if isinstance(valuesCache[name], float) and valuesCache[name] != valuesCache[name]:  # NaN
 			entity[name] = None  # Fixme: bend to self.defaultValue?

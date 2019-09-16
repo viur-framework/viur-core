@@ -210,10 +210,9 @@ class textBone(baseBone):
 	def generageSearchWidget(target, name="TEXT BONE", mode="equals"):
 		return ({"name": name, "mode": mode, "target": target, "type": "text"})
 
-	def __init__(self, validHtml=__undefinedC__, indexed=False, languages=None, maxLength=200000, *args, **kwargs):
-		baseBone.__init__(self, *args, **kwargs)
-		if indexed:
-			raise NotImplementedError("indexed=True is not supported on textBones")
+	def __init__(self, validHtml=__undefinedC__, languages=None, maxLength=200000,
+				 defaultValue = None, *args, **kwargs):
+		super(textBone, self).__init__(defaultValue=defaultValue, *args, **kwargs)
 		if self.multiple:
 			raise NotImplementedError("multiple=True is not supported on textBones")
 		if validHtml == textBone.__undefinedC__:
@@ -225,8 +224,11 @@ class textBone(baseBone):
 		self.languages = languages
 		self.validHtml = validHtml
 		self.maxLength = maxLength
-		if self.languages:
-			self.defaultValue = LanguageWrapper(self.languages)
+		if defaultValue is None:
+			if self.languages:
+				self.defaultValue = LanguageWrapper(self.languages)
+			else:
+				self.defaultValue = ""
 
 	def serialize(self, valuesCache, name, entity):
 		"""
@@ -238,8 +240,9 @@ class textBone(baseBone):
 			:type entity: :class:`server.db.Entity`
 			:return: the modified :class:`server.db.Entity`
 		"""
-		if name == "key" or not name in valuesCache:
-			return (entity)
+		if not name in valuesCache:
+			entity[name] = self.getDefaultValue()
+			return entity
 		if self.languages:
 			for k in entity.keys():  # Remove any old data
 				if k.startswith("%s." % name) or k.startswith("%s_" % name) or k == name:

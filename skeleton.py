@@ -264,6 +264,10 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 	#	raise ValueError("Expected a instance of baseBone or None, got %s instead." % type(value))
 
 	def __getitem__(self, key):
+		if not key in self.valuesCache:
+			boneInstance = getattr(self, key, None)
+			if boneInstance:
+				self.valuesCache[key] = boneInstance.getDefaultValue()
 		return self.valuesCache.get(key, None)
 
 	def __delitem__(self, key):

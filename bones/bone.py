@@ -175,6 +175,8 @@ class baseBone(object):  # One Bone:
 		"""
 		if name in valuesCache:
 			entity[name] = valuesCache[name]
+		else:
+			entity[name] = self.getDefaultValue()
 		return entity
 
 	def unserialize(self, valuesCache, name, expando):
@@ -311,35 +313,6 @@ class baseBone(object):  # One Bone:
 			else:
 				dbFilter.order(order)
 		return (dbFilter)
-
-	def getSearchTags(self, valuesCache, name):
-		"""
-			Returns a list of Strings which will be included in the
-			fulltext-index for this bone.
-
-			.. NOTE::
-				This function gets only called, if the ViUR internal
-				fulltext-search is used. If you enable the search-API
-				by setting a searchIndex on the skeleton, getSearchDocumentFields
-				is called instead.
-
-			:return: List of Strings
-		"""
-		res = []
-		if not valuesCache.get(name):
-			return (res)
-		for line in str(valuesCache[name]).lower().splitlines():
-			for key in line.split(" "):
-				key = "".join([c for c in key if c.lower() in conf["viur.searchValidChars"]])
-				if key and key not in res and len(key) > 3:
-					res.append(key)
-		return (res)
-
-	def getSearchDocumentFields(self, valuesCache, name, prefix=""):
-		"""
-			Returns a list of search-fields (GAE search API) for this bone.
-		"""
-		return [search.TextField(name=prefix + name, value=str(valuesCache[name]))]
 
 	def _hashValueForUniquePropertyIndex(self, value: Union[str, int]) -> List[str]:
 		def hashValue(value: Union[str, int]) -> str:

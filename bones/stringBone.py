@@ -55,21 +55,25 @@ class stringBone(baseBone):
 	def generageSearchWidget(target, name="STRING BONE", mode="equals"):
 		return ({"name": name, "mode": mode, "target": target, "type": "string"})
 
-	def __init__(self, caseSensitive=True, languages=None, *args, **kwargs):
-		super(stringBone, self).__init__(*args, **kwargs)
+	def __init__(self, caseSensitive=True, languages=None, defaultValue=None, *args, **kwargs):
+		super(stringBone, self).__init__(defaultValue=defaultValue, *args, **kwargs)
 		self.caseSensitive = caseSensitive
 		if not (languages is None or (isinstance(languages, list) and len(languages) > 0 and all(
 				[isinstance(x, str) for x in languages]))):
 			raise ValueError("languages must be None or a list of strings")
 		self.languages = languages
-		if self.languages and self.unique:
-			raise ValueError("Languages and Unique is not yet implemented")
+		if defaultValue is None:
+			if self.languages:
+				self.defaultValue = LanguageWrapper(self.languages)
+			else:
+				self.defaultValue = ""
 
 	def serialize(self, valuesCache, name, entity):
 		for k in list(entity.keys()):  # Remove any old data
 			if k.startswith("%s." % name) or k == name:
 				del entity[k]
 		if name not in valuesCache:
+			entity[name] = self.getDefaultValue()
 			return entity
 		if not self.languages:
 			if self.caseSensitive:
@@ -107,12 +111,12 @@ class stringBone(baseBone):
 					if self.multiple:
 						entity["%s_idx" % name] = {k: [x.lower() for x in v] for k, v in valuesCache[name].items()}
 					else:
-						entity["%s_idx" % name] = {k: v.lower() for k,v in valuesCache[name].items()}
-					#FIXME:
-					#	# Fill in None for all remaining languages (needed for sort!)
-					#	entity["%s_%s" % (name, lang)] = ""
-					#	if not self.caseSensitive:
-					#		entity["%s_%s_idx" % (name, lang)] = ""
+						entity["%s_idx" % name] = {k: v.lower() for k, v in valuesCache[name].items()}
+			# FIXME:
+			#	# Fill in None for all remaining languages (needed for sort!)
+			#	entity["%s_%s" % (name, lang)] = ""
+			#	if not self.caseSensitive:
+			#		entity["%s_%s_idx" % (name, lang)] = ""
 		return entity
 
 	def unserialize(self, valuesCache, name, expando):
@@ -133,10 +137,10 @@ class stringBone(baseBone):
 			storedVal = expando.get(name)
 			if isinstance(storedVal, dict):
 				valuesCache[name].update(storedVal)
-				# FIXME:
-				#if isinstance(val, list) and not self.multiple:
-				#	val = ", ".join(val)
-			elif isinstance(storedVal, str): # Old (non-multi-lang) format
+			# FIXME:
+			# if isinstance(val, list) and not self.multiple:
+			#	val = ", ".join(val)
+			elif isinstance(storedVal, str):  # Old (non-multi-lang) format
 				valuesCache[name][self.languages[0]] = storedVal
 		return True
 
@@ -294,7 +298,7 @@ class stringBone(baseBone):
 	def buildDBSort(self, name, skel, dbFilter, rawFilter):
 		if "orderby" in rawFilter and (rawFilter["orderby"] == name or (
 				isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
-				"%s." % name) and self.languages)):
+			"%s." % name) and self.languages)):
 			if self.languages:
 				lang = None
 				if rawFilter["orderby"].startswith("%s." % name):
@@ -396,4 +400,3 @@ class stringBone(baseBone):
 			# Not yet implemented as it's unclear if we should keep each language distinct or not
 			raise NotImplementedError
 		return super(stringBone, self).getUniquePropertyIndexValues(valuesCache, name)
-

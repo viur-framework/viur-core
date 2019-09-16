@@ -131,17 +131,6 @@ class relationalBone(baseBone):
 		relSkel = self._refSkelCache
 		relSkel.setValuesCache({})
 
-		# !!!ViUR re-design compatibility!!!
-		if not "dest" in value:
-			nvalue = dict()
-			nvalue["dest"] = value
-			value = nvalue
-
-		if "id" in value["dest"] and not ("key" in value["dest"] and value["dest"]["key"]):
-			value["dest"]["key"] = value["dest"]["id"]
-			del value["dest"]["id"]
-		# UNTIL HERE!
-
 		relSkel.unserialize(value["dest"])
 
 		if self.using is not None:
@@ -202,8 +191,8 @@ class relationalBone(baseBone):
 		return True
 
 	def serialize(self, valuesCache, name, entity):
-		if not valuesCache[name]:
-			entity.set(name, None, False)
+		if not name in valuesCache or not valuesCache[name]:
+			entity[name] = None
 			if not self.multiple:
 				for k in entity.keys():
 					if k.startswith("%s." % name):
@@ -243,16 +232,12 @@ class relationalBone(baseBone):
 				r = {"rel": usingData, "dest": refData}
 				entity.set(name, r, False)
 				# Copy attrs of our referenced entity in
-				if 1 or self.indexed:  # FIXME!
-					if refData:
-						for k, v in refData.items():
-							entity.set("%s.dest.%s" % (name, k), v, True)
-					if usingData:
-						for k, v in usingData.items():
-							entity.set("%s.rel.%s" % (name, k), v, True)
-			# for k, v in valuesCache[name].items():
-			#	if (k in self.refKeys or any( [ k.startswith("%s." %x) for x in self.refKeys ] ) ):
-			#		entity[ "%s.%s" % (name,k) ] = v
+				if refData:
+					for k, v in refData.items():
+						entity.set("%s.dest.%s" % (name, k), v, True)
+				if usingData:
+					for k, v in usingData.items():
+						entity.set("%s.rel.%s" % (name, k), v, True)
 		return entity
 
 	def postSavedHandler(self, valuesCache, boneName, skel, key, dbfields):

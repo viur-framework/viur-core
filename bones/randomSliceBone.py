@@ -13,14 +13,14 @@ class randomSliceBone(baseBone):
 
 	type = "randomslice"
 
-	def __init__(self, indexed=True, visible=False, readOnly=True, slices=2, sliceSize=0.5, *args, **kwargs):
+	def __init__(self, visible=False, readOnly=True, slices=2, sliceSize=0.5, *args, **kwargs):
 		"""
 			Initializes a new randomSliceBone.
 
 
 		"""
-		if not indexed or visible or not readOnly:
-			raise NotImplemented("A RandomSliceBone must be indexed, not visible and readonly!")
+		if visible or not readOnly:
+			raise NotImplemented("A RandomSliceBone must not visible and readonly!")
 		baseBone.__init__(self, indexed=True, visible=False, readOnly=True, *args, **kwargs)
 		self.slices = slices
 		self.sliceSize = sliceSize

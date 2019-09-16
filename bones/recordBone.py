@@ -8,13 +8,13 @@ import json
 class recordBone(baseBone):
 	type = "record"
 
-	def __init__(self, using, format=None, indexed=False, multiple=True, *args, **kwargs):
-		super(recordBone, self).__init__(indexed=indexed, multiple=multiple, *args, **kwargs)
+	def __init__(self, using, format=None, multiple=True, *args, **kwargs):
+		super(recordBone, self).__init__(multiple=multiple, *args, **kwargs)
 
 		self.using = using
 		self.format = format
-		if not format or indexed or not multiple:
-			NotImplemented("A recordBone must not be indexed, must be multiple and must have a format set")
+		if not format or not multiple:
+			NotImplemented("A recordBone must be multiple and must have a format set")
 
 		if getSystemInitialized():
 			self._usingSkelCache = using()
@@ -71,7 +71,7 @@ class recordBone(baseBone):
 
 	def serialize(self, valuesCache, name, entity):
 		if not valuesCache[name]:
-			entity.set(name, None, False)
+			entity[name] = None
 
 		else:
 			usingSkel = self._usingSkelCache

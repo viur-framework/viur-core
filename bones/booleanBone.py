@@ -14,7 +14,6 @@ class booleanBone(baseBone):
 
 	def __init__(self, defaultValue=False, *args, **kwargs):
 		assert defaultValue in [True, False]
-		defaultValue = defaultValue
 		super(booleanBone, self).__init__(defaultValue=defaultValue, *args, **kwargs)
 
 	def fromClient(self, valuesCache, name, data):
@@ -55,9 +54,8 @@ class booleanBone(baseBone):
 			:type name: str
 			:returns: dict
 		"""
-		if name != "key":
-			entity[name] = valuesCache.get(name, False)
-		return (entity)
+		entity[name] = valuesCache.get(name, False)
+		return entity
 
 	def unserialize(self, valuesCache, name, expando):
 		"""

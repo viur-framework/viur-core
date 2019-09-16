@@ -20,7 +20,9 @@ class credentialBone(stringBone):
 		"""
 			Update the value only if a new value is supplied.
 		"""
-		if valuesCache.get(name) and valuesCache[name] != "":
+		if not name in valuesCache:
+			entity[name] = self.getDefaultValue()
+		elif valuesCache[name] and valuesCache[name] != "":
 			entity[name] = valuesCache[name]
 		return entity
 

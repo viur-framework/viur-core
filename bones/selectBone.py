@@ -93,13 +93,6 @@ class selectBone(baseBone):
 			elif not valuesCache[name]:
 				return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No item selected")]
 
-	def serialize(self, valuesCache, name, entity):
-		if not self.multiple:
-			return super(selectBone, self).serialize(valuesCache, name, entity)
-
-		entity[name] = valuesCache.get(name)
-		return entity
-
 	def unserialize(self, valuesCache, name, expando):
 		if not self.multiple:
 			return super(selectBone, self).unserialize(valuesCache, name, expando)

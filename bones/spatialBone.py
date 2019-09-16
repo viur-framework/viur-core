@@ -44,7 +44,7 @@ class spatialBone(baseBone):
 
 	type = "spatial"
 
-	def __init__(self, boundsLat, boundsLng, gridDimensions, indexed=True, *args, **kwargs):
+	def __init__(self, boundsLat, boundsLng, gridDimensions, *args, **kwargs):
 		"""
 			Initializes a new spatialBone.
 
@@ -55,8 +55,7 @@ class spatialBone(baseBone):
 			:param gridDimensions: Number of sub-regions the map will be divided in
 			:type gridDimensions: (int, int)
 		"""
-		baseBone.__init__(self, *args, indexed=indexed, **kwargs)
-		assert indexed, "spatialBone must be indexed! You want to search using it - don't you?"
+		super(spatialBone, self).__init__(*args, **kwargs)
 		assert isinstance(boundsLat, tuple) and len(boundsLat) == 2, "boundsLat must be a tuple of (int, int)"
 		assert isinstance(boundsLng, tuple) and len(boundsLng) == 2, "boundsLng must be a tuple of (int, int)"
 		assert isinstance(gridDimensions, tuple) and len(
@@ -108,16 +107,17 @@ class spatialBone(baseBone):
 			:type name: str
 			:returns: dict
 		"""
-		if valuesCache[name] and not self.isInvalid(valuesCache[name]):
+		if not name in valuesCache:
+			entity[name] = self.getDefaultValue()
+		else:
 			lat, lng = valuesCache[name]
 			entity[name + ".lat.val"] = lat
 			entity[name + ".lng.val"] = lng
-			if 1 or self.indexed:  # FIXME
-				gridSizeLat, gridSizeLng = self.getGridSize()
-				tileLat = int(floor((lat - self.boundsLat[0]) / gridSizeLat))
-				tileLng = int(floor((lng - self.boundsLng[0]) / gridSizeLng))
-				entity[name + ".lat.tiles"] = [tileLat - 1, tileLat, tileLat + 1]
-				entity[name + ".lng.tiles"] = [tileLng - 1, tileLng, tileLng + 1]
+			gridSizeLat, gridSizeLng = self.getGridSize()
+			tileLat = int(floor((lat - self.boundsLat[0]) / gridSizeLat))
+			tileLng = int(floor((lng - self.boundsLng[0]) / gridSizeLng))
+			entity[name + ".lat.tiles"] = [tileLat - 1, tileLat, tileLat + 1]
+			entity[name + ".lng.tiles"] = [tileLng - 1, tileLng, tileLng + 1]
 		return entity
 
 	def unserialize(self, valuesCache, name, expando):
