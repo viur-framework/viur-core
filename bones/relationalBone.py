@@ -9,6 +9,7 @@ from time import time
 from datetime import datetime
 import logging
 from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from typing import List
 
 
 class relationalBone(baseBone):
@@ -995,3 +996,16 @@ class relationalBone(baseBone):
 				if valuesCache[name]["rel"]:
 					res.update(blobsFromSkel(self._usingSkelCache, valuesCache[name]["rel"]))
 		return res
+
+	def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
+		"""
+			By default, relationalBones distinct by referenced keys. Should be overridden if a different
+			behaviour is required (eg. examine values from `prop:usingSkel`)
+		"""
+		value = valuesCache.get(name)
+		if not value:  # We don't have a value to lock
+			return []
+		if isinstance(value, dict):
+			return self._hashValueForUniquePropertyIndex(value["dest"]["key"])
+		elif isinstance(value, list):
+			return self._hashValueForUniquePropertyIndex([x["dest"]["key"] for x in value])

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones.bone import baseBone, getSystemInitialized
 from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from typing import List
 import json
 
 
@@ -228,3 +229,11 @@ class recordBone(baseBone):
 			res.update(blobsFromSkel(self._usingSkelCache, value))
 
 		return res
+
+	def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
+		"""
+			This is intentionally not defined as we don't now how to derive a key from the relskel
+			being using (ie. which Fields to include and how).
+
+		"""
+		raise NotImplementedError

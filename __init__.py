@@ -194,6 +194,57 @@ from server import session, errors
 from server.tasks import TaskHandler, runStartupTasks
 
 
+def mapModule(moduleObj: object, moduleName: str, targetResoveRender: dict):
+	"""
+		Maps each function that's exposed of moduleObj into the branch of `prop:server.conf["viur.mainResolver"]`
+		that's referenced by `prop:targetResoveRender`. Will also walk `prop:_viurMapSubmodules` if set
+		and map these sub-modules also.
+	"""
+	moduleFunctions = {}
+	for key in [x for x in dir(moduleObj) if x[0] != "_"]:
+		prop = getattr(moduleObj, key)
+		if prop == "canAccess" or getattr(prop, "exposed", None):
+			moduleFunctions[key] = prop
+	for lang in conf["viur.availableLanguages"] or [conf["viur.defaultLanguage"]]:
+		# Map the module under each translation
+		if "seoLanguageMap" in dir(moduleObj) and lang in moduleObj.seoLanguageMap:
+			translatedModuleName = moduleObj.seoLanguageMap[lang]
+			if not translatedModuleName in targetResoveRender:
+				targetResoveRender[translatedModuleName] = {}
+			for fname, fcall in moduleFunctions.items():
+				targetResoveRender[translatedModuleName][fname] = fcall
+				# Map translated function names
+				if getattr(fcall, "seoLanguageMap", None) and lang in fcall.seoLanguageMap:
+					targetResoveRender[translatedModuleName][fcall.seoLanguageMap[lang]] = fcall
+			if "_viurMapSubmodules" in dir(moduleObj):
+				# Map any Functions on deeper nested function
+				subModules = moduleObj._viurMapSubmodules
+				for subModule in subModules:
+					obj = getattr(moduleObj, subModule, None)
+					if obj:
+						mapModule(obj, subModule, targetResoveRender[translatedModuleName])
+	if moduleName == "index":
+		targetFunctionLevel = targetResoveRender
+	else:
+		# Map the module also under it's original name
+		if not moduleName in targetResoveRender:
+			targetResoveRender[moduleName] = {}
+		targetFunctionLevel = targetResoveRender[moduleName]
+	for fname, fcall in moduleFunctions.items():
+		targetFunctionLevel[fname] = fcall
+		# Map translated function names
+		if getattr(fcall, "seoLanguageMap", None):
+			for translatedFunctionName in fcall.seoLanguageMap.values():
+				targetFunctionLevel[translatedFunctionName] = fcall
+	if "_viurMapSubmodules" in dir(moduleObj):
+		# Map any Functions on deeper nested function
+		subModules = moduleObj._viurMapSubmodules
+		for subModule in subModules:
+			obj = getattr(moduleObj, subModule, None)
+			if obj:
+				mapModule(obj, subModule, targetFunctionLevel)
+
+
 def buildApp(config, renderers, default=None, *args, **kwargs):
 	"""
 		Creates the application-context for the current instance.
@@ -241,6 +292,7 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 	resolverDict = {}
 	for moduleName in dir(config):  # iterate over all modules
 		if moduleName == "index":
+			mapModule(getattr(config, "index"), "index", resolverDict)
 			continue
 		moduleClass = getattr(config, moduleName)
 		for renderName in list(rendlist.keys()):  # look, if a particular render should be built
@@ -259,38 +311,13 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 					if not renderName in dir(res):
 						setattr(res, renderName, ExtendableObject())
 					setattr(getattr(res, renderName), moduleName, obj)
-				# Resolve-Dict
-				moduleFunctions = {}
-				for key in [x for x in dir(obj) if x[0]!="_"]:
-					prop = getattr(obj, key)
-					if getattr(prop, "exposed", None):
-						moduleFunctions[key] = prop
 				if renderName != default:
 					if not renderName in resolverDict:
 						resolverDict[renderName] = {}
 					targetResoveRender = resolverDict[renderName]
 				else:
 					targetResoveRender = resolverDict
-				for lang in conf["viur.availableLanguages"] or [conf["viur.defaultLanguage"]]:
-					# Map the module under each translation
-					if "seoLanguageMap" in dir(moduleClass) and lang in moduleClass.seoLanguageMap:
-						translatedModuleName = moduleClass.seoLanguageMap[lang]
-						if not translatedModuleName in targetResoveRender:
-							targetResoveRender[translatedModuleName] = {}
-						for fname, fcall in moduleFunctions.items():
-							targetResoveRender[translatedModuleName][fname] = fcall
-							# Map translated function names
-							if getattr(fcall, "seoLanguageMap", None) and lang in fcall.seoLanguageMap:
-								targetResoveRender[translatedModuleName][fcall.seoLanguageMap[lang]] = fcall
-				# Map the module also under it's original name
-				if not moduleName in targetResoveRender:
-					targetResoveRender[moduleName] = {}
-				for fname, fcall in moduleFunctions.items():
-					targetResoveRender[moduleName][fname] = fcall
-					# Map translated function names
-					if getattr(fcall, "seoLanguageMap", None):
-						for translatedFunctionName in fcall.seoLanguageMap.values():
-							targetResoveRender[moduleName][translatedFunctionName] = fcall
+				mapModule(obj, moduleName, targetResoveRender)
 				# Apply Renderers postProcess Filters
 				if "_postProcessAppObj" in rendlist[renderName]:
 					rendlist[renderName]["_postProcessAppObj"](targetResoveRender)

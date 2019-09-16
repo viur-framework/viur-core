@@ -3,6 +3,7 @@ from server.prototypes.list import List
 from server.skeleton import Skeleton, RelSkel, skeletonByKind
 from server import utils, session, request
 from server.bones import *
+from server.bones.bone import UniqueValue, UniqueLockMethod
 from server.bones.passwordBone import pbkdf2
 from server import errors, conf, securitykey
 from server.tasks import StartupTask
@@ -28,7 +29,7 @@ class userSkel(Skeleton):
 		caseSensitive=False,
 		searchable=True,
 		indexed=True,
-		unique=True
+		unique=UniqueValue(UniqueLockMethod.SameValue, "Username already taken")
 	)
 
 	# Properties required by custom auth
@@ -45,7 +46,7 @@ class userSkel(Skeleton):
 		indexed=True,
 		required=False,
 		readOnly=True,
-		unique=True
+		unique=UniqueValue(UniqueLockMethod.SameValue, "UID already in use")
 	)
 	gaeadmin = booleanBone(
 		descr=u"Is GAE Admin",
@@ -521,6 +522,7 @@ class User(List):
 		# Initialize the login-providers
 		self.initializedAuthenticationProviders = {}
 		self.initializedSecondFactorProviders = {}
+		self._viurMapSubmodules = []
 
 		for p in self.authenticationProviders:
 			pInstance = p(self, modulePath + "/auth_%s" % p.__name__.lower())
@@ -528,6 +530,7 @@ class User(List):
 
 			# Also put it as an object into self, so that any exposed function is reachable
 			setattr(self, "auth_%s" % pInstance.__class__.__name__.lower(), pInstance)
+			self._viurMapSubmodules.append("auth_%s" % pInstance.__class__.__name__.lower())
 
 		for p in self.secondFactorProviders:
 			pInstance = p(self, modulePath + "/f2_%s" % p.__name__.lower())
@@ -535,6 +538,7 @@ class User(List):
 
 			# Also put it as an object into self, so that any exposed function is reachable
 			setattr(self, "f2_%s" % pInstance.__class__.__name__.lower(), pInstance)
+			self._viurMapSubmodules.append("f2_%s" % pInstance.__class__.__name__.lower())
 
 	def extendAccessRights(self, skel):
 		accessRights = skel.access.values.copy()

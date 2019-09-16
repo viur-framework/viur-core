@@ -543,15 +543,12 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		# Check if all unique values are available
 		for boneName, boneInstance in self.items():
 			if boneInstance.unique:
-				newVal = boneInstance.getUniquePropertyIndexValue(self.valuesCache, boneName)
-				if newVal is not None:
-					dbObj = db.Get(("%s_%s_uniquePropertyIndex" % (self.kindName, boneName), newVal))
-					if dbObj and dbObj["references"] != self["key"]:  # This valus is taken (sadly, not by us)
+				lockValues = boneInstance.getUniquePropertyIndexValues(self.valuesCache, boneName)
+				for lockValue in lockValues:
+					dbObj = db.Get(("%s_%s_uniquePropertyIndex" % (self.kindName, boneName), lockValue))
+					if dbObj and dbObj["references"] != self["key"]:  # This value is taken (sadly, not by us)
 						complete = False
-						if isinstance(boneInstance.unique, str):
-							errorMsg = boneInstance.unique
-						else:
-							errorMsg = "This value is not available"
+						errorMsg = boneInstance.unique.message
 						self.errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, boneName, errorMsg))
 
 		# Check inter-Bone dependencies
@@ -604,13 +601,13 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		try:
 			dbRes = db.Get((self.kindName, key))
 		except db.EntityNotFoundError:
-			return (False)
+			return False
 		if dbRes is None:
-			return (False)
+			return False
 		self.setValues(dbRes)
 		# key = str(dbRes.key())
 		self["key"] = key
-		return (True)
+		return True
 
 	def toDB(self, clearUpdateTag=False):
 		"""
@@ -637,31 +634,29 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
 			# Load the current values from Datastore or create a new, empty db.Entity
 			if not dbKey:
-				dbObj = db.Entity(skel.kindName)
+				# We'll generate the key we'll be stored under early so we can use it for locks etc
+				dbObj = db.Entity(skel.kindName, name=db._generateNewId())
 				oldCopy = {}
 				oldBlobLockObj = None
-
+				isAdd = True
 			else:
 				dbObj = db.Get((self.kindName, dbKey))
-
 				if not dbObj:
 					dbObj = db.Entity(collection=self.kindName, name=dbKey)
 					oldCopy = {}
 				else:
 					skel.setValues(dbObj)
 					oldCopy = {k: v for k, v in dbObj.items()}
+				oldBlobLockObj = db.Get(("viur-blob-locks", dbKey))
+				isAdd = False
 
-				try:
-					oldBlobLockObj = db.Get(("viur-blob-locks", dbKey))
-				except:
-					oldBlobLockObj = None
 			# Merge values and assemble unique properties
-			oldUniqueValues = {}
 			for key, bone in skel.items():
 				# Remember old hashes for bones that must have an unique value
+				oldUniqueValues = []
 				if bone.unique:
 					if "%s_uniqueIndexValue" % key in dbObj:
-						oldUniqueValues[key] = dbObj["%s_uniqueIndexValue" % key]
+						oldUniqueValues = dbObj["%s_uniqueIndexValue" % key]
 
 				# Merge the values from mergeFrom in
 				if key in mergeFrom:
@@ -676,40 +671,44 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				# Check if the value has actually changed
 				if dbObj.get(key) != oldCopy.get(key):
 					changeList.append(key)
-			if clearUpdateTag:
-				# Mark this entity as Up-to-date.
-				dbObj["viur_delayed_update_tag"] = 0
-			else:
-				# Mark this entity as dirty, so the background-task will catch it up and update its references.
-				dbObj["viur_delayed_update_tag"] = time()
-			dbObj = skel.preProcessSerializedData(dbObj)
-			try:
-				ourKey = dbObj.name
-			except:  # Its not an update but an insert, no key yet
-				ourKey = None
 
-			# Lock hashes from bones that must have unique values
-			newUniqueValues = {}
-			for key, bone in skel.items():
+				# Lock hashes from bones that must have unique values
 				if bone.unique:
 					# Check if the property is really unique
-					newUniqueValues[key] = bone.getUniquePropertyIndexValue(self.valuesCache, key)
-
-					if newUniqueValues[key] is not None:
-						lockObj = db.Get((
-							"%s_%s_uniquePropertyIndex" % (skel.kindName, key),
-							newUniqueValues[key]))
-
-						if lockObj and lockObj["references"] != ourKey:
-							# This value has been claimed, and that not by us
-							raise ValueError(
-								"The unique value '%s' of bone '%s' has been recently claimed!" %
-								(self.valuesCache[key], key))
-						dbObj["%s_uniqueIndexValue" % key] = newUniqueValues[key]
-
-					else:
-						if "%s_uniqueIndexValue" % key in dbObj:
-							del dbObj["%s_uniqueIndexValue" % key]
+					newUniqueValues = bone.getUniquePropertyIndexValues(self.valuesCache, key)
+					for newLockValue in newUniqueValues:
+						lockObj = db.Get(("%s_%s_uniquePropertyIndex" % (skel.kindName, key), newLockValue))
+						if lockObj:
+							# There's already a lock for that value, check if we hold it
+							if lockObj["references"] != dbObj.name:
+								# This value has already been claimed, and not by us
+								raise ValueError(
+									"The unique value '%s' of bone '%s' has been recently claimed!" %
+									(self.valuesCache[key], key))
+						else:
+							# This value is locked for the first time, create a new lock-object
+							newLockObj = db.Entity(
+								"%s_%s_uniquePropertyIndex" % (skel.kindName, key),
+								name=newLockValue)
+							newLockObj["references"] = dbObj.name
+							db.Put(newLockObj)
+						if newLockValue in oldUniqueValues:
+							oldUniqueValues.remove(newLockValue)
+					dbObj["%s_uniqueIndexValue" % key] = newUniqueValues
+					# Remove any lock-object we're holding for values that we don't have anymore
+					for oldValue in oldUniqueValues:
+						# Try to delete the old lock
+						oldLockObj = db.Get(("%s_%s_uniquePropertyIndex" % (skel.kindName, key), oldValue))
+						if oldLockObj:
+							if oldLockObj["references"] != dbObj.name:
+								# We've been supposed to have that lock - but we don't.
+								# Don't remove that lock as it now belongs to a different entry
+								logging.critical("Detected Database corruption! A Value-Lock had been reassigned!")
+							else:
+								# It's our lock which we don't need anymore
+								db.Delete(("%s_%s_uniquePropertyIndex" % (skel.kindName, key), oldValue))
+						else:
+							logging.critical("Detected Database corruption! Could not delete stale lock-object!")
 
 			# Ensure the SEO-Keys are up2date
 			lastRequestedSeoKeys = dbObj.get("viurLastRequestedSeoKeys") or {}
@@ -755,7 +754,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					lastSetSeoKeys[language] = dbObj.name
 				# Store the current, active key for that language
 				dbObj["viurCurrentSeoKeys"][language] = lastSetSeoKeys[language]
-
 			if not dbObj.get("viurActiveSeoKeys"):
 				dbObj["viurActiveSeoKeys"] = []
 			for language, seoKey in lastSetSeoKeys.items():
@@ -770,9 +768,17 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 			# Store lastRequestedKeys so further updates can run more efficient
 			dbObj["viurLastRequestedSeoKeys"] = currentSeoKeys
 
+			if clearUpdateTag:
+				# Mark this entity as Up-to-date.
+				dbObj["viur_delayed_update_tag"] = 0
+			else:
+				# Mark this entity as dirty, so the background-task will catch it up and update its references.
+				dbObj["viur_delayed_update_tag"] = time()
+			dbObj = skel.preProcessSerializedData(dbObj)
+
+			# Allow the custom DB Adapter to apply last minute changes to the object
 			if self.customDatabaseAdapter:
-				# Allow the custom DB Adapter to apply last minute changes to the object
-				dbObj = self.customDatabaseAdapter.preprocessEntry(dbObj, skel, changeList, dbKey == None)
+				dbObj = self.customDatabaseAdapter.preprocessEntry(dbObj, skel, changeList, isAdd)
 
 			# Write the core entry back
 			db.Put(dbObj)
@@ -780,32 +786,23 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 			# Now write the blob-lock object
 			blobList = skel.preProcessBlobLocks(blobList)
 			if blobList is None:
-				raise ValueError(
-					"Did you forget to return the bloblist somewhere inside getReferencedBlobs()?")
-
+				raise ValueError("Did you forget to return the bloblist somewhere inside getReferencedBlobs()?")
 			if None in blobList:
 				raise ValueError("None is not a valid blobKey.")
-
 			if oldBlobLockObj is not None:
-				oldBlobs = set(oldBlobLockObj["active_blob_references"]
-							   if oldBlobLockObj["active_blob_references"] is not None else [])
-
+				oldBlobs = set(oldBlobLockObj.get("active_blob_references") or [])
 				removedBlobs = oldBlobs - blobList
 				oldBlobLockObj["active_blob_references"] = list(blobList)
-
 				if oldBlobLockObj["old_blob_references"] is None:
 					oldBlobLockObj["old_blob_references"] = [x for x in removedBlobs]
 				else:
 					tmp = set(oldBlobLockObj["old_blob_references"] + [x for x in removedBlobs])
 					oldBlobLockObj["old_blob_references"] = [x for x in (tmp - blobList)]
-
 				oldBlobLockObj["has_old_blob_references"] = \
 					oldBlobLockObj["old_blob_references"] is not None \
 					and len(oldBlobLockObj["old_blob_references"]) > 0
-
 				oldBlobLockObj["is_stale"] = False
 				db.Put(oldBlobLockObj)
-
 			else:  # We need to create a new blob-lock-object
 				blobLockObj = db.Entity("viur-blob-locks", name=dbObj.name)
 				blobLockObj["active_blob_references"] = list(blobList)
@@ -813,37 +810,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				blobLockObj["has_old_blob_references"] = False
 				blobLockObj["is_stale"] = False
 				db.Put(blobLockObj)
-			for key, bone in skel.items():
-				if bone.unique:
-					# Update/create/delete missing lock-objects
-					if key in oldUniqueValues and oldUniqueValues[key] != newUniqueValues[key]:
 
-						# We had an old lock and its value changed
-						try:
-							# Try to delete the old lock
-							oldLockObj = db.Get((
-								"%s_%s_uniquePropertyIndex" % (skel.kindName, key),
-								oldUniqueValues[key]))
-							if oldLockObj["references"] != ourKey:
-								# We've been supposed to have that lock - but we don't.
-								# Don't remove that lock as it now belongs to a different entry
-								logging.critical(
-									"Detected Database corruption! A Value-Lock had been reassigned!")
-							else:
-								# It's our lock which we don't need anymore
-								db.Delete(("%s_%s_uniquePropertyIndex" % (skel.kindName, key),
-										   oldUniqueValues[key]))
-						except db.EntityNotFoundError as e:
-							logging.critical(
-								"Detected Database corruption! Could not delete stale lock-object!")
-
-					if newUniqueValues[key] is not None:
-						# Lock the new value
-						newLockObj = db.Entity(
-							"%s_%s_uniquePropertyIndex" % (skel.kindName, key),
-							name=newUniqueValues[key])
-						newLockObj["references"] = dbObj.name
-						db.Put(newLockObj)
 			return dbObj.name, dbObj, skel, changeList
 
 		# END of txnUpdate subfunction

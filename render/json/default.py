@@ -33,7 +33,7 @@ class DefaultRender(object):
 			"params": bone.params,
 			"visible": bone.visible,
 			"readonly": bone.readOnly,
-			"unique": bone.unique
+			"unique": bone.unique.method.value if bone.unique else False
 		}
 
 		if bone.type == "relational" or bone.type.startswith("relational."):

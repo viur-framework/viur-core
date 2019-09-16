@@ -39,6 +39,16 @@ class ReadFromClientError:
 	errorMessage: str
 
 
+class UniqueLockMethod(Enum):
+	SameValue = 1  # Lock this value we have just one entry, or lock each value individually if bone is multiple
+	SameSet = 2  # Same Set of entries (including duplicates), any order
+	SameList = 3  # Same Set of entries (including duplicates), in this specific order
+
+@dataclass
+class UniqueValue:
+	method: UniqueLockMethod
+	message: str
+
 class baseBone(object):  # One Bone:
 	hasDBField = True
 	type = "hidden"
@@ -62,7 +72,7 @@ class baseBone(object):  # One Bone:
 				without the need of also been indexed.
 			:type searchable: bool
 			:param vfunc: If given, a callable validating the user-supplied value for this bone. This
-				callable must return None if the value is valid, a String containing an meaningfull
+				callable must return None if the value is valid, a String containing an meaningful
 				error-message for the user otherwise.
 			:type vfunc: callable
 			:param readOnly: If True, the user is unable to change the value of this bone. If a value for
@@ -70,7 +80,7 @@ class baseBone(object):  # One Bone:
 				Its still possible for the developer to modify this value by assigning skel.bone.value.
 			:type readOnly: bool
 			:param visible: If False, the value of this bone should be hidden from the user. This does *not*
-				protect the value from beeing exposed in a template, nor from being transfered to the
+				protect the value from beeing exposed in a template, nor from being transferred to the
 				client (ie to the admin or as hidden-value in html-forms)
 				Again: This is just a hint. It cannot be used as a security precaution.
 			:type visible: bool
@@ -92,6 +102,11 @@ class baseBone(object):  # One Bone:
 			self.isInvalid = vfunc
 		self.readOnly = readOnly
 		self.visible = visible
+		if unique:
+			if not isinstance(unique, UniqueValue):
+				raise ValueError("Unique must be an instance of UniqueValue")
+			if not self.multiple and unique.method.value != 1:
+				raise ValueError("'SameValue' is the only valid method on non-multiple bones")
 		self.unique = unique
 
 	def setSystemInitialized(self):
@@ -106,7 +121,7 @@ class baseBone(object):  # One Bone:
 		elif isinstance(self.defaultValue, list):
 			return self.defaultValue[:]
 		elif isinstance(self.defaultValue, dict):
-			return
+			return self.defaultValue.copy()
 		else:
 			return self.defaultValue
 
@@ -326,20 +341,40 @@ class baseBone(object):  # One Bone:
 		"""
 		return [search.TextField(name=prefix + name, value=str(valuesCache[name]))]
 
-	def getUniquePropertyIndexValue(self, valuesCache, name):
+	def _hashValueForUniquePropertyIndex(self, value: Union[str, int]) -> List[str]:
+		def hashValue(value: Union[str, int]) -> str:
+			h = hashlib.sha256()
+			h.update(str(value).encode("UTF-8"))
+			res = h.hexdigest()
+			if isinstance(value, int) or isinstance(value, float):
+				return "I-%s" % res
+			elif isinstance(value, str):
+				return "S-%s" % res
+			raise NotImplementedError("Type %s can't be safely used in an uniquePropertyIndex" % type(value))
+		if not self.multiple:
+			return [hashValue(value)]
+		# We have an multiple bone here
+		if not isinstance(value, list):
+			value = [value]
+		tmpList = [hashValue(x) for x in value]
+		if self.unique.method == UniqueLockMethod.SameValue:
+			# We should lock each entry individually; lock each value
+			return tmpList
+		elif self.unique.method == UniqueLockMethod.SameSet:
+			# We should ignore the sort-order; so simply sort that List
+			tmpList.sort()
+		# Lock the value for that specific list
+		return [hashValue(", ".join(tmpList))]
+
+	def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
 		"""
-			Returns an hash for our current value, used to store in the uniqueProptertyValue index.
+			Returns a list of hashes for our current value(s), used to store in the uniquePropertyValue index.
 		"""
-		if valuesCache[name] is None:
-			return (None)
-		h = hashlib.sha256()
-		h.update(str(valuesCache[name]).encode("UTF-8"))
-		res = h.hexdigest()
-		if isinstance(valuesCache[name], int) or isinstance(valuesCache[name], float):
-			return ("I-%s" % res)
-		elif isinstance(valuesCache[name], str):
-			return ("S-%s" % res)
-		raise NotImplementedError("Type %s can't be safely used in an uniquePropertyIndex" % type(valuesCache[name]))
+		val = valuesCache.get(name)
+		if val is None:
+			return []
+		return self._hashValueForUniquePropertyIndex(val)
+
 
 	def getReferencedBlobs(self, valuesCache, name):
 		"""

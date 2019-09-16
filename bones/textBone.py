@@ -7,6 +7,7 @@ from server.bones.stringBone import LanguageWrapper
 from server.config import conf
 import logging, string
 from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from typing import List
 
 _defaultTags = {
 	"validTags": [  # List of HTML-Tags which are valid
@@ -422,3 +423,9 @@ class textBone(baseBone):
 				return [search.HtmlField(name=prefix + name, value=str(valuesCache[name]))]
 			else:
 				return [search.TextField(name=prefix + name, value=str(valuesCache[name]))]
+
+	def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
+		if self.languages:
+			# Not yet implemented as it's unclear if we should keep each language distinct or not
+			raise NotImplementedError
+		return super(textBone, self).getUniquePropertyIndexValues(valuesCache, name)

@@ -330,15 +330,12 @@ def Put(entities: Union[Entity, List[Entity]], **kwargs) -> None:
 		currentTransaction = __currentTransaction__.transactionData
 	except AttributeError:
 		currentTransaction = None
-	# if currentTransaction:
-	#	raise NotImplementedError()  # FIXME: We must enqueue Writes to the transaction instead...
 	if isinstance(entities, list):  # FIXME: Use a WriteBatch instead
 		for x in entities:
 			Put(x)
 	if not entities.name:
 		# This will be an add
 		entities.name = _generateNewId()
-		isAdd = True
 	documentPb = document_pb2.Document(name="%s%s/%s" % (__documentRoot__, entities.collection, entities.name),
 									   fields={key: _pythonValToProtoValue(value) for key, value in entities.items()})
 	if currentTransaction:
@@ -1614,7 +1611,7 @@ class Query(object):
 						self.datastoreQuery = q.datastoreQuery
 						lastCursor = None
 
-	def get(self):
+	def get(self) -> Entity:
 		"""
 			Returns only the first entity of the current query.
 

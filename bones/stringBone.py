@@ -7,6 +7,7 @@ from server import utils
 from server.session import current as currentSession
 from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import logging
+from typing import List
 
 
 class LanguageWrapper(dict):
@@ -54,14 +55,15 @@ class stringBone(baseBone):
 	def generageSearchWidget(target, name="STRING BONE", mode="equals"):
 		return ({"name": name, "mode": mode, "target": target, "type": "string"})
 
-	def __init__(self, caseSensitive=True, multiple=False, languages=None, *args, **kwargs):
+	def __init__(self, caseSensitive=True, languages=None, *args, **kwargs):
 		super(stringBone, self).__init__(*args, **kwargs)
 		self.caseSensitive = caseSensitive
 		if not (languages is None or (isinstance(languages, list) and len(languages) > 0 and all(
 				[isinstance(x, str) for x in languages]))):
-			raise ValueError("languages must be None or a list of strings ")
+			raise ValueError("languages must be None or a list of strings")
 		self.languages = languages
-		self.multiple = multiple
+		if self.languages and self.unique:
+			raise ValueError("Languages and Unique is not yet implemented")
 
 	def serialize(self, valuesCache, name, entity):
 		for k in list(entity.keys()):  # Remove any old data
@@ -82,10 +84,8 @@ class stringBone(baseBone):
 					else:
 						entity[name + "_idx"] = str(valuesCache[name]).lower()
 		else:  # Write each language separately
-			print("gggg1")
 			if not valuesCache.get(name, None):
-				return (entity)
-			print("gggg2")
+				return entity
 			if isinstance(valuesCache[name], str) or (
 					isinstance(valuesCache[name], list) and self.multiple):  # Convert from old format
 				lang = self.languages[0]
@@ -391,10 +391,9 @@ class stringBone(baseBone):
 
 		return res
 
-	def getUniquePropertyIndexValue(self, valuesCache, name):
-		"""
-			Returns an hash for our current value, used to store in the uniqueProptertyValue index.
-		"""
-		if not valuesCache.get(name) and not self.required:  # Dont enforce a unique property on an empty string if we are required=False
-			return None
-		return super(stringBone, self).getUniquePropertyIndexValue(valuesCache, name)
+	def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
+		if self.languages:
+			# Not yet implemented as it's unclear if we should keep each language distinct or not
+			raise NotImplementedError
+		return super(stringBone, self).getUniquePropertyIndexValues(valuesCache, name)
+
