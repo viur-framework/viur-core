@@ -351,7 +351,7 @@ class Hierarchy(BasicApplication):
 		if not self.canPreview():
 			raise errors.Unauthorized()
 
-		if not securitykey.verify(skey):
+		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 
 		skel = self.viewSkel()
@@ -379,7 +379,7 @@ class Hierarchy(BasicApplication):
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-		if not securitykey.validate(skey, acceptSessionKey=True):
+		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 
 		if not self.canReparent(item, dest):
@@ -439,7 +439,7 @@ class Hierarchy(BasicApplication):
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-		if not securitykey.validate(skey, acceptSessionKey=True):
+		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 
 		if not self.canSetIndex(item, index):
@@ -475,7 +475,7 @@ class Hierarchy(BasicApplication):
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-		if not securitykey.validate(skey, acceptSessionKey=True):
+		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 
 		skel = self.editSkel()
@@ -612,7 +612,7 @@ class Hierarchy(BasicApplication):
 		):
 			return self.render.edit(skel)
 
-		if not securitykey.validate(skey, acceptSessionKey=True):
+		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 
 		skel.toDB()  # write it!
@@ -662,7 +662,7 @@ class Hierarchy(BasicApplication):
 		):
 			return self.render.add(skel)
 
-		if not securitykey.validate(skey, acceptSessionKey=True):
+		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 		skel["parententry"] = str(parent)
 		skel["parentrepo"] = str(self.getRootNode(parent).key())
@@ -713,7 +713,7 @@ class Hierarchy(BasicApplication):
 
 		if not self.canAdd(toParent):
 			raise errors.Unauthorized()
-		if not securitykey.validate(skey, acceptSessionKey=True):
+		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 
 		self._clone(fromRepo, toRepo, fromParent, toParent)

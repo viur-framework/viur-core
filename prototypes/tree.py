@@ -407,7 +407,7 @@ class Tree(BasicApplication):
 		):
 			return self.render.add(skel)
 
-		if not securitykey.validate(skey, acceptSessionKey=True):
+		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 
 		skel["parentdir"] = str(node)
@@ -462,7 +462,7 @@ class Tree(BasicApplication):
 		):
 			return self.render.edit(skel)
 
-		if not securitykey.validate(skey, acceptSessionKey=True):
+		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 
 		skel.toDB()
@@ -509,7 +509,7 @@ class Tree(BasicApplication):
 
 		if not self.canDelete(skelType, skel):
 			raise errors.Unauthorized()
-		if not securitykey.validate(skey, acceptSessionKey=True):
+		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 
 		if type == "leaf":
@@ -590,7 +590,7 @@ class Tree(BasicApplication):
 			# Could not find one of the entities
 			raise errors.NotFound()
 
-		if not securitykey.validate(skey, acceptSessionKey=True):
+		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 
 		srcSkel["parentdir"] = str(destNode)

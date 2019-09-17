@@ -13,13 +13,15 @@
 from datetime import datetime, timedelta
 from server.utils import generateRandomString
 from server.session import current as currentSession
+from server import request
 from server import db, conf
 from server.tasks import PeriodicTask, callDeferred
+from typing import Union
 
 securityKeyKindName = "viur-securitykeys"
 
 
-def create(duration=None, **kwargs):
+def create(duration: Union[None, int] = None, **kwargs):
 	"""
 		Creates a new onetime Securitykey for the current session
 		If duration is not set, this key is valid only for the current session.
@@ -30,58 +32,48 @@ def create(duration=None, **kwargs):
 		:type duration: int or None
 		:returns: The new onetime key
 	"""
+	if not duration:
+		return currentSession.getSecurityKey()
 	key = generateRandomString()
-	if duration is None:
-		sessionDependend = True
-		duration = 30 * 60  # 30 Mins from now
-	else:
-		sessionDependend = False
-		duration = int(duration)
+	duration = int(duration)
 	dbObj = db.Entity(securityKeyKindName, name=key)
 	for k, v in kwargs.items():
 		dbObj[k] = v
 	dbObj["until"] = datetime.now() + timedelta(seconds=duration)
-	if sessionDependend:
-		dbObj["session"] = currentSession.getSessionKey()
-	else:
-		dbObj["session"] = None
-	#dbObj.set_unindexed_properties([x for x in dbObj.keys() if not x == "until"])
 	db.Put(dbObj)
 	return key
 
 
-def validate(key, acceptSessionKey=False):
+def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
 	"""
 		Validates a onetime securitykey
 
 		:type key: str
 		:param key: The key to validate
-		:type acceptSessionKey: Bool
-		:param acceptSessionKey: If True, we also accept the session's skey
+		:type useSessionKey: Bool
+		:param useSessionKey: If True, we validate against the session's skey, otherwise we'll lookup an unbound key
 		:returns: False if the key was not valid for whatever reasons, the data (given during createSecurityKey) as dictionary or True if the dict is empty.
 	"""
-	if acceptSessionKey:
-		if key == currentSession.getSessionSecurityKey():
-			return (True)
+	if useSessionKey:
+		if key == "staticSessionKey":
+			cookieVal = request.current.get().request.cookies.get("X-VIUR-STATICSESSIONKEY")
+			if cookieVal and currentSession.validateStaticSecurityKey(cookieVal):
+				return True
+		elif currentSession.validateSecurityKey(key):
+			return True
+		return False
 	if not key or "/" in key:
 		return False
 	dbObj = db.Get((securityKeyKindName, key))
 	if dbObj:
-		if "session" in dbObj and dbObj["session"] is not None:
-			if dbObj["session"] != currentSession.getSessionKey():
-				return (False)
-		# db.Delete(dbObj.key())  # FIXME!
+		db.Delete((securityKeyKindName, key))
 		if dbObj["until"] < datetime.now():  # This key has expired
-			return (False)
-		res = {}
-		for k in dbObj.keys():
-			res[k] = dbObj[k]
-		del res["session"]
-		del res["until"]
-		if not res:
-			return (True)
-		return (res)
-	return (False)
+			return False
+		del dbObj["until"]
+		if not dbObj:
+			return True
+		return dbObj
+	return False
 
 
 @PeriodicTask(60 * 4)
