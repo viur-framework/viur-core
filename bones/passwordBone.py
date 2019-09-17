@@ -10,6 +10,7 @@ from server.config import conf
 import string, random
 import codecs
 from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from server.i18n import translate
 
 
 def pbkdf2(password, salt, iterations=1001, keylen=42):
@@ -63,14 +64,17 @@ class passwordBone(stringBone):
 		# Special characters?
 	]
 	passwordTestThreshold = 3
+	tooShortMessage = translate("server.bones.passwordBone.tooShortMessage",
+								defaultText="The entered password is to short - it requires at least {{length}} characters.")
+	tooWeakMessage = translate("server.bones.passwordBone.tooWeakMessage",
+								defaultText="The entered password is too weak.")
 
 	def isInvalid(self, value):
 		if not value:
 			return False
 
 		if len(value) < self.minPasswordLength:
-			return _("The entered password is to short - it requires at least {{length}} characters.",
-					 length=self.minPasswordLength)
+			return self.tooShortMessage.translate(length=self.minPasswordLength)
 
 		# Run our password test suite
 		testResults = []
@@ -78,7 +82,7 @@ class passwordBone(stringBone):
 			testResults.append(test(value))
 
 		if sum(testResults) < self.passwordTestThreshold:
-			return _("The entered password is too weak.")
+			return str(self.tooWeakMessage)
 
 		return False
 

@@ -82,7 +82,7 @@ def dumpConfig(adminTree):
 				if "views" in app.adminInfo:
 					for v in app.adminInfo["views"]:
 						tmp = v.copy()
-						tmp["name"] = _(tmp["name"])
+						tmp["name"] = str(tmp["name"])
 						adminConfig[key]["views"].append(tmp)
 	res = {"capabilities": conf["viur.capabilities"],
 		   "modules": adminConfig,

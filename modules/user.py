@@ -17,6 +17,7 @@ import hmac, hashlib
 import json
 from google.oauth2 import id_token
 from google.auth.transport import requests
+from server.i18n import translate
 
 class userSkel(Skeleton):
 	kindName = "user"
@@ -135,7 +136,7 @@ class UserPassword(object):
 		if self.userModule.getCurrentUser():  # Were already logged in
 			return self.userModule.render.loginSucceeded()
 
-		if not name or not password or not securitykey.validate(skey):
+		if not name or not password or not securitykey.validate(skey, useSessionKey=True):
 			return self.userModule.render.login(self.loginSkel())
 
 		query = db.Query(self.userModule.viewSkel().kindName)
@@ -186,7 +187,7 @@ class UserPassword(object):
 	@exposed
 	def pwrecover(self, authtoken=None, skey=None, *args, **kwargs):
 		if authtoken:
-			data = securitykey.validate(authtoken)
+			data = securitykey.validate(authtoken, useSessionKey=False)
 			if data and isinstance(data, dict) and "userKey" in data and "password" in data:
 				skel = self.userModule.editSkel()
 				assert skel.fromDB(data["userKey"])
@@ -197,12 +198,12 @@ class UserPassword(object):
 				return self.userModule.render.view(None, self.passwordRecoveryInvalidTokenTemplate)
 		else:
 			skel = self.lostPasswordSkel()
-			if len(kwargs) == 0 or not skel.fromClient(kwargs) or not securitykey.validate(skey):
+			if len(kwargs) == 0 or not skel.fromClient(kwargs) or not securitykey.validate(skey, useSessionKey=True):
 				return self.userModule.render.passwdRecover(skel, tpl=self.passwordRecoveryTemplate)
 			user = self.userModule.viewSkel().all().filter("name.idx =", skel["name"].lower()).get()
 
 			if not user or user["status"] < 10:  # Unknown user or locked account
-				skel.errors["name"] = _("Unknown user")
+				skel.errors["name"] = str("Unknown user")
 				return self.userModule.render.passwdRecover(skel, tpl=self.passwordRecoveryTemplate)
 			try:
 				if user["changedate"] > (datetime.datetime.now() - datetime.timedelta(days=1)):
@@ -223,7 +224,7 @@ class UserPassword(object):
 
 	@exposed
 	def verify(self, skey, *args, **kwargs):
-		data = securitykey.validate(skey)
+		data = securitykey.validate(skey, useSessionKey=False)
 		skel = self.userModule.baseSkel()
 		if not data or not isinstance(data, dict) or not "userKey" in data or not skel.fromDB(data["userKey"]):
 			return self.userModule.render.view(None, self.verifyFailedTemplate)
@@ -283,7 +284,7 @@ class UserPassword(object):
 				or ("bounce" in kwargs and kwargs["bounce"] == "1")):  # review before adding
 			# render the skeleton in the version it could as far as it could be read.
 			return self.userModule.render.add(skel)
-		if not securitykey.validate(skey):
+		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 		skel.toDB()
 		if self.registrationEmailVerificationRequired and str(skel["status"]) == "1":
@@ -320,7 +321,7 @@ class GoogleAccount(object):
 			tplStr = open("server/template/vi_user_google_login.html", "r").read()
 			tplStr = tplStr.replace("{{ clientID }}", conf["viur.user.google.clientID"])
 			return tplStr
-		if not securitykey.validate(skey):
+		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 		userInfo = id_token.verify_oauth2_token(token, requests.Request(), conf["viur.user.google.clientID"])
 		if userInfo['iss'] not in {'accounts.google.com', 'https://accounts.google.com'}:
@@ -442,7 +443,7 @@ class TimeBasedOTP(object):
 			raise errors.Forbidden()
 		if otptoken is None:
 			self.userModule.render.edit(self.otpSkel())
-		if not securitykey.validate(skey):
+		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 		if token["failures"] > 3:
 			raise errors.Forbidden("Maximum amount of authentication retries exceeded")
@@ -542,10 +543,8 @@ class User(List):
 
 	def extendAccessRights(self, skel):
 		accessRights = skel.access.values.copy()
-
 		for right in conf["viur.accessRights"]:
-			accessRights[right] = _(right)
-
+			accessRights[right] = translate("server.modules.user.accessright.%s" % right, defaultText=right)
 		skel.access.values = accessRights
 
 	def addSkel(self):
@@ -561,11 +560,14 @@ class User(List):
 		else:
 			# An admin tries to add a new user.
 			self.extendAccessRights(skel)
+			skel.status.readOnly = False
+			skel.status.visible = True
+			skel.access.readOnly = False
+			skel.access.visible = True
 		# Unlock and require a password
 		skel.password.required = True
 		skel.password.visible = True
 		skel.password.readOnly = False
-
 		skel.name.readOnly = False  # Dont enforce readonly name in user/add
 		return skel
 
@@ -674,7 +676,7 @@ class User(List):
 		user = session.current.get("user")
 		if not user:
 			raise errors.Unauthorized()
-		if not securitykey.validate(skey):
+		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 
 		self.onLogout(user)

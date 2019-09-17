@@ -67,7 +67,7 @@ class DefaultRender(object):
 
 		# Base bone contents.
 		ret = {
-			"descr": _(bone.descr),
+			"descr": str(bone.descr),
 			"type": bone.type,
 			"required": bone.required,
 			"params": bone.params,
@@ -155,7 +155,7 @@ class DefaultRender(object):
 	def renderTextExtension(self, ext):
 		e = ext()
 		return ({"name": e.name,
-				 "descr": _(e.descr),
+				 "descr": str(e.descr),
 				 "skel": self.renderSkelStructure(e.dataSkel())})
 
 	def renderBoneValue(self, bone):

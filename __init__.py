@@ -37,9 +37,10 @@ import sys, traceback, os, inspect
 #		continue
 #	sys.path.insert(0, os.path.join(cwd, "libs", lib))
 
-from server.config import conf, sharedConf
+from server.config import conf
 from server import request
 import server.languages as servertrans
+from server.i18n import initializeTranslations
 # from google.appengine.ext import webapp
 # from google.appengine.ext.webapp.util import run_wsgi_app
 # from google.appengine.api import users
@@ -54,121 +55,6 @@ import webob
 # Copy our Version into the config so that our renders can access it
 conf["viur.version"] = __version__
 
-### Multi-Language Part
-try:
-	import translations
-
-	conf["viur.availableLanguages"].extend([x for x in dir(translations) if (len(x) == 2 and not x.startswith("_"))])
-except ImportError:  # The Project doesnt use Multi-Language features
-	translations = None
-
-
-def translate(key, **kwargs):
-	"""
-	Translate *key* into language text pendant.
-
-	This function is part of ViURs language support facilities for supporting internationalization (i18n).
-
-	Translations are provided in the applications *translations* module in form of a dict, where the keys
-	should be the language strings in the project's major language (usually english), and the values the
-	strings provided in the particular language implemented. The translation key strings must be given
-	in a lower-case order, altought they may be capitalized or upper-case written. If no key is found
-	within a specific translation, it is directly used as the output string.
-
-	The strings may contain placeholders in form ``{{placeholer}}``, which can be assigned via the
-	*kwargs* argument.
-
-	``translate()`` is also provided as ``_()`` as global function.
-
-	In this simple example, a file ``translations/de.py`` is implemented with the content:
-
-	.. code-block:: python
-
-		de = {
-				"welcome to viur": u"Willkommen in ViUR",
-				"hello {{user}}!": u"Hallo, {{user}}!"
-		}
-
-	To support internationalization, it is simply done this way:
-
-	.. code-block:: python
-
-		txt = _( "Hello {{user}}!", user="John Doe" ) + " - "  + _( "Welcome to ViUR" )
-
-	Language support is also provided in Jinja2-templates like this:
-
-	.. code-block:: jinja
-
-		{{ _( "Hello {{user}}!", user="John Doe" ) }} - {{ _( "Welcome to ViUR" ) }}
-
-	This will both output "Hello John Doe! - Welcome to ViUR" in an english-configured language environment,
-	and "Hallo John Doe! - Willkommen in ViUR" in a german-configured language environment.
-
-	The current session language (or default language) can be overridden with ``_lang``, e.g.
-
-	.. code-block:: python
-
-		txt = _( "Hello {{user}}!", user="John Doe" ) + " - "  + _( "Welcome to ViUR", lang="en" )
-
-	will result in "Hallo John Doe! - Welcome to ViUR" in a german-configured language environment.
-
-	:param key: The key value that should be translated; If no key is found in the configured language,
-		key is directly used.
-	:type key: str
-	:param kwargs: May contain place-holders replaced as ``{{placeholer}}`` within the key or translation.
-		The special-value ``_lang`` overrides the current language setting.
-
-	:return: Translated text or key, with replaced placeholders, if given.
-	:rtype: str
-	"""
-
-	try:
-		lang = request.current.get().language
-	except:
-		return (key)
-
-	if key is None:
-		return (None)
-	elif not isinstance(key, str):
-		raise ValueError("Can only translate strings, got %s instead" % str(type(key)))
-
-	res = None
-	lang = lang or conf["viur.defaultLanguage"]
-
-	if "_lang" in kwargs:
-		lang = kwargs["_lang"]
-
-	if lang in conf["viur.languageAliasMap"]:
-		lang = conf["viur.languageAliasMap"][lang]
-
-	if lang and lang in dir(translations):
-		langDict = getattr(translations, lang)
-
-		if key.lower() in langDict:
-			res = langDict[key.lower()]
-
-	if res is None and lang and lang in dir(servertrans):
-		langDict = getattr(servertrans, lang)
-
-		if key.lower() in langDict:
-			res = langDict[key.lower()]
-
-	if res is None and conf["viur.logMissingTranslations"]:
-		from server import db
-		db.GetOrInsert(key="%s-%s" % (key, str(lang)),
-					   kindName="viur-missing-translations",
-					   langkey=key, lang=lang)
-
-	if res is None:
-		res = key
-
-	for k, v in kwargs.items():
-		res = res.replace("{{%s}}" % k, str(v))
-
-	return (res)
-
-
-__builtins__["_"] = translate  # Install the global "_"-Function
 
 
 def setDefaultLanguage(lang):
@@ -192,6 +78,7 @@ def setDefaultDomainLanguage(domain, lang):
 
 from server import session, errors
 from server.tasks import TaskHandler, runStartupTasks
+from server import i18n
 
 
 def mapModule(moduleObj: object, moduleName: str, targetResoveRender: dict):
@@ -426,6 +313,7 @@ def setup(modules, render=None, default="html"):
 			assert uri is not None and (
 					uri.lower().startswith("https://") or uri.lower().startswith("http://"))
 	runStartupTasks()  # Add a deferred call to run all queued startup tasks
+	initializeTranslations()
 	return app
 	return (conf["viur.wsgiApp"])
 

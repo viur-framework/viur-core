@@ -159,7 +159,7 @@ class GaeSession:
 		self.isInitial = False
 		self.httpKey = None
 		self.sslKey = None
-		self.sessionSecurityKey = None
+		self.staticSecurityKey = None
 		self.securityKey = None
 		self.session = {}
 		if self.plainCookieName in req.request.cookies:
@@ -304,7 +304,7 @@ class GaeSession:
 			db.Delete((self.kindName, self.httpKey))
 		self.httpKey = utils.generateRandomString(42)
 		self.sslKey = utils.generateRandomString(42)
-		self.sessionSecurityKey = utils.generateRandomString(13)
+		self.staticSecurityKey = utils.generateRandomString(13)
 		self.securityKey = utils.generateRandomString(13)
 		self.changed = True
 		self.isInitial = True

@@ -665,7 +665,7 @@ class Order(List):
 			step = step.copy()
 			step["mainHandler"] = step["mainHandler"].copy()
 			if "descr" in step["mainHandler"]:
-				step["mainHandler"].update({"descr": _(step["mainHandler"]["descr"])})
+				step["mainHandler"].update({"descr": str(step["mainHandler"]["descr"])})
 			steps.append(step)
 
 		return steps

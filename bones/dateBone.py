@@ -4,6 +4,7 @@ from server import request
 from time import time, mktime
 from datetime import time, datetime, timedelta
 from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from server.i18n import translate
 import logging
 
 try:
@@ -31,19 +32,19 @@ class ExtendedDateTime(datetime):
 		:returns: str
 		"""
 		if "%c" in format:
-			format = format.replace("%c", _("const_datetimeformat"))
+			format = format.replace("%c", translate("const_datetimeformat"))
 		if "%x" in format:
-			format = format.replace("%x", _("const_dateformat"))
+			format = format.replace("%x", translate("const_dateformat"))
 		if "%X" in format:
-			format = format.replace("%X", _("const_timeformat"))
+			format = format.replace("%X", translate("const_timeformat"))
 		if "%a" in format:
-			format = format.replace("%a", _("const_day_%s_short" % int(super(ExtendedDateTime, self).strftime("%w"))))
+			format = format.replace("%a", translate("const_day_%s_short" % int(super(ExtendedDateTime, self).strftime("%w"))))
 		if "%A" in format:
-			format = format.replace("%A", _("const_day_%s_long" % int(super(ExtendedDateTime, self).strftime("%w"))))
+			format = format.replace("%A", translate("const_day_%s_long" % int(super(ExtendedDateTime, self).strftime("%w"))))
 		if "%b" in format:
-			format = format.replace("%b", _("const_month_%s_short" % int(super(ExtendedDateTime, self).strftime("%m"))))
+			format = format.replace("%b", translate("const_month_%s_short" % int(super(ExtendedDateTime, self).strftime("%m"))))
 		if "%B" in format:
-			format = format.replace("%B", _("const_month_%s_long" % int(super(ExtendedDateTime, self).strftime("%m"))))
+			format = format.replace("%B", translate("const_month_%s_long" % int(super(ExtendedDateTime, self).strftime("%m"))))
 		return super(ExtendedDateTime, self).strftime(format)
 
 

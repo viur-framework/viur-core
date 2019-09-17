@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime, timedelta
 from server.update import checkUpdate
-from server.config import conf, sharedConf
+from server.config import conf
 from server import errors, request, utils
 from server import db
 from functools import wraps
@@ -33,6 +33,7 @@ _deferedTasks = {}
 _startupTasks = []
 _periodicTaskID = 1  # Used to determine bound functions
 _appengineServiceIPs = {"10.0.0.1", "0.1.0.1", "0.1.0.2"}
+
 
 class CallableTaskBase:
 	"""
@@ -186,9 +187,9 @@ class TaskHandler:
 
 	def cron(self, cronName="default", *args, **kwargs):
 		global _callableTasks, _periodicTasks, _appengineServiceIPs
-		#logging.debug("Starting maintenance-run")
-		#checkUpdate()  # Let the update-module verify the database layout first
-		#logging.debug("Updatecheck complete")
+		# logging.debug("Starting maintenance-run")
+		# checkUpdate()  # Let the update-module verify the database layout first
+		# logging.debug("Updatecheck complete")
 		req = request.current.get()
 		if not req.isDevServer:
 			if 'X-Appengine-Cron' not in req.request.headers:
@@ -243,6 +244,7 @@ class TaskHandler:
 					logging.error("Error executing Task")
 					logging.exception(e)
 		logging.debug("Scheduled tasks complete")
+
 	cron.exposed = True
 
 	def list(self, *args, **kwargs):
@@ -253,7 +255,8 @@ class TaskHandler:
 			pass
 
 		res = extList(
-			[{"key": x.key, "name": _(x.name), "descr": _(x.descr)} for x in _callableTasks.values() if x().canCall()])
+			[{"key": x.key, "name": str(x.name), "descr": str(x.descr)} for x in _callableTasks.values() if
+			 x().canCall()])
 		res.cursor = None
 		res.baseSkel = {}
 		return (self.render.list(res))
@@ -414,6 +417,7 @@ def PeriodicTask(interval=0, cronName="default"):
 		:param interval: Call at most every interval minutes. 0 means call as often as possible.
 		:type interval: int
 	"""
+
 	def mkDecorator(fn):
 		global _periodicTasks, _periodicTaskID
 		if not cronName in _periodicTasks:
@@ -423,6 +427,7 @@ def PeriodicTask(interval=0, cronName="default"):
 		fn.periodicTaskName = "%s_%s" % (fn.__module__, fn.__name__)
 		_periodicTaskID += 1
 		return fn
+
 	return mkDecorator
 
 
@@ -461,21 +466,24 @@ def runStartupTasks():
 ## Tasks ##
 
 
+"""
 @CallableTask
 class DisableApplicationTask(CallableTaskBase):
-	"""
+	" ""
 		Allows en- or disabling the application.
-	"""
+	" ""
 	key = "viur-disable-server"
-	name = "Enable or disable the application"
-	descr = "This will enable or disable the application."
+	name = translate("server.tasks.DisableApplicationTask.name",
+					 defaultText="Enable or disable the application")
+	descr = translate("server.tasks.DisableApplicationTask.descr",
+					  defaultText="This will enable or disable the application.")
 	kindName = "server-task"
 
 	def canCall(self):
-		"""
+		" ""
 			Checks wherever the current user can execute this task
 			:returns: bool
-		"""
+		" ""
 		usr = utils.getCurrentUser()
 		return usr and usr["access"] and "root" in usr["access"]
 
@@ -495,3 +503,4 @@ class DisableApplicationTask(CallableTaskBase):
 				sharedConf["viur.disabled"] = True
 		else:
 			sharedConf["viur.disabled"] = False
+"""

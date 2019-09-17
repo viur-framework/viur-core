@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from server.config import sharedConf, apiVersion
+from server.config import apiVersion
 from time import sleep
 from server import db, request
 

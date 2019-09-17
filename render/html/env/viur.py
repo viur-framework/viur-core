@@ -558,7 +558,7 @@ def renderEditForm(render, skel, ignore=None, hide=None):
 	rowTpl = render.getEnv().get_template(render.getTemplateFileName("editform_row"))
 	sections = OrderedDict()
 	for boneName, boneParams in skel["structure"].items():
-		category = _("server.render.html.default_category")
+		category = str("server.render.html.default_category")
 		if "params" in boneParams and isinstance(boneParams["params"], dict):
 			category = boneParams["params"].get("category", category)
 		if not category in sections:

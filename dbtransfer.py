@@ -68,6 +68,7 @@ class DbTransfer(object):
 	def getAppId(self, key, *args, **kwargs):
 		if not self._checkKey(key, export=False):
 			raise errors.Forbidden()
+		# FIXME!
 		return (pickle.dumps(db.Query("SharedConfData").get().key().app()))  # app_identity.get_application_id()
 
 	def getUploads(self, field_name=None):

@@ -133,12 +133,14 @@ class List(BasicApplication):
 			# We dump just the structure of that skeleton, including it's default values
 			if not self.canView(skel):
 				raise errors.Unauthorized()
-		else:
-			# We return a single entry for viewing
-			if not skel.fromDB(key):
+		else: # We return a single entry for viewing
+			# We probably have a Database or SEO-Key here
+			seoKey = "viurActiveSeoKeys AC"
+			skel = self.viewSkel().all().filter(seoKey, args[0]).getSkel()
+			if not skel:
 				raise errors.NotFound()
 			if not self.canView(skel):
-				raise errors.Unauthorized()
+				raise errors.Forbidden()
 			self.onItemViewed(skel)
 		return self.render.view(skel)
 
