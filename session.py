@@ -190,6 +190,8 @@ class GaeSession:
 				self.reset()
 				return False
 			return True
+		else:
+			self.reset()
 
 	def save(self, req):
 		"""
