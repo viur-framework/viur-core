@@ -8,7 +8,7 @@ from server.bones import *
 
 from collections import OrderedDict
 from jinja2 import Environment, FileSystemLoader, ChoiceLoader
-
+from server.i18n import translate
 import os, logging, codecs
 
 
@@ -202,7 +202,7 @@ class Render(object):
 
 		# Base bone contents.
 		ret = {
-			"descr": _(bone.descr),
+			"descr": str(bone.descr),
 			"type": bone.type,
 			"required": bone.required,
 			"params": bone.params,
@@ -915,8 +915,8 @@ class Render(object):
 			self.env = Environment(loader=loaders, extensions=["jinja2.ext.do", "jinja2.ext.loopcontrols"])
 
 			# Translation remains global
-			self.env.globals["_"] = _
-			self.env.filters["tr"] = _
+			self.env.globals["_"] = translate
+			self.env.filters["tr"] = translate
 
 			# Import functions.
 			for name, func in jinjaUtils.getGlobalFunctions().items():

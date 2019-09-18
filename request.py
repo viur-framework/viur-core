@@ -15,15 +15,6 @@ from google.cloud.logging.handlers import CloudLoggingHandler
 from google.cloud.logging.resource import Resource
 from time import time
 
-### Multi-Language Part
-# FIXME: From Server.__init__?
-try:
-	import translations
-
-	conf["viur.availableLanguages"].extend([x for x in dir(translations) if (len(x) == 2 and not x.startswith("_"))])
-except ImportError:  # The Project doesnt use Multi-Language features
-	translations = None
-
 client = google.cloud.logging.Client()
 loggingRessource = Resource(type="gae_app",
 							labels={
@@ -136,7 +127,7 @@ class BrowseHandler():  # webapp.RequestHandler
 		"""
 			Tries to select the best language for the current request.
 		"""
-		if translations is None:
+		if not conf["viur.availableLanguages"]:
 			# This project doesn't use the multi-language feature, nothing to do here
 			return path
 		if conf["viur.languageMethod"] == "session":

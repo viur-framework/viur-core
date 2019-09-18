@@ -2,7 +2,7 @@
 import json
 from collections import OrderedDict
 from server import errors, request, bones, utils
-from server.skeleton import RefSkel, skeletonByKind
+from server.skeleton import RefSkel, skeletonByKind, BaseSkeleton
 import logging
 
 class DefaultRender(object):
@@ -212,10 +212,14 @@ class DefaultRender(object):
 			vals = [self.renderSkelValues(x) for x in skel]
 			struct = self.renderSkelStructure(skel[0])
 			errors = None
-		else:
+		elif isinstance(skel, BaseSkeleton):
 			vals = self.renderSkelValues(skel)
 			struct = self.renderSkelStructure(skel)
 			errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage} for x in skel.errors]
+		else:  # Hopefully we can pass it directly...
+			vals = skel
+			struct = None
+			errors = None
 		res = {
 			"values": vals,
 			"structure": struct,

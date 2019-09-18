@@ -64,14 +64,15 @@ class fileBone(treeItemBone):
 				ensureDerived(val["dest"]["dlkey"], val["dest"]["name"], self.derive)
 
 	def getReferencedBlobs(self, valuesCache, name):
-		if valuesCache[name] is None:
+		val = valuesCache.get(name)
+		if val is None:
 			return []
-		elif isinstance(valuesCache[name], dict):
-			return [valuesCache[name]["dest"]["dlkey"]]
-		elif isinstance(valuesCache[name], list):
-			return [x["dest"]["dlkey"] for x in valuesCache[name]]
+		elif isinstance(val, dict):
+			return [val["dest"]["dlkey"]]
+		elif isinstance(val, list):
+			return [x["dest"]["dlkey"] for x in val]
 		else:
-			raise ValueError("Unknown value for bone %s (%s)" % (name, str(type(valuesCache[name]))))
+			raise ValueError("Unknown value for bone %s (%s)" % (name, str(type(val))))
 
 	def unserialize(self, valuesCache, name, expando):
 		res = super(fileBone, self).unserialize(valuesCache, name, expando)

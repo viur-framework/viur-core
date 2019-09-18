@@ -197,7 +197,7 @@ class File(Tree):
 		else:
 			if not self.canAdd("leaf", None):
 				raise errors.Forbidden()
-		if not securitykey.validate(skey):
+		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 
 		targetKey = utils.generateRandomString()
@@ -409,7 +409,7 @@ class File(Tree):
 		if skelType == "leaf":  # We need to handle leafs separately here
 			skey = kwargs.get("skey")
 			targetKey = kwargs.get("key")
-			if not skey or not securitykey.validate(skey) or not targetKey:
+			if not skey or not securitykey.validate(skey, useSessionKey=True) or not targetKey:
 				raise errors.PreconditionFailed()
 
 			skel = self.addLeafSkel()
