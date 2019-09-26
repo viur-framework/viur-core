@@ -173,7 +173,7 @@ class recordBone(baseBone):
 
 	def setBoneValue(self, valuesCache, boneName, value, append):
 		if not isinstance(value, self.using):
-			raise ValueError("value (=%r) must be of type %r", type(value), type(self.using))
+			raise ValueError("value (=%r) must be of type %r" % (type(value), self.using))
 
 		if valuesCache[boneName] is None or not append:
 			valuesCache[boneName] = []
