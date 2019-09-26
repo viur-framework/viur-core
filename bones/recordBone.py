@@ -5,7 +5,6 @@ from typing import List
 import copy
 
 
-
 class recordBone(baseBone):
 	type = "record"
 
@@ -175,6 +174,16 @@ class recordBone(baseBone):
 	def setBoneValue(self, valuesCache, boneName, value, append):
 		if not isinstance(value, self.using):
 			raise ValueError("value (=%r) must be of type %r" % (type(value), self.using))
+
+		if valuesCache[boneName] is None or not append:
+			valuesCache[boneName] = []
+
+		valuesCache[boneName].append(copy.deepcopy(value.getValuesCache()))
+		return True
+
+	def setBoneValue(self, valuesCache, boneName, value, append):
+		if not isinstance(value, self.using):
+			raise ValueError("value (=%r) must be of type %r", type(value), type(self.using))
 
 		if valuesCache[boneName] is None or not append:
 			valuesCache[boneName] = []
