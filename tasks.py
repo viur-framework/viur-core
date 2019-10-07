@@ -176,12 +176,14 @@ class TaskHandler:
 						continue
 				except db.EntityNotFoundError:
 					pass
+
 			res = self.findBoundTask( task )
+
 			if res: #Its bound, call it this way :)
-				t, s = res
-				t( s )
+				res[0]()
 			else:
 				task() #It seems it wasnt bound - call it as a static method
+
 			logging.debug("Successfully called task %s" % task.periodicTaskName )
 			if intervall:
 				# Update its last-call timestamp
