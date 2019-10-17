@@ -5,6 +5,9 @@ This file documents any relevant changes done to ViUR server since version 2.
 
 ## [develop] - Current development version
 
+### Added
+- Add support for frame-ancestors directive in content security policy
+
 ### Fixed
 - Removed counter on delete recursive in tree module. This is no longer possible since it works deferred.
 - Added missing fromClient function to spatialBone so it can be set using Vi/Admin again
