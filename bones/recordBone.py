@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from server.bones.bone import baseBone, getSystemInitialized
 from server.errors import ReadFromClientError
-import extjson
+import extjson, copy
 
 
 class recordBone(baseBone):
@@ -170,6 +170,16 @@ class recordBone(baseBone):
 			return ReadFromClientError(errorDict, forceFail)
 
 		return None
+
+	def setBoneValue(self, valuesCache, boneName, value, append):
+		if not isinstance(value, self.using):
+			raise ValueError("value (=%r) must be of type %r" % (type(value), self.using))
+
+		if valuesCache[boneName] is None or not append:
+			valuesCache[boneName] = []
+
+		valuesCache[boneName].append(copy.deepcopy(value.getValuesCache()))
+		return True
 
 	def getSearchTags(self, values, key):
 		def getValues(res, skel, valuesCache):
