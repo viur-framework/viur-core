@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from server.prototypes.hierarchy import Hierarchy, HierarchySkel
-from server.bones import *
+from viur.server.prototypes.hierarchy import Hierarchy, HierarchySkel
+from viur.server.bones import *
 
 
 class pageSkel(HierarchySkel):

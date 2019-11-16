@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from server.config import conf
+from viur.server.config import conf
 import logging
 
 

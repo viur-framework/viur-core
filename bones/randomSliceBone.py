@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from server.bones import baseBone
-from server import db
+from viur.server.bones import baseBone
+from viur.server import db
 from random import random, sample, shuffle
 from itertools import chain
 

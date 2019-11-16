@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-from server import utils, request, conf, prototypes, securitykey, errors
-from server.skeleton import Skeleton, RelSkel
-from server.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
-from server.render.html.wrap import ListWrapper, SkelListWrapper
+from viur.server import utils, request, conf, prototypes, securitykey, errors
+from viur.server.skeleton import Skeleton, RelSkel
+from viur.server.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
+from viur.server.render.html.wrap import ListWrapper, SkelListWrapper
 import urllib
 from hashlib import sha512
 #from google.appengine.ext import db

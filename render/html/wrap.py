@@ -29,7 +29,7 @@ class ListWrapper(list):
 		if super(ListWrapper, self).__contains__(item):
 			return True
 
-		from server.render.html.default import KeyValueWrapper
+		from viur.server.render.html.default import KeyValueWrapper
 		for obj in self:
 			if isinstance(obj, KeyValueWrapper):
 				if str(obj) == item:

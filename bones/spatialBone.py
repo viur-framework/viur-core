@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-from server.bones import baseBone
+from viur.server.bones import baseBone
 from math import pow, floor, ceil
-from server import db
+from viur.server import db
 import logging
 import math
 

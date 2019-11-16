@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 
-from server.render.json.default import DefaultRender as default
-from server.render.json.user import UserRender as user
-from server.render.json.file import FileRender as file
-from server.skeleton import Skeleton
-from server import conf
-from server import securitykey
-from server import utils
-from server import request
-from server import session
+from viur.server.render.json.default import DefaultRender as default
+from viur.server.render.json.user import UserRender as user
+from viur.server.render.json.file import FileRender as file
+from viur.server.skeleton import Skeleton
+from viur.server import conf
+from viur.server import securitykey
+from viur.server import utils
+from viur.server import request
+from viur.server import session
 import datetime, json
 
 __all__ = [default]

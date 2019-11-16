@@ -4,9 +4,9 @@ import json, pickle
 import base64
 import string, random
 from time import time
-from server.tasks import PeriodicTask, callDeferred
-from server import db, utils
-from server.config import conf
+from viur.server.tasks import PeriodicTask, callDeferred
+from viur.server import db, utils
+from viur.server.config import conf
 # from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError, OverQuotaError
 import logging
 from hmac import compare_digest

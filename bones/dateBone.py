@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-from server.bones import baseBone
-from server import request
+from viur.server.bones import baseBone
+from viur.server import request
 from time import time, mktime
 from datetime import time, datetime, timedelta
-from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from server.i18n import translate
+from viur.server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.server.i18n import translate
 import logging
 
 try:

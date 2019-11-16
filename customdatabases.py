@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from server.skeleton import Skeleton, CustomDatabaseAdapter
-from server.bones import *
-from server import db
+from viur.server.skeleton import Skeleton, CustomDatabaseAdapter
+from viur.server.bones import *
+from viur.server import db
 from typing import Set, List
-from server.config import conf
+from viur.server.config import conf
 
 class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 	providesFulltextSearch = True

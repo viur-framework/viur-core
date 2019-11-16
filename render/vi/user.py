@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from server.render.json.user import UserRender as user
+from viur.server.render.json.user import UserRender as user
 import string, json
 
 

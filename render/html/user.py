@@ -2,7 +2,7 @@
 import time, json
 from string import Template
 from . import default as DefaultRender
-from server.skeleton import Skeleton
+from viur.server.skeleton import Skeleton
 
 
 class Render(DefaultRender):  # Render user-data to xml

@@ -2,13 +2,13 @@
 from . import utils as jinjaUtils
 from .wrap import ListWrapper, SkelListWrapper
 
-from server import utils, request, errors, securitykey
-from server.skeleton import Skeleton, BaseSkeleton, RefSkel, skeletonByKind
-from server.bones import *
+from viur.server import utils, request, errors, securitykey
+from viur.server.skeleton import Skeleton, BaseSkeleton, RefSkel, skeletonByKind
+from viur.server.bones import *
 
 from collections import OrderedDict
 from jinja2 import Environment, FileSystemLoader, ChoiceLoader
-from server.i18n import translate
+from viur.server.i18n import translate
 import os, logging, codecs
 
 

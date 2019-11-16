@@ -11,11 +11,11 @@
 """
 
 from datetime import datetime, timedelta
-from server.utils import generateRandomString
-from server.session import current as currentSession
-from server import request
-from server import db, conf
-from server.tasks import PeriodicTask, callDeferred
+from viur.server.utils import generateRandomString
+from viur.server.session import current as currentSession
+from viur.server import request
+from viur.server import db, conf
+from viur.server.tasks import PeriodicTask, callDeferred
 from typing import Union
 
 securityKeyKindName = "viur-securitykeys"

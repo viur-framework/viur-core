@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from server.bones import *
+from viur.server.bones import *
 from collections import OrderedDict
 from xml.dom import minidom
 from datetime import datetime, date, time

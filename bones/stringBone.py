@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-from server.bones import baseBone
-from server.config import conf
-from server import db
-from server import request
-from server import utils
-from server.session import current as currentSession
-from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.server.bones import baseBone
+from viur.server.config import conf
+from viur.server import db
+from viur.server import request
+from viur.server import utils
+from viur.server.session import current as currentSession
+from viur.server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import logging
 from typing import List
 
@@ -60,6 +60,8 @@ class stringBone(baseBone):
 		self.caseSensitive = caseSensitive
 		if not (languages is None or (isinstance(languages, list) and len(languages) > 0 and all(
 				[isinstance(x, str) for x in languages]))):
+			logging.error(type(languages))
+			logging.error(languages)
 			raise ValueError("languages must be None or a list of strings")
 		self.languages = languages
 		if defaultValue is None:

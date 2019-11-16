@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from server.bones import stringBone
+from viur.server.bones import stringBone
 
 
 class credentialBone(stringBone):

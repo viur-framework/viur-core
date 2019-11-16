@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from server.request import current as currentRequest
-from server.config import conf
-from server import db
+from viur.server.request import current as currentRequest
+from viur.server.config import conf
+from viur.server import db
 
 ### Multi-Language Part
 #try:
@@ -42,7 +42,7 @@ class translate:
 	def translate(self, **kwargs):
 		# FIXME!
 		#if res is None and conf["viur.logMissingTranslations"]:
-		#	from server import db
+		#	from viur.server import db
 		#	db.GetOrInsert(key="%s-%s" % (key, str(lang)),
 		#				   kindName="viur-missing-translations",
 		#				   langkey=key, lang=lang)

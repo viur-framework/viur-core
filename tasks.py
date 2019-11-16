@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime, timedelta
-from server.update import checkUpdate
-from server.config import conf
-from server import errors, request, utils
-from server import db
+from viur.server.update import checkUpdate
+from viur.server.config import conf
+from viur.server import errors, request, utils
+from viur.server import db
 from functools import wraps
 import json
 import logging
@@ -112,8 +112,8 @@ class TaskHandler:
 		"""
 			This catches one defered call and routes it to its destination
 		"""
-		from server import session
-		from server import utils
+		from viur.server import session
+		from viur.server import utils
 		global _deferedTasks, _appengineServiceIPs
 
 		req = request.current.get().request
@@ -266,7 +266,7 @@ class TaskHandler:
 	def execute(self, taskID, *args, **kwargs):
 		"""Queues a specific task for the next maintenance run"""
 		global _callableTasks
-		from server import securitykey
+		from viur.server import securitykey
 		if taskID in _callableTasks:
 			task = _callableTasks[taskID]()
 		else:
@@ -329,7 +329,7 @@ def callDeferred(func):
 				func(self, *args, **kwargs)
 			return  # Ensure no result gets passed back
 
-		from server.utils import getCurrentUser
+		from viur.server.utils import getCurrentUser
 		try:
 			req = request.current.get()
 		except:  # This will fail for warmup requests
@@ -488,8 +488,8 @@ class DisableApplicationTask(CallableTaskBase):
 		return usr and usr["access"] and "root" in usr["access"]
 
 	def dataSkel(self):
-		from server.bones import booleanBone, stringBone
-		from server.skeleton import Skeleton
+		from viur.server.bones import booleanBone, stringBone
+		from viur.server.skeleton import Skeleton
 		skel = Skeleton(self.kindName)
 		skel.active = booleanBone(descr="Application active", required=True)
 		skel.descr = stringBone(descr="Reason for disabling", required=False)

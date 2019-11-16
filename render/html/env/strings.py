@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from server.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
+from viur.server.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
 import json
 
 

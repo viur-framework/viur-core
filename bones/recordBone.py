@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from server.bones.bone import baseBone, getSystemInitialized
-from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.server.bones.bone import baseBone, getSystemInitialized
+from viur.server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from typing import List
 import json
 

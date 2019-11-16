@@ -3,8 +3,8 @@
 # from google.appengine.datastore import datastore_query, datastore_rpc
 # from google.appengine.api import memcache
 # from google.appengine.api import search
-from server.config import conf
-from server import utils
+from viur.server.config import conf
+from viur.server import utils
 import logging, threading
 from google.cloud import firestore
 from google.cloud.firestore_v1beta1 import _helpers
@@ -32,7 +32,7 @@ from typing import Union, Tuple, List, Dict, Iterable, Any
 from time import time, mktime
 import google.auth
 from functools import partial
-from server import request
+from viur.server import request
 from google.protobuf import wrappers_pb2, struct_pb2, timestamp_pb2
 from collections import namedtuple
 from google.type import latlng_pb2
@@ -777,7 +777,7 @@ class Query(object):
 			:returns: Returns the query itself for chaining.
 			:rtype: server.db.Query
 		"""
-		from server.bones import baseBone, relationalBone
+		from viur.server.bones import baseBone, relationalBone
 		if "id" in filters:
 			self.datastoreQuery = None
 			logging.error("Filtering by id is no longer supported. Use key instead.")
@@ -1538,7 +1538,7 @@ class Query(object):
 		if amount < 1 or amount > 100:
 			raise NotImplementedError(
 				"This query is not limited! You must specify an upper bound using limit() between 1 and 100")
-		from server.skeleton import SkelList
+		from viur.server.skeleton import SkelList
 		res = SkelList(self.srcSkel)
 		dbRes = self.run(amount)
 		res.customQueryInfo = self.customQueryInfo

@@ -3,8 +3,8 @@
 from .default import DefaultRender as default, serializeXML
 from .user import UserRender as user
 from .file import FileRender as file
-from server import conf
-from server import securitykey
+from viur.server import conf
+from viur.server import securitykey
 import datetime
 
 __all__ = [default]

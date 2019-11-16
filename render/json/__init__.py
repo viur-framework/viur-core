@@ -3,7 +3,7 @@
 from .default import DefaultRender as default
 from .user import UserRender as user
 from .file import FileRender as file
-from server import securitykey
+from viur.server import securitykey
 import json
 
 __all__ = [default]

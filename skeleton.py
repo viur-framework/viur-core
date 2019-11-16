@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from server import db, utils, conf, errors
-from server.bones import baseBone, keyBone, dateBone, selectBone, relationalBone, stringBone
-from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from server.tasks import CallableTask, CallableTaskBase, callDeferred
+from viur.server import db, utils, conf, errors
+from viur.server.bones import baseBone, keyBone, dateBone, selectBone, relationalBone, stringBone
+from viur.server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.server.tasks import CallableTask, CallableTaskBase, callDeferred
 from collections import OrderedDict
 from time import time
 import inspect, os, sys, logging, copy
@@ -406,7 +406,7 @@ class MetaSkel(MetaBaseSkel):
 
 		# Automatic determination of the kindName, if the class is not part of the server.
 		if (cls.kindName is __undefindedC__
-				and not relNewFileName.strip(os.path.sep).startswith("server")
+				and not relNewFileName.strip(os.path.sep).startswith("viur")
 				and not "viur_doc_build" in dir(sys)):
 			if cls.__name__.endswith("Skel"):
 				cls.kindName = cls.__name__.lower()[:-4]

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from server.bones import stringBone
+from viur.server.bones import stringBone
 import string
 from encodings import idna
 

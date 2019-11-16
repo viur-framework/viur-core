@@ -3,14 +3,14 @@
 import logging, pickle, json, collections, cgi, urllib
 from datetime import datetime
 
-from server import db, request, errors, conf, exposed, utils
-from server.bones import *
-from server.skeleton import BaseSkeleton, skeletonByKind, listKnownSkeletons
-from server.tasks import CallableTask, CallableTaskBase, callDeferred
-from server.prototypes.hierarchy import HierarchySkel
-from server.prototypes.tree import TreeLeafSkel
-from server.render.json.default import DefaultRender
-from server.modules.file import decodeFileName
+from viur.server import db, request, errors, conf, exposed, utils
+from viur.server.bones import *
+from viur.server.skeleton import BaseSkeleton, skeletonByKind, listKnownSkeletons
+from viur.server.tasks import CallableTask, CallableTaskBase, callDeferred
+from viur.server.prototypes.hierarchy import HierarchySkel
+from viur.server.prototypes.tree import TreeLeafSkel
+from viur.server.render.json.default import DefaultRender
+from viur.server.modules.file import decodeFileName
 #from google.appengine.api import datastore, datastore_types, urlfetch
 #from google.appengine.ext import blobstore
 #from google.appengine.ext.blobstore import BlobInfo

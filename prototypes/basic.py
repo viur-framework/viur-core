@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from server import conf
-from server.skeleton import skeletonByKind
+from viur.server import conf
+from viur.server.skeleton import skeletonByKind
 
 
 class BasicApplication(object):

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from server import db, utils, request, tasks, session
-from server.config import conf
+from viur.server import db, utils, request, tasks, session
+from viur.server.config import conf
 from hashlib import sha512
 from datetime import datetime, timedelta
 import logging

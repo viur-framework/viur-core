@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-from server.bones import relationalBone
+from viur.server.bones import relationalBone
 
-from server import request
+from viur.server import request
 
 
 class treeDirBone(relationalBone):

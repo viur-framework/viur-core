@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-from server.prototypes.list import List
-from server.skeleton import SkelList
-from server.bones import *
-from server import errors, session, conf, request, exposed, internalExposed
+from viur.server.prototypes.list import List
+from viur.server.skeleton import SkelList
+from viur.server.bones import *
+from viur.server import errors, session, conf, request, exposed, internalExposed
 import json
 
 

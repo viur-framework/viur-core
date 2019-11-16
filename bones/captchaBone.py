@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-from server.bones import bone
-from server import request, utils
-from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.server.bones import bone
+from viur.server import request, utils
+from viur.server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import urllib
 import logging
 import json

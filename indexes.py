@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from hashlib import sha256
 
-from server import db
+from viur.server import db
 
 
 class IndexMannager:

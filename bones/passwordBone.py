@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
-from server import utils
-from server.bones import stringBone
+from viur.server import utils
+from viur.server.bones import stringBone
 from hashlib import sha256
 import hmac
 from struct import Struct
 from operator import xor
 from itertools import starmap
-from server.config import conf
+from viur.server.config import conf
 import string, random
 import codecs
-from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from server.i18n import translate
+from viur.server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.server.i18n import translate
 
 
 def pbkdf2(password, salt, iterations=1001, keylen=42):

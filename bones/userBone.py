@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from server.bones.relationalBone import relationalBone
-from server.config import conf
+from viur.server.bones.relationalBone import relationalBone
+from viur.server.config import conf
 
 
 class userBone(relationalBone):

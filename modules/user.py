@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-from server.prototypes.list import List
-from server.skeleton import Skeleton, RelSkel, skeletonByKind
-from server import utils, session, request
-from server.bones import *
-from server.bones.bone import UniqueValue, UniqueLockMethod
-from server.bones.passwordBone import pbkdf2
-from server import errors, conf, securitykey
-from server.tasks import StartupTask
+from viur.server.prototypes.list import List
+from viur.server.skeleton import Skeleton, RelSkel, skeletonByKind
+from viur.server import utils, session, request
+from viur.server.bones import *
+from viur.server.bones.bone import UniqueValue, UniqueLockMethod
+from viur.server.bones.passwordBone import pbkdf2
+from viur.server import errors, conf, securitykey
+from viur.server.tasks import StartupTask
 from time import time
-from server import db, exposed, forceSSL
+from viur.server import db, exposed, forceSSL
 from hashlib import sha512
 #from google.appengine.api import users, app_identity
 import logging
@@ -17,7 +17,7 @@ import hmac, hashlib
 import json
 from google.oauth2 import id_token
 from google.auth.transport import requests
-from server.i18n import translate
+from viur.server.i18n import translate
 
 class userSkel(Skeleton):
 	kindName = "user"

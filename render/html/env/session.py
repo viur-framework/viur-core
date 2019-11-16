@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from server import session
-from server.render.html.utils import jinjaGlobalFunction
+from viur.server import session
+from viur.server.render.html.utils import jinjaGlobalFunction
 
 
 @jinjaGlobalFunction

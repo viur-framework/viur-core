@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 from html.parser import HTMLParser
 from html import entities as htmlentitydefs
-from server import db
-from server.bones import baseBone
-from server.bones.stringBone import LanguageWrapper
-from server.config import conf
+from viur.server import db
+from viur.server.bones import baseBone
+from viur.server.bones.stringBone import LanguageWrapper
+from viur.server.config import conf
 import logging, string
-from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from typing import List
 
 _defaultTags = {

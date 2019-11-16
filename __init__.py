@@ -37,10 +37,10 @@ import sys, traceback, os, inspect
 #		continue
 #	sys.path.insert(0, os.path.join(cwd, "libs", lib))
 
-from server.config import conf
-from server import request
-import server.languages as servertrans
-from server.i18n import initializeTranslations
+from viur.server.config import conf
+from viur.server import request
+from viur.server import languages as servertrans
+from viur.server.i18n import initializeTranslations
 # from google.appengine.ext import webapp
 # from google.appengine.ext.webapp.util import run_wsgi_app
 # from google.appengine.api import users
@@ -76,9 +76,9 @@ def setDefaultDomainLanguage(domain, lang):
 
 ### Multi-Language Part: END
 
-from server import session, errors
-from server.tasks import TaskHandler, runStartupTasks
-from server import i18n
+from viur.server import session, errors
+from viur.server.tasks import TaskHandler, runStartupTasks
+from viur.server import i18n
 
 
 def mapModule(moduleObj: object, moduleName: str, targetResoveRender: dict):
@@ -160,7 +160,7 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 
 	if isinstance(renderers, dict):
 		rendlist = renderers
-	else:  # build up the dict from server.render
+	else:  # build up the dict from viur.server.render
 		rendlist = {}
 		for key in dir(renderers):
 			if not "__" in key:
@@ -236,10 +236,10 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 	"""
 	if conf["viur.exportPassword"] is not None or conf["viur.importPassword"] is not None:
 		# Enable the Database ex/import API
-		from server.dbtransfer import DbTransfer
+		from viur.server.dbtransfer import DbTransfer
 		if conf["viur.importPassword"]:
 			logging.critical("The Import-API is enabled! Never do this on production systems!")
-			from server import utils
+			from viur.server import utils
 			try:
 				utils.sendEMailToAdmins("Active Database import API",
 										"ViUR just started a new Instance with an ENABLED DATABASE IMPORT API! You have been warned.")
@@ -250,7 +250,7 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 
 		setattr(res, "dbtransfer", DbTransfer())
 	if conf["viur.debug.traceExternalCallRouting"] or conf["viur.debug.traceInternalCallRouting"]:
-		from server import utils
+		from viur.server import utils
 		try:
 			utils.sendEMailToAdmins("Debug mode enabled",
 									"ViUR just started a new Instance with calltracing enabled! This will log sensitive information!")
@@ -280,16 +280,16 @@ def setup(modules, render=None, default="html"):
 	import skeletons  # This import is not used here but _must_ remain to ensure that the
 	# application's data models are explicitly imported at some place!
 
-	from server.bones import bone
+	from viur.server.bones import bone
 
 	if not render:
-		import server.render
-		render = server.render
+		import viur.server.render
+		render = viur.server.render
 	conf["viur.mainApp"] = buildApp(modules, render, default)
 	renderPrefix = ["/%s" % x for x in dir(render) if (not x.startswith("_") and x != default)] + [""]
 	# conf["viur.wsgiApp"] = webapp.WSGIApplication([(r'/(.*)', BrowseHandler)])
 	# Ensure that our Content Security Policy Header Cache gets build
-	from server import securityheaders
+	from viur.server import securityheaders
 	securityheaders._rebuildCspHeaderCache()
 	bone.setSystemInitialized()
 	# Assert that all security releated headers are in a sane state

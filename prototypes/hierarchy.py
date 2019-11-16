@@ -3,12 +3,12 @@ import logging, sys
 from datetime import datetime
 from time import time
 
-from server import db, utils, errors, conf, request, securitykey
-from server import forcePost, forceSSL, exposed, internalExposed
-from server.bones import baseBone, keyBone, numericBone
-from server.prototypes import BasicApplication
-from server.skeleton import Skeleton
-from server.tasks import callDeferred
+from viur.server import db, utils, errors, conf, request, securitykey
+from viur.server import forcePost, forceSSL, exposed, internalExposed
+from viur.server.bones import baseBone, keyBone, numericBone
+from viur.server.prototypes import BasicApplication
+from viur.server.skeleton import Skeleton
+from viur.server.tasks import callDeferred
 
 
 class HierarchySkel(Skeleton):

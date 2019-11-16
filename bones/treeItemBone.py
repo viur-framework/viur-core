@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from server.bones import relationalBone
+from viur.server.bones import relationalBone
 
 
 class treeItemBone(relationalBone):

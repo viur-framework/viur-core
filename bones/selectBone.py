@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-from server.bones import baseBone
+from viur.server.bones import baseBone
 from collections import OrderedDict
 import logging
-from server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 
 
 class selectBone(baseBone):

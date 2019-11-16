@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-from server.bones import treeItemBone
-from server import db, request, conf
-from server.tasks import callDeferred
+from viur.server.bones import treeItemBone
+from viur.server import db, request, conf
+from viur.server.tasks import callDeferred
 # from google.appengine.api import images
 from hashlib import sha256
 import logging
@@ -17,7 +17,7 @@ def ensureDerived(dlkey: str, name: str, deriveMap: Dict[str,Dict]):
 	:param deriveMap:
 	:return:
 	"""
-	from server.skeleton import skeletonByKind
+	from viur.server.skeleton import skeletonByKind
 	skel = skeletonByKind("file")()
 	assert skel.fromDB(dlkey)
 	if not skel["derived"]:

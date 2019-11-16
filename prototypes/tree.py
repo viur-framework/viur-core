@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-from server import db, utils, errors, session, conf, securitykey
-from server import forcePost, forceSSL, exposed, internalExposed
+from viur.server import db, utils, errors, session, conf, securitykey
+from viur.server import forcePost, forceSSL, exposed, internalExposed
 
-from server.prototypes import BasicApplication
-from server.bones import baseBone, keyBone, numericBone
-from server.skeleton import Skeleton, skeletonByKind
-from server.tasks import callDeferred
+from viur.server.prototypes import BasicApplication
+from viur.server.bones import baseBone, keyBone, numericBone
+from viur.server.skeleton import Skeleton, skeletonByKind
+from viur.server.tasks import callDeferred
 
 from datetime import datetime
 import logging

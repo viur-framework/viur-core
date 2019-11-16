@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from server import errors, exposed
+from viur.server import errors, exposed
 
 
 class Site(object):
