@@ -182,6 +182,8 @@ class GaeSession:
 				self.httpKey = cookie
 				if data["lastseen"] < time() - 5 * 60:  # Refresh every 5 Minutes
 					self.changed = True
+				if self.session.get("user"):  # Fix key to be an instance of db.Key
+					self.session["user"]["key"] = db.Key(self.session["user"]["key"][0], self.session["user"]["key"][1])
 			else:
 				# We could not load from firebase; create a new one
 				self.reset()
@@ -201,6 +203,8 @@ class GaeSession:
 		"""
 		try:
 			if self.changed or self.isInitial:
+				if self.session.get("user"):  # Flatten key back to tuple
+					self.session["user"]["key"] = (self.session["user"]["key"][0], self.session["user"]["key"][1])
 				serialized = base64.b64encode(pickle.dumps(self.session, protocol=pickle.HIGHEST_PROTOCOL))
 				# Get the current user id
 				try:

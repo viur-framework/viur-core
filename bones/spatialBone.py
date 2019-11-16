@@ -107,7 +107,7 @@ class spatialBone(baseBone):
 			:type name: str
 			:returns: dict
 		"""
-		if not name in valuesCache:
+		if not valuesCache.get(name):
 			entity[name] = self.getDefaultValue()
 		else:
 			lat, lng = valuesCache[name]

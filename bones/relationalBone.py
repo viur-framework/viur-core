@@ -474,7 +474,7 @@ class relationalBone(baseBone):
 					cleanList.append(item)
 			if not cleanList:
 				errors.append(
-					ReadFromClientError(ReadFromClientError.Empty, name, "No value selected")
+					ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")
 				)
 				#errorDict[name] = "No value selected"
 			valuesCache[name] = tmpList
@@ -888,8 +888,8 @@ class relationalBone(baseBone):
 		from viur.server.skeleton import RefSkel, skeletonByKind
 		def relSkelFromKey(key):
 			if not isinstance(key, db.Key):
-				key = db.Key(encoded=key)
-			if not key.kind() == self.kind:
+				key = db.Key(self.kind, key)
+			if not key[0] == self.kind:
 				logging.error(
 					"I got a key, which kind doesn't match my type! (Got: %s, my type %s)" % (key.kind(), self.kind))
 				return None
@@ -905,6 +905,8 @@ class relationalBone(baseBone):
 			raise ValueError("Bone %s is not multiple, cannot append!" % boneName)
 		if not self.multiple and not self.using:
 			if not (isinstance(value, str) or isinstance(value, db.Key)):
+				logging.error(value)
+				logging.error(type(value))
 				raise ValueError("You must supply exactly one Database-Key to %s" % boneName)
 			realValue = (value, None)
 		elif not self.multiple and self.using:

@@ -60,8 +60,6 @@ class stringBone(baseBone):
 		self.caseSensitive = caseSensitive
 		if not (languages is None or (isinstance(languages, list) and len(languages) > 0 and all(
 				[isinstance(x, str) for x in languages]))):
-			logging.error(type(languages))
-			logging.error(languages)
 			raise ValueError("languages must be None or a list of strings")
 		self.languages = languages
 		if defaultValue is None:

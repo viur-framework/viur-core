@@ -197,11 +197,9 @@ def getCurrentUser():
 		:returns: A dict containing information about the logged-in user, None if no user is logged in.
 	"""
 	user = None
-
 	if "user" in dir(conf["viur.mainApp"]):  # Check for our custom user-api
 		user = conf["viur.mainApp"].user.getCurrentUser()
-
-	return (user)
+	return user
 
 
 def markFileForDeletion(dlkey):

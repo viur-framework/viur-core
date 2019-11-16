@@ -38,7 +38,7 @@ class MetaBaseSkel(type):
 					raise AttributeError("Invalid bone '%s': Bone cannot have any of the following names: %s" %
 										 (key, str(MetaBaseSkel.__reservedKeywords_)))
 				boneNames.append(key)
-		cls.__boneNames__ = tuple(boneNames)
+		cls.__boneNames__ = boneNames
 		MetaBaseSkel._allSkelClasses.add(cls)
 		super(MetaBaseSkel, cls).__init__(name, bases, dct)
 
@@ -102,11 +102,15 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 				raise AttributeError(
 					"You cannot directly modify the skeleton instance. Grab a copy using .clone() first!")
 		super(BaseSkeleton, self).__setattr__(key, value)
+		if isinstance(value, baseBone):
+			self.__boneNames__.append(key)
 
 	def __delattr__(self, key):
 		if "_BaseSkeleton__isInitialized_" in dir(self) and not self.isClonedInstance:
 			raise AttributeError("You cannot directly modify the skeleton instance. Grab a copy using .clone() first!")
 		super(BaseSkeleton, self).__delattr__(key)
+		if key in self.__boneNames__:
+			self.__boneNames__.remove(key)
 
 	@classmethod
 	def subSkel(cls, name, *args, **kwargs):
@@ -1065,6 +1069,7 @@ class RefSkel(RelSkel):
 				setattr(skel, key, bone)
 				skel.__boneNames__.append(key)
 				skel[key] = None
+		skel.__boneNames__ = tuple(skel.__boneNames__)
 		# super(BaseSkeleton, skel).__setattr__("_BaseSkeleton__isInitialized_", True)
 		return skel
 

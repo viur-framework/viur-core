@@ -86,7 +86,10 @@ class recordBone(baseBone):
 		return entity
 
 	def fromClient(self, valuesCache, name, data):
-		return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Not yet fixed")]
+		#return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Not yet fixed")]
+		if not name in data and not any(x.startswith("%s." % name) for x in data):
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
+
 		valuesCache[name] = []
 		tmpRes = {}
 
@@ -136,17 +139,16 @@ class recordBone(baseBone):
 		tmpList = [tmpRes[k] for k in sorted(tmpRes.keys())]
 
 		errors = []
-		forceFail = False
 
 		for i, r in enumerate(tmpList[:]):
 			usingSkel = self._usingSkelCache
 			usingSkel.setValuesCache({})
 
 			if not usingSkel.fromClient(r):
-				for k, v in usingSkel.errors.items():
-					errorDict["%s.%d.%s" % (name, i, k)] = v
-					forceFail = True
-
+				for error in refSkel.errors:
+					errors.append(
+						ReadFromClientError(error.severity, "%s.%s.%s" % (name, i), error.fieldPath),
+											error.errorMessage)
 			tmpList[i] = usingSkel.getValuesCache()
 
 		cleanList = []
@@ -154,22 +156,21 @@ class recordBone(baseBone):
 		for item in tmpList:
 			err = self.isInvalid(item)
 			if err:
-				errorDict["%s.%s" % (name, tmpList.index(item))] = err
+				errors.append(
+					ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "%s.%s" % (name, tmpList.index(item)), err)
+				)
 			else:
 				cleanList.append(item)
 
 		valuesCache[name] = tmpList
 
 		if not cleanList:
-			if not (self.required or errorDict):
-				# Returning a error will only cause a warning if we are not required
-				return "No value selected!"
-			errorDict[name] = "No value selected"
+			errors.append(
+				ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")
+			)
 
-		if len(errorDict.keys()):
-			return ReadFromClientError(errorDict, forceFail)
-
-		return None
+		if errors:
+			return errors
 
 	def getSearchTags(self, values, key):
 		def getValues(res, skel, valuesCache):

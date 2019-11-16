@@ -144,33 +144,11 @@ class Render(object):
 				return ("%s/%s" % (prefix, fn))
 		for fn in fnames:  # Check the templatefolder of the application
 			if os.path.isfile(os.path.join(os.getcwd(), htmlpath, fn)):
-				self.checkForOldLinePrefix(os.path.join(os.getcwd(), htmlpath, fn))
-				return (fn)
+				return fn
 		for fn in fnames:  # Check the fallback
-			if os.path.isfile(os.path.join(os.getcwd(), "server", "template", fn)):
-				self.checkForOldLinePrefix(os.path.join(os.getcwd(), "server", "template", fn))
-				return (fn)
+			if os.path.isfile(os.path.join(os.getcwd(), "viur", "server", "template", fn)):
+				return fn
 		raise errors.NotFound("Template %s not found." % template)
-
-	def checkForOldLinePrefix(self, fn):
-		"""
-			This method checks the given template for lines starting with "##" - the old, now unsupported
-			Line-Prefix. Bail out if such prefixes are used. This is a temporary safety measure; will be
-			removed after 01.05.2017.
-
-			:param fn: The filename to check
-			:return:
-		"""
-		if not "_safeTemplatesCache" in dir(self):
-			self._safeTemplatesCache = []  # Scan templates at most once per instance
-		if fn in self._safeTemplatesCache:
-			return  # This template has already been checked and looks okay
-		tplData = open(fn, "r").read()
-		for l in tplData.splitlines():
-			if l.strip(" \t").startswith("##"):
-				raise SyntaxError("Template %s contains unsupported Line-Markers (##)" % fn)
-		self._safeTemplatesCache.append(fn)
-		return
 
 	def getLoaders(self):
 		"""
@@ -184,7 +162,7 @@ class Render(object):
 		else:
 			htmlpath = "html/"
 
-		return ChoiceLoader([FileSystemLoader(htmlpath), FileSystemLoader("server/template/")])
+		return ChoiceLoader([FileSystemLoader(htmlpath), FileSystemLoader("viur/server/template/")])
 
 	def renderBoneStructure(self, bone):
 		"""
