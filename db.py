@@ -67,7 +67,7 @@ __firestoreStub__ = firestore_pb2_grpc.FirestoreStub(channel=__channel__)
 
 ## Custom Datatypes
 GeoPoint = namedtuple("GeoPoint", ["latitude", "longitude"])  # Fixme: Currently not used
-Key = namedtuple("dbKey", ["collection", "name"])
+Key = namedtuple("Key", ["collection", "name"])
 
 _operatorMap = {
 	"<": enums.StructuredQuery.FieldFilter.Operator.LESS_THAN,

@@ -103,14 +103,14 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 					"You cannot directly modify the skeleton instance. Grab a copy using .clone() first!")
 		super(BaseSkeleton, self).__setattr__(key, value)
 		if isinstance(value, baseBone):
-			self.__boneNames__.append(key)
+			self.__boneNames__ = self.__boneNames__ + [key]
 
 	def __delattr__(self, key):
 		if "_BaseSkeleton__isInitialized_" in dir(self) and not self.isClonedInstance:
 			raise AttributeError("You cannot directly modify the skeleton instance. Grab a copy using .clone() first!")
 		super(BaseSkeleton, self).__delattr__(key)
 		if key in self.__boneNames__:
-			self.__boneNames__.remove(key)
+			self.__boneNames__ = [x for x in self.__boneNames__ if x != key]
 
 	@classmethod
 	def subSkel(cls, name, *args, **kwargs):

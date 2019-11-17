@@ -111,13 +111,19 @@ class spatialBone(baseBone):
 			entity[name] = self.getDefaultValue()
 		else:
 			lat, lng = valuesCache[name]
-			entity[name + ".lat.val"] = lat
-			entity[name + ".lng.val"] = lng
 			gridSizeLat, gridSizeLng = self.getGridSize()
 			tileLat = int(floor((lat - self.boundsLat[0]) / gridSizeLat))
 			tileLng = int(floor((lng - self.boundsLng[0]) / gridSizeLng))
-			entity[name + ".lat.tiles"] = [tileLat - 1, tileLat, tileLat + 1]
-			entity[name + ".lng.tiles"] = [tileLng - 1, tileLng, tileLng + 1]
+			entity[name] = {
+				"coordinates": {
+					"lat": lat,
+					"lng": lng,
+				},
+				"tiles": {
+					"lat": [tileLat - 1, tileLat, tileLat + 1],
+					"lng": [tileLng - 1, tileLng, tileLng + 1],
+				}
+			}
 		return entity
 
 	def unserialize(self, valuesCache, name, expando):
@@ -177,23 +183,23 @@ class spatialBone(baseBone):
 			assert not isinstance(dbFilter.datastoreQuery, db.MultiQuery)
 			origQuery = dbFilter.datastoreQuery
 			# Lat - Right Side
-			q1 = db.DatastoreQuery(kind=dbFilter.getKind())
-			q1[name + ".lat.val >="] = lat
-			q1[name + ".lat.tiles"] = tileLat
+			q1 = db.Query(collection=dbFilter.getKind())
+			q1[name + ".coordinates.lat >="] = lat
+			q1[name + ".tiles.lat"] = tileLat
 			# Lat - Left Side
-			q2 = db.DatastoreQuery(kind=dbFilter.getKind())
-			q2[name + ".lat.val <"] = lat
-			q2[name + ".lat.tiles"] = tileLat
-			q2.Order((name + ".lat.val", db.DESCENDING))
+			q2 = db.Query(collection=dbFilter.getKind())
+			q2[name + ".coordinates.lat <"] = lat
+			q2[name + ".tiles.lat"] = tileLat
+			q2.Order((name + ".coordinates.lat", db.DESCENDING))
 			# Lng - Down
-			q3 = db.DatastoreQuery(kind=dbFilter.getKind())
-			q3[name + ".lng.val >="] = lng
-			q3[name + ".lng.tiles"] = tileLng
+			q3 = db.Query(collection=dbFilter.getKind())
+			q3[name + ".coordinates.lng >="] = lng
+			q3[name + ".tiles.lng"] = tileLng
 			# Lng - Top
-			q4 = db.DatastoreQuery(kind=dbFilter.getKind())
-			q4[name + ".lng.val <"] = lng
-			q4[name + ".lng.tiles"] = tileLng
-			q4.Order((name + ".lng.val", db.DESCENDING))
+			q4 = db.Query(collection=dbFilter.getKind())
+			q4[name + ".coordinates.lng <"] = lng
+			q4[name + ".tiles.lng"] = tileLng
+			q4.Order((name + ".coordinates.lng", db.DESCENDING))
 
 			dbFilter.datastoreQuery = db.MultiQuery([q1, q2, q3, q4], None)
 

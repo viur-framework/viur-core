@@ -658,7 +658,7 @@ class User(List):
 			except:
 				pass
 
-		session.current["user"]["key"] = userKey
+		session.current["user"]["key"] = db.Key(userKey[0], userKey[1])
 		if not "access" in session.current["user"] or not session.current["user"]["access"]:
 			session.current["user"]["access"] = []
 
