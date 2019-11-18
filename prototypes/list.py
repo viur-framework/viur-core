@@ -219,7 +219,6 @@ class List(BasicApplication):
 
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
-
 		skel.toDB()  # write it!
 		self.onItemEdited(skel)
 
@@ -241,17 +240,13 @@ class List(BasicApplication):
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-
 		if "skey" in kwargs:
 			skey = kwargs["skey"]
 		else:
 			skey = ""
-
 		if not self.canAdd():
 			raise errors.Unauthorized()
-
 		skel = self.addSkel()
-
 		if (len(kwargs) == 0  # no data supplied
 				or skey == ""  # no skey supplied
 				or not request.current.get().isPostRequest  # failure if not using POST-method
@@ -260,13 +255,10 @@ class List(BasicApplication):
 		):
 			# render the skeleton in the version it could as far as it could be read.
 			return self.render.add(skel)
-
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
-
 		skel.toDB()
 		self.onItemAdded(skel)
-
 		return self.render.addItemSuccess(skel)
 
 	@forceSSL

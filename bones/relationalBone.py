@@ -261,6 +261,7 @@ class relationalBone(baseBone):
 		dbVals.filter("viur_src_kind =", skel.kindName)
 		dbVals.filter("viur_dest_kind =", self.kind)
 		dbVals.filter("viur_src_property =", boneName)
+		dbVals.filter("src.key =", key)
 
 		for dbObj in dbVals.iter():
 			try:
@@ -322,8 +323,13 @@ class relationalBone(baseBone):
 			dbObj["viur_foreign_keys"] = self.refKeys
 			db.Put(dbObj)
 
-	def postDeletedHandler(self, skel, key, id):
-		db.Delete([x for x in db.Query("viur-relations").ancestor(db.Key(id)).run(keysOnly=True)])
+	def postDeletedHandler(self, skel, boneName, key):
+		dbVals = db.Query("viur-relations")  # skel.kindName+"_"+self.kind+"_"+key
+		dbVals.filter("viur_src_kind =", skel.kindName)
+		dbVals.filter("viur_dest_kind =", self.kind)
+		dbVals.filter("viur_src_property =", boneName)
+		dbVals.filter("src.key =", key)
+		db.Delete([x for x in dbVals.run(keysOnly=True)])
 
 	def isInvalid(self, key):
 		return False

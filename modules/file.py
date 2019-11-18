@@ -18,6 +18,7 @@ import hashlib
 import hmac
 from io import BytesIO
 from PIL import Image
+from typing import Union, Tuple, Dict
 
 client = storage.Client.from_service_account_json("store_credentials.json")
 bucket = client.lookup_bucket("%s.appspot.com" % projectID)
@@ -186,33 +187,12 @@ class File(Tree):
 			if skel.fromDB(str(d)):
 				skel.delete()
 
-	@exposed
-	def getUploadURL(self, *args, **kwargs):
-		skey = kwargs.get("skey", "")
-		node = kwargs.get("node")
-		if node:
-			rootNode = self.getRootNode(node)
-			if not self.canAdd("leaf", rootNode):
-				raise errors.Forbidden()
-		else:
-			if not self.canAdd("leaf", None):
-				raise errors.Forbidden()
-		if not securitykey.validate(skey, useSessionKey=True):
-			raise errors.PreconditionFailed()
-
+	def createUploadURL(self, node: Union[str, None]) -> Tuple[str, str, Dict[str, str]]:
 		targetKey = utils.generateRandomString()
 		conditions = [["starts-with", "$key", "%s/source/" % targetKey]]
 
 		policy = bucket.generate_upload_policy(conditions)
 		uploadUrl = "https://%s.storage.googleapis.com" % bucket.name
-		resDict = {
-			"url": uploadUrl,
-			"params": {
-				"key": "%s/source/file.dat" % targetKey,
-			}
-		}
-		for key, value in policy.items():
-			resDict["params"][key] = value
 
 		# Create a correspondingfile-lock object early, otherwise we would have to ensure that the file-lock object
 		# the user creates matches the file he had uploaded
@@ -237,6 +217,31 @@ class File(Tree):
 		fileSkel.toDB()
 		# Mark that entry dirty as we might never receive an add
 		utils.markFileForDeletion(targetKey)
+		return targetKey, uploadUrl, policy
+
+	@exposed
+	def getUploadURL(self, *args, **kwargs):
+		skey = kwargs.get("skey", "")
+		node = kwargs.get("node")
+		if node:
+			rootNode = self.getRootNode(node)
+			if not self.canAdd("leaf", rootNode):
+				raise errors.Forbidden()
+		else:
+			if not self.canAdd("leaf", None):
+				raise errors.Forbidden()
+		if not securitykey.validate(skey, useSessionKey=True):
+			raise errors.PreconditionFailed()
+
+		targetKey, uploadUrl, policy = self.createUploadURL(node)
+		resDict = {
+			"url": uploadUrl,
+			"params": {
+				"key": "%s/source/file.dat" % targetKey,
+			}
+		}
+		for key, value in policy.items():
+			resDict["params"][key] = value
 
 		return self.render.view(resDict)
 

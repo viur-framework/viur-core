@@ -177,7 +177,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		super(BaseSkeleton, self).__init__(*args, **kwargs)
 		self.errors = []
 		# self.__dataDict__ = OrderedDict()
-		self.valuesCache = {}
+		self.valuesCache = {"changedValues": {}, "entity": None}
 		"""
 		if _cloneFrom:
 			for key, bone in _cloneFrom.__dataDict__.items():
@@ -232,7 +232,6 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		for key, bone in cpy.items():
 			bone.isClonedInstance = True
 		return cpy
-		return type(self)(_cloneFrom=self)
 
 	def ensureIsCloned(self):
 		"""
@@ -252,32 +251,25 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		if isinstance(value, baseBone):
 			raise AttributeError("Don't assign this bone object as skel[\"%s\"] = ... anymore to the skeleton. "
 								 "Use skel.%s = ... for bone to skeleton assignment!" % (key, key))
-
 		elif isinstance(value, db.Key):
-			value = str(value)
-
-		self.valuesCache[key] = value
-
-	# if not self.isClonedInstance:
-	#	raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
-	# if value is None and name in self.__dataDict__.keys():
-	#	del self.__dataDict__[ name ]
-	# elif isinstance( value, baseBone ):
-	#	self.__dataDict__[ name ] = value
-	# elif value:
-	#	raise ValueError("Expected a instance of baseBone or None, got %s instead." % type(value))
+			value = str(value[1])
+		self.valuesCache["changedValues"][key] = value
 
 	def __getitem__(self, key):
-		if not key in self.valuesCache:
+		if key not in self.valuesCache["changedValues"]:
 			boneInstance = getattr(self, key, None)
 			if boneInstance:
-				self.valuesCache[key] = boneInstance.getDefaultValue()
-		return self.valuesCache.get(key, None)
+				if self.valuesCache["entity"] is not None:
+					boneInstance.unserialize(self.valuesCache["changedValues"], key, self.valuesCache["entity"])
+				else:
+					self.valuesCache["changedValues"][key] = boneInstance.getDefaultValue()
+		return self.valuesCache["changedValues"].get(key)
 
 	def __delitem__(self, key):
-		del self.valuesCache[key]
-
-	# del self.__dataDict__[ key ]
+		if key in self.valuesCache["changedValues"]:
+			del self.valuesCache["changedValues"][key]
+		if key in self.valuesCache["entity"]:
+			del self.valuesCache["entity"][key]
 
 	def setValues(self, values):
 		"""
@@ -295,20 +287,10 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 			:param values: A dictionary with values.
 			:type values: dict
 		"""
-		for bkey, _bone in self.items():
-			if isinstance(_bone, baseBone):
-				if bkey == "key":
-					try:
-						# Reading the value from db.Entity
-						self.valuesCache[bkey] = str(values.name)
-					except:
-						# Is it in the dict?
-						if "key" in values:
-							self.valuesCache[bkey] = str(values["key"])
-						else:  # Ingore the key value
-							pass
-				else:
-					_bone.unserialize(self.valuesCache, bkey, values)
+		self.valuesCache = {"changedValues": {}, "entity": values}
+		if isinstance(values, db.Entity):
+			self["key"] = values.name
+		return
 
 	def getValues(self):
 		"""
@@ -317,7 +299,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 			:returns: Dictionary, where the keys are the bones and the values the current values.
 			:rtype: dict
 		"""
-		return self.valuesCache
+		return dict(self.items())
 
 	def setBoneValue(self, boneName, value, append=False):
 		"""
@@ -366,7 +348,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		for key, _bone in self.items():
 			if _bone.readOnly:
 				continue
-			errors = _bone.fromClient(self.valuesCache, key, data)
+			errors = _bone.fromClient(self.valuesCache["changedValues"], key, data)
 			if errors:
 				self.errors.extend(errors)
 				for error in errors:
@@ -667,11 +649,12 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 						oldUniqueValues = dbObj["%s_uniqueIndexValue" % key]
 
 				# Merge the values from mergeFrom in
-				if key in mergeFrom:
-					bone.mergeFrom(skel.valuesCache, key, mergeFrom)
+				if key in mergeFrom.valuesCache["changedValues"]:
+					#bone.mergeFrom(skel.valuesCache, key, mergeFrom)
+					dbObj = bone.serialize(mergeFrom.valuesCache["changedValues"], key, dbObj)
 
-				# Serialize bone into entity
-				dbObj = bone.serialize(skel.valuesCache, key, dbObj)
+				## Serialize bone into entity
+				#dbObj = bone.serialize(skel.valuesCache, key, dbObj)
 
 				# Obtain referenced blobs
 				blobList.update(bone.getReferencedBlobs(self.valuesCache, key))
@@ -993,7 +976,7 @@ class RelSkel(BaseSkeleton):
 		for key, _bone in self.items():
 			if _bone.readOnly:
 				continue
-			error = _bone.fromClient(self.valuesCache, key, data)
+			error = _bone.fromClient(self.valuesCache["changedValues"], key, data)
 			if isinstance(error, errors.ReadFromClientError):
 				self.errors.update(error.errors)
 				if error.forceFail:
@@ -1005,19 +988,15 @@ class RelSkel(BaseSkeleton):
 		if (len(data) == 0 or (len(data) == 1 and "key" in data) or (
 				"nomissing" in data and str(data["nomissing"]) == "1")):
 			super(BaseSkeleton, self).__setattr__("errors", {})
-		return (complete)
+		return complete
 
 	def serialize(self):
-		class FakeEntity(dict):
-			def set(self, key, value, indexed=False):
-				self[key] = value
-
-		dbObj = FakeEntity()
 		for key, _bone in self.items():
-			dbObj = _bone.serialize(self.valuesCache, key, dbObj)
-		if "key" in self:  # Write the key seperatly, as the base-bone doesn't store it
-			dbObj["key"] = self["key"]
-		return dbObj
+			if key in self.valuesCache["changedValues"]:
+				self.valuesCache["entity"] = _bone.serialize(self.valuesCache["changedValues"], key, self.valuesCache["entity"])
+		#if "key" in self:  # Write the key seperatly, as the base-bone doesn't store it
+		#	dbObj["key"] = self["key"]
+		return self.valuesCache["entity"]
 
 	def unserialize(self, values):
 		"""
@@ -1027,6 +1006,8 @@ class RelSkel(BaseSkeleton):
 			:type values: dict | db.Entry
 			:return:
 		"""
+		self.valuesCache = {"entity": values, "changedValues": {}}
+		return
 		for bkey, _bone in self.items():
 			if isinstance(_bone, baseBone):
 				if bkey == "key":
@@ -1068,7 +1049,7 @@ class RefSkel(RelSkel):
 			if key in args:
 				setattr(skel, key, bone)
 				skel.__boneNames__.append(key)
-				skel[key] = None
+				#skel[key] = None
 		skel.__boneNames__ = tuple(skel.__boneNames__)
 		# super(BaseSkeleton, skel).__setattr__("_BaseSkeleton__isInitialized_", True)
 		return skel
