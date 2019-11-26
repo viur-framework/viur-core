@@ -1081,14 +1081,10 @@ class Query(object):
 			:returns: Filter as dictionary.
 			:rtype: dict
 		"""
-		if self.datastoreQuery is None:
-			return (None)
-		elif isinstance(self.datastoreQuery, MultiQuery):
-			res = []
-			for qry in getattr(self.datastoreQuery, "_MultiQuery__bound_queries"):
-				res.append({k: v for (k, v) in qry.items()})
-			return res
-		return ({k: v for (k, v) in self.datastoreQuery.items()})
+		if self.filters is None:
+			return None
+		else:
+			return deepcopy(self.filters)
 
 	def getOrders(self):
 		"""
