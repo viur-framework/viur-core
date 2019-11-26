@@ -512,7 +512,7 @@ class relationalBone( baseBone ):
 						v = db.Key( v )
 					dbFilter.ancestor( v )
 					continue
-				boneName = k if "." not in k else k.split(".")[0]
+				boneName = k.split(".")[0]
 				if not boneName in self.parentKeys:
 					logging.warning("Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (boneName, name))
 					raise RuntimeError()
