@@ -181,6 +181,13 @@ class DefaultRender(object):
 					"dest": self.renderSkelValues(refSkel, injectDownloadURL=isinstance(bone, bones.fileBone)),
 					"rel": usingData
 				}
+		elif  isinstance(bone, bones.recordBone):
+			usingSkel = bone._usingSkelCache
+			tmpList = []
+			for k in skel[key]:
+				usingSkel.setValuesCache(k)
+				tmpList.append(self.renderSkelValues(usingSkel))
+			return tmpList
 		else:
 			return skel[key]
 

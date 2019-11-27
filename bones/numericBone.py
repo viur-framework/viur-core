@@ -77,6 +77,7 @@ class numericBone(baseBone):
 		valuesCache[name] = value
 
 	def serialize(self, valuesCache, name, entity):
+		logging.error(valuesCache)
 		if not name in valuesCache:
 			entity[name] = self.getDefaultValue()
 			return entity

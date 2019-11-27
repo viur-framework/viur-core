@@ -2,7 +2,6 @@
 from viur.server.bones.bone import baseBone, getSystemInitialized
 from viur.server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from typing import List
-import json
 
 
 class recordBone(baseBone):
@@ -33,13 +32,12 @@ class recordBone(baseBone):
 
 			:return: Our Value (with restored usingSkel data)
 		"""
-		value = json.loads(val)
+		value = val
 		assert isinstance(value, dict), "Read something from the datastore thats not a dict: %s" % str(type(value))
 
 		usingSkel = self._usingSkelCache
 		usingSkel.setValuesCache({})
 		usingSkel.unserialize(value)
-
 		return usingSkel.getValuesCache()
 
 	def unserialize(self, valuesCache, name, expando):
@@ -79,7 +77,7 @@ class recordBone(baseBone):
 
 			for val in valuesCache[name]:
 				usingSkel.setValuesCache(val)
-				res.append(json.dumps(usingSkel.serialize()))
+				res.append(usingSkel.serialize())
 
 			entity.set(name, res, False)
 
@@ -142,13 +140,13 @@ class recordBone(baseBone):
 
 		for i, r in enumerate(tmpList[:]):
 			usingSkel = self._usingSkelCache
-			usingSkel.setValuesCache({})
+			usingSkel.setValuesCache({"entity": {}, "changedValues": {}})
 
 			if not usingSkel.fromClient(r):
-				for error in refSkel.errors:
+				for error in usingSkel.errors:
 					errors.append(
-						ReadFromClientError(error.severity, "%s.%s.%s" % (name, i), error.fieldPath),
-											error.errorMessage)
+						ReadFromClientError(error.severity, "%s.%s.%s" % (name, i, error.fieldPath), error.errorMessage)
+					)
 			tmpList[i] = usingSkel.getValuesCache()
 
 		cleanList = []

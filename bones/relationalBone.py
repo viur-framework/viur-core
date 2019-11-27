@@ -759,7 +759,9 @@ class relationalBone(baseBone):
 		"""
 			Refresh all values we might have cached from other entities.
 		"""
-
+		import logging
+		logging.error("REFRESH CURRENTLY DISABLED")
+		return
 		def updateInplace(relDict):
 			"""
 				Fetches the entity referenced by valDict["dest.key"] and updates all dest.* keys

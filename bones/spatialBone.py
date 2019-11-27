@@ -4,7 +4,7 @@ from math import pow, floor, ceil
 from viur.server import db
 import logging
 import math
-
+from viur.server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 
 def haversine(lat1, lng1, lat2, lng2):
 	"""
@@ -137,10 +137,45 @@ class spatialBone(baseBone):
 			:type expando: db.Entity
 			:returns: bool
 		"""
-		if not name + ".lat.val" in expando or not name + ".lng.val":
+		myVal = expando.get(name)
+		if myVal:
+			valuesCache[name] = myVal["coordinates"]["lat"], myVal["coordinates"]["lng"]
+		else:
 			valuesCache[name] = None
-			return
-		valuesCache[name] = expando[name + ".lat.val"], expando[name + ".lng.val"]
+
+	def fromClient( self, valuesCache, name, data ):
+		"""
+			Reads a value from the client.
+			If this value is valid for this bone,
+			store this value and return None.
+			Otherwise our previous value is
+			left unchanged and an error-message
+			is returned.
+			:param name: Our name in the skeleton
+			:type name: str
+			:param data: *User-supplied* request-data
+			:type data: dict
+			:returns: None or String
+		"""
+		rawLat = data.get("%s.lat" % name, None)
+		rawLng = data.get("%s.lng" % name, None)
+		if rawLat is None or rawLng is None:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
+		try:
+			rawLat = float(rawLat)
+			rawLng = float(rawLng)
+			# Check for NaNs
+			assert rawLat == rawLat
+			assert rawLng == rawLng
+		except:
+			logging.error(rawLat)
+			logging.error(rawLng)
+			raise
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
+		err = self.isInvalid((rawLat, rawLng))
+		if err:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+		valuesCache[name] = (rawLat, rawLng)
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		"""

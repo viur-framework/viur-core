@@ -972,22 +972,20 @@ class RelSkel(BaseSkeleton):
 			:returns: True if the data was successfully read; False otherwise (eg. some required fields where missing or invalid)
 		"""
 		complete = True
-		super(BaseSkeleton, self).__setattr__("errors", {})
+		super(BaseSkeleton, self).__setattr__("errors", [])
 		for key, _bone in self.items():
 			if _bone.readOnly:
 				continue
-			error = _bone.fromClient(self.valuesCache["changedValues"], key, data)
-			if isinstance(error, errors.ReadFromClientError):
-				self.errors.update(error.errors)
-				if error.forceFail:
-					complete = False
-			else:
-				self.errors[key] = error
-			if error and _bone.required:
-				complete = False
+			errors = _bone.fromClient(self.valuesCache["changedValues"], key, data)
+			if errors:
+				self.errors.extend(errors)
+				for err in errors:
+					if err.severity == ReadFromClientErrorSeverity.Empty and _bone.required \
+							or err.severity == ReadFromClientErrorSeverity.Invalid:
+						complete = False
 		if (len(data) == 0 or (len(data) == 1 and "key" in data) or (
 				"nomissing" in data and str(data["nomissing"]) == "1")):
-			super(BaseSkeleton, self).__setattr__("errors", {})
+			super(BaseSkeleton, self).__setattr__("errors", [])
 		return complete
 
 	def serialize(self):
@@ -1092,6 +1090,8 @@ class SkelList(list):
 
 @callDeferred
 def updateRelations(destID, minChangeTime, changeList, cursor=None):
+	logging.error("Updaterelations currently disabled")
+	return
 	logging.debug("Starting updateRelations for %s ; minChangeTime %s, Changelist: %s", destID, minChangeTime,
 				  changeList)
 	updateListQuery = db.Query("viur-relations").filter("dest.key =", destID) \
