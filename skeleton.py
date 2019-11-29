@@ -177,7 +177,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		super(BaseSkeleton, self).__init__(*args, **kwargs)
 		self.errors = []
 		# self.__dataDict__ = OrderedDict()
-		self.valuesCache = {"changedValues": {}, "entity": None}
+		self.valuesCache = {"changedValues": {}, "entity": {}}
 		"""
 		if _cloneFrom:
 			for key, bone in _cloneFrom.__dataDict__.items():
@@ -320,7 +320,8 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		bone = getattr(self, boneName, None)
 		if not isinstance(bone, baseBone):
 			raise ValueError("%s is no valid bone on this skeleton (%s)" % (boneName, str(self)))
-		return bone.setBoneValue(self.valuesCache, boneName, value, append)
+		self[boneName]  #FIXME, ensure this bone is unserialized first
+		return bone.setBoneValue(self.valuesCache["changedValues"], boneName, value, append)
 
 	def fromClient(self, data):
 		"""
@@ -657,7 +658,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				#dbObj = bone.serialize(skel.valuesCache, key, dbObj)
 
 				# Obtain referenced blobs
-				blobList.update(bone.getReferencedBlobs(self.valuesCache, key))
+				logging.error("Blobl %s %s" % (key, bone.getReferencedBlobs(dbObj, key)))
+				blobList.update(bone.getReferencedBlobs(dbObj, key))
 
 				# Check if the value has actually changed
 				if dbObj.get(key) != oldCopy.get(key):
@@ -779,6 +781,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 			if blobList is None:
 				raise ValueError("Did you forget to return the bloblist somewhere inside getReferencedBlobs()?")
 			if None in blobList:
+				logging.error("b1l is %s" % blobList)
 				raise ValueError("None is not a valid blobKey.")
 			if oldBlobLockObj is not None:
 				oldBlobs = set(oldBlobLockObj.get("active_blob_references") or [])
@@ -807,6 +810,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		# END of txnUpdate subfunction
 
 		key = self["key"] or None
+		logging.error("GGG12: Key is %s (%s)" % (key, self.kindName))
+		logging.error(self.valuesCache)
 		isAdd = key is None
 		if not isinstance(clearUpdateTag, bool):
 			raise ValueError(
@@ -994,7 +999,8 @@ class RelSkel(BaseSkeleton):
 				self.valuesCache["entity"] = _bone.serialize(self.valuesCache["changedValues"], key, self.valuesCache["entity"])
 		#if "key" in self:  # Write the key seperatly, as the base-bone doesn't store it
 		#	dbObj["key"] = self["key"]
-		return self.valuesCache["entity"]
+		#FIXME: is this a good idea? Any other way to ensure only bones present in refKeys are serialized?
+		return {k: v for k, v in self.valuesCache["entity"].items() if k in self.__boneNames__}
 
 	def unserialize(self, values):
 		"""

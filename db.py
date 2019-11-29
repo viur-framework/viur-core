@@ -1081,10 +1081,7 @@ class Query(object):
 			:returns: Filter as dictionary.
 			:rtype: dict
 		"""
-		if self.filters is None:
-			return None
-		else:
-			return deepcopy(self.filters)
+		return self.filters
 
 	def getOrders(self):
 		"""
@@ -1181,7 +1178,10 @@ class Query(object):
 		def mkFilterPb(key, value):
 			field, opcode = key.split(" ")
 			if field == KEY_SPECIAL_PROPERTY:  # We have to treat key filters differently
-				value = document_pb2.Value(reference_value="%s%s/%s" % (__documentRoot__, self.getKind(), value))
+				if isinstance(value, Key):
+					value = document_pb2.Value(reference_value="%s%s/%s" % (__documentRoot__, value[0], value[1]))
+				else:
+					value = document_pb2.Value(reference_value="%s%s/%s" % (__documentRoot__, self.getKind(), value))
 			else:
 				value = _pythonValToProtoValue(value)
 			filter_pb = query_pb2.StructuredQuery.FieldFilter(

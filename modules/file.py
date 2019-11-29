@@ -199,21 +199,15 @@ class File(Tree):
 
 		fileSkel = self.addLeafSkel()
 		fileSkel["key"] = targetKey
-
-		fileSkel.setValues(
-			{
-				"name": "pending",
-				"size": 0,
-				"mimetype": "application/octetstream",
-				"dlkey": targetKey,
-				"servingurl": "",
-				"parentdir": "pending-%s" % utils.escapeString(node) if node else "",
-				"parentrepo": "",
-				"weak": True,
-				"width": 0,
-				"height": 0
-			}
-		)
+		fileSkel["name"] = "pending"
+		fileSkel["size"] = 0
+		fileSkel["mimetype"] = "application/octetstream"
+		fileSkel["dlkey"] = targetKey
+		fileSkel["parentdir"] = "pending-%s" % utils.escapeString(node) if node else "pending-"
+		fileSkel["weak"] = True
+		fileSkel["width"] = 0
+		fileSkel["height"] = 0
+		fileSkel[""] = ""
 		fileSkel.toDB()
 		# Mark that entry dirty as we might never receive an add
 		utils.markFileForDeletion(targetKey)
@@ -414,15 +408,15 @@ class File(Tree):
 		if skelType == "leaf":  # We need to handle leafs separately here
 			skey = kwargs.get("skey")
 			targetKey = kwargs.get("key")
-			if not skey or not securitykey.validate(skey, useSessionKey=True) or not targetKey:
-				raise errors.PreconditionFailed()
+			#if not skey or not securitykey.validate(skey, useSessionKey=True) or not targetKey:
+			#	raise errors.PreconditionFailed()
 
 			skel = self.addLeafSkel()
 			if not skel.fromDB(targetKey):
 				raise errors.NotFound()
 			if not skel["parentdir"].startswith("pending-"):
 				raise errors.PreconditionFailed()
-			skel["parentdir"] = skel["parentdir"][8:]
+			skel["parentdir"] = skel["parentdir"][8:] or None
 			if skel["parentdir"]:
 				rootNode = self.getRootNode(skel["parentdir"])
 			else:
