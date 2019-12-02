@@ -301,8 +301,20 @@ class baseBone(object):  # One Bone:
 				order = (rawFilter["orderby"], db.DESCENDING)
 			else:
 				order = (rawFilter["orderby"], db.ASCENDING)
-			inEqFilter = [x for x in dbFilter.datastoreQuery.keys() if
+			filters = dbFilter.getFilter()
+			if filters is None:
+				return  # This query is unsatisfiable
+			elif isinstance(filters, dict):
+				inEqFilter = [x for x in filters.keys() if
 						  (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
+			elif isinstance(filters, list):
+				inEqFilter = None
+				for singeFilter in filters:
+					newInEqFilter = [x for x in singeFilter.keys() if
+								  (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
+					if inEqFilter and newInEqFilter and inEqFilter != newInEqFilter:
+						raise NotImplementedError("Impossible ordering!")
+					inEqFilter = newInEqFilter
 			if inEqFilter:
 				inEqFilter = inEqFilter[0][: inEqFilter[0].find(" ")]
 				if inEqFilter != order[0]:
@@ -312,7 +324,7 @@ class baseBone(object):  # One Bone:
 					dbFilter.order(order)
 			else:
 				dbFilter.order(order)
-		return (dbFilter)
+		return dbFilter
 
 	def _hashValueForUniquePropertyIndex(self, value: Union[str, int]) -> List[str]:
 		def hashValue(value: Union[str, int]) -> str:

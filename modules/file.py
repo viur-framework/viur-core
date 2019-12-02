@@ -91,7 +91,7 @@ class fileBaseSkel(TreeLeafSkel):
 		"""
 			Ensure that our dlkey is locked even if we don't have a filebone here
 		"""
-		if not self["weak"]:
+		if not self["weak"] and self["dlkey"]:
 			locks.add(self["dlkey"])
 		return locks
 
