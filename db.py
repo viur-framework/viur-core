@@ -539,12 +539,8 @@ class Query( object ):
 			:rtype: server.db.Query
 		"""
 		for reqOrder in orderings:
-			if isinstance(reqOrder, str):
-				fieldName = reqOrder
-			elif isinstance(reqOrder, tuple):
-				fieldName = reqOrder[0]
-			else:
-				raise BadArgumentError("Dont know what to do with %s" % type(fieldName),)
+			if not isinstance(reqOrder, basestring) and not isinstance(reqOrder, tuple):
+				raise BadArgumentError("Dont know what to do with %r" % type(reqOrder))
 		if self._orderHook is not None:
 			try:
 				orderings = self._orderHook( self, orderings )
