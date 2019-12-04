@@ -12,6 +12,8 @@ This file documents any relevant changes done to ViUR server since version 2.
 - Removed counter on delete recursive in tree module. This is no longer possible since it works deferred.
 - Added missing fromClient function to spatialBone so it can be set using Vi/Admin again
 - Made it possible to run deferred tasks on the index module.
+- Fixed wrongly raised Exception.
+- Improved error message for relationalBones that are missing parentKeys, when building sorting filters
 
 ## [2.5.0] Vesuv - 2019-06-07
 
