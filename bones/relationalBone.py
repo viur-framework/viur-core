@@ -512,8 +512,9 @@ class relationalBone( baseBone ):
 						v = db.Key( v )
 					dbFilter.ancestor( v )
 					continue
-				if not (k if "." not in k else k.split(".")[0]) in self.parentKeys:
-					logging.warning( "Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (k,name) )
+				boneName = k.split(".")[0]
+				if not boneName in self.parentKeys:
+					logging.warning("Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (boneName, name))
 					raise RuntimeError()
 				dbFilter.filter( "src.%s" % k, v )
 		orderList = []
