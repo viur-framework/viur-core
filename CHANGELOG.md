@@ -14,6 +14,7 @@ This file documents any relevant changes done to ViUR server since version 2.
 - Made it possible to run deferred tasks on the index module.
 - Fixed wrongly raised Exception.
 - Improved error message for relationalBones that are missing parentKeys, when building sorting filters
+- Correctly process `error.Redirect` exceptions. ([#198](https://github.com/viur-framework/server/pull/198))
 
 ## [2.5.0] Vesuv - 2019-06-07
 

@@ -443,7 +443,7 @@ class BrowseHandler(webapp.RequestHandler):
 		except errors.Redirect as e :
 			if conf["viur.debug.traceExceptions"]:
 				raise
-			self.redirect( e.url.encode("UTF-8") )
+			self.redirect( e.url.encode("UTF-8"), code=e.status )
 		except errors.HTTPException as e:
 			if conf["viur.debug.traceExceptions"]:
 				raise
