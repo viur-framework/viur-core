@@ -250,7 +250,7 @@ class BrowseHandler():  # webapp.RequestHandler
 			if conf["viur.debug.traceExceptions"]:
 				raise
 			try:
-				self.redirect(e.url)
+				self.redirect(e.url, code=e.status)
 			except Exception as e:
 				logging.exception(e)
 				raise
