@@ -214,8 +214,7 @@ class TaskHandler:
 			res = self.findBoundTask(task)
 			try:
 				if res:  # Its bound, call it this way :)
-					t, s = res
-					t(s)
+					res[0]()
 				else:
 					task()  # It seems it wasnt bound - call it as a static method
 			except Exception as e:
