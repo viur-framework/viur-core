@@ -344,6 +344,10 @@ def callDeferred(func):
 		else:
 			try:
 				funcPath = "%s/%s" % (self.modulePath, func.func_name)
+				if self.__class__.__name__ == "index":
+					funcPath = func.func_name
+				else:
+					funcPath = "%s/%s" % (self.modulePath, func.func_name)
 				command = "rel"
 			except:
 				funcPath = "%s.%s" % (func.__name__, func.__module__)

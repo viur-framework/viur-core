@@ -2,6 +2,8 @@
 from viur.core.bones.bone import baseBone, getSystemInitialized
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from typing import List
+import copy
+
 
 
 class recordBone(baseBone):
@@ -169,6 +171,16 @@ class recordBone(baseBone):
 
 		if errors:
 			return errors
+
+	def setBoneValue(self, valuesCache, boneName, value, append):
+		if not isinstance(value, self.using):
+			raise ValueError("value (=%r) must be of type %r" % (type(value), self.using))
+
+		if valuesCache[boneName] is None or not append:
+			valuesCache[boneName] = []
+
+		valuesCache[boneName].append(copy.deepcopy(value.getValuesCache()))
+		return True
 
 	def getSearchTags(self, values, key):
 		def getValues(res, skel, valuesCache):
