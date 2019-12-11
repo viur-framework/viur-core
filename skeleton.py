@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from viur.server import db, utils, conf, errors
-from viur.server.bones import baseBone, keyBone, dateBone, selectBone, relationalBone, stringBone
-from viur.server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from viur.server.tasks import CallableTask, CallableTaskBase, callDeferred
+from viur.core import db, utils, conf, errors
+from viur.core.bones import baseBone, keyBone, dateBone, selectBone, relationalBone, stringBone
+from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.tasks import CallableTask, CallableTaskBase, callDeferred
 from collections import OrderedDict
 from time import time
 import inspect, os, sys, logging, copy

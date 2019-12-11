@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
-from viur.server.render.xml.default import DefaultRender, serializeXML
+from viur.core.render.xml.default import DefaultRender, serializeXML
 
 
 class FileRender(DefaultRender):

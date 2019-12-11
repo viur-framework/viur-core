@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from viur.server import db, utils, session, errors, conf, securitykey, exposed, forceSSL
-from viur.server.prototypes import BasicApplication
+from viur.core import db, utils, session, errors, conf, securitykey, exposed, forceSSL
+from viur.core.prototypes import BasicApplication
 
 import logging
 

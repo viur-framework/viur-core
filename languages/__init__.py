@@ -1,3 +1,3 @@
 # -*- coding: utf-8 -*-
-from viur.server.languages.en import en
-from viur.server.languages.de import de
+from viur.core.languages.en import en
+from viur.core.languages.de import de

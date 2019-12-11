@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 import threading
 import sys, traceback, os, inspect
-from viur.server.config import conf
+from viur.core.config import conf
 from urllib import parse
 from string import Template
 from io import StringIO
 import webob
-from viur.server import session, errors
+from viur.core import session, errors
 from urllib.parse import urljoin, urlparse, unquote
-from viur.server import utils
+from viur.core import utils
 import logging
 import google.cloud.logging
 from google.cloud.logging.handlers import CloudLoggingHandler
@@ -405,7 +405,7 @@ class BrowseHandler():  # webapp.RequestHandler
 		self.kwargs = kwargs
 		# Check if this request should bypass the caches
 		if self.request.headers.get("X-Viur-Disable-Cache"):
-			from viur.server import utils
+			from viur.core import utils
 			# No cache requested, check if the current user is allowed to do so
 			user = utils.getCurrentUser()
 			if user and "root" in user["access"]:

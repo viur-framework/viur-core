@@ -3,9 +3,9 @@
 # from google.appengine.api import memcache, app_identity, mail
 # from google.appengine.ext import deferred
 import os
-from viur.server import db
+from viur.core import db
 import string, random, base64
-from viur.server import conf
+from viur.core import conf
 import logging
 import google.auth
 from datetime import datetime, timedelta
@@ -273,7 +273,7 @@ def downloadUrlFor(folder: str, fileName: str, derived: bool = False, expires: t
 	return "/file/download/%s?sig=%s" % (sigStr.decode("ASCII"), resstr)
 
 def seoUrlToEntry(module, entry=None, skelType=None, language=None):
-	from viur.server import request, conf
+	from viur.core import request, conf
 	lang = request.current.get().language
 	if module in conf["viur.languageModuleMap"] and lang in conf["viur.languageModuleMap"][module]:
 		module = conf["viur.languageModuleMap"][module][lang]
@@ -296,7 +296,7 @@ def seoUrlToEntry(module, entry=None, skelType=None, language=None):
 		return "/%s/%s/%s" % (lang, module, seoKey)
 
 def seoUrlToFunction(module, function, render=None):
-	from viur.server import request, conf
+	from viur.core import request, conf
 	lang = request.current.get().language
 	if module in conf["viur.languageModuleMap"] and lang in conf["viur.languageModuleMap"][module]:
 		module = conf["viur.languageModuleMap"][module][lang]

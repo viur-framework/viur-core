@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-from viur.server.bones import baseBone
-from viur.server.bones.bone import getSystemInitialized
-from viur.server import db
-from viur.server.errors import ReadFromClientError
+from viur.core.bones import baseBone
+from viur.core.bones.bone import getSystemInitialized
+from viur.core import db
+from viur.core.errors import ReadFromClientError
 #from google.appengine.api import search
 import json
 from time import time
 from datetime import datetime
 import logging
-from viur.server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from typing import List
 
 
@@ -103,7 +103,7 @@ class relationalBone(baseBone):
 		self.updateLevel = updateLevel
 
 		if getSystemInitialized():
-			from viur.server.skeleton import RefSkel, skeletonByKind
+			from viur.core.skeleton import RefSkel, skeletonByKind
 			self._refSkelCache = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
 			self._usingSkelCache = using() if using else None
 		else:
@@ -112,7 +112,7 @@ class relationalBone(baseBone):
 
 	def setSystemInitialized(self):
 		super(relationalBone, self).setSystemInitialized()
-		from viur.server.skeleton import RefSkel, skeletonByKind
+		from viur.core.skeleton import RefSkel, skeletonByKind
 		self._refSkelCache = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
 		self._usingSkelCache = self.using() if self.using else None
 
@@ -549,7 +549,7 @@ class relationalBone(baseBone):
 		return name, skel, dbFilter, rawFilter
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
-		from viur.server.skeleton import RefSkel, skeletonByKind
+		from viur.core.skeleton import RefSkel, skeletonByKind
 		origFilter = dbFilter.filters
 
 		if origFilter is None:  # This query is unsatisfiable
@@ -893,7 +893,7 @@ class relationalBone(baseBone):
 			:return: Wherever that operation succeeded or not.
 			:rtype: bool
 		"""
-		from viur.server.skeleton import RefSkel, skeletonByKind
+		from viur.core.skeleton import RefSkel, skeletonByKind
 		def relSkelFromKey(key):
 			if not isinstance(key, db.Key):
 				key = db.Key(self.kind, key)

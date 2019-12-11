@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from viur.server.bones.selectBone import selectBone
+from viur.core.bones.selectBone import selectBone
 from collections import OrderedDict
 
 ISO3CODES = {
