@@ -77,7 +77,7 @@ def dumpConfig(adminTree):
 					adminConfig[key] = info
 			else:
 				adminConfig[key] = app.adminInfo.copy()
-				adminConfig[key]["name"] = _(adminConfig[key]["name"])
+				adminConfig[key]["name"] = str(adminConfig[key]["name"])
 				adminConfig[key]["views"] = []
 				if "views" in app.adminInfo:
 					for v in app.adminInfo["views"]:
@@ -140,9 +140,9 @@ def canAccess(*args, **kwargs):
 def _postProcessAppObj(obj):
 	obj["skey"] = genSkey
 	obj["timestamp"] = timestamp
-	obj["config"] = lambda *args, **kwargs: dumpConfig(obj)
+	obj["config"] = lambda *args, **kwargs: dumpConfig(conf["viur.mainApp"].admin)
 	obj["config"].exposed = True
-	obj["getStructure"] = lambda *args, **kwargs: getStructure(obj, *args, **kwargs)
+	obj["getStructure"] = lambda *args, **kwargs: getStructure(conf["viur.mainApp"].admin, *args, **kwargs)
 	obj["getStructure"].exposed = True
 	obj["canAccess"] = canAccess
 	obj["setLanguage"] = setLanguage

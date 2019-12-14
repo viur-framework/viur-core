@@ -663,6 +663,7 @@ class User(List):
 			session.current["user"]["access"] = []
 
 		session.current.markChanged()
+		request.current.get().response.headers["Sec-X-ViUR-StaticSKey"] = session.current.session.staticSecurityKey
 		self.onLogin()
 
 		return self.render.loginSucceeded(**kwargs)

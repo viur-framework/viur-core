@@ -344,7 +344,7 @@ def callDeferred(func):
 				return func(self, *args, **kwargs)
 		else:
 			try:
-				funcPath = "%s/%s" % (self.modulePath, func.func_name)
+				funcPath = "%s/%s" % (self.modulePath, func.__name__)
 				command = "rel"
 			except:
 				funcPath = "%s.%s" % (func.__name__, func.__module__)

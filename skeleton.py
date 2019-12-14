@@ -628,6 +628,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				# We'll generate the key we'll be stored under early so we can use it for locks etc
 				dbObj = db.Entity(skel.kindName, name=db._generateNewId())
 				oldCopy = {}
+				dbObj["viur"] = {}
 				oldBlobLockObj = None
 				isAdd = True
 			else:
@@ -640,14 +641,15 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					oldCopy = {k: v for k, v in dbObj.items()}
 				oldBlobLockObj = db.Get(("viur-blob-locks", dbKey))
 				isAdd = False
-
+			if not "viur" in dbObj:
+				dbObj["viur"] = {}
 			# Merge values and assemble unique properties
 			for key, bone in skel.items():
 				# Remember old hashes for bones that must have an unique value
 				oldUniqueValues = []
 				if bone.unique:
-					if "%s_uniqueIndexValue" % key in dbObj:
-						oldUniqueValues = dbObj["%s_uniqueIndexValue" % key]
+					if "%s_uniqueIndexValue" % key in dbObj["viur"]:
+						oldUniqueValues = dbObj["viur"]["%s_uniqueIndexValue" % key]
 
 				# Merge the values from mergeFrom in
 				if key in mergeFrom.valuesCache["changedValues"]:
@@ -687,7 +689,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 							db.Put(newLockObj)
 						if newLockValue in oldUniqueValues:
 							oldUniqueValues.remove(newLockValue)
-					dbObj["%s_uniqueIndexValue" % key] = newUniqueValues
+					dbObj["viur"]["%s_uniqueIndexValue" % key] = newUniqueValues
 					# Remove any lock-object we're holding for values that we don't have anymore
 					for oldValue in oldUniqueValues:
 						# Try to delete the old lock
@@ -704,11 +706,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 							logging.critical("Detected Database corruption! Could not delete stale lock-object!")
 
 			# Ensure the SEO-Keys are up2date
-			lastRequestedSeoKeys = dbObj.get("viurLastRequestedSeoKeys") or {}
-			lastSetSeoKeys = dbObj.get("viurCurrentSeoKeys") or {}
+			lastRequestedSeoKeys = dbObj["viur"].get("viurLastRequestedSeoKeys") or {}
+			lastSetSeoKeys = dbObj["viur"].get("viurCurrentSeoKeys") or {}
 			currentSeoKeys = skel.getCurrentSEOKeys()
-			if not isinstance(dbObj.get("viurCurrentSeoKeys"), dict):
-				dbObj["viurCurrentSeoKeys"] = {}
+			if not isinstance(dbObj["viur"].get("viurCurrentSeoKeys"), dict):
+				dbObj["viur"]["viurCurrentSeoKeys"] = {}
 			if currentSeoKeys:
 				# Convert to lower-case and remove certain characters
 				for lang, value in list(currentSeoKeys.items()):
@@ -746,27 +748,27 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					# We'll use the database-key instead
 					lastSetSeoKeys[language] = dbObj.name
 				# Store the current, active key for that language
-				dbObj["viurCurrentSeoKeys"][language] = lastSetSeoKeys[language]
-			if not dbObj.get("viurActiveSeoKeys"):
-				dbObj["viurActiveSeoKeys"] = []
+				dbObj["viur"]["viurCurrentSeoKeys"][language] = lastSetSeoKeys[language]
+			if not dbObj["viur"].get("viurActiveSeoKeys"):
+				dbObj["viur"]["viurActiveSeoKeys"] = []
 			for language, seoKey in lastSetSeoKeys.items():
-				if dbObj["viurCurrentSeoKeys"][language] not in dbObj["viurActiveSeoKeys"]:
+				if dbObj["viur"]["viurCurrentSeoKeys"][language] not in dbObj["viur"]["viurActiveSeoKeys"]:
 					# Ensure the current, active seo key is in the list of all seo keys
-					dbObj["viurActiveSeoKeys"].insert(0, seoKey)
-			if dbObj.name not in dbObj["viurActiveSeoKeys"]:
+					dbObj["viur"]["viurActiveSeoKeys"].insert(0, seoKey)
+			if dbObj.name not in dbObj["viur"]["viurActiveSeoKeys"]:
 				# Ensure that key is also in there
-				dbObj["viurActiveSeoKeys"].insert(0, dbObj.name)
+				dbObj["viur"]["viurActiveSeoKeys"].insert(0, dbObj.name)
 			# Trim to the last 200 used entries
-			dbObj["viurActiveSeoKeys"] = dbObj["viurActiveSeoKeys"][:200]
+			dbObj["viur"]["viurActiveSeoKeys"] = dbObj["viur"]["viurActiveSeoKeys"][:200]
 			# Store lastRequestedKeys so further updates can run more efficient
-			dbObj["viurLastRequestedSeoKeys"] = currentSeoKeys
+			dbObj["viur"]["viurLastRequestedSeoKeys"] = currentSeoKeys
 
 			if clearUpdateTag:
 				# Mark this entity as Up-to-date.
-				dbObj["viur_delayed_update_tag"] = 0
+				dbObj["viur"]["delayedUpdateTag"] = 0
 			else:
 				# Mark this entity as dirty, so the background-task will catch it up and update its references.
-				dbObj["viur_delayed_update_tag"] = time()
+				dbObj["viur"]["delayedUpdateTag"] = time()
 			dbObj = skel.preProcessSerializedData(dbObj)
 
 			# Allow the custom DB Adapter to apply last minute changes to the object

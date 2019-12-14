@@ -184,9 +184,10 @@ class DefaultRender(object):
 		elif  isinstance(bone, bones.recordBone):
 			usingSkel = bone._usingSkelCache
 			tmpList = []
-			for k in skel[key]:
-				usingSkel.setValuesCache(k)
-				tmpList.append(self.renderSkelValues(usingSkel))
+			if skel[key]:
+				for k in skel[key]:
+					usingSkel.setValuesCache(k)
+					tmpList.append(self.renderSkelValues(usingSkel))
 			return tmpList
 		else:
 			return skel[key]
