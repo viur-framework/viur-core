@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 
-from viur.server.render.json.default import DefaultRender as default
-from viur.server.render.vi.user import UserRender as user
-from viur.server.render.json.file import FileRender as file
-from viur.server.skeleton import Skeleton
+from viur.core.render.json.default import DefaultRender as default
+from viur.core.render.vi.user import UserRender as user
+from viur.core.render.json.file import FileRender as file
+from viur.core.skeleton import Skeleton
 #from google.appengine.api import app_identity
-from viur.server import conf
-from viur.server import securitykey
-from viur.server import utils
-from viur.server import request
-from viur.server import session
-from viur.server import errors
+from viur.core import conf
+from viur.core import securitykey
+from viur.core import utils
+from viur.core import request
+from viur.core import session
+from viur.core import errors
 import datetime, json
 
 __all__ = [default]

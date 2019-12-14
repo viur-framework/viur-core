@@ -43,7 +43,10 @@ class Redirect(HTTPException):
 	"""
 
 	def __init__(self, url, descr="Redirect", status=303):
-		super(Redirect, self).__init__(status=303, name="Redirect", descr=descr)
+		if not isinstance(status, int) or status not in {301, 302, 303, 307, 308}:
+			raise ValueError("Invalid status %r. Only the status codes 301, 302, 303, 307 and 308 "
+							 "are valid for a redirect." % status)
+		super(Redirect, self).__init__(status=status, name="Redirect", descr=descr)
 		self.url = url
 
 

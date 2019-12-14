@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #from google.appengine.api import memcache
-from viur.server import request, utils
+from viur.core import request, utils
 from datetime import datetime
 
 

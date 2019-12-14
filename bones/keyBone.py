@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from viur.server.bones.bone import baseBone
+from viur.core.bones.bone import baseBone
 
 
 class keyBone(baseBone):

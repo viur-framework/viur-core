@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
-from viur.server.render.json.default import DefaultRender
+from viur.core.render.json.default import DefaultRender
 
 
 class FileRender(DefaultRender):

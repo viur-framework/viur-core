@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from viur.server import utils, db, securitykey, session, errors, conf, request, forcePost, forceSSL, exposed, internalExposed
-from viur.server.skeleton import Skeleton, skeletonByKind
-from viur.server.bones import *
-from viur.server.prototypes.tree import Tree, TreeNodeSkel, TreeLeafSkel
-from viur.server.tasks import callDeferred, PeriodicTask
+from viur.core import utils, db, securitykey, session, errors, conf, request, forcePost, forceSSL, exposed, internalExposed
+from viur.core.skeleton import Skeleton, skeletonByKind
+from viur.core.bones import *
+from viur.core.prototypes.tree import Tree, TreeNodeSkel, TreeLeafSkel
+from viur.core.tasks import callDeferred, PeriodicTask
 from quopri import decodestring
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from hashlib import sha256
@@ -13,7 +13,7 @@ import collections, logging, cgi, string
 from google.auth import compute_engine
 from datetime import datetime, timedelta
 from google.cloud import storage
-from viur.server.utils import projectID
+from viur.core.utils import projectID
 import hashlib
 import hmac
 from io import BytesIO

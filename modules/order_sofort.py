@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from viur.server import db, errors
-from viur.server.config import conf
+from viur.core import db, errors
+from viur.core.config import conf
 import hashlib, logging
 
 

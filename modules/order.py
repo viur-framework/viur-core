@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-from viur.server import db, errors, session, conf, request, exposed, internalExposed, securitykey
-from viur.server.tasks import callDeferred, PeriodicTask
+from viur.core import db, errors, session, conf, request, exposed, internalExposed, securitykey
+from viur.core.tasks import callDeferred, PeriodicTask
 
-from viur.server.skeleton import Skeleton
-from viur.server.bones import *
+from viur.core.skeleton import Skeleton
+from viur.core.bones import *
 
-from viur.server.prototypes.list import List
+from viur.core.prototypes.list import List
 
 from datetime import datetime, timedelta
 import logging
@@ -81,8 +81,8 @@ class ReturnHtmlException(Exception):
 		self.html = html
 
 
-from viur.server.modules.order_paypal import PayPal
-from viur.server.modules.order_sofort import Sofort
+from viur.core.modules.order_paypal import PayPal
+from viur.core.modules.order_sofort import Sofort
 
 
 class Order(List):

@@ -3,12 +3,12 @@ import logging, sys
 from datetime import datetime
 from time import time
 
-from viur.server import db, utils, errors, conf, request, securitykey
-from viur.server import forcePost, forceSSL, exposed, internalExposed
-from viur.server.bones import baseBone, keyBone, numericBone
-from viur.server.prototypes import BasicApplication
-from viur.server.skeleton import Skeleton
-from viur.server.tasks import callDeferred
+from viur.core import db, utils, errors, conf, request, securitykey
+from viur.core import forcePost, forceSSL, exposed, internalExposed
+from viur.core.bones import baseBone, keyBone, numericBone
+from viur.core.prototypes import BasicApplication
+from viur.core.skeleton import Skeleton
+from viur.core.tasks import callDeferred
 
 
 class HierarchySkel(Skeleton):
@@ -730,14 +730,7 @@ class Hierarchy(BasicApplication):
 			skel = self.addSkel()
 			skel.fromDB(old_key)
 
-			for k, v in skel.items():
-				logging.debug("BEFORE %s = >%s<", (k, skel[k]))
-
 			skel = skel.clone()
-			# skel.setValues( {}, key=None )
-
-			for k, v in skel.items():
-				logging.debug("BEHIND %s = >%s<", (k, skel[k]))
 
 			skel["key"] = None
 			skel["parententry"] = toParent

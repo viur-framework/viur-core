@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from viur.server.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
+from viur.core.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
 from logging import critical, error, warning, debug, info
 import pprint
 

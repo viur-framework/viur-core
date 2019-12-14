@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-from viur.server import utils, session, errors, conf, securitykey, request
-from viur.server import forcePost, forceSSL, exposed, internalExposed
-from viur.server.skeleton import Skeleton
-from viur.server.prototypes import BasicApplication
+from viur.core import utils, session, errors, conf, securitykey, request
+from viur.core import forcePost, forceSSL, exposed, internalExposed
+from viur.core.skeleton import Skeleton
+from viur.core.prototypes import BasicApplication
 
 import logging
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from viur.server.config import conf
+from viur.core.config import conf
 import logging
 
 
@@ -38,7 +38,7 @@ def addCspRule(objectType, srcOrDirective, enforceMode="monitor"):
 	"""
 	assert enforceMode in ["monitor", "enforce"], "enforceMode must be 'monitor' or 'enforce'!"
 	assert objectType in ["default-src", "script-src", "object-src", "style-src", "img-src", "media-src",
-						  "frame-src", "font-src", "connect-src", "report-uri"]
+						  "frame-src", "font-src", "connect-src", "report-uri", "frame-ancestors"]
 	assert conf["viur.mainApp"] is None, "You cannot modify CSP rules after server.buildApp() has been run!"
 	assert not any(
 		[x in srcOrDirective for x in [";", "'", "\"", "\n", ","]]), "Invalid character in srcOrDirective!"

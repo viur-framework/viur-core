@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-from viur.server.skeleton import RelSkel
-from viur.server import errors, utils, securitykey, exposed
-from viur.server.bones import baseBone
-from viur.server.prototypes.basic import BasicApplication
+from viur.core.skeleton import RelSkel
+from viur.core import errors, utils, securitykey, exposed
+from viur.core.bones import baseBone
+from viur.core.prototypes.basic import BasicApplication
 
 
 class MailSkel(RelSkel):

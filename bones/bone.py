@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # from google.appengine.api import search
-from viur.server.config import conf
-from viur.server import db
+from viur.core.config import conf
+from viur.core import db
 import logging
 import hashlib
 import copy
@@ -14,7 +14,7 @@ __systemIsIntitialized_ = False
 
 def setSystemInitialized():
 	global __systemIsIntitialized_
-	from viur.server.skeleton import iterAllSkelClasses, skeletonByKind
+	from viur.core.skeleton import iterAllSkelClasses, skeletonByKind
 	__systemIsIntitialized_ = True
 	for skelCls in iterAllSkelClasses():
 		skelCls.setSystemInitialized()

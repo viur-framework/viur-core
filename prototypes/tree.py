@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-from viur.server import db, utils, errors, session, conf, securitykey
-from viur.server import forcePost, forceSSL, exposed, internalExposed
+from viur.core import db, utils, errors, session, conf, securitykey
+from viur.core import forcePost, forceSSL, exposed, internalExposed
 
-from viur.server.prototypes import BasicApplication
-from viur.server.bones import baseBone, keyBone, numericBone
-from viur.server.skeleton import Skeleton, skeletonByKind
-from viur.server.tasks import callDeferred
+from viur.core.prototypes import BasicApplication
+from viur.core.bones import baseBone, keyBone, numericBone
+from viur.core.skeleton import Skeleton, skeletonByKind
+from viur.core.tasks import callDeferred
 
 from datetime import datetime
 import logging
@@ -84,33 +84,20 @@ class Tree(BasicApplication):
 
 		:param key: URL-safe key of the node which children should be deleted.
 		:type key: str
-
-		:returns: The number of deleted objects.
-		:rtype: int
 		"""
-		count = 0
 
-		for f in db.Query(self.viewLeafSkel().kindName).filter(
-				"parentdir", str(nodeKey)).iter(keysOnly=True):
+		for f in db.Query(self.viewLeafSkel().kindName).filter("parentdir", str(nodeKey)).iter(keysOnly=True):
 			s = self.viewLeafSkel()
 			if not s.fromDB(f):
 				continue
-
 			s.delete()
-			count += 1
-
-		for d in db.Query(self.viewNodeSkel().kindName).filter(
-				"parentdir", str(nodeKey)).iter(keysOnly=True):
+		for d in db.Query(self.viewNodeSkel().kindName).filter("parentdir", str(nodeKey)).iter(keysOnly=True):
 			count += self.deleteRecursive(str(d))
-
+			self.deleteRecursive(str(d))
 			s = self.viewNodeSkel()
 			if not s.fromDB(d):
 				continue
-
 			s.delete()
-			count += 1
-
-		return count
 
 	@callDeferred
 	def updateParentRepo(self, parentNode, newRepoKey, depth=0):

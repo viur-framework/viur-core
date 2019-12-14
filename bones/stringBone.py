@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-from viur.server.bones import baseBone
-from viur.server.config import conf
-from viur.server import db
-from viur.server import request
-from viur.server import utils
-from viur.server.session import current as currentSession
-from viur.server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.bones import baseBone
+from viur.core.config import conf
+from viur.core import db
+from viur.core import request
+from viur.core import utils
+from viur.core.session import current as currentSession
+from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import logging
 from typing import List
 

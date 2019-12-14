@@ -38,7 +38,7 @@ conf = {
 
 	# Unless overridden by the Project: Use english as default language
 	"viur.defaultLanguage": "en",
-	# If set to true, the decorator @enableCache from viur.server.cache has no effect
+	# If set to true, the decorator @enableCache from viur.core.cache has no effect
 	"viur.disableCache": False,
 	# Maps Domains to alternative default languages
 	"viur.domainLanguageMapping": {},
@@ -134,7 +134,7 @@ conf = {
 	"viur.session.persistentFieldsOnLogout": [],
 
 	# Priority, in which skeletons are loaded
-	"viur.skeleton.searchPath": ["/skeletons/", "/viur/server/"],  # Priority, in which skeletons are loaded
+	"viur.skeleton.searchPath": ["/skeletons/", "/viur/core/"],  # Priority, in which skeletons are loaded
 
 	# If set, must be a tuple of two functions serializing/restoring additional enviromental data in deferred requests,
 	"viur.tasks.customEnvironmentHandler": None,

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import time, json
 from string import Template
-from viur.server.render.xml.default import DefaultRender, serializeXML
+from viur.core.render.xml.default import DefaultRender, serializeXML
 
 
 class UserRender(DefaultRender):  # Render user-data to xml

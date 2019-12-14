@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-from viur.server.config import apiVersion
+from viur.core.config import apiVersion
 from time import sleep
-from viur.server import db, request
+from viur.core import db, request
 
 
 def markFileRefsStrong():

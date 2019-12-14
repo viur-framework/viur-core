@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-from viur.server import db, request, errors
+from viur.core import db, request, errors
 import urllib
-from viur.server.config import conf
+from viur.core.config import conf
 #from google.appengine.api import urlfetch
 
 

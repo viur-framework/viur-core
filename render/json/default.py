@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import json
 from collections import OrderedDict
-from viur.server import errors, request, bones, utils
-from viur.server.skeleton import RefSkel, skeletonByKind, BaseSkeleton
+from viur.core import errors, request, bones, utils
+from viur.core.skeleton import RefSkel, skeletonByKind, BaseSkeleton
 import logging
 
 class DefaultRender(object):

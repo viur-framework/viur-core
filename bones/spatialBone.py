@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-from viur.server.bones import baseBone
+from viur.core.bones import baseBone
 from math import pow, floor, ceil
-from viur.server import db
+from viur.core import db
 import logging
 import math
-from viur.server.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 
 def haversine(lat1, lng1, lat2, lng2):
 	"""
@@ -69,9 +69,9 @@ class spatialBone(baseBone):
 			:return: the size of our sub-regions in (fractions-of-latitude, fractions-of-longitude)
 			:rtype: (float, float)
 		"""
-		latDelta = self.boundsLat[1] - self.boundsLat[0]
-		lngDelta = self.boundsLng[1] - self.boundsLng[0]
-		return latDelta / self.gridDimensions[0], lngDelta / self.gridDimensions[1]
+		latDelta = float(self.boundsLat[1] - self.boundsLat[0])
+		lngDelta = float(self.boundsLng[1] - self.boundsLng[0])
+		return latDelta / float(self.gridDimensions[0]), lngDelta / float(self.gridDimensions[1])
 
 	def isInvalid(self, value):
 		"""
@@ -151,6 +151,7 @@ class spatialBone(baseBone):
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
+
 			:param name: Our name in the skeleton
 			:type name: str
 			:param data: *User-supplied* request-data
@@ -161,6 +162,7 @@ class spatialBone(baseBone):
 		rawLng = data.get("%s.lng" % name, None)
 		if rawLat is None or rawLng is None:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
+
 		try:
 			rawLat = float(rawLat)
 			rawLng = float(rawLng)
