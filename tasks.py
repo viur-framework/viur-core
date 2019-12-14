@@ -333,9 +333,8 @@ def callDeferred(func):
 			req = request.current.get()
 		except:  # This will fail for warmup requests
 			req = None
-		if req is not None and "HTTP_X_APPENGINE_TASKRETRYCOUNT".lower() in [x.lower() for x in
-																			 os.environ.keys()] and not "DEFERED_TASK_CALLED" in dir(
-			req):  # This is the deferred call
+		if req is not None and req.request.headers.get("X-Appengine-Taskretrycount") and not "DEFERED_TASK_CALLED" in dir(req):
+			# This is the deferred call
 			req.DEFERED_TASK_CALLED = True  # Defer recursive calls to an deferred function again.
 			if self is __undefinedFlag_:
 				return func(*args, **kwargs)

@@ -54,7 +54,7 @@ conf = {
 	# If set, ViUR call this function instead of rendering the viur.errorTemplate if an exception occurs
 	"viur.errorHandler": None,
 	# Path to the template to render if an unhandled error occurs. This is a Python String-template, *not* a jinja2 one!
-	"viur.errorTemplate": "viur/server/template/error.html",
+	"viur.errorTemplate": "viur/core/template/error.html",
 
 	# Activates the Database export API if set. Must be exactly 32 chars. *Everyone* knowing this password can dump the whole database!
 	"viur.exportPassword": None,
