@@ -250,7 +250,7 @@ class baseBone(object):  # One Bone:
 		myKeys = [key for key in rawFilter.keys() if (key == name or key.startswith(name + "$"))]
 
 		if len(myKeys) == 0:
-			return (dbFilter)
+			return dbFilter
 
 		for key in myKeys:
 			value = rawFilter[key]
@@ -268,14 +268,14 @@ class baseBone(object):  # One Bone:
 				elif tmpdata[1] == "ge":
 					dbFilter.filter((prefix or "") + tmpdata[0] + " >=", value)
 				elif tmpdata[1] == "lk":
-					dbFilter.filter((prefix or "") + tmpdata[0], value)
+					dbFilter.filter((prefix or "") + tmpdata[0] + " =", value)
 				else:
-					dbFilter.filter((prefix or "") + tmpdata[0], value)
+					dbFilter.filter((prefix or "") + tmpdata[0] + " =", value)
 			else:
 				if isinstance(value, list):
 					dbFilter.filter((prefix or "") + key + " IN", value)
 				else:
-					dbFilter.filter((prefix or "") + key, value)
+					dbFilter.filter((prefix or "") + key + " =", value)
 
 		return dbFilter
 

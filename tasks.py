@@ -280,7 +280,7 @@ class TaskHandler:
 		if len(kwargs) == 0 or skey == "" or not skel.fromClient(kwargs) or (
 				"bounce" in kwargs and kwargs["bounce"] == "1"):
 			return self.render.add(skel)
-		if not securitykey.validate(skey):
+		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 		task.execute(**skel.getValues())
 		return self.render.addItemSuccess(skel)

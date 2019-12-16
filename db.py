@@ -888,9 +888,15 @@ class Query(object):
 		elif filter and value is not __undefinedC__:
 			if isinstance(self.filters, list):
 				for singeFilter in self.filters:
-					singeFilter["%s %s" % (field, op)] = value
+					if op.lower() != "ac" and not any([k.lower().endswith(" ac") for k in singeFilter.keys()]):
+						singeFilter["%s %s" % (field, op)] = value
+					else:
+						logging.critical("DROPPING SECOND AC FILTER!!")
 			else:  # It must be still a dict (we tested for None already above)
-				self.filters["%s %s" % (field, op)] = value
+				if op.lower() != "ac" and not any([k.lower().endswith(" ac") for k in self.filters.keys()]):
+					self.filters["%s %s" % (field, op)] = value
+				else:
+					logging.critical("DROPPING SECOND AC FILTER!!")
 			if op in {"<", "<=", ">", ">="} and len(self.orders) > 0 and self.orders[0][0] != field:
 				self.order((field, ASCENDING), *self.orders)
 

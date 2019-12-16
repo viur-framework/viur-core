@@ -24,7 +24,7 @@ class KeyValueWrapper:
 
 	def __init__(self, key, descr):
 		self.key = key
-		self.descr = _(descr)
+		self.descr = descr
 
 	def __str__(self):
 		return (str(self.key))
@@ -267,7 +267,7 @@ class Render(object):
 
 		return res
 
-	def renderBoneValue(self, bone, skel, key):
+	def renderBoneValue(self, bone, skel, key, boneValue):
 		"""
 		Renders the value of a bone.
 
@@ -281,7 +281,7 @@ class Render(object):
 		:rtype: dict
 		"""
 		if bone.type == "select" or bone.type.startswith("select."):
-			skelValue = skel[key]
+			skelValue = boneValue
 			if isinstance(skelValue, list):
 				return [
 					KeyValueWrapper(val, bone.values[val]) if val in bone.values else val
@@ -292,9 +292,9 @@ class Render(object):
 			return skelValue
 
 		elif bone.type == "relational" or bone.type.startswith("relational."):
-			if isinstance(skel[key], list):
+			if isinstance(boneValue, list):
 				tmpList = []
-				for k in skel[key]:
+				for k in boneValue:
 					refSkel = bone._refSkelCache
 					refSkel.setValuesCache(k["dest"])
 					if bone.using is None:
@@ -311,15 +311,15 @@ class Render(object):
 							"rel": usingData
 						})
 				return tmpList
-			elif isinstance(skel[key], dict):
+			elif isinstance(boneValue, dict):
 				refSkel = bone._refSkelCache
-				refSkel.setValuesCache(skel[key]["dest"])
+				refSkel.setValuesCache(boneValue["dest"])
 				if bone.using is None:
 					return self.collectSkelData(refSkel)
 				else:
 					usingSkel = bone._usingSkelCache
-					if skel[key]["rel"]:
-						usingSkel.setValuesCache(skel[key]["rel"])
+					if boneValue["rel"]:
+						usingSkel.setValuesCache(boneValue["rel"])
 						usingData = self.collectSkelData(usingSkel)
 					else:
 						usingData = None
@@ -331,7 +331,7 @@ class Render(object):
 
 		elif bone.type == "record" or bone.type.startswith("record."):
 			usingSkel = bone._usingSkelCache
-			value = skel[key]
+			value = boneValue
 
 			if isinstance(value, list):
 				ret = []
@@ -346,7 +346,7 @@ class Render(object):
 				return self.collectSkelData(usingSkel)
 
 		else:
-			return skel[key]
+			return boneValue
 
 		return None
 
@@ -560,10 +560,11 @@ class Render(object):
 		except errors.HTTPException as e:  # Not found - try default fallbacks FIXME: !!!
 			tpl = "list"
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-		resList = []
-		for skel in skellist:
-			resList.append(self.collectSkelData(skel))
-		return template.render(skellist=SkelListWrapper(resList, skellist), params=params, **kwargs)
+		#resList = []
+		#for skel in skellist:
+		#	resList.append(self.collectSkelData(skel))
+		skellist.renderPreparation = self.renderBoneValue
+		return template.render(skellist=skellist, params=params, **kwargs) #SkelListWrapper(resList, skellist)
 
 	def listRootNodes(self, repos, tpl=None, params=None, **kwargs):
 		"""

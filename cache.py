@@ -87,7 +87,8 @@ def keyFromArgs(f, userSensitive, languageSensitive, evaluatedArgs, path, args, 
 		appVersion = request.current.get().request.environ["CURRENT_VERSION_ID"].split('.')[0]
 	except:
 		appVersion = ""
-		logging.error("Could not determine the current application id! Caching might produce unexpected results!")
+		# FIXME
+		#logging.error("Could not determine the current application id! Caching might produce unexpected results!")
 	res["__appVersion"] = appVersion
 	# Last check, that every parameter is satisfied:
 	if not all([x in res.keys() for x in argsOrder]):
@@ -185,6 +186,7 @@ def enableCache(urls, userSensitive=0, languageSensitive=False, evaluatedArgs=[]
 		:type maxCacheTime: int or None
 
 	"""
+	return lambda f: f  #FIXME!
 	assert not any([x.startswith("_") for x in evaluatedArgs]), "A evaluated Parameter cannot start with an underscore!"
 	return lambda f: wrapCallable(f, urls, userSensitive, languageSensitive, evaluatedArgs, maxCacheTime)
 

@@ -98,7 +98,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 
 	def __setattr__(self, key, value):
 		if "_BaseSkeleton__isInitialized_" in dir(self):
-			if not key in {"errors", "valuesCache", "isClonedInstance"} and not self.isClonedInstance:
+			if not key in {"errors", "valuesCache", "isClonedInstance", "renderPreparation"} and not self.isClonedInstance:
 				raise AttributeError(
 					"You cannot directly modify the skeleton instance. Grab a copy using .clone() first!")
 		super(BaseSkeleton, self).__setattr__(key, value)
@@ -177,7 +177,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		super(BaseSkeleton, self).__init__(*args, **kwargs)
 		self.errors = []
 		# self.__dataDict__ = OrderedDict()
-		self.valuesCache = {"changedValues": {}, "entity": {}}
+		self.valuesCache = {"changedValues": {}, "entity": {}, "cachedRenderValues": {}}
 		"""
 		if _cloneFrom:
 			for key, bone in _cloneFrom.__dataDict__.items():
@@ -206,6 +206,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		"""
 		self.isClonedInstance = cloned
 		self.__isInitialized_ = True
+		self.renderPreparation = None
 
 	def setValuesCache(self, cache):
 		self.valuesCache = cache
@@ -248,6 +249,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 			return self.clone()
 
 	def __setitem__(self, key, value):
+		assert self.renderPreparation is None, "Cannot modify values while rendering"
 		if isinstance(value, baseBone):
 			raise AttributeError("Don't assign this bone object as skel[\"%s\"] = ... anymore to the skeleton. "
 								 "Use skel.%s = ... for bone to skeleton assignment!" % (key, key))
@@ -256,14 +258,22 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		self.valuesCache["changedValues"][key] = value
 
 	def __getitem__(self, key):
-		if key not in self.valuesCache["changedValues"]:
+		vc = self.valuesCache
+		if self.renderPreparation:
+			if key in vc["cachedRenderValues"]:
+				return vc["cachedRenderValues"][key]
+		if key not in vc["changedValues"]:
 			boneInstance = getattr(self, key, None)
 			if boneInstance:
-				if self.valuesCache["entity"] is not None:
-					boneInstance.unserialize(self.valuesCache["changedValues"], key, self.valuesCache["entity"])
+				if vc["entity"] is not None:
+					boneInstance.unserialize(vc["changedValues"], key, vc["entity"])
 				else:
-					self.valuesCache["changedValues"][key] = boneInstance.getDefaultValue()
-		return self.valuesCache["changedValues"].get(key)
+					vc["changedValues"][key] = boneInstance.getDefaultValue()
+		if not self.renderPreparation:
+			return vc["changedValues"].get(key)
+		value = self.renderPreparation(getattr(self, key), self, key, vc["changedValues"].get(key))
+		vc["cachedRenderValues"][key] = value
+		return value
 
 	def __delitem__(self, key):
 		if key in self.valuesCache["changedValues"]:
@@ -287,7 +297,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 			:param values: A dictionary with values.
 			:type values: dict
 		"""
-		self.valuesCache = {"changedValues": {}, "entity": values}
+		self.valuesCache = {"changedValues": {}, "entity": values, "cachedRenderValues": {}}
 		if isinstance(values, db.Entity):
 			self["key"] = values.name
 		return
@@ -299,6 +309,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 			:returns: Dictionary, where the keys are the bones and the values the current values.
 			:rtype: dict
 		"""
+		return {k: self[k] for k in self.__boneNames__}
 		return dict(self.items())
 
 	def setBoneValue(self, boneName, value, append=False):
@@ -660,7 +671,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				#dbObj = bone.serialize(skel.valuesCache, key, dbObj)
 
 				# Obtain referenced blobs
-				logging.error("Blobl %s %s" % (key, bone.getReferencedBlobs(dbObj, key)))
 				blobList.update(bone.getReferencedBlobs(dbObj, key))
 
 				# Check if the value has actually changed
@@ -812,8 +822,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		# END of txnUpdate subfunction
 
 		key = self["key"] or None
-		logging.error("GGG12: Key is %s (%s)" % (key, self.kindName))
-		logging.error(self.valuesCache)
 		isAdd = key is None
 		if not isinstance(clearUpdateTag, bool):
 			raise ValueError(
@@ -834,7 +842,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		self["key"] = str(key)
 
 		for boneName, bone in skel.items():
-			bone.postSavedHandler(self.valuesCache, boneName, skel, key, dbObj)
+			bone.postSavedHandler(self.valuesCache["changedValues"], boneName, skel, key, dbObj)
 
 		skel.postSavedHandler(key, dbObj)
 
@@ -898,6 +906,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		def txnDelete(key: str, skel: Skeleton):
 			skelKey = (self.kindName, key)
 			dbObj = db.Get(skelKey)  # Fetch the raw object as we might have to clear locks
+			if dbObj.get("viur_incomming_relational_locks"):
+				raise errors.Locked("This entry is locked!")
 			for boneName, bone in skel.items():
 				# Ensure that we delete any value-lock objects remaining for this entry
 				if bone.unique:
@@ -931,6 +941,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					lockObj["has_old_blob_references"] = True
 					db.Put(lockObj)
 			db.Delete(skelKey)
+			processRemovedRelations(skelKey)
 			return dbObj
 
 		key = self["key"]
@@ -1012,7 +1023,7 @@ class RelSkel(BaseSkeleton):
 			:type values: dict | db.Entry
 			:return:
 		"""
-		self.valuesCache = {"entity": values, "changedValues": {}}
+		self.valuesCache = {"entity": values, "changedValues": {}, "cachedRenderValues": {}}
 		return
 		for bkey, _bone in self.items():
 			if isinstance(_bone, baseBone):
@@ -1072,7 +1083,7 @@ class SkelList(list):
 		:vartype cursor: str
 	"""
 
-	__slots__ = ["baseSkel", "getCursor", "customQueryInfo"]
+	__slots__ = ["baseSkel", "getCursor", "customQueryInfo", "renderPreparation"]
 
 	def __init__(self, baseSkel):
 		"""
@@ -1081,20 +1092,54 @@ class SkelList(list):
 		super(SkelList, self).__init__()
 		self.baseSkel = baseSkel
 		self.getCursor = lambda: None
+		self.renderPreparation = None
 		self.customQueryInfo = {}
 
 	def __iter__(self):
 		for cacheItem in super(SkelList, self).__iter__():
 			self.baseSkel.setValuesCache(cacheItem)
+			self.baseSkel.renderPreparation = self.renderPreparation
 			yield self.baseSkel
 
 	def pop(self, index=None):
 		item = super(SkelList, self).pop(index)
 		self.baseSkel.setValuesCache(item)
+		self.baseSkel.renderPreparation = self.renderPreparation
 		return self.baseSkel
 
 
 ### Tasks ###
+
+@callDeferred
+def processRemovedRelations(removedKey, cursor=None):
+	kind, name = removedKey
+
+	updateListQuery = db.Query("viur-relations").filter("dest.key =", name) \
+		.filter("viur_dest_kind =", kind).filter("viur_relational_consistency >", 2)
+	updateListQuery = updateListQuery.setCursor(cursor)
+	updateList = updateListQuery.run(limit=5)
+	for entry in updateList:
+		skel = skeletonByKind(entry["viur_src_kind"])()
+		assert skel.fromDB(entry["src"]["key"])
+		if entry["viur_relational_consistency"] == 3:  # Set Null
+			for key, _bone in skel.items():
+				if isinstance(_bone, relationalBone):
+					relVal = skel[key]
+					if isinstance(relVal, dict) and relVal["dest"]["entity"]["key"] == name:
+							# FIXME: Should never happen: "key" not in relVal["dest"]
+							#skel.setBoneValue(key, None)
+							skel[key] = None
+					elif isinstance(relVal, list):
+						skel[key] = [x for x in relVal if x["dest"]["key"] != name]
+					else:
+						print("Type? %s" % type(relVal))
+			skel.toDB(clearUpdateTag=True)
+		else:
+			logging.critical("Cascading Delete to %s/%s" % (skel.kindName, skel["key"]))
+			skel.delete()
+			pass
+
+
 
 @callDeferred
 def updateRelations(destID, minChangeTime, changeList, cursor=None):
@@ -1185,25 +1230,25 @@ def processChunk(module, compact, cursor, allCount=0, notify=None):
 	if not Skel:
 		logging.error("TaskUpdateSearchIndex: Invalid module")
 		return
-	query = Skel().all().cursor(cursor)
+	query = Skel().all().setCursor(cursor)
 	count = 0
-	for key in query.run(25, keysOnly=True):
+	for obj in query.run(25):
 		count += 1
 		try:
 			skel = Skel()
-			skel.fromDB(str(key))
+			skel.fromDB(obj.name)
 			if compact == "YES":
 				raise NotImplementedError()  # FIXME: This deletes the __currentKey__ property..
 				skel.delete()
 			skel.refresh()
 			skel.toDB(clearUpdateTag=True)
 		except Exception as e:
-			logging.error("Updating %s failed" % str(key))
+			logging.error("Updating %s failed" % str(obj.name))
 			logging.exception(e)
 			raise
 	newCursor = query.getCursor()
 	logging.info("END processChunk %s, %d records refreshed" % (module, count))
-	if count and newCursor and newCursor.urlsafe() != cursor:
+	if count and newCursor and newCursor != cursor:
 		# Start processing of the next chunk
 		processChunk(module, compact, newCursor.urlsafe(), allCount + count, notify)
 	else:

@@ -130,6 +130,10 @@ class stringBone(baseBone):
 			:param expando: An instance of the dictionary-like db.Entity class
 			:type expando: :class:`server.db.Entity`
 		"""
+		if not isinstance(expando, dict):
+			logging.critical("Data-corruption detected: %s" % name)
+			valuesCache[name] = "--corrupted!!--"
+			return True
 		if not self.languages:
 			valuesCache[name] = expando.get(name)
 		else:
