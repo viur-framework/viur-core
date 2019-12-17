@@ -45,7 +45,8 @@ class fileBone(treeItemBone):
 	refKeys = ["name", "key", "mimetype", "dlkey", "size", "width", "height", "derived"]
 
 	def __init__(self, format="$(dest.name)", derive: Union[None, Dict[str, Dict]] = None, *args, **kwargs):
-		assert "dlkey" in self.refKeys, "You cannot remove dlkey from refKeys!"
+		if "dlkey" not in self.refKeys:
+			self.refKeys.append("dlkey")
 		super(fileBone, self).__init__(format=format, *args, **kwargs)
 		self.derive = derive
 

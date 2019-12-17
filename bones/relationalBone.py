@@ -91,12 +91,12 @@ class relationalBone(baseBone):
 
 		if refKeys:
 			if not "key" in refKeys:
-				raise AttributeError("'key' must be included in refKeys!")
+				refKeys.append("key")
 			self.refKeys = refKeys
 
 		if parentKeys:
 			if not "key" in parentKeys:
-				raise AttributeError("'key' must be included in parentKeys!")
+				parentKeys.append("key")
 			self.parentKeys = parentKeys
 
 		self.using = using
