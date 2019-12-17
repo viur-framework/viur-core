@@ -143,7 +143,7 @@ class UserPassword(object):
 		res = query.filter("name_idx >=", name.lower()).get()
 
 		if res is None:
-			res = {"password": "", "status": 0, "name": "", "name.idx": ""}
+			res = {"password": "", "status": 0, "name": "", "name.idx": "", "password_salt": ""}
 
 		passwd = pbkdf2(password[:conf["viur.maxPasswordLength"]], res["password_salt"])
 		isOkay = True
@@ -182,7 +182,7 @@ class UserPassword(object):
 				res["password"] = pbkdf2(password[: conf["viur.maxPasswordLength"]], res["password_salt"])
 				db.Put(res)
 
-			return self.userModule.continueAuthenticationFlow(self, (res.collection, res.name))
+			return self.userModule.continueAuthenticationFlow(self, res.key)
 
 	@exposed
 	def pwrecover(self, authtoken=None, skey=None, *args, **kwargs):
@@ -658,7 +658,7 @@ class User(List):
 			except:
 				pass
 
-		session.current["user"]["key"] = db.Key(userKey[0], userKey[1])
+		session.current["user"]["key"] = userKey
 		if not "access" in session.current["user"] or not session.current["user"]["access"]:
 			session.current["user"]["access"] = []
 
@@ -723,7 +723,7 @@ class User(List):
 		if key == "self":
 			user = self.getCurrentUser()
 			if user:
-				return super(User, self).view(user["key"][1], *args, **kwargs)
+				return super(User, self).view(user["key"].name, *args, **kwargs)
 			else:
 				raise errors.Unauthorized()
 

@@ -149,7 +149,9 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 				raise ValueError("Unknown sub-skeleton %s for skel %s" % (name, skel.kindName))
 			boneList.extend(skel.subSkels[name][:])
 
-		for key, bone in skel.items():
+		skel.__boneNames__ = list(skel.__boneNames__)
+
+		for key, bone in list(skel.items()):
 			if key in ["key"]:
 				keepBone = True
 			else:
@@ -162,8 +164,8 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 						break
 
 			if not keepBone:  # Remove that bone from the skeleton
-				delattr(skel, key)
-
+				#delattr(skel, key)
+				skel.__boneNames__.remove(key)
 		skel.isClonedInstance = cloned  # Relock it if necessary
 		return skel
 
@@ -253,8 +255,8 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		if isinstance(value, baseBone):
 			raise AttributeError("Don't assign this bone object as skel[\"%s\"] = ... anymore to the skeleton. "
 								 "Use skel.%s = ... for bone to skeleton assignment!" % (key, key))
-		elif isinstance(value, db.Key):
-			value = str(value[1])
+		#elif isinstance(value, db.Key):
+		#	value = str(value[1])
 		self.valuesCache["changedValues"][key] = value
 
 	def __getitem__(self, key):
@@ -299,7 +301,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		"""
 		self.valuesCache = {"changedValues": {}, "entity": values, "cachedRenderValues": {}}
 		if isinstance(values, db.Entity):
-			self["key"] = values.name
+			self["key"] = values.key
 		return
 
 	def getValues(self):
@@ -520,6 +522,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 									visible=False,
 									languages=conf["viur.availableLanguages"])
 
+	def __repr__(self):
+		return "<skeleton %s with data=%r>" % (self.kindName, {k:self[k] for k in self.keys()})
+
 	def __init__(self, *args, **kwargs):
 		super(Skeleton, self).__init__(*args, **kwargs)
 		assert self.kindName and self.kindName is not __undefindedC__, "You must set kindName on this skeleton!"
@@ -599,9 +604,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		if key.kind() != self.kindName:  # Wrong Kind
 			return (False)
 		"""
-		assert "/" not in key
+		if isinstance(key, str):
+			key = db.Key(self.kindName, key)
 		try:
-			dbRes = db.Get((self.kindName, key))
+			dbRes = db.Get(key)
 		except db.EntityNotFoundError:
 			return False
 		if dbRes is None:
@@ -637,20 +643,22 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 			# Load the current values from Datastore or create a new, empty db.Entity
 			if not dbKey:
 				# We'll generate the key we'll be stored under early so we can use it for locks etc
-				dbObj = db.Entity(skel.kindName, name=db._generateNewId())
+				dbObj = db.Entity(db.Key(skel.kindName, db._generateNewId()))
 				oldCopy = {}
 				dbObj["viur"] = {}
 				oldBlobLockObj = None
 				isAdd = True
 			else:
-				dbObj = db.Get((self.kindName, dbKey))
+				if isinstance(dbKey, str):
+					dbKey = db.Key(self.kindName, dbKey)
+				dbObj = db.Get(dbKey)
 				if not dbObj:
-					dbObj = db.Entity(collection=self.kindName, name=dbKey)
+					dbObj = db.Entity(dbKey)
 					oldCopy = {}
 				else:
 					skel.setValues(dbObj)
 					oldCopy = {k: v for k, v in dbObj.items()}
-				oldBlobLockObj = db.Get(("viur-blob-locks", dbKey))
+				oldBlobLockObj = db.Get(db.Key("viur-blob-locks", dbKey.name))
 				isAdd = False
 			if not "viur" in dbObj:
 				dbObj["viur"] = {}
@@ -756,7 +764,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					lastSetSeoKeys[language] = newSeoKey
 				else:
 					# We'll use the database-key instead
-					lastSetSeoKeys[language] = dbObj.name
+					lastSetSeoKeys[language] = dbObj.key.name
 				# Store the current, active key for that language
 				dbObj["viur"]["viurCurrentSeoKeys"][language] = lastSetSeoKeys[language]
 			if not dbObj["viur"].get("viurActiveSeoKeys"):
@@ -765,9 +773,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				if dbObj["viur"]["viurCurrentSeoKeys"][language] not in dbObj["viur"]["viurActiveSeoKeys"]:
 					# Ensure the current, active seo key is in the list of all seo keys
 					dbObj["viur"]["viurActiveSeoKeys"].insert(0, seoKey)
-			if dbObj.name not in dbObj["viur"]["viurActiveSeoKeys"]:
+			if dbObj.key.name not in dbObj["viur"]["viurActiveSeoKeys"]:
 				# Ensure that key is also in there
-				dbObj["viur"]["viurActiveSeoKeys"].insert(0, dbObj.name)
+				dbObj["viur"]["viurActiveSeoKeys"].insert(0, dbObj.key.name)
 			# Trim to the last 200 used entries
 			dbObj["viur"]["viurActiveSeoKeys"] = dbObj["viur"]["viurActiveSeoKeys"][:200]
 			# Store lastRequestedKeys so further updates can run more efficient
@@ -810,14 +818,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				oldBlobLockObj["is_stale"] = False
 				db.Put(oldBlobLockObj)
 			else:  # We need to create a new blob-lock-object
-				blobLockObj = db.Entity("viur-blob-locks", name=dbObj.name)
+				blobLockObj = db.Entity(db.Key("viur-blob-locks", dbObj.key.name))
 				blobLockObj["active_blob_references"] = list(blobList)
 				blobLockObj["old_blob_references"] = []
 				blobLockObj["has_old_blob_references"] = False
 				blobLockObj["is_stale"] = False
 				db.Put(blobLockObj)
 
-			return dbObj.name, dbObj, skel, changeList
+			return dbObj.key.name, dbObj, skel, changeList
 
 		# END of txnUpdate subfunction
 
@@ -1236,21 +1244,21 @@ def processChunk(module, compact, cursor, allCount=0, notify=None):
 		count += 1
 		try:
 			skel = Skel()
-			skel.fromDB(obj.name)
+			skel.fromDB(obj.key)
 			if compact == "YES":
 				raise NotImplementedError()  # FIXME: This deletes the __currentKey__ property..
 				skel.delete()
 			skel.refresh()
 			skel.toDB(clearUpdateTag=True)
 		except Exception as e:
-			logging.error("Updating %s failed" % str(obj.name))
+			logging.error("Updating %s failed" % str(obj.key))
 			logging.exception(e)
 			raise
 	newCursor = query.getCursor()
 	logging.info("END processChunk %s, %d records refreshed" % (module, count))
 	if count and newCursor and newCursor != cursor:
 		# Start processing of the next chunk
-		processChunk(module, compact, newCursor.urlsafe(), allCount + count, notify)
+		processChunk(module, compact, newCursor, allCount + count, notify)
 	else:
 		try:
 			if notify:

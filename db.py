@@ -13,20 +13,6 @@ from google.cloud.firestore_v1beta1.proto import common_pb2
 from google.cloud.firestore_v1beta1.watch import Watch
 from google.api_core import exceptions
 from google.cloud import firestore
-from google.cloud.firestore_v1.proto import firestore_pb2_grpc
-from google.cloud.firestore_v1.proto import firestore_pb2
-from google.cloud.firestore_v1.proto import query_pb2
-from google.cloud.firestore_v1.types import Value as FirestoreValue
-from google.cloud.firestore_v1.proto import document_pb2, common_pb2
-from google.cloud.firestore_v1beta1.gapic import enums
-from google.cloud.firestore_v1.proto import write_pb2
-# google_dot_cloud_dot_firestore__v1_dot_proto_dot_write__pb2._WRITE
-from google.protobuf.pyext._message import MessageMapContainer as FirestoreMessageMapContainer
-from google.api_core import grpc_helpers
-from grpc._channel import _Rendezvous as GrpcRendezvousError
-from grpc import StatusCode as GrpcStatusCode
-from pprint import pprint
-from google.api_core.datetime_helpers import DatetimeWithNanoseconds
 from datetime import datetime, timedelta
 from typing import Union, Tuple, List, Dict, Iterable, Any
 from time import time, mktime
@@ -37,6 +23,8 @@ from google.protobuf import wrappers_pb2, struct_pb2, timestamp_pb2
 from collections import namedtuple
 from google.type import latlng_pb2
 from copy import deepcopy
+from google.cloud import datastore
+
 
 """
 	Tiny wrapper around *google.appengine.api.datastore*.
@@ -62,220 +50,31 @@ __OauthScopesFirestore__ = (
 __database__ = "projects/%s/databases/(default)" % utils.projectID
 __documentRoot__ = "projects/%s/databases/(default)/documents/" % utils.projectID
 __documentRootLen__ = len(__documentRoot__)  # A slice should be faster than fullKey.replace(__documentRoot__, "")
-__channel__ = grpc_helpers.create_channel("firestore.googleapis.com:443", scopes=__OauthScopesFirestore__)
-__firestoreStub__ = firestore_pb2_grpc.FirestoreStub(channel=__channel__)
+#__channel__ = grpc_helpers.create_channel("firestore.googleapis.com:443", scopes=__OauthScopesFirestore__)
+#__firestoreStub__ = firestore_pb2_grpc.FirestoreStub(channel=__channel__)
+__client__ = datastore.Client()
 
 ## Custom Datatypes
 GeoPoint = namedtuple("GeoPoint", ["latitude", "longitude"])  # Fixme: Currently not used
 Key = namedtuple("Key", ["collection", "name"])
 
-_operatorMap = {
-	"<": enums.StructuredQuery.FieldFilter.Operator.LESS_THAN,
-	"<=": enums.StructuredQuery.FieldFilter.Operator.LESS_THAN_OR_EQUAL,
-	"=": enums.StructuredQuery.FieldFilter.Operator.EQUAL,
-	">=": enums.StructuredQuery.FieldFilter.Operator.GREATER_THAN_OR_EQUAL,
-	">": enums.StructuredQuery.FieldFilter.Operator.GREATER_THAN,
-	"AC": enums.StructuredQuery.FieldFilter.Operator.ARRAY_CONTAINS,
-}
+#_operatorMap = {
+#	"<": enums.StructuredQuery.FieldFilter.Operator.LESS_THAN,
+#	"<=": enums.StructuredQuery.FieldFilter.Operator.LESS_THAN_OR_EQUAL,
+#	"=": enums.StructuredQuery.FieldFilter.Operator.EQUAL,
+#	">=": enums.StructuredQuery.FieldFilter.Operator.GREATER_THAN_OR_EQUAL,
+#	">": enums.StructuredQuery.FieldFilter.Operator.GREATER_THAN,
+#	"AC": enums.StructuredQuery.FieldFilter.Operator.ARRAY_CONTAINS,
+#}
 
-class Entity(dict):  # datastore.Entity
-	"""
-		Wraps ``datastore.Entity`` to prevent trying to add a string with more than 500 chars
-		to an index and providing a camelCase-API.
-	"""
-	__slots__ = ["collection", "name"]
-
-	def __init__(self, collection, name=None, preFill=None):
-		if preFill:
-			super(Entity, self).__init__(**preFill)
-		else:
-			super(Entity, self).__init__()
-		self.collection = collection
-		self.name = name
-
-	def _fixUnindexedProperties(self):
-		"""
-			Ensures that no property with strlen > 500 makes it into the index.
-		"""
-		unindexed = list(self.getUnindexedProperties())
-		for k, v in self.items():
-			if isinstance(v, str) and len(v) >= 500 and not k in unindexed:
-				logging.warning("Your property %s cant be indexed!" % k)
-				unindexed.append(k)
-			elif isinstance(v, list) or isinstance(v, tuple()):
-				if any([isinstance(x, str) and len(x) >= 500 for x in v]) and not k in unindexed:
-					logging.warning("Your property %s cant be indexed!" % k)
-					unindexed.append(k)
-		self.set_unindexed_properties(unindexed)
-
-	def isSaved(self):
-		"""
-			Returns True if this entity has been saved to the data store.
-
-			:rtype: bool
-		"""
-		return (self.is_saved())
-
-	def entityGroup(self):
-		"""
-			Returns this entity's entity group as a Key.
-
-			Note that the returned Key will be incomplete if this is a a root entity
-			and its key is incomplete.
-		"""
-		return (self.entity_group())
-
-	def getUnindexedProperties(self):
-		"""
-			Returns this entity's unindexed properties, as a frozen set of strings.
-		"""
-		return (self.unindexed_properties())
-
-	def setUnindexedProperties(self, unindexed_properties):
-		"""
-			Sets the list of unindexed properties.
-
-			Properties listed here are *not* saved in an index;
-			its impossible to use them in a query filter / sort.
-
-			But it saves one db-write op per property listed here.
-		"""
-		self.set_unindexed_properties(unindexed_properties)
-
-	def set(self, key, value, indexed=True):
-		"""
-			Sets a property.
-
-			:param key: key of the property to set.
-			:type key: str
-			:param value: Any value to set tot the property.
-
-			:param indexed: Defines if the value is indexed.
-			:type indexed: bool
-
-			:raises: :exc:`BadPropertyError` if the property name is the \
-			empty string or not a string.
-			:raises: :exc:`BadValueError` if the value is not a supported type.
-		"""
-		# unindexed = list(self.getUnindexedProperties())
-
-		# if not indexed and not key in unindexed:
-		#	unindexed.append(key)
-		#	self.setUnindexedProperties(unindexed)
-		# elif indexed and key in unindexed:
-		#	unindexed.remove(key)
-		#	self.setUnindexedProperties(unindexed)
-
-		self[key] = value
-
-	@staticmethod
-	def FromDatastoreEntity(entity):
-		"""
-			Converts a datastore.Entity into a :class:`db.server.Entity`.
-
-			Required, as ``datastore.Get()`` always returns a datastore.Entity
-			(and it seems that currently there is no valid way to change that).
-		"""
-		res = Entity(entity.kind(), parent=entity.key().parent(), _app=entity.key().app(),
-					 name=entity.key().name(), id=entity.key().id(),
-					 unindexed_properties=entity.unindexed_properties(),
-					 namespace=entity.namespace())
-		res.update(entity)
-		return (res)
-
-	def __eq__(self, other):
-		if not isinstance(other, Entity):
-			return False
-		return self.collection == other.collection and self.name == other.name and super(Entity, self).__eq__(other)
-
-	def __repr__(self):
-		other = self.copy()
-		other["__key__"] = "%s/%s" % (self.collection, self.name)
-		return other.__repr__()
+Entity = datastore.Entity
+KeyClass = datastore.Key
 
 
 ## Helper functions for dealing with protobuffs etc.
 
 _generateNewId = partial(utils.generateRandomString, length=20)
 
-
-def _protoValueToPythonVal(value: FirestoreValue) -> \
-		Union[None, bool, int, float, list, dict, str, bytes, datetime, GeoPoint]:
-	"""
-	Constructs a native python type from it's google.cloud.firestore_v1.types.Value instance
-
-	:param value: The google.cloud.firestore_v1.types.Value to parse
-	:return: The native Python object for that value
-	"""
-	valType = value.WhichOneof("value_type")
-	if valType in {"boolean_value", "integer_value", "double_value", "string_value", "bytes_value", "reference_value"}:
-		return getattr(value, valType)
-	elif valType == "null_value":
-		return None
-	elif valType == "timestamp_value":
-		return datetime.fromtimestamp(
-			# Shift by 1.000.000.000 to convert nano seconds as int to fractions of a second (float)
-			float(value.timestamp_value.seconds) + float(value.timestamp_value.nanos) / 1_000_000_000.0
-		)
-	elif valType == "array_value":
-		return [_protoValueToPythonVal(element) for element in value.array_value.values]
-	elif valType == "map_value":
-		return {key: _protoValueToPythonVal(value) for key, value in value.map_value.fields.items()}
-	elif valType == "geo_point_value":
-		return GeoPoint(value.geo_point_value.latitude, value.geo_point_value.longitude)
-	else:
-		raise ValueError("Value-Type '%s'not supported" % valType)
-
-
-def _protoMapToEntry(protBufFields: FirestoreMessageMapContainer, keyPath: Tuple[str, str]) -> Entity:
-	collection, name = keyPath
-	return Entity(collection, name, {key: _protoValueToPythonVal(value) for key, value in protBufFields.items()})
-
-
-def _pythonValToProtoValue(value: Union[None, bool, int, float, list, dict, str, bytes, datetime, GeoPoint]) \
-		-> document_pb2.Value:
-	"""Converts a native Python value into a Firestore protobuf ``Value``.
-
-	Args:
-		value (Union[NoneType, bool, int, float, datetime.datetime, \
-			str, bytes, dict, ~google.cloud.Firestore.GeoPoint]): A native
-			Python value to convert to a protobuf field.
-
-	Returns:
-		~google.cloud.firestore_v1.types.Value: A
-		value encoded as a Firestore protobuf.
-
-	Raises:
-		TypeError: If the ``value`` is not one of the accepted types.
-	"""
-	# FIXME: We have no solution for document references yet
-	if value is None:
-		return document_pb2.Value(null_value=struct_pb2.NULL_VALUE)
-	elif isinstance(value, bool):
-		# Bool is subtype of int, check first
-		return document_pb2.Value(boolean_value=value)
-	elif isinstance(value, int):
-		return document_pb2.Value(integer_value=value)
-	elif isinstance(value, float):
-		return document_pb2.Value(double_value=value)
-	elif isinstance(value, datetime):
-		seconds = int(mktime(value.timetuple()))
-		nanos = value.microsecond * 1000
-		return document_pb2.Value(timestamp_value=timestamp_pb2.Timestamp(seconds=seconds, nanos=nanos))
-	elif isinstance(value, str):
-		return document_pb2.Value(string_value=value)
-	elif isinstance(value, bytes):
-		return document_pb2.Value(bytes_value=value)
-	elif isinstance(value, GeoPoint):
-		return document_pb2.Value(geo_point_value=latlng_pb2.LatLng(latitude=value.latitude, longitude=value.longitude))
-	elif isinstance(value, list):
-		arrayVal = document_pb2.ArrayValue(values=[_pythonValToProtoValue(element) for element in value])
-		return document_pb2.Value(array_value=arrayVal)
-	elif isinstance(value, dict):
-		mapVal = document_pb2.MapValue(fields={k: _pythonValToProtoValue(v) for k, v in value.items()})
-		return document_pb2.Value(map_value=mapVal)
-	else:
-		raise TypeError("Cannot convert to a Firestore Value", value, "Invalid type", type(value))
 
 
 def PutAsync(entities, **kwargs):
@@ -305,7 +104,38 @@ def PutAsync(entities, **kwargs):
 	return (datastore.PutAsync(entities, **kwargs))
 
 
-def Put(entities: Union[Entity, List[Entity]], **kwargs) -> None:
+def Put(entries):
+	def fixUnindexed(entry):
+		def hasUnindexed(prop):
+			if isinstance(prop, dict):
+				return any([hasUnindexed(x) for x in prop.values()])
+			elif isinstance(prop, list):
+				return any([hasUnindexed(x) for x in prop])
+			elif isinstance(prop, str):
+				return len(prop) >= 500
+			else:
+				return False
+
+		resList = []
+		for k, v in entry.items():
+			if hasUnindexed(v):
+				if isinstance(v, dict):
+					innerEntry = Entity()
+					innerEntry.update(v)
+					entry[k] = fixUnindexed(innerEntry)
+				else:
+					resList.append(k)
+		entry.exclude_from_indexes = resList
+		return entry
+	if isinstance(entries, list):
+		return [Put(x) for x in entries]
+	entry = fixUnindexed(entries)
+	return __client__.put(entry)
+
+#Put = __client__.put
+
+
+def Put__(entities: Union[Entity, List[Entity]], **kwargs) -> None:
 	"""
 		Store one or more entities in the data store.
 
@@ -404,7 +234,10 @@ def GetAsync(keys, **kwargs):
 	return (datastore.GetAsync(keys, **kwargs))
 
 
-def Get(keys: Union[Key, List[Key]], **kwargs) -> Union[None, Entity, List[Entity]]:
+Get = __client__.get
+
+
+def Get__(keys: Union[Key, List[Key]], **kwargs) -> Union[None, Entity, List[Entity]]:
 	"""
 		Retrieve one or more entities from the data store.
 
@@ -548,7 +381,7 @@ def GetOrInsert(key: Key, **kwargs):
 	def txn(key, kwargs):
 		obj = Get(key)
 		if not obj:
-			obj = Entity(collection=key[0], name=key[1])
+			obj = Entity(key)
 			for k, v in kwargs.items():
 				obj[k] = v
 			Put(obj)
@@ -599,7 +432,12 @@ def DeleteAsync(keys, **kwargs):
 	return (datastore.DeleteAsync(keys, **kwargs))
 
 
-def Delete(keys: Union[Key, List[Key]], **kwargs) -> None:
+Delete_ = __client__.delete
+
+def Delete(*args, **kwargs):
+	return
+
+def Delete__(keys: Union[Key, List[Key]], **kwargs) -> None:
 	"""
 		Deletes one or more entities from the data store.
 
@@ -655,47 +493,6 @@ def Delete(keys: Union[Key, List[Key]], **kwargs) -> None:
 	return (datastore.Delete(keys, **kwargs))
 
 
-class Cursor(object):
-	def __init__(self, lastEntry):
-		super(Cursor, self).__init__()
-
-
-def _valueFromEntry(entry: Entity, fieldPath: str) -> Any:
-	""
-	for field in fieldPath.split("."):
-		if field.isdigit() and isinstance(entry, list):
-			entry = entry[int(field)]
-		elif isinstance(entry, dict) and field in entry:
-			entry = entry[field]
-		else:
-			return None
-	return entry
-
-def _entryMatchesQuery(entry: Entity, singleFilter: dict) -> bool:
-	for filterStr, filterValue in singleFilter.items():
-		field, opcode = filterStr.split(" ")
-		operator = _operatorMap[opcode]
-		fieldValue = entry.get(field)
-		if operator == enums.StructuredQuery.FieldFilter.Operator.EQUAL:
-			if fieldValue != filterValue:  # Not equal - do not append
-				return False
-		elif operator == enums.StructuredQuery.FieldFilter.Operator.LESS_THAN:
-			if not fieldValue < filterValue:
-				return False
-		elif operator == enums.StructuredQuery.FieldFilter.Operator.GREATER_THAN:
-			if not fieldValue > filterValue:
-				return False
-		elif operator == enums.StructuredQuery.FieldFilter.Operator.LESS_THAN_OR_EQUAL:
-			if not fieldValue <= filterValue:
-				return False
-		elif operator == enums.StructuredQuery.FieldFilter.Operator.GREATER_THAN_OR_EQUAL:
-			if not fieldValue >= filterValue:
-				return False
-		elif operator == enums.StructuredQuery.FieldFilter.Operator.ARRAY_CONTAINS:
-			if not fieldValue in filterValue:
-				return False
-	return True
-
 
 class Query(object):
 	"""
@@ -708,7 +505,7 @@ class Query(object):
 		self.collection = collection
 		self.srcSkel = srcSkelClass
 		self.filters: Union[None, Dict[str: Any], List[Dict[str: Any]]] = {}
-		self.orders: List[Tuple[str, enums.StructuredQuery.Direction]] = [(KEY_SPECIAL_PROPERTY, ASCENDING)]
+		self.orders: List[Tuple[str, int]] = [(KEY_SPECIAL_PROPERTY, ASCENDING)]
 		self.amount: int = 30
 		self._filterHook = None
 		self._orderHook = None
@@ -720,6 +517,7 @@ class Query(object):
 		self.origCollection = collection
 		self._lastEntry = None
 		self._fulltextQueryString = None
+		self.lastCursor = None
 
 	def setFilterHook(self, hook):
 		"""
@@ -888,15 +686,9 @@ class Query(object):
 		elif filter and value is not __undefinedC__:
 			if isinstance(self.filters, list):
 				for singeFilter in self.filters:
-					if op.lower() != "ac" and not any([k.lower().endswith(" ac") for k in singeFilter.keys()]):
-						singeFilter["%s %s" % (field, op)] = value
-					else:
-						logging.critical("DROPPING SECOND AC FILTER!!")
+					singeFilter["%s %s" % (field, op)] = value
 			else:  # It must be still a dict (we tested for None already above)
-				if op.lower() != "ac" and not any([k.lower().endswith(" ac") for k in self.filters.keys()]):
-					self.filters["%s %s" % (field, op)] = value
-				else:
-					logging.critical("DROPPING SECOND AC FILTER!!")
+				self.filters["%s %s" % (field, op)] = value
 			if op in {"<", "<=", ">", ">="} and len(self.orders) > 0 and self.orders[0][0] != field:
 				self.order((field, ASCENDING), *self.orders)
 
@@ -1002,6 +794,12 @@ class Query(object):
 			:returns: Returns the query itself for chaining.
 			:rtype: server.db.Query
 		"""
+		if isinstance(startCursor, str) and startCursor.startswith("h-"):
+			self._startCursor = bytes.fromhex(startCursor[2:])
+		else:
+			self._startCursor = startCursor
+		self._endCursor = endCursor
+		return self
 
 		def untrustedCursorHelper(cursor):
 			splits = str(cursor).split("_")
@@ -1124,6 +922,7 @@ class Query(object):
 
 			:raises: :exc:`AssertionError` if the query has not yet been run or cannot be compiled.
 		"""
+		return self.lastCursor
 		if not isinstance(self.filters, dict):
 			# Either a multi-query or an unsatisfiable query
 			return None
@@ -1172,244 +971,17 @@ class Query(object):
 		"""
 		return (self.datastoreQuery.ancestor)
 
-	def _buildFilterProtoBuff(self, filters: dict) -> google.cloud.firestore_v1.types.StructuredQuery.Filter:
-		"""
-			Construct a filter protobuff for all constrains in filters dict.
-			If filters is an empty dict, we can simply return none (as no constrains should be applied).
-			If it's a single constrain, we simply return a FieldFilter, otherwise we return a Composite Filter
-			with a list of corresponding FieldFilters.
 
-		"""
-
-		def mkFilterPb(key, value):
-			field, opcode = key.split(" ")
-			if field == KEY_SPECIAL_PROPERTY:  # We have to treat key filters differently
-				if isinstance(value, Key):
-					value = document_pb2.Value(reference_value="%s%s/%s" % (__documentRoot__, value[0], value[1]))
-				else:
-					value = document_pb2.Value(reference_value="%s%s/%s" % (__documentRoot__, self.getKind(), value))
-			else:
-				value = _pythonValToProtoValue(value)
-			filter_pb = query_pb2.StructuredQuery.FieldFilter(
-				field=query_pb2.StructuredQuery.FieldReference(field_path=field),
-				op=_operatorMap[opcode],
-				value=value
-			)
-			return query_pb2.StructuredQuery.Filter(field_filter=filter_pb)
-
-		num_filters = len(filters)
-		if num_filters == 0:
-			return None
-		elif num_filters == 1:
-			# Fixme: What's the fastest method of getting the single key/value pair from an dict without modifying it
-			key, val = filters.copy().popitem()
-			return mkFilterPb(key, val)
-		else:
-			composite_filter = query_pb2.StructuredQuery.CompositeFilter(
-				op=enums.StructuredQuery.CompositeFilter.Operator.AND,
-				filters=[mkFilterPb(key, val) for key, val in filters.items()],
-			)
-			return query_pb2.StructuredQuery.Filter(composite_filter=composite_filter)
-
-	def _buildOrderProtoBuff(self, orders: Union[None, List[Tuple[str, int]]], filters: dict) \
-			-> Union[None, Tuple[query_pb2.StructuredQuery.Order]]:
-		"""
-			Constructs an StructuredQuery.Order Protobuff that corresponds to the orders requested.
-			Care must be taken if we sort by a field that's also used in an IN Query
-		"""
-		if not orders:
-			return None
-		return tuple(query_pb2.StructuredQuery.Order(
-			field=query_pb2.StructuredQuery.FieldReference(field_path=field),
-			direction=direction) for field, direction in orders if "%s =" % field not in filters)
-
-	def _buildProtoBuffForQuery(self, filters, orders, limit) -> google.cloud.firestore_v1.types.StructuredQuery:
-		"""
-			Constructs the corresponding protobuffer for the query given in by filters, orders and limit
-
-		Returns:
-			google.cloud.firestore_v1beta1.types.StructuredQuery: The
-			query protobuf.
-		"""
-		projection = None  # self._normalize_projection(self._projection)
-
-		def strCursorHelper(strCursor: str) -> List[Any]:
-			key, sig = strCursor.split("_")
-			entity = Get((self.collection, key))
-			if not entity:
-				raise InvalidCursorError("That cursor is void")
-			# Rebuild the original Tuple-Cursor
-			res = []
-			for fieldPath, direction in self.orders:
-				if fieldPath == KEY_SPECIAL_PROPERTY:
-					res.append("%s/%s" % (entity.collection, entity.name))
-				else:
-					res.append(_valueFromEntry(entity, fieldPath))
-
-			# Verify that this Tuple-Cursor still matches the values it had when it was created
-			hmacSigData = utils.hmacSign(res)
-			signedRes = "%s_%s" % (entity.name, hmacSigData)
-			if signedRes != strCursor:
-				# Looks like the entry has changed meanwhile...
-				raise InvalidCursorError("That cursor is void")
-			return res
-
-		if self._startCursor:
-			if isinstance(self._startCursor, str):
-				self._startCursor = strCursorHelper(self._startCursor)
-			if len(self._startCursor) != len(self.orders):
-				raise InvalidCursorError("startCursor does not match query")
-			if self._startCursor[-1].split("/")[0] != self.collection:
-				raise InvalidCursorError("startCursor is from a different collection")
-			cursorValues = [_pythonValToProtoValue(f) for f in self._startCursor[:-1]]
-			# The last one is the document reference - and we have to treat it differently
-			cursorValues.append(document_pb2.Value(reference_value=__documentRoot__ + self._startCursor[-1]))
-			startCursor = query_pb2.Cursor(values=cursorValues, before=False)
-		else:
-			startCursor = None
-		if self._endCursor:
-			if isinstance(self._endCursor, str):
-				self._endCursor = strCursorHelper(self._endCursor)
-			if len(self._endCursor) != len(self.orders):
-				raise InvalidCursorError("endCursor does not match query")
-			if self._endCursor[-1].split("/")[0] != self.collection:
-				raise InvalidCursorError("endCursor is from a different collection")
-			cursorValues = [_pythonValToProtoValue(f) for f in self._endCursor[:-1]]
-			# The last one is the document reference - and we have to treat it differently
-			cursorValues.append(document_pb2.Value(reference_value=__documentRoot__ + self._endCursor[-1]))
-			endCursor = query_pb2.Cursor(values=cursorValues, before=False)
-		else:
-			endCursor = None
-
-		query_kwargs = {
-			"select": projection,
-			"from": [
-				query_pb2.StructuredQuery.CollectionSelector(
-					collection_id=self.collection
-				)
-			],
-			"where": self._buildFilterProtoBuff(filters),
-			"order_by": self._buildOrderProtoBuff(self.orders, filters),
-			"start_at": startCursor,  # cursor_pb(start_at),
-			"end_at": endCursor,  # _cursor_pb(end_at),
-			"limit": wrappers_pb2.Int32Value(value=limit)
-		}
-		# if self._offset is not None:
-		#	query_kwargs["offset"] = self._offset
-		# if self._limit is not None:
-		#	query_kwargs["limit"] = wrappers_pb2.Int32Value(value=self._limit)
-		return query_pb2.StructuredQuery(**query_kwargs)
-
-	def _runSingleFilterQuery(self, filters: dict, transaction: Union[None, bytes], amount: int) -> Iterable[dict]:
-		"""
-			Runs a single query with the given filter dict.
-			Orders, Limits etc are taken from self.
-		:param filters:
-		:return:
-		"""
-		protoBuff = self._buildProtoBuffForQuery(filters, self.orders, amount)
-		req = firestore_pb2.RunQueryRequest(
-			parent=__documentRoot__[:-1],
-			structured_query=protoBuff,
-			transaction=transaction)
-		return __firestoreStub__.RunQuery(req)
-
-	def _mergeMultiQueryResults(self, inputRes: List[List[Entity]]) -> List[Entity]:
-		"""
-			Merge the lists of entries into a single list; removing duplicates and restoring sort-order
-		:param inputRes: Nested Lists of Entries returned by each individual query run
-		:return: Sorted & deduplicated list of entries
-		"""
-		seenKeys = set()
-		res = []
-		for subList in inputRes:
-			for entry in subList:
-				key = "%s/%s" % (entry.collection, entry.name)
-				if key in seenKeys:
-					continue
-				seenKeys.add(key)
-				res.append(entry)
-		# Fixme: What about filters that mix different inequality filters - we'll now simply ignore any implicit sortorder
-		return self._resortResult(res, {}, self.orders)
-
-	def _injectPendingWrites(self, entites: List[Entity], singleFilter: Dict[str, any],
-							 pendingWrites: Dict[str, Entity], targetAmount: int) -> List[Entity]:
-		"""
-			If we run a query inside a transaction, it might return stale entries as we might already have pending
-			writes which the firestore doesn't yet know about (as we can only write once on commit).
-			So we have to validate that
-				- Each entry returned still does match our filters
-				- Is in the correct position in the result (a pending write may will cause a shift if the field were
-				sorting by has changed
-				- No entry that is marked for delete is returned
-				- Any new entry (either changed or freshly added) which would have been returned if firestore already
-				knew about it is also appended
-
-			What we do: We append all new Entries to the list of returned entries (or update the entry in place if it's
-			changed and returned from the firestore).
-			Then we'll filter the list, discarding any entry that would not match the filters anymore.
-			Next, we re-sort the entries still in the list and truncate it to the len originally requested
-		:param entites: List of entries returned from firestore
-		:param pendingWrites: Dict of enqueued changes for that collection
-		:return: Fixed list of entries as the firestore would have returned if it knew the pending changes
-		"""
-
-		def mergeWithUpdatedEntry(entry, key):
-			if not key in pendingWrites:
-				return entry
-			return pendingWrites[key]
-
-		# Inplace merge returned entities with our pending changelist
-		tmpDict = {entry.name: mergeWithUpdatedEntry(entry, entry.name) for entry in entites}
-		# Add any (maybe newly added) entry to the list
-		for name, entry in pendingWrites.items():
-			if name not in tmpDict:
-				tmpDict[name] = entry
-		# Next we reject any entry that doesn't match the query anymore
-		resList = []
-		ineqFilter = None
-		for entry in tmpDict.values():
-			if not entry or not _entryMatchesQuery(entry, singleFilter):
-				continue
-			resList.append(entry)
-		# Final step: Sort and truncate to requested length
-		return self._resortResult(resList, singleFilter, self.orders)[:targetAmount]
-
-	def _resortResult(self, entities: List[Entity], filters: Dict[str, Any],
-					  orders: List[Tuple[str, enums.StructuredQuery.Direction]]) -> List[Entity]:
-
-		def getVal(src: Entity, fieldVars: Union[str, Tuple[str]], direction: enums.StructuredQuery.Direction) -> Any:
-			# Descent into the target until we reach the property we're looking for
-			if isinstance(fieldVars, tuple):
-				for fv in fieldVars:
-					if not fv in src:
-						return None
-					src = src[fv]
-			else:
-				if not fieldVars in src:
-					return (str(type(None)), 0)
-				src = src[fieldVars]
-			# We must return this tuple because inter-type comparison isn't possible in Python3 anymore
-			return (str(type(src)), src if src is not None else 0)
-
-		# Check if we have an inequality filter which implies an sortorder
-		ineqFilter = None
-		for k, _ in filters.items():
-			end = k[-2:]
-			if "<" in end or ">" in end:
-				ineqFilter = k.split(" ")[0]
-				break
-		if ineqFilter and (not orders or not orders[0][0] == ineqFilter):
-			orders = [(ineqFilter, ASCENDING)] + (orders or [])
-
-		for orderField, direction in orders[::-1]:
-			if orderField == KEY_SPECIAL_PROPERTY:
-				entities.sort(key=lambda x: x.name, reverse=direction == DESCENDING)
-			else:
-				entities.sort(key=partial(getVal, fieldVars=orderField, direction=direction),
-							  reverse=direction == DESCENDING)
-
-		return entities
+	def _runSingleFilterQuery(self, filters, amount):
+		qry = __client__.query(kind=self.getKind())
+		for k, v in filters.items():
+			key, op = k.split(" ")
+			qry.add_filter(key, op, v)
+		qry.order = [x[0] if x[1]==ASCENDING else "-"+x[0] for x in self.orders]
+		qryRes = qry.fetch(limit=amount, start_cursor=self._startCursor, end_cursor=self._endCursor)
+		res = next(qryRes.pages)
+		self.lastCursor = qryRes.next_page_token
+		return res
 
 	def run(self, limit=-1, **kwargs):
 		"""
@@ -1435,20 +1007,11 @@ class Query(object):
 		"""
 		if self.filters is None:
 			return None
-		try:
-			currentTransaction = __currentTransaction__.transactionData
-		except AttributeError:
-			currentTransaction = None
 		origLimit = limit if limit != -1 else self.amount
 		qryLimit = origLimit
-		additionalTransactionEntries = 0
-		if currentTransaction:
-			# We might have to fetch more than the requested items as some items returned from the query might not
-			# match the query anymore (as we have pending writes which the firestore doesn't know about yet)
-			if self.collection in currentTransaction["pendingChanges"]:
-				additionalTransactionEntries = len(currentTransaction["pendingChanges"][self.collection])
+
 		if self._fulltextQueryString:
-			if currentTransaction:
+			if 0 and currentTransaction:
 				raise InvalidStateError("Can't run fulltextSearch inside transactions!")
 			qryStr = self._fulltextQueryString
 			self._fulltextQueryString = None  # Reset, so the adapter can still work with this query
@@ -1468,21 +1031,16 @@ class Query(object):
 			for singleFilter in self.filters:
 				res.append(self._runSingleFilterQuery(
 					filters=singleFilter,
-					transaction=currentTransaction["transactionKey"] if currentTransaction else None,
-					amount=qryLimit + additionalTransactionEntries))
+					amount=qryLimit))
 			# Wait for the actual results to arrive and convert the protobuffs to Entries
-			res = [
-				[_protoMapToEntry(tmpRes.document.fields, tmpRes.document.name[__documentRootLen__:].split("/")) for
-				 tmpRes in x if
-				 tmpRes.document.name]
-				for x in res]
-			if additionalTransactionEntries:
-				res = [self._injectPendingWrites(
-					entites=resultList,
-					singleFilter=singeFilter,
-					pendingWrites=currentTransaction["pendingChanges"][self.collection],
-					targetAmount=qryLimit)
-					for resultList, singeFilter in zip(res, self.filters)]
+			res = [list(x) for x in res]
+			#if additionalTransactionEntries:
+			#	res = [self._injectPendingWrites(
+			#		entites=resultList,
+			#		singleFilter=singeFilter,
+			#		pendingWrites=currentTransaction["pendingChanges"][self.collection],
+			#		targetAmount=qryLimit)
+			#		for resultList, singeFilter in zip(res, self.filters)]
 			if self._customMultiQueryMerge:
 				# We have a custom merge function, use that
 				res = self._customMultiQueryMerge(self, res, origLimit)
@@ -1490,25 +1048,26 @@ class Query(object):
 				# We must merge (and sort) the results ourself
 				res = self._mergeMultiQueryResults(res)
 		else:  # We have just one single query
-			res = [_protoMapToEntry(tmpRes.document.fields, tmpRes.document.name[__documentRootLen__:].split("/")) for
-				   tmpRes in self._runSingleFilterQuery(
-					filters=self.filters,
-					transaction=currentTransaction["transactionKey"] if currentTransaction else None,
-					amount=qryLimit + additionalTransactionEntries) if tmpRes.document.name]
-			if additionalTransactionEntries:
-				res = self._injectPendingWrites(
-					entites=res,
-					singleFilter=self.filters,
-					pendingWrites=currentTransaction["pendingChanges"][self.collection],
-					targetAmount=qryLimit)
+			res = list(self._runSingleFilterQuery(self.filters, qryLimit))
+			#res = [_protoMapToEntry(tmpRes.document.fields, tmpRes.document.name[__documentRootLen__:].split("/")) for
+			#	   tmpRes in self._runSingleFilterQuery(
+			#		filters=self.filters,
+			#		transaction=currentTransaction["transactionKey"] if currentTransaction else None,
+			#		amount=qryLimit + additionalTransactionEntries) if tmpRes.document.name]
+			#if additionalTransactionEntries:
+			#	res = self._injectPendingWrites(
+			#		entites=res,
+			#		singleFilter=self.filters,
+			#		pendingWrites=currentTransaction["pendingChanges"][self.collection],
+			#		targetAmount=qryLimit)
 		if conf["viur.debug.traceQueries"]:
 			kindName = self.origCollection
 			orders = self.orders
 			filters = self.filters
 			logging.debug(
 				"Queried %s with filter %s and orders %s. Returned %s results" % (kindName, filters, orders, len(res)))
-		if currentTransaction:
-			currentTransaction["lastQueries"].append((self, res, limit))
+		#if currentTransaction:
+		#	currentTransaction["lastQueries"].append((self, res, limit))
 		if res:
 			self._lastEntry = res[-1]
 		return res
@@ -1780,11 +1339,8 @@ def _rollbackTransaction():
 
 
 def IsInTransaction():
-	try:
-		currentTransaction = __currentTransaction__.transactionData
-	except AttributeError:
-		currentTransaction = None
-	return currentTransaction is not None
+	print("IsInTransaction: %s" % __client__.transaction().current() is not None)
+	return __client__.transaction().current() is not None
 
 
 def acquireTransactionSuccessMarker() -> str:
@@ -1808,17 +1364,9 @@ def acquireTransactionSuccessMarker() -> str:
 
 
 def RunInTransaction(callee, *args, **kwargs):
-	_beginTransaction()
-	try:
+	with __client__.transaction():
 		res = callee(*args, **kwargs)
-	except Exception as e:
-		logging.error("Error in TXN")
-		logging.exception(e)
-		_rollbackTransaction()
-		raise
-	else:
-		_commitTransaction()
-		return res
+	return res
 
 
 def RunInTransactionCustomRetries(*args, **kwargs):
@@ -1836,6 +1384,7 @@ AllocateIds = NotImplementedError  # datastore.AllocateIds
 TransactionOptions = NotImplementedError  # datastore_rpc.TransactionOptions
 
 # Key = NotImplementedError  # datastore_types.Key
+Key = __client__.key
 
 ## Errors ##
 Error = NotImplementedError  # datastore_errors.Error
@@ -1863,9 +1412,9 @@ Cursor = NotImplementedError  # datastore_query.Cursor
 # IsInTransaction = NotImplementedError  # datastore.IsInTransaction
 
 # Consts
-KEY_SPECIAL_PROPERTY = "__name__"  # datastore_types.KEY_SPECIAL_PROPERTY
-ASCENDING = enums.StructuredQuery.Direction.ASCENDING
-DESCENDING = enums.StructuredQuery.Direction.DESCENDING
+KEY_SPECIAL_PROPERTY = "__key__"  # datastore_types.KEY_SPECIAL_PROPERTY
+ASCENDING = 2
+DESCENDING = 3
 
 __all__ = [PutAsync, Put, GetAsync, Get, DeleteAsync, Delete, AllocateIdsAsync, AllocateIds, RunInTransaction,
 		   RunInTransactionCustomRetries, RunInTransactionOptions, TransactionOptions,

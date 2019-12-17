@@ -969,7 +969,7 @@ class relationalBone(baseBone):
 				raise ValueError("You must supply a tuple of (Database-Key, relSkel) to %s" % boneName)
 			realValue = value
 		elif self.multiple and not self.using:
-			if not (isinstance(value, str) or isinstance(value, db.Key)) and not (isinstance(value, list)) \
+			if not (isinstance(value, str) or isinstance(value, db.KeyClass)) and not (isinstance(value, list)) \
 				and all([isinstance(x, str) or isinstance(x, db.Key) for x in value]):
 				raise ValueError("You must supply a Database-Key or a list hereof to %s" % boneName)
 			if isinstance(value, list):
@@ -1033,7 +1033,7 @@ class relationalBone(baseBone):
 			elif isinstance(valuesCache[name], dict):
 				if valuesCache[name]["dest"]:
 					res.update(blobsFromSkel(self._refSkelCache, valuesCache[name]["dest"]))
-				if valuesCache[name]["rel"]:
+				if "rel" in valuesCache[name] and valuesCache[name]["rel"]:
 					res.update(blobsFromSkel(self._usingSkelCache, valuesCache[name]["rel"]))
 		return res
 

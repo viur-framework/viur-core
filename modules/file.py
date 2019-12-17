@@ -538,7 +538,7 @@ def doCleanupDeletedFiles(cursor=None):
 		gotAtLeastOne = True
 		if not "dlkey" in file:
 			db.Delete((file.collection, file.name))
-		elif db.Query("viur-blob-locks").filter("active_blob_references AC", file["dlkey"]).get():
+		elif db.Query("viur-blob-locks").filter("active_blob_references =", file["dlkey"]).get():
 			logging.info("is referenced, %s" % file["dlkey"])
 			db.Delete((file.collection, file.name))
 		else:

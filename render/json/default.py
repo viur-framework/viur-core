@@ -189,6 +189,11 @@ class DefaultRender(object):
 					usingSkel.setValuesCache(k)
 					tmpList.append(self.renderSkelValues(usingSkel))
 			return tmpList
+		elif key=="key":
+			try:  # FIXME: Why int?
+				return skel["key"].name
+			except:
+				return str(skel["key"])
 		else:
 			return skel[key]
 
@@ -262,7 +267,7 @@ class DefaultRender(object):
 		else:
 			res["structure"] = None
 		try:
-			res["cursor"] = skellist.getCursor()
+			res["cursor"] = "h-%s" % skellist.getCursor().hex()
 		except:
 			res["cursor"] = None
 		res["action"] = action

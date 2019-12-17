@@ -165,7 +165,7 @@ class GaeSession:
 		if self.plainCookieName in req.request.cookies:
 			cookie = str(req.request.cookies[self.plainCookieName])
 			try:
-				data = db.Get((self.kindName, cookie))
+				data = db.Get(db.Key(self.kindName, cookie))
 			except:
 				raise  # FIXME
 				return False
@@ -212,7 +212,7 @@ class GaeSession:
 					# Reset the Secure only key to None - we can't set it anyway.
 					self.sslKey = None
 				try:
-					dbSession = db.Entity(self.kindName, name=self.httpKey)
+					dbSession = db.Entity(db.Key(self.kindName, self.httpKey))
 					dbSession["data"] = serialized
 					dbSession["sslkey"] = self.sslKey
 					dbSession["staticSecurityKey"] = self.staticSecurityKey

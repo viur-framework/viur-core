@@ -108,7 +108,7 @@ class selectBone(baseBone):
 		return True
 
 
-	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
+	def buildDBFilter__(self, name, skel, dbFilter, rawFilter, prefix=None):
 		"""
 			Parses the searchfilter a client specified in his Request into
 			something understood by the datastore.

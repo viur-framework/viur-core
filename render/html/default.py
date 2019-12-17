@@ -314,8 +314,9 @@ class Render(object):
 			elif isinstance(boneValue, dict):
 				refSkel = bone._refSkelCache
 				refSkel.setValuesCache(boneValue["dest"])
+				refSkel.renderPreparation = self.renderBoneValue
 				if bone.using is None:
-					return self.collectSkelData(refSkel)
+					return refSkel
 				else:
 					usingSkel = bone._usingSkelCache
 					if boneValue["rel"]:
@@ -344,7 +345,8 @@ class Render(object):
 			elif isinstance(value, dict):
 				usingSkel.setValuesCache(value)
 				return self.collectSkelData(usingSkel)
-
+		elif key == "key":
+			return boneValue.name
 		else:
 			return boneValue
 
@@ -618,10 +620,9 @@ class Render(object):
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
 
 		if isinstance(skel, Skeleton):
-			res = self.collectSkelData(skel)
-		else:
-			res = skel
-		return template.render(skel=res, params=params, **kwargs)
+			#res = self.collectSkelData(skel)
+			skel.renderPreparation = self.renderBoneValue
+		return template.render(skel=skel, params=params, **kwargs)
 
 	## Extended functionality for the Tree-Application ##
 	def listRootNodeContents(self, subdirs, entries, tpl=None, params=None, **kwargs):
