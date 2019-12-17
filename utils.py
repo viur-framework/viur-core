@@ -33,9 +33,7 @@ def generateRandomString(length: int = 13) -> str:
 	:returns: A string with random characters of the given length.
 	:rtype: str
 	"""
-	return (''.join([
-		random.choice(string.ascii_lowercase + string.ascii_uppercase + string.digits)
-		for x in range(length)]))
+	return "".join(random.choices(string.ascii_letters + string.digits, k=length))
 
 
 def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None, *args, **kwargs):
