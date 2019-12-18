@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-from viur.core.bones import bone
-from viur.core import request, utils
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-import urllib
-import logging
 import json
+import urllib.parse
+import urllib.request
+
+from viur.core import request, utils
+from viur.core.bones import bone
+from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 
 
 class captchaBone(bone.baseBone):
@@ -43,17 +44,23 @@ class captchaBone(bone.baseBone):
 			return None
 		user = utils.getCurrentUser()
 		if user and "root" in user["access"]:
-			return  None # Don't bother trusted users with this (not supported by admin/vi anyways)
+			return None  # Don't bother trusted users with this (not supported by admin/vi anyways)
+
 		if not "g-recaptcha-response" in data:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "No Captcha given!")]
-		data = {"secret": self.privateKey,
-				"remoteip": request.current.get().request.remote_addr,
-				"response": data["g-recaptcha-response"]
-				}
-		response = urlfetch.fetch(url="https://www.google.com/recaptcha/api/siteverify",
-								  payload=urllib.urlencode(data),
-								  method=urlfetch.POST,
-								  headers={"Content-Type": "application/x-www-form-urlencoded"})
-		if json.loads(response.content.decode("UTF-8")).get("success"):
+
+		data = {
+			"secret": self.privateKey,
+			"remoteip": request.current.get().request.remote_addr,
+			"response": data["g-recaptcha-response"]
+		}
+
+		req = urllib.request.Request(url="https://www.google.com/recaptcha/api/siteverify",
+									 data=urllib.parse.urlencode(data).encode(),
+									 method="POST")
+		response = urllib.request.urlopen(req)
+
+		if json.loads(response.read()).get("success"):
 			return None
+
 		return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid Captcha")]
