@@ -99,6 +99,8 @@ class Render(object):
 		super(Render, self).__init__(*args, **kwargs)
 		if not Render.__haveEnvImported_:
 			# We defer loading our plugins to this point to avoid circular imports
+			# noinspection PyUnresolvedReferences
+			from . import env
 			Render.__haveEnvImported_ = True
 		self.parent = parent
 
