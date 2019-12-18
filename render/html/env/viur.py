@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-from viur.core import utils, request, conf, prototypes, securitykey, errors
+from viur.core import utils, request, conf, prototypes, securitykey, errors, db
 from viur.core.skeleton import Skeleton, RelSkel
 from viur.core.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
 from viur.core.render.html.wrap import ListWrapper, SkelListWrapper
-import urllib
+import urllib, urllib.parse
 from hashlib import sha512
 #from google.appengine.ext import db
 #from google.appengine.api import memcache, users
@@ -46,7 +46,7 @@ def execRequest(render, path, *args, **kwargs):
 
 	if cachetime:
 		# Calculate the cache key that entry would be stored under
-		tmpList = ["%s:%s" % (unstricode(k), str(v)) for k, v in kwargs.items()]
+		tmpList = ["%s:%s" % (str(k), str(v)) for k, v in kwargs.items()]
 		tmpList.sort()
 		tmpList.extend(list(args))
 		tmpList.append(path)
@@ -63,7 +63,7 @@ def execRequest(render, path, *args, **kwargs):
 		mysha512 = sha512()
 		mysha512.update(str(tmpList).encode("UTF8"))
 		cacheKey = "jinja2_cache_%s" % mysha512.hexdigest()
-		res = memcache.get(cacheKey)
+		res = None  # memcache.get(cacheKey)
 
 		if res:
 			return res
@@ -107,7 +107,8 @@ def execRequest(render, path, *args, **kwargs):
 	currentRequest.internalRequest = lastRequestState
 
 	if cachetime:
-		memcache.set(cacheKey, resstr, cachetime)
+		pass
+		#memcache.set(cacheKey, resstr, cachetime)
 
 	return resstr
 
@@ -156,7 +157,7 @@ def getEntry(render, module, key=None, skel="viewSkel"):
 
 		if isinstance(obj, prototypes.singleton.Singleton) and not key:
 			# We fetching the entry from a singleton - No key needed
-			key = str(db.Key.from_path(skel.kindName, obj.getKey()))
+			key = str(db.Key(skel.kindName, obj.getKey()))
 		elif not key:
 			logging.info("getEntry called without a valid key")
 			return False
@@ -398,7 +399,7 @@ def updateURL(render, **kwargs):
 		else:
 			tmpparams[key] = value
 
-	return "?" + urllib.urlencode(tmpparams).replace("&", "&amp;")
+	return "?" + urllib.parse.urlencode(tmpparams).replace("&", "&amp;")
 
 
 @jinjaGlobalFilter
@@ -463,10 +464,10 @@ def urlencode(render, val):
 	if not val:
 		return ""
 
-	if isinstance(val, unicode):
+	if isinstance(val, str):
 		val = val.encode("UTF-8")
 
-	return urllib.quote_plus(val)
+	return urllib.parse.quote_plus(val)
 
 
 '''

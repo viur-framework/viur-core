@@ -499,14 +499,12 @@ class Tree(BasicApplication):
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 
-		if type == "leaf":
-			skel.delete()
-		else:
+		if skelType == "node":
 			self.deleteRecursive(key)
-			skel.delete()
+		skel.delete()
 
 		self.onItemDeleted(skel)
-		return (self.render.deleteSuccess(skel, skelType=skelType))
+		return self.render.deleteSuccess(skel, skelType=skelType)
 
 	@exposed
 	@forceSSL

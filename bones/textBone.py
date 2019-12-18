@@ -34,7 +34,7 @@ _defaultTags = {
 class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
 	def __init__(self, validHtml=None):
 		global _defaultTags
-		HTMLParser.HTMLParser.__init__(self)
+		super(HtmlSerializer, self).__init__()
 		self.result = ""  # The final result that will be returned
 		self.openTagsList = []  # List of tags that still need to be closed
 		self.tagCache = []  # Tuple of tags that have been processed but not written yet
@@ -244,7 +244,7 @@ class textBone(baseBone):
 			entity[name] = self.getDefaultValue()
 			return entity
 		if self.languages:
-			for k in entity.keys():  # Remove any old data
+			for k in list(entity.keys()):  # Remove any old data
 				if k.startswith("%s." % name) or k.startswith("%s_" % name) or k == name:
 					del entity[k]
 			for lang in self.languages:
@@ -312,11 +312,11 @@ class textBone(baseBone):
 						valuesCache[name][lang] = HtmlSerializer(self.validHtml).sanitize(val)
 					else:
 						errors.append(
-							[ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+							ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
 						)
 			if not any(valuesCache[name].values()) and not errors:
 				errors.append(
-					[ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No / invalid values entered")]
+					ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No / invalid values entered")
 				)
 			if errors:
 				return errors
@@ -353,6 +353,7 @@ class textBone(baseBone):
 			Doesn't check for actual <a href=> or <img src=> yet.
 		"""
 		newFileKeys = []
+		return newFileKeys # FIXME!!
 		if self.languages:
 			if valuesCache[name]:
 				for lng in self.languages:

@@ -135,7 +135,7 @@ class List(BasicApplication):
 				raise errors.Unauthorized()
 		else: # We return a single entry for viewing
 			# We probably have a Database or SEO-Key here
-			seoKey = "viurActiveSeoKeys AC"
+			seoKey = "viur.viurActiveSeoKeys AC"
 			skel = self.viewSkel().all().filter(seoKey, args[0]).getSkel()
 			if not skel:
 				raise errors.NotFound()

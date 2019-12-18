@@ -72,38 +72,10 @@ class fileBone(treeItemBone):
 		elif isinstance(val, list):
 			return [x["dest"]["dlkey"] for x in val]
 		else:
+			logging.critical("Unknown value for bone %s (%s)" % (name, str(type(val))))
+			return []
 			raise ValueError("Unknown value for bone %s (%s)" % (name, str(type(val))))
 
-	def unserialize(self, valuesCache, name, expando):
-		res = super(fileBone, self).unserialize(valuesCache, name, expando)
-		currentValue = valuesCache[name]
-		if not request.current.get().isDevServer:
-			# Rewrite all "old" Serving-URLs to https if we are not on the development-server
-			if isinstance(currentValue, dict) and currentValue["dest"].get("servingurl"):
-				if currentValue["dest"]["servingurl"].startswith("http://"):
-					currentValue["dest"]["servingurl"] = currentValue["dest"]["servingurl"].replace("http://",
-																									"https://")
-			elif isinstance(currentValue, list):
-				for val in currentValue:
-					if isinstance(val, dict) and val["dest"].get("servingurl"):
-						if val["dest"]["servingurl"].startswith("http://"):
-							val["dest"]["servingurl"] = val["dest"]["servingurl"].replace("http://", "https://")
-		if isinstance(currentValue, dict):
-			currentDestValue = currentValue["dest"]
-			if not "mimetype" in currentDestValue or not currentDestValue["mimetype"]:
-				if "meta_mime" in currentDestValue and currentDestValue["meta_mime"]:
-					currentDestValue["mimetype"] = currentDestValue["meta_mime"]
-				elif "metamime" in currentDestValue and currentDestValue["metamime"]:
-					currentDestValue["mimetype"] = currentDestValue["metamime"]
-		elif isinstance(currentValue, list):
-			for val in currentValue:
-				currentDestValue = val["dest"]
-				if not "mimetype" in currentDestValue or not currentDestValue["mimetype"]:
-					if "meta_mime" in currentDestValue and currentDestValue["meta_mime"]:
-						currentDestValue["mimetype"] = currentDestValue["meta_mime"]
-					elif "metamime" in currentDestValue and currentDestValue["metamime"]:
-						currentDestValue["mimetype"] = currentDestValue["metamime"]
-		return res
 
 	def refresh(self, valuesCache, boneName, skel):
 		"""

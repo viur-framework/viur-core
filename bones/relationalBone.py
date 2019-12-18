@@ -3,13 +3,21 @@ from viur.core.bones import baseBone
 from viur.core.bones.bone import getSystemInitialized
 from viur.core import db
 from viur.core.errors import ReadFromClientError
-#from google.appengine.api import search
+# from google.appengine.api import search
 import json
 from time import time
 from datetime import datetime
 import logging
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from typing import List
+from enum import Enum
+
+
+class RelationalConsistency(Enum):
+	Ignore = 1  # Ignore stale relations (old behaviour)
+	PreventDeletion = 2  # Lock target object so it cannot be deleted
+	SetNull = 3  # Drop Relation if target object is deleted
+	CascadeDeletion = 4  # Delete this object also if the referenced entry is deleted (Dangerous!)
 
 
 class relationalBone(baseBone):
@@ -45,8 +53,8 @@ class relationalBone(baseBone):
 	type = "relational"
 	kind = None
 
-	def __init__(self, kind=None, module=None, refKeys=None, parentKeys=None, multiple=False,
-				 format="$(dest.name)", using=None, updateLevel=0, *args, **kwargs):
+	def __init__(self, kind=None, module=None, refKeys=None, parentKeys=None, multiple=False, format="$(dest.name)",
+				 using=None, updateLevel=0, consistency=RelationalConsistency.Ignore, *args, **kwargs):
 		"""
 			Initialize a new relationalBone.
 
@@ -101,6 +109,7 @@ class relationalBone(baseBone):
 
 		self.using = using
 		self.updateLevel = updateLevel
+		self.consistency = consistency
 
 		if getSystemInitialized():
 			from viur.core.skeleton import RefSkel, skeletonByKind
@@ -191,6 +200,8 @@ class relationalBone(baseBone):
 		return True
 
 	def serialize(self, valuesCache, name, entity):
+		oldRelationalLocks = set(entity.get("%s_outgoingRelationalLocks" % name) or [])
+		newRelationalLocks = set()
 		if not name in valuesCache or not valuesCache[name]:
 			entity[name] = None
 			if not self.multiple:
@@ -206,6 +217,7 @@ class relationalBone(baseBone):
 					if val["dest"]:
 						refSkel.setValuesCache(val["dest"])
 						refData = refSkel.serialize()
+						newRelationalLocks.add(refData["key"])
 					else:
 						refData = None
 					if usingSkel and val["rel"]:
@@ -222,6 +234,7 @@ class relationalBone(baseBone):
 				if valuesCache[name]["dest"]:
 					refSkel.setValuesCache(valuesCache[name]["dest"])
 					refData = refSkel.serialize()
+					newRelationalLocks.add(refData["key"])
 				else:
 					refData = None
 				if usingSkel and valuesCache[name]["rel"]:
@@ -238,6 +251,29 @@ class relationalBone(baseBone):
 				if usingData:
 					for k, v in usingData.items():
 						entity.set("%s.rel.%s" % (name, k), v, True)
+		# Ensure outgoing Locks are up2date
+		if self.consistency != RelationalConsistency.PreventDeletion:
+			# We don't need to lock anything, but may delete old locks held
+			newRelationalLocks = set()
+		# We should always run inside a transaction so we can safely get+put
+		entity["%s_outgoingRelationalLocks" % name] = list(newRelationalLocks)
+		for newLock in newRelationalLocks - oldRelationalLocks:
+			# Lock new Entry
+			referencedObj = db.Get(db.Key(self.kind, newLock))
+			assert referencedObj, "Programming error detected?"
+			if not referencedObj.get("viur_incomming_relational_locks"):
+				referencedObj["viur_incomming_relational_locks"] = []
+			assert entity.name not in referencedObj["viur_incomming_relational_locks"]
+			referencedObj["viur_incomming_relational_locks"].append(entity.name)
+			db.Put(referencedObj)
+		for oldLock in oldRelationalLocks - newRelationalLocks:
+			# Remove Lock
+			referencedObj = db.Get(db.Key(self.kind, oldLock))
+			assert referencedObj, "Programming error detected?"
+			assert isinstance(referencedObj.get("viur_incomming_relational_locks"), list), "Programming error detected?"
+			assert entity.name in referencedObj["viur_incomming_relational_locks"], "Programming error detected?"
+			referencedObj["viur_incomming_relational_locks"].remove(entity.name)
+			db.Put(referencedObj)
 		return entity
 
 	def postSavedHandler(self, valuesCache, boneName, skel, key, dbfields):
@@ -276,19 +312,20 @@ class relationalBone(baseBone):
 				refSkel = self._refSkelCache
 				refSkel.setValuesCache(data["dest"])
 				dbObj["dest"] = refSkel.serialize()
-				#for k, v in refSkel.serialize().items():
+				# for k, v in refSkel.serialize().items():
 				#	dbObj["dest_" + k] = v
-				#for k, v in parentValues.items():
+				# for k, v in parentValues.items():
 				#	dbObj["src_" + k] = v
 				dbObj["src"] = parentValues
 				if self.using is not None:
 					usingSkel = self._usingSkelCache
 					usingSkel.setValuesCache(data["rel"])
-					#for k, v in usingSkel.serialize().items():
+					# for k, v in usingSkel.serialize().items():
 					#	dbObj["rel." + k] = v
 					dbObj["rel"] = usingSkel.serialize()
 				dbObj["viur_delayed_update_tag"] = time()
 				dbObj["viur_relational_updateLevel"] = self.updateLevel
+				dbObj["viur_relational_consistency"] = self.consistency.value
 				dbObj["viur_foreign_keys"] = self.refKeys
 				db.Put(dbObj)
 				values.remove(data)
@@ -297,19 +334,18 @@ class relationalBone(baseBone):
 		for val in values:
 			dbObj = db.Entity("viur-relations")  # skel.kindName+"_"+self.kind+"_"+key
 
-
 			refSkel = self._refSkelCache
 			refSkel.setValuesCache(val["dest"])
 			dbObj["dest"] = refSkel.serialize()
-			#for k, v in refSkel.serialize().items():
+			# for k, v in refSkel.serialize().items():
 			#	dbObj["dest_" + k] = v
-			#for k, v in parentValues.items():
+			# for k, v in parentValues.items():
 			#	dbObj["src_" + k] = v
 			dbObj["src"] = parentValues
 			if self.using is not None:
 				usingSkel = self._usingSkelCache
 				usingSkel.setValuesCache(val["rel"])
-				#for k, v in usingSkel.serialize().items():
+				# for k, v in usingSkel.serialize().items():
 				#	dbObj["rel_" + k] = v
 				dbObj["rel"] = usingSkel.serialize()
 
@@ -320,6 +356,7 @@ class relationalBone(baseBone):
 			# dbObj[ "viur_dest_key" ] = val["key"]
 			dbObj["viur_dest_kind"] = self.kind
 			dbObj["viur_relational_updateLevel"] = self.updateLevel
+			dbObj["viur_relational_consistency"] = self.consistency.value
 			dbObj["viur_foreign_keys"] = self.refKeys
 			db.Put(dbObj)
 
@@ -329,7 +366,7 @@ class relationalBone(baseBone):
 		dbVals.filter("viur_dest_kind =", self.kind)
 		dbVals.filter("viur_src_property =", boneName)
 		dbVals.filter("src.key =", key)
-		db.Delete([x for x in dbVals.run(keysOnly=True)])
+		db.Delete([(x.collection,x.name) for x in dbVals.run(keysOnly=True)])
 
 	def isInvalid(self, key):
 		return False
@@ -349,7 +386,7 @@ class relationalBone(baseBone):
 			:type data: dict
 			:returns: None or String
 		"""
-		#return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Not yet fixed")]
+		# return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Not yet fixed")]
 		if not name in data and not any(x.startswith("%s." % name) for x in data):
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
 
@@ -428,18 +465,20 @@ class relationalBone(baseBone):
 							isEntryFromBackup = True
 				if not isEntryFromBackup:
 					if not self.multiple:  # We can stop here :/
-						return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid entry selected")]
+						return [
+							ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid entry selected")]
 					else:
 						tmpList.remove(r)
 						continue
 
 			if not entry or (
-					not isEntryFromBackup and not entry.collection == self.kind):  # Entry does not exist or has wrong type (is from another module)
+				not isEntryFromBackup and not entry.collection == self.kind):  # Entry does not exist or has wrong type (is from another module)
 				if entry:
 					logging.error("I got a key, which kind doesn't match my type! (Got: %s, my type %s)" % (
-					entry.key().kind(), self.kind))
+						entry.key().kind(), self.kind))
 					errors.append(
-						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "I got a key, which kind doesn't match my type!")
+						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name,
+											"I got a key, which kind doesn't match my type!")
 					)
 				tmpList.remove(r)
 				continue
@@ -457,11 +496,12 @@ class relationalBone(baseBone):
 				if not refSkel.fromClient(r["reltmp"]):
 					for error in refSkel.errors:
 						errors.append(
-							ReadFromClientError(error.severity, "%s.%s.%s" % (name, tmpList.index(r), error.fieldPath), error.errorMessage)
+							ReadFromClientError(error.severity, "%s.%s.%s" % (name, tmpList.index(r), error.fieldPath),
+												error.errorMessage)
 						)
-					#for k, v in refSkel.errors.items():
-					#	errorDict["%s.%s.%s" % (name, tmpList.index(r), k)] = v
-					#	forceFail = True
+				# for k, v in refSkel.errors.items():
+				#	errorDict["%s.%s.%s" % (name, tmpList.index(r), k)] = v
+				#	forceFail = True
 				r["rel"] = refSkel.getValuesCache()
 			else:
 				r["rel"] = None
@@ -473,16 +513,17 @@ class relationalBone(baseBone):
 				err = self.isInvalid(item)
 				if err:
 					errors.append(
-						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "%s.%s" % (name, tmpList.index(item)), err)
+						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "%s.%s" % (name, tmpList.index(item)),
+											err)
 					)
-					#errorDict["%s.%s" % (name, tmpList.index(item))] = err
+				# errorDict["%s.%s" % (name, tmpList.index(item))] = err
 				else:
 					cleanList.append(item)
 			if not cleanList:
 				errors.append(
 					ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")
 				)
-				#errorDict[name] = "No value selected"
+			# errorDict[name] = "No value selected"
 			valuesCache[name] = tmpList
 		else:
 			if tmpList:
@@ -493,7 +534,7 @@ class relationalBone(baseBone):
 			if not err:
 				valuesCache[name] = val
 				if val is None:
-					#errorDict[name] = "No value selected"
+					# errorDict[name] = "No value selected"
 					errors.append(
 						ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")
 					)
@@ -515,8 +556,9 @@ class relationalBone(baseBone):
 		dbFilter.filter("viur_src_kind =", skel.kindName)
 		dbFilter.filter("viur_dest_kind =", self.kind)
 		dbFilter.filter("viur_src_property", name)
-		if dbFilter._origCursor:  # Merge the cursor in again (if any)
-			dbFilter.cursor(dbFilter._origCursor)
+		# FIXME vvvv
+		# if dbFilter._origCursor:  # Merge the cursor in again (if any)
+		#	dbFilter.cursor(dbFilter._origCursor)
 		if origFilter:
 			for k, v in origFilter.items():  # Merge old filters in
 				# Ensure that all non-relational-filters are in parentKeys
@@ -533,7 +575,8 @@ class relationalBone(baseBone):
 					continue
 				boneName = k.split(".")[0]
 				if not boneName in self.parentKeys:
-					logging.warning("Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (boneName, name))
+					logging.warning(
+						"Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (boneName, name))
 					raise RuntimeError()
 				dbFilter.filter("src.%s" % k, v)
 		orderList = []
@@ -638,7 +681,7 @@ class relationalBone(baseBone):
 		if origFilter is None or not "orderby" in rawFilter:  # This query is unsatisfiable or not sorted
 			return (dbFilter)
 		if "orderby" in rawFilter and isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
-				"%s." % name):
+			"%s." % name):
 			if not dbFilter.getKind() == "viur-relations":  # This query has not been rewritten (yet)
 				name, skel, dbFilter, rawFilter = self._rewriteQuery(name, skel, dbFilter, rawFilter)
 			key = rawFilter["orderby"]
@@ -763,6 +806,7 @@ class relationalBone(baseBone):
 		import logging
 		logging.error("REFRESH CURRENTLY DISABLED")
 		return
+
 		def updateInplace(relDict):
 			"""
 				Fetches the entity referenced by valDict["dest.key"] and updates all dest.* keys
@@ -920,13 +964,13 @@ class relationalBone(baseBone):
 			realValue = (value, None)
 		elif not self.multiple and self.using:
 			if not isinstance(value, tuple) or len(value) != 2 or \
-					not (isinstance(value[0], str) or isinstance(value[0], db.Key)) or \
-					not isinstance(value[1], self.using):
+				not (isinstance(value[0], str) or isinstance(value[0], db.Key)) or \
+				not isinstance(value[1], self.using):
 				raise ValueError("You must supply a tuple of (Database-Key, relSkel) to %s" % boneName)
 			realValue = value
 		elif self.multiple and not self.using:
 			if not (isinstance(value, str) or isinstance(value, db.Key)) and not (isinstance(value, list)) \
-					and all([isinstance(x, str) or isinstance(x, db.Key) for x in value]):
+				and all([isinstance(x, str) or isinstance(x, db.Key) for x in value]):
 				raise ValueError("You must supply a Database-Key or a list hereof to %s" % boneName)
 			if isinstance(value, list):
 				realValue = [(x, None) for x in value]

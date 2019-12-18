@@ -121,7 +121,7 @@ class SessionWrapper(threading.local):
 
 	def validateStaticSecurityKey(self, key):
 		try:
-			return self.session.validateStaticSessionKey(key)
+			return self.session.validateStaticSecurityKey(key)
 		except AttributeError:
 			return False
 
