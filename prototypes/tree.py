@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
-from viur.core import db, utils, errors, session, conf, securitykey
-from viur.core import forcePost, forceSSL, exposed, internalExposed
-
-from viur.core.prototypes import BasicApplication
-from viur.core.bones import baseBone, keyBone, numericBone
-from viur.core.skeleton import Skeleton, skeletonByKind
-from viur.core.tasks import callDeferred
-
-from datetime import datetime
 import logging
+from datetime import datetime
+
+from viur.core import conf, db, errors, exposed, forcePost, forceSSL, internalExposed, securitykey, utils
+from viur.core.bones import keyBone
+from viur.core.prototypes import BasicApplication
+from viur.core.skeleton import Skeleton
+from viur.core.tasks import callDeferred
 
 
 class TreeLeafSkel(Skeleton):
@@ -57,7 +55,6 @@ class Tree(BasicApplication):
 	\
 	In difference to the other ViUR BasicApplication, the kindName in Trees evolve into the kindNames\
 	*kindName + "node"* and *kindName + "leaf"*, because information can be stored in different kinds.
-	:vartype kindName: str
 
 	:ivar adminInfo: todo short info on how to use adminInfo.
 	:vartype adminInfo: dict | callable
@@ -72,8 +69,8 @@ class Tree(BasicApplication):
 			"icon": "icons/modules/tree.svg"  # Icon for this module
 		}
 
-	def __init__(self, moduleName, modulePath, *args, **kwargs):
-		super(Tree, self).__init__(moduleName, modulePath, *args, **kwargs)
+	def __init__(self, moduleName: str, modulePath: str):
+		super(Tree, self).__init__(moduleName, modulePath)
 
 	@callDeferred
 	def deleteRecursive(self, nodeKey):

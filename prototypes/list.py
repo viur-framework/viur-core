@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
-from viur.core import utils, session, errors, conf, securitykey, request
-from viur.core import forcePost, forceSSL, exposed, internalExposed
-from viur.core.skeleton import Skeleton
-from viur.core.prototypes import BasicApplication
-
 import logging
+
+from viur.core import errors, exposed, forcePost, forceSSL, request, securitykey, utils
+from viur.core.prototypes import BasicApplication
+from viur.core.skeleton import Skeleton
 
 
 class List(BasicApplication):
@@ -17,7 +16,6 @@ class List(BasicApplication):
 	:ivar kindName: Name of the kind of data entities that are managed by the application. \
 	This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the \
 	application. For more information, refer to the function :func:`_resolveSkel`.
-	:vartype kindName: str
 
 	:ivar adminInfo: todo short info on how to use adminInfo.
 	:vartype adminInfo: dict | callable
@@ -32,10 +30,10 @@ class List(BasicApplication):
 			"icon": "icons/modules/list.svg"  # Icon for this module
 		}
 
-	def __init__(self, moduleName, modulePath, *args, **kwargs):
-		super(List, self).__init__(moduleName, modulePath, *args, **kwargs)
+	def __init__(self, moduleName: str, modulePath: str):
+		super(List, self).__init__(moduleName, modulePath)
 
-	def viewSkel(self, *args, **kwargs):
+	def viewSkel(self):
 		"""
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for viewing an existing entry from the list.
@@ -47,9 +45,9 @@ class List(BasicApplication):
 		:return: Returns a Skeleton instance for viewing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkelCls(*args, **kwargs)()
+		return self._resolveSkelCls()()
 
-	def addSkel(self, *args, **kwargs):
+	def addSkel(self):
 		"""
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for adding an entry to the list.
@@ -61,7 +59,7 @@ class List(BasicApplication):
 		:return: Returns a Skeleton instance for adding an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkelCls(*args, **kwargs)()
+		return self._resolveSkelCls()()
 
 	def editSkel(self, *args, **kwargs):
 		"""
@@ -75,7 +73,7 @@ class List(BasicApplication):
 		:return: Returns a Skeleton instance for editing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkelCls(*args, **kwargs)()
+		return self._resolveSkelCls()()
 
 	## External exposed functions
 
@@ -133,7 +131,7 @@ class List(BasicApplication):
 			# We dump just the structure of that skeleton, including it's default values
 			if not self.canView(skel):
 				raise errors.Unauthorized()
-		else: # We return a single entry for viewing
+		else:  # We return a single entry for viewing
 			# We probably have a Database or SEO-Key here
 			seoKey = "viur.viurActiveSeoKeys AC"
 			skel = self.viewSkel().all().filter(seoKey, args[0]).getSkel()

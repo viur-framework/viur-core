@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
-import logging, sys
+import logging
 from datetime import datetime
 from time import time
 
-from viur.core import db, utils, errors, conf, request, securitykey
-from viur.core import forcePost, forceSSL, exposed, internalExposed
+from viur.core import conf, db, errors, exposed, forcePost, forceSSL, internalExposed, request, securitykey, utils
 from viur.core.bones import baseBone, keyBone, numericBone
 from viur.core.prototypes import BasicApplication
 from viur.core.skeleton import Skeleton
@@ -33,7 +32,6 @@ class Hierarchy(BasicApplication):
 	:ivar kindName: Name of the kind of data entities that are managed by the application. \
 	This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the \
 	application. For more information, refer to the function :func:`_resolveSkel`.
-	:vartype kindName: str
 
 	:ivar adminInfo: todo short info on how to use adminInfo.
 	:vartype adminInfo: dict | callable
@@ -48,10 +46,10 @@ class Hierarchy(BasicApplication):
 			"icon": "icons/modules/hierarchy.svg"  # Icon for this module
 		}
 
-	def __init__(self, moduleName, modulePath, *args, **kwargs):
-		super(Hierarchy, self).__init__(moduleName, modulePath, *args, **kwargs)
+	def __init__(self, moduleName: str, modulePath: str):
+		super(Hierarchy, self).__init__(moduleName, modulePath)
 
-	def viewSkel(self, *args, **kwargs):
+	def viewSkel(self):
 		"""
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for viewing an existing entry from the hierarchy.
@@ -63,9 +61,9 @@ class Hierarchy(BasicApplication):
 		:return: Returns a Skeleton instance for viewing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkelCls(*args, **kwargs)()
+		return self._resolveSkelCls()()
 
-	def addSkel(self, *args, **kwargs):
+	def addSkel(self):
 		"""
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for adding an entry to the hierarchy.
@@ -77,9 +75,9 @@ class Hierarchy(BasicApplication):
 		:return: Returns a Skeleton instance for adding an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkelCls(*args, **kwargs)()
+		return self._resolveSkelCls()()
 
-	def editSkel(self, *args, **kwargs):
+	def editSkel(self):
 		"""
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for editing an existing entry from the hierarchy.
@@ -91,7 +89,7 @@ class Hierarchy(BasicApplication):
 		:return: Returns a Skeleton instance for editing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkelCls(*args, **kwargs)()
+		return self._resolveSkelCls()()
 
 	def getRootNode(self, entryKey):
 		"""

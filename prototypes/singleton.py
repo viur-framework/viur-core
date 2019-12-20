@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-from viur.core import db, utils, session, errors, conf, securitykey, exposed, forceSSL
-from viur.core.prototypes import BasicApplication
-
 import logging
+
+from viur.core import db, errors, exposed, forceSSL, securitykey, utils
+from viur.core.prototypes import BasicApplication
 
 
 class Singleton(BasicApplication):
@@ -14,7 +14,6 @@ class Singleton(BasicApplication):
 	:ivar kindName: Name of the kind of data entities that are managed by the application. \
 	This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the \
 	application. For more information, refer to the function :func:`_resolveSkel`.
-	:vartype kindName: str
 
 	:ivar adminInfo: todo short info on how to use adminInfo.
 	:vartype adminInfo: dict | callable
@@ -29,8 +28,8 @@ class Singleton(BasicApplication):
 			"icon": "icons/modules/singleton.svg",  # Icon for this module
 		}
 
-	def __init__(self, moduleName, modulePath, *args, **kwargs):
-		super(Singleton, self).__init__(moduleName, modulePath, *args, **kwargs)
+	def __init__(self, moduleName: str, modulePath: str):
+		super(Singleton, self).__init__(moduleName, modulePath)
 
 	def getKey(self):
 		"""
@@ -44,7 +43,7 @@ class Singleton(BasicApplication):
 		"""
 		return "%s-modulekey" % self.editSkel().kindName
 
-	def viewSkel(self, *args, **kwargs):
+	def viewSkel(self):
 		"""
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for viewing the existing entry.
@@ -56,9 +55,9 @@ class Singleton(BasicApplication):
 		:return: Returns a Skeleton instance for viewing the singleton entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkelCls(*args, **kwargs)()
+		return self._resolveSkelCls()()
 
-	def editSkel(self, *args, **kwargs):
+	def editSkel(self):
 		"""
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for editing the existing entry.
@@ -70,7 +69,7 @@ class Singleton(BasicApplication):
 		:return: Returns a Skeleton instance for editing the entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkelCls(*args, **kwargs)()
+		return self._resolveSkelCls()()
 
 	## External exposed functions
 

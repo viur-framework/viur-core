@@ -10,7 +10,6 @@ class BasicApplication(object):
 	:ivar kindName: Name of the kind of data entities that are managed by the application. \
 	This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the \
 	application. For more information, refer to the function :func:`_resolveSkel`.
-	:vartype kindName: str
 
 	:ivar render: will be set to the appropriate render instance at runtime
 	"""
@@ -20,7 +19,7 @@ class BasicApplication(object):
 	adminInfo = None
 	accessRights = None
 
-	def __init__(self, moduleName, modulePath, *args, **kwargs):
+	def __init__(self, moduleName: str, modulePath: str):
 		self.moduleName = moduleName
 		self.modulePath = modulePath
 		self.render = None
@@ -32,7 +31,7 @@ class BasicApplication(object):
 				if not rightName in conf["viur.accessRights"]:
 					conf["viur.accessRights"].append(rightName)
 
-	def _resolveSkelCls(self, *args, **kwargs):
+	def _resolveSkelCls(self):
 		"""
 		Retrieve the generally associated :class:`server.skeleton.Skeleton` that is used by
 		the application.
