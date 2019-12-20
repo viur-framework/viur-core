@@ -75,6 +75,24 @@ class Tree(BasicApplication):
 	def __init__(self, moduleName, modulePath, *args, **kwargs):
 		super(Tree, self).__init__(moduleName, modulePath, *args, **kwargs)
 
+	def viewNodeSkel(self):
+		return TreeNodeSkel()
+
+	def editNodeSkel(self):
+		return TreeNodeSkel()
+
+	def addNodeSkel(self):
+		return TreeNodeSkel()
+
+	def viewLeafSkel(self):
+		return TreeLeafSkel()
+
+	def editLeafSkel(self):
+		return TreeLeafSkel()
+
+	def addLeafSkel(self):
+		return TreeLeafSkel()
+
 	@callDeferred
 	def deleteRecursive(self, nodeKey):
 		"""
@@ -92,7 +110,6 @@ class Tree(BasicApplication):
 				continue
 			s.delete()
 		for d in db.Query(self.viewNodeSkel().kindName).filter("parentdir", str(nodeKey)).iter(keysOnly=True):
-			count += self.deleteRecursive(str(d))
 			self.deleteRecursive(str(d))
 			s = self.viewNodeSkel()
 			if not s.fromDB(d):
@@ -236,6 +253,9 @@ class Tree(BasicApplication):
 			return True
 
 		return False
+
+	def getAvailableRootNodes(self, name):
+		return []
 
 	## External exposed functions
 
