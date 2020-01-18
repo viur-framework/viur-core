@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from __future__ import annotations
 from viur.core import db, utils, conf, errors
 from viur.core.bones import baseBone, keyBone, dateBone, selectBone, relationalBone, stringBone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
@@ -498,7 +498,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 	kindName: str = __undefindedC__  # To which kind we save our data to
 	customDatabaseAdapter: Union[CustomDatabaseAdapter, None] = None
 	subSkels = {}  # List of pre-defined sub-skeletons of this type
-	interBoneValidations: List[Callable] = []  # List of functions checking inter-bone dependencies
+	interBoneValidations: List[Callable[[Skeleton], List[ReadFromClientError]]] = []  # List of functions checking inter-bone dependencies
 
 	# The "key" bone stores the current database key of this skeleton.
 	# Warning: Assigning to this bones value now *will* set the key

@@ -298,9 +298,9 @@ class baseBone(object):  # One Bone:
 		"""
 		if "orderby" in rawFilter and rawFilter["orderby"] == name:
 			if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
-				order = (rawFilter["orderby"], db.DESCENDING)
+				order = (rawFilter["orderby"], db.SortOrder.Descending)
 			else:
-				order = (rawFilter["orderby"], db.ASCENDING)
+				order = (rawFilter["orderby"], db.SortOrder.Ascending)
 			filters = dbFilter.getFilter()
 			if filters is None:
 				return  # This query is unsatisfiable
