@@ -135,9 +135,10 @@ class List(BasicApplication):
 				raise errors.Unauthorized()
 		else: # We return a single entry for viewing
 			# We probably have a Database or SEO-Key here
-			seoKey = "viur.viurActiveSeoKeys ="
-			skel = self.viewSkel().all().filter(seoKey, args[0]).getSkel()
-			if not skel:
+			#seoKey = "viur.viurActiveSeoKeys ="
+			#skel = self.viewSkel().all().filter(seoKey, args[0]).getSkel()
+			skel = self.viewSkel()
+			if not skel.fromDB(key):
 				raise errors.NotFound()
 			if not self.canView(skel):
 				raise errors.Forbidden()
@@ -207,7 +208,6 @@ class List(BasicApplication):
 
 		if not self.canEdit(skel):
 			raise errors.Unauthorized()
-
 		if (len(kwargs) == 0  # no data supplied
 				or skey == ""  # no security key
 				or not request.current.get().isPostRequest  # failure if not using POST-method
@@ -216,7 +216,6 @@ class List(BasicApplication):
 		):
 			# render the skeleton in the version it could as far as it could be read.
 			return self.render.edit(skel)
-
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 		skel.toDB()  # write it!

@@ -15,7 +15,7 @@ from quopri import decodestring
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from hashlib import sha256
 import email.header
-from typing import Any
+from typing import Any, Union
 
 # Determine which ProjectID we currently run in (as the app_identity module isn't available anymore)
 _, projectID = google.auth.default()
@@ -272,6 +272,7 @@ def downloadUrlFor(folder: str, fileName: str, derived: bool = False, expires: t
 	resstr = hmacSign(sigStr)
 	return "/file/download/%s?sig=%s" % (sigStr.decode("ASCII"), resstr)
 
+
 def seoUrlToEntry(module, entry=None, skelType=None, language=None):
 	from viur.core import request, conf
 	lang = request.current.get().language
@@ -279,7 +280,7 @@ def seoUrlToEntry(module, entry=None, skelType=None, language=None):
 		module = conf["viur.languageModuleMap"][module][lang]
 	if not entry:
 		return "/%s/%s" % (lang, module)
-	#elif isinstance(entry, dict):
+	# elif isinstance(entry, dict):
 	else:
 		try:
 			currentSeoKeys = entry.get("viurCurrentSeoKeys")
@@ -294,6 +295,7 @@ def seoUrlToEntry(module, entry=None, skelType=None, language=None):
 		else:
 			return "/%s/%s" % (lang, module)
 		return "/%s/%s/%s" % (lang, module, seoKey)
+
 
 def seoUrlToFunction(module, function, render=None):
 	from viur.core import request, conf
@@ -317,3 +319,18 @@ def seoUrlToFunction(module, function, render=None):
 	return "/".join(pathComponents)
 
 
+def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
+	"""
+		Normalizes a datastore key (replacing _application with the current one)
+
+		:param key: Key to be normalized.
+
+		:return: Normalized key in string representation.
+	"""
+	if key is None:
+		return None
+	if key.parent:
+		parent = normalizeKey(key.parent)
+	else:
+		parent = None
+	return db.Key(key.kind, key.id_or_name, parent=parent)

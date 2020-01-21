@@ -49,19 +49,19 @@ class fileBone(treeItemBone):
 		super(fileBone, self).__init__(format=format, *args, **kwargs)
 		self.derive = derive
 
-	def postSavedHandler(self, valuesCache, boneName, skel, key, dbfields):
-		super(fileBone, self).postSavedHandler(valuesCache, boneName, skel, key, dbfields)
-		if boneName not in valuesCache:
-			return
-		if not valuesCache.get(boneName):
-			values = []
-		elif isinstance(valuesCache.get(boneName), dict):
-			values = [dict((k, v) for k, v in valuesCache.get(boneName).items())]
-		else:
-			values = [dict((k, v) for k, v in x.items()) for x in valuesCache.get(boneName)]
-		if self.derive:
-			for val in values:
-				ensureDerived(val["dest"]["dlkey"], val["dest"]["name"], self.derive)
+	def postSavedHandler(self, skel, boneName, key):
+		super().postSavedHandler(skel, boneName, key)
+		#if boneName not in valuesCache:
+		#	return
+		#if not valuesCache.get(boneName):
+		#	values = []
+		#elif isinstance(valuesCache.get(boneName), dict):
+		#	values = [dict((k, v) for k, v in valuesCache.get(boneName).items())]
+		#else:
+		#	values = [dict((k, v) for k, v in x.items()) for x in valuesCache.get(boneName)]
+		#if self.derive:
+		#	for val in values:
+		#		ensureDerived(val["dest"]["dlkey"], val["dest"]["name"], self.derive)
 
 	def getReferencedBlobs(self, valuesCache, name):
 		val = valuesCache.get(name)

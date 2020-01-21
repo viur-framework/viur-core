@@ -93,20 +93,17 @@ class selectBone(baseBone):
 			elif not valuesCache[name]:
 				return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No item selected")]
 
-	def unserialize(self, valuesCache, name, expando):
-		if not self.multiple:
-			return super(selectBone, self).unserialize(valuesCache, name, expando)
-
-		if name in expando:
-			valuesCache[name] = expando[name]
-
-			if not valuesCache[name]:
-				valuesCache[name] = []
-		else:
-			valuesCache[name] = []
-
-		return True
-
+	def unserialize(self, skeletonValues, name):
+		if super().unserialize(skeletonValues, name):
+			if self.multiple and not isinstance(skeletonValues.accessedValues[name], list):
+				skeletonValues.accessedValues[name] = [skeletonValues.accessedValues[name]]
+			elif not self.multiple and isinstance(skeletonValues.accessedValues[name], list):
+				try:
+					skeletonValues.accessedValues[name] = skeletonValues.accessedValues[name]
+				except IndexError:  # May be empty
+					pass
+			return True
+		return False
 
 	def buildDBFilter__(self, name, skel, dbFilter, rawFilter, prefix=None):
 		"""

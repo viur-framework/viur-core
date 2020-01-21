@@ -164,7 +164,7 @@ class baseBone(object):  # One Bone:
 		if value == None:
 			return "No value entered"
 
-	def serialize(self, valuesCache, name, entity):
+	def serialize(self, skeletonValues, name) -> bool:
 		"""
 			Serializes this bone into something we
 			can write into the datastore.
@@ -173,13 +173,12 @@ class baseBone(object):  # One Bone:
 			:type name: str
 			:returns: dict
 		"""
-		if name in valuesCache:
-			entity[name] = valuesCache[name]
-		else:
-			entity[name] = self.getDefaultValue()
-		return entity
+		if name in skeletonValues.accessedValues:
+			skeletonValues.entity[name] = skeletonValues.accessedValues[name]
+			return True
+		return False
 
-	def unserialize(self, valuesCache, name, expando):
+	def unserialize(self, skeletonValues: 'viur.core.skeleton.SkeletonValues', name: str) -> bool:
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -190,9 +189,10 @@ class baseBone(object):  # One Bone:
 			:type expando: db.Entity
 			:returns: bool
 		"""
-		if name in expando:
-			valuesCache[name] = expando[name]
-		return (True)
+		if name in skeletonValues.entity:
+			skeletonValues.accessedValues[name] = skeletonValues.entity[name]
+			return True
+		return False
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		"""
@@ -217,31 +217,19 @@ class baseBone(object):  # One Bone:
 
 		if name == "key" and "key" in rawFilter and prefix is None:
 			if isinstance(rawFilter["key"], list):
-				raise NotImplementedError  # FIXME!
-
-				keyList = rawFilter["key"]
-
-				if keyList:
-					origQuery = dbFilter.datastoreQuery
-					kind = dbFilter.getKind()
-
-					try:
-						dbFilter.datastoreQuery = db.MultiQuery(
-							[db.DatastoreQuery(dbFilter.getKind(), filters={db.KEY_SPECIAL_PROPERTY: x}) for x in
-							 keyList], ())
-					except db.BadKeyError:  # Invalid key
-						raise RuntimeError()
-					except UnicodeEncodeError:  # Also invalid key
-						raise RuntimeError()
-
-					# Monkey-fix for datastore.MultiQuery not setting an kind and therefor breaking order()
-					dbFilter.setKind(kind)
-					for k, v in origQuery.items():
-						dbFilter.filter(k, v)
-
+				if isinstance(dbFilter.filters, list):
+					raise ValueError("In-Filter already used!")
+				elif dbFilter.filters is None:
+					return dbFilter # Query is already unsatisfiable
+				oldFilter = dbFilter.filters
+				dbFilter.filters = []
+				for key in rawFilter["key"]:
+					newFilter = oldFilter.copy()
+					newFilter["%s =" % db.KEY_SPECIAL_PROPERTY] = db.keyHelper(key, dbFilter.origCollection)
+					dbFilter.filters.append(newFilter)
 			else:
 				try:
-					dbFilter.filter(db.KEY_SPECIAL_PROPERTY, rawFilter["key"])
+					dbFilter.filter("%s =" % db.KEY_SPECIAL_PROPERTY, rawFilter["key"])
 				except:  # Invalid key or something
 					raise RuntimeError()
 
@@ -351,11 +339,11 @@ class baseBone(object):  # One Bone:
 		# Lock the value for that specific list
 		return [hashValue(", ".join(tmpList))]
 
-	def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
+	def getUniquePropertyIndexValues(self, skel, name: str) -> List[str]:
 		"""
 			Returns a list of hashes for our current value(s), used to store in the uniquePropertyValue index.
 		"""
-		val = valuesCache.get(name)
+		val = skel[name]
 		if val is None:
 			return []
 		return self._hashValueForUniquePropertyIndex(val)
@@ -375,7 +363,7 @@ class baseBone(object):  # One Bone:
 		"""
 		pass  # We do nothing by default
 
-	def postSavedHandler(self, valuesCache, boneName, skel, key, dbObj):
+	def postSavedHandler(self, skel, boneName, key):
 		"""
 			Can be overridden to perform further actions after the main entity has been written.
 
@@ -406,7 +394,7 @@ class baseBone(object):  # One Bone:
 		"""
 		pass
 
-	def refresh(self, valuesCache, boneName, skel):
+	def refresh(self, skeletonValues, boneName, skel) -> None:
 		"""
 			Refresh all values we might have cached from other entities.
 		"""

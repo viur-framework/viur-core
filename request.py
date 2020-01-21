@@ -242,7 +242,7 @@ class BrowseHandler():  # webapp.RequestHandler
 			return
 		try:
 			session.current.load(self)  # self.request.cookies )
-			path = self.selectLanguage(path)
+			path = self.selectLanguage(path)[1:]
 			if conf["viur.requestPreprocessor"]:
 				path = conf["viur.requestPreprocessor"](path)
 			self.findAndCall(path)

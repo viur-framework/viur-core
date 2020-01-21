@@ -71,33 +71,32 @@ class numericBone(baseBone):
 					value = None
 		if value is None:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value entered")]
+		if value != value:  # NaN
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
 		err = self.isInvalid(value)
 		if err:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
 		valuesCache[name] = value
 
-	def serialize(self, valuesCache, name, entity):
-		logging.error(valuesCache)
-		if not name in valuesCache:
-			entity[name] = self.getDefaultValue()
-			return entity
-		if isinstance(valuesCache[name], float) and valuesCache[name] != valuesCache[name]:  # NaN
-			entity[name] = None  # Fixme: bend to self.defaultValue?
-		else:
-			entity[name] = valuesCache[name]
-		return entity
 
-	def unserialize(self, valuesCache, name, expando):
-		if not name in expando:
-			valuesCache[name] = None
-			return
-		if expando[name] == None or not str(expando[name]).replace(".", "", 1).lstrip("-").isdigit():
-			valuesCache[name] = None
-		else:
-			if not self.precision:
-				valuesCache[name] = int(expando[name])
+	def unserialize(self, skeletonValues, name):
+		if name in skeletonValues.entity:
+			value = skeletonValues.entity[name]
+			isType = type(value)
+			if self.precision:
+				shouldType = float
 			else:
-				valuesCache[name] = float(expando[name])
+				shouldType = int
+			if isType == shouldType:
+				skeletonValues.accessedValues[name] = value
+			elif isType == int or isType == float:
+				skeletonValues.accessedValues[name] = shouldType(value)
+			elif isType == str and str(value).replace(".", "", 1).lstrip("-").isdigit():
+				skeletonValues.accessedValues[name] = shouldType(value)
+			else:
+				return False
+			return True
+		return False
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		updatedFilter = {}

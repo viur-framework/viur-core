@@ -143,9 +143,9 @@ class UserPassword(object):
 		res = query.filter("name_idx >=", name.lower()).get()
 
 		if res is None:
-			res = {"password": "", "status": 0, "name": "", "name.idx": "", "password_salt": ""}
+			res = {"password": {"pwhash": "-invalid-", "salt": "-invalid"}, "status": 0, "name": "", "name.idx": ""}
 
-		passwd = pbkdf2(password[:conf["viur.maxPasswordLength"]], res["password_salt"])
+		passwd = pbkdf2(password[:conf["viur.maxPasswordLength"]], (res.get("password", None) or {}).get("salt", ""))
 		isOkay = True
 
 		# We do this exactly that way to avoid timing attacks
@@ -160,7 +160,7 @@ class UserPassword(object):
 					isOkay = False
 
 		# Check if the password matches
-		storedPasswordHash = res.get("password", "")
+		storedPasswordHash = (res.get("password", None) or {}).get("pwhash", "-invalid-")
 		if len(storedPasswordHash) != len(passwd):
 			isOkay = False
 		else:
@@ -723,7 +723,7 @@ class User(List):
 		if key == "self":
 			user = self.getCurrentUser()
 			if user:
-				return super(User, self).view(user["key"].name, *args, **kwargs)
+				return super(User, self).view(str(user["key"].id_or_name), *args, **kwargs)
 			else:
 				raise errors.Unauthorized()
 

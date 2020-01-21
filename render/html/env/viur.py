@@ -12,6 +12,7 @@ from collections import OrderedDict
 import string
 import logging
 import os
+from typing import List
 
 
 @jinjaGlobalFunction
@@ -633,3 +634,11 @@ def seoUrlForEntry(render, *args, **kwargs):
 @jinjaGlobalFunction
 def seoUrlToFunction(render, *args, **kwargs):
 	return utils.seoUrlToFunction(*args, **kwargs)
+
+@jinjaGlobalFilter
+def inflate(render, value: SkelListWrapper) -> List:
+	origSkelList = value
+	newList = []
+	for skel in origSkelList:
+		newList.append(skel.shallowClone())
+	return newList

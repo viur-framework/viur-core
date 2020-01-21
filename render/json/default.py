@@ -181,7 +181,7 @@ class DefaultRender(object):
 					"dest": self.renderSkelValues(refSkel, injectDownloadURL=isinstance(bone, bones.fileBone)),
 					"rel": usingData
 				}
-		elif  isinstance(bone, bones.recordBone):
+		elif isinstance(bone, bones.recordBone):
 			usingSkel = bone._usingSkelCache
 			tmpList = []
 			if skel[key]:
@@ -189,11 +189,9 @@ class DefaultRender(object):
 					usingSkel.setValuesCache(k)
 					tmpList.append(self.renderSkelValues(usingSkel))
 			return tmpList
-		elif key=="key":
-			try:  # FIXME: Why int?
-				return skel["key"].name
-			except:
-				return str(skel["key"])
+		elif isinstance(bone, bones.keyBone):
+			v = skel["key"]
+			return v.to_legacy_urlsafe().decode("ASCII") if v else None
 		else:
 			return skel[key]
 

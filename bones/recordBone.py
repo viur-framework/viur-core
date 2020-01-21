@@ -68,21 +68,20 @@ class recordBone(baseBone):
 
 		return True
 
-	def serialize(self, valuesCache, name, entity):
-		if not valuesCache[name]:
-			entity[name] = None
-
-		else:
-			usingSkel = self._usingSkelCache
-			res = []
-
-			for val in valuesCache[name]:
-				usingSkel.setValuesCache(val)
-				res.append(usingSkel.serialize())
-
-			entity.set(name, res, False)
-
-		return entity
+	def serialize(self, skeletonValues, name):
+		if name in skeletonValues.accessedValues:
+			value = skeletonValues.accessedValues[name]
+			if not value:
+				skeletonValues.entity[name] = []
+			else:
+				usingSkel = self._usingSkelCache
+				res = []
+				for val in value:
+					usingSkel.setValuesCache(val)
+					res.append(usingSkel.serialize())
+				skeletonValues.entity[name] = res
+			return True
+		return False
 
 	def fromClient(self, valuesCache, name, data):
 		#return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Not yet fixed")]
@@ -171,15 +170,6 @@ class recordBone(baseBone):
 		if errors:
 			return errors
 
-	def setBoneValue(self, valuesCache, boneName, value, append):
-		if not isinstance(value, self.using):
-			raise ValueError("value (=%r) must be of type %r" % (type(value), self.using))
-
-		if valuesCache[boneName] is None or not append:
-			valuesCache[boneName] = []
-
-		valuesCache[boneName].append(copy.deepcopy(value.getValuesCache()))
-		return True
 
 	def setBoneValue(self, valuesCache, boneName, value, append):
 		if not isinstance(value, self.using):

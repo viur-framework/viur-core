@@ -97,14 +97,13 @@ class passwordBone(stringBone):
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
 		valuesCache[name] = value
 
-	def serialize(self, valuesCache, name, entity):
-		if valuesCache.get(name, None) and valuesCache[name] != "":
+	def serialize(self, skeletonValues, name):
+		if name in skeletonValues.accessedValues and skeletonValues.accessedValues[name]:
 			salt = utils.generateRandomString(self.saltLength)
-			passwd = pbkdf2(valuesCache[name][: conf["viur.maxPasswordLength"]], salt)
-			entity[name] = passwd
-			entity["%s_salt" % name] = salt
+			passwd = pbkdf2(skeletonValues.accessedValues[name][: conf["viur.maxPasswordLength"]], salt)
+			skeletonValues.entity[name] = {"pwhash": passwd, "salt": salt}
+			return True
+		return False
 
-		return entity
-
-	def unserialize(self, valuesCache, name, values):
-		return {name: ""}
+	def unserialize(self, skeletonValues, name):
+		return False

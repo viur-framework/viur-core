@@ -36,13 +36,49 @@ class SortOrder(Enum):
 
 # Proxied Function / Classed
 Entity = datastore.Entity
-Key = __client__.key
-Put = __client__.put
+Key = __client__.key  # Proxy-Function
+KeyClass = datastore.Key  # Expose the class also
 Get = __client__.get
 Delete = __client__.delete
 AllocateIds = __client__.allocate_ids
 Conflict = exceptions.Conflict
 Error = exceptions.GoogleCloudError
+
+
+def keyHelper(inKey: Union[KeyClass, str, int], targetKind:str) -> KeyClass:
+	if isinstance(inKey, str):
+		try:
+			decodedKey = utils.normalizeKey(KeyClass.from_legacy_urlsafe(inKey))
+		except:
+			decodedKey = None
+		if decodedKey:  # If it did decode, don't try any further
+			if decodedKey.kind != targetKind:
+				raise ValueError("Kin1d mismatch: %s != %s" % (decodedKey.kind, targetKind))
+			return decodedKey
+		if inKey.isdigit():
+			inKey = int(inKey)
+		return Key(targetKind, inKey)
+	elif isinstance(inKey, int):
+		return Key(targetKind, inKey)
+	elif isinstance(inKey, KeyClass):
+		if inKey.kind != targetKind:
+			raise ValueError("Kin1d mismatch: %s != %s" % (inKey.kind, targetKind))
+		return inKey
+	else:
+		raise ValueError("Unknown key type %r" % type(inKey))
+
+def Put(entity: Union[Entity, List[Entity]]):
+	"""
+		Save an entity in the Cloud Datastore.
+		Also ensures that no string-key with an digit-only name can be used.
+		:param entity: The entity to be saved to the datastore.
+	"""
+	if not isinstance(entity, list):
+		entity = [entity]
+	for e in entity:
+		if not e.key.is_partial and e.key.name and e.key.name.isdigit():
+			raise ValueError("Cannot store an entity with digit-only string key")
+	return __client__.put_multi(entities=entity)
 
 
 def fixUnindexableProperties(entry: Entity):
@@ -626,7 +662,8 @@ class Query(object):
 
 		for orderField, direction in orders[::-1]:
 			if orderField == KEY_SPECIAL_PROPERTY:
-				entities.sort(key=lambda x: x.key, reverse=direction == SortOrder.Descending)
+				pass # FIXME !!
+				#entities.sort(key=lambda x: x.key, reverse=direction == SortOrder.Descending)
 			else:
 				try:
 					entities.sort(key=partial(getVal, fieldVars=orderField, direction=direction),
@@ -763,12 +800,8 @@ class Query(object):
 			:param keysOnly: If the query should be used to retrieve entity keys only.
 			:type keysOnly: bool
 		"""
-		try:
-			currentTransaction = __currentTransaction__.transactionData
-		except AttributeError:
-			currentTransaction = None
-		# if currentTransaction:  # FIXME!
-		#	raise InvalidStateError("Iter is currently not supported in transactions")
+		if IsInTransaction():
+			raise InvalidStateError("Iter is currently not supported in transactions")
 		for x in self.run(999):  # Fixme!
 			yield x
 		return
@@ -886,6 +919,6 @@ def RunInTransaction(callee, *args, **kwargs):
 	return res
 
 
-__all__ = [KEY_SPECIAL_PROPERTY, DATASTORE_BASE_TYPES, SortOrder, Entity, Key, Put, Get, Delete, AllocateIds,
-		   Conflict, Error, fixUnindexableProperties, GetOrInsert, Query, IsInTransaction,
+__all__ = [KEY_SPECIAL_PROPERTY, DATASTORE_BASE_TYPES, SortOrder, Entity, Key, KeyClass, Put, Get, Delete, AllocateIds,
+		   Conflict, Error, keyHelper, fixUnindexableProperties, GetOrInsert, Query, IsInTransaction,
 		   acquireTransactionSuccessMarker, RunInTransaction]

@@ -28,9 +28,11 @@ conf["viur.file.hmacKey"] = hashlib.sha3_384(
 
 
 class injectStoreURLBone(baseBone):
-	def unserialize(self, valuesCache, name, expando):
-		if "dlkey" in expando and "name" in expando:
-			valuesCache[name] = utils.downloadUrlFor(expando["dlkey"], expando["name"], derived=False)
+	def unserialize(self, skeletonValues, name):
+		if "dlkey" in skeletonValues.entity and "name" in skeletonValues.entity:
+			skeletonValues.accessedValues[name] = utils.downloadUrlFor(skeletonValues.entity["dlkey"], skeletonValues.entity["name"], derived=False)
+			return True
+		return False
 
 
 def thumbnailer(dlKey, origName, targetName, params, size):

@@ -45,19 +45,7 @@ class booleanBone(baseBone):
 		else:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, err)]
 
-	def serialize(self, valuesCache, name, entity):
-		"""
-			Serializes this bone into something we
-			can write into the datastore.
-
-			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:returns: dict
-		"""
-		entity[name] = valuesCache.get(name, False)
-		return entity
-
-	def unserialize(self, valuesCache, name, expando):
+	def refresh(self, skeletonValues, name, skel) -> None:
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -69,13 +57,13 @@ class booleanBone(baseBone):
 			:type expando: :class:`db.Entity`
 			:returns: bool
 		"""
-		if name in expando:
-			val = expando[name]
+		super().refresh(skeletonValues, name, skel)
+		if name in skeletonValues.accessedValues:
+			val = skeletonValues.accessedValues[name]
 			if str(val) in self.trueStrs:
-				valuesCache[name] = True
+				skeletonValues.accessedValues[name] = True
 			else:
-				valuesCache[name] = False
-		return True
+				skeletonValues.accessedValues[name] = False
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		if name in rawFilter:

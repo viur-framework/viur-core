@@ -99,7 +99,7 @@ class spatialBone(baseBone):
 			else:
 				return False
 
-	def serialize(self, valuesCache, name, entity):
+	def serialize(self, skeletonValues, name):
 		"""
 			Serializes this bone into something we
 			can write into the datastore.
@@ -108,14 +108,15 @@ class spatialBone(baseBone):
 			:type name: str
 			:returns: dict
 		"""
-		if not valuesCache.get(name):
-			entity[name] = self.getDefaultValue()
-		else:
-			lat, lng = valuesCache[name]
+		if name in skeletonValues.accessedValues:
+			if not skeletonValues.accessedValues[name]:
+				skeletonValues.entity[name] = None
+				return True
+			lat, lng = skeletonValues.accessedValues[name]
 			gridSizeLat, gridSizeLng = self.getGridSize()
 			tileLat = int(floor((lat - self.boundsLat[0]) / gridSizeLat))
 			tileLng = int(floor((lng - self.boundsLng[0]) / gridSizeLng))
-			entity[name] = {
+			skeletonValues.entity[name] = {
 				"coordinates": {
 					"lat": lat,
 					"lng": lng,
@@ -125,9 +126,10 @@ class spatialBone(baseBone):
 					"lng": [tileLng - 1, tileLng, tileLng + 1],
 				}
 			}
-		return entity
+			return True
+		return False
 
-	def unserialize(self, valuesCache, name, expando):
+	def unserialize(self, skeletonValues, name):
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -138,11 +140,14 @@ class spatialBone(baseBone):
 			:type expando: db.Entity
 			:returns: bool
 		"""
-		myVal = expando.get(name)
-		if myVal:
-			valuesCache[name] = myVal["coordinates"]["lat"], myVal["coordinates"]["lng"]
-		else:
-			valuesCache[name] = None
+		if name in skeletonValues.entity:
+			myVal = skeletonValues.entity[name]
+			if myVal:
+				skeletonValues.accessedValues[name] = myVal["coordinates"]["lat"], myVal["coordinates"]["lng"]
+			else:
+				skeletonValues.accessedValues[name] = None
+			return True
+		return False
 
 	def fromClient( self, valuesCache, name, data ):
 		"""
