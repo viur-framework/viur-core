@@ -34,7 +34,7 @@ class TreeLeafSkel(Skeleton):
 				except:
 					return res
 
-			self["parentrepo"] = str(dbObj.key())
+			self["parentrepo"] = dbObj.key
 			self.toDB()
 
 		return res
@@ -206,11 +206,11 @@ class Tree(BasicApplication):
 		:returns: :class:`server.db.Entity`
 		"""
 		kindName = self.viewNodeSkel().kindName
-		repo = db.Get((kindName, subRepo))
+		repo = db.Get(db.keyHelper(subRepo, kindName))
 		if not repo:
 			return None
 		if "parentrepo" in repo:
-			return db.Get((kindName, repo["parentrepo"]))
+			return db.Get(repo["parentrepo"])
 		elif "rootNode" in repo and str(repo["rootNode"]) == "1":
 			return repo
 		return None
@@ -288,10 +288,10 @@ class Tree(BasicApplication):
 		query = skel.all()
 
 		if "search" in kwargs and kwargs["search"]:
-			query.filter("parentrepo =", str(nodeSkel["key"]))
+			query.filter("parentrepo =", nodeSkel["key"])
 		else:
-			query.filter("parentdir =", str(nodeSkel["key"]))
-
+			query.filter("parentdir =", nodeSkel["key"])
+		print(kwargs)
 		query.mergeExternalFilter(kwargs)
 		res = query.fetch()
 

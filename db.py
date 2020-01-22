@@ -45,14 +45,15 @@ Conflict = exceptions.Conflict
 Error = exceptions.GoogleCloudError
 
 
-def keyHelper(inKey: Union[KeyClass, str, int], targetKind:str) -> KeyClass:
+def keyHelper(inKey: Union[KeyClass, str, int], targetKind: str,
+			  additionalAllowdKinds: Union[None, List[str]] = None) -> KeyClass:
 	if isinstance(inKey, str):
 		try:
 			decodedKey = utils.normalizeKey(KeyClass.from_legacy_urlsafe(inKey))
 		except:
 			decodedKey = None
 		if decodedKey:  # If it did decode, don't try any further
-			if decodedKey.kind != targetKind:
+			if decodedKey.kind != targetKind and (not additionalAllowdKinds or inKey.kind not in additionalAllowdKinds):
 				raise ValueError("Kin1d mismatch: %s != %s" % (decodedKey.kind, targetKind))
 			return decodedKey
 		if inKey.isdigit():
@@ -61,11 +62,12 @@ def keyHelper(inKey: Union[KeyClass, str, int], targetKind:str) -> KeyClass:
 	elif isinstance(inKey, int):
 		return Key(targetKind, inKey)
 	elif isinstance(inKey, KeyClass):
-		if inKey.kind != targetKind:
-			raise ValueError("Kin1d mismatch: %s != %s" % (inKey.kind, targetKind))
+		if inKey.kind != targetKind and (not additionalAllowdKinds or inKey.kind not in additionalAllowdKinds):
+			raise ValueError("Kin1d mismatch: %s != %s (%s)" % (inKey.kind, targetKind, additionalAllowdKinds))
 		return inKey
 	else:
 		raise ValueError("Unknown key type %r" % type(inKey))
+
 
 def Put(entity: Union[Entity, List[Entity]]):
 	"""
@@ -662,8 +664,8 @@ class Query(object):
 
 		for orderField, direction in orders[::-1]:
 			if orderField == KEY_SPECIAL_PROPERTY:
-				pass # FIXME !!
-				#entities.sort(key=lambda x: x.key, reverse=direction == SortOrder.Descending)
+				pass  # FIXME !!
+			# entities.sort(key=lambda x: x.key, reverse=direction == SortOrder.Descending)
 			else:
 				try:
 					entities.sort(key=partial(getVal, fieldVars=orderField, direction=direction),

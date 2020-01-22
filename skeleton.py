@@ -316,8 +316,8 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 			:returns: Dictionary, where the keys are the bones and the values the current values.
 			:rtype: dict
 		"""
-		return {k: self[k] for k in self.__boneNames__}
-		return dict(self.items())
+		return {k: self[k] for k in self.boneMap.keys()}
+
 
 	def setBoneValue(self, boneName, value, append=False):
 		"""
@@ -392,6 +392,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		for key, bone in self.items():
 			if not isinstance(bone, baseBone):
 				continue
+			self[key]  # Ensure value gets loaded
 			if "refresh" in dir(bone):
 				bone.refresh(self.valuesCache, key, self)
 
@@ -672,7 +673,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				# dbObj = bone.serialize(skel.valuesCache, key, dbObj)
 
 				# Obtain referenced blobs
-				blobList.update(bone.getReferencedBlobs(dbObj, key))
+				blobList.update(bone.getReferencedBlobs(skel, key))
 
 				# Check if the value has actually changed
 				if dbObj.get(key) != oldCopy.get(key):
@@ -848,7 +849,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		skel.postSavedHandler(key, dbObj)
 
 		if not clearUpdateTag and not isAdd:
-			updateRelations(key, time() + 1, changeList if len(changeList) < 30 else None)
+			updateRelations(key.to_legacy_urlsafe().decode("ASCII"), time() + 1, changeList if len(changeList) < 30 else None)
 
 		# Inform the custom DB Adapter of the changes made to the entry
 		if self.customDatabaseAdapter:
@@ -1250,6 +1251,9 @@ def processChunk(module, compact, cursor, allCount=0, notify=None):
 			logging.exception(e)
 			raise
 	newCursor = query.getCursor()
+	if not newCursor:  # We're done
+		return
+	newCursor = newCursor.decode("ASCII")
 	logging.info("END processChunk %s, %d records refreshed" % (module, count))
 	if count and newCursor and newCursor != cursor:
 		# Start processing of the next chunk

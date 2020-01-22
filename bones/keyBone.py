@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from viur.core.bones.bone import baseBone
 from viur.core.db import Entity, KeyClass
+from viur.core.utils import normalizeKey
 
 class keyBone(baseBone):
 	type = "key"
@@ -27,7 +28,7 @@ class keyBone(baseBone):
 			val = skeletonValues.entity[name]
 			if isinstance(val, str):
 				try:
-					val = KeyClass.from_legacy_urlsafe(val)
+					val = normalizeKey(KeyClass.from_legacy_urlsafe(val))
 				except:
 					val = None
 			elif not isinstance(val, KeyClass):

@@ -1004,30 +1004,31 @@ class relationalBone(baseBone):
 				valuesCache[boneName] = tmpRes
 		return True
 
-	def getReferencedBlobs(self, valuesCache, name):
+	def getReferencedBlobs(self, skel, name):
 		"""
 			Returns the list of blob keys referenced from this bone
 		"""
 
 		def blobsFromSkel(skel, valuesCache):
 			blobList = set()
+			skel.setValuesCache(valuesCache)
 			for key, _bone in skel.items():
-				blobList.update(_bone.getReferencedBlobs(valuesCache, key))
+				blobList.update(_bone.getReferencedBlobs(skel, key))
 			return blobList
 
 		res = set()
-		if name in valuesCache:
-			if isinstance(valuesCache[name], list):
-				for myDict in valuesCache[name]:
-					if myDict["dest"]:
-						res.update(blobsFromSkel(self._refSkelCache, myDict["dest"]))
-					if myDict["rel"]:
-						res.update(blobsFromSkel(self._usingSkelCache, myDict["rel"]))
-			elif isinstance(valuesCache[name], dict):
-				if valuesCache[name]["dest"]:
-					res.update(blobsFromSkel(self._refSkelCache, valuesCache[name]["dest"]))
-				if "rel" in valuesCache[name] and valuesCache[name]["rel"]:
-					res.update(blobsFromSkel(self._usingSkelCache, valuesCache[name]["rel"]))
+		value = skel[name]
+		if isinstance(value, list):
+			for myDict in value:
+				if myDict["dest"]:
+					res.update(blobsFromSkel(self._refSkelCache, myDict["dest"]))
+				if myDict["rel"]:
+					res.update(blobsFromSkel(self._usingSkelCache, myDict["rel"]))
+		elif isinstance(value, dict):
+			if value["dest"]:
+				res.update(blobsFromSkel(self._refSkelCache, value["dest"]))
+			if "rel" in value and value["rel"]:
+				res.update(blobsFromSkel(self._usingSkelCache, value["rel"]))
 		return res
 
 	def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:

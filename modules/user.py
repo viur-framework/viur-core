@@ -177,11 +177,6 @@ class UserPassword(object):
 			skel.fromClient({"name": name, "nomissing": "1"})
 			return self.userModule.render.login(skel, loginFailed=True)
 		else:
-			if not "password_salt" in res:  # Update the password to the new, more secure format
-				res["password_salt"] = utils.generateRandomString(13)
-				res["password"] = pbkdf2(password[: conf["viur.maxPasswordLength"]], res["password_salt"])
-				db.Put(res)
-
 			return self.userModule.continueAuthenticationFlow(self, res.key)
 
 	@exposed

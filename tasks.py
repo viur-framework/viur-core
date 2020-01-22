@@ -362,7 +362,7 @@ def callDeferred(func):
 			env = {"user": None}
 			usr = getCurrentUser()
 			if usr:
-				env["user"] = {"key": usr["key"],
+				env["user"] = {"key": usr["key"].id_or_name,
 							   "name": usr["name"],
 							   "access": usr["access"]}
 			try:

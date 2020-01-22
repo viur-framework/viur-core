@@ -218,15 +218,15 @@ class recordBone(baseBone):
 
 		return res
 
-	def getReferencedBlobs(self, valuesCache, name):
-		def blobsFromSkel(skel, valuesCache):
+	def getReferencedBlobs(self, skel, name):
+		def blobsFromSkel(relSkel, valuesCache):
 			blobList = set()
-			for key, _bone in skel.items():
-				blobList.update(_bone.getReferencedBlobs(valuesCache, key))
+			for key, _bone in relSkel.items():
+				blobList.update(_bone.getReferencedBlobs(relSkel, key))
 			return blobList
 
 		res = set()
-		value = valuesCache.get(name)
+		value = skel[name]
 
 		if not value:
 			return res

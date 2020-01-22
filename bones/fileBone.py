@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from viur.core.bones import treeItemBone
 from viur.core import db, request, conf
+from viur.core.utils import downloadUrlFor
 from viur.core.tasks import callDeferred
 # from google.appengine.api import images
 from hashlib import sha256
@@ -9,7 +10,7 @@ from typing import Union, Dict
 
 
 @callDeferred
-def ensureDerived(dlkey: str, name: str, deriveMap: Dict[str,Dict]):
+def ensureDerived(key: str, name: str, deriveMap: Dict[str, Dict]):
 	"""
 	Ensure that pending thumbnails or other derived Files are build
 	:param dlkey:
@@ -19,21 +20,23 @@ def ensureDerived(dlkey: str, name: str, deriveMap: Dict[str,Dict]):
 	"""
 	from viur.core.skeleton import skeletonByKind
 	skel = skeletonByKind("file")()
-	assert skel.fromDB(dlkey)
+	assert skel.fromDB(key)
 	if not skel["derived"]:
 		logging.info("No Derives for this file")
 		skel["derived"] = {}
 	didBuild = False
 	for fileName, params in deriveMap.items():
-		if not fileName in skel["derived"]:
+		if fileName not in skel["derived"]:
 			deriveFuncMap = conf["viur.file.derivers"]
 			if not "callee" in params:
 				assert False
 			if not params["callee"] in deriveFuncMap:
 				raise NotImplementedError("Callee not registered")
 			callee = deriveFuncMap[params["callee"]]
-			callRes = callee(dlkey, name, fileName, params)
-			skel["derived"][fileName] = callRes
+			callRes = callee(skel, fileName, params)
+			if callRes:
+				fileName, size, mimetype = callRes
+				skel["derived"][fileName] = {"name": fileName, "size": size, "mimetype": mimetype, "params": params}
 			didBuild = True
 	if didBuild:
 		skel.toDB()
@@ -51,31 +54,33 @@ class fileBone(treeItemBone):
 
 	def postSavedHandler(self, skel, boneName, key):
 		super().postSavedHandler(skel, boneName, key)
-		#if boneName not in valuesCache:
+		# if boneName not in valuesCache:
 		#	return
-		#if not valuesCache.get(boneName):
+		# if not valuesCache.get(boneName):
 		#	values = []
-		#elif isinstance(valuesCache.get(boneName), dict):
+		# elif isinstance(valuesCache.get(boneName), dict):
 		#	values = [dict((k, v) for k, v in valuesCache.get(boneName).items())]
-		#else:
+		# else:
 		#	values = [dict((k, v) for k, v in x.items()) for x in valuesCache.get(boneName)]
-		#if self.derive:
-		#	for val in values:
-		#		ensureDerived(val["dest"]["dlkey"], val["dest"]["name"], self.derive)
+		values = skel[boneName]
+		if self.derive and values:
+			if isinstance(values, dict):
+				values = [values]
+			for val in values:
+				ensureDerived(val["dest"].entity["key"].id_or_name, val["dest"].entity["name"], self.derive)
 
-	def getReferencedBlobs(self, valuesCache, name):
-		val = valuesCache.get(name)
+	def getReferencedBlobs(self, skel, name):
+		val = skel[name]
 		if val is None:
 			return []
 		elif isinstance(val, dict):
-			return [val["dest"]["dlkey"]]
+			return [val["dest"].entity["dlkey"]]
 		elif isinstance(val, list):
-			return [x["dest"]["dlkey"] for x in val]
+			return [x["dest"].entity["dlkey"] for x in val]
 		else:
 			logging.critical("Unknown value for bone %s (%s)" % (name, str(type(val))))
 			return []
 			raise ValueError("Unknown value for bone %s (%s)" % (name, str(type(val))))
-
 
 	def refresh(self, valuesCache, boneName, skel):
 		"""

@@ -219,7 +219,7 @@ def markFileForDeletion(dlkey):
 	if fileObj:  # Its allready marked
 		return
 
-	fileObj = db.Entity("viur-deleted-files")
+	fileObj = db.Entity(db.Key("viur-deleted-files"))
 	fileObj["itercount"] = 0
 	fileObj["dlkey"] = str(dlkey)
 	db.Put(fileObj)
@@ -262,7 +262,8 @@ def hmacVerify(data: Any, signature: str) -> bool:
 	return hmac.compare_digest(hmacSign(data), signature)
 
 
-def downloadUrlFor(folder: str, fileName: str, derived: bool = False, expires: timedelta = timedelta(hours=1)) -> str:
+def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
+				   expires: Union[timedelta, None] = timedelta(hours=1)) -> str:
 	if derived:
 		filePath = "%s/derived/%s" % (folder, fileName)
 	else:

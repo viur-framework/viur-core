@@ -349,11 +349,11 @@ class baseBone(object):  # One Bone:
 		return self._hashValueForUniquePropertyIndex(val)
 
 
-	def getReferencedBlobs(self, valuesCache, name):
+	def getReferencedBlobs(self, skel, name):
 		"""
 			Returns the list of blob keys referenced from this bone
 		"""
-		return ([])
+		return []
 
 	def performMagic(self, valuesCache, name, isAdd):
 		"""
