@@ -371,7 +371,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 			if errors:
 				self.errors.extend(errors)
 				for error in errors:
-					if error.severity == ReadFromClientErrorSeverity.Empty and _bone.required \
+					if (error.severity == ReadFromClientErrorSeverity.Empty and _bone.required) \
 							or error.severity == ReadFromClientErrorSeverity.Invalid:
 						complete = False
 		# FIXME!

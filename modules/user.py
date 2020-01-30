@@ -309,11 +309,11 @@ class GoogleAccount(object):
 	def login(self, skey="", token="", *args, **kwargs):
 		# FIXME: Check if already logged in
 		if not conf.get("viur.user.google.clientID"):
-			raise errors.PreconditionFailed()
+			raise errors.PreconditionFailed("Please configure 'viur.user.google.clientID' in your conf!")
 		if not skey or not token:
 			request.current.get().response.headers["Content-Type"] = "text/html"
 			# Fixme: Render with Jinja2?
-			tplStr = open("server/template/vi_user_google_login.html", "r").read()
+			tplStr = open("viur/core/template/vi_user_google_login.html", "r").read()
 			tplStr = tplStr.replace("{{ clientID }}", conf["viur.user.google.clientID"])
 			return tplStr
 		if not securitykey.validate(skey, useSessionKey=True):
@@ -356,13 +356,6 @@ class GoogleAccount(object):
 			#	userSkel["gaeadmin"] = False
 			assert userSkel.toDB()
 		return self.userModule.continueAuthenticationFlow(self, (userSkel.kindName, userSkel["key"]))
-
-		if users.get_current_user():
-
-			currentUser = users.get_current_user()
-			uid = currentUser.user_id()
-
-		raise errors.Redirect(users.create_login_url(self.modulePath + "/login"))
 
 
 class TimeBasedOTP(object):

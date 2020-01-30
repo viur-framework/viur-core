@@ -220,6 +220,7 @@ class GaeSession:
 					dbSession["lastseen"] = time()
 					# Store the userid inside the sessionobj, so we can kill specific sessions if needed
 					dbSession["user"] = str(userid) or "guest"
+					dbSession.exclude_from_indexes = ["data"]
 					db.Put(dbSession)
 				except Exception as e:
 					logging.exception(e)
@@ -303,7 +304,7 @@ class GaeSession:
 		"""
 		lang = self.session.get("language")
 		if self.httpKey:
-			db.Delete((self.kindName, self.httpKey))
+			db.Delete(db.Key(self.kindName, self.httpKey))
 		self.httpKey = utils.generateRandomString(42)
 		self.sslKey = utils.generateRandomString(42)
 		self.staticSecurityKey = utils.generateRandomString(13)

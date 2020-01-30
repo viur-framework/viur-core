@@ -193,7 +193,7 @@ class Tree(BasicApplication):
 		:rtype: :class:`server.db.Entity`
 		"""
 		key = "rep_module_repo"
-		return db.GetOrInsert((self.viewLeafSkel().kindName + "_rootNode", key),
+		return db.GetOrInsert(db.Key(self.viewLeafSkel().kindName + "_rootNode", key),
 							  creationdate=datetime.now(), rootNode=1)
 
 	def getRootNode(self, subRepo):

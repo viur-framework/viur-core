@@ -116,7 +116,7 @@ class Singleton(BasicApplication):
 		if not self.canView():
 			raise errors.Unauthorized()
 
-		key = str(db.Key.from_path(self.editSkel().kindName, self.getKey()))
+		key = db.Key(self.editSkel().kindName, self.getKey())
 
 		if not skel.fromDB(key):
 			raise errors.NotFound()
@@ -152,10 +152,10 @@ class Singleton(BasicApplication):
 		if not self.canEdit():
 			raise errors.Unauthorized()
 
-		key = db.Key.from_path(self.editSkel().kindName, self.getKey())
+		key = db.Key(self.editSkel().kindName, self.getKey())
 
 		if not skel.fromDB(str(key)):  # Its not there yet; we need to set the key again
-			skel["key"] = str(key)
+			skel["key"] = key
 
 		if (len(kwargs) == 0  # no data supplied
 				or skey == ""  # no skey provided
@@ -177,7 +177,7 @@ class Singleton(BasicApplication):
 		:returns: The content as Skeleton provided by :func:`viewSkel`.
 		"""
 		skel = self.viewSkel()
-		key = str(db.Key.from_path(self.viewSkel().kindName, self.getKey()))
+		key = db.Key(self.viewSkel().kindName, self.getKey())
 
 		if not skel.fromDB(key):
 			return None

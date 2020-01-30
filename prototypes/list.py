@@ -126,7 +126,7 @@ class List(BasicApplication):
 			key = args[0]
 		else:
 			raise errors.NotAcceptable()
-		if not len(key):
+		if not key:
 			raise errors.NotAcceptable()
 		skel = self.viewSkel()
 		if key == u"structure":

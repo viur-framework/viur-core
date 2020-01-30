@@ -22,12 +22,11 @@ class keyBone(baseBone):
 			:type expando: db.Entity
 			:returns: bool
 		"""
-		assert name == "key", "Keybones must be named key!"
-		if isinstance(skeletonValues.entity, Entity) and skeletonValues.entity.key and not skeletonValues.entity.key.is_partial:
+		if name=="key" and isinstance(skeletonValues.entity, Entity) and skeletonValues.entity.key and not skeletonValues.entity.key.is_partial:
 			skeletonValues.accessedValues[name] = skeletonValues.entity.key
 			return True
-		elif "key" in skeletonValues.entity:
-			val = skeletonValues.entity["key"]
+		elif name in skeletonValues.entity:
+			val = skeletonValues.entity[name]
 			if isinstance(val, str):
 				try:
 					val = normalizeKey(KeyClass.from_legacy_urlsafe(val))
@@ -35,7 +34,7 @@ class keyBone(baseBone):
 					val = None
 			elif not isinstance(val, KeyClass):
 				val = None
-			skeletonValues.accessedValues["key"] = val
+			skeletonValues.accessedValues[name] = val
 			return True
 		return False
 
@@ -48,8 +47,11 @@ class keyBone(baseBone):
 			:type name: str
 			:returns: dict
 		"""
-		if "key" in skeletonValues.accessedValues:
-			skeletonValues.entity.key = skeletonValues.accessedValues["key"]
+		if name in skeletonValues.accessedValues:
+			if name == "key":
+				skeletonValues.entity.key = skeletonValues.accessedValues["key"]
+			else:
+				skeletonValues.entity[name] = skeletonValues.accessedValues[name]
 			return True
 		return False
 
@@ -84,22 +86,30 @@ class keyBone(baseBone):
 					logging.exception(e)
 					logging.warning("Could not decode key %s" % key)
 					raise RuntimeError()
-		assert name == "key", "Keybones must be named key!"
-		if "key" in rawFilter:
-			if isinstance(rawFilter["key"], list):
+		if name in rawFilter:
+			if isinstance(rawFilter[name], list):
 				if isinstance(dbFilter.filters, list):
 					raise ValueError("In-Filter already used!")
 				elif dbFilter.filters is None:
 					return dbFilter # Query is already unsatisfiable
 				oldFilter = dbFilter.filters
 				dbFilter.filters = []
-				for key in rawFilter["key"]:
+				for key in rawFilter[name]:
 					newFilter = oldFilter.copy()
-					newFilter["%s%s =" % (prefix or "", KEY_SPECIAL_PROPERTY)] = _decodeKey(key)
+					try:
+						if name == "key":
+							newFilter["%s%s =" % (prefix or "", KEY_SPECIAL_PROPERTY)] = _decodeKey(key)
+						else:
+							newFilter["%s%s =" % (prefix or "", name)] = _decodeKey(key)
+					except:  # Invalid key or something
+						raise RuntimeError()
 					dbFilter.filters.append(newFilter)
 			else:
 				try:
-					dbFilter.filter("%s%s =" % (prefix or "", KEY_SPECIAL_PROPERTY), _decodeKey(rawFilter["key"]))
+					if name == "key":
+						dbFilter.filter("%s%s =" % (prefix or "", KEY_SPECIAL_PROPERTY), _decodeKey(rawFilter[name]))
+					else:
+						dbFilter.filter("%s%s =" % (prefix or "", name), _decodeKey(rawFilter[name]))
 				except:  # Invalid key or something
 					raise RuntimeError()
 			return dbFilter

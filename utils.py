@@ -122,7 +122,7 @@ def _GAE_sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=
 	else:
 		message = mail.EmailMessage()
 
-	mailfrom = "viur@%s.appspotmail.com" % app_identity.get_application_id()
+	mailfrom = "viur@%s.appspotmail.com" % projectID
 
 	if "subject" in headers:
 		message.subject = "=?utf-8?B?%s?=" % base64.b64encode(headers["subject"].encode("UTF-8"))
@@ -179,7 +179,7 @@ def sendEMailToAdmins(subject, body, sender=None):
 		:type sender: str
 	"""
 	if not sender:
-		sender = "viur@%s.appspotmail.com" % app_identity.get_application_id()
+		sender = "viur@%s.appspotmail.com" % projectID
 
 	mail.send_mail_to_admins(sender, "=?utf-8?B?%s?=" % base64.b64encode(subject.encode("UTF-8")),
 							 body.encode('ascii', 'xmlcharrefreplace'))

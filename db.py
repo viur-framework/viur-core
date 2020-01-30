@@ -90,7 +90,7 @@ def fixUnindexableProperties(entry: Entity):
 			return any([hasUnindexableProperty(x) for x in prop.values()])
 		elif isinstance(prop, list):
 			return any([hasUnindexableProperty(x) for x in prop])
-		elif isinstance(prop, str):
+		elif isinstance(prop, (str, bytes)):
 			return len(prop) >= 500
 		else:
 			return False

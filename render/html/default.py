@@ -170,7 +170,7 @@ class Render(object):
 
 		elif bone.type == "select" or bone.type.startswith("select."):
 			ret.update({
-				"values": OrderedDict([(k, _(v)) for (k, v) in bone.values.items()]),
+				"values": {k: v for (k, v) in bone.values.items()}, #FIXME: translate!
 				"multiple": bone.multiple
 			})
 
@@ -246,10 +246,9 @@ class Render(object):
 		if bone.type == "select" or bone.type.startswith("select."):
 			skelValue = boneValue
 			if isinstance(skelValue, list):
-				return [
-					KeyValueWrapper(val, bone.values[val]) if val in bone.values else KeyValueWrapper(val, str(val))
-					for val in skelValue
-				]
+				return {
+					val: bone.values.get(val, val) for val in boneValue
+				}
 			elif skelValue in bone.values:
 				return KeyValueWrapper(skelValue, bone.values[skelValue])
 			return KeyValueWrapper(skelValue, str(skelValue))

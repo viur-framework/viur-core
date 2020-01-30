@@ -342,9 +342,9 @@ class stringBone(baseBone):
 				else:
 					prop = name + "_idx"
 			if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
-				order = (prop, db.DESCENDING)
+				order = (prop, db.SortOrder.Descending)
 			else:
-				order = (prop, db.ASCENDING)
+				order = (prop, db.SortOrder.Ascending)
 			inEqFilter = [x for x in dbFilter.datastoreQuery.keys() if
 						  (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
 			if inEqFilter:

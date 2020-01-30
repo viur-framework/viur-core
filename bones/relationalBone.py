@@ -143,15 +143,14 @@ class relationalBone(baseBone):
 		assert isinstance(value, dict), "Read something from the datastore thats not a dict: %s" % str(type(value))
 
 		relSkel = self._refSkelCache
-		relSkel.setValuesCache({})
+		#relSkel.setValuesCache(db.Entity())
 
 		relSkel.unserialize(value["dest"])
 
 		if self.using is not None:
 			usingSkel = self._usingSkelCache
-			usingSkel.setValuesCache({})
-			if value["rel"] is not None:
-				usingSkel.unserialize(value["rel"])
+			#usingSkel.setValuesCache(db.Entity())
+			usingSkel.unserialize(value["rel"] or db.Entity())
 			usingData = usingSkel.getValuesCache()
 		else:
 			usingData = None
