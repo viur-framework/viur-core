@@ -41,28 +41,22 @@ class recordBone(baseBone):
 		usingSkel.unserialize(value)
 		return usingSkel.getValuesCache()
 
-	def unserialize(self, valuesCache, name, expando):
-		if name not in expando:
-			valuesCache[name] = None
-			return True
-
-		val = expando[name]
-
-		if self.multiple:
-			valuesCache[name] = []
-
+	def unserialize(self, skeletonValues, name):
+		if name not in skeletonValues.entity:
+			return False
+		val = skeletonValues.entity[name]
+		skeletonValues.accessedValues[name] = []
 		if not val:
 			return True
-
 		if isinstance(val, list):
 			for res in val:
 				try:
-					valuesCache[name].append(self._restoreValueFromDatastore(res))
+					skeletonValues.accessedValues[name].append(self._restoreValueFromDatastore(res))
 				except:
 					raise
 		else:
 			try:
-				valuesCache[name].append(self._restoreValueFromDatastore(val))
+				skeletonValues.accessedValues[name].append(self._restoreValueFromDatastore(val))
 			except:
 				raise
 
@@ -71,6 +65,8 @@ class recordBone(baseBone):
 	def serialize(self, skeletonValues, name):
 		if name in skeletonValues.accessedValues:
 			value = skeletonValues.accessedValues[name]
+			print("xxxxx")
+			print(value)
 			if not value:
 				skeletonValues.entity[name] = []
 			else:
@@ -140,7 +136,8 @@ class recordBone(baseBone):
 
 		for i, r in enumerate(tmpList[:]):
 			usingSkel = self._usingSkelCache
-			usingSkel.setValuesCache({"entity": {}, "changedValues": {}})
+			#usingSkel.setValuesCache(Skeletccc)
+			usingSkel.unserialize({})
 
 			if not usingSkel.fromClient(r):
 				for error in usingSkel.errors:

@@ -109,7 +109,7 @@ class Render(object):
 			if os.path.isfile(os.path.join(os.getcwd(), htmlpath, fn)):
 				return fn
 		for fn in fnames:  # Check the fallback
-			if os.path.isfile(os.path.join(os.getcwd(), "viur", "server", "template", fn)):
+			if os.path.isfile(os.path.join(os.getcwd(), "viur", "core", "template", fn)):
 				return fn
 		raise errors.NotFound("Template %s not found." % template)
 
@@ -125,7 +125,7 @@ class Render(object):
 		else:
 			htmlpath = "html/"
 
-		return ChoiceLoader([FileSystemLoader(htmlpath), FileSystemLoader("viur/server/template/")])
+		return ChoiceLoader([FileSystemLoader(htmlpath), FileSystemLoader("viur/core/template/")])
 
 	def renderBoneStructure(self, bone):
 		"""

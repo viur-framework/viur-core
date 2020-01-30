@@ -80,6 +80,7 @@ def Put(entity: Union[Entity, List[Entity]]):
 	for e in entity:
 		if not e.key.is_partial and e.key.name and e.key.name.isdigit():
 			raise ValueError("Cannot store an entity with digit-only string key")
+		fixUnindexableProperties(e)
 	return __client__.put_multi(entities=entity)
 
 
@@ -802,40 +803,16 @@ class Query(object):
 			:param keysOnly: If the query should be used to retrieve entity keys only.
 			:type keysOnly: bool
 		"""
-		if IsInTransaction():
-			raise InvalidStateError("Iter is currently not supported in transactions")
-		for x in self.run(999):  # Fixme!
-			yield x
-		return
-		if self.datastoreQuery is None:  # Noting to pull here
+		if self.filters is None:  # Noting to pull here
 			raise StopIteration()
-		if isinstance(self.datastoreQuery, datastore.MultiQuery) and keysOnly:
-			# Wanted KeysOnly, but MultiQuery is unable to give us that.
-			for res in self.datastoreQuery.Run():
-				yield res.key()
-		else:  # The standard-case
-			stopYield = False
-			lastCursor = None
-			while not stopYield:
-				try:
-					for res in self.datastoreQuery.Run(keys_only=keysOnly):
-						yield res
-						try:
-							lastCursor = self.datastoreQuery.GetCursor()
-						except Exception as e:
-							pass
-					stopYield = True  # No more results to yield
-				except:
-					if lastCursor is None:
-						stopYield = True
-						logging.warning("Cannot this continue this query - it has no cursors")
-						logging.warning("Not all results have been yielded!")
-					else:
-						logging.debug("Continuing iter() on fresh a query")
-						q = self.clone()
-						q.cursor(lastCursor)
-						self.datastoreQuery = q.datastoreQuery
-						lastCursor = None
+		elif isinstance(self.filters, list):
+			raise ValueError("No iter on Multiqueries")
+		while True:
+			qryRes = self._runSingleFilterQuery(self.filters, 20)
+			yield from qryRes
+			if not self.lastCursor:  # We reached the end of that query
+				break
+			self._startCursor = self.lastCursor
 
 	def get(self) -> Union[None, Entity]:
 		"""

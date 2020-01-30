@@ -166,7 +166,7 @@ class spatialBone(baseBone):
 		"""
 		rawLat = data.get("%s.lat" % name, None)
 		rawLng = data.get("%s.lng" % name, None)
-		if rawLat is None or rawLng is None:
+		if not rawLat or not rawLng:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
 
 		try:

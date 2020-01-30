@@ -214,27 +214,6 @@ class baseBone(object):  # One Bone:
 			:type rawFilter: dict
 			:returns: The modified :class:`server.db.Query`
 		"""
-
-		if name == "key" and "key" in rawFilter and prefix is None:
-			if isinstance(rawFilter["key"], list):
-				if isinstance(dbFilter.filters, list):
-					raise ValueError("In-Filter already used!")
-				elif dbFilter.filters is None:
-					return dbFilter # Query is already unsatisfiable
-				oldFilter = dbFilter.filters
-				dbFilter.filters = []
-				for key in rawFilter["key"]:
-					newFilter = oldFilter.copy()
-					newFilter["%s =" % db.KEY_SPECIAL_PROPERTY] = db.keyHelper(key, dbFilter.origCollection)
-					dbFilter.filters.append(newFilter)
-			else:
-				try:
-					dbFilter.filter("%s =" % db.KEY_SPECIAL_PROPERTY, rawFilter["key"])
-				except:  # Invalid key or something
-					raise RuntimeError()
-
-			return dbFilter
-
 		myKeys = [key for key in rawFilter.keys() if (key == name or key.startswith(name + "$"))]
 
 		if len(myKeys) == 0:

@@ -4,7 +4,12 @@ from viur.core.bones.bone import getSystemInitialized
 from viur.core import db
 from viur.core.errors import ReadFromClientError
 # from google.appengine.api import search
-import extjson
+
+try:
+	import extjson
+except ImportError:
+	# FIXME: That json will not read datetime objects
+	import json as extjson
 from time import time
 from datetime import datetime
 import logging
@@ -228,7 +233,7 @@ class relationalBone(baseBone):
 				if skeletonValues.accessedValues[name]["dest"]:
 					refSkel.setValuesCache(skeletonValues.accessedValues[name]["dest"])
 					refData = refSkel.serialize()
-					newRelationalLocks.add(refData["key"])
+					newRelationalLocks.add(refSkel["key"])
 				else:
 					refData = None
 				if usingSkel and skeletonValues.accessedValues[name]["rel"]:
@@ -281,27 +286,27 @@ class relationalBone(baseBone):
 		else:
 			values = [dict((k, v) for k, v in x.items()) for x in skel[boneName]]
 
-		parentValues = {}
-
-		for parentKey in skel.valuesCache.entity.keys():
-			if parentKey in self.parentKeys or any([parentKey.startswith(x + ".") for x in self.parentKeys]):
-				parentValues[parentKey] = skel.valuesCache.entity[parentKey]
+		parentValues = db.Entity()
+		srcEntity = skel.getValuesCache().entity
+		parentValues.key = srcEntity.key
+		for boneKey in (self.parentKeys or []):
+			parentValues[boneKey] = srcEntity.get(boneKey)
 
 		dbVals = db.Query("viur-relations")  # skel.kindName+"_"+self.kind+"_"+key
 		dbVals.filter("viur_src_kind =", skel.kindName)
 		dbVals.filter("viur_dest_kind =", self.kind)
 		dbVals.filter("viur_src_property =", boneName)
-		dbVals.filter("src.key =", key)
+		dbVals.filter("src.__key__ =", key)
 
 		for dbObj in dbVals.iter():
 			try:
-				if not dbObj["dest"]["key"] in [x["dest"]["key"] for x in values]:  # Relation has been removed
+				if not dbObj["dest"].key in [x["dest"].entity.key for x in values]:  # Relation has been removed
 					db.Delete(dbObj.key)
 					continue
 			except:  # This entry is corrupt
 				db.Delete(dbObj.key)
 			else:  # Relation: Updated
-				data = [x for x in values if x["dest"]["key"] == dbObj["dest"]["key"]][0]
+				data = [x for x in values if x["dest"].entity.key == dbObj["dest"].key][0]
 				# Write our (updated) values in
 				refSkel = self._refSkelCache
 				refSkel.setValuesCache(data["dest"])
@@ -327,7 +332,6 @@ class relationalBone(baseBone):
 		# Add any new Relation
 		for val in values:
 			dbObj = db.Entity(db.Key("viur-relations"))  # skel.kindName+"_"+self.kind+"_"+key
-
 			refSkel = self._refSkelCache
 			refSkel.setValuesCache(val["dest"])
 			dbObj["dest"] = refSkel.serialize()
@@ -444,14 +448,14 @@ class relationalBone(baseBone):
 				logging.info("Invalid reference key >%s< detected on bone '%s'",
 							 r["dest"]["key"], name)
 				if isinstance(oldValues, dict):
-					if oldValues["dest"]["key"] == str(r["dest"]["key"]):
+					if oldValues["dest"]["key"] == r["dest"]["key"]:
 						refSkel = self._refSkelCache
 						refSkel.setValuesCache(oldValues["dest"])
 						entry = refSkel.serialize()
 						isEntryFromBackup = True
 				elif isinstance(oldValues, list):
 					for dbVal in oldValues:
-						if dbVal["dest"]["key"] == str(r["dest"]["key"]):
+						if dbVal["dest"]["key"] == r["dest"]["key"]:
 							refSkel = self._refSkelCache
 							refSkel.setValuesCache(dbVal["dest"])
 							entry = refSkel.serialize()
@@ -475,9 +479,11 @@ class relationalBone(baseBone):
 					)
 				tmpList.remove(r)
 				continue
-			tmp = {k: entry[k] for k in entry.keys() if
-				   (k in self.refKeys or any([k.startswith("%s." % x) for x in self.refKeys]))}
-			tmp["key"] = db.keyHelper(r["dest"]["key"], self.kind)
+			tmp = db.Entity()
+			for k in entry.keys():
+				if k in self.refKeys or any([k.startswith("%s." % x) for x in self.refKeys]):
+					tmp[k] = entry[k]
+			tmp.key = db.keyHelper(r["dest"]["key"], self.kind)
 			relSkel = self._refSkelCache
 			relSkel.setValuesCache({})
 			relSkel.unserialize(tmp)
@@ -485,7 +491,7 @@ class relationalBone(baseBone):
 			# Rebuild the refSkel data
 			if self.using is not None:
 				refSkel = self._usingSkelCache
-				refSkel.setValuesCache({})
+				refSkel.unserialize({})
 				if not refSkel.fromClient(r["reltmp"]):
 					for error in refSkel.errors:
 						errors.append(
@@ -933,12 +939,7 @@ class relationalBone(baseBone):
 		"""
 		from viur.core.skeleton import RefSkel, skeletonByKind
 		def relSkelFromKey(key):
-			if not isinstance(key, db.Key):
-				key = db.Key(self.kind, key)
-			if not key[0] == self.kind:
-				logging.error(
-					"I got a key, which kind doesn't match my type! (Got: %s, my type %s)" % (key.kind(), self.kind))
-				return None
+			key = db.keyHelper(key, self.kind)
 			entity = db.Get(key)
 			if not entity:
 				logging.error("Key %s not found" % str(key))
@@ -950,14 +951,14 @@ class relationalBone(baseBone):
 		if append and not self.multiple:
 			raise ValueError("Bone %s is not multiple, cannot append!" % boneName)
 		if not self.multiple and not self.using:
-			if not (isinstance(value, str) or isinstance(value, db.Key)):
+			if not (isinstance(value, str) or isinstance(value, db.KeyClass)):
 				logging.error(value)
 				logging.error(type(value))
 				raise ValueError("You must supply exactly one Database-Key to %s" % boneName)
 			realValue = (value, None)
 		elif not self.multiple and self.using:
 			if not isinstance(value, tuple) or len(value) != 2 or \
-				not (isinstance(value[0], str) or isinstance(value[0], db.Key)) or \
+				not (isinstance(value[0], str) or isinstance(value[0], db.KeyClass)) or \
 				not isinstance(value[1], self.using):
 				raise ValueError("You must supply a tuple of (Database-Key, relSkel) to %s" % boneName)
 			realValue = value
@@ -971,7 +972,7 @@ class relationalBone(baseBone):
 				realValue = [(value, None)]
 		else:  # which means (self.multiple and self.using)
 			if not (isinstance(value, tuple) and len(value) == 2 and \
-					(isinstance(value[0], str) or isinstance(value[0], db.Key)) \
+					(isinstance(value[0], str) or isinstance(value[0], db.KeyClass)) \
 					and isinstance(value[1], self.using)) and not (isinstance(value, list) and
 																   all((isinstance(x, tuple) and len(x) == 2 and \
 																		(isinstance(x[0], str) or isinstance(

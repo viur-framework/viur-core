@@ -658,6 +658,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 			# Move accessed Values from srcSkel over to skel
 			skel.valuesCache.accessedValues = mergeFrom.valuesCache.accessedValues
 			for key, bone in skel.items():
+				if key == "key":  # Explicitly skip key on top-level - this had been set above
+					continue
 				# Remember old hashes for bones that must have an unique value
 				oldUniqueValues = []
 				if bone.unique:
@@ -996,7 +998,7 @@ class RelSkel(BaseSkeleton):
 		for key, _bone in self.items():
 			if _bone.readOnly:
 				continue
-			errors = _bone.fromClient(self.valuesCache["changedValues"], key, data)
+			errors = _bone.fromClient(self.valuesCache.accessedValues, key, data)
 			if errors:
 				self.errors.extend(errors)
 				for err in errors:
@@ -1011,7 +1013,7 @@ class RelSkel(BaseSkeleton):
 	def serialize(self):
 		for key, _bone in self.items():
 			if key in self.valuesCache.accessedValues:
-				_bone.serialize(self.valuesCache, key,)
+				_bone.serialize(self.valuesCache, key)
 		# if "key" in self:  # Write the key seperatly, as the base-bone doesn't store it
 		#	dbObj["key"] = self["key"]
 		# FIXME: is this a good idea? Any other way to ensure only bones present in refKeys are serialized?
