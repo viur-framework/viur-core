@@ -15,17 +15,17 @@
 
    I N F O R M A T I O N    S Y S T E M
 
- ViUR SERVER
- Copyright 2012-2019 by Mausbrand Informationssysteme GmbH
+ ViUR-core 3
+ Copyright 2012-2020 by Mausbrand Informationssysteme GmbH
 
  ViUR is a free software development framework for the Google App Engine™.
- More about ViUR can be found at https://www.viur.is/.
+ More about ViUR can be found at https://www.viur.dev/.
 
  Licensed under the GNU Lesser General Public License, version 3.
  See file LICENSE for more information.
 """
 
-__version__ = (-99, -99, -99)  # Which API do we expose to our application
+__version__ = (3, 0, -99)  # Which API do we expose to our application
 
 import sys, traceback, os, inspect
 
