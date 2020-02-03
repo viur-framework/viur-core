@@ -215,7 +215,7 @@ class relationalBone(baseBone):
 					if val["dest"]:
 						refSkel.setValuesCache(val["dest"])
 						refData = refSkel.serialize()
-						newRelationalLocks.add(refData["key"])
+						newRelationalLocks.add(refSkel["key"])
 					else:
 						refData = None
 					if usingSkel and val["rel"]:
@@ -997,7 +997,7 @@ class relationalBone(baseBone):
 					return False
 				tmpRes.append({"dest": relSkel.getValuesCache(), "rel": val[1].getValuesCache() if val[1] else None})
 			if append:
-				if not isinstance(valuesCache[boneName], list):
+				if boneName not in valuesCache or not isinstance(valuesCache[boneName], list):
 					valuesCache[boneName] = []
 				valuesCache[boneName].extend(tmpRes)
 			else:

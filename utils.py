@@ -8,7 +8,7 @@ import string, random, base64
 from viur.core import conf
 import logging
 import google.auth
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
 from quopri import decodestring
@@ -21,6 +21,8 @@ from typing import Any, Union
 _, projectID = google.auth.default()
 del _
 
+def utcNow():
+	return datetime.now(timezone.utc)
 
 def generateRandomString(length: int = 13) -> str:
 	"""
@@ -107,6 +109,7 @@ def _GAE_sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=
 	"""
 	Internal function for using Google App Engine Email processing API.
 	"""
+	return
 	headers, data = conf["viur.emailRenderer"](skel, name, dests, **kwargs)
 
 	xheader = {}
@@ -178,6 +181,7 @@ def sendEMailToAdmins(subject, body, sender=None):
 		:param sender: (optional) specify a different sender
 		:type sender: str
 	"""
+	return
 	if not sender:
 		sender = "viur@%s.appspotmail.com" % projectID
 

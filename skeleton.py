@@ -177,7 +177,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		"""
 		super().__init__()
 		self.errors = []
-		self.valuesCache: SkeletonValues = SkeletonValues()
+		self.valuesCache: SkeletonValues = SkeletonValues(db.Entity())
 		self.renderPreparation = None
 		if not subSkelNames and not fullClone:
 			self.boneMap = self.__boneMap__.copy()
