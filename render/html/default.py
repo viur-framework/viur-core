@@ -256,12 +256,12 @@ class Render(object):
 			if isinstance(boneValue, list):
 				tmpList = []
 				for k in boneValue:
-					refSkel = bone._refSkelCache
+					refSkel, usingSkel = bone._getSkels()
 					refSkel.setValuesCache(k["dest"])
 					if bone.using is None:
 						tmpList.append(self.collectSkelData(refSkel))
 					else:
-						usingSkel = bone._usingSkelCache
+						#usingSkel = bone._usingSkelCache
 						if k["rel"]:
 							usingSkel.setValuesCache(k["rel"])
 							usingData = self.collectSkelData(usingSkel)
@@ -273,13 +273,13 @@ class Render(object):
 						})
 				return tmpList
 			elif isinstance(boneValue, dict):
-				refSkel = bone._refSkelCache
+				refSkel, usingSkel = bone._getSkels()
 				refSkel.setValuesCache(boneValue["dest"])
 				refSkel.renderPreparation = self.renderBoneValue
 				if bone.using is None:
 					return refSkel
 				else:
-					usingSkel = bone._usingSkelCache
+					#usingSkel = bone._usingSkelCache
 					if boneValue["rel"]:
 						usingSkel.setValuesCache(boneValue["rel"])
 						usingData = self.collectSkelData(usingSkel)
@@ -291,7 +291,7 @@ class Render(object):
 						"rel": usingData
 					}
 		elif bone.type == "record" or bone.type.startswith("record."):
-			usingSkel = bone._usingSkelCache
+			usingSkel = bone.using()
 			value = boneValue
 			if isinstance(value, list):
 				ret = []

@@ -16,14 +16,14 @@ class recordBone(baseBone):
 		if not format or indexed or not multiple:
 			raise NotImplementedError("A recordBone must not be indexed, must be multiple and must have a format set")
 
-		if getSystemInitialized():
-			self._usingSkelCache = using()
-		else:
-			self._usingSkelCache = None
+		#if getSystemInitialized():
+		#	self._usingSkelCache = using()
+		#else:
+		#	self._usingSkelCache = None
 
 	def setSystemInitialized(self):
 		super(recordBone, self).setSystemInitialized()
-		self._usingSkelCache = self.using()
+		#self._usingSkelCache = self.using()
 
 	def _restoreValueFromDatastore(self, val):
 		"""
@@ -36,7 +36,7 @@ class recordBone(baseBone):
 		value = val
 		assert isinstance(value, dict), "Read something from the datastore thats not a dict: %s" % str(type(value))
 
-		usingSkel = self._usingSkelCache
+		usingSkel = self.using()
 		usingSkel.setValuesCache({})
 		usingSkel.unserialize(value)
 		return usingSkel.getValuesCache()
@@ -70,7 +70,7 @@ class recordBone(baseBone):
 			if not value:
 				skeletonValues.entity[name] = []
 			else:
-				usingSkel = self._usingSkelCache
+				usingSkel = self.using()
 				res = []
 				for val in value:
 					usingSkel.setValuesCache(val)
@@ -135,7 +135,7 @@ class recordBone(baseBone):
 		errors = []
 
 		for i, r in enumerate(tmpList[:]):
-			usingSkel = self._usingSkelCache
+			usingSkel = self.using()
 			#usingSkel.setValuesCache(Skeletccc)
 			usingSkel.unserialize({})
 
@@ -192,9 +192,9 @@ class recordBone(baseBone):
 
 		if not value:
 			return res
-
+		uskel = self.using()
 		for val in value:
-			res = getValues(res, self._usingSkelCache, val)
+			res = getValues(res, uskel, val)
 
 		return res
 
@@ -209,9 +209,9 @@ class recordBone(baseBone):
 
 		if not value:
 			return res
-
+		uskel = self.using()
 		for idx, val in enumerate(value):
-			getValues(res, self._usingSkelCache, val, "%s%s_%s" % (prefix, name, str(idx)))
+			getValues(res, uskel, val, "%s%s_%s" % (prefix, name, str(idx)))
 
 		return res
 
@@ -227,13 +227,13 @@ class recordBone(baseBone):
 
 		if not value:
 			return res
-
+		uskel = self.using()
 		if isinstance(value, list):
 			for val in value:
-				res.update(blobsFromSkel(self._usingSkelCache, val))
+				res.update(blobsFromSkel(uskel, val))
 
 		elif isinstance(value, dict):
-			res.update(blobsFromSkel(self._usingSkelCache, value))
+			res.update(blobsFromSkel(uskel, value))
 
 		return res
 

@@ -256,7 +256,7 @@ class File(Tree):
 		repo = self.ensureOwnUserRootNode()
 		res = [{
 			"name": str("My Files"),
-			"key": str(repo.name)
+			"key": str(repo.key.id_or_name)
 		}]
 		if 0 and "root" in thisuser["access"]:  # FIXME!
 			# Add at least some repos from other users

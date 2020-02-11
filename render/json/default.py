@@ -153,8 +153,9 @@ class DefaultRender(object):
 		elif isinstance(bone, bones.relationalBone):
 			if isinstance(skel[key], list):
 				isFileBone = isinstance(bone, bones.fileBone)
-				refSkel = bone._refSkelCache
-				usingSkel = bone._usingSkelCache
+				refSkel, usingSkel = bone._getSkels()
+				#refSkel = bone._refSkelCache
+				#usingSkel = bone._usingSkelCache
 				tmpList = []
 				for k in skel[key]:
 					refSkel.setValuesCache(k["dest"])
@@ -169,8 +170,7 @@ class DefaultRender(object):
 					})
 				return tmpList
 			elif isinstance(skel[key], dict):
-				refSkel = bone._refSkelCache
-				usingSkel = bone._usingSkelCache
+				refSkel, usingSkel = bone._getSkels()
 				refSkel.setValuesCache(skel[key]["dest"])
 				if usingSkel:
 					usingSkel.setValuesCache(skel[key].get("rel", {}))
@@ -182,7 +182,7 @@ class DefaultRender(object):
 					"rel": usingData
 				}
 		elif isinstance(bone, bones.recordBone):
-			usingSkel = bone._usingSkelCache
+			usingSkel = bone.using()
 			tmpList = []
 			if skel[key]:
 				for k in skel[key]:

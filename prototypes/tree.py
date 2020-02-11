@@ -180,9 +180,9 @@ class Tree(BasicApplication):
 		"""
 		thisuser = conf["viur.mainApp"].user.getCurrentUser()
 		if thisuser:
-			key = "rep_user_%s" % str(thisuser["key"][1])
-			return db.GetOrInsert((self.viewLeafSkel().kindName + "_rootNode", key),
-								  creationdate=datetime.now(), rootNode=1, user=str(thisuser["key"]))
+			key = "rep_user_%s" % str(thisuser["key"].id_or_name)
+			return db.GetOrInsert(db.Key(self.viewLeafSkel().kindName + "_rootNode", key),
+								  creationdate=datetime.now(), rootNode=1, user=thisuser["key"])
 
 	def ensureOwnModuleRootNode(self):
 		"""

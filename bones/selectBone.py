@@ -57,7 +57,7 @@ class selectBone(baseBone):
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")]
 		# single case
 		if not self.multiple:
-			for key in self.values.keys():
+			for key in self.values:
 				if str(key) == str(values):
 					err = self.isInvalid(key)
 					if err:
@@ -99,7 +99,7 @@ class selectBone(baseBone):
 				skeletonValues.accessedValues[name] = [skeletonValues.accessedValues[name]]
 			elif not self.multiple and isinstance(skeletonValues.accessedValues[name], list):
 				try:
-					skeletonValues.accessedValues[name] = skeletonValues.accessedValues[name]
+					skeletonValues.accessedValues[name] = skeletonValues.accessedValues[name][0]
 				except IndexError:  # May be empty
 					pass
 			return True
