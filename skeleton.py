@@ -707,15 +707,16 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					# Remove any lock-object we're holding for values that we don't have anymore
 					for oldValue in oldUniqueValues:
 						# Try to delete the old lock
-						oldLockObj = db.Get(("%s_%s_uniquePropertyIndex" % (skel.kindName, key), oldValue))
+						oldLockKey = db.Key("%s_%s_uniquePropertyIndex" % (skel.kindName, key), oldValue)
+						oldLockObj = db.Get(oldLockKey)
 						if oldLockObj:
-							if oldLockObj["references"] != dbObj.id_or_name:
+							if oldLockObj["references"] != dbObj.key.id_or_name:
 								# We've been supposed to have that lock - but we don't.
 								# Don't remove that lock as it now belongs to a different entry
 								logging.critical("Detected Database corruption! A Value-Lock had been reassigned!")
 							else:
 								# It's our lock which we don't need anymore
-								db.Delete(("%s_%s_uniquePropertyIndex" % (skel.kindName, key), oldValue))
+								db.Delete(oldLockKey)
 						else:
 							logging.critical("Detected Database corruption! Could not delete stale lock-object!")
 
