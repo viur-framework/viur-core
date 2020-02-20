@@ -768,9 +768,9 @@ def createNewUserIfNotExists():
 			try:
 				addSkel.toDB()
 			except Exception as e:
-				logging.error("Something went wrong when trying to add admin user %s with Password %s", (uname, pw))
+				logging.error("Something went wrong when trying to add admin user %s with Password %s", uname, pw)
 				logging.exception(e)
 				return
-			logging.warning("ViUR created a new admin-user for you! Username: %s, Password: %s" % (uname, pw))
+			logging.warning("ViUR created a new admin-user for you! Username: %s, Password: %s", uname, pw)
 			utils.sendEMailToAdmins("Your new ViUR password",
 									"ViUR created a new admin-user for you! Username: %s, Password: %s" % (uname, pw))
