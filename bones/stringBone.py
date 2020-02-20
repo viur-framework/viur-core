@@ -345,7 +345,7 @@ class stringBone(baseBone):
 				order = (prop, db.SortOrder.Descending)
 			else:
 				order = (prop, db.SortOrder.Ascending)
-			inEqFilter = [x for x in dbFilter.datastoreQuery.keys() if
+			inEqFilter = [x for x in dbFilter.filters.keys() if
 						  (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
 			if inEqFilter:
 				inEqFilter = inEqFilter[0][: inEqFilter[0].find(" ")]
