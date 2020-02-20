@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from viur.core.bones.bone import baseBone
+from viur.core.bones.bone import baseBone, UniqueValue, UniqueLockMethod
 from viur.core.bones.keyBone import keyBone
 from viur.core.bones.stringBone import stringBone
 from viur.core.bones.textBone import textBone
