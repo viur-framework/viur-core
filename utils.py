@@ -6,7 +6,7 @@ import logging
 import random
 import string
 from base64 import urlsafe_b64encode
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Tuple, Union
 
 import google.auth
@@ -15,21 +15,15 @@ from viur.core import conf, db, errors
 
 # from .skeleton import BaseSkeleton #FIXME: circular import
 BaseSkeleton = object
-from datetime import datetime, timedelta, timezone
-import hashlib
-import hmac
-from quopri import decodestring
-from base64 import urlsafe_b64decode, urlsafe_b64encode
-from hashlib import sha256
-import email.header
-from typing import Any, Union
 
 # Determine which ProjectID we currently run in (as the app_identity module isn't available anymore)
 _, projectID = google.auth.default()
 del _
 
+
 def utcNow():
 	return datetime.now(timezone.utc)
+
 
 def generateRandomString(length: int = 13) -> str:
 	"""
@@ -159,7 +153,7 @@ def sendEMailToAdmins(subject: str, body: str, sender: str = None):
 
 	if "user" in dir(conf["viur.mainApp"]):
 		users = []
-		for userSkel in conf["viur.mainApp"].user.viewSkel().all().filter("access AC", "root").fetch():
+		for userSkel in conf["viur.mainApp"].user.viewSkel().all().filter("access", "root").fetch():
 			users.append(userSkel["name"])
 
 		if users:

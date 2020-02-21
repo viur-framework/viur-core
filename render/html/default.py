@@ -9,8 +9,12 @@ from jinja2 import ChoiceLoader, Environment, FileSystemLoader
 
 from viur.core import errors, request, securitykey, utils
 from viur.core.bones import *
+from viur.core.skeleton import BaseSkeleton, RefSkel, Skeleton, skeletonByKind
+from . import utils as jinjaUtils
+from .wrap import ListWrapper
 
 KeyValueWrapper = namedtuple("KeyValueWrapper", ["key", "descr"])
+
 
 class Render(object):
 	"""
@@ -169,7 +173,7 @@ class Render(object):
 
 		elif bone.type == "select" or bone.type.startswith("select."):
 			ret.update({
-				"values": {k: v for (k, v) in bone.values.items()}, #FIXME: translate!
+				"values": {k: v for (k, v) in bone.values.items()},  # FIXME: translate!
 				"multiple": bone.multiple
 			})
 
@@ -260,7 +264,7 @@ class Render(object):
 					if bone.using is None:
 						tmpList.append(self.collectSkelData(refSkel))
 					else:
-						#usingSkel = bone._usingSkelCache
+						# usingSkel = bone._usingSkelCache
 						if k["rel"]:
 							usingSkel.setValuesCache(k["rel"])
 							usingData = self.collectSkelData(usingSkel)
@@ -278,7 +282,7 @@ class Render(object):
 				if bone.using is None:
 					return refSkel
 				else:
-					#usingSkel = bone._usingSkelCache
+					# usingSkel = bone._usingSkelCache
 					if boneValue["rel"]:
 						usingSkel.setValuesCache(boneValue["rel"])
 						usingData = self.collectSkelData(usingSkel)
@@ -366,9 +370,11 @@ class Render(object):
 			if isinstance(skel, BaseSkeleton):
 				super(BaseSkeleton, skel).__setattr__("errors", {})
 
-		return template.render(skel={"structure": self.renderSkelStructure(skel),
-									 "errors": skel.errors,
-									 "value": self.collectSkelData(skel)},
+		return template.render(skel={
+			"structure": self.renderSkelStructure(skel),
+			"errors": skel.errors,
+			"value": self.collectSkelData(skel)
+		},
 							   params=params, **kwargs)
 
 	def edit(self, skel, tpl=None, params=None, **kwargs):
@@ -408,9 +414,11 @@ class Render(object):
 			if isinstance(skel, BaseSkeleton):
 				super(BaseSkeleton, skel).__setattr__("errors", {})
 
-		return template.render(skel={"structure": self.renderSkelStructure(skel),
-									 "errors": skel.errors,
-									 "value": self.collectSkelData(skel)},
+		return template.render(skel={
+			"structure": self.renderSkelStructure(skel),
+			"errors": skel.errors,
+			"value": self.collectSkelData(skel)
+		},
 							   params=params, **kwargs)
 
 	def addItemSuccess(self, skel, tpl=None, params=None, *args, **kwargs):
