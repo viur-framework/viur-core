@@ -121,7 +121,7 @@ class SessionWrapper(threading.local):
 
 	def validateStaticSecurityKey(self, key):
 		try:
-			return self.session.validateStaticSessionKey(key)
+			return self.session.validateStaticSecurityKey(key)
 		except AttributeError:
 			return False
 
@@ -165,7 +165,7 @@ class GaeSession:
 		if self.plainCookieName in req.request.cookies:
 			cookie = str(req.request.cookies[self.plainCookieName])
 			try:
-				data = db.Get((self.kindName, cookie))
+				data = db.Get(db.Key(self.kindName, cookie))
 			except:
 				raise  # FIXME
 				return False
@@ -212,7 +212,7 @@ class GaeSession:
 					# Reset the Secure only key to None - we can't set it anyway.
 					self.sslKey = None
 				try:
-					dbSession = db.Entity(self.kindName, name=self.httpKey)
+					dbSession = db.Entity(db.Key(self.kindName, self.httpKey))
 					dbSession["data"] = serialized
 					dbSession["sslkey"] = self.sslKey
 					dbSession["staticSecurityKey"] = self.staticSecurityKey
@@ -220,6 +220,7 @@ class GaeSession:
 					dbSession["lastseen"] = time()
 					# Store the userid inside the sessionobj, so we can kill specific sessions if needed
 					dbSession["user"] = str(userid) or "guest"
+					dbSession.exclude_from_indexes = ["data"]
 					db.Put(dbSession)
 				except Exception as e:
 					logging.exception(e)
@@ -303,7 +304,7 @@ class GaeSession:
 		"""
 		lang = self.session.get("language")
 		if self.httpKey:
-			db.Delete((self.kindName, self.httpKey))
+			db.Delete(db.Key(self.kindName, self.httpKey))
 		self.httpKey = utils.generateRandomString(42)
 		self.sslKey = utils.generateRandomString(42)
 		self.staticSecurityKey = utils.generateRandomString(13)

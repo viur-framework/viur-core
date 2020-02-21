@@ -17,7 +17,6 @@ from viur.core.modules.file import decodeFileName
 #from google.appengine.api.images import get_serving_url
 #from google.appengine.datastore import datastore_query
 
-from itertools import izip
 from hashlib import sha256
 
 
@@ -43,7 +42,7 @@ class DbTransfer(object):
 			isValid = False
 		if len(key) != len(expectedKey):
 			isValid = False
-		for a, b in izip(str(key), str(expectedKey)):
+		for a, b in zip(str(key), str(expectedKey)):
 			if a != b:
 				isValid = False
 		return (isValid)
@@ -68,6 +67,7 @@ class DbTransfer(object):
 	def getAppId(self, key, *args, **kwargs):
 		if not self._checkKey(key, export=False):
 			raise errors.Forbidden()
+		return pickle.dumps("hsk-py3-test")
 		# FIXME!
 		return (pickle.dumps(db.Query("SharedConfData").get().key().app()))  # app_identity.get_application_id()
 
@@ -140,29 +140,45 @@ class DbTransfer(object):
 	def storeEntry(self, e, key):
 		if not self._checkKey(key, export=False):
 			raise errors.Forbidden()
-		entry = pickle.loads(e)
-		for k in list(entry.keys())[:]:
-			if isinstance(entry[k], str):
+		entry = pickle.loads(bytes.fromhex(e))
+
+		for k in list(entry.keys()):
+			if isinstance(entry[k], bytes):
 				entry[k] = entry[k].decode("UTF-8")
+
+		for k in list(entry.keys()):
+			if k in entry and "." in k:
+				base = k.split(".")[0]
+				tmpDict = {}
+				for subkey in list(entry.keys()):
+					if subkey.startswith("%s." % base):
+						postfix = subkey.split(".")[1]
+						tmpDict[postfix] = entry[subkey]
+						del entry[subkey]
+				entry[base] = tmpDict
+		for k in list(entry.keys()):
+			if "-" in k:
+				entry[k.replace("-", "_")] = entry[k]
+				del entry[k]
 		if "key" in entry:
-			key = db.Key(encoded=entry["key"])
-		elif "id" in entry:
-			key = db.Key(encoded=entry["id"])
+			key = db.Key(*entry["key"].split("/"))
 		else:
 			raise AttributeError()
 
-		dbEntry = db.Entity(kind=key.kind(), parent=key.parent(), id=key.id(), _app=key.app(),
-							name=key.name())  # maybe some more fixes here ?
+		dbEntry = db.Entity(key)  # maybe some more fixes here ?
 		for k in entry.keys():
 			if k != "key":
 				val = entry[k]
 				# if isinstance(val, dict) or isinstance(val, list):
 				#	val = pickle.dumps( val )
 				dbEntry[k] = val
-		if dbEntry.key().id():
-			# Ensure the Datastore knows that it's id is in use
-			datastore._GetConnection()._reserve_keys([dbEntry.key()])
-		db.Put(dbEntry)
+		#dbEntry = fixUnindexed(dbEntry)
+		try:
+			db.Put(dbEntry)
+		except:
+			from pprint import pprint
+			pprint(dbEntry)
+			raise
 
 	@exposed
 	def hasblob(self, blobkey, key):

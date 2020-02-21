@@ -34,7 +34,7 @@ _defaultTags = {
 class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
 	def __init__(self, validHtml=None):
 		global _defaultTags
-		HTMLParser.HTMLParser.__init__(self)
+		super(HtmlSerializer, self).__init__()
 		self.result = ""  # The final result that will be returned
 		self.openTagsList = []  # List of tags that still need to be closed
 		self.tagCache = []  # Tuple of tags that have been processed but not written yet
@@ -230,7 +230,7 @@ class textBone(baseBone):
 			else:
 				self.defaultValue = ""
 
-	def serialize(self, valuesCache, name, entity):
+	def serialize(self, skeletonValues, name):
 		"""
 			Fills this bone with user generated content
 
@@ -240,25 +240,24 @@ class textBone(baseBone):
 			:type entity: :class:`server.db.Entity`
 			:return: the modified :class:`server.db.Entity`
 		"""
-		if not name in valuesCache:
-			entity[name] = self.getDefaultValue()
-			return entity
-		if self.languages:
-			for k in entity.keys():  # Remove any old data
-				if k.startswith("%s." % name) or k.startswith("%s_" % name) or k == name:
-					del entity[k]
-			for lang in self.languages:
-				if isinstance(valuesCache[name], dict) and lang in valuesCache[name]:
-					val = valuesCache[name][lang]
-					if not val or (not HtmlSerializer().sanitize(val).strip() and not "<img " in val):
-						# This text is empty (ie. it might contain only an empty <p> tag
-						continue
-					entity["%s.%s" % (name, lang)] = val
-		else:
-			entity[name] = valuesCache[name]
-		return entity
+		if name in skeletonValues.accessedValues:
+			if self.languages:
+				for k in list(skeletonValues.entity.keys()):  # Remove any old data
+					if k.startswith("%s." % name) or k.startswith("%s_" % name) or k == name:
+						del skeletonValues.entity[k]
+				for lang in self.languages:
+					if isinstance(skeletonValues.accessedValues[name], dict) and lang in skeletonValues.accessedValues[name]:
+						val = skeletonValues.accessedValues[name][lang]
+						if not val or (not HtmlSerializer().sanitize(val).strip() and not "<img " in val):
+							# This text is empty (ie. it might contain only an empty <p> tag
+							continue
+						skeletonValues.entity["%s_%s" % (name, lang)] = val
+			else:
+				skeletonValues.entity[name] = skeletonValues.accessedValues[name]
+			return True
+		return False
 
-	def unserialize(self, valuesCache, name, expando):
+	def unserialize(self, skeletonValues, name):
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -270,21 +269,26 @@ class textBone(baseBone):
 			:type expando: :class:`db.Entity`
 		"""
 		if not self.languages:
-			if name in expando:
-				valuesCache[name] = expando[name]
+			if name in skeletonValues.entity:
+				skeletonValues.accessedValues[name] = skeletonValues.entity[name]
+				return True
 		else:
-			valuesCache[name] = LanguageWrapper(self.languages)
-			for lang in self.languages:
-				if "%s.%s" % (name, lang) in expando:
-					valuesCache[name][lang] = expando["%s.%s" % (name, lang)]
-			if not valuesCache[name].keys():  # Got nothing
-				if name in expando:  # Old (non-multi-lang) format
-					valuesCache[name][self.languages[0]] = expando[name]
+			skeletonValues.accessedValues[name] = LanguageWrapper(self.languages)
+			if name in skeletonValues.entity and isinstance(skeletonValues.entity[name], dict):
+				skeletonValues.accessedValues[name].update(skeletonValues.entity[name])
+			else:
 				for lang in self.languages:
-					if not lang in valuesCache[name] and "%s_%s" % (name, lang) in expando:
-						valuesCache[name][lang] = expando["%s_%s" % (name, lang)]
-
-		return (True)
+					if "%s_%s" % (name, lang) in skeletonValues.entity:
+						skeletonValues.accessedValues[name][lang] = skeletonValues.entity["%s_%s" % (name, lang)]
+						return True
+				if not skeletonValues.accessedValues[name].keys():  # Got nothing
+					if name in skeletonValues.entity:  # Old (non-multi-lang) format
+						skeletonValues.accessedValues[name][self.languages[0]] = skeletonValues.entity[name]
+					for lang in self.languages:
+						if not lang in skeletonValues.accessedValues[name] and "%s_%s" % (name, lang) in skeletonValues.entity:
+							skeletonValues.accessedValues[name][lang] = skeletonValues.entity["%s_%s" % (name, lang)]
+			return True
+		return False
 
 	def fromClient(self, valuesCache, name, data):
 		"""
@@ -312,11 +316,11 @@ class textBone(baseBone):
 						valuesCache[name][lang] = HtmlSerializer(self.validHtml).sanitize(val)
 					else:
 						errors.append(
-							[ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+							ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
 						)
 			if not any(valuesCache[name].values()) and not errors:
 				errors.append(
-					[ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No / invalid values entered")]
+					ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No / invalid values entered")
 				)
 			if errors:
 				return errors
@@ -353,6 +357,7 @@ class textBone(baseBone):
 			Doesn't check for actual <a href=> or <img src=> yet.
 		"""
 		newFileKeys = []
+		return newFileKeys # FIXME!!
 		if self.languages:
 			if valuesCache[name]:
 				for lng in self.languages:

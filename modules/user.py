@@ -143,9 +143,9 @@ class UserPassword(object):
 		res = query.filter("name_idx >=", name.lower()).get()
 
 		if res is None:
-			res = {"password": "", "status": 0, "name": "", "name.idx": ""}
+			res = {"password": {"pwhash": "-invalid-", "salt": "-invalid"}, "status": 0, "name": "", "name.idx": ""}
 
-		passwd = pbkdf2(password[:conf["viur.maxPasswordLength"]], res["password_salt"])
+		passwd = pbkdf2(password[:conf["viur.maxPasswordLength"]], (res.get("password", None) or {}).get("salt", ""))
 		isOkay = True
 
 		# We do this exactly that way to avoid timing attacks
@@ -160,7 +160,7 @@ class UserPassword(object):
 					isOkay = False
 
 		# Check if the password matches
-		storedPasswordHash = res.get("password", "")
+		storedPasswordHash = (res.get("password", None) or {}).get("pwhash", "-invalid-")
 		if len(storedPasswordHash) != len(passwd):
 			isOkay = False
 		else:
@@ -177,12 +177,7 @@ class UserPassword(object):
 			skel.fromClient({"name": name, "nomissing": "1"})
 			return self.userModule.render.login(skel, loginFailed=True)
 		else:
-			if not "password_salt" in res:  # Update the password to the new, more secure format
-				res["password_salt"] = utils.generateRandomString(13)
-				res["password"] = pbkdf2(password[: conf["viur.maxPasswordLength"]], res["password_salt"])
-				db.Put(res)
-
-			return self.userModule.continueAuthenticationFlow(self, (res.collection, res.name))
+			return self.userModule.continueAuthenticationFlow(self, res.key)
 
 	@exposed
 	def pwrecover(self, authtoken=None, skey=None, *args, **kwargs):
@@ -314,11 +309,11 @@ class GoogleAccount(object):
 	def login(self, skey="", token="", *args, **kwargs):
 		# FIXME: Check if already logged in
 		if not conf.get("viur.user.google.clientID"):
-			raise errors.PreconditionFailed()
+			raise errors.PreconditionFailed("Please configure 'viur.user.google.clientID' in your conf!")
 		if not skey or not token:
 			request.current.get().response.headers["Content-Type"] = "text/html"
 			# Fixme: Render with Jinja2?
-			tplStr = open("server/template/vi_user_google_login.html", "r").read()
+			tplStr = open("viur/core/template/vi_user_google_login.html", "r").read()
 			tplStr = tplStr.replace("{{ clientID }}", conf["viur.user.google.clientID"])
 			return tplStr
 		if not securitykey.validate(skey, useSessionKey=True):
@@ -361,13 +356,6 @@ class GoogleAccount(object):
 			#	userSkel["gaeadmin"] = False
 			assert userSkel.toDB()
 		return self.userModule.continueAuthenticationFlow(self, (userSkel.kindName, userSkel["key"]))
-
-		if users.get_current_user():
-
-			currentUser = users.get_current_user()
-			uid = currentUser.user_id()
-
-		raise errors.Redirect(users.create_login_url(self.modulePath + "/login"))
 
 
 class TimeBasedOTP(object):
@@ -658,11 +646,12 @@ class User(List):
 			except:
 				pass
 
-		session.current["user"]["key"] = db.Key(userKey[0], userKey[1])
+		session.current["user"]["key"] = userKey
 		if not "access" in session.current["user"] or not session.current["user"]["access"]:
 			session.current["user"]["access"] = []
 
 		session.current.markChanged()
+		request.current.get().response.headers["Sec-X-ViUR-StaticSKey"] = session.current.session.staticSecurityKey
 		self.onLogin()
 
 		return self.render.loginSucceeded(**kwargs)
@@ -722,7 +711,7 @@ class User(List):
 		if key == "self":
 			user = self.getCurrentUser()
 			if user:
-				return super(User, self).view(user["key"][1], *args, **kwargs)
+				return super(User, self).view(str(user["key"].id_or_name), *args, **kwargs)
 			else:
 				raise errors.Unauthorized()
 

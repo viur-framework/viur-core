@@ -34,7 +34,7 @@ class TreeLeafSkel(Skeleton):
 				except:
 					return res
 
-			self["parentrepo"] = str(dbObj.key())
+			self["parentrepo"] = dbObj.key
 			self.toDB()
 
 		return res
@@ -92,7 +92,6 @@ class Tree(BasicApplication):
 				continue
 			s.delete()
 		for d in db.Query(self.viewNodeSkel().kindName).filter("parentdir", str(nodeKey)).iter(keysOnly=True):
-			count += self.deleteRecursive(str(d))
 			self.deleteRecursive(str(d))
 			s = self.viewNodeSkel()
 			if not s.fromDB(d):
@@ -181,9 +180,9 @@ class Tree(BasicApplication):
 		"""
 		thisuser = conf["viur.mainApp"].user.getCurrentUser()
 		if thisuser:
-			key = "rep_user_%s" % str(thisuser["key"][1])
-			return db.GetOrInsert((self.viewLeafSkel().kindName + "_rootNode", key),
-								  creationdate=datetime.now(), rootNode=1, user=str(thisuser["key"]))
+			key = "rep_user_%s" % str(thisuser["key"].id_or_name)
+			return db.GetOrInsert(db.Key(self.viewLeafSkel().kindName + "_rootNode", key),
+								  creationdate=datetime.now(), rootNode=1, user=thisuser["key"])
 
 	def ensureOwnModuleRootNode(self):
 		"""
@@ -194,7 +193,7 @@ class Tree(BasicApplication):
 		:rtype: :class:`server.db.Entity`
 		"""
 		key = "rep_module_repo"
-		return db.GetOrInsert((self.viewLeafSkel().kindName + "_rootNode", key),
+		return db.GetOrInsert(db.Key(self.viewLeafSkel().kindName + "_rootNode", key),
 							  creationdate=datetime.now(), rootNode=1)
 
 	def getRootNode(self, subRepo):
@@ -207,11 +206,11 @@ class Tree(BasicApplication):
 		:returns: :class:`server.db.Entity`
 		"""
 		kindName = self.viewNodeSkel().kindName
-		repo = db.Get((kindName, subRepo))
+		repo = db.Get(db.keyHelper(subRepo, kindName))
 		if not repo:
 			return None
 		if "parentrepo" in repo:
-			return db.Get((kindName, repo["parentrepo"]))
+			return db.Get(repo["parentrepo"])
 		elif "rootNode" in repo and str(repo["rootNode"]) == "1":
 			return repo
 		return None
@@ -289,10 +288,10 @@ class Tree(BasicApplication):
 		query = skel.all()
 
 		if "search" in kwargs and kwargs["search"]:
-			query.filter("parentrepo =", str(nodeSkel["key"]))
+			query.filter("parentrepo =", nodeSkel["key"])
 		else:
-			query.filter("parentdir =", str(nodeSkel["key"]))
-
+			query.filter("parentdir =", nodeSkel["key"])
+		print(kwargs)
 		query.mergeExternalFilter(kwargs)
 		res = query.fetch()
 
@@ -499,14 +498,12 @@ class Tree(BasicApplication):
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 
-		if type == "leaf":
-			skel.delete()
-		else:
+		if skelType == "node":
 			self.deleteRecursive(key)
-			skel.delete()
+		skel.delete()
 
 		self.onItemDeleted(skel)
-		return (self.render.deleteSuccess(skel, skelType=skelType))
+		return self.render.deleteSuccess(skel, skelType=skelType)
 
 	@exposed
 	@forceSSL

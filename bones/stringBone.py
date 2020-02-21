@@ -68,58 +68,56 @@ class stringBone(baseBone):
 			else:
 				self.defaultValue = ""
 
-	def serialize(self, valuesCache, name, entity):
-		for k in list(entity.keys()):  # Remove any old data
-			if k.startswith("%s." % name) or k == name:
-				del entity[k]
-		if name not in valuesCache:
-			entity[name] = self.getDefaultValue()
-			return entity
-		if not self.languages:
-			if self.caseSensitive:
-				return (super(stringBone, self).serialize(valuesCache, name, entity))
-			else:
-				if name != "key":
-					entity[name] = valuesCache[name]
-					if valuesCache[name] is None:
-						entity[name + "_idx"] = None
-					elif isinstance(valuesCache[name], list):
-						entity[name + "_idx"] = [str(x).lower() for x in valuesCache[name]]
+	def serialize(self, skeletonValues, name):
+		if name in skeletonValues.accessedValues:
+			for k in list(skeletonValues.entity.keys()):  # Remove any old data
+				if k.startswith("%s." % name) or k.startswith("%s_" % name) or k == name:
+					del skeletonValues.entity[k]
+			if not self.languages:
+				if self.caseSensitive:
+					return super().serialize(skeletonValues, name)
+				else:
+					skeletonValues.entity[name] = skeletonValues.accessedValues[name]
+					if skeletonValues.entity[name] is None:
+						skeletonValues.entity[name + "_idx"] = None
+					elif isinstance(skeletonValues.entity[name], list):
+						skeletonValues.entity[name + "_idx"] = [str(x).lower() for x in skeletonValues.entity[name]]
 					else:
-						entity[name + "_idx"] = str(valuesCache[name]).lower()
-		else:  # Write each language separately
-			if not valuesCache.get(name, None):
-				return entity
-			if isinstance(valuesCache[name], str) or (
-					isinstance(valuesCache[name], list) and self.multiple):  # Convert from old format
-				lang = self.languages[0]
-				entity["%s_%s" % (name, lang)] = valuesCache[name]
-				if not self.caseSensitive:
-					if isinstance(valuesCache[name], str):
-						entity["%s_%s_idx" % (name, lang)] = valuesCache[name].lower()
-					else:
-						entity["%s_%s_idx" % (name, lang)] = [x.lower for x in valuesCache[name]]
-				# Fill in None for all remaining languages (needed for sort!)
-				for lang in self.languages[1:]:
-					entity["%s_%s" % (name, lang)] = ""
+						skeletonValues.entity[name + "_idx"] = str(skeletonValues.entity[name]).lower()
+			else:  # Write each language separately
+				if not skeletonValues.accessedValues[name]:
+					return True  # Bail out here, we've deleted all our keys above from the entry
+				if isinstance(skeletonValues.accessedValues[name], str) or (
+						isinstance(skeletonValues.accessedValues[name], list) and self.multiple):  # Convert from old format
+					lang = self.languages[0]
+					skeletonValues.entity["%s_%s" % (name, lang)] = skeletonValues.accessedValues[name]
 					if not self.caseSensitive:
-						entity["%s_%s_idx" % (name, lang)] = ""
-			else:
-				assert isinstance(valuesCache[name], dict)
-				entity[name] = valuesCache[name]
-				if not self.caseSensitive:
-					if self.multiple:
-						entity["%s_idx" % name] = {k: [x.lower() for x in v] for k, v in valuesCache[name].items()}
-					else:
-						entity["%s_idx" % name] = {k: v.lower() for k, v in valuesCache[name].items()}
-			# FIXME:
-			#	# Fill in None for all remaining languages (needed for sort!)
-			#	entity["%s_%s" % (name, lang)] = ""
-			#	if not self.caseSensitive:
-			#		entity["%s_%s_idx" % (name, lang)] = ""
-		return entity
+						if isinstance(skeletonValues.accessedValues[name], str):
+							skeletonValues.entity["%s_%s_idx" % (name, lang)] = skeletonValues.accessedValues[name].lower()
+						else:
+							skeletonValues.entity["%s_%s_idx" % (name, lang)] = [x.lower for x in skeletonValues.accessedValues[name]]
+					# Fill in None for all remaining languages (needed for sort!)
+					for lang in self.languages[1:]:
+						skeletonValues.entity["%s_%s" % (name, lang)] = ""
+						if not self.caseSensitive:
+							skeletonValues.entity["%s_%s_idx" % (name, lang)] = ""
+				else:
+					assert isinstance(skeletonValues.accessedValues[name], dict)
+					skeletonValues.entity[name] = skeletonValues.accessedValues[name]
+					if not self.caseSensitive:
+						if self.multiple:
+							skeletonValues.entity["%s_idx" % name] = {k: [x.lower() for x in v] for k, v in skeletonValues.accessedValues[name].items()}
+						else:
+							skeletonValues.entity["%s_idx" % name] = {k: v.lower() for k, v in skeletonValues.accessedValues[name].items()}
+				# FIXME:
+				#	# Fill in None for all remaining languages (needed for sort!)
+				#	entity["%s_%s" % (name, lang)] = ""
+				#	if not self.caseSensitive:
+				#		entity["%s_%s_idx" % (name, lang)] = ""
+			return True
+		return False
 
-	def unserialize(self, valuesCache, name, expando):
+	def unserialize(self, skeletonValues, name):
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -130,19 +128,44 @@ class stringBone(baseBone):
 			:param expando: An instance of the dictionary-like db.Entity class
 			:type expando: :class:`server.db.Entity`
 		"""
-		if not self.languages:
-			valuesCache[name] = expando.get(name)
-		else:
-			valuesCache[name] = LanguageWrapper(self.languages)
-			storedVal = expando.get(name)
-			if isinstance(storedVal, dict):
-				valuesCache[name].update(storedVal)
-			# FIXME:
-			# if isinstance(val, list) and not self.multiple:
-			#	val = ", ".join(val)
-			elif isinstance(storedVal, str):  # Old (non-multi-lang) format
-				valuesCache[name][self.languages[0]] = storedVal
-		return True
+		#if not isinstance(expando, dict):
+		#	logging.critical("Data-corruption detected: %s" % name)
+		#	valuesCache[name] = "--corrupted!!--"
+		#	return True
+		def _parseFromOldFormat(entity: db.Entity) -> dict:
+			# Load data that's still stored in name.language format
+			res = {}
+			for k, v in entity.items():
+				if k.startswith("%s." % name):
+					k = k.replace("%s." % name, "")
+					if k in self.languages:
+						res[k] = v
+			return res
+		if name in skeletonValues.entity:
+			if not self.languages:
+				skeletonValues.accessedValues[name] = skeletonValues.entity[name]
+			else:
+				skeletonValues.accessedValues[name] = LanguageWrapper(self.languages)
+				storedVal = skeletonValues.entity[name]
+				if isinstance(storedVal, dict):
+					skeletonValues.accessedValues[name].update(storedVal)
+				else:
+					oldData = _parseFromOldFormat(skeletonValues.entity)
+					if oldData:
+						skeletonValues.accessedValues[name].update(oldData)
+				# FIXME:
+				if isinstance(skeletonValues.accessedValues[name], list) and not self.multiple:
+					skeletonValues.accessedValues[name] = ", ".join(skeletonValues.accessedValues[name])
+				elif isinstance(storedVal, str):  # Old (non-multi-lang) format
+					skeletonValues.accessedValues[name][self.languages[0]] = storedVal
+			return True
+		elif self.languages:
+			oldData = _parseFromOldFormat(skeletonValues.entity)
+			if oldData:
+				skeletonValues.accessedValues[name] = LanguageWrapper(self.languages)
+				skeletonValues.accessedValues[name].update(oldData)
+				return True
+		return False
 
 	def fromClient(self, valuesCache, name, data):
 		"""
@@ -319,10 +342,10 @@ class stringBone(baseBone):
 				else:
 					prop = name + "_idx"
 			if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
-				order = (prop, db.DESCENDING)
+				order = (prop, db.SortOrder.Descending)
 			else:
-				order = (prop, db.ASCENDING)
-			inEqFilter = [x for x in dbFilter.datastoreQuery.keys() if
+				order = (prop, db.SortOrder.Ascending)
+			inEqFilter = [x for x in dbFilter.filters.keys() if
 						  (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
 			if inEqFilter:
 				inEqFilter = inEqFilter[0][: inEqFilter[0].find(" ")]
@@ -395,8 +418,8 @@ class stringBone(baseBone):
 
 		return res
 
-	def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
+	def getUniquePropertyIndexValues(self, skel, name: str) -> List[str]:
 		if self.languages:
 			# Not yet implemented as it's unclear if we should keep each language distinct or not
 			raise NotImplementedError
-		return super(stringBone, self).getUniquePropertyIndexValues(valuesCache, name)
+		return super(stringBone, self).getUniquePropertyIndexValues(skel, name)

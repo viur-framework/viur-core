@@ -16,17 +16,16 @@ class credentialBone(stringBone):
 		if self.multiple or self.languages:
 			raise ValueError("Credential-Bones cannot be multiple or translated!")
 
-	def serialize(self, valuesCache, name, entity):
+	def serialize(self, skeletonValues, name) -> bool:
 		"""
 			Update the value only if a new value is supplied.
 		"""
-		if not name in valuesCache:
-			entity[name] = self.getDefaultValue()
-		elif valuesCache[name] and valuesCache[name] != "":
-			entity[name] = valuesCache[name]
-		return entity
+		if name in skeletonValues.accessedValues and skeletonValues.accessedValues[name]:
+			skeletonValues.entity[name] = skeletonValues.accessedValues[name]
+			return True
+		return False
 
-	def unserialize(self, valuesCache, name, values):
+	def unserialize(self, valuesCache, name):
 		"""
 			We'll never read our value from the database.
 		"""

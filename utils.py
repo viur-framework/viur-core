@@ -15,11 +15,21 @@ from viur.core import conf, db, errors
 
 # from .skeleton import BaseSkeleton #FIXME: circular import
 BaseSkeleton = object
+from datetime import datetime, timedelta, timezone
+import hashlib
+import hmac
+from quopri import decodestring
+from base64 import urlsafe_b64decode, urlsafe_b64encode
+from hashlib import sha256
+import email.header
+from typing import Any, Union
 
 # Determine which ProjectID we currently run in (as the app_identity module isn't available anymore)
 _, projectID = google.auth.default()
 del _
 
+def utcNow():
+	return datetime.now(timezone.utc)
 
 def generateRandomString(length: int = 13) -> str:
 	"""
@@ -32,9 +42,7 @@ def generateRandomString(length: int = 13) -> str:
 	:returns: A string with random characters of the given length.
 	:rtype: str
 	"""
-	return (''.join([
-		random.choice(string.ascii_lowercase + string.ascii_uppercase + string.digits)
-		for x in range(length)]))
+	return "".join(random.choices(string.ascii_letters + string.digits, k=length))
 
 
 def sendEMail(dests: Union[str, List[str]],
@@ -200,7 +208,7 @@ def markFileForDeletion(dlkey):
 	if fileObj:  # Its allready marked
 		return
 
-	fileObj = db.Entity("viur-deleted-files")
+	fileObj = db.Entity(db.Key("viur-deleted-files"))
 	fileObj["itercount"] = 0
 	fileObj["dlkey"] = str(dlkey)
 	db.Put(fileObj)
@@ -243,7 +251,8 @@ def hmacVerify(data: Any, signature: str) -> bool:
 	return hmac.compare_digest(hmacSign(data), signature)
 
 
-def downloadUrlFor(folder: str, fileName: str, derived: bool = False, expires: timedelta = timedelta(hours=1)) -> str:
+def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
+				   expires: Union[timedelta, None] = timedelta(hours=1)) -> str:
 	if derived:
 		filePath = "%s/derived/%s" % (folder, fileName)
 	else:
@@ -298,3 +307,20 @@ def seoUrlToFunction(module, function, render=None):
 		else:
 			pathComponents.append(function)
 	return "/".join(pathComponents)
+
+
+def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
+	"""
+		Normalizes a datastore key (replacing _application with the current one)
+
+		:param key: Key to be normalized.
+
+		:return: Normalized key in string representation.
+	"""
+	if key is None:
+		return None
+	if key.parent:
+		parent = normalizeKey(key.parent)
+	else:
+		parent = None
+	return db.Key(key.kind, key.id_or_name, parent=parent)

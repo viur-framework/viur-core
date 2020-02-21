@@ -163,6 +163,17 @@ class RequestTooLarge(HTTPException):
 		super(RequestTooLarge, self).__init__(status=413, name="Request Too Large", descr=descr)
 
 
+class Locked(HTTPException):
+	"""
+		Locked
+
+		Raised if a resource cannot be deleted due to incomming relational locks
+	"""
+
+	def __init__(self, descr="Ressource is Locked"):
+		super(Locked, self).__init__(status=423, name="Ressource is Locked", descr=descr)
+
+
 class Censored(HTTPException):
 	"""
 		Censored

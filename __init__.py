@@ -25,7 +25,7 @@
  See file LICENSE for more information.
 """
 
-__version__ = (-99, -99, -99)  # Which API do we expose to our application
+__version__ = (3, -99, -99)  # Which API do we expose to our application
 
 import sys, traceback, os, inspect
 
@@ -249,6 +249,8 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 			logging.warning("The Export-API is enabled. Everyone having that key can read the whole database!")
 
 		setattr(res, "dbtransfer", DbTransfer())
+		mapModule(res.dbtransfer, "dbtransfer", resolverDict)
+		#resolverDict["dbtransfer"]
 	if conf["viur.debug.traceExternalCallRouting"] or conf["viur.debug.traceInternalCallRouting"]:
 		from viur.core import utils
 		try:

@@ -280,7 +280,7 @@ class TaskHandler:
 		if len(kwargs) == 0 or skey == "" or not skel.fromClient(kwargs) or (
 				"bounce" in kwargs and kwargs["bounce"] == "1"):
 			return self.render.add(skel)
-		if not securitykey.validate(skey):
+		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 		task.execute(**skel.getValues())
 		return self.render.addItemSuccess(skel)
@@ -333,9 +333,8 @@ def callDeferred(func):
 			req = request.current.get()
 		except:  # This will fail for warmup requests
 			req = None
-		if req is not None and "HTTP_X_APPENGINE_TASKRETRYCOUNT".lower() in [x.lower() for x in
-																			 os.environ.keys()] and not "DEFERED_TASK_CALLED" in dir(
-			req):  # This is the deferred call
+		if req is not None and req.request.headers.get("X-Appengine-Taskretrycount") and not "DEFERED_TASK_CALLED" in dir(req):
+			# This is the deferred call
 			req.DEFERED_TASK_CALLED = True  # Defer recursive calls to an deferred function again.
 			if self is __undefinedFlag_:
 				return func(*args, **kwargs)
@@ -343,11 +342,10 @@ def callDeferred(func):
 				return func(self, *args, **kwargs)
 		else:
 			try:
-				funcPath = "%s/%s" % (self.modulePath, func.func_name)
 				if self.__class__.__name__ == "index":
-					funcPath = func.func_name
+					funcPath = func.__name__
 				else:
-					funcPath = "%s/%s" % (self.modulePath, func.func_name)
+					funcPath = "%s/%s" % (self.modulePath, func.__name__)
 				command = "rel"
 			except:
 				funcPath = "%s.%s" % (func.__name__, func.__module__)
@@ -364,7 +362,7 @@ def callDeferred(func):
 			env = {"user": None}
 			usr = getCurrentUser()
 			if usr:
-				env["user"] = {"key": usr["key"],
+				env["user"] = {"key": usr["key"].id_or_name,
 							   "name": usr["name"],
 							   "access": usr["access"]}
 			try:

@@ -73,6 +73,7 @@ class spatialBone(baseBone):
 		lngDelta = float(self.boundsLng[1] - self.boundsLng[0])
 		return latDelta / float(self.gridDimensions[0]), lngDelta / float(self.gridDimensions[1])
 
+
 	def isInvalid(self, value):
 		"""
 			Tests, if the point given by 'value' is inside our boundaries.
@@ -98,7 +99,7 @@ class spatialBone(baseBone):
 			else:
 				return False
 
-	def serialize(self, valuesCache, name, entity):
+	def serialize(self, skeletonValues, name):
 		"""
 			Serializes this bone into something we
 			can write into the datastore.
@@ -107,14 +108,15 @@ class spatialBone(baseBone):
 			:type name: str
 			:returns: dict
 		"""
-		if not valuesCache.get(name):
-			entity[name] = self.getDefaultValue()
-		else:
-			lat, lng = valuesCache[name]
+		if name in skeletonValues.accessedValues:
+			if not skeletonValues.accessedValues[name]:
+				skeletonValues.entity[name] = None
+				return True
+			lat, lng = skeletonValues.accessedValues[name]
 			gridSizeLat, gridSizeLng = self.getGridSize()
 			tileLat = int(floor((lat - self.boundsLat[0]) / gridSizeLat))
 			tileLng = int(floor((lng - self.boundsLng[0]) / gridSizeLng))
-			entity[name] = {
+			skeletonValues.entity[name] = {
 				"coordinates": {
 					"lat": lat,
 					"lng": lng,
@@ -124,9 +126,10 @@ class spatialBone(baseBone):
 					"lng": [tileLng - 1, tileLng, tileLng + 1],
 				}
 			}
-		return entity
+			return True
+		return False
 
-	def unserialize(self, valuesCache, name, expando):
+	def unserialize(self, skeletonValues, name):
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -137,11 +140,14 @@ class spatialBone(baseBone):
 			:type expando: db.Entity
 			:returns: bool
 		"""
-		myVal = expando.get(name)
-		if myVal:
-			valuesCache[name] = myVal["coordinates"]["lat"], myVal["coordinates"]["lng"]
-		else:
-			valuesCache[name] = None
+		if name in skeletonValues.entity:
+			myVal = skeletonValues.entity[name]
+			if myVal:
+				skeletonValues.accessedValues[name] = myVal["coordinates"]["lat"], myVal["coordinates"]["lng"]
+			else:
+				skeletonValues.accessedValues[name] = None
+			return True
+		return False
 
 	def fromClient( self, valuesCache, name, data ):
 		"""
@@ -160,7 +166,7 @@ class spatialBone(baseBone):
 		"""
 		rawLat = data.get("%s.lat" % name, None)
 		rawLng = data.get("%s.lng" % name, None)
-		if rawLat is None or rawLng is None:
+		if not rawLat or not rawLng:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
 
 		try:
@@ -303,3 +309,27 @@ class spatialBone(baseBone):
 		tmpList = [(haversine(x[name + ".lat.val"], x[name + ".lng.val"], lat, lng), x) for x in tmpDict.values()]
 		tmpList.sort(key=lambda x: x[0])
 		return [x[1] for x in tmpList[:targetAmount]]
+
+	def setBoneValue(self, valuesCache, boneName, value, append, *args, **kwargs):
+		"""
+			Set our value to 'value'.
+			Santy-Checks are performed; if the value is invalid, we flip our value back to its original
+			(default) value and return false.
+
+			:param valuesCache: Dictionary with the current values from the skeleton we belong to
+			:type valuesCache: dict
+			:param boneName: The Bone which should be modified
+			:type boneName: str
+			:param value: The value that should be assigned. It's type depends on the type of that bone
+			:type boneName: object
+			:param append: If true, the given value is appended to the values of that bone instead of
+				replacing it. Only supported on bones with multiple=True
+			:type append: bool
+			:return: Wherever that operation succeeded or not.
+			:rtype: bool
+
+		"""
+		if append:
+			raise ValueError("append is not possible on %s bones" % self.type)
+		assert isinstance(value, tuple) and len(value) == 2, "Value must be a tuple of (lat, lng)"
+		valuesCache[boneName] = value
