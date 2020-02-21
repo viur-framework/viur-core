@@ -153,8 +153,9 @@ class DefaultRender(object):
 		elif isinstance(bone, bones.relationalBone):
 			if isinstance(skel[key], list):
 				isFileBone = isinstance(bone, bones.fileBone)
-				refSkel = bone._refSkelCache
-				usingSkel = bone._usingSkelCache
+				refSkel, usingSkel = bone._getSkels()
+				#refSkel = bone._refSkelCache
+				#usingSkel = bone._usingSkelCache
 				tmpList = []
 				for k in skel[key]:
 					refSkel.setValuesCache(k["dest"])
@@ -169,8 +170,7 @@ class DefaultRender(object):
 					})
 				return tmpList
 			elif isinstance(skel[key], dict):
-				refSkel = bone._refSkelCache
-				usingSkel = bone._usingSkelCache
+				refSkel, usingSkel = bone._getSkels()
 				refSkel.setValuesCache(skel[key]["dest"])
 				if usingSkel:
 					usingSkel.setValuesCache(skel[key].get("rel", {}))
@@ -181,14 +181,17 @@ class DefaultRender(object):
 					"dest": self.renderSkelValues(refSkel, injectDownloadURL=isinstance(bone, bones.fileBone)),
 					"rel": usingData
 				}
-		elif  isinstance(bone, bones.recordBone):
-			usingSkel = bone._usingSkelCache
+		elif isinstance(bone, bones.recordBone):
+			usingSkel = bone.using()
 			tmpList = []
 			if skel[key]:
 				for k in skel[key]:
 					usingSkel.setValuesCache(k)
 					tmpList.append(self.renderSkelValues(usingSkel))
 			return tmpList
+		elif isinstance(bone, bones.keyBone):
+			v = skel["key"]
+			return v.to_legacy_urlsafe().decode("ASCII") if v else None
 		else:
 			return skel[key]
 
@@ -262,7 +265,7 @@ class DefaultRender(object):
 		else:
 			res["structure"] = None
 		try:
-			res["cursor"] = skellist.getCursor()
+			res["cursor"] = "h-%s" % skellist.getCursor().hex()
 		except:
 			res["cursor"] = None
 		res["action"] = action

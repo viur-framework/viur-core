@@ -10,46 +10,9 @@ from collections import OrderedDict
 from jinja2 import Environment, FileSystemLoader, ChoiceLoader
 from viur.core.i18n import translate
 import os, logging, codecs
+from collections import namedtuple
 
-
-class KeyValueWrapper:
-	"""
-		This holds one Key-Value pair for
-		selectBone Bones.
-
-		It allows to directly treat the key as string,
-		but still makes the translated description of that
-		key available.
-	"""
-
-	def __init__(self, key, descr):
-		self.key = key
-		self.descr = descr
-
-	def __str__(self):
-		return (str(self.key))
-
-	def __repr__(self):
-		return (str(self.key))
-
-	def __eq__(self, other):
-		return (str(self) == str(other))
-
-	def __lt__(self, other):
-		return (str(self) < str(other))
-
-	def __gt__(self, other):
-		return (str(self) > str(other))
-
-	def __le__(self, other):
-		return (str(self) <= str(other))
-
-	def __ge__(self, other):
-		return (str(self) >= str(other))
-
-	def __trunc__(self):
-		return (self.key.__trunc__())
-
+KeyValueWrapper = namedtuple("KeyValueWrapper", ["key", "descr"])
 
 class Render(object):
 	"""
@@ -207,7 +170,7 @@ class Render(object):
 
 		elif bone.type == "select" or bone.type.startswith("select."):
 			ret.update({
-				"values": OrderedDict([(k, _(v)) for (k, v) in bone.values.items()]),
+				"values": {k: v for (k, v) in bone.values.items()}, #FIXME: translate!
 				"multiple": bone.multiple
 			})
 
@@ -283,24 +246,22 @@ class Render(object):
 		if bone.type == "select" or bone.type.startswith("select."):
 			skelValue = boneValue
 			if isinstance(skelValue, list):
-				return [
-					KeyValueWrapper(val, bone.values[val]) if val in bone.values else val
-					for val in skelValue
-				]
+				return {
+					val: bone.values.get(val, val) for val in boneValue
+				}
 			elif skelValue in bone.values:
 				return KeyValueWrapper(skelValue, bone.values[skelValue])
-			return skelValue
-
+			return KeyValueWrapper(skelValue, str(skelValue))
 		elif bone.type == "relational" or bone.type.startswith("relational."):
 			if isinstance(boneValue, list):
 				tmpList = []
 				for k in boneValue:
-					refSkel = bone._refSkelCache
+					refSkel, usingSkel = bone._getSkels()
 					refSkel.setValuesCache(k["dest"])
 					if bone.using is None:
 						tmpList.append(self.collectSkelData(refSkel))
 					else:
-						usingSkel = bone._usingSkelCache
+						#usingSkel = bone._usingSkelCache
 						if k["rel"]:
 							usingSkel.setValuesCache(k["rel"])
 							usingData = self.collectSkelData(usingSkel)
@@ -312,12 +273,13 @@ class Render(object):
 						})
 				return tmpList
 			elif isinstance(boneValue, dict):
-				refSkel = bone._refSkelCache
+				refSkel, usingSkel = bone._getSkels()
 				refSkel.setValuesCache(boneValue["dest"])
+				refSkel.renderPreparation = self.renderBoneValue
 				if bone.using is None:
-					return self.collectSkelData(refSkel)
+					return refSkel
 				else:
-					usingSkel = bone._usingSkelCache
+					#usingSkel = bone._usingSkelCache
 					if boneValue["rel"]:
 						usingSkel.setValuesCache(boneValue["rel"])
 						usingData = self.collectSkelData(usingSkel)
@@ -328,11 +290,9 @@ class Render(object):
 						"dest": self.collectSkelData(refSkel),
 						"rel": usingData
 					}
-
 		elif bone.type == "record" or bone.type.startswith("record."):
-			usingSkel = bone._usingSkelCache
+			usingSkel = bone.using()
 			value = boneValue
-
 			if isinstance(value, list):
 				ret = []
 				for entry in value:
@@ -340,14 +300,13 @@ class Render(object):
 					ret.append(self.collectSkelData(usingSkel))
 
 				return ret
-
 			elif isinstance(value, dict):
 				usingSkel.setValuesCache(value)
 				return self.collectSkelData(usingSkel)
-
+		elif bone.type == "key":
+			return boneValue.id_or_name if boneValue else None
 		else:
 			return boneValue
-
 		return None
 
 	def collectSkelData(self, skel):
@@ -365,7 +324,7 @@ class Render(object):
 			return [self.collectSkelData(x) for x in skel]
 		res = {}
 		for key, bone in skel.items():
-			val = self.renderBoneValue(bone, skel, key)
+			val = self.renderBoneValue(bone, skel, key, skel[key])
 			res[key] = val
 			if isinstance(res[key], list):
 				res[key] = ListWrapper(res[key])
@@ -560,11 +519,11 @@ class Render(object):
 		except errors.HTTPException as e:  # Not found - try default fallbacks FIXME: !!!
 			tpl = "list"
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-		#resList = []
-		#for skel in skellist:
+		# resList = []
+		# for skel in skellist:
 		#	resList.append(self.collectSkelData(skel))
 		skellist.renderPreparation = self.renderBoneValue
-		return template.render(skellist=skellist, params=params, **kwargs) #SkelListWrapper(resList, skellist)
+		return template.render(skellist=skellist, params=params, **kwargs)  # SkelListWrapper(resList, skellist)
 
 	def listRootNodes(self, repos, tpl=None, params=None, **kwargs):
 		"""
@@ -618,10 +577,9 @@ class Render(object):
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
 
 		if isinstance(skel, Skeleton):
-			res = self.collectSkelData(skel)
-		else:
-			res = skel
-		return template.render(skel=res, params=params, **kwargs)
+			# res = self.collectSkelData(skel)
+			skel.renderPreparation = self.renderBoneValue
+		return template.render(skel=skel, params=params, **kwargs)
 
 	## Extended functionality for the Tree-Application ##
 	def listRootNodeContents(self, subdirs, entries, tpl=None, params=None, **kwargs):
@@ -894,8 +852,8 @@ class Render(object):
 			self.env = Environment(loader=loaders, extensions=["jinja2.ext.do", "jinja2.ext.loopcontrols"])
 
 			# Translation remains global
-			self.env.globals["_"] = translate
-			self.env.filters["tr"] = translate
+			self.env.globals["_"] = lambda x, *args, **kwargs: str(x)  # FIXME !translate
+			self.env.filters["tr"] = lambda x, *args, **kwargs: str(x)  # FIXME !translate
 
 			# Import functions.
 			for name, func in jinjaUtils.getGlobalFunctions().items():

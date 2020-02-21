@@ -165,14 +165,20 @@ class DbTransfer(object):
 		else:
 			raise AttributeError()
 
-		dbEntry = db.Entity(collection=key.collection, name=key.name)  # maybe some more fixes here ?
+		dbEntry = db.Entity(key)  # maybe some more fixes here ?
 		for k in entry.keys():
 			if k != "key":
 				val = entry[k]
 				# if isinstance(val, dict) or isinstance(val, list):
 				#	val = pickle.dumps( val )
 				dbEntry[k] = val
-		db.Put(dbEntry)
+		#dbEntry = fixUnindexed(dbEntry)
+		try:
+			db.Put(dbEntry)
+		except:
+			from pprint import pprint
+			pprint(dbEntry)
+			raise
 
 	@exposed
 	def hasblob(self, blobkey, key):

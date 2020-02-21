@@ -1,22 +1,46 @@
 # -*- coding: utf-8 -*-
-from viur.core import utils, session, errors, conf, securitykey, request
+import logging, sys
+from datetime import datetime
+from time import time
+
+from viur.core import db, utils, errors, conf, request, securitykey
 from viur.core import forcePost, forceSSL, exposed, internalExposed
-from viur.core.skeleton import Skeleton
+from viur.core.bones import baseBone, keyBone, numericBone
 from viur.core.prototypes import BasicApplication
+from viur.core.skeleton import Skeleton, skeletonByKind
+from viur.core.tasks import callDeferred
+from enum import Enum
 
-import logging
+
+class TreeSkel(Skeleton):
+	parententry = keyBone(descr="Parent", visible=False, indexed=True, readOnly=True)
+	parentrepo = keyBone(descr="BaseRepo", visible=False, indexed=True, readOnly=True)
+	sortindex = numericBone(descr="SortIndex", mode="float", visible=False, indexed=True, readOnly=True, max=pow(2, 30))
+
+	def preProcessSerializedData(self, dbfields):
+		if not ("sortindex" in dbfields and dbfields["sortindex"]):
+			dbfields["sortindex"] = time()
+		return dbfields
 
 
-class List(BasicApplication):
+class TreeType(Enum):
+	Node = 1
+	Leaf = 2
+
+
+class Tree(BasicApplication):
 	"""
-	List is a ViUR BasicApplication.
+	Tree is a ViUR BasicApplication.
 
-	It is used for multiple data entities of the same kind, and needs to be sub-classed for individual
-	modules.
+	In this application, entries are hold in directories, which can be nested. Data in a Tree application
+	always consists of nodes (=directories) and leafs (=files).
 
 	:ivar kindName: Name of the kind of data entities that are managed by the application. \
 	This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the \
-	application. For more information, refer to the function :func:`_resolveSkel`.
+	application. For more information, refer to the function :func:`_resolveSkel`.\
+	\
+	In difference to the other ViUR BasicApplication, the kindName in Trees evolve into the kindNames\
+	*kindName + "node"* and *kindName + "leaf"*, because information can be stored in different kinds.
 	:vartype kindName: str
 
 	:ivar adminInfo: todo short info on how to use adminInfo.
@@ -24,18 +48,39 @@ class List(BasicApplication):
 	"""
 
 	accessRights = ["add", "edit", "view", "delete"]  # Possible access rights for this app
+	hasDistinctLeafs = False  # Set to True if we have a distinct Skeleton for leafs, else we'll work as a hierarchy
 
 	def adminInfo(self):
 		return {
 			"name": self.__class__.__name__,  # Module name as shown in the admin tools
-			"handler": "list",  # Which handler to invoke
-			"icon": "icons/modules/list.svg"  # Icon for this module
+			"handler": "tree",  # Which handler to invoke
+			"icon": "icons/modules/tree.svg"  # Icon for this module
 		}
 
 	def __init__(self, moduleName, modulePath, *args, **kwargs):
-		super(List, self).__init__(moduleName, modulePath, *args, **kwargs)
+		super(Tree, self).__init__(moduleName, modulePath, *args, **kwargs)
 
-	def viewSkel(self, *args, **kwargs):
+	def _resolveSkelCls(self, skelType: TreeType, *args, **kwargs):
+		"""
+		Retrieve the generally associated :class:`server.skeleton.Skeleton` that is used by
+		the application.
+
+		This is either be defined by the member variable *kindName* or by a Skeleton named like the
+		application class in lower-case order.
+
+		If this behavior is not wanted, it can be definitely overridden by defining module-specific
+		:func:`viewSkel`,:func:`addSkel`, or :func:`editSkel` functions, or by overriding this
+		function in general.
+
+		:return: Returns a Skeleton instance that matches the application.
+		:rtype: server.skeleton.Skeleton
+		"""
+		baseName = self.kindName if self.kindName else str(type(self).__name__).lower()
+		if skelType == TreeType.Node:  # FIXME: Do we map also to _node if we are a hierarchy?
+			baseName += "_node"
+		return skeletonByKind(baseBone)
+
+	def viewSkel(self, skelType: TreeType, *args, **kwargs):
 		"""
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for viewing an existing entry from the list.
@@ -47,9 +92,12 @@ class List(BasicApplication):
 		:return: Returns a Skeleton instance for viewing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkelCls(*args, **kwargs)()
+		if skelType.Leaf and not self.hasDistinctLeafs:
+			# We don't have distinct leafs, so don't try to resolve a skeleton for it
+			return None
+		return self._resolveSkelCls(skelType, *args, **kwargs)()
 
-	def addSkel(self, *args, **kwargs):
+	def addSkel(self, skelType: TreeType, *args, **kwargs):
 		"""
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for adding an entry to the list.
@@ -61,9 +109,12 @@ class List(BasicApplication):
 		:return: Returns a Skeleton instance for adding an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkelCls(*args, **kwargs)()
+		if skelType.Leaf and not self.hasDistinctLeafs:
+			# We don't have distinct leafs, so don't try to resolve a skeleton for it
+			return None
+		return self._resolveSkelCls(skelType, *args, **kwargs)()
 
-	def editSkel(self, *args, **kwargs):
+	def editSkel(self, skelType: TreeType, *args, **kwargs):
 		"""
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for editing an existing entry from the list.
@@ -75,78 +126,27 @@ class List(BasicApplication):
 		:return: Returns a Skeleton instance for editing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkelCls(*args, **kwargs)()
+		if skelType.Leaf and not self.hasDistinctLeafs:
+			# We don't have distinct leafs, so don't try to resolve a skeleton for it
+			return None
+		return self._resolveSkelCls(skelType, *args, **kwargs)()
+
 
 	## External exposed functions
 
 	@exposed
-	@forcePost
-	def preview(self, skey, *args, **kwargs):
+	def listRootNodes(self, name=None, *args, **kwargs):
 		"""
-		Renders data for an entry, without reading from the database.
-		This function allows to preview an entry without writing it to the database.
+		Renders a list of all available repositories for the current user using the
+		modules default renderer.
 
-		Any entity values are provided via *kwargs*.
-
-		The function uses the viewTemplate of the application.
-
-		:returns: The rendered representation of the the supplied data.
+		:returns: The rendered representation of the available root-nodes.
+		:rtype: str
 		"""
-		if not self.canPreview():
-			raise errors.Unauthorized()
-
-		if not securitykey.validate(skey, useSessionKey=True):
-			raise errors.PreconditionFailed()
-
-		skel = self.viewSkel()
-		skel.fromClient(kwargs)
-
-		return self.render.view(skel)
+		return self.render.listRootNodes(self.getAvailableRootNodes(name))
 
 	@exposed
-	def view(self, *args, **kwargs):
-		"""
-		Prepares and renders a single entry for viewing.
-
-		The entry is fetched by its entity key, which either is provided via *kwargs["key"]*,
-		or as the first parameter in *args*. The function performs several access control checks
-		on the requested entity before it is rendered.
-
-		.. seealso:: :func:`viewSkel`, :func:`canView`, :func:`onItemViewed`
-
-		:returns: The rendered representation of the requested entity.
-
-		:raises: :exc:`server.errors.NotAcceptable`, when no *key* is provided.
-		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
-		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
-		"""
-		if "key" in kwargs:
-			key = kwargs["key"]
-		elif len(args) >= 1:
-			key = args[0]
-		else:
-			raise errors.NotAcceptable()
-		if not key:
-			raise errors.NotAcceptable()
-		skel = self.viewSkel()
-		if key == u"structure":
-			# We dump just the structure of that skeleton, including it's default values
-			if not self.canView(skel):
-				raise errors.Unauthorized()
-		else: # We return a single entry for viewing
-			# We probably have a Database or SEO-Key here
-			#seoKey = "viur.viurActiveSeoKeys ="
-			#skel = self.viewSkel().all().filter(seoKey, args[0]).getSkel()
-			skel = self.viewSkel()
-			if not skel.fromDB(key):
-				raise errors.NotFound()
-			if not self.canView(skel):
-				raise errors.Forbidden()
-			self.onItemViewed(skel)
-		return self.render.view(skel)
-
-	@exposed
-	def list(self, *args, **kwargs):
+	def list(self, skelType, *args, **kwargs):
 		"""
 		Prepares and renders a list of entries.
 
@@ -162,114 +162,189 @@ class List(BasicApplication):
 
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		"""
-		query = self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs))  # Access control
+		if skelType == "node":
+			skel = self.viewSkel(TreeType.Node)
+		elif skelType == "leaf" and self.hasDistinctLeafs:
+			skel = self.viewSkel(TreeType.Leaf)
+		else:
+			raise errors.NotAcceptable()
+		query = self.listFilter(skel.all().mergeExternalFilter(kwargs))  # Access control
 		if query is None:
 			raise errors.Unauthorized()
 		res = query.fetch()
 		return self.render.list(res)
 
-	@forceSSL
 	@exposed
-	def edit(self, *args, **kwargs):
+	def view(self, skelType, key, *args, **kwargs):
+		"""
+		Prepares and renders a single entry for viewing.
+
+		The entry is fetched by its *key* and its *skelType*.
+		The function performs several access control checks on the requested entity before it is rendered.
+
+		.. seealso:: :func:`canView`, :func:`onItemViewed`
+
+		:returns: The rendered representation of the requested entity.
+
+		:param skelType: May either be "node" or "leaf".
+		:type skelType: str
+		:param node: URL-safe key of the parent.
+		:type node: str
+
+		:raises: :exc:`server.errors.NotAcceptable`, when an incorrect *skelType* is provided.
+		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
+		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
+		"""
+		if skelType == "node":
+			skel = self.viewSkel(TreeType.Node)
+		elif skelType == "leaf" and self.hasDistinctLeafs:
+			skel = self.viewSkel(TreeType.Leaf)
+		else:
+			raise errors.NotAcceptable()
+		if not key:
+			raise errors.NotAcceptable()
+		if key == u"structure":
+			# We dump just the structure of that skeleton, including it's default values
+			if not self.canView(skelType, None):
+				raise errors.Unauthorized()
+		else:
+			# We return a single entry for viewing
+			if not skel.fromDB(key):
+				raise errors.NotFound()
+			if not self.canView(skelType, skel):
+				raise errors.Unauthorized()
+			self.onItemViewed(skel)
+		return self.render.view(skel)
+
+	@exposed
+	@forceSSL
+	def add(self, skelType, node, *args, **kwargs):
+		"""
+		Add a new entry with the given parent *node*, and render the entry, eventually with error notes
+		on incorrect data. Data is taken by any other arguments in *kwargs*.
+
+		The function performs several access control checks on the requested entity before it is added.
+
+		.. seealso:: :func:`onItemAdded`, :func:`canAdd`
+
+		:param skelType: Defines the type of the new entry and may either be "node" or "leaf".
+		:type skelType: str
+		:param node: URL-safe key of the parent.
+		:type node: str
+
+		:returns: The rendered, added object of the entry, eventually with error hints.
+
+		:raises: :exc:`server.errors.NotAcceptable`, when no valid *skelType* was provided.
+		:raises: :exc:`server.errors.NotFound`, when no valid *node* was found.
+		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
+		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
+		"""
+		if "skey" in kwargs:
+			skey = kwargs["skey"]
+		else:
+			skey = ""
+
+		if skelType == "node":
+			skel = self.viewSkel(TreeType.Node)
+		elif skelType == "leaf" and self.hasDistinctLeafs:
+			skel = self.viewSkel(TreeType.Leaf)
+		else:
+			raise errors.NotAcceptable()
+
+		# FIXME: IsValidParent?
+		#parentNodeSkel = self.editNodeSkel()
+		#if not parentNodeSkel.fromDB(node):
+		#	raise errors.NotFound()
+
+		if not self.canAdd(skelType, node):
+			raise errors.Unauthorized()
+
+		if (len(kwargs) == 0  # no data supplied
+				or skey == ""  # no security key
+				# or not request.current.get().isPostRequest fixme: POST-method check missing? # failure if not using POST-method
+				or not skel.fromClient(kwargs)  # failure on reading into the bones
+				or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
+		):
+			return self.render.add(skel)
+
+		if not securitykey.validate(skey, useSessionKey=True):
+			raise errors.PreconditionFailed()
+
+		skel["parentdir"] = str(node)
+		skel["parentrepo"] = parentNodeSkel["parentrepo"] or str(node)
+
+		skel.toDB()
+		self.onItemAdded(skel)
+
+		return self.render.addItemSuccess(skel)
+
+	@exposed
+	@forceSSL
+	def edit(self, skelType, key, skey="", *args, **kwargs):
 		"""
 		Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
 		Data is taken by any other arguments in *kwargs*.
 
-		The entry is fetched by its entity key, which either is provided via *kwargs["key"]*,
-		or as the first parameter in *args*. The function performs several access control checks
-		on the requested entity before it is modified.
+		The function performs several access control checks on the requested entity before it is added.
 
-		.. seealso:: :func:`editSkel`, :func:`onItemEdited`, :func:`canEdit`
+		.. seealso:: :func:`onItemAdded`, :func:`canEdit`
 
-		:returns: The rendered, edited object of the entry, eventually with error hints.
+		:param skelType: Defines the type of the entry that should be modified and may either be "node" or "leaf".
+		:type skelType: str
+		:param key: URL-safe key of the item to be edited.
+		:type key: str
 
-		:raises: :exc:`server.errors.NotAcceptable`, when no *key* is provided.
-		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
+		:returns: The rendered, modified object of the entry, eventually with error hints.
+
+		:raises: :exc:`server.errors.NotAcceptable`, when no valid *skelType* was provided.
+		:raises: :exc:`server.errors.NotFound`, when no valid *node* was found.
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-
-		if "skey" in kwargs:
-			skey = kwargs["skey"]
-		else:
-			skey = ""
-
-		if "key" in kwargs:
-			key = kwargs["key"]
-		elif len(args) == 1:
-			key = args[0]
+		if skelType == "node":
+			skel = self.viewSkel(TreeType.Node)
+		elif skelType == "leaf" and self.hasDistinctLeafs:
+			skel = self.viewSkel(TreeType.Leaf)
 		else:
 			raise errors.NotAcceptable()
-
-		skel = self.editSkel()
 
 		if not skel.fromDB(key):
-			raise errors.NotAcceptable()
+			raise errors.NotFound()
 
-		if not self.canEdit(skel):
+		if not self.canEdit(skelType, skel):
 			raise errors.Unauthorized()
+
 		if (len(kwargs) == 0  # no data supplied
 				or skey == ""  # no security key
-				or not request.current.get().isPostRequest  # failure if not using POST-method
+				# or not request.current.get().isPostRequest fixme: POST-method check missing?  # failure if not using POST-method
 				or not skel.fromClient(kwargs)  # failure on reading into the bones
-				or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before changing
+				or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
 		):
-			# render the skeleton in the version it could as far as it could be read.
 			return self.render.edit(skel)
+
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
-		skel.toDB()  # write it!
+
+		skel.toDB()
 		self.onItemEdited(skel)
 
 		return self.render.editItemSuccess(skel)
 
-	@forceSSL
 	@exposed
-	def add(self, *args, **kwargs):
-		"""
-		Add a new entry, and render the entry, eventually with error notes on incorrect data.
-		Data is taken by any other arguments in *kwargs*.
-
-		The function performs several access control checks on the requested entity before it is added.
-
-		.. seealso:: :func:`addSkel`, :func:`onItemAdded`, :func:`canAdd`
-
-		:returns: The rendered, added object of the entry, eventually with error hints.
-
-		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
-		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
-		"""
-		if "skey" in kwargs:
-			skey = kwargs["skey"]
-		else:
-			skey = ""
-		if not self.canAdd():
-			raise errors.Unauthorized()
-		skel = self.addSkel()
-		if (len(kwargs) == 0  # no data supplied
-				or skey == ""  # no skey supplied
-				or not request.current.get().isPostRequest  # failure if not using POST-method
-				or not skel.fromClient(kwargs)  # failure on reading into the bones
-				or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
-		):
-			# render the skeleton in the version it could as far as it could be read.
-			return self.render.add(skel)
-		if not securitykey.validate(skey, useSessionKey=True):
-			raise errors.PreconditionFailed()
-		skel.toDB()
-		self.onItemAdded(skel)
-		return self.render.addItemSuccess(skel)
-
 	@forceSSL
 	@forcePost
-	@exposed
-	def delete(self, key, skey, *args, **kwargs):
+	def delete(self, skelType, key, *args, **kwargs):
 		"""
-		Delete an entry.
+		Deletes an entry or an directory (including its contents).
 
 		The function runs several access control checks on the data before it is deleted.
 
-		.. seealso:: :func:`canDelete`, :func:`editSkel`, :func:`onItemDeleted`
+		.. seealso:: :func:`canDelete`, :func:`onItemDeleted`
+
+		:param skelType: Defines the type of the entry that should be deleted and may either be "node" or "leaf".
+		:type skelType: str
+		:param key: URL-safe key of the item to be deleted.
+		:type key: str
 
 		:returns: The rendered, deleted object of the entry.
 
@@ -277,52 +352,55 @@ class List(BasicApplication):
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
+		if skelType == "node":
+			skel = self.viewSkel(TreeType.Node)
+		elif skelType == "leaf" and self.hasDistinctLeafs:
+			skel = self.viewSkel(TreeType.Leaf)
+		else:
+			raise errors.NotAcceptable()
 
-		skel = self.editSkel()
+		if "skey" in kwargs:
+			skey = kwargs["skey"]
+		else:
+			skey = ""
+
 		if not skel.fromDB(key):
 			raise errors.NotFound()
 
-		if not self.canDelete(skel):
+		if not self.canDelete(skelType, skel):
 			raise errors.Unauthorized()
-
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 
+		if skelType == "node":
+			self.deleteRecursive(key)
 		skel.delete()
+
 		self.onItemDeleted(skel)
+		return self.render.deleteSuccess(skel, skelType=skelType)
 
-		return self.render.deleteSuccess(skel)
-
-	@exposed
-	def index(self, *args, **kwargs):
+	@callDeferred
+	def deleteRecursive(self, nodeKey):
 		"""
-		Default, SEO-Friendly fallback for view and list.
+		Recursively processes a delete request.
 
-		:param args:
-		:param kwargs:
-		:return:
+		This will delete all entries which are children of *nodeKey*, except *key* nodeKey.
+
+		:param key: URL-safe key of the node which children should be deleted.
+		:type key: str
 		"""
-		if args and args[0]:
-			# We probably have a Database or SEO-Key here
-			seoKey = "viurActiveSeoKeys ="
-			skel = self.viewSkel().all().filter(seoKey, args[0]).getSkel()
-			if skel:
-				if not self.canView(skel):
-					raise errors.Forbidden()
-				self.onItemViewed(skel)
-				return self.render.view(skel)
-		# This was unsuccessfully, we'll render a list instead
-		if not kwargs:
-			kwargs = self.getDefaultListParams()
-		qry = self.viewSkel().all().mergeExternalFilter(kwargs)
-		qry = self.listFilter(qry)
-		if not qry:
-			raise errors.Forbidden()
-		res = qry.fetch()
-		return self.render.list(res)
-
-	def getDefaultListParams(self):
-		return {}
+		if self.hasDistinctLeafs:
+			for f in db.Query(self.viewSkel(TreeType.Leaf).kindName).filter("parentdir", str(nodeKey)).iter(keysOnly=True):
+				s = self.viewSkel(TreeType.Leaf)
+				if not s.fromDB(f):
+					continue
+				s.delete()
+		for d in db.Query(self.viewSkel(TreeType.Node).kindName).filter("parentdir", str(nodeKey)).iter(keysOnly=True):
+			self.deleteRecursive(str(d))
+			s = self.viewSkel(TreeType.Node)
+			if not s.fromDB(d):
+				continue
+			s.delete()
 
 	## Default access control functions
 
@@ -347,7 +425,8 @@ class List(BasicApplication):
 
 		return None
 
-	def canView(self, skel: Skeleton) -> bool:
+
+	def canView(self, skelType: TreeType, skel: Skeleton) -> bool:
 		"""
 		Checks if the current user can view the given entry.
 		Should be identical to what's allowed by listFilter.
@@ -356,17 +435,16 @@ class List(BasicApplication):
 		:param skel: The entry we check for
 		:return: True if the current session is authorized to view that entry, False otherwise
 		"""
-		logging.error("IN CAN VIEW")
 		queryObj = self.viewSkel().all().mergeExternalFilter({"key": skel["key"]})
 		queryObj = self.listFilter(queryObj)  # Access control
-		logging.error(queryObj)
 		if queryObj is None:
 			return False
 		if not queryObj.get():
 			return False
 		return True
 
-	def canAdd(self):
+
+	def canAdd(self, skelType: TreeType):
 		"""
 		Access control function for adding permission.
 
@@ -398,40 +476,8 @@ class List(BasicApplication):
 
 		return False
 
-	def canPreview(self):
-		"""
-		Access control function for preview permission.
 
-		Checks if the current user has the permission to preview an entry.
-
-		The default behavior is:
-		- If no user is logged in, previewing is generally refused.
-		- If the user has "root" access, previewing is generally allowed.
-		- If the user has the modules "add" or "edit" permission (module-add, module-edit) enabled, \
-		previewing is allowed.
-
-		It should be overridden for module-specific behavior.
-
-		.. seealso:: :func:`preview`
-
-		:returns: True, if previewing entries is allowed, False otherwise.
-		:rtype: bool
-		"""
-		user = utils.getCurrentUser()
-		if not user:
-			return False
-
-		if user["access"] and "root" in user["access"]:
-			return True
-
-		if (user and user["access"]
-				and ("%s-add" % self.moduleName in user["access"]
-					 or "%s-edit" % self.moduleName in user["access"])):
-			return True
-
-		return False
-
-	def canEdit(self, skel):
+	def canEdit(self, skelType: TreeType, skel):
 		"""
 		Access control function for modification permission.
 
@@ -464,7 +510,8 @@ class List(BasicApplication):
 
 		return False
 
-	def canDelete(self, skel):
+
+	def canDelete(self, skelType: TreeType, skel):
 		"""
 		Access control function for delete permission.
 
@@ -499,7 +546,7 @@ class List(BasicApplication):
 
 		return False
 
-	## Override-able event-hooks
+	## Overridable eventhooks
 
 	def onItemAdded(self, skel):
 		"""
@@ -514,7 +561,6 @@ class List(BasicApplication):
 		.. seealso:: :func:`add`
 		"""
 		logging.info("Entry added: %s" % skel["key"])
-
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
@@ -532,7 +578,6 @@ class List(BasicApplication):
 		.. seealso:: :func:`edit`
 		"""
 		logging.info("Entry changed: %s" % skel["key"])
-
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
@@ -558,17 +603,15 @@ class List(BasicApplication):
 		It should be overridden for a module-specific behavior.
 		The default is writing a log entry.
 
+		..warning: Saving the skeleton again will undo the deletion
+		(if the skeleton was a leaf or a node with no children).
+
 		:param skel: The Skeleton that has been deleted.
 		:type skel: :class:`server.skeleton.Skeleton`
 
 		.. seealso:: :func:`delete`
 		"""
-		logging.info("Entry deleted: %s" % skel["key"])
+		logging.info("Entry deleted: %s (%s)" % (skel["key"], type(skel)))
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
-
-
-List.admin = True
-List.html = True
-List.vi = True

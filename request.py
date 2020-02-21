@@ -242,7 +242,7 @@ class BrowseHandler():  # webapp.RequestHandler
 			return
 		try:
 			session.current.load(self)  # self.request.cookies )
-			path = self.selectLanguage(path)
+			path = self.selectLanguage(path)[1:]
 			if conf["viur.requestPreprocessor"]:
 				path = conf["viur.requestPreprocessor"](path)
 			self.findAndCall(path)
@@ -250,7 +250,7 @@ class BrowseHandler():  # webapp.RequestHandler
 			if conf["viur.debug.traceExceptions"]:
 				raise
 			try:
-				self.redirect(e.url)
+				self.redirect(e.url, code=e.status)
 			except Exception as e:
 				logging.exception(e)
 				raise

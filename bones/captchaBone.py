@@ -18,11 +18,11 @@ class captchaBone(bone.baseBone):
 		self.required = True
 		self.hasDBField = False
 
-	def serialize(self, valuesCache, name, entity):
-		return entity
+	def serialize(self, skeletonValues, name) -> bool:
+		return False
 
-	def unserialize(self, valuesCache, name, values):
-		valuesCache[name] = self.publicKey
+	def unserialize(self, skeletonValues, name) -> bool:
+		skeletonValues.accessedValues[name] = self.publicKey
 		return True
 
 	def fromClient(self, valuesCache, name, data):

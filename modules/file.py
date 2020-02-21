@@ -28,24 +28,30 @@ conf["viur.file.hmacKey"] = hashlib.sha3_384(
 
 
 class injectStoreURLBone(baseBone):
-	def unserialize(self, valuesCache, name, expando):
-		if "dlkey" in expando and "name" in expando:
-			valuesCache[name] = utils.downloadUrlFor(expando["dlkey"], expando["name"], derived=False)
+	def unserialize(self, skeletonValues, name):
+		if "dlkey" in skeletonValues.entity and "name" in skeletonValues.entity:
+			skeletonValues.accessedValues[name] = utils.downloadUrlFor(skeletonValues.entity["dlkey"], skeletonValues.entity["name"], derived=False)
+			return True
+		return False
 
 
-def thumbnailer(dlKey, origName, targetName, params, size):
-	blob = bucket.get_blob("%s/source/%s" % (dlKey, origName))
+def thumbnailer(fileSkel, targetName, params):
+	blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"], fileSkel["name"]))
 	fileData = BytesIO()
 	outData = BytesIO()
 	blob.download_to_file(fileData)
 	fileData.seek(0)
 	img = Image.open(fileData)
-	img.thumbnail(size)
+	if "size" in params:
+		img.thumbnail(params["size"])
+	elif "width" in params:
+		img = img.resize((params["width"], int((float(img.size[1]) * float(params["width"] / float(img.size[0]))))), Image.ANTIALIAS)
 	img.save(outData, "JPEG")
+	outSize = outData.tell()
 	outData.seek(0)
-	targetBlob = bucket.blob("%s/derived/%s" % (dlKey, targetName))
+	targetBlob = bucket.blob("%s/derived/%s" % (fileSkel["dlkey"], targetName))
 	targetBlob.upload_from_file(outData, content_type="image/jpeg")
-	return targetName
+	return targetName, outSize, "image/jpeg"
 
 class fileBaseSkel(TreeLeafSkel):
 	"""
@@ -58,12 +64,13 @@ class fileBaseSkel(TreeLeafSkel):
 	name = stringBone(descr="Filename", caseSensitive=False, indexed=True, searchable=True)
 	mimetype = stringBone(descr="Mime-Info", readOnly=True, indexed=True)
 	weak = booleanBone(descr="Weak reference", indexed=True, readOnly=True, visible=False)
-	pending = booleanBone(descr="Pending upload", readOnly=True, visible=False)
+	pending = booleanBone(descr="Pending upload", readOnly=True, visible=False, defaultValue=False)
 	servingurl = stringBone(descr="Serving URL", readOnly=True)
 	width = numericBone(descr="Width", indexed=True, readOnly=True, searchable=True)
 	height = numericBone(descr="Height", indexed=True, readOnly=True, searchable=True)
 	downloadUrl = injectStoreURLBone(descr="Download-URL", readOnly=True, visible=False)
 	derived = baseBone(descr=u"Derived Files", readOnly=True, visible=False)
+	pendingParentdir = keyBone(descr=u"Pending key Reference", readOnly=True, visible=False)
 
 	"""
 	def refresh(self):
@@ -203,7 +210,9 @@ class File(Tree):
 		fileSkel["size"] = 0
 		fileSkel["mimetype"] = "application/octetstream"
 		fileSkel["dlkey"] = targetKey
-		fileSkel["parentdir"] = "pending-%s" % utils.escapeString(node) if node else "pending-"
+		fileSkel["parentdir"] = None
+		fileSkel["pendingParentdir"] = db.keyHelper(node, self.addNodeSkel().kindName) if node else None
+		fileSkel["pending"] = True
 		fileSkel["weak"] = True
 		fileSkel["width"] = 0
 		fileSkel["height"] = 0
@@ -247,7 +256,7 @@ class File(Tree):
 		repo = self.ensureOwnUserRootNode()
 		res = [{
 			"name": str("My Files"),
-			"key": str(repo.name)
+			"key": str(repo.key.id_or_name)
 		}]
 		if 0 and "root" in thisuser["access"]:  # FIXME!
 			# Add at least some repos from other users
@@ -414,9 +423,10 @@ class File(Tree):
 			skel = self.addLeafSkel()
 			if not skel.fromDB(targetKey):
 				raise errors.NotFound()
-			if not skel["parentdir"].startswith("pending-"):
+			if not skel["pending"]:
 				raise errors.PreconditionFailed()
-			skel["parentdir"] = skel["parentdir"][8:] or None
+			skel["pending"] = False
+			skel["parentdir"] = skel["pendingParentdir"]
 			if skel["parentdir"]:
 				rootNode = self.getRootNode(skel["parentdir"])
 			else:
@@ -538,7 +548,7 @@ def doCleanupDeletedFiles(cursor=None):
 		gotAtLeastOne = True
 		if not "dlkey" in file:
 			db.Delete((file.collection, file.name))
-		elif db.Query("viur-blob-locks").filter("active_blob_references AC", file["dlkey"]).get():
+		elif db.Query("viur-blob-locks").filter("active_blob_references =", file["dlkey"]).get():
 			logging.info("is referenced, %s" % file["dlkey"])
 			db.Delete((file.collection, file.name))
 		else:

@@ -57,7 +57,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 				qryBase = databaseQuery.clone()
 			else:
 				qryBase = db.Query(databaseQuery.getKind())
-			for entry in qryBase.filter("viurTags AC", keyword).run():
+			for entry in qryBase.filter("viurTags =", keyword).run():
 				if not entry.name in resultScoreMap:
 					resultScoreMap[entry.name] = 1
 				else:

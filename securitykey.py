@@ -62,11 +62,12 @@ def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
 		elif currentSession.validateSecurityKey(key):
 			return True
 		return False
-	if not key or "/" in key:
+	if not key:
 		return False
-	dbObj = db.Get((securityKeyKindName, key))
+	dbKey = db.Key(securityKeyKindName, key)
+	dbObj = db.Get(dbKey)
 	if dbObj:
-		db.Delete((securityKeyKindName, key))
+		db.Delete(dbKey)
 		if dbObj["until"] < datetime.now():  # This key has expired
 			return False
 		del dbObj["until"]

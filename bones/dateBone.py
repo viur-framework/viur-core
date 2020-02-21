@@ -228,42 +228,42 @@ class dateBone(baseBone):
 			res = utc.normalize(res.astimezone(utc))
 		return (res)
 
-	def serialize(self, valuesCache, name, entity):
-		res = valuesCache.get(name)
-		if res:
-			res = self.readLocalized(datetime.now().strptime(res.strftime("%d.%m.%Y %H:%M:%S"), "%d.%m.%Y %H:%M:%S"))
+	def serialize(self, skeletonValues, name) -> bool:
+		if name in skeletonValues.accessedValues:
+			res = skeletonValues.accessedValues[name]
+			if res:
+				res = self.readLocalized(datetime.now().strptime(res.strftime("%d.%m.%Y %H:%M:%S"), "%d.%m.%Y %H:%M:%S"))
+					# Crop unwanted values to zero
+				if not self.time:
+					res = res.replace(hour=0, minute=0, second=0, microsecond=0)
+				elif not self.date:
+					res = res.replace(year=1970, month=1, day=1)
+			skeletonValues.entity[name] = res
+			return True
+		return False
 
-			# Crop unwanted values to zero
-			if not self.time:
-				res = res.replace(hour=0, minute=0, second=0, microsecond=0)
-			elif not self.date:
-				res = res.replace(year=1970, month=1, day=1)
-
-		entity[name] = res
-		return entity
-
-	def unserialize(self, valuesCache, name, expando):
-		if not name in expando:
-			valuesCache[name] = None
-			return
-		valuesCache[name] = expando[name]
-		if valuesCache[name] and (isinstance(valuesCache[name], float) or isinstance(valuesCache[name], int)):
-			if self.date:
-				self.setLocalized(valuesCache, name, ExtendedDateTime.fromtimestamp(valuesCache[name]))
+	def unserialize(self, skeletonValues, name) -> bool:
+		if name in skeletonValues.entity:
+			value = skeletonValues.entity[name]
+			if value and (isinstance(value, float) or isinstance(value, int)):
+				if self.date:
+					self.setLocalized(skeletonValues, name, ExtendedDateTime.fromtimestamp(value))
+				else:
+					# FIXME! Seconds?
+					skeletonValues.accessedValues[name] = time(hour=int(value / 60), minute=int(value % 60))
+			elif isinstance(value, datetime):
+				self.setLocalized(skeletonValues, name,
+								  ExtendedDateTime.now().strptime(value.strftime("%d.%m.%Y %H:%M:%S"),
+																  "%d.%m.%Y %H:%M:%S"))
 			else:
-				valuesCache[name] = time(hour=int(valuesCache[name] / 60), minute=int(valuesCache[name] % 60))
-		elif isinstance(valuesCache[name], datetime):
-			self.setLocalized(valuesCache, name,
-							  ExtendedDateTime.now().strptime(valuesCache[name].strftime("%d.%m.%Y %H:%M:%S"),
-															  "%d.%m.%Y %H:%M:%S"))
-		else:
-			# We got garbarge from the datastore
-			valuesCache[name] = None
-		return
+				# We got garbarge from the datastore
+				skeletonValues.accessedValues[name] = None
+			return True
+		return False
 
-	def setLocalized(self, valuesCache, name, value):
+	def setLocalized(self, skeletonValues, name, value):
 		""" Converts a Date read from DB (UTC) to the requesters local time"""
-		valuesCache[name] = value
+		skeletonValues.accessedValues[name] = value
 		if not self.localize or not value or not isinstance(value, ExtendedDateTime):
 			return
 		timeZone = self.guessTimeZone()
@@ -273,7 +273,7 @@ class dateBone(baseBone):
 			value = tz.normalize(value.replace(tzinfo=utc).astimezone(tz))
 			value = ExtendedDateTime(value.year, value.month, value.day,
 									 value.hour, value.minute, value.second)
-		valuesCache[name] = value
+		skeletonValues.accessedValues[name] = value
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		for key in [x for x in rawFilter.keys() if x.startswith(name)]:

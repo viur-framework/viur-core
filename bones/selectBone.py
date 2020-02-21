@@ -57,7 +57,7 @@ class selectBone(baseBone):
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")]
 		# single case
 		if not self.multiple:
-			for key in self.values.keys():
+			for key in self.values:
 				if str(key) == str(values):
 					err = self.isInvalid(key)
 					if err:
@@ -93,22 +93,19 @@ class selectBone(baseBone):
 			elif not valuesCache[name]:
 				return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No item selected")]
 
-	def unserialize(self, valuesCache, name, expando):
-		if not self.multiple:
-			return super(selectBone, self).unserialize(valuesCache, name, expando)
+	def unserialize(self, skeletonValues, name):
+		if super().unserialize(skeletonValues, name):
+			if self.multiple and not isinstance(skeletonValues.accessedValues[name], list):
+				skeletonValues.accessedValues[name] = [skeletonValues.accessedValues[name]]
+			elif not self.multiple and isinstance(skeletonValues.accessedValues[name], list):
+				try:
+					skeletonValues.accessedValues[name] = skeletonValues.accessedValues[name][0]
+				except IndexError:  # May be empty
+					pass
+			return True
+		return False
 
-		if name in expando:
-			valuesCache[name] = expando[name]
-
-			if not valuesCache[name]:
-				valuesCache[name] = []
-		else:
-			valuesCache[name] = []
-
-		return True
-
-
-	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
+	def buildDBFilter__(self, name, skel, dbFilter, rawFilter, prefix=None):
 		"""
 			Parses the searchfilter a client specified in his Request into
 			something understood by the datastore.

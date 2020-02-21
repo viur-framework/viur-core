@@ -5,26 +5,25 @@ from typing import List
 import copy
 
 
-
 class recordBone(baseBone):
 	type = "record"
 
-	def __init__(self, using, format=None, multiple=True, *args, **kwargs):
+	def __init__(self, using, format=None, multiple=True, indexed=False, *args, **kwargs):
 		super(recordBone, self).__init__(multiple=multiple, *args, **kwargs)
 
 		self.using = using
 		self.format = format
-		if not format or not multiple:
-			NotImplemented("A recordBone must be multiple and must have a format set")
+		if not format or indexed or not multiple:
+			raise NotImplementedError("A recordBone must not be indexed, must be multiple and must have a format set")
 
-		if getSystemInitialized():
-			self._usingSkelCache = using()
-		else:
-			self._usingSkelCache = None
+		#if getSystemInitialized():
+		#	self._usingSkelCache = using()
+		#else:
+		#	self._usingSkelCache = None
 
 	def setSystemInitialized(self):
 		super(recordBone, self).setSystemInitialized()
-		self._usingSkelCache = self.using()
+		#self._usingSkelCache = self.using()
 
 	def _restoreValueFromDatastore(self, val):
 		"""
@@ -37,53 +36,48 @@ class recordBone(baseBone):
 		value = val
 		assert isinstance(value, dict), "Read something from the datastore thats not a dict: %s" % str(type(value))
 
-		usingSkel = self._usingSkelCache
+		usingSkel = self.using()
 		usingSkel.setValuesCache({})
 		usingSkel.unserialize(value)
 		return usingSkel.getValuesCache()
 
-	def unserialize(self, valuesCache, name, expando):
-		if name not in expando:
-			valuesCache[name] = None
-			return True
-
-		val = expando[name]
-
-		if self.multiple:
-			valuesCache[name] = []
-
+	def unserialize(self, skeletonValues, name):
+		if name not in skeletonValues.entity:
+			return False
+		val = skeletonValues.entity[name]
+		skeletonValues.accessedValues[name] = []
 		if not val:
 			return True
-
 		if isinstance(val, list):
 			for res in val:
 				try:
-					valuesCache[name].append(self._restoreValueFromDatastore(res))
+					skeletonValues.accessedValues[name].append(self._restoreValueFromDatastore(res))
 				except:
 					raise
 		else:
 			try:
-				valuesCache[name].append(self._restoreValueFromDatastore(val))
+				skeletonValues.accessedValues[name].append(self._restoreValueFromDatastore(val))
 			except:
 				raise
 
 		return True
 
-	def serialize(self, valuesCache, name, entity):
-		if not valuesCache[name]:
-			entity[name] = None
-
-		else:
-			usingSkel = self._usingSkelCache
-			res = []
-
-			for val in valuesCache[name]:
-				usingSkel.setValuesCache(val)
-				res.append(usingSkel.serialize())
-
-			entity.set(name, res, False)
-
-		return entity
+	def serialize(self, skeletonValues, name):
+		if name in skeletonValues.accessedValues:
+			value = skeletonValues.accessedValues[name]
+			print("xxxxx")
+			print(value)
+			if not value:
+				skeletonValues.entity[name] = []
+			else:
+				usingSkel = self.using()
+				res = []
+				for val in value:
+					usingSkel.setValuesCache(val)
+					res.append(usingSkel.serialize())
+				skeletonValues.entity[name] = res
+			return True
+		return False
 
 	def fromClient(self, valuesCache, name, data):
 		#return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Not yet fixed")]
@@ -141,8 +135,9 @@ class recordBone(baseBone):
 		errors = []
 
 		for i, r in enumerate(tmpList[:]):
-			usingSkel = self._usingSkelCache
-			usingSkel.setValuesCache({"entity": {}, "changedValues": {}})
+			usingSkel = self.using()
+			#usingSkel.setValuesCache(Skeletccc)
+			usingSkel.unserialize({})
 
 			if not usingSkel.fromClient(r):
 				for error in usingSkel.errors:
@@ -172,6 +167,7 @@ class recordBone(baseBone):
 		if errors:
 			return errors
 
+
 	def setBoneValue(self, valuesCache, boneName, value, append):
 		if not isinstance(value, self.using):
 			raise ValueError("value (=%r) must be of type %r" % (type(value), self.using))
@@ -196,9 +192,9 @@ class recordBone(baseBone):
 
 		if not value:
 			return res
-
+		uskel = self.using()
 		for val in value:
-			res = getValues(res, self._usingSkelCache, val)
+			res = getValues(res, uskel, val)
 
 		return res
 
@@ -213,31 +209,31 @@ class recordBone(baseBone):
 
 		if not value:
 			return res
-
+		uskel = self.using()
 		for idx, val in enumerate(value):
-			getValues(res, self._usingSkelCache, val, "%s%s_%s" % (prefix, name, str(idx)))
+			getValues(res, uskel, val, "%s%s_%s" % (prefix, name, str(idx)))
 
 		return res
 
-	def getReferencedBlobs(self, valuesCache, name):
-		def blobsFromSkel(skel, valuesCache):
+	def getReferencedBlobs(self, skel, name):
+		def blobsFromSkel(relSkel, valuesCache):
 			blobList = set()
-			for key, _bone in skel.items():
-				blobList.update(_bone.getReferencedBlobs(valuesCache, key))
+			for key, _bone in relSkel.items():
+				blobList.update(_bone.getReferencedBlobs(relSkel, key))
 			return blobList
 
 		res = set()
-		value = valuesCache.get(name)
+		value = skel[name]
 
 		if not value:
 			return res
-
+		uskel = self.using()
 		if isinstance(value, list):
 			for val in value:
-				res.update(blobsFromSkel(self._usingSkelCache, val))
+				res.update(blobsFromSkel(uskel, val))
 
 		elif isinstance(value, dict):
-			res.update(blobsFromSkel(self._usingSkelCache, value))
+			res.update(blobsFromSkel(uskel, value))
 
 		return res
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from viur.core import utils, request, conf, prototypes, securitykey, errors, db
-from viur.core.skeleton import Skeleton, RelSkel
+from viur.core.skeleton import Skeleton, RelSkel, BaseSkeleton
 from viur.core.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
 from viur.core.render.html.wrap import ListWrapper, SkelListWrapper
 import urllib, urllib.parse
@@ -12,6 +12,7 @@ from collections import OrderedDict
 import string
 import logging
 import os
+from typing import List
 
 
 @jinjaGlobalFunction
@@ -309,6 +310,8 @@ def getList(render, module, skel="viewSkel", _noEmptyFilter=False, *args, **kwar
 	if query is None:
 		return None
 	mylist = query.fetch()
+	mylist.renderPreparation = render.renderBoneValue
+	return mylist
 	return SkelListWrapper([render.collectSkelData(x) for x in mylist], mylist)
 
 
@@ -615,14 +618,27 @@ def embedSvg(self, name):
 
 @jinjaGlobalFunction
 def downloadUrlFor(render, fileObj, derived=None, expires=timedelta(hours=1)):
-	if not isinstance(fileObj, dict) or not "dlkey" in fileObj or not "name" in fileObj:
+	if not isinstance(fileObj, (BaseSkeleton, dict)) or "dlkey" not in fileObj or "name" not in fileObj:
 		return None
-	if derived and (not "derived" in fileObj or not isinstance(fileObj["derived"], dict) or not derived in fileObj["derived"]):
+	if derived and ("derived" not in fileObj or not isinstance(fileObj["derived"], dict)):
 		return None
 	if derived:
 		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=derived, derived=True, expires=expires)
 	else:
 		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileObj["name"], derived=False, expires=expires)
+
+@jinjaGlobalFunction
+def srcSetFor(render, fileObj, expires=timedelta(hours=1)):
+	if not isinstance(fileObj, (BaseSkeleton, dict)) or not "dlkey" in fileObj or "derived" not in fileObj:
+		return None
+	if not isinstance(fileObj["derived"], dict):
+		return ""
+	resList = []
+	for fileName, deriviation in fileObj["derived"].items():
+		params = deriviation["params"]
+		if params.get("group") == "srcset":
+			resList.append("%s %sw" % (utils.downloadUrlFor(fileObj["dlkey"], fileName, True, expires), params["width"]))
+	return ", ".join(resList)
 
 @jinjaGlobalFunction
 def seoUrlForEntry(render, *args, **kwargs):
@@ -631,3 +647,11 @@ def seoUrlForEntry(render, *args, **kwargs):
 @jinjaGlobalFunction
 def seoUrlToFunction(render, *args, **kwargs):
 	return utils.seoUrlToFunction(*args, **kwargs)
+
+@jinjaGlobalFilter
+def inflate(render, value: SkelListWrapper) -> List:
+	origSkelList = value
+	newList = []
+	for skel in origSkelList:
+		newList.append(skel.shallowClone())
+	return newList
