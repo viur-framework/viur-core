@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 import json
 from collections import OrderedDict
-from viur.core import errors, request, bones, utils
-from viur.core.skeleton import RefSkel, skeletonByKind, BaseSkeleton
-import logging
+
+from viur.core import bones, request, utils
+from viur.core.i18n import translate
+from viur.core.skeleton import BaseSkeleton, RefSkel, skeletonByKind
+
 
 class DefaultRender(object):
 
@@ -30,7 +32,7 @@ class DefaultRender(object):
 			"descr": str(bone.descr),
 			"type": bone.type,
 			"required": bone.required,
-			"params": bone.params,
+			"params": self.preprocessParams(bone.params),
 			"visible": bone.visible,
 			"readonly": bone.readOnly,
 			"unique": bone.unique.method.value if bone.unique else False
@@ -241,6 +243,21 @@ class DefaultRender(object):
 
 		request.current.get().response.headers["Content-Type"] = "application/json"
 		return json.dumps(res)
+
+	def preprocessParams(self, params):
+		"""
+		Translate params to support multilingual categories and tooltips.
+		:param params: Params dictionary which values should be translated. If we get no dictionary, we do nothing.
+		:type params: dict
+		:return: Params dictionary with translated values.
+		:rtype: dict
+		"""
+
+		if not isinstance(params, dict):
+			return params
+
+		return {key: (str(translate(value)) if key in ["category", "tooltip"] else value)
+				for key, value in params.items()}
 
 	def view(self, skel, action="view", params=None, *args, **kwargs):
 		return self.renderEntry(skel, action, params)
