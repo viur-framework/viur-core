@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 from collections import OrderedDict
+from typing import Dict
 
 from viur.core import bones, request, utils
 from viur.core.i18n import translate
@@ -244,13 +245,11 @@ class DefaultRender(object):
 		request.current.get().response.headers["Content-Type"] = "application/json"
 		return json.dumps(res)
 
-	def preprocessParams(self, params):
+	def preprocessParams(self, params: Dict) -> Dict:
 		"""
 		Translate params to support multilingual categories and tooltips.
 		:param params: Params dictionary which values should be translated. If we get no dictionary, we do nothing.
-		:type params: dict
 		:return: Params dictionary with translated values.
-		:rtype: dict
 		"""
 
 		if not isinstance(params, dict):
