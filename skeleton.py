@@ -30,16 +30,20 @@ class MetaBaseSkel(type):
 
 	def __init__(cls, name, bases, dct):
 		boneMap = {}
-		for key in cls.__dict__:
-			prop = getattr(cls, key)
-			if isinstance(prop, baseBone):
-				if "." in key:
-					raise AttributeError("Invalid bone '%s': Bone keys may not contain a dot (.)" % key)
-				if key in MetaBaseSkel.__reservedKeywords_:
-					raise AttributeError("Invalid bone '%s': Bone cannot have any of the following names: %s" %
-										 (key, str(MetaBaseSkel.__reservedKeywords_)))
-
-				boneMap[key] = prop
+		def fillBoneMapRecursive(inCls):
+			for key in inCls.__dict__:
+				prop = getattr(inCls, key)
+				if isinstance(prop, baseBone):
+					if "." in key:
+						raise AttributeError("Invalid bone '%s': Bone keys may not contain a dot (.)" % key)
+					if key in MetaBaseSkel.__reservedKeywords_:
+						raise AttributeError("Invalid bone '%s': Bone cannot have any of the following names: %s" %
+											 (key, str(MetaBaseSkel.__reservedKeywords_)))
+					boneMap[key] = prop
+			for baseCls in inCls.__bases__:
+				if "__viurBaseSkeletonMarker__" in dir(baseCls):
+					fillBoneMapRecursive(baseCls)
+		fillBoneMapRecursive(cls)
 		cls.__boneMap__ = boneMap
 		MetaBaseSkel._allSkelClasses.add(cls)
 		super(MetaBaseSkel, cls).__init__(name, bases, dct)
@@ -90,6 +94,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		:ivar changedate: The date and time of the last change to this entity.
 		:vartype changedate: server.bones.dateBone
 	"""
+	__viurBaseSkeletonMarker__ = True
 	boneMap = None
 
 	def items(self):
