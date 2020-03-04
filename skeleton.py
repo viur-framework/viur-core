@@ -30,7 +30,7 @@ class MetaBaseSkel(type):
 
 	def __init__(cls, name, bases, dct):
 		boneMap = {}
-		for key in dir(cls):
+		for key in cls.__dict__:
 			prop = getattr(cls, key)
 			if isinstance(prop, baseBone):
 				if "." in key:
