@@ -25,7 +25,7 @@ class randomSliceBone(baseBone):
 		self.slices = slices
 		self.sliceSize = sliceSize
 
-	def serialize(self, skeletonValues, name):
+	def serialize(self, skel, name):
 		"""
 			Serializes this bone into something we
 			can write into the datastore.
@@ -37,7 +37,7 @@ class randomSliceBone(baseBone):
 			:type name: str
 			:returns: dict
 		"""
-		skeletonValues.entity[name] = random
+		skel.dbEntity[name] = random
 		return True
 
 	def buildDBSort(self, name, skel, dbFilter, rawFilter):

@@ -16,7 +16,7 @@ class booleanBone(baseBone):
 		assert defaultValue in [True, False]
 		super(booleanBone, self).__init__(defaultValue=defaultValue, *args, **kwargs)
 
-	def fromClient(self, valuesCache, name, data):
+	def fromClient(self, skel, name, data):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -40,7 +40,7 @@ class booleanBone(baseBone):
 			value = False
 		err = self.isInvalid(value)
 		if not err:
-			valuesCache[name] = value
+			skel[name] = value
 			return False
 		else:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, err)]

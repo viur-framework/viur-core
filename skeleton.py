@@ -8,6 +8,7 @@ from collections import OrderedDict
 from time import time
 import inspect, os, sys, logging, copy
 from typing import Union, Dict, List, Callable
+from functools import partial
 
 try:
 	import pytz
@@ -66,11 +67,81 @@ def iterAllSkelClasses():
 		yield cls
 
 
-class SkeletonValues(object):
-	__slots__ = ["entity", "accessedValues", "renderAccessedValues"]
 
-	def __init__(self, entity=None):
-		self.entity = entity
+class SkeletonInstance:
+	__slots__ = {"dbEntity", "accessedValues", "renderAccessedValues", "boneMap", "errors", "skeletonCls", "renderPreparation"}
+
+	def __init__(self, skelCls):
+		self.boneMap = skelCls.__boneMap__.copy()
+		self.dbEntity = None
+		self.accessedValues = {}
+		self.renderAccessedValues = {}
+		self.errors = []
+		self.skeletonCls = skelCls
+		self.renderPreparation = None
+
+	def items(self):
+		yield from self.boneMap.items()
+
+	def keys(self):
+		yield from self.boneMap.keys()
+
+	def values(self):
+		yield from self.boneMap.values()
+
+	def __contains__(self, item):
+		return item in self.boneMap
+
+	def __setitem__(self, key, value):
+		assert self.renderPreparation is None, "Cannot modify values while rendering"
+		if isinstance(value, baseBone):
+			raise AttributeError("Don't assign this bone object as skel[\"%s\"] = ... anymore to the skeleton. "
+								 "Use skel.%s = ... for bone to skeleton assignment!" % (key, key))
+		# elif isinstance(value, db.Key):
+		#	value = str(value[1])
+		self.accessedValues[key] = value
+
+	def __getitem__(self, key):
+		if self.renderPreparation:
+			if key in self.renderAccessedValues:
+				return self.renderAccessedValues[key]
+		if key not in self.accessedValues:
+			boneInstance = self.boneMap.get(key, None)
+			if boneInstance:
+				if self.dbEntity is not None:
+					boneInstance.unserialize(self, key)
+				else:
+					self.accessedValues[key] = boneInstance.getDefaultValue()
+		if not self.renderPreparation:
+			return self.accessedValues.get(key)
+		value = self.renderPreparation(getattr(self, key), self, key, self.accessedValues.get(key))
+		self.renderAccessedValues[key] = value
+		return value
+
+	def __delitem__(self, key):
+		raise NotImplementedError  # FIXME: Does delitem still make sense?
+		if key in self.valuesCache.accessedValues:
+			del self.valuesCache.accessedValues[key]
+		if key in self.valuesCache.entity:
+			del self.valuesCache.entity[key]
+
+	def __getattr__(self, item):
+		if item in {"kindName", "interBoneValidations", "customDatabaseAdapter"}:
+			return getattr(self.skeletonCls, item)
+		if item in {"fromDB", "toDB", "all", "unserialize", "serialize", "fromClient", "getCurrentSEOKeys", "preProcessSerializedData", "preProcessBlobLocks", "postSavedHandler"}:
+			return partial(getattr(self.skeletonCls, item), self)
+		return self.boneMap[item]
+
+	def clone(self):
+		res = SkeletonInstance(self.skeletonCls)
+		res.boneMap = copy.deepcopy(self.boneMap)
+		for k, v in res.boneMap.items():
+			v.isClonedInstance = True
+		return res
+		#return copy.deepcopy(self)
+
+	def setEntity(self, entity: db.Entity):
+		self.dbEntity = entity
 		self.accessedValues = {}
 		self.renderAccessedValues = {}
 
@@ -372,7 +443,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		for key, _bone in self.items():
 			if _bone.readOnly:
 				continue
-			errors = _bone.fromClient(self.valuesCache.accessedValues, key, data)
+			errors = _bone.fromClient(self, key, data)
 			if errors:
 				self.errors.extend(errors)
 				for error in errors:
@@ -400,6 +471,9 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 			self[key]  # Ensure value gets loaded
 			if "refresh" in dir(bone):
 				bone.refresh(self.valuesCache, key, self)
+
+	def __new__(cls, *args, **kwargs):
+		return SkeletonInstance(cls)
 
 
 class MetaSkel(MetaBaseSkel):
@@ -556,7 +630,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		:return:
 		"""
 		# Load data into this skeleton
-		complete = super(Skeleton, self).fromClient(data)
+		complete = BaseSkeleton.fromClient(self, data)
 
 		# Check if all unique values are available
 		for boneName, boneInstance in self.items():
@@ -606,7 +680,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		dbRes = db.Get(dbKey)
 		if dbRes is None:
 			return False
-		self.setValues(dbRes)
+		self.setEntity(dbRes)
 		# key = str(dbRes.key())
 		self["key"] = dbKey
 		return True
@@ -631,7 +705,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
 		def txnUpdate(dbKey, mergeFrom, clearUpdateTag):
 			blobList = set()
-			skel = type(mergeFrom)()
+			skel = skeletonByKind(mergeFrom.kindName)()
 			changeList = []
 
 			# Load the current values from Datastore or create a new, empty db.Entity
@@ -641,7 +715,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				dbObj = db.Entity(newKey)
 				oldCopy = {}
 				dbObj["viur"] = {}
-				skel.valuesCache.entity = dbObj
+				skel.dbEntity = dbObj
 				oldBlobLockObj = None
 				isAdd = True
 			else:
@@ -651,9 +725,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				if not dbObj:
 					dbObj = db.Entity(dbKey)
 					oldCopy = {}
-					skel.valuesCache.entity = dbObj
+					skel.dbEntity = dbObj
 				else:
-					skel.setValues(dbObj)
+					skel.setEntity(dbObj)
 					oldCopy = {k: v for k, v in dbObj.items()}
 				oldBlobLockObj = db.Get(db.Key("viur-blob-locks", dbKey.id_or_name))
 				isAdd = False
@@ -661,7 +735,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				dbObj["viur"] = {}
 			# Merge values and assemble unique properties
 			# Move accessed Values from srcSkel over to skel
-			skel.valuesCache.accessedValues = mergeFrom.valuesCache.accessedValues
+			skel.accessedValues = mergeFrom.accessedValues
 			for key, bone in skel.items():
 				if key == "key":  # Explicitly skip key on top-level - this had been set above
 					continue
@@ -672,9 +746,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 						oldUniqueValues = dbObj["viur"]["%s_uniqueIndexValue" % key]
 
 				# Merge the values from mergeFrom in
-				if key in skel.valuesCache.accessedValues:
+				if key in skel.accessedValues:
 					# bone.mergeFrom(skel.valuesCache, key, mergeFrom)
-					bone.serialize(skel.valuesCache, key)
+					bone.serialize(skel, key)
 
 				## Serialize bone into entity
 				# dbObj = bone.serialize(skel.valuesCache, key, dbObj)
@@ -840,7 +914,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
 		# Allow bones to perform outstanding "magic" operations before saving to db
 		for bkey, _bone in self.items():
-			_bone.performMagic(self.valuesCache, bkey, isAdd=isAdd)
+			_bone.performMagic(self, bkey, isAdd=isAdd)
 
 		# Run our SaveTxn
 		if db.IsInTransaction():
@@ -1018,12 +1092,12 @@ class RelSkel(BaseSkeleton):
 
 	def serialize(self):
 		for key, _bone in self.items():
-			if key in self.valuesCache.accessedValues:
-				_bone.serialize(self.valuesCache, key)
+			if key in self.accessedValues:
+				_bone.serialize(self, key)
 		# if "key" in self:  # Write the key seperatly, as the base-bone doesn't store it
 		#	dbObj["key"] = self["key"]
 		# FIXME: is this a good idea? Any other way to ensure only bones present in refKeys are serialized?
-		return self.valuesCache.entity
+		return self.dbEntity
 		#return {k: v for k, v in self.valuesCache.entity.items() if k in self.__boneNames__}
 
 	def unserialize(self, values):
@@ -1034,7 +1108,9 @@ class RelSkel(BaseSkeleton):
 			:type values: dict | db.Entry
 			:return:
 		"""
-		self.valuesCache = SkeletonValues(values)
+		self.dbEntity = values
+		self.accessedValues = {}
+		self.renderAccessedValues = {}
 		#self.valuesCache = {"entity": values, "changedValues": {}, "cachedRenderValues": {}}
 		return
 		for bkey, _bone in self.items():
@@ -1108,13 +1184,13 @@ class SkelList(list):
 		self.renderPreparation = None
 		self.customQueryInfo = {}
 
-	def __iter__(self):
+	def no__iter__(self):
 		for cacheItem in super(SkelList, self).__iter__():
 			self.baseSkel.setValuesCache(cacheItem)
 			self.baseSkel.renderPreparation = self.renderPreparation
 			yield self.baseSkel
 
-	def pop(self, index=None):
+	def nopop(self, index=None):
 		item = super(SkelList, self).pop(index)
 		self.baseSkel.setValuesCache(item)
 		self.baseSkel.renderPreparation = self.renderPreparation

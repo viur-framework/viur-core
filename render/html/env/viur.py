@@ -310,10 +310,10 @@ def getList(render, module, skel="viewSkel", _noEmptyFilter=False, *args, **kwar
 	if query is None:
 		return None
 	mylist = query.fetch()
-	mylist.renderPreparation = render.renderBoneValue
+	if mylist:
+		for skel in mylist:
+			skel.renderPreparation = render.renderBoneValue
 	return mylist
-	return SkelListWrapper([render.collectSkelData(x) for x in mylist], mylist)
-
 
 @jinjaGlobalFunction
 def getSecurityKey(render, **kwargs):

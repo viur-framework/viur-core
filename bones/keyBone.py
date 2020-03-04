@@ -11,7 +11,7 @@ class keyBone(baseBone):
 		super(keyBone, self).__init__(descr=descr, readOnly=True, visible=visible, defaultValue=None, **kwargs)
 
 
-	def unserialize(self, skeletonValues: 'viur.core.skeleton.SkeletonValues', name: str) -> bool:
+	def unserialize(self, skel: 'viur.core.skeleton.SkeletonValues', name: str) -> bool:
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -22,11 +22,11 @@ class keyBone(baseBone):
 			:type expando: db.Entity
 			:returns: bool
 		"""
-		if name=="key" and isinstance(skeletonValues.entity, Entity) and skeletonValues.entity.key and not skeletonValues.entity.key.is_partial:
-			skeletonValues.accessedValues[name] = skeletonValues.entity.key
+		if name=="key" and isinstance(skel.dbEntity, Entity) and skel.dbEntity.key and not skel.dbEntity.key.is_partial:
+			skel.accessedValues[name] = skel.dbEntity.key
 			return True
-		elif name in skeletonValues.entity:
-			val = skeletonValues.entity[name]
+		elif name in skel.dbEntity:
+			val = skel.dbEntity[name]
 			if isinstance(val, str):
 				try:
 					val = normalizeKey(KeyClass.from_legacy_urlsafe(val))
@@ -34,11 +34,11 @@ class keyBone(baseBone):
 					val = None
 			elif not isinstance(val, KeyClass):
 				val = None
-			skeletonValues.accessedValues[name] = val
+			skel.accessedValues[name] = val
 			return True
 		return False
 
-	def serialize(self, skeletonValues, name) -> bool:
+	def serialize(self, skel, name) -> bool:
 		"""
 			Serializes this bone into something we
 			can write into the datastore.
@@ -47,11 +47,11 @@ class keyBone(baseBone):
 			:type name: str
 			:returns: dict
 		"""
-		if name in skeletonValues.accessedValues:
+		if name in skel.accessedValues:
 			if name == "key":
-				skeletonValues.entity.key = skeletonValues.accessedValues["key"]
+				skel.dbEntity.key = skel.accessedValues["key"]
 			else:
-				skeletonValues.entity[name] = skeletonValues.accessedValues[name]
+				skel.dbEntity[name] = skel.accessedValues[name]
 			return True
 		return False
 

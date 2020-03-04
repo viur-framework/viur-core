@@ -28,9 +28,9 @@ conf["viur.file.hmacKey"] = hashlib.sha3_384(
 
 
 class injectStoreURLBone(baseBone):
-	def unserialize(self, skeletonValues, name):
-		if "dlkey" in skeletonValues.entity and "name" in skeletonValues.entity:
-			skeletonValues.accessedValues[name] = utils.downloadUrlFor(skeletonValues.entity["dlkey"], skeletonValues.entity["name"], derived=False)
+	def unserialize(self, skel, name):
+		if "dlkey" in skel.dbEntity and "name" in skel.dbEntity:
+			skel.accessedValues[name] = utils.downloadUrlFor(skel.dbEntity["dlkey"], skel.dbEntity["name"], derived=False)
 			return True
 		return False
 

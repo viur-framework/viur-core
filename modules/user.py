@@ -56,10 +56,11 @@ class userSkel(Skeleton):
 	)
 
 	# Generic properties
-	access = selectAccessBone(
+	access = selectBone(
 		descr=u"Access rights",
 		values={"root": "Superuser"},
-		indexed=True
+		indexed=True,
+		multiple=True
 	)
 	status = selectBone(
 		descr=u"Account status",

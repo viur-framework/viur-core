@@ -68,47 +68,47 @@ class stringBone(baseBone):
 			else:
 				self.defaultValue = ""
 
-	def serialize(self, skeletonValues, name):
-		if name in skeletonValues.accessedValues:
-			for k in list(skeletonValues.entity.keys()):  # Remove any old data
+	def serialize(self, skel, name):
+		if name in skel.accessedValues:
+			for k in list(skel.dbEntity.keys()):  # Remove any old data
 				if k.startswith("%s." % name) or k.startswith("%s_" % name) or k == name:
-					del skeletonValues.entity[k]
+					del skel.dbEntity[k]
 			if not self.languages:
 				if self.caseSensitive:
-					return super().serialize(skeletonValues, name)
+					return super().serialize(skel, name)
 				else:
-					skeletonValues.entity[name] = skeletonValues.accessedValues[name]
-					if skeletonValues.entity[name] is None:
-						skeletonValues.entity[name + "_idx"] = None
-					elif isinstance(skeletonValues.entity[name], list):
-						skeletonValues.entity[name + "_idx"] = [str(x).lower() for x in skeletonValues.entity[name]]
+					skel.dbEntity[name] = skel.accessedValues[name]
+					if skel.dbEntity[name] is None:
+						skel.dbEntity[name + "_idx"] = None
+					elif isinstance(skel.dbEntity[name], list):
+						skel.dbEntity[name + "_idx"] = [str(x).lower() for x in skel.dbEntity[name]]
 					else:
-						skeletonValues.entity[name + "_idx"] = str(skeletonValues.entity[name]).lower()
+						skel.dbEntity[name + "_idx"] = str(skel.dbEntity[name]).lower()
 			else:  # Write each language separately
-				if not skeletonValues.accessedValues[name]:
+				if not skel.accessedValues[name]:
 					return True  # Bail out here, we've deleted all our keys above from the entry
-				if isinstance(skeletonValues.accessedValues[name], str) or (
-						isinstance(skeletonValues.accessedValues[name], list) and self.multiple):  # Convert from old format
+				if isinstance(skel.accessedValues[name], str) or (
+						isinstance(skel.accessedValues[name], list) and self.multiple):  # Convert from old format
 					lang = self.languages[0]
-					skeletonValues.entity["%s_%s" % (name, lang)] = skeletonValues.accessedValues[name]
+					skel.dbEntity["%s_%s" % (name, lang)] = skel.accessedValues[name]
 					if not self.caseSensitive:
-						if isinstance(skeletonValues.accessedValues[name], str):
-							skeletonValues.entity["%s_%s_idx" % (name, lang)] = skeletonValues.accessedValues[name].lower()
+						if isinstance(skel.accessedValues[name], str):
+							skel.dbEntity["%s_%s_idx" % (name, lang)] = skel.accessedValues[name].lower()
 						else:
-							skeletonValues.entity["%s_%s_idx" % (name, lang)] = [x.lower for x in skeletonValues.accessedValues[name]]
+							skel.dbEntity["%s_%s_idx" % (name, lang)] = [x.lower for x in skel.accessedValues[name]]
 					# Fill in None for all remaining languages (needed for sort!)
 					for lang in self.languages[1:]:
-						skeletonValues.entity["%s_%s" % (name, lang)] = ""
+						skel.dbEntity["%s_%s" % (name, lang)] = ""
 						if not self.caseSensitive:
-							skeletonValues.entity["%s_%s_idx" % (name, lang)] = ""
+							skel.dbEntity["%s_%s_idx" % (name, lang)] = ""
 				else:
-					assert isinstance(skeletonValues.accessedValues[name], dict)
-					skeletonValues.entity[name] = skeletonValues.accessedValues[name]
+					assert isinstance(skel.accessedValues[name], dict)
+					skel.dbEntity[name] = skel.accessedValues[name]
 					if not self.caseSensitive:
 						if self.multiple:
-							skeletonValues.entity["%s_idx" % name] = {k: [x.lower() for x in v] for k, v in skeletonValues.accessedValues[name].items()}
+							skel.dbEntity["%s_idx" % name] = {k: [x.lower() for x in v] for k, v in skel.accessedValues[name].items()}
 						else:
-							skeletonValues.entity["%s_idx" % name] = {k: v.lower() for k, v in skeletonValues.accessedValues[name].items()}
+							skel.dbEntity["%s_idx" % name] = {k: v.lower() for k, v in skel.accessedValues[name].items()}
 				# FIXME:
 				#	# Fill in None for all remaining languages (needed for sort!)
 				#	entity["%s_%s" % (name, lang)] = ""
@@ -117,7 +117,7 @@ class stringBone(baseBone):
 			return True
 		return False
 
-	def unserialize(self, skeletonValues, name):
+	def unserialize(self, skel, name):
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -141,33 +141,33 @@ class stringBone(baseBone):
 					if k in self.languages:
 						res[k] = v
 			return res
-		if name in skeletonValues.entity:
+		if name in skel.dbEntity:
 			if not self.languages:
-				skeletonValues.accessedValues[name] = skeletonValues.entity[name]
+				skel.accessedValues[name] = skel.dbEntity[name]
 			else:
-				skeletonValues.accessedValues[name] = LanguageWrapper(self.languages)
-				storedVal = skeletonValues.entity[name]
+				skel.accessedValues[name] = LanguageWrapper(self.languages)
+				storedVal = skel.dbEntity[name]
 				if isinstance(storedVal, dict):
-					skeletonValues.accessedValues[name].update(storedVal)
+					skel.accessedValues[name].update(storedVal)
 				else:
-					oldData = _parseFromOldFormat(skeletonValues.entity)
+					oldData = _parseFromOldFormat(skel.dbEntity)
 					if oldData:
-						skeletonValues.accessedValues[name].update(oldData)
+						skel.accessedValues[name].update(oldData)
 				# FIXME:
-				if isinstance(skeletonValues.accessedValues[name], list) and not self.multiple:
-					skeletonValues.accessedValues[name] = ", ".join(skeletonValues.accessedValues[name])
+				if isinstance(skel.accessedValues[name], list) and not self.multiple:
+					skel.accessedValues[name] = ", ".join(skel.accessedValues[name])
 				elif isinstance(storedVal, str):  # Old (non-multi-lang) format
-					skeletonValues.accessedValues[name][self.languages[0]] = storedVal
+					skel.accessedValues[name][self.languages[0]] = storedVal
 			return True
 		elif self.languages:
-			oldData = _parseFromOldFormat(skeletonValues.entity)
+			oldData = _parseFromOldFormat(skel.dbEntity)
 			if oldData:
-				skeletonValues.accessedValues[name] = LanguageWrapper(self.languages)
-				skeletonValues.accessedValues[name].update(oldData)
+				skel.accessedValues[name] = LanguageWrapper(self.languages)
+				skel.accessedValues[name].update(oldData)
 				return True
 		return False
 
-	def fromClient(self, valuesCache, name, data):
+	def fromClient(self, skel, name, data):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -266,7 +266,7 @@ class stringBone(baseBone):
 				errors.append(
 					ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No rawValue entered")
 				)
-		valuesCache[name] = res
+		skel[name] = res
 		if errors:
 			return errors
 

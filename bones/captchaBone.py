@@ -18,14 +18,14 @@ class captchaBone(bone.baseBone):
 		self.required = True
 		self.hasDBField = False
 
-	def serialize(self, skeletonValues, name) -> bool:
+	def serialize(self, skel, name) -> bool:
 		return False
 
-	def unserialize(self, skeletonValues, name) -> bool:
-		skeletonValues.accessedValues[name] = self.publicKey
+	def unserialize(self, skel, name) -> bool:
+		skel.accessedValues[name] = self.publicKey
 		return True
 
-	def fromClient(self, valuesCache, name, data):
+	def fromClient(self, skel, name, data):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,

@@ -36,7 +36,7 @@ class numericBone(baseBone):
 		self.min = min
 		self.max = max
 
-	def fromClient(self, valuesCache, name, data):
+	def fromClient(self, skel, name, data):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -76,23 +76,23 @@ class numericBone(baseBone):
 		err = self.isInvalid(value)
 		if err:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
-		valuesCache[name] = value
+		skel[name] = value
 
 
-	def unserialize(self, skeletonValues, name):
-		if name in skeletonValues.entity:
-			value = skeletonValues.entity[name]
+	def unserialize(self, skel, name):
+		if name in skel.dbEntity:
+			value = skel.dbEntity[name]
 			isType = type(value)
 			if self.precision:
 				shouldType = float
 			else:
 				shouldType = int
 			if isType == shouldType:
-				skeletonValues.accessedValues[name] = value
+				skel.accessedValues[name] = value
 			elif isType == int or isType == float:
-				skeletonValues.accessedValues[name] = shouldType(value)
+				skel.accessedValues[name] = shouldType(value)
 			elif isType == str and str(value).replace(".", "", 1).lstrip("-").isdigit():
-				skeletonValues.accessedValues[name] = shouldType(value)
+				skel.accessedValues[name] = shouldType(value)
 			else:
 				return False
 			return True

@@ -228,9 +228,9 @@ class dateBone(baseBone):
 			res = utc.normalize(res.astimezone(utc))
 		return (res)
 
-	def serialize(self, skeletonValues, name) -> bool:
-		if name in skeletonValues.accessedValues:
-			res = skeletonValues.accessedValues[name]
+	def serialize(self, skel, name) -> bool:
+		if name in skel.accessedValues:
+			res = skel.accessedValues[name]
 			if res:
 				res = self.readLocalized(datetime.now().strptime(res.strftime("%d.%m.%Y %H:%M:%S"), "%d.%m.%Y %H:%M:%S"))
 					# Crop unwanted values to zero
@@ -238,26 +238,26 @@ class dateBone(baseBone):
 					res = res.replace(hour=0, minute=0, second=0, microsecond=0)
 				elif not self.date:
 					res = res.replace(year=1970, month=1, day=1)
-			skeletonValues.entity[name] = res
+				skel.dbEntity[name] = res
 			return True
 		return False
 
-	def unserialize(self, skeletonValues, name) -> bool:
-		if name in skeletonValues.entity:
-			value = skeletonValues.entity[name]
+	def unserialize(self, skel, name) -> bool:
+		if name in skel.dbEntity:
+			value = skel.dbEntity[name]
 			if value and (isinstance(value, float) or isinstance(value, int)):
 				if self.date:
-					self.setLocalized(skeletonValues, name, ExtendedDateTime.fromtimestamp(value))
+					self.setLocalized(skel, name, ExtendedDateTime.fromtimestamp(value))
 				else:
 					# FIXME! Seconds?
-					skeletonValues.accessedValues[name] = time(hour=int(value / 60), minute=int(value % 60))
+					skel.accessedValues[name] = time(hour=int(value / 60), minute=int(value % 60))
 			elif isinstance(value, datetime):
-				self.setLocalized(skeletonValues, name,
+				self.setLocalized(skel, name,
 								  ExtendedDateTime.now().strptime(value.strftime("%d.%m.%Y %H:%M:%S"),
 																  "%d.%m.%Y %H:%M:%S"))
 			else:
 				# We got garbarge from the datastore
-				skeletonValues.accessedValues[name] = None
+				skel.accessedValues[name] = None
 			return True
 		return False
 

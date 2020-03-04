@@ -772,16 +772,27 @@ class Query(object):
 		if amount < 1 or amount > 100:
 			raise NotImplementedError(
 				"This query is not limited! You must specify an upper bound using limit() between 1 and 100")
-		from viur.core.skeleton import SkelList
-		res = SkelList(self.srcSkel)
 		dbRes = self.run(amount)
-		res.customQueryInfo = self.customQueryInfo
 		if dbRes is None:
-			return res
+			return None
+		from viur.core.skeleton import SkeletonInstance, SkelList
+		res = SkelList(self.srcSkel)
 		for e in dbRes:
-			self.srcSkel.setValues(e)  # This will reset it's internal valuesCache to a fresh dict
-			res.append(self.srcSkel.getValuesCache())
-		res.getCursor = lambda: self.getCursor(True)
+			skelInstance = SkeletonInstance(self.srcSkel.skeletonCls)
+			skelInstance.boneMap = self.srcSkel.boneMap
+			skelInstance.setEntity(e)
+			res.append(skelInstance)
+		return res
+		from viur.core.skeleton import SkelList
+		#res = SkelList(self.srcSkel)
+		#dbRes = self.run(amount)
+		#res.customQueryInfo = self.customQueryInfo
+		#if dbRes is None:
+		#	return res
+		#for e in dbRes:
+		#	self.srcSkel.setValues(e)  # This will reset it's internal valuesCache to a fresh dict
+		#	res.append(self.srcSkel.getValuesCache())
+		#res.getCursor = lambda: self.getCursor(True)
 		return res
 
 	def iter(self, keysOnly=False):

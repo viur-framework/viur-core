@@ -99,7 +99,7 @@ class spatialBone(baseBone):
 			else:
 				return False
 
-	def serialize(self, skeletonValues, name):
+	def serialize(self, skel, name):
 		"""
 			Serializes this bone into something we
 			can write into the datastore.
@@ -108,15 +108,15 @@ class spatialBone(baseBone):
 			:type name: str
 			:returns: dict
 		"""
-		if name in skeletonValues.accessedValues:
-			if not skeletonValues.accessedValues[name]:
-				skeletonValues.entity[name] = None
+		if name in skel.accessedValues:
+			if not skel.accessedValues[name]:
+				skel.dbEntity[name] = None
 				return True
-			lat, lng = skeletonValues.accessedValues[name]
+			lat, lng = skel.accessedValues[name]
 			gridSizeLat, gridSizeLng = self.getGridSize()
 			tileLat = int(floor((lat - self.boundsLat[0]) / gridSizeLat))
 			tileLng = int(floor((lng - self.boundsLng[0]) / gridSizeLng))
-			skeletonValues.entity[name] = {
+			skel.dbEntity[name] = {
 				"coordinates": {
 					"lat": lat,
 					"lng": lng,
@@ -129,7 +129,7 @@ class spatialBone(baseBone):
 			return True
 		return False
 
-	def unserialize(self, skeletonValues, name):
+	def unserialize(self, skel, name):
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -140,16 +140,16 @@ class spatialBone(baseBone):
 			:type expando: db.Entity
 			:returns: bool
 		"""
-		if name in skeletonValues.entity:
-			myVal = skeletonValues.entity[name]
+		if name in skel.dbEntity:
+			myVal = skel.dbEntity[name]
 			if myVal:
-				skeletonValues.accessedValues[name] = myVal["coordinates"]["lat"], myVal["coordinates"]["lng"]
+				skel.accessedValues[name] = myVal["coordinates"]["lat"], myVal["coordinates"]["lng"]
 			else:
-				skeletonValues.accessedValues[name] = None
+				skel.accessedValues[name] = None
 			return True
 		return False
 
-	def fromClient( self, valuesCache, name, data ):
+	def fromClient( self, skel, name, data ):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -183,7 +183,7 @@ class spatialBone(baseBone):
 		err = self.isInvalid((rawLat, rawLng))
 		if err:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
-		valuesCache[name] = (rawLat, rawLng)
+		skel[name] = (rawLat, rawLng)
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		"""

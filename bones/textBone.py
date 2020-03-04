@@ -230,7 +230,7 @@ class textBone(baseBone):
 			else:
 				self.defaultValue = ""
 
-	def serialize(self, skeletonValues, name):
+	def serialize(self, skel, name):
 		"""
 			Fills this bone with user generated content
 
@@ -240,24 +240,24 @@ class textBone(baseBone):
 			:type entity: :class:`server.db.Entity`
 			:return: the modified :class:`server.db.Entity`
 		"""
-		if name in skeletonValues.accessedValues:
+		if name in skel.accessedValues:
 			if self.languages:
-				for k in list(skeletonValues.entity.keys()):  # Remove any old data
+				for k in list(skel.dbEntity.keys()):  # Remove any old data
 					if k.startswith("%s." % name) or k.startswith("%s_" % name) or k == name:
-						del skeletonValues.entity[k]
+						del skel.dbEntity[k]
 				for lang in self.languages:
-					if isinstance(skeletonValues.accessedValues[name], dict) and lang in skeletonValues.accessedValues[name]:
-						val = skeletonValues.accessedValues[name][lang]
+					if isinstance(skel.accessedValues[name], dict) and lang in skel.accessedValues[name]:
+						val = skel.accessedValues[name][lang]
 						if not val or (not HtmlSerializer().sanitize(val).strip() and not "<img " in val):
 							# This text is empty (ie. it might contain only an empty <p> tag
 							continue
-						skeletonValues.entity["%s_%s" % (name, lang)] = val
+						skel.dbEntity["%s_%s" % (name, lang)] = val
 			else:
-				skeletonValues.entity[name] = skeletonValues.accessedValues[name]
+				skel.dbEntity[name] = skel.accessedValues[name]
 			return True
 		return False
 
-	def unserialize(self, skeletonValues, name):
+	def unserialize(self, skel, name):
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -269,24 +269,24 @@ class textBone(baseBone):
 			:type expando: :class:`db.Entity`
 		"""
 		if not self.languages:
-			if name in skeletonValues.entity:
-				skeletonValues.accessedValues[name] = skeletonValues.entity[name]
+			if name in skel.dbEntity:
+				skel.accessedValues[name] = skel.dbEntity[name]
 				return True
 		else:
-			skeletonValues.accessedValues[name] = LanguageWrapper(self.languages)
-			if name in skeletonValues.entity and isinstance(skeletonValues.entity[name], dict):
-				skeletonValues.accessedValues[name].update(skeletonValues.entity[name])
+			skel.accessedValues[name] = LanguageWrapper(self.languages)
+			if name in skel.dbEntity and isinstance(skel.dbEntity[name], dict):
+				skel.accessedValues[name].update(skel.dbEntity[name])
 			else:
 				for lang in self.languages:
-					if "%s_%s" % (name, lang) in skeletonValues.entity:
-						skeletonValues.accessedValues[name][lang] = skeletonValues.entity["%s_%s" % (name, lang)]
+					if "%s_%s" % (name, lang) in skel.dbEntity:
+						skel.accessedValues[name][lang] = skel.dbEntity["%s_%s" % (name, lang)]
 						return True
-				if not skeletonValues.accessedValues[name].keys():  # Got nothing
-					if name in skeletonValues.entity:  # Old (non-multi-lang) format
-						skeletonValues.accessedValues[name][self.languages[0]] = skeletonValues.entity[name]
+				if not skel.accessedValues[name].keys():  # Got nothing
+					if name in skel.dbEntity:  # Old (non-multi-lang) format
+						skel.accessedValues[name][self.languages[0]] = skel.dbEntity[name]
 					for lang in self.languages:
-						if not lang in skeletonValues.accessedValues[name] and "%s_%s" % (name, lang) in skeletonValues.entity:
-							skeletonValues.accessedValues[name][lang] = skeletonValues.entity["%s_%s" % (name, lang)]
+						if not lang in skel.accessedValues[name] and "%s_%s" % (name, lang) in skel.dbEntity:
+							skel.accessedValues[name][lang] = skel.dbEntity["%s_%s" % (name, lang)]
 			return True
 		return False
 

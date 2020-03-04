@@ -16,7 +16,7 @@ class TreeLeafSkel(Skeleton):
 	parentrepo = keyBone(descr="BaseRepo", indexed=True)
 
 	def fromDB(self, *args, **kwargs):
-		res = super(TreeLeafSkel, self).fromDB(*args, **kwargs)
+		res = Skeleton.fromDB(self, *args, **kwargs)
 
 		# Heal missing parent-repo values
 		if res and not self["parentrepo"]:

@@ -16,12 +16,12 @@ class credentialBone(stringBone):
 		if self.multiple or self.languages:
 			raise ValueError("Credential-Bones cannot be multiple or translated!")
 
-	def serialize(self, skeletonValues, name) -> bool:
+	def serialize(self, skel, name) -> bool:
 		"""
 			Update the value only if a new value is supplied.
 		"""
-		if name in skeletonValues.accessedValues and skeletonValues.accessedValues[name]:
-			skeletonValues.entity[name] = skeletonValues.accessedValues[name]
+		if name in skel.accessedValues and skel.accessedValues[name]:
+			skel.dbEntity[name] = skel.accessedValues[name]
 			return True
 		return False
 

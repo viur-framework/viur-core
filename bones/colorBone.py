@@ -12,7 +12,7 @@ class colorBone(baseBone):
 		assert mode in {"rgb", "rgba"}
 		self.mode = mode
 
-	def fromClient(self, valuesCache, name, data):
+	def fromClient(self, skel, name, data):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -57,4 +57,4 @@ class colorBone(baseBone):
 		err = self.isInvalid(value)
 		if err:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
-		valuesCache[name] = value
+		skel[name] = value

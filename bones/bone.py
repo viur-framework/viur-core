@@ -164,7 +164,7 @@ class baseBone(object):  # One Bone:
 		if value == None:
 			return "No value entered"
 
-	def serialize(self, skeletonValues, name) -> bool:
+	def serialize(self, skel, name) -> bool:
 		"""
 			Serializes this bone into something we
 			can write into the datastore.
@@ -173,12 +173,12 @@ class baseBone(object):  # One Bone:
 			:type name: str
 			:returns: dict
 		"""
-		if name in skeletonValues.accessedValues:
-			skeletonValues.entity[name] = skeletonValues.accessedValues[name]
+		if name in skel.accessedValues:
+			skel.dbEntity[name] = skel.accessedValues[name]
 			return True
 		return False
 
-	def unserialize(self, skeletonValues: 'viur.core.skeleton.SkeletonValues', name: str) -> bool:
+	def unserialize(self, skel: 'viur.core.skeleton.SkeletonValues', name: str) -> bool:
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -189,8 +189,8 @@ class baseBone(object):  # One Bone:
 			:type expando: db.Entity
 			:returns: bool
 		"""
-		if name in skeletonValues.entity:
-			skeletonValues.accessedValues[name] = skeletonValues.entity[name]
+		if name in skel.dbEntity:
+			skel.accessedValues[name] = skel.dbEntity[name]
 			return True
 		return False
 

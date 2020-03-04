@@ -41,50 +41,47 @@ class recordBone(baseBone):
 		usingSkel.unserialize(value)
 		return usingSkel.getValuesCache()
 
-	def unserialize(self, skeletonValues, name):
-		if name not in skeletonValues.entity:
+	def unserialize(self, skel, name):
+		if name not in skel.dbEntity:
 			return False
-		val = skeletonValues.entity[name]
-		skeletonValues.accessedValues[name] = []
+		val = skel.dbEntity[name]
+		skel.accessedValues[name] = []
 		if not val:
 			return True
 		if isinstance(val, list):
 			for res in val:
 				try:
-					skeletonValues.accessedValues[name].append(self._restoreValueFromDatastore(res))
+					skel.accessedValues[name].append(self._restoreValueFromDatastore(res))
 				except:
 					raise
 		else:
 			try:
-				skeletonValues.accessedValues[name].append(self._restoreValueFromDatastore(val))
+				skel.accessedValues[name].append(self._restoreValueFromDatastore(val))
 			except:
 				raise
-
 		return True
 
-	def serialize(self, skeletonValues, name):
-		if name in skeletonValues.accessedValues:
-			value = skeletonValues.accessedValues[name]
-			print("xxxxx")
-			print(value)
+	def serialize(self, skel, name):
+		if name in skel.accessedValues:
+			value = skel.accessedValues[name]
 			if not value:
-				skeletonValues.entity[name] = []
+				skel.dbEntity[name] = []
 			else:
 				usingSkel = self.using()
 				res = []
 				for val in value:
 					usingSkel.setValuesCache(val)
 					res.append(usingSkel.serialize())
-				skeletonValues.entity[name] = res
+				skel.dbEntity[name] = res
 			return True
 		return False
 
-	def fromClient(self, valuesCache, name, data):
+	def fromClient(self, skel, name, data):
 		#return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Not yet fixed")]
 		if not name in data and not any(x.startswith("%s." % name) for x in data):
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
 
-		valuesCache[name] = []
+		skel[name] = []
 		tmpRes = {}
 
 		clientPrefix = "%s." % name
@@ -157,7 +154,7 @@ class recordBone(baseBone):
 			else:
 				cleanList.append(item)
 
-		valuesCache[name] = tmpList
+		skel[name] = tmpList
 
 		if not cleanList:
 			errors.append(
