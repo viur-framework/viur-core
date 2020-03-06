@@ -74,18 +74,19 @@ class fileBone(treeItemBone):
 		if val is None:
 			return []
 		elif isinstance(val, dict):
-			return [val["dest"].entity["dlkey"]]
+			return [val["dest"]["dlkey"]]
 		elif isinstance(val, list):
-			return [x["dest"].entity["dlkey"] for x in val]
+			return [x["dest"]["dlkey"] for x in val]
 		else:
 			logging.critical("Unknown value for bone %s (%s)" % (name, str(type(val))))
 			return []
 			raise ValueError("Unknown value for bone %s (%s)" % (name, str(type(val))))
 
-	def refresh(self, valuesCache, boneName, skel):
+	def refresh(self, skel, boneName):
 		"""
 			Refresh all values we might have cached from other entities.
 		"""
+		return
 		"""
 		def updateInplace(relDict):
 			if isinstance(relDict, dict) and "dest" in relDict:

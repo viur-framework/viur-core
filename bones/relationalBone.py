@@ -428,7 +428,7 @@ class relationalBone(baseBone):
 		errors = []
 		forceFail = False
 		if not tmpList and self.required:
-			return "No value selected!"
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "Field not submitted")]
 		for r in tmpList[:]:
 			_refSkelCache, _usingSkelCache = self._getSkels()
 			# Rebuild the referenced entity data
@@ -791,67 +791,31 @@ class relationalBone(baseBone):
 						res.append("src.%s" % orderKey)
 		return (res)
 
-	def refresh(self, valuesCache, boneName, skel):
+	def refresh(self, skel, boneName):
 		"""
 			Refresh all values we might have cached from other entities.
 		"""
-		import logging
-		logging.error("REFRESH CURRENTLY DISABLED")
-		return
-
 		def updateInplace(relDict):
 			"""
 				Fetches the entity referenced by valDict["dest.key"] and updates all dest.* keys
 				accordingly
 			"""
-			if isinstance(relDict, dict) and "dest" in relDict:
-				valDict = relDict["dest"]
-			else:
+			if not (isinstance(relDict, dict) and "dest" in relDict):
 				logging.error("Invalid dictionary in updateInplace: %s" % relDict)
 				return
-
-			if "key" in valDict and valDict["key"]:
-				originalKey = valDict["key"]
-			else:
-				logging.error("Invalid dictionary in updateInplace: %s" % valDict)
+			newValues = db.Get(db.keyHelper(relDict["dest"]["key"], self.kind))
+			if newValues is None:
+				logging.info("The key %s does not exist" % relDict["dest"]["key"])
 				return
+			relDict["dest"].dbEntity = newValues
 
-			entityKey = originalKey
-			if originalKey != entityKey:
-				logging.info("Rewriting %s to %s" % (originalKey, entityKey))
-				valDict["key"] = entityKey
-
-			# Try to update referenced values;
-			# If the entity does not exist with this key, ignore
-			# (key was overidden above to have a new appid when transferred).
-			newValues = None
-
-			try:
-				newValues = db.Get((self.kind, entityKey))
-				assert newValues is not None
-			except db.EntityNotFoundError:
-				# This entity has been deleted
-				logging.info("The key %s does not exist" % entityKey)
-			except:
-				raise
-
-			if newValues:
-				for key in self._refSkelCache.keys():
-					if key == "key":
-						continue
-
-					getattr(self._refSkelCache, key).unserialize(valDict, key, newValues)
-
-		if not valuesCache[boneName] or self.updateLevel == 2:
+		if not skel[boneName] or self.updateLevel == 2:
 			return
-
 		logging.debug("Refreshing relationalBone %s of %s" % (boneName, skel.kindName))
-
-		if isinstance(valuesCache[boneName], dict):
-			updateInplace(valuesCache[boneName])
-
-		elif isinstance(valuesCache[boneName], list):
-			for k in valuesCache[boneName]:
+		if isinstance(skel[boneName], dict):
+			updateInplace(skel[boneName])
+		elif isinstance(skel[boneName], list):
+			for k in skel[boneName]:
 				updateInplace(k)
 
 	def getSearchTags(self, values, key):
@@ -914,7 +878,7 @@ class relationalBone(baseBone):
 
 		return res
 
-	def setBoneValue(self, valuesCache, boneName, value, append, *args, **kwargs):
+	def setBoneValue(self, skel, boneName, value, append, *args, **kwargs):
 		"""
 			Set our value to 'value'.
 			Santy-Checks are performed; if the value is invalid, we flip our value back to its original
@@ -983,21 +947,20 @@ class relationalBone(baseBone):
 			relSkel = relSkelFromKey(realValue[0])
 			if not relSkel:
 				return False
-			valuesCache[boneName] = {"dest": relSkel.getValuesCache(),
-									 "rel": realValue[1].getValuesCache() if realValue[1] else None}
+			skel[boneName] = {"dest": relSkel, "rel": realValue[1] if realValue[1] else None}
 		else:
 			tmpRes = []
 			for val in realValue:
 				relSkel = relSkelFromKey(val[0])
 				if not relSkel:
 					return False
-				tmpRes.append({"dest": relSkel.getValuesCache(), "rel": val[1].getValuesCache() if val[1] else None})
+				tmpRes.append({"dest": relSkel, "rel": val[1] if val[1] else None})
 			if append:
-				if boneName not in valuesCache or not isinstance(valuesCache[boneName], list):
-					valuesCache[boneName] = []
-				valuesCache[boneName].extend(tmpRes)
+				if boneName not in skel or not isinstance(skel[boneName], list):
+					skel[boneName] = []
+				skel[boneName].extend(tmpRes)
 			else:
-				valuesCache[boneName] = tmpRes
+				skel[boneName] = tmpRes
 		return True
 
 	def getReferencedBlobs(self, skel, name):

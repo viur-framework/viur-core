@@ -340,8 +340,7 @@ class Query(object):
 					raise ValueError("Value must be list or tuple if using IN filter!")
 				for val in value:
 					newFilter = {k: v for k, v in origFilter.items()}
-					op = "=" if op.lower() == "in" else "AC"
-					newFilter["%s %s" % (field, op)] = val
+					newFilter["%s =" % field] = val
 					self.filters.append(newFilter)
 		else:
 			if isinstance(self.filters, list):

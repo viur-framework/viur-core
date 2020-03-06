@@ -45,7 +45,7 @@ class booleanBone(baseBone):
 		else:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, err)]
 
-	def refresh(self, skeletonValues, name, skel) -> None:
+	def refresh(self, skel, name) -> None:
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -57,7 +57,8 @@ class booleanBone(baseBone):
 			:type expando: :class:`db.Entity`
 			:returns: bool
 		"""
-		super().refresh(skeletonValues, name, skel)
+		super().refresh(skel, name)
+		return
 		if name in skeletonValues.accessedValues:
 			val = skeletonValues.accessedValues[name]
 			if str(val) in self.trueStrs:

@@ -131,7 +131,7 @@ class baseBone(object):  # One Bone:
 			raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
 		super(baseBone, self).__setattr__(key, value)
 
-	def fromClient(self, valuesCache: dict, name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
+	def fromClient(self, skel: 'SkeletonValues', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -151,7 +151,7 @@ class baseBone(object):  # One Bone:
 		value = data[name]
 		err = self.isInvalid(value)
 		if not err:
-			valuesCache[name] = value
+			skel[name] = value
 			return None
 		else:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, err)]
@@ -373,7 +373,7 @@ class baseBone(object):  # One Bone:
 		"""
 		pass
 
-	def refresh(self, skeletonValues, boneName, skel) -> None:
+	def refresh(self, skel, boneName) -> None:
 		"""
 			Refresh all values we might have cached from other entities.
 		"""
@@ -391,7 +391,7 @@ class baseBone(object):  # One Bone:
 			return
 		valuesCache[boneName] = copy.deepcopy(otherSkel.valuesCache.get(boneName, None))
 
-	def setBoneValue(self, valuesCache, boneName, value, append, *args, **kwargs):
+	def setBoneValue(self, skel, boneName, value, append, *args, **kwargs):
 		"""
 			Set our value to 'value'.
 			Santy-Checks are performed; if the value is invalid, we flip our value back to its original
@@ -412,7 +412,7 @@ class baseBone(object):  # One Bone:
 		"""
 		if append:
 			raise ValueError("append is not possible on %s bones" % self.type)
-		res = self.fromClient(valuesCache, boneName, {boneName: value})
+		res = self.fromClient(skel, boneName, {boneName: value})
 		if not res:
 			return True
 		else:

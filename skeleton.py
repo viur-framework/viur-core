@@ -128,7 +128,8 @@ class SkeletonInstance:
 	def __getattr__(self, item):
 		if item in {"kindName", "interBoneValidations", "customDatabaseAdapter"}:
 			return getattr(self.skeletonCls, item)
-		if item in {"fromDB", "toDB", "all", "unserialize", "serialize", "fromClient", "getCurrentSEOKeys", "preProcessSerializedData", "preProcessBlobLocks", "postSavedHandler"}:
+		if item in {"fromDB", "toDB", "all", "unserialize", "serialize", "fromClient", "getCurrentSEOKeys",
+					"preProcessSerializedData", "preProcessBlobLocks", "postSavedHandler", "setBoneValue"}:
 			return partial(getattr(self.skeletonCls, item), self)
 		return self.boneMap[item]
 
@@ -415,7 +416,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		if not isinstance(bone, baseBone):
 			raise ValueError("%s is no valid bone on this skeleton (%s)" % (boneName, str(self)))
 		self[boneName]  # FIXME, ensure this bone is unserialized first
-		return bone.setBoneValue(self.valuesCache.accessedValues, boneName, value, append)
+		return bone.setBoneValue(self, boneName, value, append)
 
 	def fromClient(self, data):
 		"""
@@ -827,7 +828,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					if currentKey != lastRequestedSeoKeys.get(language):  # This one is new or has changed
 						newSeoKey = currentSeoKeys[language]
 						for _ in range(0, 3):
-							entryUsingKey = db.Query(self.kindName).filter("viurActiveSeoKeys AC", newSeoKey).get()
+							entryUsingKey = db.Query(self.kindName).filter("viurActiveSeoKeys =", newSeoKey).get()
 							if entryUsingKey and entryUsingKey.name != dbObj.name:
 								# It's not unique; append a random string and try again
 								newSeoKey = "%s-%s" % (currentSeoKeys[language], utils.generateRandomString(5).lower())
@@ -1074,11 +1075,11 @@ class RelSkel(BaseSkeleton):
 			:returns: True if the data was successfully read; False otherwise (eg. some required fields where missing or invalid)
 		"""
 		complete = True
-		super(BaseSkeleton, self).__setattr__("errors", [])
+		self.errors = []
 		for key, _bone in self.items():
 			if _bone.readOnly:
 				continue
-			errors = _bone.fromClient(self.valuesCache.accessedValues, key, data)
+			errors = _bone.fromClient(self, key, data)
 			if errors:
 				self.errors.extend(errors)
 				for err in errors:
@@ -1087,7 +1088,7 @@ class RelSkel(BaseSkeleton):
 						complete = False
 		if (len(data) == 0 or (len(data) == 1 and "key" in data) or (
 				"nomissing" in data and str(data["nomissing"]) == "1")):
-			super(BaseSkeleton, self).__setattr__("errors", [])
+			self.errors = []
 		return complete
 
 	def serialize(self):
@@ -1231,36 +1232,31 @@ def processRemovedRelations(removedKey, cursor=None):
 
 @callDeferred
 def updateRelations(destID, minChangeTime, changeList, cursor=None):
-	logging.error("Updaterelations currently disabled")
-	return
 	logging.debug("Starting updateRelations for %s ; minChangeTime %s, Changelist: %s", destID, minChangeTime,
 				  changeList)
-	updateListQuery = db.Query("viur-relations").filter("dest.key =", destID) \
+	updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", db.KeyClass.from_legacy_urlsafe(destID)) \
 		.filter("viur_delayed_update_tag <", minChangeTime).filter("viur_relational_updateLevel =", 0)
 	if changeList:
-		updateListQuery.filter("viur_foreign_keys IA", changeList)
+		updateListQuery.filter("viur_foreign_keys IN", changeList)
 	if cursor:
-		updateListQuery.cursor(cursor)
+		updateListQuery.setCursor(cursor)
 	updateList = updateListQuery.run(limit=5)
-
 	def updateTxn(skel, key, srcRelKey):
 		if not skel.fromDB(key):
 			logging.warning("Cannot update stale reference to %s (referenced from %s)" % (key, srcRelKey))
 			return
 		for key, _bone in skel.items():
-			_bone.refresh(skel.valuesCache, key, skel)
+			_bone.refresh(skel, key)
 		skel.toDB(clearUpdateTag=True)
-
 	for srcRel in updateList:
 		try:
 			skel = skeletonByKind(srcRel["viur_src_kind"])()
 		except AssertionError:
 			logging.info("Deleting %s which refers to unknown kind %s" % (str(srcRel.key()), srcRel["viur_src_kind"]))
 			continue
-		db.RunInTransaction(updateTxn, skel, srcRel["src"]["key"], srcRel.name)
-
+		db.RunInTransaction(updateTxn, skel, srcRel["src"]["key"], srcRel.key)
 	if len(updateList) == 5:
-		updateRelations(destID, minChangeTime, changeList, updateListQuery.getCursor().urlsafe())
+		updateRelations(destID, minChangeTime, changeList, updateListQuery.getCursor().urlsafe().decode("ASCII"))
 
 
 @CallableTask
