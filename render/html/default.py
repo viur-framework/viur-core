@@ -7,10 +7,11 @@ from viur.core.skeleton import Skeleton, BaseSkeleton, RefSkel, skeletonByKind, 
 from viur.core.bones import *
 
 from collections import OrderedDict
-from jinja2 import Environment, FileSystemLoader, ChoiceLoader
+from jinja2 import Environment, FileSystemLoader, ChoiceLoader, BytecodeCache
 from viur.core.i18n import translate
 import os, logging, codecs
 from collections import namedtuple
+from viur.core.contextvars import currentRequest, currentSession, currentLanguage
 
 KeyValueWrapper = namedtuple("KeyValueWrapper", ["key", "descr"])
 
@@ -88,13 +89,14 @@ class Render(object):
 			htmlpath = self.htmlpath
 		else:
 			htmlpath = "html"
+		currReq = currentRequest.get()
 		if not ignoreStyle \
-				and "style" in request.current.get().kwargs \
-				and all([x in validChars for x in request.current.get().kwargs["style"].lower()]):
-			stylePostfix = "_" + request.current.get().kwargs["style"]
+				and "style" in currReq.kwargs \
+				and all([x in validChars for x in currReq.kwargs["style"].lower()]):
+			stylePostfix = "_" + currReq.kwargs["style"]
 		else:
 			stylePostfix = ""
-		lang = request.current.get().language  # session.current.getLanguage()
+		lang = currentLanguage.get()  # session.current.getLanguage()
 		fnames = [template + stylePostfix + ".html", template + ".html"]
 		if lang:
 			fnames = [os.path.join(lang, template + stylePostfix + ".html"),
@@ -350,7 +352,7 @@ class Render(object):
 		skel.skey = skeybone
 		skel["skey"] = securitykey.create()
 
-		if "nomissing" in request.current.get().kwargs and request.current.get().kwargs["nomissing"] == "1":
+		if "nomissing" in currentRequest.get().kwargs.get("nomissing") == "1":
 			if isinstance(skel, BaseSkeleton):
 				super(BaseSkeleton, skel).__setattr__("errors", {})
 
@@ -392,7 +394,7 @@ class Render(object):
 		skel.skey = skeybone
 		skel["skey"] = securitykey.create()
 
-		if "nomissing" in request.current.get().kwargs and request.current.get().kwargs["nomissing"] == "1":
+		if "nomissing" in currentRequest.get().kwargs.get("nomissing") == "1":
 			if isinstance(skel, BaseSkeleton):
 				super(BaseSkeleton, skel).__setattr__("errors", {})
 

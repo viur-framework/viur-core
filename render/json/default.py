@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import json
 from collections import OrderedDict
-from viur.core import errors, request, bones, utils
+from viur.core import errors, bones, utils
 from viur.core.skeleton import RefSkel, skeletonByKind, BaseSkeleton, SkeletonInstance
-import logging
+from viur.core.contextvars import currentRequest
 
 class DefaultRender(object):
 
@@ -51,7 +51,7 @@ class DefaultRender(object):
 				"multiple": bone.multiple,
 				"format": bone.format,
 				"using": self.renderSkelStructure(bone.using()) if bone.using else None,
-				"relskel": self.renderSkelStructure(RefSkel.fromSkel(skeletonByKind(bone.kind), *bone.refKeys))
+				"relskel": self.renderSkelStructure(bone._refSkelCache())
 			})
 
 		elif bone.type == "record" or bone.type.startswith("record."):
@@ -236,8 +236,7 @@ class DefaultRender(object):
 			"action": actionName,
 			"params": params
 		}
-
-		request.current.get().response.headers["Content-Type"] = "application/json"
+		currentRequest.get().response.headers["Content-Type"] = "application/json"
 		return json.dumps(res)
 
 	def view(self, skel, action="view", params=None, *args, **kwargs):
@@ -252,12 +251,9 @@ class DefaultRender(object):
 	def list(self, skellist, action="list", params=None, **kwargs):
 		res = {}
 		skels = []
-
 		for skel in skellist:
 			skels.append(self.renderSkelValues(skel))
-
 		res["skellist"] = skels
-
 		if skellist:
 			res["structure"] = self.renderSkelStructure(skellist.baseSkel)
 		else:
@@ -268,8 +264,7 @@ class DefaultRender(object):
 			res["cursor"] = None
 		res["action"] = action
 		res["params"] = params
-
-		request.current.get().response.headers["Content-Type"] = "application/json"
+		currentRequest.get().response.headers["Content-Type"] = "application/json"
 		return json.dumps(res)
 
 	def editItemSuccess(self, skel, params=None, **kwargs):
@@ -282,6 +277,8 @@ class DefaultRender(object):
 		return json.dumps("OKAY")
 
 	def listRootNodes(self, rootNodes, tpl=None, params=None):
+		for rn in rootNodes:
+			rn["key"] = rn["key"].to_legacy_urlsafe().decode("ASCII")
 		return json.dumps(rootNodes)
 
 	def listRootNodeContents(self, subdirs, entrys, tpl=None, params=None, **kwargs):

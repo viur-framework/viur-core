@@ -16,6 +16,7 @@ from base64 import urlsafe_b64decode, urlsafe_b64encode
 from hashlib import sha256
 import email.header
 from typing import Any, Union
+from viur.core.contextvars import currentLanguage
 
 # Determine which ProjectID we currently run in (as the app_identity module isn't available anymore)
 _, projectID = google.auth.default()
@@ -277,8 +278,8 @@ def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
 
 
 def seoUrlToEntry(module, entry=None, skelType=None, language=None):
-	from viur.core import request, conf
-	lang = request.current.get().language
+	from viur.core import conf
+	lang = currentLanguage.get()
 	if module in conf["viur.languageModuleMap"] and lang in conf["viur.languageModuleMap"][module]:
 		module = conf["viur.languageModuleMap"][module][lang]
 	if not entry:
@@ -301,8 +302,8 @@ def seoUrlToEntry(module, entry=None, skelType=None, language=None):
 
 
 def seoUrlToFunction(module, function, render=None):
-	from viur.core import request, conf
-	lang = request.current.get().language
+	from viur.core import conf
+	lang = currentLanguage.get()
 	if module in conf["viur.languageModuleMap"] and lang in conf["viur.languageModuleMap"][module]:
 		module = conf["viur.languageModuleMap"][module][lang]
 	pathComponents = ["", lang]

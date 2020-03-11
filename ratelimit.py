@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #from google.appengine.api import memcache
-from viur.core import request, utils
+from viur.core import utils
+from viur.core.contextvars import currentRequest
 from datetime import datetime
 
 
@@ -47,7 +48,7 @@ class RateLimit(object):
 			assert user, "Cannot decrement usage from guest!"
 			return user["key"]
 		else:
-			remoteAddr = request.current.get().request.remote_addr
+			remoteAddr = currentRequest.get().request.remote_addr
 			if "::" in remoteAddr:  # IPv6 in shorted form
 				remoteAddr = remoteAddr.split(":")
 				blankIndex = remoteAddr.index("")

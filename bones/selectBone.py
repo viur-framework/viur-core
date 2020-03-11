@@ -54,6 +54,10 @@ class selectBone(baseBone):
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
 		values = data[name]
 		if not values:
+			if self.multiple:
+				skel[name] = []
+			else:
+				skel[name] = None
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")]
 		# single case
 		if not self.multiple:
@@ -65,13 +69,9 @@ class selectBone(baseBone):
 					skel[name] = key
 					break
 			else:
-				return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "No or invalid value selected")]
+				return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value selected")]
 		# multiple case
 		else:
-			if not values:
-				if not self.required:
-					skel[name] = []
-				return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No item selected")]
 			if not isinstance(values, list):
 				if isinstance(values, str):
 					values = values.split(":")
@@ -91,7 +91,7 @@ class selectBone(baseBone):
 			if errors:
 				return errors
 			elif not skel[name]:
-				return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No item selected")]
+				return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value selected")]
 
 	def unserialize(self, skel, name):
 		if super().unserialize(skel, name):

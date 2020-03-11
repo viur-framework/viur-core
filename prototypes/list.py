@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-from viur.core import utils, session, errors, conf, securitykey, request
+from viur.core import utils, errors, conf, securitykey
 from viur.core import forcePost, forceSSL, exposed, internalExposed
 from viur.core.skeleton import Skeleton
 from viur.core.prototypes import BasicApplication
+from time import time as ttime
+from viur.core.contextvars import currentRequest
 
 import logging
 
@@ -188,29 +190,24 @@ class List(BasicApplication):
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-
 		if "skey" in kwargs:
 			skey = kwargs["skey"]
 		else:
 			skey = ""
-
 		if "key" in kwargs:
 			key = kwargs["key"]
 		elif len(args) == 1:
 			key = args[0]
 		else:
 			raise errors.NotAcceptable()
-
 		skel = self.editSkel()
-
 		if not skel.fromDB(key):
 			raise errors.NotAcceptable()
-
 		if not self.canEdit(skel):
 			raise errors.Unauthorized()
 		if (len(kwargs) == 0  # no data supplied
 				or skey == ""  # no security key
-				or not request.current.get().isPostRequest  # failure if not using POST-method
+				or not currentRequest.get().isPostRequest  # failure if not using POST-method
 				or not skel.fromClient(kwargs)  # failure on reading into the bones
 				or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before changing
 		):
@@ -220,7 +217,6 @@ class List(BasicApplication):
 			raise errors.PreconditionFailed()
 		skel.toDB()  # write it!
 		self.onItemEdited(skel)
-
 		return self.render.editItemSuccess(skel)
 
 	@forceSSL
@@ -248,7 +244,7 @@ class List(BasicApplication):
 		skel = self.addSkel()
 		if (len(kwargs) == 0  # no data supplied
 				or skey == ""  # no skey supplied
-				or not request.current.get().isPostRequest  # failure if not using POST-method
+				or not currentRequest.get().isPostRequest  # failure if not using POST-method
 				or not skel.fromClient(kwargs)  # failure on reading into the bones
 				or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
 		):

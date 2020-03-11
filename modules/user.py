@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from viur.core.prototypes.list import List
 from viur.core.skeleton import Skeleton, RelSkel, skeletonByKind
-from viur.core import utils, session, request
+from viur.core import utils
 from viur.core.bones import *
 from viur.core.bones.bone import UniqueValue, UniqueLockMethod
 from viur.core.bones.passwordBone import pbkdf2
@@ -18,6 +18,8 @@ import json
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from viur.core.i18n import translate
+from viur.core.contextvars import currentRequest, currentSession
+from viur.core.session import killSessionByUser
 
 class userSkel(Skeleton):
 	kindName = "user"
@@ -275,7 +277,7 @@ class UserPassword(object):
 		skel = self.addSkel()
 		if (len(kwargs) == 0  # no data supplied
 				or skey == ""  # no skey supplied
-				or not request.current.get().isPostRequest  # bail out if not using POST-method
+				or not currentRequest.get().isPostRequest  # bail out if not using POST-method
 				or not skel.fromClient(kwargs)  # failure on reading into the bones
 				or ("bounce" in kwargs and kwargs["bounce"] == "1")):  # review before adding
 			# render the skeleton in the version it could as far as it could be read.
@@ -312,7 +314,7 @@ class GoogleAccount(object):
 		if not conf.get("viur.user.google.clientID"):
 			raise errors.PreconditionFailed("Please configure 'viur.user.google.clientID' in your conf!")
 		if not skey or not token:
-			request.current.get().response.headers["Content-Type"] = "text/html"
+			currentRequest.get().response.headers["Content-Type"] = "text/html"
 			# Fixme: Render with Jinja2?
 			tplStr = open("viur/core/template/vi_user_google_login.html", "r").read()
 			tplStr = tplStr.replace("{{ clientID }}", conf["viur.user.google.clientID"])
@@ -381,13 +383,13 @@ class TimeBasedOTP(object):
 		user = db.Get(userKey)
 		if all([(x in user and user[x]) for x in ["otpid", "otpkey"]]):
 			logging.info("OTP wanted for user")
-			session.current["_otp_user"] = {"uid": str(userKey),
+			currentSession.get()["_otp_user"] = {"uid": str(userKey),
 											"otpid": user["otpid"],
 											"otpkey": user["otpkey"],
 											"otptimedrift": user["otptimedrift"],
 											"timestamp": time(),
 											"failures": 0}
-			session.current.markChanged()
+			currentSession.get().markChanged()
 			return self.userModule.render.loginSucceeded(msg="X-VIUR-2FACTOR-TimeBasedOTP")
 
 		return None
@@ -427,7 +429,8 @@ class TimeBasedOTP(object):
 	@exposed
 	@forceSSL
 	def otp(self, otptoken=None, skey=None, *args, **kwargs):
-		token = session.current.get("_otp_user")
+		currSess = currentSession.get()
+		token = currSess.get("_otp_user")
 		if not token:
 			raise errors.Forbidden()
 		if otptoken is None:
@@ -446,10 +449,10 @@ class TimeBasedOTP(object):
 			self.userModule.render.edit(self.otpSkel(), tpl=self.otpTemplate)
 
 		if otptoken in validTokens:
-			userKey = session.current["_otp_user"]["uid"]
+			userKey = currSess["_otp_user"]["uid"]
 
-			del session.current["_otp_user"]
-			session.current.markChanged()
+			del currSess["_otp_user"]
+			currSess.markChanged()
 
 			idx = validTokens.index(int(otptoken))
 
@@ -461,8 +464,8 @@ class TimeBasedOTP(object):
 			return self.userModule.secondFactorSucceeded(self, userKey)
 		else:
 			token["failures"] += 1
-			session.current["_otp_user"] = token
-			session.current.markChanged()
+			currSess["_otp_user"] = token
+			currSess.markChanged()
 			return self.userModule.render.edit(self.otpSkel(), loginFailed=True, tpl=self.otpTemplate)
 
 	def updateTimeDrift(self, userKey, idx):
@@ -579,40 +582,34 @@ class User(List):
 		return getattr(self, "f2_%s" % cls.__name__.lower())
 
 	def getCurrentUser(self, *args, **kwargs):
-		#usr = session.current.get("user")
-		#if not usr:
-		#	session.current["user"] = {"name": "test@adm.de", "access": ["root"], "key": "VektIwimKhgWD2dBp10m"}
-		return session.current.get("user")
+		return currentSession.get().get("user")
 
 	def continueAuthenticationFlow(self, caller, userKey):
-		session.current["_mayBeUserKey"] = str(userKey)
-		session.current["_secondFactorStart"] = datetime.datetime.now()
-		session.current.markChanged()
+		currSess = currentSession.get()
+		currSess["_mayBeUserKey"] = str(userKey)
+		currSess["_secondFactorStart"] = datetime.datetime.now()
+		currSess.markChanged()
 		for authProvider, secondFactor in self.validAuthenticationMethods:
 			if isinstance(caller, authProvider):
 				if secondFactor is None:
 					# We allow sign-in without a second factor
 					return self.authenticateUser(userKey)
-
 				# This Auth-Request was issued from this authenticationProvider
 				secondFactorProvider = self.secondFactorProviderByClass(secondFactor)
-
 				if secondFactorProvider.canHandle(userKey):
 					# We choose the first second factor provider which claims it can verify that user
 					return secondFactorProvider.startProcessing(userKey)
-
 		# Whoops.. This user logged in successfully - but we have no second factor provider willing to confirm it
 		raise errors.NotAcceptable("There are no more authentication methods to try")  # Sorry...
 
 	def secondFactorSucceeded(self, secondFactor, userKey):
+		currSess = currentSession.get()
 		logging.debug("Got SecondFactorSucceeded call from %s." % secondFactor)
-
-		if str(session.current["_mayBeUserKey"]) != str(userKey):
+		if str(currSess["_mayBeUserKey"]) != str(userKey):
 			raise errors.Forbidden()
 		# Assert that the second factor verification finished in time
-		if datetime.datetime.now() - session.current["_secondFactorStart"] > self.secondFactorTimeWindow:
+		if datetime.datetime.now() - currSess["_secondFactorStart"] > self.secondFactorTimeWindow:
 			raise errors.RequestTimeout()
-
 		return self.authenticateUser(userKey)
 
 	def authenticateUser(self, userKey, **kwargs):
@@ -627,34 +624,28 @@ class User(List):
 			:param userKey: The (DB-)Key of the user we shall authenticate
 			:type userKey: db.Key
 		"""
+		currSess = currentSession.get()
 		res = db.Get(userKey)
 		assert res, "Unable to authenticate unknown user %s" % userKey
-
-		oldSession = {k: v for k, v in session.current.items()}  # Store all items in the current session
-		session.current.reset()
-
+		oldSession = {k: v for k, v in currSess.items()}  # Store all items in the current session
+		currSess.reset()
 		# Copy the persistent fields over
 		for k in conf["viur.session.persistentFieldsOnLogin"]:
 			if k in oldSession:
-				session.current[k] = oldSession[k]
-
+				currSess[k] = oldSession[k]
 		del oldSession
-		session.current["user"] = {}
-
+		currSess["user"] = {}
 		for key in ["name", "status", "access"]:
 			try:
-				session.current["user"][key] = res[key]
+				currSess["user"][key] = res[key]
 			except:
 				pass
-
-		session.current["user"]["key"] = userKey
-		if not "access" in session.current["user"] or not session.current["user"]["access"]:
-			session.current["user"]["access"] = []
-
-		session.current.markChanged()
-		request.current.get().response.headers["Sec-X-ViUR-StaticSKey"] = session.current.session.staticSecurityKey
+		currSess["user"]["key"] = userKey
+		if not "access" in currSess["user"] or not currSess["user"]["access"]:
+			currSess["user"]["access"] = []
+		currSess.markChanged()
+		currentRequest.get().response.headers["Sec-X-ViUR-StaticSKey"] = currSess.staticSecurityKey
 		self.onLogin()
-
 		return self.render.loginSucceeded(**kwargs)
 
 	@exposed
@@ -663,31 +654,26 @@ class User(List):
 			Implements the logout action. It also terminates the current session (all keys not listed
 			in viur.session.persistentFieldsOnLogout will be lost).
 		"""
-		user = session.current.get("user")
+		currSess = currentSession.get()
+		user = currSess.get("user")
 		if not user:
 			raise errors.Unauthorized()
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
-
 		self.onLogout(user)
-
-		oldSession = {k: v for k, v in session.current.items()}  # Store all items in the current session
-		session.current.reset()
-
+		oldSession = {k: v for k, v in currSess.items()}  # Store all items in the current session
+		currSess.reset()
 		# Copy the persistent fields over
 		for k in conf["viur.session.persistentFieldsOnLogout"]:
 			if k in oldSession:
-				session.current[k] = oldSession[k]
-
+				currSess[k] = oldSession[k]
 		del oldSession
-
 		return self.render.logoutSuccess()
 
 	@exposed
 	def login(self, *args, **kwargs):
 		authMethods = [(x.getAuthMethodName(), y.get2FactorMethodName() if y else None)
 					   for x, y in self.validAuthenticationMethods]
-
 		return self.render.login(authMethods)
 
 	def onLogin(self):
@@ -699,9 +685,9 @@ class User(List):
 
 	@exposed
 	def edit(self, *args, **kwargs):
-		if len(args) == 0 and not "key" in kwargs and session.current.get("user"):
-			kwargs["key"] = session.current.get("user")["key"]
-
+		currSess = currentSession.get()
+		if len(args) == 0 and not "key" in kwargs and currSess.get("user"):
+			kwargs["key"] = currSess.get("user")["key"]
 		return super(User, self).edit(*args, **kwargs)
 
 	@exposed
@@ -744,7 +730,7 @@ class User(List):
 			Invalidate all sessions of that user
 		"""
 		super(User, self).onItemDeleted(skel)
-		session.killSessionByUser(str(skel["key"]))
+		killSessionByUser(str(skel["key"]))
 
 
 @StartupTask

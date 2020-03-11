@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-from viur.core import db, utils, request, tasks, session
+from viur.core import db, utils, tasks
 from viur.core.config import conf
 from hashlib import sha512
 from datetime import datetime, timedelta
 import logging
 from functools import wraps
+from viur.core.contextvars import currentRequest, currentLanguage
 
 """
 	This module provides a cache, allowing to serve
@@ -76,7 +77,7 @@ def keyFromArgs(f, userSensitive, languageSensitive, evaluatedArgs, path, args, 
 			else:
 				res["__user"] = None
 	if languageSensitive:
-		res["__lang"] = request.current.get().language
+		res["__lang"] = currentLanguage.get()
 	if conf["viur.cacheEnvironmentKey"]:
 		try:
 			res["_cacheEnvironment"] = conf["viur.cacheEnvironmentKey"]()
@@ -84,7 +85,7 @@ def keyFromArgs(f, userSensitive, languageSensitive, evaluatedArgs, path, args, 
 			return None
 	res["__path"] = path  # Different path might have different output (html,xml,..)
 	try:
-		appVersion = request.current.get().request.environ["CURRENT_VERSION_ID"].split('.')[0]
+		appVersion = currentRequest.get().request.environ["CURRENT_VERSION_ID"].split('.')[0]
 	except:
 		appVersion = ""
 		# FIXME
@@ -109,15 +110,15 @@ def wrapCallable(f, urls, userSensitive, languageSensitive, evaluatedArgs, maxCa
 
 	@wraps(f)
 	def wrapF(self, *args, **kwargs):
-		currentRequest = request.current.get()
-		if conf["viur.disableCache"] or currentRequest.disableCache:
+		currReq = currentRequest.get()
+		if conf["viur.disableCache"] or currReq.disableCache:
 			# Caching disabled
 			if conf["viur.disableCache"]:
 				logging.debug("Caching is disabled by config")
 			return (f(self, *args, **kwargs))
 		# How many arguments are part of the way to the function called (and how many are just *args)
-		offset = -len(currentRequest.args) or len(currentRequest.pathlist)
-		path = "/" + "/".join(currentRequest.pathlist[: offset])
+		offset = -len(currReq.args) or len(currReq.pathlist)
+		path = "/" + "/".join(currReq.pathlist[: offset])
 		if not path in urls:
 			# This path (possibly a sub-render) should not be cached
 			logging.debug("Not caching for %s" % path)
@@ -136,7 +137,7 @@ def wrapCallable(f, urls, userSensitive, languageSensitive, evaluatedArgs, maxCa
 					dbRes["creationtime"] > datetime.now() - timedelta(seconds=maxCacheTime):
 				# We store it unlimited or the cache is fresh enough
 				logging.debug("This request was served from cache.")
-				currentRequest.response.headers['Content-Type'] = dbRes["content-type"].encode("UTF-8")
+				currReq.response.headers['Content-Type'] = dbRes["content-type"].encode("UTF-8")
 				return (dbRes["data"])
 		# If we made it this far, the request wasnt cached or too old; we need to rebuild it
 		res = f(self, *args, **kwargs)
@@ -144,12 +145,11 @@ def wrapCallable(f, urls, userSensitive, languageSensitive, evaluatedArgs, maxCa
 		dbEntity["data"] = res
 		dbEntity["creationtime"] = datetime.now()
 		dbEntity["path"] = path
-		dbEntity["content-type"] = request.current.get().response.headers['Content-Type']
+		dbEntity["content-type"] = currReq.response.headers['Content-Type']
 		dbEntity.set_unindexed_properties(["data", "content-type"])  # We can save 2 DB-Writs :)
 		db.Put(dbEntity)
 		logging.debug("This request was a cache-miss. Cache has been updated.")
-		return (res)
-
+		return res
 	return wrapF
 
 

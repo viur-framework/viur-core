@@ -178,7 +178,7 @@ class baseBone(object):  # One Bone:
 			return True
 		return False
 
-	def unserialize(self, skel: 'viur.core.skeleton.SkeletonValues', name: str) -> bool:
+	def unserialize(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> bool:
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -193,6 +193,15 @@ class baseBone(object):  # One Bone:
 			skel.accessedValues[name] = skel.dbEntity[name]
 			return True
 		return False
+
+	def delete(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+		"""
+			Like postDeletedHandler, but runs inside the transaction
+		:param skel:
+		:param name:
+		:return:
+		"""
+		pass
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		"""

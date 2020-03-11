@@ -11,6 +11,7 @@ from viur.core.prototypes.hierarchy import HierarchySkel
 from viur.core.prototypes.tree import TreeLeafSkel
 from viur.core.render.json.default import DefaultRender
 from viur.core.modules.file import decodeFileName
+from viur.core.contextvars import currentRequest
 #from google.appengine.api import datastore, datastore_types, urlfetch
 #from google.appengine.ext import blobstore
 #from google.appengine.ext.blobstore import BlobInfo
@@ -85,7 +86,7 @@ class DbTransfer(object):
 
 		"""
 		uploads = collections.defaultdict(list)
-		for key, value in request.current.get().request.params.items():
+		for key, value in currentRequest.get().request.params.items():
 			if isinstance(value, cgi.FieldStorage):
 				if 'blob-key' in value.type_options:
 					uploads[key].append(blobstore.parse_blob_info(value))

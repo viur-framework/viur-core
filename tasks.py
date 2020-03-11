@@ -11,6 +11,7 @@ import os, sys
 from google.cloud import tasks_v2
 from google.protobuf import timestamp_pb2
 from typing import Dict, List, Callable
+from viur.core.contextvars import currentRequest, currentSession
 
 _gaeApp = os.environ.get("GAE_APPLICATION")
 regionMap = {  # FIXME! Can we even determine the region like this?
@@ -112,11 +113,10 @@ class TaskHandler:
 		"""
 			This catches one defered call and routes it to its destination
 		"""
-		from viur.core import session
 		from viur.core import utils
 		global _deferedTasks, _appengineServiceIPs
 
-		req = request.current.get().request
+		req = currentRequest.get().request
 		if 'X-AppEngine-TaskName' not in req.headers:
 			logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
 			raise errors.Forbidden()
@@ -139,9 +139,9 @@ class TaskHandler:
 			funcPath, args, kwargs = data
 		if env:
 			if "user" in env and env["user"]:
-				session.current["user"] = env["user"]
+				currentSession.get()["user"] = env["user"]
 			if "lang" in env and env["lang"]:
-				request.current.get().language = env["lang"]
+				currentRequest.get().language = env["lang"]
 			if "transactionMarker" in env:
 				marker = db.Get(("viur-transactionmarker", env["transactionMarker"]))
 				if not marker:
@@ -190,7 +190,7 @@ class TaskHandler:
 		# logging.debug("Starting maintenance-run")
 		# checkUpdate()  # Let the update-module verify the database layout first
 		# logging.debug("Updatecheck complete")
-		req = request.current.get()
+		req = currentRequest.get()
 		if not req.isDevServer:
 			if 'X-Appengine-Cron' not in req.request.headers:
 				logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Cron" was not set.')
@@ -330,7 +330,7 @@ def callDeferred(func):
 
 		from viur.core.utils import getCurrentUser
 		try:
-			req = request.current.get()
+			req = currentRequest.get()
 		except:  # This will fail for warmup requests
 			req = None
 		if req is not None and req.request.headers.get("X-Appengine-Taskretrycount") and not "DEFERED_TASK_CALLED" in dir(req):
@@ -366,7 +366,7 @@ def callDeferred(func):
 							   "name": usr["name"],
 							   "access": usr["access"]}
 			try:
-				env["lang"] = request.current.get().language
+				env["lang"] = currentRequest.get().language
 			except AttributeError:  # This isn't originating from a normal request
 				pass
 			if db.IsInTransaction():

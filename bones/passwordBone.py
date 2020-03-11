@@ -91,6 +91,8 @@ class passwordBone(stringBone):
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
 		value = data.get(name)
 		if not value:
+			# Password-Bone is special: As it cannot be read don't set back no None if no value is given
+			# This means an once set password can only be changed - but never deleted.
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value entered")]
 		err = self.isInvalid(value)
 		if err:

@@ -13,6 +13,7 @@ import string
 import logging
 import os
 from typing import List
+from viur.core.contextvars import currentSession, currentRequest, currentLanguage
 
 
 @jinjaGlobalFunction
@@ -34,17 +35,14 @@ def execRequest(render, path, *args, **kwargs):
 		del kwargs["cachetime"]
 	else:
 		cachetime = 0
-
-	if conf["viur.disableCache"] or request.current.get().disableCache:  # Caching disabled by config
+	if conf["viur.disableCache"] or currentRequest.get().disableCache:  # Caching disabled by config
 		cachetime = 0
-
 	cacheEnvKey = None
 	if conf["viur.cacheEnvironmentKey"]:
 		try:
 			cacheEnvKey = conf["viur.cacheEnvironmentKey"]()
 		except RuntimeError:
 			cachetime = 0
-
 	if cachetime:
 		# Calculate the cache key that entry would be stored under
 		tmpList = ["%s:%s" % (str(k), str(v)) for k, v in kwargs.items()]
@@ -53,64 +51,54 @@ def execRequest(render, path, *args, **kwargs):
 		tmpList.append(path)
 		if cacheEnvKey is not None:
 			tmpList.append(cacheEnvKey)
-
 		try:
-			appVersion = request.current.get().request.environ["CURRENT_VERSION_ID"].split('.')[0]
+			appVersion = currentRequest.get().request.environ["CURRENT_VERSION_ID"].split('.')[0]
 		except:
 			appVersion = ""
 			logging.error("Could not determine the current application id! Caching might produce unexpected results!")
-
 		tmpList.append(appVersion)
 		mysha512 = sha512()
 		mysha512.update(str(tmpList).encode("UTF8"))
 		cacheKey = "jinja2_cache_%s" % mysha512.hexdigest()
 		res = None  # memcache.get(cacheKey)
-
 		if res:
 			return res
-
-	currentRequest = request.current.get()
-	tmp_params = currentRequest.kwargs.copy()
-	currentRequest.kwargs = {"__args": args, "__outer": tmp_params}
-	currentRequest.kwargs.update(kwargs)
-	lastRequestState = currentRequest.internalRequest
-	currentRequest.internalRequest = True
+	currReq = currentRequest.get()
+	tmp_params = currReq.kwargs.copy()
+	currReq.kwargs = {"__args": args, "__outer": tmp_params}
+	currReq.kwargs.update(kwargs)
+	lastRequestState = currReq.internalRequest
+	currReq.internalRequest = True
 	caller = conf["viur.mainApp"]
 	pathlist = path.split("/")
-
 	for currpath in pathlist:
 		if currpath in dir(caller):
 			caller = getattr(caller, currpath)
 		elif "index" in dir(caller) and hasattr(getattr(caller, "index"), '__call__'):
 			caller = getattr(caller, "index")
 		else:
-			currentRequest.kwargs = tmp_params  # Reset RequestParams
-			currentRequest.internalRequest = lastRequestState
+			currReq.kwargs = tmp_params  # Reset RequestParams
+			currReq.internalRequest = lastRequestState
 			return (u"Path not found %s (failed Part was %s)" % (path, currpath))
-
 	if (not hasattr(caller, '__call__')
 			or ((not "exposed" in dir(caller)
 				 or not caller.exposed))
 			and (not "internalExposed" in dir(caller)
 				 or not caller.internalExposed)):
-		currentRequest.kwargs = tmp_params  # Reset RequestParams
-		currentRequest.internalRequest = lastRequestState
+		currReq.kwargs = tmp_params  # Reset RequestParams
+		currReq.internalRequest = lastRequestState
 		return (u"%s not callable or not exposed" % str(caller))
-
 	try:
 		resstr = caller(*args, **kwargs)
 	except Exception as e:
 		logging.error("Caught execption in execRequest while calling %s" % path)
 		logging.exception(e)
 		raise
-
-	currentRequest.kwargs = tmp_params
-	currentRequest.internalRequest = lastRequestState
-
+	currReq.kwargs = tmp_params
+	currReq.internalRequest = lastRequestState
 	if cachetime:
 		pass
 		#memcache.set(cacheKey, resstr, cachetime)
-
 	return resstr
 
 
@@ -211,12 +199,10 @@ def getHostUrl(render, forceSSL=False, *args, **kwargs):
 	:returns: Returns the hostname, including the currently used protocol, e.g: http://www.example.com
 	:rtype: str
 	"""
-	url = request.current.get().request.url
+	url = currentRequest.get().request.url
 	url = url[:url.find("/", url.find("://") + 5)]
-
 	if forceSSL and url.startswith("http://"):
 		url = "https://" + url[7:]
-
 	return url
 
 
@@ -240,10 +226,9 @@ def getLanguage(render, resolveAlias=False):
 	using conf["viur.languageAliasMap"].
 	:type resolveAlias: bool
 	"""
-	lang = request.current.get().language
+	lang = currentLanguage.get()
 	if resolveAlias and lang in conf["viur.languageAliasMap"]:
 		lang = conf["viur.languageAliasMap"][lang]
-
 	return lang
 
 
@@ -256,7 +241,6 @@ def moduleName(render):
 	"""
 	if render.parent and "moduleName" in dir(render.parent):
 		return render.parent.moduleName
-
 	return ""
 
 
@@ -269,7 +253,6 @@ def modulePath(render):
 	"""
 	if render.parent and "modulePath" in dir(render.parent):
 		return render.parent.modulePath
-
 	return ""
 
 
@@ -369,10 +352,8 @@ def requestParams(render):
 	:rtype: dict
 	"""
 	res = {}
-
-	for k, v in request.current.get().kwargs.items():
+	for k, v in currentRequest.get().kwargs.items():
 		res[utils.escapeString(k)] = utils.escapeString(v)
-
 	return res
 
 
@@ -387,7 +368,7 @@ def updateURL(render, **kwargs):
 	:rtype: str
 	"""
 	tmpparams = {}
-	tmpparams.update(request.current.get().kwargs)
+	tmpparams.update(currentRequest.get().kwargs)
 
 	for key in list(tmpparams.keys()):
 		if not key or key[0] == "_":
@@ -648,10 +629,3 @@ def seoUrlForEntry(render, *args, **kwargs):
 def seoUrlToFunction(render, *args, **kwargs):
 	return utils.seoUrlToFunction(*args, **kwargs)
 
-@jinjaGlobalFilter
-def inflate(render, value: SkelListWrapper) -> List:
-	origSkelList = value
-	newList = []
-	for skel in origSkelList:
-		newList.append(skel.shallowClone())
-	return newList

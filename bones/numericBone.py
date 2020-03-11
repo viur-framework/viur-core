@@ -70,6 +70,7 @@ class numericBone(baseBone):
 				else:
 					value = None
 		if value is None:
+			skel[name] = None
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value entered")]
 		if value != value:  # NaN
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]

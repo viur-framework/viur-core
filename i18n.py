@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from viur.core.request import current as currentRequest
+from viur.core.contextvars import currentRequest as currentRequest
 from viur.core.config import conf
 from viur.core import db
 

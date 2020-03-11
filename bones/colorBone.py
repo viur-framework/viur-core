@@ -31,6 +31,7 @@ class colorBone(baseBone):
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
 		value = data[name]
 		if not value:
+			skel[name] = None
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")]
 		value = value.lower()
 		if value.count("#") > 1:

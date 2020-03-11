@@ -1,15 +1,11 @@
 # -*- coding: utf-8 -*-
-import threading
-import json, pickle
-import base64
-import string, random
 from time import time
 from viur.core.tasks import PeriodicTask, callDeferred
 from viur.core import db, utils
 from viur.core.config import conf
-# from google.appengine.runtime.apiproxy_errors import CapabilityDisabledError, OverQuotaError
 import logging
 from hmac import compare_digest
+from viur.core.contextvars import currentSession as current
 
 """
 	Provides a fast and reliable session implementation for the Google AppEngine™.
@@ -28,114 +24,6 @@ from hmac import compare_digest
 	It returns None instead of raising an Exception if the key is not found.
 """
 
-
-class SessionWrapper(threading.local):
-	cookieName = "viurCookie"
-
-	def __init__(self, sessionFactory, *args, **kwargs):
-		super(SessionWrapper, self).__init__(*args, **kwargs)
-		self.factory = sessionFactory
-
-	def load(self, req):
-		if not "session" in dir(self):
-			self.session = self.factory()
-		return self.session.load(req)
-
-	def __contains__(self, key):
-		try:
-			return key in self.session
-		except AttributeError:
-			return False
-
-	def __delitem__(self, key):
-		del self.session[key]
-
-	def __getitem__(self, key):
-		try:
-			if key == "skeys":
-				r = self.session.get(key)
-				assert r is None or isinstance(r, list)
-			return self.session[key]
-		except AttributeError:
-			return None
-
-	def get(self, key):  # fixme
-		"""For compatibility with cherrypy"""
-		try:
-			if key == "skeys":
-				r = self.session.get(key)
-				assert r is None or isinstance(r, list)
-			return self.session.get(key)
-		except AttributeError:
-			return None
-
-	def __setitem__(self, key, item):
-		try:
-			if key == "skeys":
-				assert item is None or isinstance(item, list)
-			self.session[key] = item
-		except AttributeError:
-			pass
-
-	def save(self, req):
-		try:
-			return self.session.save(req)
-		except AttributeError:
-			return None
-
-	def getSessionKey(self, req=None):
-		try:
-			return self.session.getSessionKey(req)
-		except AttributeError:
-			return None
-
-	def markChanged(self):
-		try:
-			self.session.markChanged()
-		except AttributeError:
-			pass
-
-	def reset(self):
-		try:
-			return (self.session.reset())
-		except AttributeError:
-			pass
-
-	def getLanguage(self):
-		try:
-			return self.session.get("language")
-		except AttributeError:
-			return None
-
-	def setLanguage(self, lang):
-		try:
-			self.session["language"] = lang
-		except AttributeError:
-			pass
-
-	def validateSecurityKey(self, key):
-		try:
-			return self.session.validateSecurityKey(key)
-		except AttributeError:
-			return False
-
-	def validateStaticSecurityKey(self, key):
-		try:
-			return self.session.validateStaticSecurityKey(key)
-		except AttributeError:
-			return False
-
-	def getSecurityKey(self):
-		try:
-			return self.session.getSecurityKey()
-		except AttributeError:
-			return ""
-
-	def items(self):
-		try:
-			return self.session.items()
-		except AttributeError:
-			return []
 
 
 
@@ -164,18 +52,13 @@ class GaeSession:
 		self.session = {}
 		if self.plainCookieName in req.request.cookies:
 			cookie = str(req.request.cookies[self.plainCookieName])
-			try:
-				data = db.Get(db.Key(self.kindName, cookie))
-			except:
-				raise  # FIXME
-				return False
+			data = db.Get(db.Key(self.kindName, cookie))
 			if data:  # Loaded successfully from Memcache
 				if data["lastseen"] < time() - conf["viur.session.lifeTime"]:
 					# This session is too old
 					self.reset()
 					return False
-
-				self.session = pickle.loads(base64.b64decode(data["data"]))
+				self.session = data["data"]
 				self.sslKey = data["sslkey"]
 				self.staticSecurityKey = data["staticSecurityKey"]
 				self.securityKey = data["securityKey"]
@@ -201,7 +84,6 @@ class GaeSession:
 		"""
 		try:
 			if self.changed or self.isInitial:
-				serialized = base64.b64encode(pickle.dumps(self.session, protocol=pickle.HIGHEST_PROTOCOL))
 				# Get the current user id
 				try:
 					# Check for our custom user-api
@@ -213,7 +95,7 @@ class GaeSession:
 					self.sslKey = None
 				try:
 					dbSession = db.Entity(db.Key(self.kindName, self.httpKey))
-					dbSession["data"] = serialized
+					dbSession["data"] = self.session
 					dbSession["sslkey"] = self.sslKey
 					dbSession["staticSecurityKey"] = self.staticSecurityKey
 					dbSession["securityKey"] = self.securityKey
@@ -230,9 +112,11 @@ class GaeSession:
 					sameSite = "; SameSite=%s" % self.sameSite
 				else:
 					sameSite = ""
-				req.response.headerlist.append(("Set-Cookie", "%s=%s; Max-Age=99999; Path=/; HttpOnly%s" % (self.plainCookieName, self.httpKey, sameSite)))
+				req.response.headerlist.append(("Set-Cookie", "%s=%s; Max-Age=99999; Path=/; HttpOnly%s" % (
+				self.plainCookieName, self.httpKey, sameSite)))
 				if req.isSSLConnection:
-					req.response.headerlist.append(("Set-Cookie", "%s=%s; Max-Age=99999; Path=/; Secure; HttpOnly%s" % (self.sslCookieName, self.sslKey, sameSite)))
+					req.response.headerlist.append(("Set-Cookie", "%s=%s; Max-Age=99999; Path=/; Secure; HttpOnly%s" % (
+					self.sslCookieName, self.sslKey, sameSite)))
 		except Exception as e:
 			raise  # FIXME
 			logging.exception(e)
@@ -380,6 +264,3 @@ def doClearSessions(timeStamp, cursor):
 	newCursor = query.getCursor()
 	if gotAtLeastOne and newCursor and newCursor.urlsafe() != cursor:
 		doClearSessions(timeStamp, newCursor.urlsafe())
-
-
-current = SessionWrapper(GaeSession)

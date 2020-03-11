@@ -6,6 +6,7 @@ import logging
 import math
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 
+
 def haversine(lat1, lng1, lat2, lng2):
 	"""
 		Calculates the distance between two points on Earth given by (lat1,lng1) and (lat2, lng2) in Meter.
@@ -72,7 +73,6 @@ class spatialBone(baseBone):
 		latDelta = float(self.boundsLat[1] - self.boundsLat[0])
 		lngDelta = float(self.boundsLng[1] - self.boundsLng[0])
 		return latDelta / float(self.gridDimensions[0]), lngDelta / float(self.gridDimensions[1])
-
 
 	def isInvalid(self, value):
 		"""
@@ -149,7 +149,7 @@ class spatialBone(baseBone):
 			return True
 		return False
 
-	def fromClient( self, skel, name, data ):
+	def fromClient(self, skel, name, data):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -166,9 +166,11 @@ class spatialBone(baseBone):
 		"""
 		rawLat = data.get("%s.lat" % name, None)
 		rawLng = data.get("%s.lng" % name, None)
-		if not rawLat or not rawLng:
+		if rawLat is None and rawLng is None:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
-
+		elif not rawLat or not rawLng:
+			skel[name] = None
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value submitted")]
 		try:
 			rawLat = float(rawLat)
 			rawLng = float(rawLng)
@@ -176,9 +178,6 @@ class spatialBone(baseBone):
 			assert rawLat == rawLat
 			assert rawLng == rawLng
 		except:
-			logging.error(rawLat)
-			logging.error(rawLng)
-			raise
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
 		err = self.isInvalid((rawLat, rawLng))
 		if err:

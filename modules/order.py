@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 from viur.core import db, errors, session, conf, request, exposed, internalExposed, securitykey
 from viur.core.tasks import callDeferred, PeriodicTask
-
 from viur.core.skeleton import Skeleton
 from viur.core.bones import *
-
 from viur.core.prototypes.list import List
-
+from viur.core.contextvars import currentRequest
 from datetime import datetime, timedelta
 import logging
 
@@ -700,25 +698,19 @@ class Order(List):
 			Returns the Bill for the given order.
 		"""
 		skel = self.viewSkel()
-
 		if "canView" in dir(self):
 			if not self.canView(key):
 				raise errors.Unauthorized()
 		else:
 			queryObj = self.viewSkel().all().mergeExternalFilter({"key": key})
 			queryObj = self.listFilter(queryObj)  # Access control
-
 			if queryObj is None:
 				raise errors.Unauthorized()
-
 		bill = self.getBillPdf(key)
-
 		if not bill:
 			raise errors.NotFound()
-
-		request.current.get().response.headers['Content-Type'] = "application/pdf"
-
-		return (bill)
+		currentRequest.get().response.headers['Content-Type'] = "application/pdf"
+		return bill
 
 	@exposed
 	def getDeliveryNote(self, key, *args, **kwargs):
@@ -726,7 +718,6 @@ class Order(List):
 			Returns the delivery note for the given order.
 		"""
 		skel = self.viewSkel()
-
 		if "canView" in dir(self):
 			if not self.canView(key):
 				raise errors.Unauthorized()
@@ -736,14 +727,11 @@ class Order(List):
 
 			if queryObj is None:
 				raise errors.Unauthorized()
-
 		bill = self.getDeliveryNotePdf(key)
-
 		if not bill:
 			raise errors.NotFound()
-
-		request.current.get().response.headers['Content-Type'] = "application/pdf"
-		return (bill)
+		currentRequest.get().response.headers['Content-Type'] = "application/pdf"
+		return bill
 
 	@exposed
 	def checkout(self, step=None, key=None, skey=None, *args, **kwargs):

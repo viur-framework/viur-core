@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from viur.core import utils, db, securitykey, session, errors, conf, request, forcePost, forceSSL, exposed, internalExposed
+from viur.core import utils, db, securitykey, session, errors, conf, request, forcePost, forceSSL, exposed, \
+	internalExposed
 from viur.core.skeleton import Skeleton, skeletonByKind
 from viur.core.bones import *
-from viur.core.prototypes.tree import Tree, TreeNodeSkel, TreeLeafSkel
+from viur.core.prototypes.uniformtree import Tree, TreeSkel, TreeType
 from viur.core.tasks import callDeferred, PeriodicTask
 from quopri import decodestring
 from base64 import urlsafe_b64decode, urlsafe_b64encode
@@ -26,11 +27,11 @@ conf["viur.file.hmacKey"] = hashlib.sha3_384(
 	open("store_credentials.json", "rb").read()).digest()  # FIXME: Persistent key from db?
 
 
-
 class injectStoreURLBone(baseBone):
 	def unserialize(self, skel, name):
 		if "dlkey" in skel.dbEntity and "name" in skel.dbEntity:
-			skel.accessedValues[name] = utils.downloadUrlFor(skel.dbEntity["dlkey"], skel.dbEntity["name"], derived=False)
+			skel.accessedValues[name] = utils.downloadUrlFor(skel.dbEntity["dlkey"], skel.dbEntity["name"],
+															 derived=False)
 			return True
 		return False
 
@@ -45,7 +46,8 @@ def thumbnailer(fileSkel, targetName, params):
 	if "size" in params:
 		img.thumbnail(params["size"])
 	elif "width" in params:
-		img = img.resize((params["width"], int((float(img.size[1]) * float(params["width"] / float(img.size[0]))))), Image.ANTIALIAS)
+		img = img.resize((params["width"], int((float(img.size[1]) * float(params["width"] / float(img.size[0]))))),
+						 Image.ANTIALIAS)
 	img.save(outData, "JPEG")
 	outSize = outData.tell()
 	outData.seek(0)
@@ -53,7 +55,8 @@ def thumbnailer(fileSkel, targetName, params):
 	targetBlob.upload_from_file(outData, content_type="image/jpeg")
 	return targetName, outSize, "image/jpeg"
 
-class fileBaseSkel(TreeLeafSkel):
+
+class fileBaseSkel(TreeSkel):
 	"""
 		Default file leaf skeleton.
 	"""
@@ -70,7 +73,7 @@ class fileBaseSkel(TreeLeafSkel):
 	height = numericBone(descr="Height", indexed=True, readOnly=True, searchable=True)
 	downloadUrl = injectStoreURLBone(descr="Download-URL", readOnly=True, visible=False)
 	derived = baseBone(descr=u"Derived Files", readOnly=True, visible=False)
-	pendingParentdir = keyBone(descr=u"Pending key Reference", readOnly=True, visible=False)
+	pendingparententry = keyBone(descr=u"Pending key Reference", readOnly=True, visible=False)
 
 	"""
 	def refresh(self):
@@ -103,12 +106,13 @@ class fileBaseSkel(TreeLeafSkel):
 		return locks
 
 
-class fileNodeSkel(TreeNodeSkel):
+class fileNodeSkel(TreeSkel):
 	"""
 		Default file node skeleton.
 	"""
 	kindName = "file_rootNode"
 	name = stringBone(descr="Name", required=True, indexed=True, searchable=True)
+	rootNode = booleanBone(descr=u"Is RootNode", indexed=True)
 
 
 def decodeFileName(name):
@@ -133,13 +137,8 @@ def decodeFileName(name):
 
 
 class File(Tree):
-	viewLeafSkel = fileBaseSkel
-	editLeafSkel = fileBaseSkel
-	addLeafSkel = fileBaseSkel
-
-	viewNodeSkel = fileNodeSkel
-	editNodeSkel = fileNodeSkel
-	addNodeSkel = fileNodeSkel
+	leafSkelCls = fileBaseSkel
+	nodeSkelCls = fileNodeSkel
 
 	maxuploadsize = None
 	uploadHandler = []
@@ -151,32 +150,6 @@ class File(Tree):
 	}
 
 	blobCacheTime = 60 * 60 * 24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
-
-	def getUploads(self, field_name=None):
-		"""
-			Get uploads sent to this handler.
-			Cheeky borrowed from blobstore_handlers.py - © 2007 Google Inc.
-
-			Args:
-				field_name: Only select uploads that were sent as a specific field.
-
-			Returns:
-				A list of BlobInfo records corresponding to each upload.
-				Empty list if there are no blob-info records for field_name.
-
-		"""
-		uploads = collections.defaultdict(list)
-
-		for key, value in request.current.get().request.params.items():
-			if isinstance(value, cgi.FieldStorage):
-				if "blob-key" in value.type_options:
-					uploads[key].append(blobstore.parse_blob_info(value))
-		if field_name:
-			return list(uploads.get(field_name, []))
-		results = []
-		for uploads in uploads.itervalues():
-			results.extend(uploads)
-		return results
 
 	@callDeferred
 	def deleteRecursive(self, parentKey):
@@ -204,19 +177,18 @@ class File(Tree):
 		# Create a correspondingfile-lock object early, otherwise we would have to ensure that the file-lock object
 		# the user creates matches the file he had uploaded
 
-		fileSkel = self.addLeafSkel()
+		fileSkel = self.addSkel(TreeType.Leaf)
 		fileSkel["key"] = targetKey
 		fileSkel["name"] = "pending"
 		fileSkel["size"] = 0
 		fileSkel["mimetype"] = "application/octetstream"
 		fileSkel["dlkey"] = targetKey
 		fileSkel["parentdir"] = None
-		fileSkel["pendingParentdir"] = db.keyHelper(node, self.addNodeSkel().kindName) if node else None
+		fileSkel["pendingparententry"] = db.keyHelper(node, self.addSkel(TreeType.Node).kindName) if node else None
 		fileSkel["pending"] = True
 		fileSkel["weak"] = True
 		fileSkel["width"] = 0
 		fileSkel["height"] = 0
-		fileSkel[""] = ""
 		fileSkel.toDB()
 		# Mark that entry dirty as we might never receive an add
 		utils.markFileForDeletion(targetKey)
@@ -228,14 +200,13 @@ class File(Tree):
 		node = kwargs.get("node")
 		if node:
 			rootNode = self.getRootNode(node)
-			if not self.canAdd("leaf", rootNode):
+			if not self.canAdd(TreeType.Leaf, rootNode):
 				raise errors.Forbidden()
 		else:
-			if not self.canAdd("leaf", None):
+			if not self.canAdd(TreeType.Leaf, None):
 				raise errors.Forbidden()
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
-
 		targetKey, uploadUrl, policy = self.createUploadURL(node)
 		resDict = {
 			"url": uploadUrl,
@@ -245,11 +216,10 @@ class File(Tree):
 		}
 		for key, value in policy.items():
 			resDict["params"][key] = value
-
 		return self.render.view(resDict)
 
 	@internalExposed
-	def getAvailableRootNodes(self, name, *args, **kwargs):
+	def getAvailableRootNodes__(self, name, *args, **kwargs):
 		thisuser = utils.getCurrentUser()
 		if not thisuser:
 			return []
@@ -274,104 +244,6 @@ class File(Tree):
 		return res
 
 	@exposed
-	def upload(self, node=None, *args, **kwargs):
-		try:
-			canAdd = self.canAdd("leaf", node)
-		except:
-			canAdd = False
-		if not canAdd:
-			for upload in self.getUploads():
-				upload.delete()
-			raise errors.Forbidden()
-
-		try:
-			res = []
-			if node:
-				# The file is uploaded into a rootNode
-				nodeSkel = self.editNodeSkel()
-				if not nodeSkel.fromDB(node):
-					for upload in self.getUploads():
-						upload.delete()
-					raise errors.NotFound()
-				else:
-					weak = False
-					parentDir = str(node)
-					parentRepo = nodeSkel["parentrepo"]
-			else:
-				weak = True
-				parentDir = None
-				parentRepo = None
-
-			# Handle the actual uploads
-			for upload in self.getUploads():
-				fileName = decodeFileName(upload.filename)
-				height = width = 0
-
-				if str(upload.content_type).startswith("image/"):
-					try:
-						servingURL = images.get_serving_url(upload.key())
-						if request.current.get().isDevServer:
-							# NOTE: changed for Ticket ADMIN-37
-							servingURL = urlparse(servingURL).path
-						elif servingURL.startswith("http://"):
-							# Rewrite Serving-URLs to https if we are live
-							servingURL = servingURL.replace("http://", "https://")
-					except:
-						servingURL = ""
-
-					try:
-						# only fetching the file header or all if the file is smaller than 1M
-						data = blobstore.fetch_data(upload.key(), 0, min(upload.size, 1000000))
-						image = images.Image(image_data=data)
-						height = image.height
-						width = image.width
-					except Exception as err:
-						logging.error("some error occurred while trying to fetch the image header with dimensions")
-						logging.exception(err)
-
-				else:
-					servingURL = ""
-
-				fileSkel = self.addLeafSkel()
-
-				fileSkel.setValues(
-					{
-						"name": utils.escapeString(fileName),
-						"size": upload.size,
-						"mimetype": utils.escapeString(upload.content_type),
-						"dlkey": str(upload.key()),
-						"servingurl": servingURL,
-						"parentdir": parentDir,
-						"parentrepo": parentRepo,
-						"weak": weak,
-						"width": width,
-						"height": height
-					}
-				)
-				fileSkel.toDB()
-				res.append(fileSkel)
-				self.onItemUploaded(fileSkel)
-
-			# Uploads stored successfully, generate response to the client
-			for r in res:
-				logging.info("Upload successful: %s (%s)" % (r["name"], r["dlkey"]))
-			user = utils.getCurrentUser()
-
-			if user:
-				logging.info("User: %s (%s)" % (user["name"], user["key"]))
-
-			return self.render.addItemSuccess(res)
-
-		except Exception as err:
-			logging.exception(err)
-
-			for upload in self.getUploads():
-				upload.delete()
-				utils.markFileForDeletion(str(upload.key()))
-
-			raise errors.InternalServerError()
-
-	@exposed
 	def download(self, blobKey, fileName="", download="", sig="", *args, **kwargs):
 		"""
 		Download a file.
@@ -387,11 +259,6 @@ class File(Tree):
 		"""
 		if not sig:
 			raise errors.PreconditionFailed()
-		# if download == "1":
-		#	fname = "".join(
-		#		[c for c in fileName if c in string.ascii_lowercase + string.ascii_uppercase + string.digits + ".-_"])
-		#	request.current.get().response.headers.add_header("Content-disposition",
-		#													  ("attachment; filename=%s" % (fname)).encode("UTF-8"))
 		# First, validate the signature, otherwise we don't need to proceed any further
 		if not utils.hmacVerify(blobKey.encode("ASCII"), sig):
 			raise errors.Forbidden()
@@ -406,29 +273,27 @@ class File(Tree):
 		signed_url = blob.generate_signed_url(datetime.now() + timedelta(seconds=60))
 		raise errors.Redirect(signed_url)
 
-
 	@exposed
 	@forceSSL
 	@forcePost
-	def add(self, skelType, node, *args, **kwargs):
+	def add(self, skelType, node=None, *args, **kwargs):
 		## We can't add files directly (they need to be uploaded
 		# if skelType != "node":
 		#	raise errors.NotAcceptable()
 		if skelType == "leaf":  # We need to handle leafs separately here
 			skey = kwargs.get("skey")
 			targetKey = kwargs.get("key")
-			#if not skey or not securitykey.validate(skey, useSessionKey=True) or not targetKey:
-			#	raise errors.PreconditionFailed()
-
-			skel = self.addLeafSkel()
+			if not skey or not securitykey.validate(skey, useSessionKey=True) or not targetKey:
+				raise errors.PreconditionFailed()
+			skel = self.addSkel(TreeType.Leaf)
 			if not skel.fromDB(targetKey):
 				raise errors.NotFound()
 			if not skel["pending"]:
 				raise errors.PreconditionFailed()
 			skel["pending"] = False
-			skel["parentdir"] = skel["pendingParentdir"]
-			if skel["parentdir"]:
-				rootNode = self.getRootNode(skel["parentdir"])
+			skel["parententry"] = skel["pendingparententry"]
+			if skel["parententry"]:
+				rootNode = self.getRootNode(skel["parententry"])
 			else:
 				rootNode = None
 			if not self.canAdd("leaf", rootNode):
@@ -442,37 +307,13 @@ class File(Tree):
 			skel["mimetype"] = utils.escapeString(blob.content_type)
 			skel["name"] = utils.escapeString(blob.name.replace("%s/source/" % targetKey, ""))
 			skel["size"] = blob.size
-			skel["rootnode"] = rootNode
+			skel["rootnode"] = rootNode["key"] if rootNode else None
 			skel["weak"] = rootNode is None
 			skel.toDB()
 			# Add updated download-URL as the auto-generated isn't valid yet
 			skel["downloadUrl"] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False)
 			return self.render.addItemSuccess(skel)
-
 		return super(File, self).add(skelType, node, *args, **kwargs)
-
-	def canViewRootNode(self, repo):
-		user = utils.getCurrentUser()
-		return self.isOwnUserRootNode(repo) or (user and "root" in user["access"])
-
-	def canMkDir(self, repo, dirname):
-		return self.isOwnUserRootNode(str(repo.key()))
-
-	def canRename(self, repo, src, dest):
-		return self.isOwnUserRootNode(str(repo.key()))
-
-	def canCopy(self, srcRepo, destRepo, type, deleteold):
-		return self.isOwnUserRootNode(str(srcRepo.key()) and self.isOwnUserRootNode(str(destRepo.key())))
-
-	def canDelete(self, skelType, skel):
-		user = utils.getCurrentUser()
-		if user and "root" in user["access"]:
-			return True
-		return self.isOwnUserRootNode(str(skel["key"]))
-
-	def canEdit(self, skelType, skel=None):
-		user = utils.getCurrentUser()
-		return user and "root" in user["access"]
 
 	def onItemUploaded(self, skel):
 		pass
@@ -528,6 +369,7 @@ def doCheckForUnreferencedBlobs(cursor=None):
 		doCheckForUnreferencedBlobs(newCursor.urlsafe())
 
 
+
 @PeriodicTask(0)
 def startCleanupDeletedFiles():
 	"""
@@ -565,7 +407,6 @@ def doCleanupDeletedFiles(cursor=None):
 				logging.debug("Increasing count, %s" % file["dlkey"])
 				file["itercount"] += 1
 				db.Put(file)
-	#newCursor = query.getCursor()
-	#if gotAtLeastOne and newCursor and newCursor.urlsafe() != cursor:
-	#	doCleanupDeletedFiles(newCursor.urlsafe())
-
+# newCursor = query.getCursor()
+# if gotAtLeastOne and newCursor and newCursor.urlsafe() != cursor:
+#	doCleanupDeletedFiles(newCursor.urlsafe())

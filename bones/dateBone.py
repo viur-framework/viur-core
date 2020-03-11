@@ -5,6 +5,7 @@ from time import time, mktime
 from datetime import time, datetime, timedelta
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.i18n import translate
+from viur.core.contextvars import currentRequest, currentRequestData
 import logging
 
 try:
@@ -85,7 +86,7 @@ class dateBone(baseBone):
 		self.time = time
 		self.localize = localize
 
-	def fromClient(self, valuesCache, name, data):
+	def fromClient(self, skel, name, data):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -104,6 +105,7 @@ class dateBone(baseBone):
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
 		rawValue = data[name]
 		if not rawValue:
+			skel[name] = None
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")]
 		elif str(rawValue).replace("-", "", 1).replace(".", "", 1).isdigit():
 			if int(rawValue) < -1 * (2 ** 30) or int(rawValue) > (2 ** 31) - 2:
@@ -163,7 +165,7 @@ class dateBone(baseBone):
 		err = self.isInvalid(value)
 		if err:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
-		valuesCache[name] = value
+		skel[name] = value
 
 	def isInvalid(self, value):
 		"""
@@ -181,18 +183,19 @@ class dateBone(baseBone):
 		If it cant be guessed, a safe default (UTC) is used
 		"""
 		timeZone = "UTC"  # Default fallback
+		currReqData = currentRequestData.get()
 		try:
 			# Check the local cache first
-			if "timeZone" in request.current.requestData():
-				return (request.current.requestData()["timeZone"])
-			headers = request.current.get().request.headers
+			if "timeZone" in currReqData:
+				return currReqData["timeZone"]
+			headers = currentRequest.get().request.headers
 			if "X-Appengine-Country" in headers:
 				country = headers["X-Appengine-Country"]
 			else:  # Maybe local development Server - no way to guess it here
-				return (timeZone)
+				return timeZone
 			tzList = pytz.country_timezones[country]
 		except:  # Non-User generated request (deferred call; task queue etc), or no pytz
-			return (timeZone)
+			return timeZone
 		if len(tzList) == 1:  # Fine - the country has exactly one timezone
 			timeZone = tzList[0]
 		elif country.lower() == "us":  # Fallback for the US
@@ -202,8 +205,8 @@ class dateBone(baseBone):
 		else:  # The user is in a Country which has more than one timezone
 			# Fixme: Is there any equivalent of EST for australia?
 			pass
-		request.current.requestData()["timeZone"] = timeZone  # Cache the result
-		return (timeZone)
+			currReqData["timeZone"] = timeZone  # Cache the result
+		return timeZone
 
 	def readLocalized(self, value):
 		"""Read a (probably localized Value) from the Client and convert it back to UTC"""

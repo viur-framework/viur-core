@@ -12,6 +12,7 @@ from viur.core import request
 from viur.core import session
 from viur.core import errors
 import datetime, json
+from viur.core.contextvars import currentRequest, currentLanguage
 
 __all__ = [default]
 
@@ -60,11 +61,8 @@ def getStructure(adminTree, module):
 def setLanguage(lang, skey):
 	if not securitykey.validate(skey):
 		return
-
 	if lang in conf["viur.availableLanguages"]:
-		session.current.setLanguage(lang)
-
-
+		currentLanguage.set(lang)
 setLanguage.exposed = True
 
 
@@ -108,13 +106,10 @@ def canAccess(*args, **kwargs):
 	user = utils.getCurrentUser()
 	if user and ("root" in user["access"] or "admin" in user["access"]):
 		return True
-
-	pathList = request.current.get().pathlist
-
+	pathList = currentRequest.get().pathlist
 	if len(pathList) >= 2 and pathList[1] in ["skey", "getVersion"]:
 		# Give the user the chance to login :)
 		return True
-
 	if (len(pathList) >= 3
 			and pathList[1] == "user"
 			and (pathList[2].startswith("auth_")
@@ -123,25 +118,21 @@ def canAccess(*args, **kwargs):
 				 or pathList[2] == "logout")):
 		# Give the user the chance to login :)
 		return True
-
 	if (len(pathList) >= 4
 			and pathList[1] == "user"
 			and pathList[2] == "view"
 			and pathList[3] == "self"):
 		# Give the user the chance to view himself.
 		return True
-
 	return False
 
 
 def index(*args, **kwargs):
-	if request.current.get().isDevServer or request.current.get().isSSLConnection:
+	if currentRequest.get().isDevServer or currentRequest.get().isSSLConnection:
 		raise errors.Redirect("/vi/s/main.html")
 	else:
 		appVersion = app_identity.get_default_version_hostname()
 		raise errors.Redirect("https://%s/vi/s/main.html" % appVersion)
-
-
 index.exposed = True
 
 

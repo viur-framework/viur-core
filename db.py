@@ -10,6 +10,8 @@ from google.cloud import datastore, exceptions
 from enum import Enum
 from datetime import datetime, date, time
 import binascii
+import contextlib
+from time import time as ttime
 
 """
 	Tiny wrapper around *google.appengine.api.datastore*.
@@ -24,7 +26,7 @@ __client__ = datastore.Client()
 
 # Consts
 KEY_SPECIAL_PROPERTY = "__key__"
-DATASTORE_BASE_TYPES = Union[None, str, int, float, bool, datetime, date, time]
+DATASTORE_BASE_TYPES = Union[None, str, int, float, bool, datetime, date, time, datastore.Key]
 
 
 class SortOrder(Enum):
@@ -39,10 +41,14 @@ Entity = datastore.Entity
 Key = __client__.key  # Proxy-Function
 KeyClass = datastore.Key  # Expose the class also
 Get = __client__.get
-Delete = __client__.delete
+#Delete = __client__.delete
 AllocateIds = __client__.allocate_ids
 Conflict = exceptions.Conflict
 Error = exceptions.GoogleCloudError
+
+# These will be filled from skeleton.py to avoid circular references
+SkelListRef = None
+SkeletonInstanceRef = None
 
 
 def keyHelper(inKey: Union[KeyClass, str, int], targetKind: str,
@@ -82,6 +88,16 @@ def Put(entity: Union[Entity, List[Entity]]):
 			raise ValueError("Cannot store an entity with digit-only string key")
 		fixUnindexableProperties(e)
 	return __client__.put_multi(entities=entity)
+
+
+def Delete(keys: Union[Entity, List[Entity], KeyClass, List[KeyClass]]):
+	if isinstance(keys, list):
+		return __client__.delete_multi([(x if isinstance(x, KeyClass) else x.key) for x in keys ])
+	else:
+		if isinstance(keys, KeyClass):
+			return __client__.delete(keys)
+		else:
+			return __client__.delete(keys.key)
 
 
 def fixUnindexableProperties(entry: Entity):
@@ -153,7 +169,6 @@ def GetOrInsert(key: Key, **kwargs):
 		:returns: Returns the wanted Entity.
 		:rtype: server.db.Entity
 	"""
-
 	def txn(key, kwargs):
 		obj = Get(key)
 		if not obj:
@@ -774,24 +789,11 @@ class Query(object):
 		dbRes = self.run(amount)
 		if dbRes is None:
 			return None
-		from viur.core.skeleton import SkeletonInstance, SkelList
-		res = SkelList(self.srcSkel)
+		res = SkelListRef(self.srcSkel)
 		for e in dbRes:
-			skelInstance = SkeletonInstance(self.srcSkel.skeletonCls)
-			skelInstance.boneMap = self.srcSkel.boneMap
-			skelInstance.setEntity(e)
+			skelInstance = SkeletonInstanceRef(self.srcSkel.skeletonCls, clonedBoneMap=self.srcSkel.boneMap)
+			skelInstance.dbEntity = e
 			res.append(skelInstance)
-		return res
-		from viur.core.skeleton import SkelList
-		#res = SkelList(self.srcSkel)
-		#dbRes = self.run(amount)
-		#res.customQueryInfo = self.customQueryInfo
-		#if dbRes is None:
-		#	return res
-		#for e in dbRes:
-		#	self.srcSkel.setValues(e)  # This will reset it's internal valuesCache to a fresh dict
-		#	res.append(self.srcSkel.getValuesCache())
-		#res.getCursor = lambda: self.getCursor(True)
 		return res
 
 	def iter(self, keysOnly=False):

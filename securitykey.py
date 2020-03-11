@@ -12,7 +12,7 @@
 
 from datetime import datetime, timedelta
 from viur.core.utils import generateRandomString
-from viur.core.session import current as currentSession
+from viur.core.contextvars import currentSession, currentRequest
 from viur.core import request
 from viur.core import db, conf
 from viur.core.tasks import PeriodicTask, callDeferred
@@ -33,7 +33,7 @@ def create(duration: Union[None, int] = None, **kwargs):
 		:returns: The new onetime key
 	"""
 	if not duration:
-		return currentSession.getSecurityKey()
+		return currentSession.get().getSecurityKey()
 	key = generateRandomString()
 	duration = int(duration)
 	dbObj = db.Entity(securityKeyKindName, name=key)
@@ -56,10 +56,10 @@ def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
 	"""
 	if useSessionKey:
 		if key == "staticSessionKey":
-			skeyHeaderValue = request.current.get().request.headers.get("Sec-X-ViUR-StaticSKey")
+			skeyHeaderValue = currentRequest.get().request.headers.get("Sec-X-ViUR-StaticSKey")
 			if skeyHeaderValue and currentSession.validateStaticSecurityKey(skeyHeaderValue):
 				return True
-		elif currentSession.validateSecurityKey(key):
+		elif currentSession.get().validateSecurityKey(key):
 			return True
 		return False
 	if not key:

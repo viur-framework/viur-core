@@ -2,6 +2,7 @@
 from viur.core import db, request, errors
 import urllib
 from viur.core.config import conf
+from viur.core.contextvars import currentRequest
 #from google.appengine.api import urlfetch
 
 
@@ -47,7 +48,7 @@ class PayPal(object):
 				self.API_ENDPOINT = 'https://api-3t.paypal.com/nvp'  # Production !
 				self.PAYPAL_URL = 'https://www.paypal.com/webscr&cmd=_express-checkout&token='  # Production !
 				self.signature = urllib.urlencode(self.signature_values) + "&"
-			url = request.current.get().request.url
+			url = currentRequest.get().request.url
 			host = url[url.find("://") + 3: url.find("/", url.find("://") + 5)]
 			self.returnurl = returnurl or "http://%s/order/pp_paypal/doPayPal" % host
 			self.cancelurl = cancelurl or "http://%s/site/paypal_failed" % host

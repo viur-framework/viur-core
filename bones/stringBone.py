@@ -8,7 +8,7 @@ from viur.core.session import current as currentSession
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import logging
 from typing import List
-
+from viur.core.contextvars import currentLanguage
 
 class LanguageWrapper(dict):
 	"""
@@ -32,7 +32,7 @@ class LanguageWrapper(dict):
 			:returns: str|list of str
 			:rtype: str|list of str
 		"""
-		lang = request.current.get().language  # currentSession.getLanguage()
+		lang = currentLanguage.get()
 		if not lang:
 			lang = self.languages[0]
 		else:
@@ -45,7 +45,7 @@ class LanguageWrapper(dict):
 			for lang in self.languages:
 				if lang in self and self[lang]:
 					return (self[lang])
-		return ("")
+		return ""
 
 
 class stringBone(baseBone):
@@ -286,7 +286,7 @@ class stringBone(baseBone):
 						lang = langStr
 						break
 			if not lang:
-				lang = request.current.get().language  # currentSession.getLanguage()
+				lang = currentLanguage.get()  # currentSession.getLanguage()
 				if not lang or not lang in self.languages:
 					lang = self.languages[0]
 			namefilter = "%s.%s" % (name, lang)
@@ -329,7 +329,7 @@ class stringBone(baseBone):
 					if lng in self.languages:
 						lang = lng
 				if lang is None:
-					lang = request.current.get().language  # currentSession.getLanguage()
+					lang = currentLanguage.get()  # currentSession.getLanguage()
 					if not lang or not lang in self.languages:
 						lang = self.languages[0]
 				if self.caseSensitive:

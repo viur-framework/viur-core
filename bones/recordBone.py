@@ -80,45 +80,33 @@ class recordBone(baseBone):
 		#return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Not yet fixed")]
 		if not name in data and not any(x.startswith("%s." % name) for x in data):
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
-
 		skel[name] = []
 		tmpRes = {}
-
 		clientPrefix = "%s." % name
-
 		for k, v in data.items():
-			# print(k, v)
-
 			if k.startswith(clientPrefix) or k == name:
 				if k == name:
 					k = k.replace(name, "", 1)
-
 				else:
 					k = k.replace(clientPrefix, "", 1)
-
 				if "." in k:
 					try:
 						idx, bname = k.split(".", 1)
 						idx = int(idx)
 					except ValueError:
 						idx = 0
-
 						try:
 							bname = k.split(".", 1)
 						except ValueError:
 							# We got some garbage as input; don't try to parse it
 							continue
-
 				else:
 					idx = 0
 					bname = k
-
 				if not bname:
 					continue
-
 				if not idx in tmpRes:
 					tmpRes[idx] = {}
-
 				if bname in tmpRes[idx]:
 					if isinstance(tmpRes[idx][bname], list):
 						tmpRes[idx][bname].append(v)
@@ -126,25 +114,19 @@ class recordBone(baseBone):
 						tmpRes[idx][bname] = [tmpRes[idx][bname], v]
 				else:
 					tmpRes[idx][bname] = v
-
 		tmpList = [tmpRes[k] for k in sorted(tmpRes.keys())]
-
 		errors = []
-
 		for i, r in enumerate(tmpList[:]):
 			usingSkel = self.using()
 			#usingSkel.setValuesCache(Skeletccc)
 			usingSkel.unserialize({})
-
 			if not usingSkel.fromClient(r):
 				for error in usingSkel.errors:
 					errors.append(
 						ReadFromClientError(error.severity, "%s.%s.%s" % (name, i, error.fieldPath), error.errorMessage)
 					)
 			tmpList[i] = usingSkel.getValuesCache()
-
 		cleanList = []
-
 		for item in tmpList:
 			err = self.isInvalid(item)
 			if err:
@@ -153,14 +135,11 @@ class recordBone(baseBone):
 				)
 			else:
 				cleanList.append(item)
-
-		skel[name] = tmpList
-
+		skel[name] = cleanList
 		if not cleanList:
 			errors.append(
 				ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")
 			)
-
 		if errors:
 			return errors
 
