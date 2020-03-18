@@ -351,15 +351,13 @@ class Render(object):
 		skeybone = baseBone(descr="SecurityKey", readOnly=True, visible=False)
 		skel.skey = skeybone
 		skel["skey"] = securitykey.create()
-
-		if "nomissing" in currentRequest.get().kwargs.get("nomissing") == "1":
+		if currentRequest.get().kwargs.get("nomissing") == "1":
 			if isinstance(skel, BaseSkeleton):
 				super(BaseSkeleton, skel).__setattr__("errors", {})
-
 		return template.render(skel={"structure": self.renderSkelStructure(skel),
 									 "errors": skel.errors,
 									 "value": self.collectSkelData(skel)},
-							   params=params, **kwargs)
+								params=params, **kwargs)
 
 	def edit(self, skel, tpl=None, params=None, **kwargs):
 		"""

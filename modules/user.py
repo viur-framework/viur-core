@@ -582,7 +582,10 @@ class User(List):
 		return getattr(self, "f2_%s" % cls.__name__.lower())
 
 	def getCurrentUser(self, *args, **kwargs):
-		return currentSession.get().get("user")
+		session = currentSession.get()
+		if not session:  # May be a deferred task
+			return None
+		return session.get("user")
 
 	def continueAuthenticationFlow(self, caller, userKey):
 		currSess = currentSession.get()

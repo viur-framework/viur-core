@@ -136,7 +136,7 @@ conf = {
 	# Priority, in which skeletons are loaded
 	"viur.skeleton.searchPath": ["/skeletons/", "/viur/core/"],  # Priority, in which skeletons are loaded
 
-	# If set, must be a tuple of two functions serializing/restoring additional enviromental data in deferred requests,
+	# If set, must be a tuple of two functions serializing/restoring additional environmental data in deferred requests
 	"viur.tasks.customEnvironmentHandler": None,
 
 	# Will be set to server.__version__ in server.__init__
