@@ -855,7 +855,7 @@ class Query(object):
 		res = self.get()
 		if res is None:
 			return None
-		self.srcSkel.setValues(res)
+		self.srcSkel.setEntity(res)
 		return self.srcSkel
 
 	def clone(self, keysOnly=None):
