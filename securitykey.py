@@ -12,7 +12,7 @@
 
 from datetime import datetime, timedelta
 from viur.core.utils import generateRandomString
-from viur.core.contextvars import currentSession, currentRequest
+from viur.core.utils import currentSession, currentRequest
 from viur.core import request
 from viur.core import db, conf
 from viur.core.tasks import PeriodicTask, callDeferred

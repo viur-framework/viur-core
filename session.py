@@ -5,7 +5,7 @@ from viur.core import db, utils
 from viur.core.config import conf
 import logging
 from hmac import compare_digest
-from viur.core.contextvars import currentSession as current
+
 
 """
 	Provides a fast and reliable session implementation for the Google AppEngine™.

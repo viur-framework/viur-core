@@ -6,7 +6,7 @@ import urllib.request
 from viur.core import utils
 from viur.core.bones import bone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core.contextvars import currentRequest
+from viur.core.utils import currentRequest
 
 
 class captchaBone(bone.baseBone):

@@ -3,7 +3,7 @@ import json
 from collections import OrderedDict
 from viur.core import errors, bones, utils
 from viur.core.skeleton import RefSkel, skeletonByKind, BaseSkeleton, SkeletonInstance
-from viur.core.contextvars import currentRequest
+from viur.core.utils import currentRequest
 
 class DefaultRender(object):
 

@@ -5,7 +5,7 @@ from time import time, mktime
 from datetime import time, datetime, timedelta
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.i18n import translate
-from viur.core.contextvars import currentRequest, currentRequestData
+from viur.core.utils import currentRequest, currentRequestData
 import logging
 
 try:

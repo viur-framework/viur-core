@@ -16,7 +16,15 @@ from base64 import urlsafe_b64decode, urlsafe_b64encode
 from hashlib import sha256
 import email.header
 from typing import Any, Union
-from viur.core.contextvars import currentLanguage
+#from viur.core.request import currentLanguage
+
+from contextvars import ContextVar
+
+# Proxy to context depended variables
+currentRequest = ContextVar("Request", default=None)
+currentRequestData = ContextVar("Request-Data", default=None)
+currentSession = ContextVar("Session", default=None)
+currentLanguage = ContextVar("Language", default=None)
 
 # Determine which ProjectID we currently run in (as the app_identity module isn't available anymore)
 _, projectID = google.auth.default()

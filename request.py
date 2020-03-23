@@ -10,7 +10,7 @@ from viur.core import errors
 from urllib.parse import urljoin, urlparse, unquote
 from viur.core.logging import requestLogger, client as loggingClient, requestLoggingRessource
 from viur.core import utils
-from viur.core.contextvars import currentSession
+from viur.core.utils import currentSession
 import logging
 from time import time
 

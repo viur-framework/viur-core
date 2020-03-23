@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #from google.appengine.api import memcache
 from viur.core import utils
-from viur.core.contextvars import currentRequest
+from viur.core.utils import currentRequest
 from datetime import datetime
 
 

@@ -11,7 +11,7 @@ from jinja2 import Environment, FileSystemLoader, ChoiceLoader, BytecodeCache
 from viur.core.i18n import translate
 import os, logging, codecs
 from collections import namedtuple
-from viur.core.contextvars import currentRequest, currentSession, currentLanguage
+from viur.core.utils import currentRequest, currentSession, currentLanguage
 
 KeyValueWrapper = namedtuple("KeyValueWrapper", ["key", "descr"])
 

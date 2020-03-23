@@ -34,7 +34,7 @@ from viur.core import request
 from viur.core import languages as servertrans
 from viur.core.i18n import initializeTranslations
 from viur.core import logging as viurLogging  # Initialize request logging
-from viur.core.contextvars import currentRequest, currentSession, currentLanguage, currentRequestData
+from viur.core.utils import currentRequest, currentSession, currentLanguage, currentRequestData
 from viur.core.session import GaeSession
 import logging
 import webob

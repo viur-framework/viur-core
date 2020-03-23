@@ -18,7 +18,7 @@ import json
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from viur.core.i18n import translate
-from viur.core.contextvars import currentRequest, currentSession
+from viur.core.utils import currentRequest, currentSession
 from viur.core.session import killSessionByUser
 
 class userSkel(Skeleton):

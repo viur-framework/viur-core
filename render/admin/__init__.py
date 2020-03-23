@@ -3,7 +3,7 @@
 from viur.core.render.json.default import DefaultRender as default
 from viur.core.render.json.user import UserRender as user
 from viur.core.render.json.file import FileRender as file
-from viur.core.contextvars import currentRequest, currentLanguage
+from viur.core.utils import currentRequest, currentLanguage
 from viur.core.skeleton import SkeletonInstance
 from viur.core import conf
 from viur.core import securitykey

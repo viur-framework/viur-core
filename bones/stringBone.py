@@ -4,11 +4,10 @@ from viur.core.config import conf
 from viur.core import db
 from viur.core import request
 from viur.core import utils
-from viur.core.session import current as currentSession
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import logging
 from typing import List
-from viur.core.contextvars import currentLanguage
+from viur.core.utils import currentLanguage
 
 class LanguageWrapper(dict):
 	"""

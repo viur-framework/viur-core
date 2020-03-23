@@ -13,7 +13,7 @@ import string
 import logging
 import os
 from typing import List
-from viur.core.contextvars import currentSession, currentRequest, currentLanguage
+from viur.core.utils import currentSession, currentRequest, currentLanguage
 
 
 @jinjaGlobalFunction

@@ -4,7 +4,7 @@ from viur.core import forcePost, forceSSL, exposed, internalExposed
 from viur.core.skeleton import Skeleton
 from viur.core.prototypes import BasicApplication
 from time import time as ttime
-from viur.core.contextvars import currentRequest
+from viur.core.utils import currentRequest
 
 import logging
 
