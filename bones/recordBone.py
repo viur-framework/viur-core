@@ -10,16 +10,11 @@ class recordBone(baseBone):
 
 	def __init__(self, using, format=None, multiple=True, indexed=False, *args, **kwargs):
 		super(recordBone, self).__init__(multiple=multiple, *args, **kwargs)
-
 		self.using = using
 		self.format = format
 		if not format or indexed or not multiple:
 			raise NotImplementedError("A recordBone must not be indexed, must be multiple and must have a format set")
 
-		#if getSystemInitialized():
-		#	self._usingSkelCache = using()
-		#else:
-		#	self._usingSkelCache = None
 
 	def setSystemInitialized(self):
 		super(recordBone, self).setSystemInitialized()
@@ -35,11 +30,9 @@ class recordBone(baseBone):
 		"""
 		value = val
 		assert isinstance(value, dict), "Read something from the datastore thats not a dict: %s" % str(type(value))
-
 		usingSkel = self.using()
-		usingSkel.setValuesCache({})
 		usingSkel.unserialize(value)
-		return usingSkel.getValuesCache()
+		return usingSkel
 
 	def unserialize(self, skel, name):
 		if name not in skel.dbEntity:
@@ -67,11 +60,9 @@ class recordBone(baseBone):
 			if not value:
 				skel.dbEntity[name] = []
 			else:
-				usingSkel = self.using()
 				res = []
 				for val in value:
-					usingSkel.setValuesCache(val)
-					res.append(usingSkel.serialize())
+					res.append(val.serialize())
 				skel.dbEntity[name] = res
 			return True
 		return False
@@ -119,13 +110,12 @@ class recordBone(baseBone):
 		for i, r in enumerate(tmpList[:]):
 			usingSkel = self.using()
 			#usingSkel.setValuesCache(Skeletccc)
-			usingSkel.unserialize({})
 			if not usingSkel.fromClient(r):
 				for error in usingSkel.errors:
 					errors.append(
 						ReadFromClientError(error.severity, "%s.%s.%s" % (name, i, error.fieldPath), error.errorMessage)
 					)
-			tmpList[i] = usingSkel.getValuesCache()
+			tmpList[i] = usingSkel
 		cleanList = []
 		for item in tmpList:
 			err = self.isInvalid(item)
@@ -142,17 +132,6 @@ class recordBone(baseBone):
 			)
 		if errors:
 			return errors
-
-
-	def setBoneValue(self, valuesCache, boneName, value, append):
-		if not isinstance(value, self.using):
-			raise ValueError("value (=%r) must be of type %r" % (type(value), self.using))
-
-		if valuesCache[boneName] is None or not append:
-			valuesCache[boneName] = []
-
-		valuesCache[boneName].append(copy.deepcopy(value.getValuesCache()))
-		return True
 
 	def getSearchTags(self, values, key):
 		def getValues(res, skel, valuesCache):

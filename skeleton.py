@@ -929,6 +929,8 @@ class RelSkel(BaseSkeleton):
 		return complete
 
 	def serialize(self):
+		if self.dbEntity is None:
+			self.dbEntity = db.Entity()
 		for key, _bone in self.items():
 			# if key in self.accessedValues:
 			_bone.serialize(self, key)
