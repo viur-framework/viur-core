@@ -195,7 +195,7 @@ class GaeSession:
 		self.securityKey = utils.generateRandomString(13)
 		self.changed = True
 		self.isInitial = True
-		self.session = {}
+		self.session = db.Entity()
 		if lang:
 			self.session["language"] = lang
 

@@ -7,7 +7,7 @@ from viur.core.bones.stringBone import LanguageWrapper
 from viur.core.config import conf
 import logging, string
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from typing import List
+from typing import List, Union
 
 _defaultTags = {
 	"validTags": [  # List of HTML-Tags which are valid
@@ -230,7 +230,7 @@ class textBone(baseBone):
 			else:
 				self.defaultValue = ""
 
-	def serialize(self, skel, name):
+	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
 		"""
 			Fills this bone with user generated content
 
@@ -254,6 +254,7 @@ class textBone(baseBone):
 						skel.dbEntity["%s_%s" % (name, lang)] = val
 			else:
 				skel.dbEntity[name] = skel.accessedValues[name]
+			skel.dbEntity.exclude_from_indexes.add(name)  # Text bones can not be indexed
 			return True
 		return False
 
@@ -290,7 +291,7 @@ class textBone(baseBone):
 			return True
 		return False
 
-	def fromClient(self, valuesCache, name, data):
+	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -307,18 +308,18 @@ class textBone(baseBone):
 		"""
 		if self.languages:
 			errors = []
-			valuesCache[name] = LanguageWrapper(self.languages)
+			skel[name] = LanguageWrapper(self.languages)
 			for lang in self.languages:
 				if "%s.%s" % (name, lang) in data:
 					val = data["%s.%s" % (name, lang)]
 					err = self.isInvalid(val)  # Returns None on success, error-str otherwise
 					if not err:
-						valuesCache[name][lang] = HtmlSerializer(self.validHtml).sanitize(val)
+						skel[name][lang] = HtmlSerializer(self.validHtml).sanitize(val)
 					else:
 						errors.append(
 							ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
 						)
-			if not any(valuesCache[name].values()) and not errors:
+			if not any(skel[name].values()) and not errors:
 				errors.append(
 					ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No / invalid values entered")
 				)
@@ -331,13 +332,13 @@ class textBone(baseBone):
 			else:
 				value = None
 			if not value:
-				valuesCache[name] = ""
+				skel[name] = ""
 				return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value entered")]
 			if not isinstance(value, str):
 				value = str(value)
 			err = self.isInvalid(value)
 			if not err:
-				valuesCache[name] = HtmlSerializer(self.validHtml).sanitize(value)
+				skel[name] = HtmlSerializer(self.validHtml).sanitize(value)
 			else:
 				return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
 

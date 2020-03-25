@@ -6,7 +6,7 @@ from viur.core import request
 from viur.core import utils
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import logging
-from typing import List
+from typing import List, Union
 from viur.core.utils import currentLanguage
 
 class LanguageWrapper(dict):
@@ -67,14 +67,14 @@ class stringBone(baseBone):
 			else:
 				self.defaultValue = ""
 
-	def serialize(self, skel, name):
+	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
 		if name in skel.accessedValues:
 			for k in list(skel.dbEntity.keys()):  # Remove any old data
 				if k.startswith("%s." % name) or k.startswith("%s_" % name) or k == name:
 					del skel.dbEntity[k]
 			if not self.languages:
 				if self.caseSensitive:
-					return super().serialize(skel, name)
+					return super().serialize(skel, name, parentIndexed)
 				else:
 					skel.dbEntity[name] = skel.accessedValues[name]
 					if skel.dbEntity[name] is None:
@@ -108,6 +108,12 @@ class stringBone(baseBone):
 							skel.dbEntity["%s_idx" % name] = {k: [x.lower() for x in v] for k, v in skel.accessedValues[name].items()}
 						else:
 							skel.dbEntity["%s_idx" % name] = {k: v.lower() for k, v in skel.accessedValues[name].items()}
+				# Ensure our indexed flag is up2date
+				indexed = self.indexed and parentIndexed
+				if indexed and name in skel.dbEntity.exclude_from_indexes:
+					skel.dbEntity.exclude_from_indexes.discard(name)
+				elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
+					skel.dbEntity.exclude_from_indexes.add(name)
 				# FIXME:
 				#	# Fill in None for all remaining languages (needed for sort!)
 				#	entity["%s_%s" % (name, lang)] = ""
@@ -166,7 +172,7 @@ class stringBone(baseBone):
 				return True
 		return False
 
-	def fromClient(self, skel, name, data):
+	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,

@@ -7,6 +7,7 @@ from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverit
 from viur.core.i18n import translate
 from viur.core.utils import currentRequest, currentRequestData
 import logging
+from typing import List, Union
 
 try:
 	import pytz
@@ -86,7 +87,7 @@ class dateBone(baseBone):
 		self.time = time
 		self.localize = localize
 
-	def fromClient(self, skel, name, data):
+	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -231,7 +232,7 @@ class dateBone(baseBone):
 			res = utc.normalize(res.astimezone(utc))
 		return (res)
 
-	def serialize(self, skel, name) -> bool:
+	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
 		if name in skel.accessedValues:
 			res = skel.accessedValues[name]
 			if res:
@@ -242,6 +243,12 @@ class dateBone(baseBone):
 				elif not self.date:
 					res = res.replace(year=1970, month=1, day=1)
 				skel.dbEntity[name] = res
+			# Ensure our indexed flag is up2date
+			indexed = self.indexed and parentIndexed
+			if indexed and name in skel.dbEntity.exclude_from_indexes:
+				skel.dbEntity.exclude_from_indexes.discard(name)
+			elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
+				skel.dbEntity.exclude_from_indexes.add(name)
 			return True
 		return False
 

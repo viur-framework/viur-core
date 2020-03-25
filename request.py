@@ -302,7 +302,7 @@ class BrowseHandler():  # webapp.RequestHandler
 			else:
 				kwargs[key] = value
 			stopCount -= 1
-			if not stopCount:  # We reached zero; maximum PostParamsCount excceded
+			if not stopCount:  # We reached zero; maximum PostParamsCount exceeded
 				raise errors.NotAcceptable()
 
 		if "self" in kwargs:  # self is reserved for bound methods

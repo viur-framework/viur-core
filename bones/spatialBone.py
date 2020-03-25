@@ -5,6 +5,7 @@ from viur.core import db
 import logging
 import math
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from typing import List, Union
 
 
 def haversine(lat1, lng1, lat2, lng2):
@@ -99,7 +100,7 @@ class spatialBone(baseBone):
 			else:
 				return False
 
-	def serialize(self, skel, name):
+	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
 		"""
 			Serializes this bone into something we
 			can write into the datastore.
@@ -111,21 +112,29 @@ class spatialBone(baseBone):
 		if name in skel.accessedValues:
 			if not skel.accessedValues[name]:
 				skel.dbEntity[name] = None
-				return True
-			lat, lng = skel.accessedValues[name]
-			gridSizeLat, gridSizeLng = self.getGridSize()
-			tileLat = int(floor((lat - self.boundsLat[0]) / gridSizeLat))
-			tileLng = int(floor((lng - self.boundsLng[0]) / gridSizeLng))
-			skel.dbEntity[name] = {
-				"coordinates": {
-					"lat": lat,
-					"lng": lng,
-				},
-				"tiles": {
-					"lat": [tileLat - 1, tileLat, tileLat + 1],
-					"lng": [tileLng - 1, tileLng, tileLng + 1],
+			else:
+				lat, lng = skel.accessedValues[name]
+				skel.dbEntity[name] = {
+					"coordinates": {
+						"lat": lat,
+						"lng": lng,
+					}
 				}
-			}
+				indexed = self.indexed and parentIndexed
+				if indexed:
+					gridSizeLat, gridSizeLng = self.getGridSize()
+					tileLat = int(floor((lat - self.boundsLat[0]) / gridSizeLat))
+					tileLng = int(floor((lng - self.boundsLng[0]) / gridSizeLng))
+					skel.dbEntity[name]["tiles"] = {
+						"lat": [tileLat - 1, tileLat, tileLat + 1],
+						"lng": [tileLng - 1, tileLng, tileLng + 1],
+					}
+				# Ensure our indexed flag is up2date
+				if indexed and name in skel.dbEntity.exclude_from_indexes:
+					skel.dbEntity.exclude_from_indexes.discard(name)
+				elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
+					skel.dbEntity.exclude_from_indexes.add(name)
+
 			return True
 		return False
 
@@ -149,7 +158,7 @@ class spatialBone(baseBone):
 			return True
 		return False
 
-	def fromClient(self, skel, name, data):
+	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,

@@ -25,7 +25,7 @@ class randomSliceBone(baseBone):
 		self.slices = slices
 		self.sliceSize = sliceSize
 
-	def serialize(self, skel, name):
+	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
 		"""
 			Serializes this bone into something we
 			can write into the datastore.
@@ -38,6 +38,7 @@ class randomSliceBone(baseBone):
 			:returns: dict
 		"""
 		skel.dbEntity[name] = random
+		skel.dbEntity.exclude_from_indexes.discard(name)  # Random bones can never be not indexed
 		return True
 
 	def buildDBSort(self, name, skel, dbFilter, rawFilter):

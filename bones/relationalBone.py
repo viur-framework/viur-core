@@ -3,7 +3,7 @@ from viur.core.bones import baseBone
 from viur.core.bones.bone import getSystemInitialized
 from viur.core import db
 from viur.core.errors import ReadFromClientError
-# from google.appengine.api import search
+from typing import List, Union
 
 try:
 	import extjson
@@ -202,13 +202,14 @@ class relationalBone(baseBone):
 		else:
 			return False
 
-	def serialize(self, skel, name):
+	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
 		oldRelationalLocks = set(skel.dbEntity.get("%s_outgoingRelationalLocks" % name) or [])
 		newRelationalLocks = set()
 		# Clean old properties from entry (prevent name collision)
 		for k in list(skel.dbEntity.keys()):
 			if k.startswith("%s." % name):
 				del skel.dbEntity[k]
+		indexed = self.indexed and parentIndexed
 		if name not in skel.accessedValues or not skel.accessedValues[name]:
 			skel.dbEntity[name] = None
 		else:
@@ -216,12 +217,12 @@ class relationalBone(baseBone):
 				res = []
 				for val in skel.accessedValues[name]:
 					if val["dest"]:
-						refData = val["dest"].serialize()
+						refData = val["dest"].serialize(parentIndexed=indexed)
 						newRelationalLocks.add(val["dest"]["key"])
 					else:
 						refData = None
 					if val["rel"]:
-						usingData = val["rel"].serialize()
+						usingData = val["rel"].serialize(parentIndexed=indexed)
 					else:
 						usingData = None
 					r = {"rel": usingData, "dest": refData}
@@ -229,16 +230,21 @@ class relationalBone(baseBone):
 					skel.dbEntity[name] = res
 			else:
 				if skel.accessedValues[name]["dest"]:
-					refData = skel.accessedValues[name]["dest"].serialize()
+					refData = skel.accessedValues[name]["dest"].serialize(parentIndexed=indexed)
 					newRelationalLocks.add(skel.accessedValues[name]["dest"]["key"])
 				else:
 					refData = None
 				if skel.accessedValues[name]["rel"]:
-					usingData = skel.accessedValues[name]["rel"].serialize()
+					usingData = skel.accessedValues[name]["rel"].serialize(parentIndexed=indexed)
 				else:
 					usingData = None
 				r = {"rel": usingData, "dest": refData}
 				skel.dbEntity[name] = r
+		# Ensure our indexed flag is up2date
+		if indexed and name in skel.dbEntity.exclude_from_indexes:
+			skel.dbEntity.exclude_from_indexes.discard(name)
+		elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
+			skel.dbEntity.exclude_from_indexes.add(name)
 		# Ensure outgoing Locks are up2date
 		if self.consistency != RelationalConsistency.PreventDeletion:
 			# We don't need to lock anything, but may delete old locks held
@@ -311,11 +317,11 @@ class relationalBone(baseBone):
 				data = [x for x in values if x["dest"]["key"] == dbObj["dest"].key][0]
 				# Write our (updated) values in
 				refSkel = data["dest"]
-				dbObj["dest"] = refSkel.serialize()
+				dbObj["dest"] = refSkel.serialize(parentIndexed=True)
 				dbObj["src"] = parentValues
 				if self.using is not None:
 					usingSkel = data["rel"]
-					dbObj["rel"] = usingSkel.serialize()
+					dbObj["rel"] = usingSkel.serialize(parentIndexed=True)
 				dbObj["viur_delayed_update_tag"] = time()
 				dbObj["viur_relational_updateLevel"] = self.updateLevel
 				dbObj["viur_relational_consistency"] = self.consistency.value
@@ -326,11 +332,11 @@ class relationalBone(baseBone):
 		for val in values:
 			dbObj = db.Entity(db.Key("viur-relations"))
 			refSkel = val["dest"]
-			dbObj["dest"] = refSkel.serialize()
+			dbObj["dest"] = refSkel.serialize(parentIndexed=True)
 			dbObj["src"] = parentValues
 			if self.using is not None:
 				usingSkel = val["rel"]
-				dbObj["rel"] = usingSkel.serialize()
+				dbObj["rel"] = usingSkel.serialize(parentIndexed=True)
 			dbObj["viur_delayed_update_tag"] = time()
 			dbObj["viur_src_kind"] = skel.kindName  # The kind of the entry referencing
 			dbObj["viur_src_property"] = boneName  # The key of the bone referencing
@@ -351,7 +357,7 @@ class relationalBone(baseBone):
 	def isInvalid(self, key):
 		return False
 
-	def fromClient(self, skel, name, data):
+	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict, readPrefix: str) -> Union[None, List[ReadFromClientError]]:
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -366,8 +372,9 @@ class relationalBone(baseBone):
 			:type data: dict
 			:returns: None or String
 		"""
-		if not name in data and not any(x.startswith("%s." % name) for x in data):
-			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
+		readName = readPrefix + name
+		if not readName in data and not any(x.startswith("%s." % readName) for x in data):
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, readName, "Field not submitted")]
 		oldValues = skel[name]
 		skel[name] = []
 		tmpRes = {}

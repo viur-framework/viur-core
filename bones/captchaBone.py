@@ -2,7 +2,7 @@
 import json
 import urllib.parse
 import urllib.request
-
+from typing import List, Union
 from viur.core import utils
 from viur.core.bones import bone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
@@ -19,14 +19,14 @@ class captchaBone(bone.baseBone):
 		self.required = True
 		self.hasDBField = False
 
-	def serialize(self, skel, name) -> bool:
+	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
 		return False
 
 	def unserialize(self, skel, name) -> bool:
 		skel.accessedValues[name] = self.publicKey
 		return True
 
-	def fromClient(self, skel, name, data):
+	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,

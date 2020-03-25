@@ -86,7 +86,7 @@ def Put(entity: Union[Entity, List[Entity]]):
 	for e in entity:
 		if not e.key.is_partial and e.key.name and e.key.name.isdigit():
 			raise ValueError("Cannot store an entity with digit-only string key")
-		fixUnindexableProperties(e)
+		#fixUnindexableProperties(e)
 	return __client__.put_multi(entities=entity)
 
 
@@ -110,7 +110,6 @@ def fixUnindexableProperties(entry: Entity):
 			return len(prop) >= 500
 		else:
 			return False
-
 	resList = []
 	for k, v in entry.items():
 		if hasUnindexableProperty(v):

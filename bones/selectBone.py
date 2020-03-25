@@ -3,6 +3,7 @@ from viur.core.bones import baseBone
 from collections import OrderedDict
 import logging
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from typing import List, Union
 
 
 class selectBone(baseBone):
@@ -49,7 +50,7 @@ class selectBone(baseBone):
 		elif isinstance(values, OrderedDict):
 			self.values = values
 
-	def fromClient(self, skel, name, data):
+	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		if not name in data:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
 		values = data[name]

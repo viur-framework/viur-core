@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from viur.core.bones.bone import baseBone, getSystemInitialized
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from typing import List
+from typing import List, Union
 import copy
 
 
@@ -54,7 +54,7 @@ class recordBone(baseBone):
 				raise
 		return True
 
-	def serialize(self, skel, name):
+	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
 		if name in skel.accessedValues:
 			value = skel.accessedValues[name]
 			if not value:
@@ -62,13 +62,13 @@ class recordBone(baseBone):
 			else:
 				res = []
 				for val in value:
-					res.append(val.serialize())
+					res.append(val.serialize(parentIndexed=False))
 				skel.dbEntity[name] = res
+			skel.dbEntity.exclude_from_indexes.add(name)  # Record bones can not be indexed
 			return True
 		return False
 
-	def fromClient(self, skel, name, data):
-		#return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Not yet fixed")]
+	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		if not name in data and not any(x.startswith("%s." % name) for x in data):
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
 		skel[name] = []

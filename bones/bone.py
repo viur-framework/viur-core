@@ -131,7 +131,7 @@ class baseBone(object):  # One Bone:
 			raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
 		super(baseBone, self).__setattr__(key, value)
 
-	def fromClient(self, skel: 'SkeletonValues', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
+	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -149,12 +149,14 @@ class baseBone(object):  # One Bone:
 		if not name in data:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
 		value = data[name]
+		if value is None:
+			skel[name] = None
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "Field not set")]
 		err = self.isInvalid(value)
-		if not err:
-			skel[name] = value
-			return None
-		else:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, err)]
+		if err:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+		skel[name] = value
+		return None
 
 	def isInvalid(self, value):
 		"""
@@ -164,7 +166,7 @@ class baseBone(object):  # One Bone:
 		if value == None:
 			return "No value entered"
 
-	def serialize(self, skel, name) -> bool:
+	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
 		"""
 			Serializes this bone into something we
 			can write into the datastore.
@@ -175,6 +177,12 @@ class baseBone(object):  # One Bone:
 		"""
 		if name in skel.accessedValues:
 			skel.dbEntity[name] = skel.accessedValues[name]
+			# Ensure our indexed flag is up2date
+			indexed = self.indexed and parentIndexed
+			if indexed and name in skel.dbEntity.exclude_from_indexes:
+				skel.dbEntity.exclude_from_indexes.discard(name)
+			elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
+				skel.dbEntity.exclude_from_indexes.add(name)
 			return True
 		return False
 
