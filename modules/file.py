@@ -7,24 +7,27 @@ from viur.core.bones import *
 from viur.core.prototypes.uniformtree import Tree, TreeSkel, TreeType
 from viur.core.tasks import callDeferred, PeriodicTask
 from quopri import decodestring
-from base64 import urlsafe_b64decode, urlsafe_b64encode
-from hashlib import sha256
+from base64 import urlsafe_b64decode
 import email.header
 import collections, logging, cgi, string
-from google.auth import compute_engine
-from datetime import datetime, timedelta
-from google.cloud import storage
-from viur.core.utils import projectID
-import hashlib
-import hmac
 from io import BytesIO
 from PIL import Image
 from typing import Union, Tuple, Dict
+from google.cloud._helpers import _datetime_to_rfc3339
+import base64, json
+import os, google.auth
+from google.auth.transport import requests
+from google.auth import compute_engine, crypt
+from datetime import datetime, timedelta
+from google.cloud import storage
+from google.cloud._helpers import _NOW
+from google.oauth2.service_account import Credentials as ServiceAccoutCredentials
 
-client = storage.Client.from_service_account_json("store_credentials.json")
-bucket = client.lookup_bucket("%s.appspot.com" % projectID)
-conf["viur.file.hmacKey"] = hashlib.sha3_384(
-	open("store_credentials.json", "rb").read()).digest()  # FIXME: Persistent key from db?
+
+credentials, project = google.auth.default()
+client = storage.Client(project, credentials)
+#bucket = client.lookup_bucket("%s.appspot.com" % projectID)
+bucket = client.lookup_bucket("backup-hsk-py3-dstest")
 
 
 class injectStoreURLBone(baseBone):
@@ -167,16 +170,75 @@ class File(Tree):
 			if skel.fromDB(str(d)):
 				skel.delete()
 
+	def generateUploadPolicy(self, conditions):
+		"""
+		Our implementation of bucket.generate_upload_policy - which works with default token credentials
+		Create a signed upload policy for uploading objects.
+
+		This method generates and signs a policy document. You can use
+		`policy documents`_ to allow visitors to a website to upload files to
+		Google Cloud Storage without giving them direct write access.
+
+		For example:
+
+		.. literalinclude:: snippets.py
+			:start-after: [START policy_document]
+			:end-before: [END policy_document]
+
+		.. _policy documents:
+			https://cloud.google.com/storage/docs/xml-api\
+			/post-object#policydocument
+
+		:type expiration: datetime
+		:param expiration: Optional expiration in UTC. If not specified, the
+						   policy will expire in 1 hour.
+
+		:type conditions: list
+		:param conditions: A list of conditions as described in the
+						  `policy documents`_ documentation.
+
+		:type client: :class:`~google.cloud.storage.client.Client`
+		:param client: Optional. The client to use.  If not passed, falls back
+					   to the ``client`` stored on the current bucket.
+
+		:rtype: dict
+		:returns: A dictionary of (form field name, form field value) of form
+				  fields that should be added to your HTML upload form in order
+				  to attach the signature.
+		"""
+		global credentials, bucket
+		auth_request = requests.Request()
+		sign_cred = compute_engine.IDTokenCredentials(auth_request, "",
+																service_account_email=credentials.service_account_email)
+		expiration = _NOW() + timedelta(hours=1)
+		conditions = conditions + [{"bucket": bucket.name}]
+		policy_document = {
+			"expiration": _datetime_to_rfc3339(expiration),
+			"conditions": conditions,
+		}
+		encoded_policy_document = base64.b64encode(
+			json.dumps(policy_document).encode("utf-8")
+		)
+		signature = base64.b64encode(sign_cred.sign_bytes(encoded_policy_document))
+		fields = {
+			"bucket": bucket.name,
+			"GoogleAccessId": sign_cred.signer_email,
+			"policy": encoded_policy_document.decode("utf-8"),
+			"signature": signature.decode("utf-8"),
+		}
+		return fields
+
 	def createUploadURL(self, node: Union[str, None]) -> Tuple[str, str, Dict[str, str]]:
+		global bucket
 		targetKey = utils.generateRandomString()
 		conditions = [["starts-with", "$key", "%s/source/" % targetKey]]
-
-		policy = bucket.generate_upload_policy(conditions)
+		if isinstance(credentials, ServiceAccoutCredentials):  # We run locally with an service-account.json
+			policy = bucket.generate_upload_policy(conditions)
+		else:  # Use our fixed PolicyGenerator - Google is currently unable to create one itself on its GCE
+			policy = self.generateUploadPolicy(conditions)
 		uploadUrl = "https://%s.storage.googleapis.com" % bucket.name
-
 		# Create a correspondingfile-lock object early, otherwise we would have to ensure that the file-lock object
 		# the user creates matches the file he had uploaded
-
 		fileSkel = self.addSkel(TreeType.Leaf)
 		fileSkel["key"] = targetKey
 		fileSkel["name"] = "pending"
@@ -247,16 +309,14 @@ class File(Tree):
 	def download(self, blobKey, fileName="", download="", sig="", *args, **kwargs):
 		"""
 		Download a file.
-
 		:param blobKey: The unique blob key of the file.
 		:type blobKey: str
-
 		:param fileName: Optional filename to provide in the header.
 		:type fileName: str
-
 		:param download: Set header to attachment retrival, set explictly to "1" if download is wanted.
 		:type download: str
 		"""
+		global credentials, bucket
 		if not sig:
 			raise errors.PreconditionFailed()
 		# First, validate the signature, otherwise we don't need to proceed any further
@@ -267,10 +327,18 @@ class File(Tree):
 		if validUntil != "0" and datetime.strptime(validUntil, "%Y%m%d%H%M") < datetime.now():
 			raise errors.Gone()
 		# Create a signed url and redirect the user
-		blob = bucket.get_blob(dlPath)
-		if not blob:
-			raise errors.NotFound()
-		signed_url = blob.generate_signed_url(datetime.now() + timedelta(seconds=60))
+		if isinstance(credentials, ServiceAccoutCredentials):  # We run locally with an service-account.json
+			blob = bucket.get_blob(dlPath)
+			if not blob:
+				raise errors.NotFound()
+			signed_url = blob.generate_signed_url(datetime.now() + timedelta(seconds=60))
+		else:  # We are inside the appengine
+			auth_request = requests.Request()
+			signed_blob_path = bucket.blob(dlPath)
+			expires_at_ms = datetime.now() + timedelta(seconds=60)
+			signing_credentials = compute_engine.IDTokenCredentials(auth_request, "",
+																service_account_email=credentials.service_account_email)
+			signed_url = signed_blob_path.generate_signed_url(expires_at_ms, credentials=signing_credentials, version="v4")
 		raise errors.Redirect(signed_url)
 
 	@exposed

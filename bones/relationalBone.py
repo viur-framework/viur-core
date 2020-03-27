@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from viur.core.bones import baseBone
 from viur.core.bones.bone import getSystemInitialized
+from viur.core.bones.stringBone import LanguageWrapper
 from viur.core import db
 from viur.core.errors import ReadFromClientError
 from typing import List, Union
@@ -355,9 +356,9 @@ class relationalBone(baseBone):
 		db.Delete([x for x in dbVals.run(keysOnly=True)])
 
 	def isInvalid(self, key):
-		return False
+		return None
 
-	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict, readPrefix: str) -> Union[None, List[ReadFromClientError]]:
+	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -372,65 +373,19 @@ class relationalBone(baseBone):
 			:type data: dict
 			:returns: None or String
 		"""
-		readName = readPrefix + name
-		if not readName in data and not any(x.startswith("%s." % readName) for x in data):
-			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, readName, "Field not submitted")]
-		oldValues = skel[name]
-		skel[name] = []
-		tmpRes = {}
-		clientPrefix = "%s." % name
-		for k, v in data.items():
-			if k.startswith(clientPrefix) or k == name:
-				if k == name:
-					k = k.replace(name, "", 1)
-				else:
-					k = k.replace(clientPrefix, "", 1)
-				if "." in k:
-					try:
-						idx, bname = k.split(".", 1)
-						idx = int(idx)
-					except ValueError:
-						# We got some garbage as input; don't try to parse it
-						continue
-				elif k.isdigit() and self.using is None:
-					idx = int(k)
-					bname = "key"
-				elif self.using is None and not self.multiple:
-					idx = 0
-					bname = "key"
-				else:
-					continue
-				if not idx in tmpRes:
-					tmpRes[idx] = {}
-				if bname in tmpRes[idx]:
-					if isinstance(tmpRes[idx][bname], list):
-						tmpRes[idx][bname].append(v)
-					else:
-						tmpRes[idx][bname] = [tmpRes[idx][bname], v]
-				else:
-					tmpRes[idx][bname] = v
-		tmpList = [(k, v) for k, v in tmpRes.items() if "key" in v]
-		tmpList.sort(key=lambda k: k[0])
-		tmpList = [{"reltmp": v, "dest": {"key": v["key"]}} for k, v in tmpList]
-		errors = []
-		if not tmpList and self.required:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "Field not submitted")]
-		for r in tmpList[:]:
-			if not r["dest"]["key"]:  # Key is set to empty string (clear that relation)
-				tmpList.remove(r)
-				continue
-			_refSkelCache, _usingSkelCache = self._getSkels()
-			# Rebuild the referenced entity data
-			isEntryFromBackup = False  # If the referenced entry has been deleted, restore information from
+		def restoreSkels(key, usingData, index=None):
+			refSkel, usingSkel = self._getSkels()
+			isEntryFromBackup = False  # If the referenced entry has been deleted, restore information from backup
 			entry = None
 			dbKey = None
+			errors = []
 			try:
-				dbKey = db.keyHelper(r["dest"]["key"], self.kind)
+				dbKey = db.keyHelper(key, self.kind)
 				entry = db.Get(dbKey)
 				assert entry
 			except:  # Invalid key or something like that
 				logging.info("Invalid reference key >%s< detected on bone '%s'",
-							 r["dest"]["key"], name)
+							 key, name)
 				if isinstance(oldValues, dict):
 					if oldValues["dest"]["key"] == dbKey:
 						entry = oldValues["dest"]
@@ -440,76 +395,55 @@ class relationalBone(baseBone):
 						if dbVal["dest"]["key"] == dbKey:
 							entry = dbVal["dest"]
 							isEntryFromBackup = True
-				if not isEntryFromBackup:
-					if not self.multiple:  # We can stop here :/
-						return [
-							ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid entry selected")]
-					else:
-						tmpList.remove(r)
-						continue
-			if not entry or (
-				not isEntryFromBackup and not entry.key.kind == self.kind):  # Entry does not exist or has wrong type (is from another module)
-				if entry:
-					logging.error("I got a key, which kind doesn't match my type! (Got: %s, my type %s)" % (
-						entry.key.kind, self.kind))
-					errors.append(
-						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name,
-											"I got a key, which kind doesn't match my type!")
-					)
-				tmpList.remove(r)
-				continue
-			tmp = db.Entity()
-			for k in entry.keys():
-				if k in self.refKeys or any([k.startswith("%s." % x) for x in self.refKeys]):
-					tmp[k] = entry[k]
-			tmp.key = db.keyHelper(r["dest"]["key"], self.kind)
-			relSkel = _refSkelCache
-			relSkel.unserialize(tmp)
-			r["dest"] = relSkel
-			# Rebuild the refSkel data
-			if self.using is not None:
-				refSkel = _usingSkelCache
-				if not refSkel.fromClient(r["reltmp"]):
-					for error in refSkel.errors:
-						errors.append(
-							ReadFromClientError(error.severity, "%s.%s.%s" % (name, tmpList.index(r), error.fieldPath),
-												error.errorMessage)
-						)
-				r["rel"] = refSkel
+			if isEntryFromBackup:
+				refSkel = entry
+			elif entry:
+				refSkel.dbEntity = entry
 			else:
-				r["rel"] = None
-			del r["reltmp"]
-		if self.multiple:
-			cleanList = []
-			for item in tmpList:
-				err = self.isInvalid(item)
-				if err:
+				if index:
 					errors.append(
-						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "%s.%s" % (name, tmpList.index(item)),
-											err)
-					)
-				# errorDict["%s.%s" % (name, tmpList.index(item))] = err
+						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "%s.%s" % (name, index),
+											"Invalid value submitted"))
 				else:
-					cleanList.append(item)
-			if not cleanList:
-				errors.append(
-					ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")
-				)
-			# errorDict[name] = "No value selected"
-			skel[name] = tmpList
-		else:
-			if tmpList:
-				val = tmpList[0]
-			else:
-				val = None
-			err = self.isInvalid(val)
-			if not err:
-				skel[name] = val
-				if val is None:
-					# errorDict[name] = "No value selected"
 					errors.append(
-						ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")
-					)
+						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value submitted"))
+				return None, None, errors  # We could not parse this
+			if usingSkel:
+				if not usingSkel.fromClient(usingData):
+					errors.extend(usingSkel.errors)
+			return refSkel, usingSkel, errors
+
+
+		dataRead, fieldSubmitted = self.collectRawClientData(name, data, self.multiple, self.languages, bool(self.using))
+		if not fieldSubmitted:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
+		oldValues = skel[name]
+		res = None
+		errors = []
+		if not self.multiple and not self.languages and not self.using:
+			refSkel, relSkel, readErrs = restoreSkels(dataRead, None)
+			if not refSkel:  # We read complete garbage
+				return readErrs
+			errors.extend(readErrs)
+			res = {"dest": refSkel, "rel": relSkel}
+			err = self.isInvalid(res)
+			if err:
+				errors.append([ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)])
+		elif self.multiple and not self.languages and not self.using:
+			res = []
+			for val in dataRead:
+				refSkel, relSkel, readErrs = restoreSkels(val, None, len(res))
+				errors.extend(readErrs)
+				if not refSkel:  # We read complete garbage
+					continue
+				val = {"dest": refSkel, "rel": relSkel}
+				err = self.isInvalid(val)
+				if err:
+					errors.append([ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)])
+				res.append(val)
+		else:
+			raise NotImplementedError("Not yet implemented")
+		skel[name] = res
 		if errors:
 			return errors
 

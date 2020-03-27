@@ -264,6 +264,7 @@ def escapeString(val, maxLength=254):
 
 
 def hmacSign(data: Any) -> str:
+	assert conf["viur.file.hmacKey"] is not None, "No hmac-key set!"
 	if not isinstance(data, bytes):
 		data = str(data).encode("UTF-8")
 	return hmac.new(conf["viur.file.hmacKey"], msg=data, digestmod=hashlib.sha3_384).hexdigest()

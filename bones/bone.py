@@ -54,8 +54,8 @@ class baseBone(object):  # One Bone:
 	type = "hidden"
 	isClonedInstance = False
 
-	def __init__(self, descr="", defaultValue=None, required=False, params=None, multiple=False,
-				 searchable=False, vfunc=None, readOnly=False, visible=True, unique=False, **kwargs):
+	def __init__(self, descr="", defaultValue=None, required=False, params=None, multiple=False, indexed=True,
+				 languages = None, searchable=False, vfunc=None, readOnly=False, visible=True, unique=False, **kwargs):
 		"""
 			Initializes a new Bone.
 
@@ -96,7 +96,9 @@ class baseBone(object):  # One Bone:
 		self.required = required
 		self.params = params
 		self.multiple = multiple
+		self.indexed = indexed
 		self.defaultValue = defaultValue
+		self.languages = languages
 		self.searchable = searchable
 		if vfunc:
 			self.isInvalid = vfunc
@@ -130,6 +132,97 @@ class baseBone(object):  # One Bone:
 				"_"):
 			raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
 		super(baseBone, self).__setattr__(key, value)
+
+	def collectRawClientData(self, name, data, multiple, languages, collectSubfields):
+		fieldSubmitted = False
+		if languages:
+			res = {}
+			for lang in languages:
+				if not collectSubfields:
+					if "%s.%s" % (name, lang) in data:
+						fieldSubmitted = True
+						res[lang] = data["%s.%s" % (name, lang)]
+						if multiple and not isinstance(res[lang], list):
+							res[lang] = [res[lang]]
+						elif not multiple and isinstance(res[lang], list):
+							if res[lang]:
+								res[lang] = res[lang][0]
+							else:
+								res[lang] = None
+				else:
+					prefix = "%s.%s." % (name, lang)
+					if multiple:
+						tmpDict = {}
+						for key, value in data.items():
+							if not key.startswith(prefix):
+								continue
+							fieldSubmitted = True
+							partKey = key.replace(prefix, "")
+							firstKey, remainingKey = partKey.split(".", maxsplit=1)
+							try:
+								firstKey = int(firstKey)
+							except:
+								continue
+							if firstKey not in tmpDict:
+								tmpDict[firstKey] = {}
+							tmpDict[firstKey][remainingKey] = value
+						tmpList = list(tmpDict.items())
+						tmpList.sort(key=lambda x: x[0])
+						res[lang] = [x[1] for x in tmpList]
+					else:
+						tmpDict = {}
+						for key, value in data.items():
+							if not key.startswith(prefix):
+								continue
+							fieldSubmitted = True
+							partKey = key.replace(prefix, "")
+							tmpDict[partKey] = value
+						res[lang] = tmpDict
+			return res, fieldSubmitted
+		else: # No multi-lang
+			if not collectSubfields:
+				if name not in data: ## Empty!
+					return None, False
+				val = data[name]
+				if multiple and not isinstance(val, list):
+					return [val], True
+				elif not multiple and isinstance(val, list):
+					if val:
+						return val[0], True
+					else:
+						return None, True  # Empty!
+				else:
+					return val, True
+			else:  # No multi-lang but collect subfields
+				prefix = "%s." % name
+				if multiple:
+					tmpDict = {}
+					for key, value in data.items():
+						if not key.startswith(prefix):
+							continue
+						fieldSubmitted = True
+						partKey = key.replace(prefix, "")
+						firstKey, remainingKey = partKey.split(".", maxsplit=1)
+						try:
+							firstKey = int(firstKey)
+						except:
+							continue
+						if firstKey not in tmpDict:
+							tmpDict[firstKey] = {}
+						tmpDict[firstKey][remainingKey] = value
+					tmpList = list(tmpDict.items())
+					tmpList.sort(key=lambda x: x[0])
+					return [x[1] for x in tmpList], fieldSubmitted
+				else:
+					res = {}
+					for key, value in data.items():
+						if not key.startswith(prefix):
+							continue
+						fieldSubmitted = True
+						subKey = key.replace(prefix, "")
+						res[subKey] = value
+					return res, fieldSubmitted
+
 
 	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		"""
