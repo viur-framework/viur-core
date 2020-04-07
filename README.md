@@ -15,15 +15,15 @@ The ViUR framework caters to the implementation of information systems, that are
 
 ## Getting started
 
-To get started with ViUR, check out our [base repository](https://github.com/viur-framework/base). It comes with a recently updated, pre-configured and well documented project template to immediately start with your new project.
+To get started with ViUR, check out our [base repository](https://github.com/viur-framework/viur-base). It comes with a recently updated, pre-configured and well documented project template to immediately start with your new project.
 
-We also recommend to visit [viur.is](https://www.viur.is/) to get the latest news and documentation on ViUR.
+We also recommend to visit [viur.dev](https://www.viur.dev) to get the latest news and documentation on ViUR.
 
 ## Contributing
 
 We take great interest in your opinion about ViUR. We appreciate your feedback and are looking forward to hear about your ideas. Share your vision or questions with us and participate in ongoing discussions.
 
-- [ViUR website](https://www.viur.is)
+- [ViUR website](https://www.viur.dev)
 - [#ViUR on freenode IRC](https://webchat.freenode.net/?channels=viur)
 - [ViUR on GitHub](https://github.com/viur-framework)
 - [ViUR on Twitter](https://twitter.com/weloveViUR)
