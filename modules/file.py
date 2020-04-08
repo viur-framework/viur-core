@@ -26,8 +26,7 @@ from google.oauth2.service_account import Credentials as ServiceAccoutCredential
 
 credentials, project = google.auth.default()
 client = storage.Client(project, credentials)
-#bucket = client.lookup_bucket("%s.appspot.com" % projectID)
-bucket = client.lookup_bucket("backup-hsk-py3-dstest")
+bucket = client.lookup_bucket(f"{project}.appspot.com")
 
 
 class injectStoreURLBone(baseBone):
