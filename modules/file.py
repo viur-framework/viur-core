@@ -23,12 +23,9 @@ from google.cloud import storage
 from google.cloud._helpers import _NOW
 from google.oauth2.service_account import Credentials as ServiceAccoutCredentials
 
-
 credentials, project = google.auth.default()
 client = storage.Client(project, credentials)
-#bucket = client.lookup_bucket("%s.appspot.com" % projectID)
-bucket = client.lookup_bucket("backup-hsk-py3-dstest")
-
+bucket = client.lookup_bucket(project)
 
 class injectStoreURLBone(baseBone):
 	def unserialize(self, skel, name):
