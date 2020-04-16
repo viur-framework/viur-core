@@ -4,7 +4,7 @@ import logging
 import google.cloud.logging
 from google.cloud.logging.handlers import CloudLoggingHandler
 from google.cloud.logging.resource import Resource
-from viur.core.utils import projectID
+from viur.core.utils import projectID, currentRequest
 
 client = google.cloud.logging.Client()
 requestLoggingRessource = Resource(type="gae_app",
@@ -20,7 +20,7 @@ class ViURDefaultLogger(CloudLoggingHandler):
 	def emit(self, record):
 		message = super(ViURDefaultLogger, self).format(record)
 		try:
-			currentReq = current.get()
+			currentReq = currentRequest.get()
 			TRACE = "projects/{}/traces/{}".format(client.project, currentReq._traceID)
 			currentReq.maxLogLevel = max(currentReq.maxLogLevel, record.levelno)
 		except:
