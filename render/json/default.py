@@ -34,7 +34,8 @@ class DefaultRender(object):
 			"visible": bone.visible,
 			"readonly": bone.readOnly,
 			"unique": bone.unique.method.value if bone.unique else False,
-			"languages": bone.languages
+			"languages": bone.languages,
+			"multiple": bone.multiple
 		}
 
 		if bone.type == "relational" or bone.type.startswith("relational."):
@@ -130,7 +131,7 @@ class DefaultRender(object):
 				 "descr": str(e.descr),
 				 "skel": self.renderSkelStructure(e.dataSkel())})
 
-	def renderBoneValue(self, bone, skel, key):
+	def renderSingleBoneValue(self, value, bone, skel, key):
 		"""
 		Renders the value of a bone.
 
@@ -144,57 +145,53 @@ class DefaultRender(object):
 		:rtype: dict
 		"""
 		if bone.type == "date" or bone.type.startswith("date."):
-			if skel[key]:
+			if value:
 				if bone.date and bone.time:
-					return skel[key].strftime("%d.%m.%Y %H:%M:%S")
+					return value.strftime("%d.%m.%Y %H:%M:%S")
 				elif bone.date:
-					return skel[key].strftime("%d.%m.%Y")
+					return value.strftime("%d.%m.%Y")
 
-				return skel[key].strftime("%H:%M:%S")
+				return value.strftime("%H:%M:%S")
 		elif isinstance(bone, bones.relationalBone):
-			if isinstance(skel[key], list):
-				isFileBone = isinstance(bone, bones.fileBone)
-				#refSkel, usingSkel = bone._getSkels()
-				#refSkel = bone._refSkelCache
-				#usingSkel = bone._usingSkelCache
-				tmpList = []
-				for k in skel[key]:
-					#refSkel.setValuesCache(k["dest"])
-					#if usingSkel:
-					#	usingSkel.setValuesCache(k.get("rel", {}))
-					#	usingData = self.renderSkelValues(usingSkel)
-					#else:
-					#	usingData = None
-					tmpList.append({
-						"dest": self.renderSkelValues(k["dest"], injectDownloadURL=isFileBone),
-						"rel": self.renderSkelValues(k["rel"], injectDownloadURL=isFileBone) if k["rel"] else None,
-					})
-				return tmpList
-			elif isinstance(skel[key], dict):
-				#refSkel, usingSkel = bone._getSkels()
-				#refSkel.setValuesCache(skel[key]["dest"])
-				#if usingSkel:
-				#	usingSkel.setValuesCache(skel[key].get("rel", {}))
-				#	usingData = self.renderSkelValues(usingSkel)
-				#else:
-				#	usingData = None
+			if isinstance(value, dict):
 				return {
-					"dest": self.renderSkelValues(skel[key]["dest"], injectDownloadURL=isinstance(bone, bones.fileBone)),
-					"rel": self.renderSkelValues(skel[key]["rel"], injectDownloadURL=isinstance(bone, bones.fileBone)) if skel[key]["rel"] else None,
+					"dest": self.renderSkelValues(value["dest"], injectDownloadURL=isinstance(bone, bones.fileBone)),
+					"rel": self.renderSkelValues(value["rel"], injectDownloadURL=isinstance(bone, bones.fileBone)) if value["rel"] else None,
 				}
 		elif isinstance(bone, bones.recordBone):
 			tmpList = []
-			if skel[key]:
-				for k in skel[key]:
+			if value:
+				for k in value:
 					tmpList.append(self.renderSkelValues(k))
 			return tmpList
 		elif isinstance(bone, bones.keyBone):
 			v = skel["key"]
 			return v.to_legacy_urlsafe().decode("ASCII") if v else None
 		else:
-			return skel[key]
-
+			return value
 		return None
+	
+	def renderBoneValue(self, bone, skel, key):
+		boneVal = skel[key]
+		if bone.languages and bone.multiple:
+			res = {}
+			for language in bone.languages:
+				if boneVal and language in boneVal and boneVal[language]:
+					res[language] = [self.renderSingleBoneValue(v, bone, skel, key) for v in boneVal[language]]
+				else:
+					res[language] = []
+		elif bone.languages:
+			res = {}
+			for language in bone.languages:
+				if boneVal and language in boneVal and boneVal[language]:
+					res[language] = self.renderSingleBoneValue(boneVal[language], bone, skel, key)
+				else:
+					res[language] = None
+		elif bone.multiple:
+			res = [self.renderSingleBoneValue(v, bone, skel, key) for v in boneVal] if boneVal else None
+		else:
+			res = self.renderSingleBoneValue(boneVal, bone, skel, key)
+		return res
 
 	def renderSkelValues(self, skel, injectDownloadURL=False):
 		"""

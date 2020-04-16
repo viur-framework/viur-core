@@ -67,61 +67,6 @@ class stringBone(baseBone):
 			else:
 				self.defaultValue = ""
 
-	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
-		if name in skel.accessedValues:
-			for k in list(skel.dbEntity.keys()):  # Remove any old data
-				if k.startswith("%s." % name) or k.startswith("%s_" % name) or k == name:
-					del skel.dbEntity[k]
-			if not self.languages:
-				if self.caseSensitive:
-					return super().serialize(skel, name, parentIndexed)
-				else:
-					skel.dbEntity[name] = skel.accessedValues[name]
-					if skel.dbEntity[name] is None:
-						skel.dbEntity[name + "_idx"] = None
-					elif isinstance(skel.dbEntity[name], list):
-						skel.dbEntity[name + "_idx"] = [str(x).lower() for x in skel.dbEntity[name]]
-					else:
-						skel.dbEntity[name + "_idx"] = str(skel.dbEntity[name]).lower()
-			else:  # Write each language separately
-				if not skel.accessedValues[name]:
-					return True  # Bail out here, we've deleted all our keys above from the entry
-				if isinstance(skel.accessedValues[name], str) or (
-						isinstance(skel.accessedValues[name], list) and self.multiple):  # Convert from old format
-					lang = self.languages[0]
-					skel.dbEntity["%s_%s" % (name, lang)] = skel.accessedValues[name]
-					if not self.caseSensitive:
-						if isinstance(skel.accessedValues[name], str):
-							skel.dbEntity["%s_%s_idx" % (name, lang)] = skel.accessedValues[name].lower()
-						else:
-							skel.dbEntity["%s_%s_idx" % (name, lang)] = [x.lower for x in skel.accessedValues[name]]
-					# Fill in None for all remaining languages (needed for sort!)
-					for lang in self.languages[1:]:
-						skel.dbEntity["%s_%s" % (name, lang)] = ""
-						if not self.caseSensitive:
-							skel.dbEntity["%s_%s_idx" % (name, lang)] = ""
-				else:
-					assert isinstance(skel.accessedValues[name], dict)
-					skel.dbEntity[name] = skel.accessedValues[name]
-					if not self.caseSensitive:
-						if self.multiple:
-							skel.dbEntity["%s_idx" % name] = {k: [x.lower() for x in v] for k, v in skel.accessedValues[name].items()}
-						else:
-							skel.dbEntity["%s_idx" % name] = {k: v.lower() for k, v in skel.accessedValues[name].items()}
-				# Ensure our indexed flag is up2date
-				indexed = self.indexed and parentIndexed
-				if indexed and name in skel.dbEntity.exclude_from_indexes:
-					skel.dbEntity.exclude_from_indexes.discard(name)
-				elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
-					skel.dbEntity.exclude_from_indexes.add(name)
-				# FIXME:
-				#	# Fill in None for all remaining languages (needed for sort!)
-				#	entity["%s_%s" % (name, lang)] = ""
-				#	if not self.caseSensitive:
-				#		entity["%s_%s_idx" % (name, lang)] = ""
-			return True
-		return False
-
 	def unserialize(self, skel, name):
 		"""
 			Inverse of serialize. Evaluates whats
@@ -171,6 +116,12 @@ class stringBone(baseBone):
 				skel.accessedValues[name].update(oldData)
 				return True
 		return False
+
+	def singleValueFromClient(self, value, skel, name, origData):
+		err = self.isInvalid(value)
+		if not err:
+			return utils.escapeString(value), None
+		return self.getDefaultValue(), ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
 
 	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		"""

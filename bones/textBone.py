@@ -213,8 +213,8 @@ class textBone(baseBone):
 	def __init__(self, validHtml=__undefinedC__, languages=None, maxLength=200000,
 				 defaultValue = None, *args, **kwargs):
 		super(textBone, self).__init__(defaultValue=defaultValue, *args, **kwargs)
-		if self.multiple:
-			raise NotImplementedError("multiple=True is not supported on textBones")
+		#if self.multiple:
+		#	raise NotImplementedError("multiple=True is not supported on textBones")
 		if validHtml == textBone.__undefinedC__:
 			global _defaultTags
 			validHtml = _defaultTags
@@ -230,117 +230,17 @@ class textBone(baseBone):
 			else:
 				self.defaultValue = ""
 
-	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
-		"""
-			Fills this bone with user generated content
+	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+		if not value or (not HtmlSerializer().sanitize(value).strip() and not "<img " in value):
+			return ""
+		return value
 
-			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:param entity: An instance of the dictionary-like db.Entity class
-			:type entity: :class:`server.db.Entity`
-			:return: the modified :class:`server.db.Entity`
-		"""
-		if name in skel.accessedValues:
-			if self.languages:
-				for k in list(skel.dbEntity.keys()):  # Remove any old data
-					if k.startswith("%s." % name) or k.startswith("%s_" % name) or k == name:
-						del skel.dbEntity[k]
-				for lang in self.languages:
-					if isinstance(skel.accessedValues[name], dict) and lang in skel.accessedValues[name]:
-						val = skel.accessedValues[name][lang]
-						if not val or (not HtmlSerializer().sanitize(val).strip() and not "<img " in val):
-							# This text is empty (ie. it might contain only an empty <p> tag
-							continue
-						skel.dbEntity["%s_%s" % (name, lang)] = val
-			else:
-				skel.dbEntity[name] = skel.accessedValues[name]
-			skel.dbEntity.exclude_from_indexes.add(name)  # Text bones can not be indexed
-			return True
-		return False
-
-	def unserialize(self, skel, name):
-		"""
-			Inverse of serialize. Evaluates whats
-			read from the datastore and populates
-			this bone accordingly.
-
-			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:param expando: An instance of the dictionary-like db.Entity class
-			:type expando: :class:`db.Entity`
-		"""
-		if not self.languages:
-			if name in skel.dbEntity:
-				skel.accessedValues[name] = skel.dbEntity[name]
-				return True
+	def singleValueFromClient(self, value, skel, name, origData):
+		err = self.isInvalid(value)  # Returns None on success, error-str otherwise
+		if not err:
+			return HtmlSerializer(self.validHtml).sanitize(value)
 		else:
-			skel.accessedValues[name] = LanguageWrapper(self.languages)
-			if name in skel.dbEntity and isinstance(skel.dbEntity[name], dict):
-				skel.accessedValues[name].update(skel.dbEntity[name])
-			else:
-				for lang in self.languages:
-					if "%s_%s" % (name, lang) in skel.dbEntity:
-						skel.accessedValues[name][lang] = skel.dbEntity["%s_%s" % (name, lang)]
-						return True
-				if not skel.accessedValues[name].keys():  # Got nothing
-					if name in skel.dbEntity:  # Old (non-multi-lang) format
-						skel.accessedValues[name][self.languages[0]] = skel.dbEntity[name]
-					for lang in self.languages:
-						if not lang in skel.accessedValues[name] and "%s_%s" % (name, lang) in skel.dbEntity:
-							skel.accessedValues[name][lang] = skel.dbEntity["%s_%s" % (name, lang)]
-			return True
-		return False
-
-	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
-		"""
-			Reads a value from the client.
-			If this value is valid for this bone,
-			store this value and return None.
-			Otherwise our previous value is
-			left unchanged and an error-message
-			is returned.
-
-			:param name: Our name in the skeleton
-			:type name: str
-			:param data: *User-supplied* request-data
-			:type data: dict
-			:returns: None or String
-		"""
-		if self.languages:
-			errors = []
-			skel[name] = LanguageWrapper(self.languages)
-			for lang in self.languages:
-				if "%s.%s" % (name, lang) in data:
-					val = data["%s.%s" % (name, lang)]
-					err = self.isInvalid(val)  # Returns None on success, error-str otherwise
-					if not err:
-						skel[name][lang] = HtmlSerializer(self.validHtml).sanitize(val)
-					else:
-						errors.append(
-							ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
-						)
-			if not any(skel[name].values()) and not errors:
-				errors.append(
-					ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No / invalid values entered")
-				)
-			if errors:
-				return errors
-			return None
-		else:
-			if name in data:
-				value = data[name]
-			else:
-				value = None
-			if not value:
-				skel[name] = ""
-				return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value entered")]
-			if not isinstance(value, str):
-				value = str(value)
-			err = self.isInvalid(value)
-			if not err:
-				skel[name] = HtmlSerializer(self.validHtml).sanitize(value)
-			else:
-				return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
 
 	def isInvalid(self, value):
 		"""

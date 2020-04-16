@@ -100,98 +100,36 @@ class spatialBone(baseBone):
 			else:
 				return False
 
-	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
-		"""
-			Serializes this bone into something we
-			can write into the datastore.
+	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+		if not value:
+			return None
+		lat, lng = value
+		res = {
+			"coordinates": {
+				"lat": lat,
+				"lng": lng,
+			}
+		}
+		indexed = self.indexed and parentIndexed
+		if indexed:
+			gridSizeLat, gridSizeLng = self.getGridSize()
+			tileLat = int(floor((lat - self.boundsLat[0]) / gridSizeLat))
+			tileLng = int(floor((lng - self.boundsLng[0]) / gridSizeLng))
+			res["tiles"] = {
+				"lat": [tileLat - 1, tileLat, tileLat + 1],
+				"lng": [tileLng - 1, tileLng, tileLng + 1],
+			}
+		return res
 
-			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:returns: dict
-		"""
-		if name in skel.accessedValues:
-			if not skel.accessedValues[name]:
-				skel.dbEntity[name] = None
-			else:
-				lat, lng = skel.accessedValues[name]
-				skel.dbEntity[name] = {
-					"coordinates": {
-						"lat": lat,
-						"lng": lng,
-					}
-				}
-				indexed = self.indexed and parentIndexed
-				if indexed:
-					gridSizeLat, gridSizeLng = self.getGridSize()
-					tileLat = int(floor((lat - self.boundsLat[0]) / gridSizeLat))
-					tileLng = int(floor((lng - self.boundsLng[0]) / gridSizeLng))
-					skel.dbEntity[name]["tiles"] = {
-						"lat": [tileLat - 1, tileLat, tileLat + 1],
-						"lng": [tileLng - 1, tileLng, tileLng + 1],
-					}
-				# Ensure our indexed flag is up2date
-				if indexed and name in skel.dbEntity.exclude_from_indexes:
-					skel.dbEntity.exclude_from_indexes.discard(name)
-				elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
-					skel.dbEntity.exclude_from_indexes.add(name)
 
-			return True
-		return False
+	def singleValueUnserialize(self, val, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+		if not val:
+			return None
+		return val["coordinates"]["lat"], val["coordinates"]["lng"]
 
-	def unserialize(self, skel, name):
-		"""
-			Inverse of serialize. Evaluates whats
-			read from the datastore and populates
-			this bone accordingly.
-			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:param expando: An instance of the dictionary-like db.Entity class
-			:type expando: db.Entity
-			:returns: bool
-		"""
-		if name in skel.dbEntity:
-			myVal = skel.dbEntity[name]
-			if myVal:
-				skel.accessedValues[name] = myVal["coordinates"]["lat"], myVal["coordinates"]["lng"]
-			else:
-				skel.accessedValues[name] = None
-			return True
-		return False
+	def singleValueFromClient(self, value, skel, name, origData):
+		return None
 
-	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
-		"""
-			Reads a value from the client.
-			If this value is valid for this bone,
-			store this value and return None.
-			Otherwise our previous value is
-			left unchanged and an error-message
-			is returned.
-
-			:param name: Our name in the skeleton
-			:type name: str
-			:param data: *User-supplied* request-data
-			:type data: dict
-			:returns: None or String
-		"""
-		rawLat = data.get("%s.lat" % name, None)
-		rawLng = data.get("%s.lng" % name, None)
-		if rawLat is None and rawLng is None:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
-		elif not rawLat or not rawLng:
-			skel[name] = None
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value submitted")]
-		try:
-			rawLat = float(rawLat)
-			rawLng = float(rawLng)
-			# Check for NaNs
-			assert rawLat == rawLat
-			assert rawLng == rawLng
-		except:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
-		err = self.isInvalid((rawLat, rawLng))
-		if err:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
-		skel[name] = (rawLat, rawLng)
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		"""

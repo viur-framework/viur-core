@@ -223,6 +223,8 @@ class baseBone(object):  # One Bone:
 						res[subKey] = value
 					return res, fieldSubmitted
 
+	def singleValueFromClient(self, value, skel, name, origData):
+		return value, None
 
 	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		"""
@@ -239,25 +241,62 @@ class baseBone(object):  # One Bone:
 			:type data: dict
 			:returns: None or str
 		"""
-		if not name in data:
+		parsedData, fieldSubmitted = self.collectRawClientData(name, data, self.multiple, self.languages, False)
+		if not fieldSubmitted:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
-		value = data[name]
-		if value is None:
-			skel[name] = None
+		errors = []
+		isEmpty = True
+		if self.languages and self.multiple:
+			res = {}
+			for language in self.languages:
+				res[language] = []
+				if language in parsedData:
+					for singleValue in parsedData[language]:
+						isEmpty = False
+						parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
+						if parsedVal is not None:
+							res[language].append(parsedVal)
+						if parseErrors:
+							errors.extend(parseErrors)
+		elif self.languages:  # and not self.multiple is implicit - this would have been handled above
+			res = {}
+			for language in self.languages:
+				res[language] = None
+				if language in parsedData:
+					isEmpty = False
+					parsedVal, parseErrors = self.singleValueFromClient(parsedData[language], skel, name, data)
+					if parsedVal is not None:
+						res[language] = parsedVal
+					if parseErrors:
+						errors.extend(parseErrors)
+		elif self.multiple:  # and not self.languages is implicit - this would have been handled above
+			res = []
+			for singleValue in parsedData:
+				isEmpty = False
+				parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
+				if parsedVal is not None:
+					res.append(parsedVal)
+				if parseErrors:
+					errors.extend(parseErrors)
+		else:  # No Languages, not multiple
+			isEmpty = not fieldSubmitted
+			res, parseErrors = self.singleValueFromClient(parsedData, skel, name, data)
+			if parseErrors:
+				errors.extend(parseErrors)
+		skel[name] = res
+		if isEmpty:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "Field not set")]
-		err = self.isInvalid(value)
-		if err:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
-		skel[name] = value
-		return None
+		return errors or None
 
 	def isInvalid(self, value):
 		"""
 			Returns None if the value would be valid for
 			this bone, an error-message otherwise.
 		"""
-		if value == None:
-			return "No value entered"
+		return False
+
+	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+		return value
 
 	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
 		"""
@@ -269,7 +308,29 @@ class baseBone(object):  # One Bone:
 			:returns: dict
 		"""
 		if name in skel.accessedValues:
-			skel.dbEntity[name] = skel.accessedValues[name]
+			newVal = skel.accessedValues[name]
+			if not newVal:
+				skel.dbEntity[name] = None
+			elif self.languages and self.multiple:
+				res = {"_viurLanguageWrapper_": True}
+				for language in self.languages:
+					res[language] = []
+					if language in newVal:
+						for singleValue in newVal[language]:
+							res[language].append(self.singleValueSerialize(singleValue, skel, name, parentIndexed))
+			elif self.languages:
+				res = {"_viurLanguageWrapper_": True}
+				for language in self.languages:
+					res[language] = []
+					if language in newVal:
+						res[language] = self.singleValueSerialize(newVal[language], skel, name, parentIndexed)
+			elif self.multiple:
+				res = []
+				for singleValue in newVal:
+					res.append(self.singleValueSerialize(singleValue, skel, name, parentIndexed))
+			else:  # No Languages, not Multiple
+				res = self.singleValueSerialize(newVal, skel, name, parentIndexed)
+			skel.dbEntity[name] = res
 			# Ensure our indexed flag is up2date
 			indexed = self.indexed and parentIndexed
 			if indexed and name in skel.dbEntity.exclude_from_indexes:
@@ -278,6 +339,9 @@ class baseBone(object):  # One Bone:
 				skel.dbEntity.exclude_from_indexes.add(name)
 			return True
 		return False
+
+	def singleValueUnserialize(self, val, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+		return val
 
 	def unserialize(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> bool:
 		"""
@@ -291,7 +355,75 @@ class baseBone(object):  # One Bone:
 			:returns: bool
 		"""
 		if name in skel.dbEntity:
-			skel.accessedValues[name] = skel.dbEntity[name]
+			loadVal = skel.dbEntity[name]
+			if self.languages and self.multiple:
+				res = {}
+				if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
+					for language in self.languages:
+						res[language] = []
+						if language in loadVal:
+							tmpVal = loadVal[language]
+							if not isinstance(tmpVal, list):
+								tmpVal = [tmpVal]
+							for singleValue in tmpVal:
+								res[language].append(self.singleValueUnserialize(singleValue, skel, name))
+				else:  # We could not parse this, maybe it has been written before languages had been set?
+					for language in self.languages:
+						res[language] = []
+					mainLang = self.languages[0]
+					if loadVal is None:
+						pass
+					elif isinstance(loadVal, list):
+						for singleValue in loadVal:
+							res[mainLang].append(self.singleValueUnserialize(singleValue, skel, name))
+					else:  # Hopefully it's a value stored before languages and multiple has been set
+						res[mainLang].append(self.singleValueUnserialize(loadVal, skel, name))
+			elif self.languages:
+				res = {}
+				if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
+					for language in self.languages:
+						res[language] = None
+						if language in loadVal:
+							tmpVal = loadVal[language]
+							if isinstance(tmpVal, list) and tmpVal:
+								tmpVal = tmpVal[0]
+							res[language] = self.singleValueUnserialize(tmpVal, skel, name)
+				else:  # We could not parse this, maybe it has been written before languages had been set?
+					for language in self.languages:
+						res[language] = None
+					mainLang = self.languages[0]
+					if loadVal is None:
+						pass
+					elif isinstance(loadVal, list) and loadVal:
+						res[mainLang] = self.singleValueUnserialize(loadVal, skel, name)
+					else:  # Hopefully it's a value stored before languages and multiple has been set
+						res[mainLang] = self.singleValueUnserialize(loadVal, skel, name)
+			elif self.multiple:
+				res = []
+				if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
+					# Pick one language we'll use
+					if conf["viur.defaultLanguage"] in loadVal:
+						loadVal = loadVal[conf["viur.defaultLanguage"]]
+					else:
+						loadVal = [x for x in loadVal.values() if x is not True]
+				if loadVal and not isinstance(loadVal, list):
+					loadVal = [loadVal]
+				if loadVal:
+					for val in loadVal:
+						res.append(self.singleValueUnserialize(val, skel, name))
+			else:  # Not multiple, no languages
+				res = None
+				if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
+					# Pick one language we'll use
+					if conf["viur.defaultLanguage"] in loadVal:
+						loadVal = loadVal[conf["viur.defaultLanguage"]]
+					else:
+						loadVal = [x for x in loadVal.values() if x is not True]
+				if loadVal and isinstance(loadVal, list):
+					loadVal = loadVal[0]
+				if loadVal:
+					res = self.singleValueUnserialize(loadVal, skel, name)
+			skel.accessedValues[name] = res
 			return True
 		return False
 

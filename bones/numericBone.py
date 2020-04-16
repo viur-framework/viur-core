@@ -37,107 +37,29 @@ class numericBone(baseBone):
 		self.min = min
 		self.max = max
 
-	def fromClient(self, skel, name, data):
-		"""
-			Reads a value from the client.
-			If this value is valid for this bone,
-			store this value and return None.
-			Otherwise our previous value is
-			left unchanged and an error-message
-			is returned.
+	def isInvalid(self, value):
+		if value != value:  # NaN
+			return "NaN not allowed"
 
-			:param name: Our name in the skeleton
-			:type name: str
-			:param data: *User-supplied* request-data
-			:type data: dict
-			:returns: None or String
-		"""
-
-		def parseVal(rawValue):
-			try:
-				rawValue = str(rawValue).replace(",", ".", 1)
-			except:
-				value = None
-			else:
-				if self.precision and (str(rawValue).replace(".", "", 1).replace("-", "", 1).isdigit()) and float(
-					rawValue) >= self.min and float(rawValue) <= self.max:
-					value = round(float(rawValue), self.precision)
-				elif not self.precision and (str(rawValue).replace("-", "", 1).isdigit()) and int(
-					rawValue) >= self.min and int(rawValue) <= self.max:
-					value = int(rawValue)
-				else:
-					value = None
-			return value
-
-		dataRead, fieldSubmitted = self.collectRawClientData(name, data, self.multiple, self.languages, False)
-		if not fieldSubmitted:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
-		res = None
-		errors = []
-		if self.multiple and self.languages:
-			res = LanguageWrapper(self.languages)
-			for lang in self.languages:
-				res[lang] = []
-				if lang in dataRead:
-					for val in dataRead[lang]:
-						val = parseVal(val)
-						err = self.isInvalid(val)
-						if not err and val == val:  # Check for NaN
-							res[lang].append(val)
-						else:
-							errors.append(
-								ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
-							)
-		elif self.multiple and not self.languages:
-			res = []
-			for val in dataRead:
-				val = parseVal(val)
-				err = self.isInvalid(val)
-				if not err and val == val:  # Check for NaN
-					res.append(val)
-				else:
-					errors.append(
-						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
-					)
-		elif not self.multiple and self.languages:
-			res = LanguageWrapper(self.languages)
-			for lang in self.languages:
-				if lang in dataRead:
-					val = parseVal(dataRead[lang])
-					err = self.isInvalid(val)
-					if not err and val == val:  # Check for NaN
-						res[lang] = val
-					else:
-						errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err))
+	def singleValueFromClient(self, value, skel, name, origData):
+		try:
+			rawValue = str(value).replace(",", ".", 1)
+		except:
+			return self.getDefaultValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid Value")]
 		else:
-			rawValue = parseVal(dataRead)
-			err = self.isInvalid(rawValue)
-			if not err and rawValue == rawValue:  # Check for NaN
-				res = rawValue
+			if self.precision and (str(rawValue).replace(".", "", 1).replace("-", "", 1).isdigit()) and float(
+					rawValue) >= self.min and float(rawValue) <= self.max:
+				value = round(float(rawValue), self.precision)
+			elif not self.precision and (str(rawValue).replace("-", "", 1).isdigit()) and int(
+					rawValue) >= self.min and int(rawValue) <= self.max:
+				value = int(rawValue)
 			else:
-				errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err))
-		skel[name] = res
-		if errors:
-			return errors
+				return self.getDefaultValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid Value")]
+		err = self.isInvalid(value)
+		if err:
+			return self.getDefaultValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+		return value, None
 
-	def unserialize(self, skel, name):
-		if name in skel.dbEntity:
-			value = skel.dbEntity[name]
-			isType = type(value)
-			if self.precision:
-				shouldType = float
-			else:
-				shouldType = int
-			if isType == shouldType:
-				skel.accessedValues[name] = value
-			elif isType == int or isType == float:
-				skel.accessedValues[name] = shouldType(value)
-			elif isType == str and str(value).replace(".", "", 1).lstrip("-").isdigit():
-				skel.accessedValues[name] = shouldType(value)
-			else:
-				return False
-			return True
-		return False
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		updatedFilter = {}
@@ -158,7 +80,3 @@ class numericBone(baseBone):
 				updatedFilter[parmKey] = paramValue
 		return super(numericBone, self).buildDBFilter(name, skel, dbFilter, updatedFilter, prefix)
 
-	def getSearchDocumentFields(self, valuesCache, name, prefix=""):
-		if isinstance(valuesCache.get(name), int) or isinstance(valuesCache.get(name), float):
-			return [search.NumberField(name=prefix + name, value=valuesCache[name])]
-		return []
