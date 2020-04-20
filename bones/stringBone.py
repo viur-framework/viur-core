@@ -9,6 +9,7 @@ import logging
 from typing import List, Union
 from viur.core.utils import currentLanguage
 
+
 class LanguageWrapper(dict):
 	"""
 		Wrapper-class for a multi-language value.
@@ -86,7 +87,6 @@ class stringBone(baseBone):
 			return utils.escapeString(value), None
 		return self.getDefaultValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
 
-
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		if not name in rawFilter and not any(
 				[(x.startswith(name + "$") or x.startswith(name + ".")) for x in rawFilter.keys()]):
@@ -109,8 +109,8 @@ class stringBone(baseBone):
 			namefilter = "%s.%s" % (name, lang)
 		if name + "$lk" in rawFilter:  # Do a prefix-match
 			if not self.caseSensitive:
-				dbFilter.filter((prefix or "") + namefilter + "_idx >=", str(rawFilter[name + "$lk"]).lower())
-				dbFilter.filter((prefix or "") + namefilter + "_idx <",
+				dbFilter.filter((prefix or "") + namefilter + ".idx >=", str(rawFilter[name + "$lk"]).lower())
+				dbFilter.filter((prefix or "") + namefilter + ".idx <",
 								str(rawFilter[name + "$lk"] + u"\ufffd").lower())
 			else:
 				dbFilter.filter((prefix or "") + namefilter + " >=", str(rawFilter[name + "$lk"]))
@@ -118,19 +118,19 @@ class stringBone(baseBone):
 			hasInequalityFilter = True
 		if name + "$gt" in rawFilter:  # All entries after
 			if not self.caseSensitive:
-				dbFilter.filter((prefix or "") + namefilter + "_idx >", str(rawFilter[name + "$gt"]).lower())
+				dbFilter.filter((prefix or "") + namefilter + ".idx >", str(rawFilter[name + "$gt"]).lower())
 			else:
 				dbFilter.filter((prefix or "") + namefilter + " >", str(rawFilter[name + "$gt"]))
 			hasInequalityFilter = True
 		if name + "$lt" in rawFilter:  # All entries before
 			if not self.caseSensitive:
-				dbFilter.filter((prefix or "") + namefilter + "_idx <", str(rawFilter[name + "$lt"]).lower())
+				dbFilter.filter((prefix or "") + namefilter + ".idx <", str(rawFilter[name + "$lt"]).lower())
 			else:
 				dbFilter.filter((prefix or "") + namefilter + " <", str(rawFilter[name + "$lt"]))
 			hasInequalityFilter = True
 		if name in rawFilter:  # Normal, strict match
 			if not self.caseSensitive:
-				dbFilter.filter((prefix or "") + namefilter + "_idx", str(rawFilter[name]).lower())
+				dbFilter.filter((prefix or "") + namefilter + ".idx", str(rawFilter[name]).lower())
 			else:
 				dbFilter.filter((prefix or "") + namefilter, str(rawFilter[name]))
 		return (dbFilter)
@@ -152,12 +152,12 @@ class stringBone(baseBone):
 				if self.caseSensitive:
 					prop = "%s.%s" % (name, lang)
 				else:
-					prop = "%s.%s_idx" % (name, lang)
+					prop = "%s.%s.idx" % (name, lang)
 			else:
 				if self.caseSensitive:
 					prop = name
 				else:
-					prop = name + "_idx"
+					prop = name + ".idx"
 			if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
 				order = (prop, db.SortOrder.Descending)
 			else:
@@ -218,22 +218,6 @@ class stringBone(baseBone):
 							res.append(key.lower())
 
 		return (res)
-
-	def getSearchDocumentFields(self, valuesCache, name, prefix=""):
-		"""
-			Returns a list of search-fields (GAE search API) for this bone.
-		"""
-		res = []
-		if self.languages:
-			if valuesCache.get(name) is not None:
-				for lang in self.languages:
-					if lang in valuesCache[name]:
-						res.append(
-							search.TextField(name=prefix + name, value=str(valuesCache[name][lang]), language=lang))
-		else:
-			res.append(search.TextField(name=prefix + name, value=str(valuesCache[name])))
-
-		return res
 
 	def getUniquePropertyIndexValues(self, skel, name: str) -> List[str]:
 		if self.languages:
