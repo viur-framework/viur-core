@@ -114,7 +114,7 @@ class stringBone(baseBone):
 								str(rawFilter[name + "$lk"] + u"\ufffd").lower())
 			else:
 				dbFilter.filter((prefix or "") + namefilter + " >=", str(rawFilter[name + "$lk"]))
-				dbFilter.filter((prefix or "") + namefilter + " < ", str(rawFilter[name + "$lk"] + u"\ufffd"))
+				dbFilter.filter((prefix or "") + namefilter + " <", str(rawFilter[name + "$lk"] + u"\ufffd"))
 			hasInequalityFilter = True
 		if name + "$gt" in rawFilter:  # All entries after
 			if not self.caseSensitive:
