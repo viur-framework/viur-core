@@ -67,129 +67,25 @@ class stringBone(baseBone):
 			else:
 				self.defaultValue = ""
 
-	def unserialize(self, skel, name):
-		"""
-			Inverse of serialize. Evaluates whats
-			read from the datastore and populates
-			this bone accordingly.
+	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+		if not self.caseSensitive and parentIndexed:
+			return {"val": value, "idx": value.lower() if isinstance(value, str) else None}
+		return value
 
-			:param name: The property-name this bone has in its :class:`server.skeleton.Skeleton` (not the description!)
-			:type name: str
-			:param expando: An instance of the dictionary-like db.Entity class
-			:type expando: :class:`server.db.Entity`
-		"""
-		#if not isinstance(expando, dict):
-		#	logging.critical("Data-corruption detected: %s" % name)
-		#	valuesCache[name] = "--corrupted!!--"
-		#	return True
-		def _parseFromOldFormat(entity: db.Entity) -> dict:
-			# Load data that's still stored in name.language format
-			res = {}
-			for k, v in entity.items():
-				if k.startswith("%s." % name):
-					k = k.replace("%s." % name, "")
-					if k in self.languages:
-						res[k] = v
-			return res
-		if name in skel.dbEntity:
-			if not self.languages:
-				skel.accessedValues[name] = skel.dbEntity[name]
-			else:
-				skel.accessedValues[name] = LanguageWrapper(self.languages)
-				storedVal = skel.dbEntity[name]
-				if isinstance(storedVal, dict):
-					skel.accessedValues[name].update(storedVal)
-				else:
-					oldData = _parseFromOldFormat(skel.dbEntity)
-					if oldData:
-						skel.accessedValues[name].update(oldData)
-				# FIXME:
-				if isinstance(skel.accessedValues[name], list) and not self.multiple:
-					skel.accessedValues[name] = ", ".join(skel.accessedValues[name])
-				elif isinstance(storedVal, str):  # Old (non-multi-lang) format
-					skel.accessedValues[name][self.languages[0]] = storedVal
-			return True
-		elif self.languages:
-			oldData = _parseFromOldFormat(skel.dbEntity)
-			if oldData:
-				skel.accessedValues[name] = LanguageWrapper(self.languages)
-				skel.accessedValues[name].update(oldData)
-				return True
-		return False
+	def singleValueUnserialize(self, value, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+		if isinstance(value, dict) and "val" in value:
+			return value["val"]
+		elif value:
+			return str(value)
+		else:
+			return ""
 
 	def singleValueFromClient(self, value, skel, name, origData):
 		err = self.isInvalid(value)
 		if not err:
 			return utils.escapeString(value), None
-		return self.getDefaultValue(), ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
+		return self.getDefaultValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
 
-	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
-		"""
-			Reads a value from the client.
-			If this value is valid for this bone,
-			store this rawValue and return None.
-			Otherwise our previous value is
-			left unchanged and an error-message
-			is returned.
-
-			:param name: Our name in the :class:`server.skeleton.Skeleton`
-			:type name: str
-			:param data: *User-supplied* request-data
-			:type data: dict
-			:returns: str or None
-		"""
-		dataRead, fieldSubmitted = self.collectRawClientData(name, data, self.multiple, self.languages, False)
-		if not fieldSubmitted:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
-		res = None
-		errors = []
-		if self.multiple and self.languages:
-			res = LanguageWrapper(self.languages)
-			for lang in self.languages:
-				res[lang] = []
-				if lang in dataRead:
-					for val in dataRead[lang]:
-						err = self.isInvalid(val)
-						if not err:
-							res[lang].append(utils.escapeString(val))
-						else:
-							errors.append(
-								ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
-							)
-		elif self.multiple and not self.languages:
-			res = []
-			for val in dataRead:
-				err = self.isInvalid(val)
-				if not err:
-					res.append(utils.escapeString(val))
-				else:
-					errors.append(
-						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
-					)
-		elif not self.multiple and self.languages:
-			res = LanguageWrapper(self.languages)
-			for lang in self.languages:
-				if lang in dataRead:
-					val = dataRead[lang]
-					err = self.isInvalid(val)
-					if not err:
-						res[lang] = utils.escapeString(val)
-					else:
-						errors.append(
-							ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
-						)
-		else:
-			rawValue = dataRead
-			err = self.isInvalid(rawValue)
-			if not err:
-				res = utils.escapeString(rawValue)
-			else:
-				errors.append(
-					ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
-				)
-		skel[name] = res
-		if errors:
-			return errors
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		if not name in rawFilter and not any(

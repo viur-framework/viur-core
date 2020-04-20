@@ -310,7 +310,7 @@ class baseBone(object):  # One Bone:
 		if name in skel.accessedValues:
 			newVal = skel.accessedValues[name]
 			if not newVal:
-				skel.dbEntity[name] = None
+				res = None
 			elif self.languages and self.multiple:
 				res = {"_viurLanguageWrapper_": True}
 				for language in self.languages:

@@ -238,9 +238,9 @@ class textBone(baseBone):
 	def singleValueFromClient(self, value, skel, name, origData):
 		err = self.isInvalid(value)  # Returns None on success, error-str otherwise
 		if not err:
-			return HtmlSerializer(self.validHtml).sanitize(value)
+			return HtmlSerializer(self.validHtml).sanitize(value), None
 		else:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+			return None, [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
 
 	def isInvalid(self, value):
 		"""
