@@ -278,4 +278,4 @@ class dateBone(baseBone):
 
 	def performMagic(self, valuesCache, name, isAdd):
 		if (self.creationMagic and isAdd) or self.updateMagic:
-			self.setLocalized(valuesCache, name, ExtendedDateTime.now())
+			valuesCache[name] = self.setLocalized(valuesCache, name, ExtendedDateTime.now())
