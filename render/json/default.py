@@ -159,11 +159,7 @@ class DefaultRender(object):
 					"rel": self.renderSkelValues(value["rel"], injectDownloadURL=isinstance(bone, bones.fileBone)) if value["rel"] else None,
 				}
 		elif isinstance(bone, bones.recordBone):
-			tmpList = []
-			if value:
-				for k in value:
-					tmpList.append(self.renderSkelValues(k))
-			return tmpList
+			return self.renderSkelValues(value)
 		elif isinstance(bone, bones.keyBone):
 			v = skel["key"]
 			return v.to_legacy_urlsafe().decode("ASCII") if v else None
