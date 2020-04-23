@@ -231,8 +231,6 @@ class textBone(baseBone):
 				self.defaultValue = ""
 
 	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
-		if not value or (not HtmlSerializer().sanitize(value).strip() and not "<img " in value):
-			return ""
 		return value
 
 	def singleValueFromClient(self, value, skel, name, origData):

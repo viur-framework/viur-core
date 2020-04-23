@@ -127,8 +127,39 @@ class spatialBone(baseBone):
 			return None
 		return val["coordinates"]["lat"], val["coordinates"]["lng"]
 
-	def singleValueFromClient(self, value, skel, name, origData):
-		return None
+	def fromClient(self, skel, name, data):
+		"""
+			Reads a value from the client.
+			If this value is valid for this bone,
+			store this value and return None.
+			Otherwise our previous value is
+			left unchanged and an error-message
+			is returned.
+			:param name: Our name in the skeleton
+			:type name: str
+			:param data: *User-supplied* request-data
+			:type data: dict
+			:returns: None or String
+		"""
+		rawLat = data.get("%s.lat" % name, None)
+		rawLng = data.get("%s.lng" % name, None)
+		if rawLat is None and rawLng is None:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
+		elif not rawLat or not rawLng:
+			skel[name] = None
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value submitted")]
+		try:
+			rawLat = float(rawLat)
+			rawLng = float(rawLng)
+			# Check for NaNs
+			assert rawLat == rawLat
+			assert rawLng == rawLng
+		except:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
+		err = self.isInvalid((rawLat, rawLng))
+		if err:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+		skel[name] = (rawLat, rawLng)
 
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
