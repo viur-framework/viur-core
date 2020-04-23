@@ -57,7 +57,7 @@ def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
 	if useSessionKey:
 		if key == "staticSessionKey":
 			skeyHeaderValue = currentRequest.get().request.headers.get("Sec-X-ViUR-StaticSKey")
-			if skeyHeaderValue and currentSession.validateStaticSecurityKey(skeyHeaderValue):
+			if skeyHeaderValue and currentSession.get().validateStaticSecurityKey(skeyHeaderValue):
 				return True
 		elif currentSession.get().validateSecurityKey(key):
 			return True

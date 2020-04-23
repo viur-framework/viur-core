@@ -9,6 +9,7 @@ import logging
 from typing import List, Union
 from viur.core.utils import currentLanguage
 
+
 class LanguageWrapper(dict):
 	"""
 		Wrapper-class for a multi-language value.
@@ -67,178 +68,24 @@ class stringBone(baseBone):
 			else:
 				self.defaultValue = ""
 
-	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
-		if name in skel.accessedValues:
-			for k in list(skel.dbEntity.keys()):  # Remove any old data
-				if k.startswith("%s." % name) or k.startswith("%s_" % name) or k == name:
-					del skel.dbEntity[k]
-			if not self.languages:
-				if self.caseSensitive:
-					return super().serialize(skel, name, parentIndexed)
-				else:
-					skel.dbEntity[name] = skel.accessedValues[name]
-					if skel.dbEntity[name] is None:
-						skel.dbEntity[name + "_idx"] = None
-					elif isinstance(skel.dbEntity[name], list):
-						skel.dbEntity[name + "_idx"] = [str(x).lower() for x in skel.dbEntity[name]]
-					else:
-						skel.dbEntity[name + "_idx"] = str(skel.dbEntity[name]).lower()
-			else:  # Write each language separately
-				if not skel.accessedValues[name]:
-					return True  # Bail out here, we've deleted all our keys above from the entry
-				if isinstance(skel.accessedValues[name], str) or (
-						isinstance(skel.accessedValues[name], list) and self.multiple):  # Convert from old format
-					lang = self.languages[0]
-					skel.dbEntity["%s_%s" % (name, lang)] = skel.accessedValues[name]
-					if not self.caseSensitive:
-						if isinstance(skel.accessedValues[name], str):
-							skel.dbEntity["%s_%s_idx" % (name, lang)] = skel.accessedValues[name].lower()
-						else:
-							skel.dbEntity["%s_%s_idx" % (name, lang)] = [x.lower for x in skel.accessedValues[name]]
-					# Fill in None for all remaining languages (needed for sort!)
-					for lang in self.languages[1:]:
-						skel.dbEntity["%s_%s" % (name, lang)] = ""
-						if not self.caseSensitive:
-							skel.dbEntity["%s_%s_idx" % (name, lang)] = ""
-				else:
-					assert isinstance(skel.accessedValues[name], dict)
-					skel.dbEntity[name] = skel.accessedValues[name]
-					if not self.caseSensitive:
-						if self.multiple:
-							skel.dbEntity["%s_idx" % name] = {k: [x.lower() for x in v] for k, v in skel.accessedValues[name].items()}
-						else:
-							skel.dbEntity["%s_idx" % name] = {k: v.lower() for k, v in skel.accessedValues[name].items()}
-				# Ensure our indexed flag is up2date
-				indexed = self.indexed and parentIndexed
-				if indexed and name in skel.dbEntity.exclude_from_indexes:
-					skel.dbEntity.exclude_from_indexes.discard(name)
-				elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
-					skel.dbEntity.exclude_from_indexes.add(name)
-				# FIXME:
-				#	# Fill in None for all remaining languages (needed for sort!)
-				#	entity["%s_%s" % (name, lang)] = ""
-				#	if not self.caseSensitive:
-				#		entity["%s_%s_idx" % (name, lang)] = ""
-			return True
-		return False
+	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+		if not self.caseSensitive and parentIndexed:
+			return {"val": value, "idx": value.lower() if isinstance(value, str) else None}
+		return value
 
-	def unserialize(self, skel, name):
-		"""
-			Inverse of serialize. Evaluates whats
-			read from the datastore and populates
-			this bone accordingly.
-
-			:param name: The property-name this bone has in its :class:`server.skeleton.Skeleton` (not the description!)
-			:type name: str
-			:param expando: An instance of the dictionary-like db.Entity class
-			:type expando: :class:`server.db.Entity`
-		"""
-		#if not isinstance(expando, dict):
-		#	logging.critical("Data-corruption detected: %s" % name)
-		#	valuesCache[name] = "--corrupted!!--"
-		#	return True
-		def _parseFromOldFormat(entity: db.Entity) -> dict:
-			# Load data that's still stored in name.language format
-			res = {}
-			for k, v in entity.items():
-				if k.startswith("%s." % name):
-					k = k.replace("%s." % name, "")
-					if k in self.languages:
-						res[k] = v
-			return res
-		if name in skel.dbEntity:
-			if not self.languages:
-				skel.accessedValues[name] = skel.dbEntity[name]
-			else:
-				skel.accessedValues[name] = LanguageWrapper(self.languages)
-				storedVal = skel.dbEntity[name]
-				if isinstance(storedVal, dict):
-					skel.accessedValues[name].update(storedVal)
-				else:
-					oldData = _parseFromOldFormat(skel.dbEntity)
-					if oldData:
-						skel.accessedValues[name].update(oldData)
-				# FIXME:
-				if isinstance(skel.accessedValues[name], list) and not self.multiple:
-					skel.accessedValues[name] = ", ".join(skel.accessedValues[name])
-				elif isinstance(storedVal, str):  # Old (non-multi-lang) format
-					skel.accessedValues[name][self.languages[0]] = storedVal
-			return True
-		elif self.languages:
-			oldData = _parseFromOldFormat(skel.dbEntity)
-			if oldData:
-				skel.accessedValues[name] = LanguageWrapper(self.languages)
-				skel.accessedValues[name].update(oldData)
-				return True
-		return False
-
-	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
-		"""
-			Reads a value from the client.
-			If this value is valid for this bone,
-			store this rawValue and return None.
-			Otherwise our previous value is
-			left unchanged and an error-message
-			is returned.
-
-			:param name: Our name in the :class:`server.skeleton.Skeleton`
-			:type name: str
-			:param data: *User-supplied* request-data
-			:type data: dict
-			:returns: str or None
-		"""
-		dataRead, fieldSubmitted = self.collectRawClientData(name, data, self.multiple, self.languages, False)
-		if not fieldSubmitted:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
-		res = None
-		errors = []
-		if self.multiple and self.languages:
-			res = LanguageWrapper(self.languages)
-			for lang in self.languages:
-				res[lang] = []
-				if lang in dataRead:
-					for val in dataRead[lang]:
-						err = self.isInvalid(val)
-						if not err:
-							res[lang].append(utils.escapeString(val))
-						else:
-							errors.append(
-								ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
-							)
-		elif self.multiple and not self.languages:
-			res = []
-			for val in dataRead:
-				err = self.isInvalid(val)
-				if not err:
-					res.append(utils.escapeString(val))
-				else:
-					errors.append(
-						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
-					)
-		elif not self.multiple and self.languages:
-			res = LanguageWrapper(self.languages)
-			for lang in self.languages:
-				if lang in dataRead:
-					val = dataRead[lang]
-					err = self.isInvalid(val)
-					if not err:
-						res[lang] = utils.escapeString(val)
-					else:
-						errors.append(
-							ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
-						)
+	def singleValueUnserialize(self, value, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+		if isinstance(value, dict) and "val" in value:
+			return value["val"]
+		elif value:
+			return str(value)
 		else:
-			rawValue = dataRead
-			err = self.isInvalid(rawValue)
-			if not err:
-				res = utils.escapeString(rawValue)
-			else:
-				errors.append(
-					ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
-				)
-		skel[name] = res
-		if errors:
-			return errors
+			return ""
+
+	def singleValueFromClient(self, value, skel, name, origData):
+		err = self.isInvalid(value)
+		if not err:
+			return utils.escapeString(value), None
+		return self.getDefaultValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		if not name in rawFilter and not any(
@@ -262,28 +109,28 @@ class stringBone(baseBone):
 			namefilter = "%s.%s" % (name, lang)
 		if name + "$lk" in rawFilter:  # Do a prefix-match
 			if not self.caseSensitive:
-				dbFilter.filter((prefix or "") + namefilter + "_idx >=", str(rawFilter[name + "$lk"]).lower())
-				dbFilter.filter((prefix or "") + namefilter + "_idx <",
+				dbFilter.filter((prefix or "") + namefilter + ".idx >=", str(rawFilter[name + "$lk"]).lower())
+				dbFilter.filter((prefix or "") + namefilter + ".idx <",
 								str(rawFilter[name + "$lk"] + u"\ufffd").lower())
 			else:
 				dbFilter.filter((prefix or "") + namefilter + " >=", str(rawFilter[name + "$lk"]))
-				dbFilter.filter((prefix or "") + namefilter + " < ", str(rawFilter[name + "$lk"] + u"\ufffd"))
+				dbFilter.filter((prefix or "") + namefilter + " <", str(rawFilter[name + "$lk"] + u"\ufffd"))
 			hasInequalityFilter = True
 		if name + "$gt" in rawFilter:  # All entries after
 			if not self.caseSensitive:
-				dbFilter.filter((prefix or "") + namefilter + "_idx >", str(rawFilter[name + "$gt"]).lower())
+				dbFilter.filter((prefix or "") + namefilter + ".idx >", str(rawFilter[name + "$gt"]).lower())
 			else:
 				dbFilter.filter((prefix or "") + namefilter + " >", str(rawFilter[name + "$gt"]))
 			hasInequalityFilter = True
 		if name + "$lt" in rawFilter:  # All entries before
 			if not self.caseSensitive:
-				dbFilter.filter((prefix or "") + namefilter + "_idx <", str(rawFilter[name + "$lt"]).lower())
+				dbFilter.filter((prefix or "") + namefilter + ".idx <", str(rawFilter[name + "$lt"]).lower())
 			else:
 				dbFilter.filter((prefix or "") + namefilter + " <", str(rawFilter[name + "$lt"]))
 			hasInequalityFilter = True
 		if name in rawFilter:  # Normal, strict match
 			if not self.caseSensitive:
-				dbFilter.filter((prefix or "") + namefilter + "_idx", str(rawFilter[name]).lower())
+				dbFilter.filter((prefix or "") + namefilter + ".idx", str(rawFilter[name]).lower())
 			else:
 				dbFilter.filter((prefix or "") + namefilter, str(rawFilter[name]))
 		return (dbFilter)
@@ -305,12 +152,12 @@ class stringBone(baseBone):
 				if self.caseSensitive:
 					prop = "%s.%s" % (name, lang)
 				else:
-					prop = "%s.%s_idx" % (name, lang)
+					prop = "%s.%s.idx" % (name, lang)
 			else:
 				if self.caseSensitive:
 					prop = name
 				else:
-					prop = name + "_idx"
+					prop = name + ".idx"
 			if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
 				order = (prop, db.SortOrder.Descending)
 			else:
@@ -371,22 +218,6 @@ class stringBone(baseBone):
 							res.append(key.lower())
 
 		return (res)
-
-	def getSearchDocumentFields(self, valuesCache, name, prefix=""):
-		"""
-			Returns a list of search-fields (GAE search API) for this bone.
-		"""
-		res = []
-		if self.languages:
-			if valuesCache.get(name) is not None:
-				for lang in self.languages:
-					if lang in valuesCache[name]:
-						res.append(
-							search.TextField(name=prefix + name, value=str(valuesCache[name][lang]), language=lang))
-		else:
-			res.append(search.TextField(name=prefix + name, value=str(valuesCache[name])))
-
-		return res
 
 	def getUniquePropertyIndexValues(self, skel, name: str) -> List[str]:
 		if self.languages:

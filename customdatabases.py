@@ -19,8 +19,10 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 		resSet = set()
 		for tag in value.split(" "):
 			tag = "".join([x for x in tag.lower() if x in conf["viur.searchValidChars"]])
-			if len(tag) > self.minLength:
+			if len(tag) >= self.minLength:
 				resSet.add(tag)
+			for x in range(1, 1+len(tag)-self.minLength):
+				resSet.add(tag[x:])
 		return resSet
 
 	def preprocessEntry(self, entry: db.Entity, skel: Skeleton, changeList: List[str], isAdd: bool):
@@ -57,13 +59,13 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 				qryBase = databaseQuery.clone()
 			else:
 				qryBase = db.Query(databaseQuery.getKind())
-			for entry in qryBase.filter("viurTags =", keyword).run():
-				if not entry.name in resultScoreMap:
-					resultScoreMap[entry.name] = 1
+			for entry in qryBase.filter("viurTags >=", keyword).filter("viurTags <", keyword+"\ufffd").run():
+				if not entry.key in resultScoreMap:
+					resultScoreMap[entry.key] = 1
 				else:
-					resultScoreMap[entry.name] += 1
-				if not entry.name in resultEntryMap:
-					resultEntryMap[entry.name] = entry
+					resultScoreMap[entry.key] += 1
+				if not entry.key in resultEntryMap:
+					resultEntryMap[entry.key] = entry
 		resultList = [(k, v) for k, v in resultScoreMap.items()]
 		resultList.sort(key=lambda x: x[1])
 		resList = [resultEntryMap[x[0]] for x in resultList[:databaseQuery.amount]]

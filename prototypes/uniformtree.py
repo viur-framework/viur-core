@@ -632,3 +632,4 @@ class Tree(BasicApplication):
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 Tree.vi = True
+Tree.admin = True

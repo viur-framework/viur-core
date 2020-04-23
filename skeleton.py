@@ -493,7 +493,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					if err.severity.value > 1:
 						complete = False
 				skelValues.errors.extend(errors)
-
 		return complete
 
 	@classmethod

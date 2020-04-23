@@ -6,6 +6,7 @@ from viur.core.skeleton import Skeleton, skeletonByKind
 from viur.core.bones import *
 from viur.core.prototypes.uniformtree import Tree, TreeSkel, TreeType
 from viur.core.tasks import callDeferred, PeriodicTask
+from viur.core.utils import projectID
 from quopri import decodestring
 from base64 import urlsafe_b64decode
 import email.header
@@ -26,7 +27,7 @@ from google.oauth2.service_account import Credentials as ServiceAccountCredentia
 
 credentials, project = google.auth.default()
 client = storage.Client(project, credentials)
-bucket = client.lookup_bucket(f"{project}.appspot.com")
+bucket = client.lookup_bucket("%s.appspot.com" % projectID)
 
 
 class injectStoreURLBone(baseBone):

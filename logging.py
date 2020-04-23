@@ -3,9 +3,9 @@ import google.cloud.logging
 from google.cloud.logging.handlers import CloudLoggingHandler
 from google.cloud.logging.handlers.handlers import EXCLUDED_LOGGER_DEFAULTS
 from google.cloud.logging.resource import Resource
-
 import logging
 from viur.core.utils import currentRequest, projectID
+
 
 client = google.cloud.logging.Client()
 requestLoggingRessource = Resource(type="gae_app",

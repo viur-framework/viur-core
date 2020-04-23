@@ -143,10 +143,10 @@ class UserPassword(object):
 			return self.userModule.render.login(self.loginSkel())
 
 		query = db.Query(self.userModule.viewSkel().kindName)
-		res = query.filter("name_idx >=", name.lower()).get()
+		res = query.filter("name.idx >=", name.lower()).get()
 
 		if res is None:
-			res = {"password": {"pwhash": "-invalid-", "salt": "-invalid"}, "status": 0, "name": "", "name.idx": ""}
+			res = {"password": {"pwhash": "-invalid-", "salt": "-invalid"}, "status": 0, "name": {}}
 
 		passwd = pbkdf2(password[:conf["viur.maxPasswordLength"]], (res.get("password", None) or {}).get("salt", ""))
 		isOkay = True
@@ -154,7 +154,7 @@ class UserPassword(object):
 		# We do this exactly that way to avoid timing attacks
 
 		# Check if the username matches
-		storedUserName = res.get("name_idx", "")
+		storedUserName = (res.get("name") or {}).get("idx", "")
 		if len(storedUserName) != len(name.lower()):
 			isOkay = False
 		else:
