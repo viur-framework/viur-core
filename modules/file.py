@@ -22,7 +22,7 @@ from google.auth import compute_engine, crypt
 from datetime import datetime, timedelta
 from google.cloud import storage
 from google.cloud._helpers import _NOW
-from google.oauth2.service_account import Credentials as ServiceAccoutCredentials
+from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
 
 credentials, project = google.auth.default()
@@ -232,7 +232,7 @@ class File(Tree):
 		global bucket
 		targetKey = utils.generateRandomString()
 		conditions = [["starts-with", "$key", "%s/source/" % targetKey]]
-		if isinstance(credentials, ServiceAccoutCredentials):  # We run locally with an service-account.json
+		if isinstance(credentials, ServiceAccountCredentials):  # We run locally with an service-account.json
 			policy = bucket.generate_upload_policy(conditions)
 		else:  # Use our fixed PolicyGenerator - Google is currently unable to create one itself on its GCE
 			policy = self.generateUploadPolicy(conditions)
@@ -327,7 +327,7 @@ class File(Tree):
 		if validUntil != "0" and datetime.strptime(validUntil, "%Y%m%d%H%M") < datetime.now():
 			raise errors.Gone()
 		# Create a signed url and redirect the user
-		if isinstance(credentials, ServiceAccoutCredentials):  # We run locally with an service-account.json
+		if isinstance(credentials, ServiceAccountCredentials):  # We run locally with an service-account.json
 			blob = bucket.get_blob(dlPath)
 			if not blob:
 				raise errors.NotFound()
