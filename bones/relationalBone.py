@@ -119,8 +119,9 @@ class relationalBone(baseBone):
 		self.consistency = consistency
 
 		if getSystemInitialized():
-			from viur.core.skeleton import RefSkel
+			from viur.core.skeleton import RefSkel, SkeletonInstance
 			self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
+			self._skeletonInstanceClassRef = SkeletonInstance
 		#	self._usingSkelCache = using() if using else None
 		#else:
 		#	self._refSkelCache = None
@@ -128,8 +129,9 @@ class relationalBone(baseBone):
 
 	def setSystemInitialized(self):
 		super(relationalBone, self).setSystemInitialized()
-		from viur.core.skeleton import RefSkel
+		from viur.core.skeleton import RefSkel, SkeletonInstance
 		self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
+		self._skeletonInstanceClassRef = SkeletonInstance
 		#from viur.core.skeleton import RefSkel, skeletonByKind
 		#self._refSkelCache = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
 		#self._usingSkelCache = self.using() if self.using else None
@@ -813,12 +815,10 @@ class relationalBone(baseBone):
 		else:  # which means (self.multiple and self.using)
 			if not (isinstance(value, tuple) and len(value) == 2 and \
 					(isinstance(value[0], str) or isinstance(value[0], db.KeyClass)) \
-					and isinstance(value[1], self.using)) and not (isinstance(value, list) and
+					and isinstance(value[1], self._skeletonInstanceClassRef)) and not (isinstance(value, list) and
 																   all((isinstance(x, tuple) and len(x) == 2 and \
 																		(isinstance(x[0], str) or isinstance(
-																			x[0], db.Key)) \
-																		and isinstance(x[1], self.using) for x in
-																		value))):
+																			x[0], db.Key)) and isinstance(x[1], self._skeletonInstanceClassRef) for x in value))):
 				raise ValueError("You must supply (db.Key, RelSkel) or a list hereof to %s" % boneName)
 			if not isinstance(value, list):
 				realValue = [value]
