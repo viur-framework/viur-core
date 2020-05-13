@@ -148,7 +148,10 @@ class relationalBone(baseBone):
 			:return: Our Value (with restored RelSkel and using-Skel)
 		"""
 		if isinstance(val, str):
-			value = extjson.loads(val)
+			try:
+				value = extjson.loads(val)
+			except:
+				value = None
 		else:
 			value = val
 		if value is None:
@@ -339,7 +342,7 @@ class relationalBone(baseBone):
 				values.remove(data)
 		# Add any new Relation
 		for val in values:
-			dbObj = db.Entity(db.Key("viur-relations"))
+			dbObj = db.Entity(db.Key("viur-relations", parent=key))
 			refSkel = val["dest"]
 			dbObj["dest"] = refSkel.serialize(parentIndexed=True)
 			dbObj["src"] = parentValues
@@ -382,12 +385,12 @@ class relationalBone(baseBone):
 				logging.info("Invalid reference key >%s< detected on bone '%s'",
 							 key, name)
 				if isinstance(oldValues, dict):
-					if oldValues["dest"]["key"] == dbKey:
+					if oldValues["dest"].key == dbKey:
 						entry = oldValues["dest"]
 						isEntryFromBackup = True
 				elif isinstance(oldValues, list):
 					for dbVal in oldValues:
-						if dbVal["dest"]["key"] == dbKey:
+						if dbVal["dest"].key == dbKey:
 							entry = dbVal["dest"]
 							isEntryFromBackup = True
 			if isEntryFromBackup:
@@ -425,7 +428,7 @@ class relationalBone(baseBone):
 			raise NotImplementedError(
 				"Doing a relational Query with multiple=True and \"IN or !=\"-filters is currently unsupported!")
 		dbFilter.filters = {}
-		dbFilter.collection = "viur-relations"
+		dbFilter.kind = "viur-relations"
 		dbFilter.filter("viur_src_kind =", skel.kindName)
 		dbFilter.filter("viur_dest_kind =", self.kind)
 		dbFilter.filter("viur_src_property", name)
@@ -474,7 +477,6 @@ class relationalBone(baseBone):
 			return (dbFilter)
 
 		myKeys = [x for x in rawFilter.keys() if x.startswith("%s." % name)]
-
 		if len(myKeys) > 0:  # We filter by some properties
 			if dbFilter.getKind() != "viur-relations" and self.multiple:
 				name, skel, dbFilter, rawFilter = self._rewriteQuery(name, skel, dbFilter, rawFilter)
