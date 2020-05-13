@@ -1,15 +1,20 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-from viur.core import db, utils, conf, errors
-from viur.core.bones import baseBone, keyBone, dateBone, selectBone, relationalBone, stringBone
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
-from viur.core.tasks import CallableTask, CallableTaskBase, callDeferred
-from collections import OrderedDict
-from time import time
-import inspect, os, sys, logging, copy
-from typing import Union, Dict, List, Callable
+
+import copy
+import inspect
+import logging
+import os
+import sys
 from functools import partial
 from itertools import chain
+from time import time
+from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
+
+from viur.core import conf, db, errors, utils
+from viur.core.bones import baseBone, dateBone, keyBone, relationalBone, selectBone, stringBone
+from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
+from viur.core.tasks import CallableTask, CallableTaskBase, callDeferred
 
 try:
 	import pytz
@@ -46,6 +51,7 @@ class MetaBaseSkel(type):
 						raise AttributeError("Invalid bone '%s': Bone cannot have any of the following names: %s" %
 											 (key, str(MetaBaseSkel.__reservedKeywords_)))
 					boneMap[key] = prop
+
 		fillBoneMapRecursive(cls)
 		cls.__boneMap__ = boneMap
 		if not getSystemInitialized():
@@ -99,14 +105,17 @@ class SkeletonInstance:
 		self.skeletonCls = skelCls
 		self.renderPreparation = None
 
-	def items(self):
+	def items(self) -> Iterable[Tuple[str, baseBone]]:
 		yield from self.boneMap.items()
 
-	def keys(self):
+	def keys(self) -> Iterable[str]:
 		yield from self.boneMap.keys()
 
-	def values(self):
+	def values(self) -> Iterable[Any]:
 		yield from self.boneMap.values()
+
+	def __iter__(self) -> Iterable[str]:
+		yield from self.keys()
 
 	def __contains__(self, item):
 		return item in self.boneMap
@@ -174,6 +183,9 @@ class SkeletonInstance:
 		self.dbEntity = entity
 		self.accessedValues = {}
 		self.renderAccessedValues = {}
+
+	def getValues(self) -> Dict[str, Any]:
+		return {boneName: self[boneName] for boneName in self}
 
 
 class BaseSkeleton(object, metaclass=MetaBaseSkel):
@@ -285,7 +297,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 				skelValues.errors.extend(errors)
 				for error in errors:
 					if (error.severity == ReadFromClientErrorSeverity.Empty and _bone.required) \
-						or error.severity == ReadFromClientErrorSeverity.Invalid:
+							or error.severity == ReadFromClientErrorSeverity.Invalid:
 						complete = False
 		# FIXME!
 		# if (len(data) == 0
@@ -328,8 +340,8 @@ class MetaSkel(MetaBaseSkel):
 
 		# Automatic determination of the kindName, if the class is not part of the server.
 		if (cls.kindName is __undefindedC__
-			and not relNewFileName.strip(os.path.sep).startswith("viur")
-			and not "viur_doc_build" in dir(sys)):
+				and not relNewFileName.strip(os.path.sep).startswith("viur")
+				and not "viur_doc_build" in dir(sys)):
 			if cls.__name__.endswith("Skel"):
 				cls.kindName = cls.__name__.lower()[:-4]
 			else:
@@ -356,7 +368,7 @@ class MetaSkel(MetaBaseSkel):
 								 (cls.kindName, relNewFileName, relOldFileName))
 		# Ensure that all skeletons are defined in folders listed in conf["viur.skeleton.searchPath"]
 		if (not any([relNewFileName.startswith(x) for x in conf["viur.skeleton.searchPath"]])
-			and not "viur_doc_build" in dir(sys)):  # Do not check while documentation build
+				and not "viur_doc_build" in dir(sys)):  # Do not check while documentation build
 			raise NotImplementedError(
 				"Skeletons must be defined in a folder listed in conf[\"viur.skeleton.searchPath\"]")
 		if cls.kindName and cls.kindName is not __undefindedC__:
@@ -920,10 +932,10 @@ class RelSkel(BaseSkeleton):
 				skelValues.errors.extend(errors)
 				for err in errors:
 					if err.severity == ReadFromClientErrorSeverity.Empty and _bone.required \
-						or err.severity == ReadFromClientErrorSeverity.Invalid:
+							or err.severity == ReadFromClientErrorSeverity.Invalid:
 						complete = False
 		if (len(data) == 0 or (len(data) == 1 and "key" in data) or (
-			"nomissing" in data and str(data["nomissing"]) == "1")):
+				"nomissing" in data and str(data["nomissing"]) == "1")):
 			skelValues.errors = []
 		return complete
 
@@ -983,9 +995,9 @@ class RefSkel(RelSkel):
 			:return: A new instance of RefSkel
 			:rtype: RefSkel
 		"""
-		newClass = type("RefSkelFor"+kindName, (RefSkel,), {})
+		newClass = type("RefSkelFor" + kindName, (RefSkel,), {})
 		fromSkel = skeletonByKind(kindName)
-		newClass.__boneMap__ = {k: v for k,v in fromSkel.__boneMap__.items() if k in args}
+		newClass.__boneMap__ = {k: v for k, v in fromSkel.__boneMap__.items() if k in args}
 		return newClass
 
 
@@ -1266,6 +1278,7 @@ def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, noti
 				utils.sendEMail([notify], txt, None)
 		except:  # OverQuota, whatever
 			pass
+
 
 # Forward references to SkelList and SkelInstance
 db.SkeletonInstanceRef = SkeletonInstance
