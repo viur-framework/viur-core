@@ -369,6 +369,9 @@ class relationalBone(baseBone):
 	def isInvalid(self, key):
 		return None
 
+	def parseSubfieldsFromClient(self):
+		return self.multiple and (self.using is not None)
+
 	def singleValueFromClient(self, value, skel, name, origData):
 		oldValues = skel[name]
 		def restoreSkels(key, usingData, index=None):
@@ -410,8 +413,15 @@ class relationalBone(baseBone):
 				if not usingSkel.fromClient(usingData):
 					errors.extend(usingSkel.errors)
 			return refSkel, usingSkel, errors
-		assert isinstance(value, str)
-		refSkel, usingSkel, errors = restoreSkels(value, None)
+		if self.using and isinstance(value, dict):
+			usingData = value
+			destKey = usingData["key"]
+			del usingData["key"]
+		else:
+			destKey = value
+			usingData = None
+		assert isinstance(destKey, str)
+		refSkel, usingSkel, errors = restoreSkels(destKey, usingData)
 		if refSkel:
 			return {"dest": refSkel, "rel": usingSkel}, errors
 		else:

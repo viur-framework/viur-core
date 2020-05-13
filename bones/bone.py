@@ -223,6 +223,13 @@ class baseBone(object):  # One Bone:
 						res[subKey] = value
 					return res, fieldSubmitted
 
+	def parseSubfieldsFromClient(self) -> bool:
+		"""
+		Whenever this request should try to parse subfields submitted from the client.
+		Set only to true if you expect a list of dicts to be transmitted
+		"""
+		return False
+
 	def singleValueFromClient(self, value, skel, name, origData):
 		return value, None
 
@@ -241,7 +248,8 @@ class baseBone(object):  # One Bone:
 			:type data: dict
 			:returns: None or str
 		"""
-		parsedData, fieldSubmitted = self.collectRawClientData(name, data, self.multiple, self.languages, False)
+		subFields = self.parseSubfieldsFromClient()
+		parsedData, fieldSubmitted = self.collectRawClientData(name, data, self.multiple, self.languages, subFields)
 		if not fieldSubmitted:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
 		errors = []
