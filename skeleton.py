@@ -144,7 +144,7 @@ class SkeletonInstance:
 			return getattr(self.skeletonCls, item)
 		elif item in {"fromDB", "toDB", "all", "unserialize", "serialize", "fromClient", "getCurrentSEOKeys",
 					  "preProcessSerializedData", "preProcessBlobLocks", "postSavedHandler", "setBoneValue",
-					  "delete", "postDeletedHandler"}:
+					  "delete", "postDeletedHandler", "refresh"}:
 			return partial(getattr(self.skeletonCls, item), self)
 		return self.boneMap[item]
 
@@ -1111,7 +1111,7 @@ class TaskUpdateSearchIndex(CallableTaskBase):
 
 	def dataSkel(self):
 		modules = ["*"] + listKnownSkeletons()
-		skel = BaseSkeleton(cloned=True)
+		skel = BaseSkeleton().clone()
 		skel.module = selectBone(descr="Module", values={x: x for x in modules}, required=True)
 
 		def verifyCompact(val):

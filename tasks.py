@@ -282,7 +282,7 @@ class TaskHandler:
 			return self.render.add(skel)
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
-		task.execute(**skel.getValues())
+		task.execute(**skel.accessedValues)
 		return self.render.addItemSuccess(skel)
 
 	execute.exposed = True
