@@ -3,7 +3,7 @@ from time import time
 from viur.core.tasks import PeriodicTask, callDeferred
 from viur.core import db, utils
 from viur.core.config import conf
-import logging
+import logging, pickle
 from hmac import compare_digest
 
 
@@ -58,7 +58,7 @@ class GaeSession:
 					# This session is too old
 					self.reset()
 					return False
-				self.session = data["data"]
+				self.session = pickle.loads(data["data"])
 				self.sslKey = data["sslkey"]
 				self.staticSecurityKey = data["staticSecurityKey"]
 				self.securityKey = data["securityKey"]
@@ -95,7 +95,7 @@ class GaeSession:
 					self.sslKey = None
 				try:
 					dbSession = db.Entity(db.Key(self.kindName, self.httpKey))
-					dbSession["data"] = self.session
+					dbSession["data"] = pickle.dumps(self.session)
 					dbSession["sslkey"] = self.sslKey
 					dbSession["staticSecurityKey"] = self.staticSecurityKey
 					dbSession["securityKey"] = self.securityKey

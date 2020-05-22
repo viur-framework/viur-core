@@ -157,9 +157,11 @@ class Hierarchy(BasicApplication):
 		:returns: The entity of the root-node.
 		:rtype: :class:`server.db.Entity`
 		"""
-		key = "rep_module_repo"
-		kindName = self.viewSkel().kindName + "_rootNode"
-		return db.GetOrInsert(key, kindName=kindName, creationdate=datetime.now(), rootNode=1)
+		return db.GetOrInsert(
+			db.Key(self.viewSkel().kindName + "_rootNode", "rep_module_repo"),
+			creationdate=datetime.now(),
+			rootNode=1
+		)
 
 	def isOwnUserRootNode(self, repo):
 		"""
