@@ -71,7 +71,6 @@ class fileBaseSkel(TreeSkel):
 	mimetype = stringBone(descr="Mime-Info", readOnly=True, indexed=True)
 	weak = booleanBone(descr="Weak reference", indexed=True, readOnly=True, visible=False)
 	pending = booleanBone(descr="Pending upload", readOnly=True, visible=False, defaultValue=False)
-	servingurl = stringBone(descr="Serving URL", readOnly=True)
 	width = numericBone(descr="Width", indexed=True, readOnly=True, searchable=True)
 	height = numericBone(descr="Height", indexed=True, readOnly=True, searchable=True)
 	downloadUrl = injectStoreURLBone(descr="Download-URL", readOnly=True, visible=False)
