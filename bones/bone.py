@@ -94,7 +94,7 @@ class baseBone(object):  # One Bone:
 		self.isClonedInstance = getSystemInitialized()
 		self.descr = descr
 		self.required = required
-		self.params = params
+		self.params = params or {}
 		self.multiple = multiple
 		self.indexed = indexed
 		self.defaultValue = defaultValue
