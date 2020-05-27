@@ -38,7 +38,7 @@ class keyBone(baseBone):
 			return True
 		return False
 
-	def serialize(self, skel, name) -> bool:
+	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
 		"""
 			Serializes this bone into something we
 			can write into the datastore.
@@ -52,6 +52,7 @@ class keyBone(baseBone):
 				skel.dbEntity.key = skel.accessedValues["key"]
 			else:
 				skel.dbEntity[name] = skel.accessedValues[name]
+				skel.dbEntity.exclude_from_indexes.discard(name)  # Keys can never be not indexed
 			return True
 		return False
 

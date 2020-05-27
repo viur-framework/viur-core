@@ -11,7 +11,7 @@ from viur.core.prototypes.hierarchy import HierarchySkel
 from viur.core.prototypes.tree import TreeLeafSkel
 from viur.core.render.json.default import DefaultRender
 from viur.core.modules.file import decodeFileName
-from viur.core.contextvars import currentRequest
+from viur.core.utils import currentRequest
 #from google.appengine.api import datastore, datastore_types, urlfetch
 #from google.appengine.ext import blobstore
 #from google.appengine.ext.blobstore import BlobInfo

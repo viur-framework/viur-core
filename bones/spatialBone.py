@@ -5,6 +5,7 @@ from viur.core import db
 import logging
 import math
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from typing import List, Union
 
 
 def haversine(lat1, lng1, lat2, lng2):
@@ -83,9 +84,9 @@ class spatialBone(baseBone):
 			:return: An error-description or False if the value is valid
 			:rtype: str | False
 		"""
-		if value is None and self.required:
+		if (value is None or value == (0, 0)) and self.required:
 			return "No value entered"
-		elif value is None and not self.required:
+		elif (value is None or value == (0, 0)) and not self.required:
 			return False
 		elif value:
 			try:
@@ -99,55 +100,31 @@ class spatialBone(baseBone):
 			else:
 				return False
 
-	def serialize(self, skel, name):
-		"""
-			Serializes this bone into something we
-			can write into the datastore.
-
-			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:returns: dict
-		"""
-		if name in skel.accessedValues:
-			if not skel.accessedValues[name]:
-				skel.dbEntity[name] = None
-				return True
-			lat, lng = skel.accessedValues[name]
+	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+		if not value:
+			return None
+		lat, lng = value
+		res = {
+			"coordinates": {
+				"lat": lat,
+				"lng": lng,
+			}
+		}
+		indexed = self.indexed and parentIndexed
+		if indexed:
 			gridSizeLat, gridSizeLng = self.getGridSize()
 			tileLat = int(floor((lat - self.boundsLat[0]) / gridSizeLat))
 			tileLng = int(floor((lng - self.boundsLng[0]) / gridSizeLng))
-			skel.dbEntity[name] = {
-				"coordinates": {
-					"lat": lat,
-					"lng": lng,
-				},
-				"tiles": {
-					"lat": [tileLat - 1, tileLat, tileLat + 1],
-					"lng": [tileLng - 1, tileLng, tileLng + 1],
-				}
+			res["tiles"] = {
+				"lat": [tileLat - 1, tileLat, tileLat + 1],
+				"lng": [tileLng - 1, tileLng, tileLng + 1],
 			}
-			return True
-		return False
+		return res
 
-	def unserialize(self, skel, name):
-		"""
-			Inverse of serialize. Evaluates whats
-			read from the datastore and populates
-			this bone accordingly.
-			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:param expando: An instance of the dictionary-like db.Entity class
-			:type expando: db.Entity
-			:returns: bool
-		"""
-		if name in skel.dbEntity:
-			myVal = skel.dbEntity[name]
-			if myVal:
-				skel.accessedValues[name] = myVal["coordinates"]["lat"], myVal["coordinates"]["lng"]
-			else:
-				skel.accessedValues[name] = None
-			return True
-		return False
+	def singleValueUnserialize(self, val, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+		if not val:
+			return None
+		return val["coordinates"]["lat"], val["coordinates"]["lng"]
 
 	def fromClient(self, skel, name, data):
 		"""
@@ -157,7 +134,6 @@ class spatialBone(baseBone):
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
-
 			:param name: Our name in the skeleton
 			:type name: str
 			:param data: *User-supplied* request-data

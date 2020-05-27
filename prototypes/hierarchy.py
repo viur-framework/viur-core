@@ -9,7 +9,7 @@ from viur.core.bones import baseBone, keyBone, numericBone
 from viur.core.prototypes import BasicApplication
 from viur.core.skeleton import Skeleton
 from viur.core.tasks import callDeferred
-from viur.core.contextvars import currentRequest
+from viur.core.utils import currentRequest
 
 
 class HierarchySkel(Skeleton):

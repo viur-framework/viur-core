@@ -11,7 +11,7 @@ import os, sys
 from google.cloud import tasks_v2
 from google.protobuf import timestamp_pb2
 from typing import Dict, List, Callable
-from viur.core.contextvars import currentRequest, currentSession
+from viur.core.utils import currentRequest, currentSession
 
 _gaeApp = os.environ.get("GAE_APPLICATION")
 regionMap = {  # FIXME! Can we even determine the region like this?
@@ -282,7 +282,7 @@ class TaskHandler:
 			return self.render.add(skel)
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
-		task.execute(**skel.getValues())
+		task.execute(**skel.accessedValues)
 		return self.render.addItemSuccess(skel)
 
 	execute.exposed = True

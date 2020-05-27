@@ -12,7 +12,7 @@ from viur.core import request
 from viur.core import session
 from viur.core import errors
 import datetime, json
-from viur.core.contextvars import currentRequest, currentLanguage
+from viur.core.utils import currentRequest, currentLanguage
 
 __all__ = [default]
 

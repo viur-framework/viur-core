@@ -2,6 +2,7 @@
 from viur.core.bones import baseBone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import logging
+from typing import List, Union
 
 
 class colorBone(baseBone):
@@ -12,7 +13,7 @@ class colorBone(baseBone):
 		assert mode in {"rgb", "rgba"}
 		self.mode = mode
 
-	def fromClient(self, skel, name, data):
+	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,

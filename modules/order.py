@@ -4,7 +4,7 @@ from viur.core.tasks import callDeferred, PeriodicTask
 from viur.core.skeleton import Skeleton
 from viur.core.bones import *
 from viur.core.prototypes.list import List
-from viur.core.contextvars import currentRequest
+from viur.core.utils import currentRequest
 from datetime import datetime, timedelta
 import logging
 

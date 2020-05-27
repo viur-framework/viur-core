@@ -5,7 +5,7 @@ from hashlib import sha512
 from datetime import datetime, timedelta
 import logging
 from functools import wraps
-from viur.core.contextvars import currentRequest, currentLanguage
+from viur.core.utils import currentRequest, currentLanguage
 
 """
 	This module provides a cache, allowing to serve

@@ -144,7 +144,7 @@ class SkeletonInstance:
 			return getattr(self.skeletonCls, item)
 		elif item in {"fromDB", "toDB", "all", "unserialize", "serialize", "fromClient", "getCurrentSEOKeys",
 					  "preProcessSerializedData", "preProcessBlobLocks", "postSavedHandler", "setBoneValue",
-					  "delete", "postDeletedHandler"}:
+					  "delete", "postDeletedHandler", "refresh"}:
 			return partial(getattr(self.skeletonCls, item), self)
 		return self.boneMap[item]
 
@@ -493,7 +493,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					if err.severity.value > 1:
 						complete = False
 				skelValues.errors.extend(errors)
-
 		return complete
 
 	@classmethod
@@ -592,7 +591,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				# Merge the values from mergeFrom in
 				if key in skel.accessedValues:
 					# bone.mergeFrom(skel.valuesCache, key, mergeFrom)
-					bone.serialize(skel, key)
+					bone.serialize(skel, key, True)
 
 				## Serialize bone into entity
 				# dbObj = bone.serialize(skel.valuesCache, key, dbObj)
@@ -928,12 +927,12 @@ class RelSkel(BaseSkeleton):
 			skelValues.errors = []
 		return complete
 
-	def serialize(self):
+	def serialize(self, parentIndexed):
 		if self.dbEntity is None:
 			self.dbEntity = db.Entity()
 		for key, _bone in self.items():
 			# if key in self.accessedValues:
-			_bone.serialize(self, key)
+			_bone.serialize(self, key, parentIndexed)
 		# if "key" in self:  # Write the key seperatly, as the base-bone doesn't store it
 		#	dbObj["key"] = self["key"]
 		# FIXME: is this a good idea? Any other way to ensure only bones present in refKeys are serialized?
@@ -1087,8 +1086,9 @@ def updateRelations(destID, minChangeTime, changeList, cursor=None):
 			logging.info("Deleting %s which refers to unknown kind %s" % (str(srcRel.key()), srcRel["viur_src_kind"]))
 			continue
 		db.RunInTransaction(updateTxn, skel, srcRel["src"]["key"], srcRel.key)
-	if len(updateList) == 5:
-		updateRelations(destID, minChangeTime, changeList, updateListQuery.getCursor().urlsafe().decode("ASCII"))
+	nextCursor = updateListQuery.getCursor()
+	if len(updateList) == 5 and nextCursor:
+		updateRelations(destID, minChangeTime, changeList, nextCursor.decode("ASCII"))
 
 
 @CallableTask
@@ -1111,7 +1111,7 @@ class TaskUpdateSearchIndex(CallableTaskBase):
 
 	def dataSkel(self):
 		modules = ["*"] + listKnownSkeletons()
-		skel = BaseSkeleton(cloned=True)
+		skel = BaseSkeleton().clone()
 		skel.module = selectBone(descr="Module", values={x: x for x in modules}, required=True)
 
 		def verifyCompact(val):

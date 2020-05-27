@@ -5,13 +5,13 @@ from .wrap import ListWrapper, SkelListWrapper
 from viur.core import utils, request, errors, securitykey
 from viur.core.skeleton import Skeleton, BaseSkeleton, RefSkel, skeletonByKind, SkeletonInstance
 from viur.core.bones import *
-
+from viur.core.i18n import TranslationExtension
 from collections import OrderedDict
 from jinja2 import Environment, FileSystemLoader, ChoiceLoader, BytecodeCache
 from viur.core.i18n import translate
 import os, logging, codecs
 from collections import namedtuple
-from viur.core.contextvars import currentRequest, currentSession, currentLanguage
+from viur.core.utils import currentRequest, currentSession, currentLanguage
 
 KeyValueWrapper = namedtuple("KeyValueWrapper", ["key", "descr"])
 
@@ -837,8 +837,8 @@ class Render(object):
 
 		if not "env" in dir(self):
 			loaders = self.getLoaders()
-			self.env = Environment(loader=loaders, extensions=["jinja2.ext.do", "jinja2.ext.loopcontrols"])
-
+			self.env = Environment(loader=loaders, extensions=["jinja2.ext.do", "jinja2.ext.loopcontrols", TranslationExtension])
+			self.env.trCache = {}
 			# Translation remains global
 			self.env.globals["_"] = lambda x, *args, **kwargs: str(x)  # FIXME !translate
 			self.env.filters["tr"] = lambda x, *args, **kwargs: str(x)  # FIXME !translate

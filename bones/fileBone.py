@@ -7,6 +7,7 @@ from viur.core.tasks import callDeferred
 from hashlib import sha256
 import logging
 from typing import Union, Dict
+from itertools import chain
 
 
 @callDeferred
@@ -65,10 +66,11 @@ class fileBone(treeItemBone):
 		val = skel[name]
 		if val is None:
 			return []
-		elif isinstance(val, dict):
-			return [val["dest"]["dlkey"]]
-		elif isinstance(val, list):
+		if self.languages and self.multiple:
+			return chain(*[[y["dest"]["dlkey"] for y in x] for x in val.values() if x])
+		elif self.languages:
+			return [x["dest"]["dlkey"] for x in val.values() if x]
+		elif self.multiple:
 			return [x["dest"]["dlkey"] for x in val]
 		else:
-			logging.critical("Unknown value for bone %s (%s)" % (name, str(type(val))))
-			return []
+			return [val["dest"]["dlkey"]]

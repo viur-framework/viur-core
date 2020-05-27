@@ -5,8 +5,9 @@ from time import time, mktime
 from datetime import time, datetime, timedelta
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.i18n import translate
-from viur.core.contextvars import currentRequest, currentRequestData
+from viur.core.utils import currentRequest, currentRequestData
 import logging
+from typing import List, Union
 
 try:
 	import pytz
@@ -86,7 +87,7 @@ class dateBone(baseBone):
 		self.time = time
 		self.localize = localize
 
-	def fromClient(self, skel, name, data):
+	def singleValueFromClient(self, value, skel, name, origData):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -101,12 +102,9 @@ class dateBone(baseBone):
 			:type data: dict
 			:returns: str or None
 		"""
-		if not name in data:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
-		rawValue = data[name]
+		rawValue = value
 		if not rawValue:
-			skel[name] = None
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")]
+			return None, [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")]
 		elif str(rawValue).replace("-", "", 1).replace(".", "", 1).isdigit():
 			if int(rawValue) < -1 * (2 ** 30) or int(rawValue) > (2 ** 31) - 2:
 				value = False  # its invalid
@@ -161,11 +159,11 @@ class dateBone(baseBone):
 			except:
 				value = False  # its invalid
 		if value is False:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
+			return None, [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
 		err = self.isInvalid(value)
 		if err:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
-		skel[name] = value
+		return value, None
 
 	def isInvalid(self, value):
 		"""
@@ -231,44 +229,35 @@ class dateBone(baseBone):
 			res = utc.normalize(res.astimezone(utc))
 		return (res)
 
-	def serialize(self, skel, name) -> bool:
-		if name in skel.accessedValues:
-			res = skel.accessedValues[name]
-			if res:
-				res = self.readLocalized(datetime.now().strptime(res.strftime("%d.%m.%Y %H:%M:%S"), "%d.%m.%Y %H:%M:%S"))
-					# Crop unwanted values to zero
-				if not self.time:
-					res = res.replace(hour=0, minute=0, second=0, microsecond=0)
-				elif not self.date:
-					res = res.replace(year=1970, month=1, day=1)
-				skel.dbEntity[name] = res
-			return True
-		return False
+	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+		if value:
+			value = self.readLocalized(datetime.now().strptime(value.strftime("%d.%m.%Y %H:%M:%S"), "%d.%m.%Y %H:%M:%S"))
+				# Crop unwanted values to zero
+			if not self.time:
+				value = value.replace(hour=0, minute=0, second=0, microsecond=0)
+			elif not self.date:
+				value = value.replace(year=1970, month=1, day=1)
+		return value
 
-	def unserialize(self, skel, name) -> bool:
-		if name in skel.dbEntity:
-			value = skel.dbEntity[name]
-			if value and (isinstance(value, float) or isinstance(value, int)):
-				if self.date:
-					self.setLocalized(skel, name, ExtendedDateTime.fromtimestamp(value))
-				else:
-					# FIXME! Seconds?
-					skel.accessedValues[name] = time(hour=int(value / 60), minute=int(value % 60))
-			elif isinstance(value, datetime):
-				self.setLocalized(skel, name,
-								  ExtendedDateTime.now().strptime(value.strftime("%d.%m.%Y %H:%M:%S"),
-																  "%d.%m.%Y %H:%M:%S"))
+	def singleValueUnserialize(self, value, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+		if value and (isinstance(value, float) or isinstance(value, int)):
+			if self.date:
+				return self.setLocalized(skel, name, ExtendedDateTime.fromtimestamp(value))
 			else:
-				# We got garbarge from the datastore
-				skel.accessedValues[name] = None
-			return True
-		return False
+				# FIXME! Seconds?
+				return time(hour=int(value / 60), minute=int(value % 60))
+		elif isinstance(value, datetime):
+			return self.setLocalized(skel, name,
+							  ExtendedDateTime.now().strptime(value.strftime("%d.%m.%Y %H:%M:%S"),
+															  "%d.%m.%Y %H:%M:%S"))
+		else:
+			# We got garbarge from the datastore
+			return None
 
 	def setLocalized(self, skeletonValues, name, value):
 		""" Converts a Date read from DB (UTC) to the requesters local time"""
-		skeletonValues.accessedValues[name] = value
 		if not self.localize or not value or not isinstance(value, ExtendedDateTime):
-			return
+			return value
 		timeZone = self.guessTimeZone()
 		if timeZone != "UTC" and pytz:
 			utc = pytz.utc
@@ -276,7 +265,7 @@ class dateBone(baseBone):
 			value = tz.normalize(value.replace(tzinfo=utc).astimezone(tz))
 			value = ExtendedDateTime(value.year, value.month, value.day,
 									 value.hour, value.minute, value.second)
-		skeletonValues.accessedValues[name] = value
+		return value
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		for key in [x for x in rawFilter.keys() if x.startswith(name)]:
@@ -289,4 +278,4 @@ class dateBone(baseBone):
 
 	def performMagic(self, valuesCache, name, isAdd):
 		if (self.creationMagic and isAdd) or self.updateMagic:
-			self.setLocalized(valuesCache, name, ExtendedDateTime.now())
+			valuesCache[name] = self.setLocalized(valuesCache, name, ExtendedDateTime.now())

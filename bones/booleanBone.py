@@ -2,6 +2,7 @@
 from viur.core.bones import baseBone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import logging
+from typing import List, Union
 
 
 class booleanBone(baseBone):
@@ -16,34 +17,11 @@ class booleanBone(baseBone):
 		assert defaultValue in [True, False]
 		super(booleanBone, self).__init__(defaultValue=defaultValue, *args, **kwargs)
 
-	def fromClient(self, skel, name, data):
-		"""
-			Reads a value from the client.
-			If this value is valid for this bone,
-			store this value and return None.
-			Otherwise our previous value is
-			left unchanged and an error-message
-			is returned.
-
-			:param name: Our name in the skeleton
-			:type name: str
-			:param data: *User-supplied* request-data
-			:type data: dict
-			:returns: str or None
-		"""
-		if not name in data:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
-		value = data[name]
+	def singleValueFromClient(self, value, skel, name, origData):
 		if str(value) in self.trueStrs:
-			value = True
+			return True, None
 		else:
-			value = False
-		err = self.isInvalid(value)
-		if not err:
-			skel[name] = value
-			return False
-		else:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, err)]
+			return False, None
 
 	def refresh(self, skel, boneName) -> None:
 		"""

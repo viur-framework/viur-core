@@ -2,7 +2,7 @@
 from viur.core import db, request, errors
 import urllib
 from viur.core.config import conf
-from viur.core.contextvars import currentRequest
+from viur.core.utils import currentRequest
 #from google.appengine.api import urlfetch
 
 

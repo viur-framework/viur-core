@@ -40,8 +40,8 @@ class SortOrder(Enum):
 Entity = datastore.Entity
 Key = __client__.key  # Proxy-Function
 KeyClass = datastore.Key  # Expose the class also
-Get = __client__.get
-#Delete = __client__.delete
+# Get = __client__.get
+# Delete = __client__.delete
 AllocateIds = __client__.allocate_ids
 Conflict = exceptions.Conflict
 Error = exceptions.GoogleCloudError
@@ -75,6 +75,12 @@ def keyHelper(inKey: Union[KeyClass, str, int], targetKind: str,
 		raise ValueError("Unknown key type %r" % type(inKey))
 
 
+def Get(keys: Union[KeyClass, List[KeyClass]]):
+	if isinstance(keys, list):
+		return __client__.get_multi(keys)
+	return __client__.get(keys)
+
+
 def Put(entity: Union[Entity, List[Entity]]):
 	"""
 		Save an entity in the Cloud Datastore.
@@ -86,13 +92,13 @@ def Put(entity: Union[Entity, List[Entity]]):
 	for e in entity:
 		if not e.key.is_partial and e.key.name and e.key.name.isdigit():
 			raise ValueError("Cannot store an entity with digit-only string key")
-		fixUnindexableProperties(e)
+	# fixUnindexableProperties(e)
 	return __client__.put_multi(entities=entity)
 
 
 def Delete(keys: Union[Entity, List[Entity], KeyClass, List[KeyClass]]):
 	if isinstance(keys, list):
-		return __client__.delete_multi([(x if isinstance(x, KeyClass) else x.key) for x in keys ])
+		return __client__.delete_multi([(x if isinstance(x, KeyClass) else x.key) for x in keys])
 	else:
 		if isinstance(keys, KeyClass):
 			return __client__.delete(keys)
@@ -169,6 +175,7 @@ def GetOrInsert(key: Key, **kwargs):
 		:returns: Returns the wanted Entity.
 		:rtype: server.db.Entity
 	"""
+
 	def txn(key, kwargs):
 		obj = Get(key)
 		if not obj:
@@ -189,9 +196,9 @@ class Query(object):
 	"""
 
 	# Fixme: Typing for Skeleton-Class we can't import here?
-	def __init__(self, collection: str, srcSkelClass: Union[None, Any] = None, *args, **kwargs):
+	def __init__(self, kind: str, srcSkelClass: Union[None, Any] = None, *args, **kwargs):
 		super(Query, self).__init__()
-		self.collection = collection
+		self.kind = kind
 		self.srcSkel = srcSkelClass
 		self.filters: Union[None, Dict[str: DATASTORE_BASE_TYPES], List[Dict[str: DATASTORE_BASE_TYPES]]] = {}
 		self.orders: List[Tuple[str, SortOrder]] = [(KEY_SPECIAL_PROPERTY, SortOrder.Ascending)]
@@ -208,7 +215,7 @@ class Query(object):
 		self._calculateInternalMultiQueryAmount: Union[None, Callable[[Query, int], int]] = None
 		# Allow carrying custom data along with the query. Currently only used by spartialBone to record the guranteed correctnes
 		self.customQueryInfo = {}
-		self.origCollection = collection
+		self.origKind = kind
 		self._lastEntry = None
 		self._fulltextQueryString: Union[None, str] = None
 		self.lastCursor = None
@@ -597,7 +604,7 @@ class Query(object):
 
 			:rtype: str
 		"""
-		return self.collection
+		return self.kind
 
 	def setKind(self, newKind):
 		"""
@@ -690,6 +697,18 @@ class Query(object):
 					pass
 		return entities
 
+	def _fixKind(self, resultList):
+		"""
+			Jump to parentKind if nessesary (used in realtions)
+		:param resultList:
+		:return:
+		"""
+		resultList = list(resultList)
+		if resultList and resultList[0].key.kind != self.origKind and resultList[0].key.parent and \
+				resultList[0].key.parent.kind == self.origKind:
+			return list(Get([x.key.parent for x in resultList]))
+		return resultList
+
 	def run(self, limit=-1, **kwargs):
 		"""
 			Run this query.
@@ -740,7 +759,7 @@ class Query(object):
 					filters=singleFilter,
 					amount=qryLimit))
 			# Wait for the actual results to arrive and convert the protobuffs to Entries
-			res = [list(x) for x in res]
+			res = [self._fixKind(x) for x in res]
 			if self._customMultiQueryMerge:
 				# We have a custom merge function, use that
 				res = self._customMultiQueryMerge(self, res, origLimit)
@@ -748,9 +767,9 @@ class Query(object):
 				# We must merge (and sort) the results ourself
 				res = self._mergeMultiQueryResults(res)
 		else:  # We have just one single query
-			res = list(self._runSingleFilterQuery(self.filters, qryLimit))
+			res = self._fixKind(self._runSingleFilterQuery(self.filters, qryLimit))
 		if conf["viur.debug.traceQueries"]:
-			kindName = self.origCollection
+			kindName = self.origKind
 			orders = self.orders
 			filters = self.filters
 			logging.debug(
@@ -879,7 +898,7 @@ class Query(object):
 		return res
 
 	def __repr__(self):
-		return "<db.Query on %s with filters %s and orders %s>" % (self.collection, self.filters, self.orders)
+		return "<db.Query on %s with filters %s and orders %s>" % (self.kind, self.filters, self.orders)
 
 
 def IsInTransaction():
