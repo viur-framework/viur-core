@@ -278,6 +278,7 @@ def setup(modules, render=None, default="html"):
 					uri.lower().startswith("https://") or uri.lower().startswith("http://"))
 	runStartupTasks()  # Add a deferred call to run all queued startup tasks
 	initializeTranslations()
+	assert conf["viur.file.hmacKey"], "You must set a secret and unique Application-Key to viur.file.hmacKey"
 	return app
 
 
