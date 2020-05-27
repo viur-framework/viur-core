@@ -154,8 +154,10 @@ class relationalBone(baseBone):
 				value = None
 		else:
 			value = val
-		if value is None:
+		if not value:
 			return None
+		elif isinstance(value, list) and value:
+			value = value[0]
 		assert isinstance(value, dict), "Read something from the datastore thats not a dict: %s" % str(type(value))
 		if "dest" not in value:
 			return None
