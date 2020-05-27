@@ -84,9 +84,9 @@ class spatialBone(baseBone):
 			:return: An error-description or False if the value is valid
 			:rtype: str | False
 		"""
-		if value is None and self.required:
+		if (value is None or value == (0, 0)) and self.required:
 			return "No value entered"
-		elif value is None and not self.required:
+		elif (value is None or value == (0, 0)) and not self.required:
 			return False
 		elif value:
 			try:
@@ -120,7 +120,6 @@ class spatialBone(baseBone):
 				"lng": [tileLng - 1, tileLng, tileLng + 1],
 			}
 		return res
-
 
 	def singleValueUnserialize(self, val, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
 		if not val:
@@ -160,7 +159,6 @@ class spatialBone(baseBone):
 		if err:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
 		skel[name] = (rawLat, rawLng)
-
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		"""
