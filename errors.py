@@ -3,7 +3,6 @@
 class HTTPException(Exception):
 	"""
 		Base-Class for all Exceptions that should match to an http error-code
-
 	"""
 
 	def __init__(self, status, name, descr):
@@ -243,3 +242,13 @@ class ReadFromClientError(object):
 		super(ReadFromClientError, self).__init__()
 		self.errors = errors
 		self.forceFail = forceFail
+
+
+class ViurException(Exception):
+	pass
+
+
+class InvalidConfigException(ViurException):
+	"""
+		This exception is usually thrown if a config isn't set or is incorrect.
+	"""
