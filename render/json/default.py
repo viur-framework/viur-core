@@ -244,13 +244,15 @@ class DefaultRender(object):
 	def list(self, skellist, action="list", params=None, **kwargs):
 		res = {}
 		skels = []
-		for skel in skellist:
-			skels.append(self.renderSkelValues(skel))
-		res["skellist"] = skels
 		if skellist:
+			for skel in skellist:
+				skels.append( self.renderSkelValues( skel ) )
 			res["structure"] = self.renderSkelStructure(skellist.baseSkel)
 		else:
 			res["structure"] = None
+
+		res[ "skellist" ] = skels
+
 		try:
 			res["cursor"] = "h-%s" % skellist.getCursor().hex()
 		except:
