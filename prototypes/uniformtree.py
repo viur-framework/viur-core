@@ -173,6 +173,41 @@ class Tree(BasicApplication):
 		rootNodeSkel.fromDB(repo.key)
 		return rootNodeSkel
 
+	@callDeferred
+	def updateParentRepo( self, parentNode, newRepoKey, depth = 0 ):
+		"""
+		Recursively fixes the parentrepo key after a move operation.
+
+		This will delete all entries which are children of *nodeKey*, except *key* nodeKey.
+
+		:param parentNode: URL-safe key of the node which children should be fixed.
+		:type parentNode: str
+		:param newNode: URL-safe key of the new repository.
+		:type newNode: strg
+		:param depth: Safety level depth preventing infinitive loops.
+		:type depth: int
+		"""
+		if depth > 99:
+			logging.critical( "Maximum recursion depth reached in server.applications.tree/fixParentRepo" )
+			logging.critical( "Your data is corrupt!" )
+			logging.critical( "Params: parentNode: %s, newRepoKey: %s" % (parentNode, newRepoKey) )
+			return
+
+		def fixTxn( nodeKey, newRepoKey ):
+			node = db.Get( nodeKey )
+			node[ "parentrepo" ] = newRepoKey
+			db.Put( node )
+
+		# Fix all nodes
+		for repo in db.Query(self.viewSkel(TreeType.Node).kindName).filter( "parententry =", parentNode ).iter( keysOnly = True ): #fixme KeysOnly not working
+			self.updateParentRepo( repo.key , newRepoKey, depth = depth + 1 )
+			db.RunInTransaction( fixTxn, repo.key, newRepoKey )
+
+		# Fix the leafs on this level
+		if self.leafSkelCls:
+			for repo in db.Query(self.viewSkel(TreeType.Leaf).kindName).filter( "parententry =", parentNode ).iter( keysOnly = True ):
+				db.RunInTransaction( fixTxn, repo.key , newRepoKey )
+
 	## External exposed functions
 
 	@exposed
@@ -434,6 +469,105 @@ class Tree(BasicApplication):
 				continue
 			s.delete()
 
+	@exposed
+	@forceSSL
+	@forcePost
+	def move( self, skelType, key, parentNode, *args, **kwargs ):
+		"""
+		Move a node (including its contents) or a leaf to another node.
+
+		.. seealso:: :func:`canMove`
+
+		:param skelType: Defines the type of the entry that should be moved and may either be "node" or "leaf".
+		:type skelType: str
+		:param key: URL-safe key of the item to be moved.
+		:type key: str
+		:param destNode: URL-safe key of the destination node, which must be a node.
+		:type destNode: str
+
+		:returns: The rendered, edited object of the entry.
+
+		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
+		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
+		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
+		"""
+		if "skey" in kwargs:
+			skey = kwargs["skey"]
+		else:
+			skey = ""
+		if skelType == "node":
+			skelType = TreeType.Node
+		elif skelType == "leaf" and self.leafSkelCls:
+			skelType = TreeType.Leaf
+		else:
+			raise errors.NotAcceptable()
+		skel = self.addSkel(skelType) #srcSkel
+		parentNodeSkel = self.editSkel(TreeType.Node) #destSkel
+
+
+		if not self.canMove( skelType, key, parentNode ):
+			raise errors.Unauthorized()
+
+		if key == parentNode:
+			# Cannot move a node into itself
+			raise errors.NotAcceptable()
+
+		## Test for recursion
+		isValid = False
+
+		if isinstance(parentNode,str):
+			try:
+				parentNode = utils.normalizeKey( db.KeyClass.from_legacy_urlsafe( parentNode ) )
+			except:
+				parentNode = None
+
+		if isinstance(key,str):
+			try:
+				key = utils.normalizeKey( db.KeyClass.from_legacy_urlsafe( key ) )
+			except:
+				key = None
+
+		currLevel = db.Get( parentNode )
+
+		for x in range( 0, 99 ):
+			if currLevel.key == key:
+				break
+			if "rootNode" in currLevel and currLevel[ "rootNode" ] == 1:
+				# We reached a rootNode
+				isValid = True
+				break
+			currLevel = db.Get( currLevel[ "parententry" ] )
+
+		if not isValid:
+			raise errors.NotAcceptable()
+
+		# Test if key points to a rootNone
+		tmp = db.Get( key )
+
+		if "rootNode" in tmp and tmp[ "rootNode" ] == 1:
+			# Cant move a rootNode away..
+			raise errors.NotAcceptable()
+
+		if not skel.fromDB( key ) or not parentNodeSkel.fromDB( parentNode ):
+			# Could not find one of the entities
+			raise errors.NotFound()
+
+		if not securitykey.validate( skey, useSessionKey = True ):
+			raise errors.PreconditionFailed()
+
+		currentParentRepo = skel[ "parentrepo" ]
+		skel[ "parententry" ] = parentNode
+		skel[ "parentrepo" ] = parentNodeSkel[ "parentrepo" ]  # Fixme: Need to recursive fixing to parentrepo?
+
+		if "sortindex" in kwargs:
+			skel["sortindex"] = kwargs["sortindex"]
+
+		skel.toDB()
+		if currentParentRepo != parentNodeSkel[ "parentrepo" ]:
+			self.updateParentRepo( key, parentNodeSkel[ "parentrepo" ] )
+
+		return self.render.editItemSuccess( skel ) #new Sig, has no args and kwargs , skelType = skelType, action = "move", destNode = parentNodeSkel )
+
 	## Default access control functions
 
 	def listFilter(self, filter):
@@ -561,6 +695,42 @@ class Tree(BasicApplication):
 		if user and user["access"] and "%s-delete" % self.moduleName in user["access"]:
 			return True
 		return False
+
+	def canMove(self, skelType, node, destNode):
+		"""
+		Access control function for moving permission.
+
+		Checks if the current user has the permission to move an entry.
+
+		The default behavior is:
+		- If no user is logged in, deleting is generally refused.
+		- If the user has "root" access, deleting is generally allowed.
+		- If the user has the modules "edit" permission (module-edit) enabled, \
+		 moving is allowed.
+
+		It should be overridden for a module-specific behavior.
+
+		:param skelType: Defines the type of the node that shall be deleted.
+		:type skelType: str
+		:param node: URL-safe key of the node to be moved.
+		:type node: str
+		:param node: URL-safe key of the node where *node* should be moved to.
+		:type node: str
+
+		.. seealso:: :func:`move`
+
+		:returns: True, if deleting entries is allowed, False otherwise.
+		:rtype: bool
+		"""
+		user = utils.getCurrentUser()
+		if not user:
+			return False
+		if user[ "access" ] and "root" in user[ "access" ]:
+			return True
+		if user and user[ "access" ] and "%s-edit" % self.moduleName in user[ "access" ]:
+			return True
+		return False
+
 
 	## Overridable eventhooks
 
