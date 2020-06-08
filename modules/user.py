@@ -746,7 +746,7 @@ def createNewUserIfNotExists():
 			and isinstance(userMod, User)
 			and "addSkel" in dir(userMod)
 			and "validAuthenticationMethods" in dir(userMod)  # Its our user module :)
-			and any([x[0] is UserPassword for x in userMod.validAuthenticationMethods])):  # It uses UserPassword login
+			and any([x[0].getAuthMethodName() == "X-VIUR-AUTH-User-Password" for x in userMod.validAuthenticationMethods])):  # It uses UserPassword login
 		if not db.Query(userMod.addSkel().kindName).get():  # There's currently no user in the database
 			addSkel = skeletonByKind(userMod.addSkel().kindName)()  # Ensure we have the full skeleton
 			uname = "admin@%s.appspot.com" % utils.projectID
@@ -755,6 +755,7 @@ def createNewUserIfNotExists():
 			addSkel["status"] = 10  # Ensure its enabled right away
 			addSkel["access"] = ["root"]
 			addSkel["password"] = pw
+
 			try:
 				addSkel.toDB()
 			except Exception as e:
