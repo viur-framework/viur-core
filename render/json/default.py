@@ -161,8 +161,7 @@ class DefaultRender(object):
 		elif isinstance(bone, bones.recordBone):
 			return self.renderSkelValues(value)
 		elif isinstance(bone, bones.keyBone):
-			v = skel["key"]
-			return v.to_legacy_urlsafe().decode("ASCII") if v else None
+			return value.to_legacy_urlsafe().decode("ASCII") if value else None
 		else:
 			return value
 		return None
