@@ -167,19 +167,29 @@ def sendEMailToAdmins(subject: str, body: str, sender: str = None):
 	if not sender:
 		sender = f"viur@{projectID}.appspotmail.com"
 
-	if "user" in dir(conf["viur.mainApp"]):
-		users = []
-		for userSkel in conf["viur.mainApp"].user.viewSkel().all().filter("access =", "root").fetch():
-			users.append(userSkel["name"])
+	success = True
 
-		if users:
-			return sendEMail(dests=users, subject=subject, template=body, sender=sender)
-		else:
-			logging.warning("There are no root-users.")
+	try:
+		if "user" in dir(conf["viur.mainApp"]):
+			users = []
+			for userSkel in conf["viur.mainApp"].user.viewSkel().all().filter("access =", "root").fetch():
+				users.append(userSkel["name"])
 
-	logging.critical("Cannot send mail to Admins.")
-	logging.critical("Subject of mail: %s", subject)
-	logging.critical("Content of mail: %s", body)
+			if users:
+				return sendEMail(dests=users, subject=subject, template=body, sender=sender)
+			else:
+				logging.warning("There are no root-users.")
+				success = False
+
+	except Exception:
+		success = False
+		raise
+
+	finally:
+		if not success:
+			logging.critical("Cannot send mail to Admins.")
+			logging.critical("Subject of mail: %s", subject)
+			logging.critical("Content of mail: %s", body)
 
 	return False
 
