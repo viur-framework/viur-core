@@ -491,10 +491,7 @@ class Tree(BasicApplication):
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-		if "skey" in kwargs:
-			skey = kwargs["skey"]
-		else:
-			skey = ""
+		skey = kwargs.get("skey", "")
 		if skelType == "node":
 			skelType = TreeType.Node
 		elif skelType == "leaf" and self.leafSkelCls:
