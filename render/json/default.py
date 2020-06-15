@@ -5,6 +5,7 @@ from viur.core import errors, bones, utils
 from viur.core.skeleton import RefSkel, skeletonByKind, BaseSkeleton, SkeletonInstance
 from viur.core.utils import currentRequest
 
+
 class DefaultRender(object):
 
 	def __init__(self, parent=None, *args, **kwargs):
@@ -116,11 +117,11 @@ class DefaultRender(object):
 			res[key] = self.renderBoneStructure(bone)
 
 			# FIXME!
-			#if key in skel.errors:
+			# if key in skel.errors:
 			#	res[key]["error"] = skel.errors[key]
-			#elif any([x.startswith("%s." % key) for x in skel.errors.keys()]):
+			# elif any([x.startswith("%s." % key) for x in skel.errors.keys()]):
 			#	res[key]["error"] = {k: v for k, v in skel.errors.items() if k.startswith("%s." % key)}
-			#else:
+			# else:
 			#	res[key]["error"] = None
 			res[key]["error"] = None
 		return [(key, val) for key, val in res.items()]
@@ -165,7 +166,7 @@ class DefaultRender(object):
 		else:
 			return value
 		return None
-	
+
 	def renderBoneValue(self, bone, skel, key):
 		boneVal = skel[key]
 		if bone.languages and bone.multiple:
@@ -246,13 +247,11 @@ class DefaultRender(object):
 		skels = []
 		if skellist:
 			for skel in skellist:
-				skels.append( self.renderSkelValues( skel ) )
+				skels.append(self.renderSkelValues(skel))
 			res["structure"] = self.renderSkelStructure(skellist.baseSkel)
 		else:
 			res["structure"] = None
-
-		res[ "skellist" ] = skels
-
+		res["skellist"] = skels
 		try:
 			res["cursor"] = "h-%s" % skellist.getCursor().hex()
 		except:
