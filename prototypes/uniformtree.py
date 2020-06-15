@@ -487,83 +487,57 @@ class Tree(BasicApplication):
 
 		:returns: The rendered, edited object of the entry.
 
-		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
-		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
-		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
+		:raises: :exc:`viur.core.errors.NotFound`, when no entry with the given *key* was found.
+		:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
+		:raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-		skey = kwargs.get("skey", "")
 		if skelType == "node":
 			skelType = TreeType.Node
 		elif skelType == "leaf" and self.leafSkelCls:
 			skelType = TreeType.Leaf
 		else:
 			raise errors.NotAcceptable()
-		skel = self.addSkel(skelType) #srcSkel
-		parentNodeSkel = self.editSkel(TreeType.Node) #destSkel
-
-
-		if not self.canMove( skelType, key, parentNode ):
-			raise errors.Unauthorized()
-
-		if key == parentNode:
-			# Cannot move a node into itself
-			raise errors.NotAcceptable()
-
-		## Test for recursion
-		isValid = False
-
-		if isinstance(parentNode,str):
-			try:
-				parentNode = utils.normalizeKey( db.KeyClass.from_legacy_urlsafe( parentNode ) )
-			except:
-				parentNode = None
-
-		if isinstance(key,str):
-			try:
-				key = utils.normalizeKey( db.KeyClass.from_legacy_urlsafe( key ) )
-			except:
-				key = None
-
-		currLevel = db.Get( parentNode )
-
-		for x in range( 0, 99 ):
-			if currLevel.key == key:
-				break
-			if "rootNode" in currLevel and currLevel[ "rootNode" ] == 1:
-				# We reached a rootNode
-				isValid = True
-				break
-			currLevel = db.Get( currLevel[ "parententry" ] )
-
-		if not isValid:
-			raise errors.NotAcceptable()
-
-		# Test if key points to a rootNone
-		tmp = db.Get( key )
-
-		if "rootNode" in tmp and tmp[ "rootNode" ] == 1:
-			# Cant move a rootNode away..
-			raise errors.NotAcceptable()
-
-		if not skel.fromDB( key ) or not parentNodeSkel.fromDB( parentNode ):
+		skel = self.addSkel(skelType)  # srcSkel - the skeleton to be moved
+		parentNodeSkel = self.editSkel(TreeType.Node)  # destSkel - the node it should be moved into
+		if not skel.fromDB(key) or not parentNodeSkel.fromDB(parentNode):
 			# Could not find one of the entities
 			raise errors.NotFound()
-
-		if not securitykey.validate( skey, useSessionKey = True ):
+		if not self.canMove(skelType, skel, parentNodeSkel):
+			raise errors.Unauthorized()
+		if skel["key"] == parentNodeSkel["key"]:
+			# Cannot move a node into itself
+			raise errors.NotAcceptable()
+		## Test for recursion
+		currLevel = db.Get(parentNode)
+		for x in range(0, 99):
+			if currLevel.key == skel["key"]:
+				break
+			if "rootNode" in currLevel and currLevel["rootNode"] == 1:
+				# We reached a rootNode, so this is okay
+				break
+			currLevel = db.Get(currLevel["parententry"])
+		else:  # We did not "break" - recursion-level exceeded or loop detected
+			raise errors.NotAcceptable()
+		# Test if we try to move a rootNode
+		tmp = skel.dbEntity
+		if "rootNode" in tmp and tmp["rootNode"] == 1:
+			# Cant move a rootNode away..
+			raise errors.NotAcceptable()
+		if not securitykey.validate(kwargs.get("skey", ""), useSessionKey=True):
 			raise errors.PreconditionFailed()
-
-		currentParentRepo = skel[ "parentrepo" ]
-		skel[ "parententry" ] = parentNode
-		skel[ "parentrepo" ] = parentNodeSkel[ "parentrepo" ]  # Fixme: Need to recursive fixing to parentrepo?
-
+		currentParentRepo = skel["parentrepo"]
+		skel["parententry"] = parentNode
+		skel["parentrepo"] = parentNodeSkel["parentrepo"]  # Fixme: Need to recursive fixing to parentrepo?
 		if "sortindex" in kwargs:
-			skel["sortindex"] = kwargs["sortindex"]
-
+			try:
+				skel["sortindex"] = float(kwargs["sortindex"])
+			except:
+				raise errors.PreconditionFailed()
 		skel.toDB()
-		if currentParentRepo != parentNodeSkel[ "parentrepo" ]:
-			self.updateParentRepo( key, parentNodeSkel[ "parentrepo" ] )
-
-		return self.render.editItemSuccess( skel ) #new Sig, has no args and kwargs , skelType = skelType, action = "move", destNode = parentNodeSkel )
+		#Ensure a changed parentRepo get's proagated
+		if currentParentRepo != parentNodeSkel["parentrepo"]:
+			self.updateParentRepo(key, parentNodeSkel["parentrepo"])
+		return self.render.editItemSuccess(skel) #new Sig, has no args and kwargs , skelType = skelType, action = "move", destNode = parentNodeSkel )
 
 	## Default access control functions
 
