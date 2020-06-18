@@ -1085,7 +1085,7 @@ def updateRelations(destID, minChangeTime, changeList, cursor=None):
 		except AssertionError:
 			logging.info("Deleting %s which refers to unknown kind %s" % (str(srcRel.key()), srcRel["viur_src_kind"]))
 			continue
-		db.RunInTransaction(updateTxn, skel, srcRel["src"]["key"], srcRel.key)
+		db.RunInTransaction(updateTxn, skel, srcRel["src"].key, srcRel.key)
 	nextCursor = updateListQuery.getCursor()
 	if len(updateList) == 5 and nextCursor:
 		updateRelations(destID, minChangeTime, changeList, nextCursor.decode("ASCII"))
