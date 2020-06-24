@@ -813,6 +813,7 @@ class Query(object):
 			skelInstance = SkeletonInstanceRef(self.srcSkel.skeletonCls, clonedBoneMap=self.srcSkel.boneMap)
 			skelInstance.dbEntity = e
 			res.append(skelInstance)
+		res.getCursor = lambda: self.getCursor()
 		return res
 
 	def iter(self, keysOnly=False):
