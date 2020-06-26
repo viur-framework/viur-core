@@ -413,9 +413,9 @@ def doCheckForUnreferencedBlobs(cursor=None):
 
 	gotAtLeastOne = False
 	query = db.Query("viur-blob-locks").filter("has_old_blob_references", True).setCursor(cursor)
-	for lockKey in query.run(100, keysOnly=True):
+	for lockObj in query.run(100):
 		gotAtLeastOne = True
-		oldBlobKeys = db.RunInTransaction(getOldBlobKeysTxn, lockKey)
+		oldBlobKeys = db.RunInTransaction(getOldBlobKeysTxn, lockObj.key)
 		for blobKey in oldBlobKeys:
 			if db.Query("viur-blob-locks").filter("active_blob_references =", blobKey).get():
 				# This blob is referenced elsewhere
@@ -432,8 +432,8 @@ def doCheckForUnreferencedBlobs(cursor=None):
 			logging.info("Stale blob marked dirty, %s" % blobKey)
 			db.Put(fileObj)
 	newCursor = query.getCursor()
-	if gotAtLeastOne and newCursor and newCursor.urlsafe() != cursor:
-		doCheckForUnreferencedBlobs(newCursor.urlsafe())
+	if gotAtLeastOne and newCursor:
+		doCheckForUnreferencedBlobs(newCursor)
 
 
 
