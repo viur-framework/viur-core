@@ -170,6 +170,9 @@ class SkeletonInstance:
 		else:
 			super().__setattr__(key, value)
 
+	def __repr__(self) -> str:
+		return f"<SkeletonInstance of {self.skeletonCls.__name__} with {dict(self)}>"
+
 	def clone(self):
 		res = SkeletonInstance(self.skeletonCls, clonedBoneMap=copy.deepcopy(self.boneMap))
 		for k, v in res.boneMap.items():
@@ -183,9 +186,6 @@ class SkeletonInstance:
 		self.dbEntity = entity
 		self.accessedValues = {}
 		self.renderAccessedValues = {}
-
-	def getValues(self) -> Dict[str, Any]:
-		return {boneName: self[boneName] for boneName in self}
 
 
 class BaseSkeleton(object, metaclass=MetaBaseSkel):
