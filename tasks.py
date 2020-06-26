@@ -143,7 +143,7 @@ class TaskHandler:
 			if "lang" in env and env["lang"]:
 				currentRequest.get().language = env["lang"]
 			if "transactionMarker" in env:
-				marker = db.Get(("viur-transactionmarker", env["transactionMarker"]))
+				marker = db.Get(db.Key("viur-transactionmarker", env["transactionMarker"]))
 				if not marker:
 					logging.info("Dropping task, transaction %s did not apply" % env["transactionMarker"])
 					return

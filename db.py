@@ -915,7 +915,7 @@ def acquireTransactionSuccessMarker() -> str:
 	"""
 	txn = __client__.current_transaction
 	assert txn, "acquireTransactionSuccessMarker cannot be called outside an transaction"
-	marker = binascii.b2a_hex(txn.id)
+	marker = binascii.b2a_hex(txn.id).decode("ASCII")
 	if not "viurTxnMarkerSet" in dir(txn):
 		e = Entity(Key("viur-transactionmarker", marker))
 		e["creationdate"] = datetime.now()
