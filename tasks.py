@@ -203,7 +203,7 @@ class TaskHandler:
 		for task, interval in _periodicTasks[cronName].items():  # Call all periodic tasks bound to that queue
 			periodicTaskName = "%s_%s" % (cronName, task.periodicTaskName)
 			if interval:  # Ensure this task doesn't get called to often
-				lastCall = db.Get(("viur-task-interval", periodicTaskName))
+				lastCall = db.Get(db.Key("viur-task-interval", periodicTaskName))
 				logging.error("Interval %s" % interval)
 				if lastCall and datetime.now() - lastCall["date"] < timedelta(minutes=interval):
 					logging.error(datetime.now())
@@ -224,7 +224,7 @@ class TaskHandler:
 				logging.debug("Successfully called task %s" % periodicTaskName)
 			if interval:
 				# Update its last-call timestamp
-				entry = db.Entity("viur-task-interval", name=periodicTaskName)
+				entry = db.Entity(db.Key("viur-task-interval", name=periodicTaskName))
 				entry["date"] = datetime.now()
 				db.Put(entry)
 		logging.debug("Periodic tasks complete")
