@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
-from datetime import datetime, timedelta
-from viur.core.update import checkUpdate
-from viur.core.config import conf
-from viur.core import errors, request, utils
-from viur.core import db
-from functools import wraps
 import json
 import logging
-import os, sys
+import os
+import sys
+from datetime import datetime, timedelta
+from functools import wraps
+from typing import Callable, Dict
+
 from google.cloud import tasks_v2
 from google.protobuf import timestamp_pb2
-from typing import Dict, List, Callable
+
+from viur.core import db, errors, utils
+from viur.core.config import conf
 from viur.core.utils import currentRequest, currentSession
 
 _gaeApp = os.environ.get("GAE_APPLICATION")
@@ -34,6 +35,10 @@ _deferedTasks = {}
 _startupTasks = []
 _periodicTaskID = 1  # Used to determine bound functions
 _appengineServiceIPs = {"10.0.0.1", "0.1.0.1", "0.1.0.2"}
+
+
+class PermanentTaskFailure(Exception):
+	"""Indicates that a task failed, and will never succeed."""
 
 
 class CallableTaskBase:
@@ -203,8 +208,7 @@ class TaskHandler:
 		for task, interval in _periodicTasks[cronName].items():  # Call all periodic tasks bound to that queue
 			periodicTaskName = "%s_%s" % (cronName, task.periodicTaskName)
 			if interval:  # Ensure this task doesn't get called to often
-				lastCall = db.Get(("viur-task-interval", periodicTaskName))
-				logging.error("Interval %s" % interval)
+				lastCall = db.Get(db.Key("viur-task-interval", periodicTaskName))
 				if lastCall and datetime.now() - lastCall["date"] < timedelta(minutes=interval):
 					logging.error(datetime.now())
 					logging.error(lastCall["date"])
@@ -224,7 +228,7 @@ class TaskHandler:
 				logging.debug("Successfully called task %s" % periodicTaskName)
 			if interval:
 				# Update its last-call timestamp
-				entry = db.Entity("viur-task-interval", name=periodicTaskName)
+				entry = db.Entity(db.Key("viur-task-interval", name=periodicTaskName))
 				entry["date"] = datetime.now()
 				db.Put(entry)
 		logging.debug("Periodic tasks complete")
@@ -333,7 +337,8 @@ def callDeferred(func):
 			req = currentRequest.get()
 		except:  # This will fail for warmup requests
 			req = None
-		if req is not None and req.request.headers.get("X-Appengine-Taskretrycount") and not "DEFERED_TASK_CALLED" in dir(req):
+		if req is not None and req.request.headers.get("X-Appengine-Taskretrycount") \
+				and not "DEFERED_TASK_CALLED" in dir(req):
 			# This is the deferred call
 			req.DEFERED_TASK_CALLED = True  # Defer recursive calls to an deferred function again.
 			if self is __undefinedFlag_:
@@ -362,9 +367,11 @@ def callDeferred(func):
 			env = {"user": None}
 			usr = getCurrentUser()
 			if usr:
-				env["user"] = {"key": usr["key"].id_or_name,
-							   "name": usr["name"],
-							   "access": usr["access"]}
+				env["user"] = {
+					"key": usr["key"].id_or_name,
+					"name": usr["name"],
+					"access": usr["access"]
+				}
 			try:
 				env["lang"] = currentRequest.get().language
 			except AttributeError:  # This isn't originating from a normal request
@@ -420,12 +427,16 @@ def PeriodicTask(interval=0, cronName="default"):
 	"""
 
 	def mkDecorator(fn):
+		if fn.__name__.startswith("_"):
+			raise RuntimeError("Periodic called methods cannot start with an underscore! "
+							   f"Please rename {fn.__name__!r}")
+
 		global _periodicTasks, _periodicTaskID
 		if not cronName in _periodicTasks:
 			_periodicTasks[cronName] = {}
 		_periodicTasks[cronName][fn] = interval
 		fn.periodicTaskID = _periodicTaskID
-		fn.periodicTaskName = "%s_%s" % (fn.__module__, fn.__name__)
+		fn.periodicTaskName = "%s.%s" % (fn.__module__, fn.__qualname__)
 		_periodicTaskID += 1
 		return fn
 
