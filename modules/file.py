@@ -412,7 +412,7 @@ def doCheckForUnreferencedBlobs(cursor=None):
 		return res
 
 	gotAtLeastOne = False
-	query = db.Query("viur-blob-locks").filter("has_old_blob_references", True).cursor(cursor)
+	query = db.Query("viur-blob-locks").filter("has_old_blob_references", True).setCursor(cursor)
 	for lockKey in query.run(100, keysOnly=True):
 		gotAtLeastOne = True
 		oldBlobKeys = db.RunInTransaction(getOldBlobKeysTxn, lockKey)
@@ -426,7 +426,7 @@ def doCheckForUnreferencedBlobs(cursor=None):
 			if fileObj:  # Its already marked
 				logging.info("Stale blob already marked for deletion, %s" % blobKey)
 				return
-			fileObj = db.Entity("viur-deleted-files")
+			fileObj = db.Entity(db.Key("viur-deleted-files"))
 			fileObj["itercount"] = 0
 			fileObj["dlkey"] = str(blobKey)
 			logging.info("Stale blob marked dirty, %s" % blobKey)
@@ -452,21 +452,21 @@ def doCleanupDeletedFiles(cursor=None):
 	gotAtLeastOne = False
 	query = db.Query("viur-deleted-files")
 	if cursor:
-		query.cursor(cursor)
+		query.setCursor(cursor)
 	for file in query.run(100):
 		gotAtLeastOne = True
 		if not "dlkey" in file:
-			db.Delete((file.collection, file.name))
+			db.Delete(db.Key(file.collection, file.name))
 		elif db.Query("viur-blob-locks").filter("active_blob_references =", file["dlkey"]).get():
 			logging.info("is referenced, %s" % file["dlkey"])
-			db.Delete((file.collection, file.name))
+			db.Delete(db.Key(file.collection, file.name))
 		else:
 			if file["itercount"] > maxIterCount:
 				logging.info("Finally deleting, %s" % file["dlkey"])
 				blobs = bucket.list_blobs(prefix="%s/" % file["dlkey"])
 				for blob in blobs:
 					blob.delete()
-				db.Delete((file.collection, file.name))
+				db.Delete(db.Key(file.collection, file.name))
 				# There should be exactly 1 or 0 of these
 				for f in skeletonByKind("file")().all().filter("dlkey =", file["dlkey"]).fetch(99):
 					f.delete()

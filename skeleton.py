@@ -853,7 +853,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				bone.delete(skel, boneName)
 				if bone.unique:
 					if "%s_uniqueIndexValue" % boneName in dbObj:
-						db.Delete((
+						db.Delete(db.Key(
 							"%s_%s_uniquePropertyIndex" % (skel.kindName, boneName),
 							dbObj["%s_uniqueIndexValue" % boneName]))
 			# Delete the blob-key lock object
@@ -1235,7 +1235,7 @@ def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, noti
 	query = db.Query("viur-relations")
 	if module != "*":
 		query.filter("viur_src_kind =", module)
-	query.cursor(cursor)
+	query.setCursor(cursor)
 	countTotal = 0
 	countRemoved = 0
 	for relationObject in query.run(25):
