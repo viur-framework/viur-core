@@ -3,7 +3,7 @@ from . import utils as jinjaUtils
 from .wrap import ListWrapper, SkelListWrapper
 
 from viur.core import utils, request, errors, securitykey
-from viur.core.skeleton import Skeleton, BaseSkeleton, RefSkel, skeletonByKind, SkeletonInstance
+from viur.core.skeleton import SkeletonInstance, RefSkel, skeletonByKind, SkeletonInstance
 from viur.core.bones import *
 from viur.core.i18n import TranslationExtension
 from collections import OrderedDict
@@ -352,8 +352,8 @@ class Render(object):
 		skel.skey = skeybone
 		skel["skey"] = securitykey.create()
 		if currentRequest.get().kwargs.get("nomissing") == "1":
-			if isinstance(skel, BaseSkeleton):
-				super(BaseSkeleton, skel).__setattr__("errors", {})
+			if isinstance(skel, SkeletonInstance):
+				super(SkeletonInstance, skel).__setattr__("errors", {})
 		return template.render(skel={"structure": self.renderSkelStructure(skel),
 									 "errors": skel.errors,
 									 "value": self.collectSkelData(skel)},
@@ -393,8 +393,8 @@ class Render(object):
 		skel["skey"] = securitykey.create()
 
 		if "nomissing" in currentRequest.get().kwargs.get("nomissing") == "1":
-			if isinstance(skel, BaseSkeleton):
-				super(BaseSkeleton, skel).__setattr__("errors", {})
+			if isinstance(skel, SkeletonInstance):
+				super(SkeletonInstance, skel).__setattr__("errors", {})
 
 		return template.render(skel={"structure": self.renderSkelStructure(skel),
 									 "errors": skel.errors,
@@ -786,9 +786,9 @@ class Render(object):
 		"""
 		headers = {}
 		user = utils.getCurrentUser()
-		if isinstance(skel, BaseSkeleton):
+		if isinstance(skel, SkeletonInstance):
 			res = self.collectSkelData(skel)
-		elif isinstance(skel, list) and all([isinstance(x, BaseSkeleton) for x in skel]):
+		elif isinstance(skel, list) and all([isinstance(x, SkeletonInstance) for x in skel]):
 			res = [self.collectSkelData(x) for x in skel]
 		else:
 			res = skel
