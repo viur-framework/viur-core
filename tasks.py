@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from viur.core.update import checkUpdate
 from viur.core.config import conf
 from viur.core import errors, request, utils
@@ -204,11 +204,7 @@ class TaskHandler:
 			periodicTaskName = "%s_%s" % (cronName, task.periodicTaskName)
 			if interval:  # Ensure this task doesn't get called to often
 				lastCall = db.Get(db.Key("viur-task-interval", periodicTaskName))
-				logging.error("Interval %s" % interval)
-				if lastCall and datetime.now() - lastCall["date"] < timedelta(minutes=interval):
-					logging.error(datetime.now())
-					logging.error(lastCall["date"])
-					logging.error(datetime.now() - lastCall["date"])
+				if lastCall and datetime.now(timezone.utc) - lastCall["date"] < timedelta(minutes=interval):
 					logging.debug("Skipping task %s - Has already run recently." % periodicTaskName)
 					continue
 			res = self.findBoundTask(task)
@@ -224,7 +220,7 @@ class TaskHandler:
 				logging.debug("Successfully called task %s" % periodicTaskName)
 			if interval:
 				# Update its last-call timestamp
-				entry = db.Entity(db.Key("viur-task-interval", name=periodicTaskName))
+				entry = db.Entity(db.Key("viur-task-interval", periodicTaskName))
 				entry["date"] = datetime.now()
 				db.Put(entry)
 		logging.debug("Periodic tasks complete")
