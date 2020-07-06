@@ -77,7 +77,10 @@ def keyHelper(inKey: Union[KeyClass, str, int], targetKind: str,
 
 def Get(keys: Union[KeyClass, List[KeyClass]]):
 	if isinstance(keys, list):
-		return __client__.get_multi(keys)
+		# GetMulti does not obey orderings - results can be returned in any order. We'll need to fix this here
+		resList = list(__client__.get_multi(keys))
+		resList.sort(key=lambda x: keys.index(x.key) if x else -1)
+		return resList
 	return __client__.get(keys)
 
 
