@@ -114,7 +114,7 @@ class List(BasicApplication):
 		or as the first parameter in *args*. The function performs several access control checks
 		on the requested entity before it is rendered.
 
-		.. seealso:: :func:`viewSkel`, :func:`canView`, :func:`onItemViewed`
+		.. seealso:: :func:`viewSkel`, :func:`canView`, :func:`onViewed`
 
 		:returns: The rendered representation of the requested entity.
 
@@ -144,7 +144,7 @@ class List(BasicApplication):
 				raise errors.NotFound()
 			if not self.canView(skel):
 				raise errors.Forbidden()
-			self.onItemViewed(skel)
+			self.onViewed(skel)
 		return self.render.view(skel)
 
 	@exposed
@@ -181,7 +181,7 @@ class List(BasicApplication):
 		or as the first parameter in *args*. The function performs several access control checks
 		on the requested entity before it is modified.
 
-		.. seealso:: :func:`editSkel`, :func:`onItemEdited`, :func:`canEdit`
+		.. seealso:: :func:`editSkel`, :func:`onEdited`, :func:`canEdit`
 
 		:returns: The rendered, edited object of the entry, eventually with error hints.
 
@@ -216,8 +216,8 @@ class List(BasicApplication):
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 		skel.toDB()  # write it!
-		self.onItemEdited(skel)
-		return self.render.editItemSuccess(skel)
+		self.onEdited(skel)
+		return self.render.editSuccess(skel)
 
 	@forceSSL
 	@exposed
@@ -228,7 +228,7 @@ class List(BasicApplication):
 
 		The function performs several access control checks on the requested entity before it is added.
 
-		.. seealso:: :func:`addSkel`, :func:`onItemAdded`, :func:`canAdd`
+		.. seealso:: :func:`addSkel`, :func:`onAdded`, :func:`canAdd`
 
 		:returns: The rendered, added object of the entry, eventually with error hints.
 
@@ -253,8 +253,8 @@ class List(BasicApplication):
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 		skel.toDB()
-		self.onItemAdded(skel)
-		return self.render.addItemSuccess(skel)
+		self.onAdded(skel)
+		return self.render.addSuccess(skel)
 
 	@forceSSL
 	@forcePost
@@ -265,7 +265,7 @@ class List(BasicApplication):
 
 		The function runs several access control checks on the data before it is deleted.
 
-		.. seealso:: :func:`canDelete`, :func:`editSkel`, :func:`onItemDeleted`
+		.. seealso:: :func:`canDelete`, :func:`editSkel`, :func:`onDeleted`
 
 		:returns: The rendered, deleted object of the entry.
 
@@ -285,7 +285,7 @@ class List(BasicApplication):
 			raise errors.PreconditionFailed()
 
 		skel.delete()
-		self.onItemDeleted(skel)
+		self.onDeleted(skel)
 
 		return self.render.deleteSuccess(skel)
 
@@ -305,7 +305,7 @@ class List(BasicApplication):
 			if skel:
 				if not self.canView(skel):
 					raise errors.Forbidden()
-				self.onItemViewed(skel)
+				self.onViewed(skel)
 				return self.render.view(skel)
 		# This was unsuccessfully, we'll render a list instead
 		if not kwargs:
@@ -497,7 +497,7 @@ class List(BasicApplication):
 
 	## Override-able event-hooks
 
-	def onItemAdded(self, skel):
+	def onAdded(self, skel):
 		"""
 		Hook function that is called after adding an entry.
 
@@ -515,7 +515,7 @@ class List(BasicApplication):
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-	def onItemEdited(self, skel):
+	def onEdited(self, skel):
 		"""
 		Hook function that is called after modifying an entry.
 
@@ -533,7 +533,7 @@ class List(BasicApplication):
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-	def onItemViewed(self, skel):
+	def onViewed(self, skel):
 		"""
 		Hook function that is called when viewing an entry.
 
@@ -547,7 +547,7 @@ class List(BasicApplication):
 		"""
 		pass
 
-	def onItemDeleted(self, skel):
+	def onDeleted(self, skel):
 		"""
 		Hook function that is called after deleting an entry.
 

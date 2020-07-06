@@ -401,7 +401,7 @@ class Render(object):
 									 "value": self.collectSkelData(skel)},
 							   params=params, **kwargs)
 
-	def addItemSuccess(self, skel, tpl=None, params=None, *args, **kwargs):
+	def addSuccess(self, skel, tpl=None, params=None, *args, **kwargs):
 		"""
 			Renders a page, informing that the entry has been successfully created.
 
@@ -428,7 +428,7 @@ class Render(object):
 
 		return template.render({"skel": res}, params=params, **kwargs)
 
-	def editItemSuccess(self, skel, tpl=None, params=None, *args, **kwargs):
+	def editSuccess(self, skel, tpl=None, params=None, *args, **kwargs):
 		"""
 			Renders a page, informing that the entry has been successfully modified.
 

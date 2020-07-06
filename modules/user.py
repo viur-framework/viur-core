@@ -261,7 +261,7 @@ class UserPassword(object):
 		"""
 			Allows guests to register a new account if self.registrationEnabled is set to true
 
-			.. seealso:: :func:`addSkel`, :func:`onItemAdded`, :func:`canAdd`
+			.. seealso:: :func:`addSkel`, :func:`onAdded`, :func:`canAdd`
 
 			:returns: The rendered, added object of the entry, eventually with error hints.
 
@@ -291,8 +291,8 @@ class UserPassword(object):
 			skel.skey = baseBone(descr="Skey")
 			skel["skey"] = skey
 			utils.sendEMail([skel["name"]], self.userModule.verifyEmailAddressMail, skel)
-		self.userModule.onItemAdded(skel)  # Call onItemAdded on our parent user module
-		return self.userModule.render.addItemSuccess(skel)
+		self.userModule.onAdded(skel)  # Call onAdded on our parent user module
+		return self.userModule.render.addSuccess(skel)
 
 
 class GoogleAccount(object):
@@ -728,11 +728,11 @@ class User(List):
 
 		return json.dumps(res)
 
-	def onItemDeleted(self, skel):
+	def onDeleted(self, skel):
 		"""
 			Invalidate all sessions of that user
 		"""
-		super(User, self).onItemDeleted(skel)
+		super(User, self).onDeleted(skel)
 		killSessionByUser(str(skel["key"]))
 
 

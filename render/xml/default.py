@@ -263,10 +263,10 @@ class DefaultRender(object):
 
 		return serializeXML(res)
 
-	def editItemSuccess(self, skel, params=None, **kwargs):
+	def editSuccess(self, skel, params=None, **kwargs):
 		return (serializeXML("OKAY"))
 
-	def addItemSuccess(self, skel, params=None, **kwargs):
+	def addSuccess(self, skel, params=None, **kwargs):
 		return (serializeXML("OKAY"))
 
 	def addDirSuccess(self, rootNode, path, dirname, params=None, *args, **kwargs):

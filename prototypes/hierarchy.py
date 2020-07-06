@@ -465,7 +465,7 @@ class Hierarchy(BasicApplication):
 
 		The function runs several access control checks on the data before it is deleted.
 
-		.. seealso:: :func:`canDelete`, :func:`editSkel`, :func:`onItemDeleted`
+		.. seealso:: :func:`canDelete`, :func:`editSkel`, :func:`onDeleted`
 
 		:param key: URL-safe key of the entry to be deleted.
 		:type key: str
@@ -489,7 +489,7 @@ class Hierarchy(BasicApplication):
 
 		self.deleteRecursive(key)
 		skel.delete()
-		self.onItemDeleted(skel)
+		self.onDeleted(skel)
 		self.onItemChanged(skel)
 
 		return self.render.deleteSuccess(skel)
@@ -503,7 +503,7 @@ class Hierarchy(BasicApplication):
 		or as the first parameter in *args*. The function performs several access control checks
 		on the requested entity before it is rendered.
 
-		.. seealso:: :func:`viewSkel`, :func:`canView`, :func:`onItemViewed`
+		.. seealso:: :func:`viewSkel`, :func:`canView`, :func:`onViewed`
 
 		:returns: The rendered representation of the requested entity.
 
@@ -530,7 +530,7 @@ class Hierarchy(BasicApplication):
 				raise errors.NotFound()
 			if not self.canView(skel):
 				raise errors.Unauthorized()
-			self.onItemViewed(skel)
+			self.onViewed(skel)
 		return self.render.view(skel)
 
 	@exposed
@@ -577,7 +577,7 @@ class Hierarchy(BasicApplication):
 		or as the first parameter in *args*. The function performs several access control checks
 		on the requested entity before it is modified.
 
-		.. seealso:: :func:`editSkel`, :func:`onItemEdited`, :func:`canEdit`
+		.. seealso:: :func:`editSkel`, :func:`onEdited`, :func:`canEdit`
 
 		:returns: The rendered, edited object of the entry, eventually with error hints.
 
@@ -617,10 +617,10 @@ class Hierarchy(BasicApplication):
 			raise errors.PreconditionFailed()
 
 		skel.toDB()  # write it!
-		self.onItemEdited(skel)
+		self.onEdited(skel)
 		self.onItemChanged(skel)
 
-		return self.render.editItemSuccess(skel)
+		return self.render.editSuccess(skel)
 
 	@forceSSL
 	@exposed
@@ -631,7 +631,7 @@ class Hierarchy(BasicApplication):
 
 		The function performs several access control checks on the requested entity before it is added.
 
-		.. seealso:: :func:`addSkel`, :func:`onItemAdded`, :func:`canAdd`
+		.. seealso:: :func:`addSkel`, :func:`onAdded`, :func:`canAdd`
 
 		:param parent: URL-safe key of the parent.
 		:type parent: str
@@ -668,9 +668,9 @@ class Hierarchy(BasicApplication):
 		skel["parententry"] = str(parent)
 		skel["parentrepo"] = str(self.getRootNode(parent).key())
 		key = skel.toDB()
-		self.onItemAdded(skel)
+		self.onAdded(skel)
 		self.onItemChanged(skel)
-		return self.render.addItemSuccess(skel)
+		return self.render.addSuccess(skel)
 
 	@forceSSL
 	@exposed
@@ -1016,7 +1016,7 @@ class Hierarchy(BasicApplication):
 
 	## Overridable eventhooks
 
-	def onItemAdded(self, skel):
+	def onAdded(self, skel):
 		"""
 		Hook function that is called after adding an entry.
 
@@ -1033,7 +1033,7 @@ class Hierarchy(BasicApplication):
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-	def onItemEdited(self, skel):
+	def onEdited(self, skel):
 		"""
 		Hook function that is called after modifying an entry.
 
@@ -1050,7 +1050,7 @@ class Hierarchy(BasicApplication):
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-	def onItemViewed(self, skel):
+	def onViewed(self, skel):
 		"""
 		Hook function that is called when viewing an entry.
 
@@ -1064,7 +1064,7 @@ class Hierarchy(BasicApplication):
 		"""
 		pass
 
-	def onItemDeleted(self, skel):
+	def onDeleted(self, skel):
 		"""
 		Hook function that is called after deleting an entry.
 

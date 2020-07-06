@@ -379,7 +379,7 @@ class File(Tree):
 			skel.toDB()
 			# Add updated download-URL as the auto-generated isn't valid yet
 			skel["downloadUrl"] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False)
-			return self.render.addItemSuccess(skel)
+			return self.render.addSuccess(skel)
 		return super(File, self).add(skelType, node, *args, **kwargs)
 
 	def onItemUploaded(self, skel):
