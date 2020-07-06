@@ -323,9 +323,16 @@ def callDeferred(func):
 			# Run tasks inline
 			logging.error("Running inline: %s" % func)
 			if self is __undefinedFlag_:
-				func(*args, **kwargs)
+				task = lambda: func(*args, **kwargs)
 			else:
-				func(self, *args, **kwargs)
+				task = lambda: func(self, *args, **kwargs)
+			req = currentRequest.get()
+			if req:
+				req.pendingTasks.append(task)  # < This property will be only exist on development server!
+			else:
+				# Warmup request or something - we have to call it now as we can't deferr it :/
+				task()
+
 			return  # Ensure no result gets passed back
 
 		from viur.core.utils import getCurrentUser
