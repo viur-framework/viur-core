@@ -7,7 +7,7 @@ import hashlib
 import copy
 from enum import Enum
 from dataclasses import dataclass
-from typing import Union, List
+from typing import Union, List, Set
 
 __systemIsIntitialized_ = False
 
@@ -667,3 +667,6 @@ class baseBone(object):  # One Bone:
 			return True
 		else:
 			return False
+
+	def getSearchTags(self, skeletonInstance, name: str) -> Set[str]:
+		return set()

@@ -29,21 +29,8 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 		def tagsFromSkel(skel):
 			tags = set()
 			for boneName, bone in skel.items():
-				value = skel[boneName]
-				if boneName in self.indexFields:
-					if isinstance(bone, (stringBone, textBone)):
-						if isinstance(value, str):
-							tags = tags.union(self._tagsFromString(value))
-						elif isinstance(value, list):
-							for val in value:
-								tags = tags.union(self._tagsFromString(val))
-						elif isinstance(value, dict):
-							for val in value.values():
-								if isinstance(val, list):
-									for v in val:
-										tags = tags.union(self._tagsFromString(v))
-								else:
-									tags = tags.union(self._tagsFromString(val))
+				if bone.searchable:
+					tags = tags.union(bone.getSearchTags(skel, boneName))
 			return tags
 
 		tags = tagsFromSkel(skel)
@@ -51,7 +38,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 		return entry
 
 	def fulltextSearch(self, queryString, databaseQuery):
-		keywords = list(self._tagsFromString(queryString))[:5]
+		keywords = list(self._tagsFromString(queryString))[:10]
 		resultScoreMap = {}
 		resultEntryMap = {}
 		for keyword in keywords:

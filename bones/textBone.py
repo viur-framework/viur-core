@@ -285,26 +285,36 @@ class textBone(baseBone):
 					idx = values.find("/file/download/", seperatorIdx)
 		return newFileKeys
 
-	def getSearchTags(self, valuesCache, name):
-		res = []
-		if not valuesCache.get(name):
-			return (res)
-		if self.languages:
-			for v in valuesCache.get(name).values():
-				value = HtmlSerializer(None).sanitize(v.lower())
+	def getSearchTags(self, skeltonValues, name):
+		res = set()
+		value = skeltonValues[name]
+		if not value:
+			return res
+		if self.languages and isinstance(value, dict):
+			if self.multiple:
+				for lang in value.values():
+					if not lang:
+						continue
+					for val in lang:
+						for line in str(val).splitlines():
+							for key in line.split(" "):
+								res.add(key.lower())
+			else:
+				for lang in value.values():
+					for line in str(lang).splitlines():
+						for key in line.split(" "):
+							res.add(key.lower())
+		else:
+			if self.multiple:
+				for val in value:
+					for line in str(val).splitlines():
+						for key in line.split(" "):
+							res.add(key.lower())
+			else:
 				for line in str(value).splitlines():
 					for key in line.split(" "):
-						key = "".join([c for c in key if c.lower() in conf["viur.searchValidChars"]])
-						if key and key not in res and len(key) > 3:
-							res.append(key.lower())
-		else:
-			value = HtmlSerializer(None).sanitize(valuesCache.get(name).lower())
-			for line in str(value).splitlines():
-				for key in line.split(" "):
-					key = "".join([c for c in key if c.lower() in conf["viur.searchValidChars"]])
-					if key and key not in res and len(key) > 3:
-						res.append(key.lower())
-		return (res)
+						res.add(key.lower())
+		return res
 
 	def getSearchDocumentFields(self, valuesCache, name, prefix=""):
 		"""

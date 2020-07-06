@@ -340,6 +340,7 @@ class relationalBone(baseBone):
 				dbObj["viur_relational_updateLevel"] = self.updateLevel
 				dbObj["viur_relational_consistency"] = self.consistency.value
 				dbObj["viur_foreign_keys"] = self.refKeys
+				dbObj["viurTags"] = srcEntity.get("viurTags")  # Copy tags over so we can still use our searchengine
 				db.Put(dbObj)
 				values.remove(data)
 		# Add any new Relation
@@ -715,18 +716,18 @@ class relationalBone(baseBone):
 			for k in skel[boneName]:
 				updateInplace(k)
 
-	def getSearchTags(self, values, key):
+	def getSearchTags(self, skeltonValues, key):
 		def getValues(res, skel, valuesCache):
 			for k, bone in skel.items():
 				if bone.searchable:
 					for tag in bone.getSearchTags(valuesCache, k):
 						if tag not in res:
-							res.append(tag)
+							res.add(tag)
 			return res
 
 		_refSkelCache, _usingSkelCache = self._getSkels()
-		value = values.get(key)
-		res = []
+		value = skeltonValues[key]
+		res = set()
 		if not value:
 			return res
 		if self.multiple:
