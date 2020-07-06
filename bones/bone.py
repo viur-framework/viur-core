@@ -47,6 +47,7 @@ class UniqueLockMethod(Enum):
 @dataclass
 class UniqueValue:
 	method: UniqueLockMethod
+	lockEmpty: bool
 	message: str
 
 class baseBone(object):  # One Bone:
@@ -553,6 +554,8 @@ class baseBone(object):  # One Bone:
 			elif isinstance(value, str):
 				return "S-%s" % res
 			raise NotImplementedError("Type %s can't be safely used in an uniquePropertyIndex" % type(value))
+		if not value and not self.unique.lockEmpty:
+			return []  # We are zero/empty string and these should not be locked
 		if not self.multiple:
 			return [hashValue(value)]
 		# We have an multiple bone here
