@@ -80,3 +80,25 @@ class numericBone(baseBone):
 				updatedFilter[parmKey] = paramValue
 		return super(numericBone, self).buildDBFilter(name, skel, dbFilter, updatedFilter, prefix)
 
+	def getSearchTags(self, valuesCache, name):
+		res = set()
+		value = valuesCache[name]
+		if not value:
+			return res
+		if self.languages and isinstance(value, dict):
+			if self.multiple:
+				for lang in value.values():
+					if not lang:
+						continue
+					for val in lang:
+						res.add(str(val))
+			else:
+				for lang in value.values():
+					res.add(str(lang))
+		else:
+			if self.multiple:
+				for val in value:
+					res.add(str(val))
+			else:
+				res.add(str(value))
+		return res

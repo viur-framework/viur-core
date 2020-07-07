@@ -721,8 +721,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 			dbObj = skel.preProcessSerializedData(dbObj)
 
 			# Allow the custom DB Adapter to apply last minute changes to the object
-			if cls.customDatabaseAdapter:
-				dbObj = cls.customDatabaseAdapter.preprocessEntry(dbObj, skel, changeList, isAdd)
+			if skelValues.customDatabaseAdapter:
+				dbObj = skelValues.customDatabaseAdapter.preprocessEntry(dbObj, skel, changeList, isAdd)
 
 			# Write the core entry back
 			db.Put(dbObj)
