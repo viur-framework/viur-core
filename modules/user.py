@@ -32,7 +32,7 @@ class userSkel(Skeleton):
 		caseSensitive=False,
 		searchable=True,
 		indexed=True,
-		unique=UniqueValue(UniqueLockMethod.SameValue, "Username already taken")
+		unique=UniqueValue(UniqueLockMethod.SameValue, True, "Username already taken")
 	)
 
 	# Properties required by custom auth
@@ -49,7 +49,7 @@ class userSkel(Skeleton):
 		indexed=True,
 		required=False,
 		readOnly=True,
-		unique=UniqueValue(UniqueLockMethod.SameValue, "UID already in use")
+		unique=UniqueValue(UniqueLockMethod.SameValue, False, "UID already in use")
 	)
 	gaeadmin = booleanBone(
 		descr=u"Is GAE Admin",

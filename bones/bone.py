@@ -45,9 +45,10 @@ class UniqueLockMethod(Enum):
 	SameList = 3  # Same Set of entries (including duplicates), in this specific order
 
 @dataclass
-class UniqueValue:
-	method: UniqueLockMethod
-	message: str
+class UniqueValue:  # Mark a bone as unique (it must have a different value for each entry)
+	method: UniqueLockMethod  # How to handle multiple values (for bones with multiple=True)
+	lockEmpty: bool  # If False, empty values ("", 0) are not locked - needed if a field is unique but not required
+	message: str  # Error-Message displayed to the user if the requested value is already taken
 
 class baseBone(object):  # One Bone:
 	hasDBField = True
@@ -553,6 +554,8 @@ class baseBone(object):  # One Bone:
 			elif isinstance(value, str):
 				return "S-%s" % res
 			raise NotImplementedError("Type %s can't be safely used in an uniquePropertyIndex" % type(value))
+		if not value and not self.unique.lockEmpty:
+			return []  # We are zero/empty string and these should not be locked
 		if not self.multiple:
 			return [hashValue(value)]
 		# We have an multiple bone here
