@@ -43,9 +43,9 @@ class Formmailer(BasicApplication):
 
 		# Send the email!
 		utils.sendEMail(rcpts, self.mailTemplate, skel, **opts)
-		self.onItemAdded(skel)
+		self.onAdded(skel)
 
-		return self.render.addItemSuccess(skel)
+		return self.render.addSuccess(skel)
 
 	@exposed
 	def add(self, *args, **kwargs):
@@ -63,7 +63,7 @@ class Formmailer(BasicApplication):
 	def getOptions(self, skel):
 		return None
 
-	def onItemAdded(self, skel):
+	def onAdded(self, skel):
 		pass
 
 

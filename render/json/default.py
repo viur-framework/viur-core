@@ -261,10 +261,10 @@ class DefaultRender(object):
 		currentRequest.get().response.headers["Content-Type"] = "application/json"
 		return json.dumps(res)
 
-	def editItemSuccess(self, skel, params=None, **kwargs):
+	def editSuccess(self, skel, params=None, **kwargs):
 		return self.renderEntry(skel, "editSuccess", params)
 
-	def addItemSuccess(self, skel, params=None, **kwargs):
+	def addSuccess(self, skel, params=None, **kwargs):
 		return self.renderEntry(skel, "addSuccess", params)
 
 	def addDirSuccess(self, rootNode, path, dirname, params=None, *args, **kwargs):

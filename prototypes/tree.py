@@ -305,7 +305,7 @@ class Tree(BasicApplication):
 		The entry is fetched by its *key* and its *skelType*.
 		The function performs several access control checks on the requested entity before it is rendered.
 
-		.. seealso:: :func:`canView`, :func:`onItemViewed`
+		.. seealso:: :func:`canView`, :func:`onViewed`
 
 		:returns: The rendered representation of the requested entity.
 
@@ -339,7 +339,7 @@ class Tree(BasicApplication):
 				raise errors.NotFound()
 			if not self.canView(skelType, skel):
 				raise errors.Unauthorized()
-			self.onItemViewed(skel)
+			self.onViewed(skel)
 		return self.render.view(skel)
 
 	@exposed
@@ -351,7 +351,7 @@ class Tree(BasicApplication):
 
 		The function performs several access control checks on the requested entity before it is added.
 
-		.. seealso:: :func:`onItemAdded`, :func:`canAdd`
+		.. seealso:: :func:`onAdded`, :func:`canAdd`
 
 		:param skelType: Defines the type of the new entry and may either be "node" or "leaf".
 		:type skelType: str
@@ -400,9 +400,9 @@ class Tree(BasicApplication):
 		skel["parentrepo"] = parentNodeSkel["parentrepo"] or str(node)
 
 		skel.toDB()
-		self.onItemAdded(skel)
+		self.onAdded(skel)
 
-		return self.render.addItemSuccess(skel)
+		return self.render.addSuccess(skel)
 
 	@exposed
 	@forceSSL
@@ -413,7 +413,7 @@ class Tree(BasicApplication):
 
 		The function performs several access control checks on the requested entity before it is added.
 
-		.. seealso:: :func:`onItemAdded`, :func:`canEdit`
+		.. seealso:: :func:`onAdded`, :func:`canEdit`
 
 		:param skelType: Defines the type of the entry that should be modified and may either be "node" or "leaf".
 		:type skelType: str
@@ -452,9 +452,9 @@ class Tree(BasicApplication):
 			raise errors.PreconditionFailed()
 
 		skel.toDB()
-		self.onItemEdited(skel)
+		self.onEdited(skel)
 
-		return self.render.editItemSuccess(skel)
+		return self.render.editSuccess(skel)
 
 	@exposed
 	@forceSSL
@@ -465,7 +465,7 @@ class Tree(BasicApplication):
 
 		The function runs several access control checks on the data before it is deleted.
 
-		.. seealso:: :func:`canDelete`, :func:`onItemDeleted`
+		.. seealso:: :func:`canDelete`, :func:`onDeleted`
 
 		:param skelType: Defines the type of the entry that should be deleted and may either be "node" or "leaf".
 		:type skelType: str
@@ -502,7 +502,7 @@ class Tree(BasicApplication):
 			self.deleteRecursive(key)
 		skel.delete()
 
-		self.onItemDeleted(skel)
+		self.onDeleted(skel)
 		return self.render.deleteSuccess(skel, skelType=skelType)
 
 	@exposed
@@ -582,7 +582,7 @@ class Tree(BasicApplication):
 		srcSkel.toDB()
 		self.updateParentRepo(key, destSkel["parentrepo"])
 
-		return self.render.editItemSuccess(srcSkel, skelType=skelType, action="move", destNode=destSkel)
+		return self.render.editSuccess(srcSkel, skelType=skelType, action="move", destNode=destSkel)
 
 	## Default accesscontrol functions
 
@@ -802,7 +802,7 @@ class Tree(BasicApplication):
 
 	## Overridable eventhooks
 
-	def onItemAdded(self, skel):
+	def onAdded(self, skel):
 		"""
 		Hook function that is called after adding an entry.
 
@@ -819,7 +819,7 @@ class Tree(BasicApplication):
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-	def onItemEdited(self, skel):
+	def onEdited(self, skel):
 		"""
 		Hook function that is called after modifying an entry.
 
@@ -836,7 +836,7 @@ class Tree(BasicApplication):
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-	def onItemViewed(self, skel):
+	def onViewed(self, skel):
 		"""
 		Hook function that is called when viewing an entry.
 
@@ -850,7 +850,7 @@ class Tree(BasicApplication):
 		"""
 		pass
 
-	def onItemDeleted(self, skel):
+	def onDeleted(self, skel):
 		"""
 		Hook function that is called after deleting an entry.
 
