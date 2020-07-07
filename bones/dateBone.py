@@ -5,7 +5,7 @@ from time import time, mktime
 from datetime import time, datetime, timedelta
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.i18n import translate
-from viur.core.utils import currentRequest, currentRequestData
+from viur.core.utils import currentRequest, currentRequestData, utcNow
 import logging
 from typing import List, Union
 
@@ -278,4 +278,4 @@ class dateBone(baseBone):
 
 	def performMagic(self, valuesCache, name, isAdd):
 		if (self.creationMagic and isAdd) or self.updateMagic:
-			valuesCache[name] = self.setLocalized(valuesCache, name, ExtendedDateTime.now())
+			valuesCache[name] = utcNow()
