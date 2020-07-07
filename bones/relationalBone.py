@@ -588,9 +588,9 @@ class relationalBone(baseBone):
 				logging.warning("Invalid filtering! %s is not a bone in 'using' of %s" % (param, name))
 				raise RuntimeError()
 			if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
-				order = ("%s.%s" % (_type, param), db.DESCENDING)
+				order = ("%s.%s" % (_type, param), db.SortOrder.Descending)
 			else:
-				order = ("%s.%s" % (_type, param), db.ASCENDING)
+				order = ("%s.%s" % (_type, param), db.SortOrder.Ascending)
 			dbFilter = dbFilter.order(order)
 			dbFilter.setFilterHook(lambda s, filter, value: self.filterHook(name, s, filter, value))
 			dbFilter.setOrderHook(lambda s, orderings: self.orderHook(name, s, orderings))
