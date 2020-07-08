@@ -488,7 +488,6 @@ class relationalBone(baseBone):
 		return name, skel, dbFilter, rawFilter
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
-		#from viur.core.skeleton import RefSkel, skeletonByKind
 		relSkel, _usingSkelCache = self._getSkels()
 		origFilter = dbFilter.filters
 
@@ -499,8 +498,6 @@ class relationalBone(baseBone):
 		if len(myKeys) > 0:  # We filter by some properties
 			if dbFilter.getKind() != "viur-relations" and self.multiple:
 				name, skel, dbFilter, rawFilter = self._rewriteQuery(name, skel, dbFilter, rawFilter)
-
-			#relSkel = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
 
 			# Merge the relational filters in
 			for myKey in myKeys:
@@ -574,17 +571,17 @@ class relationalBone(baseBone):
 	def buildDBSort(self, name, skel, dbFilter, rawFilter):
 		origFilter = dbFilter.filters
 		if origFilter is None or not "orderby" in rawFilter:  # This query is unsatisfiable or not sorted
-			return (dbFilter)
+			return dbFilter
 		if "orderby" in rawFilter and isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
 			"%s." % name):
-			if not dbFilter.getKind() == "viur-relations":  # This query has not been rewritten (yet)
+			if not dbFilter.getKind() == "viur-relations" and self.multiple:  # This query has not been rewritten (yet)
 				name, skel, dbFilter, rawFilter = self._rewriteQuery(name, skel, dbFilter, rawFilter)
 			key = rawFilter["orderby"]
 			try:
 				unused, _type, param = key.split(".")
 				assert _type in ["dest", "rel"]
 			except:
-				return (dbFilter)  # We cant parse that
+				return dbFilter  # We cant parse that
 			# Ensure that the relational-filter is in refKeys
 			if _type == "dest" and not param in self.refKeys:
 				logging.warning("Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (param, name))
@@ -592,13 +589,18 @@ class relationalBone(baseBone):
 			if _type == "rel" and (self.using is None or param not in self.using()):
 				logging.warning("Invalid filtering! %s is not a bone in 'using' of %s" % (param, name))
 				raise RuntimeError()
+			if self.multiple:
+				orderPropertyPath = "%s.%s" % (_type, param)
+			else:  # Also inject our bonename again
+				orderPropertyPath = "%s.%s.%s" % (name, _type, param)
 			if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
-				order = ("%s.%s" % (_type, param), db.SortOrder.Descending)
+				order = (orderPropertyPath, db.SortOrder.Descending)
 			else:
-				order = ("%s.%s" % (_type, param), db.SortOrder.Ascending)
+				order = (orderPropertyPath, db.SortOrder.Ascending)
 			dbFilter = dbFilter.order(order)
-			dbFilter.setFilterHook(lambda s, filter, value: self.filterHook(name, s, filter, value))
-			dbFilter.setOrderHook(lambda s, orderings: self.orderHook(name, s, orderings))
+			if self.multiple:
+				dbFilter.setFilterHook(lambda s, filter, value: self.filterHook(name, s, filter, value))
+				dbFilter.setOrderHook(lambda s, orderings: self.orderHook(name, s, orderings))
 		return (dbFilter)
 
 	def filterHook(self, name, query, param, value):  # FIXME
