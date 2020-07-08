@@ -114,11 +114,6 @@ class DefaultRender(object):
 			res[key] = self.renderBoneStructure(bone)
 		return [(key, val) for key, val in res.items()]
 
-	def renderTextExtension(self, ext):
-		e = ext()
-		return ({"name": e.name,
-				 "descr": str(e.descr),
-				 "skel": self.renderSkelStructure(e.dataSkel())})
 
 	def renderSingleBoneValue(self, value, bone, skel, key):
 		"""
