@@ -403,6 +403,10 @@ class relationalBone(baseBone):
 				refSkel = entry
 			elif entry:
 				refSkel.dbEntity = entry
+				for k in refSkel.keys():
+					# Unserialize all bones from refKeys, then drop dbEntity - otherwise all properties will be copied
+					_ = refSkel[k]
+				refSkel.dbEntity = None
 			else:
 				if index:
 					errors.append(
