@@ -7,6 +7,7 @@ from viur.core.utils import currentRequest
 
 
 class DefaultRender(object):
+	kind = "json"
 
 	def __init__(self, parent=None, *args, **kwargs):
 		super(DefaultRender, self).__init__(*args, **kwargs)
