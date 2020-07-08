@@ -114,7 +114,7 @@ def getCurrentUser(render):
 
 
 @jinjaGlobalFunction
-def getEntry(render, module, key=None, skel="viewSkel"):
+def getSkel(render, module, key=None, skel="viewSkel"):
 	"""
 	Jinja2 global: Fetch an entry from a given module, and return the data as a dict,
 	prepared for direct use in the output.
@@ -307,7 +307,7 @@ def getSecurityKey(render, **kwargs):
 
 
 @jinjaGlobalFunction
-def getSkel(render, module, skel="viewSkel", subSkel=None):
+def getStructure(render, module, skel="viewSkel", subSkel=None):
 	"""
 	Jinja2 global: Returns the skeleton structure instead of data for a module.
 
