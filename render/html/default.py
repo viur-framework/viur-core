@@ -148,23 +148,16 @@ class Render(object):
 			"descr": str(bone.descr),
 			"type": bone.type,
 			"required": bone.required,
+			"multiple": bone.multiple,
 			"params": bone.params,
 			"visible": bone.visible,
 			"readOnly": bone.readOnly
 		}
 
 		if bone.type == "relational" or bone.type.startswith("relational."):
-			if isinstance(bone, hierarchyBone):
-				boneType = "hierarchy"
-			elif isinstance(bone, treeItemBone):
-				boneType = "treeitem"
-			else:
-				boneType = "relational"
-
 			ret.update({
 				"type": bone.type,
 				"module": bone.module,
-				"multiple": bone.multiple,
 				"format": bone.format,
 				"using": self.renderSkelStructure(bone.using()) if bone.using else None,
 				"relskel": self.renderSkelStructure(RefSkel.fromSkel(skeletonByKind(bone.kind), *bone.refKeys))

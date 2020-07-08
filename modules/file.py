@@ -4,7 +4,7 @@ from viur.core import utils, db, securitykey, session, errors, conf, request, fo
 	internalExposed
 from viur.core.skeleton import Skeleton, skeletonByKind
 from viur.core.bones import *
-from viur.core.prototypes.uniformtree import Tree, TreeSkel, TreeType
+from viur.core.prototypes.tree import Tree, TreeSkel, TreeType
 from viur.core.tasks import callDeferred, PeriodicTask
 from viur.core.utils import projectID
 from quopri import decodestring
