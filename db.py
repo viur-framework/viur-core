@@ -849,7 +849,7 @@ class Query(object):
 				break
 			self._startCursor = self.lastCursor
 
-	def get(self) -> Union[None, Entity]:
+	def getEntry(self) -> Union[None, Entity]:
 		"""
 			Returns only the first entity of the current query.
 
@@ -875,7 +875,7 @@ class Query(object):
 		"""
 		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
-		res = self.get()
+		res = self.getEntry()
 		if res is None:
 			return None
 		self.srcSkel.setEntity(res)
