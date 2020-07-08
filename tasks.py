@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from datetime import datetime, timedelta
+from datetime import timedelta
 from viur.core.update import checkUpdate
 from viur.core.config import conf
 from viur.core import errors, request, utils
@@ -34,6 +34,11 @@ _deferedTasks = {}
 _startupTasks = []
 _periodicTaskID = 1  # Used to determine bound functions
 _appengineServiceIPs = {"10.0.0.1", "0.1.0.1", "0.1.0.2"}
+
+
+class PermanentTaskFailure(Exception):
+	"""Indicates that a task failed, and will never succeed."""
+	pass
 
 
 class CallableTaskBase:
@@ -113,7 +118,6 @@ class TaskHandler:
 		"""
 			This catches one defered call and routes it to its destination
 		"""
-		from viur.core import utils
 		global _deferedTasks, _appengineServiceIPs
 
 		req = currentRequest.get().request
@@ -203,12 +207,9 @@ class TaskHandler:
 		for task, interval in _periodicTasks[cronName].items():  # Call all periodic tasks bound to that queue
 			periodicTaskName = "%s_%s" % (cronName, task.periodicTaskName)
 			if interval:  # Ensure this task doesn't get called to often
-				lastCall = db.Get(("viur-task-interval", periodicTaskName))
+				lastCall = db.Get(db.Key("viur-task-interval", periodicTaskName))
 				logging.error("Interval %s" % interval)
-				if lastCall and datetime.now() - lastCall["date"] < timedelta(minutes=interval):
-					logging.error(datetime.now())
-					logging.error(lastCall["date"])
-					logging.error(datetime.now() - lastCall["date"])
+				if lastCall and utils.utcNow() - lastCall["date"] < timedelta(minutes=interval):
 					logging.debug("Skipping task %s - Has already run recently." % periodicTaskName)
 					continue
 			res = self.findBoundTask(task)
@@ -224,8 +225,8 @@ class TaskHandler:
 				logging.debug("Successfully called task %s" % periodicTaskName)
 			if interval:
 				# Update its last-call timestamp
-				entry = db.Entity("viur-task-interval", name=periodicTaskName)
-				entry["date"] = datetime.now()
+				entry = db.Entity(db.Key("viur-task-interval", name=periodicTaskName))
+				entry["date"] = utils.utcNow()
 				db.Put(entry)
 		logging.debug("Periodic tasks complete")
 		for currentTask in db.Query("viur-queued-tasks").iter():  # Look for queued tasks
@@ -402,7 +403,7 @@ def callDeferred(func):
 			if taskargs.get("countdown"):
 				# We must send a Timestamp Protobuff instead of a date-string
 				timestamp = timestamp_pb2.Timestamp()
-				timestamp.FromDatetime(datetime.utcnow() + timedelta(seconds=taskargs["countdown"]))
+				timestamp.FromDatetime(utils.utcNow() + timedelta(seconds=taskargs["countdown"]))
 				task['schedule_time'] = timestamp
 			task['app_engine_http_request']['body'] = pickled
 
