@@ -871,31 +871,31 @@ class relationalBone(baseBone):
 		"""
 			Returns the list of blob keys referenced from this bone
 		"""
-		return set()  # FIXME!
-		def blobsFromSkel(skel):
-			blobList = set()
-			for key, _bone in skel.items():
-				blobList.update(_bone.getReferencedBlobs(skel, key))
-			return blobList
+		def blobsFromRefSet(refSet):
+			result = set()
+			for key, _bone in refSet["dest"].items():
+				result = result.union(_bone.getReferencedBlobs(refSet["dest"], key))
+			if refSet["rel"]:
+				for key, _bone in refSet["rel"].items():
+					result = result.union(_bone.getReferencedBlobs(refSet["rel"], key))
+			return result
 
-		_refSkelCache, _usingSkelCache = self._getSkels()
-		#from viur.core.skeleton import RefSkel, skeletonByKind
-		#_refSkelCache = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
-		#_usingSkelCache = self.using() if self.using else None
-		res = set()
-		value = skel[name]
-		if isinstance(value, list):
-			for myDict in value:
-				if myDict["dest"]:
-					res.update(blobsFromSkel(myDict["dest"]))
-				if myDict["rel"]:
-					res.update(blobsFromSkel(myDict["rel"]))
-		elif isinstance(value, dict):
-			if value["dest"]:
-				res.update(blobsFromSkel(value["dest"]))
-			if "rel" in value and value["rel"]:
-				res.update(blobsFromSkel(value["rel"]))
-		return res
+		result = set()
+		if not skel[name]:
+			return result
+		if self.multiple and self.languages:
+			for langContainer in skel[name].values():
+				for refSet in langContainer:
+					result = result.union(blobsFromRefSet(refSet))
+		elif self.multiple:
+			for refSet in skel[name]:
+					result = result.union(blobsFromRefSet(refSet))
+		elif self.languages:
+			for refSet in skel[name].values():
+				result = result.union(blobsFromRefSet(refSet))
+		else:
+			result = result.union(blobsFromRefSet(skel[name]))
+		return result
 
 	def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
 		"""
