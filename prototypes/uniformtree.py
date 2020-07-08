@@ -354,7 +354,7 @@ class Tree(BasicApplication):
 		if (len(kwargs) == 0  # no data supplied
 			or skey == ""  # no security key
 			or not skel.fromClient(kwargs)  # failure on reading into the bones
-			or not request.current.get().isPostRequest
+			or not currentRequest.get().isPostRequest
 			or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
 		):
 			return self.render.edit(skel)
