@@ -12,7 +12,6 @@ from viur.core.bones.booleanBone import booleanBone
 from viur.core.bones.relationalBone import relationalBone
 from viur.core.bones.treeItemBone import treeItemBone
 from viur.core.bones.treeDirBone import treeDirBone
-from viur.core.bones.hierarchyBone import hierarchyBone
 from viur.core.bones.dateBone import dateBone
 from viur.core.bones.fileBone import fileBone
 from viur.core.bones.passwordBone import passwordBone
