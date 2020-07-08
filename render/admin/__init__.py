@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from viur.core.render.json.default import DefaultRender as default
+from viur.core.render.json.default import DefaultRender
 from viur.core.render.json.user import UserRender as user
 from viur.core.render.json.file import FileRender as file
 from viur.core.utils import currentRequest, currentLanguage
@@ -9,6 +9,9 @@ from viur.core import conf
 from viur.core import securitykey
 from viur.core import utils
 import datetime, json
+
+class default(DefaultRender):
+		kind = "json.admin"
 
 __all__ = [default]
 

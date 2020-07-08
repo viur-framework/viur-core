@@ -37,6 +37,7 @@ class Render(object):
 		can extend/override the functionality exposed to templates.
 
 	"""
+	kind = "html"
 	listTemplate = "list"
 	viewTemplate = "view"
 	addTemplate = "add"

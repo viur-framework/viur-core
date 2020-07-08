@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from viur.core.render.json.default import DefaultRender as default
+from viur.core.render.json.default import DefaultRender
 from viur.core.render.vi.user import UserRender as user
 from viur.core.render.json.file import FileRender as file
 from viur.core.skeleton import Skeleton
@@ -13,6 +13,9 @@ from viur.core import session
 from viur.core import errors
 import datetime, json
 from viur.core.utils import currentRequest, currentLanguage
+
+class default(DefaultRender):
+	kind = "json.vi"
 
 __all__ = [default]
 
