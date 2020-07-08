@@ -225,7 +225,7 @@ def markFileForDeletion(dlkey):
 	:type dlkey: str
 	:param dlkey: Unique download-key of the file that shall be marked for deletion.
 	"""
-	fileObj = db.Query("viur-deleted-files").filter("dlkey", dlkey).get()
+	fileObj = db.Query("viur-deleted-files").filter("dlkey", dlkey).getEntry()
 
 	if fileObj:  # Its allready marked
 		return

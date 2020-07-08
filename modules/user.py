@@ -143,7 +143,7 @@ class UserPassword(object):
 			return self.userModule.render.login(self.loginSkel())
 
 		query = db.Query(self.userModule.viewSkel().kindName)
-		res = query.filter("name.idx >=", name.lower()).get()
+		res = query.filter("name.idx >=", name.lower()).getEntry()
 
 		if res is None:
 			res = {"password": {"pwhash": "-invalid-", "salt": "-invalid"}, "status": 0, "name": {}}
@@ -198,7 +198,7 @@ class UserPassword(object):
 			skel = self.lostPasswordSkel()
 			if len(kwargs) == 0 or not skel.fromClient(kwargs) or not securitykey.validate(skey, useSessionKey=True):
 				return self.userModule.render.passwdRecover(skel, tpl=self.passwordRecoveryTemplate)
-			user = self.userModule.viewSkel().all().filter("name.idx =", skel["name"].lower()).get()
+			user = self.userModule.viewSkel().all().filter("name.idx =", skel["name"].lower()).getEntry()
 
 			if not user or user["status"] < 10:  # Unknown user or locked account
 				skel.errors["name"] = str("Unknown user")
@@ -747,7 +747,7 @@ def createNewUserIfNotExists():
 			and "addSkel" in dir(userMod)
 			and "validAuthenticationMethods" in dir(userMod)  # Its our user module :)
 			and any([issubclass(x[0], UserPassword) for x in userMod.validAuthenticationMethods])):  # It uses UserPassword login
-		if not db.Query(userMod.addSkel().kindName).get():  # There's currently no user in the database
+		if not db.Query(userMod.addSkel().kindName).getEntry():  # There's currently no user in the database
 			addSkel = skeletonByKind(userMod.addSkel().kindName)()  # Ensure we have the full skeleton
 			uname = "admin@%s.appspot.com" % utils.projectID
 			pw = utils.generateRandomString(13)
