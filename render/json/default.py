@@ -111,19 +111,7 @@ class DefaultRender(object):
 			return None
 		res = OrderedDict()
 		for key, bone in skel.items():
-			# if "__" in key or not isinstance(bone, bones.baseBone):
-			#	continue
-
 			res[key] = self.renderBoneStructure(bone)
-
-			# FIXME!
-			# if key in skel.errors:
-			#	res[key]["error"] = skel.errors[key]
-			# elif any([x.startswith("%s." % key) for x in skel.errors.keys()]):
-			#	res[key]["error"] = {k: v for k, v in skel.errors.items() if k.startswith("%s." % key)}
-			# else:
-			#	res[key]["error"] = None
-			res[key]["error"] = None
 		return [(key, val) for key, val in res.items()]
 
 	def renderTextExtension(self, ext):
