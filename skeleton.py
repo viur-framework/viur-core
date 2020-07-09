@@ -299,11 +299,10 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 					if (error.severity == ReadFromClientErrorSeverity.Empty and _bone.required) \
 							or error.severity == ReadFromClientErrorSeverity.Invalid:
 						complete = False
-		# FIXME!
-		# if (len(data) == 0
-		#		or (len(data) == 1 and "key" in data)
-		#		or ("nomissing" in data and str(data["nomissing"]) == "1")):
-		#	super(BaseSkeleton, self).__setattr__("errors", {})
+		if (len(data) == 0
+			or (len(data) == 1 and "key" in data)
+			or ("nomissing" in data and str(data["nomissing"]) == "1")):
+			skelValues.errors = []
 
 		return complete
 
@@ -937,6 +936,7 @@ class RelSkel(BaseSkeleton):
 		if (len(data) == 0 or (len(data) == 1 and "key" in data) or (
 				"nomissing" in data and str(data["nomissing"]) == "1")):
 			skelValues.errors = []
+			return False  # Force the skeleton to be displayed to the user again
 		return complete
 
 	def serialize(self, parentIndexed):

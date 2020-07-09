@@ -365,7 +365,7 @@ def callDeferred(func):
 			taskargs["url"] = "/_tasks/deferred"
 			transactional = kwargs.pop("_transactional", False)
 			taskargs["headers"] = {"Content-Type": "application/octet-stream"}
-			queue = kwargs.pop("_queue", "default")  # Fixme: Default
+			queue = kwargs.pop("_queue", "default")
 			# Try to preserve the important data from the current environment
 			env = {"user": None}
 			usr = getCurrentUser()

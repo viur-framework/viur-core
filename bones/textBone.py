@@ -46,7 +46,6 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
 			.replace(">", "&gt;") \
 			.replace("\"", "&quot;") \
 			.replace("'", "&#39;") \
-			.replace("\n", "") \
 			.replace("\0", "")
 		if data.strip():
 			self.flushCache()
@@ -194,7 +193,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
 	def sanitize(self, instr):
 		self.result = ""
 		self.openTagsList = []
-		self.feed(instr.replace("\n", " "))
+		self.feed(instr)
 		self.close()
 		self.cleanup()
 		return self.result
