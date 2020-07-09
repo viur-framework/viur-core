@@ -340,6 +340,7 @@ class relationalBone(baseBone):
 				dbObj["viur_relational_updateLevel"] = self.updateLevel
 				dbObj["viur_relational_consistency"] = self.consistency.value
 				dbObj["viur_foreign_keys"] = self.refKeys
+				dbObj["viurTags"] = srcEntity.get("viurTags")  # Copy tags over so we can still use our searchengine
 				db.Put(dbObj)
 				values.remove(data)
 		# Add any new Relation
@@ -402,6 +403,10 @@ class relationalBone(baseBone):
 				refSkel = entry
 			elif entry:
 				refSkel.dbEntity = entry
+				for k in refSkel.keys():
+					# Unserialize all bones from refKeys, then drop dbEntity - otherwise all properties will be copied
+					_ = refSkel[k]
+				refSkel.dbEntity = None
 			else:
 				if index:
 					errors.append(
@@ -422,6 +427,8 @@ class relationalBone(baseBone):
 		else:
 			destKey = value
 			usingData = None
+		if not destKey:  # Allow setting this bone back to empty
+			return None, [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value submitted")]
 		assert isinstance(destKey, str)
 		refSkel, usingSkel, errors = restoreSkels(destKey, usingData)
 		if refSkel:
@@ -481,7 +488,6 @@ class relationalBone(baseBone):
 		return name, skel, dbFilter, rawFilter
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
-		#from viur.core.skeleton import RefSkel, skeletonByKind
 		relSkel, _usingSkelCache = self._getSkels()
 		origFilter = dbFilter.filters
 
@@ -492,8 +498,6 @@ class relationalBone(baseBone):
 		if len(myKeys) > 0:  # We filter by some properties
 			if dbFilter.getKind() != "viur-relations" and self.multiple:
 				name, skel, dbFilter, rawFilter = self._rewriteQuery(name, skel, dbFilter, rawFilter)
-
-			#relSkel = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
 
 			# Merge the relational filters in
 			for myKey in myKeys:
@@ -567,17 +571,17 @@ class relationalBone(baseBone):
 	def buildDBSort(self, name, skel, dbFilter, rawFilter):
 		origFilter = dbFilter.filters
 		if origFilter is None or not "orderby" in rawFilter:  # This query is unsatisfiable or not sorted
-			return (dbFilter)
+			return dbFilter
 		if "orderby" in rawFilter and isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
 			"%s." % name):
-			if not dbFilter.getKind() == "viur-relations":  # This query has not been rewritten (yet)
+			if not dbFilter.getKind() == "viur-relations" and self.multiple:  # This query has not been rewritten (yet)
 				name, skel, dbFilter, rawFilter = self._rewriteQuery(name, skel, dbFilter, rawFilter)
 			key = rawFilter["orderby"]
 			try:
 				unused, _type, param = key.split(".")
 				assert _type in ["dest", "rel"]
 			except:
-				return (dbFilter)  # We cant parse that
+				return dbFilter  # We cant parse that
 			# Ensure that the relational-filter is in refKeys
 			if _type == "dest" and not param in self.refKeys:
 				logging.warning("Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (param, name))
@@ -585,13 +589,18 @@ class relationalBone(baseBone):
 			if _type == "rel" and (self.using is None or param not in self.using()):
 				logging.warning("Invalid filtering! %s is not a bone in 'using' of %s" % (param, name))
 				raise RuntimeError()
+			if self.multiple:
+				orderPropertyPath = "%s.%s" % (_type, param)
+			else:  # Also inject our bonename again
+				orderPropertyPath = "%s.%s.%s" % (name, _type, param)
 			if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
-				order = ("%s.%s" % (_type, param), db.DESCENDING)
+				order = (orderPropertyPath, db.SortOrder.Descending)
 			else:
-				order = ("%s.%s" % (_type, param), db.ASCENDING)
+				order = (orderPropertyPath, db.SortOrder.Ascending)
 			dbFilter = dbFilter.order(order)
-			dbFilter.setFilterHook(lambda s, filter, value: self.filterHook(name, s, filter, value))
-			dbFilter.setOrderHook(lambda s, orderings: self.orderHook(name, s, orderings))
+			if self.multiple:
+				dbFilter.setFilterHook(lambda s, filter, value: self.filterHook(name, s, filter, value))
+				dbFilter.setOrderHook(lambda s, orderings: self.orderHook(name, s, orderings))
 		return (dbFilter)
 
 	def filterHook(self, name, query, param, value):  # FIXME
@@ -715,18 +724,18 @@ class relationalBone(baseBone):
 			for k in skel[boneName]:
 				updateInplace(k)
 
-	def getSearchTags(self, values, key):
+	def getSearchTags(self, skeltonValues, key):
 		def getValues(res, skel, valuesCache):
 			for k, bone in skel.items():
 				if bone.searchable:
 					for tag in bone.getSearchTags(valuesCache, k):
 						if tag not in res:
-							res.append(tag)
+							res.add(tag)
 			return res
 
 		_refSkelCache, _usingSkelCache = self._getSkels()
-		value = values.get(key)
-		res = []
+		value = skeltonValues[key]
+		res = set()
 		if not value:
 			return res
 		if self.multiple:
@@ -862,31 +871,31 @@ class relationalBone(baseBone):
 		"""
 			Returns the list of blob keys referenced from this bone
 		"""
-		return set()  # FIXME!
-		def blobsFromSkel(skel):
-			blobList = set()
-			for key, _bone in skel.items():
-				blobList.update(_bone.getReferencedBlobs(skel, key))
-			return blobList
+		def blobsFromRefSet(refSet):
+			result = set()
+			for key, _bone in refSet["dest"].items():
+				result = result.union(_bone.getReferencedBlobs(refSet["dest"], key))
+			if refSet["rel"]:
+				for key, _bone in refSet["rel"].items():
+					result = result.union(_bone.getReferencedBlobs(refSet["rel"], key))
+			return result
 
-		_refSkelCache, _usingSkelCache = self._getSkels()
-		#from viur.core.skeleton import RefSkel, skeletonByKind
-		#_refSkelCache = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
-		#_usingSkelCache = self.using() if self.using else None
-		res = set()
-		value = skel[name]
-		if isinstance(value, list):
-			for myDict in value:
-				if myDict["dest"]:
-					res.update(blobsFromSkel(myDict["dest"]))
-				if myDict["rel"]:
-					res.update(blobsFromSkel(myDict["rel"]))
-		elif isinstance(value, dict):
-			if value["dest"]:
-				res.update(blobsFromSkel(value["dest"]))
-			if "rel" in value and value["rel"]:
-				res.update(blobsFromSkel(value["rel"]))
-		return res
+		result = set()
+		if not skel[name]:
+			return result
+		if self.multiple and self.languages:
+			for langContainer in skel[name].values():
+				for refSet in langContainer:
+					result = result.union(blobsFromRefSet(refSet))
+		elif self.multiple:
+			for refSet in skel[name]:
+					result = result.union(blobsFromRefSet(refSet))
+		elif self.languages:
+			for refSet in skel[name].values():
+				result = result.union(blobsFromRefSet(refSet))
+		else:
+			result = result.union(blobsFromRefSet(skel[name]))
+		return result
 
 	def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
 		"""

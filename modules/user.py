@@ -32,7 +32,7 @@ class userSkel(Skeleton):
 		caseSensitive=False,
 		searchable=True,
 		indexed=True,
-		unique=UniqueValue(UniqueLockMethod.SameValue, "Username already taken")
+		unique=UniqueValue(UniqueLockMethod.SameValue, True, "Username already taken")
 	)
 
 	# Properties required by custom auth
@@ -49,7 +49,7 @@ class userSkel(Skeleton):
 		indexed=True,
 		required=False,
 		readOnly=True,
-		unique=UniqueValue(UniqueLockMethod.SameValue, "UID already in use")
+		unique=UniqueValue(UniqueLockMethod.SameValue, False, "UID already in use")
 	)
 	gaeadmin = booleanBone(
 		descr=u"Is GAE Admin",
@@ -143,7 +143,7 @@ class UserPassword(object):
 			return self.userModule.render.login(self.loginSkel())
 
 		query = db.Query(self.userModule.viewSkel().kindName)
-		res = query.filter("name.idx >=", name.lower()).get()
+		res = query.filter("name.idx >=", name.lower()).getEntry()
 
 		if res is None:
 			res = {"password": {"pwhash": "-invalid-", "salt": "-invalid"}, "status": 0, "name": {}}
@@ -198,7 +198,7 @@ class UserPassword(object):
 			skel = self.lostPasswordSkel()
 			if len(kwargs) == 0 or not skel.fromClient(kwargs) or not securitykey.validate(skey, useSessionKey=True):
 				return self.userModule.render.passwdRecover(skel, tpl=self.passwordRecoveryTemplate)
-			user = self.userModule.viewSkel().all().filter("name.idx =", skel["name"].lower()).get()
+			user = self.userModule.viewSkel().all().filter("name.idx =", skel["name"].lower()).getEntry()
 
 			if not user or user["status"] < 10:  # Unknown user or locked account
 				skel.errors["name"] = str("Unknown user")
@@ -261,7 +261,7 @@ class UserPassword(object):
 		"""
 			Allows guests to register a new account if self.registrationEnabled is set to true
 
-			.. seealso:: :func:`addSkel`, :func:`onItemAdded`, :func:`canAdd`
+			.. seealso:: :func:`addSkel`, :func:`onAdded`, :func:`canAdd`
 
 			:returns: The rendered, added object of the entry, eventually with error hints.
 
@@ -291,8 +291,8 @@ class UserPassword(object):
 			skel.skey = baseBone(descr="Skey")
 			skel["skey"] = skey
 			utils.sendEMail([skel["name"]], self.userModule.verifyEmailAddressMail, skel)
-		self.userModule.onItemAdded(skel)  # Call onItemAdded on our parent user module
-		return self.userModule.render.addItemSuccess(skel)
+		self.userModule.onAdded(skel)  # Call onAdded on our parent user module
+		return self.userModule.render.addSuccess(skel)
 
 
 class GoogleAccount(object):
@@ -728,11 +728,11 @@ class User(List):
 
 		return json.dumps(res)
 
-	def onItemDeleted(self, skel):
+	def onDeleted(self, skel):
 		"""
 			Invalidate all sessions of that user
 		"""
-		super(User, self).onItemDeleted(skel)
+		super(User, self).onDeleted(skel)
 		killSessionByUser(str(skel["key"]))
 
 
@@ -746,8 +746,8 @@ def createNewUserIfNotExists():
 			and isinstance(userMod, User)
 			and "addSkel" in dir(userMod)
 			and "validAuthenticationMethods" in dir(userMod)  # Its our user module :)
-			and any([x[0] is UserPassword for x in userMod.validAuthenticationMethods])):  # It uses UserPassword login
-		if not db.Query(userMod.addSkel().kindName).get():  # There's currently no user in the database
+			and any([issubclass(x[0], UserPassword) for x in userMod.validAuthenticationMethods])):  # It uses UserPassword login
+		if not db.Query(userMod.addSkel().kindName).getEntry():  # There's currently no user in the database
 			addSkel = skeletonByKind(userMod.addSkel().kindName)()  # Ensure we have the full skeleton
 			uname = "admin@%s.appspot.com" % utils.projectID
 			pw = utils.generateRandomString(13)
@@ -755,6 +755,7 @@ def createNewUserIfNotExists():
 			addSkel["status"] = 10  # Ensure its enabled right away
 			addSkel["access"] = ["root"]
 			addSkel["password"] = pw
+
 			try:
 				addSkel.toDB()
 			except Exception as e:

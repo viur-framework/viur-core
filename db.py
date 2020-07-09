@@ -77,7 +77,10 @@ def keyHelper(inKey: Union[KeyClass, str, int], targetKind: str,
 
 def Get(keys: Union[KeyClass, List[KeyClass]]):
 	if isinstance(keys, list):
-		return __client__.get_multi(keys)
+		# GetMulti does not obey orderings - results can be returned in any order. We'll need to fix this here
+		resList = list(__client__.get_multi(keys))
+		resList.sort(key=lambda x: keys.index(x.key) if x else -1)
+		return resList
 	return __client__.get(keys)
 
 
@@ -769,11 +772,12 @@ class Query(object):
 		else:  # We have just one single query
 			res = self._fixKind(self._runSingleFilterQuery(self.filters, qryLimit))
 		if conf["viur.debug.traceQueries"]:
-			kindName = self.origKind
 			orders = self.orders
 			filters = self.filters
-			logging.debug(
-				"Queried %s with filter %s and orders %s. Returned %s results" % (kindName, filters, orders, len(res)))
+			if self.kind != self.origKind:
+				logging.debug("Queried %s via %s with filter %s and orders %s. Returned %s results" % (self.origKind, self.kind, filters, orders, len(res)))
+			else:
+				logging.debug("Queried %s with filter %s and orders %s. Returned %s results" % (self.kind, filters, orders, len(res)))
 		if res:
 			self._lastEntry = res[-1]
 		return res
@@ -813,6 +817,7 @@ class Query(object):
 			skelInstance = SkeletonInstanceRef(self.srcSkel.skeletonCls, clonedBoneMap=self.srcSkel.boneMap)
 			skelInstance.dbEntity = e
 			res.append(skelInstance)
+		res.getCursor = lambda: self.getCursor()
 		return res
 
 	def iter(self, keysOnly=False):
@@ -845,7 +850,7 @@ class Query(object):
 				break
 			self._startCursor = self.lastCursor
 
-	def get(self) -> Union[None, Entity]:
+	def getEntry(self) -> Union[None, Entity]:
 		"""
 			Returns only the first entity of the current query.
 
@@ -871,7 +876,7 @@ class Query(object):
 		"""
 		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
-		res = self.get()
+		res = self.getEntry()
 		if res is None:
 			return None
 		self.srcSkel.setEntity(res)
@@ -914,7 +919,7 @@ def acquireTransactionSuccessMarker() -> str:
 	"""
 	txn = __client__.current_transaction
 	assert txn, "acquireTransactionSuccessMarker cannot be called outside an transaction"
-	marker = binascii.b2a_hex(txn.id)
+	marker = binascii.b2a_hex(txn.id).decode("ASCII")
 	if not "viurTxnMarkerSet" in dir(txn):
 		e = Entity(Key("viur-transactionmarker", marker))
 		e["creationdate"] = datetime.now()

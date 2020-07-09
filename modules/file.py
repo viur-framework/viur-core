@@ -4,7 +4,7 @@ from viur.core import utils, db, securitykey, session, errors, conf, request, fo
 	internalExposed
 from viur.core.skeleton import Skeleton, skeletonByKind
 from viur.core.bones import *
-from viur.core.prototypes.uniformtree import Tree, TreeSkel, TreeType
+from viur.core.prototypes.tree import Tree, TreeSkel, TreeType
 from viur.core.tasks import callDeferred, PeriodicTask
 from viur.core.utils import projectID
 from quopri import decodestring
@@ -295,7 +295,7 @@ class File(Tree):
 			for repo in repos:
 				if not "user" in repo:
 					continue
-				user = db.Query("user").filter("uid =", repo.user).get()
+				user = db.Query("user").filter("uid =", repo.user).getEntry()
 				if not user or not "name" in user:
 					continue
 				res.append({
@@ -379,7 +379,7 @@ class File(Tree):
 			skel.toDB()
 			# Add updated download-URL as the auto-generated isn't valid yet
 			skel["downloadUrl"] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False)
-			return self.render.addItemSuccess(skel)
+			return self.render.addSuccess(skel)
 		return super(File, self).add(skelType, node, *args, **kwargs)
 
 	def onItemUploaded(self, skel):
@@ -417,12 +417,12 @@ def doCheckForUnreferencedBlobs(cursor=None):
 		gotAtLeastOne = True
 		oldBlobKeys = db.RunInTransaction(getOldBlobKeysTxn, lockKey)
 		for blobKey in oldBlobKeys:
-			if db.Query("viur-blob-locks").filter("active_blob_references =", blobKey).get():
+			if db.Query("viur-blob-locks").filter("active_blob_references =", blobKey).getEntry():
 				# This blob is referenced elsewhere
 				logging.info("Stale blob is still referenced, %s" % blobKey)
 				continue
 			# Add a marker and schedule it for deletion
-			fileObj = db.Query("viur-deleted-files").filter("dlkey", blobKey).get()
+			fileObj = db.Query("viur-deleted-files").filter("dlkey", blobKey).getEntry()
 			if fileObj:  # Its already marked
 				logging.info("Stale blob already marked for deletion, %s" % blobKey)
 				return
@@ -457,7 +457,7 @@ def doCleanupDeletedFiles(cursor=None):
 		gotAtLeastOne = True
 		if not "dlkey" in file:
 			db.Delete((file.collection, file.name))
-		elif db.Query("viur-blob-locks").filter("active_blob_references =", file["dlkey"]).get():
+		elif db.Query("viur-blob-locks").filter("active_blob_references =", file["dlkey"]).getEntry():
 			logging.info("is referenced, %s" % file["dlkey"])
 			db.Delete((file.collection, file.name))
 		else:

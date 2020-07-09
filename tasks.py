@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
-from datetime import datetime, timedelta
-from viur.core.update import checkUpdate
-from viur.core.config import conf
-from viur.core import errors, request, utils
-from viur.core import db
-from functools import wraps
 import json
 import logging
-import os, sys
+import os
+import sys
+from datetime import timedelta
+from functools import wraps
+from typing import Callable, Dict
+
 from google.cloud import tasks_v2
 from google.protobuf import timestamp_pb2
-from typing import Dict, List, Callable
+
+from viur.core import db, errors, utils
+from viur.core.config import conf
 from viur.core.utils import currentRequest, currentSession
 
 _gaeApp = os.environ.get("GAE_APPLICATION")
@@ -24,7 +25,7 @@ if _gaeApp:
 
 if not queueRegion:
 	# Probably local development server
-	logging.error("Taskqueue disabled, tasks will run inline!")
+	logging.warning("Taskqueue disabled, tasks will run inline!")
 
 taskClient = tasks_v2.CloudTasksClient()
 
@@ -34,6 +35,11 @@ _deferedTasks = {}
 _startupTasks = []
 _periodicTaskID = 1  # Used to determine bound functions
 _appengineServiceIPs = {"10.0.0.1", "0.1.0.1", "0.1.0.2"}
+
+
+class PermanentTaskFailure(Exception):
+	"""Indicates that a task failed, and will never succeed."""
+	pass
 
 
 class CallableTaskBase:
@@ -111,9 +117,8 @@ class TaskHandler:
 
 	def deferred(self, *args, **kwargs):
 		"""
-			This catches one defered call and routes it to its destination
+			This catches one deferred call and routes it to its destination
 		"""
-		from viur.core import utils
 		global _deferedTasks, _appengineServiceIPs
 
 		req = currentRequest.get().request
@@ -143,14 +148,14 @@ class TaskHandler:
 			if "lang" in env and env["lang"]:
 				currentRequest.get().language = env["lang"]
 			if "transactionMarker" in env:
-				marker = db.Get(("viur-transactionmarker", env["transactionMarker"]))
+				marker = db.Get(db.Key("viur-transactionmarker", env["transactionMarker"]))
 				if not marker:
 					logging.info("Dropping task, transaction %s did not apply" % env["transactionMarker"])
 					return
 				else:
 					logging.info("Executing task, transaction %s did succeed" % env["transactionMarker"])
 			if "custom" in env and conf["viur.tasks.customEnvironmentHandler"]:
-				# Check if we need to restore additional enviromental data
+				# Check if we need to restore additional environmental data
 				assert isinstance(conf["viur.tasks.customEnvironmentHandler"], tuple) \
 					   and len(conf["viur.tasks.customEnvironmentHandler"]) == 2 \
 					   and callable(conf["viur.tasks.customEnvironmentHandler"][1]), \
@@ -161,8 +166,8 @@ class TaskHandler:
 			pathlist = [x for x in funcPath.split("/") if x]
 			for currpath in pathlist:
 				if currpath not in dir(caller):
-					logging.error("ViUR missed a deferred task! Could not resolve the path %s. Failed segment was %s",
-								  funcPath, currpath)
+					logging.error("ViUR missed a deferred task! Could not resolve the path %s. "
+								  "Failed segment was %s", funcPath, currpath)
 					return
 				caller = getattr(caller, currpath)
 			try:
@@ -174,7 +179,7 @@ class TaskHandler:
 				raise errors.RequestTimeout()  # Task-API should retry
 		elif cmd == "unb":
 			if not funcPath in _deferedTasks:
-				logging.error("Ive missed a defered task! %s(%s,%s)" % (funcPath, str(args), str(kwargs)))
+				logging.error("ViUR missed a deferred task! %s(%s,%s)", funcPath, args, kwargs)
 			try:
 				_deferedTasks[funcPath](*args, **kwargs)
 			except PermanentTaskFailure:
@@ -203,12 +208,8 @@ class TaskHandler:
 		for task, interval in _periodicTasks[cronName].items():  # Call all periodic tasks bound to that queue
 			periodicTaskName = "%s_%s" % (cronName, task.periodicTaskName)
 			if interval:  # Ensure this task doesn't get called to often
-				lastCall = db.Get(("viur-task-interval", periodicTaskName))
-				logging.error("Interval %s" % interval)
-				if lastCall and datetime.now() - lastCall["date"] < timedelta(minutes=interval):
-					logging.error(datetime.now())
-					logging.error(lastCall["date"])
-					logging.error(datetime.now() - lastCall["date"])
+				lastCall = db.Get(db.Key("viur-task-interval", periodicTaskName))
+				if lastCall and utils.utcNow() - lastCall["date"] < timedelta(minutes=interval):
 					logging.debug("Skipping task %s - Has already run recently." % periodicTaskName)
 					continue
 			res = self.findBoundTask(task)
@@ -216,16 +217,16 @@ class TaskHandler:
 				if res:  # Its bound, call it this way :)
 					res[0]()
 				else:
-					task()  # It seems it wasnt bound - call it as a static method
+					task()  # It seems it wasn't bound - call it as a static method
 			except Exception as e:
-				logging.error("Error calling periodic task %s" % periodicTaskName)
+				logging.error("Error calling periodic task %s", periodicTaskName)
 				logging.exception(e)
 			else:
-				logging.debug("Successfully called task %s" % periodicTaskName)
+				logging.debug("Successfully called task %s", periodicTaskName)
 			if interval:
 				# Update its last-call timestamp
-				entry = db.Entity("viur-task-interval", name=periodicTaskName)
-				entry["date"] = datetime.now()
+				entry = db.Entity(db.Key("viur-task-interval", periodicTaskName))
+				entry["date"] = utils.utcNow()
 				db.Put(entry)
 		logging.debug("Periodic tasks complete")
 		for currentTask in db.Query("viur-queued-tasks").iter():  # Look for queued tasks
@@ -247,7 +248,7 @@ class TaskHandler:
 	cron.exposed = True
 
 	def list(self, *args, **kwargs):
-		"""Lists all user-callabe tasks which are callable by this user"""
+		"""Lists all user-callable tasks which are callable by this user"""
 		global _callableTasks
 
 		class extList(list):
@@ -283,7 +284,7 @@ class TaskHandler:
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 		task.execute(**skel.accessedValues)
-		return self.render.addItemSuccess(skel)
+		return self.render.addSuccess(skel)
 
 	execute.exposed = True
 
@@ -296,7 +297,7 @@ TaskHandler.html = True
 ## Decorators ##
 
 def noRetry(f):
-	"""Prevents a deferred Function from beeing called a second time"""
+	"""Prevents a deferred Function from being called a second time"""
 
 	@wraps(f)
 	def wrappedFunc(*args, **kwargs):
@@ -321,11 +322,18 @@ def callDeferred(func):
 	def mkDefered(func, self=__undefinedFlag_, *args, **kwargs):
 		if not queueRegion:
 			# Run tasks inline
-			logging.error("Running inline: %s" % func)
+			logging.info("Running inline: %s" % func)
 			if self is __undefinedFlag_:
-				func(*args, **kwargs)
+				task = lambda: func(*args, **kwargs)
 			else:
-				func(self, *args, **kwargs)
+				task = lambda: func(self, *args, **kwargs)
+			req = currentRequest.get()
+			if req:
+				req.pendingTasks.append(task)  # < This property will be only exist on development server!
+			else:
+				# Warmup request or something - we have to call it now as we can't defer it :/
+				task()
+
 			return  # Ensure no result gets passed back
 
 		from viur.core.utils import getCurrentUser
@@ -333,7 +341,8 @@ def callDeferred(func):
 			req = currentRequest.get()
 		except:  # This will fail for warmup requests
 			req = None
-		if req is not None and req.request.headers.get("X-Appengine-Taskretrycount") and not "DEFERED_TASK_CALLED" in dir(req):
+		if req is not None and req.request.headers.get("X-Appengine-Taskretrycount") \
+				and "DEFERED_TASK_CALLED" not in dir(req):
 			# This is the deferred call
 			req.DEFERED_TASK_CALLED = True  # Defer recursive calls to an deferred function again.
 			if self is __undefinedFlag_:
@@ -357,14 +366,16 @@ def callDeferred(func):
 			taskargs["url"] = "/_tasks/deferred"
 			transactional = kwargs.pop("_transactional", False)
 			taskargs["headers"] = {"Content-Type": "application/octet-stream"}
-			queue = kwargs.pop("_queue", "default")  # Fixme: Default
+			queue = kwargs.pop("_queue", "default")
 			# Try to preserve the important data from the current environment
 			env = {"user": None}
 			usr = getCurrentUser()
 			if usr:
-				env["user"] = {"key": usr["key"].id_or_name,
-							   "name": usr["name"],
-							   "access": usr["access"]}
+				env["user"] = {
+					"key": usr["key"].id_or_name,
+					"name": usr["name"],
+					"access": usr["access"]
+				}
 			try:
 				env["lang"] = currentRequest.get().language
 			except AttributeError:  # This isn't originating from a normal request
@@ -393,9 +404,9 @@ def callDeferred(func):
 				}
 			}
 			if taskargs.get("countdown"):
-				# We must send a Timestamp Protobuff instead of a date-string
+				# We must send a Timestamp Protobuf instead of a date-string
 				timestamp = timestamp_pb2.Timestamp()
-				timestamp.FromDatetime(datetime.utcnow() + timedelta(seconds=taskargs["countdown"]))
+				timestamp.FromDatetime(utils.utcNow() + timedelta(seconds=taskargs["countdown"]))
 				task['schedule_time'] = timestamp
 			task['app_engine_http_request']['body'] = pickled
 
@@ -420,6 +431,9 @@ def PeriodicTask(interval=0, cronName="default"):
 	"""
 
 	def mkDecorator(fn):
+		if fn.__name__.startswith("_"):
+			raise RuntimeError("Periodic called methods cannot start with an underscore! "
+							   f"Please rename {fn.__name__!r}")
 		global _periodicTasks, _periodicTaskID
 		if not cronName in _periodicTasks:
 			_periodicTasks[cronName] = {}

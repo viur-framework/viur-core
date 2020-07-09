@@ -153,7 +153,7 @@ class PayPal(object):
 		raise (errors.Redirect(paypal.getPayURL(token)))
 
 	def doPayPal(self, token, PayerID, *args, **kwargs):
-		order = db.Query(self.orderHandler.viewSkel().kindName).filter("paypal_token =", token).get()
+		order = db.Query(self.orderHandler.viewSkel().kindName).filter("paypal_token =", token).getEntry()
 		if not order:
 			return ("NO SUCH ORDER - PAYMENT ABORTED")
 		paypal = PayPal.PayPalHandler()
