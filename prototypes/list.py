@@ -352,14 +352,15 @@ class List(BasicApplication):
 		:param skel: The entry we check for
 		:return: True if the current session is authorized to view that entry, False otherwise
 		"""
-		logging.error("IN CAN VIEW")
-		queryObj = self.viewSkel().all().mergeExternalFilter({"key": skel["key"]})
-		queryObj = self.listFilter(queryObj)  # Access control
-		logging.error(queryObj)
-		if queryObj is None:
+		query = self.viewSkel().all().mergeExternalFilter({"key": skel["key"]})
+		query = self.listFilter(query)  # Access control
+
+		if query is None:
 			return False
-		if not queryObj.get():
+
+		if not query.getEntry():
 			return False
+
 		return True
 
 	def canAdd(self):
