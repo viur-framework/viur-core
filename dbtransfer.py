@@ -417,11 +417,8 @@ def exportItems(module, target, importKey, startCursor, endCursor):
 								headers={'Content-Type': 'application/x-www-form-urlencoded'})
 
 	if startCursor == endCursor:
-		try:
-			utils.sendEMailToAdmins("Export of kind %s finished" % module,
-									"ViUR finished to export kind %s to %s.\n" % (module, target))
-		except:  # OverQuota, whatever
-			pass
+		logging.info("Export of kind %s finished" % module)
+		logging.info("ViUR finished to export kind %s to %s.\n" % (module, target))
 
 
 # --- import ---
@@ -472,16 +469,10 @@ def iterImport(module, target, exportKey, cursor=None, amount=0):
 	if result.status_code == 200:
 		res = pickle.loads(result.content.decode("HEX"))
 		skel = skeletonByKind(module)()
-		logging.info("%s: %d new entries fetched, total %d entries fetched" % (module, len(res["values"]), amount))
+		logging.debug("%s: %d new entries fetched, total %d entries fetched" % (module, len(res["values"]), amount))
 
 		if len(res["values"]) == 0:
-			try:
-				utils.sendEMailToAdmins("Import of kind %s finished with %d entities" % (module, amount),
-										"ViUR finished to import %d entities of "
-										"kind %s from %s.\n" % (amount, module, target))
-			except:  # OverQuota, whatever
-				logging.error("Unable to send Email")
-
+			logging.info("ViUR finished to import %d entities of kind %s from %s.\n" % (amount, module, target))
 			return
 
 		for entry in res["values"]:

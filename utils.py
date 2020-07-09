@@ -100,9 +100,6 @@ def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,
 
 	handler = conf.get("viur.emailHandler")
 
-	if handler is None:
-		handler = _GAE_sendEMail
-
 	if not callable(handler):
 		logging.warning("Invalid emailHandler configured, no email will be sent.")
 		return False
@@ -110,90 +107,6 @@ def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,
 	logging.debug("CALLING %s" % str(handler))
 
 	return handler(dests, name, skel, extraFiles=extraFiles, cc=cc, bcc=bcc, replyTo=replyTo, *args, **kwargs)
-
-
-def _GAE_sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None, *args, **kwargs):
-	"""
-	Internal function for using Google App Engine Email processing API.
-	"""
-	return
-	headers, data = conf["viur.emailRenderer"](skel, name, dests, **kwargs)
-
-	xheader = {}
-
-	if "references" in headers:
-		xheader["References"] = headers["references"]
-
-	if "in-reply-to" in headers:
-		xheader["In-Reply-To"] = headers["in-reply-to"]
-
-	if xheader:
-		message = mail.EmailMessage(headers=xheader)
-	else:
-		message = mail.EmailMessage()
-
-	mailfrom = "viur@%s.appspotmail.com" % projectID
-
-	if "subject" in headers:
-		message.subject = "=?utf-8?B?%s?=" % base64.b64encode(headers["subject"].encode("UTF-8"))
-	else:
-		message.subject = "No Subject"
-
-	if "from" in headers:
-		mailfrom = headers["from"]
-
-	if conf["viur.emailSenderOverride"]:
-		mailfrom = conf["viur.emailSenderOverride"]
-
-	if isinstance(dests, list):
-		message.to = ", ".join(dests)
-	else:
-		message.to = dests
-
-	if cc:
-		if isinstance(cc, list):
-			message.cc = ", ".join(cc)
-		else:
-			message.cc = cc
-
-	if bcc:
-		if isinstance(bcc, list):
-			message.bcc = ", ".join(bcc)
-		else:
-			message.bcc = bcc
-
-	if replyTo:
-		message.reply_to = replyTo
-
-	message.sender = mailfrom
-	message.html = data.replace("\x00", "").encode('ascii', 'xmlcharrefreplace')
-
-	if len(extraFiles) > 0:
-		message.attachments = extraFiles
-	message.send()
-	return True
-
-
-def sendEMailToAdmins(subject, body, sender=None):
-	"""
-		Sends an e-mail to the appengine administration of the current app.
-		(all users having access to the applications dashboard)
-
-		:param subject: Defines the subject of the message.
-		:type subject: str
-
-		:param body: Defines the message body.
-		:type body: str
-
-		:param sender: (optional) specify a different sender
-		:type sender: str
-	"""
-	return
-	if not sender:
-		sender = "viur@%s.appspotmail.com" % projectID
-
-	mail.send_mail_to_admins(sender, "=?utf-8?B?%s?=" % base64.b64encode(subject.encode("UTF-8")),
-							 body.encode('ascii', 'xmlcharrefreplace'))
 
 
 def getCurrentUser():

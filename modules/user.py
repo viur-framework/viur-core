@@ -763,5 +763,3 @@ def createNewUserIfNotExists():
 				logging.exception(e)
 				return
 			logging.warning("ViUR created a new admin-user for you! Username: %s, Password: %s", uname, pw)
-			utils.sendEMailToAdmins("Your new ViUR password",
-									"ViUR created a new admin-user for you! Username: %s, Password: %s" % (uname, pw))

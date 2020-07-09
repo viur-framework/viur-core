@@ -201,12 +201,6 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 		from viur.core.dbtransfer import DbTransfer
 		if conf["viur.importPassword"]:
 			logging.critical("The Import-API is enabled! Never do this on production systems!")
-			from viur.core import utils
-			try:
-				utils.sendEMailToAdmins("Active Database import API",
-										"ViUR just started a new Instance with an ENABLED DATABASE IMPORT API! You have been warned.")
-			except:  # OverQuota, whatever
-				pass  # Dont render this instance unusable
 		elif conf["viur.exportPassword"]:
 			logging.warning("The Export-API is enabled. Everyone having that key can read the whole database!")
 
@@ -214,12 +208,7 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 		mapModule(res.dbtransfer, "dbtransfer", resolverDict)
 		#resolverDict["dbtransfer"]
 	if conf["viur.debug.traceExternalCallRouting"] or conf["viur.debug.traceInternalCallRouting"]:
-		from viur.core import utils
-		try:
-			utils.sendEMailToAdmins("Debug mode enabled",
-									"ViUR just started a new Instance with calltracing enabled! This will log sensitive information!")
-		except:  # OverQuota, whatever
-			pass  # Dont render this instance unusable
+		logging.critical("ViUR just started a new Instance with calltracing enabled! This will log sensitive information!")
 	if default in rendlist and "renderEmail" in dir(rendlist[default]["default"]()):
 		conf["viur.emailRenderer"] = rendlist[default]["default"]().renderEmail
 	elif "html" in list(rendlist.keys()):
