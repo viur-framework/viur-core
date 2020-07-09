@@ -428,6 +428,9 @@ def PeriodicTask(interval=0, cronName="default"):
 	"""
 
 	def mkDecorator(fn):
+		if fn.__name__.startswith("_"):
+			raise RuntimeError("Periodic called methods cannot start with an underscore! "
+							   f"Please rename {fn.__name__!r}")
 		global _periodicTasks, _periodicTaskID
 		if not cronName in _periodicTasks:
 			_periodicTasks[cronName] = {}
