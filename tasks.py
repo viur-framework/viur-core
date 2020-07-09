@@ -117,7 +117,7 @@ class TaskHandler:
 
 	def deferred(self, *args, **kwargs):
 		"""
-			This catches one defered call and routes it to its destination
+			This catches one deferred call and routes it to its destination
 		"""
 		global _deferedTasks, _appengineServiceIPs
 
@@ -155,7 +155,7 @@ class TaskHandler:
 				else:
 					logging.info("Executing task, transaction %s did succeed" % env["transactionMarker"])
 			if "custom" in env and conf["viur.tasks.customEnvironmentHandler"]:
-				# Check if we need to restore additional enviromental data
+				# Check if we need to restore additional environmental data
 				assert isinstance(conf["viur.tasks.customEnvironmentHandler"], tuple) \
 					   and len(conf["viur.tasks.customEnvironmentHandler"]) == 2 \
 					   and callable(conf["viur.tasks.customEnvironmentHandler"][1]), \
@@ -179,7 +179,7 @@ class TaskHandler:
 				raise errors.RequestTimeout()  # Task-API should retry
 		elif cmd == "unb":
 			if not funcPath in _deferedTasks:
-				logging.error("Ive missed a deferred task! %s(%s,%s)", funcPath, args, kwargs)
+				logging.error("ViUR missed a deferred task! %s(%s,%s)", funcPath, args, kwargs)
 			try:
 				_deferedTasks[funcPath](*args, **kwargs)
 			except PermanentTaskFailure:
@@ -248,7 +248,7 @@ class TaskHandler:
 	cron.exposed = True
 
 	def list(self, *args, **kwargs):
-		"""Lists all user-callabe tasks which are callable by this user"""
+		"""Lists all user-callable tasks which are callable by this user"""
 		global _callableTasks
 
 		class extList(list):
@@ -297,7 +297,7 @@ TaskHandler.html = True
 ## Decorators ##
 
 def noRetry(f):
-	"""Prevents a deferred Function from beeing called a second time"""
+	"""Prevents a deferred Function from being called a second time"""
 
 	@wraps(f)
 	def wrappedFunc(*args, **kwargs):
@@ -404,7 +404,7 @@ def callDeferred(func):
 				}
 			}
 			if taskargs.get("countdown"):
-				# We must send a Timestamp Protobuff instead of a date-string
+				# We must send a Timestamp Protobuf instead of a date-string
 				timestamp = timestamp_pb2.Timestamp()
 				timestamp.FromDatetime(utils.utcNow() + timedelta(seconds=taskargs["countdown"]))
 				task['schedule_time'] = timestamp
