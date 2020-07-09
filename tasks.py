@@ -10,7 +10,7 @@ import logging
 import os, sys
 from google.cloud import tasks_v2
 from google.protobuf import timestamp_pb2
-from typing import Dict, List, Callable
+from typing import Dict, List, Callable, Union
 from viur.core.utils import currentRequest, currentSession
 
 _gaeApp = os.environ.get("GAE_APPLICATION")
@@ -417,7 +417,7 @@ def callDeferred(func):
 	return (lambda *args, **kwargs: mkDefered(func, *args, **kwargs))
 
 
-def PeriodicTask(interval=0, cronName="default"):
+def PeriodicTask(interval: int = 0, cronName: str = "default", overwrite: Union[None, Callable] = None):
 	"""
 		Decorator to call a function periodic during maintenance.
 		Interval defines a lower bound for the call-frequency for this task;
@@ -429,11 +429,16 @@ def PeriodicTask(interval=0, cronName="default"):
 
 	def mkDecorator(fn):
 		global _periodicTasks, _periodicTaskID
+		if overwrite is not None:
+			del overwrite.periodicTaskID
+			del overwrite.periodicTaskName
+			del _periodicTasks[overwrite.periodicCronName][overwrite]
 		if not cronName in _periodicTasks:
 			_periodicTasks[cronName] = {}
 		_periodicTasks[cronName][fn] = interval
 		fn.periodicTaskID = _periodicTaskID
-		fn.periodicTaskName = "%s_%s" % (fn.__module__, fn.__name__)
+		fn.periodicTaskName = "%s.%s" % (fn.__module__, fn.__qualname__)
+		fn.periodicCronName = cronName
 		_periodicTaskID += 1
 		return fn
 
