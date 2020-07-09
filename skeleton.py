@@ -9,7 +9,7 @@ import sys
 from functools import partial
 from itertools import chain
 from time import time
-from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, Set
 
 from viur.core import conf, db, errors, utils
 from viur.core.bones import baseBone, dateBone, keyBone, relationalBone, selectBone, stringBone
@@ -299,11 +299,10 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 					if (error.severity == ReadFromClientErrorSeverity.Empty and _bone.required) \
 							or error.severity == ReadFromClientErrorSeverity.Invalid:
 						complete = False
-		# FIXME!
-		# if (len(data) == 0
-		#		or (len(data) == 1 and "key" in data)
-		#		or ("nomissing" in data and str(data["nomissing"]) == "1")):
-		#	super(BaseSkeleton, self).__setattr__("errors", {})
+		if (len(data) == 0
+			or (len(data) == 1 and "key" in data)
+			or ("nomissing" in data and str(data["nomissing"]) == "1")):
+			skelValues.errors = []
 
 		return complete
 
@@ -373,6 +372,9 @@ class MetaSkel(MetaBaseSkel):
 				"Skeletons must be defined in a folder listed in conf[\"viur.skeleton.searchPath\"]")
 		if cls.kindName and cls.kindName is not __undefindedC__:
 			MetaBaseSkel._skelCache[cls.kindName] = cls
+		# Auto-Add ViUR Search Tags Adapter if the skeleton has no adapter attached
+		if cls.customDatabaseAdapter is __undefindedC__:
+			cls.customDatabaseAdapter = ViurTagsSearchAdapter()
 
 
 class CustomDatabaseAdapter:
@@ -428,9 +430,80 @@ class CustomDatabaseAdapter:
 		raise NotImplementedError
 
 
+class ViurTagsSearchAdapter(CustomDatabaseAdapter):
+	"""
+	This Adapter implements the a simple fulltext search ontop of the datastore.
+	On skel.toDB we collect all words from str/textBones, build all *minLength* postfixes and dump them
+	into the property viurTags. When queried, we'll run a prefix-match against this property - thus returning
+	entities with either a exact match or a match inside a word.
+
+	Example:
+		For the word "hello" we'll write "hello", "ello" and "llo" into viurTags.
+		When queried with "hello" we'll have an exact match.
+		When queried with "hel" we'll match the prefix for "hello"
+		When queried with "ell" we'll prefix-match "ello"
+
+	We'll automatically add this adapter if a skeleton has no other database adapter defined
+	"""
+	providesFulltextSearch = True
+	fulltextSearchGuaranteesQueryConstrains = True
+
+	def __init__(self, minLength: int = 3):
+		super(ViurTagsSearchAdapter, self).__init__()
+		self.minLength = minLength
+
+	def _tagsFromString(self, value: str) -> Set[str]:
+		"""
+		Extract all words including all minLength postfixes from given string
+		"""
+		resSet = set()
+		for tag in value.split(" "):
+			tag = "".join([x for x in tag.lower() if x in conf["viur.searchValidChars"]])
+			if len(tag) >= self.minLength:
+				resSet.add(tag)
+				for x in range(1, 1+len(tag)-self.minLength):
+					resSet.add(tag[x:])
+		return resSet
+
+	def preprocessEntry(self, entry: db.Entity, skel: Skeleton, changeList: List[str], isAdd: bool) -> db.Entity:
+		"""
+		Collect searchTags from skeleton and build viurTags
+		"""
+		def tagsFromSkel(skel):
+			tags = set()
+			for boneName, bone in skel.items():
+				if bone.searchable:
+					tags = tags.union(bone.getSearchTags(skel, boneName))
+			return tags
+		tags = tagsFromSkel(skel)
+		entry["viurTags"] = list(tags)
+		return entry
+
+	def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> List[db.Entity]:
+		"""
+		Run a fulltext search
+		"""
+		keywords = list(self._tagsFromString(queryString))[:10]
+		resultScoreMap = {}
+		resultEntryMap = {}
+		for keyword in keywords:
+			qryBase = databaseQuery.clone()
+			for entry in qryBase.filter("viurTags >=", keyword).filter("viurTags <", keyword+"\ufffd").run():
+				if not entry.key in resultScoreMap:
+					resultScoreMap[entry.key] = 1
+				else:
+					resultScoreMap[entry.key] += 1
+				if not entry.key in resultEntryMap:
+					resultEntryMap[entry.key] = entry
+		resultList = [(k, v) for k, v in resultScoreMap.items()]
+		resultList.sort(key=lambda x: x[1])
+		resList = [resultEntryMap[x[0]] for x in resultList[:databaseQuery.amount]]
+		return resList
+
+
 class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 	kindName: str = __undefindedC__  # To which kind we save our data to
-	customDatabaseAdapter: Union[CustomDatabaseAdapter, None] = None
+	customDatabaseAdapter: Union[CustomDatabaseAdapter, None] = __undefindedC__
 	subSkels = {}  # List of pre-defined sub-skeletons of this type
 	interBoneValidations: List[
 		Callable[[Skeleton], List[ReadFromClientError]]] = []  # List of functions checking inter-bone dependencies
@@ -937,6 +1010,7 @@ class RelSkel(BaseSkeleton):
 		if (len(data) == 0 or (len(data) == 1 and "key" in data) or (
 				"nomissing" in data and str(data["nomissing"]) == "1")):
 			skelValues.errors = []
+			return False  # Force the skeleton to be displayed to the user again
 		return complete
 
 	def serialize(self, parentIndexed):

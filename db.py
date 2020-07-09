@@ -772,11 +772,12 @@ class Query(object):
 		else:  # We have just one single query
 			res = self._fixKind(self._runSingleFilterQuery(self.filters, qryLimit))
 		if conf["viur.debug.traceQueries"]:
-			kindName = self.origKind
 			orders = self.orders
 			filters = self.filters
-			logging.debug(
-				"Queried %s with filter %s and orders %s. Returned %s results" % (kindName, filters, orders, len(res)))
+			if self.kind != self.origKind:
+				logging.debug("Queried %s via %s with filter %s and orders %s. Returned %s results" % (self.origKind, self.kind, filters, orders, len(res)))
+			else:
+				logging.debug("Queried %s with filter %s and orders %s. Returned %s results" % (self.kind, filters, orders, len(res)))
 		if res:
 			self._lastEntry = res[-1]
 		return res
