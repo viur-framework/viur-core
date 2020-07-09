@@ -173,6 +173,42 @@ class Tree(BasicApplication):
 		rootNodeSkel.fromDB(repo.key)
 		return rootNodeSkel
 
+	@callDeferred
+	def updateParentRepo(self, parentNode: str, newRepoKey: str, depth: int = 0):
+		"""
+		Recursively fixes the parentrepo key after a move operation.
+
+		This will delete all entries which are children of *nodeKey*, except *key* nodeKey.
+
+		:param parentNode: URL-safe key of the node which children should be fixed.
+		:param newNode: URL-safe key of the new repository.
+		:param depth: Safety level depth preventing infinitive loops.
+		"""
+		if depth > 99:
+			logging.critical("Maximum recursion depth reached in server.applications.tree/fixParentRepo")
+			logging.critical("Your data is corrupt!")
+			logging.critical("Params: parentNode: %s, newRepoKey: %s" % (parentNode, newRepoKey))
+			return
+
+		def fixTxn(nodeKey, newRepoKey):
+			node = db.Get(nodeKey)
+			node["parentrepo"] = newRepoKey
+			db.Put(node)
+
+		# Fix all nodes
+		for repo in db.Query(self.viewSkel(TreeType.Node).kindName) \
+				.filter("parententry =", parentNode) \
+				.iter(keysOnly=True):  # fixme KeysOnly not working
+			self.updateParentRepo(repo.key, newRepoKey, depth=depth + 1)
+			db.RunInTransaction(fixTxn, repo.key, newRepoKey)
+
+		# Fix the leafs on this level
+		if self.leafSkelCls:
+			for repo in db.Query(self.viewSkel(TreeType.Leaf).kindName) \
+					.filter("parententry =", parentNode) \
+					.iter(keysOnly=True):
+				db.RunInTransaction(fixTxn, repo.key, newRepoKey)
+
 	## External exposed functions
 
 	@exposed
@@ -434,6 +470,82 @@ class Tree(BasicApplication):
 				continue
 			s.delete()
 
+	@exposed
+	@forceSSL
+	@forcePost
+	def move(self, skelType: str, key: str, parentNode: str, *args, **kwargs) -> str:
+		"""
+		Move a node (including its contents) or a leaf to another node.
+
+		.. seealso:: :func:`canMove`
+
+		:param skelType: Defines the type of the entry that should be moved and may either be "node" or "leaf".
+		:param key: URL-safe key of the item to be moved.
+		:param parentNode: URL-safe key of the destination node, which must be a node.
+
+		:returns: The rendered, edited object of the entry.
+
+		:raises: :exc:`viur.core.errors.NotFound`, when no entry with the given *key* was found.
+		:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
+		:raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
+		"""
+		if skelType == "node":
+			skelType = TreeType.Node
+		elif skelType == "leaf" and self.leafSkelCls:
+			skelType = TreeType.Leaf
+		else:
+			raise errors.NotAcceptable()
+
+		skel = self.addSkel(skelType)  # srcSkel - the skeleton to be moved
+		parentNodeSkel = self.editSkel(TreeType.Node)  # destSkel - the node it should be moved into
+
+		if not skel.fromDB(key) or not parentNodeSkel.fromDB(parentNode):
+			# Could not find one of the entities
+			raise errors.NotFound()
+
+		if not self.canMove(skelType, skel, parentNodeSkel):
+			raise errors.Unauthorized()
+
+		if skel["key"] == parentNodeSkel["key"]:
+			# Cannot move a node into itself
+			raise errors.NotAcceptable()
+
+		## Test for recursion
+		currLevel = db.Get(parentNode)
+		for x in range(0, 99):
+			if currLevel.key == skel["key"]:
+				break
+			if "rootNode" in currLevel and currLevel["rootNode"] == 1:
+				# We reached a rootNode, so this is okay
+				break
+			currLevel = db.Get(currLevel["parententry"])
+		else:  # We did not "break" - recursion-level exceeded or loop detected
+			raise errors.NotAcceptable()
+
+		# Test if we try to move a rootNode
+		tmp = skel.dbEntity
+		if "rootNode" in tmp and tmp["rootNode"] == 1:
+			# Cant move a rootNode away..
+			raise errors.NotAcceptable()
+
+		if not securitykey.validate(kwargs.get("skey", ""), useSessionKey=True):
+			raise errors.PreconditionFailed()
+
+		currentParentRepo = skel["parentrepo"]
+		skel["parententry"] = parentNode
+		skel["parentrepo"] = parentNodeSkel["parentrepo"]  # Fixme: Need to recursive fixing to parentrepo?
+		if "sortindex" in kwargs:
+			try:
+				skel["sortindex"] = float(kwargs["sortindex"])
+			except:
+				raise errors.PreconditionFailed()
+		skel.toDB()
+
+		# Ensure a changed parentRepo get's proagated
+		if currentParentRepo != parentNodeSkel["parentrepo"]:
+			self.updateParentRepo(key, parentNodeSkel["parentrepo"])
+		return self.render.editItemSuccess(skel)  # new Sig, has no args and kwargs , skelType = skelType, action = "move", destNode = parentNodeSkel )
+
 	## Default access control functions
 
 	def listFilter(self, filter):
@@ -561,6 +673,38 @@ class Tree(BasicApplication):
 		if user and user["access"] and "%s-delete" % self.moduleName in user["access"]:
 			return True
 		return False
+
+	def canMove(self, skelType: TreeType, node: str, destNode: str) -> bool:
+		"""
+		Access control function for moving permission.
+
+		Checks if the current user has the permission to move an entry.
+
+		The default behavior is:
+		- If no user is logged in, deleting is generally refused.
+		- If the user has "root" access, deleting is generally allowed.
+		- If the user has the modules "edit" permission (module-edit) enabled, \
+		 moving is allowed.
+
+		It should be overridden for a module-specific behavior.
+
+		:param skelType: Defines the type of the node that shall be deleted.
+		:param node: URL-safe key of the node to be moved.
+		:param node: URL-safe key of the node where *node* should be moved to.
+
+		.. seealso:: :func:`move`
+
+		:returns: True, if deleting entries is allowed, False otherwise.
+		"""
+		user = utils.getCurrentUser()
+		if not user:
+			return False
+		if user["access"] and "root" in user["access"]:
+			return True
+		if user and user["access"] and "%s-edit" % self.moduleName in user["access"]:
+			return True
+		return False
+
 
 	## Overridable eventhooks
 
