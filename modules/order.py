@@ -881,8 +881,8 @@ class Order(List):
 
 		newCursor = query.getCursor()
 
-		if gotAtLeastOne and newCursor and newCursor.urlsafe() != cursor:
-			self.doArchiveActiveOrdersTask(timeStamp, newCursor.urlsafe())
+		if gotAtLeastOne and newCursor and newCursor != cursor:
+			self.doArchiveActiveOrdersTask(timeStamp, newCursor)
 
 	@callDeferred
 	def doArchiveCancelledOrdersTask(self, timeStamp, cursor):
@@ -901,5 +901,5 @@ class Order(List):
 
 		newCursor = query.getCursor()
 
-		if gotAtLeastOne and newCursor and newCursor.urlsafe() != cursor:
-			self.doArchiveCancelledOrdersTask(timeStamp, newCursor.urlsafe())
+		if gotAtLeastOne and newCursor and newCursor != cursor:
+			self.doArchiveCancelledOrdersTask(timeStamp, newCursor)

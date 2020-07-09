@@ -262,5 +262,5 @@ def doClearSessions(timeStamp, cursor):
 		gotAtLeastOne = True
 		db.Delete(oldKey)
 	newCursor = query.getCursor()
-	if gotAtLeastOne and newCursor and newCursor.urlsafe() != cursor:
-		doClearSessions(timeStamp, newCursor.urlsafe())
+	if gotAtLeastOne and newCursor and newCursor != cursor:
+		doClearSessions(timeStamp, newCursor)

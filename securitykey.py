@@ -93,5 +93,5 @@ def doClearSKeys(timeStamp, cursor):
 		gotAtLeastOne = True
 		db.Delete(oldKey)
 	newCursor = query.getCursor()
-	if gotAtLeastOne and newCursor and newCursor.urlsafe() != cursor:
-		doClearSKeys(timeStamp, newCursor.urlsafe())
+	if gotAtLeastOne and newCursor and newCursor != cursor:
+		doClearSKeys(timeStamp, newCursor)
