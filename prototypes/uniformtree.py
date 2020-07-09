@@ -674,7 +674,7 @@ class Tree(BasicApplication):
 			return True
 		return False
 
-	def canMove(self, skelType: str, node: str, destNode: str) -> bool:
+	def canMove(self, skelType: TreeType, node: str, destNode: str) -> bool:
 		"""
 		Access control function for moving permission.
 
