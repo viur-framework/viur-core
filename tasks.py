@@ -10,7 +10,7 @@ import logging
 import os, sys
 from google.cloud import tasks_v2
 from google.protobuf import timestamp_pb2
-from typing import Dict, List, Callable
+from typing import Dict, Callable
 from viur.core.utils import currentRequest, currentSession
 
 _gaeApp = os.environ.get("GAE_APPLICATION")
@@ -28,17 +28,28 @@ if not queueRegion:
 
 taskClient = tasks_v2.CloudTasksClient()
 
-_periodicTasks: Dict[str, Dict[int, Callable]] = {}
+_periodicTasks: Dict[str, Dict[Callable, int]] = {}
 _callableTasks = {}
 _deferedTasks = {}
 _startupTasks = []
-_periodicTaskID = 1  # Used to determine bound functions
 _appengineServiceIPs = {"10.0.0.1", "0.1.0.1", "0.1.0.2"}
 
 
 class PermanentTaskFailure(Exception):
 	"""Indicates that a task failed, and will never succeed."""
 	pass
+
+
+def removePeriodicTask(task: Callable) -> None:
+	"""
+	Removes a periodic task from the queue. Useful to unqueue an task
+	that has been inherited from an overridden module.
+	"""
+	global _periodicTasks
+	assert "periodicTaskName" in dir(task), "This is not a periodic task? "
+	for queueDict in _periodicTasks.values():
+		if task in queueDict:
+			del queueDict[task]
 
 
 class CallableTaskBase:
@@ -96,8 +107,8 @@ class TaskHandler:
 			:param depth: Current iteration depth.
 			:type depth: int
 		"""
-		if depth > 3 or not "periodicTaskID" in dir(task):  # Limit the maximum amount of recursions
-			return (None)
+		if depth > 3 or not "periodicTaskName" in dir(task):  # Limit the maximum amount of recursions
+			return None
 		obj = obj or conf["viur.mainApp"]
 		for attr in dir(obj):
 			if attr.startswith("_"):
@@ -106,13 +117,13 @@ class TaskHandler:
 				v = getattr(obj, attr)
 			except AttributeError:
 				continue
-			if callable(v) and "periodicTaskID" in dir(v) and str(v.periodicTaskID) == str(task.periodicTaskID):
-				return (v, obj)
+			if callable(v) and "periodicTaskName" in dir(v) and str(v.periodicTaskName) == str(task.periodicTaskName):
+				return v, obj
 			if not isinstance(v, str) and not callable(v):
 				res = self.findBoundTask(task, v, depth + 1)
 				if res:
-					return (res)
-		return (None)
+					return res
+		return None
 
 	def deferred(self, *args, **kwargs):
 		"""
@@ -191,9 +202,6 @@ class TaskHandler:
 
 	def cron(self, cronName="default", *args, **kwargs):
 		global _callableTasks, _periodicTasks, _appengineServiceIPs
-		# logging.debug("Starting maintenance-run")
-		# checkUpdate()  # Let the update-module verify the database layout first
-		# logging.debug("Updatecheck complete")
 		req = currentRequest.get()
 		if not req.isDevServer:
 			if 'X-Appengine-Cron' not in req.request.headers:
@@ -205,7 +213,7 @@ class TaskHandler:
 		if cronName not in _periodicTasks:
 			logging.warning("Got Cron request '%s' which doesn't have any tasks" % cronName)
 		for task, interval in _periodicTasks[cronName].items():  # Call all periodic tasks bound to that queue
-			periodicTaskName = "%s_%s" % (cronName, task.periodicTaskName)
+			periodicTaskName = task.periodicTaskName.lower()
 			if interval:  # Ensure this task doesn't get called to often
 				lastCall = db.Get(db.Key("viur-task-interval", periodicTaskName))
 				logging.error("Interval %s" % interval)
@@ -225,7 +233,7 @@ class TaskHandler:
 				logging.debug("Successfully called task %s" % periodicTaskName)
 			if interval:
 				# Update its last-call timestamp
-				entry = db.Entity(db.Key("viur-task-interval", name=periodicTaskName))
+				entry = db.Entity(db.Key("viur-task-interval", periodicTaskName))
 				entry["date"] = utils.utcNow()
 				db.Put(entry)
 		logging.debug("Periodic tasks complete")
@@ -426,15 +434,12 @@ def PeriodicTask(interval=0, cronName="default"):
 		:param interval: Call at most every interval minutes. 0 means call as often as possible.
 		:type interval: int
 	"""
-
 	def mkDecorator(fn):
-		global _periodicTasks, _periodicTaskID
+		global _periodicTasks
 		if not cronName in _periodicTasks:
 			_periodicTasks[cronName] = {}
 		_periodicTasks[cronName][fn] = interval
-		fn.periodicTaskID = _periodicTaskID
-		fn.periodicTaskName = "%s_%s" % (fn.__module__, fn.__name__)
-		_periodicTaskID += 1
+		fn.periodicTaskName = ("%s_%s" % (fn.__module__, fn.__qualname__)).replace(".", "_").lower()
 		return fn
 
 	return mkDecorator
