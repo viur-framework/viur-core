@@ -112,7 +112,7 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
 	"""
 
 	@wraps(f)
-	def wrapF(self, *args, **kwargs) -> str:
+	def wrapF(self, *args, **kwargs) -> Union[str, bytes]:
 		currReq = currentRequest.get()
 		if conf["viur.disableCache"] or currReq.disableCache:
 			# Caching disabled
