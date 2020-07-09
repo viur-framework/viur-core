@@ -331,7 +331,7 @@ def callDeferred(func):
 			if req:
 				req.pendingTasks.append(task)  # < This property will be only exist on development server!
 			else:
-				# Warmup request or something - we have to call it now as we can't deffer it :/
+				# Warmup request or something - we have to call it now as we can't defer it :/
 				task()
 
 			return  # Ensure no result gets passed back
