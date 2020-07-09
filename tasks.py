@@ -417,22 +417,24 @@ def callDeferred(func):
 	return (lambda *args, **kwargs: mkDefered(func, *args, **kwargs))
 
 
-def PeriodicTask(interval: int = 0, cronName: str = "default", overwrite: Union[None, Callable] = None):
+def PeriodicTask(interval: int = 0, cronName: str = "default", override: Union[None, Callable] = None):
 	"""
 		Decorator to call a function periodic during maintenance.
 		Interval defines a lower bound for the call-frequency for this task;
 		it will not be called faster than each interval minutes.
 		(Note that the actual delay between two sequent might be much larger)
+
 		:param interval: Call at most every interval minutes. 0 means call as often as possible.
-		:type interval: int
+		:param cronName: The cron job's queue name
+		:param override: override explicit a periodic called super method
 	"""
 
 	def mkDecorator(fn):
 		global _periodicTasks, _periodicTaskID
-		if overwrite is not None:
-			del overwrite.periodicTaskID
-			del overwrite.periodicTaskName
-			del _periodicTasks[overwrite.periodicCronName][overwrite]
+		if override is not None:
+			del override.periodicTaskID
+			del override.periodicTaskName
+			del _periodicTasks[override.periodicCronName][override]
 		if not cronName in _periodicTasks:
 			_periodicTasks[cronName] = {}
 		_periodicTasks[cronName][fn] = interval
