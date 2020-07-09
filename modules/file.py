@@ -412,10 +412,8 @@ def doCheckForUnreferencedBlobs(cursor=None):
 			db.Put(obj)
 		return res
 
-	gotAtLeastOne = False
 	query = db.Query("viur-blob-locks").filter("has_old_blob_references", True).setCursor(cursor)
 	for lockObj in query.run(100):
-		gotAtLeastOne = True
 		oldBlobKeys = db.RunInTransaction(getOldBlobKeysTxn, lockObj.key)
 		for blobKey in oldBlobKeys:
 			if db.Query("viur-blob-locks").filter("active_blob_references =", blobKey).getEntry():
@@ -433,8 +431,8 @@ def doCheckForUnreferencedBlobs(cursor=None):
 			logging.info("Stale blob marked dirty, %s" % blobKey)
 			db.Put(fileObj)
 	newCursor = query.getCursor()
-	if gotAtLeastOne and newCursor and newCursor.urlsafe() != cursor:
-		doCheckForUnreferencedBlobs(newCursor.urlsafe())
+	if newCursor:
+		doCheckForUnreferencedBlobs(newCursor)
 
 
 @PeriodicTask(0)
@@ -449,12 +447,10 @@ def startCleanupDeletedFiles():
 @callDeferred
 def doCleanupDeletedFiles(cursor=None):
 	maxIterCount = 2  # How often a file will be checked for deletion
-	gotAtLeastOne = False
 	query = db.Query("viur-deleted-files")
 	if cursor:
 		query.setCursor(cursor)
 	for file in query.run(100):
-		gotAtLeastOne = True
 		if not "dlkey" in file:
 			db.Delete(file.key)
 		elif db.Query("viur-blob-locks").filter("active_blob_references =", file["dlkey"]).getEntry():
@@ -475,5 +471,5 @@ def doCleanupDeletedFiles(cursor=None):
 				file["itercount"] += 1
 				db.Put(file)
 	newCursor = query.getCursor()
-	if gotAtLeastOne and newCursor and newCursor.urlsafe() != cursor:
-		doCleanupDeletedFiles(newCursor.urlsafe())
+	if newCursor:
+		doCleanupDeletedFiles(newCursor)
