@@ -256,11 +256,9 @@ def startClearSessions():
 
 @callDeferred
 def doClearSessions(timeStamp, cursor):
-	gotAtLeastOne = False
 	query = db.Query(GaeSession.kindName).filter("lastseen <", timeStamp)
 	for oldKey in query.run(100, keysOnly=True):
-		gotAtLeastOne = True
 		db.Delete(oldKey)
 	newCursor = query.getCursor()
-	if gotAtLeastOne and newCursor and newCursor != cursor:
+	if newCursor:
 		doClearSessions(timeStamp, newCursor)
