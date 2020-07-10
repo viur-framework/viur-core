@@ -149,23 +149,16 @@ class Render(object):
 			"descr": str(bone.descr),
 			"type": bone.type,
 			"required": bone.required,
+			"multiple": bone.multiple,
 			"params": bone.params,
 			"visible": bone.visible,
 			"readOnly": bone.readOnly
 		}
 
 		if bone.type == "relational" or bone.type.startswith("relational."):
-			if isinstance(bone, hierarchyBone):
-				boneType = "hierarchy"
-			elif isinstance(bone, treeItemBone):
-				boneType = "treeitem"
-			else:
-				boneType = "relational"
-
 			ret.update({
 				"type": bone.type,
 				"module": bone.module,
-				"multiple": bone.multiple,
 				"format": bone.format,
 				"using": self.renderSkelStructure(bone.using()) if bone.using else None,
 				"relskel": self.renderSkelStructure(RefSkel.fromSkel(skeletonByKind(bone.kind), *bone.refKeys))
@@ -173,7 +166,7 @@ class Render(object):
 
 		elif bone.type == "select" or bone.type.startswith("select."):
 			ret.update({
-				"values": {k: v for (k, v) in bone.values.items()}, #FIXME: translate!
+				"values": {k: str(v) for (k, v) in bone.values.items()},
 				"multiple": bone.multiple
 			})
 
@@ -348,7 +341,6 @@ class Render(object):
 
 		tpl = tpl or self.addTemplate
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-		skel = skel.clone()  # Fixme!
 		skeybone = baseBone(descr="SecurityKey", readOnly=True, visible=False)
 		skel.skey = skeybone
 		skel["skey"] = securitykey.create()
@@ -388,7 +380,6 @@ class Render(object):
 
 		tpl = tpl or self.editTemplate
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-		skel = skel.clone()  # Fixme!
 		skeybone = baseBone(descr="SecurityKey", readOnly=True, visible=False)
 		skel.skey = skeybone
 		skel["skey"] = securitykey.create()
@@ -504,7 +495,7 @@ class Render(object):
 		tpl = tpl or self.listTemplate
 		try:
 			fn = self.getTemplateFileName(tpl)
-		except errors.HTTPException as e:  # Not found - try default fallbacks FIXME: !!!
+		except errors.HTTPException as e:  # Not found - try default fallbacks
 			tpl = "list"
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
 		# resList = []
@@ -536,7 +527,7 @@ class Render(object):
 			tpl = self.listRepositoriesTemplate
 		try:
 			fn = self.getTemplateFileName(tpl)
-		except errors.HTTPException as e:  # Not found - try default fallbacks FIXME: !!!
+		except errors.HTTPException as e:  # Not found - try default fallbacks
 			tpl = "list"
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
 		return template.render(repos=repos, params=params, **kwargs)
@@ -840,9 +831,6 @@ class Render(object):
 			loaders = self.getLoaders()
 			self.env = Environment(loader=loaders, extensions=["jinja2.ext.do", "jinja2.ext.loopcontrols", TranslationExtension])
 			self.env.trCache = {}
-			# Translation remains global
-			self.env.globals["_"] = lambda x, *args, **kwargs: str(x)  # FIXME !translate
-			self.env.filters["tr"] = lambda x, *args, **kwargs: str(x)  # FIXME !translate
 
 			# Import functions.
 			for name, func in jinjaUtils.getGlobalFunctions().items():

@@ -41,18 +41,9 @@ class DefaultRender(object):
 		}
 
 		if bone.type == "relational" or bone.type.startswith("relational."):
-			if isinstance(bone, bones.hierarchyBone):
-				boneType = "hierarchy"
-			elif isinstance(bone, bones.treeItemBone):
-				boneType = "treeitem"
-			elif isinstance(bone, bones.treeDirBone):
-				boneType = "treedir"
-			else:
-				boneType = "relational"
 			ret.update({
-				"type": "%s.%s" % (boneType, bone.kind),
+				"type": "%s.%s" % (bone.type, bone.kind),
 				"module": bone.module,
-				"multiple": bone.multiple,
 				"format": bone.format,
 				"using": self.renderSkelStructure(bone.using()) if bone.using else None,
 				"relskel": self.renderSkelStructure(bone._refSkelCache())
@@ -112,26 +103,9 @@ class DefaultRender(object):
 			return None
 		res = OrderedDict()
 		for key, bone in skel.items():
-			# if "__" in key or not isinstance(bone, bones.baseBone):
-			#	continue
-
 			res[key] = self.renderBoneStructure(bone)
-
-			# FIXME!
-			# if key in skel.errors:
-			#	res[key]["error"] = skel.errors[key]
-			# elif any([x.startswith("%s." % key) for x in skel.errors.keys()]):
-			#	res[key]["error"] = {k: v for k, v in skel.errors.items() if k.startswith("%s." % key)}
-			# else:
-			#	res[key]["error"] = None
-			res[key]["error"] = None
 		return [(key, val) for key, val in res.items()]
 
-	def renderTextExtension(self, ext):
-		e = ext()
-		return ({"name": e.name,
-				 "descr": str(e.descr),
-				 "skel": self.renderSkelStructure(e.dataSkel())})
 
 	def renderSingleBoneValue(self, value, bone, skel, key):
 		"""

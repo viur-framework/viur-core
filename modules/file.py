@@ -20,7 +20,7 @@ from google.oauth2.service_account import Credentials as ServiceAccountCredentia
 
 from viur.core import db, errors, exposed, forcePost, forceSSL, internalExposed, securitykey, utils
 from viur.core.bones import *
-from viur.core.prototypes.uniformtree import Tree, TreeSkel, TreeType
+from viur.core.prototypes.tree import Tree, TreeSkel, TreeType
 from viur.core.skeleton import skeletonByKind
 from viur.core.tasks import PeriodicTask, callDeferred
 from viur.core.utils import projectID

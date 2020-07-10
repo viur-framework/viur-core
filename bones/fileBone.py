@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from viur.core.bones import treeItemBone
+from viur.core.bones import treeLeafBone
 from viur.core import db, request, conf
 from viur.core.utils import downloadUrlFor
 from viur.core.tasks import callDeferred
@@ -43,13 +43,14 @@ def ensureDerived(key: str, name: str, deriveMap: Dict[str, Dict]):
 		skel.toDB()
 
 
-class fileBone(treeItemBone):
+class fileBone(treeLeafBone):
 	kind = "file"
-	type = "relational.treeitem.file"
+	type = "relational.tree.leaf.file"
 	refKeys = ["name", "key", "mimetype", "dlkey", "size", "width", "height", "derived"]
 
 	def __init__(self, format="$(dest.name)", derive: Union[None, Dict[str, Dict]] = None, *args, **kwargs):
-		assert "dlkey" in self.refKeys, "You cannot remove dlkey from refKeys!"
+		if "dlkey" not in self.refKeys:
+			self.refKeys.append("dlkey")
 		super(fileBone, self).__init__(format=format, *args, **kwargs)
 		self.derive = derive
 
