@@ -873,15 +873,13 @@ class Order(List):
 			.filter("state_send = ", "1") \
 			.filter("state_payed =", "1") \
 			.filter("state_canceled =", "0").cursor(cursor)
-		gotAtLeastOne = False
 
 		for order in query.fetch():
-			gotAtLeastOne = True
 			self.setArchived(order["key"])
 
 		newCursor = query.getCursor()
 
-		if gotAtLeastOne and newCursor and newCursor != cursor:
+		if newCursor:
 			self.doArchiveActiveOrdersTask(timeStamp, newCursor)
 
 	@callDeferred
@@ -893,13 +891,11 @@ class Order(List):
 			.filter("changedate <", datetime.strptime(timeStamp, "%d.%m.%Y %H:%M:%S")) \
 			.filter("state_archived =", "0") \
 			.filter("state_canceled =", "1").cursor(cursor)
-		gotAtLeastOne = False
 
 		for order in query.fetch():
-			gotAtLeastOne = True
 			self.setArchived(order["key"])
 
 		newCursor = query.getCursor()
 
-		if gotAtLeastOne and newCursor and newCursor != cursor:
+		if newCursor:
 			self.doArchiveCancelledOrdersTask(timeStamp, newCursor)

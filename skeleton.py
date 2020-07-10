@@ -1234,7 +1234,7 @@ def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, noti
 	query = db.Query("viur-relations")
 	if module != "*":
 		query.filter("viur_src_kind =", module)
-	query.cursor(cursor)
+	query.setCursor(cursor)
 	countTotal = 0
 	countRemoved = 0
 	for relationObject in query.run(25):
@@ -1265,7 +1265,7 @@ def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, noti
 	newRemovedCount = removedCount + countRemoved
 	logging.info("END processVacuumRelationsChunk %s, %d records processed, %s removed " % (
 		module, newTotalCount, newRemovedCount))
-	if countTotal and newCursor and newCursor != cursor:
+	if newCursor:
 		# Start processing of the next chunk
 		processVacuumRelationsChunk(module, newCursor, newTotalCount, newRemovedCount, notify)
 	else:
