@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-#from google.appengine.api import memcache
-from viur.core import utils
+from viur.core import utils, db
 from viur.core.utils import currentRequest
-from datetime import datetime
+from viur.core.tasks import PeriodicTask
+from datetime import timedelta
 
 
 class RateLimit(object):
@@ -14,6 +14,7 @@ class RateLimit(object):
 		after executing the action decrementQuota.
 
 	"""
+	rateLimitKind = "viur-ratelimit"
 
 	def __init__(self, resource, maxRate, minutes, method):
 		"""
@@ -65,7 +66,7 @@ class RateLimit(object):
 		"""
 		:return: the current lockperiod used in second position of the memcache key
 		"""
-		dateTime = datetime.now()
+		dateTime = utils.utcNow()
 		key = dateTime.strftime("%Y-%m-%d-%%s")
 		secsinceMidnight = (dateTime - dateTime.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds()
 		currentStep = int(secsinceMidnight / self.secondsPerStep)
@@ -75,9 +76,17 @@ class RateLimit(object):
 		"""
 		Removes one attempt from the pool of available Quota for that user/ip
 		"""
-		memcacheKey = "%s-%s-%s" % (self.resource, self._getEndpointKey(), self._getCurrentTimeKey())
-		if memcache.incr(memcacheKey) is None:
-			memcache.set(memcacheKey, 1, 2 * 60 * self.minutes)
+		def updateTxn(cacheKey):
+			key = db.Key(self.rateLimitKind, cacheKey)
+			obj = db.Get(key)
+			if obj is None:
+				obj = db.Entity(key)
+				obj["value"] = 0
+			obj["value"] += 1
+			obj["expires"] = utils.utcNow()+timedelta(minutes=2 * self.minutes)
+			db.Put(obj)
+		lockKey = "%s-%s-%s" % (self.resource, self._getEndpointKey(), self._getCurrentTimeKey())
+		db.RunInTransaction(updateTxn, lockKey)
 
 	def isQuotaAvailable(self):
 		"""
@@ -86,12 +95,17 @@ class RateLimit(object):
 		:rtype: bool
 		"""
 		endPoint = self._getEndpointKey()
-		dateTime = datetime.now()
-		secSinceMidnight = (dateTime - dateTime.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds()
+		currentDateTime = utils.utcNow()
+		secSinceMidnight = (currentDateTime - currentDateTime.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds()
 		currentStep = int(secSinceMidnight / self.secondsPerStep)
-		keyBase = dateTime.strftime("%Y-%m-%d-%%s")
-		memcacheKeys = []
+		keyBase = currentDateTime.strftime("%Y-%m-%d-%%s")
+		cacheKeys = []
 		for x in range(0, self.steps):
-			memcacheKeys.append("%s-%s-%s" % (self.resource, endPoint, keyBase % (currentStep - x)))
-		tmpRes = memcache.get_multi(memcacheKeys)
-		return sum(tmpRes.values()) <= self.maxRate
+			cacheKeys.append(db.Key(self.rateLimitKind, "%s-%s-%s" % (self.resource, endPoint, keyBase % (currentStep - x))))
+		tmpRes = db.Get(cacheKeys)
+		return sum([x["value"] for x in tmpRes if currentDateTime < x["expires"]]) <= self.maxRate
+
+@PeriodicTask(60)
+def cleanOldRateLocks(*args, **kwargs):
+	for x in range(0, 10):
+		db.Delete([x.key for x in db.Query(RateLimit.rateLimitKind).filter("expires <", utils.utcNow()).run(50)])
