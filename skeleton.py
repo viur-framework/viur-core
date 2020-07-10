@@ -1142,7 +1142,7 @@ def processRemovedRelations(removedKey, cursor=None):
 			pass
 	if len(updateList) == 5:
 		processRemovedRelations(removedKey.to_legacy_urlsafe().decode("ASCII"),
-								updateListQuery.getCursor().urlsafe().decode("ASCII"))
+								updateListQuery.getCursor())
 
 
 @callDeferred
@@ -1174,7 +1174,7 @@ def updateRelations(destID, minChangeTime, changeList, cursor=None):
 		db.RunInTransaction(updateTxn, skel, srcRel["src"].key, srcRel.key)
 	nextCursor = updateListQuery.getCursor()
 	if len(updateList) == 5 and nextCursor:
-		updateRelations(destID, minChangeTime, changeList, nextCursor.decode("ASCII"))
+		updateRelations(destID, minChangeTime, changeList, nextCursor)
 
 
 @CallableTask
@@ -1251,7 +1251,6 @@ def processChunk(module, compact, cursor, allCount=0, notify=None):
 	newCursor = query.getCursor()
 	if not newCursor:  # We're done
 		return
-	newCursor = newCursor.decode("ASCII")
 	logging.info("END processChunk %s, %d records refreshed" % (module, count))
 	if count and newCursor and newCursor != cursor:
 		# Start processing of the next chunk
@@ -1309,7 +1308,7 @@ def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, noti
 	query = db.Query("viur-relations")
 	if module != "*":
 		query.filter("viur_src_kind =", module)
-	query.cursor(cursor)
+	query.setCursor(cursor)
 	countTotal = 0
 	countRemoved = 0
 	for relationObject in query.run(25):
@@ -1340,9 +1339,9 @@ def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, noti
 	newRemovedCount = removedCount + countRemoved
 	logging.info("END processVacuumRelationsChunk %s, %d records processed, %s removed " % (
 		module, newTotalCount, newRemovedCount))
-	if countTotal and newCursor and newCursor.urlsafe() != cursor:
+	if newCursor:
 		# Start processing of the next chunk
-		processVacuumRelationsChunk(module, newCursor.urlsafe(), newTotalCount, newRemovedCount, notify)
+		processVacuumRelationsChunk(module, newCursor, newTotalCount, newRemovedCount, notify)
 	else:
 		try:
 			if notify:

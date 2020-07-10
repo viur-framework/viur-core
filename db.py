@@ -558,20 +558,20 @@ class Query(object):
 		"""
 		try:
 			order = self.datastoreQuery.__orderings
-			return ([(prop, dir) for (prop, dir) in order])
+			return [(prop, dir) for (prop, dir) in order]
 		except:
-			return ([])
+			return []
 
-	def getCursor(self, serializeForUntrustedUse=False):
+	def getCursor(self):
 		"""
 			Get a valid cursor from the last run of this query.
 
 			The source of this cursor varies depending on what the last call was:
-			- :func:`server.db.Query.run`: A cursor that points immediatelly behind the\
+			- :func:`server.db.Query.run`: A cursor that points immediately behind the\
 			last result pulled off the returned iterator.
-			- :func:`server.db.Query.get`:: A cursor that points immediatelly behind the\
+			- :func:`server.db.Query.get`:: A cursor that points immediately behind the\
 			last result in the returned list.
-			- :func:`server.db.Query.count`: A cursor that points immediatelly behind the\
+			- :func:`server.db.Query.count`: A cursor that points immediately behind the\
 			last result counted.
 
 			:returns: A cursor that can be used in subsequent query requests.
@@ -579,27 +579,7 @@ class Query(object):
 
 			:raises: :exc:`AssertionError` if the query has not yet been run or cannot be compiled.
 		"""
-		return self.lastCursor
-		if not isinstance(self.filters, dict):
-			# Either a multi-query or an unsatisfiable query
-			return None
-		if not self._lastEntry:
-			# We did not run yet
-			return None
-
-		res = []
-		for fieldPath, direction in self.orders:
-			if fieldPath == KEY_SPECIAL_PROPERTY:
-				res.append("%s/%s" % (self._lastEntry.collection, self._lastEntry.name))
-			else:
-				res.append(_valueFromEntry(self._lastEntry, fieldPath))
-		if serializeForUntrustedUse:
-			# We could simply fallback for a normal hash here as we sign it later again
-			hmacSigData = utils.hmacSign(res)
-			res = "%s_%s" % (self._lastEntry.name, hmacSigData)
-			hmacFullSig = utils.hmacSign(res)
-			res += "_" + hmacFullSig
-		return res
+		return self.lastCursor.decode("ASCII") if self.lastCursor else None
 
 	def getKind(self):
 		"""

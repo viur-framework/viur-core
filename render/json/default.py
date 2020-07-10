@@ -227,10 +227,7 @@ class DefaultRender(object):
 		else:
 			res["structure"] = None
 		res["skellist"] = skels
-		try:
-			res["cursor"] = "h-%s" % skellist.getCursor().hex()
-		except:
-			res["cursor"] = None
+		res["cursor"] = skellist.getCursor()
 		res["action"] = action
 		res["params"] = params
 		currentRequest.get().response.headers["Content-Type"] = "application/json"

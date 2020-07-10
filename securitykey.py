@@ -87,11 +87,9 @@ def startClearSKeys():
 
 @callDeferred
 def doClearSKeys(timeStamp, cursor):
-	gotAtLeastOne = False
 	query = db.Query(securityKeyKindName).filter("until <", datetime.strptime(timeStamp, "%d.%m.%Y %H:%M:%S"))
 	for oldKey in query.run(100, keysOnly=True):
-		gotAtLeastOne = True
 		db.Delete(oldKey)
 	newCursor = query.getCursor()
-	if gotAtLeastOne and newCursor and newCursor.urlsafe() != cursor:
-		doClearSKeys(timeStamp, newCursor.urlsafe())
+	if newCursor:
+		doClearSKeys(timeStamp, newCursor)
