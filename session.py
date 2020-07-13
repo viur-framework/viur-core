@@ -34,10 +34,10 @@ class GaeSession:
 	def __init__(self):
 		super().__init__()
 
-		ident = os.environ["GAE_VERSION"]
+		ident = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
 
-		self.plainCookieName = f"viurHttpCookie_{ident}"
-		self.sslCookieName = f"viurSSLCookie_{ident}"
+		self.plainCookieName = f"viurHttpCookie{ident}"
+		self.sslCookieName = f"viurSSLCookie{ident}"
 
 	def load(self, req):
 		"""
