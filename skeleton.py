@@ -84,8 +84,8 @@ class SkeletonInstance:
 		if clonedBoneMap:
 			self.boneMap = clonedBoneMap
 		elif subSkelNames:
-			boneList = chain([skelCls.subSkels.get(x, []) for x in subSkelNames])
-			doesMatch = lambda name: name in boneList or any([x.startswith(x[:-1]) for x in boneList if x[-1] == "*"])
+			boneList = list(chain(*[skelCls.subSkels.get(x, []) for x in subSkelNames]))
+			doesMatch = lambda name: name in boneList or any([name.startswith(x[:-1]) for x in boneList if x[-1] == "*"])
 			if fullClone:
 				self.boneMap = {k: copy.deepcopy(v) for k, v in skelCls.__boneMap__.items() if doesMatch(k)}
 				for v in self.boneMap.values():
