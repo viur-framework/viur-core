@@ -251,15 +251,15 @@ class TaskHandler:
 		"""Lists all user-callable tasks which are callable by this user"""
 		global _callableTasks
 
-		class extList(list):
-			pass
+		tasks = db.SkelListRef(None)
+		tasks.extend([{
+				"key": x.key,
+				"name": str(x.name),
+				"descr": str(x.descr)
+			} for x in _callableTasks.values() if x().canCall()
+		])
 
-		res = extList(
-			[{"key": x.key, "name": str(x.name), "descr": str(x.descr)} for x in _callableTasks.values() if
-			 x().canCall()])
-		res.cursor = None
-		res.baseSkel = {}
-		return (self.render.list(res))
+		return self.render.list(tasks)
 
 	list.exposed = True
 

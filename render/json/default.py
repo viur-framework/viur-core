@@ -223,7 +223,9 @@ class DefaultRender(object):
 		if skellist:
 			for skel in skellist:
 				skels.append(self.renderSkelValues(skel))
-			res["structure"] = self.renderSkelStructure(skellist.baseSkel)
+
+			if skellist.baseSkel:
+				res["structure"] = self.renderSkelStructure(skellist.baseSkel)
 		else:
 			res["structure"] = None
 		res["skellist"] = skels
