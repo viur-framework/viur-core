@@ -161,7 +161,7 @@ class Render(object):
 				"module": bone.module,
 				"format": bone.format,
 				"using": self.renderSkelStructure(bone.using()) if bone.using else None,
-				"relskel": self.renderSkelStructure(RefSkel.fromSkel(skeletonByKind(bone.kind), *bone.refKeys))
+				"relskel": self.renderSkelStructure(bone._refSkelCache())
 			})
 
 		elif bone.type == "select" or bone.type.startswith("select."):
