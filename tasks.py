@@ -252,12 +252,12 @@ class TaskHandler:
 		global _callableTasks
 
 		class extList(list):
-			pass
+			def getCursor(self):
+				return None
 
 		res = extList(
 			[{"key": x.key, "name": str(x.name), "descr": str(x.descr)} for x in _callableTasks.values() if
 			 x().canCall()])
-		res.cursor = None
 		res.baseSkel = {}
 		return (self.render.list(res))
 
