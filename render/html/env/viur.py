@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 from viur.core import utils, request, conf, prototypes, securitykey, errors, db
-from viur.core.skeleton import Skeleton, RelSkel, BaseSkeleton
+from viur.core.skeleton import SkeletonInstance, RelSkel
 from viur.core.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
-from viur.core.render.html.wrap import ListWrapper, SkelListWrapper
 import urllib, urllib.parse
 from hashlib import sha512
 #from google.appengine.ext import db
@@ -151,7 +150,7 @@ def getSkel(render, module, key=None, skel="viewSkel"):
 			logging.info("getEntry called without a valid key")
 			return False
 
-		if not isinstance(skel, Skeleton):
+		if not isinstance(skel, SkeletonInstance):
 			return False
 
 		if "canView" in dir(obj):
@@ -328,7 +327,7 @@ def getStructure(render, module, skel="viewSkel", subSkel=None):
 	if skel in dir(obj):
 		skel = getattr(obj, skel)()
 
-		if isinstance(skel, Skeleton) or isinstance(skel, RelSkel):
+		if isinstance(skel, SkeletonInstance) or isinstance(skel, RelSkel):
 			if subSkel is not None:
 				try:
 					skel = skel.subSkel(subSkel)
@@ -599,7 +598,7 @@ def embedSvg(self, name):
 
 @jinjaGlobalFunction
 def downloadUrlFor(render, fileObj, derived=None, expires=timedelta(hours=1)):
-	if not isinstance(fileObj, (BaseSkeleton, dict)) or "dlkey" not in fileObj or "name" not in fileObj:
+	if not isinstance(fileObj, (SkeletonInstance, dict)) or "dlkey" not in fileObj or "name" not in fileObj:
 		return None
 	if derived and ("derived" not in fileObj or not isinstance(fileObj["derived"], dict)):
 		return None
@@ -610,7 +609,7 @@ def downloadUrlFor(render, fileObj, derived=None, expires=timedelta(hours=1)):
 
 @jinjaGlobalFunction
 def srcSetFor(render, fileObj, expires=timedelta(hours=1)):
-	if not isinstance(fileObj, (BaseSkeleton, dict)) or not "dlkey" in fileObj or "derived" not in fileObj:
+	if not isinstance(fileObj, (SkeletonInstance, dict)) or not "dlkey" in fileObj or "derived" not in fileObj:
 		return None
 	if not isinstance(fileObj["derived"], dict):
 		return ""
