@@ -873,12 +873,19 @@ class Query(object):
 			:returns: The cloned query.
 			:rtype: server.db.Query
 		"""
-		raise NotImplemented  # For now...
-		# FIXME: Is everything covered?
 		res = Query(self.getKind(), self.srcSkel)
-		res.limit(self.amount)
+		res.kind = self.kind
 		res.filters = deepcopy(self.filters)
 		res.orders = deepcopy(self.orders)
+		res.amount = self.amount
+		res._filterHook = self._filterHook
+		res._orderHook = self._orderHook
+		res._startCursor = self._startCursor
+		res._endCursor = self._endCursor
+		res._customMultiQueryMerge = self._customMultiQueryMerge
+		res._calculateInternalMultiQueryAmount = self._calculateInternalMultiQueryAmount
+		res.customQueryInfo = self.customQueryInfo
+		res.origKind = self.origKind
 		res._fulltextQueryString = self._fulltextQueryString
 		return res
 
