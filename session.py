@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import logging, os
+import logging
 from hmac import compare_digest
 from time import time
 
