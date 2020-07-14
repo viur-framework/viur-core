@@ -251,7 +251,7 @@ class TaskHandler:
 		"""Lists all user-callable tasks which are callable by this user"""
 		global _callableTasks
 
-		tasks = db.SkelListRef(None)
+		tasks = db.SkelListRef({})
 		tasks.extend([{
 				"key": x.key,
 				"name": str(x.name),
