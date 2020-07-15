@@ -1088,12 +1088,12 @@ class SkelList(list):
 
 	__slots__ = ["baseSkel", "getCursor", "customQueryInfo", "renderPreparation"]
 
-	def __init__(self, baseSkel):
+	def __init__(self, baseSkel=None):
 		"""
 			:param baseSkel: The baseclass for all entries in this list
 		"""
 		super(SkelList, self).__init__()
-		self.baseSkel = baseSkel
+		self.baseSkel = baseSkel or {}
 		self.getCursor = lambda: None
 		self.renderPreparation = None
 		self.customQueryInfo = {}
