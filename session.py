@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
+import logging
+from hmac import compare_digest
 from time import time
+
 from viur.core.tasks import PeriodicTask, callDeferred
 from viur.core import db, utils
 from viur.core.config import conf
-import logging
-from hmac import compare_digest
 
 
 """
@@ -25,15 +26,16 @@ from hmac import compare_digest
 """
 
 
-
-
 class GaeSession:
-	plainCookieName = "viurHttpCookie"
-	sslCookieName = "viurSSLCookie"
+	"""Store Sessions inside the Big Table/Memcache"""
 	kindName = "viur-session"
 	sameSite = "lax"
 
-	"""Store Sessions inside the Big Table/Memcache"""
+	def __init__(self):
+		super().__init__()
+
+		self.plainCookieName = f"viurHttpCookie_{utils.projectID}"
+		self.sslCookieName = f"viurSSLCookie_{utils.projectID}"
 
 	def load(self, req):
 		"""
