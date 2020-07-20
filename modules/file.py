@@ -1,29 +1,29 @@
 # -*- coding: utf-8 -*-
 
-from viur.core import utils, db, securitykey, session, errors, conf, request, forcePost, forceSSL, exposed, \
-	internalExposed
-from viur.core.skeleton import Skeleton, skeletonByKind
-from viur.core.bones import *
-from viur.core.prototypes.tree import Tree, TreeSkel, TreeType
-from viur.core.tasks import callDeferred, PeriodicTask
-from viur.core.utils import projectID
-from quopri import decodestring
-from base64 import urlsafe_b64decode
+import base64
 import email.header
-import collections, logging, cgi, string
-from io import BytesIO
-from PIL import Image
-from typing import Union, Tuple, Dict
-from google.cloud._helpers import _datetime_to_rfc3339
-import base64, json
-import os, google.auth
-from google.auth.transport import requests
-from google.auth import compute_engine, crypt
+import json
+import logging
+from base64 import urlsafe_b64decode
 from datetime import datetime, timedelta
+from io import BytesIO
+from quopri import decodestring
+from typing import Dict, Tuple, Union
+
+import google.auth
+from PIL import Image
+from google.auth import compute_engine
+from google.auth.transport import requests
 from google.cloud import storage
-from google.cloud._helpers import _NOW
+from google.cloud._helpers import _NOW, _datetime_to_rfc3339
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
+from viur.core import db, errors, exposed, forcePost, forceSSL, internalExposed, securitykey, utils
+from viur.core.bones import *
+from viur.core.prototypes.tree import Tree, TreeSkel, TreeType
+from viur.core.skeleton import skeletonByKind
+from viur.core.tasks import PeriodicTask, callDeferred
+from viur.core.utils import projectID
 
 credentials, project = google.auth.default()
 client = storage.Client(project, credentials)
@@ -208,7 +208,7 @@ class File(Tree):
 		global credentials, bucket
 		auth_request = requests.Request()
 		sign_cred = compute_engine.IDTokenCredentials(auth_request, "",
-																service_account_email=credentials.service_account_email)
+													  service_account_email=credentials.service_account_email)
 		expiration = _NOW() + timedelta(hours=1)
 		conditions = conditions + [{"bucket": bucket.name}]
 		policy_document = {
@@ -336,8 +336,9 @@ class File(Tree):
 			signed_blob_path = bucket.blob(dlPath)
 			expires_at_ms = datetime.now() + timedelta(seconds=60)
 			signing_credentials = compute_engine.IDTokenCredentials(auth_request, "",
-																service_account_email=credentials.service_account_email)
-			signed_url = signed_blob_path.generate_signed_url(expires_at_ms, credentials=signing_credentials, version="v4")
+																	service_account_email=credentials.service_account_email)
+			signed_url = signed_blob_path.generate_signed_url(expires_at_ms, credentials=signing_credentials,
+															  version="v4")
 		raise errors.Redirect(signed_url)
 
 	@exposed
@@ -411,11 +412,9 @@ def doCheckForUnreferencedBlobs(cursor=None):
 			db.Put(obj)
 		return res
 
-	gotAtLeastOne = False
-	query = db.Query("viur-blob-locks").filter("has_old_blob_references", True).cursor(cursor)
-	for lockKey in query.run(100, keysOnly=True):
-		gotAtLeastOne = True
-		oldBlobKeys = db.RunInTransaction(getOldBlobKeysTxn, lockKey)
+	query = db.Query("viur-blob-locks").filter("has_old_blob_references", True).setCursor(cursor)
+	for lockObj in query.run(100):
+		oldBlobKeys = db.RunInTransaction(getOldBlobKeysTxn, lockObj.key)
 		for blobKey in oldBlobKeys:
 			if db.Query("viur-blob-locks").filter("active_blob_references =", blobKey).getEntry():
 				# This blob is referenced elsewhere
@@ -426,15 +425,14 @@ def doCheckForUnreferencedBlobs(cursor=None):
 			if fileObj:  # Its already marked
 				logging.info("Stale blob already marked for deletion, %s" % blobKey)
 				return
-			fileObj = db.Entity("viur-deleted-files")
+			fileObj = db.Entity(db.Key("viur-deleted-files"))
 			fileObj["itercount"] = 0
 			fileObj["dlkey"] = str(blobKey)
 			logging.info("Stale blob marked dirty, %s" % blobKey)
 			db.Put(fileObj)
 	newCursor = query.getCursor()
-	if gotAtLeastOne and newCursor and newCursor.urlsafe() != cursor:
-		doCheckForUnreferencedBlobs(newCursor.urlsafe())
-
+	if newCursor:
+		doCheckForUnreferencedBlobs(newCursor)
 
 
 @PeriodicTask(0)
@@ -449,24 +447,22 @@ def startCleanupDeletedFiles():
 @callDeferred
 def doCleanupDeletedFiles(cursor=None):
 	maxIterCount = 2  # How often a file will be checked for deletion
-	gotAtLeastOne = False
 	query = db.Query("viur-deleted-files")
 	if cursor:
-		query.cursor(cursor)
+		query.setCursor(cursor)
 	for file in query.run(100):
-		gotAtLeastOne = True
 		if not "dlkey" in file:
-			db.Delete((file.collection, file.name))
+			db.Delete(file.key)
 		elif db.Query("viur-blob-locks").filter("active_blob_references =", file["dlkey"]).getEntry():
 			logging.info("is referenced, %s" % file["dlkey"])
-			db.Delete((file.collection, file.name))
+			db.Delete(file.key)
 		else:
 			if file["itercount"] > maxIterCount:
 				logging.info("Finally deleting, %s" % file["dlkey"])
 				blobs = bucket.list_blobs(prefix="%s/" % file["dlkey"])
 				for blob in blobs:
 					blob.delete()
-				db.Delete((file.collection, file.name))
+				db.Delete(file.key)
 				# There should be exactly 1 or 0 of these
 				for f in skeletonByKind("file")().all().filter("dlkey =", file["dlkey"]).fetch(99):
 					f.delete()
@@ -474,6 +470,6 @@ def doCleanupDeletedFiles(cursor=None):
 				logging.debug("Increasing count, %s" % file["dlkey"])
 				file["itercount"] += 1
 				db.Put(file)
-# newCursor = query.getCursor()
-# if gotAtLeastOne and newCursor and newCursor.urlsafe() != cursor:
-#	doCleanupDeletedFiles(newCursor.urlsafe())
+	newCursor = query.getCursor()
+	if newCursor:
+		doCleanupDeletedFiles(newCursor)
