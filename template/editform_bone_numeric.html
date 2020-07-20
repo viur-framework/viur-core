@@ -18,7 +18,7 @@
 		value="{{ boneValue|default("", true) }}"
 		name="{{ boneName }}"
 		type="number"
-		title="{{ _(boneParams.tooltip or boneParams.descr or boneName) }}"
+		title="{{ boneParams.tooltip or boneParams.descr or boneName }}"
 		id="ignt-id-{{boneName}}"
         {% if min %} min="{{ min }}" {% endif %}
         {% if max %} max="{{ max }}" {% endif %}
