@@ -341,7 +341,7 @@ class Query(object):
 				# The Hook did something special directly on 'self' to apply that filter,
 				# no need for us to do anything
 				return self
-			filter, value = r
+			prop, value = r
 		if " " not in prop:
 			# Ensure that an equality filter is explicitly postfixed with " ="
 			field = prop
