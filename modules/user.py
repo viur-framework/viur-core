@@ -677,7 +677,7 @@ class User(List):
 	def login(self, *args, **kwargs):
 		authMethods = [(x.getAuthMethodName(), y.get2FactorMethodName() if y else None)
 					   for x, y in self.validAuthenticationMethods]
-		return self.render.login(authMethods)
+		return self.render.loginChoices(authMethods)
 
 	def onLogin(self):
 		usr = self.getCurrentUser()

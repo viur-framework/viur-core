@@ -9,8 +9,10 @@ class UserRender(DefaultRender):  # Render user-data to json
 	def login(self, skel, **kwargs):
 		if kwargs.get("loginFailed", False):
 			return json.dumps("FAILURE")
-
 		return self.edit(skel, **kwargs)
+
+	def loginChoices(self, authMethods, **kwargs):
+		return json.dumps(list(set([x[0] for x in authMethods])))
 
 	def loginSucceeded(self, msg="OKAY", **kwargs):
 		return json.dumps(msg)
