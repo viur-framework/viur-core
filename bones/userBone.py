@@ -27,6 +27,10 @@ class userBone(relationalBone):
 		if self.updateMagic or (self.creationMagic and isAdd):
 			user = conf["viur.mainApp"].user.getCurrentUser()
 			if user:
-				return self.fromClient(skel, key, {key: str(user["key"])})
+				return self.fromClient(
+					skel, key, {
+						key: user["key"].to_legacy_urlsafe().decode("ASCII")
+					}
+				)
 
 			return self.fromClient(skel, key, {})
