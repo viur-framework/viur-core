@@ -187,6 +187,11 @@ class SkeletonInstance:
 		self.accessedValues = {}
 		self.renderAccessedValues = {}
 
+	def __deepcopy__(self, memodict):
+		res = self.clone()
+		memodict[id(self)] = res
+		return res
+
 
 class BaseSkeleton(object, metaclass=MetaBaseSkel):
 	"""
