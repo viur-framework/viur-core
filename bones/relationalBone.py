@@ -373,7 +373,7 @@ class relationalBone(baseBone):
 		return None
 
 	def parseSubfieldsFromClient(self):
-		return self.multiple and (self.using is not None)
+		return self.using is not None
 
 	def singleValueFromClient(self, value, skel, name, origData):
 		oldValues = skel[name]
