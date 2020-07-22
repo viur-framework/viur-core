@@ -220,15 +220,18 @@ class DefaultRender(object):
 	def list(self, skellist, action="list", params=None, **kwargs):
 		res = {}
 		skels = []
+
 		if skellist:
 			for skel in skellist:
 				skels.append(self.renderSkelValues(skel))
 
+			res["cursor"] = skellist.getCursor()
 			res["structure"] = self.renderSkelStructure(skellist.baseSkel)
 		else:
 			res["structure"] = None
+			res["cursor"] = None
+
 		res["skellist"] = skels
-		res["cursor"] = skellist.getCursor()
 		res["action"] = action
 		res["params"] = params
 		currentRequest.get().response.headers["Content-Type"] = "application/json"
