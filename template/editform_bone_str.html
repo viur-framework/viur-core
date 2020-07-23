@@ -66,8 +66,8 @@
     <input
         name="{{ boneName }}"
         type="{{ "email" if boneParams.type == "str.email" else "text" }}"
-        title="{{ _(boneParams.tooltip or boneParams.descr or boneName) }}"
-        placeholder="{{ _(boneParams.tooltip or boneParams.descr or boneName) }}"
+        title="{{ boneParams.tooltip or boneParams.descr or boneName }}"
+        placeholder="{{ boneParams.tooltip or boneParams.descr or boneName }}"
         class="input ignt-input ignt-input--string ignt-input--{{ boneName }}
             {{ "is-required" if boneParams.required }}
 			{{ "is-readonly" if boneParams.readOnly }}
