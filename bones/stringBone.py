@@ -82,10 +82,13 @@ class stringBone(baseBone):
 			return ""
 
 	def singleValueFromClient(self, value, skel, name, origData):
+		val = utils.escapeString(value)
+		if not val:  # Check for empty first (as most vfunc will throw an error on an empty string)
+			return "", [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "Field not set")]
 		err = self.isInvalid(value)
-		if not err:
-			return utils.escapeString(value), None
-		return self.getDefaultValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+		if err:
+			return self.getDefaultValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+		return val, None
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		if not name in rawFilter and not any(

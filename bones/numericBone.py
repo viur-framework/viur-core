@@ -55,11 +55,12 @@ class numericBone(baseBone):
 				value = int(rawValue)
 			else:
 				return self.getDefaultValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid Value")]
+		if not value:
+			return value, [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "Field not set")]
 		err = self.isInvalid(value)
 		if err:
 			return self.getDefaultValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
 		return value, None
-
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		updatedFilter = {}
