@@ -160,6 +160,8 @@ class dateBone(baseBone):
 				value = False  # its invalid
 		if value is False:
 			return None, [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
+		if self.date and self.time:
+			value = self.readLocalized(value)
 		err = self.isInvalid(value)
 		if err:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
@@ -210,8 +212,8 @@ class dateBone(baseBone):
 		"""Read a (probably localized Value) from the Client and convert it back to UTC"""
 		res = value
 		if not self.localize or not value or not isinstance(value, datetime):
-			return (res)
-		# Nomalize the Date to UTC
+			return res
+		# Normalize the Date to UTC
 		timeZone = self.guessTimeZone()
 		if timeZone != "UTC" and pytz:
 			utc = pytz.utc
@@ -227,16 +229,18 @@ class dateBone(baseBone):
 			res = res.replace(year=value.year, month=value.month, day=value.day, hour=value.hour, minute=value.minute,
 							  second=value.second)  # Reset the original values
 			res = utc.normalize(res.astimezone(utc))
-		return (res)
+		return res
 
 	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
 		if value:
-			value = self.readLocalized(datetime.now().strptime(value.strftime("%d.%m.%Y %H:%M:%S"), "%d.%m.%Y %H:%M:%S"))
-				# Crop unwanted values to zero
+			# Crop unwanted values to zero
 			if not self.time:
 				value = value.replace(hour=0, minute=0, second=0, microsecond=0)
 			elif not self.date:
 				value = value.replace(year=1970, month=1, day=1)
+			elif self.date and self.time:
+				# This usually happens due to datetime.now(). Use utils.utcNow() instead
+				assert value.tzinfo, "Encountered a native Datetime object - refusing to save."
 		return value
 
 	def singleValueUnserialize(self, value, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
