@@ -5,7 +5,7 @@
 			{{ "is-invalid" if boneWasInvalid else "is-valid" }}"
 		name="{{ boneName }}"
 		type="color"
-		title="{{ _(boneParams.tooltip or boneParams.descr or boneName) }}"
+		title="{{ boneParams.tooltip or boneParams.descr or boneName }}"
 		id="ignt-id-{{ boneName }}"
 		value="{{ boneValue|default("", true) }}"
 		{{ "readonly" if boneParams.readOnly }}
