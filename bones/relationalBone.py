@@ -829,7 +829,7 @@ class relationalBone(baseBone):
 			realValue = value
 		elif self.multiple and not self.using:
 			if not (isinstance(value, str) or isinstance(value, db.KeyClass)) and not (isinstance(value, list)) \
-				and all([isinstance(x, str) or isinstance(x, db.Key) for x in value]):
+				and all([isinstance(x, str) or isinstance(x, db.KeyClass) for x in value]):
 				raise ValueError("You must supply a Database-Key or a list hereof to %s" % boneName)
 			if isinstance(value, list):
 				realValue = [(x, None) for x in value]
@@ -841,7 +841,7 @@ class relationalBone(baseBone):
 					and isinstance(value[1], self._skeletonInstanceClassRef)) and not (isinstance(value, list) and
 																   all((isinstance(x, tuple) and len(x) == 2 and \
 																		(isinstance(x[0], str) or isinstance(
-																			x[0], db.Key)) and isinstance(x[1], self._skeletonInstanceClassRef) for x in value))):
+																			x[0], db.KeyClass)) and isinstance(x[1], self._skeletonInstanceClassRef) for x in value))):
 				raise ValueError("You must supply (db.Key, RelSkel) or a list hereof to %s" % boneName)
 			if not isinstance(value, list):
 				realValue = [value]
