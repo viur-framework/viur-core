@@ -19,35 +19,9 @@ datetime.now().strptime("2010%02d%02d" % (1, 1), "%Y%m%d")
 datetime.now().strftime("%Y%m%d")
 
 
-class ExtendedDateTime(datetime):
-	def totimestamp(self):
-		"""Converts this DateTime-Object back into Unixtime"""
-		return (int(round(mktime(self.timetuple()))))
-
-	def strftime(self, format):
-		"""
-		Provides correct localized names for directives like %a which dont get translated on GAE properly
-		This currently replaces %a, %A, %b, %B, %c, %x and %X.
-
-		:param format: String containing the Format to apply.
-		:type format: str
-		:returns: str
-		"""
-		if "%c" in format:
-			format = format.replace("%c", translate("const_datetimeformat"))
-		if "%x" in format:
-			format = format.replace("%x", translate("const_dateformat"))
-		if "%X" in format:
-			format = format.replace("%X", translate("const_timeformat"))
-		if "%a" in format:
-			format = format.replace("%a", translate("const_day_%s_short" % int(super(ExtendedDateTime, self).strftime("%w"))))
-		if "%A" in format:
-			format = format.replace("%A", translate("const_day_%s_long" % int(super(ExtendedDateTime, self).strftime("%w"))))
-		if "%b" in format:
-			format = format.replace("%b", translate("const_month_%s_short" % int(super(ExtendedDateTime, self).strftime("%m"))))
-		if "%B" in format:
-			format = format.replace("%B", translate("const_month_%s_long" % int(super(ExtendedDateTime, self).strftime("%m"))))
-		return super(ExtendedDateTime, self).strftime(format)
+def datetimeToTimestampp(datetimeObj: datetime) -> int:
+	"""Converts this DateTime-Object back into Unixtime"""
+	return int(round(mktime(datetimeObj.timetuple())))
 
 
 class dateBone(baseBone):
@@ -109,7 +83,7 @@ class dateBone(baseBone):
 			if int(rawValue) < -1 * (2 ** 30) or int(rawValue) > (2 ** 31) - 2:
 				value = False  # its invalid
 			else:
-				value = ExtendedDateTime.fromtimestamp(float(rawValue))
+				value = datetime.fromtimestamp(float(rawValue))
 		elif not self.date and self.time:
 			try:
 				if str(rawValue).count(":") > 1:
@@ -125,7 +99,7 @@ class dateBone(baseBone):
 			except:
 				value = False
 		elif str(rawValue).lower().startswith("now"):
-			tmpRes = ExtendedDateTime.now()
+			tmpRes = utcNow().astimezone(self.guessTimeZone())
 			if len(str(rawValue)) > 4:
 				try:
 					tmpRes += timedelta(seconds=int(str(rawValue)[3:]))
@@ -134,34 +108,33 @@ class dateBone(baseBone):
 			value = tmpRes
 		else:
 			try:
+				timeZone = self.guessTimeZone()
 				if " " in rawValue:  # Date with time
 					try:  # Times with seconds
 						if "-" in rawValue:  # ISO Date
-							value = ExtendedDateTime.strptime(str(rawValue), "%Y-%m-%d %H:%M:%S")
+							value = datetime(*(time.strptime(str(rawValue), "%Y-%m-%d %H:%M:%S")[0:6]), tzinfo=timeZone)
 						elif "/" in rawValue:  # Ami Date
-							value = ExtendedDateTime.strptime(str(rawValue), "%m/%d/%Y %H:%M:%S")
+							value = datetime(*(time.strptime(str(rawValue), "%m/%d/%Y %H:%M:%S")[0:6]), tzinfo=timeZone)
 						else:  # European Date
-							value = ExtendedDateTime.strptime(str(rawValue), "%d.%m.%Y %H:%M:%S")
+							value = datetime(*(time.strptime(str(rawValue), "%d.%m.%Y %H:%M:%S")[0:6]), tzinfo=timeZone)
 					except:
 						if "-" in rawValue:  # ISO Date
-							value = ExtendedDateTime.strptime(str(rawValue), "%Y-%m-%d %H:%M")
+							value = datetime(*(time.strptime(str(rawValue), "%Y-%m-%d %H:%M")[0:6]), tzinfo=timeZone)
 						elif "/" in rawValue:  # Ami Date
-							value = ExtendedDateTime.strptime(str(rawValue), "%m/%d/%Y %H:%M")
+							value = datetime(*(time.strptime(str(rawValue), "%m/%d/%Y %H:%M")[0:6]), tzinfo=timeZone)
 						else:  # European Date
-							value = ExtendedDateTime.strptime(str(rawValue), "%d.%m.%Y %H:%M")
+							value = datetime(*(time.strptime(str(rawValue), "%d.%m.%Y %H:%M")[0:6]), tzinfo=timeZone)
 				else:
 					if "-" in rawValue:  # ISO (Date only)
-						value = ExtendedDateTime.strptime(str(rawValue), "%Y-%m-%d")
+						value = datetime(*(time.strptime(str(rawValue), "%Y-%m-%d")[0:6]), tzinfo=timeZone)
 					elif "/" in rawValue:  # Ami (Date only)
-						value = ExtendedDateTime.strptime(str(rawValue), "%m/%d/%Y")
+						value = datetime(*(time.strptime(str(rawValue), "%m/%d/%Y")[0:6]), tzinfo=timeZone)
 					else:  # European (Date only)
-						value = ExtendedDateTime.strptime(str(rawValue), "%d.%m.%Y")
+						value = datetime(*(time.strptime(str(rawValue), "%d.%m.%Y")[0:6]), tzinfo=timeZone)
 			except:
 				value = False  # its invalid
 		if value is False:
 			return None, [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
-		if self.date and self.time:
-			value = self.readLocalized(value)
 		err = self.isInvalid(value)
 		if err:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
@@ -182,7 +155,7 @@ class dateBone(baseBone):
 		Guess the timezone the user is supposed to be in.
 		If it cant be guessed, a safe default (UTC) is used
 		"""
-		timeZone = "UTC"  # Default fallback
+		timeZone = pytz.utc  # Default fallback
 		currReqData = currentRequestData.get()
 		try:
 			# Check the local cache first
@@ -197,39 +170,17 @@ class dateBone(baseBone):
 		except:  # Non-User generated request (deferred call; task queue etc), or no pytz
 			return timeZone
 		if len(tzList) == 1:  # Fine - the country has exactly one timezone
-			timeZone = tzList[0]
+			timeZone = pytz.timezone(tzList[0])
 		elif country.lower() == "us":  # Fallback for the US
-			timeZone = "EST"
+			timeZone = pytz.timezone("EST")
 		elif country.lower() == "de":  # For some freaking reason Germany is listed with two timezones
-			timeZone = "Europe/Berlin"
+			timeZone = pytz.timezone("Europe/Berlin")
+		elif country.lower() == "au":
+			timeZone = pytz.timezone("Australia/Canberra")  # Equivalent to NSW/Sydney :)
 		else:  # The user is in a Country which has more than one timezone
-			# Fixme: Is there any equivalent of EST for australia?
 			pass
-			currReqData["timeZone"] = timeZone  # Cache the result
+		currReqData["timeZone"] = timeZone  # Cache the result
 		return timeZone
-
-	def readLocalized(self, value):
-		"""Read a (probably localized Value) from the Client and convert it back to UTC"""
-		res = value
-		if not self.localize or not value or not isinstance(value, datetime):
-			return res
-		# Normalize the Date to UTC
-		timeZone = self.guessTimeZone()
-		if timeZone != "UTC" and pytz:
-			utc = pytz.utc
-			tz = pytz.timezone(timeZone)
-			# FIXME: This is ugly as hell.
-			# Parsing a Date which is inside DST of the given tz dosnt change the tz-info,
-			# and normalizing the whole thing changes the other values, too
-			# So we parse the whole thing, normalize it (=>get the correct DST-Settings), then replacing the parameters again
-			# and pray that the DST-Settings are still valid..
-			res = ExtendedDateTime(value.year, value.month, value.day, value.hour, value.minute, value.second,
-								   tzinfo=tz)
-			res = tz.normalize(res)  # Figure out if its in DST or not
-			res = res.replace(year=value.year, month=value.month, day=value.day, hour=value.hour, minute=value.minute,
-							  second=value.second)  # Reset the original values
-			res = utc.normalize(res.astimezone(utc))
-		return res
 
 	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
 		if value:
@@ -240,36 +191,15 @@ class dateBone(baseBone):
 				value = value.replace(year=1970, month=1, day=1)
 			elif self.date and self.time:
 				# This usually happens due to datetime.now(). Use utils.utcNow() instead
-				assert value.tzinfo, "Encountered a native Datetime object - refusing to save."
+				assert value.tzinfo, "Encountered a native Datetime object in %s - refusing to save." % name
 		return value
 
 	def singleValueUnserialize(self, value, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
-		if value and (isinstance(value, float) or isinstance(value, int)):
-			if self.date:
-				return self.setLocalized(skel, name, ExtendedDateTime.fromtimestamp(value))
-			else:
-				# FIXME! Seconds?
-				return time(hour=int(value / 60), minute=int(value % 60))
-		elif isinstance(value, datetime):
-			return self.setLocalized(skel, name,
-							  ExtendedDateTime.now().strptime(value.strftime("%d.%m.%Y %H:%M:%S"),
-															  "%d.%m.%Y %H:%M:%S"))
+		if isinstance(value, datetime):
+			return value.astimezone(self.guessTimeZone())
 		else:
-			# We got garbarge from the datastore
+			# We got garbage from the datastore
 			return None
-
-	def setLocalized(self, skeletonValues, name, value):
-		""" Converts a Date read from DB (UTC) to the requesters local time"""
-		if not self.localize or not value or not isinstance(value, ExtendedDateTime):
-			return value
-		timeZone = self.guessTimeZone()
-		if timeZone != "UTC" and pytz:
-			utc = pytz.utc
-			tz = pytz.timezone(timeZone)
-			value = tz.normalize(value.replace(tzinfo=utc).astimezone(tz))
-			value = ExtendedDateTime(value.year, value.month, value.day,
-									 value.hour, value.minute, value.second)
-		return value
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		for key in [x for x in rawFilter.keys() if x.startswith(name)]:
@@ -278,7 +208,7 @@ class dateBone(baseBone):
 				super(dateBone, self).buildDBFilter(name, skel, dbFilter, {
 					key: datetime.now().strptime(resDict[key].strftime("%d.%m.%Y %H:%M:%S"), "%d.%m.%Y %H:%M:%S")},
 													prefix=prefix)
-		return (dbFilter)
+		return dbFilter
 
 	def performMagic(self, valuesCache, name, isAdd):
 		if (self.creationMagic and isAdd) or self.updateMagic:
