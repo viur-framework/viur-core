@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+import logging
 from collections import OrderedDict
 from viur.core import errors, bones, utils
 from viur.core.skeleton import RefSkel, skeletonByKind, BaseSkeleton, SkeletonInstance
@@ -193,6 +194,7 @@ class DefaultRender(object):
 		elif isinstance(skel, SkeletonInstance):
 			vals = self.renderSkelValues(skel)
 			struct = self.renderSkelStructure(skel)
+			logging.debug("skelErrors: %r", skel.errors)
 			errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage, "invalidatedFields": x.invalidatedFields} for x in skel.errors]
 		else:  # Hopefully we can pass it directly...
 			vals = skel

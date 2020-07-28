@@ -428,7 +428,20 @@ class relationalBone(baseBone):
 			destKey = value
 			usingData = None
 		if not destKey:  # Allow setting this bone back to empty
-			return None, [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value submitted")]
+			return None, [
+				ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value submitted"),
+				ReadFromClientError(
+					ReadFromClientErrorSeverity.InvalidatesOther,
+					name,
+					"No value submitted",
+					[
+						"numericBone_11",
+						"numericBone_12",
+						"numericBone_13",
+						"numericBone_14",
+					]
+				),
+			]
 		assert isinstance(destKey, str)
 		refSkel, usingSkel, errors = restoreSkels(destKey, usingData)
 		if refSkel:
