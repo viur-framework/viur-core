@@ -19,7 +19,7 @@ datetime.now().strptime("2010%02d%02d" % (1, 1), "%Y%m%d")
 datetime.now().strftime("%Y%m%d")
 
 
-def datetimeToTimestampp(datetimeObj: datetime) -> int:
+def datetimeToTimestamp(datetimeObj: datetime) -> int:
 	"""Converts this DateTime-Object back into Unixtime"""
 	return int(round(mktime(datetimeObj.timetuple())))
 
