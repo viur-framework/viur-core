@@ -37,6 +37,7 @@ class ReadFromClientError:
 	severity: ReadFromClientErrorSeverity
 	fieldPath: str
 	errorMessage: str
+	invalidatedFields: List[str] = None  # must be last property since python enforces default args after properties without default args
 
 
 class UniqueLockMethod(Enum):
