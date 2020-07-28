@@ -83,6 +83,8 @@ class dateBone(baseBone):
 			raise ValueError("Attempt to create an empty datebone! Set date or time to True!")
 		if localize and not (date and time):
 			raise ValueError("Localization is only possible with date and time!")
+		if self.multiple and (creationMagic or updateMagic):
+			raise ValueError("Cannot be multiple and have a creation/update-magic set!")
 		self.date = date
 		self.time = time
 		self.localize = localize
