@@ -802,7 +802,6 @@ class relationalBone(baseBone):
 			:return: Wherever that operation succeeded or not.
 			:rtype: bool
 		"""
-		from viur.core.skeleton import RefSkel, skeletonByKind
 		def relSkelFromKey(key):
 			key = db.keyHelper(key, self.kind)
 			entity = db.Get(key)
@@ -811,6 +810,10 @@ class relationalBone(baseBone):
 				return None
 			relSkel = self._refSkelCache()
 			relSkel.unserialize(entity)
+			for k in relSkel.keys():
+				# Unserialize all bones from refKeys, then drop dbEntity - otherwise all properties will be copied
+				_ = relSkel[k]
+			relSkel.dbEntity = None
 			return relSkel
 
 		if append and not self.multiple:
