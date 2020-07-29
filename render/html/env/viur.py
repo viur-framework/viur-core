@@ -1,18 +1,14 @@
 # -*- coding: utf-8 -*-
-from viur.core import utils, request, conf, prototypes, securitykey, errors, db
-from viur.core.skeleton import SkeletonInstance, RelSkel
-from viur.core.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
+import string, logging, os, json
 import urllib, urllib.parse
 from hashlib import sha512
-#from google.appengine.ext import db
-#from google.appengine.api import memcache, users
 from datetime import timedelta
 from collections import OrderedDict
-import string
-import logging
-import os
-from typing import List
-from viur.core.utils import currentSession, currentRequest, currentLanguage
+from viur.core.utils import currentRequest, currentLanguage
+
+from viur.core import utils, conf, prototypes, securitykey, errors, db
+from viur.core.skeleton import SkeletonInstance, RelSkel
+from viur.core.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
 
 
 @jinjaGlobalFunction
@@ -585,10 +581,56 @@ def renderEditForm(render, skel, ignore=None, hide=None):
 
 @jinjaGlobalFunction
 def embedSvg(self, name):
+	"""
+	This function is used to embed SVG images directly into the rendered HTML-code.
+
+	The SVG-images are normally generated into a JSON-file located somewhere in the /static folder,
+	where both server and client can fetch the same icon set from one specific place. The default
+	is /static/icons.json, this can be changed or extended to other files using the configuration
+	variable `conf["viur.render.html.embedsvg.path"]`.
+
+	As a fallback, this function will also look into the /html/embedsvg folder for an SVG-file
+	with the particular name. This fallback behavior was standard in ViUR2, the file-based approach
+	described above is standard in ViUR3 now.
+	"""
+	if conf["viur.render.html.embedsvg.pool"] is None:
+		conf["viur.render.html.embedsvg.pool"] = {}
+
+		logging.debug("Embedsvg image pool is empty, loading from configured pathes...")
+
+		for path in conf["viur.render.html.embedsvg.path"]:
+			logging.debug("embedsvg reading path %r", path)
+
+			content = None
+			try:
+				with open(os.path.join(os.getcwd(), *path.split("/")), "rb") as f:
+					content = f.read().decode("UTF-8")
+			except Exception as e:
+				logging.exception(e)
+
+			if not content:
+				continue
+
+			try:
+				content = json.loads(content)
+				conf["viur.render.html.embedsvg.pool"].update(content)
+
+				logging.info("%d images added successfully to svg pool", len(content))
+			except:
+				logging.error("Content of file %r doesn't look like JSON", path)
+
+	svg = conf["viur.render.html.embedsvg.pool"].get(name)
+	if svg:
+		return svg
+
+	# This is the fallback case from ViUR2...
 	if any([x in name for x in ["..", "~", "/"]]):
-		return u""
+		return ""
 	try:
-		return open(os.path.join(os.getcwd(), "html", "embedsvg", name + ".svg"), "rb").read().decode("UTF-8")
+		content = open(os.path.join(os.getcwd(), "html", "embedsvg", name + ".svg"), "rb").read().decode("UTF-8")
+		conf["viur.render.html.embedsvg.pool"][name] = content
+		return content
+
 	except Exception as e:
 		logging.exception(e)
 		return ""

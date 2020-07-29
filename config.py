@@ -99,6 +99,12 @@ conf = {
 	# Allows the application to register a function that's called before the request gets routed
 	"viur.requestPreprocessor": None,
 
+	# Pathes to icon pool files (JSON-files) used to fill the icon pool
+	"viur.render.html.embedsvg.path": ["/static/icons.json"],
+
+	# This is the embedSvg icon pool
+	"viur.render.html.embedsvg.pool": None,
+
 	# Characters valid for the internal search functionality (all other chars are ignored)
 	"viur.searchValidChars": "abcdefghijklmnopqrstuvwxyz0123456789",
 
