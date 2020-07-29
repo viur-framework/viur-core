@@ -193,7 +193,7 @@ class DefaultRender(object):
 		elif isinstance(skel, SkeletonInstance):
 			vals = self.renderSkelValues(skel)
 			struct = self.renderSkelStructure(skel)
-			errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage} for x in skel.errors]
+			errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage, "invalidatedFields": x.invalidatedFields} for x in skel.errors]
 		else:  # Hopefully we can pass it directly...
 			vals = skel
 			struct = None
