@@ -77,7 +77,7 @@ def mapModule(moduleObj: object, moduleName: str, targetResoveRender: dict):
 	moduleFunctions = {}
 	for key in [x for x in dir(moduleObj) if x[0] != "_"]:
 		prop = getattr(moduleObj, key)
-		if prop == "canAccess" or getattr(prop, "exposed", None):
+		if key == "canAccess" or getattr(prop, "exposed", None):
 			moduleFunctions[key] = prop
 	for lang in conf["viur.availableLanguages"] or [conf["viur.defaultLanguage"]]:
 		# Map the module under each translation
