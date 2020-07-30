@@ -5,6 +5,7 @@ from viur.core import utils
 import logging
 from typing import Union, Tuple, List, Dict, Any, Callable
 from functools import partial
+from itertools import zip_longest
 from copy import deepcopy
 from google.cloud import datastore, exceptions
 from enum import Enum
@@ -222,6 +223,7 @@ class Query(object):
 		self._lastEntry = None
 		self._fulltextQueryString: Union[None, str] = None
 		self.lastCursor = None
+		self._distinct = None
 
 	def setFilterHook(self, hook):
 		"""
@@ -499,6 +501,14 @@ class Query(object):
 		self.amount = amount
 		return self
 
+	def distinctOn(self, keyList: List[str]) -> self:
+		"""
+			Ensure only entities with distinct values on the fields listed are returned.
+			This will implicitly override your SortOrder as all fields listed in keyList have to be sorted first.
+		"""
+		self._distinct = keyList
+		return self
+
 	def isKeysOnly(self):
 		"""
 			Returns True if this query is configured as *keys only*, False otherwise.
@@ -605,7 +615,37 @@ class Query(object):
 		for k, v in filters.items():
 			key, op = k.split(" ")
 			qry.add_filter(key, op, v)
-		qry.order = [x[0] if x[1] == SortOrder.Ascending else "-" + x[0] for x in self.orders]
+		if self._distinct:
+			# Distinct is kinda tricky as all Fieldpaths listed in self._distinct have to be also the first sort orders.
+			# We try to keep the requested order intact if possible, otherwise we'll merge / append it to the end
+			qry.distinct_on = self._distinct
+			newSortOrder = []
+			postPonedOrders = {}
+			for distinctKey, sortTuple in zip_longest(self._distinct, self.orders):
+				if distinctKey and sortTuple:
+					(orderProp, orderDir) = sortTuple
+					if distinctKey == orderProp:
+						newSortOrder.append(sortTuple)
+					elif distinctKey in postPonedOrders:
+						newSortOrder.append((distinctKey, postPonedOrders[distinctKey]))
+						del postPonedOrders[distinctKey]
+					else:
+						newSortOrder.append((distinctKey, SortOrder.Ascending))
+						postPonedOrders[orderProp] = orderDir
+				elif distinctKey:
+					newSortOrder.append((distinctKey, SortOrder.Ascending))
+				elif sortTuple:
+					for k, v in postPonedOrders.items():
+						newSortOrder.append((k, v))
+					postPonedOrders = {}
+					newSortOrder.append(sortTuple)
+			for k, v in postPonedOrders.items():
+				newSortOrder.append((k, v))
+			if newSortOrder != self.orders:
+				logging.warning("Sortorder fixed to %s due to distinct filtering!" % newSortOrder)
+			qry.order = [x[0] if x[1] == SortOrder.Ascending else "-" + x[0] for x in newSortOrder]
+		else:
+			qry.order = [x[0] if x[1] == SortOrder.Ascending else "-" + x[0] for x in self.orders]
 		qryRes = qry.fetch(limit=amount, start_cursor=self._startCursor, end_cursor=self._endCursor)
 		res = next(qryRes.pages)
 		self.lastCursor = qryRes.next_page_token
@@ -754,10 +794,11 @@ class Query(object):
 		if conf["viur.debug.traceQueries"]:
 			orders = self.orders
 			filters = self.filters
+			distinctOn = " distinct on %s" % str(self._distinct) if self._distinct else ""
 			if self.kind != self.origKind:
-				logging.debug("Queried %s via %s with filter %s and orders %s. Returned %s results" % (self.origKind, self.kind, filters, orders, len(res)))
+				logging.debug("Queried %s via %s with filter %s and orders %s%s. Returned %s results" % (self.origKind, self.kind, filters, orders, distinctOn, len(res)))
 			else:
-				logging.debug("Queried %s with filter %s and orders %s. Returned %s results" % (self.kind, filters, orders, len(res)))
+				logging.debug("Queried %s with filter %s and orders %s%s. Returned %s results" % (self.kind, filters, orders, distinctOn, len(res)))
 		if res:
 			self._lastEntry = res[-1]
 		return res
@@ -887,6 +928,7 @@ class Query(object):
 		res.customQueryInfo = self.customQueryInfo
 		res.origKind = self.origKind
 		res._fulltextQueryString = self._fulltextQueryString
+		res._distinct = self._distinct
 		return res
 
 	def __repr__(self):
