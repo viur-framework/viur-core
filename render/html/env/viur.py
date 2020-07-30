@@ -586,7 +586,7 @@ def embedSvg(self, name):
 
 	The SVG-images are normally generated into a JSON-file located somewhere in the /static folder,
 	where both server and client can fetch the same icon set from one specific place. The default
-	is /static/icons.json, this can be changed or extended to other files using the configuration
+	is /static/embedsvg.json, this can be changed or extended to other files using the configuration
 	variable `conf["viur.render.html.embedsvg.path"]`.
 
 	As a fallback, this function will also look into the /html/embedsvg folder for an SVG-file
