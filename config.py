@@ -100,7 +100,7 @@ conf = {
 	"viur.requestPreprocessor": None,
 
 	# Pathes to icon pool files (JSON-files) used to fill the icon pool
-	"viur.render.html.embedsvg.path": ["/static/icons.json"],
+	"viur.render.html.embedsvg.path": ["/static/embedsvg.json"],
 
 	# This is the embedSvg icon pool
 	"viur.render.html.embedsvg.pool": None,
