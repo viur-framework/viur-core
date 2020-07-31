@@ -16,7 +16,7 @@
    I N F O R M A T I O N    S Y S T E M
 
  ViUR SERVER
- Copyright 2012-2019 by Mausbrand Informationssysteme GmbH
+ Copyright 2012-2020 by Mausbrand Informationssysteme GmbH
 
  ViUR is a free software development framework for the Google App Engine™.
  More about ViUR can be found at https://www.viur.is/.
@@ -34,6 +34,7 @@ from viur.core import request
 from viur.core import languages as servertrans
 from viur.core.i18n import initializeTranslations
 from viur.core import logging as viurLogging  # Initialize request logging
+from viur.core.embedsvg import initializeEmbedSvgPool
 from viur.core.utils import currentRequest, currentSession, currentLanguage, currentRequestData
 from viur.core.session import GaeSession
 import logging
@@ -278,6 +279,8 @@ def setup(modules, render=None, default="html"):
 					uri.lower().startswith("https://") or uri.lower().startswith("http://"))
 	runStartupTasks()  # Add a deferred call to run all queued startup tasks
 	initializeTranslations()
+	initializeEmbedSvgPool()
+
 	assert conf["viur.file.hmacKey"], "You must set a secret and unique Application-Key to viur.file.hmacKey"
 	return app
 

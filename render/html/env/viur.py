@@ -593,32 +593,8 @@ def embedSvg(self, name):
 	with the particular name. This fallback behavior was standard in ViUR2, the file-based approach
 	described above is standard in ViUR3 now.
 	"""
-	if conf["viur.render.html.embedsvg.pool"] is None:
-		conf["viur.render.html.embedsvg.pool"] = {}
 
-		logging.debug("Embedsvg image pool is empty, loading from configured pathes...")
-
-		for path in conf["viur.render.html.embedsvg.path"]:
-			logging.debug("embedsvg reading path %r", path)
-
-			content = None
-			try:
-				with open(os.path.join(os.getcwd(), *path.split("/")), "rb") as f:
-					content = f.read().decode("UTF-8")
-			except Exception as e:
-				logging.exception(e)
-
-			if not content:
-				continue
-
-			try:
-				content = json.loads(content)
-				conf["viur.render.html.embedsvg.pool"].update(content)
-
-				logging.info("%d images added successfully to svg pool", len(content))
-			except:
-				logging.error("Content of file %r doesn't look like JSON", path)
-
+	# Check for image name in svg pool first...
 	svg = conf["viur.render.html.embedsvg.pool"].get(name)
 	if svg:
 		return svg
