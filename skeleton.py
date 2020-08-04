@@ -139,7 +139,12 @@ class SkeletonInstance:
 				if self.dbEntity is not None:
 					boneInstance.unserialize(self, key)
 				else:
-					self.accessedValues[key] = boneInstance.getDefaultValue()
+					defaultValue = boneInstance.getDefaultValue()
+					if defaultValue:
+						self.skeletonCls.setBoneValue(self, key, defaultValue)
+					else:
+						self.accessedValues[key] = defaultValue
+
 		if not self.renderPreparation:
 			return self.accessedValues.get(key)
 		value = self.renderPreparation(getattr(self, key), self, key, self.accessedValues.get(key))
@@ -267,7 +272,8 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		bone = getattr(skelValues, boneName, None)
 		if not isinstance(bone, baseBone):
 			raise ValueError("%s is no valid bone on this skeleton (%s)" % (boneName, str(skelValues)))
-		skelValues[boneName]  # FIXME, ensure this bone is unserialized first
+		# This line is senseless and raises an error on this PR
+		#skelValues[boneName]  # FIXME, ensure this bone is unserialized first
 		return bone.setBoneValue(skelValues, boneName, value, append)
 
 	@classmethod
