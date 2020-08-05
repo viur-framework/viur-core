@@ -358,7 +358,7 @@ class GoogleAccount(object):
 			#else:
 			#	userSkel["gaeadmin"] = False
 			assert userSkel.toDB()
-		return self.userModule.continueAuthenticationFlow(self, (userSkel.kindName, userSkel["key"]))
+		return self.userModule.continueAuthenticationFlow(self, userSkel["key"])
 
 
 class TimeBasedOTP(object):
