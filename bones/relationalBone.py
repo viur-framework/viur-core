@@ -784,6 +784,23 @@ class relationalBone(baseBone):
 
 		return res
 
+	def createRelSkelFromKey(self, key: Union[str, db.KeyClass]):
+		"""
+			Creates a relSkel instance valid for this bone from the given database key.
+		"""
+		key = db.keyHelper(key, self.kind)
+		entity = db.Get(key)
+		if not entity:
+			logging.error("Key %s not found" % str(key))
+			return None
+		relSkel = self._refSkelCache()
+		relSkel.unserialize(entity)
+		for k in relSkel.keys():
+			# Unserialize all bones from refKeys, then drop dbEntity - otherwise all properties will be copied
+			_ = relSkel[k]
+		relSkel.dbEntity = None
+		return relSkel
+
 	def setBoneValue(self, skel, boneName, value, append, *args, **kwargs):
 		"""
 			Set our value to 'value'.
@@ -802,20 +819,6 @@ class relationalBone(baseBone):
 			:return: Wherever that operation succeeded or not.
 			:rtype: bool
 		"""
-		def relSkelFromKey(key):
-			key = db.keyHelper(key, self.kind)
-			entity = db.Get(key)
-			if not entity:
-				logging.error("Key %s not found" % str(key))
-				return None
-			relSkel = self._refSkelCache()
-			relSkel.unserialize(entity)
-			for k in relSkel.keys():
-				# Unserialize all bones from refKeys, then drop dbEntity - otherwise all properties will be copied
-				_ = relSkel[k]
-			relSkel.dbEntity = None
-			return relSkel
-
 		if append and not self.multiple:
 			raise ValueError("Bone %s is not multiple, cannot append!" % boneName)
 		if not self.multiple and not self.using:
@@ -851,14 +854,14 @@ class relationalBone(baseBone):
 			else:
 				realValue = value
 		if not self.multiple:
-			relSkel = relSkelFromKey(realValue[0])
+			relSkel = self.createRelSkelFromKey(realValue[0])
 			if not relSkel:
 				return False
 			skel[boneName] = {"dest": relSkel, "rel": realValue[1] if realValue[1] else None}
 		else:
 			tmpRes = []
 			for val in realValue:
-				relSkel = relSkelFromKey(val[0])
+				relSkel = self.createRelSkelFromKey(val[0])
 				if not relSkel:
 					return False
 				tmpRes.append({"dest": relSkel, "rel": val[1] if val[1] else None})
