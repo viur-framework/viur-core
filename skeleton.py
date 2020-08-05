@@ -139,7 +139,7 @@ class SkeletonInstance:
 				if self.dbEntity is not None:
 					boneInstance.unserialize(self, key)
 				else:
-					self.accessedValues[key] = boneInstance.getDefaultValue()
+					self.accessedValues[key] = boneInstance.getDefaultValue(self)
 		if not self.renderPreparation:
 			return self.accessedValues.get(key)
 		value = self.renderPreparation(getattr(self, key), self, key, self.accessedValues.get(key))

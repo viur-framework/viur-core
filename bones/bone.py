@@ -119,9 +119,9 @@ class baseBone(object):  # One Bone:
 		"""
 		pass
 
-	def getDefaultValue(self):
+	def getDefaultValue(self, skeletonInstance):
 		if callable(self.defaultValue):
-			return self.defaultValue()
+			return self.defaultValue(skeletonInstance, self)
 		elif isinstance(self.defaultValue, list):
 			return self.defaultValue[:]
 		elif isinstance(self.defaultValue, dict):
