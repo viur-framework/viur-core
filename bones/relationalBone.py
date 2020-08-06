@@ -784,7 +784,7 @@ class relationalBone(baseBone):
 
 		return res
 
-	def createRelSkelFromKey(self, key: Union[str, db.KeyClass]):
+	def createRelSkelFromKey(self, key: Union[str, db.KeyClass], rel: Union[dict, None] = None):
 		"""
 			Creates a relSkel instance valid for this bone from the given database key.
 		"""
@@ -799,7 +799,10 @@ class relationalBone(baseBone):
 			# Unserialize all bones from refKeys, then drop dbEntity - otherwise all properties will be copied
 			_ = relSkel[k]
 		relSkel.dbEntity = None
-		return relSkel
+		return {
+			"dest": relSkel,
+			"rel": rel or None
+		}
 
 	def setBoneValue(self, skel, boneName, value, append, *args, **kwargs):
 		"""
@@ -854,17 +857,17 @@ class relationalBone(baseBone):
 			else:
 				realValue = value
 		if not self.multiple:
-			relSkel = self.createRelSkelFromKey(realValue[0])
-			if not relSkel:
+			rel = self.createRelSkelFromKey(realValue[0], realValue[1])
+			if not rel:
 				return False
-			skel[boneName] = {"dest": relSkel, "rel": realValue[1] if realValue[1] else None}
+			skel[boneName] = rel
 		else:
 			tmpRes = []
 			for val in realValue:
-				relSkel = self.createRelSkelFromKey(val[0])
-				if not relSkel:
+				rel = self.createRelSkelFromKey(val[0], val[1])
+				if not rel:
 					return False
-				tmpRes.append({"dest": relSkel, "rel": val[1] if val[1] else None})
+				tmpRes.append(rel)
 			if append:
 				if boneName not in skel or not isinstance(skel[boneName], list):
 					skel[boneName] = []
