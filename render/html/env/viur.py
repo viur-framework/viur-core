@@ -1,18 +1,20 @@
 # -*- coding: utf-8 -*-
-from viur.core import utils, request, conf, prototypes, securitykey, errors, db
-from viur.core.skeleton import SkeletonInstance, RelSkel
-from viur.core.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
-import urllib, urllib.parse
-from hashlib import sha512
-#from google.appengine.ext import db
-#from google.appengine.api import memcache, users
-from datetime import timedelta
-from collections import OrderedDict
-import string
 import logging
 import os
-from typing import List
-from viur.core.utils import currentSession, currentRequest, currentLanguage
+import string
+import urllib
+import urllib.parse
+from collections import OrderedDict
+# from google.appengine.ext import db
+# from google.appengine.api import memcache, users
+from datetime import timedelta
+from hashlib import sha512
+from typing import Dict, List, Union
+
+from viur.core import conf, db, errors, prototypes, securitykey, utils
+from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
+from viur.core.skeleton import RelSkel, SkeletonInstance
+from viur.core.utils import currentLanguage, currentRequest
 
 
 @jinjaGlobalFunction
@@ -584,14 +586,32 @@ def renderEditForm(render, skel, ignore=None, hide=None):
 
 
 @jinjaGlobalFunction
-def embedSvg(self, name):
+def embedSvg(render, name: str, classes: Union[List[str], None] = None, **kwargs: Dict[str, str]) -> str:
+	"""
+	jinja2 function to get an <img/>-tag for a SVG.
+	This method will not check the existence of a SVG!
+
+	:param render: The jinja renderer instance
+	:param name: Name of the icon (basename of file)
+	:param classes: A list of css-classes for the <img/>-tag
+	:param kwargs: Further html-attributes for this tag (e.g. "alt" or "title")
+	:return: A <img/>-tag
+	"""
 	if any([x in name for x in ["..", "~", "/"]]):
-		return u""
-	try:
-		return open(os.path.join(os.getcwd(), "html", "embedsvg", name + ".svg"), "rb").read().decode("UTF-8")
-	except Exception as e:
-		logging.exception(e)
 		return ""
+
+	if classes is None:
+		classes = ["js-svg", name.split("-", 1)[0]]
+	else:
+		assert isinstance(classes, list), "*classes* must be a list"
+		classes.extend(["js-svg", name.split("-", 1)[0]])
+
+	attributes = {
+		"src": os.path.join(conf["viur.static.embedSvg.path"], f"{name}.svg"),
+		"class": " ".join(classes),
+		**kwargs
+	}
+	return "<img %s>" % " ".join(f"{k}=\"{v}\"" for k, v in attributes.items())
 
 
 @jinjaGlobalFunction
