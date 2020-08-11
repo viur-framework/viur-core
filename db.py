@@ -75,6 +75,11 @@ def keyHelper(inKey: Union[KeyClass, str, int], targetKind: str,
 	else:
 		raise ValueError("Unknown key type %r" % type(inKey))
 
+def encodeKey(key: KeyClass) -> str:
+	"""
+		Return the given key encoded as string (mimicking the old str() behaviour of keys)
+	"""
+	return key.to_legacy_urlsafe().decode("ASCII")
 
 def Get(keys: Union[KeyClass, List[KeyClass]]):
 	if isinstance(keys, list):
