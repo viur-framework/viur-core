@@ -114,25 +114,26 @@ class dateBone(baseBone):
 				if " " in rawValue:  # Date with time
 					try:  # Times with seconds
 						if "-" in rawValue:  # ISO Date
-							value = datetime(*(time.strptime(str(rawValue), "%Y-%m-%d %H:%M:%S")[0:6]), tzinfo=timeZone)
+							value = datetime.strptime(str(rawValue), "%Y-%m-%d %H:%M:%S")
 						elif "/" in rawValue:  # Ami Date
-							value = datetime(*(time.strptime(str(rawValue), "%m/%d/%Y %H:%M:%S")[0:6]), tzinfo=timeZone)
+							value = datetime.strptime(str(rawValue), "%m/%d/%Y %H:%M:%S")
 						else:  # European Date
-							value = datetime(*(time.strptime(str(rawValue), "%d.%m.%Y %H:%M:%S")[0:6]), tzinfo=timeZone)
+							value = datetime.strptime(str(rawValue), "%d.%m.%Y %H:%M:%S")
 					except:
 						if "-" in rawValue:  # ISO Date
-							value = datetime(*(time.strptime(str(rawValue), "%Y-%m-%d %H:%M")[0:6]), tzinfo=timeZone)
+							value = datetime.strptime(str(rawValue), "%Y-%m-%d %H:%M")
 						elif "/" in rawValue:  # Ami Date
-							value = datetime(*(time.strptime(str(rawValue), "%m/%d/%Y %H:%M")[0:6]), tzinfo=timeZone)
+							value = datetime.strptime(str(rawValue), "%m/%d/%Y %H:%M")
 						else:  # European Date
-							value = datetime(*(time.strptime(str(rawValue), "%d.%m.%Y %H:%M")[0:6]), tzinfo=timeZone)
+							value = datetime.strptime(str(rawValue), "%d.%m.%Y %H:%M")
 				else:
 					if "-" in rawValue:  # ISO (Date only)
-						value = datetime(*(time.strptime(str(rawValue), "%Y-%m-%d")[0:6]), tzinfo=timeZone)
+						value = datetime.strptime(str(rawValue), "%Y-%m-%d")
 					elif "/" in rawValue:  # Ami (Date only)
-						value = datetime(*(time.strptime(str(rawValue), "%m/%d/%Y")[0:6]), tzinfo=timeZone)
+						value = datetime.strptime(str(rawValue), "%m/%d/%Y")
 					else:  # European (Date only)
-						value = datetime(*(time.strptime(str(rawValue), "%d.%m.%Y")[0:6]), tzinfo=timeZone)
+						value = datetime.strptime(str(rawValue), "%d.%m.%Y")
+				value = datetime(value.year, value.month, value.day, value.hour, value.minute, value.second, tzinfo=timeZone)
 			except:
 				value = False  # its invalid
 		if value is False:
