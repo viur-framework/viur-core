@@ -830,7 +830,7 @@ class relationalBone(baseBone):
 		elif not self.multiple and self.using:
 			if not isinstance(value, tuple) or len(value) != 2 or \
 				not (isinstance(value[0], str) or isinstance(value[0], db.KeyClass)) or \
-				not isinstance(value[1], self.using):
+				not isinstance(value[1], self._skeletonInstanceClassRef):
 				raise ValueError("You must supply a tuple of (Database-Key, relSkel) to %s" % boneName)
 			realValue = value
 		elif self.multiple and not self.using:
