@@ -20,7 +20,7 @@ class JsonKeyEncoder(json.JSONEncoder):
 
 	def default(self, o: Any) -> Any:
 		if isinstance(o, db.KeyClass):
-			return {".__key__": o.to_legacy_urlsafe().decode("ASCII")}
+			return {".__key__": db.encodeKey(o)}
 		return json.JSONEncoder.default(self, o)
 
 
