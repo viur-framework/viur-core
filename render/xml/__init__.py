@@ -42,10 +42,10 @@ def dumpConfig(adminConfig):
 
 
 def _postProcessAppObj(obj):
-	obj.skey = genSkey
-	obj.timestamp = timestamp
+	obj["skey"] = genSkey
+	obj["timestamp"] = timestamp
 	adminConfig = generateAdminConfig(obj)
 	tmp = lambda *args, **kwargs: dumpConfig(adminConfig)
 	tmp.exposed = True
-	obj.config = tmp
+	obj["config"] = tmp
 	return obj

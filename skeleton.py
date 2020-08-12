@@ -864,7 +864,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		skel.postSavedHandler(key, dbObj)
 
 		if not clearUpdateTag and not isAdd:
-			updateRelations(key.to_legacy_urlsafe().decode("ASCII"), time() + 1,
+			updateRelations(key, time() + 1,
 							changeList if len(changeList) < 30 else None)
 
 		# Inform the custom DB Adapter of the changes made to the entry
@@ -952,7 +952,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					lockObj["has_old_blob_references"] = True
 					db.Put(lockObj)
 			db.Delete(skelKey)
-			processRemovedRelations(skelKey.to_legacy_urlsafe().decode("ASCII"))
+			processRemovedRelations(skelKey)
 			return dbObj
 
 		key = skelValues["key"]
@@ -1146,8 +1146,7 @@ def processRemovedRelations(removedKey, cursor=None):
 			skel.delete()
 			pass
 	if len(updateList) == 5:
-		processRemovedRelations(removedKey.to_legacy_urlsafe().decode("ASCII"),
-								updateListQuery.getCursor())
+		processRemovedRelations(removedKey, updateListQuery.getCursor())
 
 
 @callDeferred
