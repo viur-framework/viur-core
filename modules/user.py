@@ -585,7 +585,12 @@ class User(List):
 		session = currentSession.get()
 		if not session:  # May be a deferred task
 			return None
-		return session.get("user")
+		userData = session.get("user")
+		if userData:
+			skel = self.viewSkel()
+			skel.setEntity(userData)
+			return skel
+		return None
 
 	def continueAuthenticationFlow(self, caller, userKey):
 		currSess = currentSession.get()
@@ -637,15 +642,7 @@ class User(List):
 			if k in oldSession:
 				currSess[k] = oldSession[k]
 		del oldSession
-		currSess["user"] = {}
-		for key in ["name", "status", "access"]:
-			try:
-				currSess["user"][key] = res[key]
-			except:
-				pass
-		currSess["user"]["key"] = userKey
-		if not "access" in currSess["user"] or not currSess["user"]["access"]:
-			currSess["user"]["access"] = []
+		currSess["user"] = res
 		currSess.markChanged()
 		currentRequest.get().response.headers["Sec-X-ViUR-StaticSKey"] = currSess.staticSecurityKey
 		self.onLogin()
