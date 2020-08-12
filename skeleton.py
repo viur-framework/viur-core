@@ -1153,7 +1153,7 @@ def processRemovedRelations(removedKey, cursor=None):
 def updateRelations(destID, minChangeTime, changeList, cursor=None):
 	logging.debug("Starting updateRelations for %s ; minChangeTime %s, Changelist: %s", destID, minChangeTime,
 				  changeList)
-	updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", db.KeyClass.from_legacy_urlsafe(destID)) \
+	updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", destID) \
 		.filter("viur_delayed_update_tag <", minChangeTime).filter("viur_relational_updateLevel =", 0)
 	if changeList:
 		updateListQuery.filter("viur_foreign_keys IN", changeList)
