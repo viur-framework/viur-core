@@ -10,53 +10,6 @@ class keyBone(baseBone):
 	def __init__(self, descr="Key", readOnly=True, visible=False, **kwargs):
 		super(keyBone, self).__init__(descr=descr, readOnly=True, visible=visible, defaultValue=None, **kwargs)
 
-
-	def unserialize(self, skel: 'viur.core.skeleton.SkeletonValues', name: str) -> bool:
-		"""
-			Inverse of serialize. Evaluates whats
-			read from the datastore and populates
-			this bone accordingly.
-			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:param expando: An instance of the dictionary-like db.Entity class
-			:type expando: db.Entity
-			:returns: bool
-		"""
-		if name=="key" and isinstance(skel.dbEntity, Entity) and skel.dbEntity.key and not skel.dbEntity.key.is_partial:
-			skel.accessedValues[name] = skel.dbEntity.key
-			return True
-		elif name in skel.dbEntity:
-			val = skel.dbEntity[name]
-			if isinstance(val, str):
-				try:
-					val = normalizeKey(KeyClass.from_legacy_urlsafe(val))
-				except:
-					val = None
-			elif not isinstance(val, KeyClass):
-				val = None
-			skel.accessedValues[name] = val
-			return True
-		return False
-
-	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
-		"""
-			Serializes this bone into something we
-			can write into the datastore.
-
-			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:returns: dict
-		"""
-		if name in skel.accessedValues:
-			if name == "key":
-				skel.dbEntity.key = skel.accessedValues["key"]
-			else:
-				skel.dbEntity[name] = skel.accessedValues[name]
-				skel.dbEntity.exclude_from_indexes.discard(name)  # Keys can never be not indexed
-			return True
-		return False
-
-
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		"""
 			Parses the searchfilter a client specified in his Request into
