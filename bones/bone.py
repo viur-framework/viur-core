@@ -298,8 +298,7 @@ class baseBone(object):  # One Bone:
 							continue
 						isEmpty = False
 						parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
-						if not self.isEmpty(parsedVal):
-							res[language].append(parsedVal)
+						res[language].append(parsedVal)
 						if parseErrors:
 							errors.extend(parseErrors)
 		elif self.languages:  # and not self.multiple is implicit - this would have been handled above
@@ -312,8 +311,7 @@ class baseBone(object):  # One Bone:
 						continue
 					isEmpty = False
 					parsedVal, parseErrors = self.singleValueFromClient(parsedData[language], skel, name, data)
-					if not self.isEmpty(parsedVal):
-						res[language] = parsedVal
+					res[language] = parsedVal
 					if parseErrors:
 						errors.extend(parseErrors)
 		elif self.multiple:  # and not self.languages is implicit - this would have been handled above
@@ -324,8 +322,7 @@ class baseBone(object):  # One Bone:
 					continue
 				isEmpty = False
 				parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
-				if not self.isEmpty(parsedVal):
-					res.append(parsedVal)
+				res.append(parsedVal)
 				if parseErrors:
 					errors.extend(parseErrors)
 		else:  # No Languages, not multiple
