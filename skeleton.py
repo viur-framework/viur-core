@@ -139,7 +139,7 @@ class SkeletonInstance:
 				if self.dbEntity is not None:
 					boneInstance.unserialize(self, key)
 				else:
-					self.accessedValues[key] = boneInstance.getDefaultValue()
+					self.accessedValues[key] = boneInstance.getDefaultValue(self)
 		if not self.renderPreparation:
 			return self.accessedValues.get(key)
 		value = self.renderPreparation(getattr(self, key), self, key, self.accessedValues.get(key))
@@ -186,6 +186,11 @@ class SkeletonInstance:
 		self.dbEntity = entity
 		self.accessedValues = {}
 		self.renderAccessedValues = {}
+
+	def __deepcopy__(self, memodict):
+		res = self.clone()
+		memodict[id(self)] = res
+		return res
 
 
 class BaseSkeleton(object, metaclass=MetaBaseSkel):
@@ -859,7 +864,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		skel.postSavedHandler(key, dbObj)
 
 		if not clearUpdateTag and not isAdd:
-			updateRelations(key.to_legacy_urlsafe().decode("ASCII"), time() + 1,
+			updateRelations(key, time() + 1,
 							changeList if len(changeList) < 30 else None)
 
 		# Inform the custom DB Adapter of the changes made to the entry
@@ -947,7 +952,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					lockObj["has_old_blob_references"] = True
 					db.Put(lockObj)
 			db.Delete(skelKey)
-			processRemovedRelations(skelKey.to_legacy_urlsafe().decode("ASCII"))
+			processRemovedRelations(skelKey)
 			return dbObj
 
 		key = skelValues["key"]
@@ -1115,7 +1120,6 @@ class SkelList(list):
 
 @callDeferred
 def processRemovedRelations(removedKey, cursor=None):
-	removedKey = db.KeyClass.from_legacy_urlsafe(removedKey)
 	updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", removedKey) \
 		.filter("viur_relational_consistency >", 2)
 	updateListQuery = updateListQuery.setCursor(cursor)
@@ -1141,15 +1145,14 @@ def processRemovedRelations(removedKey, cursor=None):
 			skel.delete()
 			pass
 	if len(updateList) == 5:
-		processRemovedRelations(removedKey.to_legacy_urlsafe().decode("ASCII"),
-								updateListQuery.getCursor())
+		processRemovedRelations(removedKey, updateListQuery.getCursor())
 
 
 @callDeferred
 def updateRelations(destID, minChangeTime, changeList, cursor=None):
 	logging.debug("Starting updateRelations for %s ; minChangeTime %s, Changelist: %s", destID, minChangeTime,
 				  changeList)
-	updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", db.KeyClass.from_legacy_urlsafe(destID)) \
+	updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", destID) \
 		.filter("viur_delayed_update_tag <", minChangeTime).filter("viur_relational_updateLevel =", 0)
 	if changeList:
 		updateListQuery.filter("viur_foreign_keys IN", changeList)

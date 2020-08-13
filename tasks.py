@@ -5,13 +5,32 @@ import os
 import sys
 from datetime import timedelta
 from functools import wraps
-from typing import Callable, Dict
+from typing import Callable, Dict, Any
 from google.cloud import tasks_v2
 from google.protobuf import timestamp_pb2
 from viur.core import db, errors, utils
 from viur.core.config import conf
-
 from viur.core.utils import currentRequest, currentSession
+
+
+class JsonKeyEncoder(json.JSONEncoder):
+	"""
+		Add support for Keys in deferred tasks
+	"""
+
+	def default(self, o: Any) -> Any:
+		if isinstance(o, db.KeyClass):
+			return {".__key__": db.encodeKey(o)}
+		return json.JSONEncoder.default(self, o)
+
+
+def jsonDecodeObjectHook(obj):
+	"""
+		Inverse to JsonKeyEncoder: Check if the object matches a keymarker and parse it's key
+	"""
+	if len(obj) == 1 and ".__key__" in obj:
+		return db.KeyClass.from_legacy_urlsafe(obj[".__key__"])
+	return obj
 
 _gaeApp = os.environ.get("GAE_APPLICATION")
 regionMap = {  # FIXME! Can we even determine the region like this?
@@ -146,12 +165,8 @@ class TaskHandler:
 										"Task %s will now be retried for the %sth time." % (
 											req.headers.get("X-Appengine-Taskname", ""),
 											retryCount))
-		cmd, data = json.loads(req.body)
-		try:
-			funcPath, args, kwargs, env = data
-		except ValueError:  # We got an old call without an frozen environment
-			env = None
-			funcPath, args, kwargs = data
+		cmd, data = json.loads(req.body, object_hook=jsonDecodeObjectHook)
+		funcPath, args, kwargs, env = data
 		if env:
 			if "user" in env and env["user"]:
 				currentSession.get()["user"] = env["user"]
@@ -399,7 +414,7 @@ def callDeferred(func):
 					   and callable(conf["viur.tasks.customEnvironmentHandler"][0]), \
 					"Your customEnvironmentHandler must be a tuple of two callable if set!"
 				env["custom"] = conf["viur.tasks.customEnvironmentHandler"][0]()
-			pickled = json.dumps((command, (funcPath, args, kwargs, env))).encode("UTF-8")
+			pickled = json.dumps((command, (funcPath, args, kwargs, env)), cls=JsonKeyEncoder).encode("UTF-8")
 
 			project = utils.projectID
 			location = queueRegion

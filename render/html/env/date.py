@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from viur.core.render.html.utils import jinjaGlobalFunction
-from datetime import date as date_orig, time as time_orig, timedelta as timedelta_orig
-from viur.core.bones.dateBone import ExtendedDateTime as datetime_orig
+from datetime import date as date_orig, time as time_orig, timedelta as timedelta_orig, datetime as datetime_orig
 
 
 @jinjaGlobalFunction

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 from collections import OrderedDict
-from viur.core import errors, bones, utils
+from viur.core import errors, bones, utils, db
 from viur.core.skeleton import RefSkel, skeletonByKind, BaseSkeleton, SkeletonInstance
 from viur.core.utils import currentRequest
 
@@ -137,7 +137,7 @@ class DefaultRender(object):
 		elif isinstance(bone, bones.recordBone):
 			return self.renderSkelValues(value)
 		elif isinstance(bone, bones.keyBone):
-			return value.to_legacy_urlsafe().decode("ASCII") if value else None
+			return db.encodeKey(value) if value else None
 		else:
 			return value
 		return None
@@ -193,7 +193,7 @@ class DefaultRender(object):
 		elif isinstance(skel, SkeletonInstance):
 			vals = self.renderSkelValues(skel)
 			struct = self.renderSkelStructure(skel)
-			errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage} for x in skel.errors]
+			errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage, "invalidatedFields": x.invalidatedFields} for x in skel.errors]
 		else:  # Hopefully we can pass it directly...
 			vals = skel
 			struct = None
@@ -248,7 +248,7 @@ class DefaultRender(object):
 
 	def listRootNodes(self, rootNodes, tpl=None, params=None):
 		for rn in rootNodes:
-			rn["key"] = rn["key"].to_legacy_urlsafe().decode("ASCII")
+			rn["key"] = db.encodeKey(rn["key"])
 		return json.dumps(rootNodes)
 
 	def listRootNodeContents(self, subdirs, entrys, tpl=None, params=None, **kwargs):

@@ -37,6 +37,7 @@ class ReadFromClientError:
 	severity: ReadFromClientErrorSeverity
 	fieldPath: str
 	errorMessage: str
+	invalidatedFields: List[str] = None  # must be last property since python enforces default args after properties without default args
 
 
 class UniqueLockMethod(Enum):
@@ -118,9 +119,9 @@ class baseBone(object):  # One Bone:
 		"""
 		pass
 
-	def getDefaultValue(self):
+	def getDefaultValue(self, skeletonInstance):
 		if callable(self.defaultValue):
-			return self.defaultValue()
+			return self.defaultValue(skeletonInstance, self)
 		elif isinstance(self.defaultValue, list):
 			return self.defaultValue[:]
 		elif isinstance(self.defaultValue, dict):

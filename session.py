@@ -29,13 +29,9 @@ from viur.core.config import conf
 class GaeSession:
 	"""Store Sessions inside the Big Table/Memcache"""
 	kindName = "viur-session"
-	sameSite = "lax"
-
-	def __init__(self):
-		super().__init__()
-
-		self.plainCookieName = f"viurHttpCookie_{utils.projectID}"
-		self.sslCookieName = f"viurSSLCookie_{utils.projectID}"
+	sameSite = "lax"  # Either None (dont issue sameSite header), "none", "lax" or "strict"
+	sessionCookie = True  # If True, issue the cookie without a lifeTime (will disappear on browser close)
+	cookieName = f"viurCookie_{utils.projectID}"
 
 	def load(self, req):
 		"""
@@ -47,13 +43,13 @@ class GaeSession:
 		"""
 		self.changed = False
 		self.isInitial = False
-		self.httpKey = None
+		self.cookieKey = None
 		self.sslKey = None
 		self.staticSecurityKey = None
 		self.securityKey = None
 		self.session = {}
-		if self.plainCookieName in req.request.cookies:
-			cookie = str(req.request.cookies[self.plainCookieName])
+		if self.cookieName in req.request.cookies:
+			cookie = str(req.request.cookies[self.cookieName])
 			data = db.Get(db.Key(self.kindName, cookie))
 			if data:  # Loaded successfully from Memcache
 				if data["lastseen"] < time() - conf["viur.session.lifeTime"]:
@@ -61,20 +57,14 @@ class GaeSession:
 					self.reset()
 					return False
 				self.session = data["data"]
-				self.sslKey = data["sslkey"]
 				self.staticSecurityKey = data["staticSecurityKey"]
 				self.securityKey = data["securityKey"]
-				self.httpKey = cookie
+				self.cookieKey = cookie
 				if data["lastseen"] < time() - 5 * 60:  # Refresh every 5 Minutes
 					self.changed = True
 			else:
 				# We could not load from firebase; create a new one
 				self.reset()
-			if req.isSSLConnection and self.sslKey and not req.request.cookies.get(self.sslCookieName) == self.sslKey:
-				logging.critical("Possible session hijack attempt! Session dropped.")
-				self.reset()
-				return False
-			return True
 		else:
 			self.reset()
 
@@ -86,19 +76,17 @@ class GaeSession:
 		"""
 		try:
 			if self.changed or self.isInitial:
+				if not (req.isSSLConnection or req.isDevServer) :  # We will not issue sessions over http anymore
+					return False
 				# Get the current user id
 				try:
 					# Check for our custom user-api
 					userid = conf["viur.mainApp"].user.getCurrentUser()["key"]
 				except:
 					userid = None
-				if self.isInitial and not req.isSSLConnection:
-					# Reset the Secure only key to None - we can't set it anyway.
-					self.sslKey = None
 				try:
-					dbSession = db.Entity(db.Key(self.kindName, self.httpKey))
+					dbSession = db.Entity(db.Key(self.kindName, self.cookieKey))
 					dbSession["data"] = self.session
-					dbSession["sslkey"] = self.sslKey
 					dbSession["staticSecurityKey"] = self.staticSecurityKey
 					dbSession["securityKey"] = self.securityKey
 					dbSession["lastseen"] = time()
@@ -110,15 +98,11 @@ class GaeSession:
 					logging.exception(e)
 					raise  # FIXME
 					pass
-				if self.sameSite:
-					sameSite = "; SameSite=%s" % self.sameSite
-				else:
-					sameSite = ""
-				req.response.headerlist.append(("Set-Cookie", "%s=%s; Max-Age=99999; Path=/; HttpOnly%s" % (
-				self.plainCookieName, self.httpKey, sameSite)))
-				if req.isSSLConnection:
-					req.response.headerlist.append(("Set-Cookie", "%s=%s; Max-Age=99999; Path=/; Secure; HttpOnly%s" % (
-					self.sslCookieName, self.sslKey, sameSite)))
+				sameSite = "; SameSite=%s" % self.sameSite if self.sameSite else ""
+				secure = "; Secure" if not req.isDevServer else ""
+				maxAge = "; Max-Age=99999" if not self.sessionCookie else ""
+				req.response.headerlist.append(("Set-Cookie", "%s=%s; Path=/; HttpOnly%s%s%s" % (
+				self.cookieName, self.cookieKey, sameSite, secure, maxAge)))
 		except Exception as e:
 			raise  # FIXME
 			logging.exception(e)
@@ -189,10 +173,9 @@ class GaeSession:
 			:warning: Everything (except the current language) is flushed.
 		"""
 		lang = self.session.get("language")
-		if self.httpKey:
-			db.Delete(db.Key(self.kindName, self.httpKey))
-		self.httpKey = utils.generateRandomString(42)
-		self.sslKey = utils.generateRandomString(42)
+		if self.cookieKey:
+			db.Delete(db.Key(self.kindName, self.cookieKey))
+		self.cookieKey = utils.generateRandomString(42)
 		self.staticSecurityKey = utils.generateRandomString(13)
 		self.securityKey = utils.generateRandomString(13)
 		self.changed = True
