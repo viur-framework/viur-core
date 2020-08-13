@@ -1175,7 +1175,7 @@ def updateRelations(destID, minChangeTime, changeList, cursor=None):
 		try:
 			skel = skeletonByKind(srcRel["viur_src_kind"])()
 		except AssertionError:
-			logging.info("Deleting %s which refers to unknown kind %s" % (str(srcRel.key()), srcRel["viur_src_kind"]))
+			logging.info("Deleting %s which refers to unknown kind %s" % (str(srcRel.key), srcRel["viur_src_kind"]))
 			continue
 		db.RunInTransaction(updateTxn, skel, srcRel["src"].key, srcRel.key)
 	nextCursor = updateListQuery.getCursor()
