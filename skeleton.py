@@ -682,6 +682,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				if key in skel.accessedValues:
 					# bone.mergeFrom(skel.valuesCache, key, mergeFrom)
 					bone.serialize(skel, key, True)
+				elif key not in skel.dbEntity:  # It has not been written and is not in the database
+					_ = skel[key]  # Ensure the datastore is filled with the default value
+					bone.serialize(skel, key, True)
 
 				## Serialize bone into entity
 				# dbObj = bone.serialize(skel.valuesCache, key, dbObj)

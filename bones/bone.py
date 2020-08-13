@@ -472,6 +472,7 @@ class baseBone(object):  # One Bone:
 					res = self.singleValueUnserialize(loadVal, skel, name)
 			skel.accessedValues[name] = res
 			return True
+		skel.accessedValues[name] = self.getDefaultValue(skel)
 		return False
 
 	def delete(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
