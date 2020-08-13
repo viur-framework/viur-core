@@ -4,6 +4,7 @@ from math import pow
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.bones.stringBone import LanguageWrapper
 import logging
+from typing import Any
 
 
 class numericBone(baseBone):
@@ -41,11 +42,17 @@ class numericBone(baseBone):
 		if value != value:  # NaN
 			return "NaN not allowed"
 
+	def getEmptyValue(self):
+		return 0
+
+	def isEmpty(self, rawVale: Any):
+		return rawVale != self.getEmptyValue() or bool(rawVale)
+
 	def singleValueFromClient(self, value, skel, name, origData):
 		try:
 			rawValue = str(value).replace(",", ".", 1)
 		except:
-			return self.getDefaultValue(skel), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid Value")]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid Value")]
 		else:
 			if self.precision and (str(rawValue).replace(".", "", 1).replace("-", "", 1).isdigit()) and float(
 					rawValue) >= self.min and float(rawValue) <= self.max:
@@ -54,12 +61,10 @@ class numericBone(baseBone):
 					rawValue) >= self.min and int(rawValue) <= self.max:
 				value = int(rawValue)
 			else:
-				return self.getDefaultValue(skel), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid Value")]
-		if not value:
-			return value, [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "Field not set")]
+				return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid Value")]
 		err = self.isInvalid(value)
 		if err:
-			return self.getDefaultValue(skel), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
 		return value, None
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
