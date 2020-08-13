@@ -1120,7 +1120,6 @@ class SkelList(list):
 
 @callDeferred
 def processRemovedRelations(removedKey, cursor=None):
-	removedKey = db.KeyClass.from_legacy_urlsafe(removedKey)
 	updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", removedKey) \
 		.filter("viur_relational_consistency >", 2)
 	updateListQuery = updateListQuery.setCursor(cursor)
