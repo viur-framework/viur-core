@@ -46,7 +46,7 @@ class numericBone(baseBone):
 		return 0
 
 	def isEmpty(self, rawVale: Any):
-		return rawVale != self.getEmptyValue() or bool(rawVale)
+		return not (rawVale != self.getEmptyValue() or bool(rawVale))
 
 	def singleValueFromClient(self, value, skel, name, origData):
 		try:
