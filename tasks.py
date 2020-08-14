@@ -612,13 +612,20 @@ class QueryIter(object, metaclass=MetaQueryIter):
 		for item in qryIter:
 			try:
 				cls.handleEntry(item, qryDict["customData"])
-			except:
+			except:  # First exception - we'll try another time (probably/hopefully transaction collision)
 				sleep(5)
 				try:
 					cls.handleEntry(item, qryDict["customData"])
-				except Exception as e:
-					logging.error("handleEntry failed on %s" % item)
-					logging.exception(e)
+				except Exception as e:  # Second exception - call errorHandler
+					try:
+						doCont = cls.handleError(item, qryDict["customData"], e)
+					except Exception as e:
+						logging.error("handleError failed on %s - bailing out" % item)
+						logging.exception(e)
+						doCont = False
+					if not doCont:
+						logging.error("Exiting queryItor on cursor %s" % qry.getCursor())
+						return
 			qryDict["totalCount"] += 1
 		cursor = qry.getCursor()
 		if cursor:
@@ -636,11 +643,21 @@ class QueryIter(object, metaclass=MetaQueryIter):
 			Warning: If your query has an sortOrder other than __key__ and you modify that property here
 			it is possible to encounter that object later one *again* (as it may jump behind the current cursor).
 		"""
-		logging.debug("handleEntry called on %s with %s." % (str(cls), entry))
+		logging.debug("handleEntry called on %s with %s." % (cls, entry))
 
 	@classmethod
 	def handleFinish(cls, totalCount: int, customData):
 		"""
-				Overridable hook that indicates the current run has been finished.
+			Overridable hook that indicates the current run has been finished.
 		"""
-		logging.debug("handleFinish called on %s with %s total Entries processed" % (str(cls), totalCount))
+		logging.debug("handleFinish called on %s with %s total Entries processed" % (cls, totalCount))
+
+	@classmethod
+	def handleError(cls, entry, customData, exception) -> bool:
+		"""
+			Handle a error occurred in handleEntry.
+			If this function returns True, the queryIter continues, otherwise it breaks and prints the current cursor.
+		"""
+		logging.debug("handleError called on %s with %s." % (cls, entry))
+		logging.exception(exception)
+		return True
