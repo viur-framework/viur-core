@@ -61,7 +61,7 @@ class fileBone(treeLeafBone):
 			if isinstance(values, dict):
 				values = [values]
 			for val in values:
-				ensureDerived(val["dest"].entity["key"].id_or_name, val["dest"].entity["name"], self.derive)
+				ensureDerived(val["dest"]["key"], val["dest"]["name"], self.derive)
 
 	def getReferencedBlobs(self, skel, name):
 		val = skel[name]
