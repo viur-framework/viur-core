@@ -22,7 +22,7 @@ except:
 	pytz = None
 
 __undefindedC__ = object()
-
+projectPath = globals()["__file__"].replace("/viur/core/skeleton.py","")  # os.getCWD is broken on appengine
 
 class MetaBaseSkel(type):
 	"""
@@ -333,7 +333,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 class MetaSkel(MetaBaseSkel):
 	def __init__(cls, name, bases, dct):
 		super(MetaSkel, cls).__init__(name, bases, dct)
-		relNewFileName = inspect.getfile(cls).replace(os.getcwd(), "")
+		relNewFileName = inspect.getfile(cls).replace(projectPath, "")
 
 		# Check if we have an abstract skeleton
 		if cls.__name__.endswith("AbstractSkel"):
@@ -352,7 +352,7 @@ class MetaSkel(MetaBaseSkel):
 				cls.kindName = cls.__name__.lower()
 		# Try to determine which skeleton definition takes precedence
 		if cls.kindName and cls.kindName is not __undefindedC__ and cls.kindName in MetaBaseSkel._skelCache:
-			relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]).replace(os.getcwd(), "")
+			relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]).replace(projectPath, "")
 			idxOld = min(
 				[x for (x, y) in enumerate(conf["viur.skeleton.searchPath"]) if relOldFileName.startswith(y)] + [999])
 			idxNew = min(
