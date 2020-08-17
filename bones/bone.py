@@ -57,7 +57,8 @@ class baseBone(object):  # One Bone:
 	isClonedInstance = False
 
 	def __init__(self, descr="", defaultValue=None, required=False, params=None, multiple=False, indexed=True,
-				 languages = None, searchable=False, vfunc=None, readOnly=False, visible=True, unique=False, **kwargs):
+				 languages = None, searchable=False, vfunc=None, readOnly=False, visible=True, unique=False,
+				 isEmptyFunc=None, getEmtpyValueFunc=None, **kwargs):
 		"""
 			Initializes a new Bone.
 
@@ -112,6 +113,10 @@ class baseBone(object):  # One Bone:
 			if not self.multiple and unique.method.value != 1:
 				raise ValueError("'SameValue' is the only valid method on non-multiple bones")
 		self.unique = unique
+		if isEmptyFunc:
+			self.isEmpty = isEmptyFunc
+		if getEmtpyValueFunc:
+			self.getEmptyValue = getEmtpyValueFunc
 
 	def setSystemInitialized(self):
 		"""
