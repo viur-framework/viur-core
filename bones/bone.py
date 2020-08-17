@@ -126,7 +126,7 @@ class baseBone(object):  # One Bone:
 		"""
 		return False
 
-	def isEmpty(self, rawVale: Any) -> bool:
+	def isEmpty(self, rawValue: Any) -> bool:
 		"""
 			Check if the given single value represents the "empty" value.
 			This usually is the empty string, 0 or False.
@@ -138,7 +138,7 @@ class baseBone(object):  # One Bone:
 				returned by get
 
 		"""
-		return not bool(rawVale)
+		return not bool(rawValue)
 
 	def getDefaultValue(self, skeletonInstance):
 		if callable(self.defaultValue):

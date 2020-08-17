@@ -26,10 +26,10 @@ class booleanBone(baseBone):
 	def getEmptyValue(self):
 		return False
 
-	def isEmpty(self, rawVale: Any):
-		if rawVale is self.getEmptyValue():
+	def isEmpty(self, rawValue: Any):
+		if rawValue is self.getEmptyValue():
 			return True
-		return bool(rawVale)
+		return not bool(rawValue)
 
 	def refresh(self, skel, boneName) -> None:
 		"""
