@@ -29,6 +29,8 @@ currentLanguage = ContextVar("Language", default=None)
 # Determine which ProjectID we currently run in (as the app_identity module isn't available anymore)
 _, projectID = google.auth.default()
 del _
+# Determine our basePath (as os.getCWD is broken on appengine)
+projectBasePath = globals()["__file__"].replace("/viur/core/utils.py","")
 
 def utcNow():
 	return datetime.now(timezone.utc)
