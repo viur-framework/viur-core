@@ -51,6 +51,12 @@ class UniqueValue:  # Mark a bone as unique (it must have a different value for 
 	lockEmpty: bool  # If False, empty values ("", 0) are not locked - needed if a field is unique but not required
 	message: str  # Error-Message displayed to the user if the requested value is already taken
 
+@dataclass
+class MultipleConstraints:  # Used to define constraints on multiple bones
+	minAmount: int = 0  # Lower bound of how many entries can be submitted
+	maxAmount: int = 0  # Upper bound of how many entries can be submitted
+	preventDuplicates: bool = False  # Prevent the same value of being used twice
+
 class baseBone(object):  # One Bone:
 	hasDBField = True
 	type = "hidden"
@@ -342,7 +348,27 @@ class baseBone(object):  # One Bone:
 		skel[name] = res
 		if isEmpty:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "Field not set")]
+		if self.multiple and isinstance(self.multiple, MultipleConstraints):
+			errors.extend(self.validateMultipleConstraints(skel, name))
 		return errors or None
+
+	def validateMultipleConstraints(self, skel: 'SkeletonInstance', name: str) -> List[ReadFromClientError]:
+		"""
+			Validates our value against our multiple constrains.
+			Returns a ReadFromClientError for each violation (eg. too many items and duplicates)
+		"""
+		res = []
+		value = skel[name]
+		constraints = self.multiple
+		if constraints.minAmount and len(value) < constraints.minAmount:
+			res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Too few items"))
+		if constraints.maxAmount and len(value) > constraints.maxAmount:
+			res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Too many items"))
+		if constraints.preventDuplicates:
+			if len(set(value)) != len(value):
+				res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Duplicate items"))
+		return res
+
 
 	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
 		return value
