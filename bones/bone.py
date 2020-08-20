@@ -7,7 +7,7 @@ import hashlib
 import copy
 from enum import Enum
 from dataclasses import dataclass
-from typing import Union, List, Set
+from typing import Union, List, Set, Any
 
 __systemIsIntitialized_ = False
 
@@ -57,7 +57,8 @@ class baseBone(object):  # One Bone:
 	isClonedInstance = False
 
 	def __init__(self, descr="", defaultValue=None, required=False, params=None, multiple=False, indexed=True,
-				 languages = None, searchable=False, vfunc=None, readOnly=False, visible=True, unique=False, **kwargs):
+				 languages = None, searchable=False, vfunc=None, readOnly=False, visible=True, unique=False,
+				 isEmptyFunc=None, getEmtpyValueFunc=None, **kwargs):
 		"""
 			Initializes a new Bone.
 
@@ -112,12 +113,37 @@ class baseBone(object):  # One Bone:
 			if not self.multiple and unique.method.value != 1:
 				raise ValueError("'SameValue' is the only valid method on non-multiple bones")
 		self.unique = unique
+		if isEmptyFunc:
+			self.isEmpty = isEmptyFunc
+		if getEmtpyValueFunc:
+			self.getEmptyValue = getEmtpyValueFunc
 
 	def setSystemInitialized(self):
 		"""
 			Can be overridden to initialize properties that depend on the Skeleton system being initialized
 		"""
 		pass
+
+	def isInvalid(self, value):
+		"""
+			Returns None if the value would be valid for
+			this bone, an error-message otherwise.
+		"""
+		return False
+
+	def isEmpty(self, rawValue: Any) -> bool:
+		"""
+			Check if the given single value represents the "empty" value.
+			This usually is the empty string, 0 or False.
+
+			Warning: isEmpty takes precedence over isInvalid! The empty value is always valid - unless the bone
+				is required. But even then the empty value will be reflected back to the client.
+
+			Warning: rawValue might be the string/object received from the user (untrusted input!) or the value
+				returned by get
+
+		"""
+		return not bool(rawValue)
 
 	def getDefaultValue(self, skeletonInstance):
 		if callable(self.defaultValue):
@@ -128,6 +154,13 @@ class baseBone(object):  # One Bone:
 			return self.defaultValue.copy()
 		else:
 			return self.defaultValue
+
+	def getEmptyValue(self) -> Any:
+		"""
+			Returns the value representing an empty field for this bone.
+			This might be the empty string for str/text Bones, Zero for numeric bones etc.
+		"""
+		return None
 
 	def __setattr__(self, key, value):
 		if not self.isClonedInstance and getSystemInitialized() and key != "isClonedInstance" and not key.startswith(
@@ -233,6 +266,9 @@ class baseBone(object):  # One Bone:
 		return False
 
 	def singleValueFromClient(self, value, skel, name, origData):
+		err = self.isInvalid(value)
+		if err:
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
 		return value, None
 
 	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
@@ -262,10 +298,12 @@ class baseBone(object):  # One Bone:
 				res[language] = []
 				if language in parsedData:
 					for singleValue in parsedData[language]:
+						if self.isEmpty(singleValue):
+							res[language].append(self.getEmptyValue())
+							continue
 						isEmpty = False
 						parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
-						if parsedVal is not None:
-							res[language].append(parsedVal)
+						res[language].append(parsedVal)
 						if parseErrors:
 							errors.extend(parseErrors)
 		elif self.languages:  # and not self.multiple is implicit - this would have been handled above
@@ -273,37 +311,38 @@ class baseBone(object):  # One Bone:
 			for language in self.languages:
 				res[language] = None
 				if language in parsedData:
+					if self.isEmpty(parsedData[language]):
+						res[language].append(self.getEmptyValue())
+						continue
 					isEmpty = False
 					parsedVal, parseErrors = self.singleValueFromClient(parsedData[language], skel, name, data)
-					if parsedVal is not None:
-						res[language] = parsedVal
+					res[language] = parsedVal
 					if parseErrors:
 						errors.extend(parseErrors)
 		elif self.multiple:  # and not self.languages is implicit - this would have been handled above
 			res = []
 			for singleValue in parsedData:
+				if self.isEmpty(singleValue):
+					res.append(self.getEmptyValue())
+					continue
 				isEmpty = False
 				parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
-				if parsedVal is not None:
-					res.append(parsedVal)
+				res.append(parsedVal)
 				if parseErrors:
 					errors.extend(parseErrors)
 		else:  # No Languages, not multiple
-			isEmpty = not fieldSubmitted
-			res, parseErrors = self.singleValueFromClient(parsedData, skel, name, data)
-			if parseErrors:
-				errors.extend(parseErrors)
+			if self.isEmpty(parsedData):
+				res = self.getEmptyValue()
+				isEmpty = True
+			else:
+				isEmpty = False
+				res, parseErrors = self.singleValueFromClient(parsedData, skel, name, data)
+				if parseErrors:
+					errors.extend(parseErrors)
 		skel[name] = res
 		if isEmpty:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "Field not set")]
 		return errors or None
-
-	def isInvalid(self, value):
-		"""
-			Returns None if the value would be valid for
-			this bone, an error-message otherwise.
-		"""
-		return False
 
 	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
 		return value
@@ -435,6 +474,7 @@ class baseBone(object):  # One Bone:
 					res = self.singleValueUnserialize(loadVal, skel, name)
 			skel.accessedValues[name] = res
 			return True
+		skel.accessedValues[name] = self.getDefaultValue(skel)
 		return False
 
 	def delete(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
