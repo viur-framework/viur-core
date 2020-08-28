@@ -804,7 +804,7 @@ class relationalBone(baseBone):
 			"rel": rel or None
 		}
 
-	def setBoneValue(self, skel, boneName, value, append, *args, **kwargs):
+	def setBoneValue(self, skel, boneName, value, append, language, *args, **kwargs):
 		"""
 			Set our value to 'value'.
 			Santy-Checks are performed; if the value is invalid, we flip our value back to its original
@@ -822,6 +822,7 @@ class relationalBone(baseBone):
 			:return: Wherever that operation succeeded or not.
 			:rtype: bool
 		"""
+		assert not language, "Language not yet supported"  # FIXME!
 		if append and not self.multiple:
 			raise ValueError("Bone %s is not multiple, cannot append!" % boneName)
 		if not self.multiple and not self.using:

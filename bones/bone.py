@@ -685,14 +685,13 @@ class baseBone(object):  # One Bone:
 			return
 		valuesCache[boneName] = copy.deepcopy(otherSkel.valuesCache.get(boneName, None))
 
-	def setBoneValue(self, skel, boneName, value, append, *args, **kwargs):
+	def setBoneValue(self, skel, boneName: str, value: Any, append: bool, language: Union[None, str] = None) -> bool:
 		"""
 			Set our value to 'value'.
-			Santy-Checks are performed; if the value is invalid, we flip our value back to its original
-			(default) value and return false.
+			Santy-Checks are performed; if the value is invalid, no modification will happen.
 
-			:param valuesCache: Dictionary with the current values from the skeleton we belong to
-			:type valuesCache: dict
+			:param skel: Dictionary with the current values from the skeleton we belong to
+			:type skel: SkeltonInstance
 			:param boneName: The Bone which should be modified
 			:type boneName: str
 			:param value: The value that should be assigned. It's type depends on the type of that bone
@@ -700,17 +699,30 @@ class baseBone(object):  # One Bone:
 			:param append: If true, the given value is appended to the values of that bone instead of
 				replacing it. Only supported on bones with multiple=True
 			:type append: bool
+			:param language: Set/append which language
+			:type language: str or None
 			:return: Wherever that operation succeeded or not.
 			:rtype: bool
 
 		"""
-		if append:
-			raise ValueError("append is not possible on %s bones" % self.type)
-		res = self.fromClient(skel, boneName, {boneName: value})
-		if not res:
-			return True
-		else:
+		assert not (self.languages ^ language), "Language is required or not supported"
+		assert not append or self.multiple, "Can't append - bone is not multiple"
+		val, errs = self.singleValueFromClient(value, skel, boneName, {boneName: value})
+		if errs:
 			return False
+		if not append and not language:
+			skel[boneName] = val
+		elif append and language:
+			if not language in skel[boneName] or not isinstance(skel[boneName][language], list):
+				skel[boneName][language] = []
+			skel[boneName][language].append(val)
+		elif append:
+			if not isinstance(skel[boneName], list):
+				skel[boneName] = []
+			skel[boneName].append(val)
+		else: # Just language
+			skel[boneName][language] = val
+		return True
 
 	def getSearchTags(self, skeletonInstance, name: str) -> Set[str]:
 		return set()
