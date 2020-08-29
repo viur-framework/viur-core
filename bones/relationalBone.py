@@ -384,8 +384,7 @@ class relationalBone(baseBone):
 			dbKey = None
 			errors = []
 			try:
-				dbKey = db.keyHelper(key, self.kind)
-				entry = db.Get(dbKey)
+				entry = self.getEntity(key)
 				assert entry
 			except:  # Invalid key or something like that
 				logging.info("Invalid reference key >%s< detected on bone '%s'",
@@ -784,12 +783,21 @@ class relationalBone(baseBone):
 
 		return res
 
+	def getEntity(self, key):
+		"""
+		Used to retrieve the referenced entity.
+
+		:param key: Any valid key for self.kind
+		:return: The entity
+		"""
+		key = db.keyHelper(key, self.kind)
+		return db.Get(key)
+
 	def createRelSkelFromKey(self, key: Union[str, db.KeyClass], rel: Union[dict, None] = None):
 		"""
 			Creates a relSkel instance valid for this bone from the given database key.
 		"""
-		key = db.keyHelper(key, self.kind)
-		entity = db.Get(key)
+		entity = self.getEntity(key)
 		if not entity:
 			logging.error("Key %s not found" % str(key))
 			return None
