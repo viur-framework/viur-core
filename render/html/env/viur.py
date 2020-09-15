@@ -137,7 +137,7 @@ def getSkel(render, module, key=None, skel="viewSkel"):
 	:rtype: dict | bool
 	"""
 	if module not in dir(conf["viur.mainApp"]):
-		logging.error("getEntry called with unknown module %s!" % module)
+		logging.error("getSkel called with unknown module %s!" % module)
 		return False
 
 	obj = getattr(conf["viur.mainApp"], module)
@@ -147,9 +147,9 @@ def getSkel(render, module, key=None, skel="viewSkel"):
 
 		if isinstance(obj, prototypes.singleton.Singleton) and not key:
 			# We fetching the entry from a singleton - No key needed
-			key = str(db.Key(skel.kindName, obj.getKey()))
+			key = db.Key(skel.kindName, obj.getKey())
 		elif not key:
-			logging.info("getEntry called without a valid key")
+			logging.info("getSkel called without a valid key")
 			return False
 
 		if not isinstance(skel, SkeletonInstance):
@@ -157,7 +157,7 @@ def getSkel(render, module, key=None, skel="viewSkel"):
 
 		if "canView" in dir(obj):
 			if not skel.fromDB(key):
-				logging.info("getEntry: Entry %s not found" % (key,))
+				logging.info("getSkel: Entry %s not found" % (key,))
 				return None
 			if isinstance(obj, prototypes.singleton.Singleton):
 				isAllowed = obj.canView()
@@ -170,7 +170,7 @@ def getSkel(render, module, key=None, skel="viewSkel"):
 			else:  # List and Hierarchies
 				isAllowed = obj.canView(skel)
 			if not isAllowed:
-				logging.error("getEntry: Access to %s denied from canView" % (key,))
+				logging.error("getSkel: Access to %s denied from canView" % (key,))
 				return None
 		elif "listFilter" in dir(obj):
 			qry = skel.all().mergeExternalFilter({"key": str(key)})
