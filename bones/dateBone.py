@@ -79,9 +79,7 @@ class dateBone(baseBone):
 			:returns: str or None
 		"""
 		rawValue = value
-		if not rawValue:
-			return None, [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")]
-		elif str(rawValue).replace("-", "", 1).replace(".", "", 1).isdigit():
+		if str(rawValue).replace("-", "", 1).replace(".", "", 1).isdigit():
 			if int(rawValue) < -1 * (2 ** 30) or int(rawValue) > (2 ** 31) - 2:
 				value = False  # its invalid
 			else:
@@ -137,10 +135,10 @@ class dateBone(baseBone):
 			except:
 				value = False  # its invalid
 		if value is False:
-			return None, [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
 		err = self.isInvalid(value)
 		if err:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
 		return value, None
 
 	def isInvalid(self, value):

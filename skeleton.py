@@ -23,7 +23,6 @@ except:
 
 __undefindedC__ = object()
 
-
 class MetaBaseSkel(type):
 	"""
 		This is the meta class for Skeletons.
@@ -333,7 +332,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 class MetaSkel(MetaBaseSkel):
 	def __init__(cls, name, bases, dct):
 		super(MetaSkel, cls).__init__(name, bases, dct)
-		relNewFileName = inspect.getfile(cls).replace(os.getcwd(), "")
+		relNewFileName = inspect.getfile(cls).replace(utils.projectBasePath, "")
 
 		# Check if we have an abstract skeleton
 		if cls.__name__.endswith("AbstractSkel"):
@@ -352,7 +351,7 @@ class MetaSkel(MetaBaseSkel):
 				cls.kindName = cls.__name__.lower()
 		# Try to determine which skeleton definition takes precedence
 		if cls.kindName and cls.kindName is not __undefindedC__ and cls.kindName in MetaBaseSkel._skelCache:
-			relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]).replace(os.getcwd(), "")
+			relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]).replace(utils.projectBasePath, "")
 			idxOld = min(
 				[x for (x, y) in enumerate(conf["viur.skeleton.searchPath"]) if relOldFileName.startswith(y)] + [999])
 			idxNew = min(
@@ -481,7 +480,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 					tags = tags.union(bone.getSearchTags(skel, boneName))
 			return tags
 		tags = tagsFromSkel(skel)
-		entry["viurTags"] = list(tags)
+		entry["viurTags"] = [x for x in tags if len(x) < 100]
 		return entry
 
 	def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> List[db.Entity]:
@@ -682,6 +681,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				if key in skel.accessedValues:
 					# bone.mergeFrom(skel.valuesCache, key, mergeFrom)
 					bone.serialize(skel, key, True)
+				elif key not in skel.dbEntity:  # It has not been written and is not in the database
+					_ = skel[key]  # Ensure the datastore is filled with the default value
+					bone.serialize(skel, key, True)
 
 				## Serialize bone into entity
 				# dbObj = bone.serialize(skel.valuesCache, key, dbObj)
@@ -864,7 +866,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		skel.postSavedHandler(key, dbObj)
 
 		if not clearUpdateTag and not isAdd:
-			updateRelations(key.to_legacy_urlsafe().decode("ASCII"), time() + 1,
+			updateRelations(key, time() + 1,
 							changeList if len(changeList) < 30 else None)
 
 		# Inform the custom DB Adapter of the changes made to the entry
@@ -952,7 +954,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					lockObj["has_old_blob_references"] = True
 					db.Put(lockObj)
 			db.Delete(skelKey)
-			processRemovedRelations(skelKey.to_legacy_urlsafe().decode("ASCII"))
+			processRemovedRelations(skelKey)
 			return dbObj
 
 		key = skelValues["key"]
@@ -1120,7 +1122,6 @@ class SkelList(list):
 
 @callDeferred
 def processRemovedRelations(removedKey, cursor=None):
-	removedKey = db.KeyClass.from_legacy_urlsafe(removedKey)
 	updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", removedKey) \
 		.filter("viur_relational_consistency >", 2)
 	updateListQuery = updateListQuery.setCursor(cursor)
@@ -1146,15 +1147,14 @@ def processRemovedRelations(removedKey, cursor=None):
 			skel.delete()
 			pass
 	if len(updateList) == 5:
-		processRemovedRelations(removedKey.to_legacy_urlsafe().decode("ASCII"),
-								updateListQuery.getCursor())
+		processRemovedRelations(removedKey, updateListQuery.getCursor())
 
 
 @callDeferred
 def updateRelations(destID, minChangeTime, changeList, cursor=None):
 	logging.debug("Starting updateRelations for %s ; minChangeTime %s, Changelist: %s", destID, minChangeTime,
 				  changeList)
-	updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", db.KeyClass.from_legacy_urlsafe(destID)) \
+	updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", destID) \
 		.filter("viur_delayed_update_tag <", minChangeTime).filter("viur_relational_updateLevel =", 0)
 	if changeList:
 		updateListQuery.filter("viur_foreign_keys IN", changeList)
@@ -1174,7 +1174,7 @@ def updateRelations(destID, minChangeTime, changeList, cursor=None):
 		try:
 			skel = skeletonByKind(srcRel["viur_src_kind"])()
 		except AssertionError:
-			logging.info("Deleting %s which refers to unknown kind %s" % (str(srcRel.key()), srcRel["viur_src_kind"]))
+			logging.info("Deleting %s which refers to unknown kind %s" % (str(srcRel.key), srcRel["viur_src_kind"]))
 			continue
 		db.RunInTransaction(updateTxn, skel, srcRel["src"].key, srcRel.key)
 	nextCursor = updateListQuery.getCursor()

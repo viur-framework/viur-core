@@ -7,7 +7,7 @@ import hashlib
 import copy
 from enum import Enum
 from dataclasses import dataclass
-from typing import Union, List, Set
+from typing import Union, List, Set, Any
 
 __systemIsIntitialized_ = False
 
@@ -51,13 +51,20 @@ class UniqueValue:  # Mark a bone as unique (it must have a different value for 
 	lockEmpty: bool  # If False, empty values ("", 0) are not locked - needed if a field is unique but not required
 	message: str  # Error-Message displayed to the user if the requested value is already taken
 
+@dataclass
+class MultipleConstraints:  # Used to define constraints on multiple bones
+	minAmount: int = 0  # Lower bound of how many entries can be submitted
+	maxAmount: int = 0  # Upper bound of how many entries can be submitted
+	preventDuplicates: bool = False  # Prevent the same value of being used twice
+
 class baseBone(object):  # One Bone:
 	hasDBField = True
 	type = "hidden"
 	isClonedInstance = False
 
 	def __init__(self, descr="", defaultValue=None, required=False, params=None, multiple=False, indexed=True,
-				 languages = None, searchable=False, vfunc=None, readOnly=False, visible=True, unique=False, **kwargs):
+				 languages = None, searchable=False, vfunc=None, readOnly=False, visible=True, unique=False,
+				 isEmptyFunc=None, getEmtpyValueFunc=None, **kwargs):
 		"""
 			Initializes a new Bone.
 
@@ -112,12 +119,37 @@ class baseBone(object):  # One Bone:
 			if not self.multiple and unique.method.value != 1:
 				raise ValueError("'SameValue' is the only valid method on non-multiple bones")
 		self.unique = unique
+		if isEmptyFunc:
+			self.isEmpty = isEmptyFunc
+		if getEmtpyValueFunc:
+			self.getEmptyValue = getEmtpyValueFunc
 
 	def setSystemInitialized(self):
 		"""
 			Can be overridden to initialize properties that depend on the Skeleton system being initialized
 		"""
 		pass
+
+	def isInvalid(self, value):
+		"""
+			Returns None if the value would be valid for
+			this bone, an error-message otherwise.
+		"""
+		return False
+
+	def isEmpty(self, rawValue: Any) -> bool:
+		"""
+			Check if the given single value represents the "empty" value.
+			This usually is the empty string, 0 or False.
+
+			Warning: isEmpty takes precedence over isInvalid! The empty value is always valid - unless the bone
+				is required. But even then the empty value will be reflected back to the client.
+
+			Warning: rawValue might be the string/object received from the user (untrusted input!) or the value
+				returned by get
+
+		"""
+		return not bool(rawValue)
 
 	def getDefaultValue(self, skeletonInstance):
 		if callable(self.defaultValue):
@@ -128,6 +160,13 @@ class baseBone(object):  # One Bone:
 			return self.defaultValue.copy()
 		else:
 			return self.defaultValue
+
+	def getEmptyValue(self) -> Any:
+		"""
+			Returns the value representing an empty field for this bone.
+			This might be the empty string for str/text Bones, Zero for numeric bones etc.
+		"""
+		return None
 
 	def __setattr__(self, key, value):
 		if not self.isClonedInstance and getSystemInitialized() and key != "isClonedInstance" and not key.startswith(
@@ -233,6 +272,9 @@ class baseBone(object):  # One Bone:
 		return False
 
 	def singleValueFromClient(self, value, skel, name, origData):
+		err = self.isInvalid(value)
+		if err:
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
 		return value, None
 
 	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
@@ -262,10 +304,12 @@ class baseBone(object):  # One Bone:
 				res[language] = []
 				if language in parsedData:
 					for singleValue in parsedData[language]:
+						if self.isEmpty(singleValue):
+							res[language].append(self.getEmptyValue())
+							continue
 						isEmpty = False
 						parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
-						if parsedVal is not None:
-							res[language].append(parsedVal)
+						res[language].append(parsedVal)
 						if parseErrors:
 							errors.extend(parseErrors)
 		elif self.languages:  # and not self.multiple is implicit - this would have been handled above
@@ -273,37 +317,58 @@ class baseBone(object):  # One Bone:
 			for language in self.languages:
 				res[language] = None
 				if language in parsedData:
+					if self.isEmpty(parsedData[language]):
+						res[language].append(self.getEmptyValue())
+						continue
 					isEmpty = False
 					parsedVal, parseErrors = self.singleValueFromClient(parsedData[language], skel, name, data)
-					if parsedVal is not None:
-						res[language] = parsedVal
+					res[language] = parsedVal
 					if parseErrors:
 						errors.extend(parseErrors)
 		elif self.multiple:  # and not self.languages is implicit - this would have been handled above
 			res = []
 			for singleValue in parsedData:
+				if self.isEmpty(singleValue):
+					res.append(self.getEmptyValue())
+					continue
 				isEmpty = False
 				parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
-				if parsedVal is not None:
-					res.append(parsedVal)
+				res.append(parsedVal)
 				if parseErrors:
 					errors.extend(parseErrors)
 		else:  # No Languages, not multiple
-			isEmpty = not fieldSubmitted
-			res, parseErrors = self.singleValueFromClient(parsedData, skel, name, data)
-			if parseErrors:
-				errors.extend(parseErrors)
+			if self.isEmpty(parsedData):
+				res = self.getEmptyValue()
+				isEmpty = True
+			else:
+				isEmpty = False
+				res, parseErrors = self.singleValueFromClient(parsedData, skel, name, data)
+				if parseErrors:
+					errors.extend(parseErrors)
 		skel[name] = res
 		if isEmpty:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "Field not set")]
+		if self.multiple and isinstance(self.multiple, MultipleConstraints):
+			errors.extend(self.validateMultipleConstraints(skel, name))
 		return errors or None
 
-	def isInvalid(self, value):
+	def validateMultipleConstraints(self, skel: 'SkeletonInstance', name: str) -> List[ReadFromClientError]:
 		"""
-			Returns None if the value would be valid for
-			this bone, an error-message otherwise.
+			Validates our value against our multiple constrains.
+			Returns a ReadFromClientError for each violation (eg. too many items and duplicates)
 		"""
-		return False
+		res = []
+		value = skel[name]
+		constraints = self.multiple
+		if constraints.minAmount and len(value) < constraints.minAmount:
+			res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Too few items"))
+		if constraints.maxAmount and len(value) > constraints.maxAmount:
+			res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Too many items"))
+		if constraints.preventDuplicates:
+			if len(set(value)) != len(value):
+				res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Duplicate items"))
+		return res
+
 
 	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
 		return value
@@ -435,6 +500,7 @@ class baseBone(object):  # One Bone:
 					res = self.singleValueUnserialize(loadVal, skel, name)
 			skel.accessedValues[name] = res
 			return True
+		skel.accessedValues[name] = self.getDefaultValue(skel)
 		return False
 
 	def delete(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):

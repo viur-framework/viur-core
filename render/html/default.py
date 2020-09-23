@@ -2,7 +2,7 @@
 from . import utils as jinjaUtils
 from .wrap import ListWrapper, SkelListWrapper
 
-from viur.core import utils, request, errors, securitykey
+from viur.core import utils, request, errors, securitykey, db
 from viur.core.skeleton import SkeletonInstance, RefSkel, skeletonByKind, SkeletonInstance
 from viur.core.bones import *
 from viur.core.i18n import TranslationExtension
@@ -106,13 +106,13 @@ class Render(object):
 					  template + ".html"]
 		for fn in fnames:  # check subfolders
 			prefix = template.split("_")[0]
-			if os.path.isfile(os.path.join(os.getcwd(), htmlpath, prefix, fn)):
+			if os.path.isfile(os.path.join(utils.projectBasePath, htmlpath, prefix, fn)):
 				return ("%s/%s" % (prefix, fn))
 		for fn in fnames:  # Check the templatefolder of the application
-			if os.path.isfile(os.path.join(os.getcwd(), htmlpath, fn)):
+			if os.path.isfile(os.path.join(utils.projectBasePath, htmlpath, fn)):
 				return fn
 		for fn in fnames:  # Check the fallback
-			if os.path.isfile(os.path.join(os.getcwd(), "viur", "core", "template", fn)):
+			if os.path.isfile(os.path.join(utils.projectBasePath, "viur", "core", "template", fn)):
 				return fn
 		raise errors.NotFound("Template %s not found." % template)
 
@@ -287,7 +287,7 @@ class Render(object):
 					ret.append(self.collectSkelData(entry))
 				return ret
 		elif bone.type == "key":
-			return boneValue.to_legacy_urlsafe().decode("ASCII") if boneValue else None
+			return db.encodeKey(boneValue) if boneValue else None
 		else:
 			return boneValue
 		return None

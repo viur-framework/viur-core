@@ -12,7 +12,8 @@ from viur.core import db, errors, utils
 from viur.core.config import conf
 from viur.core.utils import currentRequest, currentSession
 from time import sleep
-
+from datetime import datetime
+import pytz, base64
 
 class JsonKeyEncoder(json.JSONEncoder):
 	"""
@@ -21,7 +22,11 @@ class JsonKeyEncoder(json.JSONEncoder):
 
 	def default(self, o: Any) -> Any:
 		if isinstance(o, db.KeyClass):
-			return {".__key__": o.to_legacy_urlsafe().decode("ASCII")}
+			return {".__key__": db.encodeKey(o)}
+		elif isinstance(o, datetime):
+			return {".__datetime__": o.astimezone(pytz.UTC).strftime("d.%m.%Y %H:%M:%S")}
+		elif isinstance(o, bytes):
+			return {".__bytes__": base64.b64encode(o).decode("ASCII")}
 		return json.JSONEncoder.default(self, o)
 
 
@@ -29,8 +34,14 @@ def jsonDecodeObjectHook(obj):
 	"""
 		Inverse to JsonKeyEncoder: Check if the object matches a keymarker and parse it's key
 	"""
-	if len(obj) == 1 and ".__key__" in obj:
-		return db.KeyClass.from_legacy_urlsafe(obj[".__key__"])
+	if len(obj) == 1:
+		if len(obj) == 1 and ".__key__" in obj:
+			return db.KeyClass.from_legacy_urlsafe(obj[".__key__"])
+		elif len(obj) == 1 and ".__datetime__" in obj:
+			value = datetime.strptime(obj[".__datetime__"], "d.%m.%Y %H:%M:%S")
+			return datetime(value.year, value.month, value.day, value.hour, value.minute, value.second, tzinfo=pytz.UTC)
+		elif ".__bytes__" in obj:
+			return base64.b64decode(obj[".__bytes__"])
 	return obj
 
 _gaeApp = os.environ.get("GAE_APPLICATION")
@@ -408,14 +419,14 @@ def callDeferred(func):
 			taskargs["headers"] = {"Content-Type": "application/octet-stream"}
 			queue = kwargs.pop("_queue", "default")
 			# Try to preserve the important data from the current environment
-			env = {"user": None}
-			usr = getCurrentUser()
-			if usr:
-				env["user"] = {
-					"key": usr["key"].id_or_name,
-					"name": usr["name"],
-					"access": usr["access"]
-				}
+			try:  # We might get called inside a warmup request without session
+				usr = currentSession.get().get("user")
+				if "password" in usr:
+					del usr["password"]
+			except:
+				usr = None
+			env = {"user": usr}
+			logging.error(env)
 			try:
 				env["lang"] = currentRequest.get().language
 			except AttributeError:  # This isn't originating from a normal request
@@ -439,7 +450,7 @@ def callDeferred(func):
 			parent = taskClient.queue_path(project, location, queue)
 			task = {
 				'app_engine_http_request': {  # Specify the type of request.
-					'http_method': 'POST',
+					'http_method': tasks_v2.HttpMethod.POST,
 					'relative_uri': '/_tasks/deferred'
 				}
 			}
@@ -451,7 +462,7 @@ def callDeferred(func):
 			task['app_engine_http_request']['body'] = pickled
 
 			# Use the client to build and send the task.
-			response = taskClient.create_task(parent, task)
+			response = taskClient.create_task(parent=parent, task=task)
 
 			print('Created task {}'.format(response.name))
 

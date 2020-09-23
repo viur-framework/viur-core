@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 from collections import OrderedDict
-from viur.core import errors, bones, utils
+from viur.core import errors, bones, utils, db
 from viur.core.skeleton import RefSkel, skeletonByKind, BaseSkeleton, SkeletonInstance
 from viur.core.utils import currentRequest
 
@@ -36,9 +36,17 @@ class DefaultRender(object):
 			"visible": bone.visible,
 			"readonly": bone.readOnly,
 			"unique": bone.unique.method.value if bone.unique else False,
-			"languages": bone.languages,
-			"multiple": bone.multiple
+			"languages": bone.languages
 		}
+		if bone.multiple:
+			if isinstance(bone.multiple, bones.MultipleConstraints):
+				ret["multiple"] = {
+					"minAmount": bone.multiple.minAmount,
+					"maxAmount": bone.multiple.maxAmount,
+					"preventDuplicates": bone.multiple.preventDuplicates,
+				}
+			else:
+				ret["multiple"] = bone.multiple
 
 		if bone.type == "relational" or bone.type.startswith("relational."):
 			ret.update({
@@ -51,7 +59,6 @@ class DefaultRender(object):
 
 		elif bone.type == "record" or bone.type.startswith("record."):
 			ret.update({
-				"multiple": bone.multiple,
 				"format": bone.format,
 				"using": self.renderSkelStructure(bone.using())
 			})
@@ -59,7 +66,6 @@ class DefaultRender(object):
 		elif bone.type == "select" or bone.type.startswith("select."):
 			ret.update({
 				"values": [(k, str(v)) for k, v in bone.values.items()],
-				"multiple": bone.multiple,
 			})
 
 		elif bone.type == "date" or bone.type.startswith("date."):
@@ -83,7 +89,6 @@ class DefaultRender(object):
 
 		elif bone.type == "str" or bone.type.startswith("str."):
 			ret.update({
-				"multiple": bone.multiple,
 				"languages": bone.languages
 			})
 
@@ -137,7 +142,7 @@ class DefaultRender(object):
 		elif isinstance(bone, bones.recordBone):
 			return self.renderSkelValues(value)
 		elif isinstance(bone, bones.keyBone):
-			return value.to_legacy_urlsafe().decode("ASCII") if value else None
+			return db.encodeKey(value) if value else None
 		else:
 			return value
 		return None
@@ -248,7 +253,7 @@ class DefaultRender(object):
 
 	def listRootNodes(self, rootNodes, tpl=None, params=None):
 		for rn in rootNodes:
-			rn["key"] = rn["key"].to_legacy_urlsafe().decode("ASCII")
+			rn["key"] = db.encodeKey(rn["key"])
 		return json.dumps(rootNodes)
 
 	def listRootNodeContents(self, subdirs, entrys, tpl=None, params=None, **kwargs):
