@@ -432,7 +432,7 @@ def callDeferred(func):
 			parent = taskClient.queue_path(project, location, queue)
 			task = {
 				'app_engine_http_request': {  # Specify the type of request.
-					'http_method': 'POST',
+					'http_method': tasks_v2.HttpMethod.POST,
 					'relative_uri': '/_tasks/deferred'
 				}
 			}
@@ -444,7 +444,7 @@ def callDeferred(func):
 			task['app_engine_http_request']['body'] = pickled
 
 			# Use the client to build and send the task.
-			response = taskClient.create_task(parent, task)
+			response = taskClient.create_task(parent=parent, task=task)
 
 			print('Created task {}'.format(response.name))
 
