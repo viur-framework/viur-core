@@ -480,7 +480,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 					tags = tags.union(bone.getSearchTags(skel, boneName))
 			return tags
 		tags = tagsFromSkel(skel)
-		entry["viurTags"] = list(tags)
+		entry["viurTags"] = [x for x in tags if len(x) < 100]
 		return entry
 
 	def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> List[db.Entity]:
