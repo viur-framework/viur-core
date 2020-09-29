@@ -432,7 +432,7 @@ def callDeferred(func):
 			parent = taskClient.queue_path(project, location, queue)
 			task = {
 				'app_engine_http_request': {  # Specify the type of request.
-					'http_method': tasks_v2.HttpMethod.POST,
+					'http_method': tasks_v2.enums.HttpMethod.POST,
 					'relative_uri': '/_tasks/deferred'
 				}
 			}
