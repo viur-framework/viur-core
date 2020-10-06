@@ -580,7 +580,7 @@ class Tree(BasicApplication):
 		queryObj = self.listFilter(queryObj)  # Access control
 		if queryObj is None:
 			return False
-		if not queryObj.get():
+		if not queryObj.getEntry():
 			return False
 		return True
 
