@@ -615,7 +615,11 @@ def embedSvg(render, name: str, classes: Union[List[str], None] = None, **kwargs
 
 
 @jinjaGlobalFunction
-def downloadUrlFor(render, fileObj, derived=None, expires=timedelta(hours=1)):
+def downloadUrlFor(render, fileObj, expires, derived=None):
+	if "dlkey" not in fileObj and "dest" in fileObj:
+		fileObj = fileObj["dest"]
+	if expires:
+		expires = timedelta(minutes=expires)
 	if not isinstance(fileObj, (SkeletonInstance, dict)) or "dlkey" not in fileObj or "name" not in fileObj:
 		return None
 	if derived and ("derived" not in fileObj or not isinstance(fileObj["derived"], dict)):
@@ -626,7 +630,11 @@ def downloadUrlFor(render, fileObj, derived=None, expires=timedelta(hours=1)):
 		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileObj["name"], derived=False, expires=expires)
 
 @jinjaGlobalFunction
-def srcSetFor(render, fileObj, expires=timedelta(hours=1)):
+def srcSetFor(render, fileObj, expires):
+	if "dlkey" not in fileObj and "dest" in fileObj:
+		fileObj = fileObj["dest"]
+	if expires:
+		expires = timedelta(minutes=expires)
 	if not isinstance(fileObj, (SkeletonInstance, dict)) or not "dlkey" in fileObj or "derived" not in fileObj:
 		return None
 	if not isinstance(fileObj["derived"], dict):
