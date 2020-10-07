@@ -8,12 +8,13 @@ from viur.core.bones import *
 from viur.core.i18n import TranslationExtension
 from collections import OrderedDict
 from jinja2 import Environment, FileSystemLoader, ChoiceLoader, BytecodeCache
-from viur.core.i18n import translate
+from viur.core.i18n import translate, LanguageWrapper
 import os, logging, codecs
 from collections import namedtuple
 from viur.core.utils import currentRequest, currentSession, currentLanguage
 
 KeyValueWrapper = namedtuple("KeyValueWrapper", ["key", "descr"])
+
 
 class Render(object):
 	"""
@@ -226,7 +227,7 @@ class Render(object):
 
 		return res
 
-	def renderBoneValue(self, bone, skel, key, boneValue):
+	def renderBoneValue(self, bone, skel, key, boneValue, isLanguageWrapped: bool = False):
 		"""
 		Renders the value of a bone.
 
@@ -239,7 +240,14 @@ class Render(object):
 		:return: A dict containing the rendered attributes.
 		:rtype: dict
 		"""
-		if bone.type == "select" or bone.type.startswith("select."):
+		if bone.languages and not isLanguageWrapped:
+			res = LanguageWrapper(bone.languages)
+			if isinstance(boneValue, dict):
+				for language in bone.languages:
+					if language in boneValue:
+						res[language] = self.renderBoneValue(bone, skel, key, boneValue[language], True)
+			return res
+		elif bone.type == "select" or bone.type.startswith("select."):
 			skelValue = boneValue
 			if isinstance(skelValue, list):
 				return {
@@ -252,33 +260,25 @@ class Render(object):
 			if isinstance(boneValue, list):
 				tmpList = []
 				for k in boneValue:
-					if bone.using is None:
-						tmpList.append(self.collectSkelData(k["dest"]))
-					else:
-						#usingSkel = bone._usingSkelCache
-						if k["rel"]:
-							usingData = self.collectSkelData(k["rel"])
-						else:
-							usingData = None
-						tmpList.append({
-							"dest": self.collectSkelData(k["dest"]),
-							"rel": usingData
-						})
-				return tmpList
-			elif isinstance(boneValue, dict):
-				if bone.using is None:
-					return self.collectSkelData(boneValue["dest"])
-				else:
-					#usingSkel = bone._usingSkelCache
-					if boneValue["rel"]:
-						usingData = self.collectSkelData(boneValue["rel"])
+					if bone.using and k["rel"]:
+						usingData = self.collectSkelData(k["rel"])
 					else:
 						usingData = None
-
-					return {
-						"dest": self.collectSkelData(boneValue["dest"]),
+					tmpList.append({
+						"dest": self.collectSkelData(k["dest"]),
 						"rel": usingData
-					}
+					})
+				return tmpList
+			elif isinstance(boneValue, dict):
+				# usingSkel = bone._usingSkelCache
+				if bone.using and boneValue["rel"]:
+					usingData = self.collectSkelData(boneValue["rel"])
+				else:
+					usingData = None
+				return {
+					"dest": self.collectSkelData(boneValue["dest"]),
+					"rel": usingData
+				}
 		elif bone.type == "record" or bone.type.startswith("record."):
 			value = boneValue
 			if value:

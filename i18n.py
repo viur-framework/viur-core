@@ -9,6 +9,44 @@ from datetime import datetime
 systemTranslations = {}
 
 
+class LanguageWrapper(dict):
+	"""
+		Wrapper-class for a multi-language value.
+		Its a dictionary, allowing accessing each stored language,
+		but can also be used as a string, in which case it tries to
+		guess the correct language.
+	"""
+
+	def __init__(self, languages):
+		super(LanguageWrapper, self).__init__()
+		self.languages = languages
+
+	def __str__(self):
+		return (str(self.resolve()))
+
+	def resolve(self):
+		"""
+			Causes this wrapper to evaluate to the best language available for the current request.
+
+			:returns: str|list of str
+			:rtype: str|list of str
+		"""
+		lang = currentLanguage.get()
+		if not lang:
+			lang = self.languages[0]
+		else:
+			if lang in conf["viur.languageAliasMap"]:
+				lang = conf["viur.languageAliasMap"][lang]
+		if lang in self and self[lang] is not None and str(
+				self[lang]).strip():  # The users language is available :)
+			return (self[lang])
+		else:  # We need to select another lang for him
+			for lang in self.languages:
+				if lang in self and self[lang]:
+					return (self[lang])
+		return ""
+
+
 class translate:
 	__slots__ = ["key", "defaultText", "hint", "translationCache"]
 
@@ -45,6 +83,14 @@ class translate:
 
 
 class TranslationExtension(Extension):
+	"""
+		Default translation extension for jinja2 render.
+		Use like {% translate "translationKey", "defaultText", "translationHint", replaceValue1="replacedText1" %}
+		All except translationKey is optional. translationKey is the same Key supplied to _() before.
+		defaultText will be printed if no translation is available.
+		translationHint is a optional hint for anyone adding a now translation how/where that translation is used.
+	"""
+
 	tags = {"translate"}
 
 	def parse(self, parser):
@@ -54,12 +100,13 @@ class TranslationExtension(Extension):
 		kwargs = {}
 		lineno = parser.stream.current.lineno
 		# Parse arguments (args and kwargs) until the current block ends
+		lastToken = None
 		while parser.stream.current.type != 'block_end':
 			lastToken = parser.parse_expression()
 			if parser.stream.current.type == "comma":  # It's an arg
 				args.append(lastToken.value)
 				next(parser.stream)  # Advance pointer
-				continue
+				lastToken = None
 			elif parser.stream.current.type == "assign":
 				next(parser.stream)  # Advance beyond =
 				expr = parser.parse_expression()
@@ -70,6 +117,9 @@ class TranslationExtension(Extension):
 					break
 				else:
 					raise SyntaxError()
+				lastToken = None
+		if lastToken:
+			args.append(lastToken.value)
 		if not 0 < len(args) < 3:
 			raise SyntaxError("Translation-Key missing!")
 		args += [""] * (3 - len(args))
@@ -154,6 +204,8 @@ localizedMonthNames = {
 	11: translate("const_month_11_long", "November", "November"),
 	12: translate("const_month_12_long", "December", "December"),
 }
+
+
 def localizedStrfTime(datetimeObj: datetime, format: str) -> str:
 	"""
 	Provides correct localized names for directives like %a which dont get translated on GAE properly as we can't

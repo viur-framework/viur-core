@@ -3,7 +3,6 @@ from html.parser import HTMLParser
 from html import entities as htmlentitydefs
 from viur.core import db
 from viur.core.bones import baseBone
-from viur.core.bones.stringBone import LanguageWrapper
 from viur.core.config import conf
 import logging, string
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
@@ -225,7 +224,7 @@ class textBone(baseBone):
 		self.maxLength = maxLength
 		if defaultValue is None:
 			if self.languages:
-				self.defaultValue = LanguageWrapper(self.languages)
+				self.defaultValue = {}
 			else:
 				self.defaultValue = ""
 

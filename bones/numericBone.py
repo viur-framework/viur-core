@@ -2,7 +2,6 @@
 from viur.core.bones import baseBone
 from math import pow
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core.bones.stringBone import LanguageWrapper
 import logging
 from typing import Any
 
