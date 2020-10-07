@@ -345,7 +345,7 @@ class GoogleAccount(object):
 			isAdd = True
 		else:
 			isAdd = False
-		now = datetime.datetime.now()
+		now = utils.utcNow()
 		if isAdd or (now - userSkel["lastlogin"]) > datetime.timedelta(minutes=30):
 			# Conserve DB-Writes: Update the user max once in 30 Minutes
 			userSkel["lastlogin"] = now
