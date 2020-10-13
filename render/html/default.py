@@ -248,37 +248,32 @@ class Render(object):
 			elif skelValue in bone.values:
 				return KeyValueWrapper(skelValue, bone.values[skelValue])
 			return KeyValueWrapper(skelValue, str(skelValue))
+
 		elif bone.type == "relational" or bone.type.startswith("relational."):
 			if isinstance(boneValue, list):
 				tmpList = []
 				for k in boneValue:
-					if bone.using is None:
-						tmpList.append(self.collectSkelData(k["dest"]))
-					else:
-						#usingSkel = bone._usingSkelCache
-						if k["rel"]:
-							usingData = self.collectSkelData(k["rel"])
-						else:
-							usingData = None
-						tmpList.append({
-							"dest": self.collectSkelData(k["dest"]),
-							"rel": usingData
-						})
-				return tmpList
-			elif isinstance(boneValue, dict):
-				if bone.using is None:
-					return self.collectSkelData(boneValue["dest"])
-				else:
-					#usingSkel = bone._usingSkelCache
-					if boneValue["rel"]:
-						usingData = self.collectSkelData(boneValue["rel"])
+					if bone.using is not None and k["rel"]:
+						usingData = self.collectSkelData(k["rel"])
 					else:
 						usingData = None
 
-					return {
-						"dest": self.collectSkelData(boneValue["dest"]),
+					tmpList.append({
+						"dest": self.collectSkelData(k["dest"]),
 						"rel": usingData
-					}
+					})
+				return tmpList
+			elif isinstance(boneValue, dict):
+				if bone.using is not None and boneValue["rel"]:
+					usingData = self.collectSkelData(boneValue["rel"])
+				else:
+					usingData = None
+
+				return {
+					"dest": self.collectSkelData(boneValue["dest"]),
+					"rel": usingData
+				}
+
 		elif bone.type == "record" or bone.type.startswith("record."):
 			value = boneValue
 			if value:
@@ -286,10 +281,13 @@ class Render(object):
 				for entry in value:
 					ret.append(self.collectSkelData(entry))
 				return ret
+
 		elif bone.type == "key":
 			return db.encodeKey(boneValue) if boneValue else None
+
 		else:
 			return boneValue
+
 		return None
 
 	def collectSkelData(self, skel):
