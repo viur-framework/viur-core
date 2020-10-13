@@ -511,7 +511,7 @@ class Tree(BasicApplication):
 			raise errors.NotAcceptable()
 
 		## Test for recursion
-		currLevel = db.Get(parentNode)
+		currLevel = db.Get(parentNodeSkel["key"])
 		for x in range(0, 99):
 			if currLevel.key == skel["key"]:
 				break
@@ -532,7 +532,7 @@ class Tree(BasicApplication):
 			raise errors.PreconditionFailed()
 
 		currentParentRepo = skel["parentrepo"]
-		skel["parententry"] = parentNode
+		skel["parententry"] = parentNodeSkel["key"]
 		skel["parentrepo"] = parentNodeSkel["parentrepo"]  # Fixme: Need to recursive fixing to parentrepo?
 		if "sortindex" in kwargs:
 			try:
@@ -544,7 +544,7 @@ class Tree(BasicApplication):
 		# Ensure a changed parentRepo get's proagated
 		if currentParentRepo != parentNodeSkel["parentrepo"]:
 			self.updateParentRepo(key, parentNodeSkel["parentrepo"])
-		return self.render.editItemSuccess(skel)  # new Sig, has no args and kwargs , skelType = skelType, action = "move", destNode = parentNodeSkel )
+		return self.render.editSuccess(skel)  # new Sig, has no args and kwargs , skelType = skelType, action = "move", destNode = parentNodeSkel )
 
 	## Default access control functions
 
