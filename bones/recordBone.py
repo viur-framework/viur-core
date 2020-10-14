@@ -8,12 +8,12 @@ import copy
 class recordBone(baseBone):
 	type = "record"
 
-	def __init__(self, using, format=None, multiple=True, indexed=False, *args, **kwargs):
-		super(recordBone, self).__init__(multiple=multiple, *args, **kwargs)
+	def __init__(self, using, format=None, indexed=False, *args, **kwargs):
+		super(recordBone, self).__init__(*args, **kwargs)
 		self.using = using
 		self.format = format
-		if not format or indexed or not multiple:
-			raise NotImplementedError("A recordBone must not be indexed, must be multiple and must have a format set")
+		if not format or indexed:
+			raise NotImplementedError("A recordBone must not be indexed and must have a format set")
 
 	def setSystemInitialized(self):
 		super(recordBone, self).setSystemInitialized()
@@ -50,14 +50,19 @@ class recordBone(baseBone):
 							res.append(tag)
 			return res
 
-		value = values.get(key)
+		value = values[key]
 		res = []
 
 		if not value:
 			return res
+
 		uskel = self.using()
-		for val in value:
-			res = getValues(res, uskel, val)
+
+		if self.multiple:
+			for entry in value:
+				res = getValues(res, uskel, entry)
+		else:
+			res = getValues(res, uskel, value)
 
 		return res
 
