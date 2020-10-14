@@ -142,8 +142,9 @@ class UserPassword(object):
 		if not name or not password or not securitykey.validate(skey, useSessionKey=True):
 			return self.userModule.render.login(self.loginSkel())
 
+		name = name.lower().strip()
 		query = db.Query(self.userModule.viewSkel().kindName)
-		res = query.filter("name.idx >=", name.lower()).getEntry()
+		res = query.filter("name.idx >=", name).getEntry()
 
 		if res is None:
 			res = {"password": {"pwhash": "-invalid-", "salt": "-invalid"}, "status": 0, "name": {}}
@@ -155,10 +156,10 @@ class UserPassword(object):
 
 		# Check if the username matches
 		storedUserName = (res.get("name") or {}).get("idx", "")
-		if len(storedUserName) != len(name.lower()):
+		if len(storedUserName) != len(name):
 			isOkay = False
 		else:
-			for x, y in zip(storedUserName, name.lower()):
+			for x, y in zip(storedUserName, name):
 				if x != y:
 					isOkay = False
 
@@ -177,7 +178,6 @@ class UserPassword(object):
 
 		if not isOkay:
 			skel = self.loginSkel()
-			skel.fromClient({"name": name, "nomissing": "1"})
 			return self.userModule.render.login(skel, loginFailed=True)
 		else:
 			return self.userModule.continueAuthenticationFlow(self, res.key)
