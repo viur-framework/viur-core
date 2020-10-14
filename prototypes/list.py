@@ -180,7 +180,7 @@ class List(BasicApplication):
 		or as the first parameter in *args*. The function performs several access control checks
 		on the requested entity before it is modified.
 
-		.. seealso:: :func:`editSkel`, :func:`onEdited`, :func:`canEdit`
+		.. seealso:: :func:`editSkel`, :func:`onEdit`, :func:`onEdited`, :func:`canEdit`
 
 		:returns: The rendered, edited object of the entry, eventually with error hints.
 
@@ -230,7 +230,7 @@ class List(BasicApplication):
 
 		The function performs several access control checks on the requested entity before it is added.
 
-		.. seealso:: :func:`addSkel`, :func:`onAdded`, :func:`canAdd`
+		.. seealso:: :func:`addSkel`, :func:`onAdd`, :func:`onAdded`, :func:`canAdd`
 
 		:returns: The rendered, added object of the entry, eventually with error hints.
 
@@ -515,7 +515,7 @@ class List(BasicApplication):
 
 		.. seealso:: :func:`add`, :func:`onAdded`
 		"""
-		pass
+		logging.debug("onAdd")
 
 	def onAdded(self, skel):
 		"""
@@ -546,7 +546,7 @@ class List(BasicApplication):
 
 		.. seealso:: :func:`edit`, :func:`onEdited`
 		"""
-		pass
+		logging.debug("onEdit")
 
 	def onEdited(self, skel):
 		"""
@@ -578,7 +578,7 @@ class List(BasicApplication):
 
 		.. seealso:: :func:`view`
 		"""
-		pass
+		logging.debug("onView")
 
 	def onDelete(self, skel):
 		"""
@@ -591,7 +591,7 @@ class List(BasicApplication):
 
 		.. seealso:: :func:`delete`, :func:`onDeleted`
 		"""
-		pass
+		logging.debug("onDelete")
 
 	def onDeleted(self, skel):
 		"""

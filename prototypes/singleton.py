@@ -104,7 +104,7 @@ class Singleton(BasicApplication):
 
 		The function performs several access control checks on the requested entity before it is rendered.
 
-		.. seealso:: :func:`viewSkel`, :func:`canView`, :func:`onViewed`
+		.. seealso:: :func:`viewSkel`, :func:`canView`, :func:`onView`
 
 		:returns: The rendered representation of the entity.
 
@@ -121,7 +121,7 @@ class Singleton(BasicApplication):
 		if not skel.fromDB(key):
 			raise errors.NotFound()
 
-		self.onViewed(skel)
+		self.onView(skel)
 		return self.render.view(skel)
 
 	@exposed
@@ -165,6 +165,7 @@ class Singleton(BasicApplication):
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 
+		self.onEdit(skel)
 		skel.toDB()
 		self.onEdited(skel)
 		return self.render.editSuccess(skel)
@@ -276,6 +277,19 @@ class Singleton(BasicApplication):
 			return (True)
 		return (False)
 
+	def onEdit(self, skel):
+		"""
+		Hook function that is called before editing an entry.
+
+		It can be overridden for a module-specific behavior.
+
+		:param skel: The Skeleton that is going to be edited.
+		:type skel: :class:`server.skeleton.Skeleton`
+
+		.. seealso:: :func:`edit`, :func:`onEdited`
+		"""
+		logging.debug("onEdit")
+
 	def onEdited(self, skel):
 		"""
 		Hook function that is called after modifying the entry.
@@ -286,26 +300,26 @@ class Singleton(BasicApplication):
 		:param skel: The Skeleton that has been modified.
 		:type skel: :class:`server.skeleton.Skeleton`
 
-		.. seealso:: :func:`edit`
+		.. seealso:: :func:`edit`, :func:`onEdit`
 		"""
 		logging.info("Entry changed: %s" % skel["key"])
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-	def onViewed(self, skel):
+	def onView(self, skel):
 		"""
 		Hook function that is called when viewing an entry.
 
 		It should be overridden for a module-specific behavior.
 		The default is doing nothing.
 
-		:param skel: The Skeleton that is viewed.
+		:param skel: The Skeleton that is being viewed.
 		:type skel: :class:`server.skeleton.Skeleton`
 
 		.. seealso:: :func:`view`
 		"""
-		pass
+		logging.debug("onView")
 
 
 Singleton.admin = True
