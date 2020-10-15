@@ -67,7 +67,7 @@ class recordBone(baseBone):
 							res.append(tag)
 			return res
 
-		value = values.get(key)
+		value = values[key]
 		res = []
 
 		if not value:
