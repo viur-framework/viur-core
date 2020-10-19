@@ -157,11 +157,16 @@ class Render(object):
 
 		if bone.type == "relational" or bone.type.startswith("relational."):
 			ret.update({
-				"type": bone.type,
 				"module": bone.module,
 				"format": bone.format,
 				"using": self.renderSkelStructure(bone.using()) if bone.using else None,
 				"relskel": self.renderSkelStructure(bone._refSkelCache())
+			})
+
+		elif bone.type == "record" or bone.type.startswith("record."):
+			ret.update({
+				"format": bone.format,
+				"using": self.renderSkelStructure(bone.using())
 			})
 
 		elif bone.type == "select" or bone.type.startswith("select."):
@@ -277,10 +282,14 @@ class Render(object):
 		elif bone.type == "record" or bone.type.startswith("record."):
 			value = boneValue
 			if value:
-				ret = []
-				for entry in value:
-					ret.append(self.collectSkelData(entry))
-				return ret
+				if bone.multiple:
+					ret = []
+					for entry in value:
+						ret.append(self.collectSkelData(entry))
+
+					return ret
+
+				return self.collectSkelData(value)
 
 		elif bone.type == "key":
 			return db.encodeKey(boneValue) if boneValue else None

@@ -532,7 +532,7 @@ def renderEditBone(render, skel, boneName):
 
 
 @jinjaGlobalFunction
-def renderEditForm(render, skel, ignore=None, hide=None):
+def renderEditForm(render, skel, ignore=None, hide=None, prefix=None):
 	if not isinstance(skel, dict) or not all([x in skel.keys() for x in ["errors", "structure", "value"]]):
 		raise ValueError("This does not look like an editable Skeleton!")
 
@@ -571,16 +571,20 @@ def renderEditForm(render, skel, ignore=None, hide=None):
 				allHidden = False
 
 			editWidget = renderEditBone(render, skel, boneName)
-			categoryContent += rowTpl.render(boneName=boneName,
-											 boneParams=boneParams,
-											 boneWasInvalid=boneWasInvalid,
-											 editWidget=editWidget)
+			categoryContent += rowTpl.render(
+				boneName=(prefix + "." if prefix else "") + boneName,
+				 boneParams=boneParams,
+				 boneWasInvalid=boneWasInvalid,
+				 editWidget=editWidget
+			)
 
-		res += sectionTpl.render(categoryName=category,
-								 categoryClassName="".join([x for x in category if x in string.ascii_letters]),
-								 categoryContent=categoryContent,
-								 allReadOnly=allReadOnly,
-								 allHidden=allHidden)
+		res += sectionTpl.render(
+			categoryName=category,
+			categoryClassName="".join([x for x in category if x in string.ascii_letters]),
+			categoryContent=categoryContent,
+			allReadOnly=allReadOnly,
+			allHidden=allHidden
+		)
 
 	return res
 
