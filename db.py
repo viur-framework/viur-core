@@ -211,7 +211,7 @@ class Query(object):
 		self.srcSkel = srcSkelClass
 		self.filters: Union[None, Dict[str: DATASTORE_BASE_TYPES], List[Dict[str: DATASTORE_BASE_TYPES]]] = {}
 		self.orders: List[Tuple[str, SortOrder]] = [(KEY_SPECIAL_PROPERTY, SortOrder.Ascending)]
-		self.amount: int = 30
+		self._limit: int = 30
 		cbSignature = Union[None, Callable[[Query, str, Union[DATASTORE_BASE_TYPES, List[DATASTORE_BASE_TYPES]]], Union[
 			None, Tuple[str, Union[DATASTORE_BASE_TYPES, List[DATASTORE_BASE_TYPES]]]]]]
 		self._filterHook: cbSignature = None
@@ -221,7 +221,7 @@ class Query(object):
 		# Sometimes, the default merge functionality from MultiQuery is not sufficient
 		self._customMultiQueryMerge: Union[None, Callable[[Query, List[List[Entity]], int], List[Entity]]] = None
 		# Some (Multi-)Queries need a different amount of results per subQuery than actually returned
-		self._calculateInternalMultiQueryAmount: Union[None, Callable[[Query, int], int]] = None
+		self._calculateInternalMultiQueryLimit: Union[None, Callable[[Query, int], int]] = None
 		# Allow carrying custom data along with the query. Currently only used by spartialBone to record the guranteed correctnes
 		self.customQueryInfo = {}
 		self.origKind = kind
@@ -314,9 +314,9 @@ class Query(object):
 			return self
 		if "cursor" in filters and filters["cursor"] and filters["cursor"].lower() != "none":
 			self.setCursor(filters["cursor"])
-		if "amount" in filters and str(filters["amount"]).isdigit() and int(filters["amount"]) > 0 and int(
-				filters["amount"]) <= 100:
-			self.limit(int(filters["amount"]))
+		if "limit" in filters and str(filters["limit"]).isdigit() and int(filters["limit"]) > 0 and int(
+				filters["limit"]) <= 100:
+			self.limit(int(filters["limit"]))
 		return self
 
 	def filter(self, prop: str, value: Union[DATASTORE_BASE_TYPES, List[DATASTORE_BASE_TYPES]]) -> Query:
@@ -491,19 +491,19 @@ class Query(object):
 		self._endCursor = endCursor
 		return self
 
-	def limit(self, amount):
+	def limit(self, limit):
 		"""
 			Sets the query limit to *amount* entities in the result.
 
-			Specifying an amount of 0 disables the limit (use with care!).
+			Specifying an limit of 0 disables the limit (use with care!).
 
-			:param amount: The maximum number of entities.
-			:type amount: int
+			:param limit: The maximum number of entities.
+			:type limit: int
 
 			:returns: Returns the query itself for chaining.
 			:rtype: server.db.Query
 		"""
-		self.amount = amount
+		self._limit = limit
 		return self
 
 	def distinctOn(self, keyList: List[str]) -> self:
@@ -615,7 +615,7 @@ class Query(object):
 			return
 		self.datastoreQuery.__kind = newKind
 
-	def _runSingleFilterQuery(self, filters, amount):
+	def _runSingleFilterQuery(self, filters, limit):
 		qry = __client__.query(kind=self.getKind())
 		for k, v in filters.items():
 			key, op = k.split(" ")
@@ -651,7 +651,7 @@ class Query(object):
 			qry.order = [x[0] if x[1] == SortOrder.Ascending else "-" + x[0] for x in newSortOrder]
 		else:
 			qry.order = [x[0] if x[1] == SortOrder.Ascending else "-" + x[0] for x in self.orders]
-		qryRes = qry.fetch(limit=amount, start_cursor=self._startCursor, end_cursor=self._endCursor)
+		qryRes = qry.fetch(limit=limit, start_cursor=self._startCursor, end_cursor=self._endCursor)
 		res = next(qryRes.pages)
 		self.lastCursor = qryRes.next_page_token
 		return res
@@ -761,7 +761,7 @@ class Query(object):
 		"""
 		if self.filters is None:
 			return None
-		origLimit = limit if limit != -1 else self.amount
+		origLimit = limit if limit != -1 else self._limit
 		qryLimit = origLimit
 
 		if self._fulltextQueryString:
@@ -778,14 +778,14 @@ class Query(object):
 					res = [x for x in res if any([_entryMatchesQuery(x, y) for y in self.filters])]
 		elif isinstance(self.filters, list):
 			# We have more than one query to run
-			if self._calculateInternalMultiQueryAmount:
-				qryLimit = self._calculateInternalMultiQueryAmount(self, qryLimit)
+			if self._calculateInternalMultiQueryLimit:
+				qryLimit = self._calculateInternalMultiQueryLimit(self, qryLimit)
 			res = []
 			# We run all queries first (preventing multiple round-trips to the server)
 			for singleFilter in self.filters:
 				res.append(self._runSingleFilterQuery(
 					filters=singleFilter,
-					amount=qryLimit))
+					limit=qryLimit))
 			# Wait for the actual results to arrive and convert the protobuffs to Entries
 			res = [self._fixKind(x) for x in res]
 			if self._customMultiQueryMerge:
@@ -831,11 +831,11 @@ class Query(object):
 		"""
 		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
-		amount = limit if limit != -1 else self.amount
-		if amount < 1 or amount > 100:
+		limit = limit if limit != -1 else self._limit
+		if limit < 1 or limit > 100:
 			raise NotImplementedError(
 				"This query is not limited! You must specify an upper bound using limit() between 1 and 100")
-		dbRes = self.run(amount)
+		dbRes = self.run(limit)
 		if dbRes is None:
 			return None
 		res = SkelListRef(self.srcSkel)
@@ -923,13 +923,13 @@ class Query(object):
 		res.kind = self.kind
 		res.filters = deepcopy(self.filters)
 		res.orders = deepcopy(self.orders)
-		res.amount = self.amount
+		res._limit = self._limit
 		res._filterHook = self._filterHook
 		res._orderHook = self._orderHook
 		res._startCursor = self._startCursor
 		res._endCursor = self._endCursor
 		res._customMultiQueryMerge = self._customMultiQueryMerge
-		res._calculateInternalMultiQueryAmount = self._calculateInternalMultiQueryAmount
+		res._calculateInternalMultiQueryLimit = self._calculateInternalMultiQueryLimit
 		res.customQueryInfo = self.customQueryInfo
 		res.origKind = self.origKind
 		res._fulltextQueryString = self._fulltextQueryString
