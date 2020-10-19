@@ -131,6 +131,20 @@ class Tree(BasicApplication):
 		assert skelType in [TreeType.Node, TreeType.Leaf]
 		return self._resolveSkelCls(skelType, *args, **kwargs)()
 
+
+	def ensureOwnModuleRootNode(self):
+		"""
+		Ensures, that general root-node for the current module exists.
+		If no root-node exists yet, it will be created.
+
+		:returns: The entity of the root-node.
+		:rtype: :class:`server.db.Entity`
+		"""
+		key = "rep_module_repo"
+		kindName = self.viewSkel(TreeType.Node).kindName
+		return db.GetOrInsert(db.Key(kindName, key), creationdate=utils.utcNow(), rootNode=1)
+
+
 	def getAvailableRootNodes(self, *args, **kwargs):
 		"""
 		Default function for providing a list of root node items.
