@@ -131,6 +131,20 @@ class Tree(BasicApplication):
 		assert skelType in [TreeType.Node, TreeType.Leaf]
 		return self._resolveSkelCls(skelType, *args, **kwargs)()
 
+
+	def ensureOwnModuleRootNode(self):
+		"""
+		Ensures, that general root-node for the current module exists.
+		If no root-node exists yet, it will be created.
+
+		:returns: The entity of the root-node.
+		:rtype: :class:`server.db.Entity`
+		"""
+		key = "rep_module_repo"
+		kindName = self.viewSkel(TreeType.Node).kindName
+		return db.GetOrInsert(db.Key(kindName, key), creationdate=utils.utcNow(), rootNode=1)
+
+
 	def getAvailableRootNodes(self, *args, **kwargs):
 		"""
 		Default function for providing a list of root node items.
@@ -511,7 +525,7 @@ class Tree(BasicApplication):
 			raise errors.NotAcceptable()
 
 		## Test for recursion
-		currLevel = db.Get(parentNode)
+		currLevel = db.Get(parentNodeSkel["key"])
 		for x in range(0, 99):
 			if currLevel.key == skel["key"]:
 				break
@@ -532,7 +546,7 @@ class Tree(BasicApplication):
 			raise errors.PreconditionFailed()
 
 		currentParentRepo = skel["parentrepo"]
-		skel["parententry"] = parentNode
+		skel["parententry"] = parentNodeSkel["key"]
 		skel["parentrepo"] = parentNodeSkel["parentrepo"]  # Fixme: Need to recursive fixing to parentrepo?
 		if "sortindex" in kwargs:
 			try:
@@ -544,7 +558,7 @@ class Tree(BasicApplication):
 		# Ensure a changed parentRepo get's proagated
 		if currentParentRepo != parentNodeSkel["parentrepo"]:
 			self.updateParentRepo(key, parentNodeSkel["parentrepo"])
-		return self.render.editItemSuccess(skel)  # new Sig, has no args and kwargs , skelType = skelType, action = "move", destNode = parentNodeSkel )
+		return self.render.editSuccess(skel)  # new Sig, has no args and kwargs , skelType = skelType, action = "move", destNode = parentNodeSkel )
 
 	## Default access control functions
 

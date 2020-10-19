@@ -2,7 +2,13 @@
 from viur.core.bones.bone import baseBone, getSystemInitialized
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from typing import List, Union
-import copy
+import copy, logging
+
+try:
+	import extjson
+except ImportError:
+	# FIXME: That json will not read datetime objects
+	import json as extjson
 
 
 class recordBone(baseBone):
@@ -21,9 +27,20 @@ class recordBone(baseBone):
 	# self._usingSkelCache = self.using()
 
 	def singleValueUnserialize(self, val, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
-		assert isinstance(val, dict), "Read something from the datastore thats not a dict: %s" % str(type(val))
+		if isinstance(val, str):
+			try:
+				value = extjson.loads(val)
+			except:
+				value = None
+		else:
+			value = val
+		if not value:
+			return None
+		elif isinstance(value, list) and value:
+			value = value[0]
+		assert isinstance(value, dict), "Read something from the datastore thats not a dict: %s" % str(type(value))
 		usingSkel = self.using()
-		usingSkel.unserialize(val)
+		usingSkel.unserialize(value)
 		return usingSkel
 
 	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
