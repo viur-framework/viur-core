@@ -288,7 +288,7 @@ class Singleton(BasicApplication):
 
 		.. seealso:: :func:`edit`, :func:`onEdited`
 		"""
-		logging.debug("onEdit")
+		pass
 
 	def onEdited(self, skel):
 		"""
@@ -319,7 +319,7 @@ class Singleton(BasicApplication):
 
 		.. seealso:: :func:`view`
 		"""
-		logging.debug("onView")
+		pass
 
 
 Singleton.admin = True

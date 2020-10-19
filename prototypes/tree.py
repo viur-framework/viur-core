@@ -722,7 +722,7 @@ class Tree(BasicApplication):
 
 		.. seealso:: :func:`add`, :func:`onAdded`
 		"""
-		logging.debug("onAdd")
+		pass
 
 	def onAdded(self, skel):
 		"""
@@ -752,7 +752,7 @@ class Tree(BasicApplication):
 
 		.. seealso:: :func:`edit`, :func:`onEdited`
 		"""
-		logging.debug("onEdit")
+		pass
 
 	def onEdited(self, skel):
 		"""
@@ -783,7 +783,7 @@ class Tree(BasicApplication):
 
 		.. seealso:: :func:`view`
 		"""
-		logging.debug("onView")
+		pass
 
 	def onDelete(self, skel):
 		"""
@@ -796,7 +796,7 @@ class Tree(BasicApplication):
 
 		.. seealso:: :func:`delete`, :func:`onDeleted`
 		"""
-		logging.debug("onDelete")
+		pass
 
 	def onDeleted(self, skel):
 		"""
