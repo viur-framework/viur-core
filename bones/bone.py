@@ -62,7 +62,7 @@ class baseBone(object):  # One Bone:
 	type = "hidden"
 	isClonedInstance = False
 
-	def __init__(self, descr="", defaultValue=None, required=False, params=None, multiple=False, indexed=True,
+	def __init__(self, descr="", defaultValue=None, required=False, params=None, multiple=False, indexed=False,
 				 languages = None, searchable=False, vfunc=None, readOnly=False, visible=True, unique=False,
 				 isEmptyFunc=None, getEmtpyValueFunc=None, **kwargs):
 		"""
