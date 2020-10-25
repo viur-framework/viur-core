@@ -256,11 +256,12 @@ class Render(object):
 			elif skelValue in bone.values:
 				return KeyValueWrapper(skelValue, bone.values[skelValue])
 			return KeyValueWrapper(skelValue, str(skelValue))
+
 		elif bone.type == "relational" or bone.type.startswith("relational."):
 			if isinstance(boneValue, list):
 				tmpList = []
 				for k in boneValue:
-					if bone.using and k["rel"]:
+					if bone.using is not None and k["rel"]:
 						usingData = self.collectSkelData(k["rel"])
 					else:
 						usingData = None
@@ -270,8 +271,7 @@ class Render(object):
 					})
 				return tmpList
 			elif isinstance(boneValue, dict):
-				# usingSkel = bone._usingSkelCache
-				if bone.using and boneValue["rel"]:
+				if bone.using is not None and boneValue["rel"]:
 					usingData = self.collectSkelData(boneValue["rel"])
 				else:
 					usingData = None
@@ -286,10 +286,13 @@ class Render(object):
 				for entry in value:
 					ret.append(self.collectSkelData(entry))
 				return ret
+
 		elif bone.type == "key":
 			return db.encodeKey(boneValue) if boneValue else None
+
 		else:
 			return boneValue
+
 		return None
 
 	def collectSkelData(self, skel):

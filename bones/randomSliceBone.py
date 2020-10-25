@@ -111,9 +111,9 @@ class randomSliceBone(baseBone):
 			for k, v in origFilter.items():
 				dbFilter.datastoreQuery[k] = v
 			dbFilter._customMultiQueryMerge = self.customMultiQueryMerge
-			dbFilter._calculateInternalMultiQueryAmount = self.calculateInternalMultiQueryAmount
+			dbFilter._calculateInternalMultiQueryLimit = self.calculateInternalMultiQueryLimit
 
-	def calculateInternalMultiQueryAmount(self, targetAmount):
+	def calculateInternalMultiQueryLimit(self, targetAmount):
 		"""
 			Tells :class:`server.db.Query` How much entries should be fetched in each subquery.
 

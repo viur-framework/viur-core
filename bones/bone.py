@@ -305,7 +305,6 @@ class baseBone(object):  # One Bone:
 				if language in parsedData:
 					for singleValue in parsedData[language]:
 						if self.isEmpty(singleValue):
-							res[language].append(self.getEmptyValue())
 							continue
 						isEmpty = False
 						parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
@@ -318,7 +317,7 @@ class baseBone(object):  # One Bone:
 				res[language] = None
 				if language in parsedData:
 					if self.isEmpty(parsedData[language]):
-						res[language].append(self.getEmptyValue())
+						res[language] = self.getEmptyValue()
 						continue
 					isEmpty = False
 					parsedVal, parseErrors = self.singleValueFromClient(parsedData[language], skel, name, data)
@@ -329,7 +328,6 @@ class baseBone(object):  # One Bone:
 			res = []
 			for singleValue in parsedData:
 				if self.isEmpty(singleValue):
-					res.append(self.getEmptyValue())
 					continue
 				isEmpty = False
 				parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
