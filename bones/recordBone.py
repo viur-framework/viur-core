@@ -55,7 +55,11 @@ class recordBone(baseBone):
 
 	def singleValueFromClient(self, value, skel, name, origData):
 		usingSkel = self.using()
-		usingSkel.fromClient(value)
+
+		# When the overall return value is True, return no errors, otherwise return all errors!
+		if usingSkel.fromClient(value):
+			usingSkel.errors = None
+
 		return usingSkel, usingSkel.errors
 
 	def getSearchTags(self, values, key):
