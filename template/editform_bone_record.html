@@ -1,5 +1,8 @@
-{{ renderEditForm({
-	"structure": boneParams.using,
-	"value": boneValue or {},
-	"errors": {}
-}) }}
+{{ renderEditForm(
+	skel={
+		"structure": boneParams.using,
+		"value": boneValue or {},
+		"errors": {}
+	},
+	prefix=boneName
+) }}
