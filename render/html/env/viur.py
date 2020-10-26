@@ -493,8 +493,9 @@ def shortKey(render, val):
 	"""
 
 	try:
-		k = db.Key(encoded=str(val))
-		return k.id_or_name()
+		k = db.KeyClass.from_legacy_urlsafe(str(val))
+		return k.id_or_name
+
 	except:
 		return None
 

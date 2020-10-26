@@ -273,7 +273,7 @@ class Tree(BasicApplication):
 		The entry is fetched by its *key* and its *skelType*.
 		The function performs several access control checks on the requested entity before it is rendered.
 
-		.. seealso:: :func:`canView`, :func:`onViewed`
+		.. seealso:: :func:`canView`, :func:`onView`
 
 		:returns: The rendered representation of the requested entity.
 
@@ -305,7 +305,7 @@ class Tree(BasicApplication):
 				raise errors.NotFound()
 			if not self.canView(skelType, skel):
 				raise errors.Unauthorized()
-			self.onViewed(skel)
+			self.onView(skel)
 		return self.render.view(skel)
 
 	@exposed
@@ -317,7 +317,7 @@ class Tree(BasicApplication):
 
 		The function performs several access control checks on the requested entity before it is added.
 
-		.. seealso:: :func:`onAdded`, :func:`canAdd`
+		.. seealso:: :func:`canAdd`, :func:`onAdd`, , :func:`onAdded`
 
 		:param skelType: Defines the type of the new entry and may either be "node" or "leaf".
 		:type skelType: str
@@ -359,6 +359,7 @@ class Tree(BasicApplication):
 		skel["parententry"] = parentNodeSkel["key"]
 		# parentrepo may not exist of parentNodeSkel as it may be an rootNode
 		skel["parentrepo"] = parentNodeSkel["parentrepo"] if "parentrepo" in parentNodeSkel else parentNodeSkel["key"]
+		self.onAdd(skel)
 		skel.toDB()
 		self.onAdded(skel)
 		return self.render.addSuccess(skel)
@@ -372,7 +373,7 @@ class Tree(BasicApplication):
 
 		The function performs several access control checks on the requested entity before it is added.
 
-		.. seealso:: :func:`onAdded`, :func:`canEdit`
+		.. seealso:: :func:`canEdit`, :func:`onEdit`, :func:`onEdited`
 
 		:param skelType: Defines the type of the entry that should be modified and may either be "node" or "leaf".
 		:type skelType: str
@@ -410,6 +411,7 @@ class Tree(BasicApplication):
 			return self.render.edit(skel)
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
+		self.onEdit(skel)
 		skel.toDB()
 		self.onEdited(skel)
 		return self.render.editSuccess(skel)
@@ -423,7 +425,7 @@ class Tree(BasicApplication):
 
 		The function runs several access control checks on the data before it is deleted.
 
-		.. seealso:: :func:`canDelete`, :func:`onDeleted`
+		.. seealso:: :func:`canDelete`, :func:`onDelete`, :func:`onDeleted`
 
 		:param skelType: Defines the type of the entry that should be deleted and may either be "node" or "leaf".
 		:type skelType: str
@@ -455,6 +457,7 @@ class Tree(BasicApplication):
 			raise errors.PreconditionFailed()
 		if skelType == TreeType.Node:
 			self.deleteRecursive(skel["key"])
+		self.onDelete(skel)
 		skel.delete()
 		self.onDeleted(skel)
 		return self.render.deleteSuccess(skel, skelType=skelType)
@@ -722,6 +725,19 @@ class Tree(BasicApplication):
 
 	## Overridable eventhooks
 
+	def onAdd(self, skel):
+		"""
+		Hook function that is called before adding an entry.
+
+		It can be overridden for a module-specific behavior.
+
+		:param skel: The Skeleton that is going to be added.
+		:type skel: :class:`server.skeleton.Skeleton`
+
+		.. seealso:: :func:`add`, :func:`onAdded`
+		"""
+		pass
+
 	def onAdded(self, skel):
 		"""
 		Hook function that is called after adding an entry.
@@ -732,12 +748,25 @@ class Tree(BasicApplication):
 		:param skel: The Skeleton that has been added.
 		:type skel: :class:`server.skeleton.Skeleton`
 
-		.. seealso:: :func:`add`
+		.. seealso:: :func:`add`, :func:`onAdd`
 		"""
 		logging.info("Entry added: %s" % skel["key"])
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
+
+	def onEdit(self, skel):
+		"""
+		Hook function that is called before editing an entry.
+
+		It can be overridden for a module-specific behavior.
+
+		:param skel: The Skeleton that is going to be edited.
+		:type skel: :class:`server.skeleton.Skeleton`
+
+		.. seealso:: :func:`edit`, :func:`onEdited`
+		"""
+		pass
 
 	def onEdited(self, skel):
 		"""
@@ -749,14 +778,14 @@ class Tree(BasicApplication):
 		:param skel: The Skeleton that has been modified.
 		:type skel: :class:`server.skeleton.Skeleton`
 
-		.. seealso:: :func:`edit`
+		.. seealso:: :func:`edit`, :func:`onEdit`
 		"""
 		logging.info("Entry changed: %s" % skel["key"])
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-	def onViewed(self, skel):
+	def onView(self, skel):
 		"""
 		Hook function that is called when viewing an entry.
 
@@ -767,6 +796,19 @@ class Tree(BasicApplication):
 		:type skel: :class:`server.skeleton.Skeleton`
 
 		.. seealso:: :func:`view`
+		"""
+		pass
+
+	def onDelete(self, skel):
+		"""
+		Hook function that is called before deleting an entry.
+
+		It can be overridden for a module-specific behavior.
+
+		:param skel: The Skeleton that is going to be deleted.
+		:type skel: :class:`server.skeleton.Skeleton`
+
+		.. seealso:: :func:`delete`, :func:`onDeleted`
 		"""
 		pass
 
@@ -783,11 +825,12 @@ class Tree(BasicApplication):
 		:param skel: The Skeleton that has been deleted.
 		:type skel: :class:`server.skeleton.Skeleton`
 
-		.. seealso:: :func:`delete`
+		.. seealso:: :func:`delete`, :func:`onDelete`
 		"""
 		logging.info("Entry deleted: %s (%s)" % (skel["key"], type(skel)))
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
+
 Tree.vi = True
 Tree.admin = True
