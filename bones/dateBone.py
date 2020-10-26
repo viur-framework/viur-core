@@ -88,12 +88,12 @@ class dateBone(baseBone):
 			try:
 				if str(rawValue).count(":") > 1:
 					(hour, minute, second) = [int(x.strip()) for x in str(rawValue).split(":")]
-					value = time(hour=hour, minute=minute, second=second)
+					value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute, second=second)
 				elif str(rawValue).count(":") > 0:
 					(hour, minute) = [int(x.strip()) for x in str(rawValue).split(":")]
-					value = time(hour=hour, minute=minute)
+					value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute)
 				elif str(rawValue).replace("-", "", 1).isdigit():
-					value = time(second=int(rawValue))
+					value = datetime(year=1970, month=1, day=1, second=int(rawValue))
 				else:
 					value = False  # its invalid
 			except:
