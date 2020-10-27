@@ -210,6 +210,9 @@ class BrowseHandler():  # webapp.RequestHandler
 		if path[:10] == "/_viur/dlf":
 			self.response.write("okay")
 			return
+		if path.startswith("/_ah/warmup"):
+			self.response.write("okay")
+			return
 		try:
 			currentSession.get().load(self)  # self.request.cookies )
 			path = self.selectLanguage(path)[1:]
