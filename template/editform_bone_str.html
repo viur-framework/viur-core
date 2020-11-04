@@ -77,7 +77,7 @@
         {% if boneParams.maxlength %}
             maxlength="{{ boneParams.maxlength|int }}"
         {% endif %}
-        {{ "required" if boneParams.required }}
+        {{ "required" if boneParams.required and "." not in boneName }}
         {{ "readonly" if boneParams.readOnly }}
 		{% if boneWasInvalid %} aria-invalid="true" {% endif %}
     >
