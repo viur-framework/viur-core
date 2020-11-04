@@ -24,7 +24,7 @@
 			{{ "is-readonly" if boneParams.readOnly }}
 			{{ "is-invalid" if boneWasInvalid else "is-valid" }}"
 		{{'readonly' if boneParams.readOnly}}
-		{{'required' if boneParams.required}}
+		{{'required' if boneParams.required and "." not in boneName }}
     >
         {%- for key, descr in boneParams["values"].items() %}
             {% if loop.first %}
