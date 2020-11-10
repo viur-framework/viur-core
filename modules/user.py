@@ -223,8 +223,8 @@ class UserPassword(object):
 	@exposed
 	def verify(self, skey, *args, **kwargs):
 		data = securitykey.validate(skey, useSessionKey=False)
-		skel = self.userModule.baseSkel()
-		if not data or not isinstance(data, dict) or not "userKey" in data or not skel.fromDB(data["userKey"]):
+		skel = self.userModule.editSkel()
+		if not data or not isinstance(data, dict) or "userKey" not in data or not skel.fromDB(data["userKey"].id_or_name):
 			return self.userModule.render.view(None, self.verifyFailedTemplate)
 		if self.registrationAdminVerificationRequired:
 			skel["status"] = 2
@@ -287,7 +287,7 @@ class UserPassword(object):
 		skel.toDB()
 		if self.registrationEmailVerificationRequired and str(skel["status"]) == "1":
 			# The user will have to verify his email-address. Create an skey and send it to his address
-			skey = securitykey.create(duration=60 * 60 * 24 * 7, userKey=str(skel["key"]), name=skel["name"])
+			skey = securitykey.create(duration=60 * 60 * 24 * 7, userKey=utils.normalizeKey(skel["key"]), name=skel["name"])
 			skel.skey = baseBone(descr="Skey")
 			skel["skey"] = skey
 			utils.sendEMail([skel["name"]], self.userModule.verifyEmailAddressMail, skel)
