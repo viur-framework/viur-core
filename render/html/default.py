@@ -382,7 +382,7 @@ class Render(object):
 		skel.skey = skeybone
 		skel["skey"] = securitykey.create()
 
-		if "nomissing" in currentRequest.get().kwargs.get("nomissing") == "1":
+		if currentRequest.get().kwargs.get("nomissing") == "1":
 			if isinstance(skel, SkeletonInstance):
 				super(SkeletonInstance, skel).__setattr__("errors", {})
 
