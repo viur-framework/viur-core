@@ -8,12 +8,13 @@ from viur.core.bones import *
 from viur.core.i18n import TranslationExtension
 from collections import OrderedDict
 from jinja2 import Environment, FileSystemLoader, ChoiceLoader, BytecodeCache
-from viur.core.i18n import translate
+from viur.core.i18n import translate, LanguageWrapper
 import os, logging, codecs
 from collections import namedtuple
 from viur.core.utils import currentRequest, currentSession, currentLanguage
 
 KeyValueWrapper = namedtuple("KeyValueWrapper", ["key", "descr"])
+
 
 class Render(object):
 	"""
@@ -226,7 +227,7 @@ class Render(object):
 
 		return res
 
-	def renderBoneValue(self, bone, skel, key, boneValue):
+	def renderBoneValue(self, bone, skel, key, boneValue, isLanguageWrapped: bool = False):
 		"""
 		Renders the value of a bone.
 
@@ -239,7 +240,14 @@ class Render(object):
 		:return: A dict containing the rendered attributes.
 		:rtype: dict
 		"""
-		if bone.type == "select" or bone.type.startswith("select."):
+		if bone.languages and not isLanguageWrapped:
+			res = LanguageWrapper(bone.languages)
+			if isinstance(boneValue, dict):
+				for language in bone.languages:
+					if language in boneValue:
+						res[language] = self.renderBoneValue(bone, skel, key, boneValue[language], True)
+			return res
+		elif bone.type == "select" or bone.type.startswith("select."):
 			skelValue = boneValue
 			if isinstance(skelValue, list):
 				return {
@@ -257,7 +265,6 @@ class Render(object):
 						usingData = self.collectSkelData(k["rel"])
 					else:
 						usingData = None
-
 					tmpList.append({
 						"dest": self.collectSkelData(k["dest"]),
 						"rel": usingData
@@ -268,12 +275,10 @@ class Render(object):
 					usingData = self.collectSkelData(boneValue["rel"])
 				else:
 					usingData = None
-
 				return {
 					"dest": self.collectSkelData(boneValue["dest"]),
 					"rel": usingData
 				}
-
 		elif bone.type == "record" or bone.type.startswith("record."):
 			value = boneValue
 			if value:

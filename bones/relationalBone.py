@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from viur.core.bones import baseBone
 from viur.core.bones.bone import getSystemInitialized
-from viur.core.bones.stringBone import LanguageWrapper
 from viur.core import db
 from viur.core.errors import ReadFromClientError
 from typing import List, Union
