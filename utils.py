@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 import hashlib
 import hmac
 import logging
@@ -10,13 +12,14 @@ from base64 import urlsafe_b64encode
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Tuple, Union
+from typing import TYPE_CHECKING
 
 import google.auth
 
 from viur.core import conf, db, errors
 
-# from .skeleton import BaseSkeleton #FIXME: circular import
-BaseSkeleton = object
+if TYPE_CHECKING:
+	from .skeleton import SkeletonInstance
 
 # Proxy to context depended variables
 currentRequest = ContextVar("Request", default=None)
@@ -28,7 +31,7 @@ currentLanguage = ContextVar("Language", default=None)
 _, projectID = google.auth.default()
 del _
 # Determine our basePath (as os.getCWD is broken on appengine)
-projectBasePath = globals()["__file__"].replace("/viur/core/utils.py","")
+projectBasePath = globals()["__file__"].replace("/viur/core/utils.py", "")
 
 
 def utcNow():
@@ -48,10 +51,11 @@ def generateRandomString(length: int = 13) -> str:
 	"""
 	return "".join(random.choices(string.ascii_letters + string.digits, k=length))
 
+
 def sendEMail(dests: Union[str, List[str]],
 			  file: str = None,
 			  template: str = None,
-			  skel: Union[None, Dict, BaseSkeleton, List[BaseSkeleton]] = None,
+			  skel: Union[None, Dict, SkeletonInstance, List[SkeletonInstance]] = None,
 			  attachments: List[Tuple[str, str]] = None,
 			  sender: str = None,
 			  cc: Union[str, List[str]] = None,
@@ -81,6 +85,7 @@ def sendEMail(dests: Union[str, List[str]],
 	:param header: Specify headers for this email.
 	:param template_params: Supply params for the template.
 	"""
+
 	def normalizeToList(value: Union[None, Any, List[Any]]) -> List[Any]:
 		if value is None:
 			return []
