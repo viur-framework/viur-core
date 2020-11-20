@@ -4,7 +4,7 @@ import logging
 import os
 from collections import OrderedDict
 from collections import namedtuple
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, Tuple
 
 from jinja2 import Environment, FileSystemLoader, ChoiceLoader
 
@@ -13,7 +13,7 @@ from viur.core import utils, errors, securitykey
 from viur.core.bones import *
 from viur.core.i18n import LanguageWrapper
 from viur.core.i18n import TranslationExtension
-from viur.core.skeleton import BaseSkeleton, SkeletonInstance
+from viur.core.skeleton import SkeletonInstance
 from viur.core.utils import currentRequest, currentLanguage
 from . import utils as jinjaUtils
 from .wrap import ListWrapper
@@ -359,7 +359,7 @@ class Render(object):
 		return template.render(skel={"structure": self.renderSkelStructure(skel),
 									 "errors": skel.errors,
 									 "value": self.collectSkelData(skel)},
-								params=params, **kwargs)
+							   params=params, **kwargs)
 
 	def edit(self, skel, tpl=None, params=None, **kwargs):
 		"""
@@ -769,25 +769,18 @@ class Render(object):
 					dests: List[str],
 					file: str = None,
 					template: str = None,
-					skel: Union[None, Dict, BaseSkeleton, List[BaseSkeleton]] = None,
+					skel: Union[None, Dict, SkeletonInstance, List[SkeletonInstance]] = None,
 					params: Any = None,
-					**kwargs
-					) -> str:
-		"""
-			Renders an email.
+					**kwargs) -> Tuple[str, str]:
+		"""Renders an email.
+		Uses the first not-empty line as subject and the remaining template as body.
 
-			:param dests: Destination recipients.
-
-
-			:param file: The name of a template from the deploy/emails directory.
-
-			:param template: This string is interpreted as the template contents. Alternative to load from template file.
-
-			:param skel: Skeleton or dict which data to supply to the template.
-
-			:param params: Optional data that will be passed unmodified to the template
-
-			:return: Returns the rendered email body.
+		:param dests: Destination recipients.
+		:param file: The name of a template from the deploy/emails directory.
+		:param template: This string is interpreted as the template contents. Alternative to load from template file.
+		:param skel: Skeleton or dict which data to supply to the template.
+		:param params: Optional data that will be passed unmodified to the template
+		:return: Returns the rendered email subject and body.
 		"""
 		user = utils.getCurrentUser()
 
@@ -807,7 +800,12 @@ class Render(object):
 		else:
 			tpl = self.getEnv().from_string(template)
 
-		return tpl.render(skel=res, dests=dests, user=user, params=params, **kwargs)
+		content = tpl.render(skel=res, dests=dests, user=user, params=params, **kwargs).lstrip().splitlines()
+
+		if len(content) == 1:
+			content.insert(0, "")  # add empty subject
+
+		return content[0], os.linesep.join(content[1:]).lstrip()
 
 	def getEnv(self):
 		"""
@@ -825,7 +823,8 @@ class Render(object):
 
 		if not "env" in dir(self):
 			loaders = self.getLoaders()
-			self.env = Environment(loader=loaders, extensions=["jinja2.ext.do", "jinja2.ext.loopcontrols", TranslationExtension])
+			self.env = Environment(loader=loaders,
+								   extensions=["jinja2.ext.do", "jinja2.ext.loopcontrols", TranslationExtension])
 			self.env.trCache = {}
 
 			# Import functions.

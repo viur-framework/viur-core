@@ -3,6 +3,7 @@
 import hashlib
 import hmac
 import logging
+import os
 import random
 import string
 from base64 import urlsafe_b64encode
@@ -47,9 +48,7 @@ def generateRandomString(length: int = 13) -> str:
 	"""
 	return "".join(random.choices(string.ascii_letters + string.digits, k=length))
 
-
 def sendEMail(dests: Union[str, List[str]],
-			  subject: str,
 			  file: str = None,
 			  template: str = None,
 			  skel: Union[None, Dict, BaseSkeleton, List[BaseSkeleton]] = None,
@@ -70,61 +69,39 @@ def sendEMail(dests: Union[str, List[str]],
 	to allocate *viur.emailHandler* in conf.
 
 	:param dests: A list of addresses to send this mail to. A bare string will be treated as a list with 1 address.
-
-	:param subject: The subject of the email.
-
 	:param file: The name of a template from the deploy/emails directory.
-
 	:param template: This string is interpreted as the template contents. Alternative to load from template file.
-
 	:param skel: The data made available to the template. In case of a Skeleton or SkelList, its parsed the usual way;\
 		Dictionaries are passed unchanged.
-
 	:param attachments: List of files ((filename, filecontent)-pairs) to be sent within the mail as attachments.
-
 	:param sender: The address sending this mail.
-
 	:param cc: Carbon-copy recipients. A bare string will be treated as a list with 1 address.
-
 	:param bcc: Blind carbon-copy recipients. A bare string will be treated as a list with 1 address.
-
 	:param replyTo: A reply-to email address.
-
 	:param header: Specify headers for this email.
-
 	:param template_params: Supply params for the template.
-
 	"""
-	if (not file and not template) or (file and template):
+	def normalizeToList(value: Union[None, Any, List[Any]]) -> List[Any]:
+		if value is None:
+			return []
+		if isinstance(value, list):
+			return value
+		return [value]
+
+	if not (bool(file) ^ bool(template)):
 		raise ValueError("You have to set the params 'file' xor a 'template'.")
 
-	# Normalize to lists
-	if not isinstance(dests, list):
-		if dests is None:
-			dests = []
-		else:
-			dests = [dests]
-	if not isinstance(cc, list):
-		if cc is None:
-			cc = []
-		else:
-			cc = [cc]
-	if not isinstance(bcc, list):
-		if bcc is None:
-			bcc = []
-		else:
-			bcc = [bcc]
-	if attachments is None:
-		attachments = []
+	dests = normalizeToList(dests)
+	cc = normalizeToList(cc)
+	bcc = normalizeToList(bcc)
+	attachments = normalizeToList(attachments)
 
 	if conf["viur.emailRecipientOverride"]:
 		logging.warning("Overriding destination %s with %s", dests, conf["viur.emailRecipientOverride"])
 
 		oldDests = dests
 
-		newDests = conf["viur.emailRecipientOverride"]
-		if isinstance(newDests, str):
-			newDests = [newDests]
+		newDests = normalizeToList(conf["viur.emailRecipientOverride"])
 
 		dests = []
 		for newDest in newDests:
@@ -140,8 +117,10 @@ def sendEMail(dests: Union[str, List[str]],
 
 	if conf["viur.emailSenderOverride"]:
 		sender = conf["viur.emailSenderOverride"]
+	elif sender is None and os.getenv("GAE_ENV") == "localdev":
+		sender = f"viur@localdev.{projectID}.appspotmail.com"
 	elif sender is None:
-		sender = f"viur@{projectID}.appspotmail.com"
+		sender = f"viur@{os.getenv('GAE_VERSION')}.{projectID}.appspotmail.com"
 
 	handler = conf.get("viur.emailHandler")
 
@@ -150,27 +129,20 @@ def sendEMail(dests: Union[str, List[str]],
 	elif not callable(handler):
 		raise errors.InvalidConfigException("Invalid emailHandler configured, no email will be sent!")
 
-	body = conf["viur.emailRenderer"](dests, file, template, skel, template_params, **kwargs)
+	subject, body = conf["viur.emailRenderer"](dests, file, template, skel, template_params, **kwargs)
 
 	return handler(dests=dests, sender=sender, cc=cc, bcc=bcc, replyTo=replyTo,
 				   subject=subject, header=header, body=body, attachments=attachments, *args, **kwargs)
 
 
-def sendEMailToAdmins(subject: str, body: str, sender: str = None):
+def sendEMailToAdmins(subject: str, body: str, *args, **kwargs):
 	"""
 		Sends an e-mail to the root users of the current app.
 
 		:param subject: Defines the subject of the message.
-
 		:param body: Defines the message body.
-
-		:param sender: (optional) specify a different sender
 	"""
-	if not sender:
-		sender = f"viur@{projectID}.appspotmail.com"
-
-	success = True
-
+	success = False
 	try:
 		if "user" in dir(conf["viur.mainApp"]):
 			users = []
@@ -178,13 +150,13 @@ def sendEMailToAdmins(subject: str, body: str, sender: str = None):
 				users.append(userSkel["name"])
 
 			if users:
-				return sendEMail(dests=users, subject=subject, template=body, sender=sender)
+				ret = sendEMail(dests=users, template=os.linesep.join((subject, body)), *args, **kwargs)
+				success = True
+				return ret
 			else:
 				logging.warning("There are no root-users.")
-				success = False
 
 	except Exception:
-		success = False
 		raise
 
 	finally:
