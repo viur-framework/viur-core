@@ -3,7 +3,7 @@ from viur.core.prototypes.list import List
 from viur.core.skeleton import Skeleton, RelSkel, skeletonByKind
 from viur.core import utils
 from viur.core.bones import *
-from viur.core.bones.bone import UniqueValue, UniqueLockMethod
+from viur.core.bones.bone import ReadFromClientErrorSeverity, UniqueValue, UniqueLockMethod
 from viur.core.bones.passwordBone import pbkdf2
 from viur.core import errors, conf, securitykey
 from viur.core.tasks import StartupTask
@@ -18,7 +18,7 @@ import json
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from viur.core.i18n import translate
-from viur.core.utils import currentRequest, currentSession
+from viur.core.utils import currentRequest, currentSession, utcNow
 from viur.core.session import killSessionByUser
 
 class userSkel(Skeleton):
@@ -32,7 +32,7 @@ class userSkel(Skeleton):
 		caseSensitive=False,
 		searchable=True,
 		indexed=True,
-		unique=UniqueValue(UniqueLockMethod.SameValue, "Username already taken")
+		unique=UniqueValue(UniqueLockMethod.SameValue, True, "Username already taken")
 	)
 
 	# Properties required by custom auth
@@ -49,7 +49,7 @@ class userSkel(Skeleton):
 		indexed=True,
 		required=False,
 		readOnly=True,
-		unique=UniqueValue(UniqueLockMethod.SameValue, "UID already in use")
+		unique=UniqueValue(UniqueLockMethod.SameValue, False, "UID already in use")
 	)
 	gaeadmin = booleanBone(
 		descr=u"Is GAE Admin",
@@ -142,8 +142,9 @@ class UserPassword(object):
 		if not name or not password or not securitykey.validate(skey, useSessionKey=True):
 			return self.userModule.render.login(self.loginSkel())
 
+		name = name.lower().strip()
 		query = db.Query(self.userModule.viewSkel().kindName)
-		res = query.filter("name.idx >=", name.lower()).get()
+		res = query.filter("name.idx >=", name).getEntry()
 
 		if res is None:
 			res = {"password": {"pwhash": "-invalid-", "salt": "-invalid"}, "status": 0, "name": {}}
@@ -155,10 +156,10 @@ class UserPassword(object):
 
 		# Check if the username matches
 		storedUserName = (res.get("name") or {}).get("idx", "")
-		if len(storedUserName) != len(name.lower()):
+		if len(storedUserName) != len(name):
 			isOkay = False
 		else:
-			for x, y in zip(storedUserName, name.lower()):
+			for x, y in zip(storedUserName, name):
 				if x != y:
 					isOkay = False
 
@@ -177,7 +178,6 @@ class UserPassword(object):
 
 		if not isOkay:
 			skel = self.loginSkel()
-			skel.fromClient({"name": name, "nomissing": "1"})
 			return self.userModule.render.login(skel, loginFailed=True)
 		else:
 			return self.userModule.continueAuthenticationFlow(self, res.key)
@@ -198,13 +198,20 @@ class UserPassword(object):
 			skel = self.lostPasswordSkel()
 			if len(kwargs) == 0 or not skel.fromClient(kwargs) or not securitykey.validate(skey, useSessionKey=True):
 				return self.userModule.render.passwdRecover(skel, tpl=self.passwordRecoveryTemplate)
-			user = self.userModule.viewSkel().all().filter("name.idx =", skel["name"].lower()).get()
+			user = self.userModule.viewSkel().all().filter("name.idx =", skel["name"].lower()).getEntry()
 
 			if not user or user["status"] < 10:  # Unknown user or locked account
-				skel.errors["name"] = str("Unknown user")
+				skel.errors.append(
+					{
+						"severity": ReadFromClientErrorSeverity.Invalid,
+						"fieldPath": "name",
+						"errorMessage": "Unknown user",
+						"invalidatedFields": []
+					}
+				)
 				return self.userModule.render.passwdRecover(skel, tpl=self.passwordRecoveryTemplate)
 			try:
-				if user["changedate"] > (datetime.datetime.now() - datetime.timedelta(days=1)):
+				if user["changedate"] > (utcNow() - datetime.timedelta(days=1)):
 					# This user probably has already requested a password reset
 					# within the last 24 hrss
 					return self.userModule.render.view(skel, self.passwordRecoveryAlreadySendTemplate)
@@ -213,18 +220,21 @@ class UserPassword(object):
 				pass
 			user["changedate"] = datetime.datetime.now()
 			db.Put(user)
-			userSkel = self.userModule.viewSkel().ensureIsCloned()
-			assert userSkel.fromDB(user.key())
+			userSkel = self.userModule.viewSkel().clone()
+			assert userSkel.fromDB(user.key)
 			userSkel.skey = baseBone(descr="Skey")
-			userSkel["skey"] = securitykey.create(60 * 60 * 24, userKey=str(user.key()), password=skel["password"])
+			userSkel["skey"] = securitykey.create(
+				60 * 60 * 24,
+				userKey=utils.normalizeKey(user.key),
+				password=skel["password"])
 			utils.sendEMail([userSkel["name"]], self.userModule.passwordRecoveryMail, userSkel)
 			return self.userModule.render.view({}, self.passwordRecoveryInstuctionsSendTemplate)
 
 	@exposed
 	def verify(self, skey, *args, **kwargs):
 		data = securitykey.validate(skey, useSessionKey=False)
-		skel = self.userModule.baseSkel()
-		if not data or not isinstance(data, dict) or not "userKey" in data or not skel.fromDB(data["userKey"]):
+		skel = self.userModule.editSkel()
+		if not data or not isinstance(data, dict) or "userKey" not in data or not skel.fromDB(data["userKey"].id_or_name):
 			return self.userModule.render.view(None, self.verifyFailedTemplate)
 		if self.registrationAdminVerificationRequired:
 			skel["status"] = 2
@@ -261,7 +271,7 @@ class UserPassword(object):
 		"""
 			Allows guests to register a new account if self.registrationEnabled is set to true
 
-			.. seealso:: :func:`addSkel`, :func:`onItemAdded`, :func:`canAdd`
+			.. seealso:: :func:`addSkel`, :func:`onAdded`, :func:`canAdd`
 
 			:returns: The rendered, added object of the entry, eventually with error hints.
 
@@ -287,12 +297,12 @@ class UserPassword(object):
 		skel.toDB()
 		if self.registrationEmailVerificationRequired and str(skel["status"]) == "1":
 			# The user will have to verify his email-address. Create an skey and send it to his address
-			skey = securitykey.create(duration=60 * 60 * 24 * 7, userKey=str(skel["key"]), name=skel["name"])
+			skey = securitykey.create(duration=60 * 60 * 24 * 7, userKey=utils.normalizeKey(skel["key"]), name=skel["name"])
 			skel.skey = baseBone(descr="Skey")
 			skel["skey"] = skey
 			utils.sendEMail([skel["name"]], self.userModule.verifyEmailAddressMail, skel)
-		self.userModule.onItemAdded(skel)  # Call onItemAdded on our parent user module
-		return self.userModule.render.addItemSuccess(skel)
+		self.userModule.onAdded(skel)  # Call onAdded on our parent user module
+		return self.userModule.render.addSuccess(skel)
 
 
 class GoogleAccount(object):
@@ -345,7 +355,7 @@ class GoogleAccount(object):
 			isAdd = True
 		else:
 			isAdd = False
-		now = datetime.datetime.now()
+		now = utils.utcNow()
 		if isAdd or (now - userSkel["lastlogin"]) > datetime.timedelta(minutes=30):
 			# Conserve DB-Writes: Update the user max once in 30 Minutes
 			userSkel["lastlogin"] = now
@@ -358,7 +368,7 @@ class GoogleAccount(object):
 			#else:
 			#	userSkel["gaeadmin"] = False
 			assert userSkel.toDB()
-		return self.userModule.continueAuthenticationFlow(self, (userSkel.kindName, userSkel["key"]))
+		return self.userModule.continueAuthenticationFlow(self, userSkel["key"])
 
 
 class TimeBasedOTP(object):
@@ -585,7 +595,12 @@ class User(List):
 		session = currentSession.get()
 		if not session:  # May be a deferred task
 			return None
-		return session.get("user")
+		userData = session.get("user")
+		if userData:
+			skel = self.viewSkel()
+			skel.setEntity(userData)
+			return skel
+		return None
 
 	def continueAuthenticationFlow(self, caller, userKey):
 		currSess = currentSession.get()
@@ -637,15 +652,7 @@ class User(List):
 			if k in oldSession:
 				currSess[k] = oldSession[k]
 		del oldSession
-		currSess["user"] = {}
-		for key in ["name", "status", "access"]:
-			try:
-				currSess["user"][key] = res[key]
-			except:
-				pass
-		currSess["user"]["key"] = userKey
-		if not "access" in currSess["user"] or not currSess["user"]["access"]:
-			currSess["user"]["access"] = []
+		currSess["user"] = res
 		currSess.markChanged()
 		currentRequest.get().response.headers["Sec-X-ViUR-StaticSKey"] = currSess.staticSecurityKey
 		self.onLogin()
@@ -677,7 +684,7 @@ class User(List):
 	def login(self, *args, **kwargs):
 		authMethods = [(x.getAuthMethodName(), y.get2FactorMethodName() if y else None)
 					   for x, y in self.validAuthenticationMethods]
-		return self.render.login(authMethods)
+		return self.render.loginChoices(authMethods)
 
 	def onLogin(self):
 		usr = self.getCurrentUser()
@@ -728,11 +735,11 @@ class User(List):
 
 		return json.dumps(res)
 
-	def onItemDeleted(self, skel):
+	def onDeleted(self, skel):
 		"""
 			Invalidate all sessions of that user
 		"""
-		super(User, self).onItemDeleted(skel)
+		super(User, self).onDeleted(skel)
 		killSessionByUser(str(skel["key"]))
 
 
@@ -746,8 +753,8 @@ def createNewUserIfNotExists():
 			and isinstance(userMod, User)
 			and "addSkel" in dir(userMod)
 			and "validAuthenticationMethods" in dir(userMod)  # Its our user module :)
-			and any([x[0] is UserPassword for x in userMod.validAuthenticationMethods])):  # It uses UserPassword login
-		if not db.Query(userMod.addSkel().kindName).get():  # There's currently no user in the database
+			and any([issubclass(x[0], UserPassword) for x in userMod.validAuthenticationMethods])):  # It uses UserPassword login
+		if not db.Query(userMod.addSkel().kindName).getEntry():  # There's currently no user in the database
 			addSkel = skeletonByKind(userMod.addSkel().kindName)()  # Ensure we have the full skeleton
 			uname = "admin@%s.appspot.com" % utils.projectID
 			pw = utils.generateRandomString(13)
@@ -755,6 +762,7 @@ def createNewUserIfNotExists():
 			addSkel["status"] = 10  # Ensure its enabled right away
 			addSkel["access"] = ["root"]
 			addSkel["password"] = pw
+
 			try:
 				addSkel.toDB()
 			except Exception as e:

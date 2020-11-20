@@ -10,43 +10,6 @@ from typing import List, Union
 from viur.core.utils import currentLanguage
 
 
-class LanguageWrapper(dict):
-	"""
-		Wrapper-class for a multi-language value.
-		Its a dictionary, allowing accessing each stored language,
-		but can also be used as a string, in which case it tries to
-		guess the correct language.
-	"""
-
-	def __init__(self, languages):
-		super(LanguageWrapper, self).__init__()
-		self.languages = languages
-
-	def __str__(self):
-		return (str(self.resolve()))
-
-	def resolve(self):
-		"""
-			Causes this wrapper to evaluate to the best language available for the current request.
-
-			:returns: str|list of str
-			:rtype: str|list of str
-		"""
-		lang = currentLanguage.get()
-		if not lang:
-			lang = self.languages[0]
-		else:
-			if lang in conf["viur.languageAliasMap"]:
-				lang = conf["viur.languageAliasMap"][lang]
-		if lang in self and self[lang] is not None and str(
-				self[lang]).strip():  # The users language is available :)
-			return (self[lang])
-		else:  # We need to select another lang for him
-			for lang in self.languages:
-				if lang in self and self[lang]:
-					return (self[lang])
-		return ""
-
 
 class stringBone(baseBone):
 	type = "str"
@@ -64,7 +27,7 @@ class stringBone(baseBone):
 		self.languages = languages
 		if defaultValue is None:
 			if self.languages:
-				self.defaultValue = LanguageWrapper(self.languages)
+				self.defaultValue = {}
 			else:
 				self.defaultValue = ""
 
@@ -81,11 +44,15 @@ class stringBone(baseBone):
 		else:
 			return ""
 
+	def getEmptyValue(self):
+		return ""
+
 	def singleValueFromClient(self, value, skel, name, origData):
+		value = utils.escapeString(value)
 		err = self.isInvalid(value)
 		if not err:
 			return utils.escapeString(value), None
-		return self.getDefaultValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+		return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		if not name in rawFilter and not any(
@@ -175,11 +142,11 @@ class stringBone(baseBone):
 				dbFilter.order(order)
 		return (dbFilter)
 
-	def getSearchTags(self, valuesCache, name):
-		res = []
-		if not valuesCache.get(name):
-			return (res)
-		value = valuesCache[name]
+	def getSearchTags(self, skeltonValues, name):
+		res = set()
+		value = skeltonValues[name]
+		if not value:
+			return res
 		if self.languages and isinstance(value, dict):
 			if self.multiple:
 				for lang in value.values():
@@ -188,36 +155,23 @@ class stringBone(baseBone):
 					for val in lang:
 						for line in str(val).splitlines():
 							for key in line.split(" "):
-								key = "".join([c for c in key if c.lower() in conf[
-									"viur.searchValidChars"]])
-								if key and key not in res and len(key) > 1:
-									res.append(key.lower())
+								res.add(key.lower())
 			else:
 				for lang in value.values():
 					for line in str(lang).splitlines():
 						for key in line.split(" "):
-							key = "".join([c for c in key if
-										   c.lower() in conf["viur.searchValidChars"]])
-							if key and key not in res and len(key) > 1:
-								res.append(key.lower())
+							res.add(key.lower())
 		else:
 			if self.multiple:
 				for val in value:
 					for line in str(val).splitlines():
 						for key in line.split(" "):
-							key = "".join([c for c in key if
-										   c.lower() in conf["viur.searchValidChars"]])
-							if key and key not in res and len(key) > 1:
-								res.append(key.lower())
+							res.add(key.lower())
 			else:
 				for line in str(value).splitlines():
 					for key in line.split(" "):
-						key = "".join(
-							[c for c in key if c.lower() in conf["viur.searchValidChars"]])
-						if key and key not in res and len(key) > 1:
-							res.append(key.lower())
-
-		return (res)
+						res.add(key.lower())
+		return res
 
 	def getUniquePropertyIndexValues(self, skel, name: str) -> List[str]:
 		if self.languages:

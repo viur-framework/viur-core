@@ -22,11 +22,7 @@ class keyBone(baseBone):
 			:type expando: db.Entity
 			:returns: bool
 		"""
-		if name=="key" and isinstance(skel.dbEntity, Entity) and skel.dbEntity.key and not skel.dbEntity.key.is_partial:
-			skel.accessedValues[name] = skel.dbEntity.key
-			return True
-		elif name in skel.dbEntity:
-			val = skel.dbEntity[name]
+		def fixVals(val):
 			if isinstance(val, str):
 				try:
 					val = normalizeKey(KeyClass.from_legacy_urlsafe(val))
@@ -34,6 +30,23 @@ class keyBone(baseBone):
 					val = None
 			elif not isinstance(val, KeyClass):
 				val = None
+			return val
+		if name=="key" and isinstance(skel.dbEntity, Entity) and skel.dbEntity.key and not skel.dbEntity.key.is_partial:
+			skel.accessedValues[name] = skel.dbEntity.key
+			return True
+		elif name in skel.dbEntity:
+			val = skel.dbEntity[name]
+			if isinstance(val, list):
+				val = [fixVals(x) for x in val if fixVals(x)]
+			else:
+				val = fixVals(val)
+			if self.multiple and not isinstance(val, list):
+				if val:
+					val = [val]
+				else:
+					val = []
+			elif not self.multiple and isinstance(val, list):
+				val = val[0]
 			skel.accessedValues[name] = val
 			return True
 		return False

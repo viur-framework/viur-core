@@ -156,6 +156,9 @@ class BrowseHandler():  # webapp.RequestHandler
 		self.args = []
 		self.kwargs = {}
 		path = self.request.path
+		if self.isDevServer:
+			# We'll have to emulate the task-queue locally as far as possible until supported by dev_appserver again
+			self.pendingTasks = []
 
 		# Add CSP headers early (if any)
 		if conf["viur.security.contentSecurityPolicy"] and conf["viur.security.contentSecurityPolicy"]["_headerCache"]:
@@ -205,6 +208,9 @@ class BrowseHandler():  # webapp.RequestHandler
 				self.redirect("https://%s/" % host)
 				return
 		if path[:10] == "/_viur/dlf":
+			self.response.write("okay")
+			return
+		if path.startswith("/_ah/warmup"):
 			self.response.write("okay")
 			return
 		try:
@@ -288,6 +294,11 @@ class BrowseHandler():  # webapp.RequestHandler
 			}
 			requestLogger.log_text("", client=loggingClient, severity=SEVERITY, http_request=REQUEST, trace=TRACE,
 								   resource=requestLoggingRessource)
+		if self.isDevServer:
+			while self.pendingTasks:
+				task = self.pendingTasks.pop()
+				logging.info("Running task directly after request: %s" % str(task))
+				task()
 
 	def findAndCall(self, path, *args, **kwargs):  # Do the actual work: process the request
 		# Prevent Hash-collision attacks

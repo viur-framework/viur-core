@@ -9,7 +9,6 @@
 	Its also possible to store data along with a securityKey and specify a lifeTime.
 
 """
-
 from datetime import datetime, timedelta
 from viur.core.utils import generateRandomString
 from viur.core.utils import currentSession, currentRequest
@@ -17,6 +16,7 @@ from viur.core import request
 from viur.core import db, conf
 from viur.core.tasks import PeriodicTask, callDeferred
 from typing import Union
+from viur.core.utils import utcNow
 
 securityKeyKindName = "viur-securitykeys"
 
@@ -36,10 +36,10 @@ def create(duration: Union[None, int] = None, **kwargs):
 		return currentSession.get().getSecurityKey()
 	key = generateRandomString()
 	duration = int(duration)
-	dbObj = db.Entity(securityKeyKindName, name=key)
+	dbObj = db.Entity(db.Key(securityKeyKindName, key))
 	for k, v in kwargs.items():
 		dbObj[k] = v
-	dbObj["until"] = datetime.now() + timedelta(seconds=duration)
+	dbObj["until"] = utcNow() + timedelta(seconds=duration)
 	db.Put(dbObj)
 	return key
 
@@ -68,7 +68,8 @@ def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
 	dbObj = db.Get(dbKey)
 	if dbObj:
 		db.Delete(dbKey)
-		if dbObj["until"] < datetime.now():  # This key has expired
+		until = dbObj["until"]
+		if until < utcNow():  # This key has expired
 			return False
 		del dbObj["until"]
 		if not dbObj:
@@ -87,11 +88,9 @@ def startClearSKeys():
 
 @callDeferred
 def doClearSKeys(timeStamp, cursor):
-	gotAtLeastOne = False
 	query = db.Query(securityKeyKindName).filter("until <", datetime.strptime(timeStamp, "%d.%m.%Y %H:%M:%S"))
 	for oldKey in query.run(100, keysOnly=True):
-		gotAtLeastOne = True
 		db.Delete(oldKey)
 	newCursor = query.getCursor()
-	if gotAtLeastOne and newCursor and newCursor.urlsafe() != cursor:
-		doClearSKeys(timeStamp, newCursor.urlsafe())
+	if newCursor:
+		doClearSKeys(timeStamp, newCursor)

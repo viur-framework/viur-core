@@ -223,11 +223,11 @@ class spatialBone(baseBone):
 
 			dbFilter._customMultiQueryMerge = lambda *args, **kwargs: self.customMultiQueryMerge(name, lat, lng, *args,
 																								 **kwargs)
-			dbFilter._calculateInternalMultiQueryAmount = self.calculateInternalMultiQueryAmount
+			dbFilter._calculateInternalMultiQueryLimit = self.calculateInternalMultiQueryLimit
 
 	# return( super( spatialBone, self ).buildDBFilter( name, skel, dbFilter, rawFilter ) )
 
-	def calculateInternalMultiQueryAmount(self, targetAmount):
+	def calculateInternalMultiQueryLimit(self, targetAmount):
 		"""
 			Tells :class:`server.db.Query` How much entries should be fetched in each subquery.
 
@@ -260,8 +260,7 @@ class spatialBone(baseBone):
 		# If a result further away than this distance there might be missing results before that result
 		# If there are no results in a give lane (f.e. because we are close the border and there is no point
 		# in between) we choose a arbitrary large value for that lower bound
-		expectedAmount = self.calculateInternalMultiQueryAmount(
-			targetAmount)  # How many items we expect in each direction
+		expectedAmount = self.calculateInternalMultiQueryLimit(targetAmount)  # How many items we expect in each direction
 		limits = [
 			haversine(latRight[-1][name + ".lat.val"], lng, lat, lng) if latRight and len(
 				latRight) == expectedAmount else 2 ** 31,  # Lat - Right Side

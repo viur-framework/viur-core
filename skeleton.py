@@ -1,15 +1,20 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-from viur.core import db, utils, conf, errors
-from viur.core.bones import baseBone, keyBone, dateBone, selectBone, relationalBone, stringBone
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
-from viur.core.tasks import CallableTask, CallableTaskBase, callDeferred
-from collections import OrderedDict
-from time import time
-import inspect, os, sys, logging, copy
-from typing import Union, Dict, List, Callable
+
+import copy
+import inspect
+import logging
+import os
+import sys
 from functools import partial
 from itertools import chain
+from time import time
+from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, Set
+
+from viur.core import conf, db, errors, utils
+from viur.core.bones import baseBone, dateBone, keyBone, relationalBone, selectBone, stringBone
+from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
+from viur.core.tasks import CallableTask, CallableTaskBase, callDeferred
 
 try:
 	import pytz
@@ -17,7 +22,6 @@ except:
 	pytz = None
 
 __undefindedC__ = object()
-
 
 class MetaBaseSkel(type):
 	"""
@@ -46,6 +50,7 @@ class MetaBaseSkel(type):
 						raise AttributeError("Invalid bone '%s': Bone cannot have any of the following names: %s" %
 											 (key, str(MetaBaseSkel.__reservedKeywords_)))
 					boneMap[key] = prop
+
 		fillBoneMapRecursive(cls)
 		cls.__boneMap__ = boneMap
 		if not getSystemInitialized():
@@ -78,8 +83,8 @@ class SkeletonInstance:
 		if clonedBoneMap:
 			self.boneMap = clonedBoneMap
 		elif subSkelNames:
-			boneList = chain([skelCls.subSkels.get(x, []) for x in subSkelNames])
-			doesMatch = lambda name: name in boneList or any([x.startswith(x[:-1]) for x in boneList if x[-1] == "*"])
+			boneList = ["key"] + list(chain(*[skelCls.subSkels.get(x, []) for x in ["*"] + subSkelNames]))
+			doesMatch = lambda name: name in boneList or any([name.startswith(x[:-1]) for x in boneList if x[-1] == "*"])
 			if fullClone:
 				self.boneMap = {k: copy.deepcopy(v) for k, v in skelCls.__boneMap__.items() if doesMatch(k)}
 				for v in self.boneMap.values():
@@ -99,14 +104,17 @@ class SkeletonInstance:
 		self.skeletonCls = skelCls
 		self.renderPreparation = None
 
-	def items(self):
+	def items(self) -> Iterable[Tuple[str, baseBone]]:
 		yield from self.boneMap.items()
 
-	def keys(self):
+	def keys(self) -> Iterable[str]:
 		yield from self.boneMap.keys()
 
-	def values(self):
+	def values(self) -> Iterable[Any]:
 		yield from self.boneMap.values()
+
+	def __iter__(self) -> Iterable[str]:
+		yield from self.keys()
 
 	def __contains__(self, item):
 		return item in self.boneMap
@@ -130,7 +138,7 @@ class SkeletonInstance:
 				if self.dbEntity is not None:
 					boneInstance.unserialize(self, key)
 				else:
-					self.accessedValues[key] = boneInstance.getDefaultValue()
+					self.accessedValues[key] = boneInstance.getDefaultValue(self)
 		if not self.renderPreparation:
 			return self.accessedValues.get(key)
 		value = self.renderPreparation(getattr(self, key), self, key, self.accessedValues.get(key))
@@ -161,6 +169,9 @@ class SkeletonInstance:
 		else:
 			super().__setattr__(key, value)
 
+	def __repr__(self) -> str:
+		return f"<SkeletonInstance of {self.skeletonCls.__name__} with {dict(self)}>"
+
 	def clone(self):
 		res = SkeletonInstance(self.skeletonCls, clonedBoneMap=copy.deepcopy(self.boneMap))
 		for k, v in res.boneMap.items():
@@ -174,6 +185,11 @@ class SkeletonInstance:
 		self.dbEntity = entity
 		self.accessedValues = {}
 		self.renderAccessedValues = {}
+
+	def __deepcopy__(self, memodict):
+		res = self.clone()
+		memodict[id(self)] = res
+		return res
 
 
 class BaseSkeleton(object, metaclass=MetaBaseSkel):
@@ -221,7 +237,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		"""
 		if not args:
 			raise ValueError("Which subSkel?")
-		return cls(subSkelNames=args, fullClone=fullClone)
+		return cls(subSkelNames=list(args), fullClone=fullClone)
 
 	@classmethod
 	def setSystemInitialized(cls):
@@ -285,13 +301,12 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 				skelValues.errors.extend(errors)
 				for error in errors:
 					if (error.severity == ReadFromClientErrorSeverity.Empty and _bone.required) \
-						or error.severity == ReadFromClientErrorSeverity.Invalid:
+							or error.severity == ReadFromClientErrorSeverity.Invalid:
 						complete = False
-		# FIXME!
-		# if (len(data) == 0
-		#		or (len(data) == 1 and "key" in data)
-		#		or ("nomissing" in data and str(data["nomissing"]) == "1")):
-		#	super(BaseSkeleton, self).__setattr__("errors", {})
+		if (len(data) == 0
+			or (len(data) == 1 and "key" in data)
+			or ("nomissing" in data and str(data["nomissing"]) == "1")):
+			skelValues.errors = []
 
 		return complete
 
@@ -317,7 +332,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 class MetaSkel(MetaBaseSkel):
 	def __init__(cls, name, bases, dct):
 		super(MetaSkel, cls).__init__(name, bases, dct)
-		relNewFileName = inspect.getfile(cls).replace(os.getcwd(), "")
+		relNewFileName = inspect.getfile(cls).replace(utils.projectBasePath, "")
 
 		# Check if we have an abstract skeleton
 		if cls.__name__.endswith("AbstractSkel"):
@@ -328,15 +343,15 @@ class MetaSkel(MetaBaseSkel):
 
 		# Automatic determination of the kindName, if the class is not part of the server.
 		if (cls.kindName is __undefindedC__
-			and not relNewFileName.strip(os.path.sep).startswith("viur")
-			and not "viur_doc_build" in dir(sys)):
+				and not relNewFileName.strip(os.path.sep).startswith("viur")
+				and not "viur_doc_build" in dir(sys)):
 			if cls.__name__.endswith("Skel"):
 				cls.kindName = cls.__name__.lower()[:-4]
 			else:
 				cls.kindName = cls.__name__.lower()
 		# Try to determine which skeleton definition takes precedence
 		if cls.kindName and cls.kindName is not __undefindedC__ and cls.kindName in MetaBaseSkel._skelCache:
-			relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]).replace(os.getcwd(), "")
+			relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]).replace(utils.projectBasePath, "")
 			idxOld = min(
 				[x for (x, y) in enumerate(conf["viur.skeleton.searchPath"]) if relOldFileName.startswith(y)] + [999])
 			idxNew = min(
@@ -356,11 +371,14 @@ class MetaSkel(MetaBaseSkel):
 								 (cls.kindName, relNewFileName, relOldFileName))
 		# Ensure that all skeletons are defined in folders listed in conf["viur.skeleton.searchPath"]
 		if (not any([relNewFileName.startswith(x) for x in conf["viur.skeleton.searchPath"]])
-			and not "viur_doc_build" in dir(sys)):  # Do not check while documentation build
+				and not "viur_doc_build" in dir(sys)):  # Do not check while documentation build
 			raise NotImplementedError(
 				"Skeletons must be defined in a folder listed in conf[\"viur.skeleton.searchPath\"]")
 		if cls.kindName and cls.kindName is not __undefindedC__:
 			MetaBaseSkel._skelCache[cls.kindName] = cls
+		# Auto-Add ViUR Search Tags Adapter if the skeleton has no adapter attached
+		if cls.customDatabaseAdapter is __undefindedC__:
+			cls.customDatabaseAdapter = ViurTagsSearchAdapter()
 
 
 class CustomDatabaseAdapter:
@@ -416,9 +434,80 @@ class CustomDatabaseAdapter:
 		raise NotImplementedError
 
 
+class ViurTagsSearchAdapter(CustomDatabaseAdapter):
+	"""
+	This Adapter implements the a simple fulltext search ontop of the datastore.
+	On skel.toDB we collect all words from str/textBones, build all *minLength* postfixes and dump them
+	into the property viurTags. When queried, we'll run a prefix-match against this property - thus returning
+	entities with either a exact match or a match inside a word.
+
+	Example:
+		For the word "hello" we'll write "hello", "ello" and "llo" into viurTags.
+		When queried with "hello" we'll have an exact match.
+		When queried with "hel" we'll match the prefix for "hello"
+		When queried with "ell" we'll prefix-match "ello"
+
+	We'll automatically add this adapter if a skeleton has no other database adapter defined
+	"""
+	providesFulltextSearch = True
+	fulltextSearchGuaranteesQueryConstrains = True
+
+	def __init__(self, minLength: int = 3):
+		super(ViurTagsSearchAdapter, self).__init__()
+		self.minLength = minLength
+
+	def _tagsFromString(self, value: str) -> Set[str]:
+		"""
+		Extract all words including all minLength postfixes from given string
+		"""
+		resSet = set()
+		for tag in value.split(" "):
+			tag = "".join([x for x in tag.lower() if x in conf["viur.searchValidChars"]])
+			if len(tag) >= self.minLength:
+				resSet.add(tag)
+				for x in range(1, 1+len(tag)-self.minLength):
+					resSet.add(tag[x:])
+		return resSet
+
+	def preprocessEntry(self, entry: db.Entity, skel: Skeleton, changeList: List[str], isAdd: bool) -> db.Entity:
+		"""
+		Collect searchTags from skeleton and build viurTags
+		"""
+		def tagsFromSkel(skel):
+			tags = set()
+			for boneName, bone in skel.items():
+				if bone.searchable:
+					tags = tags.union(bone.getSearchTags(skel, boneName))
+			return tags
+		tags = tagsFromSkel(skel)
+		entry["viurTags"] = [x for x in tags if len(x) < 100]
+		return entry
+
+	def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> List[db.Entity]:
+		"""
+		Run a fulltext search
+		"""
+		keywords = list(self._tagsFromString(queryString))[:10]
+		resultScoreMap = {}
+		resultEntryMap = {}
+		for keyword in keywords:
+			qryBase = databaseQuery.clone()
+			for entry in qryBase.filter("viurTags >=", keyword).filter("viurTags <", keyword+"\ufffd").run():
+				if not entry.key in resultScoreMap:
+					resultScoreMap[entry.key] = 1
+				else:
+					resultScoreMap[entry.key] += 1
+				if not entry.key in resultEntryMap:
+					resultEntryMap[entry.key] = entry
+		resultList = [(k, v) for k, v in resultScoreMap.items()]
+		resultList.sort(key=lambda x: x[1])
+		resList = [resultEntryMap[x[0]] for x in resultList[:databaseQuery.amount]]
+		return resList
+
+
 class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 	kindName: str = __undefindedC__  # To which kind we save our data to
-	customDatabaseAdapter: Union[CustomDatabaseAdapter, None] = None
+	customDatabaseAdapter: Union[CustomDatabaseAdapter, None] = __undefindedC__
 	subSkels = {}  # List of pre-defined sub-skeletons of this type
 	interBoneValidations: List[
 		Callable[[Skeleton], List[ReadFromClientError]]] = []  # List of functions checking inter-bone dependencies
@@ -592,6 +681,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				if key in skel.accessedValues:
 					# bone.mergeFrom(skel.valuesCache, key, mergeFrom)
 					bone.serialize(skel, key, True)
+				elif key not in skel.dbEntity:  # It has not been written and is not in the database
+					_ = skel[key]  # Ensure the datastore is filled with the default value
+					bone.serialize(skel, key, True)
 
 				## Serialize bone into entity
 				# dbObj = bone.serialize(skel.valuesCache, key, dbObj)
@@ -709,8 +801,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 			dbObj = skel.preProcessSerializedData(dbObj)
 
 			# Allow the custom DB Adapter to apply last minute changes to the object
-			if cls.customDatabaseAdapter:
-				dbObj = cls.customDatabaseAdapter.preprocessEntry(dbObj, skel, changeList, isAdd)
+			if skelValues.customDatabaseAdapter:
+				dbObj = skelValues.customDatabaseAdapter.preprocessEntry(dbObj, skel, changeList, isAdd)
 
 			# Write the core entry back
 			db.Put(dbObj)
@@ -774,7 +866,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		skel.postSavedHandler(key, dbObj)
 
 		if not clearUpdateTag and not isAdd:
-			updateRelations(key.to_legacy_urlsafe().decode("ASCII"), time() + 1,
+			updateRelations(key, time() + 1,
 							changeList if len(changeList) < 30 else None)
 
 		# Inform the custom DB Adapter of the changes made to the entry
@@ -862,7 +954,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					lockObj["has_old_blob_references"] = True
 					db.Put(lockObj)
 			db.Delete(skelKey)
-			processRemovedRelations(skelKey.to_legacy_urlsafe().decode("ASCII"))
+			processRemovedRelations(skelKey)
 			return dbObj
 
 		key = skelValues["key"]
@@ -920,11 +1012,12 @@ class RelSkel(BaseSkeleton):
 				skelValues.errors.extend(errors)
 				for err in errors:
 					if err.severity == ReadFromClientErrorSeverity.Empty and _bone.required \
-						or err.severity == ReadFromClientErrorSeverity.Invalid:
+							or err.severity == ReadFromClientErrorSeverity.Invalid:
 						complete = False
 		if (len(data) == 0 or (len(data) == 1 and "key" in data) or (
-			"nomissing" in data and str(data["nomissing"]) == "1")):
+				"nomissing" in data and str(data["nomissing"]) == "1")):
 			skelValues.errors = []
+			return False  # Force the skeleton to be displayed to the user again
 		return complete
 
 	def serialize(self, parentIndexed):
@@ -983,9 +1076,9 @@ class RefSkel(RelSkel):
 			:return: A new instance of RefSkel
 			:rtype: RefSkel
 		"""
-		newClass = type("RefSkelFor"+kindName, (RefSkel,), {})
+		newClass = type("RefSkelFor" + kindName, (RefSkel,), {})
 		fromSkel = skeletonByKind(kindName)
-		newClass.__boneMap__ = {k: v for k,v in fromSkel.__boneMap__.items() if k in args}
+		newClass.__boneMap__ = {k: v for k, v in fromSkel.__boneMap__.items() if k in args}
 		return newClass
 
 
@@ -1002,12 +1095,12 @@ class SkelList(list):
 
 	__slots__ = ["baseSkel", "getCursor", "customQueryInfo", "renderPreparation"]
 
-	def __init__(self, baseSkel):
+	def __init__(self, baseSkel=None):
 		"""
 			:param baseSkel: The baseclass for all entries in this list
 		"""
 		super(SkelList, self).__init__()
-		self.baseSkel = baseSkel
+		self.baseSkel = baseSkel or {}
 		self.getCursor = lambda: None
 		self.renderPreparation = None
 		self.customQueryInfo = {}
@@ -1029,7 +1122,6 @@ class SkelList(list):
 
 @callDeferred
 def processRemovedRelations(removedKey, cursor=None):
-	removedKey = db.KeyClass.from_legacy_urlsafe(removedKey)
 	updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", removedKey) \
 		.filter("viur_relational_consistency >", 2)
 	updateListQuery = updateListQuery.setCursor(cursor)
@@ -1055,15 +1147,14 @@ def processRemovedRelations(removedKey, cursor=None):
 			skel.delete()
 			pass
 	if len(updateList) == 5:
-		processRemovedRelations(removedKey.to_legacy_urlsafe().decode("ASCII"),
-								updateListQuery.getCursor().urlsafe().decode("ASCII"))
+		processRemovedRelations(removedKey, updateListQuery.getCursor())
 
 
 @callDeferred
 def updateRelations(destID, minChangeTime, changeList, cursor=None):
 	logging.debug("Starting updateRelations for %s ; minChangeTime %s, Changelist: %s", destID, minChangeTime,
 				  changeList)
-	updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", db.KeyClass.from_legacy_urlsafe(destID)) \
+	updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", destID) \
 		.filter("viur_delayed_update_tag <", minChangeTime).filter("viur_relational_updateLevel =", 0)
 	if changeList:
 		updateListQuery.filter("viur_foreign_keys IN", changeList)
@@ -1083,12 +1174,12 @@ def updateRelations(destID, minChangeTime, changeList, cursor=None):
 		try:
 			skel = skeletonByKind(srcRel["viur_src_kind"])()
 		except AssertionError:
-			logging.info("Deleting %s which refers to unknown kind %s" % (str(srcRel.key()), srcRel["viur_src_kind"]))
+			logging.info("Deleting %s which refers to unknown kind %s" % (str(srcRel.key), srcRel["viur_src_kind"]))
 			continue
-		db.RunInTransaction(updateTxn, skel, srcRel["src"]["key"], srcRel.key)
+		db.RunInTransaction(updateTxn, skel, srcRel["src"].key, srcRel.key)
 	nextCursor = updateListQuery.getCursor()
 	if len(updateList) == 5 and nextCursor:
-		updateRelations(destID, minChangeTime, changeList, nextCursor.decode("ASCII"))
+		updateRelations(destID, minChangeTime, changeList, nextCursor)
 
 
 @CallableTask
@@ -1165,7 +1256,6 @@ def processChunk(module, compact, cursor, allCount=0, notify=None):
 	newCursor = query.getCursor()
 	if not newCursor:  # We're done
 		return
-	newCursor = newCursor.decode("ASCII")
 	logging.info("END processChunk %s, %d records refreshed" % (module, count))
 	if count and newCursor and newCursor != cursor:
 		# Start processing of the next chunk
@@ -1223,7 +1313,7 @@ def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, noti
 	query = db.Query("viur-relations")
 	if module != "*":
 		query.filter("viur_src_kind =", module)
-	query.cursor(cursor)
+	query.setCursor(cursor)
 	countTotal = 0
 	countRemoved = 0
 	for relationObject in query.run(25):
@@ -1254,9 +1344,9 @@ def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, noti
 	newRemovedCount = removedCount + countRemoved
 	logging.info("END processVacuumRelationsChunk %s, %d records processed, %s removed " % (
 		module, newTotalCount, newRemovedCount))
-	if countTotal and newCursor and newCursor.urlsafe() != cursor:
+	if newCursor:
 		# Start processing of the next chunk
-		processVacuumRelationsChunk(module, newCursor.urlsafe(), newTotalCount, newRemovedCount, notify)
+		processVacuumRelationsChunk(module, newCursor, newTotalCount, newRemovedCount, notify)
 	else:
 		try:
 			if notify:
@@ -1266,6 +1356,7 @@ def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, noti
 				utils.sendEMail([notify], txt, None)
 		except:  # OverQuota, whatever
 			pass
+
 
 # Forward references to SkelList and SkelInstance
 db.SkeletonInstanceRef = SkeletonInstance

@@ -7,6 +7,7 @@ from viur.core.skeleton import Skeleton
 
 class Render(DefaultRender):  # Render user-data to xml
 	loginTemplate = "user_login"
+	loginChoicesTemplate = "user_login_choices"
 	logoutSuccessTemplate = "user_logout_success"
 	loginSuccessTemplate = "user_login_success"
 	verifySuccessTemplate = "user_verify_success"
@@ -29,6 +30,13 @@ class Render(DefaultRender):  # Render user-data to xml
 			tpl = tpl or self.loginTemplate
 		return self.add(skel, tpl=tpl)
 
+	def loginChoices(self, authMethods, tpl=None, **kwargs):
+		if "loginChoicesTemplate" in dir(self.parent):
+			tpl = tpl or self.parent.loginChoicesTemplate
+		else:
+			tpl = tpl or self.loginChoicesTemplate
+		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
+		return template.render(authMethods=authMethods, **kwargs)
 
 	def loginSucceeded(self, tpl=None, **kwargs):
 		if "loginSuccessTemplate" in dir(self.parent):

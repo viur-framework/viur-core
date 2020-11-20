@@ -2,7 +2,7 @@
 from viur.core.bones import baseBone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import logging
-from typing import List, Union
+from typing import List, Union, Any
 
 
 class booleanBone(baseBone):
@@ -22,6 +22,14 @@ class booleanBone(baseBone):
 			return True, None
 		else:
 			return False, None
+
+	def getEmptyValue(self):
+		return False
+
+	def isEmpty(self, rawValue: Any):
+		if rawValue is self.getEmptyValue():
+			return True
+		return not bool(rawValue)
 
 	def refresh(self, skel, boneName) -> None:
 		"""

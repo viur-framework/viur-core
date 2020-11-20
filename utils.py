@@ -26,6 +26,8 @@ currentLanguage = ContextVar("Language", default=None)
 # Determine which ProjectID we currently run in (as the app_identity module isn't available anymore)
 _, projectID = google.auth.default()
 del _
+# Determine our basePath (as os.getCWD is broken on appengine)
+projectBasePath = globals()["__file__"].replace("/viur/core/utils.py","")
 
 
 def utcNow():
@@ -223,7 +225,7 @@ def markFileForDeletion(dlkey):
 	:type dlkey: str
 	:param dlkey: Unique download-key of the file that shall be marked for deletion.
 	"""
-	fileObj = db.Query("viur-deleted-files").filter("dlkey", dlkey).get()
+	fileObj = db.Query("viur-deleted-files").filter("dlkey", dlkey).getEntry()
 
 	if fileObj:  # Its allready marked
 		return

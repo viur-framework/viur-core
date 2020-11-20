@@ -2,8 +2,8 @@
 from viur.core.bones import baseBone
 from math import pow
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core.bones.stringBone import LanguageWrapper
 import logging
+from typing import Any
 
 
 class numericBone(baseBone):
@@ -41,11 +41,17 @@ class numericBone(baseBone):
 		if value != value:  # NaN
 			return "NaN not allowed"
 
+	def getEmptyValue(self):
+		return 0
+
+	def isEmpty(self, rawValue: Any):
+		return not (rawValue != self.getEmptyValue() or bool(rawValue))
+
 	def singleValueFromClient(self, value, skel, name, origData):
 		try:
 			rawValue = str(value).replace(",", ".", 1)
 		except:
-			return self.getDefaultValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid Value")]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid Value")]
 		else:
 			if self.precision and (str(rawValue).replace(".", "", 1).replace("-", "", 1).isdigit()) and float(
 					rawValue) >= self.min and float(rawValue) <= self.max:
@@ -54,12 +60,11 @@ class numericBone(baseBone):
 					rawValue) >= self.min and int(rawValue) <= self.max:
 				value = int(rawValue)
 			else:
-				return self.getDefaultValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid Value")]
+				return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid Value")]
 		err = self.isInvalid(value)
 		if err:
-			return self.getDefaultValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
 		return value, None
-
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		updatedFilter = {}
@@ -80,3 +85,25 @@ class numericBone(baseBone):
 				updatedFilter[parmKey] = paramValue
 		return super(numericBone, self).buildDBFilter(name, skel, dbFilter, updatedFilter, prefix)
 
+	def getSearchTags(self, valuesCache, name):
+		res = set()
+		value = valuesCache[name]
+		if not value:
+			return res
+		if self.languages and isinstance(value, dict):
+			if self.multiple:
+				for lang in value.values():
+					if not lang:
+						continue
+					for val in lang:
+						res.add(str(val))
+			else:
+				for lang in value.values():
+					res.add(str(lang))
+		else:
+			if self.multiple:
+				for val in value:
+					res.add(str(val))
+			else:
+				res.add(str(value))
+		return res

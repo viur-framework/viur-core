@@ -104,7 +104,7 @@ class Singleton(BasicApplication):
 
 		The function performs several access control checks on the requested entity before it is rendered.
 
-		.. seealso:: :func:`viewSkel`, :func:`canView`, :func:`onItemViewed`
+		.. seealso:: :func:`viewSkel`, :func:`canView`, :func:`onView`
 
 		:returns: The rendered representation of the entity.
 
@@ -121,7 +121,7 @@ class Singleton(BasicApplication):
 		if not skel.fromDB(key):
 			raise errors.NotFound()
 
-		self.onItemViewed(skel)
+		self.onView(skel)
 		return self.render.view(skel)
 
 	@exposed
@@ -134,7 +134,7 @@ class Singleton(BasicApplication):
 		or as the first parameter in *args*. The function performs several access control checks
 		on the singleton's entity before it is modified.
 
-		.. seealso:: :func:`editSkel`, :func:`onItemEdited`, :func:`canEdit`
+		.. seealso:: :func:`editSkel`, :func:`onEdited`, :func:`canEdit`
 
 		:returns: The rendered, edited object of the entry, eventually with error hints.
 
@@ -154,9 +154,8 @@ class Singleton(BasicApplication):
 
 		key = db.Key(self.editSkel().kindName, self.getKey())
 
-		if not skel.fromDB(str(key)):  # Its not there yet; we need to set the key again
+		if not skel.fromDB(key):  # Its not there yet; we need to set the key again
 			skel["key"] = key
-
 		if (len(kwargs) == 0  # no data supplied
 				or skey == ""  # no skey provided
 				or not skel.fromClient(kwargs)  # failure on reading into the bones
@@ -166,9 +165,10 @@ class Singleton(BasicApplication):
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 
+		self.onEdit(skel)
 		skel.toDB()
-		self.onItemEdited(skel)
-		return self.render.editItemSuccess(skel)
+		self.onEdited(skel)
+		return self.render.editSuccess(skel)
 
 	def getContents(self):
 		"""
@@ -277,7 +277,20 @@ class Singleton(BasicApplication):
 			return (True)
 		return (False)
 
-	def onItemEdited(self, skel):
+	def onEdit(self, skel):
+		"""
+		Hook function that is called before editing an entry.
+
+		It can be overridden for a module-specific behavior.
+
+		:param skel: The Skeleton that is going to be edited.
+		:type skel: :class:`server.skeleton.Skeleton`
+
+		.. seealso:: :func:`edit`, :func:`onEdited`
+		"""
+		pass
+
+	def onEdited(self, skel):
 		"""
 		Hook function that is called after modifying the entry.
 
@@ -287,21 +300,21 @@ class Singleton(BasicApplication):
 		:param skel: The Skeleton that has been modified.
 		:type skel: :class:`server.skeleton.Skeleton`
 
-		.. seealso:: :func:`edit`
+		.. seealso:: :func:`edit`, :func:`onEdit`
 		"""
 		logging.info("Entry changed: %s" % skel["key"])
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-	def onItemViewed(self, skel):
+	def onView(self, skel):
 		"""
 		Hook function that is called when viewing an entry.
 
 		It should be overridden for a module-specific behavior.
 		The default is doing nothing.
 
-		:param skel: The Skeleton that is viewed.
+		:param skel: The Skeleton that is being viewed.
 		:type skel: :class:`server.skeleton.Skeleton`
 
 		.. seealso:: :func:`view`
