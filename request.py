@@ -6,46 +6,13 @@ from urllib import parse
 from string import Template
 from io import StringIO
 import webob
-from viur.core import session, errors
+from viur.core import errors
 from urllib.parse import urljoin, urlparse, unquote
+from viur.core.logging import requestLogger, client as loggingClient, requestLoggingRessource
 from viur.core import utils
+from viur.core.utils import currentSession, currentLanguage
 import logging
-import google.cloud.logging
-from google.cloud.logging.handlers import CloudLoggingHandler
-from google.cloud.logging.resource import Resource
 from time import time
-
-client = google.cloud.logging.Client()
-loggingRessource = Resource(type="gae_app",
-							labels={
-								"project_id": utils.projectID,
-								"module_id": "default",
-							})
-
-reqLogger = client.logger("ViUR")
-
-
-class ViURDefaultLogger(CloudLoggingHandler):
-	def emit(self, record):
-		message = super(ViURDefaultLogger, self).format(record)
-		try:
-			currentReq = current.get()
-			TRACE = "projects/{}/traces/{}".format(client.project, currentReq._traceID)
-			currentReq.maxLogLevel = max(currentReq.maxLogLevel, record.levelno)
-		except:
-			TRACE = None
-		self.transport.send(
-			record,
-			message,
-			resource=self.resource,
-			labels=self.labels,
-			trace=TRACE
-		)
-
-
-handler = ViURDefaultLogger(client, name="ViUR-Messages", resource=Resource(type="gae_app", labels={}))
-google.cloud.logging.handlers.setup_logging(handler)
-logging.getLogger().setLevel(logging.DEBUG)
 
 
 class BrowseHandler():  # webapp.RequestHandler
@@ -127,52 +94,52 @@ class BrowseHandler():  # webapp.RequestHandler
 		"""
 			Tries to select the best language for the current request.
 		"""
+		sessionReference = currentSession.get()
 		if not conf["viur.availableLanguages"]:
 			# This project doesn't use the multi-language feature, nothing to do here
 			return path
 		if conf["viur.languageMethod"] == "session":
 			# We store the language inside the session, try to load it from there
-			if not session.current.getLanguage():
+			if "lang" not in sessionReference:
 				if "X-Appengine-Country" in self.request.headers:
 					lng = self.request.headers["X-Appengine-Country"].lower()
 					if lng in conf["viur.availableLanguages"] + list(conf["viur.languageAliasMap"].keys()):
-						session.current.setLanguage(lng)
-						self.language = lng
+						sessionReference["lang"] = lng
+						currentLanguage.set(lng)
 					else:
-						session.current.setLanguage(conf["viur.defaultLanguage"])
+						sessionReference["lang"] = conf["viur.defaultLanguage"]
 			else:
-				self.language = session.current.getLanguage()
+				currentLanguage.set(sessionReference["lang"])
 		elif conf["viur.languageMethod"] == "domain":
 			host = self.request.host_url.lower()
 			host = host[host.find("://") + 3:].strip(" /")  # strip http(s)://
 			if host.startswith("www."):
 				host = host[4:]
 			if host in conf["viur.domainLanguageMapping"]:
-				self.language = conf["viur.domainLanguageMapping"][host]
+				currentLanguage.set(conf["viur.domainLanguageMapping"][host])
 			else:  # We have no language configured for this domain, try to read it from session
-				if session.current.getLanguage():
-					self.language = session.current.getLanguage()
+				if "lang" in sessionReference:
+					currentLanguage.set(sessionReference["lang"])
 		elif conf["viur.languageMethod"] == "url":
 			tmppath = urlparse(path).path
 			tmppath = [unquote(x) for x in tmppath.lower().strip("/").split("/")]
 			if len(tmppath) > 0 and tmppath[0] in conf["viur.availableLanguages"] + list(
-					conf["viur.languageAliasMap"].keys()):
-				self.language = tmppath[0]
+				conf["viur.languageAliasMap"].keys()):
+				currentLanguage.set(tmppath[0])
 				return (path[len(tmppath[0]) + 1:])  # Return the path stripped by its language segment
 			else:  # This URL doesnt contain an language prefix, try to read it from session
-				if session.current.getLanguage():
-					self.language = session.current.getLanguage()
+				if "lang" in sessionReference:
+					currentLanguage.set(sessionReference["lang"])
 				elif "X-Appengine-Country" in self.request.headers.keys():
 					lng = self.request.headers["X-Appengine-Country"].lower()
 					if lng in conf["viur.availableLanguages"] or lng in conf["viur.languageAliasMap"]:
-						self.language = lng
+						currentLanguage.set(lng)
 		return path
 
 	def processRequest(self):
 		"""
 			Bring up the enviroment for this request, start processing and handle errors
 		"""
-		# with conf["viur.tracer"].span(name="request."):
 		# Check if it's a HTTP-Method we support
 		reqestMethod = self.request.method.lower()
 		if reqestMethod not in ["get", "post", "head"]:
@@ -184,11 +151,14 @@ class BrowseHandler():  # webapp.RequestHandler
 		self.internalRequest = False
 		self.isDevServer = os.environ['GAE_ENV'] == "localdev"  # Were running on development Server
 		self.isSSLConnection = self.request.host_url.lower().startswith("https://")  # We have an encrypted channel
-		self.language = conf["viur.defaultLanguage"]
+		currentLanguage.set(conf["viur.defaultLanguage"])
 		self.disableCache = False  # Shall this request bypass the caches?
 		self.args = []
 		self.kwargs = {}
 		path = self.request.path
+		if self.isDevServer:
+			# We'll have to emulate the task-queue locally as far as possible until supported by dev_appserver again
+			self.pendingTasks = []
 
 		# Add CSP headers early (if any)
 		if conf["viur.security.contentSecurityPolicy"] and conf["viur.security.contentSecurityPolicy"]["_headerCache"]:
@@ -240,8 +210,11 @@ class BrowseHandler():  # webapp.RequestHandler
 		if path[:10] == "/_viur/dlf":
 			self.response.write("okay")
 			return
+		if path.startswith("/_ah/warmup"):
+			self.response.write("okay")
+			return
 		try:
-			session.current.load(self)  # self.request.cookies )
+			currentSession.get().load(self)  # self.request.cookies )
 			path = self.selectLanguage(path)[1:]
 			if conf["viur.requestPreprocessor"]:
 				path = conf["viur.requestPreprocessor"](path)
@@ -298,7 +271,6 @@ class BrowseHandler():  # webapp.RequestHandler
 			self.response.write(res.encode("UTF-8"))
 		finally:
 			self.saveSession()
-
 			SEVERITY = "DEBUG"
 			if self.maxLogLevel >= 50:
 				SEVERITY = "CRITICAL"
@@ -309,7 +281,7 @@ class BrowseHandler():  # webapp.RequestHandler
 			elif self.maxLogLevel >= 20:
 				SEVERITY = "INFO"
 
-			TRACE = "projects/{}/traces/{}".format(client.project, self._traceID)
+			TRACE = "projects/{}/traces/{}".format(loggingClient.project, self._traceID)
 
 			REQUEST = {
 				'requestMethod': self.request.method,
@@ -320,8 +292,13 @@ class BrowseHandler():  # webapp.RequestHandler
 				'latency': "%0.3fs" % (time() - self.startTime),
 				'remoteIp': self.request.environ.get("HTTP_X_APPENGINE_USER_IP")
 			}
-			reqLogger.log_text("", client=client, severity=SEVERITY, http_request=REQUEST, trace=TRACE,
-							   resource=loggingRessource)
+			requestLogger.log_text("", client=loggingClient, severity=SEVERITY, http_request=REQUEST, trace=TRACE,
+								   resource=requestLoggingRessource)
+		if self.isDevServer:
+			while self.pendingTasks:
+				task = self.pendingTasks.pop()
+				logging.info("Running task directly after request: %s" % str(task))
+				task()
 
 	def findAndCall(self, path, *args, **kwargs):  # Do the actual work: process the request
 		# Prevent Hash-collision attacks
@@ -336,7 +313,7 @@ class BrowseHandler():  # webapp.RequestHandler
 			else:
 				kwargs[key] = value
 			stopCount -= 1
-			if not stopCount:  # We reached zero; maximum PostParamsCount excceded
+			if not stopCount:  # We reached zero; maximum PostParamsCount exceeded
 				raise errors.NotAcceptable()
 
 		if "self" in kwargs:  # self is reserved for bound methods
@@ -356,13 +333,13 @@ class BrowseHandler():  # webapp.RequestHandler
 			if currpath in caller:
 				caller = caller[currpath]
 				if (("exposed" in dir(caller) and caller.exposed) or ("internalExposed" in dir(
-						caller) and caller.internalExposed and self.internalRequest)) and hasattr(caller, '__call__'):
+					caller) and caller.internalExposed and self.internalRequest)) and hasattr(caller, '__call__'):
 					args = self.pathlist[idx:] + [x for x in args]  # Prepend the rest of Path to args
 					break
 			elif "index" in caller:
 				caller = caller["index"]
 				if (("exposed" in dir(caller) and caller.exposed) or ("internalExposed" in dir(
-						caller) and caller.internalExposed and self.internalRequest)) and hasattr(caller, '__call__'):
+					caller) and caller.internalExposed and self.internalRequest)) and hasattr(caller, '__call__'):
 					args = self.pathlist[idx - 1:] + [x for x in args]
 					break
 				else:
@@ -374,21 +351,21 @@ class BrowseHandler():  # webapp.RequestHandler
 					[("".join([y for y in x if y.lower() in "0123456789abcdefghijklmnopqrstuvwxyz"])) for x in
 					 self.pathlist[: idx]])))
 		if (not callable(caller) or ((not "exposed" in dir(caller) or not caller.exposed)) and (
-				not "internalExposed" in dir(caller) or not caller.internalExposed or not self.internalRequest)):
+			not "internalExposed" in dir(caller) or not caller.internalExposed or not self.internalRequest)):
 			if "index" in caller \
-					and (callable(caller["index"]) \
-						 and ("exposed" in dir(caller["index"]) and caller["index"].exposed) \
-						 or ("internalExposed" in dir(
-						caller["index"]) and caller["index"].internalExposed and self.internalRequest)):
+				and (callable(caller["index"]) \
+					 and ("exposed" in dir(caller["index"]) and caller["index"].exposed) \
+					 or ("internalExposed" in dir(
+					caller["index"]) and caller["index"].internalExposed and self.internalRequest)):
 				caller = caller["index"]
 			else:
 				raise (errors.MethodNotAllowed())
 		# Check for forceSSL flag
 		if not self.internalRequest \
-				and "forceSSL" in dir(caller) \
-				and caller.forceSSL \
-				and not self.request.host_url.lower().startswith("https://") \
-				and not self.isDevServer:
+			and "forceSSL" in dir(caller) \
+			and caller.forceSSL \
+			and not self.request.host_url.lower().startswith("https://") \
+			and not self.isDevServer:
 			raise (errors.PreconditionFailed("You must use SSL to access this ressource!"))
 		# Check for forcePost flag
 		if "forcePost" in dir(caller) and caller.forcePost and not self.isPostRequest:
@@ -445,36 +422,6 @@ class BrowseHandler():  # webapp.RequestHandler
 			raise
 
 	def saveSession(self):
-		session.current.save(self)
+		currentSession.get().save(self)
 
 
-class RequestWrapper(object):
-	"""
-		Request Wrapper.
-		Allows applications to access the current request
-		object (google.appengine.ext.webapp.Request)
-		without having a direct reference to it.
-		Use singleton 'current' instead of this class.
-
-		Example::
-
-			from request import current as currentRequest
-			currentRequest.get().headers
-	"""
-
-	def __init__(self, *args, **kwargs):
-		super(RequestWrapper, self).__init__(*args, **kwargs)
-		self.data = threading.local()
-
-	def setRequest(self, request):
-		self.data.request = request
-		self.data.reqData = {}
-
-	def get(self):
-		return (self.data.request)
-
-	def requestData(self):
-		return (self.data.reqData)
-
-
-current = RequestWrapper()

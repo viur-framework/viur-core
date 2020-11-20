@@ -11,6 +11,7 @@ import string, random
 import codecs
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.i18n import translate
+from typing import List, Union
 
 
 def pbkdf2(password, salt, iterations=1001, keylen=42):
@@ -86,22 +87,30 @@ class passwordBone(stringBone):
 
 		return False
 
-	def fromClient(self, valuesCache, name, data):
+	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		if not name in data:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
 		value = data.get(name)
 		if not value:
+			# Password-Bone is special: As it cannot be read don't set back no None if no value is given
+			# This means an once set password can only be changed - but never deleted.
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value entered")]
 		err = self.isInvalid(value)
 		if err:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
-		valuesCache[name] = value
+		skel[name] = value
 
-	def serialize(self, skeletonValues, name):
-		if name in skeletonValues.accessedValues and skeletonValues.accessedValues[name]:
+	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
+		if name in skel.accessedValues and skel.accessedValues[name]:
 			salt = utils.generateRandomString(self.saltLength)
-			passwd = pbkdf2(skeletonValues.accessedValues[name][: conf["viur.maxPasswordLength"]], salt)
-			skeletonValues.entity[name] = {"pwhash": passwd, "salt": salt}
+			passwd = pbkdf2(skel.accessedValues[name][: conf["viur.maxPasswordLength"]], salt)
+			skel.dbEntity[name] = {"pwhash": passwd, "salt": salt}
+			# Ensure our indexed flag is up2date
+			indexed = self.indexed and parentIndexed
+			if indexed and name in skel.dbEntity.exclude_from_indexes:
+				skel.dbEntity.exclude_from_indexes.discard(name)
+			elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
+				skel.dbEntity.exclude_from_indexes.add(name)
 			return True
 		return False
 

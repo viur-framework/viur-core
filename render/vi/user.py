@@ -4,7 +4,7 @@ import string, json
 
 
 class UserRender(user):
-
+	kind = "json.vi"
 	def loginSucceeded(self, **kwargs):
 		"""
 		This loginSuccess method generates a HTML site, which redirects by meta-refresh to the Vi,

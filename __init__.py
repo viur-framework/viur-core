@@ -27,29 +27,16 @@
 
 __version__ = (3, -99, -99)  # Which API do we expose to our application
 
-import sys, traceback, os, inspect
 
-## All (optional) 3rd-party modules in our libs-directory
-# cwd = os.path.abspath(os.path.dirname(__file__))
-#
-# for lib in os.listdir(os.path.join(cwd, "libs")):
-#	if not lib.lower().endswith(".zip"):  # Skip invalid file
-#		continue
-#	sys.path.insert(0, os.path.join(cwd, "libs", lib))
 
 from viur.core.config import conf
 from viur.core import request
 from viur.core import languages as servertrans
 from viur.core.i18n import initializeTranslations
-# from google.appengine.ext import webapp
-# from google.appengine.ext.webapp.util import run_wsgi_app
-# from google.appengine.api import users
-# import urlparse
-
-from string import Template
-# from StringIO import StringIO
+from viur.core import logging as viurLogging  # Initialize request logging
+from viur.core.utils import currentRequest, currentSession, currentLanguage, currentRequestData
+from viur.core.session import GaeSession
 import logging
-from time import time
 import webob
 
 # Copy our Version into the config so that our renders can access it
@@ -90,7 +77,7 @@ def mapModule(moduleObj: object, moduleName: str, targetResoveRender: dict):
 	moduleFunctions = {}
 	for key in [x for x in dir(moduleObj) if x[0] != "_"]:
 		prop = getattr(moduleObj, key)
-		if prop == "canAccess" or getattr(prop, "exposed", None):
+		if key == "canAccess" or getattr(prop, "exposed", None):
 			moduleFunctions[key] = prop
 	for lang in conf["viur.availableLanguages"] or [conf["viur.defaultLanguage"]]:
 		# Map the module under each translation
@@ -169,12 +156,10 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 				for subkey in dir(rendsublist):
 					if not "__" in subkey:
 						rendlist[key][subkey] = getattr(rendsublist, subkey)
-
 	if "index" in dir(config):
 		res = config.index()
 	else:
 		res = ExtendableObject()
-
 	config._tasks = TaskHandler
 	resolverDict = {}
 	for moduleName in dir(config):  # iterate over all modules
@@ -208,32 +193,9 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 				# Apply Renderers postProcess Filters
 				if "_postProcessAppObj" in rendlist[renderName]:
 					rendlist[renderName]["_postProcessAppObj"](targetResoveRender)
-
 		if "seoLanguageMap" in dir(moduleClass):
 			conf["viur.languageModuleMap"][moduleName] = moduleClass.seoLanguageMap
-
 	conf["viur.mainResolver"] = resolverDict
-
-	"""
-	if not isinstance(renderers, dict):  # Apply Renderers postProcess Filters
-		for renderName in list(rendlist.keys()):
-			rend = getattr(renderers, renderName)
-			if "_postProcessAppObj" in dir(rend):
-				if renderName == default:
-					res = rend._postProcessAppObj(res)
-				else:
-					if (renderName in dir(res)):
-						setattr(res, renderName, rend._postProcessAppObj(getattr(res, renderName)))
-	else:
-		for renderName in list(rendlist.keys()):
-			rend = rendlist[renderName]
-			if "_postProcessAppObj" in list(rend.keys()):
-				if renderName == default:
-					res = rend["_postProcessAppObj"](res)
-				else:
-					if renderName in dir(res):
-						setattr(res, renderName, rend["_postProcessAppObj"](getattr(res, renderName)))
-	"""
 	if conf["viur.exportPassword"] is not None or conf["viur.importPassword"] is not None:
 		# Enable the Database ex/import API
 		from viur.core.dbtransfer import DbTransfer
@@ -316,25 +278,22 @@ def setup(modules, render=None, default="html"):
 					uri.lower().startswith("https://") or uri.lower().startswith("http://"))
 	runStartupTasks()  # Add a deferred call to run all queued startup tasks
 	initializeTranslations()
+	assert conf["viur.file.hmacKey"], "You must set a secret and unique Application-Key to viur.file.hmacKey"
 	return app
-	return (conf["viur.wsgiApp"])
 
 
-def run():
-	"""
-		Runs the previously configured server.
-	"""
-
-
-# run_wsgi_app(conf["viur.wsgiApp"])
 
 def app(environ, start_response):
 	req = webob.Request(environ)
 	resp = webob.Response()
 	handler = request.BrowseHandler(req, resp)
-	request.current.setRequest(handler)
+	currentRequest.set(handler)
+	currentSession.set(GaeSession())
+	currentRequestData.set({})
 	handler.processRequest()
-	request.current.setRequest(None)
+	currentRequestData.set(None)
+	currentSession.set(None)
+	currentRequest.set(None)
 	return resp(environ, start_response)
 
 
@@ -345,7 +304,7 @@ def forceSSL(f):
 		Has no effect on development-servers.
 	"""
 	f.forceSSL = True
-	return (f)
+	return f
 
 
 def forcePost(f):
@@ -353,7 +312,7 @@ def forcePost(f):
 		Decorator, which forces usage of an http post request.
 	"""
 	f.forcePost = True
-	return (f)
+	return f
 
 
 def exposed(f):
@@ -385,4 +344,4 @@ def internalExposed(f):
 		but can be called by templates using ``execRequest()``.
 	"""
 	f.internalExposed = True
-	return (f)
+	return f

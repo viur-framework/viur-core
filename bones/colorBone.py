@@ -2,6 +2,7 @@
 from viur.core.bones import baseBone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import logging
+from typing import List, Union
 
 
 class colorBone(baseBone):
@@ -12,7 +13,7 @@ class colorBone(baseBone):
 		assert mode in {"rgb", "rgba"}
 		self.mode = mode
 
-	def fromClient(self, valuesCache, name, data):
+	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -31,6 +32,7 @@ class colorBone(baseBone):
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
 		value = data[name]
 		if not value:
+			skel[name] = None
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")]
 		value = value.lower()
 		if value.count("#") > 1:
@@ -57,4 +59,4 @@ class colorBone(baseBone):
 		err = self.isInvalid(value)
 		if err:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
-		valuesCache[name] = value
+		skel[name] = value

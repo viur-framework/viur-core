@@ -3,11 +3,10 @@ from html.parser import HTMLParser
 from html import entities as htmlentitydefs
 from viur.core import db
 from viur.core.bones import baseBone
-from viur.core.bones.stringBone import LanguageWrapper
 from viur.core.config import conf
 import logging, string
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from typing import List
+from typing import List, Union
 
 _defaultTags = {
 	"validTags": [  # List of HTML-Tags which are valid
@@ -46,7 +45,6 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
 			.replace(">", "&gt;") \
 			.replace("\"", "&quot;") \
 			.replace("'", "&#39;") \
-			.replace("\n", "") \
 			.replace("\0", "")
 		if data.strip():
 			self.flushCache()
@@ -194,7 +192,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
 	def sanitize(self, instr):
 		self.result = ""
 		self.openTagsList = []
-		self.feed(instr.replace("\n", " "))
+		self.feed(instr)
 		self.close()
 		self.cleanup()
 		return self.result
@@ -213,8 +211,8 @@ class textBone(baseBone):
 	def __init__(self, validHtml=__undefinedC__, languages=None, maxLength=200000,
 				 defaultValue = None, *args, **kwargs):
 		super(textBone, self).__init__(defaultValue=defaultValue, *args, **kwargs)
-		if self.multiple:
-			raise NotImplementedError("multiple=True is not supported on textBones")
+		#if self.multiple:
+		#	raise NotImplementedError("multiple=True is not supported on textBones")
 		if validHtml == textBone.__undefinedC__:
 			global _defaultTags
 			validHtml = _defaultTags
@@ -226,120 +224,22 @@ class textBone(baseBone):
 		self.maxLength = maxLength
 		if defaultValue is None:
 			if self.languages:
-				self.defaultValue = LanguageWrapper(self.languages)
+				self.defaultValue = {}
 			else:
 				self.defaultValue = ""
 
-	def serialize(self, skeletonValues, name):
-		"""
-			Fills this bone with user generated content
+	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+		return value
 
-			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:param entity: An instance of the dictionary-like db.Entity class
-			:type entity: :class:`server.db.Entity`
-			:return: the modified :class:`server.db.Entity`
-		"""
-		if name in skeletonValues.accessedValues:
-			if self.languages:
-				for k in list(skeletonValues.entity.keys()):  # Remove any old data
-					if k.startswith("%s." % name) or k.startswith("%s_" % name) or k == name:
-						del skeletonValues.entity[k]
-				for lang in self.languages:
-					if isinstance(skeletonValues.accessedValues[name], dict) and lang in skeletonValues.accessedValues[name]:
-						val = skeletonValues.accessedValues[name][lang]
-						if not val or (not HtmlSerializer().sanitize(val).strip() and not "<img " in val):
-							# This text is empty (ie. it might contain only an empty <p> tag
-							continue
-						skeletonValues.entity["%s_%s" % (name, lang)] = val
-			else:
-				skeletonValues.entity[name] = skeletonValues.accessedValues[name]
-			return True
-		return False
-
-	def unserialize(self, skeletonValues, name):
-		"""
-			Inverse of serialize. Evaluates whats
-			read from the datastore and populates
-			this bone accordingly.
-
-			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:param expando: An instance of the dictionary-like db.Entity class
-			:type expando: :class:`db.Entity`
-		"""
-		if not self.languages:
-			if name in skeletonValues.entity:
-				skeletonValues.accessedValues[name] = skeletonValues.entity[name]
-				return True
+	def singleValueFromClient(self, value, skel, name, origData):
+		err = self.isInvalid(value)  # Returns None on success, error-str otherwise
+		if not err:
+			return HtmlSerializer(self.validHtml).sanitize(value), None
 		else:
-			skeletonValues.accessedValues[name] = LanguageWrapper(self.languages)
-			if name in skeletonValues.entity and isinstance(skeletonValues.entity[name], dict):
-				skeletonValues.accessedValues[name].update(skeletonValues.entity[name])
-			else:
-				for lang in self.languages:
-					if "%s_%s" % (name, lang) in skeletonValues.entity:
-						skeletonValues.accessedValues[name][lang] = skeletonValues.entity["%s_%s" % (name, lang)]
-						return True
-				if not skeletonValues.accessedValues[name].keys():  # Got nothing
-					if name in skeletonValues.entity:  # Old (non-multi-lang) format
-						skeletonValues.accessedValues[name][self.languages[0]] = skeletonValues.entity[name]
-					for lang in self.languages:
-						if not lang in skeletonValues.accessedValues[name] and "%s_%s" % (name, lang) in skeletonValues.entity:
-							skeletonValues.accessedValues[name][lang] = skeletonValues.entity["%s_%s" % (name, lang)]
-			return True
-		return False
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
 
-	def fromClient(self, valuesCache, name, data):
-		"""
-			Reads a value from the client.
-			If this value is valid for this bone,
-			store this value and return None.
-			Otherwise our previous value is
-			left unchanged and an error-message
-			is returned.
-
-			:param name: Our name in the skeleton
-			:type name: str
-			:param data: *User-supplied* request-data
-			:type data: dict
-			:returns: None or String
-		"""
-		if self.languages:
-			errors = []
-			valuesCache[name] = LanguageWrapper(self.languages)
-			for lang in self.languages:
-				if "%s.%s" % (name, lang) in data:
-					val = data["%s.%s" % (name, lang)]
-					err = self.isInvalid(val)  # Returns None on success, error-str otherwise
-					if not err:
-						valuesCache[name][lang] = HtmlSerializer(self.validHtml).sanitize(val)
-					else:
-						errors.append(
-							ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)
-						)
-			if not any(valuesCache[name].values()) and not errors:
-				errors.append(
-					ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No / invalid values entered")
-				)
-			if errors:
-				return errors
-			return None
-		else:
-			if name in data:
-				value = data[name]
-			else:
-				value = None
-			if not value:
-				valuesCache[name] = ""
-				return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value entered")]
-			if not isinstance(value, str):
-				value = str(value)
-			err = self.isInvalid(value)
-			if not err:
-				valuesCache[name] = HtmlSerializer(self.validHtml).sanitize(value)
-			else:
-				return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+	def getEmptyValue(self):
+		return ""
 
 	def isInvalid(self, value):
 		"""
@@ -386,26 +286,36 @@ class textBone(baseBone):
 					idx = values.find("/file/download/", seperatorIdx)
 		return newFileKeys
 
-	def getSearchTags(self, valuesCache, name):
-		res = []
-		if not valuesCache.get(name):
-			return (res)
-		if self.languages:
-			for v in valuesCache.get(name).values():
-				value = HtmlSerializer(None).sanitize(v.lower())
+	def getSearchTags(self, skeltonValues, name):
+		res = set()
+		value = skeltonValues[name]
+		if not value:
+			return res
+		if self.languages and isinstance(value, dict):
+			if self.multiple:
+				for lang in value.values():
+					if not lang:
+						continue
+					for val in lang:
+						for line in str(val).splitlines():
+							for key in line.split(" "):
+								res.add(key.lower())
+			else:
+				for lang in value.values():
+					for line in str(lang).splitlines():
+						for key in line.split(" "):
+							res.add(key.lower())
+		else:
+			if self.multiple:
+				for val in value:
+					for line in str(val).splitlines():
+						for key in line.split(" "):
+							res.add(key.lower())
+			else:
 				for line in str(value).splitlines():
 					for key in line.split(" "):
-						key = "".join([c for c in key if c.lower() in conf["viur.searchValidChars"]])
-						if key and key not in res and len(key) > 3:
-							res.append(key.lower())
-		else:
-			value = HtmlSerializer(None).sanitize(valuesCache.get(name).lower())
-			for line in str(value).splitlines():
-				for key in line.split(" "):
-					key = "".join([c for c in key if c.lower() in conf["viur.searchValidChars"]])
-					if key and key not in res and len(key) > 3:
-						res.append(key.lower())
-		return (res)
+						res.add(key.lower())
+		return res
 
 	def getSearchDocumentFields(self, valuesCache, name, prefix=""):
 		"""

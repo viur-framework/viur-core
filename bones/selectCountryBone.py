@@ -746,25 +746,25 @@ class selectCountryBone(selectBone):
 
 		self.codes = codes
 
-	def unserialize(self, skeletonValues, name):
-		if super().unserialize(skeletonValues, name):
-			value = skeletonValues.accessedValues[name]
+	def unserialize(self, skel, name):
+		if super().unserialize(skel, name):
+			value = skel.accessedValues[name]
 			if isinstance(value, str) and len(value) == 3 and self.codes == self.ISO2:
 				# We got an ISO3 code from the db, but are using ISO2
 				try:
-					skeletonValues.accessedValues[name] = ISO2TOISO3[value]
+					skel.accessedValues[name] = ISO2TOISO3[value]
 				except:
 					pass
 			elif isinstance(value, str) and len(value) == 2 and self.codes == self.ISO3:
 				# We got ISO2 code, wanted ISO3
 				inv = {v: k for k, v in ISO2TOISO3.items()}  # Inverted map
 				try:
-					skeletonValues.accessedValues[name] = inv[value]
+					skel.accessedValues[name] = inv[value]
 				except:
 					pass
 			else:
 				if value not in self.values:
-					del skeletonValues.accessedValues[name]
+					del skel.accessedValues[name]
 					return False
 			return True
 		return False

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from viur.core import session
 from viur.core.render.html.utils import jinjaGlobalFunction
+from viur.core.utils import currentSession
 
 
 @jinjaGlobalFunction
@@ -13,10 +13,10 @@ def getSession(render):
 	:returns: A dictionary of session variables.
 	:rtype: dict
 	"""
-	if not session.current.get("JinjaSpace"):
-		session.current["JinjaSpace"] = {}
-
-	return session.current.get("JinjaSpace")
+	currSess = currentSession.get()
+	if not currSess.get("JinjaSpace"):
+		currSess["JinjaSpace"] = {}
+	return currSess.get("JinjaSpace")
 
 
 @jinjaGlobalFunction
@@ -34,5 +34,6 @@ def setSession(render, name, value):
 	"""
 	sessionData = getSession(render)
 	sessionData[name] = value
-	session.current["JinjaSpace"] = sessionData
-	session.current.markChanged()
+	currSess = currentSession.get()
+	currSess["JinjaSpace"] = sessionData
+	currSess.markChanged()

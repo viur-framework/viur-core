@@ -1,18 +1,20 @@
 # -*- coding: utf-8 -*-
-from viur.core import utils, request, conf, prototypes, securitykey, errors, db
-from viur.core.skeleton import Skeleton, RelSkel, BaseSkeleton
-from viur.core.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
-from viur.core.render.html.wrap import ListWrapper, SkelListWrapper
-import urllib, urllib.parse
-from hashlib import sha512
-#from google.appengine.ext import db
-#from google.appengine.api import memcache, users
-from datetime import timedelta
-from collections import OrderedDict
-import string
 import logging
 import os
-from typing import List
+import string
+import urllib
+import urllib.parse
+from collections import OrderedDict
+# from google.appengine.ext import db
+# from google.appengine.api import memcache, users
+from datetime import timedelta
+from hashlib import sha512
+from typing import Dict, List, Union
+
+from viur.core import conf, db, errors, prototypes, securitykey, utils
+from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
+from viur.core.skeleton import RelSkel, SkeletonInstance
+from viur.core.utils import currentLanguage, currentRequest
 
 
 @jinjaGlobalFunction
@@ -34,17 +36,14 @@ def execRequest(render, path, *args, **kwargs):
 		del kwargs["cachetime"]
 	else:
 		cachetime = 0
-
-	if conf["viur.disableCache"] or request.current.get().disableCache:  # Caching disabled by config
+	if conf["viur.disableCache"] or currentRequest.get().disableCache:  # Caching disabled by config
 		cachetime = 0
-
 	cacheEnvKey = None
 	if conf["viur.cacheEnvironmentKey"]:
 		try:
 			cacheEnvKey = conf["viur.cacheEnvironmentKey"]()
 		except RuntimeError:
 			cachetime = 0
-
 	if cachetime:
 		# Calculate the cache key that entry would be stored under
 		tmpList = ["%s:%s" % (str(k), str(v)) for k, v in kwargs.items()]
@@ -53,64 +52,54 @@ def execRequest(render, path, *args, **kwargs):
 		tmpList.append(path)
 		if cacheEnvKey is not None:
 			tmpList.append(cacheEnvKey)
-
 		try:
-			appVersion = request.current.get().request.environ["CURRENT_VERSION_ID"].split('.')[0]
+			appVersion = currentRequest.get().request.environ["CURRENT_VERSION_ID"].split('.')[0]
 		except:
 			appVersion = ""
 			logging.error("Could not determine the current application id! Caching might produce unexpected results!")
-
 		tmpList.append(appVersion)
 		mysha512 = sha512()
 		mysha512.update(str(tmpList).encode("UTF8"))
 		cacheKey = "jinja2_cache_%s" % mysha512.hexdigest()
 		res = None  # memcache.get(cacheKey)
-
 		if res:
 			return res
-
-	currentRequest = request.current.get()
-	tmp_params = currentRequest.kwargs.copy()
-	currentRequest.kwargs = {"__args": args, "__outer": tmp_params}
-	currentRequest.kwargs.update(kwargs)
-	lastRequestState = currentRequest.internalRequest
-	currentRequest.internalRequest = True
+	currReq = currentRequest.get()
+	tmp_params = currReq.kwargs.copy()
+	currReq.kwargs = {"__args": args, "__outer": tmp_params}
+	currReq.kwargs.update(kwargs)
+	lastRequestState = currReq.internalRequest
+	currReq.internalRequest = True
 	caller = conf["viur.mainApp"]
 	pathlist = path.split("/")
-
 	for currpath in pathlist:
 		if currpath in dir(caller):
 			caller = getattr(caller, currpath)
 		elif "index" in dir(caller) and hasattr(getattr(caller, "index"), '__call__'):
 			caller = getattr(caller, "index")
 		else:
-			currentRequest.kwargs = tmp_params  # Reset RequestParams
-			currentRequest.internalRequest = lastRequestState
+			currReq.kwargs = tmp_params  # Reset RequestParams
+			currReq.internalRequest = lastRequestState
 			return (u"Path not found %s (failed Part was %s)" % (path, currpath))
-
 	if (not hasattr(caller, '__call__')
 			or ((not "exposed" in dir(caller)
 				 or not caller.exposed))
 			and (not "internalExposed" in dir(caller)
 				 or not caller.internalExposed)):
-		currentRequest.kwargs = tmp_params  # Reset RequestParams
-		currentRequest.internalRequest = lastRequestState
+		currReq.kwargs = tmp_params  # Reset RequestParams
+		currReq.internalRequest = lastRequestState
 		return (u"%s not callable or not exposed" % str(caller))
-
 	try:
 		resstr = caller(*args, **kwargs)
 	except Exception as e:
 		logging.error("Caught execption in execRequest while calling %s" % path)
 		logging.exception(e)
 		raise
-
-	currentRequest.kwargs = tmp_params
-	currentRequest.internalRequest = lastRequestState
-
+	currReq.kwargs = tmp_params
+	currReq.internalRequest = lastRequestState
 	if cachetime:
 		pass
 		#memcache.set(cacheKey, resstr, cachetime)
-
 	return resstr
 
 
@@ -126,7 +115,7 @@ def getCurrentUser(render):
 
 
 @jinjaGlobalFunction
-def getEntry(render, module, key=None, skel="viewSkel"):
+def getSkel(render, module, key=None, skel="viewSkel"):
 	"""
 	Jinja2 global: Fetch an entry from a given module, and return the data as a dict,
 	prepared for direct use in the output.
@@ -148,7 +137,7 @@ def getEntry(render, module, key=None, skel="viewSkel"):
 	:rtype: dict | bool
 	"""
 	if module not in dir(conf["viur.mainApp"]):
-		logging.error("getEntry called with unknown module %s!" % module)
+		logging.error("getSkel called with unknown module %s!" % module)
 		return False
 
 	obj = getattr(conf["viur.mainApp"], module)
@@ -158,17 +147,17 @@ def getEntry(render, module, key=None, skel="viewSkel"):
 
 		if isinstance(obj, prototypes.singleton.Singleton) and not key:
 			# We fetching the entry from a singleton - No key needed
-			key = str(db.Key(skel.kindName, obj.getKey()))
+			key = db.Key(skel.kindName, obj.getKey())
 		elif not key:
-			logging.info("getEntry called without a valid key")
+			logging.info("getSkel called without a valid key")
 			return False
 
-		if not isinstance(skel, Skeleton):
+		if not isinstance(skel, SkeletonInstance):
 			return False
 
 		if "canView" in dir(obj):
 			if not skel.fromDB(key):
-				logging.info("getEntry: Entry %s not found" % (key,))
+				logging.info("getSkel: Entry %s not found" % (key,))
 				return None
 			if isinstance(obj, prototypes.singleton.Singleton):
 				isAllowed = obj.canView()
@@ -181,7 +170,7 @@ def getEntry(render, module, key=None, skel="viewSkel"):
 			else:  # List and Hierarchies
 				isAllowed = obj.canView(skel)
 			if not isAllowed:
-				logging.error("getEntry: Access to %s denied from canView" % (key,))
+				logging.error("getSkel: Access to %s denied from canView" % (key,))
 				return None
 		elif "listFilter" in dir(obj):
 			qry = skel.all().mergeExternalFilter({"key": str(key)})
@@ -211,12 +200,10 @@ def getHostUrl(render, forceSSL=False, *args, **kwargs):
 	:returns: Returns the hostname, including the currently used protocol, e.g: http://www.example.com
 	:rtype: str
 	"""
-	url = request.current.get().request.url
+	url = currentRequest.get().request.url
 	url = url[:url.find("/", url.find("://") + 5)]
-
 	if forceSSL and url.startswith("http://"):
 		url = "https://" + url[7:]
-
 	return url
 
 
@@ -240,10 +227,9 @@ def getLanguage(render, resolveAlias=False):
 	using conf["viur.languageAliasMap"].
 	:type resolveAlias: bool
 	"""
-	lang = request.current.get().language
+	lang = currentLanguage.get()
 	if resolveAlias and lang in conf["viur.languageAliasMap"]:
 		lang = conf["viur.languageAliasMap"][lang]
-
 	return lang
 
 
@@ -256,7 +242,6 @@ def moduleName(render):
 	"""
 	if render.parent and "moduleName" in dir(render.parent):
 		return render.parent.moduleName
-
 	return ""
 
 
@@ -269,7 +254,6 @@ def modulePath(render):
 	"""
 	if render.parent and "modulePath" in dir(render.parent):
 		return render.parent.modulePath
-
 	return ""
 
 
@@ -310,10 +294,10 @@ def getList(render, module, skel="viewSkel", _noEmptyFilter=False, *args, **kwar
 	if query is None:
 		return None
 	mylist = query.fetch()
-	mylist.renderPreparation = render.renderBoneValue
+	if mylist:
+		for skel in mylist:
+			skel.renderPreparation = render.renderBoneValue
 	return mylist
-	return SkelListWrapper([render.collectSkelData(x) for x in mylist], mylist)
-
 
 @jinjaGlobalFunction
 def getSecurityKey(render, **kwargs):
@@ -324,7 +308,7 @@ def getSecurityKey(render, **kwargs):
 
 
 @jinjaGlobalFunction
-def getSkel(render, module, skel="viewSkel", subSkel=None):
+def getStructure(render, module, skel="viewSkel", subSkel=None):
 	"""
 	Jinja2 global: Returns the skeleton structure instead of data for a module.
 
@@ -345,7 +329,7 @@ def getSkel(render, module, skel="viewSkel", subSkel=None):
 	if skel in dir(obj):
 		skel = getattr(obj, skel)()
 
-		if isinstance(skel, Skeleton) or isinstance(skel, RelSkel):
+		if isinstance(skel, SkeletonInstance) or isinstance(skel, RelSkel):
 			if subSkel is not None:
 				try:
 					skel = skel.subSkel(subSkel)
@@ -369,10 +353,8 @@ def requestParams(render):
 	:rtype: dict
 	"""
 	res = {}
-
-	for k, v in request.current.get().kwargs.items():
+	for k, v in currentRequest.get().kwargs.items():
 		res[utils.escapeString(k)] = utils.escapeString(v)
-
 	return res
 
 
@@ -387,13 +369,11 @@ def updateURL(render, **kwargs):
 	:rtype: str
 	"""
 	tmpparams = {}
-	tmpparams.update(request.current.get().kwargs)
+	tmpparams.update(currentRequest.get().kwargs)
 
 	for key in list(tmpparams.keys()):
 		if not key or key[0] == "_":
 			del tmpparams[key]
-		elif isinstance(tmpparams[key], unicode):
-			tmpparams[key] = tmpparams[key].encode("UTF-8", "ignore")
 
 	for key, value in list(kwargs.items()):
 		if value is None:
@@ -513,8 +493,9 @@ def shortKey(render, val):
 	"""
 
 	try:
-		k = db.Key(encoded=str(val))
-		return k.id_or_name()
+		k = db.KeyClass.from_legacy_urlsafe(str(val))
+		return k.id_or_name
+
 	except:
 		return None
 
@@ -606,19 +587,37 @@ def renderEditForm(render, skel, ignore=None, hide=None):
 
 
 @jinjaGlobalFunction
-def embedSvg(self, name):
+def embedSvg(render, name: str, classes: Union[List[str], None] = None, **kwargs: Dict[str, str]) -> str:
+	"""
+	jinja2 function to get an <img/>-tag for a SVG.
+	This method will not check the existence of a SVG!
+
+	:param render: The jinja renderer instance
+	:param name: Name of the icon (basename of file)
+	:param classes: A list of css-classes for the <img/>-tag
+	:param kwargs: Further html-attributes for this tag (e.g. "alt" or "title")
+	:return: A <img/>-tag
+	"""
 	if any([x in name for x in ["..", "~", "/"]]):
-		return u""
-	try:
-		return open(os.path.join(os.getcwd(), "html", "embedsvg", name + ".svg"), "rb").read().decode("UTF-8")
-	except Exception as e:
-		logging.exception(e)
 		return ""
+
+	if classes is None:
+		classes = ["js-svg", name.split("-", 1)[0]]
+	else:
+		assert isinstance(classes, list), "*classes* must be a list"
+		classes.extend(["js-svg", name.split("-", 1)[0]])
+
+	attributes = {
+		"src": os.path.join(conf["viur.static.embedSvg.path"], f"{name}.svg"),
+		"class": " ".join(classes),
+		**kwargs
+	}
+	return "<img %s>" % " ".join(f"{k}=\"{v}\"" for k, v in attributes.items())
 
 
 @jinjaGlobalFunction
 def downloadUrlFor(render, fileObj, derived=None, expires=timedelta(hours=1)):
-	if not isinstance(fileObj, (BaseSkeleton, dict)) or "dlkey" not in fileObj or "name" not in fileObj:
+	if not isinstance(fileObj, (SkeletonInstance, dict)) or "dlkey" not in fileObj or "name" not in fileObj:
 		return None
 	if derived and ("derived" not in fileObj or not isinstance(fileObj["derived"], dict)):
 		return None
@@ -629,7 +628,7 @@ def downloadUrlFor(render, fileObj, derived=None, expires=timedelta(hours=1)):
 
 @jinjaGlobalFunction
 def srcSetFor(render, fileObj, expires=timedelta(hours=1)):
-	if not isinstance(fileObj, (BaseSkeleton, dict)) or not "dlkey" in fileObj or "derived" not in fileObj:
+	if not isinstance(fileObj, (SkeletonInstance, dict)) or not "dlkey" in fileObj or "derived" not in fileObj:
 		return None
 	if not isinstance(fileObj["derived"], dict):
 		return ""
@@ -648,10 +647,3 @@ def seoUrlForEntry(render, *args, **kwargs):
 def seoUrlToFunction(render, *args, **kwargs):
 	return utils.seoUrlToFunction(*args, **kwargs)
 
-@jinjaGlobalFilter
-def inflate(render, value: SkelListWrapper) -> List:
-	origSkelList = value
-	newList = []
-	for skel in origSkelList:
-		newList.append(skel.shallowClone())
-	return newList

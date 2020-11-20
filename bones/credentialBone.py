@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from viur.core.bones import stringBone
-
+from viur.core import utils
+from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 
 class credentialBone(stringBone):
 	"""
@@ -16,12 +17,13 @@ class credentialBone(stringBone):
 		if self.multiple or self.languages:
 			raise ValueError("Credential-Bones cannot be multiple or translated!")
 
-	def serialize(self, skeletonValues, name) -> bool:
+	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
 		"""
 			Update the value only if a new value is supplied.
 		"""
-		if name in skeletonValues.accessedValues and skeletonValues.accessedValues[name]:
-			skeletonValues.entity[name] = skeletonValues.accessedValues[name]
+		skel.dbEntity.exclude_from_indexes.add(name)  # Ensure we are never indexed
+		if name in skel.accessedValues and skel.accessedValues[name]:
+			skel.dbEntity[name] = skel.accessedValues[name]
 			return True
 		return False
 
@@ -30,3 +32,9 @@ class credentialBone(stringBone):
 			We'll never read our value from the database.
 		"""
 		return {}
+
+	def singleValueFromClient(self, value, skel, name, origData):
+		err = self.isInvalid(value)
+		if not err:
+			return utils.escapeString(value, 4*1024), None
+		return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]

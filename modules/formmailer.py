@@ -10,6 +10,7 @@ class MailSkel(RelSkel):
 
 
 class Formmailer(BasicApplication):
+	mailTemplate = None
 
 	@exposed
 	def index(self, *args, **kwargs):
@@ -24,13 +25,13 @@ class Formmailer(BasicApplication):
 		if not skel.fromClient(kwargs) or not "skey" in kwargs:
 			return self.render.add(skel=skel, failed=True)
 
-		if not securitykey.validate(kwargs["skey"]):
+		if not securitykey.validate(kwargs["skey"], useSessionKey=True):
 			raise errors.PreconditionFailed()
 
 		# Allow bones to perform outstanding "magic" operations before sending the mail
 		for key, _bone in skel.items():
 			if isinstance(_bone, baseBone):
-				_bone.performMagic(skel.valuesCache, key, isAdd=True)
+				_bone.performMagic(skel, key, isAdd=True)
 
 		# Get recipients
 		rcpts = self.getRcpts(skel)
@@ -42,9 +43,9 @@ class Formmailer(BasicApplication):
 
 		# Send the email!
 		utils.sendEMail(rcpts, self.mailTemplate, skel, **opts)
-		self.onItemAdded(skel)
+		self.onAdded(skel)
 
-		return self.render.addItemSuccess(skel)
+		return self.render.addSuccess(skel)
 
 	@exposed
 	def add(self, *args, **kwargs):
@@ -62,7 +63,7 @@ class Formmailer(BasicApplication):
 	def getOptions(self, skel):
 		return None
 
-	def onItemAdded(self, skel):
+	def onAdded(self, skel):
 		pass
 
 

@@ -1,36 +1,40 @@
 # -*- coding: utf-8 -*-
 
-from viur.core import utils, db, securitykey, session, errors, conf, request, forcePost, forceSSL, exposed, internalExposed
-from viur.core.skeleton import Skeleton, skeletonByKind
-from viur.core.bones import *
-from viur.core.prototypes.tree import Tree, TreeNodeSkel, TreeLeafSkel
-from viur.core.tasks import callDeferred, PeriodicTask
-from quopri import decodestring
-from base64 import urlsafe_b64decode, urlsafe_b64encode
-from hashlib import sha256
+import base64
 import email.header
-import collections, logging, cgi, string
-from google.auth import compute_engine
+import json
+import logging
+from base64 import urlsafe_b64decode
 from datetime import datetime, timedelta
-from google.cloud import storage
-from viur.core.utils import projectID
-import hashlib
-import hmac
 from io import BytesIO
+from quopri import decodestring
+from typing import Dict, Tuple, Union
+
+import google.auth
 from PIL import Image
-from typing import Union, Tuple, Dict
+from google.auth import compute_engine
+from google.auth.transport import requests
+from google.cloud import storage
+from google.cloud._helpers import _NOW, _datetime_to_rfc3339
+from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
-client = storage.Client.from_service_account_json("store_credentials.json")
+from viur.core import db, errors, exposed, forcePost, forceSSL, internalExposed, securitykey, utils
+from viur.core.bones import *
+from viur.core.prototypes.tree import Tree, TreeSkel, TreeType
+from viur.core.skeleton import skeletonByKind
+from viur.core.tasks import PeriodicTask, callDeferred
+from viur.core.utils import projectID
+
+credentials, project = google.auth.default()
+client = storage.Client(project, credentials)
 bucket = client.lookup_bucket("%s.appspot.com" % projectID)
-conf["viur.file.hmacKey"] = hashlib.sha3_384(
-	open("store_credentials.json", "rb").read()).digest()  # FIXME: Persistent key from db?
-
 
 
 class injectStoreURLBone(baseBone):
-	def unserialize(self, skeletonValues, name):
-		if "dlkey" in skeletonValues.entity and "name" in skeletonValues.entity:
-			skeletonValues.accessedValues[name] = utils.downloadUrlFor(skeletonValues.entity["dlkey"], skeletonValues.entity["name"], derived=False)
+	def unserialize(self, skel, name):
+		if "dlkey" in skel.dbEntity and "name" in skel.dbEntity:
+			skel.accessedValues[name] = utils.downloadUrlFor(skel.dbEntity["dlkey"], skel.dbEntity["name"],
+															 derived=False)
 			return True
 		return False
 
@@ -45,7 +49,8 @@ def thumbnailer(fileSkel, targetName, params):
 	if "size" in params:
 		img.thumbnail(params["size"])
 	elif "width" in params:
-		img = img.resize((params["width"], int((float(img.size[1]) * float(params["width"] / float(img.size[0]))))), Image.ANTIALIAS)
+		img = img.resize((params["width"], int((float(img.size[1]) * float(params["width"] / float(img.size[0]))))),
+						 Image.ANTIALIAS)
 	img.save(outData, "JPEG")
 	outSize = outData.tell()
 	outData.seek(0)
@@ -53,7 +58,8 @@ def thumbnailer(fileSkel, targetName, params):
 	targetBlob.upload_from_file(outData, content_type="image/jpeg")
 	return targetName, outSize, "image/jpeg"
 
-class fileBaseSkel(TreeLeafSkel):
+
+class fileBaseSkel(TreeSkel):
 	"""
 		Default file leaf skeleton.
 	"""
@@ -65,12 +71,11 @@ class fileBaseSkel(TreeLeafSkel):
 	mimetype = stringBone(descr="Mime-Info", readOnly=True, indexed=True)
 	weak = booleanBone(descr="Weak reference", indexed=True, readOnly=True, visible=False)
 	pending = booleanBone(descr="Pending upload", readOnly=True, visible=False, defaultValue=False)
-	servingurl = stringBone(descr="Serving URL", readOnly=True)
 	width = numericBone(descr="Width", indexed=True, readOnly=True, searchable=True)
 	height = numericBone(descr="Height", indexed=True, readOnly=True, searchable=True)
 	downloadUrl = injectStoreURLBone(descr="Download-URL", readOnly=True, visible=False)
 	derived = baseBone(descr=u"Derived Files", readOnly=True, visible=False)
-	pendingParentdir = keyBone(descr=u"Pending key Reference", readOnly=True, visible=False)
+	pendingparententry = keyBone(descr=u"Pending key Reference", readOnly=True, visible=False)
 
 	"""
 	def refresh(self):
@@ -103,12 +108,13 @@ class fileBaseSkel(TreeLeafSkel):
 		return locks
 
 
-class fileNodeSkel(TreeNodeSkel):
+class fileNodeSkel(TreeSkel):
 	"""
 		Default file node skeleton.
 	"""
 	kindName = "file_rootNode"
 	name = stringBone(descr="Name", required=True, indexed=True, searchable=True)
+	rootNode = booleanBone(descr=u"Is RootNode", indexed=True)
 
 
 def decodeFileName(name):
@@ -133,13 +139,8 @@ def decodeFileName(name):
 
 
 class File(Tree):
-	viewLeafSkel = fileBaseSkel
-	editLeafSkel = fileBaseSkel
-	addLeafSkel = fileBaseSkel
-
-	viewNodeSkel = fileNodeSkel
-	editNodeSkel = fileNodeSkel
-	addNodeSkel = fileNodeSkel
+	leafSkelCls = fileBaseSkel
+	nodeSkelCls = fileNodeSkel
 
 	maxuploadsize = None
 	uploadHandler = []
@@ -151,32 +152,6 @@ class File(Tree):
 	}
 
 	blobCacheTime = 60 * 60 * 24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
-
-	def getUploads(self, field_name=None):
-		"""
-			Get uploads sent to this handler.
-			Cheeky borrowed from blobstore_handlers.py - © 2007 Google Inc.
-
-			Args:
-				field_name: Only select uploads that were sent as a specific field.
-
-			Returns:
-				A list of BlobInfo records corresponding to each upload.
-				Empty list if there are no blob-info records for field_name.
-
-		"""
-		uploads = collections.defaultdict(list)
-
-		for key, value in request.current.get().request.params.items():
-			if isinstance(value, cgi.FieldStorage):
-				if "blob-key" in value.type_options:
-					uploads[key].append(blobstore.parse_blob_info(value))
-		if field_name:
-			return list(uploads.get(field_name, []))
-		results = []
-		for uploads in uploads.itervalues():
-			results.extend(uploads)
-		return results
 
 	@callDeferred
 	def deleteRecursive(self, parentKey):
@@ -194,29 +169,87 @@ class File(Tree):
 			if skel.fromDB(str(d)):
 				skel.delete()
 
+	def generateUploadPolicy(self, conditions):
+		"""
+		Our implementation of bucket.generate_upload_policy - which works with default token credentials
+		Create a signed upload policy for uploading objects.
+
+		This method generates and signs a policy document. You can use
+		`policy documents`_ to allow visitors to a website to upload files to
+		Google Cloud Storage without giving them direct write access.
+
+		For example:
+
+		.. literalinclude:: snippets.py
+			:start-after: [START policy_document]
+			:end-before: [END policy_document]
+
+		.. _policy documents:
+			https://cloud.google.com/storage/docs/xml-api\
+			/post-object#policydocument
+
+		:type expiration: datetime
+		:param expiration: Optional expiration in UTC. If not specified, the
+						   policy will expire in 1 hour.
+
+		:type conditions: list
+		:param conditions: A list of conditions as described in the
+						  `policy documents`_ documentation.
+
+		:type client: :class:`~google.cloud.storage.client.Client`
+		:param client: Optional. The client to use.  If not passed, falls back
+					   to the ``client`` stored on the current bucket.
+
+		:rtype: dict
+		:returns: A dictionary of (form field name, form field value) of form
+				  fields that should be added to your HTML upload form in order
+				  to attach the signature.
+		"""
+		global credentials, bucket
+		auth_request = requests.Request()
+		sign_cred = compute_engine.IDTokenCredentials(auth_request, "",
+													  service_account_email=credentials.service_account_email)
+		expiration = _NOW() + timedelta(hours=1)
+		conditions = conditions + [{"bucket": bucket.name}]
+		policy_document = {
+			"expiration": _datetime_to_rfc3339(expiration),
+			"conditions": conditions,
+		}
+		encoded_policy_document = base64.b64encode(
+			json.dumps(policy_document).encode("utf-8")
+		)
+		signature = base64.b64encode(sign_cred.sign_bytes(encoded_policy_document))
+		fields = {
+			"bucket": bucket.name,
+			"GoogleAccessId": sign_cred.signer_email,
+			"policy": encoded_policy_document.decode("utf-8"),
+			"signature": signature.decode("utf-8"),
+		}
+		return fields
+
 	def createUploadURL(self, node: Union[str, None]) -> Tuple[str, str, Dict[str, str]]:
+		global bucket
 		targetKey = utils.generateRandomString()
 		conditions = [["starts-with", "$key", "%s/source/" % targetKey]]
-
-		policy = bucket.generate_upload_policy(conditions)
+		if isinstance(credentials, ServiceAccountCredentials):  # We run locally with an service-account.json
+			policy = bucket.generate_upload_policy(conditions)
+		else:  # Use our fixed PolicyGenerator - Google is currently unable to create one itself on its GCE
+			policy = self.generateUploadPolicy(conditions)
 		uploadUrl = "https://%s.storage.googleapis.com" % bucket.name
-
 		# Create a correspondingfile-lock object early, otherwise we would have to ensure that the file-lock object
 		# the user creates matches the file he had uploaded
-
-		fileSkel = self.addLeafSkel()
+		fileSkel = self.addSkel(TreeType.Leaf)
 		fileSkel["key"] = targetKey
 		fileSkel["name"] = "pending"
 		fileSkel["size"] = 0
 		fileSkel["mimetype"] = "application/octetstream"
 		fileSkel["dlkey"] = targetKey
 		fileSkel["parentdir"] = None
-		fileSkel["pendingParentdir"] = db.keyHelper(node, self.addNodeSkel().kindName) if node else None
+		fileSkel["pendingparententry"] = db.keyHelper(node, self.addSkel(TreeType.Node).kindName) if node else None
 		fileSkel["pending"] = True
 		fileSkel["weak"] = True
 		fileSkel["width"] = 0
 		fileSkel["height"] = 0
-		fileSkel[""] = ""
 		fileSkel.toDB()
 		# Mark that entry dirty as we might never receive an add
 		utils.markFileForDeletion(targetKey)
@@ -228,14 +261,13 @@ class File(Tree):
 		node = kwargs.get("node")
 		if node:
 			rootNode = self.getRootNode(node)
-			if not self.canAdd("leaf", rootNode):
+			if not self.canAdd(TreeType.Leaf, rootNode):
 				raise errors.Forbidden()
 		else:
-			if not self.canAdd("leaf", None):
+			if not self.canAdd(TreeType.Leaf, None):
 				raise errors.Forbidden()
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
-
 		targetKey, uploadUrl, policy = self.createUploadURL(node)
 		resDict = {
 			"url": uploadUrl,
@@ -245,11 +277,10 @@ class File(Tree):
 		}
 		for key, value in policy.items():
 			resDict["params"][key] = value
-
 		return self.render.view(resDict)
 
 	@internalExposed
-	def getAvailableRootNodes(self, name, *args, **kwargs):
+	def getAvailableRootNodes__(self, name, *args, **kwargs):
 		thisuser = utils.getCurrentUser()
 		if not thisuser:
 			return []
@@ -264,7 +295,7 @@ class File(Tree):
 			for repo in repos:
 				if not "user" in repo:
 					continue
-				user = db.Query("user").filter("uid =", repo.user).get()
+				user = db.Query("user").filter("uid =", repo.user).getEntry()
 				if not user or not "name" in user:
 					continue
 				res.append({
@@ -274,124 +305,19 @@ class File(Tree):
 		return res
 
 	@exposed
-	def upload(self, node=None, *args, **kwargs):
-		try:
-			canAdd = self.canAdd("leaf", node)
-		except:
-			canAdd = False
-		if not canAdd:
-			for upload in self.getUploads():
-				upload.delete()
-			raise errors.Forbidden()
-
-		try:
-			res = []
-			if node:
-				# The file is uploaded into a rootNode
-				nodeSkel = self.editNodeSkel()
-				if not nodeSkel.fromDB(node):
-					for upload in self.getUploads():
-						upload.delete()
-					raise errors.NotFound()
-				else:
-					weak = False
-					parentDir = str(node)
-					parentRepo = nodeSkel["parentrepo"]
-			else:
-				weak = True
-				parentDir = None
-				parentRepo = None
-
-			# Handle the actual uploads
-			for upload in self.getUploads():
-				fileName = decodeFileName(upload.filename)
-				height = width = 0
-
-				if str(upload.content_type).startswith("image/"):
-					try:
-						servingURL = images.get_serving_url(upload.key())
-						if request.current.get().isDevServer:
-							# NOTE: changed for Ticket ADMIN-37
-							servingURL = urlparse(servingURL).path
-						elif servingURL.startswith("http://"):
-							# Rewrite Serving-URLs to https if we are live
-							servingURL = servingURL.replace("http://", "https://")
-					except:
-						servingURL = ""
-
-					try:
-						# only fetching the file header or all if the file is smaller than 1M
-						data = blobstore.fetch_data(upload.key(), 0, min(upload.size, 1000000))
-						image = images.Image(image_data=data)
-						height = image.height
-						width = image.width
-					except Exception as err:
-						logging.error("some error occurred while trying to fetch the image header with dimensions")
-						logging.exception(err)
-
-				else:
-					servingURL = ""
-
-				fileSkel = self.addLeafSkel()
-
-				fileSkel.setValues(
-					{
-						"name": utils.escapeString(fileName),
-						"size": upload.size,
-						"mimetype": utils.escapeString(upload.content_type),
-						"dlkey": str(upload.key()),
-						"servingurl": servingURL,
-						"parentdir": parentDir,
-						"parentrepo": parentRepo,
-						"weak": weak,
-						"width": width,
-						"height": height
-					}
-				)
-				fileSkel.toDB()
-				res.append(fileSkel)
-				self.onItemUploaded(fileSkel)
-
-			# Uploads stored successfully, generate response to the client
-			for r in res:
-				logging.info("Upload successful: %s (%s)" % (r["name"], r["dlkey"]))
-			user = utils.getCurrentUser()
-
-			if user:
-				logging.info("User: %s (%s)" % (user["name"], user["key"]))
-
-			return self.render.addItemSuccess(res)
-
-		except Exception as err:
-			logging.exception(err)
-
-			for upload in self.getUploads():
-				upload.delete()
-				utils.markFileForDeletion(str(upload.key()))
-
-			raise errors.InternalServerError()
-
-	@exposed
 	def download(self, blobKey, fileName="", download="", sig="", *args, **kwargs):
 		"""
 		Download a file.
-
 		:param blobKey: The unique blob key of the file.
 		:type blobKey: str
-
 		:param fileName: Optional filename to provide in the header.
 		:type fileName: str
-
 		:param download: Set header to attachment retrival, set explictly to "1" if download is wanted.
 		:type download: str
 		"""
+		global credentials, bucket
 		if not sig:
 			raise errors.PreconditionFailed()
-		# if download == "1":
-		#	fname = "".join(
-		#		[c for c in fileName if c in string.ascii_lowercase + string.ascii_uppercase + string.digits + ".-_"])
-		#	request.current.get().response.headers.add_header("Content-disposition",
-		#													  ("attachment; filename=%s" % (fname)).encode("UTF-8"))
 		# First, validate the signature, otherwise we don't need to proceed any further
 		if not utils.hmacVerify(blobKey.encode("ASCII"), sig):
 			raise errors.Forbidden()
@@ -400,35 +326,42 @@ class File(Tree):
 		if validUntil != "0" and datetime.strptime(validUntil, "%Y%m%d%H%M") < datetime.now():
 			raise errors.Gone()
 		# Create a signed url and redirect the user
-		blob = bucket.get_blob(dlPath)
-		if not blob:
-			raise errors.NotFound()
-		signed_url = blob.generate_signed_url(datetime.now() + timedelta(seconds=60))
+		if isinstance(credentials, ServiceAccountCredentials):  # We run locally with an service-account.json
+			blob = bucket.get_blob(dlPath)
+			if not blob:
+				raise errors.NotFound()
+			signed_url = blob.generate_signed_url(datetime.now() + timedelta(seconds=60))
+		else:  # We are inside the appengine
+			auth_request = requests.Request()
+			signed_blob_path = bucket.blob(dlPath)
+			expires_at_ms = datetime.now() + timedelta(seconds=60)
+			signing_credentials = compute_engine.IDTokenCredentials(auth_request, "",
+																	service_account_email=credentials.service_account_email)
+			signed_url = signed_blob_path.generate_signed_url(expires_at_ms, credentials=signing_credentials,
+															  version="v4")
 		raise errors.Redirect(signed_url)
-
 
 	@exposed
 	@forceSSL
 	@forcePost
-	def add(self, skelType, node, *args, **kwargs):
+	def add(self, skelType, node=None, *args, **kwargs):
 		## We can't add files directly (they need to be uploaded
 		# if skelType != "node":
 		#	raise errors.NotAcceptable()
 		if skelType == "leaf":  # We need to handle leafs separately here
 			skey = kwargs.get("skey")
 			targetKey = kwargs.get("key")
-			#if not skey or not securitykey.validate(skey, useSessionKey=True) or not targetKey:
-			#	raise errors.PreconditionFailed()
-
-			skel = self.addLeafSkel()
+			if not skey or not securitykey.validate(skey, useSessionKey=True) or not targetKey:
+				raise errors.PreconditionFailed()
+			skel = self.addSkel(TreeType.Leaf)
 			if not skel.fromDB(targetKey):
 				raise errors.NotFound()
 			if not skel["pending"]:
 				raise errors.PreconditionFailed()
 			skel["pending"] = False
-			skel["parentdir"] = skel["pendingParentdir"]
-			if skel["parentdir"]:
-				rootNode = self.getRootNode(skel["parentdir"])
+			skel["parententry"] = skel["pendingparententry"]
+			if skel["parententry"]:
+				rootNode = self.getRootNode(skel["parententry"])
 			else:
 				rootNode = None
 			if not self.canAdd("leaf", rootNode):
@@ -442,37 +375,13 @@ class File(Tree):
 			skel["mimetype"] = utils.escapeString(blob.content_type)
 			skel["name"] = utils.escapeString(blob.name.replace("%s/source/" % targetKey, ""))
 			skel["size"] = blob.size
-			skel["rootnode"] = rootNode
+			skel["rootnode"] = rootNode["key"] if rootNode else None
 			skel["weak"] = rootNode is None
 			skel.toDB()
 			# Add updated download-URL as the auto-generated isn't valid yet
 			skel["downloadUrl"] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False)
-			return self.render.addItemSuccess(skel)
-
+			return self.render.addSuccess(skel)
 		return super(File, self).add(skelType, node, *args, **kwargs)
-
-	def canViewRootNode(self, repo):
-		user = utils.getCurrentUser()
-		return self.isOwnUserRootNode(repo) or (user and "root" in user["access"])
-
-	def canMkDir(self, repo, dirname):
-		return self.isOwnUserRootNode(str(repo.key()))
-
-	def canRename(self, repo, src, dest):
-		return self.isOwnUserRootNode(str(repo.key()))
-
-	def canCopy(self, srcRepo, destRepo, type, deleteold):
-		return self.isOwnUserRootNode(str(srcRepo.key()) and self.isOwnUserRootNode(str(destRepo.key())))
-
-	def canDelete(self, skelType, skel):
-		user = utils.getCurrentUser()
-		if user and "root" in user["access"]:
-			return True
-		return self.isOwnUserRootNode(str(skel["key"]))
-
-	def canEdit(self, skelType, skel=None):
-		user = utils.getCurrentUser()
-		return user and "root" in user["access"]
 
 	def onItemUploaded(self, skel):
 		pass
@@ -503,29 +412,27 @@ def doCheckForUnreferencedBlobs(cursor=None):
 			db.Put(obj)
 		return res
 
-	gotAtLeastOne = False
-	query = db.Query("viur-blob-locks").filter("has_old_blob_references", True).cursor(cursor)
-	for lockKey in query.run(100, keysOnly=True):
-		gotAtLeastOne = True
-		oldBlobKeys = db.RunInTransaction(getOldBlobKeysTxn, lockKey)
+	query = db.Query("viur-blob-locks").filter("has_old_blob_references", True).setCursor(cursor)
+	for lockObj in query.run(100):
+		oldBlobKeys = db.RunInTransaction(getOldBlobKeysTxn, lockObj.key)
 		for blobKey in oldBlobKeys:
-			if db.Query("viur-blob-locks").filter("active_blob_references =", blobKey).get():
+			if db.Query("viur-blob-locks").filter("active_blob_references =", blobKey).getEntry():
 				# This blob is referenced elsewhere
 				logging.info("Stale blob is still referenced, %s" % blobKey)
 				continue
 			# Add a marker and schedule it for deletion
-			fileObj = db.Query("viur-deleted-files").filter("dlkey", blobKey).get()
+			fileObj = db.Query("viur-deleted-files").filter("dlkey", blobKey).getEntry()
 			if fileObj:  # Its already marked
 				logging.info("Stale blob already marked for deletion, %s" % blobKey)
 				return
-			fileObj = db.Entity("viur-deleted-files")
+			fileObj = db.Entity(db.Key("viur-deleted-files"))
 			fileObj["itercount"] = 0
 			fileObj["dlkey"] = str(blobKey)
 			logging.info("Stale blob marked dirty, %s" % blobKey)
 			db.Put(fileObj)
 	newCursor = query.getCursor()
-	if gotAtLeastOne and newCursor and newCursor.urlsafe() != cursor:
-		doCheckForUnreferencedBlobs(newCursor.urlsafe())
+	if newCursor:
+		doCheckForUnreferencedBlobs(newCursor)
 
 
 @PeriodicTask(0)
@@ -540,24 +447,22 @@ def startCleanupDeletedFiles():
 @callDeferred
 def doCleanupDeletedFiles(cursor=None):
 	maxIterCount = 2  # How often a file will be checked for deletion
-	gotAtLeastOne = False
 	query = db.Query("viur-deleted-files")
 	if cursor:
-		query.cursor(cursor)
+		query.setCursor(cursor)
 	for file in query.run(100):
-		gotAtLeastOne = True
 		if not "dlkey" in file:
-			db.Delete((file.collection, file.name))
-		elif db.Query("viur-blob-locks").filter("active_blob_references =", file["dlkey"]).get():
+			db.Delete(file.key)
+		elif db.Query("viur-blob-locks").filter("active_blob_references =", file["dlkey"]).getEntry():
 			logging.info("is referenced, %s" % file["dlkey"])
-			db.Delete((file.collection, file.name))
+			db.Delete(file.key)
 		else:
 			if file["itercount"] > maxIterCount:
 				logging.info("Finally deleting, %s" % file["dlkey"])
 				blobs = bucket.list_blobs(prefix="%s/" % file["dlkey"])
 				for blob in blobs:
 					blob.delete()
-				db.Delete((file.collection, file.name))
+				db.Delete(file.key)
 				# There should be exactly 1 or 0 of these
 				for f in skeletonByKind("file")().all().filter("dlkey =", file["dlkey"]).fetch(99):
 					f.delete()
@@ -565,7 +470,6 @@ def doCleanupDeletedFiles(cursor=None):
 				logging.debug("Increasing count, %s" % file["dlkey"])
 				file["itercount"] += 1
 				db.Put(file)
-	#newCursor = query.getCursor()
-	#if gotAtLeastOne and newCursor and newCursor.urlsafe() != cursor:
-	#	doCleanupDeletedFiles(newCursor.urlsafe())
-
+	newCursor = query.getCursor()
+	if newCursor:
+		doCleanupDeletedFiles(newCursor)

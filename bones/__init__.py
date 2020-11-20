@@ -1,18 +1,17 @@
 # -*- coding: utf-8 -*-
 
-from viur.core.bones.bone import baseBone, UniqueValue, UniqueLockMethod
+from viur.core.bones.bone import baseBone, UniqueValue, UniqueLockMethod, MultipleConstraints
 from viur.core.bones.keyBone import keyBone
 from viur.core.bones.stringBone import stringBone
 from viur.core.bones.textBone import textBone
 from viur.core.bones.numericBone import numericBone
 from viur.core.bones.colorBone import colorBone
 from viur.core.bones.credentialBone import credentialBone
-from viur.core.bones.selectBone import selectBone, selectOneBone, selectMultiBone, selectAccessBone
+from viur.core.bones.selectBone import selectBone
 from viur.core.bones.booleanBone import booleanBone
 from viur.core.bones.relationalBone import relationalBone
-from viur.core.bones.treeItemBone import treeItemBone
-from viur.core.bones.treeDirBone import treeDirBone
-from viur.core.bones.hierarchyBone import hierarchyBone
+from viur.core.bones.treeLeafBone import treeLeafBone
+from viur.core.bones.treeNodeBone import treeNodeBone
 from viur.core.bones.dateBone import dateBone
 from viur.core.bones.fileBone import fileBone
 from viur.core.bones.passwordBone import passwordBone

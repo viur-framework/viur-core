@@ -2,6 +2,7 @@
 from viur.core.bones import baseBone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import logging
+from typing import List, Union, Any
 
 
 class booleanBone(baseBone):
@@ -16,36 +17,21 @@ class booleanBone(baseBone):
 		assert defaultValue in [True, False]
 		super(booleanBone, self).__init__(defaultValue=defaultValue, *args, **kwargs)
 
-	def fromClient(self, valuesCache, name, data):
-		"""
-			Reads a value from the client.
-			If this value is valid for this bone,
-			store this value and return None.
-			Otherwise our previous value is
-			left unchanged and an error-message
-			is returned.
-
-			:param name: Our name in the skeleton
-			:type name: str
-			:param data: *User-supplied* request-data
-			:type data: dict
-			:returns: str or None
-		"""
-		if not name in data:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
-		value = data[name]
+	def singleValueFromClient(self, value, skel, name, origData):
 		if str(value) in self.trueStrs:
-			value = True
+			return True, None
 		else:
-			value = False
-		err = self.isInvalid(value)
-		if not err:
-			valuesCache[name] = value
-			return False
-		else:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, err)]
+			return False, None
 
-	def refresh(self, skeletonValues, name, skel) -> None:
+	def getEmptyValue(self):
+		return False
+
+	def isEmpty(self, rawValue: Any):
+		if rawValue is self.getEmptyValue():
+			return True
+		return not bool(rawValue)
+
+	def refresh(self, skel, boneName) -> None:
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -57,13 +43,12 @@ class booleanBone(baseBone):
 			:type expando: :class:`db.Entity`
 			:returns: bool
 		"""
-		super().refresh(skeletonValues, name, skel)
-		if name in skeletonValues.accessedValues:
-			val = skeletonValues.accessedValues[name]
+		if not isinstance(skel[boneName], bool):
+			val = skel[boneName]
 			if str(val) in self.trueStrs:
-				skeletonValues.accessedValues[name] = True
+				skel[boneName] = True
 			else:
-				skeletonValues.accessedValues[name] = False
+				skel[boneName] = False
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		if name in rawFilter:

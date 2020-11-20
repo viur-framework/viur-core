@@ -1,15 +1,17 @@
 # -*- coding: utf-8 -*-
 
-from viur.core.render.json.default import DefaultRender as default
+from viur.core.render.json.default import DefaultRender
 from viur.core.render.json.user import UserRender as user
 from viur.core.render.json.file import FileRender as file
-from viur.core.skeleton import Skeleton
+from viur.core.utils import currentRequest, currentLanguage
+from viur.core.skeleton import SkeletonInstance
 from viur.core import conf
 from viur.core import securitykey
 from viur.core import utils
-from viur.core import request
-from viur.core import session
 import datetime, json
+
+class default(DefaultRender):
+		kind = "json.admin"
 
 __all__ = [default]
 
@@ -30,9 +32,10 @@ timestamp.exposed = True
 
 
 def getStructure(adminTree, module):
+	from viur.core.prototypes.uniformtree import TreeType
 	if not module in dir(adminTree) \
-			or not "adminInfo" in dir(getattr(adminTree, module)) \
-			or not getattr(adminTree, module).adminInfo:
+		or not "adminInfo" in dir(getattr(adminTree, module)) \
+		or not getattr(adminTree, module).adminInfo:
 		# Module not known or no adminInfo for that module
 		return (json.dumps(None))
 	res = {}
@@ -45,10 +48,22 @@ def getStructure(adminTree, module):
 		if stype in dir(moduleObj):
 			try:
 				skel = getattr(moduleObj, stype)()
-			except:
+			except TypeError:
 				continue
-			if isinstance(skel, Skeleton):
+			if isinstance(skel, SkeletonInstance):
 				res[stype] = default().renderSkelStructure(skel)
+	if not res and "nodeSkelCls" in dir(moduleObj):
+		# Try Node/Leaf
+		for stype in ["viewSkel", "editSkel", "addSkel"]:
+			for treeType in [TreeType.Node, TreeType.Leaf]:
+				if stype in dir(moduleObj):
+					try:
+						skel = getattr(moduleObj, stype)(treeType)
+					except TypeError:
+						continue
+					if isinstance(skel, SkeletonInstance):
+						storeType = stype.replace("Skel", "")+("LeafSkel" if treeType == TreeType.Leaf else "NodeSkel")
+						res[storeType] = default().renderSkelStructure(skel)
 	if res:
 		return (json.dumps(res))
 	else:
@@ -58,9 +73,8 @@ def getStructure(adminTree, module):
 def setLanguage(lang, skey):
 	if not securitykey.validate(skey):
 		return
-
 	if lang in conf["viur.availableLanguages"]:
-		session.current.setLanguage(lang)
+		currentLanguage.set(lang)
 
 
 setLanguage.exposed = True
@@ -112,25 +126,25 @@ def canAccess(*args, **kwargs):
 	if user and ("root" in user["access"] or "admin" in user["access"]):
 		return True
 
-	pathList = request.current.get().pathlist
+	pathList = currentRequest.get().pathlist
 
 	if len(pathList) >= 2 and pathList[1] in ["skey", "getVersion"]:
 		# Give the user the chance to login :)
 		return True
 
 	if (len(pathList) >= 3
-			and pathList[1] == "user"
-			and (pathList[2].startswith("auth_")
-				 or pathList[2].startswith("f2_")
-				 or pathList[2] == "getAuthMethods"
-				 or pathList[2] == "logout")):
+		and pathList[1] == "user"
+		and (pathList[2].startswith("auth_")
+			 or pathList[2].startswith("f2_")
+			 or pathList[2] == "getAuthMethods"
+			 or pathList[2] == "logout")):
 		# Give the user the chance to login :)
 		return True
 
 	if (len(pathList) >= 4
-			and pathList[1] == "user"
-			and pathList[2] == "view"
-			and pathList[3] == "self"):
+		and pathList[1] == "user"
+		and pathList[2] == "view"
+		and pathList[3] == "self"):
 		# Give the user the chance to view himself.
 		return True
 

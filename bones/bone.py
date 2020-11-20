@@ -7,7 +7,7 @@ import hashlib
 import copy
 from enum import Enum
 from dataclasses import dataclass
-from typing import Union, List
+from typing import Union, List, Set, Any
 
 __systemIsIntitialized_ = False
 
@@ -37,6 +37,7 @@ class ReadFromClientError:
 	severity: ReadFromClientErrorSeverity
 	fieldPath: str
 	errorMessage: str
+	invalidatedFields: List[str] = None  # must be last property since python enforces default args after properties without default args
 
 
 class UniqueLockMethod(Enum):
@@ -45,17 +46,25 @@ class UniqueLockMethod(Enum):
 	SameList = 3  # Same Set of entries (including duplicates), in this specific order
 
 @dataclass
-class UniqueValue:
-	method: UniqueLockMethod
-	message: str
+class UniqueValue:  # Mark a bone as unique (it must have a different value for each entry)
+	method: UniqueLockMethod  # How to handle multiple values (for bones with multiple=True)
+	lockEmpty: bool  # If False, empty values ("", 0) are not locked - needed if a field is unique but not required
+	message: str  # Error-Message displayed to the user if the requested value is already taken
+
+@dataclass
+class MultipleConstraints:  # Used to define constraints on multiple bones
+	minAmount: int = 0  # Lower bound of how many entries can be submitted
+	maxAmount: int = 0  # Upper bound of how many entries can be submitted
+	preventDuplicates: bool = False  # Prevent the same value of being used twice
 
 class baseBone(object):  # One Bone:
 	hasDBField = True
 	type = "hidden"
 	isClonedInstance = False
 
-	def __init__(self, descr="", defaultValue=None, required=False, params=None, multiple=False,
-				 searchable=False, vfunc=None, readOnly=False, visible=True, unique=False, **kwargs):
+	def __init__(self, descr="", defaultValue=None, required=False, params=None, multiple=False, indexed=True,
+				 languages = None, searchable=False, vfunc=None, readOnly=False, visible=True, unique=False,
+				 isEmptyFunc=None, getEmtpyValueFunc=None, **kwargs):
 		"""
 			Initializes a new Bone.
 
@@ -94,9 +103,11 @@ class baseBone(object):  # One Bone:
 		self.isClonedInstance = getSystemInitialized()
 		self.descr = descr
 		self.required = required
-		self.params = params
+		self.params = params or {}
 		self.multiple = multiple
+		self.indexed = indexed
 		self.defaultValue = defaultValue
+		self.languages = languages
 		self.searchable = searchable
 		if vfunc:
 			self.isInvalid = vfunc
@@ -108,6 +119,10 @@ class baseBone(object):  # One Bone:
 			if not self.multiple and unique.method.value != 1:
 				raise ValueError("'SameValue' is the only valid method on non-multiple bones")
 		self.unique = unique
+		if isEmptyFunc:
+			self.isEmpty = isEmptyFunc
+		if getEmtpyValueFunc:
+			self.getEmptyValue = getEmtpyValueFunc
 
 	def setSystemInitialized(self):
 		"""
@@ -115,9 +130,30 @@ class baseBone(object):  # One Bone:
 		"""
 		pass
 
-	def getDefaultValue(self):
+	def isInvalid(self, value):
+		"""
+			Returns None if the value would be valid for
+			this bone, an error-message otherwise.
+		"""
+		return False
+
+	def isEmpty(self, rawValue: Any) -> bool:
+		"""
+			Check if the given single value represents the "empty" value.
+			This usually is the empty string, 0 or False.
+
+			Warning: isEmpty takes precedence over isInvalid! The empty value is always valid - unless the bone
+				is required. But even then the empty value will be reflected back to the client.
+
+			Warning: rawValue might be the string/object received from the user (untrusted input!) or the value
+				returned by get
+
+		"""
+		return not bool(rawValue)
+
+	def getDefaultValue(self, skeletonInstance):
 		if callable(self.defaultValue):
-			return self.defaultValue()
+			return self.defaultValue(skeletonInstance, self)
 		elif isinstance(self.defaultValue, list):
 			return self.defaultValue[:]
 		elif isinstance(self.defaultValue, dict):
@@ -125,13 +161,123 @@ class baseBone(object):  # One Bone:
 		else:
 			return self.defaultValue
 
+	def getEmptyValue(self) -> Any:
+		"""
+			Returns the value representing an empty field for this bone.
+			This might be the empty string for str/text Bones, Zero for numeric bones etc.
+		"""
+		return None
+
 	def __setattr__(self, key, value):
 		if not self.isClonedInstance and getSystemInitialized() and key != "isClonedInstance" and not key.startswith(
 				"_"):
 			raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
 		super(baseBone, self).__setattr__(key, value)
 
-	def fromClient(self, valuesCache: dict, name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
+	def collectRawClientData(self, name, data, multiple, languages, collectSubfields):
+		fieldSubmitted = False
+		if languages:
+			res = {}
+			for lang in languages:
+				if not collectSubfields:
+					if "%s.%s" % (name, lang) in data:
+						fieldSubmitted = True
+						res[lang] = data["%s.%s" % (name, lang)]
+						if multiple and not isinstance(res[lang], list):
+							res[lang] = [res[lang]]
+						elif not multiple and isinstance(res[lang], list):
+							if res[lang]:
+								res[lang] = res[lang][0]
+							else:
+								res[lang] = None
+				else:
+					prefix = "%s.%s." % (name, lang)
+					if multiple:
+						tmpDict = {}
+						for key, value in data.items():
+							if not key.startswith(prefix):
+								continue
+							fieldSubmitted = True
+							partKey = key.replace(prefix, "")
+							firstKey, remainingKey = partKey.split(".", maxsplit=1)
+							try:
+								firstKey = int(firstKey)
+							except:
+								continue
+							if firstKey not in tmpDict:
+								tmpDict[firstKey] = {}
+							tmpDict[firstKey][remainingKey] = value
+						tmpList = list(tmpDict.items())
+						tmpList.sort(key=lambda x: x[0])
+						res[lang] = [x[1] for x in tmpList]
+					else:
+						tmpDict = {}
+						for key, value in data.items():
+							if not key.startswith(prefix):
+								continue
+							fieldSubmitted = True
+							partKey = key.replace(prefix, "")
+							tmpDict[partKey] = value
+						res[lang] = tmpDict
+			return res, fieldSubmitted
+		else: # No multi-lang
+			if not collectSubfields:
+				if name not in data: ## Empty!
+					return None, False
+				val = data[name]
+				if multiple and not isinstance(val, list):
+					return [val], True
+				elif not multiple and isinstance(val, list):
+					if val:
+						return val[0], True
+					else:
+						return None, True  # Empty!
+				else:
+					return val, True
+			else:  # No multi-lang but collect subfields
+				prefix = "%s." % name
+				if multiple:
+					tmpDict = {}
+					for key, value in data.items():
+						if not key.startswith(prefix):
+							continue
+						fieldSubmitted = True
+						partKey = key.replace(prefix, "")
+						firstKey, remainingKey = partKey.split(".", maxsplit=1)
+						try:
+							firstKey = int(firstKey)
+						except:
+							continue
+						if firstKey not in tmpDict:
+							tmpDict[firstKey] = {}
+						tmpDict[firstKey][remainingKey] = value
+					tmpList = list(tmpDict.items())
+					tmpList.sort(key=lambda x: x[0])
+					return [x[1] for x in tmpList], fieldSubmitted
+				else:
+					res = {}
+					for key, value in data.items():
+						if not key.startswith(prefix):
+							continue
+						fieldSubmitted = True
+						subKey = key.replace(prefix, "")
+						res[subKey] = value
+					return res, fieldSubmitted
+
+	def parseSubfieldsFromClient(self) -> bool:
+		"""
+		Whenever this request should try to parse subfields submitted from the client.
+		Set only to true if you expect a list of dicts to be transmitted
+		"""
+		return False
+
+	def singleValueFromClient(self, value, skel, name, origData):
+		err = self.isInvalid(value)
+		if err:
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+		return value, None
+
+	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -146,25 +292,86 @@ class baseBone(object):  # One Bone:
 			:type data: dict
 			:returns: None or str
 		"""
-		if not name in data:
+		subFields = self.parseSubfieldsFromClient()
+		parsedData, fieldSubmitted = self.collectRawClientData(name, data, self.multiple, self.languages, subFields)
+		if not fieldSubmitted:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
-		value = data[name]
-		err = self.isInvalid(value)
-		if not err:
-			valuesCache[name] = value
-			return None
-		else:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, err)]
+		errors = []
+		isEmpty = True
+		if self.languages and self.multiple:
+			res = {}
+			for language in self.languages:
+				res[language] = []
+				if language in parsedData:
+					for singleValue in parsedData[language]:
+						if self.isEmpty(singleValue):
+							continue
+						isEmpty = False
+						parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
+						res[language].append(parsedVal)
+						if parseErrors:
+							errors.extend(parseErrors)
+		elif self.languages:  # and not self.multiple is implicit - this would have been handled above
+			res = {}
+			for language in self.languages:
+				res[language] = None
+				if language in parsedData:
+					if self.isEmpty(parsedData[language]):
+						res[language] = self.getEmptyValue()
+						continue
+					isEmpty = False
+					parsedVal, parseErrors = self.singleValueFromClient(parsedData[language], skel, name, data)
+					res[language] = parsedVal
+					if parseErrors:
+						errors.extend(parseErrors)
+		elif self.multiple:  # and not self.languages is implicit - this would have been handled above
+			res = []
+			for singleValue in parsedData:
+				if self.isEmpty(singleValue):
+					continue
+				isEmpty = False
+				parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
+				res.append(parsedVal)
+				if parseErrors:
+					errors.extend(parseErrors)
+		else:  # No Languages, not multiple
+			if self.isEmpty(parsedData):
+				res = self.getEmptyValue()
+				isEmpty = True
+			else:
+				isEmpty = False
+				res, parseErrors = self.singleValueFromClient(parsedData, skel, name, data)
+				if parseErrors:
+					errors.extend(parseErrors)
+		skel[name] = res
+		if isEmpty:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "Field not set")]
+		if self.multiple and isinstance(self.multiple, MultipleConstraints):
+			errors.extend(self.validateMultipleConstraints(skel, name))
+		return errors or None
 
-	def isInvalid(self, value):
+	def validateMultipleConstraints(self, skel: 'SkeletonInstance', name: str) -> List[ReadFromClientError]:
 		"""
-			Returns None if the value would be valid for
-			this bone, an error-message otherwise.
+			Validates our value against our multiple constrains.
+			Returns a ReadFromClientError for each violation (eg. too many items and duplicates)
 		"""
-		if value == None:
-			return "No value entered"
+		res = []
+		value = skel[name]
+		constraints = self.multiple
+		if constraints.minAmount and len(value) < constraints.minAmount:
+			res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Too few items"))
+		if constraints.maxAmount and len(value) > constraints.maxAmount:
+			res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Too many items"))
+		if constraints.preventDuplicates:
+			if len(set(value)) != len(value):
+				res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Duplicate items"))
+		return res
 
-	def serialize(self, skeletonValues, name) -> bool:
+
+	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+		return value
+
+	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
 		"""
 			Serializes this bone into something we
 			can write into the datastore.
@@ -173,12 +380,43 @@ class baseBone(object):  # One Bone:
 			:type name: str
 			:returns: dict
 		"""
-		if name in skeletonValues.accessedValues:
-			skeletonValues.entity[name] = skeletonValues.accessedValues[name]
+		if name in skel.accessedValues:
+			newVal = skel.accessedValues[name]
+			if not newVal:
+				res = None
+			elif self.languages and self.multiple:
+				res = {"_viurLanguageWrapper_": True}
+				for language in self.languages:
+					res[language] = []
+					if language in newVal:
+						for singleValue in newVal[language]:
+							res[language].append(self.singleValueSerialize(singleValue, skel, name, parentIndexed))
+			elif self.languages:
+				res = {"_viurLanguageWrapper_": True}
+				for language in self.languages:
+					res[language] = []
+					if language in newVal:
+						res[language] = self.singleValueSerialize(newVal[language], skel, name, parentIndexed)
+			elif self.multiple:
+				res = []
+				for singleValue in newVal:
+					res.append(self.singleValueSerialize(singleValue, skel, name, parentIndexed))
+			else:  # No Languages, not Multiple
+				res = self.singleValueSerialize(newVal, skel, name, parentIndexed)
+			skel.dbEntity[name] = res
+			# Ensure our indexed flag is up2date
+			indexed = self.indexed and parentIndexed
+			if indexed and name in skel.dbEntity.exclude_from_indexes:
+				skel.dbEntity.exclude_from_indexes.discard(name)
+			elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
+				skel.dbEntity.exclude_from_indexes.add(name)
 			return True
 		return False
 
-	def unserialize(self, skeletonValues: 'viur.core.skeleton.SkeletonValues', name: str) -> bool:
+	def singleValueUnserialize(self, val, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+		return val
+
+	def unserialize(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> bool:
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
@@ -189,10 +427,88 @@ class baseBone(object):  # One Bone:
 			:type expando: db.Entity
 			:returns: bool
 		"""
-		if name in skeletonValues.entity:
-			skeletonValues.accessedValues[name] = skeletonValues.entity[name]
+		if name in skel.dbEntity:
+			loadVal = skel.dbEntity[name]
+			if self.languages and self.multiple:
+				res = {}
+				if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
+					for language in self.languages:
+						res[language] = []
+						if language in loadVal:
+							tmpVal = loadVal[language]
+							if not isinstance(tmpVal, list):
+								tmpVal = [tmpVal]
+							for singleValue in tmpVal:
+								res[language].append(self.singleValueUnserialize(singleValue, skel, name))
+				else:  # We could not parse this, maybe it has been written before languages had been set?
+					for language in self.languages:
+						res[language] = []
+					mainLang = self.languages[0]
+					if loadVal is None:
+						pass
+					elif isinstance(loadVal, list):
+						for singleValue in loadVal:
+							res[mainLang].append(self.singleValueUnserialize(singleValue, skel, name))
+					else:  # Hopefully it's a value stored before languages and multiple has been set
+						res[mainLang].append(self.singleValueUnserialize(loadVal, skel, name))
+			elif self.languages:
+				res = {}
+				if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
+					for language in self.languages:
+						res[language] = None
+						if language in loadVal:
+							tmpVal = loadVal[language]
+							if isinstance(tmpVal, list) and tmpVal:
+								tmpVal = tmpVal[0]
+							res[language] = self.singleValueUnserialize(tmpVal, skel, name)
+				else:  # We could not parse this, maybe it has been written before languages had been set?
+					for language in self.languages:
+						res[language] = None
+					mainLang = self.languages[0]
+					if loadVal is None:
+						pass
+					elif isinstance(loadVal, list) and loadVal:
+						res[mainLang] = self.singleValueUnserialize(loadVal, skel, name)
+					else:  # Hopefully it's a value stored before languages and multiple has been set
+						res[mainLang] = self.singleValueUnserialize(loadVal, skel, name)
+			elif self.multiple:
+				res = []
+				if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
+					# Pick one language we'll use
+					if conf["viur.defaultLanguage"] in loadVal:
+						loadVal = loadVal[conf["viur.defaultLanguage"]]
+					else:
+						loadVal = [x for x in loadVal.values() if x is not True]
+				if loadVal and not isinstance(loadVal, list):
+					loadVal = [loadVal]
+				if loadVal:
+					for val in loadVal:
+						res.append(self.singleValueUnserialize(val, skel, name))
+			else:  # Not multiple, no languages
+				res = None
+				if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
+					# Pick one language we'll use
+					if conf["viur.defaultLanguage"] in loadVal:
+						loadVal = loadVal[conf["viur.defaultLanguage"]]
+					else:
+						loadVal = [x for x in loadVal.values() if x is not True]
+				if loadVal and isinstance(loadVal, list):
+					loadVal = loadVal[0]
+				if loadVal:
+					res = self.singleValueUnserialize(loadVal, skel, name)
+			skel.accessedValues[name] = res
 			return True
+		skel.accessedValues[name] = self.getDefaultValue(skel)
 		return False
+
+	def delete(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+		"""
+			Like postDeletedHandler, but runs inside the transaction
+		:param skel:
+		:param name:
+		:return:
+		"""
+		pass
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		"""
@@ -303,6 +619,8 @@ class baseBone(object):  # One Bone:
 			elif isinstance(value, str):
 				return "S-%s" % res
 			raise NotImplementedError("Type %s can't be safely used in an uniquePropertyIndex" % type(value))
+		if not value and not self.unique.lockEmpty:
+			return []  # We are zero/empty string and these should not be locked
 		if not self.multiple:
 			return [hashValue(value)]
 		# We have an multiple bone here
@@ -373,7 +691,7 @@ class baseBone(object):  # One Bone:
 		"""
 		pass
 
-	def refresh(self, skeletonValues, boneName, skel) -> None:
+	def refresh(self, skel, boneName) -> None:
 		"""
 			Refresh all values we might have cached from other entities.
 		"""
@@ -391,7 +709,7 @@ class baseBone(object):  # One Bone:
 			return
 		valuesCache[boneName] = copy.deepcopy(otherSkel.valuesCache.get(boneName, None))
 
-	def setBoneValue(self, valuesCache, boneName, value, append, *args, **kwargs):
+	def setBoneValue(self, skel, boneName, value, append, *args, **kwargs):
 		"""
 			Set our value to 'value'.
 			Santy-Checks are performed; if the value is invalid, we flip our value back to its original
@@ -412,8 +730,11 @@ class baseBone(object):  # One Bone:
 		"""
 		if append:
 			raise ValueError("append is not possible on %s bones" % self.type)
-		res = self.fromClient(valuesCache, boneName, {boneName: value})
+		res = self.fromClient(skel, boneName, {boneName: value})
 		if not res:
 			return True
 		else:
 			return False
+
+	def getSearchTags(self, skeletonInstance, name: str) -> Set[str]:
+		return set()

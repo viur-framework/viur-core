@@ -5,6 +5,8 @@ from viur.core import db
 import logging
 import math
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from typing import List, Union
+
 
 def haversine(lat1, lng1, lat2, lng2):
 	"""
@@ -73,7 +75,6 @@ class spatialBone(baseBone):
 		lngDelta = float(self.boundsLng[1] - self.boundsLng[0])
 		return latDelta / float(self.gridDimensions[0]), lngDelta / float(self.gridDimensions[1])
 
-
 	def isInvalid(self, value):
 		"""
 			Tests, if the point given by 'value' is inside our boundaries.
@@ -83,9 +84,9 @@ class spatialBone(baseBone):
 			:return: An error-description or False if the value is valid
 			:rtype: str | False
 		"""
-		if value is None and self.required:
+		if (value is None or value == (0, 0)) and self.required:
 			return "No value entered"
-		elif value is None and not self.required:
+		elif (value is None or value == (0, 0)) and not self.required:
 			return False
 		elif value:
 			try:
@@ -99,57 +100,33 @@ class spatialBone(baseBone):
 			else:
 				return False
 
-	def serialize(self, skeletonValues, name):
-		"""
-			Serializes this bone into something we
-			can write into the datastore.
-
-			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:returns: dict
-		"""
-		if name in skeletonValues.accessedValues:
-			if not skeletonValues.accessedValues[name]:
-				skeletonValues.entity[name] = None
-				return True
-			lat, lng = skeletonValues.accessedValues[name]
+	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+		if not value:
+			return None
+		lat, lng = value
+		res = {
+			"coordinates": {
+				"lat": lat,
+				"lng": lng,
+			}
+		}
+		indexed = self.indexed and parentIndexed
+		if indexed:
 			gridSizeLat, gridSizeLng = self.getGridSize()
 			tileLat = int(floor((lat - self.boundsLat[0]) / gridSizeLat))
 			tileLng = int(floor((lng - self.boundsLng[0]) / gridSizeLng))
-			skeletonValues.entity[name] = {
-				"coordinates": {
-					"lat": lat,
-					"lng": lng,
-				},
-				"tiles": {
-					"lat": [tileLat - 1, tileLat, tileLat + 1],
-					"lng": [tileLng - 1, tileLng, tileLng + 1],
-				}
+			res["tiles"] = {
+				"lat": [tileLat - 1, tileLat, tileLat + 1],
+				"lng": [tileLng - 1, tileLng, tileLng + 1],
 			}
-			return True
-		return False
+		return res
 
-	def unserialize(self, skeletonValues, name):
-		"""
-			Inverse of serialize. Evaluates whats
-			read from the datastore and populates
-			this bone accordingly.
-			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:param expando: An instance of the dictionary-like db.Entity class
-			:type expando: db.Entity
-			:returns: bool
-		"""
-		if name in skeletonValues.entity:
-			myVal = skeletonValues.entity[name]
-			if myVal:
-				skeletonValues.accessedValues[name] = myVal["coordinates"]["lat"], myVal["coordinates"]["lng"]
-			else:
-				skeletonValues.accessedValues[name] = None
-			return True
-		return False
+	def singleValueUnserialize(self, val, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+		if not val:
+			return None
+		return val["coordinates"]["lat"], val["coordinates"]["lng"]
 
-	def fromClient( self, valuesCache, name, data ):
+	def fromClient(self, skel, name, data):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -157,7 +134,6 @@ class spatialBone(baseBone):
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
-
 			:param name: Our name in the skeleton
 			:type name: str
 			:param data: *User-supplied* request-data
@@ -166,9 +142,11 @@ class spatialBone(baseBone):
 		"""
 		rawLat = data.get("%s.lat" % name, None)
 		rawLng = data.get("%s.lng" % name, None)
-		if not rawLat or not rawLng:
+		if rawLat is None and rawLng is None:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
-
+		elif not rawLat or not rawLng:
+			skel[name] = None
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value submitted")]
 		try:
 			rawLat = float(rawLat)
 			rawLng = float(rawLng)
@@ -176,14 +154,11 @@ class spatialBone(baseBone):
 			assert rawLat == rawLat
 			assert rawLng == rawLng
 		except:
-			logging.error(rawLat)
-			logging.error(rawLng)
-			raise
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
 		err = self.isInvalid((rawLat, rawLng))
 		if err:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
-		valuesCache[name] = (rawLat, rawLng)
+		skel[name] = (rawLat, rawLng)
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		"""
@@ -248,11 +223,11 @@ class spatialBone(baseBone):
 
 			dbFilter._customMultiQueryMerge = lambda *args, **kwargs: self.customMultiQueryMerge(name, lat, lng, *args,
 																								 **kwargs)
-			dbFilter._calculateInternalMultiQueryAmount = self.calculateInternalMultiQueryAmount
+			dbFilter._calculateInternalMultiQueryLimit = self.calculateInternalMultiQueryLimit
 
 	# return( super( spatialBone, self ).buildDBFilter( name, skel, dbFilter, rawFilter ) )
 
-	def calculateInternalMultiQueryAmount(self, targetAmount):
+	def calculateInternalMultiQueryLimit(self, targetAmount):
 		"""
 			Tells :class:`server.db.Query` How much entries should be fetched in each subquery.
 
@@ -285,8 +260,7 @@ class spatialBone(baseBone):
 		# If a result further away than this distance there might be missing results before that result
 		# If there are no results in a give lane (f.e. because we are close the border and there is no point
 		# in between) we choose a arbitrary large value for that lower bound
-		expectedAmount = self.calculateInternalMultiQueryAmount(
-			targetAmount)  # How many items we expect in each direction
+		expectedAmount = self.calculateInternalMultiQueryLimit(targetAmount)  # How many items we expect in each direction
 		limits = [
 			haversine(latRight[-1][name + ".lat.val"], lng, lat, lng) if latRight and len(
 				latRight) == expectedAmount else 2 ** 31,  # Lat - Right Side

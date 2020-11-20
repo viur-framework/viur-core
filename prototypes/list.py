@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-from viur.core import utils, session, errors, conf, securitykey, request
+from viur.core import utils, errors, conf, securitykey
 from viur.core import forcePost, forceSSL, exposed, internalExposed
 from viur.core.skeleton import Skeleton
 from viur.core.prototypes import BasicApplication
+from viur.core.utils import currentRequest
 
 import logging
 
@@ -112,7 +113,7 @@ class List(BasicApplication):
 		or as the first parameter in *args*. The function performs several access control checks
 		on the requested entity before it is rendered.
 
-		.. seealso:: :func:`viewSkel`, :func:`canView`, :func:`onItemViewed`
+		.. seealso:: :func:`viewSkel`, :func:`canView`, :func:`onView`
 
 		:returns: The rendered representation of the requested entity.
 
@@ -142,7 +143,7 @@ class List(BasicApplication):
 				raise errors.NotFound()
 			if not self.canView(skel):
 				raise errors.Forbidden()
-			self.onItemViewed(skel)
+			self.onView(skel)
 		return self.render.view(skel)
 
 	@exposed
@@ -179,7 +180,7 @@ class List(BasicApplication):
 		or as the first parameter in *args*. The function performs several access control checks
 		on the requested entity before it is modified.
 
-		.. seealso:: :func:`editSkel`, :func:`onItemEdited`, :func:`canEdit`
+		.. seealso:: :func:`editSkel`, :func:`onEdit`, :func:`onEdited`, :func:`canEdit`
 
 		:returns: The rendered, edited object of the entry, eventually with error hints.
 
@@ -188,29 +189,24 @@ class List(BasicApplication):
 		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-
 		if "skey" in kwargs:
 			skey = kwargs["skey"]
 		else:
 			skey = ""
-
 		if "key" in kwargs:
 			key = kwargs["key"]
 		elif len(args) == 1:
 			key = args[0]
 		else:
 			raise errors.NotAcceptable()
-
 		skel = self.editSkel()
-
 		if not skel.fromDB(key):
 			raise errors.NotAcceptable()
-
 		if not self.canEdit(skel):
 			raise errors.Unauthorized()
 		if (len(kwargs) == 0  # no data supplied
 				or skey == ""  # no security key
-				or not request.current.get().isPostRequest  # failure if not using POST-method
+				or not currentRequest.get().isPostRequest  # failure if not using POST-method
 				or not skel.fromClient(kwargs)  # failure on reading into the bones
 				or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before changing
 		):
@@ -218,10 +214,12 @@ class List(BasicApplication):
 			return self.render.edit(skel)
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
-		skel.toDB()  # write it!
-		self.onItemEdited(skel)
 
-		return self.render.editItemSuccess(skel)
+		self.onEdit(skel)
+		skel.toDB()  # write it!
+		self.onEdited(skel)
+
+		return self.render.editSuccess(skel)
 
 	@forceSSL
 	@exposed
@@ -232,7 +230,7 @@ class List(BasicApplication):
 
 		The function performs several access control checks on the requested entity before it is added.
 
-		.. seealso:: :func:`addSkel`, :func:`onItemAdded`, :func:`canAdd`
+		.. seealso:: :func:`addSkel`, :func:`onAdd`, :func:`onAdded`, :func:`canAdd`
 
 		:returns: The rendered, added object of the entry, eventually with error hints.
 
@@ -248,7 +246,7 @@ class List(BasicApplication):
 		skel = self.addSkel()
 		if (len(kwargs) == 0  # no data supplied
 				or skey == ""  # no skey supplied
-				or not request.current.get().isPostRequest  # failure if not using POST-method
+				or not currentRequest.get().isPostRequest  # failure if not using POST-method
 				or not skel.fromClient(kwargs)  # failure on reading into the bones
 				or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
 		):
@@ -256,9 +254,12 @@ class List(BasicApplication):
 			return self.render.add(skel)
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
+
+		self.onAdd(skel)
 		skel.toDB()
-		self.onItemAdded(skel)
-		return self.render.addItemSuccess(skel)
+		self.onAdded(skel)
+
+		return self.render.addSuccess(skel)
 
 	@forceSSL
 	@forcePost
@@ -269,7 +270,7 @@ class List(BasicApplication):
 
 		The function runs several access control checks on the data before it is deleted.
 
-		.. seealso:: :func:`canDelete`, :func:`editSkel`, :func:`onItemDeleted`
+		.. seealso:: :func:`canDelete`, :func:`editSkel`, :func:`onDeleted`
 
 		:returns: The rendered, deleted object of the entry.
 
@@ -288,8 +289,9 @@ class List(BasicApplication):
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
 
+		self.onDelete(skel)
 		skel.delete()
-		self.onItemDeleted(skel)
+		self.onDeleted(skel)
 
 		return self.render.deleteSuccess(skel)
 
@@ -309,7 +311,7 @@ class List(BasicApplication):
 			if skel:
 				if not self.canView(skel):
 					raise errors.Forbidden()
-				self.onItemViewed(skel)
+				self.onView(skel)
 				return self.render.view(skel)
 		# This was unsuccessfully, we'll render a list instead
 		if not kwargs:
@@ -356,14 +358,15 @@ class List(BasicApplication):
 		:param skel: The entry we check for
 		:return: True if the current session is authorized to view that entry, False otherwise
 		"""
-		logging.error("IN CAN VIEW")
-		queryObj = self.viewSkel().all().mergeExternalFilter({"key": skel["key"]})
-		queryObj = self.listFilter(queryObj)  # Access control
-		logging.error(queryObj)
-		if queryObj is None:
+		query = self.viewSkel().all().mergeExternalFilter({"key": skel["key"]})
+		query = self.listFilter(query)  # Access control
+
+		if query is None:
 			return False
-		if not queryObj.get():
+
+		if not query.getEntry():
 			return False
+
 		return True
 
 	def canAdd(self):
@@ -501,7 +504,20 @@ class List(BasicApplication):
 
 	## Override-able event-hooks
 
-	def onItemAdded(self, skel):
+	def onAdd(self, skel):
+		"""
+		Hook function that is called before adding an entry.
+
+		It can be overridden for a module-specific behavior.
+
+		:param skel: The Skeleton that is going to be added.
+		:type skel: :class:`server.skeleton.Skeleton`
+
+		.. seealso:: :func:`add`, :func:`onAdded`
+		"""
+		pass
+
+	def onAdded(self, skel):
 		"""
 		Hook function that is called after adding an entry.
 
@@ -511,7 +527,7 @@ class List(BasicApplication):
 		:param skel: The Skeleton that has been added.
 		:type skel: :class:`server.skeleton.Skeleton`
 
-		.. seealso:: :func:`add`
+		.. seealso:: :func:`add`, , :func:`onAdd`
 		"""
 		logging.info("Entry added: %s" % skel["key"])
 
@@ -519,7 +535,20 @@ class List(BasicApplication):
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-	def onItemEdited(self, skel):
+	def onEdit(self, skel):
+		"""
+		Hook function that is called before editing an entry.
+
+		It can be overridden for a module-specific behavior.
+
+		:param skel: The Skeleton that is going to be edited.
+		:type skel: :class:`server.skeleton.Skeleton`
+
+		.. seealso:: :func:`edit`, :func:`onEdited`
+		"""
+		pass
+
+	def onEdited(self, skel):
 		"""
 		Hook function that is called after modifying an entry.
 
@@ -529,7 +558,7 @@ class List(BasicApplication):
 		:param skel: The Skeleton that has been modified.
 		:type skel: :class:`server.skeleton.Skeleton`
 
-		.. seealso:: :func:`edit`
+		.. seealso:: :func:`edit`, :func:`onEdit`
 		"""
 		logging.info("Entry changed: %s" % skel["key"])
 
@@ -537,7 +566,7 @@ class List(BasicApplication):
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-	def onItemViewed(self, skel):
+	def onView(self, skel):
 		"""
 		Hook function that is called when viewing an entry.
 
@@ -551,7 +580,20 @@ class List(BasicApplication):
 		"""
 		pass
 
-	def onItemDeleted(self, skel):
+	def onDelete(self, skel):
+		"""
+		Hook function that is called before deleting an entry.
+
+		It can be overridden for a module-specific behavior.
+
+		:param skel: The Skeleton that is going to be deleted.
+		:type skel: :class:`server.skeleton.Skeleton`
+
+		.. seealso:: :func:`delete`, :func:`onDeleted`
+		"""
+		pass
+
+	def onDeleted(self, skel):
 		"""
 		Hook function that is called after deleting an entry.
 
@@ -561,7 +603,7 @@ class List(BasicApplication):
 		:param skel: The Skeleton that has been deleted.
 		:type skel: :class:`server.skeleton.Skeleton`
 
-		.. seealso:: :func:`delete`
+		.. seealso:: :func:`delete`, :func:`onDelete`
 		"""
 		logging.info("Entry deleted: %s" % skel["key"])
 		user = utils.getCurrentUser()

@@ -1,8 +1,14 @@
 # -*- coding: utf-8 -*-
 from viur.core.bones.bone import baseBone, getSystemInitialized
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from typing import List
-import copy
+from typing import List, Union
+import copy, logging
+
+try:
+	import extjson
+except ImportError:
+	# FIXME: That json will not read datetime objects
+	import json as extjson
 
 
 class recordBone(baseBone):
@@ -10,173 +16,47 @@ class recordBone(baseBone):
 
 	def __init__(self, using, format=None, multiple=True, indexed=False, *args, **kwargs):
 		super(recordBone, self).__init__(multiple=multiple, *args, **kwargs)
-
 		self.using = using
 		self.format = format
 		if not format or indexed or not multiple:
 			raise NotImplementedError("A recordBone must not be indexed, must be multiple and must have a format set")
 
-		#if getSystemInitialized():
-		#	self._usingSkelCache = using()
-		#else:
-		#	self._usingSkelCache = None
-
 	def setSystemInitialized(self):
 		super(recordBone, self).setSystemInitialized()
-		#self._usingSkelCache = self.using()
 
-	def _restoreValueFromDatastore(self, val):
-		"""
-			Restores one of our values from the serialized data read from the datastore
+	# self._usingSkelCache = self.using()
 
-			:param value: Json-Encoded datastore property
-
-			:return: Our Value (with restored usingSkel data)
-		"""
-		value = val
-		assert isinstance(value, dict), "Read something from the datastore thats not a dict: %s" % str(type(value))
-
-		usingSkel = self.using()
-		usingSkel.setValuesCache({})
-		usingSkel.unserialize(value)
-		return usingSkel.getValuesCache()
-
-	def unserialize(self, skeletonValues, name):
-		if name not in skeletonValues.entity:
-			return False
-		val = skeletonValues.entity[name]
-		skeletonValues.accessedValues[name] = []
-		if not val:
-			return True
-		if isinstance(val, list):
-			for res in val:
-				try:
-					skeletonValues.accessedValues[name].append(self._restoreValueFromDatastore(res))
-				except:
-					raise
-		else:
+	def singleValueUnserialize(self, val, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+		if isinstance(val, str):
 			try:
-				skeletonValues.accessedValues[name].append(self._restoreValueFromDatastore(val))
+				value = extjson.loads(val)
 			except:
-				raise
+				value = None
+		else:
+			value = val
+		if not value:
+			return None
+		elif isinstance(value, list) and value:
+			value = value[0]
+		assert isinstance(value, dict), "Read something from the datastore thats not a dict: %s" % str(type(value))
+		usingSkel = self.using()
+		usingSkel.unserialize(value)
+		return usingSkel
 
+	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+		return value.serialize(parentIndexed=False)
+
+	def parseSubfieldsFromClient(self) -> bool:
+		"""
+		Whenever this request should try to parse subfields submitted from the client.
+		Set only to true if you expect a list of dicts to be transmitted
+		"""
 		return True
 
-	def serialize(self, skeletonValues, name):
-		if name in skeletonValues.accessedValues:
-			value = skeletonValues.accessedValues[name]
-			print("xxxxx")
-			print(value)
-			if not value:
-				skeletonValues.entity[name] = []
-			else:
-				usingSkel = self.using()
-				res = []
-				for val in value:
-					usingSkel.setValuesCache(val)
-					res.append(usingSkel.serialize())
-				skeletonValues.entity[name] = res
-			return True
-		return False
-
-	def fromClient(self, valuesCache, name, data):
-		#return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Not yet fixed")]
-		if not name in data and not any(x.startswith("%s." % name) for x in data):
-			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
-
-		valuesCache[name] = []
-		tmpRes = {}
-
-		clientPrefix = "%s." % name
-
-		for k, v in data.items():
-			# print(k, v)
-
-			if k.startswith(clientPrefix) or k == name:
-				if k == name:
-					k = k.replace(name, "", 1)
-
-				else:
-					k = k.replace(clientPrefix, "", 1)
-
-				if "." in k:
-					try:
-						idx, bname = k.split(".", 1)
-						idx = int(idx)
-					except ValueError:
-						idx = 0
-
-						try:
-							bname = k.split(".", 1)
-						except ValueError:
-							# We got some garbage as input; don't try to parse it
-							continue
-
-				else:
-					idx = 0
-					bname = k
-
-				if not bname:
-					continue
-
-				if not idx in tmpRes:
-					tmpRes[idx] = {}
-
-				if bname in tmpRes[idx]:
-					if isinstance(tmpRes[idx][bname], list):
-						tmpRes[idx][bname].append(v)
-					else:
-						tmpRes[idx][bname] = [tmpRes[idx][bname], v]
-				else:
-					tmpRes[idx][bname] = v
-
-		tmpList = [tmpRes[k] for k in sorted(tmpRes.keys())]
-
-		errors = []
-
-		for i, r in enumerate(tmpList[:]):
-			usingSkel = self.using()
-			#usingSkel.setValuesCache(Skeletccc)
-			usingSkel.unserialize({})
-
-			if not usingSkel.fromClient(r):
-				for error in usingSkel.errors:
-					errors.append(
-						ReadFromClientError(error.severity, "%s.%s.%s" % (name, i, error.fieldPath), error.errorMessage)
-					)
-			tmpList[i] = usingSkel.getValuesCache()
-
-		cleanList = []
-
-		for item in tmpList:
-			err = self.isInvalid(item)
-			if err:
-				errors.append(
-					ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "%s.%s" % (name, tmpList.index(item)), err)
-				)
-			else:
-				cleanList.append(item)
-
-		valuesCache[name] = tmpList
-
-		if not cleanList:
-			errors.append(
-				ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")
-			)
-
-		if errors:
-			return errors
-
-
-	def setBoneValue(self, valuesCache, boneName, value, append):
-		if not isinstance(value, self.using):
-			raise ValueError("value (=%r) must be of type %r" % (type(value), self.using))
-
-		if valuesCache[boneName] is None or not append:
-			valuesCache[boneName] = []
-
-		valuesCache[boneName].append(copy.deepcopy(value.getValuesCache()))
-		return True
+	def singleValueFromClient(self, value, skel, name, origData):
+		usingSkel = self.using()
+		usingSkel.fromClient(value)
+		return usingSkel, usingSkel.errors
 
 	def getSearchTags(self, values, key):
 		def getValues(res, skel, valuesCache):
@@ -187,7 +67,7 @@ class recordBone(baseBone):
 							res.append(tag)
 			return res
 
-		value = values.get(key)
+		value = values[key]
 		res = []
 
 		if not value:

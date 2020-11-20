@@ -3,6 +3,7 @@ from viur.core.bones import baseBone
 from math import pow
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import logging
+from typing import Any
 
 
 class numericBone(baseBone):
@@ -18,7 +19,7 @@ class numericBone(baseBone):
 
 	type = "numeric"
 
-	def __init__(self, precision=0, min=-int(pow(2, 30)), max=int(pow(2, 30)), defaultValue = None, *args, **kwargs):
+	def __init__(self, precision=0, min=-int(pow(2, 30)), max=int(pow(2, 30)), defaultValue=None, *args, **kwargs):
 		"""
 			Initializes a new NumericBone.
 
@@ -36,67 +37,34 @@ class numericBone(baseBone):
 		self.min = min
 		self.max = max
 
-	def fromClient(self, valuesCache, name, data):
-		"""
-			Reads a value from the client.
-			If this value is valid for this bone,
-			store this value and return None.
-			Otherwise our previous value is
-			left unchanged and an error-message
-			is returned.
-
-			:param name: Our name in the skeleton
-			:type name: str
-			:param data: *User-supplied* request-data
-			:type data: dict
-			:returns: None or String
-		"""
-		if not name in data:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
-		rawValue = data[name]
-		value = None
-		if rawValue:
-			try:
-				rawValue = str(rawValue).replace(",", ".", 1)
-			except:
-				value = None
-			else:
-				if self.precision and (str(rawValue).replace(".", "", 1).replace("-", "", 1).isdigit()) and float(
-						rawValue) >= self.min and float(rawValue) <= self.max:
-					value = round(float(rawValue), self.precision)
-				elif not self.precision and (str(rawValue).replace("-", "", 1).isdigit()) and int(
-						rawValue) >= self.min and int(rawValue) <= self.max:
-					value = int(rawValue)
-				else:
-					value = None
-		if value is None:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value entered")]
+	def isInvalid(self, value):
 		if value != value:  # NaN
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
+			return "NaN not allowed"
+
+	def getEmptyValue(self):
+		return 0
+
+	def isEmpty(self, rawValue: Any):
+		return not (rawValue != self.getEmptyValue() or bool(rawValue))
+
+	def singleValueFromClient(self, value, skel, name, origData):
+		try:
+			rawValue = str(value).replace(",", ".", 1)
+		except:
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid Value")]
+		else:
+			if self.precision and (str(rawValue).replace(".", "", 1).replace("-", "", 1).isdigit()) and float(
+					rawValue) >= self.min and float(rawValue) <= self.max:
+				value = round(float(rawValue), self.precision)
+			elif not self.precision and (str(rawValue).replace("-", "", 1).isdigit()) and int(
+					rawValue) >= self.min and int(rawValue) <= self.max:
+				value = int(rawValue)
+			else:
+				return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid Value")]
 		err = self.isInvalid(value)
 		if err:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
-		valuesCache[name] = value
-
-
-	def unserialize(self, skeletonValues, name):
-		if name in skeletonValues.entity:
-			value = skeletonValues.entity[name]
-			isType = type(value)
-			if self.precision:
-				shouldType = float
-			else:
-				shouldType = int
-			if isType == shouldType:
-				skeletonValues.accessedValues[name] = value
-			elif isType == int or isType == float:
-				skeletonValues.accessedValues[name] = shouldType(value)
-			elif isType == str and str(value).replace(".", "", 1).lstrip("-").isdigit():
-				skeletonValues.accessedValues[name] = shouldType(value)
-			else:
-				return False
-			return True
-		return False
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+		return value, None
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		updatedFilter = {}
@@ -117,7 +85,25 @@ class numericBone(baseBone):
 				updatedFilter[parmKey] = paramValue
 		return super(numericBone, self).buildDBFilter(name, skel, dbFilter, updatedFilter, prefix)
 
-	def getSearchDocumentFields(self, valuesCache, name, prefix=""):
-		if isinstance(valuesCache.get(name), int) or isinstance(valuesCache.get(name), float):
-			return [search.NumberField(name=prefix + name, value=valuesCache[name])]
-		return []
+	def getSearchTags(self, valuesCache, name):
+		res = set()
+		value = valuesCache[name]
+		if not value:
+			return res
+		if self.languages and isinstance(value, dict):
+			if self.multiple:
+				for lang in value.values():
+					if not lang:
+						continue
+					for val in lang:
+						res.add(str(val))
+			else:
+				for lang in value.values():
+					res.add(str(lang))
+		else:
+			if self.multiple:
+				for val in value:
+					res.add(str(val))
+			else:
+				res.add(str(value))
+		return res

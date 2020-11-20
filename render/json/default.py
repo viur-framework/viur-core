@@ -3,12 +3,15 @@ import json
 from collections import OrderedDict
 from typing import Dict
 
-from viur.core import bones, request, utils
+from viur.core import bones, utils
+from viur.core import db
 from viur.core.i18n import translate
-from viur.core.skeleton import BaseSkeleton, RefSkel, skeletonByKind
+from viur.core.skeleton import SkeletonInstance
+from viur.core.utils import currentRequest
 
 
 class DefaultRender(object):
+	kind = "json"
 
 	def __init__(self, parent=None, *args, **kwargs):
 		super(DefaultRender, self).__init__(*args, **kwargs)
@@ -36,30 +39,30 @@ class DefaultRender(object):
 			"params": self.preprocessParams(bone.params),
 			"visible": bone.visible,
 			"readonly": bone.readOnly,
-			"unique": bone.unique.method.value if bone.unique else False
+			"unique": bone.unique.method.value if bone.unique else False,
+			"languages": bone.languages
 		}
+		if bone.multiple:
+			if isinstance(bone.multiple, bones.MultipleConstraints):
+				ret["multiple"] = {
+					"minAmount": bone.multiple.minAmount,
+					"maxAmount": bone.multiple.maxAmount,
+					"preventDuplicates": bone.multiple.preventDuplicates,
+				}
+			else:
+				ret["multiple"] = bone.multiple
 
 		if bone.type == "relational" or bone.type.startswith("relational."):
-			if isinstance(bone, bones.hierarchyBone):
-				boneType = "hierarchy"
-			elif isinstance(bone, bones.treeItemBone):
-				boneType = "treeitem"
-			elif isinstance(bone, bones.treeDirBone):
-				boneType = "treedir"
-			else:
-				boneType = "relational"
 			ret.update({
-				"type": "%s.%s" % (boneType, bone.kind),
+				"type": "%s.%s" % (bone.type, bone.kind),
 				"module": bone.module,
-				"multiple": bone.multiple,
 				"format": bone.format,
 				"using": self.renderSkelStructure(bone.using()) if bone.using else None,
-				"relskel": self.renderSkelStructure(RefSkel.fromSkel(skeletonByKind(bone.kind), *bone.refKeys))
+				"relskel": self.renderSkelStructure(bone._refSkelCache())
 			})
 
 		elif bone.type == "record" or bone.type.startswith("record."):
 			ret.update({
-				"multiple": bone.multiple,
 				"format": bone.format,
 				"using": self.renderSkelStructure(bone.using())
 			})
@@ -67,7 +70,6 @@ class DefaultRender(object):
 		elif bone.type == "select" or bone.type.startswith("select."):
 			ret.update({
 				"values": [(k, str(v)) for k, v in bone.values.items()],
-				"multiple": bone.multiple,
 			})
 
 		elif bone.type == "date" or bone.type.startswith("date."):
@@ -91,7 +93,6 @@ class DefaultRender(object):
 
 		elif bone.type == "str" or bone.type.startswith("str."):
 			ret.update({
-				"multiple": bone.multiple,
 				"languages": bone.languages
 			})
 
@@ -111,28 +112,11 @@ class DefaultRender(object):
 			return None
 		res = OrderedDict()
 		for key, bone in skel.items():
-			# if "__" in key or not isinstance(bone, bones.baseBone):
-			#	continue
-
 			res[key] = self.renderBoneStructure(bone)
-
-			# FIXME!
-			#if key in skel.errors:
-			#	res[key]["error"] = skel.errors[key]
-			#elif any([x.startswith("%s." % key) for x in skel.errors.keys()]):
-			#	res[key]["error"] = {k: v for k, v in skel.errors.items() if k.startswith("%s." % key)}
-			#else:
-			#	res[key]["error"] = None
-			res[key]["error"] = None
 		return [(key, val) for key, val in res.items()]
 
-	def renderTextExtension(self, ext):
-		e = ext()
-		return ({"name": e.name,
-				 "descr": str(e.descr),
-				 "skel": self.renderSkelStructure(e.dataSkel())})
 
-	def renderBoneValue(self, bone, skel, key):
+	def renderSingleBoneValue(self, value, bone, skel, key):
 		"""
 		Renders the value of a bone.
 
@@ -146,59 +130,48 @@ class DefaultRender(object):
 		:rtype: dict
 		"""
 		if bone.type == "date" or bone.type.startswith("date."):
-			if skel[key]:
+			if value:
 				if bone.date and bone.time:
-					return skel[key].strftime("%d.%m.%Y %H:%M:%S")
+					return value.strftime("%d.%m.%Y %H:%M:%S")
 				elif bone.date:
-					return skel[key].strftime("%d.%m.%Y")
+					return value.strftime("%d.%m.%Y")
 
-				return skel[key].strftime("%H:%M:%S")
+				return value.strftime("%H:%M:%S")
 		elif isinstance(bone, bones.relationalBone):
-			if isinstance(skel[key], list):
-				isFileBone = isinstance(bone, bones.fileBone)
-				refSkel, usingSkel = bone._getSkels()
-				#refSkel = bone._refSkelCache
-				#usingSkel = bone._usingSkelCache
-				tmpList = []
-				for k in skel[key]:
-					refSkel.setValuesCache(k["dest"])
-					if usingSkel:
-						usingSkel.setValuesCache(k.get("rel", {}))
-						usingData = self.renderSkelValues(usingSkel)
-					else:
-						usingData = None
-					tmpList.append({
-						"dest": self.renderSkelValues(refSkel, injectDownloadURL=isFileBone),
-						"rel": usingData
-					})
-				return tmpList
-			elif isinstance(skel[key], dict):
-				refSkel, usingSkel = bone._getSkels()
-				refSkel.setValuesCache(skel[key]["dest"])
-				if usingSkel:
-					usingSkel.setValuesCache(skel[key].get("rel", {}))
-					usingData = self.renderSkelValues(usingSkel)
-				else:
-					usingData = None
+			if isinstance(value, dict):
 				return {
-					"dest": self.renderSkelValues(refSkel, injectDownloadURL=isinstance(bone, bones.fileBone)),
-					"rel": usingData
+					"dest": self.renderSkelValues(value["dest"], injectDownloadURL=isinstance(bone, bones.fileBone)),
+					"rel": self.renderSkelValues(value["rel"], injectDownloadURL=isinstance(bone, bones.fileBone)) if value["rel"] else None,
 				}
 		elif isinstance(bone, bones.recordBone):
-			usingSkel = bone.using()
-			tmpList = []
-			if skel[key]:
-				for k in skel[key]:
-					usingSkel.setValuesCache(k)
-					tmpList.append(self.renderSkelValues(usingSkel))
-			return tmpList
+			return self.renderSkelValues(value)
 		elif isinstance(bone, bones.keyBone):
-			v = skel["key"]
-			return v.to_legacy_urlsafe().decode("ASCII") if v else None
+			return db.encodeKey(value) if value else None
 		else:
-			return skel[key]
-
+			return value
 		return None
+
+	def renderBoneValue(self, bone, skel, key):
+		boneVal = skel[key]
+		if bone.languages and bone.multiple:
+			res = {}
+			for language in bone.languages:
+				if boneVal and language in boneVal and boneVal[language]:
+					res[language] = [self.renderSingleBoneValue(v, bone, skel, key) for v in boneVal[language]]
+				else:
+					res[language] = []
+		elif bone.languages:
+			res = {}
+			for language in bone.languages:
+				if boneVal and language in boneVal and boneVal[language]:
+					res[language] = self.renderSingleBoneValue(boneVal[language], bone, skel, key)
+				else:
+					res[language] = None
+		elif bone.multiple:
+			res = [self.renderSingleBoneValue(v, bone, skel, key) for v in boneVal] if boneVal else None
+		else:
+			res = self.renderSingleBoneValue(boneVal, bone, skel, key)
+		return res
 
 	def renderSkelValues(self, skel, injectDownloadURL=False):
 		"""
@@ -226,10 +199,10 @@ class DefaultRender(object):
 			vals = [self.renderSkelValues(x) for x in skel]
 			struct = self.renderSkelStructure(skel[0])
 			errors = None
-		elif isinstance(skel, BaseSkeleton):
+		elif isinstance(skel, SkeletonInstance):
 			vals = self.renderSkelValues(skel)
 			struct = self.renderSkelStructure(skel)
-			errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage} for x in skel.errors]
+			errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage, "invalidatedFields": x.invalidatedFields} for x in skel.errors]
 		else:  # Hopefully we can pass it directly...
 			vals = skel
 			struct = None
@@ -241,8 +214,7 @@ class DefaultRender(object):
 			"action": actionName,
 			"params": params
 		}
-
-		request.current.get().response.headers["Content-Type"] = "application/json"
+		currentRequest.get().response.headers["Content-Type"] = "application/json"
 		return json.dumps(res)
 
 	def preprocessParams(self, params: Dict) -> Dict:
@@ -271,35 +243,34 @@ class DefaultRender(object):
 		res = {}
 		skels = []
 
-		for skel in skellist:
-			skels.append(self.renderSkelValues(skel))
-
-		res["skellist"] = skels
-
 		if skellist:
+			for skel in skellist:
+				skels.append(self.renderSkelValues(skel))
+
+			res["cursor"] = skellist.getCursor()
 			res["structure"] = self.renderSkelStructure(skellist.baseSkel)
 		else:
 			res["structure"] = None
-		try:
-			res["cursor"] = "h-%s" % skellist.getCursor().hex()
-		except:
 			res["cursor"] = None
+
+		res["skellist"] = skels
 		res["action"] = action
 		res["params"] = params
-
-		request.current.get().response.headers["Content-Type"] = "application/json"
+		currentRequest.get().response.headers["Content-Type"] = "application/json"
 		return json.dumps(res)
 
-	def editItemSuccess(self, skel, params=None, **kwargs):
+	def editSuccess(self, skel, params=None, **kwargs):
 		return self.renderEntry(skel, "editSuccess", params)
 
-	def addItemSuccess(self, skel, params=None, **kwargs):
+	def addSuccess(self, skel, params=None, **kwargs):
 		return self.renderEntry(skel, "addSuccess", params)
 
 	def addDirSuccess(self, rootNode, path, dirname, params=None, *args, **kwargs):
 		return json.dumps("OKAY")
 
 	def listRootNodes(self, rootNodes, tpl=None, params=None):
+		for rn in rootNodes:
+			rn["key"] = db.encodeKey(rn["key"])
 		return json.dumps(rootNodes)
 
 	def listRootNodeContents(self, subdirs, entrys, tpl=None, params=None, **kwargs):
