@@ -6,7 +6,7 @@ import logging
 import hashlib
 import copy
 from enum import Enum
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Union, List, Set, Any
 
 __systemIsIntitialized_ = False
@@ -35,8 +35,8 @@ class ReadFromClientErrorSeverity(Enum):
 @dataclass
 class ReadFromClientError:
 	severity: ReadFromClientErrorSeverity
-	fieldPath: str
 	errorMessage: str
+	fieldPath: List[str] = field(default_factory=list)
 	invalidatedFields: List[str] = None  # must be last property since python enforces default args after properties without default args
 
 
@@ -274,7 +274,7 @@ class baseBone(object):  # One Bone:
 	def singleValueFromClient(self, value, skel, name, origData):
 		err = self.isInvalid(value)
 		if err:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 		return value, None
 
 	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
@@ -295,7 +295,7 @@ class baseBone(object):  # One Bone:
 		subFields = self.parseSubfieldsFromClient()
 		parsedData, fieldSubmitted = self.collectRawClientData(name, data, self.multiple, self.languages, subFields)
 		if not fieldSubmitted:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "Field not submitted")]
 		errors = []
 		isEmpty = True
 		if self.languages and self.multiple:
@@ -326,13 +326,15 @@ class baseBone(object):  # One Bone:
 						errors.extend(parseErrors)
 		elif self.multiple:  # and not self.languages is implicit - this would have been handled above
 			res = []
-			for singleValue in parsedData:
+			for idx, singleValue in enumerate(parsedData):
 				if self.isEmpty(singleValue):
 					continue
 				isEmpty = False
 				parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
 				res.append(parsedVal)
 				if parseErrors:
+					for err in parseErrors:
+						err.fieldPath.insert(0, str(idx))
 					errors.extend(parseErrors)
 		else:  # No Languages, not multiple
 			if self.isEmpty(parsedData):
@@ -345,7 +347,7 @@ class baseBone(object):  # One Bone:
 					errors.extend(parseErrors)
 		skel[name] = res
 		if isEmpty:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "Field not set")]
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "Field not set")]
 		if self.multiple and isinstance(self.multiple, MultipleConstraints):
 			errors.extend(self.validateMultipleConstraints(skel, name))
 		return errors or None
@@ -359,12 +361,12 @@ class baseBone(object):  # One Bone:
 		value = skel[name]
 		constraints = self.multiple
 		if constraints.minAmount and len(value) < constraints.minAmount:
-			res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Too few items"))
+			res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Too few items"))
 		if constraints.maxAmount and len(value) > constraints.maxAmount:
-			res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Too many items"))
+			res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Too many items"))
 		if constraints.preventDuplicates:
 			if len(set(value)) != len(value):
-				res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Duplicate items"))
+				res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Duplicate items"))
 		return res
 
 

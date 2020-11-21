@@ -89,15 +89,15 @@ class passwordBone(stringBone):
 
 	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		if not name in data:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "Field not submitted")]
 		value = data.get(name)
 		if not value:
 			# Password-Bone is special: As it cannot be read don't set back no None if no value is given
 			# This means an once set password can only be changed - but never deleted.
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value entered")]
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value entered")]
 		err = self.isInvalid(value)
 		if err:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 		skel[name] = value
 
 	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:

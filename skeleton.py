@@ -298,6 +298,8 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 				continue
 			errors = _bone.fromClient(skelValues, key, data)
 			if errors:
+				for err in errors:
+					err.fieldPath.insert(0, str(key))
 				skelValues.errors.extend(errors)
 				for error in errors:
 					if (error.severity == ReadFromClientErrorSeverity.Empty and _bone.required) \
@@ -572,7 +574,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 						complete = False
 						errorMsg = boneInstance.unique.message
 						skelValues.errors.append(
-							ReadFromClientError(ReadFromClientErrorSeverity.Invalid, boneName, errorMsg))
+							ReadFromClientError(ReadFromClientErrorSeverity.Invalid, errorMsg, [boneName]))
 
 		# Check inter-Bone dependencies
 		for checkFunc in skelValues.interBoneValidations:
@@ -1009,6 +1011,8 @@ class RelSkel(BaseSkeleton):
 				continue
 			errors = _bone.fromClient(skelValues, key, data)
 			if errors:
+				for err in errors:
+					err.fieldPath.insert(0, str(key))
 				skelValues.errors.extend(errors)
 				for err in errors:
 					if err.severity == ReadFromClientErrorSeverity.Empty and _bone.required \

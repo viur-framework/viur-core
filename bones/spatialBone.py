@@ -143,10 +143,10 @@ class spatialBone(baseBone):
 		rawLat = data.get("%s.lat" % name, None)
 		rawLng = data.get("%s.lng" % name, None)
 		if rawLat is None and rawLng is None:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "Field not submitted")]
 		elif not rawLat or not rawLng:
 			skel[name] = None
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value submitted")]
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value submitted")]
 		try:
 			rawLat = float(rawLat)
 			rawLng = float(rawLng)
@@ -154,10 +154,10 @@ class spatialBone(baseBone):
 			assert rawLat == rawLat
 			assert rawLng == rawLng
 		except:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
 		err = self.isInvalid((rawLat, rawLng))
 		if err:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 		skel[name] = (rawLat, rawLng)
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):

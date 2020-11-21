@@ -29,17 +29,17 @@ class colorBone(baseBone):
 			:returns: str or None
 		"""
 		if not name in data:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "Field not submitted")]
 		value = data[name]
 		if not value:
 			skel[name] = None
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")]
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty,  "No value selected")]
 		value = value.lower()
 		if value.count("#") > 1:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
 		for char in value:
 			if not char in "#0123456789abcdef":
-				return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
+				return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
 		if self.mode == "rgb":
 			if len(value) == 3:
 				value = "#" + value
@@ -49,14 +49,14 @@ class colorBone(baseBone):
 				if len(value) == 6:
 					value = "#" + value
 			else:
-				return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
+				return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
 		if self.mode == "rgba":
 			if len(value) == 8 or len(value) == 9:
 				if len(value) == 8:
 					value = "#" + value
 			else:
-				return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
+				return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
 		err = self.isInvalid(value)
 		if err:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 		skel[name] = value

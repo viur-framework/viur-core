@@ -52,7 +52,7 @@ class stringBone(baseBone):
 		err = self.isInvalid(value)
 		if not err:
 			return utils.escapeString(value), None
-		return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+		return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		if not name in rawFilter and not any(
