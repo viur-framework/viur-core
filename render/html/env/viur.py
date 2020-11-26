@@ -641,8 +641,8 @@ def srcSetFor(render, fileObj, expires):
 	if not isinstance(fileObj["derived"], dict):
 		return ""
 	resList = []
-	for fileName, deriviation in fileObj["derived"].items():
-		params = deriviation["params"]
+	for fileName, derivate in fileObj["derived"].items():
+		params = derivate["params"]
 		if params.get("group") == "srcset":
 			resList.append("%s %sw" % (utils.downloadUrlFor(fileObj["dlkey"], fileName, True, expires), params["width"]))
 	return ", ".join(resList)
