@@ -135,10 +135,10 @@ class dateBone(baseBone):
 			except:
 				value = False  # its invalid
 		if value is False:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
 		err = self.isInvalid(value)
 		if err:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 		return value, None
 
 	def isInvalid(self, value):

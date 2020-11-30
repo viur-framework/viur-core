@@ -409,14 +409,16 @@ class relationalBone(baseBone):
 			else:
 				if index:
 					errors.append(
-						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "%s.%s" % (name, index),
-											"Invalid value submitted"))
+						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value submitted", [str(index)]))
 				else:
 					errors.append(
-						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value submitted"))
+						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value submitted"))
 				return None, None, errors  # We could not parse this
 			if usingSkel:
 				if not usingSkel.fromClient(usingData):
+					for error in usingSkel.errors:
+						if index:
+							error.fieldPath.insert(0, str(index))
 					errors.extend(usingSkel.errors)
 			return refSkel, usingSkel, errors
 		if self.using and isinstance(value, dict):

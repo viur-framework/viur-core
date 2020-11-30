@@ -36,17 +36,16 @@ class DefaultRender(object):
 			"visible": bone.visible,
 			"readonly": bone.readOnly,
 			"unique": bone.unique.method.value if bone.unique else False,
-			"languages": bone.languages
+			"languages": bone.languages,
 		}
-		if bone.multiple:
-			if isinstance(bone.multiple, bones.MultipleConstraints):
+		if bone.multiple and isinstance(bone.multiple, bones.MultipleConstraints):
 				ret["multiple"] = {
 					"minAmount": bone.multiple.minAmount,
 					"maxAmount": bone.multiple.maxAmount,
 					"preventDuplicates": bone.multiple.preventDuplicates,
 				}
-			else:
-				ret["multiple"] = bone.multiple
+		else:
+			ret["multiple"] = bone.multiple
 
 		if bone.type == "relational" or bone.type.startswith("relational."):
 			ret.update({

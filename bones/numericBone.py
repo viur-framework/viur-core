@@ -51,7 +51,7 @@ class numericBone(baseBone):
 		try:
 			rawValue = str(value).replace(",", ".", 1)
 		except:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid Value")]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid Value")]
 		else:
 			if self.precision and (str(rawValue).replace(".", "", 1).replace("-", "", 1).isdigit()) and float(
 					rawValue) >= self.min and float(rawValue) <= self.max:
@@ -60,10 +60,10 @@ class numericBone(baseBone):
 					rawValue) >= self.min and int(rawValue) <= self.max:
 				value = int(rawValue)
 			else:
-				return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid Value")]
+				return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid Value")]
 		err = self.isInvalid(value)
 		if err:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 		return value, None
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):

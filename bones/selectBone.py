@@ -52,11 +52,11 @@ class selectBone(baseBone):
 
 	def singleValueFromClient(self, value, skel, name, origData):
 		if not str(value):
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value selected")]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value selected")]
 		for key in self.values.keys():
 			if str(key) == str(value):
 				return key, None
-		return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value selected")]
+		return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value selected")]
 
 
 	def buildDBFilter__(self, name, skel, dbFilter, rawFilter, prefix=None):

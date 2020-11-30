@@ -233,7 +233,7 @@ class textBone(baseBone):
 		if not err:
 			return HtmlSerializer(self.validHtml).sanitize(value), None
 		else:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
 	def getEmptyValue(self):
 		return ""
