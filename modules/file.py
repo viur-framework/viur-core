@@ -33,8 +33,7 @@ bucket = client.lookup_bucket("%s.appspot.com" % projectID)
 class injectStoreURLBone(baseBone):
 	def unserialize(self, skel, name):
 		if "dlkey" in skel.dbEntity and "name" in skel.dbEntity:
-			skel.accessedValues[name] = utils.downloadUrlFor(skel.dbEntity["dlkey"], skel.dbEntity["name"],
-															 derived=False)
+			skel.accessedValues[name] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False)
 			return True
 		return False
 
