@@ -131,6 +131,7 @@ class dateBone(baseBone):
 						value = datetime.strptime(str(rawValue), "%m/%d/%Y")
 					else:  # European (Date only)
 						value = datetime.strptime(str(rawValue), "%d.%m.%Y")
+				logging.error("!!!!!!!!!!!!!!!!!!!!!!!!! val: %r name: %r tz: %r" % (value, name, timeZone))
 				value = datetime(value.year, value.month, value.day, value.hour, value.minute, value.second, tzinfo=timeZone)
 			except:
 				value = False  # its invalid
@@ -197,7 +198,10 @@ class dateBone(baseBone):
 
 	def singleValueUnserialize(self, value, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
 		if isinstance(value, datetime):
-			return value.astimezone(self.guessTimeZone())
+			if self.date and self.time:
+				return value.astimezone(self.guessTimeZone())
+			else:
+				return value
 		else:
 			# We got garbage from the datastore
 			return None
