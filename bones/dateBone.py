@@ -131,7 +131,6 @@ class dateBone(baseBone):
 						value = datetime.strptime(str(rawValue), "%m/%d/%Y")
 					else:  # European (Date only)
 						value = datetime.strptime(str(rawValue), "%d.%m.%Y")
-				logging.error("!!!!!!!!!!!!!!!!!!!!!!!!! val: %r name: %r tz: %r" % (value, name, timeZone))
 				value = datetime(value.year, value.month, value.day, value.hour, value.minute, value.second, tzinfo=timeZone)
 			except:
 				value = False  # its invalid
