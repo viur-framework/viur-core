@@ -204,8 +204,8 @@ class UserPassword(object):
 				skel.errors.append(
 					{
 						"severity": ReadFromClientErrorSeverity.Invalid,
-						"fieldPath": "name",
 						"errorMessage": "Unknown user",
+						"fieldPath": ["name"],
 						"invalidatedFields": []
 					}
 				)

@@ -33,8 +33,7 @@ bucket = client.lookup_bucket("%s.appspot.com" % projectID)
 class injectStoreURLBone(baseBone):
 	def unserialize(self, skel, name):
 		if "dlkey" in skel.dbEntity and "name" in skel.dbEntity:
-			skel.accessedValues[name] = utils.downloadUrlFor(skel.dbEntity["dlkey"], skel.dbEntity["name"],
-															 derived=False)
+			skel.accessedValues[name] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False)
 			return True
 		return False
 
@@ -332,6 +331,13 @@ class File(Tree):
 				raise errors.NotFound()
 			signed_url = blob.generate_signed_url(datetime.now() + timedelta(seconds=60))
 		else:  # We are inside the appengine
+			if validUntil == "0":  # Its an indefinitely valid URL
+				blob = bucket.get_blob(dlPath)
+				if blob.size < 5 * 1024 * 1024:  # Less than 5 MB - Serve directly and push it into the ede caches
+					response = utils.currentRequest.get().response
+					response.headers["Content-Type"] = blob.content_type
+					response.headers["Cache-Control"] = "public, max-age=604800"  # 7 Days
+					return blob.download_as_bytes()
 			auth_request = requests.Request()
 			signed_blob_path = bucket.blob(dlPath)
 			expires_at_ms = datetime.now() + timedelta(seconds=60)

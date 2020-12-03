@@ -135,10 +135,10 @@ class dateBone(baseBone):
 			except:
 				value = False  # its invalid
 		if value is False:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
 		err = self.isInvalid(value)
 		if err:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 		return value, None
 
 	def isInvalid(self, value):
@@ -197,7 +197,10 @@ class dateBone(baseBone):
 
 	def singleValueUnserialize(self, value, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
 		if isinstance(value, datetime):
-			return value.astimezone(self.guessTimeZone())
+			if self.date and self.time:
+				return value.astimezone(self.guessTimeZone())
+			else:
+				return value
 		else:
 			# We got garbage from the datastore
 			return None
