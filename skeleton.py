@@ -482,14 +482,14 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 					tags = tags.union(bone.getSearchTags(skel, boneName))
 			return tags
 		tags = tagsFromSkel(skel)
-		entry["viurTags"] = [x for x in tags if len(x) < 100]
+		entry["viurTags"] = list(chain(*[self._tagsFromString(x) for x in tags if len(x) < 100]))
 		return entry
 
 	def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> List[db.Entity]:
 		"""
 		Run a fulltext search
 		"""
-		keywords = list(self._tagsFromString(queryString))[:10]
+		keywords = [queryString.lower()]  #list(self._tagsFromString(queryString))[:10]
 		resultScoreMap = {}
 		resultEntryMap = {}
 		for keyword in keywords:
@@ -503,7 +503,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 					resultEntryMap[entry.key] = entry
 		resultList = [(k, v) for k, v in resultScoreMap.items()]
 		resultList.sort(key=lambda x: x[1])
-		resList = [resultEntryMap[x[0]] for x in resultList[:databaseQuery.amount]]
+		resList = [resultEntryMap[x[0]] for x in resultList[:databaseQuery.queries.limit]]
 		return resList
 
 

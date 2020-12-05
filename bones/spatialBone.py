@@ -5,6 +5,7 @@ from viur.core import db
 import logging
 import math
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from copy import deepcopy
 from typing import List, Union
 
 
@@ -198,36 +199,36 @@ class spatialBone(baseBone):
 			gridSizeLat, gridSizeLng = self.getGridSize()
 			tileLat = int(floor((lat - self.boundsLat[0]) / gridSizeLat))
 			tileLng = int(floor((lng - self.boundsLng[0]) / gridSizeLng))
-			assert not isinstance(dbFilter.datastoreQuery, db.MultiQuery)
-			origQuery = dbFilter.datastoreQuery
+			assert isinstance(dbFilter.queries, db.QueryDefinition)  # Not supported on multi-queries
+			origQuery = dbFilter.queries
 			# Lat - Right Side
-			q1 = db.Query(collection=dbFilter.getKind())
-			q1[name + ".coordinates.lat >="] = lat
-			q1[name + ".tiles.lat"] = tileLat
+			q1 = deepcopy(origQuery)
+			q1.filters[name + ".coordinates.lat >="] = lat
+			q1.filters[name + ".tiles.lat ="] = tileLat
+			q1.orders = [(name + ".coordinates.lat", db.SortOrder.Ascending)]
 			# Lat - Left Side
-			q2 = db.Query(collection=dbFilter.getKind())
-			q2[name + ".coordinates.lat <"] = lat
-			q2[name + ".tiles.lat"] = tileLat
-			q2.Order((name + ".coordinates.lat", db.DESCENDING))
+			q2 = deepcopy(origQuery)
+			q2.filters[name + ".coordinates.lat <"] = lat
+			q2.filters[name + ".tiles.lat ="] = tileLat
+			q2.orders = [(name + ".coordinates.lat", db.SortOrder.Descending)]
 			# Lng - Down
-			q3 = db.Query(collection=dbFilter.getKind())
-			q3[name + ".coordinates.lng >="] = lng
-			q3[name + ".tiles.lng"] = tileLng
+			q3 = deepcopy(origQuery)
+			q3.filters[name + ".coordinates.lng >="] = lng
+			q3.filters[name + ".tiles.lng ="] = tileLng
+			q3.orders = [(name + ".coordinates.lng", db.SortOrder.Ascending)]
 			# Lng - Top
-			q4 = db.Query(collection=dbFilter.getKind())
-			q4[name + ".coordinates.lng <"] = lng
-			q4[name + ".tiles.lng"] = tileLng
-			q4.Order((name + ".coordinates.lng", db.DESCENDING))
-
-			dbFilter.datastoreQuery = db.MultiQuery([q1, q2, q3, q4], None)
-
+			q4 = deepcopy(origQuery)
+			q4.filters[name + ".coordinates.lng <"] = lng
+			q4.filters[name + ".tiles.lng ="] = tileLng
+			q4.orders = [(name + ".coordinates.lng", db.SortOrder.Descending)]
+			dbFilter.queries = [q1, q2, q3, q4]
 			dbFilter._customMultiQueryMerge = lambda *args, **kwargs: self.customMultiQueryMerge(name, lat, lng, *args,
 																								 **kwargs)
 			dbFilter._calculateInternalMultiQueryLimit = self.calculateInternalMultiQueryLimit
 
 	# return( super( spatialBone, self ).buildDBFilter( name, skel, dbFilter, rawFilter ) )
 
-	def calculateInternalMultiQueryLimit(self, targetAmount):
+	def calculateInternalMultiQueryLimit(self, dbQuery, targetAmount):
 		"""
 			Tells :class:`server.db.Query` How much entries should be fetched in each subquery.
 
@@ -260,15 +261,15 @@ class spatialBone(baseBone):
 		# If a result further away than this distance there might be missing results before that result
 		# If there are no results in a give lane (f.e. because we are close the border and there is no point
 		# in between) we choose a arbitrary large value for that lower bound
-		expectedAmount = self.calculateInternalMultiQueryLimit(targetAmount)  # How many items we expect in each direction
+		expectedAmount = self.calculateInternalMultiQueryLimit(dbFilter, targetAmount)  # How many items we expect in each direction
 		limits = [
-			haversine(latRight[-1][name + ".lat.val"], lng, lat, lng) if latRight and len(
+			haversine(latRight[-1][name]["coordinates"]["lat"], lng, lat, lng) if latRight and len(
 				latRight) == expectedAmount else 2 ** 31,  # Lat - Right Side
-			haversine(latLeft[-1][name + ".lat.val"], lng, lat, lng) if latLeft and len(
+			haversine(latLeft[-1][name]["coordinates"]["lat"], lng, lat, lng) if latLeft and len(
 				latLeft) == expectedAmount else 2 ** 31,  # Lat - Left Side
-			haversine(lat, lngBottom[-1][name + ".lng.val"], lat, lng) if lngBottom and len(
+			haversine(lat, lngBottom[-1][name]["coordinates"]["lng"], lat, lng) if lngBottom and len(
 				lngBottom) == expectedAmount else 2 ** 31,  # Lng - Bottom
-			haversine(lat, lngTop[-1][name + ".lng.val"], lat, lng) if lngTop and len(
+			haversine(lat, lngTop[-1][name]["coordinates"]["lng"], lat, lng) if lngTop and len(
 				lngTop) == expectedAmount else 2 ** 31,  # Lng - Top
 			haversine(lat + gridSizeLat, lng, lat, lng),
 			haversine(lat, lng + gridSizeLng, lat, lng)
@@ -278,9 +279,9 @@ class spatialBone(baseBone):
 		# Filter duplicates
 		tmpDict = {}
 		for item in (latRight + latLeft + lngBottom + lngTop):
-			tmpDict[str(item.key())] = item
+			tmpDict[str(item.key)] = item
 		# Build up the final results
-		tmpList = [(haversine(x[name + ".lat.val"], x[name + ".lng.val"], lat, lng), x) for x in tmpDict.values()]
+		tmpList = [(haversine(x[name]["coordinates"]["lat"], x[name]["coordinates"]["lng"], lat, lng), x) for x in tmpDict.values()]
 		tmpList.sort(key=lambda x: x[0])
 		return [x[1] for x in tmpList[:targetAmount]]
 
