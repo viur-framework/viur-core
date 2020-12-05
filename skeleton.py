@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, Set
 from viur.core import conf, db, errors, utils
 from viur.core.bones import baseBone, dateBone, keyBone, relationalBone, selectBone, stringBone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
-from viur.core.tasks import CallableTask, CallableTaskBase, callDeferred
+from viur.core.tasks import CallableTask, CallableTaskBase, callDeferred, QueryIter
 
 try:
 	import pytz
@@ -1200,14 +1200,11 @@ class TaskUpdateSearchIndex(CallableTaskBase):
 	This ensures an updated searchIndex and verifies consistency of this data.
 	"""
 	key = "rebuildSearchIndex"
-	name = u"Rebuild search index"
-	descr = u"This task can be called to update search indexes and relational information."
+	name = "Rebuild search index"
+	descr = "This task can be called to update search indexes and relational information."
 
-	def canCall(self):
-		"""
-		Checks wherever the current user can execute this task
-		:returns: bool
-		"""
+	def canCall(self) -> bool:
+		"""Checks wherever the current user can execute this task"""
 		user = utils.getCurrentUser()
 		return user is not None and "root" in user["access"]
 
@@ -1215,69 +1212,47 @@ class TaskUpdateSearchIndex(CallableTaskBase):
 		modules = ["*"] + listKnownSkeletons()
 		skel = BaseSkeleton().clone()
 		skel.module = selectBone(descr="Module", values={x: x for x in modules}, required=True)
-
-		def verifyCompact(val):
-			if not val or val.lower() == "no" or val == "YES":
-				return None
-			return "Must be \"No\" or uppercase \"YES\" (very dangerous!)"
-
-		skel.compact = stringBone(descr="Recreate Entities", vfunc=verifyCompact, required=False, defaultValue="NO")
 		return skel
 
-	def execute(self, module, compact="", *args, **kwargs):
+	def execute(self, module, *args, **kwargs):
 		usr = utils.getCurrentUser()
 		if not usr:
 			logging.warning("Don't know who to inform after rebuilding finished")
 			notify = None
 		else:
 			notify = usr["name"]
+
 		if module == "*":
 			for module in listKnownSkeletons():
-				logging.info("Rebuilding search index for module '%s'" % module)
-				processChunk(module, compact, None, notify=notify)
+				logging.info("Rebuilding search index for module %r", module)
+				self._run(module, notify)
 		else:
-			processChunk(module, compact, None, notify=notify)
+			self._run(module, notify)
+
+	@staticmethod
+	def _run(module: str, notify: str):
+		Skel = skeletonByKind(module)
+		if not Skel:
+			logging.error("TaskUpdateSearchIndex: Invalid module")
+			return
+		RebuildSearchIndex.startIterOnQuery(Skel().all(), {"notify": notify, "module": module})
 
 
-@callDeferred
-def processChunk(module, compact, cursor, allCount=0, notify=None):
-	"""
-		Processes 100 Entries and calls the next batch
-	"""
-	Skel = skeletonByKind(module)
-	if not Skel:
-		logging.error("TaskUpdateSearchIndex: Invalid module")
-		return
-	query = Skel().all().setCursor(cursor)
-	count = 0
-	for obj in query.run(25):
-		count += 1
+class RebuildSearchIndex(QueryIter):
+	@classmethod
+	def handleEntry(cls, skel: SkeletonInstance, customData: Dict[str, str]):
+		skel.refresh()
+		skel.toDB(clearUpdateTag=True)
+
+	@classmethod
+	def handleFinish(cls, totalCount: int, customData: Dict[str, str]):
+		QueryIter.handleFinish(totalCount, customData)
 		try:
-			skel = Skel()
-			skel.fromDB(obj.key)
-			if compact == "YES":
-				raise NotImplementedError()  # FIXME: This deletes the __currentKey__ property..
-				skel.delete()
-			skel.refresh()
-			skel.toDB(clearUpdateTag=True)
-		except Exception as e:
-			logging.error("Updating %s failed" % str(obj.key))
-			logging.exception(e)
-			raise
-	newCursor = query.getCursor()
-	if not newCursor:  # We're done
-		return
-	logging.info("END processChunk %s, %d records refreshed" % (module, count))
-	if count and newCursor and newCursor != cursor:
-		# Start processing of the next chunk
-		processChunk(module, compact, newCursor, allCount + count, notify)
-	else:
-		try:
-			if notify:
-				txt = ("Subject: Rebuild search index finished for %s\n\n" +
-					   "ViUR finished to rebuild the search index for module %s.\n" +
-					   "%d records updated in total on this kind.") % (module, module, allCount)
-				utils.sendEMail([notify], txt, None)
+			if customData["notify"]:
+				txt = f"Subject: Rebuild search index finished for {customData['module']}\n\n" \
+					  f"ViUR finished to rebuild the search index for module {customData['module']}.\n" \
+					  f"{totalCount} records updated in total on this kind."
+				utils.sendEMail(customData["notify"], txt, None)
 		except:  # OverQuota, whatever
 			pass
 
