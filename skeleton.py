@@ -506,6 +506,13 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 		resList = [resultEntryMap[x[0]] for x in resultList[:databaseQuery.queries.limit]]
 		return resList
 
+class seoKeyBone(stringBone):
+	def unserialize(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> bool:
+		try:
+			skel.accessedValues[name] = skel.dbEntity["viur"]["viurCurrentSeoKeys"]
+		except KeyError:
+			skel.accessedValues[name] = self.getDefaultValue(skel)
+
 
 class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 	kindName: str = __undefindedC__  # To which kind we save our data to
@@ -531,7 +538,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 						  updateMagic=True, indexed=True,
 						  localize=bool(pytz))
 
-	viurCurrentSeoKeys = stringBone(descr="Seo-Keys",
+	viurCurrentSeoKeys = seoKeyBone(descr="Seo-Keys",
 									readOnly=True,
 									visible=False,
 									languages=conf["viur.availableLanguages"])
@@ -764,7 +771,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					if currentKey != lastRequestedSeoKeys.get(language):  # This one is new or has changed
 						newSeoKey = currentSeoKeys[language]
 						for _ in range(0, 3):
-							entryUsingKey = db.Query(skelValues.kindName).filter("viurActiveSeoKeys =", newSeoKey).get()
+							entryUsingKey = db.Query(skelValues.kindName).filter("viurActiveSeoKeys =", newSeoKey).getEntry()
 							if entryUsingKey and entryUsingKey.name != dbObj.name:
 								# It's not unique; append a random string and try again
 								newSeoKey = "%s-%s" % (currentSeoKeys[language], utils.generateRandomString(5).lower())
@@ -786,7 +793,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				if dbObj["viur"]["viurCurrentSeoKeys"][language] not in dbObj["viur"]["viurActiveSeoKeys"]:
 					# Ensure the current, active seo key is in the list of all seo keys
 					dbObj["viur"]["viurActiveSeoKeys"].insert(0, seoKey)
-			if dbObj.key.id_or_name not in dbObj["viur"]["viurActiveSeoKeys"]:
+			if str(dbObj.key.id_or_name) not in dbObj["viur"]["viurActiveSeoKeys"]:
 				# Ensure that key is also in there
 				dbObj["viur"]["viurActiveSeoKeys"].insert(0, str(dbObj.key.id_or_name))
 			# Trim to the last 200 used entries

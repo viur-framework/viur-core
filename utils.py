@@ -290,26 +290,27 @@ def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
 
 def seoUrlToEntry(module, entry=None, skelType=None, language=None):
 	from viur.core import conf
+	pathComponents = [""]
 	lang = currentLanguage.get()
+	if conf["viur.languageMethod"] == "url":
+		pathComponents.append(lang)
 	if module in conf["viur.languageModuleMap"] and lang in conf["viur.languageModuleMap"][module]:
 		module = conf["viur.languageModuleMap"][module][lang]
+	pathComponents.append(module)
 	if not entry:
-		return "/%s/%s" % (lang, module)
-	# elif isinstance(entry, dict):
+		return "/".join(pathComponents)
 	else:
 		try:
-			currentSeoKeys = entry.get("viurCurrentSeoKeys")
+			currentSeoKeys = entry["viurCurrentSeoKeys"]
 		except:
-			return "/%s/%s" % (lang, module)
+			return "/".join(pathComponents)
 		if lang in (currentSeoKeys or {}):
-			seoKey = currentSeoKeys[lang]
+			pathComponents.append(str(currentSeoKeys[lang]))
 		elif "key" in entry:
-			seoKey = entry["key"]
+			pathComponents.append(str(entry["key"]))
 		elif "name" in dir(entry):
-			seoKey = entry.name
-		else:
-			return "/%s/%s" % (lang, module)
-		return "/%s/%s/%s" % (lang, module, seoKey)
+			pathComponents.append(str(entry.name))
+		return "/".join(pathComponents)
 
 
 def seoUrlToFunction(module, function, render=None):
@@ -317,7 +318,10 @@ def seoUrlToFunction(module, function, render=None):
 	lang = currentLanguage.get()
 	if module in conf["viur.languageModuleMap"] and lang in conf["viur.languageModuleMap"][module]:
 		module = conf["viur.languageModuleMap"][module][lang]
-	pathComponents = ["", lang]
+	if conf["viur.languageMethod"] == "url":
+		pathComponents = ["", lang]
+	else:
+		pathComponents = [""]
 	targetObject = conf["viur.mainResolver"]
 	if module in targetObject:
 		pathComponents.append(module)

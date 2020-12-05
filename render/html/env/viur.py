@@ -111,7 +111,7 @@ def getCurrentUser(render):
 	:return: A dict containing user data. Returns None if no user data is available.
 	:rtype: dict
 	"""
-	return utils.getCurrentUser()
+	return render.collectSkelData(utils.getCurrentUser())
 
 
 @jinjaGlobalFunction
