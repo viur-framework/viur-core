@@ -911,9 +911,9 @@ class Query(object):
 		while True:
 			qryRes = self._runSingleFilterQuery(self.queries, 20)
 			yield from qryRes
-			if not self.queries.lastCursor:  # We reached the end of that query
+			if not self.queries.currentCursor:  # We reached the end of that query
 				break
-			self.queries.startCursor = self.queries.lastCursor
+			self.queries.startCursor = self.queries.currentCursor
 
 	def getEntry(self) -> Union[None, Entity]:
 		"""

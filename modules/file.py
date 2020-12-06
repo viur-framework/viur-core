@@ -154,17 +154,17 @@ class File(Tree):
 
 	@callDeferred
 	def deleteRecursive(self, parentKey):
-		files = db.Query(self.editLeafSkel().kindName).filter("parentdir =", parentKey).iter()
+		files = db.Query(self.leafSkelCls().kindName).filter("parentdir =", parentKey).iter()
 		for fileEntry in files:
 			utils.markFileForDeletion(fileEntry["dlkey"])
-			skel = self.editLeafSkel()
+			skel = self.leafSkelCls()
 
 			if skel.fromDB(str(fileEntry.key())):
 				skel.delete()
-		dirs = db.Query(self.editNodeSkel().kindName).filter("parentdir", parentKey).iter(keysOnly=True)
+		dirs = db.Query(self.nodeSkelCls().kindName).filter("parentdir", parentKey).iter(keysOnly=True)
 		for d in dirs:
 			self.deleteRecursive(str(d))
-			skel = self.editNodeSkel()
+			skel = self.nodeSkelCls()
 			if skel.fromDB(str(d)):
 				skel.delete()
 
