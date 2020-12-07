@@ -559,18 +559,18 @@ class QueryIter(object, metaclass=MetaQueryIter):
 			Warning: Any custom data *must* be json-serializable and *must* be passed in customData. You cannot store
 			any data on this class as each chunk may run on a different instance!
 		"""
-		assert not (query._customMultiQueryMerge or query._calculateInternalMultiQueryAmount), \
+		assert not (query._customMultiQueryMerge or query._calculateInternalMultiQueryLimit), \
 			"Cannot iter a query with postprocessing"
-		assert isinstance(query.filters, dict), "Unsatisfiable query or query with an IN filter"
+		assert isinstance(query.queries, db.QueryDefinition), "Unsatisfiable query or query with an IN filter"
 		qryDict = {
 			"kind": query.kind,
 			"srcSkel": query.srcSkel.kindName if query.srcSkel else None,
-			"filters": query.filters,
-			"orders": [(propName, sortOrder.value) for propName, sortOrder in query.orders],
-			"startCursor": query._startCursor,
-			"endCursor": query._endCursor,
+			"filters": query.queries.filters,
+			"orders": [(propName, sortOrder.value) for propName, sortOrder in query.queries.orders],
+			"startCursor": query.queries.startCursor,
+			"endCursor": query.queries.endCursor,
 			"origKind": query.origKind,
-			"distinct": query._distinct,
+			"distinct": query.queries.distinct,
 			"classID": cls.__classID__,
 			"customData": customData,
 			"totalCount": 0
@@ -610,12 +610,11 @@ class QueryIter(object, metaclass=MetaQueryIter):
 		from viur.core.skeleton import skeletonByKind
 		qry = db.Query(qryDict["kind"])
 		qry.srcSkel = skeletonByKind(qryDict["srcSkel"])() if qryDict["srcSkel"] else None
-		qry.filters = qryDict["filters"]
-		qry.orders = [(propName, db.SortOrder(sortOrder)) for propName, sortOrder in qryDict["orders"]]
-		qry._startCursor = qryDict["startCursor"]
-		qry._endCursor = qryDict["endCursor"]
+		qry.queries.filters = qryDict["filters"]
+		qry.queries.orders = [(propName, db.SortOrder(sortOrder)) for propName, sortOrder in qryDict["orders"]]
+		qry.setCursor(qryDict["startCursor"], qryDict["endCursor"])
 		qry.origKind = qryDict["origKind"]
-		qry._distinct = qryDict["distinct"]
+		qry.queries.distinct = qryDict["distinct"]
 		if qry.srcSkel:
 			qryIter = qry.fetch(5)
 		else:
