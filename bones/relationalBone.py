@@ -879,6 +879,8 @@ class relationalBone(baseBone):
 		"""
 		def blobsFromRefSet(refSet):
 			result = set()
+			if refSet is None:
+				return result
 			for key, _bone in refSet["dest"].items():
 				result = result.union(_bone.getReferencedBlobs(refSet["dest"], key))
 			if refSet["rel"]:

@@ -381,7 +381,7 @@ class File(Tree):
 			skel["mimetype"] = utils.escapeString(blob.content_type)
 			skel["name"] = utils.escapeString(blob.name.replace("%s/source/" % targetKey, ""))
 			skel["size"] = blob.size
-			skel["rootnode"] = rootNode["key"] if rootNode else None
+			skel["parentrepo"] = rootNode["key"] if rootNode else None
 			skel["weak"] = rootNode is None
 			skel.toDB()
 			# Add updated download-URL as the auto-generated isn't valid yet
