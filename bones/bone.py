@@ -191,6 +191,9 @@ class baseBone(object):  # One Bone:
 							else:
 								res[lang] = None
 				else:
+					for key in data.keys():  # Allow setting relations with using, multiple and languages back to none
+						if key == "%s.%s" % (name, lang):
+							fieldSubmitted = True
 					prefix = "%s.%s." % (name, lang)
 					if multiple:
 						tmpDict = {}
@@ -235,6 +238,9 @@ class baseBone(object):  # One Bone:
 				else:
 					return val, True
 			else:  # No multi-lang but collect subfields
+				for key in data.keys():  # Allow setting relations with using, multiple and languages back to none
+					if key == name:
+						fieldSubmitted = True
 				prefix = "%s." % name
 				if multiple:
 					tmpDict = {}

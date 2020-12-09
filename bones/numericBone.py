@@ -42,10 +42,22 @@ class numericBone(baseBone):
 			return "NaN not allowed"
 
 	def getEmptyValue(self):
-		return 0
+		if self.precision:
+			return 0.0
+		else:
+			return 0
 
 	def isEmpty(self, rawValue: Any):
-		return not (rawValue != self.getEmptyValue() or bool(rawValue))
+		if isinstance(rawValue, str) and not rawValue:
+			return True
+		try:
+			if self.precision:
+				rawValue = float(rawValue.replace(",", ".", 1))
+			else:
+				rawValue = int(rawValue.replace(",", ".", 1))
+		except:
+			return True
+		return rawValue == self.getEmptyValue()
 
 	def singleValueFromClient(self, value, skel, name, origData):
 		try:
