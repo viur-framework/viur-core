@@ -8,7 +8,7 @@
                     name="{{ boneName }}"
                     value="{{ key }}"
                     type="checkbox"
-                    {{ "checked" if key in boneValue }}
+                    {{ "checked" if key in boneValue["key"] }}
                     {{ "readonly" if boneParams.readOnly }}>
 
                 <label class="check-label" for="ignt-id-{{ boneName }}_{{ key }}">{{ descr }}</label>
@@ -33,7 +33,7 @@
                 </option>
             {% endif %}
 
-            <option value="{{ key }}" {{ "selected" if boneValue == key }}>
+            <option value="{{ key }}" {{ "selected" if boneValue["key"] == key }}>
                 {{ descr }}
             </option>
         {% endfor -%}
