@@ -590,16 +590,16 @@ class baseBone(object):  # One Bone:
 				order = (rawFilter["orderby"], db.SortOrder.Descending)
 			else:
 				order = (rawFilter["orderby"], db.SortOrder.Ascending)
-			filters = dbFilter.getFilter()
-			if filters is None:
+			queries = dbFilter.queries
+			if queries is None:
 				return  # This query is unsatisfiable
-			elif isinstance(filters, dict):
-				inEqFilter = [x for x in filters.keys() if
+			elif isinstance(queries, db.QueryDefinition):
+				inEqFilter = [x for x in queries.filters.keys() if
 						  (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
-			elif isinstance(filters, list):
+			elif isinstance(queries, list):
 				inEqFilter = None
-				for singeFilter in filters:
-					newInEqFilter = [x for x in singeFilter.keys() if
+				for singeFilter in queries:
+					newInEqFilter = [x for x in singeFilter.filter.keys() if
 								  (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
 					if inEqFilter and newInEqFilter and inEqFilter != newInEqFilter:
 						raise NotImplementedError("Impossible ordering!")
