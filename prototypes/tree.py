@@ -223,6 +223,33 @@ class Tree(BasicApplication):
 					.iter(keysOnly=True):
 				db.RunInTransaction(fixTxn, repo.key, newRepoKey)
 
+	## Internal exposed functions
+
+	@internalExposed
+	def pathToKey(self, key: db.KeyClass):
+		"""
+		Returns the recursively expanded path through the Tree from the root-node to a
+		requested node.
+		:param key: Key of the destination *node*.
+		:returns: An nested dictionary with information about all nodes in the path from root to the requested node.
+		"""
+		lastLevel = []
+		for x in range(0, 99):
+			currentNodeSkel = self.viewSkel(TreeType.Node)
+			if not currentNodeSkel.fromDB(key):
+				return []  # Either invalid key or listFilter prevented us from fetching anything
+			if currentNodeSkel["parententry"] == currentNodeSkel["parentrepo"]: # We reached the top level
+				break
+			levelQry = self.viewSkel(TreeType.Node).all().filter("parententry =", currentNodeSkel["parententry"])
+			currentLevel = [{"skel": x,
+							 "active": x["key"] == currentNodeSkel["key"],
+							 "children": lastLevel if x["key"] == currentNodeSkel["key"] else []}
+							for x in self.listFilter(levelQry).fetch(99)]
+			assert currentLevel, "Got emtpy parent list?"
+			lastLevel = currentLevel
+			key = currentNodeSkel["parententry"]
+		return lastLevel
+
 	## External exposed functions
 
 	@exposed
