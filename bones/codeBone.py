@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from viur.core.bones import baseBone
 
 class codeBone(baseBone):
