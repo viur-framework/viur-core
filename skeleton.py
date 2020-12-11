@@ -935,16 +935,25 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		def txnDelete(skel: SkeletonInstance):
 			skelKey = skel["key"]
 			dbObj = db.Get(skelKey)  # Fetch the raw object as we might have to clear locks
+			viurData = dbObj.get("viur") or {}
 			if dbObj.get("viur_incomming_relational_locks"):
 				raise errors.Locked("This entry is locked!")
 			for boneName, bone in skel.items():
 				# Ensure that we delete any value-lock objects remaining for this entry
 				bone.delete(skel, boneName)
 				if bone.unique:
-					if "%s_uniqueIndexValue" % boneName in dbObj:
-						db.Delete((
-							"%s_%s_uniquePropertyIndex" % (skel.kindName, boneName),
-							dbObj["%s_uniqueIndexValue" % boneName]))
+					flushList = []
+					for lockValue in viurData["%s_uniqueIndexValue" % boneName]:
+						lockKey = db.Key("%s_%s_uniquePropertyIndex" % (skel.kindName, boneName), lockValue)
+						lockObj = db.Get(lockKey)
+						if not lockObj:
+							logging.error("Programming error detected: Lockobj %s missing!" % lockKey)
+						elif lockObj["references"] != dbObj.key.id_or_name:
+							logging.error("Programming error detected: %s did not hold lock for %s" % (skel["key"], lockKey))
+						else:
+							flushList.append(lockObj)
+					if flushList:
+						db.Delete(flushList)
 			# Delete the blob-key lock object
 			lockObjectKey = db.Key("viur-blob-locks", dbObj.key.id_or_name)
 			lockObj = db.Get(lockObjectKey)
