@@ -53,7 +53,7 @@ class numericBone(baseBone):
 				if self.precision:
 					rawValue = float(rawValue.replace(",", ".", 1))
 				else:
-					rawValue = int(rawValue.replace(",", ".", 1))
+					rawValue = int(rawValue)
 			except:
 				return True
 		return rawValue == self.getEmptyValue()
