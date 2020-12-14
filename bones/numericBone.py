@@ -48,15 +48,14 @@ class numericBone(baseBone):
 			return 0
 
 	def isEmpty(self, rawValue: Any):
-		if isinstance(rawValue, str) and not rawValue:
-			return True
-		try:
-			if self.precision:
-				rawValue = float(rawValue)
-			else:
-				rawValue = int(rawValue)
-		except:
-			return True
+		if isinstance(rawValue, str):
+			try:
+				if self.precision:
+					rawValue = float(rawValue.replace(",", ".", 1))
+				else:
+					rawValue = int(rawValue.replace(",", ".", 1))
+			except:
+				return True
 		return rawValue == self.getEmptyValue()
 
 	def singleValueFromClient(self, value, skel, name, origData):
