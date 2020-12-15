@@ -48,14 +48,16 @@ class numericBone(baseBone):
 			return 0
 
 	def isEmpty(self, rawValue: Any):
-		if isinstance(rawValue, str):
-			try:
-				if self.precision:
-					rawValue = float(rawValue.replace(",", ".", 1))
-				else:
-					rawValue = int(rawValue)
-			except:
-				return True
+		# try to cast rawValue to a float and make it comparable, then if bone does not have precision flag set,
+		# cast to int. Compare to respective numeric representation of 0. This should return True if input is not parsable
+		try:
+			rawValue = float(str(rawValue).replace(",", ".", 1))
+		except:
+			return True
+
+		if not self.precision:
+			rawValue = int(rawValue)
+
 		return rawValue == self.getEmptyValue()
 
 	def singleValueFromClient(self, value, skel, name, origData):
