@@ -108,7 +108,10 @@ class dateBone(baseBone):
 			value = tmpRes
 		else:
 			try:
-				timeZone = self.guessTimeZone()
+				if self.date and self.time:
+					timeZone = self.guessTimeZone()
+				else:
+					timeZone = pytz.utc
 				if " " in rawValue:  # Date with time
 					try:  # Times with seconds
 						if "-" in rawValue:  # ISO Date
