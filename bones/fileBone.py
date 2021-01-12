@@ -21,7 +21,8 @@ def ensureDerived(key: str, name: str, deriveMap: Dict[str, Dict]):
 	"""
 	from viur.core.skeleton import skeletonByKind
 	skel = skeletonByKind("file")()
-	assert skel.fromDB(key)
+	if not skel.fromDB(key):
+		logging.warning("ensureDerived failed: Entry %s disappeared!" % key)
 	if not skel["derived"]:
 		logging.info("No Derives for this file")
 		skel["derived"] = {}
@@ -75,3 +76,15 @@ class fileBone(treeLeafBone):
 			return [x["dest"]["dlkey"] for x in val]
 		else:
 			return [val["dest"]["dlkey"]]
+
+	def refresh(self, skel, boneName):
+		from viur.core.modules.file import importBlobFromViur2
+		super().refresh(skel, boneName)
+		if conf.get("viur.viur2import.blobsource"):
+			# Just ensure the file get's imported as it may not have an file entry
+			val = skel[boneName]
+			if isinstance(val, list):
+				for x in val:
+					importBlobFromViur2(x["dest"]["dlkey"])
+			elif isinstance(val, dict):
+				importBlobFromViur2(val["dest"]["dlkey"])
