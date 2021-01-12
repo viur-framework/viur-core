@@ -728,6 +728,7 @@ ISO2TOISO3 = {  # Convert iso2 to iso3 codes
 	'tha': 'th'
 }
 
+ISO3TOISO2 = {v: k for k, v in ISO2TOISO3.items()}  # Build the invert map
 
 class selectCountryBone(selectBone):
 	ISO2 = 2
@@ -736,35 +737,24 @@ class selectCountryBone(selectBone):
 	def __init__(self, codes=ISO2, *args, **kwargs):
 		global ISO2CODES, ISO3CODES
 		super(selectBone, self).__init__(*args, **kwargs)
-
 		assert codes in [self.ISO2, self.ISO3]
-
 		if codes == self.ISO2:
 			self.values = OrderedDict(sorted(ISO2CODES.items(), key=lambda i: i[1]))
 		else:
 			self.values = OrderedDict(sorted(ISO3CODES.items(), key=lambda i: i[1]))
-
 		self.codes = codes
 
-	def unserialize(self, skel, name):
-		if super().unserialize(skel, name):
-			value = skel.accessedValues[name]
-			if isinstance(value, str) and len(value) == 3 and self.codes == self.ISO2:
-				# We got an ISO3 code from the db, but are using ISO2
-				try:
-					skel.accessedValues[name] = ISO2TOISO3[value]
-				except:
-					pass
-			elif isinstance(value, str) and len(value) == 2 and self.codes == self.ISO3:
-				# We got ISO2 code, wanted ISO3
-				inv = {v: k for k, v in ISO2TOISO3.items()}  # Inverted map
-				try:
-					skel.accessedValues[name] = inv[value]
-				except:
-					pass
-			else:
-				if value not in self.values:
-					del skel.accessedValues[name]
-					return False
-			return True
-		return False
+	def singleValueUnserialize(self, val, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+		if isinstance(val, str) and len(val) == 3 and self.codes == self.ISO2:
+			# We got an ISO3 code from the db, but are using ISO2
+			try:
+				return ISO2TOISO3[val]
+			except:
+				pass
+		elif isinstance(val, str) and len(val) == 2 and self.codes == self.ISO3:
+			# We got ISO2 code, wanted ISO3
+			try:
+				return ISO3TOISO2[val]
+			except:
+				pass
+		return val
