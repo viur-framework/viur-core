@@ -24,6 +24,11 @@ class TreeSkel(Skeleton):
 			entity["sortindex"] = time()
 		return entity
 
+	@classmethod
+	def refresh(cls, skelValues):  # ViUR2 Compatibility
+		super().refresh(skelValues)
+		if not skelValues["parententry"] and skelValues.dbEntity.get("parentdir"):
+			skelValues["parententry"] = utils.normalizeKey(db.KeyClass.from_legacy_urlsafe(skelValues.dbEntity["parentdir"]))
 
 class TreeType(Enum):
 	Node = 1
