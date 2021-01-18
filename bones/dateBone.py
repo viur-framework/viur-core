@@ -81,7 +81,6 @@ class dateBone(baseBone):
 		error = False
 		value = self.getEmptyValue()
 
-		logging.debug(data)
 		if self.date and self.time:
 			try:
 				time_value = data[name + "-time"]
