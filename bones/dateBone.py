@@ -109,15 +109,12 @@ class dateBone(baseBone):
 		if self.time == True and not time_value == None:
 			time_value_raw = time_value
 			try:
-				if " " in time_value_raw:
-					#vi
-					year = 1970
-					month = 1
-					day = 1
-					hour = time_value_raw.hour
-					month = time_value_raw.minute
-					day = time_value_raw.second
-					value = datetime(year=year, month=month, day=day, hour=hour, minute=minute, second=second)
+				if " " in date_value_raw:
+					result = check_datetime()
+					if result[1] == True:
+						date_value = False
+					else:
+						date_value = result[2]
 				elif str(time_value_raw).count(":") == 2:
 					(hour, minute, second) = [int(x.strip()) for x in str(time_value_raw).split(":")]
 					time_value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute, second=second)
@@ -138,11 +135,11 @@ class dateBone(baseBone):
 			date_value_raw = date_value
 			try:
 				if " " in date_value_raw:
-					#vi
-					year = date_value_raw.year
-					month = date_value_raw.month
-					day = date_value_raw.day
-					value = datetime(year=year, month=month, day=day)
+					result = check_datetime()
+					if result[1] == True:
+						date_value = False
+					else:
+						date_value = result[2]
 				elif "-" in date_value_raw:  # ISO (Date only)
 					date_value = datetime.strptime(str(date_value_raw), "%Y-%m-%d")
 				elif "/" in date_value_raw:  # Ami (Date only)
@@ -189,23 +186,9 @@ class dateBone(baseBone):
 						pass
 				value = tmpRes
 			elif " " in datetime_value:  # Date with time
-				try:
-					try:  # Times with seconds
-						if "-" in datetime_value:  # ISO Date
-							value = datetime.strptime(str(datetime_value_raw), "%Y-%m-%d %H:%M:%S")
-						elif "/" in datetime_value_raw:  # Ami Date
-							value = datetime.strptime(str(datetime_value_raw), "%m/%d/%Y %H:%M:%S")
-						else:  # European Date
-							value = datetime.strptime(str(datetime_value_raw), "%d.%m.%Y %H:%M:%S")
-					except:
-						if "-" in datetime_value_raw:  # ISO Date
-							value = datetime.strptime(str(datetime_value_raw), "%Y-%m-%d %H:%M")
-						elif "/" in datetime_value_raw:  # Ami Date
-							value = datetime.strptime(str(datetime_value_raw), "%m/%d/%Y %H:%M")
-						else:  # European Date
-							value = datetime.strptime(str(datetime_value_raw), "%d.%m.%Y %H:%M")
-				except:
-					error = True
+				result = check_datetime()
+				error = result[1]
+				value = result[2]
 
 		if error is True:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
@@ -221,6 +204,26 @@ class dateBone(baseBone):
 	def getEmptyValue(self):
 		return datetime(year=1970, month=1, day=1)
 
+	def check_datetime(value):
+		error=False
+		try:
+			try:  # Times with seconds
+				if "-" in value:  # ISO Date
+					value = datetime.strptime(str(value), "%Y-%m-%d %H:%M:%S")
+				elif "/" in value:  # Ami Date
+					value = datetime.strptime(str(value), "%m/%d/%Y %H:%M:%S")
+				else:  # European Date
+					value = datetime.strptime(str(value), "%d.%m.%Y %H:%M:%S")
+			except:
+				if "-" in value:  # ISO Date
+					value = datetime.strptime(str(value), "%Y-%m-%d %H:%M")
+				elif "/" in value:  # Ami Date
+					value = datetime.strptime(str(value), "%m/%d/%Y %H:%M")
+				else:  # European Date
+					value = datetime.strptime(str(value), "%d.%m.%Y %H:%M")
+		except:
+			error = True
+		return value, error
 
 	def isInvalid(self, value):
 		"""
