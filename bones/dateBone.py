@@ -118,7 +118,7 @@ class dateBone(baseBone):
 					month = time_value_raw.minute
 					day = time_value_raw.second
 					value = datetime(year=year, month=month, day=day, hour=hour, minute=minute, second=second)
-				if str(time_value_raw).count(":") == 2:
+				elif str(time_value_raw).count(":") == 2:
 					(hour, minute, second) = [int(x.strip()) for x in str(time_value_raw).split(":")]
 					time_value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute, second=second)
 				elif str(time_value_raw).count(":") == 1:
@@ -143,7 +143,7 @@ class dateBone(baseBone):
 					month = date_value_raw.month
 					day = date_value_raw.day
 					value = datetime(year=year, month=month, day=day)
-				if "-" in date_value_raw:  # ISO (Date only)
+				elif "-" in date_value_raw:  # ISO (Date only)
 					date_value = datetime.strptime(str(date_value_raw), "%Y-%m-%d")
 				elif "/" in date_value_raw:  # Ami (Date only)
 					date_value = datetime.strptime(str(date_value_raw), "%m/%d/%Y")
