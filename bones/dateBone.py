@@ -64,6 +64,13 @@ class dateBone(baseBone):
 		self.localize = localize
 
 	def singleValueFromClient(self, value, skel, name, origData):
+		err = self.isInvalid(value)
+		if err:
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
+		return value, None
+
+
+	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -78,71 +85,150 @@ class dateBone(baseBone):
 			:type data: dict
 			:returns: str or None
 		"""
-		rawValue = value
-		if str(rawValue).replace("-", "", 1).replace(".", "", 1).isdigit():
-			if int(rawValue) < -1 * (2 ** 30) or int(rawValue) > (2 ** 31) - 2:
-				value = False  # its invalid
-			else:
-				value = datetime.fromtimestamp(float(rawValue))
-		elif not self.date and self.time:
+		error = False
+		value = self.getEmptyValue()
+
+		logging.debug(data)
+		if self.date and self.time:
 			try:
-				if str(rawValue).count(":") > 1:
-					(hour, minute, second) = [int(x.strip()) for x in str(rawValue).split(":")]
-					value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute, second=second)
-				elif str(rawValue).count(":") > 0:
-					(hour, minute) = [int(x.strip()) for x in str(rawValue).split(":")]
-					value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute)
-				elif str(rawValue).replace("-", "", 1).isdigit():
-					value = datetime(year=1970, month=1, day=1, second=int(rawValue))
-				else:
-					value = False  # its invalid
+				time_value = data[name + "-time"]
+				date_value = data[name + "-date"]
 			except:
-				value = False
-		elif str(rawValue).lower().startswith("now"):
-			tmpRes = utcNow().astimezone(self.guessTimeZone())
-			if len(str(rawValue)) > 4:
-				try:
-					tmpRes += timedelta(seconds=int(str(rawValue)[3:]))
-				except:
-					pass
-			value = tmpRes
+				time_value = None
+				date_value = None
+			finally:
+				datetime_value = data[name]
+
+			if datetime_value == "" and time_value is None and date_value is None:
+				return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "Empty value entered")]
+		elif self.date:
+			date_value = data[name]
+			if date_value == "":
+				return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "Empty value entered")]
+		elif self.time:
+			try:
+				time_value = data[name + "-time"]
+			except:
+				time_value = data[name]
+
+			if time_value == "":
+				return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "Empty value entered")]
+
+		if self.time == True and not time_value == None:
+			time_value_raw = time_value
+			try:
+				if " " in time_value_raw:
+					#vi
+					year = 1970
+					month = 1
+					day = 1
+					hour = time_value_raw.hour
+					month = time_value_raw.minute
+					day = time_value_raw.second
+					value = datetime(year=year, month=month, day=day, hour=hour, minute=minute, second=second)
+				if str(time_value_raw).count(":") == 2:
+					(hour, minute, second) = [int(x.strip()) for x in str(time_value_raw).split(":")]
+					time_value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute, second=second)
+				elif str(time_value_raw).count(":") == 1:
+					(hour, minute) = [int(x.strip()) for x in str(time_value_raw).split(":")]
+					time_value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute)
+				elif str(time_value_raw).replace("-", "", 1).isdigit():
+					time_value = datetime(year=1970, month=1, day=1, second=int(time_value_raw))
+				else:
+					time_value = False  # its invalid
+			except:
+				time_value = False
 		else:
+			time_value = None
+
+
+		if self.date == True and not date_value == None:
+			date_value_raw = date_value
 			try:
-				if self.date and self.time:
-					timeZone = self.guessTimeZone()
+				if " " in date_value_raw:
+					#vi
+					year = date_value_raw.year
+					month = date_value_raw.month
+					day = date_value_raw.day
+					value = datetime(year=year, month=month, day=day)
+				if "-" in date_value_raw:  # ISO (Date only)
+					date_value = datetime.strptime(str(date_value_raw), "%Y-%m-%d")
+				elif "/" in date_value_raw:  # Ami (Date only)
+					date_value = datetime.strptime(str(date_value_raw), "%m/%d/%Y")
+				elif "." in date_value_raw:  # European (Date only)
+					date_value = datetime.strptime(str(date_value_raw), "%d.%m.%Y")
 				else:
-					timeZone = pytz.utc
-				if " " in rawValue:  # Date with time
-					try:  # Times with seconds
-						if "-" in rawValue:  # ISO Date
-							value = datetime.strptime(str(rawValue), "%Y-%m-%d %H:%M:%S")
-						elif "/" in rawValue:  # Ami Date
-							value = datetime.strptime(str(rawValue), "%m/%d/%Y %H:%M:%S")
-						else:  # European Date
-							value = datetime.strptime(str(rawValue), "%d.%m.%Y %H:%M:%S")
-					except:
-						if "-" in rawValue:  # ISO Date
-							value = datetime.strptime(str(rawValue), "%Y-%m-%d %H:%M")
-						elif "/" in rawValue:  # Ami Date
-							value = datetime.strptime(str(rawValue), "%m/%d/%Y %H:%M")
-						else:  # European Date
-							value = datetime.strptime(str(rawValue), "%d.%m.%Y %H:%M")
-				else:
-					if "-" in rawValue:  # ISO (Date only)
-						value = datetime.strptime(str(rawValue), "%Y-%m-%d")
-					elif "/" in rawValue:  # Ami (Date only)
-						value = datetime.strptime(str(rawValue), "%m/%d/%Y")
-					else:  # European (Date only)
-						value = datetime.strptime(str(rawValue), "%d.%m.%Y")
-				value = datetime(value.year, value.month, value.day, value.hour, value.minute, value.second, tzinfo=timeZone)
+					date_value = False
 			except:
-				value = False  # its invalid
-		if value is False:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
+				date_value = False
+		else:
+			date_value = None
+
+
+		#combine time and date value
+		if not date_value in [None, False] and not time_value in [None, False]:
+			year = date_value.year
+			month = date_value.month
+			day = date_value.day
+			hour = time_value.hour
+			minute = time_value.minute
+			second = time_value.second
+			value = datetime(year=year, month=month, day=day, hour=hour, minute=minute, second=second)
+		elif not date_value in [None, False]:
+			value = date_value
+
+		elif not time_value in [None, False]:
+			value = time_value
+
+		if value == self.getEmptyValue():
+			datetime_value_raw = datetime_value
+
+			if str(datetime_value_raw).replace("-", "", 1).replace(".", "", 1).isdigit():
+				if int(datetime_value_raw) < -1 * (2 ** 30) or int(datetime_value_raw) > (2 ** 31) - 2:
+					error = True  # its invalid
+				else:
+					datetime_value = datetime.fromtimestamp(float(datetime_value_raw))
+			elif str(datetime_value_raw).lower().startswith("now"):
+				tmpRes = utcNow().astimezone(self.guessTimeZone())
+				if len(str(datetime_value_raw)) > 4:
+					try:
+						tmpRes += timedelta(seconds=int(str(datetime_value_raw)[3:]))
+					except:
+						pass
+				value = tmpRes
+			elif " " in datetime_value:  # Date with time
+				try:
+					try:  # Times with seconds
+						if "-" in datetime_value:  # ISO Date
+							value = datetime.strptime(str(datetime_value_raw), "%Y-%m-%d %H:%M:%S")
+						elif "/" in datetime_value_raw:  # Ami Date
+							value = datetime.strptime(str(datetime_value_raw), "%m/%d/%Y %H:%M:%S")
+						else:  # European Date
+							value = datetime.strptime(str(datetime_value_raw), "%d.%m.%Y %H:%M:%S")
+					except:
+						if "-" in datetime_value_raw:  # ISO Date
+							value = datetime.strptime(str(datetime_value_raw), "%Y-%m-%d %H:%M")
+						elif "/" in datetime_value_raw:  # Ami Date
+							value = datetime.strptime(str(datetime_value_raw), "%m/%d/%Y %H:%M")
+						else:  # European Date
+							value = datetime.strptime(str(datetime_value_raw), "%d.%m.%Y %H:%M")
+				except:
+					error = True
+
+		if error is True:
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
 		err = self.isInvalid(value)
 		if err:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
-		return value, None
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
+
+		timeZone = self.guessTimeZone()
+		value = datetime(value.year, value.month, value.day, value.hour, value.minute, value.second, tzinfo=timeZone)
+		skel[name] = value
+		return  None
+
+	def getEmptyValue(self):
+		return datetime(year=1970, month=1, day=1)
+
 
 	def isInvalid(self, value):
 		"""
