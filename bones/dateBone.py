@@ -63,13 +63,6 @@ class dateBone(baseBone):
 		self.time = time
 		self.localize = localize
 
-	def singleValueFromClient(self, value, skel, name, origData):
-		err = self.isInvalid(value)
-		if err:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
-		return value, None
-
-
 	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		"""
 			Reads a value from the client.
