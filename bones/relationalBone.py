@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from viur.core.bones import baseBone
 from viur.core.bones.bone import getSystemInitialized
-from viur.core import db
+from viur.core import db, utils
 from viur.core.errors import ReadFromClientError
 from typing import List, Union
 
@@ -146,9 +146,33 @@ class relationalBone(baseBone):
 			:param value: Json-Encoded datastore property
 			:return: Our Value (with restored RelSkel and using-Skel)
 		"""
-		if isinstance(val, str):
+		def fixFromDictToEntry(inDict):
+			if not isinstance(inDict, dict):
+				return None
+			res = {}
+			if "dest" in inDict:
+				res["dest"] = db.Entity()
+				for k, v in inDict["dest"].items():
+					res["dest"][k] = v
+				if "key" in res["dest"]:
+					res["dest"].key = utils.normalizeKey(db.KeyClass.from_legacy_urlsafe(res["dest"]["key"]))
+			if "rel" in inDict and inDict["rel"]:
+				res["rel"] = db.Entity()
+				for k, v in inDict["rel"].items():
+					res["rel"][k] = v
+			else:
+				res["rel"] = None
+			return res
+
+		if isinstance(val, str):  # ViUR2 compatibility
 			try:
 				value = extjson.loads(val)
+				if isinstance(value, list):
+					value = [fixFromDictToEntry(x) for x in value]
+				elif isinstance(value, dict):
+					value = fixFromDictToEntry(value)
+				else:
+					value = None
 			except:
 				value = None
 		else:
