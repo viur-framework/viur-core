@@ -813,6 +813,22 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 			if skelValues.customDatabaseAdapter:
 				dbObj = skelValues.customDatabaseAdapter.preprocessEntry(dbObj, skel, changeList, isAdd)
 
+			# ViUR2 import compatibility - remove properties containing . if we have an dict with the same name
+			def fixDotNames(entity):
+				for k, v in list(entity.items()):
+					if isinstance(v, dict):
+						for k2, v2 in list(entity.items()):
+							if k2.startswith("%s." % k):
+								del entity[k2]
+								entity[k2.replace(".", "__")] = v2
+						fixDotNames(v)
+					elif isinstance(v, list):
+						for x in v:
+							if isinstance(x, dict):
+								fixDotNames(x)
+			if conf.get("viur.viur2import.blobsource"):  # Try to fix these only when converting from ViUR2
+				fixDotNames(dbObj)
+
 			# Write the core entry back
 			db.Put(dbObj)
 

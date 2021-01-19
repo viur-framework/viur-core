@@ -6,7 +6,7 @@ import logging
 import math
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from copy import deepcopy
-from typing import List, Union
+from typing import Tuple, Any
 
 
 def haversine(lat1, lng1, lat2, lng2):
@@ -63,6 +63,7 @@ class spatialBone(baseBone):
 		assert isinstance(boundsLng, tuple) and len(boundsLng) == 2, "boundsLng must be a tuple of (int, int)"
 		assert isinstance(gridDimensions, tuple) and len(
 			gridDimensions) == 2, "gridDimensions must be a tuple of (int, int)"
+		assert not (self.indexed and self.multiple), "Spatial-Bone cannot be indexed when multiple"
 		self.boundsLat = boundsLat
 		self.boundsLng = boundsLng
 		self.gridDimensions = gridDimensions
@@ -85,21 +86,16 @@ class spatialBone(baseBone):
 			:return: An error-description or False if the value is valid
 			:rtype: str | False
 		"""
-		if (value is None or value == (0, 0)) and self.required:
-			return "No value entered"
-		elif (value is None or value == (0, 0)) and not self.required:
+		try:
+			lat, lng = value
+		except:
+			return "Invalid value entered"
+		if lat < self.boundsLat[0] or lat > self.boundsLat[1]:
+			return "Latitude out of range"
+		elif lng < self.boundsLng[0] or lng > self.boundsLng[1]:
+			return "Longitude out of range"
+		else:
 			return False
-		elif value:
-			try:
-				lat, lng = value
-			except:
-				return "Invalid value entered"
-			if lat < self.boundsLat[0] or lat > self.boundsLat[1]:
-				return "Latitude out of range"
-			elif lng < self.boundsLng[0] or lng > self.boundsLng[1]:
-				return "Longitude out of range"
-			else:
-				return False
 
 	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
 		if not value:
@@ -127,7 +123,30 @@ class spatialBone(baseBone):
 			return None
 		return val["coordinates"]["lat"], val["coordinates"]["lng"]
 
-	def fromClient(self, skel, name, data):
+	def parseSubfieldsFromClient(self):
+		return True  # We'll always get .lat and .lng
+
+	def isEmpty(self, rawValue: Any):
+		if not rawValue:
+			return True
+		if isinstance(rawValue, dict):
+			try:
+				rawLat = float(rawValue["lat"])
+				rawLng = float(rawValue["lng"])
+				return (rawLat, rawLng) == self.getEmptyValue()
+			except:
+				return True
+		return rawValue == self.getEmptyValue()
+
+	def getEmptyValue(self) -> Tuple[float]:
+		"""
+			If you need a special marker for empty, use 91.0, 181.0.
+			These are both out of range for Latitude (-90, +90) and Longitude (-180, 180) but will be accepted
+			by Vi and Admin
+		"""
+		return 0.0, 0.0
+
+	def singleValueFromClient(self, value, skel, name, origData):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -141,13 +160,12 @@ class spatialBone(baseBone):
 			:type data: dict
 			:returns: None or String
 		"""
-		rawLat = data.get("%s.lat" % name, None)
-		rawLng = data.get("%s.lng" % name, None)
+		rawLat = value.get("lat", None)
+		rawLng = value.get("lng", None)
 		if rawLat is None and rawLng is None:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "Field not submitted")]
-		elif not rawLat or not rawLng:
-			skel[name] = None
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value submitted")]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "Field not submitted")]
+		elif rawLat is None or rawLng is None:
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value submitted")]
 		try:
 			rawLat = float(rawLat)
 			rawLng = float(rawLng)
@@ -155,11 +173,11 @@ class spatialBone(baseBone):
 			assert rawLat == rawLat
 			assert rawLng == rawLng
 		except:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
 		err = self.isInvalid((rawLat, rawLng))
 		if err:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
-		skel[name] = (rawLat, rawLng)
+			return self.getEmptyValue(),[ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
+		return (rawLat, rawLng), None
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		"""

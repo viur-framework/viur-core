@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 from io import BytesIO
 from quopri import decodestring
 from typing import Dict, Tuple, Union
+from urllib.request import urlopen
+from viur.core.config import conf
 
 import google.auth
 from PIL import Image
@@ -30,6 +32,48 @@ client = storage.Client(project, credentials)
 bucket = client.lookup_bucket("%s.appspot.com" % projectID)
 
 
+
+def importBlobFromViur2(dlKey):
+	if not conf.get("viur.viur2import.blobsource"):
+		return False
+	existingImport = db.Get(db.Key("viur-viur2-blobimport", dlKey))
+	if existingImport:
+		if existingImport["success"]:
+			return existingImport["dlurl"]
+		return False
+	try:
+		importDataReq = urlopen(conf["viur.viur2import.blobsource"]["infoURL"]+dlKey)
+	except:
+		marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
+		marker["success"] = False
+		marker["error"] = "Failed URL-FETCH 1"
+		db.Put(marker)
+		return False
+	if importDataReq.status != 200:
+		marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
+		marker["success"] = False
+		marker["error"] = "Failed URL-FETCH 2"
+		db.Put(marker)
+		return False
+	importData = json.loads(importDataReq.read())
+	srcBlob = storage.Blob(bucket=bucket, name=conf["viur.viur2import.blobsource"]["gsdir"]+"/"+importData["key"])
+	if not srcBlob.exists():
+		marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
+		marker["success"] = False
+		marker["error"] = "Local SRC-Blob missing"
+		db.Put(marker)
+		return False
+	bucket.rename_blob(srcBlob, "%s/source/%s" % (dlKey, importData["name"]))
+	marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
+	marker["success"] = True
+	marker["old_src_key"] = importData["key"]
+	marker["old_src_name"] = importData["name"]
+	marker["dlurl"] = utils.downloadUrlFor(dlKey, importData["name"], False, None)
+	db.Put(marker)
+	return marker["dlurl"]
+
+
+
 class injectStoreURLBone(baseBone):
 	def unserialize(self, skel, name):
 		if "dlkey" in skel.dbEntity and "name" in skel.dbEntity:
@@ -40,6 +84,9 @@ class injectStoreURLBone(baseBone):
 
 def thumbnailer(fileSkel, targetName, params):
 	blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"], fileSkel["name"]))
+	if not blob:
+		logging.warning("Blob %s is missing from Cloudstore!" % fileSkel["dlkey"])
+		return
 	fileData = BytesIO()
 	outData = BytesIO()
 	blob.download_to_file(fileData)
@@ -50,12 +97,12 @@ def thumbnailer(fileSkel, targetName, params):
 	elif "width" in params:
 		img = img.resize((params["width"], int((float(img.size[1]) * float(params["width"] / float(img.size[0]))))),
 						 Image.ANTIALIAS)
-	img.save(outData, "JPEG")
+	img.save(outData, "webp")
 	outSize = outData.tell()
 	outData.seek(0)
 	targetBlob = bucket.blob("%s/derived/%s" % (fileSkel["dlkey"], targetName))
-	targetBlob.upload_from_file(outData, content_type="image/jpeg")
-	return targetName, outSize, "image/jpeg"
+	targetBlob.upload_from_file(outData, content_type="image/webp")
+	return targetName, outSize, "image/webp"
 
 
 class fileBaseSkel(TreeSkel):
@@ -105,6 +152,16 @@ class fileBaseSkel(TreeSkel):
 		if not self["weak"] and self["dlkey"]:
 			locks.add(self["dlkey"])
 		return locks
+
+	@classmethod
+	def refresh(cls, skelValues):
+		super().refresh(skelValues)
+		if conf.get("viur.viur2import.blobsource"):
+			importData = importBlobFromViur2(skelValues["dlkey"])
+			if importData:
+				if not skelValues["downloadUrl"]:
+					skelValues["downloadUrl"] = importData
+				skelValues["pendingparententry"] = False
 
 
 class fileNodeSkel(TreeSkel):
@@ -336,7 +393,7 @@ class File(Tree):
 				if blob.size < 5 * 1024 * 1024:  # Less than 5 MB - Serve directly and push it into the ede caches
 					response = utils.currentRequest.get().response
 					response.headers["Content-Type"] = blob.content_type
-					response.headers["Cache-Control"] = "public, max-age=604800"  # 7 Days
+					response.headers["Cache-Control"] = "immutable, public, max-age=604800"  # 7 Days
 					return blob.download_as_bytes()
 			auth_request = requests.Request()
 			signed_blob_path = bucket.blob(dlPath)

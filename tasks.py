@@ -599,7 +599,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
 			}
 		}
 		task['app_engine_http_request']['body'] = json.dumps(qryDict, cls=JsonKeyEncoder).encode("UTF-8")
-		taskClient.create_task(parent, task)
+		taskClient.create_task(parent=parent, task=task)
 
 	@classmethod
 	def _qryStep(cls, qryDict: Dict[str, Any]) -> None:
