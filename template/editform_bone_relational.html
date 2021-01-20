@@ -1,0 +1,34 @@
+    <select
+		id="ignt-id-{{ boneName }}"
+		name="{{ boneName }}"
+		class="select ignt-select ignt-select--{{ boneName }}
+			{{ "is-required" if boneParams.required }}
+			{{ "is-readonly" if boneParams.readOnly }}
+			{{ "is-invalid" if boneWasInvalid else "is-valid" }}"
+		{{'readonly' if boneParams.readOnly}}
+		{{'required' if boneParams.required}}
+    >
+{% set ns = namespace(cursor="") %}
+{% for i in range(0, 1000, 100) %}
+	{% if ns.cursor == "" %}
+		{% set skellist = getList(boneParams.module, limit=100) %}
+		{% set ns.cursor = skellist.getCursor() %}
+	{% elif ns.cursor != none %}
+		{% set skellist = getList(boneParams.module, cursor=ns.cursor, limit=100) %}
+		{% set ns.cursor = skellist.getCursor() %}
+	{% else %}
+		{% set skellist = [] %}
+	{% endif %}
+    {% for entry in skellist %}
+        {% if loop.first %}
+            <option value="" {{ "selected" if not boneValue }} {{ "disabled" if boneParams.required}} hidden>
+                -
+            </option>
+        {% endif %}
+        <option value="{{ entry["key"] }}" {{ "selected" if boneValue == entry["name"] }}>
+            {{ entry["name"] }}
+        </option>
+    {% endfor %}
+{% endfor %}
+
+    </select>
