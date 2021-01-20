@@ -261,6 +261,8 @@ class Render(object):
 			if isinstance(boneValue, list):
 				tmpList = []
 				for k in boneValue:
+					if not k:
+						continue
 					if bone.using is not None and k["rel"]:
 						usingData = self.collectSkelData(k["rel"])
 					else:
