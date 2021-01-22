@@ -4,11 +4,12 @@ import base64
 import email.header
 import json
 import logging
+import string
 from base64 import urlsafe_b64decode
 from datetime import datetime, timedelta
 from io import BytesIO
 from quopri import decodestring
-from typing import Dict, Tuple, Union
+from typing import Dict, Tuple, Union, List
 from urllib.request import urlopen
 from viur.core.config import conf
 
@@ -26,10 +27,12 @@ from viur.core.prototypes.tree import Tree, TreeSkel, TreeType
 from viur.core.skeleton import skeletonByKind
 from viur.core.tasks import PeriodicTask, callDeferred
 from viur.core.utils import projectID
+from google.cloud import iam_credentials_v1
 
 credentials, project = google.auth.default()
 client = storage.Client(project, credentials)
 bucket = client.lookup_bucket("%s.appspot.com" % projectID)
+iamClient = iam_credentials_v1.IAMCredentialsClient()
 
 
 
@@ -82,7 +85,7 @@ class injectStoreURLBone(baseBone):
 		return False
 
 
-def thumbnailer(fileSkel, targetName, params):
+def thumbnailer(fileSkel, existingFiles, params):
 	blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"], fileSkel["name"]))
 	if not blob:
 		logging.warning("Blob %s is missing from Cloudstore!" % fileSkel["dlkey"])
@@ -90,19 +93,38 @@ def thumbnailer(fileSkel, targetName, params):
 	fileData = BytesIO()
 	outData = BytesIO()
 	blob.download_to_file(fileData)
-	fileData.seek(0)
-	img = Image.open(fileData)
-	if "size" in params:
-		img.thumbnail(params["size"])
-	elif "width" in params:
-		img = img.resize((params["width"], int((float(img.size[1]) * float(params["width"] / float(img.size[0]))))),
-						 Image.ANTIALIAS)
-	img.save(outData, "webp")
-	outSize = outData.tell()
-	outData.seek(0)
-	targetBlob = bucket.blob("%s/derived/%s" % (fileSkel["dlkey"], targetName))
-	targetBlob.upload_from_file(outData, content_type="image/webp")
-	return targetName, outSize, "image/webp"
+	resList = []
+	for sizeDict in params:
+		fileData.seek(0)
+		img = Image.open(fileData)
+		if "width" in sizeDict and "height" in sizeDict:
+			width = sizeDict["width"]
+			height = sizeDict["height"]
+		elif "width" in sizeDict:
+			width = sizeDict["width"]
+			height = int((float(img.size[1]) * float(width / float(img.size[0]))))
+		else:  # No default fallback - ignore
+			continue
+		fileExtension = sizeDict.get("fileExtension", "webp")
+		mimeType = sizeDict.get("mimeType", "image/webp")
+		img = img.resize((width, height), Image.ANTIALIAS)
+		img.save(outData, fileExtension)
+		targetName = "thumbnail-%s-%s.%s" % (width, height, fileExtension)
+		outSize = outData.tell()
+		outData.seek(0)
+		targetBlob = bucket.blob("%s/derived/%s" % (fileSkel["dlkey"], targetName))
+		targetBlob.upload_from_file(outData, content_type=mimeType)
+		resList.append((targetName, outSize, mimeType, {"mimetype": mimeType, "width": width, "height": height}))
+	return resList
+
+
+def sanitizeFileName(fileName: str) -> str:
+	"""
+		Sanitize the filename so it can be safely downloaded or be embedded into html
+	"""
+	fileName = fileName[:100]  # Limit to 100 Chars max
+	fileName = "".join([x for x in fileName if x not in "\0'\"<>\n;$&?#:;/\\"])  # Remove invalid Chars
+	return fileName.strip(".")  # Ensure the filename does not start or end with a dot
 
 
 class fileBaseSkel(TreeSkel):
@@ -225,77 +247,56 @@ class File(Tree):
 			if skel.fromDB(str(d)):
 				skel.delete()
 
-	def generateUploadPolicy(self, conditions):
+	def signUploadURL(self, mimeTypes: Union[List[str], None] = None, maxSize: Union[int, None] = None,
+					  node:Union[str, None] = None):
 		"""
-		Our implementation of bucket.generate_upload_policy - which works with default token credentials
-		Create a signed upload policy for uploading objects.
-
-		This method generates and signs a policy document. You can use
-		`policy documents`_ to allow visitors to a website to upload files to
-		Google Cloud Storage without giving them direct write access.
-
-		For example:
-
-		.. literalinclude:: snippets.py
-			:start-after: [START policy_document]
-			:end-before: [END policy_document]
-
-		.. _policy documents:
-			https://cloud.google.com/storage/docs/xml-api\
-			/post-object#policydocument
-
-		:type expiration: datetime
-		:param expiration: Optional expiration in UTC. If not specified, the
-						   policy will expire in 1 hour.
-
-		:type conditions: list
-		:param conditions: A list of conditions as described in the
-						  `policy documents`_ documentation.
-
-		:type client: :class:`~google.cloud.storage.client.Client`
-		:param client: Optional. The client to use.  If not passed, falls back
-					   to the ``client`` stored on the current bucket.
-
-		:rtype: dict
-		:returns: A dictionary of (form field name, form field value) of form
-				  fields that should be added to your HTML upload form in order
-				  to attach the signature.
+		Internal helper that will create a signed upload-url that can be used to retrieve an uploadURL from
+		getUploadURL for guests / users without having file/add permissions. This URL is valid for an hour and can
+		be used to upload multiple files.
+		:param mimeTypes: A list of valid mimetypes that can be uploaded (wildcards like "image/*" are supported) or
+			None (no restriction on filetypes)
+		:param maxSize: The maximum filesize in bytes or None for no limit
+		:param node: The (string encoded) key of a file-leaf (=directory) where this file will be uploaded into or
+			None (the file will then not show up in the filebrowser).
+			.. Warning::
+				If node is set it's the callers responsibility to ensure node is a valid key and that the user has
+				the permission to upload into that directory. ViUR does *not* enforce any canAccess restrictions for
+				keys passed to this function!
+		:return: authData and authSig for the getUploadURL function below
 		"""
-		global credentials, bucket
-		auth_request = requests.Request()
-		sign_cred = compute_engine.IDTokenCredentials(auth_request, "",
-													  service_account_email=credentials.service_account_email)
-		expiration = _NOW() + timedelta(hours=1)
-		conditions = conditions + [{"bucket": bucket.name}]
-		policy_document = {
-			"expiration": _datetime_to_rfc3339(expiration),
-			"conditions": conditions,
+		dataDict = {
+			"validUntil": (datetime.now()+timedelta(hours=1)).strftime("%Y%m%d%H%M"),
+			"validMimeTypes": [x.lower() for x in mimeTypes] if mimeTypes else None,
+			"maxSize": maxSize,
+			"node": node,
 		}
-		encoded_policy_document = base64.b64encode(
-			json.dumps(policy_document).encode("utf-8")
-		)
-		signature = base64.b64encode(sign_cred.sign_bytes(encoded_policy_document))
-		fields = {
-			"bucket": bucket.name,
-			"GoogleAccessId": sign_cred.signer_email,
-			"policy": encoded_policy_document.decode("utf-8"),
-			"signature": signature.decode("utf-8"),
-		}
-		return fields
+		dataStr = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
+		sig = utils.hmacSign(dataStr)
+		return dataStr.decode("ASCII"), sig
 
-	def createUploadURL(self, node: Union[str, None]) -> Tuple[str, str, Dict[str, str]]:
+
+	def initializeUpload(self,
+						fileName: str,
+						mimeType: str,
+						node: Union[str, None],
+						maxSize: Union[int, None] = None) -> Tuple[str, str]:
+		"""
+		Internal helper that registers a new upload. Will create the pending fileSkel entry (needed to remove any
+		started uploads from GCS if that file isn't used) and creates a resumable (and signed) uploadURL for that.
+		:param fileName: Name of the file that will be uploaded
+		:param mimeType: Mimetype of said file
+		:param node: If set (to a string-key representation of a file-node) the upload will be written to this directory
+		:param maxSize: Maximum filesize we're accepting in Bytes.
+		:return: Str-Key of the new file-leaf entry, the signed upload-url
+		"""
 		global bucket
+		fileName = sanitizeFileName(fileName)
 		targetKey = utils.generateRandomString()
-		conditions = [["starts-with", "$key", "%s/source/" % targetKey]]
-		if isinstance(credentials, ServiceAccountCredentials):  # We run locally with an service-account.json
-			policy = bucket.generate_upload_policy(conditions)
-		else:  # Use our fixed PolicyGenerator - Google is currently unable to create one itself on its GCE
-			policy = self.generateUploadPolicy(conditions)
-		uploadUrl = "https://%s.storage.googleapis.com" % bucket.name
-		# Create a correspondingfile-lock object early, otherwise we would have to ensure that the file-lock object
+		blob = bucket.blob("%s/source/%s" % (targetKey, fileName))
+		uploadUrl = blob.create_resumable_upload_session(content_type=mimeType, size=maxSize, timeout=60)
+		# Create a corresponding file-lock object early, otherwise we would have to ensure that the file-lock object
 		# the user creates matches the file he had uploaded
 		fileSkel = self.addSkel(TreeType.Leaf)
-		fileSkel["key"] = targetKey
 		fileSkel["name"] = "pending"
 		fileSkel["size"] = 0
 		fileSkel["mimetype"] = "application/octetstream"
@@ -309,30 +310,49 @@ class File(Tree):
 		fileSkel.toDB()
 		# Mark that entry dirty as we might never receive an add
 		utils.markFileForDeletion(targetKey)
-		return targetKey, uploadUrl, policy
+		return db.encodeKey(fileSkel["key"]), uploadUrl
 
 	@exposed
-	def getUploadURL(self, *args, **kwargs):
-		skey = kwargs.get("skey", "")
+	def getUploadURL(self, fileName, mimeType, skey, *args, **kwargs):
 		node = kwargs.get("node")
-		if node:
-			rootNode = self.getRootNode(node)
-			if not self.canAdd(TreeType.Leaf, rootNode):
+		authData = kwargs.get("authData")
+		authSig = kwargs.get("authSig")
+		# Validate the the contentType from the client seems legit
+		mimeType = mimeType.lower()
+		assert len(mimeType.split("/")) == 2, "Invalid Mime-Type"
+		assert all([x in string.ascii_letters + "/-." for x in mimeType]), "Invalid Mime-Type"
+		if authData and authSig:
+			# First, validate the signature, otherwise we don't need to proceed any further
+			if not utils.hmacVerify(authData.encode("ASCII"), authSig):
 				raise errors.Forbidden()
+			authData = json.loads(base64.b64decode(authData.encode("ASCII")).decode("UTF-8"))
+			if datetime.strptime(authData["validUntil"], "%Y%m%d%H%M") < datetime.now():
+				raise errors.Gone()
+			if authData["validMimeTypes"]:
+				for validMimeType in authData["validMimeTypes"]:
+					if validMimeType == mimeType or (
+							validMimeType.endswith("*") and mimeType.startswith(validMimeType[:-1])):
+						break
+				else:
+					raise errors.NotAcceptable()
+			node = authData["node"]
+			maxSize = authData["maxSize"]
 		else:
-			if not self.canAdd(TreeType.Leaf, None):
-				raise errors.Forbidden()
+			if node:
+				rootNode = self.getRootNode(node)
+				if not self.canAdd(TreeType.Leaf, rootNode):
+					raise errors.Forbidden()
+			else:
+				if not self.canAdd(TreeType.Leaf, None):
+					raise errors.Forbidden()
+			maxSize = None  # The user has some file/add permissions, don't restrict fileSize
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
-		targetKey, uploadUrl, policy = self.createUploadURL(node)
+		targetKey, uploadUrl = self.initializeUpload(fileName, mimeType.lower(), node, maxSize)
 		resDict = {
-			"url": uploadUrl,
-			"params": {
-				"key": "%s/source/file.dat" % targetKey,
-			}
+			"uploadUrl": uploadUrl,
+			"uploadKey": targetKey,
 		}
-		for key, value in policy.items():
-			resDict["params"][key] = value
 		return self.render.view(resDict)
 
 	@internalExposed
@@ -373,36 +393,61 @@ class File(Tree):
 		"""
 		global credentials, bucket
 		if not sig:
-			raise errors.PreconditionFailed()
-		# First, validate the signature, otherwise we don't need to proceed any further
-		if not utils.hmacVerify(blobKey.encode("ASCII"), sig):
-			raise errors.Forbidden()
-		# Split the blobKey into the individual fields it should contain
-		dlPath, validUntil = urlsafe_b64decode(blobKey).decode("UTF-8").split("\0")
-		if validUntil != "0" and datetime.strptime(validUntil, "%Y%m%d%H%M") < datetime.now():
-			raise errors.Gone()
-		# Create a signed url and redirect the user
-		if isinstance(credentials, ServiceAccountCredentials):  # We run locally with an service-account.json
+			# Check if the current user has the right to download *any* blob present in this application.
+			# blobKey is then the path inside cloudstore - not a base64 encoded tuple
+			usr = utils.getCurrentUser()
+			if not usr:
+				raise errors.Unauthorized()
+			if "root" not in usr["access"] and "file-view" not in usr["access"]:
+				raise errors.Forbidden()
+			validUntil = "-1"  # Prevent this from being cached down below
+			blob = bucket.get_blob(blobKey)
+		else:
+			# We got an request including a signature (probably a guest or a user without file-view access)
+			# First, validate the signature, otherwise we don't need to proceed any further
+			if not utils.hmacVerify(blobKey.encode("ASCII"), sig):
+				raise errors.Forbidden()
+			# Split the blobKey into the individual fields it should contain
+			dlPath, validUntil = urlsafe_b64decode(blobKey).decode("UTF-8").split("\0")
+			if validUntil != "0" and datetime.strptime(validUntil, "%Y%m%d%H%M") < datetime.now():
+				raise errors.Gone()
 			blob = bucket.get_blob(dlPath)
-			if not blob:
-				raise errors.NotFound()
-			signed_url = blob.generate_signed_url(datetime.now() + timedelta(seconds=60))
+		if not blob:
+			raise errors.Gone()
+		if download:
+			fileName = sanitizeFileName(blob.name.split("/")[-1])
+			contentDisposition = "attachment; filename=%s" % fileName
+		else:
+			contentDisposition = None
+		if isinstance(credentials, ServiceAccountCredentials):  # We run locally with an service-account.json
+			expiresAt = datetime.now() + timedelta(seconds=60)
+			signedUrl = blob.generate_signed_url(expiresAt, response_disposition=contentDisposition, version="v4")
+			raise errors.Redirect(signedUrl)
+		elif utils.isLocalDevelopmentServer:  # No Service-Account to sign with - Serve everything directly
+			response = utils.currentRequest.get().response
+			response.headers["Content-Type"] = blob.content_type
+			if contentDisposition:
+				response.headers["Content-Disposition"] = contentDisposition
+			return blob.download_as_bytes()
 		else:  # We are inside the appengine
 			if validUntil == "0":  # Its an indefinitely valid URL
-				blob = bucket.get_blob(dlPath)
 				if blob.size < 5 * 1024 * 1024:  # Less than 5 MB - Serve directly and push it into the ede caches
 					response = utils.currentRequest.get().response
 					response.headers["Content-Type"] = blob.content_type
-					response.headers["Cache-Control"] = "immutable, public, max-age=604800"  # 7 Days
+					response.headers["Cache-Control"] = "public, max-age=604800"  # 7 Days
+					if contentDisposition:
+						response.headers["Content-Disposition"] = contentDisposition
 					return blob.download_as_bytes()
-			auth_request = requests.Request()
-			signed_blob_path = bucket.blob(dlPath)
-			expires_at_ms = datetime.now() + timedelta(seconds=60)
-			signing_credentials = compute_engine.IDTokenCredentials(auth_request, "",
-																	service_account_email=credentials.service_account_email)
-			signed_url = signed_blob_path.generate_signed_url(expires_at_ms, credentials=signing_credentials,
-															  version="v4")
-		raise errors.Redirect(signed_url)
+			# Default fallback - create a signed URL and redirect
+			authRequest = requests.Request()
+			expiresAt = datetime.now() + timedelta(seconds=60)
+			signing_credentials = compute_engine.IDTokenCredentials(authRequest, "")
+			signedUrl = blob.generate_signed_url(
+				expiresAt,
+				credentials=signing_credentials,
+				response_disposition=contentDisposition,
+				version="v4")
+			raise errors.Redirect(signedUrl)
 
 	@exposed
 	@forceSSL
@@ -429,14 +474,14 @@ class File(Tree):
 				rootNode = None
 			if not self.canAdd("leaf", rootNode):
 				raise errors.Forbidden()
-			blobs = list(bucket.list_blobs(prefix="%s/" % targetKey))
+			blobs = list(bucket.list_blobs(prefix="%s/" % skel["dlkey"]))
 			if len(blobs) != 1:
 				logging.error("Invalid number of blobs in folder")
 				logging.error(targetKey)
 				raise errors.PreconditionFailed()
 			blob = blobs[0]
 			skel["mimetype"] = utils.escapeString(blob.content_type)
-			skel["name"] = utils.escapeString(blob.name.replace("%s/source/" % targetKey, ""))
+			skel["name"] = utils.escapeString(blob.name.replace("%s/source/" % skel["dlkey"], ""))
 			skel["size"] = blob.size
 			skel["parentrepo"] = rootNode["key"] if rootNode else None
 			skel["weak"] = rootNode is None

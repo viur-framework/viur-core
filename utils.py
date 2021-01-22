@@ -31,6 +31,7 @@ _, projectID = google.auth.default()
 del _
 # Determine our basePath (as os.getCWD is broken on appengine)
 projectBasePath = globals()["__file__"].replace("/viur/core/utils.py","")
+isLocalDevelopmentServer = os.environ['GAE_ENV'] == "localdev"
 
 def utcNow():
 	return datetime.now(timezone.utc)
