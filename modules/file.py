@@ -279,21 +279,21 @@ class File(Tree):
 						fileName: str,
 						mimeType: str,
 						node: Union[str, None],
-						maxSize: Union[int, None] = None) -> Tuple[str, str]:
+						size: Union[int, None] = None) -> Tuple[str, str]:
 		"""
 		Internal helper that registers a new upload. Will create the pending fileSkel entry (needed to remove any
 		started uploads from GCS if that file isn't used) and creates a resumable (and signed) uploadURL for that.
 		:param fileName: Name of the file that will be uploaded
 		:param mimeType: Mimetype of said file
 		:param node: If set (to a string-key representation of a file-node) the upload will be written to this directory
-		:param maxSize: Maximum filesize we're accepting in Bytes.
+		:param size: The *exact* filesize we're accepting in Bytes. Used to enforce a filesize limit by getUploadURL
 		:return: Str-Key of the new file-leaf entry, the signed upload-url
 		"""
 		global bucket
 		fileName = sanitizeFileName(fileName)
 		targetKey = utils.generateRandomString()
 		blob = bucket.blob("%s/source/%s" % (targetKey, fileName))
-		uploadUrl = blob.create_resumable_upload_session(content_type=mimeType, size=maxSize, timeout=60)
+		uploadUrl = blob.create_resumable_upload_session(content_type=mimeType, size=size, timeout=60)
 		# Create a corresponding file-lock object early, otherwise we would have to ensure that the file-lock object
 		# the user creates matches the file he had uploaded
 		fileSkel = self.addSkel(TreeType.Leaf)
@@ -313,7 +313,7 @@ class File(Tree):
 		return db.encodeKey(fileSkel["key"]), uploadUrl
 
 	@exposed
-	def getUploadURL(self, fileName, mimeType, skey, *args, **kwargs):
+	def getUploadURL(self, fileName, mimeType, size=None, skey=None, *args, **kwargs):
 		node = kwargs.get("node")
 		authData = kwargs.get("authData")
 		authSig = kwargs.get("authSig")
@@ -346,9 +346,18 @@ class File(Tree):
 				if not self.canAdd(TreeType.Leaf, None):
 					raise errors.Forbidden()
 			maxSize = None  # The user has some file/add permissions, don't restrict fileSize
+		if maxSize:
+			try:
+				size = int(size)
+				assert size <= maxSize
+			except:  # We have a size-limit set - but no size supplied
+				raise errors.PreconditionFailed()
+		else:
+			size = None
+
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
-		targetKey, uploadUrl = self.initializeUpload(fileName, mimeType.lower(), node, maxSize)
+		targetKey, uploadUrl = self.initializeUpload(fileName, mimeType.lower(), node, size)
 		resDict = {
 			"uploadUrl": uploadUrl,
 			"uploadKey": targetKey,
