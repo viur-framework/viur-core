@@ -374,6 +374,8 @@ def callDeferred(func):
 		if not queueRegion:
 			# Run tasks inline
 			logging.info("Running inline: %s" % func)
+			if "_countdown" in kwargs:
+				del kwargs["_countdown"]
 			if self is __undefinedFlag_:
 				task = lambda: func(*args, **kwargs)
 			else:

@@ -457,7 +457,11 @@ class relationalBone(baseBone):
 		assert isinstance(destKey, str)
 		refSkel, usingSkel, errors = restoreSkels(destKey, usingData)
 		if refSkel:
-			return {"dest": refSkel, "rel": usingSkel}, errors
+			resVal = {"dest": refSkel, "rel": usingSkel}
+			err = self.isInvalid(resVal)
+			if err:
+				return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
+			return resVal, errors
 		else:
 			return self.getEmptyValue(), errors
 
