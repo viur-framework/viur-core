@@ -823,7 +823,7 @@ class Query(object):
 			res = []
 			# We run all queries first (preventing multiple round-trips to the server)
 			for singleQuery in self.queries:
-				res.append(self._runSingleFilterQuery(singleQuery, limit))
+				res.append(self._runSingleFilterQuery(singleQuery, limit if limit != -1 else self.queries[0].limit))
 			# Wait for the actual results to arrive and convert the protobuffs to Entries
 			res = [self._fixKind(x) for x in res]
 			if self._customMultiQueryMerge:
