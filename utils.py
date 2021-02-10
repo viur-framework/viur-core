@@ -1,24 +1,25 @@
 # -*- coding: utf-8 -*-
 
-# from google.appengine.api import memcache, app_identity, mail
-# from google.appengine.ext import deferred
-import os
-from viur.core import db
-import string, random, base64
-from viur.core import conf
-import logging
-import google.auth
-from datetime import datetime, timedelta, timezone
+from __future__ import annotations
+
 import hashlib
 import hmac
-from quopri import decodestring
-from base64 import urlsafe_b64decode, urlsafe_b64encode
-from hashlib import sha256
-import email.header
-from typing import Any, Union
-#from viur.core.request import currentLanguage
-
+import logging
+import os
+import random
+import string
+from base64 import urlsafe_b64encode
 from contextvars import ContextVar
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Tuple, Union
+from typing import TYPE_CHECKING
+
+import google.auth
+
+from viur.core import conf, db, errors
+
+if TYPE_CHECKING:
+	from .skeleton import SkeletonInstance
 
 # Proxy to context depended variables
 currentRequest = ContextVar("Request", default=None)
@@ -50,44 +51,61 @@ def generateRandomString(length: int = 13) -> str:
 	return "".join(random.choices(string.ascii_letters + string.digits, k=length))
 
 
-def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None, *args, **kwargs):
+def sendEMail(dests: Union[str, List[str]],
+			  file: str = None,
+			  template: str = None,
+			  skel: Union[None, Dict, SkeletonInstance, List[SkeletonInstance]] = None,
+			  attachments: List[Tuple[str, str]] = None,
+			  sender: str = None,
+			  cc: Union[str, List[str]] = None,
+			  bcc: Union[str, List[str]] = None,
+			  replyTo: str = None,
+			  header: Dict = None,
+			  template_params: Any = None,
+			  *args, **kwargs) -> Any:
 	"""
 	General purpose function for sending e-mail.
 
 	This function allows for sending e-mails, also with generated content using the Jinja2 template engine.
 
-	:type dests: str | list of str
-	:param dests: Full-qualified recipient email addresses; These can be assigned as list, for multiple targets.
+	Your have to implement a method which should be called to send the prepared email finally. For this you have
+	to allocate *viur.emailHandler* in conf.
 
-	:type name: str
-	:param name: The name of a template from the appengine/emails directory, or the template string itself.
-
-	:type skel: server.skeleton.Skeleton | dict | None
-	:param skel: The data made available to the template. In case of a Skeleton, its parsed the usual way;\
-	Dictionaries are passed unchanged.
-
-	:type extraFiles: list of fileobjects
-	:param extraFiles: List of **open** fileobjects to be sent within the mail as attachments
-
-	:type cc: str | list of str
-	:param cc: Carbon-copy recipients
-
-	:type bcc: str | list of str
-	:param bcc: Blind carbon-copy recipients
-
-	:type replyTo: str
-	:param replyTo: A reply-to email address
+	:param dests: A list of addresses to send this mail to. A bare string will be treated as a list with 1 address.
+	:param file: The name of a template from the deploy/emails directory.
+	:param template: This string is interpreted as the template contents. Alternative to load from template file.
+	:param skel: The data made available to the template. In case of a Skeleton or SkelList, its parsed the usual way;\
+		Dictionaries are passed unchanged.
+	:param attachments: List of files ((filename, filecontent)-pairs) to be sent within the mail as attachments.
+	:param sender: The address sending this mail.
+	:param cc: Carbon-copy recipients. A bare string will be treated as a list with 1 address.
+	:param bcc: Blind carbon-copy recipients. A bare string will be treated as a list with 1 address.
+	:param replyTo: A reply-to email address.
+	:param header: Specify headers for this email.
+	:param template_params: Supply params for the template.
 	"""
+
+	def normalizeToList(value: Union[None, Any, List[Any]]) -> List[Any]:
+		if value is None:
+			return []
+		if isinstance(value, list):
+			return value
+		return [value]
+
+	if not (bool(file) ^ bool(template)):
+		raise ValueError("You have to set the params 'file' xor a 'template'.")
+
+	dests = normalizeToList(dests)
+	cc = normalizeToList(cc)
+	bcc = normalizeToList(bcc)
+	attachments = normalizeToList(attachments)
+
 	if conf["viur.emailRecipientOverride"]:
 		logging.warning("Overriding destination %s with %s", dests, conf["viur.emailRecipientOverride"])
 
 		oldDests = dests
-		if isinstance(oldDests, str):
-			oldDests = [oldDests]
 
-		newDests = conf["viur.emailRecipientOverride"]
-		if isinstance(newDests, str):
-			newDests = [newDests]
+		newDests = normalizeToList(conf["viur.emailRecipientOverride"])
 
 		dests = []
 		for newDest in newDests:
@@ -99,104 +117,59 @@ def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None,
 
 	elif conf["viur.emailRecipientOverride"] is False:
 		logging.warning("Sending emails disabled by config[viur.emailRecipientOverride]")
-		return
+		return False
+
+	if conf["viur.emailSenderOverride"]:
+		sender = conf["viur.emailSenderOverride"]
+	elif sender is None and os.getenv("GAE_ENV") == "localdev":
+		sender = f"viur@localdev.{projectID}.appspotmail.com"
+	elif sender is None:
+		sender = f"viur@{os.getenv('GAE_VERSION')}.{projectID}.appspotmail.com"
 
 	handler = conf.get("viur.emailHandler")
 
 	if handler is None:
-		handler = _GAE_sendEMail
+		raise errors.InvalidConfigException("No emailHandler specified!")
+	elif not callable(handler):
+		raise errors.InvalidConfigException("Invalid emailHandler configured, no email will be sent!")
 
-	if not callable(handler):
-		logging.warning("Invalid emailHandler configured, no email will be sent.")
-		return False
+	subject, body = conf["viur.emailRenderer"](dests, file, template, skel, template_params, **kwargs)
 
-	logging.debug("CALLING %s" % str(handler))
-
-	return handler(dests, name, skel, extraFiles=extraFiles, cc=cc, bcc=bcc, replyTo=replyTo, *args, **kwargs)
+	return handler(dests=dests, sender=sender, cc=cc, bcc=bcc, replyTo=replyTo,
+				   subject=subject, header=header, body=body, attachments=attachments, *args, **kwargs)
 
 
-def _GAE_sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None, *args, **kwargs):
+def sendEMailToAdmins(subject: str, body: str, *args, **kwargs):
 	"""
-	Internal function for using Google App Engine Email processing API.
-	"""
-	return
-	headers, data = conf["viur.emailRenderer"](skel, name, dests, **kwargs)
-
-	xheader = {}
-
-	if "references" in headers:
-		xheader["References"] = headers["references"]
-
-	if "in-reply-to" in headers:
-		xheader["In-Reply-To"] = headers["in-reply-to"]
-
-	if xheader:
-		message = mail.EmailMessage(headers=xheader)
-	else:
-		message = mail.EmailMessage()
-
-	mailfrom = "viur@%s.appspotmail.com" % projectID
-
-	if "subject" in headers:
-		message.subject = "=?utf-8?B?%s?=" % base64.b64encode(headers["subject"].encode("UTF-8"))
-	else:
-		message.subject = "No Subject"
-
-	if "from" in headers:
-		mailfrom = headers["from"]
-
-	if conf["viur.emailSenderOverride"]:
-		mailfrom = conf["viur.emailSenderOverride"]
-
-	if isinstance(dests, list):
-		message.to = ", ".join(dests)
-	else:
-		message.to = dests
-
-	if cc:
-		if isinstance(cc, list):
-			message.cc = ", ".join(cc)
-		else:
-			message.cc = cc
-
-	if bcc:
-		if isinstance(bcc, list):
-			message.bcc = ", ".join(bcc)
-		else:
-			message.bcc = bcc
-
-	if replyTo:
-		message.reply_to = replyTo
-
-	message.sender = mailfrom
-	message.html = data.replace("\x00", "").encode('ascii', 'xmlcharrefreplace')
-
-	if len(extraFiles) > 0:
-		message.attachments = extraFiles
-	message.send()
-	return True
-
-
-def sendEMailToAdmins(subject, body, sender=None):
-	"""
-		Sends an e-mail to the appengine administration of the current app.
-		(all users having access to the applications dashboard)
+		Sends an e-mail to the root users of the current app.
 
 		:param subject: Defines the subject of the message.
-		:type subject: str
-
 		:param body: Defines the message body.
-		:type body: str
-
-		:param sender: (optional) specify a different sender
-		:type sender: str
 	"""
-	return
-	if not sender:
-		sender = "viur@%s.appspotmail.com" % projectID
+	success = False
+	try:
+		if "user" in dir(conf["viur.mainApp"]):
+			users = []
+			for userSkel in conf["viur.mainApp"].user.viewSkel().all().filter("access =", "root").fetch():
+				users.append(userSkel["name"])
 
-	mail.send_mail_to_admins(sender, "=?utf-8?B?%s?=" % base64.b64encode(subject.encode("UTF-8")),
-							 body.encode('ascii', 'xmlcharrefreplace'))
+			if users:
+				ret = sendEMail(dests=users, template=os.linesep.join((subject, body)), *args, **kwargs)
+				success = True
+				return ret
+			else:
+				logging.warning("There are no root-users.")
+
+	except Exception:
+		raise
+
+	finally:
+		if not success:
+			logging.critical("Cannot send mail to Admins.")
+			logging.critical("Subject of mail: %s", subject)
+			logging.critical("Content of mail: %s", body)
+
+	return False
 
 
 def getCurrentUser():
