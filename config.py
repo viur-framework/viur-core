@@ -42,14 +42,16 @@ conf = {
 	"viur.disableCache": False,
 	# Maps Domains to alternative default languages
 	"viur.domainLanguageMapping": {},
-
-	# Allow for setting a custom email handler, like sendgrid. This must point to a function
-	# having equivalent parameters than utils.sendEMail().
-	"viur.emailHandler": None,
+	# For how long we'll keep successfully send emails in the viur-emails table
+	"viur.email.logRetention": timedelta(days=30),
+	# Function that actually delivers the email using the service provider of choice. See email.py for more details
+	"viur.email.transportFunction": None,
+	# If set, we'll enable sending emails from the local development server. Otherwise, they'll just be logged.
+	"viur.email.sendFromLocalDevelopmentServer": False,
 	# If set, all outgoing emails will be send to this address (overriding the 'dests'-parameter in utils.sendEmail)
-	"viur.emailRecipientOverride": None,
+	"viur.email.recipientOverride": None,
 	# If set, this sender will be used, regardless of what the templates advertise as sender
-	"viur.emailSenderOverride": None,
+	"viur.email.senderOverride": None,
 
 	# If set, ViUR call this function instead of rendering the viur.errorTemplate if an exception occurs
 	"viur.errorHandler": None,

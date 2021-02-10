@@ -772,27 +772,23 @@ class Render(object):
 					file: str = None,
 					template: str = None,
 					skel: Union[None, Dict, SkeletonInstance, List[SkeletonInstance]] = None,
-					params: Any = None,
 					**kwargs) -> Tuple[str, str]:
-		"""Renders an email.
-		Uses the first not-empty line as subject and the remaining template as body.
-
-		:param dests: Destination recipients.
-		:param file: The name of a template from the deploy/emails directory.
-		:param template: This string is interpreted as the template contents. Alternative to load from template file.
-		:param skel: Skeleton or dict which data to supply to the template.
-		:param params: Optional data that will be passed unmodified to the template
-		:return: Returns the rendered email subject and body.
 		"""
-		user = utils.getCurrentUser()
+			Renders an email.
+			Uses the first not-empty line as subject and the remaining template as body.
 
+			:param dests: Destination recipients.
+			:param file: The name of a template from the deploy/emails directory.
+			:param template: This string is interpreted as the template contents. Alternative to load from template file.
+			:param skel: Skeleton or dict which data to supply to the template.
+			:return: Returns the rendered email subject and body.
+		"""
 		if isinstance(skel, SkeletonInstance):
 			res = self.collectSkelData(skel)
 		elif isinstance(skel, list) and all([isinstance(x, SkeletonInstance) for x in skel]):
 			res = [self.collectSkelData(x) for x in skel]
 		else:
 			res = skel
-
 		if file is not None:
 			try:
 				tpl = self.getEnv().from_string(codecs.open("emails/" + file + ".email", "r", "utf-8").read())
@@ -801,12 +797,9 @@ class Render(object):
 				tpl = self.getEnv().get_template(file + ".email")
 		else:
 			tpl = self.getEnv().from_string(template)
-
-		content = tpl.render(skel=res, dests=dests, user=user, params=params, **kwargs).lstrip().splitlines()
-
+		content = tpl.render(skel=res, dests=dests, **kwargs).lstrip().splitlines()
 		if len(content) == 1:
 			content.insert(0, "")  # add empty subject
-
 		return content[0], os.linesep.join(content[1:]).lstrip()
 
 	def getEnv(self):
