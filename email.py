@@ -14,7 +14,16 @@ from urllib import request
 	to actually deliver the email. A sample implementation for Send in Blue (https://sendinblue.com/) is provided.
 	To enable Send in Blue,	set conf["viur.email.transportFunction"] to transportSendInBlue and add your API-Key to
 	conf["viur.email.sendInBlue.apiKey"]. To send via another service, you'll have to implement a different transport
-	function (and point conf["viur.email.transportFunction"] to that function).
+	function (and point conf["viur.email.transportFunction"] to that function). This module needs a custom queue
+	(viur-emails) with a larger backoff value (sothat we don't try to deliver the same email multiple times within a
+	short timeframe). A suggested configuration would be
+	
+	- name: viur-emails
+		rate: 1/s
+		retry_parameters:
+			min_backoff_seconds: 3600
+			max_backoff_seconds: 3600
+
 """
 
 @PeriodicTask(interval=60*24)
@@ -70,7 +79,23 @@ def sendEmailDeferred(emailKey: db.KeyClass):
 	queueEntity["transportFuncResult"] = resultData
 	queueEntity.exclude_from_indexes.add("transportFuncResult")
 	db.Put(queueEntity)
+	if conf["viur.email.transportSuccessful"]:
+		try:
+			conf["viur.email.transportSuccessful"](queueEntity)
+		except Exception as e:
+			logging.exception(e)
+			
 
+
+def normalizeToList(value: Union[None, Any, List[Any]]) -> List[Any]:
+	"""
+		Convert the given value to a list.
+	"""
+	if value is None:
+		return []
+	if isinstance(value, list):
+		return value
+	return [value]
 
 def sendEMail(*,
 			  tpl: str = None,
@@ -81,7 +106,7 @@ def sendEMail(*,
 			  cc: Union[str, List[str]] = None,
 			  bcc: Union[str, List[str]] = None,
 			  headers: Dict[str, str] = None,
-			  attachments: List[Tuple[str, str]] = None,
+			  attachments: List[Dict[str, Any]] = None,
 			  **kwargs) -> Any:
 	"""
 	General purpose function for sending e-mail.
@@ -98,7 +123,13 @@ def sendEMail(*,
 	:param cc: Carbon-copy recipients. A bare string will be treated as a list with 1 address.
 	:param bcc: Blind carbon-copy recipients. A bare string will be treated as a list with 1 address.
 	:param headers: Specify headers for this email.
-	:param attachments: List of files ((filename, filecontent)-pairs) to be sent within the mail as attachments.
+	:param attachments: List of files to be sent within the mail as attachments. Each attachment must be a dictionary
+		with these keys:
+			filename (string): Name of the file that's attached. Always required
+			content (bytes): Content of the attachment as bytes. Required for the send in blue API.
+			mimetype (string): Mimetype of the file. Suggested parameter for other implementations (not used by SIB)
+			gcsfile (string): Link to a GCS-File to include instead of content. Not supported by the current
+				SIB implementation
 
 	.. Warning:  As emails will be queued (and not send directly) you cannot exceed 1MB in total
 				(for all text and attachments combined)!
@@ -106,12 +137,6 @@ def sendEMail(*,
 	# First, ensure we're able to send email at all
 	assert callable(conf.get("viur.email.transportFunction")), "No or invalid email transportfunction specified!"
 	# Ensure that all recipient parameters (dest, cc, bcc) are a list
-	def normalizeToList(value: Union[None, Any, List[Any]]) -> List[Any]:
-		if value is None:
-			return []
-		if isinstance(value, list):
-			return value
-		return [value]
 	dests = normalizeToList(dests)
 	cc = normalizeToList(cc)
 	bcc = normalizeToList(bcc)
@@ -119,6 +144,18 @@ def sendEMail(*,
 	attachments = normalizeToList(attachments)
 	if not (bool(stringTemplate) ^ bool(tpl)):
 		raise ValueError("You have to set the params 'tpl' xor a 'stringTemplate'.")
+	if attachments:
+		# Ensure each attachment has the filename key and rewrite each dict to db.Entity so we can exclude
+		# it from being indexed
+		for _ in range(0, len(attachments)):
+			attachment = attachments.pop(0)
+			assert "filename" in attachment
+			entity = db.Entity()
+			for k, v in attachment.items():
+				entity[k] = v
+				entity.exclude_from_indexes.add(k)
+			attachments.append(entity)
+		assert all(["filename" in x for x in attachments]), "Attachment is missing the filename key"
 	# If conf["viur.email.recipientOverride"] is set we'll redirect any email to these address(es)
 	if conf["viur.email.recipientOverride"]:
 		logging.warning("Overriding destination %s with %s", dests, conf["viur.email.recipientOverride"])
@@ -180,7 +217,7 @@ def sendEMailToAdmins(subject: str, body: str, *args, **kwargs):
 				users.append(userSkel["name"])
 
 			if users:
-				ret = sendEMail(dests=users, template=os.linesep.join((subject, body)), *args, **kwargs)
+				ret = sendEMail(dests=users, stringTemplate=os.linesep.join((subject, body)), *args, **kwargs)
 				success = True
 				return ret
 			else:
@@ -242,10 +279,10 @@ def transportSendInBlue(*, sender: str, dests: List[str], cc: List[str], bcc: Li
 			dataDict["headers"] = headers
 	if attachments:
 		dataDict["attachment"] = []
-		for file_name, file_content in attachments:
+		for attachment in attachments:
 			dataDict["attachment"].append({
-				"name": file_name,
-				"content": base64.b64encode(file_content)
+				"name": attachment["filename"],
+				"content": base64.b64encode(attachment["content"]).decode("ASCII")
 			})
 	payload = json.dumps(dataDict).encode("UTF-8")
 	headers = {
