@@ -26,19 +26,22 @@ from urllib import request
 
 """
 
-@PeriodicTask(interval=60*24)
+
+@PeriodicTask(interval=60 * 24)
 def cleanOldEmailsFromLog(*args, **kwargs):
 	"""
 		Start the QueryIter DeleteOldEmailsFromLog to remove old, successfully send emails from the queue
 	"""
 	qry = db.Query("viur-emails").filter("isSend =", True) \
-		.filter("creationDate <", utils.utcNow()-conf["viur.email.logRetention"])
+		.filter("creationDate <", utils.utcNow() - conf["viur.email.logRetention"])
 	DeleteOldEmailsFromLog.startIterOnQuery(qry)
+
 
 class DeleteOldEmailsFromLog(QueryIter):
 	"""
 		Simple Query-Iter to delete all entities encountered
 	"""
+
 	@classmethod
 	def handleEntry(cls, entry, customData):
 		db.Delete(entry.key)
@@ -57,7 +60,7 @@ def sendEmailDeferred(emailKey: db.KeyClass):
 		return True
 	elif queueEntity["errorCount"] > 3:
 		raise ChildProcessError("Error-Count exceeded")
-	transportFunction = conf["viur.email.transportFunction"] # First, ensure we're able to send email at all
+	transportFunction = conf["viur.email.transportFunction"]  # First, ensure we're able to send email at all
 	assert callable(transportFunction), "No or invalid email transportfunction specified!"
 	try:
 		resultData = transportFunction(dests=queueEntity["dests"],
@@ -84,7 +87,6 @@ def sendEmailDeferred(emailKey: db.KeyClass):
 			conf["viur.email.transportSuccessful"](queueEntity)
 		except Exception as e:
 			logging.exception(e)
-			
 
 
 def normalizeToList(value: Union[None, Any, List[Any]]) -> List[Any]:
@@ -96,6 +98,7 @@ def normalizeToList(value: Union[None, Any, List[Any]]) -> List[Any]:
 	if isinstance(value, list):
 		return value
 	return [value]
+
 
 def sendEMail(*,
 			  tpl: str = None,
@@ -234,8 +237,9 @@ def sendEMailToAdmins(subject: str, body: str, *args, **kwargs):
 
 	return False
 
+
 def transportSendInBlue(*, sender: str, dests: List[str], cc: List[str], bcc: List[str], subject: str, body: str,
-				  headers: Dict[str, str], attachments: List[Dict[str, bytes]], **kwargs):
+						headers: Dict[str, str], attachments: List[Dict[str, bytes]], **kwargs):
 	"""
 		Internal function for delivering Emails using Send in Blue. This function requires the
 		conf["viur.email.sendInBlue.apiKey"] to be set.
@@ -243,6 +247,7 @@ def transportSendInBlue(*, sender: str, dests: List[str], cc: List[str], bcc: Li
 		If no exception is thrown, the email is considered send and will not be retried.
 
 	"""
+
 	def splitAddress(address: str) -> Dict[str, str]:
 		"""
 			Splits an Name/Address Pair as "Max Musterman <mm@example.com>" into a dict
@@ -298,5 +303,5 @@ def transportSendInBlue(*, sender: str, dests: List[str], cc: List[str], bcc: Li
 		logging.error(dataDict)
 		logging.error(e.read())
 		raise
-	assert str(response.code)[0]=="2", "Received a non 2XX Status Code!"
+	assert str(response.code)[0] == "2", "Received a non 2XX Status Code!"
 	return response.read().decode("UTF-8")
