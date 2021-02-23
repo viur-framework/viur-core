@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# from google.appengine.api import search
 from viur.core.config import conf
 from viur.core import db
 import logging
@@ -272,16 +271,15 @@ class baseBone(object):  # One Bone:
 
 	def parseSubfieldsFromClient(self) -> bool:
 		"""
-		Whenever this request should try to parse subfields submitted from the client.
-		Set only to true if you expect a list of dicts to be transmitted
+			Whenever this request should try to parse subfields submitted from the client.
+			Set only to true if you expect a list of dicts to be transmitted
 		"""
 		return False
 
 	def singleValueFromClient(self, value, skel, name, origData):
-		err = self.isInvalid(value)
-		if err:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
-		return value, None
+		# The baseBone will not read any data in fromClient. Use rawValueBone if needed.
+		return self.getEmptyValue(), [
+			ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Will not read a baseBone fromClient!")]
 
 	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		"""
