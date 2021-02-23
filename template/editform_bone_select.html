@@ -33,7 +33,7 @@
                 </option>
             {% endif %}
 
-            <option value="{{ key }}" {{ "selected" if boneValue == key }}>
+            <option value="{{ key }}" {{ "selected" if boneValue["key"] == key }}>
                 {{ descr }}
             </option>
         {% endfor -%}
