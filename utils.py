@@ -1,24 +1,16 @@
 # -*- coding: utf-8 -*-
-
-# from google.appengine.api import memcache, app_identity, mail
-# from google.appengine.ext import deferred
-import os
-from viur.core import db
-import string, random, base64
-from viur.core import conf
-import logging
-import google.auth
-from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
-from quopri import decodestring
-from base64 import urlsafe_b64decode, urlsafe_b64encode
-from hashlib import sha256
-import email.header
-from typing import Any, Union
-#from viur.core.request import currentLanguage
-
+import os
+import random
+import string
+from base64 import urlsafe_b64encode
 from contextvars import ContextVar
+from datetime import datetime, timedelta, timezone
+from typing import Any, Union
+import google.auth
+from viur.core import conf, db
+
 
 # Proxy to context depended variables
 currentRequest = ContextVar("Request", default=None)
@@ -32,6 +24,7 @@ del _
 # Determine our basePath (as os.getCWD is broken on appengine)
 projectBasePath = globals()["__file__"].replace("/viur/core/utils.py","")
 isLocalDevelopmentServer = os.environ['GAE_ENV'] == "localdev"
+
 
 def utcNow():
 	return datetime.now(timezone.utc)
@@ -48,155 +41,6 @@ def generateRandomString(length: int = 13) -> str:
 	:rtype: str
 	"""
 	return "".join(random.choices(string.ascii_letters + string.digits, k=length))
-
-
-def sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None, *args, **kwargs):
-	"""
-	General purpose function for sending e-mail.
-
-	This function allows for sending e-mails, also with generated content using the Jinja2 template engine.
-
-	:type dests: str | list of str
-	:param dests: Full-qualified recipient email addresses; These can be assigned as list, for multiple targets.
-
-	:type name: str
-	:param name: The name of a template from the appengine/emails directory, or the template string itself.
-
-	:type skel: server.skeleton.Skeleton | dict | None
-	:param skel: The data made available to the template. In case of a Skeleton, its parsed the usual way;\
-	Dictionaries are passed unchanged.
-
-	:type extraFiles: list of fileobjects
-	:param extraFiles: List of **open** fileobjects to be sent within the mail as attachments
-
-	:type cc: str | list of str
-	:param cc: Carbon-copy recipients
-
-	:type bcc: str | list of str
-	:param bcc: Blind carbon-copy recipients
-
-	:type replyTo: str
-	:param replyTo: A reply-to email address
-	"""
-	if conf["viur.emailRecipientOverride"]:
-		logging.warning("Overriding destination %s with %s", dests, conf["viur.emailRecipientOverride"])
-
-		oldDests = dests
-		if isinstance(oldDests, str):
-			oldDests = [oldDests]
-
-		newDests = conf["viur.emailRecipientOverride"]
-		if isinstance(newDests, str):
-			newDests = [newDests]
-
-		dests = []
-		for newDest in newDests:
-			if newDest.startswith("@"):
-				for oldDest in oldDests:
-					dests.append(oldDest.replace(".", "_dot_").replace("@", "_at_") + newDest)
-			else:
-				dests.append(newDest)
-
-	elif conf["viur.emailRecipientOverride"] is False:
-		logging.warning("Sending emails disabled by config[viur.emailRecipientOverride]")
-		return
-
-	handler = conf.get("viur.emailHandler")
-
-	if handler is None:
-		handler = _GAE_sendEMail
-
-	if not callable(handler):
-		logging.warning("Invalid emailHandler configured, no email will be sent.")
-		return False
-
-	logging.debug("CALLING %s" % str(handler))
-
-	return handler(dests, name, skel, extraFiles=extraFiles, cc=cc, bcc=bcc, replyTo=replyTo, *args, **kwargs)
-
-
-def _GAE_sendEMail(dests, name, skel, extraFiles=[], cc=None, bcc=None, replyTo=None, *args, **kwargs):
-	"""
-	Internal function for using Google App Engine Email processing API.
-	"""
-	return
-	headers, data = conf["viur.emailRenderer"](skel, name, dests, **kwargs)
-
-	xheader = {}
-
-	if "references" in headers:
-		xheader["References"] = headers["references"]
-
-	if "in-reply-to" in headers:
-		xheader["In-Reply-To"] = headers["in-reply-to"]
-
-	if xheader:
-		message = mail.EmailMessage(headers=xheader)
-	else:
-		message = mail.EmailMessage()
-
-	mailfrom = "viur@%s.appspotmail.com" % projectID
-
-	if "subject" in headers:
-		message.subject = "=?utf-8?B?%s?=" % base64.b64encode(headers["subject"].encode("UTF-8"))
-	else:
-		message.subject = "No Subject"
-
-	if "from" in headers:
-		mailfrom = headers["from"]
-
-	if conf["viur.emailSenderOverride"]:
-		mailfrom = conf["viur.emailSenderOverride"]
-
-	if isinstance(dests, list):
-		message.to = ", ".join(dests)
-	else:
-		message.to = dests
-
-	if cc:
-		if isinstance(cc, list):
-			message.cc = ", ".join(cc)
-		else:
-			message.cc = cc
-
-	if bcc:
-		if isinstance(bcc, list):
-			message.bcc = ", ".join(bcc)
-		else:
-			message.bcc = bcc
-
-	if replyTo:
-		message.reply_to = replyTo
-
-	message.sender = mailfrom
-	message.html = data.replace("\x00", "").encode('ascii', 'xmlcharrefreplace')
-
-	if len(extraFiles) > 0:
-		message.attachments = extraFiles
-	message.send()
-	return True
-
-
-def sendEMailToAdmins(subject, body, sender=None):
-	"""
-		Sends an e-mail to the appengine administration of the current app.
-		(all users having access to the applications dashboard)
-
-		:param subject: Defines the subject of the message.
-		:type subject: str
-
-		:param body: Defines the message body.
-		:type body: str
-
-		:param sender: (optional) specify a different sender
-		:type sender: str
-	"""
-	return
-	if not sender:
-		sender = "viur@%s.appspotmail.com" % projectID
-
-	mail.send_mail_to_admins(sender, "=?utf-8?B?%s?=" % base64.b64encode(subject.encode("UTF-8")),
-							 body.encode('ascii', 'xmlcharrefreplace'))
 
 
 def getCurrentUser():

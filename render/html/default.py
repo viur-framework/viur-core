@@ -1,17 +1,22 @@
 # -*- coding: utf-8 -*-
-from . import utils as jinjaUtils
-from .wrap import ListWrapper, SkelListWrapper
-
-from viur.core import utils, request, errors, securitykey, db
-from viur.core.skeleton import SkeletonInstance, RefSkel, skeletonByKind, SkeletonInstance
-from viur.core.bones import *
-from viur.core.i18n import TranslationExtension
+import codecs
+import logging
+import os
 from collections import OrderedDict
-from jinja2 import Environment, FileSystemLoader, ChoiceLoader, BytecodeCache
-from viur.core.i18n import translate, LanguageWrapper
-import os, logging, codecs
 from collections import namedtuple
-from viur.core.utils import currentRequest, currentSession, currentLanguage
+from typing import Any, Dict, List, Union, Tuple
+
+from jinja2 import Environment, FileSystemLoader, ChoiceLoader
+
+from viur.core import db
+from viur.core import utils, errors, securitykey
+from viur.core.bones import *
+from viur.core.i18n import LanguageWrapper
+from viur.core.i18n import TranslationExtension
+from viur.core.skeleton import SkeletonInstance
+from viur.core.utils import currentRequest, currentLanguage
+from . import utils as jinjaUtils
+from .wrap import ListWrapper
 
 KeyValueWrapper = namedtuple("KeyValueWrapper", ["key", "descr"])
 
@@ -62,6 +67,7 @@ class Render(object):
 		super(Render, self).__init__(*args, **kwargs)
 		if not Render.__haveEnvImported_:
 			# We defer loading our plugins to this point to avoid circular imports
+			# noinspection PyUnresolvedReferences
 			from . import env
 			Render.__haveEnvImported_ = True
 		self.parent = parent
@@ -355,7 +361,7 @@ class Render(object):
 		return template.render(skel={"structure": self.renderSkelStructure(skel),
 									 "errors": skel.errors,
 									 "value": self.collectSkelData(skel)},
-								params=params, **kwargs)
+							   params=params, **kwargs)
 
 	def edit(self, skel, tpl=None, params=None, **kwargs):
 		"""
@@ -761,62 +767,40 @@ class Render(object):
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
 		return template.render(params=params, **kwargs)
 
-	def renderEmail(self, skel, tpl, dests, params=None, **kwargs):
+	def renderEmail(self,
+					dests: List[str],
+					file: str = None,
+					template: str = None,
+					skel: Union[None, Dict, SkeletonInstance, List[SkeletonInstance]] = None,
+					**kwargs) -> Tuple[str, str]:
 		"""
 			Renders an email.
-
-			:param skel: Skeleton or dict which data to supply to the template.
-			:type skel: server.db.skeleton.Skeleton | dict
-
-			:param tpl: Name of the email-template to use. If this string is longer than 100 characters,
-				this string is interpreted as the template contents instead of its filename.
-			:type tpl: str
+			Uses the first not-empty line as subject and the remaining template as body.
 
 			:param dests: Destination recipients.
-			:type dests: list | str
-
-			:param params: Optional data that will be passed unmodified to the template
-			:type params: object
-
-			:return: Returns a tuple consisting of email header and body.
-			:rtype: str, str
+			:param file: The name of a template from the deploy/emails directory.
+			:param template: This string is interpreted as the template contents. Alternative to load from template file.
+			:param skel: Skeleton or dict which data to supply to the template.
+			:return: Returns the rendered email subject and body.
 		"""
-		headers = {}
-		user = utils.getCurrentUser()
 		if isinstance(skel, SkeletonInstance):
 			res = self.collectSkelData(skel)
 		elif isinstance(skel, list) and all([isinstance(x, SkeletonInstance) for x in skel]):
 			res = [self.collectSkelData(x) for x in skel]
 		else:
 			res = skel
-		if len(tpl) < 101:
+		if file is not None:
 			try:
-				template = self.getEnv().from_string(codecs.open("emails/" + tpl + ".email", "r", "utf-8").read())
+				tpl = self.getEnv().from_string(codecs.open("emails/" + file + ".email", "r", "utf-8").read())
 			except Exception as err:
 				logging.exception(err)
-				template = self.getEnv().get_template(tpl + ".email")
+				tpl = self.getEnv().get_template(file + ".email")
 		else:
-			template = self.getEnv().from_string(tpl)
-		data = template.render(skel=res, dests=dests, user=user, params=params, **kwargs)
-		body = False
-		lineCount = 0
-		for line in data.splitlines():
-			if lineCount > 3 and body is False:
-				body = "\n\n"
-			if body != False:
-				body += line + "\n"
-			else:
-				if line.lower().startswith("from:"):
-					headers["from"] = line[len("from:"):]
-				elif line.lower().startswith("subject:"):
-					headers["subject"] = line[len("subject:"):]
-				elif line.lower().startswith("references:"):
-					headers["references"] = line[len("references:"):]
-				else:
-					body = "\n\n"
-					body += line
-			lineCount += 1
-		return (headers, body)
+			tpl = self.getEnv().from_string(template)
+		content = tpl.render(skel=res, dests=dests, **kwargs).lstrip().splitlines()
+		if len(content) == 1:
+			content.insert(0, "")  # add empty subject
+		return content[0], os.linesep.join(content[1:]).lstrip()
 
 	def getEnv(self):
 		"""
@@ -834,7 +818,8 @@ class Render(object):
 
 		if not "env" in dir(self):
 			loaders = self.getLoaders()
-			self.env = Environment(loader=loaders, extensions=["jinja2.ext.do", "jinja2.ext.loopcontrols", TranslationExtension])
+			self.env = Environment(loader=loaders,
+								   extensions=["jinja2.ext.do", "jinja2.ext.loopcontrols", TranslationExtension])
 			self.env.trCache = {}
 
 			# Import functions.
