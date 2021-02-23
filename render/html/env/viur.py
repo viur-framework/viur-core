@@ -111,7 +111,8 @@ def getCurrentUser(render):
 	:return: A dict containing user data. Returns None if no user data is available.
 	:rtype: dict
 	"""
-	return utils.getCurrentUser()
+	currentUser = utils.getCurrentUser()
+	return render.collectSkelData(currentUser) if currentUser else None
 
 
 @jinjaGlobalFunction
@@ -616,7 +617,11 @@ def embedSvg(render, name: str, classes: Union[List[str], None] = None, **kwargs
 
 
 @jinjaGlobalFunction
-def downloadUrlFor(render, fileObj, derived=None, expires=timedelta(hours=1)):
+def downloadUrlFor(render, fileObj, expires, derived=None):
+	if "dlkey" not in fileObj and "dest" in fileObj:
+		fileObj = fileObj["dest"]
+	if expires:
+		expires = timedelta(minutes=expires)
 	if not isinstance(fileObj, (SkeletonInstance, dict)) or "dlkey" not in fileObj or "name" not in fileObj:
 		return None
 	if derived and ("derived" not in fileObj or not isinstance(fileObj["derived"], dict)):
@@ -627,14 +632,18 @@ def downloadUrlFor(render, fileObj, derived=None, expires=timedelta(hours=1)):
 		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileObj["name"], derived=False, expires=expires)
 
 @jinjaGlobalFunction
-def srcSetFor(render, fileObj, expires=timedelta(hours=1)):
+def srcSetFor(render, fileObj, expires):
+	if "dlkey" not in fileObj and "dest" in fileObj:
+		fileObj = fileObj["dest"]
+	if expires:
+		expires = timedelta(minutes=expires)
 	if not isinstance(fileObj, (SkeletonInstance, dict)) or not "dlkey" in fileObj or "derived" not in fileObj:
 		return None
 	if not isinstance(fileObj["derived"], dict):
 		return ""
 	resList = []
-	for fileName, deriviation in fileObj["derived"].items():
-		params = deriviation["params"]
+	for fileName, derivate in fileObj["derived"].items():
+		params = derivate["params"]
 		if params.get("group") == "srcset":
 			resList.append("%s %sw" % (utils.downloadUrlFor(fileObj["dlkey"], fileName, True, expires), params["width"]))
 	return ", ".join(resList)

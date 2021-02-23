@@ -11,6 +11,7 @@ from google.cloud import datastore, exceptions
 from enum import Enum
 from datetime import datetime, date, time
 import binascii
+from dataclasses import dataclass, field
 import contextlib
 from time import time as ttime
 
@@ -35,6 +36,18 @@ class SortOrder(Enum):
 	Descending = 2
 	InvertedAscending = 3
 	InvertedDescending = 4
+
+
+@dataclass
+class QueryDefinition:
+	kind: str
+	filters: Dict[str, DATASTORE_BASE_TYPES]
+	orders: List[Tuple[str, SortOrder]]
+	distinct: Union[None, List[str]] = None
+	limit: int = 30
+	startCursor: Union[None, str] = None
+	endCursor: Union[None, str] = None
+	currentCursor: Union[None, str] = None
 
 
 # Proxied Function / Classed
@@ -209,15 +222,16 @@ class Query(object):
 		super(Query, self).__init__()
 		self.kind = kind
 		self.srcSkel = srcSkelClass
-		self.filters: Union[None, Dict[str: DATASTORE_BASE_TYPES], List[Dict[str: DATASTORE_BASE_TYPES]]] = {}
-		self.orders: List[Tuple[str, SortOrder]] = [(KEY_SPECIAL_PROPERTY, SortOrder.Ascending)]
-		self._limit: int = 30
+		self.queries: Union[None, QueryDefinition, List[QueryDefinition]] = QueryDefinition(kind, {}, [])
+		#self.filters: Union[None, Dict[str: DATASTORE_BASE_TYPES], List[Dict[str: DATASTORE_BASE_TYPES]]] = {}
+		#self.orders: List[Tuple[str, SortOrder]] = [(KEY_SPECIAL_PROPERTY, SortOrder.Ascending)]
+		#self._limit: int = 30
 		cbSignature = Union[None, Callable[[Query, str, Union[DATASTORE_BASE_TYPES, List[DATASTORE_BASE_TYPES]]], Union[
 			None, Tuple[str, Union[DATASTORE_BASE_TYPES, List[DATASTORE_BASE_TYPES]]]]]]
 		self._filterHook: cbSignature = None
 		self._orderHook: cbSignature = None
-		self._startCursor = None
-		self._endCursor = None
+		#self._startCursor = None
+		#self._endCursor = None
 		# Sometimes, the default merge functionality from MultiQuery is not sufficient
 		self._customMultiQueryMerge: Union[None, Callable[[Query, List[List[Entity]], int], List[Entity]]] = None
 		# Some (Multi-)Queries need a different amount of results per subQuery than actually returned
@@ -228,7 +242,7 @@ class Query(object):
 		self._lastEntry = None
 		self._fulltextQueryString: Union[None, str] = None
 		self.lastCursor = None
-		self._distinct = None
+		#self._distinct = None
 
 	def setFilterHook(self, hook):
 		"""
@@ -288,7 +302,7 @@ class Query(object):
 		"""
 		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
-		if self.filters is None:  # This query is allready unsatifiable and adding more constrains to this wont change this
+		if self.queries is None:  # This query is allready unsatifiable and adding more constrains to this wont change this
 			return self
 		skel = self.srcSkel
 		if "search" in filters:
@@ -299,7 +313,7 @@ class Query(object):
 					"Got a fulltext search query for %s which does not have a suitable customDatabaseAdapter"
 					% self.srcSkel.kindName
 				)
-				self.filters = None
+				self.queries = None
 		bones = [(y, x) for x, y in skel.items()]
 		try:
 			# Process filters first
@@ -310,7 +324,7 @@ class Query(object):
 				bone.buildDBSort(key, skel, self, filters)
 		except RuntimeError as e:
 			logging.exception(e)
-			self.filters = None
+			self.queries = None
 			return self
 		if "cursor" in filters and filters["cursor"] and filters["cursor"].lower() != "none":
 			self.setCursor(filters["cursor"])
@@ -335,14 +349,14 @@ class Query(object):
 			:returns: Returns the query itself for chaining.
 			:rtype: server.db.Query
 		"""
-		if self.filters is None:
+		if self.queries is None:
 			# This query is already unsatisfiable and adding more constrains to this won't change this
 			return self
 		if self._filterHook is not None:
 			try:
 				r = self._filterHook(self, prop, value)
 			except RuntimeError:
-				self.filters = None
+				self.queries = None
 				return self
 			if r is None:
 				# The Hook did something special directly on 'self' to apply that filter,
@@ -356,32 +370,38 @@ class Query(object):
 		else:
 			field, op = prop.split(" ")
 		if op.lower() in {"!=", "in"}:
-			if isinstance(self.filters, list):
+			if isinstance(self.queries, list):
 				raise NotImplementedError("You cannot use multiple IN or != filter")
-			origFilter = self.filters
-			self.filters = []
+			origQuery = self.queries
+			self.queries = []
 			if op == "!=":
-				newFilter = {k: v for k, v in origFilter.items()}
-				newFilter["%s <" % field] = value
-				self.filters.append(newFilter)
-				newFilter = {k: v for k, v in origFilter.items()}
-				newFilter["%s >" % field] = value
-				self.filters.append(newFilter)
+				newFilter = deepcopy(origQuery)
+				newFilter.filters["%s <" % field] = value
+				self.queries.append(newFilter)
+				newFilter = deepcopy(origQuery)
+				newFilter.filters["%s >" % field] = value
+				self.queries.append(newFilter)
 			else:  # IN filter
 				if not (isinstance(value, list) or isinstance(value, tuple)):
 					raise ValueError("Value must be list or tuple if using IN filter!")
 				for val in value:
-					newFilter = {k: v for k, v in origFilter.items()}
-					newFilter["%s =" % field] = val
-					self.filters.append(newFilter)
+					newFilter = deepcopy(origQuery)
+					newFilter.filters["%s =" % field] = val
+					self.queries.append(newFilter)
 		else:
-			if isinstance(self.filters, list):
-				for singeFilter in self.filters:
-					singeFilter["%s %s" % (field, op)] = value
+			if isinstance(self.queries, list):
+				for singeFilter in self.queries:
+					singeFilter.filters["%s %s" % (field, op)] = value
 			else:  # It must be still a dict (we tested for None already above)
-				self.filters["%s %s" % (field, op)] = value
-			if op in {"<", "<=", ">", ">="} and (len(self.orders) == 0 or self.orders[0][0] != field):
-				self.order((field, SortOrder.Ascending), *self.orders)
+				self.queries.filters["%s %s" % (field, op)] = value
+			if op in {"<", "<=", ">", ">="}:
+				if isinstance(self.queries, list):
+					for queryObj in self.queries:
+						if not queryObj.orders or queryObj.orders[0][0] != field:
+							queryObj.orders = [(field, SortOrder.Ascending)] + (queryObj.orders or [])
+				else:
+					if not self.queries.orders or self.queries.orders[0][0] != field:
+						self.queries.orders = [(field, SortOrder.Ascending)] + (self.queries.orders or [])
 		return self
 
 	def order(self, *orderings: Tuple[str, SortOrder]) -> Query:
@@ -428,18 +448,22 @@ class Query(object):
 
 			:returns: Returns the query itself for chaining.
 		"""
-		if self.filters is None:
+		if self.queries is None:
 			# This Query is unsatisfiable - don't try to bother
 			return self
 		if self._orderHook is not None:
 			try:
 				orderings = self._orderHook(self, orderings)
 			except RuntimeError:
-				self.datastoreQuery = None
+				self.queries = None
 				return self
 			if orderings is None:
 				return self
-		self.orders = orderings
+		if isinstance(self.queries, list):
+			for query in self.queries:
+				query.orders = list(orderings)
+		else:
+			self.queries.orders = list(orderings)
 		return self
 
 	def setCursor(self, startCursor, endCursor=None):
@@ -458,11 +482,14 @@ class Query(object):
 			:returns: Returns the query itself for chaining.
 			:rtype: server.db.Query
 		"""
-		if isinstance(startCursor, str) and startCursor.startswith("h-"):
-			self._startCursor = bytes.fromhex(startCursor[2:])
-		else:
-			self._startCursor = startCursor
-		self._endCursor = endCursor
+		assert isinstance(self.queries, QueryDefinition)
+		self.queries.startCursor = startCursor
+		self.queries.endCursor = endCursor
+		#if isinstance(startCursor, str) and startCursor.startswith("h-"):
+		#	self._startCursor = bytes.fromhex(startCursor[2:])
+		#else:
+		#	self._startCursor = startCursor
+		#self._endCursor = endCursor
 		return self
 
 		def untrustedCursorHelper(cursor):
@@ -503,7 +530,11 @@ class Query(object):
 			:returns: Returns the query itself for chaining.
 			:rtype: server.db.Query
 		"""
-		self._limit = limit
+		if isinstance(self.queries, QueryDefinition):
+			self.queries.limit = limit
+		elif isinstance(self.queries, list):
+			for query in self.queries:
+				query.limit = limit
 		return self
 
 	def distinctOn(self, keyList: List[str]) -> self:
@@ -520,6 +551,7 @@ class Query(object):
 
 			:rtype: bool
 		"""
+		raise NotImplementedError()
 		return self.datastoreQuery.IsKeysOnly()
 
 	def getQueryOptions(self):
@@ -528,6 +560,7 @@ class Query(object):
 
 			:rtype: datastore_query.QueryOptions
 		"""
+		raise NotImplementedError()
 		return (self.datastoreQuery.GetQueryOptions())
 
 	def getQuery(self):
@@ -536,6 +569,7 @@ class Query(object):
 
 			:rtype: datastore_query.Query
 		"""
+		raise NotImplementedError()
 		return (self.datastoreQuery.GetQuery())
 
 	def getOrder(self):
@@ -545,6 +579,7 @@ class Query(object):
 			:returns: The sort orders set on the current query, or None.
 			:rtype: datastore_query.Order or None
 		"""
+		raise NotImplementedError()
 		if self.datastoreQuery is None:
 			return (None)
 
@@ -557,6 +592,7 @@ class Query(object):
 			:returns: Filter as dictionary.
 			:rtype: dict
 		"""
+		raise NotImplementedError()
 		return self.filters
 
 	def getOrders(self):
@@ -571,6 +607,7 @@ class Query(object):
 			:returns: list of orderings, in tuples (property,direction).
 			:rtype: list
 		"""
+		raise NotImplementedError()
 		try:
 			order = self.datastoreQuery.__orderings
 			return [(prop, dir) for (prop, dir) in order]
@@ -594,6 +631,11 @@ class Query(object):
 
 			:raises: :exc:`AssertionError` if the query has not yet been run or cannot be compiled.
 		"""
+		if isinstance(self.queries, QueryDefinition):
+			q = self.queries
+		elif isinstance(self.queries, list):
+			q = self.queries[0]
+		return q.currentCursor.decode("ASCII") if q.currentCursor else None
 		return self.lastCursor.decode("ASCII") if self.lastCursor else None
 
 	def getKind(self):
@@ -615,18 +657,18 @@ class Query(object):
 			return
 		self.datastoreQuery.__kind = newKind
 
-	def _runSingleFilterQuery(self, filters, limit):
-		qry = __client__.query(kind=self.getKind())
-		for k, v in filters.items():
+	def _runSingleFilterQuery(self, query, limit):
+		qry = __client__.query(kind=query.kind)
+		for k, v in query.filters.items():
 			key, op = k.split(" ")
 			qry.add_filter(key, op, v)
-		if self._distinct:
+		if query.distinct:
 			# Distinct is kinda tricky as all Fieldpaths listed in self._distinct have to be also the first sort orders.
 			# We try to keep the requested order intact if possible, otherwise we'll merge / append it to the end
-			qry.distinct_on = self._distinct
+			qry.distinct_on = query.distinct
 			newSortOrder = []
 			postPonedOrders = {}
-			for distinctKey, sortTuple in zip_longest(self._distinct, self.orders):
+			for distinctKey, sortTuple in zip_longest(query.distinct, query.orders):
 				if distinctKey and sortTuple:
 					(orderProp, orderDir) = sortTuple
 					if distinctKey == orderProp:
@@ -646,14 +688,14 @@ class Query(object):
 					newSortOrder.append(sortTuple)
 			for k, v in postPonedOrders.items():
 				newSortOrder.append((k, v))
-			if newSortOrder != self.orders:
+			if newSortOrder != query.orders:
 				logging.warning("Sortorder fixed to %s due to distinct filtering!" % newSortOrder)
 			qry.order = [x[0] if x[1] == SortOrder.Ascending else "-" + x[0] for x in newSortOrder]
 		else:
-			qry.order = [x[0] if x[1] == SortOrder.Ascending else "-" + x[0] for x in self.orders]
-		qryRes = qry.fetch(limit=limit, start_cursor=self._startCursor, end_cursor=self._endCursor)
+			qry.order = [x[0] if x[1] == SortOrder.Ascending else "-" + x[0] for x in query.orders]
+		qryRes = qry.fetch(limit=limit, start_cursor=query.startCursor, end_cursor=query.endCursor)
 		res = next(qryRes.pages)
-		self.lastCursor = qryRes.next_page_token
+		query.currentCursor = qryRes.next_page_token
 		return res
 
 	def _mergeMultiQueryResults(self, inputRes: List[List[Entity]]) -> List[Entity]:
@@ -672,7 +714,7 @@ class Query(object):
 				seenKeys.add(key)
 				res.append(entry)
 		# Fixme: What about filters that mix different inequality filters - we'll now simply ignore any implicit sortorder
-		return self._resortResult(res, {}, self.orders)
+		return self._resortResult(res, {}, self.queries[0].orders)
 
 	def _resortResult(self, entities: List[Entity], filters: Dict[str, DATASTORE_BASE_TYPES],
 					  orders: List[Tuple[str, SortOrder]]) -> List[Entity]:
@@ -759,10 +801,8 @@ class Query(object):
 			:raises: :exc:`BadQueryError` if an IN filter in combination with a sort order on\
 			another property is provided
 		"""
-		if self.filters is None:
+		if self.queries is None:
 			return None
-		origLimit = limit if limit != -1 else self._limit
-		qryLimit = origLimit
 
 		if self._fulltextQueryString:
 			if IsInTransaction():
@@ -772,38 +812,36 @@ class Query(object):
 			res = self.srcSkel.customDatabaseAdapter.fulltextSearch(qryStr, self)
 			if not self.srcSkel.customDatabaseAdapter.fulltextSearchGuaranteesQueryConstrains:
 				# Search might yield results that are not included in the listfilter
-				if isinstance(self.filters, dict):  # Just one
-					res = [x for x in res if _entryMatchesQuery(x, self.filters)]
+				if isinstance(self.queries, dict):  # Just one
+					res = [x for x in res if _entryMatchesQuery(x, self.queries)]
 				else:  # Multi-Query, must match at least one
-					res = [x for x in res if any([_entryMatchesQuery(x, y) for y in self.filters])]
-		elif isinstance(self.filters, list):
+					res = [x for x in res if any([_entryMatchesQuery(x, y) for y in self.queries])]
+		elif isinstance(self.queries, list):
 			# We have more than one query to run
 			if self._calculateInternalMultiQueryLimit:
-				qryLimit = self._calculateInternalMultiQueryLimit(self, qryLimit)
+				limit = self._calculateInternalMultiQueryLimit(self, limit if limit != -1 else self.queries[0].limit)
 			res = []
 			# We run all queries first (preventing multiple round-trips to the server)
-			for singleFilter in self.filters:
-				res.append(self._runSingleFilterQuery(
-					filters=singleFilter,
-					limit=qryLimit))
+			for singleQuery in self.queries:
+				res.append(self._runSingleFilterQuery(singleQuery, limit if limit != -1 else singleQuery.limit))
 			# Wait for the actual results to arrive and convert the protobuffs to Entries
 			res = [self._fixKind(x) for x in res]
 			if self._customMultiQueryMerge:
 				# We have a custom merge function, use that
-				res = self._customMultiQueryMerge(self, res, origLimit)
+				res = self._customMultiQueryMerge(self, res, limit if limit != -1 else self.queries[0].limit)
 			else:
 				# We must merge (and sort) the results ourself
 				res = self._mergeMultiQueryResults(res)
 		else:  # We have just one single query
-			res = self._fixKind(self._runSingleFilterQuery(self.filters, qryLimit))
+			res = self._fixKind(self._runSingleFilterQuery(self.queries, limit if limit != -1 else self.queries.limit))
 		if conf["viur.debug.traceQueries"]:
-			orders = self.orders
-			filters = self.filters
-			distinctOn = " distinct on %s" % str(self._distinct) if self._distinct else ""
+			#orders = self.queries.orders
+			filters = self.queries
+			distinctOn = "" # "" distinct on %s" % str(self._distinct) if self._distinct else ""
 			if self.kind != self.origKind:
-				logging.debug("Queried %s via %s with filter %s and orders %s%s. Returned %s results" % (self.origKind, self.kind, filters, orders, distinctOn, len(res)))
+				logging.debug("Queried %s via %s with filter %s and orders %s. Returned %s results" % (self.origKind, self.kind, filters, distinctOn, len(res)))
 			else:
-				logging.debug("Queried %s with filter %s and orders %s%s. Returned %s results" % (self.kind, filters, orders, distinctOn, len(res)))
+				logging.debug("Queried %s with filter %s and orders %s. Returned %s results" % (self.kind, filters, distinctOn, len(res)))
 		if res:
 			self._lastEntry = res[-1]
 		return res
@@ -831,8 +869,9 @@ class Query(object):
 		"""
 		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
-		limit = limit if limit != -1 else self._limit
-		if limit < 1 or limit > 100:
+		#limit = limit if limit != -1 else self._limit
+		if limit != -1 and not (0 < limit < 100):
+			logging.error(("Limit", limit))
 			raise NotImplementedError(
 				"This query is not limited! You must specify an upper bound using limit() between 1 and 100")
 		dbRes = self.run(limit)
@@ -865,16 +904,16 @@ class Query(object):
 			:param keysOnly: If the query should be used to retrieve entity keys only.
 			:type keysOnly: bool
 		"""
-		if self.filters is None:  # Noting to pull here
+		if self.queries is None:  # Noting to pull here
 			raise StopIteration()
-		elif isinstance(self.filters, list):
+		elif isinstance(self.queries, list):
 			raise ValueError("No iter on Multiqueries")
 		while True:
-			qryRes = self._runSingleFilterQuery(self.filters, 20)
+			qryRes = self._runSingleFilterQuery(self.queries, 20)
 			yield from qryRes
-			if not self.lastCursor:  # We reached the end of that query
+			if not self.queries.currentCursor:  # We reached the end of that query
 				break
-			self._startCursor = self.lastCursor
+			self.queries.startCursor = self.queries.currentCursor
 
 	def getEntry(self) -> Union[None, Entity]:
 		"""
@@ -921,23 +960,24 @@ class Query(object):
 		"""
 		res = Query(self.getKind(), self.srcSkel)
 		res.kind = self.kind
-		res.filters = deepcopy(self.filters)
-		res.orders = deepcopy(self.orders)
-		res._limit = self._limit
+		res.queries = deepcopy(self.queries)
+		#res.filters = deepcopy(self.filters)
+		#res.orders = deepcopy(self.orders)
+		#res._limit = self._limit
 		res._filterHook = self._filterHook
 		res._orderHook = self._orderHook
-		res._startCursor = self._startCursor
-		res._endCursor = self._endCursor
+		#res._startCursor = self._startCursor
+		#res._endCursor = self._endCursor
 		res._customMultiQueryMerge = self._customMultiQueryMerge
 		res._calculateInternalMultiQueryLimit = self._calculateInternalMultiQueryLimit
 		res.customQueryInfo = self.customQueryInfo
 		res.origKind = self.origKind
 		res._fulltextQueryString = self._fulltextQueryString
-		res._distinct = self._distinct
+		#res._distinct = self._distinct
 		return res
 
 	def __repr__(self):
-		return "<db.Query on %s with filters %s and orders %s>" % (self.kind, self.filters, self.orders)
+		return "<db.Query on %s with queries %s>" % (self.kind, self.queries)
 
 
 def IsInTransaction():

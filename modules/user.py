@@ -3,7 +3,7 @@ from viur.core.prototypes.list import List
 from viur.core.skeleton import Skeleton, RelSkel, skeletonByKind
 from viur.core import utils
 from viur.core.bones import *
-from viur.core.bones.bone import UniqueValue, UniqueLockMethod
+from viur.core.bones.bone import ReadFromClientErrorSeverity, UniqueValue, UniqueLockMethod
 from viur.core.bones.passwordBone import pbkdf2
 from viur.core import errors, conf, securitykey
 from viur.core.tasks import StartupTask
@@ -18,7 +18,7 @@ import json
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from viur.core.i18n import translate
-from viur.core.utils import currentRequest, currentSession
+from viur.core.utils import currentRequest, currentSession, utcNow
 from viur.core.session import killSessionByUser
 
 class userSkel(Skeleton):
@@ -201,10 +201,17 @@ class UserPassword(object):
 			user = self.userModule.viewSkel().all().filter("name.idx =", skel["name"].lower()).getEntry()
 
 			if not user or user["status"] < 10:  # Unknown user or locked account
-				skel.errors["name"] = str("Unknown user")
+				skel.errors.append(
+					{
+						"severity": ReadFromClientErrorSeverity.Invalid,
+						"errorMessage": "Unknown user",
+						"fieldPath": ["name"],
+						"invalidatedFields": []
+					}
+				)
 				return self.userModule.render.passwdRecover(skel, tpl=self.passwordRecoveryTemplate)
 			try:
-				if user["changedate"] > (datetime.datetime.now() - datetime.timedelta(days=1)):
+				if user["changedate"] > (utcNow() - datetime.timedelta(days=1)):
 					# This user probably has already requested a password reset
 					# within the last 24 hrss
 					return self.userModule.render.view(skel, self.passwordRecoveryAlreadySendTemplate)
@@ -213,18 +220,21 @@ class UserPassword(object):
 				pass
 			user["changedate"] = datetime.datetime.now()
 			db.Put(user)
-			userSkel = self.userModule.viewSkel().ensureIsCloned()
-			assert userSkel.fromDB(user.key())
+			userSkel = self.userModule.viewSkel().clone()
+			assert userSkel.fromDB(user.key)
 			userSkel.skey = baseBone(descr="Skey")
-			userSkel["skey"] = securitykey.create(60 * 60 * 24, userKey=str(user.key()), password=skel["password"])
+			userSkel["skey"] = securitykey.create(
+				60 * 60 * 24,
+				userKey=utils.normalizeKey(user.key),
+				password=skel["password"])
 			utils.sendEMail([userSkel["name"]], self.userModule.passwordRecoveryMail, userSkel)
 			return self.userModule.render.view({}, self.passwordRecoveryInstuctionsSendTemplate)
 
 	@exposed
 	def verify(self, skey, *args, **kwargs):
 		data = securitykey.validate(skey, useSessionKey=False)
-		skel = self.userModule.baseSkel()
-		if not data or not isinstance(data, dict) or not "userKey" in data or not skel.fromDB(data["userKey"]):
+		skel = self.userModule.editSkel()
+		if not data or not isinstance(data, dict) or "userKey" not in data or not skel.fromDB(data["userKey"].id_or_name):
 			return self.userModule.render.view(None, self.verifyFailedTemplate)
 		if self.registrationAdminVerificationRequired:
 			skel["status"] = 2
@@ -287,7 +297,7 @@ class UserPassword(object):
 		skel.toDB()
 		if self.registrationEmailVerificationRequired and str(skel["status"]) == "1":
 			# The user will have to verify his email-address. Create an skey and send it to his address
-			skey = securitykey.create(duration=60 * 60 * 24 * 7, userKey=str(skel["key"]), name=skel["name"])
+			skey = securitykey.create(duration=60 * 60 * 24 * 7, userKey=utils.normalizeKey(skel["key"]), name=skel["name"])
 			skel.skey = baseBone(descr="Skey")
 			skel["skey"] = skey
 			utils.sendEMail([skel["name"]], self.userModule.verifyEmailAddressMail, skel)

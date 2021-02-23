@@ -198,7 +198,23 @@ class GaeSession:
 		Checks if key matches the current CSRF-Token of our session. On success, a new key is generated.
 		"""
 		if compare_digest(self.securityKey, key):
-			self.securityKey = utils.generateRandomString(13)
+			# It looks good so far, check if we can acquire that skey inside a transaction
+			def exchangeSecurityKey():
+				dbSession = db.Get(db.Key(self.kindName, self.cookieKey))
+				if not dbSession:  # Should not happen (except if session.reset has been called in the same request)
+					return False
+				if dbSession["securityKey"] != key:  # Race-Condidtion: That skey has been used in another instance
+					return False
+				dbSession["securityKey"] = utils.generateRandomString(13)
+				db.Put(dbSession)
+				return dbSession["securityKey"]
+			try:
+				newSkey = db.RunInTransaction(exchangeSecurityKey)
+			except:  # This should be transaction collision
+				return False
+			if not newSkey:
+				return False
+			self.securityKey = newSkey
 			self.changed = True
 			return True
 		return False

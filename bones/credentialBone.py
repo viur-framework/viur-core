@@ -37,4 +37,4 @@ class credentialBone(stringBone):
 		err = self.isInvalid(value)
 		if not err:
 			return utils.escapeString(value, 4*1024), None
-		return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+		return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]

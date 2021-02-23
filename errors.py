@@ -3,7 +3,6 @@
 class HTTPException(Exception):
 	"""
 		Base-Class for all Exceptions that should match to an http error-code
-
 	"""
 
 	def __init__(self, status, name, descr):

@@ -2,7 +2,6 @@
 from viur.core.bones import baseBone
 from math import pow
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core.bones.stringBone import LanguageWrapper
 import logging
 from typing import Any
 
@@ -43,16 +42,30 @@ class numericBone(baseBone):
 			return "NaN not allowed"
 
 	def getEmptyValue(self):
-		return 0
+		if self.precision:
+			return 0.0
+		else:
+			return 0
 
 	def isEmpty(self, rawValue: Any):
-		return not (rawValue != self.getEmptyValue() or bool(rawValue))
+		if isinstance(rawValue, str) and not rawValue:
+			return True
+		try:
+			if self.precision:
+				if isinstance(rawValue, str):
+					rawValue = rawValue.replace(",", ".", 1)
+				rawValue = float(rawValue)
+			else:
+				rawValue = int(rawValue)
+		except:
+			return True
+		return rawValue == self.getEmptyValue()
 
 	def singleValueFromClient(self, value, skel, name, origData):
 		try:
 			rawValue = str(value).replace(",", ".", 1)
 		except:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid Value")]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid Value")]
 		else:
 			if self.precision and (str(rawValue).replace(".", "", 1).replace("-", "", 1).isdigit()) and float(
 					rawValue) >= self.min and float(rawValue) <= self.max:
@@ -61,10 +74,10 @@ class numericBone(baseBone):
 					rawValue) >= self.min and int(rawValue) <= self.max:
 				value = int(rawValue)
 			else:
-				return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid Value")]
+				return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid Value")]
 		err = self.isInvalid(value)
 		if err:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 		return value, None
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):

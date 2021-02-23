@@ -47,7 +47,7 @@ class captchaBone(bone.baseBone):
 		if user and "root" in user["access"]:
 			return None  # Don't bother trusted users with this (not supported by admin/vi anyways)
 		if not "g-recaptcha-response" in data:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "No Captcha given!")]
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "No Captcha given!")]
 		data = {
 			"secret": self.privateKey,
 			"remoteip": currentRequest.get().request.remote_addr,
@@ -59,4 +59,4 @@ class captchaBone(bone.baseBone):
 		response = urllib.request.urlopen(req)
 		if json.loads(response.read()).get("success"):
 			return None
-		return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid Captcha")]
+		return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid Captcha")]

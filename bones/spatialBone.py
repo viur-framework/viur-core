@@ -5,7 +5,8 @@ from viur.core import db
 import logging
 import math
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from typing import List, Union
+from copy import deepcopy
+from typing import Tuple, Any
 
 
 def haversine(lat1, lng1, lat2, lng2):
@@ -62,6 +63,7 @@ class spatialBone(baseBone):
 		assert isinstance(boundsLng, tuple) and len(boundsLng) == 2, "boundsLng must be a tuple of (int, int)"
 		assert isinstance(gridDimensions, tuple) and len(
 			gridDimensions) == 2, "gridDimensions must be a tuple of (int, int)"
+		assert not (self.indexed and self.multiple), "Spatial-Bone cannot be indexed when multiple"
 		self.boundsLat = boundsLat
 		self.boundsLng = boundsLng
 		self.gridDimensions = gridDimensions
@@ -84,21 +86,16 @@ class spatialBone(baseBone):
 			:return: An error-description or False if the value is valid
 			:rtype: str | False
 		"""
-		if (value is None or value == (0, 0)) and self.required:
-			return "No value entered"
-		elif (value is None or value == (0, 0)) and not self.required:
+		try:
+			lat, lng = value
+		except:
+			return "Invalid value entered"
+		if lat < self.boundsLat[0] or lat > self.boundsLat[1]:
+			return "Latitude out of range"
+		elif lng < self.boundsLng[0] or lng > self.boundsLng[1]:
+			return "Longitude out of range"
+		else:
 			return False
-		elif value:
-			try:
-				lat, lng = value
-			except:
-				return "Invalid value entered"
-			if lat < self.boundsLat[0] or lat > self.boundsLat[1]:
-				return "Latitude out of range"
-			elif lng < self.boundsLng[0] or lng > self.boundsLng[1]:
-				return "Longitude out of range"
-			else:
-				return False
 
 	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
 		if not value:
@@ -126,7 +123,30 @@ class spatialBone(baseBone):
 			return None
 		return val["coordinates"]["lat"], val["coordinates"]["lng"]
 
-	def fromClient(self, skel, name, data):
+	def parseSubfieldsFromClient(self):
+		return True  # We'll always get .lat and .lng
+
+	def isEmpty(self, rawValue: Any):
+		if not rawValue:
+			return True
+		if isinstance(rawValue, dict):
+			try:
+				rawLat = float(rawValue["lat"])
+				rawLng = float(rawValue["lng"])
+				return (rawLat, rawLng) == self.getEmptyValue()
+			except:
+				return True
+		return rawValue == self.getEmptyValue()
+
+	def getEmptyValue(self) -> Tuple[float]:
+		"""
+			If you need a special marker for empty, use 91.0, 181.0.
+			These are both out of range for Latitude (-90, +90) and Longitude (-180, 180) but will be accepted
+			by Vi and Admin
+		"""
+		return 0.0, 0.0
+
+	def singleValueFromClient(self, value, skel, name, origData):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -140,13 +160,12 @@ class spatialBone(baseBone):
 			:type data: dict
 			:returns: None or String
 		"""
-		rawLat = data.get("%s.lat" % name, None)
-		rawLng = data.get("%s.lng" % name, None)
+		rawLat = value.get("lat", None)
+		rawLng = value.get("lng", None)
 		if rawLat is None and rawLng is None:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
-		elif not rawLat or not rawLng:
-			skel[name] = None
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value submitted")]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "Field not submitted")]
+		elif rawLat is None or rawLng is None:
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value submitted")]
 		try:
 			rawLat = float(rawLat)
 			rawLng = float(rawLng)
@@ -154,11 +173,11 @@ class spatialBone(baseBone):
 			assert rawLat == rawLat
 			assert rawLng == rawLng
 		except:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
 		err = self.isInvalid((rawLat, rawLng))
 		if err:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
-		skel[name] = (rawLat, rawLng)
+			return self.getEmptyValue(),[ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
+		return (rawLat, rawLng), None
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		"""
@@ -198,36 +217,36 @@ class spatialBone(baseBone):
 			gridSizeLat, gridSizeLng = self.getGridSize()
 			tileLat = int(floor((lat - self.boundsLat[0]) / gridSizeLat))
 			tileLng = int(floor((lng - self.boundsLng[0]) / gridSizeLng))
-			assert not isinstance(dbFilter.datastoreQuery, db.MultiQuery)
-			origQuery = dbFilter.datastoreQuery
+			assert isinstance(dbFilter.queries, db.QueryDefinition)  # Not supported on multi-queries
+			origQuery = dbFilter.queries
 			# Lat - Right Side
-			q1 = db.Query(collection=dbFilter.getKind())
-			q1[name + ".coordinates.lat >="] = lat
-			q1[name + ".tiles.lat"] = tileLat
+			q1 = deepcopy(origQuery)
+			q1.filters[name + ".coordinates.lat >="] = lat
+			q1.filters[name + ".tiles.lat ="] = tileLat
+			q1.orders = [(name + ".coordinates.lat", db.SortOrder.Ascending)]
 			# Lat - Left Side
-			q2 = db.Query(collection=dbFilter.getKind())
-			q2[name + ".coordinates.lat <"] = lat
-			q2[name + ".tiles.lat"] = tileLat
-			q2.Order((name + ".coordinates.lat", db.DESCENDING))
+			q2 = deepcopy(origQuery)
+			q2.filters[name + ".coordinates.lat <"] = lat
+			q2.filters[name + ".tiles.lat ="] = tileLat
+			q2.orders = [(name + ".coordinates.lat", db.SortOrder.Descending)]
 			# Lng - Down
-			q3 = db.Query(collection=dbFilter.getKind())
-			q3[name + ".coordinates.lng >="] = lng
-			q3[name + ".tiles.lng"] = tileLng
+			q3 = deepcopy(origQuery)
+			q3.filters[name + ".coordinates.lng >="] = lng
+			q3.filters[name + ".tiles.lng ="] = tileLng
+			q3.orders = [(name + ".coordinates.lng", db.SortOrder.Ascending)]
 			# Lng - Top
-			q4 = db.Query(collection=dbFilter.getKind())
-			q4[name + ".coordinates.lng <"] = lng
-			q4[name + ".tiles.lng"] = tileLng
-			q4.Order((name + ".coordinates.lng", db.DESCENDING))
-
-			dbFilter.datastoreQuery = db.MultiQuery([q1, q2, q3, q4], None)
-
+			q4 = deepcopy(origQuery)
+			q4.filters[name + ".coordinates.lng <"] = lng
+			q4.filters[name + ".tiles.lng ="] = tileLng
+			q4.orders = [(name + ".coordinates.lng", db.SortOrder.Descending)]
+			dbFilter.queries = [q1, q2, q3, q4]
 			dbFilter._customMultiQueryMerge = lambda *args, **kwargs: self.customMultiQueryMerge(name, lat, lng, *args,
 																								 **kwargs)
 			dbFilter._calculateInternalMultiQueryLimit = self.calculateInternalMultiQueryLimit
 
 	# return( super( spatialBone, self ).buildDBFilter( name, skel, dbFilter, rawFilter ) )
 
-	def calculateInternalMultiQueryLimit(self, targetAmount):
+	def calculateInternalMultiQueryLimit(self, dbQuery, targetAmount):
 		"""
 			Tells :class:`server.db.Query` How much entries should be fetched in each subquery.
 
@@ -260,15 +279,15 @@ class spatialBone(baseBone):
 		# If a result further away than this distance there might be missing results before that result
 		# If there are no results in a give lane (f.e. because we are close the border and there is no point
 		# in between) we choose a arbitrary large value for that lower bound
-		expectedAmount = self.calculateInternalMultiQueryLimit(targetAmount)  # How many items we expect in each direction
+		expectedAmount = self.calculateInternalMultiQueryLimit(dbFilter, targetAmount)  # How many items we expect in each direction
 		limits = [
-			haversine(latRight[-1][name + ".lat.val"], lng, lat, lng) if latRight and len(
+			haversine(latRight[-1][name]["coordinates"]["lat"], lng, lat, lng) if latRight and len(
 				latRight) == expectedAmount else 2 ** 31,  # Lat - Right Side
-			haversine(latLeft[-1][name + ".lat.val"], lng, lat, lng) if latLeft and len(
+			haversine(latLeft[-1][name]["coordinates"]["lat"], lng, lat, lng) if latLeft and len(
 				latLeft) == expectedAmount else 2 ** 31,  # Lat - Left Side
-			haversine(lat, lngBottom[-1][name + ".lng.val"], lat, lng) if lngBottom and len(
+			haversine(lat, lngBottom[-1][name]["coordinates"]["lng"], lat, lng) if lngBottom and len(
 				lngBottom) == expectedAmount else 2 ** 31,  # Lng - Bottom
-			haversine(lat, lngTop[-1][name + ".lng.val"], lat, lng) if lngTop and len(
+			haversine(lat, lngTop[-1][name]["coordinates"]["lng"], lat, lng) if lngTop and len(
 				lngTop) == expectedAmount else 2 ** 31,  # Lng - Top
 			haversine(lat + gridSizeLat, lng, lat, lng),
 			haversine(lat, lng + gridSizeLng, lat, lng)
@@ -278,9 +297,9 @@ class spatialBone(baseBone):
 		# Filter duplicates
 		tmpDict = {}
 		for item in (latRight + latLeft + lngBottom + lngTop):
-			tmpDict[str(item.key())] = item
+			tmpDict[str(item.key)] = item
 		# Build up the final results
-		tmpList = [(haversine(x[name + ".lat.val"], x[name + ".lng.val"], lat, lng), x) for x in tmpDict.values()]
+		tmpList = [(haversine(x[name]["coordinates"]["lat"], x[name]["coordinates"]["lng"], lat, lng), x) for x in tmpDict.values()]
 		tmpList.sort(key=lambda x: x[0])
 		return [x[1] for x in tmpList[:targetAmount]]
 

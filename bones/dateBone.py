@@ -88,12 +88,12 @@ class dateBone(baseBone):
 			try:
 				if str(rawValue).count(":") > 1:
 					(hour, minute, second) = [int(x.strip()) for x in str(rawValue).split(":")]
-					value = time(hour=hour, minute=minute, second=second)
+					value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute, second=second)
 				elif str(rawValue).count(":") > 0:
 					(hour, minute) = [int(x.strip()) for x in str(rawValue).split(":")]
-					value = time(hour=hour, minute=minute)
+					value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute)
 				elif str(rawValue).replace("-", "", 1).isdigit():
-					value = time(second=int(rawValue))
+					value = datetime(year=1970, month=1, day=1, second=int(rawValue))
 				else:
 					value = False  # its invalid
 			except:
@@ -108,7 +108,10 @@ class dateBone(baseBone):
 			value = tmpRes
 		else:
 			try:
-				timeZone = self.guessTimeZone()
+				if self.date and self.time:
+					timeZone = self.guessTimeZone()
+				else:
+					timeZone = pytz.utc
 				if " " in rawValue:  # Date with time
 					try:  # Times with seconds
 						if "-" in rawValue:  # ISO Date
@@ -135,10 +138,10 @@ class dateBone(baseBone):
 			except:
 				value = False  # its invalid
 		if value is False:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value entered")]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
 		err = self.isInvalid(value)
 		if err:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 		return value, None
 
 	def isInvalid(self, value):
@@ -197,7 +200,10 @@ class dateBone(baseBone):
 
 	def singleValueUnserialize(self, value, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
 		if isinstance(value, datetime):
-			return value.astimezone(self.guessTimeZone())
+			if self.date and self.time:
+				return value.astimezone(self.guessTimeZone())
+			else:
+				return value
 		else:
 			# We got garbage from the datastore
 			return None
