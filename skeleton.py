@@ -813,6 +813,22 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 			if skelValues.customDatabaseAdapter:
 				dbObj = skelValues.customDatabaseAdapter.preprocessEntry(dbObj, skel, changeList, isAdd)
 
+			# ViUR2 import compatibility - remove properties containing . if we have an dict with the same name
+			def fixDotNames(entity):
+				for k, v in list(entity.items()):
+					if isinstance(v, dict):
+						for k2, v2 in list(entity.items()):
+							if k2.startswith("%s." % k):
+								del entity[k2]
+								entity[k2.replace(".", "__")] = v2
+						fixDotNames(v)
+					elif isinstance(v, list):
+						for x in v:
+							if isinstance(x, dict):
+								fixDotNames(x)
+			if conf.get("viur.viur2import.blobsource"):  # Try to fix these only when converting from ViUR2
+				fixDotNames(dbObj)
+
 			# Write the core entry back
 			db.Put(dbObj)
 
@@ -935,16 +951,25 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		def txnDelete(skel: SkeletonInstance):
 			skelKey = skel["key"]
 			dbObj = db.Get(skelKey)  # Fetch the raw object as we might have to clear locks
+			viurData = dbObj.get("viur") or {}
 			if dbObj.get("viur_incomming_relational_locks"):
 				raise errors.Locked("This entry is locked!")
 			for boneName, bone in skel.items():
 				# Ensure that we delete any value-lock objects remaining for this entry
 				bone.delete(skel, boneName)
 				if bone.unique:
-					if "%s_uniqueIndexValue" % boneName in dbObj:
-						db.Delete((
-							"%s_%s_uniquePropertyIndex" % (skel.kindName, boneName),
-							dbObj["%s_uniqueIndexValue" % boneName]))
+					flushList = []
+					for lockValue in viurData["%s_uniqueIndexValue" % boneName]:
+						lockKey = db.Key("%s_%s_uniquePropertyIndex" % (skel.kindName, boneName), lockValue)
+						lockObj = db.Get(lockKey)
+						if not lockObj:
+							logging.error("Programming error detected: Lockobj %s missing!" % lockKey)
+						elif lockObj["references"] != dbObj.key.id_or_name:
+							logging.error("Programming error detected: %s did not hold lock for %s" % (skel["key"], lockKey))
+						else:
+							flushList.append(lockObj)
+					if flushList:
+						db.Delete(flushList)
 			# Delete the blob-key lock object
 			lockObjectKey = db.Key("viur-blob-locks", dbObj.key.id_or_name)
 			lockObj = db.Get(lockObjectKey)
