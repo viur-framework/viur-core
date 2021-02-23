@@ -3,7 +3,7 @@
 import logging, pickle, json, collections, cgi, urllib
 from datetime import datetime
 
-from viur.core import db, request, errors, conf, exposed, utils
+from viur.core import db, request, errors, conf, exposed, utils, email
 from viur.core.bones import *
 from viur.core.skeleton import BaseSkeleton, skeletonByKind, listKnownSkeletons
 from viur.core.tasks import CallableTask, CallableTaskBase, callDeferred
@@ -418,7 +418,7 @@ def exportItems(module, target, importKey, startCursor, endCursor):
 
 	if startCursor == endCursor:
 		try:
-			utils.sendEMailToAdmins("Export of kind %s finished" % module,
+			email.sendEMailToAdmins("Export of kind %s finished" % module,
 									"ViUR finished to export kind %s to %s.\n" % (module, target))
 		except:  # OverQuota, whatever
 			pass
@@ -476,7 +476,7 @@ def iterImport(module, target, exportKey, cursor=None, amount=0):
 
 		if len(res["values"]) == 0:
 			try:
-				utils.sendEMailToAdmins("Import of kind %s finished with %d entities" % (module, amount),
+				email.sendEMailToAdmins("Import of kind %s finished with %d entities" % (module, amount),
 										"ViUR finished to import %d entities of "
 										"kind %s from %s.\n" % (amount, module, target))
 			except:  # OverQuota, whatever
