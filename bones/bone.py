@@ -6,7 +6,7 @@ import logging
 import hashlib
 import copy
 from enum import Enum
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Union, List, Set, Any
 
 __systemIsIntitialized_ = False
@@ -35,8 +35,8 @@ class ReadFromClientErrorSeverity(Enum):
 @dataclass
 class ReadFromClientError:
 	severity: ReadFromClientErrorSeverity
-	fieldPath: str
 	errorMessage: str
+	fieldPath: List[str] = field(default_factory=list)
 	invalidatedFields: List[str] = None  # must be last property since python enforces default args after properties without default args
 
 
@@ -50,6 +50,12 @@ class UniqueValue:  # Mark a bone as unique (it must have a different value for 
 	method: UniqueLockMethod  # How to handle multiple values (for bones with multiple=True)
 	lockEmpty: bool  # If False, empty values ("", 0) are not locked - needed if a field is unique but not required
 	message: str  # Error-Message displayed to the user if the requested value is already taken
+
+@dataclass
+class MultipleConstraints:  # Used to define constraints on multiple bones
+	minAmount: int = 0  # Lower bound of how many entries can be submitted
+	maxAmount: int = 0  # Upper bound of how many entries can be submitted
+	preventDuplicates: bool = False  # Prevent the same value of being used twice
 
 class baseBone(object):  # One Bone:
 	hasDBField = True
@@ -185,6 +191,9 @@ class baseBone(object):  # One Bone:
 							else:
 								res[lang] = None
 				else:
+					for key in data.keys():  # Allow setting relations with using, multiple and languages back to none
+						if key == "%s.%s" % (name, lang):
+							fieldSubmitted = True
 					prefix = "%s.%s." % (name, lang)
 					if multiple:
 						tmpDict = {}
@@ -229,6 +238,9 @@ class baseBone(object):  # One Bone:
 				else:
 					return val, True
 			else:  # No multi-lang but collect subfields
+				for key in data.keys():  # Allow setting relations with using, multiple and languages back to none
+					if key == name:
+						fieldSubmitted = True
 				prefix = "%s." % name
 				if multiple:
 					tmpDict = {}
@@ -268,7 +280,7 @@ class baseBone(object):  # One Bone:
 	def singleValueFromClient(self, value, skel, name, origData):
 		err = self.isInvalid(value)
 		if err:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 		return value, None
 
 	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
@@ -289,7 +301,7 @@ class baseBone(object):  # One Bone:
 		subFields = self.parseSubfieldsFromClient()
 		parsedData, fieldSubmitted = self.collectRawClientData(name, data, self.multiple, self.languages, subFields)
 		if not fieldSubmitted:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, name, "Field not submitted")]
+			return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "Field not submitted")]
 		errors = []
 		isEmpty = True
 		if self.languages and self.multiple:
@@ -299,7 +311,6 @@ class baseBone(object):  # One Bone:
 				if language in parsedData:
 					for singleValue in parsedData[language]:
 						if self.isEmpty(singleValue):
-							res[language].append(self.getEmptyValue())
 							continue
 						isEmpty = False
 						parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
@@ -312,7 +323,7 @@ class baseBone(object):  # One Bone:
 				res[language] = None
 				if language in parsedData:
 					if self.isEmpty(parsedData[language]):
-						res[language].append(self.getEmptyValue())
+						res[language] = self.getEmptyValue()
 						continue
 					isEmpty = False
 					parsedVal, parseErrors = self.singleValueFromClient(parsedData[language], skel, name, data)
@@ -321,14 +332,15 @@ class baseBone(object):  # One Bone:
 						errors.extend(parseErrors)
 		elif self.multiple:  # and not self.languages is implicit - this would have been handled above
 			res = []
-			for singleValue in parsedData:
+			for idx, singleValue in enumerate(parsedData):
 				if self.isEmpty(singleValue):
-					res.append(self.getEmptyValue())
 					continue
 				isEmpty = False
 				parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
 				res.append(parsedVal)
 				if parseErrors:
+					for err in parseErrors:
+						err.fieldPath.insert(0, str(idx))
 					errors.extend(parseErrors)
 		else:  # No Languages, not multiple
 			if self.isEmpty(parsedData):
@@ -341,8 +353,28 @@ class baseBone(object):  # One Bone:
 					errors.extend(parseErrors)
 		skel[name] = res
 		if isEmpty:
-			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "Field not set")]
+			return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "Field not set")]
+		if self.multiple and isinstance(self.multiple, MultipleConstraints):
+			errors.extend(self.validateMultipleConstraints(skel, name))
 		return errors or None
+
+	def validateMultipleConstraints(self, skel: 'SkeletonInstance', name: str) -> List[ReadFromClientError]:
+		"""
+			Validates our value against our multiple constrains.
+			Returns a ReadFromClientError for each violation (eg. too many items and duplicates)
+		"""
+		res = []
+		value = skel[name]
+		constraints = self.multiple
+		if constraints.minAmount and len(value) < constraints.minAmount:
+			res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Too few items"))
+		if constraints.maxAmount and len(value) > constraints.maxAmount:
+			res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Too many items"))
+		if constraints.preventDuplicates:
+			if len(set(value)) != len(value):
+				res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Duplicate items"))
+		return res
+
 
 	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
 		return value
@@ -358,9 +390,7 @@ class baseBone(object):  # One Bone:
 		"""
 		if name in skel.accessedValues:
 			newVal = skel.accessedValues[name]
-			if not newVal:
-				res = None
-			elif self.languages and self.multiple:
+			if self.languages and self.multiple:
 				res = {"_viurLanguageWrapper_": True}
 				for language in self.languages:
 					res[language] = []
@@ -560,16 +590,16 @@ class baseBone(object):  # One Bone:
 				order = (rawFilter["orderby"], db.SortOrder.Descending)
 			else:
 				order = (rawFilter["orderby"], db.SortOrder.Ascending)
-			filters = dbFilter.getFilter()
-			if filters is None:
+			queries = dbFilter.queries
+			if queries is None:
 				return  # This query is unsatisfiable
-			elif isinstance(filters, dict):
-				inEqFilter = [x for x in filters.keys() if
+			elif isinstance(queries, db.QueryDefinition):
+				inEqFilter = [x for x in queries.filters.keys() if
 						  (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
-			elif isinstance(filters, list):
+			elif isinstance(queries, list):
 				inEqFilter = None
-				for singeFilter in filters:
-					newInEqFilter = [x for x in singeFilter.keys() if
+				for singeFilter in queries:
+					newInEqFilter = [x for x in singeFilter.filter.keys() if
 								  (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
 					if inEqFilter and newInEqFilter and inEqFilter != newInEqFilter:
 						raise NotImplementedError("Impossible ordering!")

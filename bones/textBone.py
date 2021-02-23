@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
-from html.parser import HTMLParser
+import string
 from html import entities as htmlentitydefs
-from viur.core import db
+from html.parser import HTMLParser
+from typing import Any, Dict, List, Union
+
 from viur.core.bones import baseBone
-from viur.core.bones.stringBone import LanguageWrapper
-from viur.core.config import conf
-import logging, string
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from typing import List, Union
 
 _defaultTags = {
 	"validTags": [  # List of HTML-Tags which are valid
@@ -209,23 +207,21 @@ class textBone(baseBone):
 	def generageSearchWidget(target, name="TEXT BONE", mode="equals"):
 		return ({"name": name, "mode": mode, "target": target, "type": "text"})
 
-	def __init__(self, validHtml=__undefinedC__, languages=None, maxLength=200000,
-				 defaultValue = None, *args, **kwargs):
-		super(textBone, self).__init__(defaultValue=defaultValue, *args, **kwargs)
-		#if self.multiple:
-		#	raise NotImplementedError("multiple=True is not supported on textBones")
+	def __init__(self, validHtml: Union[None, Dict] = __undefinedC__, languages: Union[None, List[str]] = None,
+				 maxLength: int = 200000, defaultValue: Any = None, indexed: bool = False, *args, **kwargs):
+		super(textBone, self).__init__(defaultValue=defaultValue, indexed=indexed, *args, **kwargs)
 		if validHtml == textBone.__undefinedC__:
 			global _defaultTags
 			validHtml = _defaultTags
-		if not (languages is None or (isinstance(languages, list) and len(languages) > 0 and all(
-				[isinstance(x, str) for x in languages]))):
-			raise ValueError("languages must be None or a list of strings ")
+		if not (languages is None or (isinstance(languages, list) and languages
+									  and all(isinstance(x, str) for x in languages))):
+			raise ValueError("languages must be None or a list of strings")
 		self.languages = languages
 		self.validHtml = validHtml
 		self.maxLength = maxLength
 		if defaultValue is None:
 			if self.languages:
-				self.defaultValue = LanguageWrapper(self.languages)
+				self.defaultValue = {}
 			else:
 				self.defaultValue = ""
 
@@ -237,7 +233,7 @@ class textBone(baseBone):
 		if not err:
 			return HtmlSerializer(self.validHtml).sanitize(value), None
 		else:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
 	def getEmptyValue(self):
 		return ""
@@ -258,7 +254,7 @@ class textBone(baseBone):
 			Doesn't check for actual <a href=> or <img src=> yet.
 		"""
 		newFileKeys = []
-		return newFileKeys # FIXME!!
+		return newFileKeys  # FIXME!!
 		if self.languages:
 			if valuesCache[name]:
 				for lng in self.languages:

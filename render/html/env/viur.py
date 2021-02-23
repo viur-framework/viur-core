@@ -111,7 +111,8 @@ def getCurrentUser(render):
 	:return: A dict containing user data. Returns None if no user data is available.
 	:rtype: dict
 	"""
-	return utils.getCurrentUser()
+	currentUser = utils.getCurrentUser()
+	return render.collectSkelData(currentUser) if currentUser else None
 
 
 @jinjaGlobalFunction
@@ -137,7 +138,7 @@ def getSkel(render, module, key=None, skel="viewSkel"):
 	:rtype: dict | bool
 	"""
 	if module not in dir(conf["viur.mainApp"]):
-		logging.error("getEntry called with unknown module %s!" % module)
+		logging.error("getSkel called with unknown module %s!" % module)
 		return False
 
 	obj = getattr(conf["viur.mainApp"], module)
@@ -147,9 +148,9 @@ def getSkel(render, module, key=None, skel="viewSkel"):
 
 		if isinstance(obj, prototypes.singleton.Singleton) and not key:
 			# We fetching the entry from a singleton - No key needed
-			key = str(db.Key(skel.kindName, obj.getKey()))
+			key = db.Key(skel.kindName, obj.getKey())
 		elif not key:
-			logging.info("getEntry called without a valid key")
+			logging.info("getSkel called without a valid key")
 			return False
 
 		if not isinstance(skel, SkeletonInstance):
@@ -157,7 +158,7 @@ def getSkel(render, module, key=None, skel="viewSkel"):
 
 		if "canView" in dir(obj):
 			if not skel.fromDB(key):
-				logging.info("getEntry: Entry %s not found" % (key,))
+				logging.info("getSkel: Entry %s not found" % (key,))
 				return None
 			if isinstance(obj, prototypes.singleton.Singleton):
 				isAllowed = obj.canView()
@@ -170,7 +171,7 @@ def getSkel(render, module, key=None, skel="viewSkel"):
 			else:  # List and Hierarchies
 				isAllowed = obj.canView(skel)
 			if not isAllowed:
-				logging.error("getEntry: Access to %s denied from canView" % (key,))
+				logging.error("getSkel: Access to %s denied from canView" % (key,))
 				return None
 		elif "listFilter" in dir(obj):
 			qry = skel.all().mergeExternalFilter({"key": str(key)})
@@ -493,8 +494,9 @@ def shortKey(render, val):
 	"""
 
 	try:
-		k = db.Key(encoded=str(val))
-		return k.id_or_name()
+		k = db.KeyClass.from_legacy_urlsafe(str(val))
+		return k.id_or_name
+
 	except:
 		return None
 
@@ -615,7 +617,11 @@ def embedSvg(render, name: str, classes: Union[List[str], None] = None, **kwargs
 
 
 @jinjaGlobalFunction
-def downloadUrlFor(render, fileObj, derived=None, expires=timedelta(hours=1)):
+def downloadUrlFor(render, fileObj, expires, derived=None):
+	if "dlkey" not in fileObj and "dest" in fileObj:
+		fileObj = fileObj["dest"]
+	if expires:
+		expires = timedelta(minutes=expires)
 	if not isinstance(fileObj, (SkeletonInstance, dict)) or "dlkey" not in fileObj or "name" not in fileObj:
 		return None
 	if derived and ("derived" not in fileObj or not isinstance(fileObj["derived"], dict)):
@@ -626,14 +632,18 @@ def downloadUrlFor(render, fileObj, derived=None, expires=timedelta(hours=1)):
 		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileObj["name"], derived=False, expires=expires)
 
 @jinjaGlobalFunction
-def srcSetFor(render, fileObj, expires=timedelta(hours=1)):
+def srcSetFor(render, fileObj, expires):
+	if "dlkey" not in fileObj and "dest" in fileObj:
+		fileObj = fileObj["dest"]
+	if expires:
+		expires = timedelta(minutes=expires)
 	if not isinstance(fileObj, (SkeletonInstance, dict)) or not "dlkey" in fileObj or "derived" not in fileObj:
 		return None
 	if not isinstance(fileObj["derived"], dict):
 		return ""
 	resList = []
-	for fileName, deriviation in fileObj["derived"].items():
-		params = deriviation["params"]
+	for fileName, derivate in fileObj["derived"].items():
+		params = derivate["params"]
 		if params.get("group") == "srcset":
 			resList.append("%s %sw" % (utils.downloadUrlFor(fileObj["dlkey"], fileName, True, expires), params["width"]))
 	return ", ".join(resList)

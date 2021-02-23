@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from viur.core.bones import stringBone
-
+from viur.core import utils
+from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 
 class credentialBone(stringBone):
 	"""
@@ -31,3 +32,9 @@ class credentialBone(stringBone):
 			We'll never read our value from the database.
 		"""
 		return {}
+
+	def singleValueFromClient(self, value, skel, name, origData):
+		err = self.isInvalid(value)
+		if not err:
+			return utils.escapeString(value, 4*1024), None
+		return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]

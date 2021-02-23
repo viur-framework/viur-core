@@ -37,8 +37,15 @@ class DefaultRender(object):
 			"readonly": bone.readOnly,
 			"unique": bone.unique.method.value if bone.unique else False,
 			"languages": bone.languages,
-			"multiple": bone.multiple
 		}
+		if bone.multiple and isinstance(bone.multiple, bones.MultipleConstraints):
+				ret["multiple"] = {
+					"minAmount": bone.multiple.minAmount,
+					"maxAmount": bone.multiple.maxAmount,
+					"preventDuplicates": bone.multiple.preventDuplicates,
+				}
+		else:
+			ret["multiple"] = bone.multiple
 
 		if bone.type == "relational" or bone.type.startswith("relational."):
 			ret.update({
@@ -51,7 +58,6 @@ class DefaultRender(object):
 
 		elif bone.type == "record" or bone.type.startswith("record."):
 			ret.update({
-				"multiple": bone.multiple,
 				"format": bone.format,
 				"using": self.renderSkelStructure(bone.using())
 			})
@@ -59,7 +65,6 @@ class DefaultRender(object):
 		elif bone.type == "select" or bone.type.startswith("select."):
 			ret.update({
 				"values": [(k, str(v)) for k, v in bone.values.items()],
-				"multiple": bone.multiple,
 			})
 
 		elif bone.type == "date" or bone.type.startswith("date."):
@@ -83,7 +88,6 @@ class DefaultRender(object):
 
 		elif bone.type == "str" or bone.type.startswith("str."):
 			ret.update({
-				"multiple": bone.multiple,
 				"languages": bone.languages
 			})
 

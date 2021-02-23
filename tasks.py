@@ -11,6 +11,7 @@ from google.protobuf import timestamp_pb2
 from viur.core import db, errors, utils
 from viur.core.config import conf
 from viur.core.utils import currentRequest, currentSession
+from time import sleep
 from datetime import datetime
 import pytz, base64
 
@@ -155,6 +156,24 @@ class TaskHandler:
 					return res
 		return None
 
+	def queryIter(self, *args, **kwargs):
+		"""
+			This processes one chunk of a queryIter (see below).
+		"""
+		global _deferedTasks, _appengineServiceIPs
+		req = currentRequest.get().request
+		if 'X-AppEngine-TaskName' not in req.headers:
+			logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
+			raise errors.Forbidden()
+		if req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs:
+			logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
+			raise errors.Forbidden()
+		data = json.loads(req.body, object_hook=jsonDecodeObjectHook)
+		if data["classID"] not in MetaQueryIter._classCache:
+			logging.error("Could not continue queryIter - %s not known on this instance" % data["classID"])
+		MetaQueryIter._classCache[data["classID"]]._qryStep(data)
+	queryIter.exposed = True
+
 	def deferred(self, *args, **kwargs):
 		"""
 			This catches one deferred call and routes it to its destination
@@ -223,7 +242,6 @@ class TaskHandler:
 			except Exception as e:
 				logging.exception(e)
 				raise errors.RequestTimeout()  # Task-API should retry
-
 	deferred.exposed = True
 
 	def cron(self, cronName="default", *args, **kwargs):
@@ -356,6 +374,10 @@ def callDeferred(func):
 		if not queueRegion:
 			# Run tasks inline
 			logging.info("Running inline: %s" % func)
+			if "_countdown" in kwargs:
+				del kwargs["_countdown"]
+			if "_queue" in kwargs:
+				del kwargs["_queue"]
 			if self is __undefinedFlag_:
 				task = lambda: func(*args, **kwargs)
 			else:
@@ -432,7 +454,7 @@ def callDeferred(func):
 			parent = taskClient.queue_path(project, location, queue)
 			task = {
 				'app_engine_http_request': {  # Specify the type of request.
-					'http_method': 'POST',
+					'http_method': tasks_v2.HttpMethod.POST,
 					'relative_uri': '/_tasks/deferred'
 				}
 			}
@@ -444,7 +466,7 @@ def callDeferred(func):
 			task['app_engine_http_request']['body'] = pickled
 
 			# Use the client to build and send the task.
-			response = taskClient.create_task(parent, task)
+			response = taskClient.create_task(parent=parent, task=task)
 
 			print('Created task {}'.format(response.name))
 
@@ -508,44 +530,148 @@ def runStartupTasks():
 		st()
 
 
-## Tasks ##
+class MetaQueryIter(type):
+	"""
+		This is the meta class for QueryIters.
+		Used only to keep track of all subclasses of QueryIter so we can emit the callbacks
+		on the correct class.
+	"""
+	_classCache = {}  # Mapping className -> Class
 
+	def __init__(cls, name, bases, dct):
+		MetaQueryIter._classCache[str(cls)] = cls
+		cls.__classID__ = str(cls)
+		super(MetaQueryIter, cls).__init__(name, bases, dct)
 
-"""
-@CallableTask
-class DisableApplicationTask(CallableTaskBase):
-	" ""
-		Allows en- or disabling the application.
-	" ""
-	key = "viur-disable-server"
-	name = translate("server.tasks.DisableApplicationTask.name",
-					 defaultText="Enable or disable the application")
-	descr = translate("server.tasks.DisableApplicationTask.descr",
-					  defaultText="This will enable or disable the application.")
-	kindName = "server-task"
+class QueryIter(object, metaclass=MetaQueryIter):
+	"""
+		BaseClass to run a database Query and process each entry matched.
+		This will run each step deferred, so it is possible to process an arbitrary number of entries
+		without being limited by time or memory.
 
-	def canCall(self):
-		" ""
-			Checks wherever the current user can execute this task
-			:returns: bool
-		" ""
-		usr = utils.getCurrentUser()
-		return usr and usr["access"] and "root" in usr["access"]
+		To use this class create a subclass, override the classmethods handleEntry and handleFinish and then
+		call startIterOnQuery with an instance of a database Query (and possible some custom data to pass along)
+	"""
+	queueName = "default"  # Name of the taskqueue we will run on
 
-	def dataSkel(self):
-		from viur.core.bones import booleanBone, stringBone
-		from viur.core.skeleton import Skeleton
-		skel = Skeleton(self.kindName)
-		skel.active = booleanBone(descr="Application active", required=True)
-		skel.descr = stringBone(descr="Reason for disabling", required=False)
-		return (skel)
+	@classmethod
+	def startIterOnQuery(cls, query: db.Query, customData: Any=None) -> None:
+		"""
+			Starts iterating the given query on this class. Will return immediately, the first batch will already
+			run deferred.
 
-	def execute(self, active, descr, *args, **kwargs):
-		if not active:
-			if descr:
-				sharedConf["viur.disabled"] = descr
-			else:
-				sharedConf["viur.disabled"] = True
+			Warning: Any custom data *must* be json-serializable and *must* be passed in customData. You cannot store
+			any data on this class as each chunk may run on a different instance!
+		"""
+		assert not (query._customMultiQueryMerge or query._calculateInternalMultiQueryLimit), \
+			"Cannot iter a query with postprocessing"
+		assert isinstance(query.queries, db.QueryDefinition), "Unsatisfiable query or query with an IN filter"
+		qryDict = {
+			"kind": query.kind,
+			"srcSkel": query.srcSkel.kindName if query.srcSkel else None,
+			"filters": query.queries.filters,
+			"orders": [(propName, sortOrder.value) for propName, sortOrder in query.queries.orders],
+			"startCursor": query.queries.startCursor,
+			"endCursor": query.queries.endCursor,
+			"origKind": query.origKind,
+			"distinct": query.queries.distinct,
+			"classID": cls.__classID__,
+			"customData": customData,
+			"totalCount": 0
+		}
+		cls._requeueStep(qryDict)
+
+	@classmethod
+	def _requeueStep(cls, qryDict: Dict[str, Any]) -> None:
+		"""
+			Internal use only. Pushes a new step defined in qryDict to either the taskqueue or append it to
+			the current request	if we are on the local development server.
+		"""
+		if not queueRegion: # Run tasks inline - hopefully development server
+			req = currentRequest.get()
+			task = lambda *args, **kwargs: cls._qryStep(qryDict)
+			if req:
+				req.pendingTasks.append(task)  # < This property will be only exist on development server!
+				return
+		project = utils.projectID
+		location = queueRegion
+		parent = taskClient.queue_path(project, location, cls.queueName)
+		task = {
+			'app_engine_http_request': {  # Specify the type of request.
+				'http_method': 'POST',
+				'relative_uri': '/_tasks/queryIter'
+			}
+		}
+		task['app_engine_http_request']['body'] = json.dumps(qryDict, cls=JsonKeyEncoder).encode("UTF-8")
+		taskClient.create_task(parent=parent, task=task)
+
+	@classmethod
+	def _qryStep(cls, qryDict: Dict[str, Any]) -> None:
+		"""
+			Internal use only. Processes one block of five entries from the query defined in qryDict and
+			reschedules the next block.
+		"""
+		from viur.core.skeleton import skeletonByKind
+		qry = db.Query(qryDict["kind"])
+		qry.srcSkel = skeletonByKind(qryDict["srcSkel"])() if qryDict["srcSkel"] else None
+		qry.queries.filters = qryDict["filters"]
+		qry.queries.orders = [(propName, db.SortOrder(sortOrder)) for propName, sortOrder in qryDict["orders"]]
+		qry.setCursor(qryDict["startCursor"], qryDict["endCursor"])
+		qry.origKind = qryDict["origKind"]
+		qry.queries.distinct = qryDict["distinct"]
+		if qry.srcSkel:
+			qryIter = qry.fetch(5)
 		else:
-			sharedConf["viur.disabled"] = False
-"""
+			qryIter = qry.run(5)
+		for item in qryIter:
+			try:
+				cls.handleEntry(item, qryDict["customData"])
+			except:  # First exception - we'll try another time (probably/hopefully transaction collision)
+				sleep(5)
+				try:
+					cls.handleEntry(item, qryDict["customData"])
+				except Exception as e:  # Second exception - call errorHandler
+					try:
+						doCont = cls.handleError(item, qryDict["customData"], e)
+					except Exception as e:
+						logging.error("handleError failed on %s - bailing out" % item)
+						logging.exception(e)
+						doCont = False
+					if not doCont:
+						logging.error("Exiting queryItor on cursor %s" % qry.getCursor())
+						return
+			qryDict["totalCount"] += 1
+		cursor = qry.getCursor()
+		if cursor:
+			qryDict["startCursor"] = cursor
+			cls._requeueStep(qryDict)
+		else:
+			cls.handleFinish(qryDict["totalCount"], qryDict["customData"])
+
+	@classmethod
+	def handleEntry(cls, entry, customData):
+		"""
+			Overridable hook to process one entry. "entry" will be either an db.Entity or an
+			SkeletonInstance (if that query has been created by skel.all())
+
+			Warning: If your query has an sortOrder other than __key__ and you modify that property here
+			it is possible to encounter that object later one *again* (as it may jump behind the current cursor).
+		"""
+		logging.debug("handleEntry called on %s with %s." % (cls, entry))
+
+	@classmethod
+	def handleFinish(cls, totalCount: int, customData):
+		"""
+			Overridable hook that indicates the current run has been finished.
+		"""
+		logging.debug("handleFinish called on %s with %s total Entries processed" % (cls, totalCount))
+
+	@classmethod
+	def handleError(cls, entry, customData, exception) -> bool:
+		"""
+			Handle a error occurred in handleEntry.
+			If this function returns True, the queryIter continues, otherwise it breaks and prints the current cursor.
+		"""
+		logging.debug("handleError called on %s with %s." % (cls, entry))
+		logging.exception(exception)
+		return True

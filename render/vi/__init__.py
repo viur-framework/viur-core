@@ -13,6 +13,7 @@ from viur.core import session
 from viur.core import errors
 import datetime, json
 from viur.core.utils import currentRequest, currentLanguage
+from viur.core.skeleton import SkeletonInstance
 
 class default(DefaultRender):
 	kind = "json.vi"
@@ -36,9 +37,10 @@ timestamp.exposed = True
 
 
 def getStructure(adminTree, module):
+	from viur.core.prototypes.tree import TreeType
 	if not module in dir(adminTree) \
-			or not "adminInfo" in dir(getattr(adminTree, module)) \
-			or not getattr(adminTree, module).adminInfo:
+		or not "adminInfo" in dir(getattr(adminTree, module)) \
+		or not getattr(adminTree, module).adminInfo:
 		# Module not known or no adminInfo for that module
 		return (json.dumps(None))
 	res = {}
@@ -51,10 +53,22 @@ def getStructure(adminTree, module):
 		if stype in dir(moduleObj):
 			try:
 				skel = getattr(moduleObj, stype)()
-			except:
+			except TypeError:
 				continue
-			if isinstance(skel, Skeleton):
+			if isinstance(skel, SkeletonInstance):
 				res[stype] = default().renderSkelStructure(skel)
+	if not res and "nodeSkelCls" in dir(moduleObj):
+		# Try Node/Leaf
+		for stype in ["viewSkel", "editSkel", "addSkel"]:
+			for treeType in [TreeType.Node, TreeType.Leaf]:
+				if stype in dir(moduleObj):
+					try:
+						skel = getattr(moduleObj, stype)(treeType)
+					except TypeError:
+						continue
+					if isinstance(skel, SkeletonInstance):
+						storeType = stype.replace("Skel", "")+("LeafSkel" if treeType == TreeType.Leaf else "NodeSkel")
+						res[storeType] = default().renderSkelStructure(skel)
 	if res:
 		return (json.dumps(res))
 	else:
@@ -144,7 +158,7 @@ def _postProcessAppObj(obj):
 	obj["timestamp"] = timestamp
 	obj["config"] = lambda *args, **kwargs: dumpConfig(conf["viur.mainApp"].vi)
 	obj["config"].exposed = True
-	obj["getStructure"] = lambda *args, **kwargs: getStructure(obj, *args, **kwargs)
+	obj["getStructure"] = lambda *args, **kwargs: getStructure(conf["viur.mainApp"].vi, *args, **kwargs)
 	obj["getStructure"].exposed = True
 	obj["canAccess"] = canAccess
 	obj["setLanguage"] = setLanguage

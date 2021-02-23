@@ -31,7 +31,7 @@ class Formmailer(BasicApplication):
 		# Allow bones to perform outstanding "magic" operations before sending the mail
 		for key, _bone in skel.items():
 			if isinstance(_bone, baseBone):
-				_bone.performMagic(skel.valuesCache, key, isAdd=True)
+				_bone.performMagic(skel, key, isAdd=True)
 
 		# Get recipients
 		rcpts = self.getRcpts(skel)
