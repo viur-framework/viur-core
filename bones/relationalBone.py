@@ -14,7 +14,7 @@ from time import time
 from datetime import datetime
 import logging
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from typing import List
+from typing import List, Any
 from enum import Enum
 from itertools import chain
 
@@ -829,27 +829,23 @@ class relationalBone(baseBone):
 			"rel": rel or None
 		}
 
-	def setBoneValue(self, skel, boneName, value, append, language, *args, **kwargs):
+	def setBoneValue(self, skel: 'SkeltonInstance', boneName: str, value: Any, append: bool,
+					 language: Union[None, str] = None) -> bool:
 		"""
 			Set our value to 'value'.
-			Santy-Checks are performed; if the value is invalid, we flip our value back to its original
-			(default) value and return false.
+			Santy-Checks are performed; if the value is invalid, no modification will happen.
 
-			:param valuesCache: Dictionary with the current values from the skeleton we belong to
-			:type valuesCache: dict
+			:param skel: Dictionary with the current values from the skeleton we belong to
 			:param boneName: The Bone which should be modified
-			:type boneName: str
 			:param value: The value that should be assigned. It's type depends on the type of that bone
-			:type boneName: object
 			:param append: If true, the given value is appended to the values of that bone instead of
 				replacing it. Only supported on bones with multiple=True
-			:type append: bool
+			:param language: Set/append which language
 			:return: Wherever that operation succeeded or not.
-			:rtype: bool
+
 		"""
-		assert not language, "Language not yet supported"  # FIXME!
-		if append and not self.multiple:
-			raise ValueError("Bone %s is not multiple, cannot append!" % boneName)
+		assert not (self.languages ^ language), "Language is required or not supported"
+		assert not append or self.multiple, "Can't append - bone is not multiple"
 		if not self.multiple and not self.using:
 			if not (isinstance(value, str) or isinstance(value, db.KeyClass)):
 				logging.error(value)
@@ -871,12 +867,12 @@ class relationalBone(baseBone):
 			else:
 				realValue = [(value, None)]
 		else:  # which means (self.multiple and self.using)
-			if not (isinstance(value, tuple) and len(value) == 2 and \
-					(isinstance(value[0], str) or isinstance(value[0], db.KeyClass)) \
-					and isinstance(value[1], self._skeletonInstanceClassRef)) and not (isinstance(value, list) and
-																   all((isinstance(x, tuple) and len(x) == 2 and \
-																		(isinstance(x[0], str) or isinstance(
-																			x[0], db.KeyClass)) and isinstance(x[1], self._skeletonInstanceClassRef) for x in value))):
+			if not (isinstance(value, tuple) and len(value) == 2 and
+					(isinstance(value[0], str) or isinstance(value[0], db.KeyClass))
+					and isinstance(value[1], self._skeletonInstanceClassRef)) and not (isinstance(value, list)
+					and all((isinstance(x, tuple) and len(x) == 2 and
+					(isinstance(x[0], str) or isinstance(x[0], db.KeyClass))
+					and isinstance(x[1], self._skeletonInstanceClassRef) for x in value))):
 				raise ValueError("You must supply (db.Key, RelSkel) or a list hereof to %s" % boneName)
 			if not isinstance(value, list):
 				realValue = [value]
@@ -886,7 +882,12 @@ class relationalBone(baseBone):
 			rel = self.createRelSkelFromKey(realValue[0], realValue[1])
 			if not rel:
 				return False
-			skel[boneName] = rel
+			if language:
+				if boneName not in skel or not isinstance(skel[boneName], dict):
+					skel[boneName] = {}
+				skel[boneName][language] = rel
+			else:
+				skel[boneName] = rel
 		else:
 			tmpRes = []
 			for val in realValue:
@@ -895,11 +896,23 @@ class relationalBone(baseBone):
 					return False
 				tmpRes.append(rel)
 			if append:
-				if boneName not in skel or not isinstance(skel[boneName], list):
-					skel[boneName] = []
-				skel[boneName].extend(tmpRes)
+				if language:
+					if boneName not in skel or not isinstance(skel[boneName], dict):
+						skel[boneName] = {}
+					if not isinstance(skel[boneName].get(language), list):
+						skel[boneName][language] = []
+					skel[boneName][language].extend(tmpRes)
+				else:
+					if boneName not in skel or not isinstance(skel[boneName], list):
+						skel[boneName] = []
+					skel[boneName].extend(tmpRes)
 			else:
-				skel[boneName] = tmpRes
+				if language:
+					if boneName not in skel or not isinstance(skel[boneName], dict):
+						skel[boneName] = {}
+					skel[boneName][language] = tmpRes
+				else:
+					skel[boneName] = tmpRes
 		return True
 
 	def getReferencedBlobs(self, skel, name):

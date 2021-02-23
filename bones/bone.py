@@ -715,24 +715,19 @@ class baseBone(object):  # One Bone:
 			return
 		valuesCache[boneName] = copy.deepcopy(otherSkel.valuesCache.get(boneName, None))
 
-	def setBoneValue(self, skel, boneName: str, value: Any, append: bool, language: Union[None, str] = None) -> bool:
+	def setBoneValue(self, skel: 'SkeltonInstance', boneName: str, value: Any, append: bool,
+					 language: Union[None, str] = None) -> bool:
 		"""
 			Set our value to 'value'.
 			Santy-Checks are performed; if the value is invalid, no modification will happen.
 
 			:param skel: Dictionary with the current values from the skeleton we belong to
-			:type skel: SkeltonInstance
 			:param boneName: The Bone which should be modified
-			:type boneName: str
 			:param value: The value that should be assigned. It's type depends on the type of that bone
-			:type boneName: object
 			:param append: If true, the given value is appended to the values of that bone instead of
 				replacing it. Only supported on bones with multiple=True
-			:type append: bool
 			:param language: Set/append which language
-			:type language: str or None
 			:return: Wherever that operation succeeded or not.
-			:rtype: bool
 
 		"""
 		assert not (self.languages ^ language), "Language is required or not supported"
