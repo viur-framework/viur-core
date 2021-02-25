@@ -1,10 +1,21 @@
 # -*- coding: utf-8 -*-
 import json
 from collections import OrderedDict
-from viur.core import errors, bones, utils, db
-from viur.core.skeleton import RefSkel, skeletonByKind, BaseSkeleton, SkeletonInstance
+from viur.core import bones, utils, db
+from viur.core.skeleton import SkeletonInstance
 from viur.core.utils import currentRequest
+from viur.core.i18n import translate
+from typing import Any
 
+class CustomJsonEncoder(json.JSONEncoder):
+	"""
+		This custom JSON-Encoder for this json-render ensures that translations are evaluated and can be dumped.
+	"""
+
+	def default(self, o: Any) -> Any:
+		if isinstance(o, translate):
+			return str(o)
+		return json.JSONEncoder.default(self, o)
 
 class DefaultRender(object):
 	kind = "json"
@@ -210,7 +221,7 @@ class DefaultRender(object):
 			"params": params
 		}
 		currentRequest.get().response.headers["Content-Type"] = "application/json"
-		return json.dumps(res)
+		return json.dumps(res, cls=CustomJsonEncoder)
 
 	def view(self, skel, action="view", params=None, *args, **kwargs):
 		return self.renderEntry(skel, action, params)
@@ -239,7 +250,7 @@ class DefaultRender(object):
 		res["action"] = action
 		res["params"] = params
 		currentRequest.get().response.headers["Content-Type"] = "application/json"
-		return json.dumps(res)
+		return json.dumps(res, cls=CustomJsonEncoder)
 
 	def editSuccess(self, skel, params=None, **kwargs):
 		return self.renderEntry(skel, "editSuccess", params)
@@ -266,7 +277,7 @@ class DefaultRender(object):
 			skels.append(self.renderSkelValues(skel))
 
 		res["entrys"] = skels
-		return json.dumps(res)
+		return json.dumps(res, cls=CustomJsonEncoder)
 
 	def renameSuccess(self, rootNode, path, src, dest, params=None, *args, **kwargs):
 		return json.dumps("OKAY")
