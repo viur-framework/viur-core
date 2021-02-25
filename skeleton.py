@@ -104,8 +104,12 @@ class SkeletonInstance:
 		self.skeletonCls = skelCls
 		self.renderPreparation = None
 
-	def items(self) -> Iterable[Tuple[str, baseBone]]:
-		yield from self.boneMap.items()
+	def items(self, yieldBoneValues: bool = False) -> Iterable[Tuple[str, baseBone]]:
+		if yieldBoneValues:
+			for key in self.boneMap.keys():
+				yield key, self[key]
+		else:
+			yield from self.boneMap.items()
 
 	def keys(self) -> Iterable[str]:
 		yield from self.boneMap.keys()
