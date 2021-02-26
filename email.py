@@ -7,14 +7,15 @@ from viur.core.utils import projectID
 from viur.core.tasks import callDeferred, QueryIter, PeriodicTask
 import json, base64
 from urllib import request
+from abc import ABC, abstractmethod
 
 """
 	This module implements an email delivery system for ViUR. Emails will be queued so that we don't overwhelm
 	the email service. As the Appengine does not provide an email-api anymore, you'll have to use a 3rd party service
 	to actually deliver the email. A sample implementation for Send in Blue (https://sendinblue.com/) is provided.
-	To enable Send in Blue,	set conf["viur.email.transportFunction"] to transportSendInBlue and add your API-Key to
+	To enable Send in Blue,	set conf["viur.email.transportClass"] to EmailTransportSendInBlue and add your API-Key to
 	conf["viur.email.sendInBlue.apiKey"]. To send via another service, you'll have to implement a different transport
-	function (and point conf["viur.email.transportFunction"] to that function). This module needs a custom queue
+	class (and point conf["viur.email.transportClass"] to that function). This module needs a custom queue
 	(viur-emails) with a larger backoff value (sothat we don't try to deliver the same email multiple times within a
 	short timeframe). A suggested configuration would be
 	
@@ -35,6 +36,50 @@ def cleanOldEmailsFromLog(*args, **kwargs):
 	qry = db.Query("viur-emails").filter("isSend =", True) \
 		.filter("creationDate <", utils.utcNow() - conf["viur.email.logRetention"])
 	DeleteOldEmailsFromLog.startIterOnQuery(qry)
+
+
+class EmailTransport(ABC):
+	maxRetries = 3
+
+	@staticmethod
+	@abstractmethod
+	def deliverEmail(*, sender: str, dests: List[str], cc: List[str], bcc: List[str], subject: str, body: str,
+							headers: Dict[str, str], attachments: List[Dict[str, bytes]],
+							customData: Union[dict, None], **kwargs):
+		"""
+			The actual email delivery must be implemented here. All email-adresses can be either in the form of
+			"mm@example.com" or "Max Musterman <mm@example.com>". If the delivery was successful, this method
+			should return normally, if there was an error delivering the message it *must* raise an exception.
+
+			:param sender: The sender to be used on the outgoing email
+			:param dests: List of recipients
+			:param cc: : List of carbon copy-recipients
+			:param bcc: List of blind carbon copy-recipients
+			:param subject: The subject of this email
+			:param body: The contents of this email (may be text/plain or text/html)
+			:param headers: Custom headers to send along with this email
+			:param attachments: List of attachments to include in this email
+			:param customData:
+		"""
+		raise NotImplementedError()
+
+	@staticmethod
+	def validateQueueEntity(entity: db.Entity) -> bool:
+		"""
+			This function can be used to pre-validate the queue entity before it's deferred into the queue.
+			:param entity: The entity to validate
+			:return: True, if this transport expects to be able to deliver the message, False otherwise
+		"""
+		return True
+
+	@staticmethod
+	def transportSuccessfulCallback(entity: db.Entity):
+		"""
+			This callback can be overriden by the project to execute additional tasks after an email
+			has been successfully send.
+			:param entity: The entity which has been send
+		"""
+		pass
 
 
 class DeleteOldEmailsFromLog(QueryIter):
@@ -60,17 +105,17 @@ def sendEmailDeferred(emailKey: db.KeyClass):
 		return True
 	elif queueEntity["errorCount"] > 3:
 		raise ChildProcessError("Error-Count exceeded")
-	transportFunction = conf["viur.email.transportFunction"]  # First, ensure we're able to send email at all
-	assert callable(transportFunction), "No or invalid email transportfunction specified!"
+	transportClass = conf["viur.email.transportClass"]  # First, ensure we're able to send email at all
+	assert issubclass(transportClass, EmailTransport), "No or invalid email transportclass specified!"
 	try:
-		resultData = transportFunction(dests=queueEntity["dests"],
-									   sender=queueEntity["sender"],
-									   cc=queueEntity["cc"],
-									   bcc=queueEntity["bcc"],
-									   subject=queueEntity["subject"],
-									   body=queueEntity["body"],
-									   headers=queueEntity["headers"],
-									   attachments=queueEntity["attachments"])
+		resultData = transportClass.deliverEmail(dests=queueEntity["dests"],
+												 sender=queueEntity["sender"],
+												 cc=queueEntity["cc"],
+												 bcc=queueEntity["bcc"],
+												 subject=queueEntity["subject"],
+												 body=queueEntity["body"],
+												 headers=queueEntity["headers"],
+												 attachments=queueEntity["attachments"])
 	except Exception:
 		# Increase the errorCount and bail out
 		queueEntity["errorCount"] += 1
@@ -82,11 +127,10 @@ def sendEmailDeferred(emailKey: db.KeyClass):
 	queueEntity["transportFuncResult"] = resultData
 	queueEntity.exclude_from_indexes.add("transportFuncResult")
 	db.Put(queueEntity)
-	if conf["viur.email.transportSuccessful"]:
-		try:
-			conf["viur.email.transportSuccessful"](queueEntity)
-		except Exception as e:
-			logging.exception(e)
+	try:
+		transportClass.transportSuccessfulCallback(queueEntity)
+	except Exception as e:
+		logging.exception(e)
 
 
 def normalizeToList(value: Union[None, Any, List[Any]]) -> List[Any]:
@@ -115,7 +159,7 @@ def sendEMail(*,
 	General purpose function for sending e-mail.
 	This function allows for sending e-mails, also with generated content using the Jinja2 template engine.
 	Your have to implement a method which should be called to send the prepared email finally. For this you have
-	to allocate *viur.email.transportFunction* in conf.
+	to allocate *viur.email.transportClass* in conf.
 
 	:param tpl: The name of a template from the deploy/emails directory.
 	:param stringTemplate: This string is interpreted as the template contents. Alternative to load from template file.
@@ -138,7 +182,8 @@ def sendEMail(*,
 				(for all text and attachments combined)!
 	"""
 	# First, ensure we're able to send email at all
-	assert callable(conf.get("viur.email.transportFunction")), "No or invalid email transportfunction specified!"
+	transportClass = conf["viur.email.transportClass"]  # First, ensure we're able to send email at all
+	assert issubclass(transportClass, EmailTransport), "No or invalid email transportclass specified!"
 	# Ensure that all recipient parameters (dest, cc, bcc) are a list
 	dests = normalizeToList(dests)
 	cc = normalizeToList(cc)
@@ -238,16 +283,10 @@ def sendEMailToAdmins(subject: str, body: str, *args, **kwargs):
 	return False
 
 
-def transportSendInBlue(*, sender: str, dests: List[str], cc: List[str], bcc: List[str], subject: str, body: str,
-						headers: Dict[str, str], attachments: List[Dict[str, bytes]], **kwargs):
-	"""
-		Internal function for delivering Emails using Send in Blue. This function requires the
-		conf["viur.email.sendInBlue.apiKey"] to be set.
-		This function is supposed to return on success and throw an exception otherwise.
-		If no exception is thrown, the email is considered send and will not be retried.
+class EmailTransportSendInBlue(EmailTransport):
+	maxRetries = 3
 
-	"""
-
+	@staticmethod
 	def splitAddress(address: str) -> Dict[str, str]:
 		"""
 			Splits an Name/Address Pair as "Max Musterman <mm@example.com>" into a dict
@@ -264,44 +303,54 @@ def transportSendInBlue(*, sender: str, dests: List[str], cc: List[str], bcc: Li
 		else:
 			return {"email": address}
 
-	dataDict = {
-		"sender": splitAddress(sender),
-		"to": [],
-		"htmlContent": body,
-		"subject": subject,
-	}
-	for dest in dests:
-		dataDict["to"].append(splitAddress(dest))
-	for dest in bcc:
-		dataDict["bcc"].append(splitAddress(dest))
-	for dest in cc:
-		dataDict["cc"].append(splitAddress(dest))
-	if headers:
-		if "Reply-To" in headers:
-			dataDict["replyTo"] = splitAddress(headers["Reply-To"])
-			del headers["Reply-To"]
+	@staticmethod
+	@abstractmethod
+	def deliverEmail(*, sender: str, dests: List[str], cc: List[str], bcc: List[str], subject: str, body: str,
+						headers: Dict[str, str], attachments: List[Dict[str, bytes]], **kwargs):
+		"""
+			Internal function for delivering Emails using Send in Blue. This function requires the
+			conf["viur.email.sendInBlue.apiKey"] to be set.
+			This function is supposed to return on success and throw an exception otherwise.
+			If no exception is thrown, the email is considered send and will not be retried.
+		"""
+		dataDict = {
+			"sender": EmailTransportSendInBlue.splitAddress(sender),
+			"to": [],
+			"htmlContent": body,
+			"subject": subject,
+		}
+		for dest in dests:
+			dataDict["to"].append(EmailTransportSendInBlue.splitAddress(dest))
+		for dest in bcc:
+			dataDict["bcc"].append(EmailTransportSendInBlue.splitAddress(dest))
+		for dest in cc:
+			dataDict["cc"].append(EmailTransportSendInBlue.splitAddress(dest))
 		if headers:
-			dataDict["headers"] = headers
-	if attachments:
-		dataDict["attachment"] = []
-		for attachment in attachments:
-			dataDict["attachment"].append({
-				"name": attachment["filename"],
-				"content": base64.b64encode(attachment["content"]).decode("ASCII")
-			})
-	payload = json.dumps(dataDict).encode("UTF-8")
-	headers = {
-		"api-key": conf["viur.email.sendInBlue.apiKey"],
-		"Content-Type": "application/json; charset=utf-8"
-	}
-	reqObj = request.Request(url="https://api.sendinblue.com/v3/smtp/email",
-							 data=payload, headers=headers, method="POST")
-	try:
-		response = request.urlopen(reqObj)
-	except request.HTTPError as e:
-		logging.error("Sending email failed!")
-		logging.error(dataDict)
-		logging.error(e.read())
-		raise
-	assert str(response.code)[0] == "2", "Received a non 2XX Status Code!"
-	return response.read().decode("UTF-8")
+			if "Reply-To" in headers:
+				dataDict["replyTo"] = EmailTransportSendInBlue.splitAddress(headers["Reply-To"])
+				del headers["Reply-To"]
+			if headers:
+				dataDict["headers"] = headers
+		if attachments:
+			dataDict["attachment"] = []
+			for attachment in attachments:
+				dataDict["attachment"].append({
+					"name": attachment["filename"],
+					"content": base64.b64encode(attachment["content"]).decode("ASCII")
+				})
+		payload = json.dumps(dataDict).encode("UTF-8")
+		headers = {
+			"api-key": conf["viur.email.sendInBlue.apiKey"],
+			"Content-Type": "application/json; charset=utf-8"
+		}
+		reqObj = request.Request(url="https://api.sendinblue.com/v3/smtp/email",
+								 data=payload, headers=headers, method="POST")
+		try:
+			response = request.urlopen(reqObj)
+		except request.HTTPError as e:
+			logging.error("Sending email failed!")
+			logging.error(dataDict)
+			logging.error(e.read())
+			raise
+		assert str(response.code)[0] == "2", "Received a non 2XX Status Code!"
+		return response.read().decode("UTF-8")
