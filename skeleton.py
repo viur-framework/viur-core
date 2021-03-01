@@ -561,12 +561,21 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		return db.Query(skelValues.kindName, srcSkelClass=skelValues)
 
 	@classmethod
-	def fromClient(cls, skelValues, data):
+	def fromClient(cls, skelValues: SkeletonInstance, data: Dict[str, Union[List[str], str]]) -> bool:
 		"""
+			This function works similar to :func:`~server.skeleton.Skeleton.setValues`, except that
+			the values retrieved from *data* are checked against the bones and their validity checks.
 
-		:param data:
-		:return:
+			Even if this function returns False, all bones are guaranteed to be in a valid state.
+			The ones which have been read correctly are set to their valid values;
+			Bones with invalid values are set back to a safe default (None in most cases).
+			So its possible to call :func:`~server.skeleton.Skeleton.toDB` afterwards even if reading
+			data with this function failed (through this might violates the assumed consistency-model).
+
+		:param data: Dictionary from which the data is read.
+		:return: True, if all values have been read correctly (without errors), False otherwise
 		"""
+		assert skelValues.renderPreparation is None, "Cannot modify values while rendering"
 		# Load data into this skeleton
 		complete = super().fromClient(skelValues, data)
 
@@ -594,7 +603,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		return complete
 
 	@classmethod
-	def fromDB(cls, skelValues, key):
+	def fromDB(cls, skelValues: SkeletonInstance, key: Union[str, db.KeyClass]) -> bool:
 		"""
 			Load entity with *key* from the data store into the Skeleton.
 
@@ -606,12 +615,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
 			:param key: A :class:`server.DB.Key`, :class:`server.DB.Query`, or string,\
 			from which the data shall be fetched.
-			:type key: server.DB.Key | DB.Query | str
 
 			:returns: True on success; False if the given key could not be found.
-			:rtype: bool
 
 		"""
+		assert skelValues.renderPreparation is None, "Cannot modify values while rendering"
 		try:
 			dbKey = db.keyHelper(key, skelValues.kindName)
 		except ValueError:  # This key did not parse
@@ -620,12 +628,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		if dbRes is None:
 			return False
 		skelValues.setEntity(dbRes)
-		# key = str(dbRes.key())
 		skelValues["key"] = dbKey
 		return True
 
 	@classmethod
-	def toDB(cls, skelValues, clearUpdateTag=False):
+	def toDB(cls, skelValues: SkeletonInstance, clearUpdateTag: bool=False) -> db.KeyClass:
 		"""
 			Store current Skeleton entity to data store.
 
@@ -637,11 +644,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
 			:param clearUpdateTag: If True, this entity won't be marked dirty;
 				This avoids from being fetched by the background task updating relations.
-			:type clearUpdateTag: bool
 
-			:returns: The data store key of the entity.
-			:rtype: str
+			:returns: The datastore key of the entity.
 		"""
+		assert skelValues.renderPreparation is None, "Cannot modify values while rendering"
 
 		def txnUpdate(dbKey, mergeFrom, clearUpdateTag):
 			blobList = set()
@@ -1141,17 +1147,6 @@ class SkelList(list):
 		self.renderPreparation = None
 		self.customQueryInfo = {}
 
-	def no__iter__(self):
-		for cacheItem in super(SkelList, self).__iter__():
-			self.baseSkel.setValuesCache(cacheItem)
-			self.baseSkel.renderPreparation = self.renderPreparation
-			yield self.baseSkel
-
-	def nopop(self, index=None):
-		item = super(SkelList, self).pop(index)
-		self.baseSkel.setValuesCache(item)
-		self.baseSkel.renderPreparation = self.renderPreparation
-		return self.baseSkel
 
 
 ### Tasks ###
