@@ -3,7 +3,7 @@ from __future__ import annotations
 from viur.core.config import conf
 from viur.core import utils
 import logging
-from typing import Union, Tuple, List, Dict, Any, Callable
+from typing import Union, Tuple, List, Dict, Any, Callable, Set, Optional
 from functools import partial
 from itertools import zip_longest
 from copy import deepcopy
@@ -25,7 +25,7 @@ from contextvars import ContextVar
 
 __client__ = datastore.Client()
 # The DB-Module will keep track of accessed kinds/keys in the accessLog so we can selectively flush our caches
-currentDbAccessLog = ContextVar("Database-Accesslog", default=None)
+currentDbAccessLog: ContextVar[Optional[Set[Union[KeyClass, str]]]] = ContextVar("Database-Accesslog", default=None)
 
 # Consts
 KEY_SPECIAL_PROPERTY = "__key__"
@@ -89,13 +89,15 @@ def keyHelper(inKey: Union[KeyClass, str, int], targetKind: str,
 	else:
 		raise ValueError("Unknown key type %r" % type(inKey))
 
+
 def encodeKey(key: KeyClass) -> str:
 	"""
 		Return the given key encoded as string (mimicking the old str() behaviour of keys)
 	"""
 	return key.to_legacy_urlsafe().decode("ASCII")
 
-def startAccessDataLog() -> set:
+
+def startAccessDataLog() -> Set[Union[KeyClass, str]]:
 	"""
 		Clears our internal access log (which keeps track of which entries have been accessed in the current
 		request). The old set of accessed entries is returned so that it can be restored with
@@ -106,7 +108,8 @@ def startAccessDataLog() -> set:
 	currentDbAccessLog.set(set())
 	return old
 
-def popAccessData(outerAccessLog: Union[set, None]=None) -> set:
+
+def popAccessData(outerAccessLog: Optional[Set[Union[KeyClass, str]]] = None) -> Set[Union[KeyClass, str]]:
 	"""
 		Retrieves the set of entries accessed so far. If :func:`server.db.startAccessDataLog`, it will only
 		include entries that have been accessed after that call, otherwise all entries accessed in the current

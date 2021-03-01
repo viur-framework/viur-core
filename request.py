@@ -295,8 +295,6 @@ class BrowseHandler():  # webapp.RequestHandler
 			}
 			requestLogger.log_text("", client=loggingClient, severity=SEVERITY, http_request=REQUEST, trace=TRACE,
 								   resource=requestLoggingRessource)
-		print("***********************")
-		print(db.currentDbAccessLog.get(set()))
 		if self.isDevServer:
 			while self.pendingTasks:
 				task = self.pendingTasks.pop()
