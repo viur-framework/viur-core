@@ -255,6 +255,7 @@ def setup(modules, render=None, default="html"):
 	# Ensure that our Content Security Policy Header Cache gets build
 	from viur.core import securityheaders
 	securityheaders._rebuildCspHeaderCache()
+	securityheaders._rebuildPermissionHeaderCache()
 	bone.setSystemInitialized()
 	# Assert that all security releated headers are in a sane state
 	if conf["viur.security.contentSecurityPolicy"] and conf["viur.security.contentSecurityPolicy"]["_headerCache"]:
@@ -264,9 +265,6 @@ def setup(modules, render=None, default="html"):
 	if conf["viur.security.strictTransportSecurity"]:
 		assert conf["viur.security.strictTransportSecurity"].startswith(
 			"max-age"), "Got unexpected header in conf['viur.security.strictTransportSecurity']"
-	if conf["viur.security.publicKeyPins"]:
-		assert conf["viur.security.publicKeyPins"].startswith(
-			"pin-"), "Got unexpected header in conf['viur.security.publicKeyPins']"
 	assert conf["viur.security.xPermittedCrossDomainPolicies"] in [None, "none", "master-only", "by-content-type",
 																   "all"], \
 		"conf[\"viur.security.xPermittedCrossDomainPolicies\"] must be one of [None, \"none\", \"master-only\", \"by-content-type\", \"all\"]"

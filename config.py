@@ -118,10 +118,30 @@ conf = {
 			'frame-src': ['self', 'www.google.com', 'drive.google.com', 'accounts.google.com']
 		}
 	},
+	# Per default, we'll emit Referrer-Policy: strict-origin so no referrers leak to external services
+	"viur.security.referrerPolicy": "strict-origin",
+	# Include a default permissions-policy. To use the camera or microphone, you'll have to call
+	# :meth: securityheaders.setPermissionPolicyDirective to include at least "self"
+	"viur.security.permissionsPolicy": {
+		"autoplay": ["self"],
+		"camera": [],
+		"display-capture": [],
+		"document-domain": [],
+		"encrypted-media": [],
+		"fullscreen": [],
+		"geolocation": [],
+		"microphone": [],
+		"publickey-credentials-get": [],
+		"usb": [],
+	},
+	# Shall we emit Cross-Origin-Embedder-Policy: require-corp?
+	"viur.security.enableCOEP": True,
+	# Emit a Cross-Origin-Opener-Policy Header? Valid values are same-origin|same-origin-allow-popups|unsafe-none
+	"viur.security.enableCOOP": "same-origin",
+	# Emit a Cross-Origin-Resource-Policy Header? Valid values are same-site|same-origin|cross-origin
+	"viur.security.enableCORP": "same-origin",
 	# If set, viur will emit a HSTS http-header with each request. Use security.enableStrictTransportSecurity to set this property
 	"viur.security.strictTransportSecurity": None,
-	# If set, viur will emit a Public Key Pins http-header with each request. Use security.setPublicKeyPins to set this property
-	"viur.security.publicKeyPins": None,
 	# If set, ViUR will emit a X-Frame-Options header,
 	"viur.security.xFrameOptions": ("sameorigin", None),
 	# ViUR will emit a X-XSS-Protection header if set (the default),
