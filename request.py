@@ -324,7 +324,7 @@ class BrowseHandler():  # webapp.RequestHandler
 			raise errors.BadRequest()
 		# Parse the URL
 		path = parse.urlparse(path).path
-		self.pathlist = [parse.unquote(x) for x in path.strip("/").split("/")]
+		self.pathlist = [unicodedata.normalize("NFC", parse.unquote(x)) for x in path.strip("/").split("/")]
 		caller = conf["viur.mainResolver"]
 		idx = 0  # Count how may items from *args we'd have consumed (so the rest can go into *args of the called func
 		for currpath in self.pathlist:
@@ -374,15 +374,7 @@ class BrowseHandler():  # webapp.RequestHandler
 		# Check for forcePost flag
 		if "forcePost" in dir(caller) and caller.forcePost and not self.isPostRequest:
 			raise (errors.MethodNotAllowed("You must use POST to access this ressource!"))
-		self.args = []
-		for arg in args:
-			if isinstance(arg, str):
-				self.args.append(arg)
-			else:
-				try:
-					self.args.append(arg.decode("UTF-8"))
-				except:
-					pass
+		self.args = args
 		self.kwargs = kwargs
 		# Check if this request should bypass the caches
 		if self.request.headers.get("X-Viur-Disable-Cache"):
