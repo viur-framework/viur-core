@@ -62,15 +62,20 @@ def _rebuildCspHeaderCache():
 		to 'addRule' earlier on. Should not be called directly.
 	"""
 	conf["viur.security.contentSecurityPolicy"]["_headerCache"] = {}
+	hasValidScriptSrcPolicy: bool = False
 	for enforceMode in ["monitor", "enforce"]:
 		resStr = ""
 		if not enforceMode in conf["viur.security.contentSecurityPolicy"]:
 			continue
 		for key, values in conf["viur.security.contentSecurityPolicy"][enforceMode].items():
+			if key == "script-src" and enforceMode == "enforce":
+				hasValidScriptSrcPolicy = True
 			resStr += key
 			for value in values:
 				resStr += " "
 				if value in ["self", "unsafe-inline", "unsafe-eval"]:
+					if key == "script-src" and value in ["unsafe-inline", "unsafe-eval"]:
+						raise NotImplementedError("Running with unsafe-inline or unsafe-eval is no longer supported!")
 					resStr += "'%s'" % value
 				else:
 					resStr += value
@@ -80,6 +85,8 @@ def _rebuildCspHeaderCache():
 				"Content-Security-Policy-Report-Only"] = resStr
 		else:
 			conf["viur.security.contentSecurityPolicy"]["_headerCache"]["Content-Security-Policy"] = resStr
+	if not hasValidScriptSrcPolicy:  # Script-src directive must exist and be enforced (monitor is not sufficient!)
+		raise NotImplementedError("Running without a valid script-src directive is no longer supported!")
 
 
 def enableStrictTransportSecurity(maxAge=365 * 24 * 60 * 60, includeSubDomains=False, preload=False):
