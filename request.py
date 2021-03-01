@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import threading
-import sys, traceback, os, inspect
+import sys, traceback, os, inspect, unicodedata
 from viur.core.config import conf
 from urllib import parse
 from string import Template
@@ -207,9 +207,6 @@ class BrowseHandler():  # webapp.RequestHandler
 				host = host[host.find("://") + 3:].strip(" /")  # strip http(s)://
 				self.redirect("https://%s/" % host)
 				return
-		if path[:10] == "/_viur/dlf":
-			self.response.write("okay")
-			return
 		if path.startswith("/_ah/warmup"):
 			self.response.write("okay")
 			return
@@ -304,18 +301,25 @@ class BrowseHandler():  # webapp.RequestHandler
 		# Prevent Hash-collision attacks
 		kwargs = {}
 		stopCount = conf["viur.maxPostParamsCount"]
-		for key, value in self.request.params.iteritems():
-			if key in kwargs:
-				if isinstance(kwargs[key], list):
-					kwargs[key].append(value)
+		try:
+			for key, value in self.request.params.iteritems():
+				key = unicodedata.normalize("NFC", key)
+				value = unicodedata.normalize("NFC", value)
+				if key.startswith("_"):  # Ignore keys starting with _ (like VI's _unused_time_stamp)
+					continue
+				if key in kwargs:
+					if isinstance(kwargs[key], list):
+						kwargs[key].append(value)
+					else:  # Convert that key to a list
+						kwargs[key] = [kwargs[key], value]
 				else:
-					kwargs[key] = [kwargs[key], value]
-			else:
-				kwargs[key] = value
-			stopCount -= 1
-			if not stopCount:  # We reached zero; maximum PostParamsCount exceeded
-				raise errors.NotAcceptable()
-
+					kwargs[key] = value
+				stopCount -= 1
+				if not stopCount:  # We reached zero; maximum PostParamsCount exceeded
+					raise errors.NotAcceptable()
+		except UnicodeError:
+			# We received invalid unicode data (usually happens when someone tries to exploit unicode normalisation bugs)
+			raise errors.ReadFromClientError()
 		if "self" in kwargs:  # self is reserved for bound methods
 			raise errors.BadRequest()
 		# Parse the URL
