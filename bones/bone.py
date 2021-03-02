@@ -388,8 +388,12 @@ class baseBone(object):  # One Bone:
 			:type name: str
 			:returns: dict
 		"""
-		if name in skel.accessedValues:
-			newVal = skel.accessedValues[name]
+		if name not in skel.accessedValues:
+			return False
+
+		newVal = skel.accessedValues[name]
+
+		if newVal is not None:
 			if self.languages and self.multiple:
 				res = {"_viurLanguageWrapper_": True}
 				for language in self.languages:
@@ -409,15 +413,19 @@ class baseBone(object):  # One Bone:
 					res.append(self.singleValueSerialize(singleValue, skel, name, parentIndexed))
 			else:  # No Languages, not Multiple
 				res = self.singleValueSerialize(newVal, skel, name, parentIndexed)
-			skel.dbEntity[name] = res
-			# Ensure our indexed flag is up2date
-			indexed = self.indexed and parentIndexed
-			if indexed and name in skel.dbEntity.exclude_from_indexes:
-				skel.dbEntity.exclude_from_indexes.discard(name)
-			elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
-				skel.dbEntity.exclude_from_indexes.add(name)
-			return True
-		return False
+		else:
+			res = None
+
+		skel.dbEntity[name] = res
+
+		# Ensure our indexed flag is up2date
+		indexed = self.indexed and parentIndexed
+		if indexed and name in skel.dbEntity.exclude_from_indexes:
+			skel.dbEntity.exclude_from_indexes.discard(name)
+		elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
+			skel.dbEntity.exclude_from_indexes.add(name)
+
+		return True
 
 	def singleValueUnserialize(self, val, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
 		return val
