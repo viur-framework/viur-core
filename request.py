@@ -9,7 +9,7 @@ import webob
 from viur.core import errors
 from urllib.parse import urljoin, urlparse, unquote
 from viur.core.logging import requestLogger, client as loggingClient, requestLoggingRessource
-from viur.core import utils
+from viur.core import utils, db
 from viur.core.utils import currentSession, currentLanguage
 import logging
 from time import time
@@ -89,6 +89,7 @@ class BrowseHandler():  # webapp.RequestHandler
 		self.response = response
 		self.maxLogLevel = logging.DEBUG
 		self._traceID = request.headers.get('X-Cloud-Trace-Context') or utils.generateRandomString()
+		db.currentDbAccessLog.set(set())
 
 	def selectLanguage(self, path: str):
 		"""

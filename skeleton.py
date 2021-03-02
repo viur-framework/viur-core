@@ -555,14 +555,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		assert self.kindName and self.kindName is not __undefindedC__, "You must set kindName on this skeleton!"
 
 	@classmethod
-	def all(cls, skelValues):
+	def all(cls, skelValues, **kwargs):
 		"""
 			Create a query with the current Skeletons kindName.
 
 			:returns: A db.Query object which allows for entity filtering and sorting.
 			:rtype: :class:`server.db.Query`
 		"""
-		return db.Query(skelValues.kindName, srcSkelClass=skelValues)
+		return db.Query(skelValues.kindName, srcSkelClass=skelValues, **kwargs)
 
 	@classmethod
 	def fromClient(cls, skelValues: SkeletonInstance, data: Dict[str, Union[List[str], str]]) -> bool:

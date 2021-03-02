@@ -140,12 +140,15 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
 				currReq.response.headers['Content-Type'] = dbRes["content-type"]
 				return dbRes["data"]
 		# If we made it this far, the request wasn't cached or too old; we need to rebuild it
+		oldAccessLog = db.startAccessDataLog()
 		res = f(self, *args, **kwargs)
+		accessedEntries = db.popAccessData(oldAccessLog)
 		dbEntity = db.Entity(db.Key(viurCacheName, key))
 		dbEntity["data"] = res
 		dbEntity["creationtime"] = utils.utcNow()
 		dbEntity["path"] = path
 		dbEntity["content-type"] = currReq.response.headers['Content-Type']
+		dbEntity["accessedEntries"] = list(accessedEntries)
 		dbEntity.exclude_from_indexes = ["data", "content-type"]  # We can save 2 DB-Writs :)
 		db.Put(dbEntity)
 		logging.debug("This request was a cache-miss. Cache has been updated.")
@@ -189,30 +192,51 @@ def enableCache(urls: List[str], userSensitive: int = 0, languageSensitive: bool
 
 
 @tasks.callDeferred
-def flushCache(prefix="/*"):
+def flushCache(prefix: str = None, key: Union[db.KeyClass, None] = None, kind: Union[str, None] = None):
 	"""
 		Flushes the cache. Its possible the flush only a part of the cache by specifying
 		the path-prefix.
 
 		:param prefix: Path or prefix that should be flushed.
-		:type prefix: str
+		:param key: Flush all cache entries which may contain this key. Also flushes entries
+			which executed a query over that kind.
+		:param kind: Flush all cache entries which executed a query over that kind.
 
 		Examples:
 			- "/" would flush the main page (and only that),
 			- "/*" everything from the cache, "/page/*" everything from the page-module (default render),
 			- and "/page/view/*" only that specific subset of the page-module.
 	"""
-	items = db.Query(viurCacheName).filter("path =", prefix.rstrip("*")).iter(keysOnly=True)
-	for item in items:
-		db.Delete(item)
-	if prefix.endswith("*"):
-		items = db.Query(viurCacheName) \
-			.filter("path >", prefix.rstrip("*")) \
-			.filter("path <", prefix.rstrip("*") + u"\ufffd") \
-			.iter(keysOnly=True)
+	if prefix is None and key is None and kind is None:
+		prefix = "/*"
+	if prefix is not None:
+		items = db.Query(viurCacheName).filter("path =", prefix.rstrip("*")).iter(keysOnly=True)
 		for item in items:
 			db.Delete(item)
-	logging.debug("Flushing cache succeeded. Everything matching \"%s\" is gone." % prefix)
+		if prefix.endswith("*"):
+			items = db.Query(viurCacheName) \
+				.filter("path >", prefix.rstrip("*")) \
+				.filter("path <", prefix.rstrip("*") + u"\ufffd") \
+				.iter(keysOnly=True)
+			for item in items:
+				db.Delete(item)
+		logging.debug("Flushing cache succeeded. Everything matching \"%s\" is gone." % prefix)
+	if key is not None:
+		items = db.Query(viurCacheName).filter("accessedEntries =", key).iter()
+		for item in items:
+			logging.info("Deleted cache entry %s", item["path"])
+			db.Delete(item.key)
+		if not isinstance(key, db.KeyClass):
+			key = db.Key(encoded=key)
+		items = db.Query(viurCacheName).filter("accessedEntries =", key.kind).iter()
+		for item in items:
+			logging.info("Deleted cache entry %s", item["path"])
+			db.Delete(item.key)
+	if kind is not None:
+		items = db.Query(viurCacheName).filter("accessedEntries =", kind).iter()
+		for item in items:
+			logging.info("Deleted cache entry %s", item["path"])
+			db.Delete(item.key())
 
 
 __all__ = ["enableCache", "flushCache"]

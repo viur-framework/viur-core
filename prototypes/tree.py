@@ -10,6 +10,7 @@ from viur.core.prototypes import BasicApplication
 from viur.core.skeleton import Skeleton, skeletonByKind
 from viur.core.tasks import callDeferred
 from viur.core.utils import currentRequest
+from viur.core.cache import flushCache
 from enum import Enum
 
 
@@ -783,6 +784,7 @@ class Tree(BasicApplication):
 		.. seealso:: :func:`add`, :func:`onAdd`
 		"""
 		logging.info("Entry added: %s" % skel["key"])
+		flushCache(kind=skel.kindName)
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
@@ -813,6 +815,7 @@ class Tree(BasicApplication):
 		.. seealso:: :func:`edit`, :func:`onEdit`
 		"""
 		logging.info("Entry changed: %s" % skel["key"])
+		flushCache(key=skel["key"])
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
@@ -860,6 +863,7 @@ class Tree(BasicApplication):
 		.. seealso:: :func:`delete`, :func:`onDelete`
 		"""
 		logging.info("Entry deleted: %s (%s)" % (skel["key"], type(skel)))
+		flushCache(key=skel["key"])
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
