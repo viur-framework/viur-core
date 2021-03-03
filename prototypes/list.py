@@ -133,12 +133,11 @@ class List(BasicApplication):
 		skel = self.viewSkel()
 		if key == u"structure":
 			# We dump just the structure of that skeleton, including it's default values
-			if not self.canView(skel):
+			qry = self.listFilter(skel.all())
+			if not qry or not qry.getEntry():
+				# The user does not have permission to view at least one entry (or there is None), deny this request
 				raise errors.Unauthorized()
 		else: # We return a single entry for viewing
-			# We probably have a Database or SEO-Key here
-			#seoKey = "viur.viurActiveSeoKeys ="
-			#skel = self.viewSkel().all().filter(seoKey, args[0]).getSkel()
 			skel = self.viewSkel()
 			if not skel.fromDB(key):
 				raise errors.NotFound()

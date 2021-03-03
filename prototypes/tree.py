@@ -330,7 +330,9 @@ class Tree(BasicApplication):
 			raise errors.NotAcceptable()
 		if key == "structure":
 			# We dump just the structure of that skeleton, including it's default values
-			if not self.canView(skelType, None):
+			qry = self.listFilter(skel.all())
+			if not qry or not qry.getEntry():
+				# The user does not have permission to view at least one entry (or there is None), deny this request
 				raise errors.Unauthorized()
 		else:
 			# We return a single entry for viewing
