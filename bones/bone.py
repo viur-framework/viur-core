@@ -106,7 +106,7 @@ class baseBone(object):  # One Bone:
 		self.params = params or {}
 		self.multiple = multiple
 		self.indexed = indexed
-		self.defaultValue = defaultValue
+		self.defaultValue = [] if defaultValue is None and self.multiple else defaultValue
 		self.languages = languages
 		self.searchable = searchable
 		if vfunc:
