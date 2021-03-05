@@ -27,7 +27,7 @@ class TreeSkel(Skeleton):
 	@classmethod
 	def refresh(cls, skelValues):  # ViUR2 Compatibility
 		super().refresh(skelValues)
-		if not skelValues["parententry"] and skelValues.dbEntity.get("parentdir"):
+		if not skelValues["parententry"] and skelValues.dbEntity.get("parentdir"): # parentdir for viur2 compatibility
 			skelValues["parententry"] = utils.normalizeKey(db.KeyClass.from_legacy_urlsafe(skelValues.dbEntity["parentdir"]))
 
 class TreeType(Enum):
@@ -390,7 +390,7 @@ class Tree(BasicApplication):
 			raise errors.PreconditionFailed()
 		skel["parententry"] = parentNodeSkel["key"]
 		# parentrepo may not exist of parentNodeSkel as it may be an rootNode
-		skel["parentrepo"] = parentNodeSkel["parentrepo"] if "parentrepo" in parentNodeSkel else parentNodeSkel["key"]
+		skel["parentrepo"] = parentNodeSkel["parentrepo"] or parentNodeSkel["key"]
 		self.onAdd(skel)
 		skel.toDB()
 		self.onAdded(skel)
