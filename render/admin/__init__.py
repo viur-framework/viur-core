@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from viur.core.render.json.default import DefaultRender
+from viur.core.render.json.default import DefaultRender, CustomJsonEncoder
 from viur.core.render.json.user import UserRender as user
 from viur.core.render.json.file import FileRender as file
 from viur.core.utils import currentRequest, currentLanguage, currentSession
@@ -65,9 +65,9 @@ def getStructure(adminTree, module):
 						storeType = stype.replace("Skel", "")+("LeafSkel" if treeType == TreeType.Leaf else "NodeSkel")
 						res[storeType] = default().renderSkelStructure(skel)
 	if res:
-		return (json.dumps(res))
+		return json.dumps(res, cls=CustomJsonEncoder)
 	else:
-		return (json.dumps(None))
+		return json.dumps(None)
 
 
 def setLanguage(lang, skey):

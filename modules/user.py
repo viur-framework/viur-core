@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from viur.core.prototypes.list import List
 from viur.core.skeleton import Skeleton, RelSkel, skeletonByKind
-from viur.core import utils
+from viur.core import utils, email
 from viur.core.bones import *
 from viur.core.bones.bone import ReadFromClientErrorSeverity, UniqueValue, UniqueLockMethod
 from viur.core.bones.passwordBone import pbkdf2
@@ -770,5 +770,5 @@ def createNewUserIfNotExists():
 				logging.exception(e)
 				return
 			logging.warning("ViUR created a new admin-user for you! Username: %s, Password: %s", uname, pw)
-			utils.sendEMailToAdmins("Your new ViUR password",
+			email.sendEMailToAdmins("Your new ViUR password",
 									"ViUR created a new admin-user for you! Username: %s, Password: %s" % (uname, pw))
