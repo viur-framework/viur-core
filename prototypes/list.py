@@ -202,7 +202,7 @@ class List(BasicApplication):
 			raise errors.NotAcceptable()
 		skel = self.editSkel()
 		if not skel.fromDB(key):
-			raise errors.NotAcceptable()
+			raise errors.NotFound()
 		if not self.canEdit(skel):
 			raise errors.Unauthorized()
 		if (len(kwargs) == 0  # no data supplied
