@@ -64,13 +64,13 @@ class EmailTransport(ABC):
 		raise NotImplementedError()
 
 	@staticmethod
-	def validateQueueEntity(entity: db.Entity) -> bool:
+	def validateQueueEntity(entity: db.Entity):
 		"""
 			This function can be used to pre-validate the queue entity before it's deferred into the queue.
+			Must raise an exception if the email cannot be send (f.e. if it contains an invalid attachment)
 			:param entity: The entity to validate
-			:return: True, if this transport expects to be able to deliver the message, False otherwise
 		"""
-		return True
+		return
 
 	@staticmethod
 	def transportSuccessfulCallback(entity: db.Entity):
@@ -239,6 +239,7 @@ def sendEMail(*,
 	queueEntity["headers"] = headers
 	queueEntity["attachments"] = attachments
 	queueEntity.exclude_from_indexes = ["body", "attachments"]
+	transportClass.validateQueueEntity(queueEntity)  # Will raise an exception if the entity is not valid
 	if utils.isLocalDevelopmentServer and not conf["viur.email.sendFromLocalDevelopmentServer"]:
 		logging.info("Not sending email from local development server")
 		logging.info("Subject: %s", queueEntity["subject"])
@@ -285,6 +286,11 @@ def sendEMailToAdmins(subject: str, body: str, *args, **kwargs):
 
 class EmailTransportSendInBlue(EmailTransport):
 	maxRetries = 3
+	# List of allowed file extensions that can be send from Send in Blue
+	allowedExtensions = {"gif", "png", "bmp", "cgm", "jpg", "jpeg", "tif",
+						 "tiff", "rtf", "txt", "css", "shtml", "html", "htm",
+						 "csv", "zip", "pdf", "xml", "doc", "docx", "ics",
+						 "xls", "xlsx", "ppt", "tar", "ez"}
 
 	@staticmethod
 	def splitAddress(address: str) -> Dict[str, str]:
@@ -304,7 +310,6 @@ class EmailTransportSendInBlue(EmailTransport):
 			return {"email": address}
 
 	@staticmethod
-	@abstractmethod
 	def deliverEmail(*, sender: str, dests: List[str], cc: List[str], bcc: List[str], subject: str, body: str,
 						headers: Dict[str, str], attachments: List[Dict[str, bytes]], **kwargs):
 		"""
@@ -354,3 +359,13 @@ class EmailTransportSendInBlue(EmailTransport):
 			raise
 		assert str(response.code)[0] == "2", "Received a non 2XX Status Code!"
 		return response.read().decode("UTF-8")
+
+	@staticmethod
+	def validateQueueEntity(entity: db.Entity):
+		"""
+			For Send in Blue, we'll validate the attachments (if any) against the list of supported file extensions
+		"""
+		for attachment in entity.get("attachments") or []:
+			ext = attachment["filename"].split(".")[-1].lower()
+			if ext not in EmailTransportSendInBlue.allowedExtensions:
+				raise ValueError("The file-extension %s cannot be send using Send in Blue" % ext)
