@@ -15,8 +15,8 @@ from abc import ABC, abstractmethod
 	to actually deliver the email. A sample implementation for Send in Blue (https://sendinblue.com/) is provided.
 	To enable Send in Blue,	set conf["viur.email.transportClass"] to EmailTransportSendInBlue and add your API-Key to
 	conf["viur.email.sendInBlue.apiKey"]. To send via another service, you'll have to implement a different transport
-	class (and point conf["viur.email.transportClass"] to that function). This module needs a custom queue
-	(viur-emails) with a larger backoff value (sothat we don't try to deliver the same email multiple times within a
+	class (and point conf["viur.email.transportClass"] to that class). This module needs a custom queue
+	(viur-emails) with a larger backoff value (so that we don't try to deliver the same email multiple times within a
 	short timeframe). A suggested configuration would be
 	
 	- name: viur-emails
@@ -75,7 +75,7 @@ class EmailTransport(ABC):
 	@staticmethod
 	def transportSuccessfulCallback(entity: db.Entity):
 		"""
-			This callback can be overriden by the project to execute additional tasks after an email
+			This callback can be overridden by the project to execute additional tasks after an email
 			has been successfully send.
 			:param entity: The entity which has been send
 		"""
@@ -154,6 +154,7 @@ def sendEMail(*,
 			  bcc: Union[str, List[str]] = None,
 			  headers: Dict[str, str] = None,
 			  attachments: List[Dict[str, Any]] = None,
+			  context: Union[db.DATASTORE_BASE_TYPES, List[db.DATASTORE_BASE_TYPES], db.Entity] = None,
 			  **kwargs) -> Any:
 	"""
 	General purpose function for sending e-mail.
@@ -177,6 +178,8 @@ def sendEMail(*,
 			mimetype (string): Mimetype of the file. Suggested parameter for other implementations (not used by SIB)
 			gcsfile (string): Link to a GCS-File to include instead of content. Not supported by the current
 				SIB implementation
+	:param context: Arbitrary data that can be stored along the queue entry to be evaluated in
+		transportSuccessfulCallback (useful for tracking delivery / opening events etc).
 
 	.. Warning:  As emails will be queued (and not send directly) you cannot exceed 1MB in total
 				(for all text and attachments combined)!
@@ -238,7 +241,8 @@ def sendEMail(*,
 	queueEntity["body"] = body
 	queueEntity["headers"] = headers
 	queueEntity["attachments"] = attachments
-	queueEntity.exclude_from_indexes = ["body", "attachments"]
+	queueEntity["context"] = context
+	queueEntity.exclude_from_indexes = ["body", "attachments", "context"]
 	transportClass.validateQueueEntity(queueEntity)  # Will raise an exception if the entity is not valid
 	if utils.isLocalDevelopmentServer and not conf["viur.email.sendFromLocalDevelopmentServer"]:
 		logging.info("Not sending email from local development server")
