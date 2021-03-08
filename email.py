@@ -1,13 +1,12 @@
-# -*- coding: utf-8 -*-
 import logging, os
-from typing import Any, Union, List, Dict, Tuple
+import json, base64
+from urllib import request
+from abc import ABC, abstractmethod
+from typing import Any, Union, List, Dict
 from viur.core.config import conf
 from viur.core import db, utils
 from viur.core.utils import projectID
 from viur.core.tasks import callDeferred, QueryIter, PeriodicTask
-import json, base64
-from urllib import request
-from abc import ABC, abstractmethod
 
 """
 	This module implements an email delivery system for ViUR. Emails will be queued so that we don't overwhelm
