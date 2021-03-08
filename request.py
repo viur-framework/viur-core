@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import threading
-import sys, traceback, os, inspect
+import sys, traceback, os, inspect, unicodedata
 from viur.core.config import conf
 from urllib import parse
 from string import Template
@@ -208,9 +208,6 @@ class BrowseHandler():  # webapp.RequestHandler
 				host = host[host.find("://") + 3:].strip(" /")  # strip http(s)://
 				self.redirect("https://%s/" % host)
 				return
-		if path[:10] == "/_viur/dlf":
-			self.response.write("okay")
-			return
 		if path.startswith("/_ah/warmup"):
 			self.response.write("okay")
 			return
@@ -305,23 +302,30 @@ class BrowseHandler():  # webapp.RequestHandler
 		# Prevent Hash-collision attacks
 		kwargs = {}
 		stopCount = conf["viur.maxPostParamsCount"]
-		for key, value in self.request.params.iteritems():
-			if key in kwargs:
-				if isinstance(kwargs[key], list):
-					kwargs[key].append(value)
+		try:
+			for key, value in self.request.params.iteritems():
+				key = unicodedata.normalize("NFC", key)
+				value = unicodedata.normalize("NFC", value)
+				if key.startswith("_"):  # Ignore keys starting with _ (like VI's _unused_time_stamp)
+					continue
+				if key in kwargs:
+					if isinstance(kwargs[key], list):
+						kwargs[key].append(value)
+					else:  # Convert that key to a list
+						kwargs[key] = [kwargs[key], value]
 				else:
-					kwargs[key] = [kwargs[key], value]
-			else:
-				kwargs[key] = value
-			stopCount -= 1
-			if not stopCount:  # We reached zero; maximum PostParamsCount exceeded
-				raise errors.NotAcceptable()
-
+					kwargs[key] = value
+				stopCount -= 1
+				if not stopCount:  # We reached zero; maximum PostParamsCount exceeded
+					raise errors.NotAcceptable()
+		except UnicodeError:
+			# We received invalid unicode data (usually happens when someone tries to exploit unicode normalisation bugs)
+			raise errors.ReadFromClientError()
 		if "self" in kwargs:  # self is reserved for bound methods
 			raise errors.BadRequest()
 		# Parse the URL
 		path = parse.urlparse(path).path
-		self.pathlist = [parse.unquote(x) for x in path.strip("/").split("/")]
+		self.pathlist = [unicodedata.normalize("NFC", parse.unquote(x)) for x in path.strip("/").split("/")]
 		caller = conf["viur.mainResolver"]
 		idx = 0  # Count how may items from *args we'd have consumed (so the rest can go into *args of the called func
 		for currpath in self.pathlist:
@@ -371,15 +375,7 @@ class BrowseHandler():  # webapp.RequestHandler
 		# Check for forcePost flag
 		if "forcePost" in dir(caller) and caller.forcePost and not self.isPostRequest:
 			raise (errors.MethodNotAllowed("You must use POST to access this ressource!"))
-		self.args = []
-		for arg in args:
-			if isinstance(arg, str):
-				self.args.append(arg)
-			else:
-				try:
-					self.args.append(arg.decode("UTF-8"))
-				except:
-					pass
+		self.args = args
 		self.kwargs = kwargs
 		# Check if this request should bypass the caches
 		if self.request.headers.get("X-Viur-Disable-Cache"):
