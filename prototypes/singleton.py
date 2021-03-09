@@ -99,6 +99,19 @@ class Singleton(BasicApplication):
 		return self.render.view(skel)
 
 	@exposed
+	def structure(self, *args, **kwargs):
+		"""
+		:returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
+			in each bone.
+
+		:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
+		"""
+		skel = self.viewSkel()
+		if not self.canView():
+			raise errors.Unauthorized()
+		return self.render.view(skel)
+
+	@exposed
 	def view(self, *args, **kwargs):
 		"""
 		Prepares and renders the singleton entry for viewing.
