@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-from viur.core import utils, errors, conf, securitykey
+from viur.core import utils, errors, conf, securitykey, db
 from viur.core import forcePost, forceSSL, exposed, internalExposed
-from viur.core.skeleton import Skeleton
+from viur.core.skeleton import SkeletonInstance
 from viur.core.prototypes import BasicApplication
 from viur.core.utils import currentRequest
+from viur.core.cache import flushCache
 
 import logging
 
@@ -201,7 +202,7 @@ class List(BasicApplication):
 			raise errors.NotAcceptable()
 		skel = self.editSkel()
 		if not skel.fromDB(key):
-			raise errors.NotAcceptable()
+			raise errors.NotFound()
 		if not self.canEdit(skel):
 			raise errors.Unauthorized()
 		if (len(kwargs) == 0  # no data supplied
@@ -307,8 +308,9 @@ class List(BasicApplication):
 		if args and args[0]:
 			# We probably have a Database or SEO-Key here
 			seoKey = "viur.viurActiveSeoKeys ="
-			skel = self.viewSkel().all().filter(seoKey, args[0]).getSkel()
+			skel = self.viewSkel().all(_excludeFromAccessLog=True).filter(seoKey, args[0]).getSkel()
 			if skel:
+				db.currentDbAccessLog.get(set()).add(skel["key"])
 				if not self.canView(skel):
 					raise errors.Forbidden()
 				self.onView(skel)
@@ -349,7 +351,7 @@ class List(BasicApplication):
 
 		return None
 
-	def canView(self, skel: Skeleton) -> bool:
+	def canView(self, skel: SkeletonInstance) -> bool:
 		"""
 		Checks if the current user can view the given entry.
 		Should be identical to what's allowed by listFilter.
@@ -358,7 +360,9 @@ class List(BasicApplication):
 		:param skel: The entry we check for
 		:return: True if the current session is authorized to view that entry, False otherwise
 		"""
-		query = self.viewSkel().all().mergeExternalFilter({"key": skel["key"]})
+		# We log the key we're querying by hand so we don't have to lock on the entire kind in our query
+		db.currentDbAccessLog.get(set()).add(skel["key"])
+		query = self.viewSkel().all(_excludeFromAccessLog=True).mergeExternalFilter({"key": skel["key"]})
 		query = self.listFilter(query)  # Access control
 
 		if query is None:
@@ -434,7 +438,7 @@ class List(BasicApplication):
 
 		return False
 
-	def canEdit(self, skel):
+	def canEdit(self, skel: SkeletonInstance):
 		"""
 		Access control function for modification permission.
 
@@ -467,7 +471,7 @@ class List(BasicApplication):
 
 		return False
 
-	def canDelete(self, skel):
+	def canDelete(self, skel: SkeletonInstance) -> bool:
 		"""
 		Access control function for delete permission.
 
@@ -504,7 +508,7 @@ class List(BasicApplication):
 
 	## Override-able event-hooks
 
-	def onAdd(self, skel):
+	def onAdd(self, skel: SkeletonInstance):
 		"""
 		Hook function that is called before adding an entry.
 
@@ -517,7 +521,7 @@ class List(BasicApplication):
 		"""
 		pass
 
-	def onAdded(self, skel):
+	def onAdded(self, skel: SkeletonInstance):
 		"""
 		Hook function that is called after adding an entry.
 
@@ -530,12 +534,12 @@ class List(BasicApplication):
 		.. seealso:: :func:`add`, , :func:`onAdd`
 		"""
 		logging.info("Entry added: %s" % skel["key"])
-
+		flushCache(kind=skel.kindName)
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-	def onEdit(self, skel):
+	def onEdit(self, skel: SkeletonInstance):
 		"""
 		Hook function that is called before editing an entry.
 
@@ -548,7 +552,7 @@ class List(BasicApplication):
 		"""
 		pass
 
-	def onEdited(self, skel):
+	def onEdited(self, skel: SkeletonInstance):
 		"""
 		Hook function that is called after modifying an entry.
 
@@ -561,12 +565,12 @@ class List(BasicApplication):
 		.. seealso:: :func:`edit`, :func:`onEdit`
 		"""
 		logging.info("Entry changed: %s" % skel["key"])
-
+		flushCache(key=skel["key"])
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-	def onView(self, skel):
+	def onView(self, skel: SkeletonInstance):
 		"""
 		Hook function that is called when viewing an entry.
 
@@ -580,7 +584,7 @@ class List(BasicApplication):
 		"""
 		pass
 
-	def onDelete(self, skel):
+	def onDelete(self, skel: SkeletonInstance):
 		"""
 		Hook function that is called before deleting an entry.
 
@@ -593,7 +597,7 @@ class List(BasicApplication):
 		"""
 		pass
 
-	def onDeleted(self, skel):
+	def onDeleted(self, skel: SkeletonInstance):
 		"""
 		Hook function that is called after deleting an entry.
 
@@ -606,6 +610,7 @@ class List(BasicApplication):
 		.. seealso:: :func:`delete`, :func:`onDelete`
 		"""
 		logging.info("Entry deleted: %s" % skel["key"])
+		flushCache(key=skel["key"])
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))

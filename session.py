@@ -86,7 +86,7 @@ class GaeSession:
 					userid = None
 				try:
 					dbSession = db.Entity(db.Key(self.kindName, self.cookieKey))
-					dbSession["data"] = self.session
+					dbSession["data"] = db.fixUnindexableProperties(self.session)
 					dbSession["staticSecurityKey"] = self.staticSecurityKey
 					dbSession["securityKey"] = self.securityKey
 					dbSession["lastseen"] = time()

@@ -37,7 +37,6 @@ timestamp.exposed = True
 
 
 def getStructure(adminTree, module):
-	from viur.core.prototypes.tree import TreeType
 	if not module in dir(adminTree) \
 		or not "adminInfo" in dir(getattr(adminTree, module)) \
 		or not getattr(adminTree, module).adminInfo:
@@ -60,14 +59,14 @@ def getStructure(adminTree, module):
 	if not res and "nodeSkelCls" in dir(moduleObj):
 		# Try Node/Leaf
 		for stype in ["viewSkel", "editSkel", "addSkel"]:
-			for treeType in [TreeType.Node, TreeType.Leaf]:
+			for treeType in ["node", "leaf"]:
 				if stype in dir(moduleObj):
 					try:
 						skel = getattr(moduleObj, stype)(treeType)
 					except TypeError:
 						continue
 					if isinstance(skel, SkeletonInstance):
-						storeType = stype.replace("Skel", "")+("LeafSkel" if treeType == TreeType.Leaf else "NodeSkel")
+						storeType = stype.replace("Skel", "")+("LeafSkel" if treeType == "leaf" else "NodeSkel")
 						res[storeType] = default().renderSkelStructure(skel)
 	if res:
 		return json.dumps(res, cls=CustomJsonEncoder)

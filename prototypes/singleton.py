@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from viur.core import db, utils, session, errors, conf, securitykey, exposed, forceSSL
 from viur.core.prototypes import BasicApplication
+from viur.core.cache import flushCache
 
 import logging
 
@@ -303,6 +304,7 @@ class Singleton(BasicApplication):
 		.. seealso:: :func:`edit`, :func:`onEdit`
 		"""
 		logging.info("Entry changed: %s" % skel["key"])
+		flushCache(key=skel["key"])
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
