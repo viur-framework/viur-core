@@ -58,11 +58,11 @@ if _gaeApp:
 	regionPrefix = _gaeApp.split("~")[0]
 	queueRegion = regionMap.get(regionPrefix)
 
-if not queueRegion and os.getenv("TASKS_EMULATOR") is None:
+if not queueRegion and utils.isLocalDevelopmentServer and os.getenv("TASKS_EMULATOR") is None:
 	# Probably local development server
 	logging.warning("Taskqueue disabled, tasks will run inline!")
 
-if os.getenv("TASKS_EMULATOR") is None:
+if not utils.isLocalDevelopmentServer or os.getenv("TASKS_EMULATOR") is None:
 	taskClient = tasks_v2.CloudTasksClient()
 else:
 	taskClient = tasks_v2.CloudTasksClient(
@@ -197,7 +197,7 @@ class TaskHandler:
 			logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
 			raise errors.Forbidden()
 		if req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs \
-				and os.getenv("TASKS_EMULATOR") is None:
+				and (not utils.isLocalDevelopmentServer or os.getenv("TASKS_EMULATOR") is None):
 			logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
 			raise errors.Forbidden()
 		# Check if the retry count exceeds our warning threshold
