@@ -23,7 +23,7 @@ from google.oauth2.service_account import Credentials as ServiceAccountCredentia
 
 from viur.core import db, errors, exposed, forcePost, forceSSL, internalExposed, securitykey, utils
 from viur.core.bones import *
-from viur.core.prototypes.tree import Tree, TreeSkel, TreeType
+from viur.core.prototypes.tree import Tree, TreeSkel
 from viur.core.skeleton import skeletonByKind
 from viur.core.tasks import PeriodicTask, callDeferred
 from viur.core.utils import projectID
@@ -296,13 +296,13 @@ class File(Tree):
 		uploadUrl = blob.create_resumable_upload_session(content_type=mimeType, size=size, timeout=60)
 		# Create a corresponding file-lock object early, otherwise we would have to ensure that the file-lock object
 		# the user creates matches the file he had uploaded
-		fileSkel = self.addSkel(TreeType.Leaf)
+		fileSkel = self.addSkel("leaf")
 		fileSkel["name"] = "pending"
 		fileSkel["size"] = 0
 		fileSkel["mimetype"] = "application/octetstream"
 		fileSkel["dlkey"] = targetKey
 		fileSkel["parentdir"] = None
-		fileSkel["pendingparententry"] = db.keyHelper(node, self.addSkel(TreeType.Node).kindName) if node else None
+		fileSkel["pendingparententry"] = db.keyHelper(node, self.addSkel("node").kindName) if node else None
 		fileSkel["pending"] = True
 		fileSkel["weak"] = True
 		fileSkel["width"] = 0
@@ -340,10 +340,10 @@ class File(Tree):
 		else:
 			if node:
 				rootNode = self.getRootNode(node)
-				if not self.canAdd(TreeType.Leaf, rootNode):
+				if not self.canAdd("leaf", rootNode):
 					raise errors.Forbidden()
 			else:
-				if not self.canAdd(TreeType.Leaf, None):
+				if not self.canAdd("leaf", None):
 					raise errors.Forbidden()
 			maxSize = None  # The user has some file/add permissions, don't restrict fileSize
 		if maxSize:
@@ -470,7 +470,7 @@ class File(Tree):
 			targetKey = kwargs.get("key")
 			if not skey or not securitykey.validate(skey, useSessionKey=True) or not targetKey:
 				raise errors.PreconditionFailed()
-			skel = self.addSkel(TreeType.Leaf)
+			skel = self.addSkel("leaf")
 			if not skel.fromDB(targetKey):
 				raise errors.NotFound()
 			if not skel["pending"]:
