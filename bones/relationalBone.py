@@ -749,7 +749,7 @@ class relationalBone(baseBone):
 			for k in skel[boneName]:
 				updateInplace(k)
 
-	def getSearchTags(self, skeltonValues, key):
+	def getSearchTags(self, skeletonValues, key):
 		def getValues(res, skel, valuesCache):
 			for k, bone in skel.items():
 				if bone.searchable:
@@ -759,7 +759,7 @@ class relationalBone(baseBone):
 			return res
 
 		_refSkelCache, _usingSkelCache = self._getSkels()
-		value = skeltonValues[key]
+		value = skeletonValues[key]
 		res = set()
 		if not value:
 			return res
@@ -829,7 +829,7 @@ class relationalBone(baseBone):
 			"rel": rel or None
 		}
 
-	def setBoneValue(self, skel: 'SkeltonInstance', boneName: str, value: Any, append: bool,
+	def setBoneValue(self, skel: 'SkeletonInstance', boneName: str, value: Any, append: bool,
 					 language: Union[None, str] = None) -> bool:
 		"""
 			Set our value to 'value'.
