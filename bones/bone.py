@@ -715,7 +715,7 @@ class baseBone(object):  # One Bone:
 			return
 		valuesCache[boneName] = copy.deepcopy(otherSkel.valuesCache.get(boneName, None))
 
-	def setBoneValue(self, skel: 'SkeltonInstance', boneName: str, value: Any, append: bool,
+	def setBoneValue(self, skel: 'SkeletonInstance', boneName: str, value: Any, append: bool,
 					 language: Union[None, str] = None) -> bool:
 		"""
 			Set our value to 'value'.
