@@ -1,19 +1,21 @@
-# -*- coding: utf-8 -*-
+import base64
 import json
 import logging
 import os
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import wraps
-from typing import Callable, Dict, Any
+from time import sleep
+from typing import Any, Callable, Dict
+
+import pytz
 from google.cloud import tasks_v2
 from google.protobuf import timestamp_pb2
+
 from viur.core import db, errors, utils
 from viur.core.config import conf
-from viur.core.utils import currentRequest, currentSession
-from time import sleep
-from datetime import datetime
-import pytz, base64
+from viur.core.utils import currentLanguage, currentRequest, currentSession
+
 
 class JsonKeyEncoder(json.JSONEncoder):
 	"""
@@ -43,6 +45,7 @@ def jsonDecodeObjectHook(obj):
 		elif ".__bytes__" in obj:
 			return base64.b64decode(obj[".__bytes__"])
 	return obj
+
 
 _gaeApp = os.environ.get("GAE_APPLICATION")
 regionMap = {  # FIXME! Can we even determine the region like this?
@@ -172,6 +175,7 @@ class TaskHandler:
 		if data["classID"] not in MetaQueryIter._classCache:
 			logging.error("Could not continue queryIter - %s not known on this instance" % data["classID"])
 		MetaQueryIter._classCache[data["classID"]]._qryStep(data)
+
 	queryIter.exposed = True
 
 	def deferred(self, *args, **kwargs):
@@ -191,7 +195,8 @@ class TaskHandler:
 		retryCount = req.headers.get("X-Appengine-Taskretrycount", None)
 		if retryCount:
 			if int(retryCount) == self.retryCountWarningThreshold:
-				utils.sendEMailToAdmins("Deferred task retry count exceeded warning threshold",
+				from viur.core import email
+				email.sendEMailToAdmins("Deferred task retry count exceeded warning threshold",
 										"Task %s will now be retried for the %sth time." % (
 											req.headers.get("X-Appengine-Taskname", ""),
 											retryCount))
@@ -201,7 +206,7 @@ class TaskHandler:
 			if "user" in env and env["user"]:
 				currentSession.get()["user"] = env["user"]
 			if "lang" in env and env["lang"]:
-				currentRequest.get().language = env["lang"]
+				currentLanguage.set(env["lang"])
 			if "transactionMarker" in env:
 				marker = db.Get(db.Key("viur-transactionmarker", env["transactionMarker"]))
 				if not marker:
@@ -242,6 +247,7 @@ class TaskHandler:
 			except Exception as e:
 				logging.exception(e)
 				raise errors.RequestTimeout()  # Task-API should retry
+
 	deferred.exposed = True
 
 	def cron(self, cronName="default", *args, **kwargs):
@@ -432,7 +438,7 @@ def callDeferred(func):
 			env = {"user": usr}
 			logging.error(env)
 			try:
-				env["lang"] = currentRequest.get().language
+				env["lang"] = currentLanguage.get()
 			except AttributeError:  # This isn't originating from a normal request
 				pass
 			if db.IsInTransaction():
@@ -484,6 +490,7 @@ def PeriodicTask(interval=0, cronName="default"):
 		:param interval: Call at most every interval minutes. 0 means call as often as possible.
 		:type interval: int
 	"""
+
 	def mkDecorator(fn):
 		global _periodicTasks
 		if fn.__name__.startswith("_"):
@@ -543,6 +550,7 @@ class MetaQueryIter(type):
 		cls.__classID__ = str(cls)
 		super(MetaQueryIter, cls).__init__(name, bases, dct)
 
+
 class QueryIter(object, metaclass=MetaQueryIter):
 	"""
 		BaseClass to run a database Query and process each entry matched.
@@ -555,7 +563,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
 	queueName = "default"  # Name of the taskqueue we will run on
 
 	@classmethod
-	def startIterOnQuery(cls, query: db.Query, customData: Any=None) -> None:
+	def startIterOnQuery(cls, query: db.Query, customData: Any = None) -> None:
 		"""
 			Starts iterating the given query on this class. Will return immediately, the first batch will already
 			run deferred.
@@ -587,7 +595,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
 			Internal use only. Pushes a new step defined in qryDict to either the taskqueue or append it to
 			the current request	if we are on the local development server.
 		"""
-		if not queueRegion: # Run tasks inline - hopefully development server
+		if not queueRegion:  # Run tasks inline - hopefully development server
 			req = currentRequest.get()
 			task = lambda *args, **kwargs: cls._qryStep(qryDict)
 			if req:

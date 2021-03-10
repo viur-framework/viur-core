@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
-
-from viur.core.utils import currentRequest, currentLanguage
-from viur.core.config import conf
-from viur.core import db
-from jinja2.ext import Extension, nodes
 from datetime import datetime
+
+from jinja2.ext import Extension, nodes
+
+from viur.core import db
+from viur.core.config import conf
+from viur.core.utils import currentLanguage
 
 systemTranslations = {}
 
@@ -22,7 +22,7 @@ class LanguageWrapper(dict):
 		self.languages = languages
 
 	def __str__(self):
-		return (str(self.resolve()))
+		return str(self.resolve())
 
 	def resolve(self):
 		"""
@@ -37,13 +37,12 @@ class LanguageWrapper(dict):
 		else:
 			if lang in conf["viur.languageAliasMap"]:
 				lang = conf["viur.languageAliasMap"][lang]
-		if lang in self and self[lang] is not None and str(
-				self[lang]).strip():  # The users language is available :)
-			return (self[lang])
+		if lang in self and self[lang] is not None and str(self[lang]).strip():  # The users language is available :)
+			return self[lang]
 		else:  # We need to select another lang for him
 			for lang in self.languages:
 				if lang in self and self[lang]:
-					return (self[lang])
+					return self[lang]
 		return ""
 
 
@@ -65,12 +64,12 @@ class translate:
 			global systemTranslations
 			self.translationCache = systemTranslations.get(self.key, {})
 		try:
-			lang = currentRequest.get().language
+			lang = currentLanguage.get()
 		except:
 			return self.defaultText or self.key
 		if lang in conf["viur.languageAliasMap"]:
 			lang = conf["viur.languageAliasMap"][lang]
-		if not lang in self.translationCache:
+		if lang not in self.translationCache:
 			return self.defaultText or self.key
 		trStr = self.translationCache.get(lang, "")
 		return trStr

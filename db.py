@@ -3,7 +3,7 @@ from __future__ import annotations
 from viur.core.config import conf
 from viur.core import utils
 import logging
-from typing import Union, Tuple, List, Dict, Any, Callable
+from typing import Union, Tuple, List, Dict, Any, Callable, Set, Optional
 from functools import partial
 from itertools import zip_longest
 from copy import deepcopy
@@ -12,8 +12,7 @@ from enum import Enum
 from datetime import datetime, date, time
 import binascii
 from dataclasses import dataclass, field
-import contextlib
-from time import time as ttime
+from contextvars import ContextVar
 
 """
 	Tiny wrapper around *google.appengine.api.datastore*.
@@ -25,6 +24,8 @@ from time import time as ttime
 """
 
 __client__ = datastore.Client()
+# The DB-Module will keep track of accessed kinds/keys in the accessLog so we can selectively flush our caches
+currentDbAccessLog: ContextVar[Optional[Set[Union[KeyClass, str]]]] = ContextVar("Database-Accesslog", default=None)
 
 # Consts
 KEY_SPECIAL_PROPERTY = "__key__"
@@ -88,18 +89,52 @@ def keyHelper(inKey: Union[KeyClass, str, int], targetKind: str,
 	else:
 		raise ValueError("Unknown key type %r" % type(inKey))
 
+
 def encodeKey(key: KeyClass) -> str:
 	"""
 		Return the given key encoded as string (mimicking the old str() behaviour of keys)
 	"""
 	return key.to_legacy_urlsafe().decode("ASCII")
 
-def Get(keys: Union[KeyClass, List[KeyClass]]):
+
+def startAccessDataLog() -> Set[Union[KeyClass, str]]:
+	"""
+		Clears our internal access log (which keeps track of which entries have been accessed in the current
+		request). The old set of accessed entries is returned so that it can be restored with
+		:func:`server.db.popAccessData` in case of nested caching.
+		:return: Set of old accessed entries
+	"""
+	old = currentDbAccessLog.get(set())
+	currentDbAccessLog.set(set())
+	return old
+
+
+def popAccessData(outerAccessLog: Optional[Set[Union[KeyClass, str]]] = None) -> Set[Union[KeyClass, str]]:
+	"""
+		Retrieves the set of entries accessed so far. If :func:`server.db.startAccessDataLog`, it will only
+		include entries that have been accessed after that call, otherwise all entries accessed in the current
+		request. If you called :func:`server.db.startAccessDataLog` before, you can re-apply the old log using
+		the outerAccessLog param.
+		:param outerAccessLog: State of your log returned by :func:`server.db.startAccessDataLog`
+		:return: Set of entries accessed
+	"""
+	res = currentDbAccessLog.get(set())
+	currentDbAccessLog.set((outerAccessLog or set()).union(res))
+	return res
+
+
+def Get(keys: Union[KeyClass, List[KeyClass]]) -> Union[List[Entity], Entity, None]:
+	dataLog = currentDbAccessLog.get(set())
 	if isinstance(keys, list):
+		for key in keys:
+			if not key.kind.startswith("viur"):
+				dataLog.add(key)
 		# GetMulti does not obey orderings - results can be returned in any order. We'll need to fix this here
 		resList = list(__client__.get_multi(keys))
 		resList.sort(key=lambda x: keys.index(x.key) if x else -1)
 		return resList
+	if not keys.kind.startswith("viur"):
+		dataLog.add(keys)
 	return __client__.get(keys)
 
 
@@ -109,22 +144,38 @@ def Put(entity: Union[Entity, List[Entity]]):
 		Also ensures that no string-key with an digit-only name can be used.
 		:param entity: The entity to be saved to the datastore.
 	"""
+	dataLog = currentDbAccessLog.get(set())
 	if not isinstance(entity, list):
 		entity = [entity]
 	for e in entity:
-		if not e.key.is_partial and e.key.name and e.key.name.isdigit():
-			raise ValueError("Cannot store an entity with digit-only string key")
+		if not e.key.is_partial:
+			if not e.key.kind.startswith("viur"):
+				dataLog.add(e.key)
+			if e.key.name and e.key.name.isdigit():
+				raise ValueError("Cannot store an entity with digit-only string key")
+		else:
+			if not e.key.kind.startswith("viur"):
+				dataLog.add(e.key.kind)
 	# fixUnindexableProperties(e)
 	return __client__.put_multi(entities=entity)
 
 
 def Delete(keys: Union[Entity, List[Entity], KeyClass, List[KeyClass]]):
+	dataLog = currentDbAccessLog.get(set())
 	if isinstance(keys, list):
-		return __client__.delete_multi([(x if isinstance(x, KeyClass) else x.key) for x in keys])
+		keys = [(x if isinstance(x, KeyClass) else x.key) for x in keys]
+		for key in keys:
+			if not key.kind.startswith("viur"):
+				dataLog.add(key)
+		return __client__.delete_multi(keys)
 	else:
 		if isinstance(keys, KeyClass):
+			if not keys.kind.startswith("viur"):
+				dataLog.add(keys)
 			return __client__.delete(keys)
 		else:
+			if not keys.key.kind.startswith("viur"):
+				dataLog.add(keys.key)
 			return __client__.delete(keys.key)
 
 
@@ -217,21 +268,15 @@ class Query(object):
 		Base Class for querying the firestore
 	"""
 
-	# Fixme: Typing for Skeleton-Class we can't import here?
-	def __init__(self, kind: str, srcSkelClass: Union[None, Any] = None, *args, **kwargs):
+	def __init__(self, kind: str, srcSkelClass: Union["SkeletonInstance", None] = None, *args, **kwargs):
 		super(Query, self).__init__()
 		self.kind = kind
 		self.srcSkel = srcSkelClass
 		self.queries: Union[None, QueryDefinition, List[QueryDefinition]] = QueryDefinition(kind, {}, [])
-		#self.filters: Union[None, Dict[str: DATASTORE_BASE_TYPES], List[Dict[str: DATASTORE_BASE_TYPES]]] = {}
-		#self.orders: List[Tuple[str, SortOrder]] = [(KEY_SPECIAL_PROPERTY, SortOrder.Ascending)]
-		#self._limit: int = 30
 		cbSignature = Union[None, Callable[[Query, str, Union[DATASTORE_BASE_TYPES, List[DATASTORE_BASE_TYPES]]], Union[
 			None, Tuple[str, Union[DATASTORE_BASE_TYPES, List[DATASTORE_BASE_TYPES]]]]]]
 		self._filterHook: cbSignature = None
 		self._orderHook: cbSignature = None
-		#self._startCursor = None
-		#self._endCursor = None
 		# Sometimes, the default merge functionality from MultiQuery is not sufficient
 		self._customMultiQueryMerge: Union[None, Callable[[Query, List[List[Entity]], int], List[Entity]]] = None
 		# Some (Multi-)Queries need a different amount of results per subQuery than actually returned
@@ -242,7 +287,8 @@ class Query(object):
 		self._lastEntry = None
 		self._fulltextQueryString: Union[None, str] = None
 		self.lastCursor = None
-		#self._distinct = None
+		if not kind.startswith("viur") and not kwargs.get("_excludeFromAccessLog"):
+			currentDbAccessLog.get(set()).add(kind)
 
 	def setFilterHook(self, hook):
 		"""

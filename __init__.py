@@ -201,9 +201,9 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 		from viur.core.dbtransfer import DbTransfer
 		if conf["viur.importPassword"]:
 			logging.critical("The Import-API is enabled! Never do this on production systems!")
-			from viur.core import utils
+			from viur.core import email
 			try:
-				utils.sendEMailToAdmins("Active Database import API",
+				email.sendEMailToAdmins("Active Database import API",
 										"ViUR just started a new Instance with an ENABLED DATABASE IMPORT API! You have been warned.")
 			except:  # OverQuota, whatever
 				pass  # Dont render this instance unusable
@@ -214,9 +214,9 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 		mapModule(res.dbtransfer, "dbtransfer", resolverDict)
 		#resolverDict["dbtransfer"]
 	if conf["viur.debug.traceExternalCallRouting"] or conf["viur.debug.traceInternalCallRouting"]:
-		from viur.core import utils
+		from viur.core import email
 		try:
-			utils.sendEMailToAdmins("Debug mode enabled",
+			email.sendEMailToAdmins("Debug mode enabled",
 									"ViUR just started a new Instance with calltracing enabled! This will log sensitive information!")
 		except:  # OverQuota, whatever
 			pass  # Dont render this instance unusable
