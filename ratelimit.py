@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from viur.core import utils, db
 from viur.core.utils import currentRequest
-from viur.core.tasks import PeriodicTask
+from viur.core.tasks import PeriodicTask, DeleteEntitiesIter
 from datetime import timedelta
 
 
@@ -76,6 +76,7 @@ class RateLimit(object):
 		"""
 		Removes one attempt from the pool of available Quota for that user/ip
 		"""
+
 		def updateTxn(cacheKey):
 			key = db.Key(self.rateLimitKind, cacheKey)
 			obj = db.Get(key)
@@ -83,8 +84,9 @@ class RateLimit(object):
 				obj = db.Entity(key)
 				obj["value"] = 0
 			obj["value"] += 1
-			obj["expires"] = utils.utcNow()+timedelta(minutes=2 * self.minutes)
+			obj["expires"] = utils.utcNow() + timedelta(minutes=2 * self.minutes)
 			db.Put(obj)
+
 		lockKey = "%s-%s-%s" % (self.resource, self._getEndpointKey(), self._getCurrentTimeKey())
 		db.RunInTransaction(updateTxn, lockKey)
 
@@ -96,7 +98,8 @@ class RateLimit(object):
 		"""
 		endPoint = self._getEndpointKey()
 		currentDateTime = utils.utcNow()
-		secSinceMidnight = (currentDateTime - currentDateTime.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds()
+		secSinceMidnight = (currentDateTime - currentDateTime.replace(hour=0, minute=0, second=0,
+																	  microsecond=0)).total_seconds()
 		currentStep = int(secSinceMidnight / self.secondsPerStep)
 		keyBase = currentDateTime.strftime("%Y-%m-%d-%%s")
 		cacheKeys = []
@@ -105,7 +108,7 @@ class RateLimit(object):
 		tmpRes = db.Get(cacheKeys)
 		return sum([x["value"] for x in tmpRes if currentDateTime < x["expires"]]) <= self.maxRate
 
+
 @PeriodicTask(60)
 def cleanOldRateLocks(*args, **kwargs):
-	for x in range(0, 10):
-		db.Delete([x.key for x in db.Query(RateLimit.rateLimitKind).filter("expires <", utils.utcNow()).run(50)])
+	DeleteEntitiesIter.startIterOnQuery(db.Query(RateLimit.rateLimitKind).filter("expires <", utils.utcNow()))
