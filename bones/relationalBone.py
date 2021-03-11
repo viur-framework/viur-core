@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 from viur.core.bones import baseBone
 from viur.core.bones.bone import getSystemInitialized
-from viur.core.bones.stringBone import LanguageWrapper
-from viur.core import db
+from viur.core import db, utils
 from viur.core.errors import ReadFromClientError
 from typing import List, Union
 
@@ -147,9 +146,33 @@ class relationalBone(baseBone):
 			:param value: Json-Encoded datastore property
 			:return: Our Value (with restored RelSkel and using-Skel)
 		"""
-		if isinstance(val, str):
+		def fixFromDictToEntry(inDict):
+			if not isinstance(inDict, dict):
+				return None
+			res = {}
+			if "dest" in inDict:
+				res["dest"] = db.Entity()
+				for k, v in inDict["dest"].items():
+					res["dest"][k] = v
+				if "key" in res["dest"]:
+					res["dest"].key = utils.normalizeKey(db.KeyClass.from_legacy_urlsafe(res["dest"]["key"]))
+			if "rel" in inDict and inDict["rel"]:
+				res["rel"] = db.Entity()
+				for k, v in inDict["rel"].items():
+					res["rel"][k] = v
+			else:
+				res["rel"] = None
+			return res
+
+		if isinstance(val, str):  # ViUR2 compatibility
 			try:
 				value = extjson.loads(val)
+				if isinstance(value, list):
+					value = [fixFromDictToEntry(x) for x in value]
+				elif isinstance(value, dict):
+					value = fixFromDictToEntry(value)
+				else:
+					value = None
 			except:
 				value = None
 		else:
@@ -373,7 +396,7 @@ class relationalBone(baseBone):
 		return None
 
 	def parseSubfieldsFromClient(self):
-		return self.multiple and (self.using is not None)
+		return self.using is not None
 
 	def singleValueFromClient(self, value, skel, name, origData):
 		oldValues = skel[name]
@@ -410,14 +433,16 @@ class relationalBone(baseBone):
 			else:
 				if index:
 					errors.append(
-						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "%s.%s" % (name, index),
-											"Invalid value submitted"))
+						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value submitted", [str(index)]))
 				else:
 					errors.append(
-						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, "Invalid value submitted"))
+						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value submitted"))
 				return None, None, errors  # We could not parse this
 			if usingSkel:
 				if not usingSkel.fromClient(usingData):
+					for error in usingSkel.errors:
+						if index:
+							error.fieldPath.insert(0, str(index))
 					errors.extend(usingSkel.errors)
 			return refSkel, usingSkel, errors
 		if self.using and isinstance(value, dict):
@@ -427,55 +452,55 @@ class relationalBone(baseBone):
 		else:
 			destKey = value
 			usingData = None
-		if not destKey:  # Allow setting this bone back to empty
-			return None, [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value submitted")]
+		#if not destKey:  # Allow setting this bone back to empty
+		#	return None, [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value submitted")]
 		assert isinstance(destKey, str)
 		refSkel, usingSkel, errors = restoreSkels(destKey, usingData)
 		if refSkel:
-			return {"dest": refSkel, "rel": usingSkel}, errors
+			resVal = {"dest": refSkel, "rel": usingSkel}
+			err = self.isInvalid(resVal)
+			if err:
+				return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
+			return resVal, errors
 		else:
-			return None, errors
+			return self.getEmptyValue(), errors
 
 	def _rewriteQuery(self, name, skel, dbFilter, rawFilter):
 		"""
 			Rewrites a datastore query to operate on "viur-relations" instead of the original kind.
 			This is needed to perform relational queries on n:m relations.
 		"""
-		origFilter = dbFilter.filters
-		origSortOrders = dbFilter.orders
-		if isinstance(origFilter, list):
+		origQueries = dbFilter.queries
+		if isinstance(origQueries, list):
 			raise NotImplementedError(
 				"Doing a relational Query with multiple=True and \"IN or !=\"-filters is currently unsupported!")
-		dbFilter.filters = {}
-		dbFilter.kind = "viur-relations"
-		dbFilter.filter("viur_src_kind =", skel.kindName)
-		dbFilter.filter("viur_dest_kind =", self.kind)
-		dbFilter.filter("viur_src_property", name)
-		# FIXME vvvv
-		# if dbFilter._origCursor:  # Merge the cursor in again (if any)
-		#	dbFilter.cursor(dbFilter._origCursor)
-		if origFilter:
-			for k, v in origFilter.items():  # Merge old filters in
-				# Ensure that all non-relational-filters are in parentKeys
-				if k == db.KEY_SPECIAL_PROPERTY:
-					# We must process the key-property separately as its meaning changes as we change the datastore kind were querying
-					if isinstance(v, list) or isinstance(v, tuple):
-						logging.warning(
-							"Invalid filtering! Doing an relational Query on %s with multiple key= filters is unsupported!" % (
-								name))
-						raise RuntimeError()
-					if not isinstance(v, db.Key):
-						v = db.Key(v)
-					dbFilter.ancestor(v)
-					continue
-				boneName = k.split(".")[0].split(" ")[0]
-				if boneName not in self.parentKeys and boneName != "__key__":
+		dbFilter.queries = db.QueryDefinition("viur-relations", {
+			"viur_src_kind =": skel.kindName,
+			"viur_dest_kind =": self.kind,
+			"viur_src_property =": name
+
+		}, orders = [], startCursor=origQueries.startCursor, endCursor=origQueries.endCursor)
+		for k, v in origQueries.filters.items():  # Merge old filters in
+			# Ensure that all non-relational-filters are in parentKeys
+			if k == db.KEY_SPECIAL_PROPERTY:
+				# We must process the key-property separately as its meaning changes as we change the datastore kind were querying
+				if isinstance(v, list) or isinstance(v, tuple):
 					logging.warning(
-						"Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (boneName, name))
+						"Invalid filtering! Doing an relational Query on %s with multiple key= filters is unsupported!" % (
+							name))
 					raise RuntimeError()
-				dbFilter.filter("src.%s" % k, v)
+				if not isinstance(v, db.Key):
+					v = db.Key(v)
+				dbFilter.ancestor(v)
+				continue
+			boneName = k.split(".")[0].split(" ")[0]
+			if boneName not in self.parentKeys and boneName != "__key__":
+				logging.warning(
+					"Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (boneName, name))
+				raise RuntimeError()
+			dbFilter.filter("src.%s" % k, v)
 		orderList = []
-		for k, d in origSortOrders:  # Merge old sort orders in
+		for k, d in origQueries.orders:  # Merge old sort orders in
 			if k == db.KEY_SPECIAL_PROPERTY:
 				orderList.append(("%s" % k, d))
 			elif not k in self.parentKeys:
@@ -489,10 +514,10 @@ class relationalBone(baseBone):
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		relSkel, _usingSkelCache = self._getSkels()
-		origFilter = dbFilter.filters
+		origQueries = dbFilter.queries
 
-		if origFilter is None:  # This query is unsatisfiable
-			return (dbFilter)
+		if origQueries is None:  # This query is unsatisfiable
+			return dbFilter
 
 		myKeys = [x for x in rawFilter.keys() if x.startswith("%s." % name)]
 		if len(myKeys) > 0:  # We filter by some properties
@@ -569,7 +594,7 @@ class relationalBone(baseBone):
 		return dbFilter
 
 	def buildDBSort(self, name, skel, dbFilter, rawFilter):
-		origFilter = dbFilter.filters
+		origFilter = dbFilter.queries
 		if origFilter is None or not "orderby" in rawFilter:  # This query is unsatisfiable or not sorted
 			return dbFilter
 		if "orderby" in rawFilter and isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
@@ -784,6 +809,26 @@ class relationalBone(baseBone):
 
 		return res
 
+	def createRelSkelFromKey(self, key: Union[str, db.KeyClass], rel: Union[dict, None] = None):
+		"""
+			Creates a relSkel instance valid for this bone from the given database key.
+		"""
+		key = db.keyHelper(key, self.kind)
+		entity = db.Get(key)
+		if not entity:
+			logging.error("Key %s not found" % str(key))
+			return None
+		relSkel = self._refSkelCache()
+		relSkel.unserialize(entity)
+		for k in relSkel.keys():
+			# Unserialize all bones from refKeys, then drop dbEntity - otherwise all properties will be copied
+			_ = relSkel[k]
+		relSkel.dbEntity = None
+		return {
+			"dest": relSkel,
+			"rel": rel or None
+		}
+
 	def setBoneValue(self, skel, boneName, value, append, *args, **kwargs):
 		"""
 			Set our value to 'value'.
@@ -802,17 +847,6 @@ class relationalBone(baseBone):
 			:return: Wherever that operation succeeded or not.
 			:rtype: bool
 		"""
-		from viur.core.skeleton import RefSkel, skeletonByKind
-		def relSkelFromKey(key):
-			key = db.keyHelper(key, self.kind)
-			entity = db.Get(key)
-			if not entity:
-				logging.error("Key %s not found" % str(key))
-				return None
-			relSkel = self._refSkelCache()
-			relSkel.unserialize(entity)
-			return relSkel
-
 		if append and not self.multiple:
 			raise ValueError("Bone %s is not multiple, cannot append!" % boneName)
 		if not self.multiple and not self.using:
@@ -824,12 +858,12 @@ class relationalBone(baseBone):
 		elif not self.multiple and self.using:
 			if not isinstance(value, tuple) or len(value) != 2 or \
 				not (isinstance(value[0], str) or isinstance(value[0], db.KeyClass)) or \
-				not isinstance(value[1], self.using):
+				not isinstance(value[1], self._skeletonInstanceClassRef):
 				raise ValueError("You must supply a tuple of (Database-Key, relSkel) to %s" % boneName)
 			realValue = value
 		elif self.multiple and not self.using:
 			if not (isinstance(value, str) or isinstance(value, db.KeyClass)) and not (isinstance(value, list)) \
-				and all([isinstance(x, str) or isinstance(x, db.Key) for x in value]):
+				and all([isinstance(x, str) or isinstance(x, db.KeyClass) for x in value]):
 				raise ValueError("You must supply a Database-Key or a list hereof to %s" % boneName)
 			if isinstance(value, list):
 				realValue = [(x, None) for x in value]
@@ -841,24 +875,24 @@ class relationalBone(baseBone):
 					and isinstance(value[1], self._skeletonInstanceClassRef)) and not (isinstance(value, list) and
 																   all((isinstance(x, tuple) and len(x) == 2 and \
 																		(isinstance(x[0], str) or isinstance(
-																			x[0], db.Key)) and isinstance(x[1], self._skeletonInstanceClassRef) for x in value))):
+																			x[0], db.KeyClass)) and isinstance(x[1], self._skeletonInstanceClassRef) for x in value))):
 				raise ValueError("You must supply (db.Key, RelSkel) or a list hereof to %s" % boneName)
 			if not isinstance(value, list):
 				realValue = [value]
 			else:
 				realValue = value
 		if not self.multiple:
-			relSkel = relSkelFromKey(realValue[0])
-			if not relSkel:
+			rel = self.createRelSkelFromKey(realValue[0], realValue[1])
+			if not rel:
 				return False
-			skel[boneName] = {"dest": relSkel, "rel": realValue[1] if realValue[1] else None}
+			skel[boneName] = rel
 		else:
 			tmpRes = []
 			for val in realValue:
-				relSkel = relSkelFromKey(val[0])
-				if not relSkel:
+				rel = self.createRelSkelFromKey(val[0], val[1])
+				if not rel:
 					return False
-				tmpRes.append({"dest": relSkel, "rel": val[1] if val[1] else None})
+				tmpRes.append(rel)
 			if append:
 				if boneName not in skel or not isinstance(skel[boneName], list):
 					skel[boneName] = []
@@ -873,6 +907,8 @@ class relationalBone(baseBone):
 		"""
 		def blobsFromRefSet(refSet):
 			result = set()
+			if refSet is None:
+				return result
 			for key, _bone in refSet["dest"].items():
 				result = result.union(_bone.getReferencedBlobs(refSet["dest"], key))
 			if refSet["rel"]:

@@ -1,10 +1,21 @@
 # -*- coding: utf-8 -*-
 import json
 from collections import OrderedDict
-from viur.core import errors, bones, utils
-from viur.core.skeleton import RefSkel, skeletonByKind, BaseSkeleton, SkeletonInstance
+from viur.core import bones, utils, db
+from viur.core.skeleton import SkeletonInstance
 from viur.core.utils import currentRequest
+from viur.core.i18n import translate
+from typing import Any
 
+class CustomJsonEncoder(json.JSONEncoder):
+	"""
+		This custom JSON-Encoder for this json-render ensures that translations are evaluated and can be dumped.
+	"""
+
+	def default(self, o: Any) -> Any:
+		if isinstance(o, translate):
+			return str(o)
+		return json.JSONEncoder.default(self, o)
 
 class DefaultRender(object):
 	kind = "json"
@@ -37,8 +48,15 @@ class DefaultRender(object):
 			"readonly": bone.readOnly,
 			"unique": bone.unique.method.value if bone.unique else False,
 			"languages": bone.languages,
-			"multiple": bone.multiple
 		}
+		if bone.multiple and isinstance(bone.multiple, bones.MultipleConstraints):
+				ret["multiple"] = {
+					"minAmount": bone.multiple.minAmount,
+					"maxAmount": bone.multiple.maxAmount,
+					"preventDuplicates": bone.multiple.preventDuplicates,
+				}
+		else:
+			ret["multiple"] = bone.multiple
 
 		if bone.type == "relational" or bone.type.startswith("relational."):
 			ret.update({
@@ -51,7 +69,6 @@ class DefaultRender(object):
 
 		elif bone.type == "record" or bone.type.startswith("record."):
 			ret.update({
-				"multiple": bone.multiple,
 				"format": bone.format,
 				"using": self.renderSkelStructure(bone.using())
 			})
@@ -59,7 +76,6 @@ class DefaultRender(object):
 		elif bone.type == "select" or bone.type.startswith("select."):
 			ret.update({
 				"values": [(k, str(v)) for k, v in bone.values.items()],
-				"multiple": bone.multiple,
 			})
 
 		elif bone.type == "date" or bone.type.startswith("date."):
@@ -83,7 +99,6 @@ class DefaultRender(object):
 
 		elif bone.type == "str" or bone.type.startswith("str."):
 			ret.update({
-				"multiple": bone.multiple,
 				"languages": bone.languages
 			})
 
@@ -137,7 +152,7 @@ class DefaultRender(object):
 		elif isinstance(bone, bones.recordBone):
 			return self.renderSkelValues(value)
 		elif isinstance(bone, bones.keyBone):
-			return value.to_legacy_urlsafe().decode("ASCII") if value else None
+			return db.encodeKey(value) if value else None
 		else:
 			return value
 		return None
@@ -193,7 +208,7 @@ class DefaultRender(object):
 		elif isinstance(skel, SkeletonInstance):
 			vals = self.renderSkelValues(skel)
 			struct = self.renderSkelStructure(skel)
-			errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage} for x in skel.errors]
+			errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage, "invalidatedFields": x.invalidatedFields} for x in skel.errors]
 		else:  # Hopefully we can pass it directly...
 			vals = skel
 			struct = None
@@ -206,7 +221,7 @@ class DefaultRender(object):
 			"params": params
 		}
 		currentRequest.get().response.headers["Content-Type"] = "application/json"
-		return json.dumps(res)
+		return json.dumps(res, cls=CustomJsonEncoder)
 
 	def view(self, skel, action="view", params=None, *args, **kwargs):
 		return self.renderEntry(skel, action, params)
@@ -220,21 +235,22 @@ class DefaultRender(object):
 	def list(self, skellist, action="list", params=None, **kwargs):
 		res = {}
 		skels = []
+
 		if skellist:
 			for skel in skellist:
 				skels.append(self.renderSkelValues(skel))
+
+			res["cursor"] = skellist.getCursor()
 			res["structure"] = self.renderSkelStructure(skellist.baseSkel)
 		else:
 			res["structure"] = None
-		res["skellist"] = skels
-		try:
-			res["cursor"] = "h-%s" % skellist.getCursor().hex()
-		except:
 			res["cursor"] = None
+
+		res["skellist"] = skels
 		res["action"] = action
 		res["params"] = params
 		currentRequest.get().response.headers["Content-Type"] = "application/json"
-		return json.dumps(res)
+		return json.dumps(res, cls=CustomJsonEncoder)
 
 	def editSuccess(self, skel, params=None, **kwargs):
 		return self.renderEntry(skel, "editSuccess", params)
@@ -247,7 +263,7 @@ class DefaultRender(object):
 
 	def listRootNodes(self, rootNodes, tpl=None, params=None):
 		for rn in rootNodes:
-			rn["key"] = rn["key"].to_legacy_urlsafe().decode("ASCII")
+			rn["key"] = db.encodeKey(rn["key"])
 		return json.dumps(rootNodes)
 
 	def listRootNodeContents(self, subdirs, entrys, tpl=None, params=None, **kwargs):
@@ -261,7 +277,7 @@ class DefaultRender(object):
 			skels.append(self.renderSkelValues(skel))
 
 		res["entrys"] = skels
-		return json.dumps(res)
+		return json.dumps(res, cls=CustomJsonEncoder)
 
 	def renameSuccess(self, rootNode, path, src, dest, params=None, *args, **kwargs):
 		return json.dumps("OKAY")

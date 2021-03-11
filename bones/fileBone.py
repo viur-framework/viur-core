@@ -6,41 +6,67 @@ from viur.core.tasks import callDeferred
 # from google.appengine.api import images
 from hashlib import sha256
 import logging
-from typing import Union, Dict
+from typing import Union, Dict, Any, List
 from itertools import chain
+from time import time
 
 
 @callDeferred
-def ensureDerived(key: str, name: str, deriveMap: Dict[str, Dict]):
+def ensureDerived(key: db.KeyClass, srcKey, deriveMap: Dict[str, Any]):
 	"""
 	Ensure that pending thumbnails or other derived Files are build
-	:param dlkey:
-	:param name:
-	:param deriveMap:
-	:return:
+	:param key: DB-Key of the file-object on which we should update the derivemap
+	:param srcKey: Prefix for a (hopefully) stable key to prevent rebuilding derives over and over again
+	:param deriveMap: List of DeriveDicts we should build/update
 	"""
-	from viur.core.skeleton import skeletonByKind
+	from viur.core.skeleton import skeletonByKind, updateRelations
+	deriveFuncMap = conf["viur.file.derivers"]
 	skel = skeletonByKind("file")()
 	assert skel.fromDB(key)
 	if not skel["derived"]:
 		logging.info("No Derives for this file")
 		skel["derived"] = {}
-	didBuild = False
-	for fileName, params in deriveMap.items():
-		if fileName not in skel["derived"]:
-			deriveFuncMap = conf["viur.file.derivers"]
-			if not "callee" in params:
-				assert False
-			if not params["callee"] in deriveFuncMap:
-				raise NotImplementedError("Callee not registered")
-			callee = deriveFuncMap[params["callee"]]
-			callRes = callee(skel, fileName, params)
+	skel["derived"]["deriveStatus"] = skel["derived"].get("deriveStatus") or {}
+	skel["derived"]["files"] = skel["derived"].get("files") or {}
+	resDict = {}  # Will contain new or updated resultDicts that will be merged into our file
+	for calleeKey, params in deriveMap.items():
+		fullSrcKey = "%s_%s" % (srcKey, calleeKey)
+		paramsHash = sha256(str(params).encode("UTF-8")).hexdigest()  # Hash over given params (dict?)
+		if skel["derived"]["deriveStatus"].get(fullSrcKey) != paramsHash:
+			if calleeKey not in deriveFuncMap:
+				logging.warning("File-Deriver %s not found - skipping!" % calleeKey)
+				continue
+			callee = deriveFuncMap[calleeKey]
+			callRes = callee(skel, skel["derived"]["files"], params)
 			if callRes:
-				fileName, size, mimetype = callRes
-				skel["derived"][fileName] = {"name": fileName, "size": size, "mimetype": mimetype, "params": params}
-			didBuild = True
-	if didBuild:
-		skel.toDB()
+				assert isinstance(callRes, list), "Old (non-list) return value from deriveFunc"
+				resDict[fullSrcKey] = {"version": paramsHash, "files": {}}
+				for fileName, size, mimetype, customData in callRes:
+					resDict[fullSrcKey]["files"][fileName] = {
+						"size": size,
+						"mimetype": mimetype,
+						"customData": customData
+					}
+
+	def updateTxn(key, resDict):
+		obj = db.Get(key)
+		if not obj:  # File-object got deleted during building of our derives
+			return
+		obj["derived"] = obj.get("derived") or {}
+		obj["derived"]["deriveStatus"] = obj["derived"].get("deriveStatus") or {}
+		obj["derived"]["files"] = obj["derived"].get("files") or {}
+		for k, v in resDict.items():
+			obj["derived"]["deriveStatus"][k] = v["version"]
+			for fileName, fileDict in v["files"].items():
+				obj["derived"]["files"][fileName] = fileDict
+		db.Put(obj)
+
+	if resDict:  # Write updated results back and queue updateRelationsTask
+		db.RunInTransaction(updateTxn, key, resDict)
+		# Queue that updateRelations call at least 30 seconds into the future, so that other ensureDerived calls from
+		# the same fileBone have the chance to finish, otherwise that updateRelations Task will call postSavedHandler
+		# on that fileBone again - re-queueing any ensureDerivedCalls that have not finished yet.
+		updateRelations(key, time() + 1, ["derived"], _countdown=30)
 
 
 class fileBone(treeLeafBone):
@@ -48,11 +74,46 @@ class fileBone(treeLeafBone):
 	type = "relational.tree.leaf.file"
 	refKeys = ["name", "key", "mimetype", "dlkey", "size", "width", "height", "derived"]
 
-	def __init__(self, format="$(dest.name)", derive: Union[None, Dict[str, Dict]] = None, *args, **kwargs):
+	def __init__(self, format="$(dest.name)", derive: Union[None, Dict[str, Any]] = None,
+				 validMimeTypes: Union[None, List[str]] = None, maxFileSize: Union[None, int] = None, *args, **kwargs):
+		"""
+		Initializes a new Filebone. All properties inherited by relationalBone are supported.
+		:param format: Hint for the UI how to display a file entry (defaults to it's filename)
+		:param derive: A set of functions used to derive other files from the referenced ones. Used fe. to create
+			thumbnails / images for srcmaps from hires uploads. If set, must be a dictionary from string (a key from
+			conf["viur.file.derivers"]) to the parameters passed to that function. The parameters can be any type
+			(including None) that can be json-serialized.
+
+			Example:
+				>>> derive = {"thumbnail": [{"width": 111}, {"width": 555, "height": 666}]}
+		:param validMimeTypes: A list of Mimetypes that can be selected in this bone (or None for any).
+			Wildcards ("image/*") are supported.
+
+			Example:
+				>>> validMimeTypes=["application/pdf", "image/*"]
+		:param maxFileSize: The maximum filesize accepted by this bone in bytes. None means no limit. This will always
+			be checked against the original file uploaded - not any of it's derivatives.
+		"""
 		if "dlkey" not in self.refKeys:
 			self.refKeys.append("dlkey")
 		super(fileBone, self).__init__(format=format, *args, **kwargs)
 		self.derive = derive
+		self.validMimeTypes = validMimeTypes
+		self.maxFileSize = maxFileSize
+
+	def isInvalid(self, value):
+		if self.validMimeTypes:
+			mimeType = value["dest"]["mimetype"]
+			for checkMT in self.validMimeTypes:
+				checkMT = checkMT.lower()
+				if checkMT == mimeType or checkMT.endswith("*") and mimeType.startswith(checkMT[:-1]):
+					break
+			else:
+				return "Invalid filetype selected"
+		if self.maxFileSize:
+			if value["dest"]["size"] > self.maxFileSize:
+				return "File too large."
+		return None
 
 	def postSavedHandler(self, skel, boneName, key):
 		super().postSavedHandler(skel, boneName, key)
@@ -60,8 +121,8 @@ class fileBone(treeLeafBone):
 		if self.derive and values:
 			if isinstance(values, dict):
 				values = [values]
-			for val in values:
-				ensureDerived(val["dest"].entity["key"].id_or_name, val["dest"].entity["name"], self.derive)
+			for val in values:  # Ensure derives getting build for each file referenced in this relation
+				ensureDerived(val["dest"]["key"], "%s_%s" % (skel.kindName, boneName), self.derive)
 
 	def getReferencedBlobs(self, skel, name):
 		val = skel[name]
@@ -75,3 +136,15 @@ class fileBone(treeLeafBone):
 			return [x["dest"]["dlkey"] for x in val]
 		else:
 			return [val["dest"]["dlkey"]]
+
+	def refresh(self, skel, boneName):
+		from viur.core.modules.file import importBlobFromViur2
+		super().refresh(skel, boneName)
+		if conf.get("viur.viur2import.blobsource"):
+			# Just ensure the file get's imported as it may not have an file entry
+			val = skel[boneName]
+			if isinstance(val, list):
+				for x in val:
+					importBlobFromViur2(x["dest"]["dlkey"])
+			elif isinstance(val, dict):
+				importBlobFromViur2(val["dest"]["dlkey"])

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from viur.core.bones.bone import baseBone, UniqueValue, UniqueLockMethod
+from viur.core.bones.bone import baseBone, UniqueValue, UniqueLockMethod, MultipleConstraints
 from viur.core.bones.keyBone import keyBone
 from viur.core.bones.stringBone import stringBone
 from viur.core.bones.textBone import textBone
@@ -22,3 +22,4 @@ from viur.core.bones.emailBone import emailBone
 from viur.core.bones.randomSliceBone import randomSliceBone
 from viur.core.bones.spatialBone import spatialBone
 from viur.core.bones.recordBone import recordBone
+from viur.core.bones.rawValueBone import rawValueBone

@@ -1,19 +1,20 @@
 # -*- coding: utf-8 -*-
-from viur.core import utils, request, conf, prototypes, securitykey, errors, db
-from viur.core.skeleton import Skeleton, RelSkel, BaseSkeleton
-from viur.core.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
-from viur.core.render.html.wrap import ListWrapper, SkelListWrapper
-import urllib, urllib.parse
-from hashlib import sha512
-#from google.appengine.ext import db
-#from google.appengine.api import memcache, users
-from datetime import timedelta
-from collections import OrderedDict
-import string
 import logging
 import os
-from typing import List
-from viur.core.utils import currentSession, currentRequest, currentLanguage
+import string
+import urllib
+import urllib.parse
+from collections import OrderedDict
+# from google.appengine.ext import db
+# from google.appengine.api import memcache, users
+from datetime import timedelta
+from hashlib import sha512
+from typing import Dict, List, Union
+
+from viur.core import conf, db, errors, prototypes, securitykey, utils
+from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
+from viur.core.skeleton import RelSkel, SkeletonInstance
+from viur.core.utils import currentLanguage, currentRequest
 
 
 @jinjaGlobalFunction
@@ -110,7 +111,8 @@ def getCurrentUser(render):
 	:return: A dict containing user data. Returns None if no user data is available.
 	:rtype: dict
 	"""
-	return utils.getCurrentUser()
+	currentUser = utils.getCurrentUser()
+	return render.collectSkelData(currentUser) if currentUser else None
 
 
 @jinjaGlobalFunction
@@ -136,7 +138,7 @@ def getSkel(render, module, key=None, skel="viewSkel"):
 	:rtype: dict | bool
 	"""
 	if module not in dir(conf["viur.mainApp"]):
-		logging.error("getEntry called with unknown module %s!" % module)
+		logging.error("getSkel called with unknown module %s!" % module)
 		return False
 
 	obj = getattr(conf["viur.mainApp"], module)
@@ -146,17 +148,17 @@ def getSkel(render, module, key=None, skel="viewSkel"):
 
 		if isinstance(obj, prototypes.singleton.Singleton) and not key:
 			# We fetching the entry from a singleton - No key needed
-			key = str(db.Key(skel.kindName, obj.getKey()))
+			key = db.Key(skel.kindName, obj.getKey())
 		elif not key:
-			logging.info("getEntry called without a valid key")
+			logging.info("getSkel called without a valid key")
 			return False
 
-		if not isinstance(skel, Skeleton):
+		if not isinstance(skel, SkeletonInstance):
 			return False
 
 		if "canView" in dir(obj):
 			if not skel.fromDB(key):
-				logging.info("getEntry: Entry %s not found" % (key,))
+				logging.info("getSkel: Entry %s not found" % (key,))
 				return None
 			if isinstance(obj, prototypes.singleton.Singleton):
 				isAllowed = obj.canView()
@@ -169,7 +171,7 @@ def getSkel(render, module, key=None, skel="viewSkel"):
 			else:  # List and Hierarchies
 				isAllowed = obj.canView(skel)
 			if not isAllowed:
-				logging.error("getEntry: Access to %s denied from canView" % (key,))
+				logging.error("getSkel: Access to %s denied from canView" % (key,))
 				return None
 		elif "listFilter" in dir(obj):
 			qry = skel.all().mergeExternalFilter({"key": str(key)})
@@ -328,7 +330,7 @@ def getStructure(render, module, skel="viewSkel", subSkel=None):
 	if skel in dir(obj):
 		skel = getattr(obj, skel)()
 
-		if isinstance(skel, Skeleton) or isinstance(skel, RelSkel):
+		if isinstance(skel, SkeletonInstance) or isinstance(skel, RelSkel):
 			if subSkel is not None:
 				try:
 					skel = skel.subSkel(subSkel)
@@ -373,8 +375,6 @@ def updateURL(render, **kwargs):
 	for key in list(tmpparams.keys()):
 		if not key or key[0] == "_":
 			del tmpparams[key]
-		elif isinstance(tmpparams[key], unicode):
-			tmpparams[key] = tmpparams[key].encode("UTF-8", "ignore")
 
 	for key, value in list(kwargs.items()):
 		if value is None:
@@ -494,8 +494,9 @@ def shortKey(render, val):
 	"""
 
 	try:
-		k = db.Key(encoded=str(val))
-		return k.id_or_name()
+		k = db.KeyClass.from_legacy_urlsafe(str(val))
+		return k.id_or_name
+
 	except:
 		return None
 
@@ -587,19 +588,41 @@ def renderEditForm(render, skel, ignore=None, hide=None):
 
 
 @jinjaGlobalFunction
-def embedSvg(self, name):
+def embedSvg(render, name: str, classes: Union[List[str], None] = None, **kwargs: Dict[str, str]) -> str:
+	"""
+	jinja2 function to get an <img/>-tag for a SVG.
+	This method will not check the existence of a SVG!
+
+	:param render: The jinja renderer instance
+	:param name: Name of the icon (basename of file)
+	:param classes: A list of css-classes for the <img/>-tag
+	:param kwargs: Further html-attributes for this tag (e.g. "alt" or "title")
+	:return: A <img/>-tag
+	"""
 	if any([x in name for x in ["..", "~", "/"]]):
-		return u""
-	try:
-		return open(os.path.join(os.getcwd(), "html", "embedsvg", name + ".svg"), "rb").read().decode("UTF-8")
-	except Exception as e:
-		logging.exception(e)
 		return ""
+
+	if classes is None:
+		classes = ["js-svg", name.split("-", 1)[0]]
+	else:
+		assert isinstance(classes, list), "*classes* must be a list"
+		classes.extend(["js-svg", name.split("-", 1)[0]])
+
+	attributes = {
+		"src": os.path.join(conf["viur.static.embedSvg.path"], f"{name}.svg"),
+		"class": " ".join(classes),
+		**kwargs
+	}
+	return "<img %s>" % " ".join(f"{k}=\"{v}\"" for k, v in attributes.items())
 
 
 @jinjaGlobalFunction
-def downloadUrlFor(render, fileObj, derived=None, expires=timedelta(hours=1)):
-	if not isinstance(fileObj, (BaseSkeleton, dict)) or "dlkey" not in fileObj or "name" not in fileObj:
+def downloadUrlFor(render, fileObj, expires, derived=None):
+	if "dlkey" not in fileObj and "dest" in fileObj:
+		fileObj = fileObj["dest"]
+	if expires:
+		expires = timedelta(minutes=expires)
+	if not isinstance(fileObj, (SkeletonInstance, dict)) or "dlkey" not in fileObj or "name" not in fileObj:
 		return None
 	if derived and ("derived" not in fileObj or not isinstance(fileObj["derived"], dict)):
 		return None
@@ -609,14 +632,18 @@ def downloadUrlFor(render, fileObj, derived=None, expires=timedelta(hours=1)):
 		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileObj["name"], derived=False, expires=expires)
 
 @jinjaGlobalFunction
-def srcSetFor(render, fileObj, expires=timedelta(hours=1)):
-	if not isinstance(fileObj, (BaseSkeleton, dict)) or not "dlkey" in fileObj or "derived" not in fileObj:
+def srcSetFor(render, fileObj, expires):
+	if "dlkey" not in fileObj and "dest" in fileObj:
+		fileObj = fileObj["dest"]
+	if expires:
+		expires = timedelta(minutes=expires)
+	if not isinstance(fileObj, (SkeletonInstance, dict)) or not "dlkey" in fileObj or "derived" not in fileObj:
 		return None
 	if not isinstance(fileObj["derived"], dict):
 		return ""
 	resList = []
-	for fileName, deriviation in fileObj["derived"].items():
-		params = deriviation["params"]
+	for fileName, derivate in fileObj["derived"].items():
+		params = derivate["params"]
 		if params.get("group") == "srcset":
 			resList.append("%s %sw" % (utils.downloadUrlFor(fileObj["dlkey"], fileName, True, expires), params["width"]))
 	return ", ".join(resList)

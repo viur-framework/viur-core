@@ -42,34 +42,37 @@ conf = {
 	"viur.disableCache": False,
 	# Maps Domains to alternative default languages
 	"viur.domainLanguageMapping": {},
-
-	# Allow for setting a custom email handler, like sendgrid. This must point to a function
-	# having equivalent parameters than utils.sendEMail().
-	"viur.emailHandler": None,
+	# For how long we'll keep successfully send emails in the viur-emails table
+	"viur.email.logRetention": timedelta(days=30),
+	# Class that actually delivers the email using the service provider of choice. See email.py for more details
+	"viur.email.transportClass": None,
+	# If set, we'll enable sending emails from the local development server. Otherwise, they'll just be logged.
+	"viur.email.sendFromLocalDevelopmentServer": False,
 	# If set, all outgoing emails will be send to this address (overriding the 'dests'-parameter in utils.sendEmail)
-	"viur.emailRecipientOverride": None,
+	"viur.email.recipientOverride": None,
 	# If set, this sender will be used, regardless of what the templates advertise as sender
-	"viur.emailSenderOverride": None,
+	"viur.email.senderOverride": None,
 
 	# If set, ViUR call this function instead of rendering the viur.errorTemplate if an exception occurs
 	"viur.errorHandler": None,
 	# Path to the template to render if an unhandled error occurs. This is a Python String-template, *not* a jinja2 one!
 	"viur.errorTemplate": "viur/core/template/error.html",
 
+	# Path to the static SVGs folder. Will be used by the jinja-renderer-method: embedSvg
+	"viur.static.embedSvg.path": "/static/svgs/",
+
 	# Activates the Database export API if set. Must be exactly 32 chars. *Everyone* knowing this password can dump the whole database!
 	"viur.exportPassword": None,
+	# Activates the Database import API if set. Must be exactly 32 chars. *Everyone* knowing this password can rewrite the whole database!
+	"viur.importPassword": None,
 
 	# If true, all requests must be encrypted (ignored on development server)
 	"viur.forceSSL": True,
 
 	# Hmac-Key used to sign download urls - set automatically
 	"viur.file.hmacKey": None,
-
 	# Call-Map for file preprocessers
 	"viur.file.derivers": {},
-
-	# Activates the Database import API if set. Must be exactly 32 chars. *Everyone* knowing this password can rewrite the whole database!
-	"viur.importPassword": None,
 
 	# Allows mapping of certain languages to one translation (ie. us->en)
 	"viur.languageAliasMap": {},
@@ -142,4 +145,3 @@ conf = {
 	# Will be set to server.__version__ in server.__init__
 	"viur.version": None,
 }
-

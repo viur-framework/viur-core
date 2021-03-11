@@ -1,18 +1,53 @@
-# -*- coding: utf-8 -*-
+import base64
 import json
 import logging
 import os
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import wraps
-from typing import Callable, Dict
+from time import sleep
+from typing import Any, Callable, Dict
 
+import grpc
+import pytz
 from google.cloud import tasks_v2
+from google.cloud.tasks_v2.services.cloud_tasks.transports import CloudTasksGrpcTransport
 from google.protobuf import timestamp_pb2
 
 from viur.core import db, errors, utils
 from viur.core.config import conf
-from viur.core.utils import currentRequest, currentSession
+from viur.core.utils import currentLanguage, currentRequest, currentSession
+
+
+class JsonKeyEncoder(json.JSONEncoder):
+	"""
+		Add support for Keys in deferred tasks
+	"""
+
+	def default(self, o: Any) -> Any:
+		if isinstance(o, db.KeyClass):
+			return {".__key__": db.encodeKey(o)}
+		elif isinstance(o, datetime):
+			return {".__datetime__": o.astimezone(pytz.UTC).strftime("d.%m.%Y %H:%M:%S")}
+		elif isinstance(o, bytes):
+			return {".__bytes__": base64.b64encode(o).decode("ASCII")}
+		return json.JSONEncoder.default(self, o)
+
+
+def jsonDecodeObjectHook(obj):
+	"""
+		Inverse to JsonKeyEncoder: Check if the object matches a keymarker and parse it's key
+	"""
+	if len(obj) == 1:
+		if len(obj) == 1 and ".__key__" in obj:
+			return db.KeyClass.from_legacy_urlsafe(obj[".__key__"])
+		elif len(obj) == 1 and ".__datetime__" in obj:
+			value = datetime.strptime(obj[".__datetime__"], "d.%m.%Y %H:%M:%S")
+			return datetime(value.year, value.month, value.day, value.hour, value.minute, value.second, tzinfo=pytz.UTC)
+		elif ".__bytes__" in obj:
+			return base64.b64decode(obj[".__bytes__"])
+	return obj
+
 
 _gaeApp = os.environ.get("GAE_APPLICATION")
 regionMap = {  # FIXME! Can we even determine the region like this?
@@ -23,23 +58,40 @@ if _gaeApp:
 	regionPrefix = _gaeApp.split("~")[0]
 	queueRegion = regionMap.get(regionPrefix)
 
-if not queueRegion:
+if not queueRegion and utils.isLocalDevelopmentServer and os.getenv("TASKS_EMULATOR") is None:
 	# Probably local development server
 	logging.warning("Taskqueue disabled, tasks will run inline!")
 
-taskClient = tasks_v2.CloudTasksClient()
+if not utils.isLocalDevelopmentServer or os.getenv("TASKS_EMULATOR") is None:
+	taskClient = tasks_v2.CloudTasksClient()
+else:
+	taskClient = tasks_v2.CloudTasksClient(
+		transport=CloudTasksGrpcTransport(channel=grpc.insecure_channel(os.getenv("TASKS_EMULATOR")))
+	)
+	queueRegion = "local"
 
-_periodicTasks: Dict[str, Dict[int, Callable]] = {}
+_periodicTasks: Dict[str, Dict[Callable, int]] = {}
 _callableTasks = {}
 _deferedTasks = {}
 _startupTasks = []
-_periodicTaskID = 1  # Used to determine bound functions
 _appengineServiceIPs = {"10.0.0.1", "0.1.0.1", "0.1.0.2"}
 
 
 class PermanentTaskFailure(Exception):
 	"""Indicates that a task failed, and will never succeed."""
 	pass
+
+
+def removePeriodicTask(task: Callable) -> None:
+	"""
+	Removes a periodic task from the queue. Useful to unqueue an task
+	that has been inherited from an overridden module.
+	"""
+	global _periodicTasks
+	assert "periodicTaskName" in dir(task), "This is not a periodic task? "
+	for queueDict in _periodicTasks.values():
+		if task in queueDict:
+			del queueDict[task]
 
 
 class CallableTaskBase:
@@ -97,8 +149,8 @@ class TaskHandler:
 			:param depth: Current iteration depth.
 			:type depth: int
 		"""
-		if depth > 3 or not "periodicTaskID" in dir(task):  # Limit the maximum amount of recursions
-			return (None)
+		if depth > 3 or not "periodicTaskName" in dir(task):  # Limit the maximum amount of recursions
+			return None
 		obj = obj or conf["viur.mainApp"]
 		for attr in dir(obj):
 			if attr.startswith("_"):
@@ -107,13 +159,32 @@ class TaskHandler:
 				v = getattr(obj, attr)
 			except AttributeError:
 				continue
-			if callable(v) and "periodicTaskID" in dir(v) and str(v.periodicTaskID) == str(task.periodicTaskID):
-				return (v, obj)
+			if callable(v) and "periodicTaskName" in dir(v) and str(v.periodicTaskName) == str(task.periodicTaskName):
+				return v, obj
 			if not isinstance(v, str) and not callable(v):
 				res = self.findBoundTask(task, v, depth + 1)
 				if res:
-					return (res)
-		return (None)
+					return res
+		return None
+
+	def queryIter(self, *args, **kwargs):
+		"""
+			This processes one chunk of a queryIter (see below).
+		"""
+		global _deferedTasks, _appengineServiceIPs
+		req = currentRequest.get().request
+		if 'X-AppEngine-TaskName' not in req.headers:
+			logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
+			raise errors.Forbidden()
+		if req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs:
+			logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
+			raise errors.Forbidden()
+		data = json.loads(req.body, object_hook=jsonDecodeObjectHook)
+		if data["classID"] not in MetaQueryIter._classCache:
+			logging.error("Could not continue queryIter - %s not known on this instance" % data["classID"])
+		MetaQueryIter._classCache[data["classID"]]._qryStep(data)
+
+	queryIter.exposed = True
 
 	def deferred(self, *args, **kwargs):
 		"""
@@ -125,28 +196,26 @@ class TaskHandler:
 		if 'X-AppEngine-TaskName' not in req.headers:
 			logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
 			raise errors.Forbidden()
-		if req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs:
+		if req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs \
+				and (not utils.isLocalDevelopmentServer or os.getenv("TASKS_EMULATOR") is None):
 			logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
 			raise errors.Forbidden()
 		# Check if the retry count exceeds our warning threshold
 		retryCount = req.headers.get("X-Appengine-Taskretrycount", None)
 		if retryCount:
 			if int(retryCount) == self.retryCountWarningThreshold:
-				utils.sendEMailToAdmins("Deferred task retry count exceeded warning threshold",
+				from viur.core import email
+				email.sendEMailToAdmins("Deferred task retry count exceeded warning threshold",
 										"Task %s will now be retried for the %sth time." % (
 											req.headers.get("X-Appengine-Taskname", ""),
 											retryCount))
-		cmd, data = json.loads(req.body)
-		try:
-			funcPath, args, kwargs, env = data
-		except ValueError:  # We got an old call without an frozen environment
-			env = None
-			funcPath, args, kwargs = data
+		cmd, data = json.loads(req.body, object_hook=jsonDecodeObjectHook)
+		funcPath, args, kwargs, env = data
 		if env:
 			if "user" in env and env["user"]:
 				currentSession.get()["user"] = env["user"]
 			if "lang" in env and env["lang"]:
-				currentRequest.get().language = env["lang"]
+				currentLanguage.set(env["lang"])
 			if "transactionMarker" in env:
 				marker = db.Get(db.Key("viur-transactionmarker", env["transactionMarker"]))
 				if not marker:
@@ -192,9 +261,6 @@ class TaskHandler:
 
 	def cron(self, cronName="default", *args, **kwargs):
 		global _callableTasks, _periodicTasks, _appengineServiceIPs
-		# logging.debug("Starting maintenance-run")
-		# checkUpdate()  # Let the update-module verify the database layout first
-		# logging.debug("Updatecheck complete")
 		req = currentRequest.get()
 		if not req.isDevServer:
 			if 'X-Appengine-Cron' not in req.request.headers:
@@ -206,7 +272,7 @@ class TaskHandler:
 		if cronName not in _periodicTasks:
 			logging.warning("Got Cron request '%s' which doesn't have any tasks" % cronName)
 		for task, interval in _periodicTasks[cronName].items():  # Call all periodic tasks bound to that queue
-			periodicTaskName = "%s_%s" % (cronName, task.periodicTaskName)
+			periodicTaskName = task.periodicTaskName.lower()
 			if interval:  # Ensure this task doesn't get called to often
 				lastCall = db.Get(db.Key("viur-task-interval", periodicTaskName))
 				if lastCall and utils.utcNow() - lastCall["date"] < timedelta(minutes=interval):
@@ -251,15 +317,15 @@ class TaskHandler:
 		"""Lists all user-callable tasks which are callable by this user"""
 		global _callableTasks
 
-		class extList(list):
-			pass
+		tasks = db.SkelListRef()
+		tasks.extend([{
+				"key": x.key,
+				"name": str(x.name),
+				"descr": str(x.descr)
+			} for x in _callableTasks.values() if x().canCall()
+		])
 
-		res = extList(
-			[{"key": x.key, "name": str(x.name), "descr": str(x.descr)} for x in _callableTasks.values() if
-			 x().canCall()])
-		res.cursor = None
-		res.baseSkel = {}
-		return (self.render.list(res))
+		return self.render.list(tasks)
 
 	list.exposed = True
 
@@ -323,6 +389,10 @@ def callDeferred(func):
 		if not queueRegion:
 			# Run tasks inline
 			logging.info("Running inline: %s" % func)
+			if "_countdown" in kwargs:
+				del kwargs["_countdown"]
+			if "_queue" in kwargs:
+				del kwargs["_queue"]
 			if self is __undefinedFlag_:
 				task = lambda: func(*args, **kwargs)
 			else:
@@ -368,16 +438,15 @@ def callDeferred(func):
 			taskargs["headers"] = {"Content-Type": "application/octet-stream"}
 			queue = kwargs.pop("_queue", "default")
 			# Try to preserve the important data from the current environment
-			env = {"user": None}
-			usr = getCurrentUser()
-			if usr:
-				env["user"] = {
-					"key": usr["key"].id_or_name,
-					"name": usr["name"],
-					"access": usr["access"]
-				}
+			try:  # We might get called inside a warmup request without session
+				usr = currentSession.get().get("user")
+				if "password" in usr:
+					del usr["password"]
+			except:
+				usr = None
+			env = {"user": usr}
 			try:
-				env["lang"] = currentRequest.get().language
+				env["lang"] = currentLanguage.get()
 			except AttributeError:  # This isn't originating from a normal request
 				pass
 			if db.IsInTransaction():
@@ -392,14 +461,14 @@ def callDeferred(func):
 					   and callable(conf["viur.tasks.customEnvironmentHandler"][0]), \
 					"Your customEnvironmentHandler must be a tuple of two callable if set!"
 				env["custom"] = conf["viur.tasks.customEnvironmentHandler"][0]()
-			pickled = json.dumps((command, (funcPath, args, kwargs, env))).encode("UTF-8")
+			pickled = json.dumps((command, (funcPath, args, kwargs, env)), cls=JsonKeyEncoder).encode("UTF-8")
 
 			project = utils.projectID
 			location = queueRegion
 			parent = taskClient.queue_path(project, location, queue)
 			task = {
 				'app_engine_http_request': {  # Specify the type of request.
-					'http_method': 'POST',
+					'http_method': tasks_v2.HttpMethod.POST,
 					'relative_uri': '/_tasks/deferred'
 				}
 			}
@@ -411,7 +480,7 @@ def callDeferred(func):
 			task['app_engine_http_request']['body'] = pickled
 
 			# Use the client to build and send the task.
-			response = taskClient.create_task(parent, task)
+			response = taskClient.create_task(parent=parent, task=task)
 
 			print('Created task {}'.format(response.name))
 
@@ -431,16 +500,14 @@ def PeriodicTask(interval=0, cronName="default"):
 	"""
 
 	def mkDecorator(fn):
+		global _periodicTasks
 		if fn.__name__.startswith("_"):
 			raise RuntimeError("Periodic called methods cannot start with an underscore! "
 							   f"Please rename {fn.__name__!r}")
-		global _periodicTasks, _periodicTaskID
 		if not cronName in _periodicTasks:
 			_periodicTasks[cronName] = {}
 		_periodicTasks[cronName][fn] = interval
-		fn.periodicTaskID = _periodicTaskID
-		fn.periodicTaskName = "%s_%s" % (fn.__module__, fn.__name__)
-		_periodicTaskID += 1
+		fn.periodicTaskName = ("%s_%s" % (fn.__module__, fn.__qualname__)).replace(".", "_").lower()
 		return fn
 
 	return mkDecorator
@@ -478,44 +545,149 @@ def runStartupTasks():
 		st()
 
 
-## Tasks ##
+class MetaQueryIter(type):
+	"""
+		This is the meta class for QueryIters.
+		Used only to keep track of all subclasses of QueryIter so we can emit the callbacks
+		on the correct class.
+	"""
+	_classCache = {}  # Mapping className -> Class
+
+	def __init__(cls, name, bases, dct):
+		MetaQueryIter._classCache[str(cls)] = cls
+		cls.__classID__ = str(cls)
+		super(MetaQueryIter, cls).__init__(name, bases, dct)
 
 
-"""
-@CallableTask
-class DisableApplicationTask(CallableTaskBase):
-	" ""
-		Allows en- or disabling the application.
-	" ""
-	key = "viur-disable-server"
-	name = translate("server.tasks.DisableApplicationTask.name",
-					 defaultText="Enable or disable the application")
-	descr = translate("server.tasks.DisableApplicationTask.descr",
-					  defaultText="This will enable or disable the application.")
-	kindName = "server-task"
+class QueryIter(object, metaclass=MetaQueryIter):
+	"""
+		BaseClass to run a database Query and process each entry matched.
+		This will run each step deferred, so it is possible to process an arbitrary number of entries
+		without being limited by time or memory.
 
-	def canCall(self):
-		" ""
-			Checks wherever the current user can execute this task
-			:returns: bool
-		" ""
-		usr = utils.getCurrentUser()
-		return usr and usr["access"] and "root" in usr["access"]
+		To use this class create a subclass, override the classmethods handleEntry and handleFinish and then
+		call startIterOnQuery with an instance of a database Query (and possible some custom data to pass along)
+	"""
+	queueName = "default"  # Name of the taskqueue we will run on
 
-	def dataSkel(self):
-		from viur.core.bones import booleanBone, stringBone
-		from viur.core.skeleton import Skeleton
-		skel = Skeleton(self.kindName)
-		skel.active = booleanBone(descr="Application active", required=True)
-		skel.descr = stringBone(descr="Reason for disabling", required=False)
-		return (skel)
+	@classmethod
+	def startIterOnQuery(cls, query: db.Query, customData: Any = None) -> None:
+		"""
+			Starts iterating the given query on this class. Will return immediately, the first batch will already
+			run deferred.
 
-	def execute(self, active, descr, *args, **kwargs):
-		if not active:
-			if descr:
-				sharedConf["viur.disabled"] = descr
-			else:
-				sharedConf["viur.disabled"] = True
+			Warning: Any custom data *must* be json-serializable and *must* be passed in customData. You cannot store
+			any data on this class as each chunk may run on a different instance!
+		"""
+		assert not (query._customMultiQueryMerge or query._calculateInternalMultiQueryLimit), \
+			"Cannot iter a query with postprocessing"
+		assert isinstance(query.queries, db.QueryDefinition), "Unsatisfiable query or query with an IN filter"
+		qryDict = {
+			"kind": query.kind,
+			"srcSkel": query.srcSkel.kindName if query.srcSkel else None,
+			"filters": query.queries.filters,
+			"orders": [(propName, sortOrder.value) for propName, sortOrder in query.queries.orders],
+			"startCursor": query.queries.startCursor,
+			"endCursor": query.queries.endCursor,
+			"origKind": query.origKind,
+			"distinct": query.queries.distinct,
+			"classID": cls.__classID__,
+			"customData": customData,
+			"totalCount": 0
+		}
+		cls._requeueStep(qryDict)
+
+	@classmethod
+	def _requeueStep(cls, qryDict: Dict[str, Any]) -> None:
+		"""
+			Internal use only. Pushes a new step defined in qryDict to either the taskqueue or append it to
+			the current request	if we are on the local development server.
+		"""
+		if not queueRegion:  # Run tasks inline - hopefully development server
+			req = currentRequest.get()
+			task = lambda *args, **kwargs: cls._qryStep(qryDict)
+			if req:
+				req.pendingTasks.append(task)  # < This property will be only exist on development server!
+				return
+		project = utils.projectID
+		location = queueRegion
+		parent = taskClient.queue_path(project, location, cls.queueName)
+		task = {
+			'app_engine_http_request': {  # Specify the type of request.
+				'http_method': 'POST',
+				'relative_uri': '/_tasks/queryIter'
+			}
+		}
+		task['app_engine_http_request']['body'] = json.dumps(qryDict, cls=JsonKeyEncoder).encode("UTF-8")
+		taskClient.create_task(parent=parent, task=task)
+
+	@classmethod
+	def _qryStep(cls, qryDict: Dict[str, Any]) -> None:
+		"""
+			Internal use only. Processes one block of five entries from the query defined in qryDict and
+			reschedules the next block.
+		"""
+		from viur.core.skeleton import skeletonByKind
+		qry = db.Query(qryDict["kind"])
+		qry.srcSkel = skeletonByKind(qryDict["srcSkel"])() if qryDict["srcSkel"] else None
+		qry.queries.filters = qryDict["filters"]
+		qry.queries.orders = [(propName, db.SortOrder(sortOrder)) for propName, sortOrder in qryDict["orders"]]
+		qry.setCursor(qryDict["startCursor"], qryDict["endCursor"])
+		qry.origKind = qryDict["origKind"]
+		qry.queries.distinct = qryDict["distinct"]
+		if qry.srcSkel:
+			qryIter = qry.fetch(5)
 		else:
-			sharedConf["viur.disabled"] = False
-"""
+			qryIter = qry.run(5)
+		for item in qryIter:
+			try:
+				cls.handleEntry(item, qryDict["customData"])
+			except:  # First exception - we'll try another time (probably/hopefully transaction collision)
+				sleep(5)
+				try:
+					cls.handleEntry(item, qryDict["customData"])
+				except Exception as e:  # Second exception - call errorHandler
+					try:
+						doCont = cls.handleError(item, qryDict["customData"], e)
+					except Exception as e:
+						logging.error("handleError failed on %s - bailing out" % item)
+						logging.exception(e)
+						doCont = False
+					if not doCont:
+						logging.error("Exiting queryItor on cursor %s" % qry.getCursor())
+						return
+			qryDict["totalCount"] += 1
+		cursor = qry.getCursor()
+		if cursor:
+			qryDict["startCursor"] = cursor
+			cls._requeueStep(qryDict)
+		else:
+			cls.handleFinish(qryDict["totalCount"], qryDict["customData"])
+
+	@classmethod
+	def handleEntry(cls, entry, customData):
+		"""
+			Overridable hook to process one entry. "entry" will be either an db.Entity or an
+			SkeletonInstance (if that query has been created by skel.all())
+
+			Warning: If your query has an sortOrder other than __key__ and you modify that property here
+			it is possible to encounter that object later one *again* (as it may jump behind the current cursor).
+		"""
+		logging.debug("handleEntry called on %s with %s." % (cls, entry))
+
+	@classmethod
+	def handleFinish(cls, totalCount: int, customData):
+		"""
+			Overridable hook that indicates the current run has been finished.
+		"""
+		logging.debug("handleFinish called on %s with %s total Entries processed" % (cls, totalCount))
+
+	@classmethod
+	def handleError(cls, entry, customData, exception) -> bool:
+		"""
+			Handle a error occurred in handleEntry.
+			If this function returns True, the queryIter continues, otherwise it breaks and prints the current cursor.
+		"""
+		logging.debug("handleError called on %s with %s." % (cls, entry))
+		logging.exception(exception)
+		return True

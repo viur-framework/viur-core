@@ -10,43 +10,6 @@ from typing import List, Union
 from viur.core.utils import currentLanguage
 
 
-class LanguageWrapper(dict):
-	"""
-		Wrapper-class for a multi-language value.
-		Its a dictionary, allowing accessing each stored language,
-		but can also be used as a string, in which case it tries to
-		guess the correct language.
-	"""
-
-	def __init__(self, languages):
-		super(LanguageWrapper, self).__init__()
-		self.languages = languages
-
-	def __str__(self):
-		return (str(self.resolve()))
-
-	def resolve(self):
-		"""
-			Causes this wrapper to evaluate to the best language available for the current request.
-
-			:returns: str|list of str
-			:rtype: str|list of str
-		"""
-		lang = currentLanguage.get()
-		if not lang:
-			lang = self.languages[0]
-		else:
-			if lang in conf["viur.languageAliasMap"]:
-				lang = conf["viur.languageAliasMap"][lang]
-		if lang in self and self[lang] is not None and str(
-				self[lang]).strip():  # The users language is available :)
-			return (self[lang])
-		else:  # We need to select another lang for him
-			for lang in self.languages:
-				if lang in self and self[lang]:
-					return (self[lang])
-		return ""
-
 
 class stringBone(baseBone):
 	type = "str"
@@ -64,7 +27,7 @@ class stringBone(baseBone):
 		self.languages = languages
 		if defaultValue is None:
 			if self.languages:
-				self.defaultValue = LanguageWrapper(self.languages)
+				self.defaultValue = {}
 			else:
 				self.defaultValue = ""
 
@@ -81,11 +44,15 @@ class stringBone(baseBone):
 		else:
 			return ""
 
+	def getEmptyValue(self):
+		return ""
+
 	def singleValueFromClient(self, value, skel, name, origData):
+		value = utils.escapeString(value)
 		err = self.isInvalid(value)
 		if not err:
 			return utils.escapeString(value), None
-		return self.getDefaultValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, name, err)]
+		return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		if not name in rawFilter and not any(
@@ -162,7 +129,7 @@ class stringBone(baseBone):
 				order = (prop, db.SortOrder.Descending)
 			else:
 				order = (prop, db.SortOrder.Ascending)
-			inEqFilter = [x for x in dbFilter.filters.keys() if
+			inEqFilter = [x for x in dbFilter.queries.filters.keys() if  # FIXME: This will break on multi queries
 						  (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
 			if inEqFilter:
 				inEqFilter = inEqFilter[0][: inEqFilter[0].find(" ")]
