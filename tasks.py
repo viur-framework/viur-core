@@ -691,3 +691,16 @@ class QueryIter(object, metaclass=MetaQueryIter):
 		logging.debug("handleError called on %s with %s." % (cls, entry))
 		logging.exception(exception)
 		return True
+
+
+class DeleteEntitiesIter(QueryIter):
+	"""
+		Simple Query-Iter to delete all entities encountered.
+
+		..Warning: Do not use this iter on skeletons. It only works on the low-level db API and would not clear
+			relations, locks etc.
+	"""
+
+	@classmethod
+	def handleEntry(cls, entry, customData):
+		db.Delete(entry.key)
