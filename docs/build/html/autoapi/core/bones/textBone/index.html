@@ -1,0 +1,373 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>core.bones.textBone &mdash; ViUR Core 3.0.0-b1 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/graphviz.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+        <script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/underscore.js"></script>
+        <script src="../../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home"> ViUR Core
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                3.0.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">ViUR Core</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../doc_start/index.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../doc_guide/index.html">Reference Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../doc_tutorial/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">ViUR Core</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.bones.textBone</span></code></li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../../../../_sources/autoapi/core/bones/textBone/index.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-core.bones.textBone">
+<span id="core-bones-textbone"></span><h1><a class="reference internal" href="#module-core.bones.textBone" title="core.bones.textBone"><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.bones.textBone</span></code></a><a class="headerlink" href="#module-core.bones.textBone" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="classes">
+<h3>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.bones.textBone.HtmlSerializer" title="core.bones.textBone.HtmlSerializer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HtmlSerializer</span></code></a></p></td>
+<td><p>Find tags and other markup and call handler functions.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.bones.textBone.textBone" title="core.bones.textBone.textBone"><code class="xref py py-obj docutils literal notranslate"><span class="pre">textBone</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py data">
+<dt id="core.bones.textBone._defaultTags">
+<code class="sig-prename descclassname"><span class="pre">core.bones.textBone.</span></code><code class="sig-name descname"><span class="pre">_defaultTags</span></code><a class="headerlink" href="#core.bones.textBone._defaultTags" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py class">
+<dt id="core.bones.textBone.HtmlSerializer">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.bones.textBone.</span></code><code class="sig-name descname"><span class="pre">HtmlSerializer</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">validHtml</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.textBone.HtmlSerializer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">html.parser.HTMLParser</span></code></p>
+<p>Find tags and other markup and call handler functions.</p>
+<dl class="simple">
+<dt>Usage:</dt><dd><p>p = HTMLParser()
+p.feed(data)
+…
+p.close()</p>
+</dd>
+</dl>
+<p>Start tags are handled by calling self.handle_starttag() or
+self.handle_startendtag(); end tags by self.handle_endtag().  The
+data between tags is passed from the parser to the derived class
+by calling self.handle_data() with the data as argument (the data
+may be split up in arbitrary chunks).  If convert_charrefs is
+True the character references are converted automatically to the
+corresponding Unicode character (and self.handle_data() is no
+longer split in chunks), otherwise they are passed by calling
+self.handle_entityref() or self.handle_charref() with the string
+containing respectively the named or numeric reference as the
+argument.</p>
+<dl class="py method">
+<dt id="core.bones.textBone.HtmlSerializer.handle_data">
+<code class="sig-name descname"><span class="pre">handle_data</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.textBone.HtmlSerializer.handle_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.textBone.HtmlSerializer.handle_charref">
+<code class="sig-name descname"><span class="pre">handle_charref</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.textBone.HtmlSerializer.handle_charref" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.textBone.HtmlSerializer.handle_entityref">
+<code class="sig-name descname"><span class="pre">handle_entityref</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.textBone.HtmlSerializer.handle_entityref" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.textBone.HtmlSerializer.flushCache">
+<code class="sig-name descname"><span class="pre">flushCache</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.textBone.HtmlSerializer.flushCache" title="Permalink to this definition">¶</a></dt>
+<dd><p>Flush pending tags into the result and push their corresponding end-tags onto the stack</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.textBone.HtmlSerializer.handle_starttag">
+<code class="sig-name descname"><span class="pre">handle_starttag</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tag</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attrs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.textBone.HtmlSerializer.handle_starttag" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete all tags except for legal ones</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.textBone.HtmlSerializer.handle_endtag">
+<code class="sig-name descname"><span class="pre">handle_endtag</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tag</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.textBone.HtmlSerializer.handle_endtag" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.textBone.HtmlSerializer.cleanup">
+<code class="sig-name descname"><span class="pre">cleanup</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.textBone.HtmlSerializer.cleanup" title="Permalink to this definition">¶</a></dt>
+<dd><p>Append missing closing tags</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.textBone.HtmlSerializer.sanitize">
+<code class="sig-name descname"><span class="pre">sanitize</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">instr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.textBone.HtmlSerializer.sanitize" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.bones.textBone.textBone">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.bones.textBone.</span></code><code class="sig-name descname"><span class="pre">textBone</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">validHtml</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">__undefinedC__</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">languages</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxLength</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">200000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">defaultValue</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Any</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">indexed</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.textBone.textBone" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">viur.core.bones.baseBone</span></code></p>
+<dl class="py class">
+<dt id="core.bones.textBone.textBone.__undefinedC__">
+<em class="property"><span class="pre">class</span> </em><code class="sig-name descname"><span class="pre">__undefinedC__</span></code><a class="headerlink" href="#core.bones.textBone.textBone.__undefinedC__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.bones.textBone.textBone.type">
+<code class="sig-name descname"><span class="pre">type</span></code><em class="property"> <span class="pre">=</span> <span class="pre">text</span></em><a class="headerlink" href="#core.bones.textBone.textBone.type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.textBone.textBone.generageSearchWidget">
+<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">generageSearchWidget</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">target</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'TEXT</span> <span class="pre">BONE'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'equals'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.textBone.textBone.generageSearchWidget" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.textBone.textBone.singleValueSerialize">
+<code class="sig-name descname"><span class="pre">singleValueSerialize</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">SkeletonInstance</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parentIndexed</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.textBone.textBone.singleValueSerialize" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.textBone.textBone.singleValueFromClient">
+<code class="sig-name descname"><span class="pre">singleValueFromClient</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">origData</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.textBone.textBone.singleValueFromClient" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.textBone.textBone.getEmptyValue">
+<code class="sig-name descname"><span class="pre">getEmptyValue</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.textBone.textBone.getEmptyValue" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.textBone.textBone.isInvalid">
+<code class="sig-name descname"><span class="pre">isInvalid</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.textBone.textBone.isInvalid" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns None if the value would be valid for
+this bone, an error-message otherwise.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.textBone.textBone.getReferencedBlobs">
+<code class="sig-name descname"><span class="pre">getReferencedBlobs</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">valuesCache</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.textBone.textBone.getReferencedBlobs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test for /file/download/ links inside our text body.
+Doesn’t check for actual &lt;a href=&gt; or &lt;img src=&gt; yet.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.textBone.textBone.getSearchTags">
+<code class="sig-name descname"><span class="pre">getSearchTags</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skeltonValues</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.textBone.textBone.getSearchTags" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.textBone.textBone.getSearchDocumentFields">
+<code class="sig-name descname"><span class="pre">getSearchDocumentFields</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">valuesCache</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.textBone.textBone.getSearchDocumentFields" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a list of search-fields (GAE search API) for this bone.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.textBone.textBone.getUniquePropertyIndexValues">
+<code class="sig-name descname"><span class="pre">getUniquePropertyIndexValues</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">valuesCache</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#core.bones.textBone.textBone.getUniquePropertyIndexValues" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Mausbrand Informationssysteme GmbH.
+      <span class="lastupdated">
+        Last updated on Mar 12, 2021.
+      </span>
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

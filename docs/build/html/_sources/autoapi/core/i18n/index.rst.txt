@@ -1,0 +1,157 @@
+:mod:`core.i18n`
+================
+
+.. py:module:: core.i18n
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.i18n.LanguageWrapper
+   core.i18n.translate
+   core.i18n.TranslationExtension
+
+
+
+Functions
+~~~~~~~~~
+
+.. autoapisummary::
+
+   core.i18n.initializeTranslations
+   core.i18n.localizedStrfTime
+
+
+.. data:: systemTranslations
+   
+
+   
+
+.. class:: LanguageWrapper(languages)
+
+
+   Bases: :class:`dict`
+
+   Wrapper-class for a multi-language value.
+   Its a dictionary, allowing accessing each stored language,
+   but can also be used as a string, in which case it tries to
+   guess the correct language.
+
+   .. method:: __str__(self)
+
+      Return str(self).
+
+
+   .. method:: resolve(self)
+
+      Causes this wrapper to evaluate to the best language available for the current request.
+
+      :returns: str|list of str
+      :rtype: str|list of str
+
+
+
+.. class:: translate(key, defaultText=None, hint=None)
+
+
+   .. attribute:: __slots__
+      :annotation: = ['key', 'defaultText', 'hint', 'translationCache']
+
+      
+
+   .. method:: __repr__(self)
+
+      Return repr(self).
+
+
+   .. method:: __str__(self)
+
+      Return str(self).
+
+
+   .. method:: translate(self, **kwargs)
+
+
+
+.. class:: TranslationExtension(environment)
+
+
+   Bases: :class:`jinja2.ext.Extension`
+
+   Default translation extension for jinja2 render.
+   Use like {% translate "translationKey", "defaultText", "translationHint", replaceValue1="replacedText1" %}
+   All except translationKey is optional. translationKey is the same Key supplied to _() before.
+   defaultText will be printed if no translation is available.
+   translationHint is a optional hint for anyone adding a now translation how/where that translation is used.
+
+   .. attribute:: tags
+      
+
+      
+
+   .. method:: parse(self, parser)
+
+      If any of the :attr:`tags` matched this method is called with the
+      parser as first argument.  The token the parser stream is pointing at
+      is the name token that matched.  This method has to return one or a
+      list of multiple nodes.
+
+
+   .. method:: _translate(self, key, defaultText, hint, kwargs, trDict, caller)
+
+
+
+.. function:: initializeTranslations()
+
+
+.. data:: localizedDateTime
+   
+
+   
+
+.. data:: localizedDate
+   
+
+   
+
+.. data:: localizedTime
+   
+
+   
+
+.. data:: localizedAbbrevDayNames
+   
+
+   
+
+.. data:: localizedDayNames
+   
+
+   
+
+.. data:: localizedAbbrevMonthNames
+   
+
+   
+
+.. data:: localizedMonthNames
+   
+
+   
+
+.. function:: localizedStrfTime(datetimeObj: datetime.datetime, format: str) -> str
+
+   Provides correct localized names for directives like %a which dont get translated on GAE properly as we can't
+   set the locale (for each request).
+   This currently replaces %a, %A, %b, %B, %c, %x and %X.
+
+   :param datetimeObj: Datetime-instance to call strftime on
+   :param format: String containing the Format to apply.
+   :returns: Date and time formatted according to format with correct localization
+
+

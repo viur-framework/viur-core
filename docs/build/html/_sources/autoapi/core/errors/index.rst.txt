@@ -1,0 +1,223 @@
+:mod:`core.errors`
+==================
+
+.. py:module:: core.errors
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.errors.ReadFromClientError
+
+
+
+.. exception:: HTTPException(status, name, descr)
+
+
+   Bases: :class:`Exception`
+
+   Base-Class for all Exceptions that should match to an http error-code
+
+   .. method:: process(self)
+
+
+
+.. exception:: BadRequest(descr='The request your browser sent cannot be fulfilled due to bad syntax.')
+
+
+   Bases: :class:`core.errors.HTTPException`
+
+   BadRequest
+
+   Not used inside the server
+
+
+.. exception:: Redirect(url, descr='Redirect', status=303)
+
+
+   Bases: :class:`core.errors.HTTPException`
+
+   Causes an 303 - See Other (or 302 - Found if requested / 301 - Moved Permanently) redirect
+
+
+.. exception:: Unauthorized(descr="The resource is protected and you don't have the permissions.")
+
+
+   Bases: :class:`core.errors.HTTPException`
+
+   Unauthorized
+
+   Raised whenever a request hits an path protected by canAccess() or a canAdd/canEdit/... -Function inside
+   an application returns false.
+
+
+.. exception:: PaymentRequired(descr='Payment Required')
+
+
+   Bases: :class:`core.errors.HTTPException`
+
+   PaymentRequired
+
+   Not used inside the server. This status-code is reserved for further use and is currently not
+   supported by clients.
+
+
+.. exception:: Forbidden(descr="The resource is protected and you don't have the permissions.")
+
+
+   Bases: :class:`core.errors.HTTPException`
+
+   Forbidden
+
+   Not used inside the server. May be utilized in the future to distinguish between requests from
+   guests and users, who are logged in but don't have the permission.
+
+
+.. exception:: NotFound(descr='The requested resource could not be found.')
+
+
+   Bases: :class:`core.errors.HTTPException`
+
+   NotFound
+
+   Usually raised in view() methods from application if the given key is invalid.
+
+
+.. exception:: MethodNotAllowed(descr='Method Not Allowed')
+
+
+   Bases: :class:`core.errors.HTTPException`
+
+   MethodNotAllowed
+
+   Raised if a function is accessed which doesn't have the @exposed / @internalExposed decorator or
+   if the request arrived using get, but the function has the @forcePost flag.
+
+
+.. exception:: NotAcceptable(descr='The request cannot be processed due to missing or invalid parameters.')
+
+
+   Bases: :class:`core.errors.HTTPException`
+
+   NotAcceptable
+
+   Signals that the parameters supplied doesn't match the function signature
+
+
+.. exception:: RequestTimeout(descr='The request has timed out.')
+
+
+   Bases: :class:`core.errors.HTTPException`
+
+   RequestTimeout
+
+   This must be used for the task api to indicate it should retry
+
+
+.. exception:: Gone(descr='Gone')
+
+
+   Bases: :class:`core.errors.HTTPException`
+
+   Gone
+
+   Not used inside the server
+
+
+.. exception:: PreconditionFailed(descr='Precondition Failed')
+
+
+   Bases: :class:`core.errors.HTTPException`
+
+   PreconditionFailed
+
+   Mostly caused by a missing/invalid securitykey.
+
+
+.. exception:: RequestTooLarge(descr='Request Too Large')
+
+
+   Bases: :class:`core.errors.HTTPException`
+
+   RequestTooLarge
+
+   Not used inside the server
+
+
+.. exception:: Locked(descr='Ressource is Locked')
+
+
+   Bases: :class:`core.errors.HTTPException`
+
+   Locked
+
+   Raised if a resource cannot be deleted due to incomming relational locks
+
+
+.. exception:: Censored(descr='Unavailable For Legal Reasons')
+
+
+   Bases: :class:`core.errors.HTTPException`
+
+   Censored
+
+   Not used inside the server
+
+
+.. exception:: InternalServerError(descr='Internal Server Error')
+
+
+   Bases: :class:`core.errors.HTTPException`
+
+   InternalServerError
+
+   The catch-all error raised by the server if your code raises any python-exception not deriving from
+   HTTPException
+
+
+.. exception:: NotImplemented(descr='Not Implemented')
+
+
+   Bases: :class:`core.errors.HTTPException`
+
+   NotImplemented
+
+   Not really implemented at the moment :)
+
+
+.. exception:: BadGateway(descr='Bad Gateway')
+
+
+   Bases: :class:`core.errors.HTTPException`
+
+   BadGateway
+
+   Not used
+
+
+.. exception:: ServiceUnavailable(descr='Service Unavailable')
+
+
+   Bases: :class:`core.errors.HTTPException`
+
+   ServiceUnavailable
+
+   Raised if the flag "viur.disabled" in conf.sharedConf is set
+
+
+.. class:: ReadFromClientError(errors, forceFail=False)
+
+
+   Bases: :class:`object`
+
+   ReadFromClientError
+
+   Internal use only. Used as a **return-value** (its not raised!) to transport information on errors
+   from fromClient in bones to the surrounding skeleton class
+
+

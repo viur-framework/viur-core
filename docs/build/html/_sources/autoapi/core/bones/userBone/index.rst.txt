@@ -1,0 +1,37 @@
+:mod:`core.bones.userBone`
+==========================
+
+.. py:module:: core.bones.userBone
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.bones.userBone.userBone
+
+
+
+.. class:: userBone(creationMagic=False, updateMagic=False, visible=None, multiple=False, readOnly=False, *args, **kwargs)
+
+
+   Bases: :class:`viur.core.bones.relationalBone.relationalBone`
+
+   .. attribute:: kind
+      :annotation: = user
+
+      
+
+   .. attribute:: datafields
+      :annotation: = ['name']
+
+      
+
+   .. method:: performMagic(self, skel, key, isAdd, *args, **kwargs)
+
+
+

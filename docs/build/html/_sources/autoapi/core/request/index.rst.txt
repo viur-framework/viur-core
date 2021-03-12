@@ -1,0 +1,73 @@
+:mod:`core.request`
+===================
+
+.. py:module:: core.request
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.request.BrowseHandler
+
+
+
+.. class:: BrowseHandler(request: webob.Request, response: webob.Response)
+
+
+   This class accepts the requests, collect its parameters and routes the request
+   to its destination function.
+
+   :warning: Don't instantiate! Don't subclass! DON'T TOUCH! ;)
+
+   .. method:: redirect(self, uri, permanent=False, abort=False, code=None, body=None, request=None, response=None)
+
+      Issues an HTTP redirect to the given relative URI.
+
+      This won't stop code execution unless **abort** is True. A common
+      practice is to return when calling this method::
+
+              return redirect('/some-path')
+
+      :param uri:
+              A relative or absolute URI (e.g., ``'../flowers.html'``).
+      :param permanent:
+              If True, uses a 301 redirect instead of a 302 redirect.
+      :param abort:
+              If True, raises an exception to perform the redirect.
+      :param code:
+              The redirect status code. Supported codes are 301, 302, 303, 305,
+              and 307.  300 is not supported because it's not a real redirect
+              and 304 because it's the answer for a request with defined
+              ``If-Modified-Since`` headers.
+      :param body:
+              Response body, if any.
+      :param request:
+              Optional request object. If not set, uses :func:`get_request`.
+      :param response:
+              Optional response object. If not set, a new response is created.
+      :returns:
+              A :class:`Response` instance.
+
+
+   .. method:: selectLanguage(self, path: str)
+
+      Tries to select the best language for the current request.
+
+
+   .. method:: processRequest(self)
+
+      Bring up the enviroment for this request, start processing and handle errors
+
+
+   .. method:: findAndCall(self, path, *args, **kwargs)
+
+
+   .. method:: saveSession(self)
+
+
+

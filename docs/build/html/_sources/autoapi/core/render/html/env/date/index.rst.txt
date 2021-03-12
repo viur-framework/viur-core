@@ -1,0 +1,53 @@
+:mod:`core.render.html.env.date`
+================================
+
+.. py:module:: core.render.html.env.date
+
+
+Module Contents
+---------------
+
+
+Functions
+~~~~~~~~~
+
+.. autoapisummary::
+
+   core.render.html.env.date.dateTime
+   core.render.html.env.date.date
+   core.render.html.env.date.time
+   core.render.html.env.date.timedelta
+
+
+.. function:: dateTime(render)
+
+   Jinja2 global: Returns the datetime class
+
+   :return: datetime class
+   :rtype: datetime
+
+
+.. function:: date(render)
+
+   Jinja2 global: Returns the date class
+
+   :return: date class
+   :rtype: date
+
+
+.. function:: time(render)
+
+   Jinja2 global: Returns the time class
+
+   :return: time class
+   :rtype: time
+
+
+.. function:: timedelta(render)
+
+   Jinja2 global: Returns the timedelta class
+
+   :return: timedelta class
+   :rtype: timedelta
+
+

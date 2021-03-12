@@ -1,0 +1,269 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>RandomSliceBone &mdash; ViUR Core 3.0.0-b1 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/graphviz.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="SpatialBone" href="20_implementation_spatialBone.html" />
+    <link rel="prev" title="Relations" href="10_implementation_relations.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> ViUR Core
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                3.0.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">ViUR Core</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../doc_start/index.html">Getting started</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Reference Guide</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="05_implementation_consistency.html">Data consistency</a></li>
+<li class="toctree-l2"><a class="reference internal" href="10_implementation_relations.html">Relations</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">RandomSliceBone</a></li>
+<li class="toctree-l2"><a class="reference internal" href="20_implementation_spatialBone.html">SpatialBone</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../doc_tutorial/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../autoapi/index.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">ViUR Core</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="index.html">Reference Guide</a> &raquo;</li>
+        
+      <li>RandomSliceBone</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/doc_guide/15_implementation_randomSliceBone.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="randomslicebone">
+<h1>RandomSliceBone<a class="headerlink" href="#randomslicebone" title="Permalink to this headline">¶</a></h1>
+<p>Our randomSliceBone simulates the orderby=random known from traditional RDBM Systems ontop of the datastore.
+As the datastore does’t support retrieving a random set of elements, we’ll use the following approach to provide
+this functionality.</p>
+<p>If used, this bone writes a randomly chosen float from [0..1) along with the entry saved to the datastore.
+Each time the skeleton is updated, a new random value is shuffled for that entry.
+If we assume we have 15 entries in the datastore, the following image shows a possible distribution of these randomly
+chosen values.</p>
+<blockquote>
+<div><div class="align-center figure" id="id1">
+<img alt="Implemenation-Details for randomSliceBone" src="../_images/randomSliceBone1.png" />
+<p class="caption"><span class="caption-text">Example representation of our random float value from the 15 Entries</span><a class="headerlink" href="#id1" title="Permalink to this image">¶</a></p>
+</div>
+</div></blockquote>
+<p>Now, if a randomly chosen set of entries is requested by fetching a list with orderby=random
+(and we’ll assume amount=2 in this example), this bone shuffles a new random-value and queries the datastore for
+elements that are closest to that value. To increase randomness, it’s possible to shuffle multiple values and query
+the datastore for elements near them. In the following image, we have diced two values and query the datastore for the
+four closest elements on each.</p>
+<blockquote>
+<div><div class="align-center figure" id="id2">
+<img alt="Implemenation-Details for randomSliceBone" src="../_images/randomSliceBone2.png" />
+<p class="caption"><span class="caption-text">Example from above, with 2 randomly chosen slices and the entites we’ve fetched from the datastore</span><a class="headerlink" href="#id2" title="Permalink to this image">¶</a></p>
+</div>
+</div></blockquote>
+<p>So for each slice 2 subqueries are send to the datastore: Entities, which random property values are &lt;= our random value
+(sorted descending), and entities which random property is &gt; our random value (sorted ascending).</p>
+<p>To increase the randomness further, we’ve now fetched four times the amount of entities requested (requested amount
+is two, we’ve fetched 8 in total). So we can now simply return a random selection of these eight entries we’ve fetched.</p>
+<blockquote>
+<div><div class="align-center figure" id="id3">
+<img alt="Implemenation-Details for randomSliceBone" src="../_images/randomSliceBone3.png" />
+<p class="caption"><span class="caption-text">Entites actually returned in black</span><a class="headerlink" href="#id3" title="Permalink to this image">¶</a></p>
+</div>
+</div></blockquote>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In the default configuration of two slices and a sliceSize of 0.5, each request using orderby=random uses 2 times
+more datastore quota than a normal request. This can be reduced to a single db read overhead by setting slices=1
+and sliceSize=0.5. But this also reduces the actual randomness of the entities returned. On the other hand it’s
+possible to increase the randomness by increasing slices and/or sliceSize (which will use up more quota in turn).</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="20_implementation_spatialBone.html" class="btn btn-neutral float-right" title="SpatialBone" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="10_implementation_relations.html" class="btn btn-neutral float-left" title="Relations" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Mausbrand Informationssysteme GmbH.
+      <span class="lastupdated">
+        Last updated on Mar 12, 2021.
+      </span>
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

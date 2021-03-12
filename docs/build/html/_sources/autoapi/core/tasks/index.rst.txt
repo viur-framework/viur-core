@@ -1,0 +1,391 @@
+:mod:`core.tasks`
+=================
+
+.. py:module:: core.tasks
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.tasks.JsonKeyEncoder
+   core.tasks.CallableTaskBase
+   core.tasks.TaskHandler
+   core.tasks.MetaQueryIter
+   core.tasks.QueryIter
+
+
+
+Functions
+~~~~~~~~~
+
+.. autoapisummary::
+
+   core.tasks.jsonDecodeObjectHook
+   core.tasks.removePeriodicTask
+   core.tasks.noRetry
+   core.tasks.callDeferred
+   core.tasks.PeriodicTask
+   core.tasks.CallableTask
+   core.tasks.StartupTask
+   core.tasks.runStartupTasks
+
+
+.. class:: JsonKeyEncoder(*, skipkeys=False, ensure_ascii=True, check_circular=True, allow_nan=True, sort_keys=False, indent=None, separators=None, default=None)
+
+
+   Bases: :class:`json.JSONEncoder`
+
+   Add support for Keys in deferred tasks
+
+   .. method:: default(self, o: Any) -> Any
+
+      Implement this method in a subclass such that it returns
+      a serializable object for ``o``, or calls the base implementation
+      (to raise a ``TypeError``).
+
+      For example, to support arbitrary iterators, you could
+      implement default like this::
+
+          def default(self, o):
+              try:
+                  iterable = iter(o)
+              except TypeError:
+                  pass
+              else:
+                  return list(iterable)
+              # Let the base class default method raise the TypeError
+              return JSONEncoder.default(self, o)
+
+
+
+.. function:: jsonDecodeObjectHook(obj)
+
+   Inverse to JsonKeyEncoder: Check if the object matches a keymarker and parse it's key
+
+
+.. data:: _gaeApp
+   
+
+   
+
+.. data:: regionMap
+   
+
+   
+
+.. data:: queueRegion
+   
+
+   
+
+.. data:: regionPrefix
+   
+
+   
+
+.. data:: taskClient
+   
+
+   
+
+.. data:: _periodicTasks
+   :annotation: :Dict[str, Dict[Callable, int]]
+
+   
+
+.. data:: _callableTasks
+   
+
+   
+
+.. data:: _deferedTasks
+   
+
+   
+
+.. data:: _startupTasks
+   :annotation: = []
+
+   
+
+.. data:: _appengineServiceIPs
+   
+
+   
+
+.. exception:: PermanentTaskFailure
+
+
+   Bases: :class:`Exception`
+
+   Indicates that a task failed, and will never succeed.
+
+
+.. function:: removePeriodicTask(task: Callable) -> None
+
+   Removes a periodic task from the queue. Useful to unqueue an task
+   that has been inherited from an overridden module.
+
+
+.. class:: CallableTaskBase
+
+   Base class for user-callable tasks.
+   Must be subclassed.
+
+   .. attribute:: key
+      
+
+      
+
+   .. attribute:: name
+      
+
+      
+
+   .. attribute:: descr
+      
+
+      
+
+   .. attribute:: kindName
+      :annotation: = server-task
+
+      
+
+   .. method:: canCall(self)
+
+      Checks wherever the current user can execute this task
+      :returns: bool
+
+
+   .. method:: dataSkel(self)
+
+      If additional data is needed, return a skeleton-instance here.
+      These values are then passed to *execute*.
+
+
+   .. method:: execute(self)
+
+      The actual code that should be run goes here.
+
+
+
+.. class:: TaskHandler(moduleName, modulePath)
+
+
+   Task Handler.
+   Handles calling of Tasks (queued and periodic), and performs updatececks
+   Do not Modify. Do not Subclass.
+
+   .. attribute:: adminInfo
+      
+
+      
+
+   .. attribute:: retryCountWarningThreshold
+      :annotation: = 25
+
+      
+
+   .. attribute:: exposed
+      :annotation: = True
+
+      
+
+   .. attribute:: exposed
+      :annotation: = True
+
+      
+
+   .. attribute:: exposed
+      :annotation: = True
+
+      
+
+   .. attribute:: exposed
+      :annotation: = True
+
+      
+
+   .. attribute:: exposed
+      :annotation: = True
+
+      
+
+   .. method:: findBoundTask(self, task, obj=None, depth=0)
+
+      Tries to locate the instance, this function belongs to.
+      If it succeeds in finding it, it returns the function and its instance (-> its "self").
+      Otherwise, None is returned.
+      :param task: A callable decorated with @PeriodicTask
+      :type task: callable
+      :param obj: Object, which will be scanned in the current iteration. None means start at conf["viur.mainApp"].
+      :type obj: object
+      :param depth: Current iteration depth.
+      :type depth: int
+
+
+   .. method:: queryIter(self, *args, **kwargs)
+
+      This processes one chunk of a queryIter (see below).
+
+
+   .. method:: deferred(self, *args, **kwargs)
+
+      This catches one deferred call and routes it to its destination
+
+
+   .. method:: cron(self, cronName='default', *args, **kwargs)
+
+
+   .. method:: list(self, *args, **kwargs)
+
+      Lists all user-callable tasks which are callable by this user
+
+
+   .. method:: execute(self, taskID, *args, **kwargs)
+
+      Queues a specific task for the next maintenance run
+
+
+
+.. data:: admin
+   :annotation: = True
+
+   
+
+.. data:: vi
+   :annotation: = True
+
+   
+
+.. data:: html
+   :annotation: = True
+
+   
+
+.. function:: noRetry(f)
+
+   Prevents a deferred Function from being called a second time
+
+
+.. function:: callDeferred(func)
+
+   This is a decorator, which always calls the function deferred.
+   Unlike Googles implementation, this one works (with bound functions)
+
+
+.. function:: PeriodicTask(interval=0, cronName='default')
+
+   Decorator to call a function periodic during maintenance.
+   Interval defines a lower bound for the call-frequency for this task;
+   it will not be called faster than each interval minutes.
+   (Note that the actual delay between two sequent might be much larger)
+   :param interval: Call at most every interval minutes. 0 means call as often as possible.
+   :type interval: int
+
+
+.. function:: CallableTask(fn)
+
+   Marks a Class as representing a user-callable Task.
+   It *should* extend CallableTaskBase and *must* provide
+   its API
+
+
+.. function:: StartupTask(fn)
+
+   Functions decorated with this are called shortly at instance startup.
+   It's *not* guaranteed that they actually run on the instance that just started up!
+   Wrapped functions must not take any arguments.
+
+
+.. function:: runStartupTasks()
+
+   Runs all queued startupTasks.
+   Do not call directly!
+
+
+.. class:: MetaQueryIter(cls, name, bases, dct)
+
+
+   Bases: :class:`type`
+
+   This is the meta class for QueryIters.
+   Used only to keep track of all subclasses of QueryIter so we can emit the callbacks
+   on the correct class.
+
+   .. attribute:: _classCache
+      
+
+      
+
+
+.. class:: QueryIter
+
+   Bases: :class:`object`
+
+   BaseClass to run a database Query and process each entry matched.
+   This will run each step deferred, so it is possible to process an arbitrary number of entries
+   without being limited by time or memory.
+
+   To use this class create a subclass, override the classmethods handleEntry and handleFinish and then
+   call startIterOnQuery with an instance of a database Query (and possible some custom data to pass along)
+
+   .. attribute:: queueName
+      :annotation: = default
+
+      
+
+   .. method:: startIterOnQuery(cls, query: viur.core.db.Query, customData: Any = None) -> None
+      :classmethod:
+
+      Starts iterating the given query on this class. Will return immediately, the first batch will already
+      run deferred.
+
+      Warning: Any custom data *must* be json-serializable and *must* be passed in customData. You cannot store
+      any data on this class as each chunk may run on a different instance!
+
+
+   .. method:: _requeueStep(cls, qryDict: Dict[(str, Any)]) -> None
+      :classmethod:
+
+      Internal use only. Pushes a new step defined in qryDict to either the taskqueue or append it to
+      the current request     if we are on the local development server.
+
+
+   .. method:: _qryStep(cls, qryDict: Dict[(str, Any)]) -> None
+      :classmethod:
+
+      Internal use only. Processes one block of five entries from the query defined in qryDict and
+      reschedules the next block.
+
+
+   .. method:: handleEntry(cls, entry, customData)
+      :classmethod:
+
+      Overridable hook to process one entry. "entry" will be either an db.Entity or an
+      SkeletonInstance (if that query has been created by skel.all())
+
+      Warning: If your query has an sortOrder other than __key__ and you modify that property here
+      it is possible to encounter that object later one *again* (as it may jump behind the current cursor).
+
+
+   .. method:: handleFinish(cls, totalCount: int, customData)
+      :classmethod:
+
+      Overridable hook that indicates the current run has been finished.
+
+
+   .. method:: handleError(cls, entry, customData, exception) -> bool
+      :classmethod:
+
+      Handle a error occurred in handleEntry.
+      If this function returns True, the queryIter continues, otherwise it breaks and prints the current cursor.
+
+
+

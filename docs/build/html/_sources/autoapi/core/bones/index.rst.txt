@@ -1,0 +1,37 @@
+:mod:`core.bones`
+=================
+
+.. py:module:: core.bones
+
+
+Submodules
+----------
+.. toctree::
+   :titlesonly:
+   :maxdepth: 1
+
+   bone/index.rst
+   booleanBone/index.rst
+   captchaBone/index.rst
+   colorBone/index.rst
+   credentialBone/index.rst
+   dateBone/index.rst
+   emailBone/index.rst
+   fileBone/index.rst
+   keyBone/index.rst
+   numericBone/index.rst
+   passwordBone/index.rst
+   randomSliceBone/index.rst
+   rawValueBone/index.rst
+   recordBone/index.rst
+   relationalBone/index.rst
+   selectBone/index.rst
+   selectCountryBone/index.rst
+   spatialBone/index.rst
+   stringBone/index.rst
+   textBone/index.rst
+   treeLeafBone/index.rst
+   treeNodeBone/index.rst
+   userBone/index.rst
+
+

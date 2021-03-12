@@ -1,0 +1,260 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>Introduction &mdash; ViUR Core 3.0.0-b1 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/graphviz.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Getting started" href="10_start.html" />
+    <link rel="prev" title="Getting started" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> ViUR Core
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                3.0.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">ViUR Core</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Getting started</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Introduction</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#why-to-use-viur">Why to use ViUR?</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#who-should-use-viur">Who should use ViUR?</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#who-created-viur">Who created ViUR?</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#where-to-find-more-information">Where to find more information?</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="10_start.html">Getting started</a></li>
+<li class="toctree-l2"><a class="reference internal" href="15_basics.html">Basic concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="20_troubleshooting.html">Troubleshooting</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../doc_guide/index.html">Reference Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../doc_tutorial/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../autoapi/index.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">ViUR Core</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="index.html">Getting started</a> &raquo;</li>
+        
+      <li>Introduction</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/doc_start/05_intro.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="introduction">
+<h1>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h1>
+<p><a class="reference external" href="https://www.viur.dev">ViUR</a> is a free software development framework for the <a class="reference external" href="https://cloud.google.com/appengine/docs/python/">Google App Engine</a> platform.</p>
+<p>It provides a clear concept for implementing agile data management software that runs on top of the Google cloud platform. It is written in <a class="reference external" href="https://www.python.org/">Python</a> for a maximum flexibility and easy-to-manage code. Its underlying database is <a class="reference external" href="https://cloud.google.com/datastore/docs/concepts/overview">Google Cloud Datastore</a>, which is a scalable document database.</p>
+<p>The framework targets to the implementation of <em>information systems</em>, which are integrated, web-based applications or services performing data management and deployment operations of any kind. Therefore, ViUR is explicitly not claimed to be a content management system, although content management can be a part of a ViUR information system.</p>
+<div class="section" id="why-to-use-viur">
+<h2>Why to use ViUR?<a class="headerlink" href="#why-to-use-viur" title="Permalink to this headline">¶</a></h2>
+<p>Based on top of the Google Cloud Platform, ViUR provides a higher abstraction layer to easily write applications with quick results. It helps to manage data of any kind and for any purpose, to connect this data, to query it and to display it.</p>
+<p>It uses the well-known MVC design pattern to modularize the data model, the controller and the viewer layer. It heavily relies on the object-oriented aspects provided by the Python programming language, and comes with a lot of build-in functionality. Several pre-defined and extendible modules for various use cases, e.g. a user-module, a file-module or a order module for web-shops, help to rapidly implement new applications.</p>
+<p>The plugin-enabled data administration tools provided by ViUR automatically generate input masks from the data models, so no data management frontend development is required. Therefore, in early development stages, the definition of the data model and some module stubs suffices to setup a system with a basic data recording functionality.</p>
+</div>
+<div class="section" id="who-should-use-viur">
+<h2>Who should use ViUR?<a class="headerlink" href="#who-should-use-viur" title="Permalink to this headline">¶</a></h2>
+<p>ViUR is made for agile software development. The data model can be entirely changed during the development process without the loss of already captured information. The system can easily be extended to more, new modules, build-in functionality can be overridden, hooked and customized.</p>
+<p>The system is not only intended to be used by developers. With the use of <a class="reference external" href="http://jinja.pocoo.org/">Jinja</a> as its template engine for HTML, ViUR is also interesting for designers. A lot of build-in functions, a clear template implementation concept and a collection of macros for data rendering and dynamic input form creation help to connect their creative visions and ideas with a powerful software development framework.</p>
+</div>
+<div class="section" id="who-created-viur">
+<h2>Who created ViUR?<a class="headerlink" href="#who-created-viur" title="Permalink to this headline">¶</a></h2>
+<p>ViUR is developed and maintained by <a class="reference external" href="https://www.mausbrand.de/en">Mausbrand Informationssysteme GmbH</a>, a nice company from Dortmund, Germany.</p>
+<p>We are a software company consisting of young, enthusiastic software developers, designers and social media experts, working on exciting projects for different kinds of customers. All of our newer projects are implemented with ViUR, from tiny web-pages to huge company extranets with hundreds of users.</p>
+<p>Help of any kind to extend, improve and enhance this project in any kind or way is always appreciated.</p>
+</div>
+<div class="section" id="where-to-find-more-information">
+<h2>Where to find more information?<a class="headerlink" href="#where-to-find-more-information" title="Permalink to this headline">¶</a></h2>
+<p>This manual is intended to be the official documentation and reference manual for ViUR, and should be a place to start with. But don’t be afraid to talk to us and our community if you have questions or encounter problems.</p>
+<p>For individual questions or help, please visit our community landing page on <a class="reference external" href="https://www.viur.dev/community">viur.dev/community</a>. There you can find links to our Twitter account, IRC-channel or the Google Community page. We also refer to the <a class="reference external" href="https://github.com/viur-framework/server/wiki">ViUR server wiki</a> located at <a class="reference external" href="https://github.com/viur-framework">GitHub</a> for problem-oriented help.</p>
+<p>Bugs or feature requests can be submitted to the different ViUR components and their maintainers. Links and contacts can be found on <a class="reference external" href="https://www.viur.dev/development">viur.dev/development</a>.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="10_start.html" class="btn btn-neutral float-right" title="Getting started" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="index.html" class="btn btn-neutral float-left" title="Getting started" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Mausbrand Informationssysteme GmbH.
+      <span class="lastupdated">
+        Last updated on Mar 12, 2021.
+      </span>
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

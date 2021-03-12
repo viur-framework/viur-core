@@ -1,0 +1,295 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>core.securitykey &mdash; ViUR Core 3.0.0-b1 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/graphviz.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> ViUR Core
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                3.0.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">ViUR Core</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../doc_start/index.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../doc_guide/index.html">Reference Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../doc_tutorial/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">ViUR Core</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.securitykey</span></code></li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../../../_sources/autoapi/core/securitykey/index.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-core.securitykey">
+<span id="core-securitykey"></span><h1><a class="reference internal" href="#module-core.securitykey" title="core.securitykey"><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.securitykey</span></code></a><a class="headerlink" href="#module-core.securitykey" title="Permalink to this headline">¶</a></h1>
+<p>This module provides onetime keys. Such a Securitykey can only be used once to authenticate an action like
+edit an entry. Unless specified otherwise, keys are bound to a session. This prevents such actions from beeing
+executed without explicit user consent so an attacker can’t send special crafted links (like /user/delete/xxx)
+to a authenticated user as these links would lack a valid securityKey.</p>
+<p>Its also possible to store data along with a securityKey and specify a lifeTime.</p>
+<div class="section" id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="functions">
+<h3>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.securitykey.create" title="core.securitykey.create"><code class="xref py py-obj docutils literal notranslate"><span class="pre">create</span></code></a>(duration: Union[(None, int)] = None, **kwargs)</p></td>
+<td><p>Creates a new onetime Securitykey for the current session</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.securitykey.validate" title="core.securitykey.validate"><code class="xref py py-obj docutils literal notranslate"><span class="pre">validate</span></code></a>(key: str, useSessionKey: bool) → Union[(bool, db.Entity)]</p></td>
+<td><p>Validates a onetime securitykey</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.securitykey.startClearSKeys" title="core.securitykey.startClearSKeys"><code class="xref py py-obj docutils literal notranslate"><span class="pre">startClearSKeys</span></code></a>()</p></td>
+<td><p>Removes old (expired) skeys</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.securitykey.doClearSKeys" title="core.securitykey.doClearSKeys"><code class="xref py py-obj docutils literal notranslate"><span class="pre">doClearSKeys</span></code></a>(timeStamp, cursor)</p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py data">
+<dt id="core.securitykey.securityKeyKindName">
+<code class="sig-prename descclassname"><span class="pre">core.securitykey.</span></code><code class="sig-name descname"><span class="pre">securityKeyKindName</span></code><em class="property"> <span class="pre">=</span> <span class="pre">viur-securitykeys</span></em><a class="headerlink" href="#core.securitykey.securityKeyKindName" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="core.securitykey.create">
+<code class="sig-prename descclassname"><span class="pre">core.securitykey.</span></code><code class="sig-name descname"><span class="pre">create</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">duration</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.securitykey.create" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a new onetime Securitykey for the current session
+If duration is not set, this key is valid only for the current session.
+Otherwise, the key and its data is serialized and saved inside the datastore
+for up to duration-seconds</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>duration</strong> (<em>int</em><em> or </em><em>None</em>) – Make this key valid for a fixed timeframe (and independend of the current session)</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The new onetime key</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.securitykey.validate">
+<code class="sig-prename descclassname"><span class="pre">core.securitykey.</span></code><code class="sig-name descname"><span class="pre">validate</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">useSessionKey</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">bool</span><span class="p"><span class="pre">,</span> </span><span class="pre">db.Entity</span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#core.securitykey.validate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validates a onetime securitykey</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>key</strong> (<em>str</em>) – The key to validate</p></li>
+<li><p><strong>useSessionKey</strong> (<em>Bool</em>) – If True, we validate against the session’s skey, otherwise we’ll lookup an unbound key</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>False if the key was not valid for whatever reasons, the data (given during createSecurityKey) as dictionary or True if the dict is empty.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.securitykey.startClearSKeys">
+<code class="sig-prename descclassname"><span class="pre">core.securitykey.</span></code><code class="sig-name descname"><span class="pre">startClearSKeys</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#core.securitykey.startClearSKeys" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes old (expired) skeys</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.securitykey.doClearSKeys">
+<code class="sig-prename descclassname"><span class="pre">core.securitykey.</span></code><code class="sig-name descname"><span class="pre">doClearSKeys</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timeStamp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cursor</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.securitykey.doClearSKeys" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Mausbrand Informationssysteme GmbH.
+      <span class="lastupdated">
+        Last updated on Mar 12, 2021.
+      </span>
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

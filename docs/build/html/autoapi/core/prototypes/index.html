@@ -1,0 +1,1799 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>core.prototypes &mdash; ViUR Core 3.0.0-b1 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/graphviz.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> ViUR Core
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                3.0.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">ViUR Core</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../doc_start/index.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../doc_guide/index.html">Reference Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../doc_tutorial/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">ViUR Core</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.prototypes</span></code></li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../../../_sources/autoapi/core/prototypes/index.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-core.prototypes">
+<span id="core-prototypes"></span><h1><a class="reference internal" href="#module-core.prototypes" title="core.prototypes"><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.prototypes</span></code></a><a class="headerlink" href="#module-core.prototypes" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="basic/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.prototypes.basic</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="list/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.prototypes.list</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="singleton/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.prototypes.singleton</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="tree/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.prototypes.tree</span></code></a></li>
+</ul>
+</div>
+</div>
+<div class="section" id="package-contents">
+<h2>Package Contents<a class="headerlink" href="#package-contents" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="classes">
+<h3>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.prototypes.BasicApplication" title="core.prototypes.BasicApplication"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BasicApplication</span></code></a></p></td>
+<td><p>BasicApplication is a generic class serving as the base for the four BasicApplications.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.prototypes.List" title="core.prototypes.List"><code class="xref py py-obj docutils literal notranslate"><span class="pre">List</span></code></a></p></td>
+<td><p>List is a ViUR BasicApplication.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.prototypes.Singleton" title="core.prototypes.Singleton"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Singleton</span></code></a></p></td>
+<td><p>Singleton is a ViUR BasicApplication.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.prototypes.Tree" title="core.prototypes.Tree"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Tree</span></code></a></p></td>
+<td><p>Tree is a ViUR BasicApplication.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.prototypes.TreeSkel" title="core.prototypes.TreeSkel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">TreeSkel</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt id="core.prototypes.BasicApplication">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.prototypes.</span></code><code class="sig-name descname"><span class="pre">BasicApplication</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">moduleName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">modulePath</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.BasicApplication" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>BasicApplication is a generic class serving as the base for the four BasicApplications.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Variables</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference internal" href="#core.prototypes.BasicApplication.kindName" title="core.prototypes.BasicApplication.kindName"><strong>kindName</strong></a> (<em>str</em>) – Name of the kind of data entities that are managed by the application.  This information is used to bind a specific <code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>-class to the      application. For more information, refer to the function <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code>.</p></li>
+<li><p><a class="reference internal" href="../render/index.html#module-core.render" title="core.render"><strong>render</strong></a> – will be set to the appropriate render instance at runtime</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt id="core.prototypes.BasicApplication.kindName">
+<code class="sig-name descname"><span class="pre">kindName</span></code><a class="headerlink" href="#core.prototypes.BasicApplication.kindName" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.prototypes.BasicApplication.adminInfo">
+<code class="sig-name descname"><span class="pre">adminInfo</span></code><a class="headerlink" href="#core.prototypes.BasicApplication.adminInfo" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.prototypes.BasicApplication.accessRights">
+<code class="sig-name descname"><span class="pre">accessRights</span></code><a class="headerlink" href="#core.prototypes.BasicApplication.accessRights" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.BasicApplication._resolveSkelCls">
+<code class="sig-name descname"><span class="pre">_resolveSkelCls</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.BasicApplication._resolveSkelCls" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve the generally associated <code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code> that is used by
+the application.</p>
+<p>This is either be defined by the member variable <em>kindName</em> or by a Skeleton named like the
+application class in lower-case order.</p>
+<p>If this behavior is not wanted, it can be definitely overridden by defining module-specific
+<code class="xref py py-func docutils literal notranslate"><span class="pre">viewSkel()</span></code>,:func:<cite>addSkel</cite>, or <code class="xref py py-func docutils literal notranslate"><span class="pre">editSkel()</span></code> functions, or by overriding this
+function in general.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Returns a Skeleton instance that matches the application.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>server.skeleton.Skeleton</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.prototypes.List">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.prototypes.</span></code><code class="sig-name descname"><span class="pre">List</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">moduleName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">modulePath</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">viur.core.prototypes.BasicApplication</span></code></p>
+<p>List is a ViUR BasicApplication.</p>
+<p>It is used for multiple data entities of the same kind, and needs to be sub-classed for individual
+modules.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Variables</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference internal" href="../modules/file/index.html#core.modules.file.fileBaseSkel.kindName" title="core.modules.file.fileBaseSkel.kindName"><strong>kindName</strong></a> (<em>str</em>) – Name of the kind of data entities that are managed by the application.  This information is used to bind a specific <code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>-class to the      application. For more information, refer to the function <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code>.</p></li>
+<li><p><a class="reference internal" href="#core.prototypes.List.adminInfo" title="core.prototypes.List.adminInfo"><strong>adminInfo</strong></a> (<em>dict | callable</em>) – todo short info on how to use adminInfo.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt id="core.prototypes.List.accessRights">
+<code class="sig-name descname"><span class="pre">accessRights</span></code><em class="property"> <span class="pre">=</span> <span class="pre">['add',</span> <span class="pre">'edit',</span> <span class="pre">'view',</span> <span class="pre">'delete']</span></em><a class="headerlink" href="#core.prototypes.List.accessRights" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.adminInfo">
+<code class="sig-name descname"><span class="pre">adminInfo</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.adminInfo" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.viewSkel">
+<code class="sig-name descname"><span class="pre">viewSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.viewSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve a new instance of a <code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code> that is used by the application
+for viewing an existing entry from the list.</p>
+<p>The default is a Skeleton instance returned by <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code>.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.List.addSkel" title="core.prototypes.List.addSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">addSkel()</span></code></a>, <a class="reference internal" href="#core.prototypes.List.editSkel" title="core.prototypes.List.editSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">editSkel()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Returns a Skeleton instance for viewing an entry.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>server.skeleton.Skeleton</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.addSkel">
+<code class="sig-name descname"><span class="pre">addSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.addSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve a new instance of a <code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code> that is used by the application
+for adding an entry to the list.</p>
+<p>The default is a Skeleton instance returned by <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code>.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.List.viewSkel" title="core.prototypes.List.viewSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">viewSkel()</span></code></a>, <a class="reference internal" href="#core.prototypes.List.editSkel" title="core.prototypes.List.editSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">editSkel()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Returns a Skeleton instance for adding an entry.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>server.skeleton.Skeleton</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.editSkel">
+<code class="sig-name descname"><span class="pre">editSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.editSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve a new instance of a <code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code> that is used by the application
+for editing an existing entry from the list.</p>
+<p>The default is a Skeleton instance returned by <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code>.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.List.viewSkel" title="core.prototypes.List.viewSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">viewSkel()</span></code></a>, <a class="reference internal" href="#core.prototypes.List.editSkel" title="core.prototypes.List.editSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">editSkel()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Returns a Skeleton instance for editing an entry.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>server.skeleton.Skeleton</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.preview">
+<code class="sig-name descname"><span class="pre">preview</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skey</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.preview" title="Permalink to this definition">¶</a></dt>
+<dd><p>Renders data for an entry, without reading from the database.
+This function allows to preview an entry without writing it to the database.</p>
+<p>Any entity values are provided via <em>kwargs</em>.</p>
+<p>The function uses the viewTemplate of the application.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The rendered representation of the the supplied data.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.view">
+<code class="sig-name descname"><span class="pre">view</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.view" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prepares and renders a single entry for viewing.</p>
+<p>The entry is fetched by its entity key, which either is provided via <em>kwargs[“key”]</em>,
+or as the first parameter in <em>args</em>. The function performs several access control checks
+on the requested entity before it is rendered.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.List.viewSkel" title="core.prototypes.List.viewSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">viewSkel()</span></code></a>, <a class="reference internal" href="#core.prototypes.List.canView" title="core.prototypes.List.canView"><code class="xref py py-func docutils literal notranslate"><span class="pre">canView()</span></code></a>, <a class="reference internal" href="#core.prototypes.List.onView" title="core.prototypes.List.onView"><code class="xref py py-func docutils literal notranslate"><span class="pre">onView()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The rendered representation of the requested entity.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.NotAcceptable</span></code>, when no <em>key</em> is provided.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.NotFound</span></code>, when no entry with the given <em>key</em> was found.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.Unauthorized</span></code>, if the current user does not have the required permissions.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.list">
+<code class="sig-name descname"><span class="pre">list</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prepares and renders a list of entries.</p>
+<p>All supplied parameters are interpreted as filters for the elements displayed.</p>
+<p>Unlike other ViUR BasicApplications, the access control in this function is performed
+by calling the function <a class="reference internal" href="#core.prototypes.List.listFilter" title="core.prototypes.List.listFilter"><code class="xref py py-func docutils literal notranslate"><span class="pre">listFilter()</span></code></a>, which updates the query-filter to match only
+elements which the user is allowed to see.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.List.listFilter" title="core.prototypes.List.listFilter"><code class="xref py py-func docutils literal notranslate"><span class="pre">listFilter()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">server.db.mergeExternalFilter()</span></code></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The rendered list objects for the matching entries.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.Unauthorized</span></code>, if the current user does not have the required permissions.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.edit">
+<code class="sig-name descname"><span class="pre">edit</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.edit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
+Data is taken by any other arguments in <em>kwargs</em>.</p>
+<p>The entry is fetched by its entity key, which either is provided via <em>kwargs[“key”]</em>,
+or as the first parameter in <em>args</em>. The function performs several access control checks
+on the requested entity before it is modified.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.List.editSkel" title="core.prototypes.List.editSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">editSkel()</span></code></a>, <a class="reference internal" href="#core.prototypes.List.onEdit" title="core.prototypes.List.onEdit"><code class="xref py py-func docutils literal notranslate"><span class="pre">onEdit()</span></code></a>, <a class="reference internal" href="#core.prototypes.List.onEdited" title="core.prototypes.List.onEdited"><code class="xref py py-func docutils literal notranslate"><span class="pre">onEdited()</span></code></a>, <a class="reference internal" href="#core.prototypes.List.canEdit" title="core.prototypes.List.canEdit"><code class="xref py py-func docutils literal notranslate"><span class="pre">canEdit()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The rendered, edited object of the entry, eventually with error hints.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.NotAcceptable</span></code>, when no <em>key</em> is provided.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.NotFound</span></code>, when no entry with the given <em>key</em> was found.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.Unauthorized</span></code>, if the current user does not have the required permissions.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.PreconditionFailed</span></code>, if the <em>skey</em> could not be verified.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.add">
+<code class="sig-name descname"><span class="pre">add</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.add" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a new entry, and render the entry, eventually with error notes on incorrect data.
+Data is taken by any other arguments in <em>kwargs</em>.</p>
+<p>The function performs several access control checks on the requested entity before it is added.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.List.addSkel" title="core.prototypes.List.addSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">addSkel()</span></code></a>, <a class="reference internal" href="#core.prototypes.List.onAdd" title="core.prototypes.List.onAdd"><code class="xref py py-func docutils literal notranslate"><span class="pre">onAdd()</span></code></a>, <a class="reference internal" href="#core.prototypes.List.onAdded" title="core.prototypes.List.onAdded"><code class="xref py py-func docutils literal notranslate"><span class="pre">onAdded()</span></code></a>, <a class="reference internal" href="#core.prototypes.List.canAdd" title="core.prototypes.List.canAdd"><code class="xref py py-func docutils literal notranslate"><span class="pre">canAdd()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The rendered, added object of the entry, eventually with error hints.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.Unauthorized</span></code>, if the current user does not have the required permissions.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.PreconditionFailed</span></code>, if the <em>skey</em> could not be verified.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.delete">
+<code class="sig-name descname"><span class="pre">delete</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skey</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.delete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete an entry.</p>
+<p>The function runs several access control checks on the data before it is deleted.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.List.canDelete" title="core.prototypes.List.canDelete"><code class="xref py py-func docutils literal notranslate"><span class="pre">canDelete()</span></code></a>, <a class="reference internal" href="#core.prototypes.List.editSkel" title="core.prototypes.List.editSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">editSkel()</span></code></a>, <a class="reference internal" href="#core.prototypes.List.onDeleted" title="core.prototypes.List.onDeleted"><code class="xref py py-func docutils literal notranslate"><span class="pre">onDeleted()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The rendered, deleted object of the entry.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.NotFound</span></code>, when no entry with the given <em>key</em> was found.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.Unauthorized</span></code>, if the current user does not have the required permissions.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.PreconditionFailed</span></code>, if the <em>skey</em> could not be verified.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.index">
+<code class="sig-name descname"><span class="pre">index</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.index" title="Permalink to this definition">¶</a></dt>
+<dd><p>Default, SEO-Friendly fallback for view and list.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>args</strong> – </p></li>
+<li><p><strong>kwargs</strong> – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.getDefaultListParams">
+<code class="sig-name descname"><span class="pre">getDefaultListParams</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.getDefaultListParams" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.listFilter">
+<code class="sig-name descname"><span class="pre">listFilter</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.listFilter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access control function on item listing.</p>
+<p>This function is invoked by the <a class="reference internal" href="list/index.html#module-core.prototypes.list" title="core.prototypes.list"><code class="xref py py-func docutils literal notranslate"><span class="pre">list()</span></code></a> renderer and the related Jinja2 fetching function,
+and is used to modify the provided filter parameter to match only items that the current user
+is allowed to see.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>filter</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.db.Query</span></code>) – Query which should be altered.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The altered filter, or None if access is not granted.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.canView">
+<code class="sig-name descname"><span class="pre">canView</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.skeleton.SkeletonInstance</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">bool</span><a class="headerlink" href="#core.prototypes.List.canView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks if the current user can view the given entry.
+Should be identical to what’s allowed by listFilter.
+By default, <cite>meth:listFilter</cite> is used to determine what’s allowed and whats not; but this
+method can be overridden for performance improvements (to eliminate that additional database access).
+:param skel: The entry we check for
+:return: True if the current session is authorized to view that entry, False otherwise</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.canAdd">
+<code class="sig-name descname"><span class="pre">canAdd</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.canAdd" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access control function for adding permission.</p>
+<p>Checks if the current user has the permission to add a new entry.</p>
+<p>The default behavior is:
+- If no user is logged in, adding is generally refused.
+- If the user has “root” access, adding is generally allowed.
+- If the user has the modules “add” permission (module-add) enabled, adding is allowed.</p>
+<p>It should be overridden for a module-specific behavior.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.List.add" title="core.prototypes.List.add"><code class="xref py py-func docutils literal notranslate"><span class="pre">add()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>True, if adding entries is allowed, False otherwise.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.canPreview">
+<code class="sig-name descname"><span class="pre">canPreview</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.canPreview" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access control function for preview permission.</p>
+<p>Checks if the current user has the permission to preview an entry.</p>
+<p>The default behavior is:
+- If no user is logged in, previewing is generally refused.
+- If the user has “root” access, previewing is generally allowed.
+- If the user has the modules “add” or “edit” permission (module-add, module-edit) enabled,             previewing is allowed.</p>
+<p>It should be overridden for module-specific behavior.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.List.preview" title="core.prototypes.List.preview"><code class="xref py py-func docutils literal notranslate"><span class="pre">preview()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>True, if previewing entries is allowed, False otherwise.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.canEdit">
+<code class="sig-name descname"><span class="pre">canEdit</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.skeleton.SkeletonInstance</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.canEdit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access control function for modification permission.</p>
+<p>Checks if the current user has the permission to edit an entry.</p>
+<p>The default behavior is:
+- If no user is logged in, editing is generally refused.
+- If the user has “root” access, editing is generally allowed.
+- If the user has the modules “edit” permission (module-edit) enabled, editing is allowed.</p>
+<p>It should be overridden for a module-specific behavior.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.List.edit" title="core.prototypes.List.edit"><code class="xref py py-func docutils literal notranslate"><span class="pre">edit()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that should be edited.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>True, if editing entries is allowed, False otherwise.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.canDelete">
+<code class="sig-name descname"><span class="pre">canDelete</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.skeleton.SkeletonInstance</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">bool</span><a class="headerlink" href="#core.prototypes.List.canDelete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access control function for delete permission.</p>
+<p>Checks if the current user has the permission to delete an entry.</p>
+<p>The default behavior is:
+- If no user is logged in, deleting is generally refused.
+- If the user has “root” access, deleting is generally allowed.
+- If the user has the modules “deleting” permission (module-delete) enabled,             deleting is allowed.</p>
+<p>It should be overridden for a module-specific behavior.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that should be deleted.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.List.delete" title="core.prototypes.List.delete"><code class="xref py py-func docutils literal notranslate"><span class="pre">delete()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>True, if deleting entries is allowed, False otherwise.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.onAdd">
+<code class="sig-name descname"><span class="pre">onAdd</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.skeleton.SkeletonInstance</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.onAdd" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook function that is called before adding an entry.</p>
+<p>It can be overridden for a module-specific behavior.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that is going to be added.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.List.add" title="core.prototypes.List.add"><code class="xref py py-func docutils literal notranslate"><span class="pre">add()</span></code></a>, <a class="reference internal" href="#core.prototypes.List.onAdded" title="core.prototypes.List.onAdded"><code class="xref py py-func docutils literal notranslate"><span class="pre">onAdded()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.onAdded">
+<code class="sig-name descname"><span class="pre">onAdded</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.skeleton.SkeletonInstance</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.onAdded" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook function that is called after adding an entry.</p>
+<p>It should be overridden for a module-specific behavior.
+The default is writing a log entry.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that has been added.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.List.add" title="core.prototypes.List.add"><code class="xref py py-func docutils literal notranslate"><span class="pre">add()</span></code></a>, , <a class="reference internal" href="#core.prototypes.List.onAdd" title="core.prototypes.List.onAdd"><code class="xref py py-func docutils literal notranslate"><span class="pre">onAdd()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.onEdit">
+<code class="sig-name descname"><span class="pre">onEdit</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.skeleton.SkeletonInstance</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.onEdit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook function that is called before editing an entry.</p>
+<p>It can be overridden for a module-specific behavior.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that is going to be edited.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.List.edit" title="core.prototypes.List.edit"><code class="xref py py-func docutils literal notranslate"><span class="pre">edit()</span></code></a>, <a class="reference internal" href="#core.prototypes.List.onEdited" title="core.prototypes.List.onEdited"><code class="xref py py-func docutils literal notranslate"><span class="pre">onEdited()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.onEdited">
+<code class="sig-name descname"><span class="pre">onEdited</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.skeleton.SkeletonInstance</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.onEdited" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook function that is called after modifying an entry.</p>
+<p>It should be overridden for a module-specific behavior.
+The default is writing a log entry.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that has been modified.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.List.edit" title="core.prototypes.List.edit"><code class="xref py py-func docutils literal notranslate"><span class="pre">edit()</span></code></a>, <a class="reference internal" href="#core.prototypes.List.onEdit" title="core.prototypes.List.onEdit"><code class="xref py py-func docutils literal notranslate"><span class="pre">onEdit()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.onView">
+<code class="sig-name descname"><span class="pre">onView</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.skeleton.SkeletonInstance</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.onView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook function that is called when viewing an entry.</p>
+<p>It should be overridden for a module-specific behavior.
+The default is doing nothing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that is viewed.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.List.view" title="core.prototypes.List.view"><code class="xref py py-func docutils literal notranslate"><span class="pre">view()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.onDelete">
+<code class="sig-name descname"><span class="pre">onDelete</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.skeleton.SkeletonInstance</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.onDelete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook function that is called before deleting an entry.</p>
+<p>It can be overridden for a module-specific behavior.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that is going to be deleted.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.List.delete" title="core.prototypes.List.delete"><code class="xref py py-func docutils literal notranslate"><span class="pre">delete()</span></code></a>, <a class="reference internal" href="#core.prototypes.List.onDeleted" title="core.prototypes.List.onDeleted"><code class="xref py py-func docutils literal notranslate"><span class="pre">onDeleted()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.List.onDeleted">
+<code class="sig-name descname"><span class="pre">onDeleted</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.skeleton.SkeletonInstance</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.List.onDeleted" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook function that is called after deleting an entry.</p>
+<p>It should be overridden for a module-specific behavior.
+The default is writing a log entry.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that has been deleted.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.List.delete" title="core.prototypes.List.delete"><code class="xref py py-func docutils literal notranslate"><span class="pre">delete()</span></code></a>, <a class="reference internal" href="#core.prototypes.List.onDelete" title="core.prototypes.List.onDelete"><code class="xref py py-func docutils literal notranslate"><span class="pre">onDelete()</span></code></a></p>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.prototypes.Singleton">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.prototypes.</span></code><code class="sig-name descname"><span class="pre">Singleton</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">moduleName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">modulePath</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Singleton" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">viur.core.prototypes.BasicApplication</span></code></p>
+<p>Singleton is a ViUR BasicApplication.</p>
+<p>It is used to store one single data entity, and needs to be sub-classed for individual modules.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Variables</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference internal" href="../modules/file/index.html#core.modules.file.fileBaseSkel.kindName" title="core.modules.file.fileBaseSkel.kindName"><strong>kindName</strong></a> (<em>str</em>) – Name of the kind of data entities that are managed by the application.  This information is used to bind a specific <code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>-class to the      application. For more information, refer to the function <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code>.</p></li>
+<li><p><a class="reference internal" href="#core.prototypes.Singleton.adminInfo" title="core.prototypes.Singleton.adminInfo"><strong>adminInfo</strong></a> (<em>dict | callable</em>) – todo short info on how to use adminInfo.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt id="core.prototypes.Singleton.accessRights">
+<code class="sig-name descname"><span class="pre">accessRights</span></code><em class="property"> <span class="pre">=</span> <span class="pre">['edit',</span> <span class="pre">'view']</span></em><a class="headerlink" href="#core.prototypes.Singleton.accessRights" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Singleton.adminInfo">
+<code class="sig-name descname"><span class="pre">adminInfo</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Singleton.adminInfo" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Singleton.getKey">
+<code class="sig-name descname"><span class="pre">getKey</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Singleton.getKey" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the DB-Key for the current context.</p>
+<p>This implementation provides one module-global key.
+It <em>must</em> return <em>exactly one</em> key at any given time in any given context.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Current context DB-key</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Singleton.viewSkel">
+<code class="sig-name descname"><span class="pre">viewSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Singleton.viewSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve a new instance of a <code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code> that is used by the application
+for viewing the existing entry.</p>
+<p>The default is a Skeleton instance returned by <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code>.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><code class="xref py py-func docutils literal notranslate"><span class="pre">addSkel()</span></code>, <a class="reference internal" href="#core.prototypes.Singleton.editSkel" title="core.prototypes.Singleton.editSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">editSkel()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Returns a Skeleton instance for viewing the singleton entry.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>server.skeleton.Skeleton</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Singleton.editSkel">
+<code class="sig-name descname"><span class="pre">editSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Singleton.editSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve a new instance of a <code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code> that is used by the application
+for editing the existing entry.</p>
+<p>The default is a Skeleton instance returned by <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code>.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Singleton.viewSkel" title="core.prototypes.Singleton.viewSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">viewSkel()</span></code></a>, <a class="reference internal" href="#core.prototypes.Singleton.editSkel" title="core.prototypes.Singleton.editSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">editSkel()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Returns a Skeleton instance for editing the entry.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>server.skeleton.Skeleton</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Singleton.preview">
+<code class="sig-name descname"><span class="pre">preview</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skey</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Singleton.preview" title="Permalink to this definition">¶</a></dt>
+<dd><p>Renders data for the entry, without reading it from the database.
+This function allows to preview the entry without writing it to the database.</p>
+<p>Any entity values are provided via <em>kwargs</em>.</p>
+<p>The function uses the viewTemplate of the application.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The rendered representation of the supplied data.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Singleton.view">
+<code class="sig-name descname"><span class="pre">view</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Singleton.view" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prepares and renders the singleton entry for viewing.</p>
+<p>The function performs several access control checks on the requested entity before it is rendered.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Singleton.viewSkel" title="core.prototypes.Singleton.viewSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">viewSkel()</span></code></a>, <a class="reference internal" href="#core.prototypes.Singleton.canView" title="core.prototypes.Singleton.canView"><code class="xref py py-func docutils literal notranslate"><span class="pre">canView()</span></code></a>, <a class="reference internal" href="#core.prototypes.Singleton.onView" title="core.prototypes.Singleton.onView"><code class="xref py py-func docutils literal notranslate"><span class="pre">onView()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The rendered representation of the entity.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.NotFound</span></code>, if there is no singleton entry existing, yet.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.Unauthorized</span></code>, if the current user does not have the required permissions.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Singleton.edit">
+<code class="sig-name descname"><span class="pre">edit</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Singleton.edit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Modify the existing entry, and render the entry, eventually with error notes on incorrect data.</p>
+<p>The entry is fetched by its entity key, which either is provided via <em>kwargs[“key”]</em>,
+or as the first parameter in <em>args</em>. The function performs several access control checks
+on the singleton’s entity before it is modified.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Singleton.editSkel" title="core.prototypes.Singleton.editSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">editSkel()</span></code></a>, <a class="reference internal" href="#core.prototypes.Singleton.onEdited" title="core.prototypes.Singleton.onEdited"><code class="xref py py-func docutils literal notranslate"><span class="pre">onEdited()</span></code></a>, <a class="reference internal" href="#core.prototypes.Singleton.canEdit" title="core.prototypes.Singleton.canEdit"><code class="xref py py-func docutils literal notranslate"><span class="pre">canEdit()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The rendered, edited object of the entry, eventually with error hints.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.Unauthorized</span></code>, if the current user does not have the required permissions.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.PreconditionFailed</span></code>, if the <em>skey</em> could not be verified.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Singleton.getContents">
+<code class="sig-name descname"><span class="pre">getContents</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Singleton.getContents" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the entity of this singleton application as <code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code> object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The content as Skeleton provided by <a class="reference internal" href="#core.prototypes.Singleton.viewSkel" title="core.prototypes.Singleton.viewSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">viewSkel()</span></code></a>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Singleton.canPreview">
+<code class="sig-name descname"><span class="pre">canPreview</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Singleton.canPreview" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access control function for preview permission.</p>
+<p>Checks if the current user has the permission to preview the singletons entry.</p>
+<p>The default behavior is:
+- If no user is logged in, previewing is generally refused.
+- If the user has “root” access, previewing is generally allowed.
+- If the user has the modules “edit” permission (module-edit) enabled,          previewing is allowed.</p>
+<p>It should be overridden for a module-specific behavior.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Singleton.preview" title="core.prototypes.Singleton.preview"><code class="xref py py-func docutils literal notranslate"><span class="pre">preview()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>True, if previewing entries is allowed, False otherwise.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Singleton.canEdit">
+<code class="sig-name descname"><span class="pre">canEdit</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Singleton.canEdit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access control function for modification permission.</p>
+<p>Checks if the current user has the permission to edit the singletons entry.</p>
+<p>The default behavior is:
+- If no user is logged in, editing is generally refused.
+- If the user has “root” access, editing is generally allowed.
+- If the user has the modules “edit” permission (module-edit) enabled, editing is allowed.</p>
+<p>It should be overridden for a module-specific behavior.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Singleton.edit" title="core.prototypes.Singleton.edit"><code class="xref py py-func docutils literal notranslate"><span class="pre">edit()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>True, if editing is allowed, False otherwise.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Singleton.canView">
+<code class="sig-name descname"><span class="pre">canView</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Singleton.canView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access control function for viewing permission.</p>
+<p>Checks if the current user has the permission to view the singletons entry.</p>
+<p>The default behavior is:
+- If no user is logged in, viewing is generally refused.
+- If the user has “root” access, viewing is generally allowed.
+- If the user has the modules “view” permission (module-view) enabled, viewing is allowed.</p>
+<p>It should be overridden for a module-specific behavior.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Singleton.view" title="core.prototypes.Singleton.view"><code class="xref py py-func docutils literal notranslate"><span class="pre">view()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that should be viewed.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>True, if viewing is allowed, False otherwise.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Singleton.onEdit">
+<code class="sig-name descname"><span class="pre">onEdit</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Singleton.onEdit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook function that is called before editing an entry.</p>
+<p>It can be overridden for a module-specific behavior.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that is going to be edited.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Singleton.edit" title="core.prototypes.Singleton.edit"><code class="xref py py-func docutils literal notranslate"><span class="pre">edit()</span></code></a>, <a class="reference internal" href="#core.prototypes.Singleton.onEdited" title="core.prototypes.Singleton.onEdited"><code class="xref py py-func docutils literal notranslate"><span class="pre">onEdited()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Singleton.onEdited">
+<code class="sig-name descname"><span class="pre">onEdited</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Singleton.onEdited" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook function that is called after modifying the entry.</p>
+<p>It should be overridden for a module-specific behavior.
+The default is writing a log entry.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that has been modified.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Singleton.edit" title="core.prototypes.Singleton.edit"><code class="xref py py-func docutils literal notranslate"><span class="pre">edit()</span></code></a>, <a class="reference internal" href="#core.prototypes.Singleton.onEdit" title="core.prototypes.Singleton.onEdit"><code class="xref py py-func docutils literal notranslate"><span class="pre">onEdit()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Singleton.onView">
+<code class="sig-name descname"><span class="pre">onView</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Singleton.onView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook function that is called when viewing an entry.</p>
+<p>It should be overridden for a module-specific behavior.
+The default is doing nothing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that is being viewed.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Singleton.view" title="core.prototypes.Singleton.view"><code class="xref py py-func docutils literal notranslate"><span class="pre">view()</span></code></a></p>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.prototypes.Tree">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.prototypes.</span></code><code class="sig-name descname"><span class="pre">Tree</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">moduleName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">modulePath</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">viur.core.prototypes.BasicApplication</span></code></p>
+<p>Tree is a ViUR BasicApplication.</p>
+<p>In this application, entries are hold in directories, which can be nested. Data in a Tree application
+always consists of nodes (=directories) and leafs (=files).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Variables</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference internal" href="../modules/file/index.html#core.modules.file.fileBaseSkel.kindName" title="core.modules.file.fileBaseSkel.kindName"><strong>kindName</strong></a> (<em>str</em>) – Name of the kind of data entities that are managed by the application.  This information is used to bind a specific <code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>-class to the      application. For more information, refer to the function <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code>.          In difference to the other ViUR BasicApplication, the kindName in Trees evolve into the kindNames       <em>kindName + “node”</em> and <em>kindName + “leaf”</em>, because information can be stored in different kinds.</p></li>
+<li><p><a class="reference internal" href="#core.prototypes.Tree.adminInfo" title="core.prototypes.Tree.adminInfo"><strong>adminInfo</strong></a> (<em>dict | callable</em>) – todo short info on how to use adminInfo.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt id="core.prototypes.Tree.accessRights">
+<code class="sig-name descname"><span class="pre">accessRights</span></code><em class="property"> <span class="pre">=</span> <span class="pre">['add',</span> <span class="pre">'edit',</span> <span class="pre">'view',</span> <span class="pre">'delete']</span></em><a class="headerlink" href="#core.prototypes.Tree.accessRights" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.prototypes.Tree.nodeSkelCls">
+<code class="sig-name descname"><span class="pre">nodeSkelCls</span></code><a class="headerlink" href="#core.prototypes.Tree.nodeSkelCls" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.prototypes.Tree.leafSkelCls">
+<code class="sig-name descname"><span class="pre">leafSkelCls</span></code><a class="headerlink" href="#core.prototypes.Tree.leafSkelCls" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.adminInfo">
+<code class="sig-name descname"><span class="pre">adminInfo</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.adminInfo" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree._checkSkelType">
+<code class="sig-name descname"><span class="pre">_checkSkelType</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelType</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree._checkSkelType" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree._resolveSkelCls">
+<code class="sig-name descname"><span class="pre">_resolveSkelCls</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelType</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree._resolveSkelCls" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve the generally associated <code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code> that is used by
+the application.</p>
+<p>This is either be defined by the member variable <em>kindName</em> or by a Skeleton named like the
+application class in lower-case order.</p>
+<p>If this behavior is not wanted, it can be definitely overridden by defining module-specific
+<a class="reference internal" href="#core.prototypes.Tree.viewSkel" title="core.prototypes.Tree.viewSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">viewSkel()</span></code></a>,:func:<cite>addSkel</cite>, or <a class="reference internal" href="#core.prototypes.Tree.editSkel" title="core.prototypes.Tree.editSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">editSkel()</span></code></a> functions, or by overriding this
+function in general.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Returns a Skeleton instance that matches the application.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>server.skeleton.Skeleton</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.viewSkel">
+<code class="sig-name descname"><span class="pre">viewSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelType</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.viewSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve a new instance of a <code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code> that is used by the application
+for viewing an existing entry from the list.</p>
+<p>The default is a Skeleton instance returned by <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code>.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Tree.addSkel" title="core.prototypes.Tree.addSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">addSkel()</span></code></a>, <a class="reference internal" href="#core.prototypes.Tree.editSkel" title="core.prototypes.Tree.editSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">editSkel()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Returns a Skeleton instance for viewing an entry.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>server.skeleton.Skeleton</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.addSkel">
+<code class="sig-name descname"><span class="pre">addSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelType</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.addSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve a new instance of a <code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code> that is used by the application
+for adding an entry to the list.</p>
+<p>The default is a Skeleton instance returned by <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code>.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Tree.viewSkel" title="core.prototypes.Tree.viewSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">viewSkel()</span></code></a>, <a class="reference internal" href="#core.prototypes.Tree.editSkel" title="core.prototypes.Tree.editSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">editSkel()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Returns a Skeleton instance for adding an entry.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>server.skeleton.Skeleton</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.editSkel">
+<code class="sig-name descname"><span class="pre">editSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelType</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.editSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve a new instance of a <code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code> that is used by the application
+for editing an existing entry from the list.</p>
+<p>The default is a Skeleton instance returned by <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code>.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Tree.viewSkel" title="core.prototypes.Tree.viewSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">viewSkel()</span></code></a>, <a class="reference internal" href="#core.prototypes.Tree.editSkel" title="core.prototypes.Tree.editSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">editSkel()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Returns a Skeleton instance for editing an entry.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>server.skeleton.Skeleton</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.ensureOwnModuleRootNode">
+<code class="sig-name descname"><span class="pre">ensureOwnModuleRootNode</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.ensureOwnModuleRootNode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Ensures, that general root-node for the current module exists.
+If no root-node exists yet, it will be created.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The entity of the root-node.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">server.db.Entity</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.getAvailableRootNodes">
+<code class="sig-name descname"><span class="pre">getAvailableRootNodes</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.getAvailableRootNodes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Default function for providing a list of root node items.
+This list is requested by several module-internal functions and <em>must</em> be
+overridden by a custom functionality. The default stub for this function
+returns an empty list.
+An example implementation could be the following:
+.. code-block:: python</p>
+<blockquote>
+<div><dl>
+<dt>def getAvailableRootNodes(self, <a href="#id1"><span class="problematic" id="id2">*</span></a>args, <a href="#id3"><span class="problematic" id="id4">**</span></a>kwargs):</dt><dd><dl>
+<dt>q = db.Query(self.rootKindName)</dt><dd><dl class="simple">
+<dt>ret = [{“key”: str(e.key()),</dt><dd><p>“name”: e.get(“name”, str(e.key().id_or_name()))}
+for e in q.run(limit=25)]</p>
+</dd>
+</dl>
+<p>return ret</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>args</strong> – Can be used in custom implementations.</p></li>
+<li><p><strong>kwargs</strong> – Can be used in custom implementations.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Returns a list of dicts which must provide a “key” and a “name” entry with                                     respective information.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>list of dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.getRootNode">
+<code class="sig-name descname"><span class="pre">getRootNode</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entryKey</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.db.KeyClass</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">viur.core.skeleton.Skeleton</span><a class="headerlink" href="#core.prototypes.Tree.getRootNode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the root-node for a given child.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>entryKey</strong> (<em>str</em>) – URL-Safe key of the child entry</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The entity of the root-node.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">server.db.Entity</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.updateParentRepo">
+<code class="sig-name descname"><span class="pre">updateParentRepo</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parentNode</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">newRepoKey</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">depth</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.updateParentRepo" title="Permalink to this definition">¶</a></dt>
+<dd><p>Recursively fixes the parentrepo key after a move operation.</p>
+<p>This will delete all entries which are children of <em>nodeKey</em>, except <em>key</em> nodeKey.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>parentNode</strong> – URL-safe key of the node which children should be fixed.</p></li>
+<li><p><strong>newNode</strong> – URL-safe key of the new repository.</p></li>
+<li><p><strong>depth</strong> – Safety level depth preventing infinitive loops.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.pathToKey">
+<code class="sig-name descname"><span class="pre">pathToKey</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.db.KeyClass</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.pathToKey" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the recursively expanded path through the Tree from the root-node to a
+requested node.
+:param key: Key of the destination <em>node</em>.
+:returns: An nested dictionary with information about all nodes in the path from root to the requested node.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.listRootNodes">
+<code class="sig-name descname"><span class="pre">listRootNodes</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.listRootNodes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Renders a list of all available repositories for the current user using the
+modules default renderer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The rendered representation of the available root-nodes.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.list">
+<code class="sig-name descname"><span class="pre">list</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelType</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prepares and renders a list of entries.</p>
+<p>All supplied parameters are interpreted as filters for the elements displayed.</p>
+<p>Unlike other ViUR BasicApplications, the access control in this function is performed
+by calling the function <a class="reference internal" href="#core.prototypes.Tree.listFilter" title="core.prototypes.Tree.listFilter"><code class="xref py py-func docutils literal notranslate"><span class="pre">listFilter()</span></code></a>, which updates the query-filter to match only
+elements which the user is allowed to see.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Tree.listFilter" title="core.prototypes.Tree.listFilter"><code class="xref py py-func docutils literal notranslate"><span class="pre">listFilter()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">server.db.mergeExternalFilter()</span></code></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The rendered list objects for the matching entries.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.Unauthorized</span></code>, if the current user does not have the required permissions.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.view">
+<code class="sig-name descname"><span class="pre">view</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelType</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.view" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prepares and renders a single entry for viewing.</p>
+<p>The entry is fetched by its <em>key</em> and its <em>skelType</em>.
+The function performs several access control checks on the requested entity before it is rendered.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Tree.canView" title="core.prototypes.Tree.canView"><code class="xref py py-func docutils literal notranslate"><span class="pre">canView()</span></code></a>, <a class="reference internal" href="#core.prototypes.Tree.onView" title="core.prototypes.Tree.onView"><code class="xref py py-func docutils literal notranslate"><span class="pre">onView()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The rendered representation of the requested entity.</p>
+</dd>
+<dt class="field-even">Parameters</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>skelType</strong> (<em>str</em>) – May either be “node” or “leaf”.</p></li>
+<li><p><strong>node</strong> (<em>str</em>) – URL-safe key of the parent.</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.NotAcceptable</span></code>, when an incorrect <em>skelType</em> is provided.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.NotFound</span></code>, when no entry with the given <em>key</em> was found.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.Unauthorized</span></code>, if the current user does not have the required permissions.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.add">
+<code class="sig-name descname"><span class="pre">add</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelType</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">node</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.add" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a new entry with the given parent <em>node</em>, and render the entry, eventually with error notes
+on incorrect data. Data is taken by any other arguments in <em>kwargs</em>.</p>
+<p>The function performs several access control checks on the requested entity before it is added.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Tree.canAdd" title="core.prototypes.Tree.canAdd"><code class="xref py py-func docutils literal notranslate"><span class="pre">canAdd()</span></code></a>, <a class="reference internal" href="#core.prototypes.Tree.onAdd" title="core.prototypes.Tree.onAdd"><code class="xref py py-func docutils literal notranslate"><span class="pre">onAdd()</span></code></a>, , <a class="reference internal" href="#core.prototypes.Tree.onAdded" title="core.prototypes.Tree.onAdded"><code class="xref py py-func docutils literal notranslate"><span class="pre">onAdded()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>skelType</strong> (<em>str</em>) – Defines the type of the new entry and may either be “node” or “leaf”.</p></li>
+<li><p><strong>node</strong> (<em>str</em>) – URL-safe key of the parent.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The rendered, added object of the entry, eventually with error hints.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.NotAcceptable</span></code>, when no valid <em>skelType</em> was provided.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.NotFound</span></code>, when no valid <em>node</em> was found.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.Unauthorized</span></code>, if the current user does not have the required permissions.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.PreconditionFailed</span></code>, if the <em>skey</em> could not be verified.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.edit">
+<code class="sig-name descname"><span class="pre">edit</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelType</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.edit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
+Data is taken by any other arguments in <em>kwargs</em>.</p>
+<p>The function performs several access control checks on the requested entity before it is added.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Tree.canEdit" title="core.prototypes.Tree.canEdit"><code class="xref py py-func docutils literal notranslate"><span class="pre">canEdit()</span></code></a>, <a class="reference internal" href="#core.prototypes.Tree.onEdit" title="core.prototypes.Tree.onEdit"><code class="xref py py-func docutils literal notranslate"><span class="pre">onEdit()</span></code></a>, <a class="reference internal" href="#core.prototypes.Tree.onEdited" title="core.prototypes.Tree.onEdited"><code class="xref py py-func docutils literal notranslate"><span class="pre">onEdited()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>skelType</strong> (<em>str</em>) – Defines the type of the entry that should be modified and may either be “node” or “leaf”.</p></li>
+<li><p><strong>key</strong> (<em>str</em>) – URL-safe key of the item to be edited.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The rendered, modified object of the entry, eventually with error hints.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.NotAcceptable</span></code>, when no valid <em>skelType</em> was provided.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.NotFound</span></code>, when no valid <em>node</em> was found.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.Unauthorized</span></code>, if the current user does not have the required permissions.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.PreconditionFailed</span></code>, if the <em>skey</em> could not be verified.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.delete">
+<code class="sig-name descname"><span class="pre">delete</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelType</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.delete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deletes an entry or an directory (including its contents).</p>
+<p>The function runs several access control checks on the data before it is deleted.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Tree.canDelete" title="core.prototypes.Tree.canDelete"><code class="xref py py-func docutils literal notranslate"><span class="pre">canDelete()</span></code></a>, <a class="reference internal" href="#core.prototypes.Tree.onDelete" title="core.prototypes.Tree.onDelete"><code class="xref py py-func docutils literal notranslate"><span class="pre">onDelete()</span></code></a>, <a class="reference internal" href="#core.prototypes.Tree.onDeleted" title="core.prototypes.Tree.onDeleted"><code class="xref py py-func docutils literal notranslate"><span class="pre">onDeleted()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>skelType</strong> (<em>str</em>) – Defines the type of the entry that should be deleted and may either be “node” or “leaf”.</p></li>
+<li><p><strong>key</strong> (<em>str</em>) – URL-safe key of the item to be deleted.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The rendered, deleted object of the entry.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.NotFound</span></code>, when no entry with the given <em>key</em> was found.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.Unauthorized</span></code>, if the current user does not have the required permissions.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.PreconditionFailed</span></code>, if the <em>skey</em> could not be verified.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.deleteRecursive">
+<code class="sig-name descname"><span class="pre">deleteRecursive</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nodeKey</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.deleteRecursive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Recursively processes a delete request.</p>
+<p>This will delete all entries which are children of <em>nodeKey</em>, except <em>key</em> nodeKey.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>key</strong> (<em>str</em>) – URL-safe key of the node which children should be deleted.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.move">
+<code class="sig-name descname"><span class="pre">move</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelType</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parentNode</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">str</span><a class="headerlink" href="#core.prototypes.Tree.move" title="Permalink to this definition">¶</a></dt>
+<dd><p>Move a node (including its contents) or a leaf to another node.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Tree.canMove" title="core.prototypes.Tree.canMove"><code class="xref py py-func docutils literal notranslate"><span class="pre">canMove()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>skelType</strong> – Defines the type of the entry that should be moved and may either be “node” or “leaf”.</p></li>
+<li><p><strong>key</strong> – URL-safe key of the item to be moved.</p></li>
+<li><p><strong>parentNode</strong> – URL-safe key of the destination node, which must be a node.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The rendered, edited object of the entry.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">viur.core.errors.NotFound</span></code>, when no entry with the given <em>key</em> was found.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">viur.core.errors.Unauthorized</span></code>, if the current user does not have the required permissions.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">viur.core.errors.PreconditionFailed</span></code>, if the <em>skey</em> could not be verified.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.listFilter">
+<code class="sig-name descname"><span class="pre">listFilter</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.listFilter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access control function on item listing.</p>
+<p>This function is invoked by the <a class="reference internal" href="list/index.html#module-core.prototypes.list" title="core.prototypes.list"><code class="xref py py-func docutils literal notranslate"><span class="pre">list()</span></code></a> renderer and the related Jinja2 fetching function,
+and is used to modify the provided filter parameter to match only items that the current user
+is allowed to see.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>filter</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.db.Query</span></code>) – Query which should be altered.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The altered filter, or None if access is not granted.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.canView">
+<code class="sig-name descname"><span class="pre">canView</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelType</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.skeleton.Skeleton</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">bool</span><a class="headerlink" href="#core.prototypes.Tree.canView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks if the current user can view the given entry.
+Should be identical to what’s allowed by listFilter.
+By default, <cite>meth:listFilter</cite> is used to determine what’s allowed and whats not; but this
+method can be overridden for performance improvements (to eliminate that additional database access).
+:param skel: The entry we check for
+:return: True if the current session is authorized to view that entry, False otherwise</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.canAdd">
+<code class="sig-name descname"><span class="pre">canAdd</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelType</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parentNodeSkel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.skeleton.Skeleton</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.canAdd" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access control function for adding permission.</p>
+<p>Checks if the current user has the permission to add a new entry.</p>
+<p>The default behavior is:
+- If no user is logged in, adding is generally refused.
+- If the user has “root” access, adding is generally allowed.
+- If the user has the modules “add” permission (module-add) enabled, adding is allowed.</p>
+<p>It should be overridden for a module-specific behavior.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Tree.add" title="core.prototypes.Tree.add"><code class="xref py py-func docutils literal notranslate"><span class="pre">add()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>True, if adding entries is allowed, False otherwise.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.canEdit">
+<code class="sig-name descname"><span class="pre">canEdit</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelType</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.canEdit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access control function for modification permission.</p>
+<p>Checks if the current user has the permission to edit an entry.</p>
+<p>The default behavior is:
+- If no user is logged in, editing is generally refused.
+- If the user has “root” access, editing is generally allowed.
+- If the user has the modules “edit” permission (module-edit) enabled, editing is allowed.</p>
+<p>It should be overridden for a module-specific behavior.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Tree.edit" title="core.prototypes.Tree.edit"><code class="xref py py-func docutils literal notranslate"><span class="pre">edit()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that should be edited.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>True, if editing entries is allowed, False otherwise.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.canDelete">
+<code class="sig-name descname"><span class="pre">canDelete</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelType</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.canDelete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access control function for delete permission.</p>
+<p>Checks if the current user has the permission to delete an entry.</p>
+<p>The default behavior is:
+- If no user is logged in, deleting is generally refused.
+- If the user has “root” access, deleting is generally allowed.
+- If the user has the modules “deleting” permission (module-delete) enabled,             deleting is allowed.</p>
+<p>It should be overridden for a module-specific behavior.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that should be deleted.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Tree.delete" title="core.prototypes.Tree.delete"><code class="xref py py-func docutils literal notranslate"><span class="pre">delete()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>True, if deleting entries is allowed, False otherwise.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.canMove">
+<code class="sig-name descname"><span class="pre">canMove</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelType</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">node</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">destNode</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">bool</span><a class="headerlink" href="#core.prototypes.Tree.canMove" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access control function for moving permission.</p>
+<p>Checks if the current user has the permission to move an entry.</p>
+<p>The default behavior is:
+- If no user is logged in, deleting is generally refused.
+- If the user has “root” access, deleting is generally allowed.
+- If the user has the modules “edit” permission (module-edit) enabled,           moving is allowed.</p>
+<p>It should be overridden for a module-specific behavior.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>skelType</strong> – Defines the type of the node that shall be deleted.</p></li>
+<li><p><strong>node</strong> – URL-safe key of the node to be moved.</p></li>
+<li><p><strong>node</strong> – URL-safe key of the node where <em>node</em> should be moved to.</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Tree.move" title="core.prototypes.Tree.move"><code class="xref py py-func docutils literal notranslate"><span class="pre">move()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>True, if deleting entries is allowed, False otherwise.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.onAdd">
+<code class="sig-name descname"><span class="pre">onAdd</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.onAdd" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook function that is called before adding an entry.</p>
+<p>It can be overridden for a module-specific behavior.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that is going to be added.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Tree.add" title="core.prototypes.Tree.add"><code class="xref py py-func docutils literal notranslate"><span class="pre">add()</span></code></a>, <a class="reference internal" href="#core.prototypes.Tree.onAdded" title="core.prototypes.Tree.onAdded"><code class="xref py py-func docutils literal notranslate"><span class="pre">onAdded()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.onAdded">
+<code class="sig-name descname"><span class="pre">onAdded</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.onAdded" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook function that is called after adding an entry.</p>
+<p>It should be overridden for a module-specific behavior.
+The default is writing a log entry.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that has been added.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Tree.add" title="core.prototypes.Tree.add"><code class="xref py py-func docutils literal notranslate"><span class="pre">add()</span></code></a>, <a class="reference internal" href="#core.prototypes.Tree.onAdd" title="core.prototypes.Tree.onAdd"><code class="xref py py-func docutils literal notranslate"><span class="pre">onAdd()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.onEdit">
+<code class="sig-name descname"><span class="pre">onEdit</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.onEdit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook function that is called before editing an entry.</p>
+<p>It can be overridden for a module-specific behavior.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that is going to be edited.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Tree.edit" title="core.prototypes.Tree.edit"><code class="xref py py-func docutils literal notranslate"><span class="pre">edit()</span></code></a>, <a class="reference internal" href="#core.prototypes.Tree.onEdited" title="core.prototypes.Tree.onEdited"><code class="xref py py-func docutils literal notranslate"><span class="pre">onEdited()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.onEdited">
+<code class="sig-name descname"><span class="pre">onEdited</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.onEdited" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook function that is called after modifying an entry.</p>
+<p>It should be overridden for a module-specific behavior.
+The default is writing a log entry.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that has been modified.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Tree.edit" title="core.prototypes.Tree.edit"><code class="xref py py-func docutils literal notranslate"><span class="pre">edit()</span></code></a>, <a class="reference internal" href="#core.prototypes.Tree.onEdit" title="core.prototypes.Tree.onEdit"><code class="xref py py-func docutils literal notranslate"><span class="pre">onEdit()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.onView">
+<code class="sig-name descname"><span class="pre">onView</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.onView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook function that is called when viewing an entry.</p>
+<p>It should be overridden for a module-specific behavior.
+The default is doing nothing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that is viewed.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Tree.view" title="core.prototypes.Tree.view"><code class="xref py py-func docutils literal notranslate"><span class="pre">view()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.onDelete">
+<code class="sig-name descname"><span class="pre">onDelete</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.onDelete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook function that is called before deleting an entry.</p>
+<p>It can be overridden for a module-specific behavior.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that is going to be deleted.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Tree.delete" title="core.prototypes.Tree.delete"><code class="xref py py-func docutils literal notranslate"><span class="pre">delete()</span></code></a>, <a class="reference internal" href="#core.prototypes.Tree.onDeleted" title="core.prototypes.Tree.onDeleted"><code class="xref py py-func docutils literal notranslate"><span class="pre">onDeleted()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.Tree.onDeleted">
+<code class="sig-name descname"><span class="pre">onDeleted</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.Tree.onDeleted" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook function that is called after deleting an entry.</p>
+<p>It should be overridden for a module-specific behavior.
+The default is writing a log entry.</p>
+<p>..warning: Saving the skeleton again will undo the deletion
+(if the skeleton was a leaf or a node with no children).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that has been deleted.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.Tree.delete" title="core.prototypes.Tree.delete"><code class="xref py py-func docutils literal notranslate"><span class="pre">delete()</span></code></a>, <a class="reference internal" href="#core.prototypes.Tree.onDelete" title="core.prototypes.Tree.onDelete"><code class="xref py py-func docutils literal notranslate"><span class="pre">onDelete()</span></code></a></p>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.prototypes.TreeSkel">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.prototypes.</span></code><code class="sig-name descname"><span class="pre">TreeSkel</span></code><a class="headerlink" href="#core.prototypes.TreeSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">viur.core.skeleton.Skeleton</span></code></p>
+<dl class="py attribute">
+<dt id="core.prototypes.TreeSkel.parententry">
+<code class="sig-name descname"><span class="pre">parententry</span></code><a class="headerlink" href="#core.prototypes.TreeSkel.parententry" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.prototypes.TreeSkel.parentrepo">
+<code class="sig-name descname"><span class="pre">parentrepo</span></code><a class="headerlink" href="#core.prototypes.TreeSkel.parentrepo" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.prototypes.TreeSkel.sortindex">
+<code class="sig-name descname"><span class="pre">sortindex</span></code><a class="headerlink" href="#core.prototypes.TreeSkel.sortindex" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.TreeSkel.preProcessSerializedData">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">preProcessSerializedData</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelValues</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.TreeSkel.preProcessSerializedData" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.TreeSkel.refresh">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">refresh</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelValues</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.TreeSkel.refresh" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Mausbrand Informationssysteme GmbH.
+      <span class="lastupdated">
+        Last updated on Mar 12, 2021.
+      </span>
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -1,0 +1,29 @@
+:mod:`core.bones.treeLeafBone`
+==============================
+
+.. py:module:: core.bones.treeLeafBone
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.bones.treeLeafBone.treeLeafBone
+
+
+
+.. class:: treeLeafBone(*args, **kwargs)
+
+
+   Bases: :class:`viur.core.bones.relationalBone`
+
+   .. attribute:: type
+      :annotation: = relational.tree.leaf
+
+      
+
+

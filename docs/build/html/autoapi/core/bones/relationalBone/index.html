@@ -1,0 +1,465 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>core.bones.relationalBone &mdash; ViUR Core 3.0.0-b1 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/graphviz.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+        <script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/underscore.js"></script>
+        <script src="../../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home"> ViUR Core
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                3.0.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">ViUR Core</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../doc_start/index.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../doc_guide/index.html">Reference Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../doc_tutorial/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">ViUR Core</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.bones.relationalBone</span></code></li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../../../../_sources/autoapi/core/bones/relationalBone/index.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-core.bones.relationalBone">
+<span id="core-bones-relationalbone"></span><h1><a class="reference internal" href="#module-core.bones.relationalBone" title="core.bones.relationalBone"><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.bones.relationalBone</span></code></a><a class="headerlink" href="#module-core.bones.relationalBone" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="classes">
+<h3>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.bones.relationalBone.RelationalConsistency" title="core.bones.relationalBone.RelationalConsistency"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RelationalConsistency</span></code></a></p></td>
+<td><p>Generic enumeration.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.bones.relationalBone.relationalBone" title="core.bones.relationalBone.relationalBone"><code class="xref py py-obj docutils literal notranslate"><span class="pre">relationalBone</span></code></a></p></td>
+<td><p>This is our magic class implementing relations.</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt id="core.bones.relationalBone.RelationalConsistency">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.bones.relationalBone.</span></code><code class="sig-name descname"><span class="pre">RelationalConsistency</span></code><a class="headerlink" href="#core.bones.relationalBone.RelationalConsistency" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">enum.Enum</span></code></p>
+<p>Generic enumeration.</p>
+<p>Derive from this class to define new enumerations.</p>
+<dl class="py attribute">
+<dt id="core.bones.relationalBone.RelationalConsistency.Ignore">
+<code class="sig-name descname"><span class="pre">Ignore</span></code><em class="property"> <span class="pre">=</span> <span class="pre">1</span></em><a class="headerlink" href="#core.bones.relationalBone.RelationalConsistency.Ignore" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.bones.relationalBone.RelationalConsistency.PreventDeletion">
+<code class="sig-name descname"><span class="pre">PreventDeletion</span></code><em class="property"> <span class="pre">=</span> <span class="pre">2</span></em><a class="headerlink" href="#core.bones.relationalBone.RelationalConsistency.PreventDeletion" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.bones.relationalBone.RelationalConsistency.SetNull">
+<code class="sig-name descname"><span class="pre">SetNull</span></code><em class="property"> <span class="pre">=</span> <span class="pre">3</span></em><a class="headerlink" href="#core.bones.relationalBone.RelationalConsistency.SetNull" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.bones.relationalBone.RelationalConsistency.CascadeDeletion">
+<code class="sig-name descname"><span class="pre">CascadeDeletion</span></code><em class="property"> <span class="pre">=</span> <span class="pre">4</span></em><a class="headerlink" href="#core.bones.relationalBone.RelationalConsistency.CascadeDeletion" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.bones.relationalBone.relationalBone">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.bones.relationalBone.</span></code><code class="sig-name descname"><span class="pre">relationalBone</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kind</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">refKeys</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parentKeys</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">multiple</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'$(dest.name)'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">using</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">updateLevel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">consistency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">RelationalConsistency.Ignore</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">viur.core.bones.baseBone</span></code></p>
+<p>This is our magic class implementing relations.</p>
+<p>This implementation is read-efficient, e.g. filtering by relational-properties only costs an additional
+small-op for each entity returned.
+However, it costs several more write-ops for writing an entity to the db.
+(These costs are somewhat around additional (4+len(refKeys)+len(parentKeys)) write-ops for each referenced
+property) for multiple=True relationalBones and (4+len(refKeys)) for n:1 relations)</p>
+<p>So don’t use this if you expect data being read less frequently than written! (Sorry, we don’t have a
+write-efficient method yet)
+To speedup writes to (maybe) referenced entities, information in these relations isn’t updated instantly.
+Once a skeleton is updated, a deferred task is kicked off which updates the references to
+that skeleton (if any).
+As a result, you might see stale data until this task has been finished.</p>
+<p>Example:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Entity A references Entity B.</p></li>
+<li><p>Both have a property “name”.</p></li>
+<li><p>Entity B gets updated (it name changes).</p></li>
+<li><p>As “A” has a copy of entity “B”s values, you’ll see “B”s old name inside the values of the
+relationalBone when fetching entity A.</p></li>
+</ul>
+</div></blockquote>
+<p>If you filter a list by relational properties, this will also use the old data! (Eg. filtering A’s list by
+B’s new name won’t return any result)</p>
+<dl class="py attribute">
+<dt id="core.bones.relationalBone.relationalBone.refKeys">
+<code class="sig-name descname"><span class="pre">refKeys</span></code><em class="property"> <span class="pre">=</span> <span class="pre">['key',</span> <span class="pre">'name']</span></em><a class="headerlink" href="#core.bones.relationalBone.relationalBone.refKeys" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.bones.relationalBone.relationalBone.parentKeys">
+<code class="sig-name descname"><span class="pre">parentKeys</span></code><em class="property"> <span class="pre">=</span> <span class="pre">['key',</span> <span class="pre">'name']</span></em><a class="headerlink" href="#core.bones.relationalBone.relationalBone.parentKeys" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.bones.relationalBone.relationalBone.type">
+<code class="sig-name descname"><span class="pre">type</span></code><em class="property"> <span class="pre">=</span> <span class="pre">relational</span></em><a class="headerlink" href="#core.bones.relationalBone.relationalBone.type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.bones.relationalBone.relationalBone.kind">
+<code class="sig-name descname"><span class="pre">kind</span></code><a class="headerlink" href="#core.bones.relationalBone.relationalBone.kind" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone.setSystemInitialized">
+<code class="sig-name descname"><span class="pre">setSystemInitialized</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone.setSystemInitialized" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone._getSkels">
+<code class="sig-name descname"><span class="pre">_getSkels</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone._getSkels" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone.singleValueUnserialize">
+<code class="sig-name descname"><span class="pre">singleValueUnserialize</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.skeleton.SkeletonInstance</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone.singleValueUnserialize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Restores one of our values (including the Rel- and Using-Skel) from the serialized data read from the datastore
+:param value: Json-Encoded datastore property
+:return: Our Value (with restored RelSkel and using-Skel)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone.serialize">
+<code class="sig-name descname"><span class="pre">serialize</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">SkeletonInstance</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parentIndexed</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">bool</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone.serialize" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone.delete">
+<code class="sig-name descname"><span class="pre">delete</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.skeleton.SkeletonInstance</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone.delete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Ensure any outgoing relational lock is cleared
+:param skel:
+:param name:
+:return:</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone.postSavedHandler">
+<code class="sig-name descname"><span class="pre">postSavedHandler</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">boneName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone.postSavedHandler" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone.postDeletedHandler">
+<code class="sig-name descname"><span class="pre">postDeletedHandler</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">boneName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone.postDeletedHandler" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone.isInvalid">
+<code class="sig-name descname"><span class="pre">isInvalid</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone.isInvalid" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone.parseSubfieldsFromClient">
+<code class="sig-name descname"><span class="pre">parseSubfieldsFromClient</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone.parseSubfieldsFromClient" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone.singleValueFromClient">
+<code class="sig-name descname"><span class="pre">singleValueFromClient</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">origData</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone.singleValueFromClient" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone._rewriteQuery">
+<code class="sig-name descname"><span class="pre">_rewriteQuery</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dbFilter</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rawFilter</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone._rewriteQuery" title="Permalink to this definition">¶</a></dt>
+<dd><p>Rewrites a datastore query to operate on “viur-relations” instead of the original kind.
+This is needed to perform relational queries on n:m relations.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone.buildDBFilter">
+<code class="sig-name descname"><span class="pre">buildDBFilter</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dbFilter</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rawFilter</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone.buildDBFilter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone.buildDBSort">
+<code class="sig-name descname"><span class="pre">buildDBSort</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dbFilter</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rawFilter</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone.buildDBSort" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone.filterHook">
+<code class="sig-name descname"><span class="pre">filterHook</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">query</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">param</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone.filterHook" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook installed by buildDbFilter.
+This rewrites all filters added to the query after buildDbFilter has been run to match the
+layout of our viur-relations index.
+Also performs sanity checks wherever this query is possible at all.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone.orderHook">
+<code class="sig-name descname"><span class="pre">orderHook</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">query</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">orderings</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone.orderHook" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook installed by buildDbFilter.
+This rewrites all orderings added to the query after buildDbFilter has been run to match the
+layout of our viur-relations index.
+Also performs sanity checks wherever this query is possible at all.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone.refresh">
+<code class="sig-name descname"><span class="pre">refresh</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">boneName</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone.refresh" title="Permalink to this definition">¶</a></dt>
+<dd><p>Refresh all values we might have cached from other entities.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone.getSearchTags">
+<code class="sig-name descname"><span class="pre">getSearchTags</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skeltonValues</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone.getSearchTags" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone.getSearchDocumentFields">
+<code class="sig-name descname"><span class="pre">getSearchDocumentFields</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">valuesCache</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone.getSearchDocumentFields" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate fields for Google Search API</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone.createRelSkelFromKey">
+<code class="sig-name descname"><span class="pre">createRelSkelFromKey</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">db.KeyClass</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">,</span> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone.createRelSkelFromKey" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a relSkel instance valid for this bone from the given database key.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone.setBoneValue">
+<code class="sig-name descname"><span class="pre">setBoneValue</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">boneName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">append</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone.setBoneValue" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set our value to ‘value’.
+Santy-Checks are performed; if the value is invalid, we flip our value back to its original
+(default) value and return false.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>valuesCache</strong> (<em>dict</em>) – Dictionary with the current values from the skeleton we belong to</p></li>
+<li><p><strong>boneName</strong> (<em>object</em>) – The Bone which should be modified</p></li>
+<li><p><strong>value</strong> – The value that should be assigned. It’s type depends on the type of that bone</p></li>
+<li><p><strong>append</strong> (<em>bool</em>) – If true, the given value is appended to the values of that bone instead of
+replacing it. Only supported on bones with multiple=True</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Wherever that operation succeeded or not.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone.getReferencedBlobs">
+<code class="sig-name descname"><span class="pre">getReferencedBlobs</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.bones.relationalBone.relationalBone.getReferencedBlobs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the list of blob keys referenced from this bone</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.bones.relationalBone.relationalBone.getUniquePropertyIndexValues">
+<code class="sig-name descname"><span class="pre">getUniquePropertyIndexValues</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">valuesCache</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#core.bones.relationalBone.relationalBone.getUniquePropertyIndexValues" title="Permalink to this definition">¶</a></dt>
+<dd><p>By default, relationalBones distinct by referenced keys. Should be overridden if a different
+behaviour is required (eg. examine values from <cite>prop:usingSkel</cite>)</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Mausbrand Informationssysteme GmbH.
+      <span class="lastupdated">
+        Last updated on Mar 12, 2021.
+      </span>
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

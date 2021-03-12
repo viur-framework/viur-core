@@ -1,0 +1,138 @@
+:mod:`core.render.xml.default`
+==============================
+
+.. py:module:: core.render.xml.default
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.render.xml.default.DefaultRender
+
+
+
+Functions
+~~~~~~~~~
+
+.. autoapisummary::
+
+   core.render.xml.default.serializeXML
+
+
+.. function:: serializeXML(data)
+
+
+.. class:: DefaultRender(parent=None, *args, **kwargs)
+
+
+   Bases: :class:`object`
+
+   .. attribute:: kind
+      :annotation: = xml
+
+      
+
+   .. method:: renderBoneStructure(self, bone)
+
+      Renders the structure of a bone.
+
+      This function is used by :func:`renderSkelStructure`.
+      can be overridden and super-called from a custom renderer.
+
+      :param bone: The bone which structure should be rendered.
+      :type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
+
+      :return: A dict containing the rendered attributes.
+      :rtype: dict
+
+
+   .. method:: renderSkelStructure(self, skel)
+
+      Dumps the structure of a :class:`server.db.skeleton.Skeleton`.
+
+      :param skel: Skeleton which structure will be processed.
+      :type skel: server.db.skeleton.Skeleton
+
+      :returns: The rendered dictionary.
+      :rtype: dict
+
+
+   .. method:: renderTextExtension(self, ext)
+
+
+   .. method:: renderBoneValue(self, bone, skel, key)
+
+
+   .. method:: renderSingleBoneValue(self, value, bone, skel, key)
+
+      Renders the value of a bone.
+
+      This function is used by :func:`collectSkelData`.
+      It can be overridden and super-called from a custom renderer.
+
+      :param bone: The bone which value should be rendered.
+      :type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
+
+      :return: A dict containing the rendered attributes.
+      :rtype: dict
+
+
+   .. method:: renderSkelValues(self, skel)
+
+      Prepares values of one :class:`server.db.skeleton.Skeleton` or a list of skeletons for output.
+
+      :param skel: Skeleton which contents will be processed.
+      :type skel: server.db.skeleton.Skeleton
+
+      :returns: A dictionary or list of dictionaries.
+      :rtype: dict
+
+
+   .. method:: renderEntry(self, skel, action, params=None)
+
+
+   .. method:: view(self, skel, action='view', params=None, *args, **kwargs)
+
+
+   .. method:: add(self, skel, action='add', params=None, *args, **kwargs)
+
+
+   .. method:: edit(self, skel, action='edit', params=None, *args, **kwargs)
+
+
+   .. method:: list(self, skellist, action='list', tpl=None, params=None, **kwargs)
+
+
+   .. method:: editSuccess(self, skel, params=None, **kwargs)
+
+
+   .. method:: addSuccess(self, skel, params=None, **kwargs)
+
+
+   .. method:: addDirSuccess(self, rootNode, path, dirname, params=None, *args, **kwargs)
+
+
+   .. method:: renameSuccess(self, rootNode, path, src, dest, params=None, *args, **kwargs)
+
+
+   .. method:: copySuccess(self, srcrepo, srcpath, name, destrepo, destpath, type, deleteold, params=None, *args, **kwargs)
+
+
+   .. method:: deleteSuccess(self, skel, params=None, *args, **kwargs)
+
+
+   .. method:: reparentSuccess(self, obj, tpl=None, params=None, *args, **kwargs)
+
+
+   .. method:: setIndexSuccess(self, obj, tpl=None, params=None, *args, **kwargs)
+
+
+   .. method:: cloneSuccess(self, tpl=None, params=None, *args, **kwargs)
+
+
+

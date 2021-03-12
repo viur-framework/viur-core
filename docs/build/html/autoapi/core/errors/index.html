@@ -1,0 +1,400 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>core.errors &mdash; ViUR Core 3.0.0-b1 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/graphviz.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> ViUR Core
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                3.0.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">ViUR Core</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../doc_start/index.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../doc_guide/index.html">Reference Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../doc_tutorial/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">ViUR Core</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.errors</span></code></li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../../../_sources/autoapi/core/errors/index.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-core.errors">
+<span id="core-errors"></span><h1><a class="reference internal" href="#module-core.errors" title="core.errors"><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.errors</span></code></a><a class="headerlink" href="#module-core.errors" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="classes">
+<h3>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.errors.ReadFromClientError" title="core.errors.ReadFromClientError"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ReadFromClientError</span></code></a></p></td>
+<td><p>ReadFromClientError</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py exception">
+<dt id="core.errors.HTTPException">
+<em class="property"><span class="pre">exception</span> </em><code class="sig-prename descclassname"><span class="pre">core.errors.</span></code><code class="sig-name descname"><span class="pre">HTTPException</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">status</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">descr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.HTTPException" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Exception</span></code></p>
+<p>Base-Class for all Exceptions that should match to an http error-code</p>
+<dl class="py method">
+<dt id="core.errors.HTTPException.process">
+<code class="sig-name descname"><span class="pre">process</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.HTTPException.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py exception">
+<dt id="core.errors.BadRequest">
+<em class="property"><span class="pre">exception</span> </em><code class="sig-prename descclassname"><span class="pre">core.errors.</span></code><code class="sig-name descname"><span class="pre">BadRequest</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'The</span> <span class="pre">request</span> <span class="pre">your</span> <span class="pre">browser</span> <span class="pre">sent</span> <span class="pre">cannot</span> <span class="pre">be</span> <span class="pre">fulfilled</span> <span class="pre">due</span> <span class="pre">to</span> <span class="pre">bad</span> <span class="pre">syntax.'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.BadRequest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.errors.HTTPException" title="core.errors.HTTPException"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.errors.HTTPException</span></code></a></p>
+<p>BadRequest</p>
+<p>Not used inside the server</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt id="core.errors.Redirect">
+<em class="property"><span class="pre">exception</span> </em><code class="sig-prename descclassname"><span class="pre">core.errors.</span></code><code class="sig-name descname"><span class="pre">Redirect</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">descr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Redirect'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">status</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">303</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.Redirect" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.errors.HTTPException" title="core.errors.HTTPException"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.errors.HTTPException</span></code></a></p>
+<p>Causes an 303 - See Other (or 302 - Found if requested / 301 - Moved Permanently) redirect</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt id="core.errors.Unauthorized">
+<em class="property"><span class="pre">exception</span> </em><code class="sig-prename descclassname"><span class="pre">core.errors.</span></code><code class="sig-name descname"><span class="pre">Unauthorized</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&quot;The</span> <span class="pre">resource</span> <span class="pre">is</span> <span class="pre">protected</span> <span class="pre">and</span> <span class="pre">you</span> <span class="pre">don't</span> <span class="pre">have</span> <span class="pre">the</span> <span class="pre">permissions.&quot;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.Unauthorized" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.errors.HTTPException" title="core.errors.HTTPException"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.errors.HTTPException</span></code></a></p>
+<p>Unauthorized</p>
+<p>Raised whenever a request hits an path protected by canAccess() or a canAdd/canEdit/… -Function inside
+an application returns false.</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt id="core.errors.PaymentRequired">
+<em class="property"><span class="pre">exception</span> </em><code class="sig-prename descclassname"><span class="pre">core.errors.</span></code><code class="sig-name descname"><span class="pre">PaymentRequired</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Payment</span> <span class="pre">Required'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.PaymentRequired" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.errors.HTTPException" title="core.errors.HTTPException"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.errors.HTTPException</span></code></a></p>
+<p>PaymentRequired</p>
+<p>Not used inside the server. This status-code is reserved for further use and is currently not
+supported by clients.</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt id="core.errors.Forbidden">
+<em class="property"><span class="pre">exception</span> </em><code class="sig-prename descclassname"><span class="pre">core.errors.</span></code><code class="sig-name descname"><span class="pre">Forbidden</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&quot;The</span> <span class="pre">resource</span> <span class="pre">is</span> <span class="pre">protected</span> <span class="pre">and</span> <span class="pre">you</span> <span class="pre">don't</span> <span class="pre">have</span> <span class="pre">the</span> <span class="pre">permissions.&quot;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.Forbidden" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.errors.HTTPException" title="core.errors.HTTPException"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.errors.HTTPException</span></code></a></p>
+<p>Forbidden</p>
+<p>Not used inside the server. May be utilized in the future to distinguish between requests from
+guests and users, who are logged in but don’t have the permission.</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt id="core.errors.NotFound">
+<em class="property"><span class="pre">exception</span> </em><code class="sig-prename descclassname"><span class="pre">core.errors.</span></code><code class="sig-name descname"><span class="pre">NotFound</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'The</span> <span class="pre">requested</span> <span class="pre">resource</span> <span class="pre">could</span> <span class="pre">not</span> <span class="pre">be</span> <span class="pre">found.'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.NotFound" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.errors.HTTPException" title="core.errors.HTTPException"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.errors.HTTPException</span></code></a></p>
+<p>NotFound</p>
+<p>Usually raised in view() methods from application if the given key is invalid.</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt id="core.errors.MethodNotAllowed">
+<em class="property"><span class="pre">exception</span> </em><code class="sig-prename descclassname"><span class="pre">core.errors.</span></code><code class="sig-name descname"><span class="pre">MethodNotAllowed</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Method</span> <span class="pre">Not</span> <span class="pre">Allowed'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.MethodNotAllowed" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.errors.HTTPException" title="core.errors.HTTPException"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.errors.HTTPException</span></code></a></p>
+<p>MethodNotAllowed</p>
+<p>Raised if a function is accessed which doesn’t have the &#64;exposed / &#64;internalExposed decorator or
+if the request arrived using get, but the function has the &#64;forcePost flag.</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt id="core.errors.NotAcceptable">
+<em class="property"><span class="pre">exception</span> </em><code class="sig-prename descclassname"><span class="pre">core.errors.</span></code><code class="sig-name descname"><span class="pre">NotAcceptable</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'The</span> <span class="pre">request</span> <span class="pre">cannot</span> <span class="pre">be</span> <span class="pre">processed</span> <span class="pre">due</span> <span class="pre">to</span> <span class="pre">missing</span> <span class="pre">or</span> <span class="pre">invalid</span> <span class="pre">parameters.'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.NotAcceptable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.errors.HTTPException" title="core.errors.HTTPException"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.errors.HTTPException</span></code></a></p>
+<p>NotAcceptable</p>
+<p>Signals that the parameters supplied doesn’t match the function signature</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt id="core.errors.RequestTimeout">
+<em class="property"><span class="pre">exception</span> </em><code class="sig-prename descclassname"><span class="pre">core.errors.</span></code><code class="sig-name descname"><span class="pre">RequestTimeout</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'The</span> <span class="pre">request</span> <span class="pre">has</span> <span class="pre">timed</span> <span class="pre">out.'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.RequestTimeout" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.errors.HTTPException" title="core.errors.HTTPException"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.errors.HTTPException</span></code></a></p>
+<p>RequestTimeout</p>
+<p>This must be used for the task api to indicate it should retry</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt id="core.errors.Gone">
+<em class="property"><span class="pre">exception</span> </em><code class="sig-prename descclassname"><span class="pre">core.errors.</span></code><code class="sig-name descname"><span class="pre">Gone</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Gone'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.Gone" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.errors.HTTPException" title="core.errors.HTTPException"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.errors.HTTPException</span></code></a></p>
+<p>Gone</p>
+<p>Not used inside the server</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt id="core.errors.PreconditionFailed">
+<em class="property"><span class="pre">exception</span> </em><code class="sig-prename descclassname"><span class="pre">core.errors.</span></code><code class="sig-name descname"><span class="pre">PreconditionFailed</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Precondition</span> <span class="pre">Failed'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.PreconditionFailed" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.errors.HTTPException" title="core.errors.HTTPException"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.errors.HTTPException</span></code></a></p>
+<p>PreconditionFailed</p>
+<p>Mostly caused by a missing/invalid securitykey.</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt id="core.errors.RequestTooLarge">
+<em class="property"><span class="pre">exception</span> </em><code class="sig-prename descclassname"><span class="pre">core.errors.</span></code><code class="sig-name descname"><span class="pre">RequestTooLarge</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Request</span> <span class="pre">Too</span> <span class="pre">Large'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.RequestTooLarge" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.errors.HTTPException" title="core.errors.HTTPException"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.errors.HTTPException</span></code></a></p>
+<p>RequestTooLarge</p>
+<p>Not used inside the server</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt id="core.errors.Locked">
+<em class="property"><span class="pre">exception</span> </em><code class="sig-prename descclassname"><span class="pre">core.errors.</span></code><code class="sig-name descname"><span class="pre">Locked</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Ressource</span> <span class="pre">is</span> <span class="pre">Locked'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.Locked" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.errors.HTTPException" title="core.errors.HTTPException"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.errors.HTTPException</span></code></a></p>
+<p>Locked</p>
+<p>Raised if a resource cannot be deleted due to incomming relational locks</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt id="core.errors.Censored">
+<em class="property"><span class="pre">exception</span> </em><code class="sig-prename descclassname"><span class="pre">core.errors.</span></code><code class="sig-name descname"><span class="pre">Censored</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Unavailable</span> <span class="pre">For</span> <span class="pre">Legal</span> <span class="pre">Reasons'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.Censored" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.errors.HTTPException" title="core.errors.HTTPException"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.errors.HTTPException</span></code></a></p>
+<p>Censored</p>
+<p>Not used inside the server</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt id="core.errors.InternalServerError">
+<em class="property"><span class="pre">exception</span> </em><code class="sig-prename descclassname"><span class="pre">core.errors.</span></code><code class="sig-name descname"><span class="pre">InternalServerError</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Internal</span> <span class="pre">Server</span> <span class="pre">Error'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.InternalServerError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.errors.HTTPException" title="core.errors.HTTPException"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.errors.HTTPException</span></code></a></p>
+<p>InternalServerError</p>
+<p>The catch-all error raised by the server if your code raises any python-exception not deriving from
+HTTPException</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt id="core.errors.NotImplemented">
+<em class="property"><span class="pre">exception</span> </em><code class="sig-prename descclassname"><span class="pre">core.errors.</span></code><code class="sig-name descname"><span class="pre">NotImplemented</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Not</span> <span class="pre">Implemented'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.NotImplemented" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.errors.HTTPException" title="core.errors.HTTPException"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.errors.HTTPException</span></code></a></p>
+<p>NotImplemented</p>
+<p>Not really implemented at the moment :)</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt id="core.errors.BadGateway">
+<em class="property"><span class="pre">exception</span> </em><code class="sig-prename descclassname"><span class="pre">core.errors.</span></code><code class="sig-name descname"><span class="pre">BadGateway</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Bad</span> <span class="pre">Gateway'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.BadGateway" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.errors.HTTPException" title="core.errors.HTTPException"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.errors.HTTPException</span></code></a></p>
+<p>BadGateway</p>
+<p>Not used</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt id="core.errors.ServiceUnavailable">
+<em class="property"><span class="pre">exception</span> </em><code class="sig-prename descclassname"><span class="pre">core.errors.</span></code><code class="sig-name descname"><span class="pre">ServiceUnavailable</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Service</span> <span class="pre">Unavailable'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.ServiceUnavailable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.errors.HTTPException" title="core.errors.HTTPException"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.errors.HTTPException</span></code></a></p>
+<p>ServiceUnavailable</p>
+<p>Raised if the flag “viur.disabled” in conf.sharedConf is set</p>
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.errors.ReadFromClientError">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.errors.</span></code><code class="sig-name descname"><span class="pre">ReadFromClientError</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">errors</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forceFail</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.errors.ReadFromClientError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>ReadFromClientError</p>
+<p>Internal use only. Used as a <strong>return-value</strong> (its not raised!) to transport information on errors
+from fromClient in bones to the surrounding skeleton class</p>
+</dd></dl>
+
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Mausbrand Informationssysteme GmbH.
+      <span class="lastupdated">
+        Last updated on Mar 12, 2021.
+      </span>
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

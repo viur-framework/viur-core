@@ -1,0 +1,159 @@
+:mod:`core.render.json.default`
+===============================
+
+.. py:module:: core.render.json.default
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.render.json.default.CustomJsonEncoder
+   core.render.json.default.DefaultRender
+
+
+
+.. class:: CustomJsonEncoder(*, skipkeys=False, ensure_ascii=True, check_circular=True, allow_nan=True, sort_keys=False, indent=None, separators=None, default=None)
+
+
+   Bases: :class:`json.JSONEncoder`
+
+   This custom JSON-Encoder for this json-render ensures that translations are evaluated and can be dumped.
+
+   .. method:: default(self, o: Any) -> Any
+
+      Implement this method in a subclass such that it returns
+      a serializable object for ``o``, or calls the base implementation
+      (to raise a ``TypeError``).
+
+      For example, to support arbitrary iterators, you could
+      implement default like this::
+
+          def default(self, o):
+              try:
+                  iterable = iter(o)
+              except TypeError:
+                  pass
+              else:
+                  return list(iterable)
+              # Let the base class default method raise the TypeError
+              return JSONEncoder.default(self, o)
+
+
+
+.. class:: DefaultRender(parent=None, *args, **kwargs)
+
+
+   Bases: :class:`object`
+
+   .. attribute:: kind
+      :annotation: = json
+
+      
+
+   .. method:: renderBoneStructure(self, bone)
+
+      Renders the structure of a bone.
+
+      This function is used by `renderSkelStructure`.
+      can be overridden and super-called from a custom renderer.
+
+      :param bone: The bone which structure should be rendered.
+      :type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
+
+      :return: A dict containing the rendered attributes.
+      :rtype: dict
+
+
+   .. method:: renderSkelStructure(self, skel)
+
+      Dumps the structure of a :class:`server.db.skeleton.Skeleton`.
+
+      :param skel: Skeleton which structure will be processed.
+      :type skel: server.db.skeleton.Skeleton
+
+      :returns: The rendered dictionary.
+      :rtype: dict
+
+
+   .. method:: renderSingleBoneValue(self, value, bone, skel, key)
+
+      Renders the value of a bone.
+
+      This function is used by :func:`collectSkelData`.
+      It can be overridden and super-called from a custom renderer.
+
+      :param bone: The bone which value should be rendered.
+      :type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
+
+      :return: A dict containing the rendered attributes.
+      :rtype: dict
+
+
+   .. method:: renderBoneValue(self, bone, skel, key)
+
+
+   .. method:: renderSkelValues(self, skel, injectDownloadURL=False)
+
+      Prepares values of one :class:`server.db.skeleton.Skeleton` or a list of skeletons for output.
+
+      :param skel: Skeleton which contents will be processed.
+      :type skel: server.db.skeleton.Skeleton
+
+      :returns: A dictionary or list of dictionaries.
+      :rtype: dict
+
+
+   .. method:: renderEntry(self, skel, actionName, params=None)
+
+
+   .. method:: view(self, skel, action='view', params=None, *args, **kwargs)
+
+
+   .. method:: add(self, skel, action='add', params=None, **kwargs)
+
+
+   .. method:: edit(self, skel, action='edit', params=None, **kwargs)
+
+
+   .. method:: list(self, skellist, action='list', params=None, **kwargs)
+
+
+   .. method:: editSuccess(self, skel, params=None, **kwargs)
+
+
+   .. method:: addSuccess(self, skel, params=None, **kwargs)
+
+
+   .. method:: addDirSuccess(self, rootNode, path, dirname, params=None, *args, **kwargs)
+
+
+   .. method:: listRootNodes(self, rootNodes, tpl=None, params=None)
+
+
+   .. method:: listRootNodeContents(self, subdirs, entrys, tpl=None, params=None, **kwargs)
+
+
+   .. method:: renameSuccess(self, rootNode, path, src, dest, params=None, *args, **kwargs)
+
+
+   .. method:: copySuccess(self, srcrepo, srcpath, name, destrepo, destpath, type, deleteold, params=None, *args, **kwargs)
+
+
+   .. method:: deleteSuccess(self, skel, params=None, *args, **kwargs)
+
+
+   .. method:: reparentSuccess(self, obj, tpl=None, params=None, *args, **kwargs)
+
+
+   .. method:: setIndexSuccess(self, obj, tpl=None, params=None, *args, **kwargs)
+
+
+   .. method:: cloneSuccess(self, tpl=None, params=None, *args, **kwargs)
+
+
+

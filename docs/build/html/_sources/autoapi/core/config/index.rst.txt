@@ -1,0 +1,19 @@
+:mod:`core.config`
+==================
+
+.. py:module:: core.config
+
+
+Module Contents
+---------------
+
+.. data:: apiVersion
+   :annotation: = 1
+
+   
+
+.. data:: conf
+   
+
+   
+

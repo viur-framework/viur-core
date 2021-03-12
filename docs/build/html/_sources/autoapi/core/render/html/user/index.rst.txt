@@ -1,0 +1,105 @@
+:mod:`core.render.html.user`
+============================
+
+.. py:module:: core.render.html.user
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.render.html.user.Render
+
+
+
+.. class:: Render(parent=None, *args, **kwargs)
+
+
+   Bases: :class:`core.render.html.default`
+
+   The core jinja2 render.
+
+   This is the bridge between your ViUR modules and your templates.
+   First, the default jinja2-api is exposed to your templates. See http://jinja.pocoo.org/ for
+   more information. Second, we'll pass data das global variables to templates depending on the
+   current action.
+
+           - For list() we'll pass `skellist` - a :py:class:`server.render.jinja2.default.SkelListWrapper` instance
+           - For view(): skel - a dictionary with values from the skeleton prepared for use inside html
+           - For add()/edit: a dictionary as `skel` with `values`, `structure` and `errors` as keys.
+
+   Third, a bunch of global filters (like urlencode) and functions (getEntry, ..) are available  to templates.
+
+   See the ViUR Documentation for more information about functions and data available to jinja2 templates.
+
+   Its possible for modules to extend the list of filters/functions available to templates by defining
+   a function called `jinjaEnv`. Its called from the render when the environment is first created and
+   can extend/override the functionality exposed to templates.
+
+   .. attribute:: loginTemplate
+      :annotation: = user_login
+
+      
+
+   .. attribute:: loginChoicesTemplate
+      :annotation: = user_login_choices
+
+      
+
+   .. attribute:: logoutSuccessTemplate
+      :annotation: = user_logout_success
+
+      
+
+   .. attribute:: loginSuccessTemplate
+      :annotation: = user_login_success
+
+      
+
+   .. attribute:: verifySuccessTemplate
+      :annotation: = user_verify_success
+
+      
+
+   .. attribute:: verifyFailedTemplate
+      :annotation: = user_verify_failed
+
+      
+
+   .. attribute:: passwdRecoverInfoTemplate
+      :annotation: = user_passwdrecover_info
+
+      
+
+   .. method:: login_disabled(self, authMethods, tpl=None, **kwargs)
+
+
+   .. method:: login(self, skel, tpl=None, **kwargs)
+
+
+   .. method:: loginChoices(self, authMethods, tpl=None, **kwargs)
+
+
+   .. method:: loginSucceeded(self, tpl=None, **kwargs)
+
+
+   .. method:: logoutSuccess(self, tpl=None, **kwargs)
+
+
+   .. method:: verifySuccess(self, skel, tpl=None, **kwargs)
+
+
+   .. method:: verifyFailed(self, tpl=None, **kwargs)
+
+
+   .. method:: passwdRecoverInfo(self, msg, skel=None, tpl=None, **kwargs)
+
+
+   .. method:: passwdRecover(self, *args, **kwargs)
+
+
+

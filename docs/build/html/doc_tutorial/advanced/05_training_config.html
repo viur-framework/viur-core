@@ -1,0 +1,601 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>Configuration &mdash; ViUR Core 3.0.0-b1 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/graphviz.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Sessions" href="10_training_session.html" />
+    <link rel="prev" title="Advanced Tutorials" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> ViUR Core
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                3.0.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">ViUR Core</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../doc_start/index.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../doc_guide/index.html">Reference Guide</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Tutorials</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../basic/index.html">Basis Tutorials</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Advanced Tutorials</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Configuration</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#server-configuration">Server configuration</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#admin-configuration">Admin configuration</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#miscellaneous-configuration">Miscellaneous configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="10_training_session.html">Sessions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="15_training_tasks.html">Tasks</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../autoapi/index.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">ViUR Core</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">Tutorials</a> &raquo;</li>
+        
+          <li><a href="index.html">Advanced Tutorials</a> &raquo;</li>
+        
+      <li>Configuration</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../../_sources/doc_tutorial/advanced/05_training_config.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="configuration">
+<h1>Configuration<a class="headerlink" href="#configuration" title="Permalink to this headline">¶</a></h1>
+<p>The module <code class="docutils literal notranslate"><span class="pre">config</span></code> provided by the ViUR server contains several configuration options which change the
+servers behavior, allowing you to access system-global parameters, or provide some kind of global variables
+within a ViUR project setup.
+It simply can be imported into any server-side module with</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">server.config</span> <span class="kn">import</span> <span class="n">conf</span>
+</pre></div>
+</div>
+<p>All ViUR-specific parameters have the prefix <strong>viur.</strong>. Parameters that influence or extend information
+used by the Admin-tools start with the prefix <strong>admin.</strong> or more specialized with <strong>admin.vi.</strong>.
+If parameters are changed for configuration issues, this should be done on the server’s main entry (i.e. that
+Python source file that calls <code class="docutils literal notranslate"><span class="pre">server.run()</span></code>).</p>
+<p>This section gives an overview and detailed information about how to use ViURs pre-defined configuration
+parameters.</p>
+<div class="section" id="server-configuration">
+<h2>Server configuration<a class="headerlink" href="#server-configuration" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="viur-accessrights">
+<h3>viur.accessRights<a class="headerlink" href="#viur-accessrights" title="Permalink to this headline">¶</a></h3>
+<p>Defines a list of default user access rights. Defaults to <code class="docutils literal notranslate"><span class="pre">[&quot;admin&quot;,</span> <span class="pre">&quot;root&quot;]</span></code>.</p>
+<p>This list can be extended to project-specific access rights that are made available to every user
+entity created by the user module. By default, there exists two entries which are</p>
+<ul class="simple">
+<li><p><em>admin</em> defines if the user has admin-access (ie. is allowed to access the admin and vi render)</p></li>
+<li><p><em>root</em> defines if the user is a super-admin (users having the root-flag are allowed to do anything by default)</p></li>
+</ul>
+<p>These entries can be enriched in the application’s main entry with</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conf</span><span class="p">[</span><span class="s2">&quot;viur.accessRights&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;myProjectFlag&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Each module in your application will register the flags it supports during startup, so make sure you use <em>.append</em> to add
+your flags instead of (re)-setting this property</p>
+</div>
+<div class="section" id="viur-availablelanguages">
+<h3>viur.availableLanguages<a class="headerlink" href="#viur-availablelanguages" title="Permalink to this headline">¶</a></h3>
+<p>Defines a list of valid language-codes. These are the languages that are available on projects with multi-language setup.
+Unless it’s white-listed here, ViUR will refuse to serve requests in that language.
+The language code also defines the name of the language translation file in the <em>translations</em>
+folder of the project.</p>
+<p>Example configuration:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conf</span><span class="p">[</span><span class="s2">&quot;viur.availableLanguages&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;de&quot;</span><span class="p">,</span> <span class="s2">&quot;en&quot;</span><span class="p">,</span> <span class="s2">&quot;fr&quot;</span><span class="p">]</span> <span class="c1"># German, English, French.</span>
+</pre></div>
+</div>
+<p>See also <a class="reference internal" href="#viur-defaultlanguage">viur.defaultLanguage</a>, <a class="reference internal" href="#viur-domainlanguagemapping">viur.domainLanguageMapping</a>, <a class="reference internal" href="#viur-languagemethod">viur.languageMethod</a>
+and <a class="reference internal" href="#viur-logmissingtranslations">viur.logMissingTranslations</a>.</p>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>If translation is not working despite having <em>viur.availableLanguages</em> set, check that your <em>projects</em>-tranlation
+module is importable and contains an translation table for that language. If your translation-module is not importable,
+all i18n features are disabled!</p>
+</div>
+</div>
+<div class="section" id="viur-cacheenvironmentkey">
+<h3>viur.cacheEnvironmentKey<a class="headerlink" href="#viur-cacheenvironmentkey" title="Permalink to this headline">¶</a></h3>
+<p>Call this function for each time we need to derive a key for caching.</p>
+<p>If the configuration parameter <em>viur.cacheEnvironmentKey</em> contains a callable, this function will be
+called for each cache-attempt and the result will be included in the computed cache-key. This allows you to
+easily include environment variables like the current language into the key used to determine the caching-slot.</p>
+</div>
+<div class="section" id="viur-capabilities">
+<h3>viur.capabilities<a class="headerlink" href="#viur-capabilities" title="Permalink to this headline">¶</a></h3>
+<p>Reserved for further use.</p>
+<p>Can be used to advertise system-wide addons to modules.</p>
+</div>
+<div class="section" id="viur-contentsecuritypolicy">
+<h3>viur.contentSecurityPolicy<a class="headerlink" href="#viur-contentsecuritypolicy" title="Permalink to this headline">¶</a></h3>
+<p>Emit Content-Security-Policy HTTP-header with each request.</p>
+<p>Use <code class="xref py py-meth docutils literal notranslate"><span class="pre">server.securityheaders.addCspRule()</span></code> to modify this property.</p>
+</div>
+<div class="section" id="viur-db-caching">
+<h3>viur.db.caching<a class="headerlink" href="#viur-db-caching" title="Permalink to this headline">¶</a></h3>
+<p>Defines a caching strategy that is used by the database API to reduce read-requests on cloud-databases
+like Google Datastore. We recommend to leave this set to <em>2</em>. See <a class="reference internal" href="../../doc_guide/05_implementation_consistency.html"><span class="doc">Data consistency</span></a>.</p>
+<ul class="simple">
+<li><p>2: Aggressive mode (default)</p></li>
+<li><p>1: Safe mode</p></li>
+<li><p>0: Turns optimization off</p></li>
+</ul>
+</div>
+<div class="section" id="viur-debug-traceexceptions">
+<h3>viur.debug.traceExceptions<a class="headerlink" href="#viur-debug-traceexceptions" title="Permalink to this headline">¶</a></h3>
+<p>Disable catch and handling of user-generated http-exceptions. Useful to trace where a Redirect or Forbidden etc. error
+is raised inside deeply nested code.</p>
+</div>
+<div class="section" id="viur-debug-traceexternalcallrouting">
+<h3>viur.debug.traceExternalCallRouting<a class="headerlink" href="#viur-debug-traceexternalcallrouting" title="Permalink to this headline">¶</a></h3>
+<p>Logging calls of any functions marked as exposed. It will write the called function name and it’s parameter to the log.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This might include sensitive data like unencrypted usernames and passwords in your log! Keep it off in production!</p>
+</div>
+</div>
+<div class="section" id="viur-debug-traceinternalcallrouting">
+<h3>viur.debug.traceInternalCallRouting<a class="headerlink" href="#viur-debug-traceinternalcallrouting" title="Permalink to this headline">¶</a></h3>
+<p>Logging calls of any functions marked as internalExposed. It will write the called function name and it’s parameter to the log.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This might include sensitive data like unencrypted usernames and passwords in your log! Keep it off in production!</p>
+</div>
+</div>
+<div class="section" id="viur-debug-tracequeries">
+<h3>viur.debug.traceQueries<a class="headerlink" href="#viur-debug-tracequeries" title="Permalink to this headline">¶</a></h3>
+<p>Logging of datastore queries.</p>
+<p>If enabled, ViUR will write each query run against the datastore into the log - including it’s kind, filters and orders.</p>
+</div>
+<div class="section" id="viur-defaultlanguage">
+<h3>viur.defaultLanguage<a class="headerlink" href="#viur-defaultlanguage" title="Permalink to this headline">¶</a></h3>
+<p>Default language used by the project, if no other language code was specified.</p>
+<p>Unless overridden, english (“en”) will be used as the default language.</p>
+<p>See also <a class="reference internal" href="#viur-availablelanguages">viur.availableLanguages</a>, <a class="reference internal" href="#viur-domainlanguagemapping">viur.domainLanguageMapping</a>, <a class="reference internal" href="#viur-languagemethod">viur.languageMethod</a>
+and <a class="reference internal" href="#viur-logmissingtranslations">viur.logMissingTranslations</a>.</p>
+</div>
+<div class="section" id="viur-disablecache">
+<h3>viur.disableCache<a class="headerlink" href="#viur-disablecache" title="Permalink to this headline">¶</a></h3>
+<p>If set True, the decorator &#64;enableCache from server.cache has no effect. Caching inside the jinja2 Render will also
+be disabled.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This doesn’t cause entries already in the cache to be evicted. If they’re old entries they just won’t be used and no
+new entries will be added. Once that property is set to false again, old entries in the cache will be served again
+if they haven’t expired yet.</p>
+</div>
+</div>
+<div class="section" id="viur-domainlanguagemapping">
+<h3>viur.domainLanguageMapping<a class="headerlink" href="#viur-domainlanguagemapping" title="Permalink to this headline">¶</a></h3>
+<p>Map domains to alternative default languages.</p>
+<p>See also <a class="reference internal" href="#viur-availablelanguages">viur.availableLanguages</a>, <a class="reference internal" href="#viur-defaultlanguage">viur.defaultLanguage</a>, <a class="reference internal" href="#viur-languagemethod">viur.languageMethod</a>
+and <a class="reference internal" href="#viur-logmissingtranslations">viur.logMissingTranslations</a>.</p>
+</div>
+<div class="section" id="viur-emailrecipientoverride">
+<h3>viur.emailRecipientOverride<a class="headerlink" href="#viur-emailrecipientoverride" title="Permalink to this headline">¶</a></h3>
+<p>Override recipients for all outgoing email. This should be done for testing purposes only.</p>
+<p>If set, all outgoing emails will be send to this address
+(always overriding the <em>dests</em>-parameter in <a href="#id1"><span class="problematic" id="id2">`server.utils.sendEmail`_</span></a>).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conf</span><span class="p">[</span><span class="s2">&quot;viur.emailRecipientOverride&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;john@doe.net&quot;</span> <span class="c1"># Simple override</span>
+<span class="n">conf</span><span class="p">[</span><span class="s2">&quot;viur.emailRecipientOverride&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;john@doe.net&quot;</span><span class="p">,</span> <span class="s2">&quot;max@mustermann.de&quot;</span><span class="p">]</span> <span class="c1"># Override to multiple targets</span>
+<span class="n">conf</span><span class="p">[</span><span class="s2">&quot;viur.emailRecipientOverride&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;@viur.dev&quot;</span> <span class="c1"># Redirect all emails to this domain. &quot;me@gmail.com&quot; would become &quot;me_at_gmail_dot_com@viur.is&quot;</span>
+<span class="n">conf</span><span class="p">[</span><span class="s2">&quot;viur.emailRecipientOverride&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span> <span class="c1"># Entirely disable sending emails.</span>
+<span class="n">conf</span><span class="p">[</span><span class="s2">&quot;viur.emailRecipientOverride&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span> <span class="c1"># Default, outgoing email go to the specified recipients.</span>
+</pre></div>
+</div>
+<p>See also <a class="reference internal" href="#viur-emailsenderoverride">viur.emailSenderOverride</a>.</p>
+</div>
+<div class="section" id="viur-emailsenderoverride">
+<h3>viur.emailSenderOverride<a class="headerlink" href="#viur-emailsenderoverride" title="Permalink to this headline">¶</a></h3>
+<p>Override the sender of all outgoing emails by this one.</p>
+<p>If set, this sender will be used, regardless of what the templates advertise as sender.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conf</span><span class="p">[</span><span class="s2">&quot;viur.emailSenderOverride&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;john@doe.net&quot;</span> <span class="c1"># Simple override</span>
+<span class="n">conf</span><span class="p">[</span><span class="s2">&quot;viur.emailSenderOverride&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;John Doe &lt;john@doe.net&gt;&quot;</span> <span class="c1"># Override with name</span>
+<span class="n">conf</span><span class="p">[</span><span class="s2">&quot;viur.emailSenderOverride&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span> <span class="c1"># No override (default)</span>
+</pre></div>
+</div>
+<p>See also <a class="reference internal" href="#viur-emailrecipientoverride">viur.emailRecipientOverride</a>.</p>
+</div>
+<div class="section" id="viur-errorhandler">
+<h3>viur.errorHandler<a class="headerlink" href="#viur-errorhandler" title="Permalink to this headline">¶</a></h3>
+<p>Defines a custom error handler. If set, ViUR calls this function instead of rendering the
+<a class="reference internal" href="#viur-errortemplate">viur.errorTemplate</a> in case of exception.</p>
+<p>The function must accept one argument (an instance of the Python exception object (possibly an instance of
+<a href="#id3"><span class="problematic" id="id4">`server.errors.HTTPException`_</span></a>), in case that an HTTP-exception occurs).</p>
+</div>
+<div class="section" id="viur-errortemplate">
+<h3>viur.errorTemplate<a class="headerlink" href="#viur-errortemplate" title="Permalink to this headline">¶</a></h3>
+<p>Defines a custom error template. This is a path to the template to render if an unhandled error occurs.</p>
+<p>This is a Python String-template, <em>not</em> a Jinja2 one! Might have no effect if <cite>viur.errorHandler</cite> is set.</p>
+</div>
+<div class="section" id="viur-exportpassword">
+<h3>viur.exportPassword<a class="headerlink" href="#viur-exportpassword" title="Permalink to this headline">¶</a></h3>
+<p>Activates the database export API if set.</p>
+<p>Must be exactly 32 chars. <em>Everyone knowing this password can dump the entire database!</em></p>
+</div>
+<div class="section" id="viur-forcessl">
+<h3>viur.forceSSL<a class="headerlink" href="#viur-forcessl" title="Permalink to this headline">¶</a></h3>
+<p>Enable HTTPS enforcement.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;viur.forceSSL&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span> <span class="c1"># We want to be secure!</span>
+</pre></div>
+</div>
+<p>If set True, all requests must be encrypted (ignored on development server). If unencrypted requests are received,
+a redirect to <a class="reference external" href="https://your.domain/">https://your.domain/</a> is raised (the path and request paremeters are <em>not</em> preserved for security reasons).</p>
+</div>
+<div class="section" id="viur-importpassword">
+<h3>viur.importPassword<a class="headerlink" href="#viur-importpassword" title="Permalink to this headline">¶</a></h3>
+<p>Activates the database import API if set.</p>
+<p>Must be exactly 32 chars.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p><em>Everyone knowing this password can overwrite the entire database!</em> Never use in a production environment.</p>
+<p>ViUR will bug you repeatedly until you turn it off.</p>
+</div>
+</div>
+<div class="section" id="viur-languagealiasmap">
+<h3>viur.languageAliasMap<a class="headerlink" href="#viur-languagealiasmap" title="Permalink to this headline">¶</a></h3>
+<p>Defines a mapping for certain languages directing to one translation (ie. us-&gt;en).</p>
+</div>
+<div class="section" id="viur-languagemethod">
+<h3>viur.languageMethod<a class="headerlink" href="#viur-languagemethod" title="Permalink to this headline">¶</a></h3>
+<p>Method of how translation is applied.
+By default, this is configured to “session”.</p>
+<ul class="simple">
+<li><p><em>session</em> saves within session (default)</p></li>
+<li><p><em>url</em> injects a language prefix into the URL</p></li>
+<li><p><em>domain</em> configures one domain per language</p></li>
+</ul>
+</div>
+<div class="section" id="viur-logmissingtranslations">
+<h3>viur.logMissingTranslations<a class="headerlink" href="#viur-logmissingtranslations" title="Permalink to this headline">¶</a></h3>
+<p>Silently log missing translations during application run.
+If ViUR encounters an missing translation, it logs it by creating an entry in the <em>viur-missing-translations</em> kind.</p>
+</div>
+<div class="section" id="viur-mainapp">
+<h3>viur.mainApp<a class="headerlink" href="#viur-mainapp" title="Permalink to this headline">¶</a></h3>
+<p>Holds a reference to the pre-build application-instance that’s created by <code class="docutils literal notranslate"><span class="pre">server.run()</span></code>.
+<strong>May not be overridden, reassigned or modified!</strong></p>
+</div>
+<div class="section" id="viur-maxpasswordlength">
+<h3>viur.maxPasswordLength<a class="headerlink" href="#viur-maxpasswordlength" title="Permalink to this headline">¶</a></h3>
+<p>Defines a maximum password length. This prevents denial of service attacks through large inputs for pbkdf2.
+The value defaults to 512.</p>
+</div>
+<div class="section" id="viur-maxpostparamscount">
+<h3>viur.maxPostParamsCount<a class="headerlink" href="#viur-maxpostparamscount" title="Permalink to this headline">¶</a></h3>
+<p>Upper limit of the amount of parameters accepted per request. Prevents Hash-Collision-Attacks. The value defaults to 250.</p>
+</div>
+<div class="section" id="viur-models">
+<h3>viur.models<a class="headerlink" href="#viur-models" title="Permalink to this headline">¶</a></h3>
+<p>Holds a dictionary of all models.
+<strong>May not be overridden, reassigned or modified!</strong></p>
+</div>
+<div class="section" id="viur-nosslcheckurls">
+<h3>viur.noSSLCheckUrls<a class="headerlink" href="#viur-nosslcheckurls" title="Permalink to this headline">¶</a></h3>
+<p>Disable the <a class="reference internal" href="#viur-forcessl">viur.forceSSL</a> restriction for certain URLs (ie these URLs will be also accessible and served over
+unencrypted http). Add an asterisk to whitelist an entire prefix (exact match otherwise).</p>
+<p>It defaults to <code class="docutils literal notranslate"><span class="pre">[&quot;/_tasks*&quot;,</span> <span class="pre">&quot;/ah/*&quot;]</span></code> as the task-queue doesn’t call using https.</p>
+</div>
+<div class="section" id="viur-requestpreprocessor">
+<h3>viur.requestPreprocessor<a class="headerlink" href="#viur-requestpreprocessor" title="Permalink to this headline">¶</a></h3>
+<p>Attach a request preprocessor to the application.</p>
+<p>A preprocesser is a function receiving the original path from the URL requested and might rewrite it before its used
+by ViUR to determine which function in the application should be called. Can also be used to run custom code on each
+request before it’s normally dispatched to your application.</p>
+</div>
+<div class="section" id="viur-salt">
+<h3>viur.salt<a class="headerlink" href="#viur-salt" title="Permalink to this headline">¶</a></h3>
+<p>Default salt used for passwords.</p>
+<div class="deprecated">
+<p><span class="versionmodified deprecated">Deprecated since version 0.8: </span><strong>Don’t change.</strong> Will be removed in a future version. Salts are now randomly
+chosen for each password and stored along with the hash inside the datastore.</p>
+</div>
+</div>
+<div class="section" id="viur-searchvalidchars">
+<h3>viur.searchValidChars<a class="headerlink" href="#viur-searchvalidchars" title="Permalink to this headline">¶</a></h3>
+<p>Characters valid for the internal search functionality (all other characters are ignored). If changed you must rebuild
+all search-indexes for skeletons that don’t use the search api provided by the appengine (ie all skeletons where
+<em>searchIndex</em> is None)</p>
+</div>
+<div class="section" id="viur-security-contentsecuritypolicy">
+<h3>viur.security.contentSecurityPolicy<a class="headerlink" href="#viur-security-contentsecuritypolicy" title="Permalink to this headline">¶</a></h3>
+<p>If set, viur will emit a CSP http-header with each request.</p>
+<p>Use <code class="xref py py-meth docutils literal notranslate"><span class="pre">server.securityheaders.addCspRule()</span></code> to set this property.</p>
+</div>
+<div class="section" id="viur-security-stricttransportsecurity">
+<h3>viur.security.strictTransportSecurity<a class="headerlink" href="#viur-security-stricttransportsecurity" title="Permalink to this headline">¶</a></h3>
+<p>If set, viur will emit a HSTS http-header with each request.</p>
+<p>Use <code class="xref py py-meth docutils literal notranslate"><span class="pre">server.securityheaders.enableStrictTransportSecurity()</span></code> to set this property. Only partially supported on the Appengine atm.</p>
+</div>
+<div class="section" id="viur-security-publickeypins">
+<h3>viur.security.publicKeyPins<a class="headerlink" href="#viur-security-publickeypins" title="Permalink to this headline">¶</a></h3>
+<p>If set, viur will emit a Public Key Pins http-header with each request.</p>
+<p>Use <code class="xref py py-meth docutils literal notranslate"><span class="pre">securityheaders.setPublicKeyPins()</span></code> to set this property.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This is reserved for further use. It’s not yet supported on the appengine.</p>
+</div>
+</div>
+<div class="section" id="viur-security-xframeoptions">
+<h3>viur.security.xFrameOptions<a class="headerlink" href="#viur-security-xframeoptions" title="Permalink to this headline">¶</a></h3>
+<p>If set, ViUR will emit a X-Frame-Options header.</p>
+<p>Use <code class="xref py py-meth docutils literal notranslate"><span class="pre">server.securityheaders.setXFrameOptions()</span></code> to set this property.</p>
+</div>
+<div class="section" id="viur-security-xxssprotection">
+<h3>viur.security.xXssProtection<a class="headerlink" href="#viur-security-xxssprotection" title="Permalink to this headline">¶</a></h3>
+<p>ViUR will emit a X-XSS-Protection header if set (the default).</p>
+<p>Use <code class="xref py py-meth docutils literal notranslate"><span class="pre">securityheaders.setXXssProtection()</span></code> to set this property.</p>
+</div>
+<div class="section" id="viur-security-xcontenttypeoptions">
+<h3>viur.security.xContentTypeOptions<a class="headerlink" href="#viur-security-xcontenttypeoptions" title="Permalink to this headline">¶</a></h3>
+<p>ViUR will emit <em>X-Content-Type-Options: nosniff</em> Header unless set to False.</p>
+<p>Use <code class="xref py py-meth docutils literal notranslate"><span class="pre">securityheaders.setXContentTypeNoSniff()</span></code> to set this property.</p>
+</div>
+<div class="section" id="viur-session-lifetime">
+<h3>viur.session.lifeTime<a class="headerlink" href="#viur-session-lifetime" title="Permalink to this headline">¶</a></h3>
+<p>Specifies when sessions timeout.</p>
+<p>The value must be given in seconds. Defaults to 60 minutes.
+If no request is received within that window, the session is terminated and the user will have to login again.</p>
+</div>
+<div class="section" id="viur-session-persistentfieldsonlogin">
+<h3>viur.session.persistentFieldsOnLogin<a class="headerlink" href="#viur-session-persistentfieldsonlogin" title="Permalink to this headline">¶</a></h3>
+<p>Preserve session values on login.</p>
+<p>For security reasons, the session is reset when a user logs in. Only fields specified in this list will be kept on login.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">server</span> <span class="kn">import</span> <span class="n">session</span><span class="p">,</span> <span class="n">config</span>
+<span class="n">config</span><span class="p">[</span><span class="s2">&quot;viur.session.persistentFieldsOnLogin&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;username&quot;</span><span class="p">]</span>
+
+<span class="n">session</span><span class="o">.</span><span class="n">current</span><span class="p">[</span><span class="s2">&quot;username&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;john&quot;</span> <span class="c1"># Will be kept after logging in</span>
+<span class="n">session</span><span class="o">.</span><span class="n">current</span><span class="p">[</span><span class="s2">&quot;password&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;secret&quot;</span> <span class="c1"># Will be lost after logging in</span>
+<span class="n">session</span><span class="o">.</span><span class="n">current</span><span class="o">.</span><span class="n">markChanged</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="viur-session-persistentfieldsonlogout">
+<h3>viur.session.persistentFieldsOnLogout<a class="headerlink" href="#viur-session-persistentfieldsonlogout" title="Permalink to this headline">¶</a></h3>
+<p>Preserve session values on logout.</p>
+<p>For security reasons, the session is reset when a user logs out. Only fields specified in this list will be kept.</p>
+<p>For example, see <a class="reference internal" href="#viur-session-persistentfieldsonlogin">viur.session.persistentFieldsOnLogin</a>.</p>
+</div>
+<div class="section" id="viur-tasks-customenvironmenthandler">
+<h3>viur.tasks.customEnvironmentHandler<a class="headerlink" href="#viur-tasks-customenvironmenthandler" title="Permalink to this headline">¶</a></h3>
+<p>Preserve additional environment in deferred tasks.</p>
+<p>If set, must be a tuple of two functions (serializeEnv, restoreEnv) for serializing/restoring your enviromental data.
+The serializeEnv function must not accept any parameter and return and json-serializable object with the information
+you need to preserve. The restoreEnv function receives that object and should write the information contained therein
+into the environment of that deferred request.</p>
+</div>
+</div>
+<div class="section" id="admin-configuration">
+<h2>Admin configuration<a class="headerlink" href="#admin-configuration" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="admin-modulegroups">
+<h3>admin.moduleGroups<a class="headerlink" href="#admin-modulegroups" title="Permalink to this headline">¶</a></h3>
+<p>Grouping modules within panes.</p>
+<p>It is possible to group different modules into logical panes, so they share a single entry in the admin.
+This is done by choosing a prefix, which will be used to group the different modules.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conf</span><span class="p">[</span> <span class="s2">&quot;admin.moduleGroups&quot;</span> <span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+   <span class="p">{</span><span class="s2">&quot;prefix&quot;</span><span class="p">:</span><span class="s2">&quot;Tea: &quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Tea&quot;</span><span class="p">,</span> <span class="s2">&quot;icon&quot;</span><span class="p">:</span> <span class="s2">&quot;icons/modules/produktdatenbank.png&quot;</span> <span class="p">},</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+<p>This example will add all modules, which descriptions starts with the prefix <em>Tea:</em> to the group <em>Tea</em>
+with the given icon.</p>
+</div>
+<div class="section" id="admin-vi-name">
+<h3>admin.vi.name<a class="headerlink" href="#admin-vi-name" title="Permalink to this headline">¶</a></h3>
+<p>Specifies a custom name in the vi admin.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conf</span><span class="p">[</span><span class="s2">&quot;admin.vi.name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">u</span><span class="s2">&quot;Admin&quot;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="admin-vi-logo">
+<h3>admin.vi.logo<a class="headerlink" href="#admin-vi-logo" title="Permalink to this headline">¶</a></h3>
+<p>Specifies a custom logo in the vi admin.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conf</span><span class="p">[</span><span class="s2">&quot;admin.vi.logo&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;/static/meta/project-logo.svg&quot;</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="miscellaneous-configuration">
+<h2>Miscellaneous configuration<a class="headerlink" href="#miscellaneous-configuration" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="bugsnag-apikey">
+<h3>bugsnag.apiKey<a class="headerlink" href="#bugsnag-apikey" title="Permalink to this headline">¶</a></h3>
+<p>ViUR has integrated support for bugsnag.</p>
+<p>To enable reporting to bugsnag, just set your personal bugsnag API-Key,
+the rest will be determined automatically.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conf</span><span class="p">[</span><span class="s2">&quot;bugsnag.apiKey&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;your api key&quot;</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="10_training_session.html" class="btn btn-neutral float-right" title="Sessions" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="index.html" class="btn btn-neutral float-left" title="Advanced Tutorials" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Mausbrand Informationssysteme GmbH.
+      <span class="lastupdated">
+        Last updated on Mar 12, 2021.
+      </span>
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

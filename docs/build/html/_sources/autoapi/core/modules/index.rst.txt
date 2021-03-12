@@ -1,0 +1,19 @@
+:mod:`core.modules`
+===================
+
+.. py:module:: core.modules
+
+
+Submodules
+----------
+.. toctree::
+   :titlesonly:
+   :maxdepth: 1
+
+   file/index.rst
+   formmailer/index.rst
+   page/index.rst
+   site/index.rst
+   user/index.rst
+
+

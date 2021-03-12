@@ -1,0 +1,323 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>SpatialBone &mdash; ViUR Core 3.0.0-b1 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/graphviz.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tutorials" href="../doc_tutorial/index.html" />
+    <link rel="prev" title="RandomSliceBone" href="15_implementation_randomSliceBone.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> ViUR Core
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                3.0.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">ViUR Core</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../doc_start/index.html">Getting started</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Reference Guide</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="05_implementation_consistency.html">Data consistency</a></li>
+<li class="toctree-l2"><a class="reference internal" href="10_implementation_relations.html">Relations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="15_implementation_randomSliceBone.html">RandomSliceBone</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">SpatialBone</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../doc_tutorial/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../autoapi/index.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">ViUR Core</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="index.html">Reference Guide</a> &raquo;</li>
+        
+      <li>SpatialBone</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/doc_guide/20_implementation_spatialBone.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="spatialbone">
+<h1>SpatialBone<a class="headerlink" href="#spatialbone" title="Permalink to this headline">¶</a></h1>
+<p>The (Geo-)spatial Bone implements proximity searches. It provides a somewhat efficient way to retrieve entities,
+which are closest to a given point. Our algorithm is based on two assumptions:</p>
+<blockquote>
+<div><ol class="arabic">
+<li><p>The region we’re searching is small enough to ignore errors introduced by transferring the spherical earth surface
+into a flat map. This means you cannot search the whole world. Your data must be limited to a
+region/country/continent.</p></li>
+<li><p>The region is larger than the actual area of interest. This means that there’s a predefined limit on distance, in
+which results are useful. It’s okay to discard results outside of this limit, even if they would have been the
+closest ones.
+.. Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">If</span> <span class="n">you</span> <span class="n">query</span> <span class="n">your</span> <span class="n">application</span> <span class="n">to</span> <span class="n">the</span> <span class="nb">next</span> <span class="n">Pub</span><span class="p">,</span> <span class="n">you</span> <span class="n">might</span> <span class="n">expect</span> <span class="n">results</span> <span class="n">within</span> <span class="n">a</span> <span class="nb">range</span> <span class="n">of</span> <span class="mi">100</span><span class="n">km</span><span class="o">.</span> <span class="n">A</span> <span class="n">Pub</span> <span class="ow">in</span>
+<span class="mi">500</span><span class="n">km</span> <span class="n">distance</span> <span class="n">would</span> <span class="n">probably</span> <span class="n">be</span> <span class="n">useless</span> <span class="n">to</span> <span class="n">you</span> <span class="o">-</span> <span class="n">even</span> <span class="k">if</span> <span class="n">it</span> <span class="n">would</span> <span class="n">be</span> <span class="n">the</span> <span class="n">closest</span> <span class="n">one</span><span class="p">,</span> <span class="n">so</span> <span class="n">it</span><span class="s1">&#39;s okay if this</span>
+<span class="n">algorithm</span> <span class="n">doesn</span><span class="s1">&#39;t find it.</span>
+</pre></div>
+</div>
+</li>
+</ol>
+</div></blockquote>
+<p>Use this bone only if your use-case meet these assumptions!</p>
+<p>Lets assume we have a very sparse map, got a point somewhere inside and want to get the entries close around.</p>
+<blockquote>
+<div><div class="align-center figure" id="id1">
+<img alt="Implemenation-Details for randomSliceBone" src="../_images/spatialBone1.png" />
+<p class="caption"><span class="caption-text">A sparse map, our position and the elements close around</span><a class="headerlink" href="#id1" title="Permalink to this image">¶</a></p>
+</div>
+</div></blockquote>
+<p>Our algorithm uses a sweepline to fetch the points close to the given position. So one subquery is performed for each
+possible direction on the map (North/South/East/West), which fetches the next n Points in the given direction</p>
+<p>Lets assume we have a very sparse map, got a point somewhere inside and want to get the entries close around.</p>
+<blockquote>
+<div><div class="align-center figure" id="id2">
+<img alt="Implemenation-Details for randomSliceBone" src="../_images/spatialBone2.png" />
+<p class="caption"><span class="caption-text">Start of the first Sweepline</span><a class="headerlink" href="#id2" title="Permalink to this image">¶</a></p>
+</div>
+<div class="align-center figure" id="id3">
+<img alt="Implemenation-Details for randomSliceBone" src="../_images/spatialBone3.png" />
+<p class="caption"><span class="caption-text">End of the first Sweepline after 5 processed points</span><a class="headerlink" href="#id3" title="Permalink to this image">¶</a></p>
+</div>
+<div class="align-center figure" id="id4">
+<img alt="Implemenation-Details for randomSliceBone" src="../_images/spatialBone4.png" />
+<p class="caption"><span class="caption-text">Final result after running all four sweeplines. Processed points in green, Points that have been seen multiple
+times in yellow.</span><a class="headerlink" href="#id4" title="Permalink to this image">¶</a></p>
+</div>
+</div></blockquote>
+<p>While this simple approach catches all points in the close surrounding, is also catches points far outside the
+area of intrest.</p>
+<blockquote>
+<div><div class="align-center figure" id="id5">
+<img alt="Implemenation-Details for randomSliceBone" src="../_images/spatialBone5.png" />
+<p class="caption"><span class="caption-text">Points that have been processed, but that are way too far from the area of interest</span><a class="headerlink" href="#id5" title="Permalink to this image">¶</a></p>
+</div>
+</div></blockquote>
+<p>This gets even worse if the map is more dense populated.</p>
+<blockquote>
+<div><div class="align-center figure" id="id6">
+<img alt="Implemenation-Details for randomSliceBone" src="../_images/spatialBone6.png" />
+<p class="caption"><span class="caption-text">Processed points in a more dense map</span><a class="headerlink" href="#id6" title="Permalink to this image">¶</a></p>
+</div>
+</div></blockquote>
+<p>This is where the second assumpion comes in hand.
+We split the map into alleys that are three times wider than the limit on distance that we’ll consider. So if your
+use-case requires a distance up to 100km, a alley will be roughly 300km width/height.
+Allys will overlap (an ally will start each 100km)</p>
+<blockquote>
+<div><div class="align-center figure" id="id7">
+<img alt="Implemenation-Details for randomSliceBone" src="../_images/spatialBone7.png" />
+<p class="caption"><span class="caption-text">First two overlapping alleys</span><a class="headerlink" href="#id7" title="Permalink to this image">¶</a></p>
+</div>
+</div></blockquote>
+<p>This has two implications. First, every point lies within up to three allys. And there is always at least one ally,
+which boarders have at least 100km distance to the given point.</p>
+<blockquote>
+<div><div class="align-center figure" id="id8">
+<img alt="Implemenation-Details for randomSliceBone" src="../_images/spatialBone8.png" />
+<p class="caption"><span class="caption-text">Ally, which borders are at least 100km distance to the given point</span><a class="headerlink" href="#id8" title="Permalink to this image">¶</a></p>
+</div>
+</div></blockquote>
+<p>Now its possible to limit the sweepline to points inside this special ally. If apply this alleys on both directions
+we can limit each sweepline to ignore points outside the area of interest.</p>
+<blockquote>
+<div><div class="align-center figure" id="id9">
+<img alt="Implemenation-Details for randomSliceBone" src="../_images/spatialBone9.png" />
+<p class="caption"><span class="caption-text">Both allys with the first sweepline executed</span><a class="headerlink" href="#id9" title="Permalink to this image">¶</a></p>
+</div>
+</div></blockquote>
+<p>After running all four sweeplines we can sort the fetched results by distance and we can determine the guranteed
+correctness, ie. the distance for which we can prove that there can’t be any points we’ve missed.
+Our algorithm may return points further away, but there might be points in between which we could have missed.</p>
+<blockquote>
+<div><div class="align-center figure" id="id10">
+<img alt="Implemenation-Details for randomSliceBone" src="../_images/spatialBone10.png" />
+<p class="caption"><span class="caption-text">Size of the minimum guranteed correctness distance</span><a class="headerlink" href="#id10" title="Permalink to this image">¶</a></p>
+</div>
+</div></blockquote>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="../doc_tutorial/index.html" class="btn btn-neutral float-right" title="Tutorials" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="15_implementation_randomSliceBone.html" class="btn btn-neutral float-left" title="RandomSliceBone" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Mausbrand Informationssysteme GmbH.
+      <span class="lastupdated">
+        Last updated on Mar 12, 2021.
+      </span>
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -1,0 +1,19 @@
+:mod:`core.render`
+==================
+
+.. py:module:: core.render
+
+
+Subpackages
+-----------
+.. toctree::
+   :titlesonly:
+   :maxdepth: 3
+
+   admin/index.rst
+   html/index.rst
+   json/index.rst
+   vi/index.rst
+   xml/index.rst
+
+

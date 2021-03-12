@@ -1,0 +1,47 @@
+:mod:`core.bones.credentialBone`
+================================
+
+.. py:module:: core.bones.credentialBone
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.bones.credentialBone.credentialBone
+
+
+
+.. class:: credentialBone(*args, **kwargs)
+
+
+   Bases: :class:`viur.core.bones.stringBone`
+
+   A bone for storing credentials.
+   This is always empty if read from the database.
+   If its saved, its ignored if its values is still empty.
+   If its value is not empty, it will update the value in the database
+
+   .. attribute:: type
+      :annotation: = str.credential
+
+      
+
+   .. method:: serialize(self, skel: SkeletonInstance, name: str, parentIndexed: bool) -> bool
+
+      Update the value only if a new value is supplied.
+
+
+   .. method:: unserialize(self, valuesCache, name)
+
+      We'll never read our value from the database.
+
+
+   .. method:: singleValueFromClient(self, value, skel, name, origData)
+
+
+

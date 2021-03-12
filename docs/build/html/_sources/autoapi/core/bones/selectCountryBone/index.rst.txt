@@ -1,0 +1,57 @@
+:mod:`core.bones.selectCountryBone`
+===================================
+
+.. py:module:: core.bones.selectCountryBone
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.bones.selectCountryBone.selectCountryBone
+
+
+
+.. data:: ISO3CODES
+   
+
+   
+
+.. data:: ISO2CODES
+   
+
+   
+
+.. data:: ISO2TOISO3
+   
+
+   
+
+.. data:: ISO3TOISO2
+   
+
+   
+
+.. class:: selectCountryBone(codes=ISO2, *args, **kwargs)
+
+
+   Bases: :class:`viur.core.bones.selectBone.selectBone`
+
+   .. attribute:: ISO2
+      :annotation: = 2
+
+      
+
+   .. attribute:: ISO3
+      :annotation: = 3
+
+      
+
+   .. method:: singleValueUnserialize(self, val, skel: viur.core.skeleton.SkeletonInstance, name: str)
+
+
+

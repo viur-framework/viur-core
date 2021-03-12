@@ -1,0 +1,53 @@
+:mod:`core.bones.selectBone`
+============================
+
+.. py:module:: core.bones.selectBone
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.bones.selectBone.selectBone
+
+
+
+.. class:: selectBone(defaultValue=None, values={}, multiple=False, *args, **kwargs)
+
+
+   Bases: :class:`viur.core.bones.baseBone`
+
+   .. attribute:: type
+      :annotation: = select
+
+      
+
+   .. method:: singleValueFromClient(self, value, skel, name, origData)
+
+
+   .. method:: buildDBFilter__(self, name, skel, dbFilter, rawFilter, prefix=None)
+
+      Parses the searchfilter a client specified in his Request into
+      something understood by the datastore.
+      This function must:
+
+              * Ignore all filters not targeting this bone
+              * Safely handle malformed data in rawFilter
+                      (this parameter is directly controlled by the client)
+
+      :param name: The property-name this bone has in its Skeleton (not the description!)
+      :type name: str
+      :param skel: The :class:`server.db.Query` this bone is part of
+      :type skel: :class:`server.skeleton.Skeleton`
+      :param dbFilter: The current :class:`server.db.Query` instance the filters should be applied to
+      :type dbFilter: :class:`server.db.Query`
+      :param rawFilter: The dictionary of filters the client wants to have applied
+      :type rawFilter: dict
+      :returns: The modified :class:`server.db.Query`
+
+
+

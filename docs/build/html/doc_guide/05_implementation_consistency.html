@@ -1,0 +1,304 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>Data consistency &mdash; ViUR Core 3.0.0-b1 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/graphviz.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Relations" href="10_implementation_relations.html" />
+    <link rel="prev" title="Reference Guide" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> ViUR Core
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                3.0.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">ViUR Core</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../doc_start/index.html">Getting started</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Reference Guide</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Data consistency</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#datastore">Datastore</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#data-cache">Data cache</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#relations">Relations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#request-cache">Request cache</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="10_implementation_relations.html">Relations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="15_implementation_randomSliceBone.html">RandomSliceBone</a></li>
+<li class="toctree-l2"><a class="reference internal" href="20_implementation_spatialBone.html">SpatialBone</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../doc_tutorial/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../autoapi/index.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">ViUR Core</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="index.html">Reference Guide</a> &raquo;</li>
+        
+      <li>Data consistency</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/doc_guide/05_implementation_consistency.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="data-consistency">
+<h1>Data consistency<a class="headerlink" href="#data-consistency" title="Permalink to this headline">¶</a></h1>
+<p>Unlike traditional <a class="reference external" href="https://en.wikipedia.org/wiki/LAMP_(software_bundle)">LAMP systems</a>, consistency is handled differently on the <a class="reference external" href="https://appengine.google.com">GAE</a>. There are three different causes
+for inconsistency when using ViUR on the <a class="reference external" href="https://appengine.google.com">GAE</a>.</p>
+<p>This chapter will explain the different types of inconsistency’s that may appear on the GAE and ViUR. While we had never
+noticed one in the wild, you should be aware of them, know when they can appear and whats needed in case you absolutely
+need to avoid them</p>
+<div class="section" id="datastore">
+<h2>Datastore<a class="headerlink" href="#datastore" title="Permalink to this headline">¶</a></h2>
+<p>The datastore offers 2 kinds of queries, providing different consistency constrains. The ‘’normal`` and fast queries
+provide only eventual consistency. This means that changes made to one entity might not be visible instantly.
+To ensure that your queries catch recent changes, ancestor queries are needed.
+However, they’re slower and have other constrains, so they are not used in ViUR by default. You’ll need to set the
+ancestor yourself on each query that needs to be consistent.</p>
+<p>Consequences/Example:
+Imagine you have a list of objects, and provide a list filtered by the object’s color.
+Now you change the color of one of these objects from ‘’red`` to ‘’blue``.
+Due to the inconsistency, it’s possible for that object to still appear in the list of ‘’red`` objects
+(instead of the ‘’blue`` ones) for a short (usually a fraction of second) period of time after the change
+has been committed to the datastore.</p>
+</div>
+<div class="section" id="data-cache">
+<h2>Data cache<a class="headerlink" href="#data-cache" title="Permalink to this headline">¶</a></h2>
+<p>ViUR tries to optimize speed and resource usage by utilizing the Memcache to cache database queries.
+Unfortunately, this introduces another type of inconsistency. In rare cases it’s possible that the entry in
+the Memcache is updated before the indexes in the datastore can catch up (or the other way round).</p>
+<p>Consequences/Example:
+Given the example introduced before, it’s possible for the recently changed entry to still show up in the list
+of ‘’red`` ones, but will list itself as ‘’blue`` already. Or it may show in lists of ‘’blue`` ones while still being
+seen as a ‘’red`` one.
+In fact, it’s possible that a db query by color returns results with entries of a different color,
+if that entries’ color has recently been changed.
+As the datastore usually applies these changes in less than a second, this is very unlikely to happen,
+but it’s possible. You can configure ViURs db-caching by setting <code class="xref py py-obj docutils literal notranslate"><span class="pre">core.config.conf['viur.db.caching']</span></code>.
+A value of ‘2’ (the default) means cache as much as possible, where it’s possible for this inconsistency to appear
+under rare circumstances. ‘1’ means less aggressive cache, where queries aren’t served from Memcache, so that this
+inconsistency cannot happen. Setting this value to ‘0’ means no caching at all (not recommend).</p>
+</div>
+<div class="section" id="relations">
+<h2>Relations<a class="headerlink" href="#relations" title="Permalink to this headline">¶</a></h2>
+<p>Relations are a core feature offered by ViUR. But as the datastore is non-relational,
+offering relations on top of a non-relational datastore is a fairly complex task. To maintain quick response times,
+ViUR doesn’t search and update relations when an entry is updated. Instead, a deferred task is kicked off
+which will update these relations in the background. Through depending on the current load of your application, these
+tasks usually catch up within a few seconds.</p>
+<p>Consequences/Example:
+Within this time, a search by such a relation might return stale results.
+Assume that you have a relation from user to the colored objects from the first example (e.g. a user liked that object).
+If that relation is part of the user skeleton, this problem arises.
+So if the color of an object is changed, the query ‘’all users who like a red object`` will still include that object
+until the background task finished updating the relations - though the object returned will already have blue as value
+for the color property.
+Note that this does not happen if the relation is part of that objects (i.e if the objects reference the user who liked it).
+Rule of thumb: Relations which are part of the kind which got updated are updated <em>instantly</em> (see below).
+Relations referencing that kind from another kind are updated later.</p>
+<p>The second inconsistency that may appear when using multiple=True relations is caused by the fact that only the
+entry itself (and some locking entries absolutely required to be consistent) are updated inside the transaction that
+writes changed data to the datastore. The search-indexes for these relations are updated <strong>after</strong> the transaction
+succeeded (but they are updated in the same request, it’s not been deferred). So it’s possible to see the updated values
+from the transaction while queries using such relations are still being filtered by the old values.
+Sadly, there is no easy way around this. It may be possible to update certain relational search objects inside the
+transaction, but you would have to implement this yourself.</p>
+</div>
+<div class="section" id="request-cache">
+<h2>Request cache<a class="headerlink" href="#request-cache" title="Permalink to this headline">¶</a></h2>
+<p>ViUR offers a request cache, to speed up serving complex pages. This cache is not enabled by default,
+as it has to be tightly integrated into the individual application. As flushing that cache happens asynchronous
+in the background, it’s possible to have inconsistency between two sequential requests.</p>
+<p>Consequences/Example:
+Given our example this means that our recently changed object might appear in both (red and blue) lists
+(or in no list at all) for a short time-frame.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="10_implementation_relations.html" class="btn btn-neutral float-right" title="Relations" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="index.html" class="btn btn-neutral float-left" title="Reference Guide" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Mausbrand Informationssysteme GmbH.
+      <span class="lastupdated">
+        Last updated on Mar 12, 2021.
+      </span>
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

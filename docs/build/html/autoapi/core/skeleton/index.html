@@ -1,0 +1,1084 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>core.skeleton &mdash; ViUR Core 3.0.0-b1 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/graphviz.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> ViUR Core
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                3.0.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">ViUR Core</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../doc_start/index.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../doc_guide/index.html">Reference Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../doc_tutorial/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">ViUR Core</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.skeleton</span></code></li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../../../_sources/autoapi/core/skeleton/index.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-core.skeleton">
+<span id="core-skeleton"></span><h1><a class="reference internal" href="#module-core.skeleton" title="core.skeleton"><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.skeleton</span></code></a><a class="headerlink" href="#module-core.skeleton" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="classes">
+<h3>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.skeleton.MetaBaseSkel" title="core.skeleton.MetaBaseSkel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MetaBaseSkel</span></code></a></p></td>
+<td><p>This is the meta class for Skeletons.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.skeleton.SkeletonInstance" title="core.skeleton.SkeletonInstance"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SkeletonInstance</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.skeleton.BaseSkeleton" title="core.skeleton.BaseSkeleton"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseSkeleton</span></code></a></p></td>
+<td><p>This is a container-object holding information about one database entity.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.skeleton.MetaSkel" title="core.skeleton.MetaSkel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MetaSkel</span></code></a></p></td>
+<td><p>This is the meta class for Skeletons.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.skeleton.CustomDatabaseAdapter" title="core.skeleton.CustomDatabaseAdapter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">CustomDatabaseAdapter</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.skeleton.ViurTagsSearchAdapter" title="core.skeleton.ViurTagsSearchAdapter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ViurTagsSearchAdapter</span></code></a></p></td>
+<td><p>This Adapter implements the a simple fulltext search ontop of the datastore.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.skeleton.seoKeyBone" title="core.skeleton.seoKeyBone"><code class="xref py py-obj docutils literal notranslate"><span class="pre">seoKeyBone</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.skeleton.Skeleton" title="core.skeleton.Skeleton"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Skeleton</span></code></a></p></td>
+<td><p>This is a container-object holding information about one database entity.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.skeleton.RelSkel" title="core.skeleton.RelSkel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RelSkel</span></code></a></p></td>
+<td><p>This is a Skeleton-like class that acts as a container for Skeletons used as a</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.skeleton.RefSkel" title="core.skeleton.RefSkel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RefSkel</span></code></a></p></td>
+<td><p>This is a Skeleton-like class that acts as a container for Skeletons used as a</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.skeleton.SkelList" title="core.skeleton.SkelList"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SkelList</span></code></a></p></td>
+<td><p>This class is used to hold multiple skeletons together with other, commonly used information.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.skeleton.TaskUpdateSearchIndex" title="core.skeleton.TaskUpdateSearchIndex"><code class="xref py py-obj docutils literal notranslate"><span class="pre">TaskUpdateSearchIndex</span></code></a></p></td>
+<td><p>This tasks loads and saves <em>every</em> entity of the given module.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.skeleton.RebuildSearchIndex" title="core.skeleton.RebuildSearchIndex"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RebuildSearchIndex</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.skeleton.TaskVacuumRelations" title="core.skeleton.TaskVacuumRelations"><code class="xref py py-obj docutils literal notranslate"><span class="pre">TaskVacuumRelations</span></code></a></p></td>
+<td><p>Checks entries in viur-relations and verifies that the src-kind and it’s relational-bone still exists.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="functions">
+<h3>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.skeleton.skeletonByKind" title="core.skeleton.skeletonByKind"><code class="xref py py-obj docutils literal notranslate"><span class="pre">skeletonByKind</span></code></a>(kindName)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.skeleton.listKnownSkeletons" title="core.skeleton.listKnownSkeletons"><code class="xref py py-obj docutils literal notranslate"><span class="pre">listKnownSkeletons</span></code></a>()</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.skeleton.iterAllSkelClasses" title="core.skeleton.iterAllSkelClasses"><code class="xref py py-obj docutils literal notranslate"><span class="pre">iterAllSkelClasses</span></code></a>()</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.skeleton.processRemovedRelations" title="core.skeleton.processRemovedRelations"><code class="xref py py-obj docutils literal notranslate"><span class="pre">processRemovedRelations</span></code></a>(removedKey, cursor=None)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.skeleton.updateRelations" title="core.skeleton.updateRelations"><code class="xref py py-obj docutils literal notranslate"><span class="pre">updateRelations</span></code></a>(destID, minChangeTime, changeList, cursor=None)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.skeleton.processVacuumRelationsChunk" title="core.skeleton.processVacuumRelationsChunk"><code class="xref py py-obj docutils literal notranslate"><span class="pre">processVacuumRelationsChunk</span></code></a>(module, cursor, allCount=0, removedCount=0, notify=None)</p></td>
+<td><p>Processes 100 Entries and calls the next batch</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py data">
+<dt id="core.skeleton.pytz">
+<code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">pytz</span></code><a class="headerlink" href="#core.skeleton.pytz" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt id="core.skeleton.__undefindedC__">
+<code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">__undefindedC__</span></code><a class="headerlink" href="#core.skeleton.__undefindedC__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py class">
+<dt id="core.skeleton.MetaBaseSkel">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">MetaBaseSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bases</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dct</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.MetaBaseSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">type</span></code></p>
+<p>This is the meta class for Skeletons.
+It is used to enforce several restrictions on bone names, etc.</p>
+<dl class="py attribute">
+<dt id="core.skeleton.MetaBaseSkel._skelCache">
+<code class="sig-name descname"><span class="pre">_skelCache</span></code><a class="headerlink" href="#core.skeleton.MetaBaseSkel._skelCache" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.skeleton.MetaBaseSkel._allSkelClasses">
+<code class="sig-name descname"><span class="pre">_allSkelClasses</span></code><a class="headerlink" href="#core.skeleton.MetaBaseSkel._allSkelClasses" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.skeleton.MetaBaseSkel.__reservedKeywords_">
+<code class="sig-name descname"><span class="pre">__reservedKeywords_</span></code><a class="headerlink" href="#core.skeleton.MetaBaseSkel.__reservedKeywords_" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.skeleton.skeletonByKind">
+<code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">skeletonByKind</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kindName</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.skeletonByKind" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="core.skeleton.listKnownSkeletons">
+<code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">listKnownSkeletons</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.listKnownSkeletons" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="core.skeleton.iterAllSkelClasses">
+<code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">iterAllSkelClasses</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.iterAllSkelClasses" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py class">
+<dt id="core.skeleton.SkeletonInstance">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">SkeletonInstance</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">skelCls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subSkelNames</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fullClone</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clonedBoneMap</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.SkeletonInstance" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="py attribute">
+<dt id="core.skeleton.SkeletonInstance.__slots__">
+<code class="sig-name descname"><span class="pre">__slots__</span></code><a class="headerlink" href="#core.skeleton.SkeletonInstance.__slots__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.SkeletonInstance.items">
+<code class="sig-name descname"><span class="pre">items</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">yieldBoneValues</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">baseBone</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#core.skeleton.SkeletonInstance.items" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.SkeletonInstance.keys">
+<code class="sig-name descname"><span class="pre">keys</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#core.skeleton.SkeletonInstance.keys" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.SkeletonInstance.values">
+<code class="sig-name descname"><span class="pre">values</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#core.skeleton.SkeletonInstance.values" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.SkeletonInstance.__iter__">
+<code class="sig-name descname"><span class="pre">__iter__</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#core.skeleton.SkeletonInstance.__iter__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.SkeletonInstance.__contains__">
+<code class="sig-name descname"><span class="pre">__contains__</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">item</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.SkeletonInstance.__contains__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.SkeletonInstance.__setitem__">
+<code class="sig-name descname"><span class="pre">__setitem__</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.SkeletonInstance.__setitem__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.SkeletonInstance.__getitem__">
+<code class="sig-name descname"><span class="pre">__getitem__</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.SkeletonInstance.__getitem__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.SkeletonInstance.__getattr__">
+<code class="sig-name descname"><span class="pre">__getattr__</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">item</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.SkeletonInstance.__getattr__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.SkeletonInstance.__delattr__">
+<code class="sig-name descname"><span class="pre">__delattr__</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">item</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.SkeletonInstance.__delattr__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Implement delattr(self, name).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.SkeletonInstance.__setattr__">
+<code class="sig-name descname"><span class="pre">__setattr__</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.SkeletonInstance.__setattr__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Implement setattr(self, name, value).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.SkeletonInstance.__repr__">
+<code class="sig-name descname"><span class="pre">__repr__</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">str</span><a class="headerlink" href="#core.skeleton.SkeletonInstance.__repr__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return repr(self).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.SkeletonInstance.clone">
+<code class="sig-name descname"><span class="pre">clone</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.SkeletonInstance.clone" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.SkeletonInstance.setEntity">
+<code class="sig-name descname"><span class="pre">setEntity</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.db.Entity</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.SkeletonInstance.setEntity" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.SkeletonInstance.__deepcopy__">
+<code class="sig-name descname"><span class="pre">__deepcopy__</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">memodict</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.SkeletonInstance.__deepcopy__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.skeleton.BaseSkeleton">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">BaseSkeleton</span></code><a class="headerlink" href="#core.skeleton.BaseSkeleton" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This is a container-object holding information about one database entity.</p>
+<p>It has to be sub-classed with individual information about the kindName of the entities
+and its specific data attributes, the so called bones.
+The Skeleton stores its bones in an <code class="xref py py-class docutils literal notranslate"><span class="pre">OrderedDict</span></code>-Instance, so the definition order of the
+contained bones remains constant.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Variables</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference internal" href="../dbtransfer/index.html#core.dbtransfer.TaskExportKind.key" title="core.dbtransfer.TaskExportKind.key"><strong>key</strong></a> (<em>server.bones.baseBone</em>) – This bone stores the current database key of this entity.            Assigning to this bones value is dangerous and does <em>not</em> affect the actual key its stored in.</p></li>
+<li><p><a class="reference internal" href="#core.skeleton.Skeleton.creationdate" title="core.skeleton.Skeleton.creationdate"><strong>creationdate</strong></a> (<em>server.bones.dateBone</em>) – The date and time where this entity has been created.</p></li>
+<li><p><a class="reference internal" href="../modules/formmailer/index.html#core.modules.formmailer.MailSkel.changedate" title="core.modules.formmailer.MailSkel.changedate"><strong>changedate</strong></a> (<em>server.bones.dateBone</em>) – The date and time of the last change to this entity.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt id="core.skeleton.BaseSkeleton.__viurBaseSkeletonMarker__">
+<code class="sig-name descname"><span class="pre">__viurBaseSkeletonMarker__</span></code><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#core.skeleton.BaseSkeleton.__viurBaseSkeletonMarker__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.skeleton.BaseSkeleton.boneMap">
+<code class="sig-name descname"><span class="pre">boneMap</span></code><a class="headerlink" href="#core.skeleton.BaseSkeleton.boneMap" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.BaseSkeleton.subSkel">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">subSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fullClone</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.BaseSkeleton.subSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a new sub-skeleton as part of the current skeleton.</p>
+<p>A sub-skeleton is a copy of the original skeleton, containing only a subset of its bones.
+To define sub-skeletons, use the subSkels property of the Skeleton object.</p>
+<p>By passing multiple sub-skeleton names to this function, a sub-skeleton with the union of
+all bones of the specified sub-skeletons is returned.</p>
+<p>If an entry called “*” exists in the subSkels-dictionary, the bones listed in this entry
+will always be part of the generated sub-skeleton.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>name</strong> (<em>str</em>) – Name of the sub-skeleton (that’s the key of the subSkels dictionary);                                              Multiple names can be specified.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The sub-skeleton of the specified type.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>server.skeleton.Skeleton</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.BaseSkeleton.setSystemInitialized">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">setSystemInitialized</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.BaseSkeleton.setSystemInitialized" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.BaseSkeleton.setBoneValue">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">setBoneValue</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelValues</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">boneName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">append</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.BaseSkeleton.setBoneValue" title="Permalink to this definition">¶</a></dt>
+<dd><p>Allow setting a bones value without calling fromClient or assigning to valuesCache directly.
+Santy-Checks are performed; if the value is invalid, that bone flips back to its original
+(default) value and false is returned.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>boneName</strong> (<em>str</em>) – The Bone which should be modified</p></li>
+<li><p><strong>value</strong> (<em>object</em>) – The value that should be assigned. It’s type depends on the type of that bone</p></li>
+<li><p><strong>append</strong> (<em>bool</em>) – If true, the given value is appended to the values of that bone instead of
+replacing it. Only supported on bones with multiple=True</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Wherever that operation succeeded or not.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.BaseSkeleton.fromClient">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">fromClient</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelValues</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.BaseSkeleton.fromClient" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load supplied <em>data</em> into Skeleton.</p>
+<p>This function works similar to <code class="xref py py-func docutils literal notranslate"><span class="pre">setValues()</span></code>, except that
+the values retrieved from <em>data</em> are checked against the bones and their validity checks.</p>
+<p>Even if this function returns False, all bones are guaranteed to be in a valid state.
+The ones which have been read correctly are set to their valid values;
+Bones with invalid values are set back to a safe default (None in most cases).
+So its possible to call <code class="xref py py-func docutils literal notranslate"><span class="pre">toDB()</span></code> afterwards even if reading
+data with this function failed (through this might violates the assumed consistency-model).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>data</strong> (<em>dict</em>) – Dictionary from which the data is read.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>True if all data was successfully read and taken by the Skeleton’s bones.                     False otherwise (eg. some required fields where missing or invalid).</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.BaseSkeleton.refresh">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">refresh</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelValues</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.BaseSkeleton.refresh" title="Permalink to this definition">¶</a></dt>
+<dd><p>Refresh the bones current content.</p>
+<p>This function causes a refresh of all relational bones and their associated
+information.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.skeleton.MetaSkel">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">MetaSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bases</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dct</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.MetaSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.skeleton.MetaBaseSkel" title="core.skeleton.MetaBaseSkel"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.skeleton.MetaBaseSkel</span></code></a></p>
+<p>This is the meta class for Skeletons.
+It is used to enforce several restrictions on bone names, etc.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.skeleton.CustomDatabaseAdapter">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">CustomDatabaseAdapter</span></code><a class="headerlink" href="#core.skeleton.CustomDatabaseAdapter" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="py attribute">
+<dt id="core.skeleton.CustomDatabaseAdapter.providesFulltextSearch">
+<code class="sig-name descname"><span class="pre">providesFulltextSearch</span></code><em class="property"> <span class="pre">:bool</span> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#core.skeleton.CustomDatabaseAdapter.providesFulltextSearch" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.skeleton.CustomDatabaseAdapter.fulltextSearchGuaranteesQueryConstrains">
+<code class="sig-name descname"><span class="pre">fulltextSearchGuaranteesQueryConstrains</span></code><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#core.skeleton.CustomDatabaseAdapter.fulltextSearchGuaranteesQueryConstrains" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.skeleton.CustomDatabaseAdapter.providesCustomQueries">
+<code class="sig-name descname"><span class="pre">providesCustomQueries</span></code><em class="property"> <span class="pre">:bool</span> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#core.skeleton.CustomDatabaseAdapter.providesCustomQueries" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.CustomDatabaseAdapter.preprocessEntry">
+<code class="sig-name descname"><span class="pre">preprocessEntry</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entry</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.db.Entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><a class="reference internal" href="#core.skeleton.BaseSkeleton" title="core.skeleton.BaseSkeleton"><span class="pre">core.skeleton.BaseSkeleton</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">changeList</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isAdd</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">viur.core.db.Entity</span><a class="headerlink" href="#core.skeleton.CustomDatabaseAdapter.preprocessEntry" title="Permalink to this definition">¶</a></dt>
+<dd><p>Can be overridden to add or alter the data of this entry before it’s written to firestore.
+Will always be called inside an transaction.
+:param entry: The entry containing the serialized data of that skeleton
+:param skel: The (complete) skeleton this skel.toDB() runs for
+:param changeList: List of boneNames that are changed by this skel.toDB() call
+:param isAdd: Is this an update or an add?
+:return: The (maybe modified) entity</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.CustomDatabaseAdapter.updateEntry">
+<code class="sig-name descname"><span class="pre">updateEntry</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dbObj</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.db.Entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><a class="reference internal" href="#core.skeleton.BaseSkeleton" title="core.skeleton.BaseSkeleton"><span class="pre">core.skeleton.BaseSkeleton</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">changeList</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isAdd</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">None</span><a class="headerlink" href="#core.skeleton.CustomDatabaseAdapter.updateEntry" title="Permalink to this definition">¶</a></dt>
+<dd><p>Like <cite>meth:preprocessEntry</cite>, but runs after the transaction had completed.
+Changes made to dbObj will be ignored.
+:param entry: The entry containing the serialized data of that skeleton
+:param skel: The (complete) skeleton this skel.toDB() runs for
+:param changeList: List of boneNames that are changed by this skel.toDB() call
+:param isAdd: Is this an update or an add?</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.CustomDatabaseAdapter.deleteEntry">
+<code class="sig-name descname"><span class="pre">deleteEntry</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entry</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.db.Entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><a class="reference internal" href="#core.skeleton.BaseSkeleton" title="core.skeleton.BaseSkeleton"><span class="pre">core.skeleton.BaseSkeleton</span></a></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">None</span><a class="headerlink" href="#core.skeleton.CustomDatabaseAdapter.deleteEntry" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called, after an skeleton has been successfully deleted from firestore
+:param entry: The db.Entity object containing an snapshot of the data that has been deleted
+:param skel: The (complete) skeleton for which <a href="#id1"><span class="problematic" id="id2">`</span></a>meth:delete’ had been called</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.CustomDatabaseAdapter.fulltextSearch">
+<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">fulltextSearch</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">queryString</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">databaseQuery</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.db.Query</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">db.Entity</span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#core.skeleton.CustomDatabaseAdapter.fulltextSearch" title="Permalink to this definition">¶</a></dt>
+<dd><p>If this database supports fulltext searches, this method has to implement them.
+If it’s a plain fulltext search engine, leave ‘prop:fulltextSearchGuaranteesQueryConstrains’ set to False,
+then the server will post-process the list of entries returned from this function and drop any entry that
+cannot be returned due to other constrains set in ‘param:databaseQuery’. If you can obey <em>every</em> constrain
+set in that Query, we can skip this post-processing and save some CPU-cycles.
+:param queryString: the string as received from the user (no quotation or other safety checks applied!)
+:param databaseQuery: The query containing any constrains that returned entries must also match
+:return:</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.skeleton.ViurTagsSearchAdapter">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">ViurTagsSearchAdapter</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">minLength</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">3</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.ViurTagsSearchAdapter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.skeleton.CustomDatabaseAdapter" title="core.skeleton.CustomDatabaseAdapter"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.skeleton.CustomDatabaseAdapter</span></code></a></p>
+<p>This Adapter implements the a simple fulltext search ontop of the datastore.
+On skel.toDB we collect all words from str/textBones, build all <em>minLength</em> postfixes and dump them
+into the property viurTags. When queried, we’ll run a prefix-match against this property - thus returning
+entities with either a exact match or a match inside a word.</p>
+<dl class="simple">
+<dt>Example:</dt><dd><p>For the word “hello” we’ll write “hello”, “ello” and “llo” into viurTags.
+When queried with “hello” we’ll have an exact match.
+When queried with “hel” we’ll match the prefix for “hello”
+When queried with “ell” we’ll prefix-match “ello”</p>
+</dd>
+</dl>
+<p>We’ll automatically add this adapter if a skeleton has no other database adapter defined</p>
+<dl class="py attribute">
+<dt id="core.skeleton.ViurTagsSearchAdapter.providesFulltextSearch">
+<code class="sig-name descname"><span class="pre">providesFulltextSearch</span></code><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#core.skeleton.ViurTagsSearchAdapter.providesFulltextSearch" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.skeleton.ViurTagsSearchAdapter.fulltextSearchGuaranteesQueryConstrains">
+<code class="sig-name descname"><span class="pre">fulltextSearchGuaranteesQueryConstrains</span></code><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#core.skeleton.ViurTagsSearchAdapter.fulltextSearchGuaranteesQueryConstrains" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.ViurTagsSearchAdapter._tagsFromString">
+<code class="sig-name descname"><span class="pre">_tagsFromString</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">Set</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#core.skeleton.ViurTagsSearchAdapter._tagsFromString" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract all words including all minLength postfixes from given string</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.ViurTagsSearchAdapter.preprocessEntry">
+<code class="sig-name descname"><span class="pre">preprocessEntry</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entry</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.db.Entity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><a class="reference internal" href="#core.skeleton.Skeleton" title="core.skeleton.Skeleton"><span class="pre">core.skeleton.Skeleton</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">changeList</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">isAdd</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">viur.core.db.Entity</span><a class="headerlink" href="#core.skeleton.ViurTagsSearchAdapter.preprocessEntry" title="Permalink to this definition">¶</a></dt>
+<dd><p>Collect searchTags from skeleton and build viurTags</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.ViurTagsSearchAdapter.fulltextSearch">
+<code class="sig-name descname"><span class="pre">fulltextSearch</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">queryString</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">databaseQuery</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.db.Query</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">db.Entity</span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#core.skeleton.ViurTagsSearchAdapter.fulltextSearch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run a fulltext search</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.skeleton.seoKeyBone">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">seoKeyBone</span></code><a class="headerlink" href="#core.skeleton.seoKeyBone" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">viur.core.bones.stringBone</span></code></p>
+<dl class="py method">
+<dt id="core.skeleton.seoKeyBone.unserialize">
+<code class="sig-name descname"><span class="pre">unserialize</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">viur.core.skeleton.SkeletonInstance</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">bool</span><a class="headerlink" href="#core.skeleton.seoKeyBone.unserialize" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.skeleton.Skeleton">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">Skeleton</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.Skeleton" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.skeleton.BaseSkeleton" title="core.skeleton.BaseSkeleton"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.skeleton.BaseSkeleton</span></code></a></p>
+<p>This is a container-object holding information about one database entity.</p>
+<p>It has to be sub-classed with individual information about the kindName of the entities
+and its specific data attributes, the so called bones.
+The Skeleton stores its bones in an <code class="xref py py-class docutils literal notranslate"><span class="pre">OrderedDict</span></code>-Instance, so the definition order of the
+contained bones remains constant.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Variables</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference internal" href="#core.skeleton.Skeleton.key" title="core.skeleton.Skeleton.key"><strong>key</strong></a> (<em>server.bones.baseBone</em>) – This bone stores the current database key of this entity.            Assigning to this bones value is dangerous and does <em>not</em> affect the actual key its stored in.</p></li>
+<li><p><a class="reference internal" href="#core.skeleton.Skeleton.creationdate" title="core.skeleton.Skeleton.creationdate"><strong>creationdate</strong></a> (<em>server.bones.dateBone</em>) – The date and time where this entity has been created.</p></li>
+<li><p><a class="reference internal" href="#core.skeleton.Skeleton.changedate" title="core.skeleton.Skeleton.changedate"><strong>changedate</strong></a> (<em>server.bones.dateBone</em>) – The date and time of the last change to this entity.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt id="core.skeleton.Skeleton.kindName">
+<code class="sig-name descname"><span class="pre">kindName</span></code><em class="property"> <span class="pre">:str</span></em><a class="headerlink" href="#core.skeleton.Skeleton.kindName" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.skeleton.Skeleton.customDatabaseAdapter">
+<code class="sig-name descname"><span class="pre">customDatabaseAdapter</span></code><em class="property"> <span class="pre">:Union[CustomDatabaseAdapter,</span> <span class="pre">None]</span></em><a class="headerlink" href="#core.skeleton.Skeleton.customDatabaseAdapter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.skeleton.Skeleton.subSkels">
+<code class="sig-name descname"><span class="pre">subSkels</span></code><a class="headerlink" href="#core.skeleton.Skeleton.subSkels" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.skeleton.Skeleton.interBoneValidations">
+<code class="sig-name descname"><span class="pre">interBoneValidations</span></code><em class="property"> <span class="pre">:List[Callable[[Skeleton],</span> <span class="pre">List[ReadFromClientError]]]</span> <span class="pre">=</span> <span class="pre">[]</span></em><a class="headerlink" href="#core.skeleton.Skeleton.interBoneValidations" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.skeleton.Skeleton.key">
+<code class="sig-name descname"><span class="pre">key</span></code><a class="headerlink" href="#core.skeleton.Skeleton.key" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.skeleton.Skeleton.creationdate">
+<code class="sig-name descname"><span class="pre">creationdate</span></code><a class="headerlink" href="#core.skeleton.Skeleton.creationdate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.skeleton.Skeleton.changedate">
+<code class="sig-name descname"><span class="pre">changedate</span></code><a class="headerlink" href="#core.skeleton.Skeleton.changedate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.skeleton.Skeleton.viurCurrentSeoKeys">
+<code class="sig-name descname"><span class="pre">viurCurrentSeoKeys</span></code><a class="headerlink" href="#core.skeleton.Skeleton.viurCurrentSeoKeys" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.Skeleton.__repr__">
+<code class="sig-name descname"><span class="pre">__repr__</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.Skeleton.__repr__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return repr(self).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.Skeleton.all">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">all</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelValues</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.Skeleton.all" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a query with the current Skeletons kindName.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>A db.Query object which allows for entity filtering and sorting.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">server.db.Query</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.Skeleton.fromClient">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">fromClient</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelValues</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><a class="reference internal" href="#core.skeleton.SkeletonInstance" title="core.skeleton.SkeletonInstance"><span class="pre">core.skeleton.SkeletonInstance</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">bool</span><a class="headerlink" href="#core.skeleton.Skeleton.fromClient" title="Permalink to this definition">¶</a></dt>
+<dd><dl>
+<dt>This function works similar to <code class="xref py py-func docutils literal notranslate"><span class="pre">setValues()</span></code>, except that</dt><dd><p>the values retrieved from <em>data</em> are checked against the bones and their validity checks.</p>
+<p>Even if this function returns False, all bones are guaranteed to be in a valid state.
+The ones which have been read correctly are set to their valid values;
+Bones with invalid values are set back to a safe default (None in most cases).
+So its possible to call <code class="xref py py-func docutils literal notranslate"><span class="pre">toDB()</span></code> afterwards even if reading
+data with this function failed (through this might violates the assumed consistency-model).</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>data</strong> – Dictionary from which the data is read.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>True, if all values have been read correctly (without errors), False otherwise</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.Skeleton.fromDB">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">fromDB</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelValues</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><a class="reference internal" href="#core.skeleton.SkeletonInstance" title="core.skeleton.SkeletonInstance"><span class="pre">core.skeleton.SkeletonInstance</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">db.KeyClass</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">bool</span><a class="headerlink" href="#core.skeleton.Skeleton.fromDB" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load entity with <em>key</em> from the data store into the Skeleton.</p>
+<p>Reads all available data of entity kind <em>kindName</em> and the key <em>key</em>
+from the data store into the Skeleton structure’s bones. Any previous
+data of the bones will discard.</p>
+<p>To store a Skeleton object to the data store, see <code class="xref py py-func docutils literal notranslate"><span class="pre">toDB()</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>key</strong> – A <code class="xref py py-class docutils literal notranslate"><span class="pre">server.DB.Key</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">server.DB.Query</span></code>, or string,                      from which the data shall be fetched.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>True on success; False if the given key could not be found.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.Skeleton.toDB">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">toDB</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelValues</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><a class="reference internal" href="#core.skeleton.SkeletonInstance" title="core.skeleton.SkeletonInstance"><span class="pre">core.skeleton.SkeletonInstance</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">clearUpdateTag</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">viur.core.db.KeyClass</span><a class="headerlink" href="#core.skeleton.Skeleton.toDB" title="Permalink to this definition">¶</a></dt>
+<dd><p>Store current Skeleton entity to data store.</p>
+<p>Stores the current data of this instance into the database.
+If an <em>key</em> value is set to the object, this entity will ne updated;
+Otherwise an new entity will be created.</p>
+<p>To read a Skeleton object from the data store, see <code class="xref py py-func docutils literal notranslate"><span class="pre">fromDB()</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>clearUpdateTag</strong> – If True, this entity won’t be marked dirty;
+This avoids from being fetched by the background task updating relations.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The datastore key of the entity.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.Skeleton.preProcessBlobLocks">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">preProcessBlobLocks</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelValues</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">locks</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.Skeleton.preProcessBlobLocks" title="Permalink to this definition">¶</a></dt>
+<dd><p>Can be overridden to modify the list of blobs referenced by this skeleton</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.Skeleton.preProcessSerializedData">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">preProcessSerializedData</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelValues</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.Skeleton.preProcessSerializedData" title="Permalink to this definition">¶</a></dt>
+<dd><p>Can be overridden to modify the <code class="xref py py-class docutils literal notranslate"><span class="pre">server.db.Entity</span></code> before its actually
+written to the data store.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.Skeleton.postSavedHandler">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">postSavedHandler</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelValues</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dbObj</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.Skeleton.postSavedHandler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Can be overridden to perform further actions after the entity has been written
+to the data store.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.Skeleton.postDeletedHandler">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">postDeletedHandler</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelValues</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.Skeleton.postDeletedHandler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Can be overridden to perform further actions after the entity has been deleted
+from the data store.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.Skeleton.getCurrentSEOKeys">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">getCurrentSEOKeys</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelValues</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#core.skeleton.Skeleton.getCurrentSEOKeys" title="Permalink to this definition">¶</a></dt>
+<dd><p>Should be overridden to return a dictionary of language -&gt; SEO-Friendly key
+this entry should be reachable under. How theses names are derived are entirely up to the application.
+If the name is already in use for this module, the server will automatically append some random string
+to make it unique.
+:return:</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.Skeleton.delete">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">delete</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelValues</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.Skeleton.delete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deletes the entity associated with the current Skeleton from the data store.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.skeleton.RelSkel">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">RelSkel</span></code><a class="headerlink" href="#core.skeleton.RelSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.skeleton.BaseSkeleton" title="core.skeleton.BaseSkeleton"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.skeleton.BaseSkeleton</span></code></a></p>
+<p>This is a Skeleton-like class that acts as a container for Skeletons used as a
+additional information data skeleton for
+<code class="xref py py-class docutils literal notranslate"><span class="pre">extendedRelationalBone</span></code>.</p>
+<p>It needs to be sub-classed where information about the kindName and its attributes
+(bones) are specified.</p>
+<p>The Skeleton stores its bones in an <code class="xref py py-class docutils literal notranslate"><span class="pre">OrderedDict</span></code>-Instance, so the definition order of the
+contained bones remains constant.</p>
+<dl class="py method">
+<dt id="core.skeleton.RelSkel.fromClient">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">fromClient</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skelValues</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.RelSkel.fromClient" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads the data supplied by data.
+Unlike setValues, error-checking is performed.
+The values might be in a different representation than the one used in getValues/serValues.
+Even if this function returns False, all bones are guranteed to be in a valid state:
+The ones which have been read correctly contain their data; the other ones are set back to a safe default (None in most cases)
+So its possible to call save() afterwards even if reading data fromClient faild (through this might violates the assumed consitency-model!).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>data</strong> (<em>dict</em>) – Dictionary from which the data is read</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>True if the data was successfully read; False otherwise (eg. some required fields where missing or invalid)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.RelSkel.serialize">
+<code class="sig-name descname"><span class="pre">serialize</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parentIndexed</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.RelSkel.serialize" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.RelSkel.unserialize">
+<code class="sig-name descname"><span class="pre">unserialize</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">values</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.RelSkel.unserialize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads ‘values’ into this skeleton.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>values</strong> (<em>dict | db.Entry</em>) – dict with values we’ll assign to our bones</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.skeleton.RefSkel">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">RefSkel</span></code><a class="headerlink" href="#core.skeleton.RefSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#core.skeleton.RelSkel" title="core.skeleton.RelSkel"><code class="xref py py-class docutils literal notranslate"><span class="pre">core.skeleton.RelSkel</span></code></a></p>
+<p>This is a Skeleton-like class that acts as a container for Skeletons used as a
+additional information data skeleton for
+<code class="xref py py-class docutils literal notranslate"><span class="pre">extendedRelationalBone</span></code>.</p>
+<p>It needs to be sub-classed where information about the kindName and its attributes
+(bones) are specified.</p>
+<p>The Skeleton stores its bones in an <code class="xref py py-class docutils literal notranslate"><span class="pre">OrderedDict</span></code>-Instance, so the definition order of the
+contained bones remains constant.</p>
+<dl class="py method">
+<dt id="core.skeleton.RefSkel.fromSkel">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">fromSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kindName</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.RefSkel.fromSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a relSkel from a skeleton-class using only the bones explicitly named
+in *args</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>skelCls</strong> (<a class="reference internal" href="#core.skeleton.BaseSkeleton" title="core.skeleton.BaseSkeleton"><em>BaseSkeleton</em></a>) – A class or instance of BaseSkel we’ll adapt the model from</p></li>
+<li><p><strong>args</strong> (<em>list of str</em>) – List of bone names we’ll adapt</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A new instance of RefSkel</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#core.skeleton.RefSkel" title="core.skeleton.RefSkel">RefSkel</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.skeleton.SkelList">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">SkelList</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">baseSkel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.SkelList" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></p>
+<p>This class is used to hold multiple skeletons together with other, commonly used information.</p>
+<p>SkelLists are returned by Skel().all()…fetch()-constructs and provide additional information
+about the data base query, for fetching additional entries.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Variables</dt>
+<dd class="field-odd"><p><strong>cursor</strong> (<em>str</em>) – Holds the cursor within a query.</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt id="core.skeleton.SkelList.__slots__">
+<code class="sig-name descname"><span class="pre">__slots__</span></code><em class="property"> <span class="pre">=</span> <span class="pre">['baseSkel',</span> <span class="pre">'getCursor',</span> <span class="pre">'customQueryInfo',</span> <span class="pre">'renderPreparation']</span></em><a class="headerlink" href="#core.skeleton.SkelList.__slots__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.skeleton.processRemovedRelations">
+<code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">processRemovedRelations</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">removedKey</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cursor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.processRemovedRelations" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="core.skeleton.updateRelations">
+<code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">updateRelations</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">destID</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">minChangeTime</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">changeList</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cursor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.updateRelations" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py class">
+<dt id="core.skeleton.TaskUpdateSearchIndex">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">TaskUpdateSearchIndex</span></code><a class="headerlink" href="#core.skeleton.TaskUpdateSearchIndex" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">viur.core.tasks.CallableTaskBase</span></code></p>
+<p>This tasks loads and saves <em>every</em> entity of the given module.
+This ensures an updated searchIndex and verifies consistency of this data.</p>
+<dl class="py attribute">
+<dt id="core.skeleton.TaskUpdateSearchIndex.key">
+<code class="sig-name descname"><span class="pre">key</span></code><em class="property"> <span class="pre">=</span> <span class="pre">rebuildSearchIndex</span></em><a class="headerlink" href="#core.skeleton.TaskUpdateSearchIndex.key" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.skeleton.TaskUpdateSearchIndex.name">
+<code class="sig-name descname"><span class="pre">name</span></code><em class="property"> <span class="pre">=</span> <span class="pre">Rebuild</span> <span class="pre">search</span> <span class="pre">index</span></em><a class="headerlink" href="#core.skeleton.TaskUpdateSearchIndex.name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.skeleton.TaskUpdateSearchIndex.descr">
+<code class="sig-name descname"><span class="pre">descr</span></code><em class="property"> <span class="pre">=</span> <span class="pre">This</span> <span class="pre">task</span> <span class="pre">can</span> <span class="pre">be</span> <span class="pre">called</span> <span class="pre">to</span> <span class="pre">update</span> <span class="pre">search</span> <span class="pre">indexes</span> <span class="pre">and</span> <span class="pre">relational</span> <span class="pre">information.</span></em><a class="headerlink" href="#core.skeleton.TaskUpdateSearchIndex.descr" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.TaskUpdateSearchIndex.canCall">
+<code class="sig-name descname"><span class="pre">canCall</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">bool</span><a class="headerlink" href="#core.skeleton.TaskUpdateSearchIndex.canCall" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks wherever the current user can execute this task</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.TaskUpdateSearchIndex.dataSkel">
+<code class="sig-name descname"><span class="pre">dataSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.TaskUpdateSearchIndex.dataSkel" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.TaskUpdateSearchIndex.execute">
+<code class="sig-name descname"><span class="pre">execute</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.TaskUpdateSearchIndex.execute" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.TaskUpdateSearchIndex._run">
+<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">_run</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">notify</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.TaskUpdateSearchIndex._run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.skeleton.RebuildSearchIndex">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">RebuildSearchIndex</span></code><a class="headerlink" href="#core.skeleton.RebuildSearchIndex" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">viur.core.tasks.QueryIter</span></code></p>
+<dl class="py method">
+<dt id="core.skeleton.RebuildSearchIndex.handleEntry">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">handleEntry</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><a class="reference internal" href="#core.skeleton.SkeletonInstance" title="core.skeleton.SkeletonInstance"><span class="pre">core.skeleton.SkeletonInstance</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">customData</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.RebuildSearchIndex.handleEntry" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.RebuildSearchIndex.handleFinish">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">handleFinish</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">totalCount</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">customData</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.RebuildSearchIndex.handleFinish" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.skeleton.TaskVacuumRelations">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">TaskVacuumRelations</span></code><a class="headerlink" href="#core.skeleton.TaskVacuumRelations" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">viur.core.tasks.CallableTaskBase</span></code></p>
+<p>Checks entries in viur-relations and verifies that the src-kind and it’s relational-bone still exists.</p>
+<dl class="py attribute">
+<dt id="core.skeleton.TaskVacuumRelations.key">
+<code class="sig-name descname"><span class="pre">key</span></code><em class="property"> <span class="pre">=</span> <span class="pre">vacuumRelations</span></em><a class="headerlink" href="#core.skeleton.TaskVacuumRelations.key" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.skeleton.TaskVacuumRelations.name">
+<code class="sig-name descname"><span class="pre">name</span></code><em class="property"> <span class="pre">=</span> <span class="pre">Vacuum</span> <span class="pre">viur-relations</span> <span class="pre">(dangerous)</span></em><a class="headerlink" href="#core.skeleton.TaskVacuumRelations.name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.skeleton.TaskVacuumRelations.descr">
+<code class="sig-name descname"><span class="pre">descr</span></code><em class="property"> <span class="pre">=</span> <span class="pre">Drop</span> <span class="pre">stale</span> <span class="pre">inbound</span> <span class="pre">relations</span> <span class="pre">for</span> <span class="pre">the</span> <span class="pre">given</span> <span class="pre">kind</span></em><a class="headerlink" href="#core.skeleton.TaskVacuumRelations.descr" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.TaskVacuumRelations.canCall">
+<code class="sig-name descname"><span class="pre">canCall</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.TaskVacuumRelations.canCall" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks wherever the current user can execute this task
+:returns: bool</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.TaskVacuumRelations.dataSkel">
+<code class="sig-name descname"><span class="pre">dataSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.TaskVacuumRelations.dataSkel" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.skeleton.TaskVacuumRelations.execute">
+<code class="sig-name descname"><span class="pre">execute</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.TaskVacuumRelations.execute" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.skeleton.processVacuumRelationsChunk">
+<code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">processVacuumRelationsChunk</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cursor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allCount</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">removedCount</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">notify</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.skeleton.processVacuumRelationsChunk" title="Permalink to this definition">¶</a></dt>
+<dd><p>Processes 100 Entries and calls the next batch</p>
+</dd></dl>
+
+<dl class="py data">
+<dt id="core.skeleton.SkeletonInstanceRef">
+<code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">SkeletonInstanceRef</span></code><a class="headerlink" href="#core.skeleton.SkeletonInstanceRef" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt id="core.skeleton.SkelListRef">
+<code class="sig-prename descclassname"><span class="pre">core.skeleton.</span></code><code class="sig-name descname"><span class="pre">SkelListRef</span></code><a class="headerlink" href="#core.skeleton.SkelListRef" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Mausbrand Informationssysteme GmbH.
+      <span class="lastupdated">
+        Last updated on Mar 12, 2021.
+      </span>
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

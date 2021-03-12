@@ -1,0 +1,95 @@
+:mod:`core.bones.passwordBone`
+==============================
+
+.. py:module:: core.bones.passwordBone
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.bones.passwordBone.passwordBone
+
+
+
+Functions
+~~~~~~~~~
+
+.. autoapisummary::
+
+   core.bones.passwordBone.pbkdf2
+
+
+.. function:: pbkdf2(password, salt, iterations=1001, keylen=42)
+
+   An implementation of PBKDF2 (http://wikipedia.org/wiki/PBKDF2)
+
+   Mostly based on the implementation of 
+   https://github.com/mitsuhiko/python-pbkdf2/blob/master/pbkdf2.py
+
+   :copyright: (c) Copyright 2011 by Armin Ronacher.
+   :license: BSD, see LICENSE for more details.
+
+
+.. class:: passwordBone
+
+   Bases: :class:`viur.core.bones.stringBone`
+
+   A bone holding passwords.
+   This is always empty if read from the database.
+   If its saved, its ignored if its values is still empty.
+   If its value is not empty, its hashed (with salt) and only the resulting hash 
+   will be written to the database
+
+   .. attribute:: type
+      :annotation: = password
+
+      
+
+   .. attribute:: saltLength
+      :annotation: = 13
+
+      
+
+   .. attribute:: minPasswordLength
+      :annotation: = 8
+
+      
+
+   .. attribute:: passwordTests
+      
+
+      
+
+   .. attribute:: passwordTestThreshold
+      :annotation: = 3
+
+      
+
+   .. attribute:: tooShortMessage
+      
+
+      
+
+   .. attribute:: tooWeakMessage
+      
+
+      
+
+   .. method:: isInvalid(self, value)
+
+
+   .. method:: fromClient(self, skel: SkeletonInstance, name: str, data: dict) -> Union[(None, List[ReadFromClientError])]
+
+
+   .. method:: serialize(self, skel: SkeletonInstance, name: str, parentIndexed: bool) -> bool
+
+
+   .. method:: unserialize(self, skeletonValues, name)
+
+
+

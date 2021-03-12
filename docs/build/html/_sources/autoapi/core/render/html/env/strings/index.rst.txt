@@ -1,0 +1,29 @@
+:mod:`core.render.html.env.strings`
+===================================
+
+.. py:module:: core.render.html.env.strings
+
+
+Module Contents
+---------------
+
+
+Functions
+~~~~~~~~~
+
+.. autoapisummary::
+
+   core.render.html.env.strings.parseJSON
+
+
+.. function:: parseJSON(render, s)
+
+   Jinja2 filter: Parses a JSON-string into a dict.
+
+   :param s: The string to be parsed.
+   :type s: str
+
+   :return: The parsed dict object.                                Returns None if no JSON could be parsed.
+   :rtype: dict
+
+

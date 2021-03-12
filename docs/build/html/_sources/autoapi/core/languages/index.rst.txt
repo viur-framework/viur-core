@@ -1,0 +1,16 @@
+:mod:`core.languages`
+=====================
+
+.. py:module:: core.languages
+
+
+Submodules
+----------
+.. toctree::
+   :titlesonly:
+   :maxdepth: 1
+
+   de/index.rst
+   en/index.rst
+
+

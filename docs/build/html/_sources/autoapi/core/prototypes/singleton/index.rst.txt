@@ -1,0 +1,241 @@
+:mod:`core.prototypes.singleton`
+================================
+
+.. py:module:: core.prototypes.singleton
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.prototypes.singleton.Singleton
+
+
+
+.. class:: Singleton(moduleName, modulePath, *args, **kwargs)
+
+
+   Bases: :class:`viur.core.prototypes.BasicApplication`
+
+   Singleton is a ViUR BasicApplication.
+
+   It is used to store one single data entity, and needs to be sub-classed for individual modules.
+
+   :ivar kindName: Name of the kind of data entities that are managed by the application.  This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the      application. For more information, refer to the function :func:`_resolveSkel`.
+   :vartype kindName: str
+
+   :ivar adminInfo: todo short info on how to use adminInfo.
+   :vartype adminInfo: dict | callable
+
+   .. attribute:: accessRights
+      :annotation: = ['edit', 'view']
+
+      
+
+   .. method:: adminInfo(self)
+
+
+   .. method:: getKey(self)
+
+      Returns the DB-Key for the current context.
+
+      This implementation provides one module-global key.
+      It *must* return *exactly one* key at any given time in any given context.
+
+      :returns: Current context DB-key
+      :rtype: str
+
+
+   .. method:: viewSkel(self, *args, **kwargs)
+
+      Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
+      for viewing the existing entry.
+
+      The default is a Skeleton instance returned by :func:`_resolveSkel`.
+
+      .. seealso:: :func:`addSkel`, :func:`editSkel`, :func:`_resolveSkel`
+
+      :return: Returns a Skeleton instance for viewing the singleton entry.
+      :rtype: server.skeleton.Skeleton
+
+
+   .. method:: editSkel(self, *args, **kwargs)
+
+      Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
+      for editing the existing entry.
+
+      The default is a Skeleton instance returned by :func:`_resolveSkel`.
+
+      .. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`_resolveSkel`
+
+      :return: Returns a Skeleton instance for editing the entry.
+      :rtype: server.skeleton.Skeleton
+
+
+   .. method:: preview(self, skey, *args, **kwargs)
+
+      Renders data for the entry, without reading it from the database.
+      This function allows to preview the entry without writing it to the database.
+
+      Any entity values are provided via *kwargs*.
+
+      The function uses the viewTemplate of the application.
+
+      :returns: The rendered representation of the supplied data.
+
+
+   .. method:: view(self, *args, **kwargs)
+
+      Prepares and renders the singleton entry for viewing.
+
+      The function performs several access control checks on the requested entity before it is rendered.
+
+      .. seealso:: :func:`viewSkel`, :func:`canView`, :func:`onView`
+
+      :returns: The rendered representation of the entity.
+
+      :raises: :exc:`server.errors.NotFound`, if there is no singleton entry existing, yet.
+      :raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
+
+
+   .. method:: edit(self, *args, **kwargs)
+
+      Modify the existing entry, and render the entry, eventually with error notes on incorrect data.
+
+      The entry is fetched by its entity key, which either is provided via *kwargs["key"]*,
+      or as the first parameter in *args*. The function performs several access control checks
+      on the singleton's entity before it is modified.
+
+      .. seealso:: :func:`editSkel`, :func:`onEdited`, :func:`canEdit`
+
+      :returns: The rendered, edited object of the entry, eventually with error hints.
+
+      :raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
+      :raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
+
+
+   .. method:: getContents(self)
+
+      Returns the entity of this singleton application as :class:`server.skeleton.Skeleton` object.
+
+      :returns: The content as Skeleton provided by :func:`viewSkel`.
+
+
+   .. method:: canPreview(self)
+
+      Access control function for preview permission.
+
+      Checks if the current user has the permission to preview the singletons entry.
+
+      The default behavior is:
+      - If no user is logged in, previewing is generally refused.
+      - If the user has "root" access, previewing is generally allowed.
+      - If the user has the modules "edit" permission (module-edit) enabled,          previewing is allowed.
+
+      It should be overridden for a module-specific behavior.
+
+      .. seealso:: :func:`preview`
+
+      :returns: True, if previewing entries is allowed, False otherwise.
+      :rtype: bool
+
+
+   .. method:: canEdit(self)
+
+      Access control function for modification permission.
+
+      Checks if the current user has the permission to edit the singletons entry.
+
+      The default behavior is:
+      - If no user is logged in, editing is generally refused.
+      - If the user has "root" access, editing is generally allowed.
+      - If the user has the modules "edit" permission (module-edit) enabled, editing is allowed.
+
+      It should be overridden for a module-specific behavior.
+
+      .. seealso:: :func:`edit`
+
+      :returns: True, if editing is allowed, False otherwise.
+      :rtype: bool
+
+
+   .. method:: canView(self)
+
+      Access control function for viewing permission.
+
+      Checks if the current user has the permission to view the singletons entry.
+
+      The default behavior is:
+      - If no user is logged in, viewing is generally refused.
+      - If the user has "root" access, viewing is generally allowed.
+      - If the user has the modules "view" permission (module-view) enabled, viewing is allowed.
+
+      It should be overridden for a module-specific behavior.
+
+      .. seealso:: :func:`view`
+
+      :param skel: The Skeleton that should be viewed.
+      :type skel: :class:`server.skeleton.Skeleton`
+
+      :returns: True, if viewing is allowed, False otherwise.
+      :rtype: bool
+
+
+   .. method:: onEdit(self, skel)
+
+      Hook function that is called before editing an entry.
+
+      It can be overridden for a module-specific behavior.
+
+      :param skel: The Skeleton that is going to be edited.
+      :type skel: :class:`server.skeleton.Skeleton`
+
+      .. seealso:: :func:`edit`, :func:`onEdited`
+
+
+   .. method:: onEdited(self, skel)
+
+      Hook function that is called after modifying the entry.
+
+      It should be overridden for a module-specific behavior.
+      The default is writing a log entry.
+
+      :param skel: The Skeleton that has been modified.
+      :type skel: :class:`server.skeleton.Skeleton`
+
+      .. seealso:: :func:`edit`, :func:`onEdit`
+
+
+   .. method:: onView(self, skel)
+
+      Hook function that is called when viewing an entry.
+
+      It should be overridden for a module-specific behavior.
+      The default is doing nothing.
+
+      :param skel: The Skeleton that is being viewed.
+      :type skel: :class:`server.skeleton.Skeleton`
+
+      .. seealso:: :func:`view`
+
+
+
+.. data:: admin
+   :annotation: = True
+
+   
+
+.. data:: html
+   :annotation: = True
+
+   
+
+.. data:: vi
+   :annotation: = True
+
+   
+

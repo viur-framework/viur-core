@@ -1,0 +1,63 @@
+:mod:`core.bones.recordBone`
+============================
+
+.. py:module:: core.bones.recordBone
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.bones.recordBone.recordBone
+
+
+
+.. class:: recordBone(using, format=None, multiple=True, indexed=False, *args, **kwargs)
+
+
+   Bases: :class:`viur.core.bones.bone.baseBone`
+
+   .. attribute:: type
+      :annotation: = record
+
+      
+
+   .. method:: setSystemInitialized(self)
+
+
+   .. method:: singleValueUnserialize(self, val, skel: viur.core.skeleton.SkeletonInstance, name: str)
+
+
+   .. method:: singleValueSerialize(self, value, skel: SkeletonInstance, name: str, parentIndexed: bool)
+
+
+   .. method:: parseSubfieldsFromClient(self) -> bool
+
+      Whenever this request should try to parse subfields submitted from the client.
+      Set only to true if you expect a list of dicts to be transmitted
+
+
+   .. method:: singleValueFromClient(self, value, skel, name, origData)
+
+
+   .. method:: getSearchTags(self, values, key)
+
+
+   .. method:: getSearchDocumentFields(self, valuesCache, name, prefix='')
+
+
+   .. method:: getReferencedBlobs(self, skel, name)
+
+
+   .. method:: getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]
+      :abstractmethod:
+
+      This is intentionally not defined as we don't now how to derive a key from the relskel
+      being using (ie. which Fields to include and how).
+
+
+

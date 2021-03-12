@@ -1,0 +1,55 @@
+:mod:`core.bones.numericBone`
+=============================
+
+.. py:module:: core.bones.numericBone
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.bones.numericBone.numericBone
+
+
+
+.. class:: numericBone(precision=0, min=-int(pow(2, 30)), max=int(pow(2, 30)), defaultValue=None, *args, **kwargs)
+
+
+   Bases: :class:`viur.core.bones.baseBone`
+
+   Holds numeric values.
+   Can be used for ints and floats.
+   For floats, the precision can be specified in decimal-places.
+
+   .. attribute:: type
+      :annotation: = numeric
+
+      
+
+   .. method:: generageSearchWidget(target, name='NUMERIC BONE', mode='range')
+      :staticmethod:
+
+
+   .. method:: isInvalid(self, value)
+
+
+   .. method:: getEmptyValue(self)
+
+
+   .. method:: isEmpty(self, rawValue: Any)
+
+
+   .. method:: singleValueFromClient(self, value, skel, name, origData)
+
+
+   .. method:: buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None)
+
+
+   .. method:: getSearchTags(self, valuesCache, name)
+
+
+

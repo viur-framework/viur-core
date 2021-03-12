@@ -1,0 +1,44 @@
+:mod:`core.render.xml.user`
+===========================
+
+.. py:module:: core.render.xml.user
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.render.xml.user.UserRender
+
+
+
+.. class:: UserRender
+
+   Bases: :class:`viur.core.render.xml.default.DefaultRender`
+
+   .. method:: login(self, application, skel, failed)
+
+
+   .. method:: loginSucceeded(self)
+
+
+   .. method:: renderList(self, skellist)
+
+
+   .. method:: renderAddItemSuccess(self, **kwargs)
+
+
+   .. method:: renderLostpw(self, skel, failed=False)
+
+
+   .. method:: renderLostpwSuccess(self, **kwargs)
+
+
+   .. method:: renderLostpwRequested(self, *args, **kwargs)
+
+
+

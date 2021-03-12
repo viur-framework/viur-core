@@ -1,0 +1,37 @@
+:mod:`core.modules.site`
+========================
+
+.. py:module:: core.modules.site
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.modules.site.Site
+
+
+
+.. class:: Site(*args, **kwargs)
+
+
+   Bases: :class:`object`
+
+   .. attribute:: adminInfo
+      
+
+      
+
+   .. method:: index(self, template='index', *arg, **kwargs)
+
+
+
+.. data:: html
+   :annotation: = True
+
+   
+

@@ -1,0 +1,15 @@
+:mod:`core.render.vi`
+=====================
+
+.. py:module:: core.render.vi
+
+
+Submodules
+----------
+.. toctree::
+   :titlesonly:
+   :maxdepth: 1
+
+   user/index.rst
+
+

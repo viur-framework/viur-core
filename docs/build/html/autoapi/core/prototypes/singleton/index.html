@@ -1,0 +1,524 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>core.prototypes.singleton &mdash; ViUR Core 3.0.0-b1 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/graphviz.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+        <script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/underscore.js"></script>
+        <script src="../../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home"> ViUR Core
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                3.0.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">ViUR Core</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../doc_start/index.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../doc_guide/index.html">Reference Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../doc_tutorial/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">ViUR Core</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.prototypes.singleton</span></code></li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../../../../_sources/autoapi/core/prototypes/singleton/index.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-core.prototypes.singleton">
+<span id="core-prototypes-singleton"></span><h1><a class="reference internal" href="#module-core.prototypes.singleton" title="core.prototypes.singleton"><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.prototypes.singleton</span></code></a><a class="headerlink" href="#module-core.prototypes.singleton" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="classes">
+<h3>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.prototypes.singleton.Singleton" title="core.prototypes.singleton.Singleton"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Singleton</span></code></a></p></td>
+<td><p>Singleton is a ViUR BasicApplication.</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt id="core.prototypes.singleton.Singleton">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.prototypes.singleton.</span></code><code class="sig-name descname"><span class="pre">Singleton</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">moduleName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">modulePath</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.singleton.Singleton" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">viur.core.prototypes.BasicApplication</span></code></p>
+<p>Singleton is a ViUR BasicApplication.</p>
+<p>It is used to store one single data entity, and needs to be sub-classed for individual modules.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Variables</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference internal" href="../../modules/file/index.html#core.modules.file.fileBaseSkel.kindName" title="core.modules.file.fileBaseSkel.kindName"><strong>kindName</strong></a> (<em>str</em>) – Name of the kind of data entities that are managed by the application.  This information is used to bind a specific <code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>-class to the      application. For more information, refer to the function <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code>.</p></li>
+<li><p><a class="reference internal" href="#core.prototypes.singleton.Singleton.adminInfo" title="core.prototypes.singleton.Singleton.adminInfo"><strong>adminInfo</strong></a> (<em>dict | callable</em>) – todo short info on how to use adminInfo.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt id="core.prototypes.singleton.Singleton.accessRights">
+<code class="sig-name descname"><span class="pre">accessRights</span></code><em class="property"> <span class="pre">=</span> <span class="pre">['edit',</span> <span class="pre">'view']</span></em><a class="headerlink" href="#core.prototypes.singleton.Singleton.accessRights" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.singleton.Singleton.adminInfo">
+<code class="sig-name descname"><span class="pre">adminInfo</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.singleton.Singleton.adminInfo" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.singleton.Singleton.getKey">
+<code class="sig-name descname"><span class="pre">getKey</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.singleton.Singleton.getKey" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the DB-Key for the current context.</p>
+<p>This implementation provides one module-global key.
+It <em>must</em> return <em>exactly one</em> key at any given time in any given context.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Current context DB-key</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.singleton.Singleton.viewSkel">
+<code class="sig-name descname"><span class="pre">viewSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.singleton.Singleton.viewSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve a new instance of a <code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code> that is used by the application
+for viewing the existing entry.</p>
+<p>The default is a Skeleton instance returned by <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code>.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><code class="xref py py-func docutils literal notranslate"><span class="pre">addSkel()</span></code>, <a class="reference internal" href="#core.prototypes.singleton.Singleton.editSkel" title="core.prototypes.singleton.Singleton.editSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">editSkel()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Returns a Skeleton instance for viewing the singleton entry.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>server.skeleton.Skeleton</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.singleton.Singleton.editSkel">
+<code class="sig-name descname"><span class="pre">editSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.singleton.Singleton.editSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve a new instance of a <code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code> that is used by the application
+for editing the existing entry.</p>
+<p>The default is a Skeleton instance returned by <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code>.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.singleton.Singleton.viewSkel" title="core.prototypes.singleton.Singleton.viewSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">viewSkel()</span></code></a>, <a class="reference internal" href="#core.prototypes.singleton.Singleton.editSkel" title="core.prototypes.singleton.Singleton.editSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">editSkel()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolveSkel()</span></code></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Returns a Skeleton instance for editing the entry.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>server.skeleton.Skeleton</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.singleton.Singleton.preview">
+<code class="sig-name descname"><span class="pre">preview</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skey</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.singleton.Singleton.preview" title="Permalink to this definition">¶</a></dt>
+<dd><p>Renders data for the entry, without reading it from the database.
+This function allows to preview the entry without writing it to the database.</p>
+<p>Any entity values are provided via <em>kwargs</em>.</p>
+<p>The function uses the viewTemplate of the application.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The rendered representation of the supplied data.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.singleton.Singleton.view">
+<code class="sig-name descname"><span class="pre">view</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.singleton.Singleton.view" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prepares and renders the singleton entry for viewing.</p>
+<p>The function performs several access control checks on the requested entity before it is rendered.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.singleton.Singleton.viewSkel" title="core.prototypes.singleton.Singleton.viewSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">viewSkel()</span></code></a>, <a class="reference internal" href="#core.prototypes.singleton.Singleton.canView" title="core.prototypes.singleton.Singleton.canView"><code class="xref py py-func docutils literal notranslate"><span class="pre">canView()</span></code></a>, <a class="reference internal" href="#core.prototypes.singleton.Singleton.onView" title="core.prototypes.singleton.Singleton.onView"><code class="xref py py-func docutils literal notranslate"><span class="pre">onView()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The rendered representation of the entity.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.NotFound</span></code>, if there is no singleton entry existing, yet.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.Unauthorized</span></code>, if the current user does not have the required permissions.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.singleton.Singleton.edit">
+<code class="sig-name descname"><span class="pre">edit</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.singleton.Singleton.edit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Modify the existing entry, and render the entry, eventually with error notes on incorrect data.</p>
+<p>The entry is fetched by its entity key, which either is provided via <em>kwargs[“key”]</em>,
+or as the first parameter in <em>args</em>. The function performs several access control checks
+on the singleton’s entity before it is modified.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.singleton.Singleton.editSkel" title="core.prototypes.singleton.Singleton.editSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">editSkel()</span></code></a>, <a class="reference internal" href="#core.prototypes.singleton.Singleton.onEdited" title="core.prototypes.singleton.Singleton.onEdited"><code class="xref py py-func docutils literal notranslate"><span class="pre">onEdited()</span></code></a>, <a class="reference internal" href="#core.prototypes.singleton.Singleton.canEdit" title="core.prototypes.singleton.Singleton.canEdit"><code class="xref py py-func docutils literal notranslate"><span class="pre">canEdit()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The rendered, edited object of the entry, eventually with error hints.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.Unauthorized</span></code>, if the current user does not have the required permissions.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.PreconditionFailed</span></code>, if the <em>skey</em> could not be verified.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.singleton.Singleton.getContents">
+<code class="sig-name descname"><span class="pre">getContents</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.singleton.Singleton.getContents" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the entity of this singleton application as <code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code> object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The content as Skeleton provided by <a class="reference internal" href="#core.prototypes.singleton.Singleton.viewSkel" title="core.prototypes.singleton.Singleton.viewSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">viewSkel()</span></code></a>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.singleton.Singleton.canPreview">
+<code class="sig-name descname"><span class="pre">canPreview</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.singleton.Singleton.canPreview" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access control function for preview permission.</p>
+<p>Checks if the current user has the permission to preview the singletons entry.</p>
+<p>The default behavior is:
+- If no user is logged in, previewing is generally refused.
+- If the user has “root” access, previewing is generally allowed.
+- If the user has the modules “edit” permission (module-edit) enabled,          previewing is allowed.</p>
+<p>It should be overridden for a module-specific behavior.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.singleton.Singleton.preview" title="core.prototypes.singleton.Singleton.preview"><code class="xref py py-func docutils literal notranslate"><span class="pre">preview()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>True, if previewing entries is allowed, False otherwise.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.singleton.Singleton.canEdit">
+<code class="sig-name descname"><span class="pre">canEdit</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.singleton.Singleton.canEdit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access control function for modification permission.</p>
+<p>Checks if the current user has the permission to edit the singletons entry.</p>
+<p>The default behavior is:
+- If no user is logged in, editing is generally refused.
+- If the user has “root” access, editing is generally allowed.
+- If the user has the modules “edit” permission (module-edit) enabled, editing is allowed.</p>
+<p>It should be overridden for a module-specific behavior.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.singleton.Singleton.edit" title="core.prototypes.singleton.Singleton.edit"><code class="xref py py-func docutils literal notranslate"><span class="pre">edit()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>True, if editing is allowed, False otherwise.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.singleton.Singleton.canView">
+<code class="sig-name descname"><span class="pre">canView</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.singleton.Singleton.canView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access control function for viewing permission.</p>
+<p>Checks if the current user has the permission to view the singletons entry.</p>
+<p>The default behavior is:
+- If no user is logged in, viewing is generally refused.
+- If the user has “root” access, viewing is generally allowed.
+- If the user has the modules “view” permission (module-view) enabled, viewing is allowed.</p>
+<p>It should be overridden for a module-specific behavior.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.singleton.Singleton.view" title="core.prototypes.singleton.Singleton.view"><code class="xref py py-func docutils literal notranslate"><span class="pre">view()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that should be viewed.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>True, if viewing is allowed, False otherwise.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.singleton.Singleton.onEdit">
+<code class="sig-name descname"><span class="pre">onEdit</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.singleton.Singleton.onEdit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook function that is called before editing an entry.</p>
+<p>It can be overridden for a module-specific behavior.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that is going to be edited.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.singleton.Singleton.edit" title="core.prototypes.singleton.Singleton.edit"><code class="xref py py-func docutils literal notranslate"><span class="pre">edit()</span></code></a>, <a class="reference internal" href="#core.prototypes.singleton.Singleton.onEdited" title="core.prototypes.singleton.Singleton.onEdited"><code class="xref py py-func docutils literal notranslate"><span class="pre">onEdited()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.singleton.Singleton.onEdited">
+<code class="sig-name descname"><span class="pre">onEdited</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.singleton.Singleton.onEdited" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook function that is called after modifying the entry.</p>
+<p>It should be overridden for a module-specific behavior.
+The default is writing a log entry.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that has been modified.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.singleton.Singleton.edit" title="core.prototypes.singleton.Singleton.edit"><code class="xref py py-func docutils literal notranslate"><span class="pre">edit()</span></code></a>, <a class="reference internal" href="#core.prototypes.singleton.Singleton.onEdit" title="core.prototypes.singleton.Singleton.onEdit"><code class="xref py py-func docutils literal notranslate"><span class="pre">onEdit()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.prototypes.singleton.Singleton.onView">
+<code class="sig-name descname"><span class="pre">onView</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.prototypes.singleton.Singleton.onView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook function that is called when viewing an entry.</p>
+<p>It should be overridden for a module-specific behavior.
+The default is doing nothing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">server.skeleton.Skeleton</span></code>) – The Skeleton that is being viewed.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.prototypes.singleton.Singleton.view" title="core.prototypes.singleton.Singleton.view"><code class="xref py py-func docutils literal notranslate"><span class="pre">view()</span></code></a></p>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py data">
+<dt id="core.prototypes.singleton.admin">
+<code class="sig-prename descclassname"><span class="pre">core.prototypes.singleton.</span></code><code class="sig-name descname"><span class="pre">admin</span></code><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#core.prototypes.singleton.admin" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt id="core.prototypes.singleton.html">
+<code class="sig-prename descclassname"><span class="pre">core.prototypes.singleton.</span></code><code class="sig-name descname"><span class="pre">html</span></code><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#core.prototypes.singleton.html" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt id="core.prototypes.singleton.vi">
+<code class="sig-prename descclassname"><span class="pre">core.prototypes.singleton.</span></code><code class="sig-name descname"><span class="pre">vi</span></code><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#core.prototypes.singleton.vi" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Mausbrand Informationssysteme GmbH.
+      <span class="lastupdated">
+        Last updated on Mar 12, 2021.
+      </span>
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

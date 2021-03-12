@@ -1,0 +1,603 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>core.render.html.env.viur &mdash; ViUR Core 3.0.0-b1 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../../../_static/graphviz.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../../../" src="../../../../../../_static/documentation_options.js"></script>
+        <script src="../../../../../../_static/jquery.js"></script>
+        <script src="../../../../../../_static/underscore.js"></script>
+        <script src="../../../../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../../../index.html" class="icon icon-home"> ViUR Core
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                3.0.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">ViUR Core</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../doc_start/index.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../doc_guide/index.html">Reference Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../doc_tutorial/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../index.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../../index.html">ViUR Core</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.render.html.env.viur</span></code></li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../../../../../../_sources/autoapi/core/render/html/env/viur/index.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-core.render.html.env.viur">
+<span id="core-render-html-env-viur"></span><h1><a class="reference internal" href="#module-core.render.html.env.viur" title="core.render.html.env.viur"><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.render.html.env.viur</span></code></a><a class="headerlink" href="#module-core.render.html.env.viur" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="functions">
+<h3>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.render.html.env.viur.execRequest" title="core.render.html.env.viur.execRequest"><code class="xref py py-obj docutils literal notranslate"><span class="pre">execRequest</span></code></a>(render, path, *args, **kwargs)</p></td>
+<td><p>Jinja2 global: Perform an internal Request.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.render.html.env.viur.getCurrentUser" title="core.render.html.env.viur.getCurrentUser"><code class="xref py py-obj docutils literal notranslate"><span class="pre">getCurrentUser</span></code></a>(render)</p></td>
+<td><p>Jinja2 global: Returns the current user from the session, or None if not logged in.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.render.html.env.viur.getSkel" title="core.render.html.env.viur.getSkel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">getSkel</span></code></a>(render, module, key=None, skel='viewSkel')</p></td>
+<td><p>Jinja2 global: Fetch an entry from a given module, and return the data as a dict,</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.render.html.env.viur.getHostUrl" title="core.render.html.env.viur.getHostUrl"><code class="xref py py-obj docutils literal notranslate"><span class="pre">getHostUrl</span></code></a>(render, forceSSL=False, *args, **kwargs)</p></td>
+<td><p>Jinja2 global: Retrieve hostname with protocol.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.render.html.env.viur.redirect" title="core.render.html.env.viur.redirect"><code class="xref py py-obj docutils literal notranslate"><span class="pre">redirect</span></code></a>(render, url)</p></td>
+<td><p>Jinja2 global: Redirect to another URL.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.render.html.env.viur.getLanguage" title="core.render.html.env.viur.getLanguage"><code class="xref py py-obj docutils literal notranslate"><span class="pre">getLanguage</span></code></a>(render, resolveAlias=False)</p></td>
+<td><p>Jinja2 global: Returns the language used for this request.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.render.html.env.viur.moduleName" title="core.render.html.env.viur.moduleName"><code class="xref py py-obj docutils literal notranslate"><span class="pre">moduleName</span></code></a>(render)</p></td>
+<td><p>Jinja2 global: Retrieve name of current module where this renderer is used within.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.render.html.env.viur.modulePath" title="core.render.html.env.viur.modulePath"><code class="xref py py-obj docutils literal notranslate"><span class="pre">modulePath</span></code></a>(render)</p></td>
+<td><p>Jinja2 global: Retrieve path of current module the renderer is used within.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.render.html.env.viur.getList" title="core.render.html.env.viur.getList"><code class="xref py py-obj docutils literal notranslate"><span class="pre">getList</span></code></a>(render, module, skel='viewSkel', _noEmptyFilter=False, *args, **kwargs)</p></td>
+<td><p>Jinja2 global: Fetches a list of entries which match the given filter criteria.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.render.html.env.viur.getSecurityKey" title="core.render.html.env.viur.getSecurityKey"><code class="xref py py-obj docutils literal notranslate"><span class="pre">getSecurityKey</span></code></a>(render, **kwargs)</p></td>
+<td><p>Jinja2 global: Creates a new ViUR security key.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.render.html.env.viur.getStructure" title="core.render.html.env.viur.getStructure"><code class="xref py py-obj docutils literal notranslate"><span class="pre">getStructure</span></code></a>(render, module, skel='viewSkel', subSkel=None)</p></td>
+<td><p>Jinja2 global: Returns the skeleton structure instead of data for a module.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.render.html.env.viur.requestParams" title="core.render.html.env.viur.requestParams"><code class="xref py py-obj docutils literal notranslate"><span class="pre">requestParams</span></code></a>(render)</p></td>
+<td><p>Jinja2 global: Allows for accessing the request-parameters from the template.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.render.html.env.viur.updateURL" title="core.render.html.env.viur.updateURL"><code class="xref py py-obj docutils literal notranslate"><span class="pre">updateURL</span></code></a>(render, **kwargs)</p></td>
+<td><p>Jinja2 global: Constructs a new URL based on the current requests url.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.render.html.env.viur.fileSize" title="core.render.html.env.viur.fileSize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fileSize</span></code></a>(render, value, binary=False)</p></td>
+<td><p>Jinja2 filter: Format the value in an ‘human-readable’ file size (i.e. 13 kB, 4.1 MB, 102 Bytes, etc).</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.render.html.env.viur.urlencode" title="core.render.html.env.viur.urlencode"><code class="xref py py-obj docutils literal notranslate"><span class="pre">urlencode</span></code></a>(render, val)</p></td>
+<td><p>Jinja2 filter: Make a string URL-safe.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.render.html.env.viur.shortKey" title="core.render.html.env.viur.shortKey"><code class="xref py py-obj docutils literal notranslate"><span class="pre">shortKey</span></code></a>(render, val)</p></td>
+<td><p>Jinja2 filter: Make a shortkey from an entity-key.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.render.html.env.viur.renderEditBone" title="core.render.html.env.viur.renderEditBone"><code class="xref py py-obj docutils literal notranslate"><span class="pre">renderEditBone</span></code></a>(render, skel, boneName)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.render.html.env.viur.renderEditForm" title="core.render.html.env.viur.renderEditForm"><code class="xref py py-obj docutils literal notranslate"><span class="pre">renderEditForm</span></code></a>(render, skel, ignore=None, hide=None)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.render.html.env.viur.embedSvg" title="core.render.html.env.viur.embedSvg"><code class="xref py py-obj docutils literal notranslate"><span class="pre">embedSvg</span></code></a>(render, name: str, classes: Union[(List[str], None)] = None, **kwargs: Dict[(str, str)]) → str</p></td>
+<td><p>jinja2 function to get an &lt;img/&gt;-tag for a SVG.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.render.html.env.viur.downloadUrlFor" title="core.render.html.env.viur.downloadUrlFor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">downloadUrlFor</span></code></a>(render, fileObj, expires, derived=None)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.render.html.env.viur.srcSetFor" title="core.render.html.env.viur.srcSetFor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">srcSetFor</span></code></a>(render, fileObj, expires)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.render.html.env.viur.seoUrlForEntry" title="core.render.html.env.viur.seoUrlForEntry"><code class="xref py py-obj docutils literal notranslate"><span class="pre">seoUrlForEntry</span></code></a>(render, *args, **kwargs)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.render.html.env.viur.seoUrlToFunction" title="core.render.html.env.viur.seoUrlToFunction"><code class="xref py py-obj docutils literal notranslate"><span class="pre">seoUrlToFunction</span></code></a>(render, *args, **kwargs)</p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py function">
+<dt id="core.render.html.env.viur.execRequest">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">execRequest</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.execRequest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Jinja2 global: Perform an internal Request.</p>
+<p>This function allows to embed the result of another request inside the current template.
+All optional parameters are passed to the requested resource.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>path</strong> – Local part of the url, e.g. user/list. Must not start with an /.</p>
+</dd>
+</dl>
+<p>Must not include an protocol or hostname.
+:type path: str</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Whatever the requested resource returns. This is <em>not</em> limited to strings!</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.getCurrentUser">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">getCurrentUser</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.getCurrentUser" title="Permalink to this definition">¶</a></dt>
+<dd><p>Jinja2 global: Returns the current user from the session, or None if not logged in.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>A dict containing user data. Returns None if no user data is available.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.getSkel">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">getSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'viewSkel'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.getSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Jinja2 global: Fetch an entry from a given module, and return the data as a dict,
+prepared for direct use in the output.</p>
+<p>It is possible to specify a different data-model as the one used for rendering
+(e.g. an editSkel).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>module</strong> (<em>str</em>) – Name of the module, from which the data should be fetched.</p></li>
+<li><p><strong>key</strong> – Requested entity-key in an urlsafe-format. If the module is a Singleton</p></li>
+</ul>
+</dd>
+</dl>
+<p>application, the parameter can be omitted.
+:type key: str</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>skel</strong> (<em>str</em>) – Specifies and optionally different data-model</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>dict on success, False on error.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>dict | bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.getHostUrl">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">getHostUrl</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forceSSL</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.getHostUrl" title="Permalink to this definition">¶</a></dt>
+<dd><p>Jinja2 global: Retrieve hostname with protocol.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Returns the hostname, including the currently used protocol, e.g: <a class="reference external" href="http://www.example.com">http://www.example.com</a></p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.redirect">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">redirect</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">url</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.redirect" title="Permalink to this definition">¶</a></dt>
+<dd><p>Jinja2 global: Redirect to another URL.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>url</strong> (<em>str</em>) – URL to redirect to.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.getLanguage">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">getLanguage</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolveAlias</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.getLanguage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Jinja2 global: Returns the language used for this request.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>resolveAlias</strong> – If True, the function tries to resolve the current language</p>
+</dd>
+</dl>
+<p>using conf[“viur.languageAliasMap”].
+:type resolveAlias: bool</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.moduleName">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">moduleName</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.moduleName" title="Permalink to this definition">¶</a></dt>
+<dd><p>Jinja2 global: Retrieve name of current module where this renderer is used within.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Returns the name of the current module, or empty string if there is no module set.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.modulePath">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">modulePath</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.modulePath" title="Permalink to this definition">¶</a></dt>
+<dd><p>Jinja2 global: Retrieve path of current module the renderer is used within.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Returns the path of the current module, or empty string if there is no module set.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.getList">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">getList</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'viewSkel'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_noEmptyFilter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.getList" title="Permalink to this definition">¶</a></dt>
+<dd><p>Jinja2 global: Fetches a list of entries which match the given filter criteria.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>module</strong> (<em>str</em>) – Name of the module from which list should be fetched.</p></li>
+<li><p><strong>skel</strong> (<em>str</em>) – Name of the skeleton that is used to fetching the list.</p></li>
+<li><p><strong>_noEmptyFilter</strong> – If True, this function will not return any results if at least one</p></li>
+</ul>
+</dd>
+</dl>
+<p>parameter is an empty list. This is useful to prevent filtering (e.g. by key) not being
+performed because the list is empty.
+:type _noEmptyFilter: bool</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Returns a dict that contains the “skellist” and “cursor” information,</p>
+</dd>
+</dl>
+<p>or None on error case.
+:rtype: dict</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.getSecurityKey">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">getSecurityKey</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.getSecurityKey" title="Permalink to this definition">¶</a></dt>
+<dd><p>Jinja2 global: Creates a new ViUR security key.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.getStructure">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">getStructure</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'viewSkel'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subSkel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.getStructure" title="Permalink to this definition">¶</a></dt>
+<dd><p>Jinja2 global: Returns the skeleton structure instead of data for a module.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>module</strong> (<em>str</em>) – Module from which the skeleton is retrieved.</p></li>
+<li><p><strong>skel</strong> (<em>str</em>) – Name of the skeleton.</p></li>
+<li><p><strong>subSkel</strong> (<em>str</em><em> or </em><em>None</em>) – If set, return just that subskel instead of the whole skeleton</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.requestParams">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">requestParams</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.requestParams" title="Permalink to this definition">¶</a></dt>
+<dd><p>Jinja2 global: Allows for accessing the request-parameters from the template.</p>
+<p>These returned values are escaped, as users tend to use these in an unsafe manner.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>dict of parameter and values.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.updateURL">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">updateURL</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.updateURL" title="Permalink to this definition">¶</a></dt>
+<dd><p>Jinja2 global: Constructs a new URL based on the current requests url.</p>
+<p>Given parameters are replaced if they exists in the current requests url, otherwise there appended.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Returns a well-formed URL.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.fileSize">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">fileSize</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">binary</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.fileSize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Jinja2 filter: Format the value in an ‘human-readable’ file size (i.e. 13 kB, 4.1 MB, 102 Bytes, etc).
+Per default, decimal prefixes are used (Mega, Giga, etc.). When the second parameter is set to True,
+the binary prefixes are used (Mebi, Gibi).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>value</strong> (<em>int | float</em>) – Value to be calculated.</p></li>
+<li><p><strong>binary</strong> (<em>bool</em>) – Decimal prefixes behavior</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The formatted file size string in human readable format.</p>
+</dd>
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.urlencode">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">urlencode</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.urlencode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Jinja2 filter: Make a string URL-safe.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>val</strong> (<em>str</em>) – String to be quoted.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Quoted string.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.shortKey">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">shortKey</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.shortKey" title="Permalink to this definition">¶</a></dt>
+<dd><p>Jinja2 filter: Make a shortkey from an entity-key.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>val</strong> (<em>str</em>) – Entity-key as string.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Shortkey on success, None on error.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.renderEditBone">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">renderEditBone</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">boneName</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.renderEditBone" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.renderEditForm">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">renderEditForm</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hide</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.renderEditForm" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.embedSvg">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">embedSvg</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">classes</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">str</span><a class="headerlink" href="#core.render.html.env.viur.embedSvg" title="Permalink to this definition">¶</a></dt>
+<dd><p>jinja2 function to get an &lt;img/&gt;-tag for a SVG.
+This method will not check the existence of a SVG!</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>render</strong> – The jinja renderer instance</p></li>
+<li><p><strong>name</strong> – Name of the icon (basename of file)</p></li>
+<li><p><strong>classes</strong> – A list of css-classes for the &lt;img/&gt;-tag</p></li>
+<li><p><strong>kwargs</strong> – Further html-attributes for this tag (e.g. “alt” or “title”)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A &lt;img/&gt;-tag</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.downloadUrlFor">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">downloadUrlFor</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fileObj</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expires</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">derived</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.downloadUrlFor" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.srcSetFor">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">srcSetFor</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fileObj</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expires</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.srcSetFor" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.seoUrlForEntry">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">seoUrlForEntry</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.seoUrlForEntry" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="core.render.html.env.viur.seoUrlToFunction">
+<code class="sig-prename descclassname"><span class="pre">core.render.html.env.viur.</span></code><code class="sig-name descname"><span class="pre">seoUrlToFunction</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">render</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.render.html.env.viur.seoUrlToFunction" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Mausbrand Informationssysteme GmbH.
+      <span class="lastupdated">
+        Last updated on Mar 12, 2021.
+      </span>
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

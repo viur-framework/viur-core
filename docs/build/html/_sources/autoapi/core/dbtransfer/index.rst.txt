@@ -1,0 +1,185 @@
+:mod:`core.dbtransfer`
+======================
+
+.. py:module:: core.dbtransfer
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.dbtransfer.DbTransfer
+   core.dbtransfer.TaskExportKind
+   core.dbtransfer.TaskImportKind
+
+
+
+Functions
+~~~~~~~~~
+
+.. autoapisummary::
+
+   core.dbtransfer.iterExport
+   core.dbtransfer.exportItems
+   core.dbtransfer.iterImport
+
+
+.. class:: DbTransfer
+
+   Bases: :class:`object`
+
+   .. method:: _checkKey(self, key, export=True)
+
+      Utility function to compare the given key with the keys stored in our conf in constant time
+      :param key: The key we should validate
+      :type key: str
+      :param export: If True, we validate against the export-key, otherwise the import-key
+      :type export: bool
+      :returns: True if the key is correct, False otherwise
+
+
+   .. method:: listModules(self, key)
+
+
+   .. method:: getCfg(self, module, key)
+
+
+   .. method:: getAppId(self, key, *args, **kwargs)
+
+
+   .. method:: getUploads(self, field_name=None)
+
+      Get uploads sent to this handler.
+      Cheeky borrowed from blobstore_handlers.py - © 2007 Google Inc.
+
+      Args:
+              field_name: Only select uploads that were sent as a specific field.
+
+      Returns:
+              A list of BlobInfo records corresponding to each upload.
+              Empty list if there are no blob-info records for field_name.
+
+
+   .. method:: upload(self, oldkey, *args, **kwargs)
+
+
+   .. method:: getUploadURL(self, key, *args, **kwargs)
+
+
+   .. method:: storeEntry(self, e, key)
+
+
+   .. method:: hasblob(self, blobkey, key)
+
+
+   .. method:: storeEntry2(self, e, key)
+
+
+   .. method:: genDict(obj)
+      :staticmethod:
+
+
+   .. method:: exportDb(self, cursor=None, key=None, *args, **kwargs)
+
+
+   .. method:: exportBlob(self, cursor=None, key=None)
+
+
+   .. method:: exportBlob2(self, cursor=None, key=None)
+
+
+   .. method:: iterValues(self, module, cursor=None, key=None)
+
+
+   .. method:: iterValues2(self, module, cursor=None, key=None)
+
+
+   .. method:: getEntry(self, module, id, key=None)
+
+
+
+.. class:: TaskExportKind
+
+   Bases: :class:`viur.core.tasks.CallableTaskBase`
+
+   .. attribute:: key
+      :annotation: = exportkind
+
+      
+
+   .. attribute:: name
+      :annotation: = Export data kinds to other app
+
+      
+
+   .. attribute:: descr
+      :annotation: = Copies the selected data to the given target application
+
+      
+
+   .. attribute:: direct
+      :annotation: = True
+
+      
+
+   .. method:: canCall(self)
+
+
+   .. method:: dataSkel(self)
+
+
+   .. method:: execute(self, module, target, importkey, *args, **kwargs)
+
+
+
+.. function:: iterExport(module, target, importKey, cursor=None)
+
+   Processes 100 Entries and calls the next batch
+
+
+.. function:: exportItems(module, target, importKey, startCursor, endCursor)
+
+
+.. class:: TaskImportKind
+
+   Bases: :class:`viur.core.tasks.CallableTaskBase`
+
+   .. attribute:: key
+      :annotation: = importkind
+
+      
+
+   .. attribute:: name
+      :annotation: = Import data kinds from other app
+
+      
+
+   .. attribute:: descr
+      :annotation: = Copies the selected data from the given source application
+
+      
+
+   .. attribute:: direct
+      :annotation: = True
+
+      
+
+   .. method:: canCall(self)
+
+
+   .. method:: dataSkel(self)
+
+
+   .. method:: execute(self, module, source, exportkey, *args, **kwargs)
+
+
+
+.. function:: iterImport(module, target, exportKey, cursor=None, amount=0)
+
+   Processes 100 Entries and calls the next batch
+
+

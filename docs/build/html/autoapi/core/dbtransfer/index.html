@@ -1,0 +1,462 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>core.dbtransfer &mdash; ViUR Core 3.0.0-b1 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/graphviz.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> ViUR Core
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                3.0.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">ViUR Core</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../doc_start/index.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../doc_guide/index.html">Reference Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../doc_tutorial/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">ViUR Core</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.dbtransfer</span></code></li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../../../_sources/autoapi/core/dbtransfer/index.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-core.dbtransfer">
+<span id="core-dbtransfer"></span><h1><a class="reference internal" href="#module-core.dbtransfer" title="core.dbtransfer"><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.dbtransfer</span></code></a><a class="headerlink" href="#module-core.dbtransfer" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="classes">
+<h3>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.dbtransfer.DbTransfer" title="core.dbtransfer.DbTransfer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DbTransfer</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.dbtransfer.TaskExportKind" title="core.dbtransfer.TaskExportKind"><code class="xref py py-obj docutils literal notranslate"><span class="pre">TaskExportKind</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.dbtransfer.TaskImportKind" title="core.dbtransfer.TaskImportKind"><code class="xref py py-obj docutils literal notranslate"><span class="pre">TaskImportKind</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="functions">
+<h3>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.dbtransfer.iterExport" title="core.dbtransfer.iterExport"><code class="xref py py-obj docutils literal notranslate"><span class="pre">iterExport</span></code></a>(module, target, importKey, cursor=None)</p></td>
+<td><p>Processes 100 Entries and calls the next batch</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.dbtransfer.exportItems" title="core.dbtransfer.exportItems"><code class="xref py py-obj docutils literal notranslate"><span class="pre">exportItems</span></code></a>(module, target, importKey, startCursor, endCursor)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.dbtransfer.iterImport" title="core.dbtransfer.iterImport"><code class="xref py py-obj docutils literal notranslate"><span class="pre">iterImport</span></code></a>(module, target, exportKey, cursor=None, amount=0)</p></td>
+<td><p>Processes 100 Entries and calls the next batch</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt id="core.dbtransfer.DbTransfer">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.dbtransfer.</span></code><code class="sig-name descname"><span class="pre">DbTransfer</span></code><a class="headerlink" href="#core.dbtransfer.DbTransfer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt id="core.dbtransfer.DbTransfer._checkKey">
+<code class="sig-name descname"><span class="pre">_checkKey</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">export</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.DbTransfer._checkKey" title="Permalink to this definition">¶</a></dt>
+<dd><p>Utility function to compare the given key with the keys stored in our conf in constant time
+:param key: The key we should validate
+:type key: str
+:param export: If True, we validate against the export-key, otherwise the import-key
+:type export: bool
+:returns: True if the key is correct, False otherwise</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.DbTransfer.listModules">
+<code class="sig-name descname"><span class="pre">listModules</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.DbTransfer.listModules" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.DbTransfer.getCfg">
+<code class="sig-name descname"><span class="pre">getCfg</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.DbTransfer.getCfg" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.DbTransfer.getAppId">
+<code class="sig-name descname"><span class="pre">getAppId</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.DbTransfer.getAppId" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.DbTransfer.getUploads">
+<code class="sig-name descname"><span class="pre">getUploads</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.DbTransfer.getUploads" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get uploads sent to this handler.
+Cheeky borrowed from blobstore_handlers.py - © 2007 Google Inc.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>field_name: Only select uploads that were sent as a specific field.</p>
+</dd>
+<dt>Returns:</dt><dd><p>A list of BlobInfo records corresponding to each upload.
+Empty list if there are no blob-info records for field_name.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.DbTransfer.upload">
+<code class="sig-name descname"><span class="pre">upload</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">oldkey</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.DbTransfer.upload" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.DbTransfer.getUploadURL">
+<code class="sig-name descname"><span class="pre">getUploadURL</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.DbTransfer.getUploadURL" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.DbTransfer.storeEntry">
+<code class="sig-name descname"><span class="pre">storeEntry</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">e</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.DbTransfer.storeEntry" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.DbTransfer.hasblob">
+<code class="sig-name descname"><span class="pre">hasblob</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">blobkey</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.DbTransfer.hasblob" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.DbTransfer.storeEntry2">
+<code class="sig-name descname"><span class="pre">storeEntry2</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">e</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.DbTransfer.storeEntry2" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.DbTransfer.genDict">
+<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">genDict</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obj</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.DbTransfer.genDict" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.DbTransfer.exportDb">
+<code class="sig-name descname"><span class="pre">exportDb</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cursor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.DbTransfer.exportDb" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.DbTransfer.exportBlob">
+<code class="sig-name descname"><span class="pre">exportBlob</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cursor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.DbTransfer.exportBlob" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.DbTransfer.exportBlob2">
+<code class="sig-name descname"><span class="pre">exportBlob2</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cursor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.DbTransfer.exportBlob2" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.DbTransfer.iterValues">
+<code class="sig-name descname"><span class="pre">iterValues</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cursor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.DbTransfer.iterValues" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.DbTransfer.iterValues2">
+<code class="sig-name descname"><span class="pre">iterValues2</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cursor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.DbTransfer.iterValues2" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.DbTransfer.getEntry">
+<code class="sig-name descname"><span class="pre">getEntry</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.DbTransfer.getEntry" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.dbtransfer.TaskExportKind">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.dbtransfer.</span></code><code class="sig-name descname"><span class="pre">TaskExportKind</span></code><a class="headerlink" href="#core.dbtransfer.TaskExportKind" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">viur.core.tasks.CallableTaskBase</span></code></p>
+<dl class="py attribute">
+<dt id="core.dbtransfer.TaskExportKind.key">
+<code class="sig-name descname"><span class="pre">key</span></code><em class="property"> <span class="pre">=</span> <span class="pre">exportkind</span></em><a class="headerlink" href="#core.dbtransfer.TaskExportKind.key" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.dbtransfer.TaskExportKind.name">
+<code class="sig-name descname"><span class="pre">name</span></code><em class="property"> <span class="pre">=</span> <span class="pre">Export</span> <span class="pre">data</span> <span class="pre">kinds</span> <span class="pre">to</span> <span class="pre">other</span> <span class="pre">app</span></em><a class="headerlink" href="#core.dbtransfer.TaskExportKind.name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.dbtransfer.TaskExportKind.descr">
+<code class="sig-name descname"><span class="pre">descr</span></code><em class="property"> <span class="pre">=</span> <span class="pre">Copies</span> <span class="pre">the</span> <span class="pre">selected</span> <span class="pre">data</span> <span class="pre">to</span> <span class="pre">the</span> <span class="pre">given</span> <span class="pre">target</span> <span class="pre">application</span></em><a class="headerlink" href="#core.dbtransfer.TaskExportKind.descr" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.dbtransfer.TaskExportKind.direct">
+<code class="sig-name descname"><span class="pre">direct</span></code><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#core.dbtransfer.TaskExportKind.direct" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.TaskExportKind.canCall">
+<code class="sig-name descname"><span class="pre">canCall</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.TaskExportKind.canCall" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.TaskExportKind.dataSkel">
+<code class="sig-name descname"><span class="pre">dataSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.TaskExportKind.dataSkel" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.TaskExportKind.execute">
+<code class="sig-name descname"><span class="pre">execute</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">importkey</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.TaskExportKind.execute" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.dbtransfer.iterExport">
+<code class="sig-prename descclassname"><span class="pre">core.dbtransfer.</span></code><code class="sig-name descname"><span class="pre">iterExport</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">importKey</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cursor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.iterExport" title="Permalink to this definition">¶</a></dt>
+<dd><p>Processes 100 Entries and calls the next batch</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.dbtransfer.exportItems">
+<code class="sig-prename descclassname"><span class="pre">core.dbtransfer.</span></code><code class="sig-name descname"><span class="pre">exportItems</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">importKey</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">startCursor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">endCursor</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.exportItems" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py class">
+<dt id="core.dbtransfer.TaskImportKind">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.dbtransfer.</span></code><code class="sig-name descname"><span class="pre">TaskImportKind</span></code><a class="headerlink" href="#core.dbtransfer.TaskImportKind" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">viur.core.tasks.CallableTaskBase</span></code></p>
+<dl class="py attribute">
+<dt id="core.dbtransfer.TaskImportKind.key">
+<code class="sig-name descname"><span class="pre">key</span></code><em class="property"> <span class="pre">=</span> <span class="pre">importkind</span></em><a class="headerlink" href="#core.dbtransfer.TaskImportKind.key" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.dbtransfer.TaskImportKind.name">
+<code class="sig-name descname"><span class="pre">name</span></code><em class="property"> <span class="pre">=</span> <span class="pre">Import</span> <span class="pre">data</span> <span class="pre">kinds</span> <span class="pre">from</span> <span class="pre">other</span> <span class="pre">app</span></em><a class="headerlink" href="#core.dbtransfer.TaskImportKind.name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.dbtransfer.TaskImportKind.descr">
+<code class="sig-name descname"><span class="pre">descr</span></code><em class="property"> <span class="pre">=</span> <span class="pre">Copies</span> <span class="pre">the</span> <span class="pre">selected</span> <span class="pre">data</span> <span class="pre">from</span> <span class="pre">the</span> <span class="pre">given</span> <span class="pre">source</span> <span class="pre">application</span></em><a class="headerlink" href="#core.dbtransfer.TaskImportKind.descr" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.dbtransfer.TaskImportKind.direct">
+<code class="sig-name descname"><span class="pre">direct</span></code><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#core.dbtransfer.TaskImportKind.direct" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.TaskImportKind.canCall">
+<code class="sig-name descname"><span class="pre">canCall</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.TaskImportKind.canCall" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.TaskImportKind.dataSkel">
+<code class="sig-name descname"><span class="pre">dataSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.TaskImportKind.dataSkel" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.dbtransfer.TaskImportKind.execute">
+<code class="sig-name descname"><span class="pre">execute</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exportkey</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.TaskImportKind.execute" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.dbtransfer.iterImport">
+<code class="sig-prename descclassname"><span class="pre">core.dbtransfer.</span></code><code class="sig-name descname"><span class="pre">iterImport</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exportKey</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cursor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">amount</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.dbtransfer.iterImport" title="Permalink to this definition">¶</a></dt>
+<dd><p>Processes 100 Entries and calls the next batch</p>
+</dd></dl>
+
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Mausbrand Informationssysteme GmbH.
+      <span class="lastupdated">
+        Last updated on Mar 12, 2021.
+      </span>
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

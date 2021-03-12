@@ -1,0 +1,67 @@
+:mod:`core.modules.formmailer`
+==============================
+
+.. py:module:: core.modules.formmailer
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.modules.formmailer.MailSkel
+   core.modules.formmailer.Formmailer
+
+
+
+.. class:: MailSkel
+
+   Bases: :class:`viur.core.skeleton.RelSkel`
+
+   .. attribute:: changedate
+      
+
+      
+
+
+.. class:: Formmailer
+
+   Bases: :class:`viur.core.prototypes.basic.BasicApplication`
+
+   .. attribute:: mailTemplate
+      
+
+      
+
+   .. method:: index(self, *args, **kwargs)
+
+
+   .. method:: add(self, *args, **kwargs)
+
+
+   .. method:: canUse(self)
+
+
+   .. method:: mailSkel(self)
+      :abstractmethod:
+
+
+   .. method:: getRcpts(self, skel)
+      :abstractmethod:
+
+
+   .. method:: getOptions(self, skel)
+
+
+   .. method:: onAdded(self, skel)
+
+
+
+.. data:: html
+   :annotation: = True
+
+   
+

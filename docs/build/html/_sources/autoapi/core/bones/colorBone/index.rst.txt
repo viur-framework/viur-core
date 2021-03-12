@@ -1,0 +1,32 @@
+:mod:`core.bones.colorBone`
+===========================
+
+.. py:module:: core.bones.colorBone
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.bones.colorBone.colorBone
+
+
+
+.. class:: colorBone(mode='rgb', *args, **kwargs)
+
+
+   Bases: :class:`viur.core.bones.baseBone`
+
+   .. attribute:: type
+      :annotation: = color
+
+      
+
+   .. method:: singleValueFromClient(self, value, skel, name, origData)
+
+
+

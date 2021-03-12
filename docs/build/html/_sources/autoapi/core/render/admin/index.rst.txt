@@ -1,0 +1,6 @@
+:mod:`core.render.admin`
+========================
+
+.. py:module:: core.render.admin
+
+

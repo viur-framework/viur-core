@@ -1,0 +1,405 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>core.session &mdash; ViUR Core 3.0.0-b1 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/graphviz.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> ViUR Core
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                3.0.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">ViUR Core</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../doc_start/index.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../doc_guide/index.html">Reference Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../doc_tutorial/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">ViUR Core</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.session</span></code></li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../../../_sources/autoapi/core/session/index.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-core.session">
+<span id="core-session"></span><h1><a class="reference internal" href="#module-core.session" title="core.session"><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.session</span></code></a><a class="headerlink" href="#module-core.session" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="classes">
+<h3>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.session.GaeSession" title="core.session.GaeSession"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GaeSession</span></code></a></p></td>
+<td><p>Store Sessions inside the Big Table/Memcache</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="functions">
+<h3>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.session.killSessionByUser" title="core.session.killSessionByUser"><code class="xref py py-obj docutils literal notranslate"><span class="pre">killSessionByUser</span></code></a>(user=None)</p></td>
+<td><p>Invalidates all active sessions for the given <em>user</em>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.session.startClearSessions" title="core.session.startClearSessions"><code class="xref py py-obj docutils literal notranslate"><span class="pre">startClearSessions</span></code></a>()</p></td>
+<td><p>Removes old (expired) Sessions</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.session.doClearSessions" title="core.session.doClearSessions"><code class="xref py py-obj docutils literal notranslate"><span class="pre">doClearSessions</span></code></a>(timeStamp, cursor)</p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt id="core.session.GaeSession">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.session.</span></code><code class="sig-name descname"><span class="pre">GaeSession</span></code><a class="headerlink" href="#core.session.GaeSession" title="Permalink to this definition">¶</a></dt>
+<dd><p>Store Sessions inside the Big Table/Memcache</p>
+<dl class="py attribute">
+<dt id="core.session.GaeSession.kindName">
+<code class="sig-name descname"><span class="pre">kindName</span></code><em class="property"> <span class="pre">=</span> <span class="pre">viur-session</span></em><a class="headerlink" href="#core.session.GaeSession.kindName" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.session.GaeSession.sameSite">
+<code class="sig-name descname"><span class="pre">sameSite</span></code><em class="property"> <span class="pre">=</span> <span class="pre">lax</span></em><a class="headerlink" href="#core.session.GaeSession.sameSite" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.session.GaeSession.sessionCookie">
+<code class="sig-name descname"><span class="pre">sessionCookie</span></code><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#core.session.GaeSession.sessionCookie" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.session.GaeSession.cookieName">
+<code class="sig-name descname"><span class="pre">cookieName</span></code><a class="headerlink" href="#core.session.GaeSession.cookieName" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.session.GaeSession.load">
+<code class="sig-name descname"><span class="pre">load</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">req</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.session.GaeSession.load" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initializes the Session.</p>
+<p>If the client supplied a valid Cookie, the session is read
+from the memcache/datastore, otherwise a new, empty session
+will be initialized.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.session.GaeSession.save">
+<code class="sig-name descname"><span class="pre">save</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">req</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.session.GaeSession.save" title="Permalink to this definition">¶</a></dt>
+<dd><p>Writes the session to the memcache/datastore.</p>
+<p>Does nothing, if the session hasn’t been changed in the current request.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.session.GaeSession.__contains__">
+<code class="sig-name descname"><span class="pre">__contains__</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.session.GaeSession.__contains__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns True if the given <em>key</em> is set in the current session.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.session.GaeSession.__delitem__">
+<code class="sig-name descname"><span class="pre">__delitem__</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.session.GaeSession.__delitem__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes a <em>key</em> from the session.</p>
+<p>This key must exist.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.session.GaeSession.__getitem__">
+<code class="sig-name descname"><span class="pre">__getitem__</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.session.GaeSession.__getitem__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the value stored under the given <em>key</em>.</p>
+<p>The key must exist.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.session.GaeSession.get">
+<code class="sig-name descname"><span class="pre">get</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.session.GaeSession.get" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the value stored under the given key.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>key</strong> (<em>str</em>) – Key to retrieve from the session variables.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Returns None if the key doesn’t exist.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.session.GaeSession.__setitem__">
+<code class="sig-name descname"><span class="pre">__setitem__</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">item</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.session.GaeSession.__setitem__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stores a new value under the given key.</p>
+<p>If that key exists before, its value is
+overwritten.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.session.GaeSession.markChanged">
+<code class="sig-name descname"><span class="pre">markChanged</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.session.GaeSession.markChanged" title="Permalink to this definition">¶</a></dt>
+<dd><p>Explicitly mark the current session as changed.
+This will force save() to write into the memcache /
+datastore, even if it belives that this session had
+not changed.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.session.GaeSession.reset">
+<code class="sig-name descname"><span class="pre">reset</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.session.GaeSession.reset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invalids the current session and starts a new one.</p>
+<p>This function is especially useful at login, where
+we might need to create an SSL-capable session.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Warning</dt>
+<dd class="field-odd"><p>Everything (except the current language) is flushed.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.session.GaeSession.items">
+<code class="sig-name descname"><span class="pre">items</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.session.GaeSession.items" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns all items in the current session.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.session.GaeSession.getSecurityKey">
+<code class="sig-name descname"><span class="pre">getSecurityKey</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.session.GaeSession.getSecurityKey" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.session.GaeSession.validateSecurityKey">
+<code class="sig-name descname"><span class="pre">validateSecurityKey</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.session.GaeSession.validateSecurityKey" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks if key matches the current CSRF-Token of our session. On success, a new key is generated.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.session.GaeSession.validateStaticSecurityKey">
+<code class="sig-name descname"><span class="pre">validateStaticSecurityKey</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.session.GaeSession.validateStaticSecurityKey" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks if key matches the current <em>static</em> CSRF-Token of our session.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.session.killSessionByUser">
+<code class="sig-prename descclassname"><span class="pre">core.session.</span></code><code class="sig-name descname"><span class="pre">killSessionByUser</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">user</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.session.killSessionByUser" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invalidates all active sessions for the given <em>user</em>.</p>
+<p>This means that this user is instantly logged out.
+If no user is given, it tries to invalidate <strong>all</strong> active sessions.</p>
+<p>Use “guest” as to kill all sessions not associated with an user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>user</strong> (<em>str | None</em>) – UserID, “guest” or None.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.session.startClearSessions">
+<code class="sig-prename descclassname"><span class="pre">core.session.</span></code><code class="sig-name descname"><span class="pre">startClearSessions</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#core.session.startClearSessions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes old (expired) Sessions</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.session.doClearSessions">
+<code class="sig-prename descclassname"><span class="pre">core.session.</span></code><code class="sig-name descname"><span class="pre">doClearSessions</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timeStamp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cursor</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.session.doClearSessions" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Mausbrand Informationssysteme GmbH.
+      <span class="lastupdated">
+        Last updated on Mar 12, 2021.
+      </span>
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

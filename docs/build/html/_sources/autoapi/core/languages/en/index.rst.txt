@@ -1,0 +1,14 @@
+:mod:`core.languages.en`
+========================
+
+.. py:module:: core.languages.en
+
+
+Module Contents
+---------------
+
+.. data:: en
+   
+
+   
+

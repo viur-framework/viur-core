@@ -1,0 +1,724 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>core.modules.user &mdash; ViUR Core 3.0.0-b1 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/graphviz.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+        <script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/underscore.js"></script>
+        <script src="../../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home"> ViUR Core
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                3.0.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">ViUR Core</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../doc_start/index.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../doc_guide/index.html">Reference Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../doc_tutorial/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">ViUR Core</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.modules.user</span></code></li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../../../../_sources/autoapi/core/modules/user/index.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-core.modules.user">
+<span id="core-modules-user"></span><h1><a class="reference internal" href="#module-core.modules.user" title="core.modules.user"><code class="xref py py-mod docutils literal notranslate"><span class="pre">core.modules.user</span></code></a><a class="headerlink" href="#module-core.modules.user" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="classes">
+<h3>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.modules.user.userSkel" title="core.modules.user.userSkel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">userSkel</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.modules.user.UserPassword" title="core.modules.user.UserPassword"><code class="xref py py-obj docutils literal notranslate"><span class="pre">UserPassword</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.modules.user.GoogleAccount" title="core.modules.user.GoogleAccount"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GoogleAccount</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#core.modules.user.TimeBasedOTP" title="core.modules.user.TimeBasedOTP"><code class="xref py py-obj docutils literal notranslate"><span class="pre">TimeBasedOTP</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.modules.user.User" title="core.modules.user.User"><code class="xref py py-obj docutils literal notranslate"><span class="pre">User</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="functions">
+<h3>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#core.modules.user.createNewUserIfNotExists" title="core.modules.user.createNewUserIfNotExists"><code class="xref py py-obj docutils literal notranslate"><span class="pre">createNewUserIfNotExists</span></code></a>()</p></td>
+<td><p>Create a new Admin user, if the userDB is empty</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt id="core.modules.user.userSkel">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.modules.user.</span></code><code class="sig-name descname"><span class="pre">userSkel</span></code><a class="headerlink" href="#core.modules.user.userSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">viur.core.skeleton.Skeleton</span></code></p>
+<dl class="py attribute">
+<dt id="core.modules.user.userSkel.kindName">
+<code class="sig-name descname"><span class="pre">kindName</span></code><em class="property"> <span class="pre">=</span> <span class="pre">user</span></em><a class="headerlink" href="#core.modules.user.userSkel.kindName" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.userSkel.name">
+<code class="sig-name descname"><span class="pre">name</span></code><a class="headerlink" href="#core.modules.user.userSkel.name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.userSkel.password">
+<code class="sig-name descname"><span class="pre">password</span></code><a class="headerlink" href="#core.modules.user.userSkel.password" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.userSkel.uid">
+<code class="sig-name descname"><span class="pre">uid</span></code><a class="headerlink" href="#core.modules.user.userSkel.uid" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.userSkel.gaeadmin">
+<code class="sig-name descname"><span class="pre">gaeadmin</span></code><a class="headerlink" href="#core.modules.user.userSkel.gaeadmin" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.userSkel.access">
+<code class="sig-name descname"><span class="pre">access</span></code><a class="headerlink" href="#core.modules.user.userSkel.access" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.userSkel.status">
+<code class="sig-name descname"><span class="pre">status</span></code><a class="headerlink" href="#core.modules.user.userSkel.status" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.userSkel.lastlogin">
+<code class="sig-name descname"><span class="pre">lastlogin</span></code><a class="headerlink" href="#core.modules.user.userSkel.lastlogin" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.userSkel.otpid">
+<code class="sig-name descname"><span class="pre">otpid</span></code><a class="headerlink" href="#core.modules.user.userSkel.otpid" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.userSkel.otpkey">
+<code class="sig-name descname"><span class="pre">otpkey</span></code><a class="headerlink" href="#core.modules.user.userSkel.otpkey" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.userSkel.otptimedrift">
+<code class="sig-name descname"><span class="pre">otptimedrift</span></code><a class="headerlink" href="#core.modules.user.userSkel.otptimedrift" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.modules.user.UserPassword">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.modules.user.</span></code><code class="sig-name descname"><span class="pre">UserPassword</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">userModule</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">modulePath</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.UserPassword" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py class">
+<dt id="core.modules.user.UserPassword.loginSkel">
+<em class="property"><span class="pre">class</span> </em><code class="sig-name descname"><span class="pre">loginSkel</span></code><a class="headerlink" href="#core.modules.user.UserPassword.loginSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">viur.core.skeleton.RelSkel</span></code></p>
+<dl class="py attribute">
+<dt id="core.modules.user.UserPassword.loginSkel.name">
+<code class="sig-name descname"><span class="pre">name</span></code><a class="headerlink" href="#core.modules.user.UserPassword.loginSkel.name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.UserPassword.loginSkel.password">
+<code class="sig-name descname"><span class="pre">password</span></code><a class="headerlink" href="#core.modules.user.UserPassword.loginSkel.password" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.modules.user.UserPassword.lostPasswordSkel">
+<em class="property"><span class="pre">class</span> </em><code class="sig-name descname"><span class="pre">lostPasswordSkel</span></code><a class="headerlink" href="#core.modules.user.UserPassword.lostPasswordSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">viur.core.skeleton.RelSkel</span></code></p>
+<dl class="py attribute">
+<dt id="core.modules.user.UserPassword.lostPasswordSkel.name">
+<code class="sig-name descname"><span class="pre">name</span></code><a class="headerlink" href="#core.modules.user.UserPassword.lostPasswordSkel.name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.UserPassword.lostPasswordSkel.password">
+<code class="sig-name descname"><span class="pre">password</span></code><a class="headerlink" href="#core.modules.user.UserPassword.lostPasswordSkel.password" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.UserPassword.registrationEnabled">
+<code class="sig-name descname"><span class="pre">registrationEnabled</span></code><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#core.modules.user.UserPassword.registrationEnabled" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.UserPassword.registrationEmailVerificationRequired">
+<code class="sig-name descname"><span class="pre">registrationEmailVerificationRequired</span></code><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#core.modules.user.UserPassword.registrationEmailVerificationRequired" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.UserPassword.registrationAdminVerificationRequired">
+<code class="sig-name descname"><span class="pre">registrationAdminVerificationRequired</span></code><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#core.modules.user.UserPassword.registrationAdminVerificationRequired" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.UserPassword.verifySuccessTemplate">
+<code class="sig-name descname"><span class="pre">verifySuccessTemplate</span></code><em class="property"> <span class="pre">=</span> <span class="pre">user_verify_success</span></em><a class="headerlink" href="#core.modules.user.UserPassword.verifySuccessTemplate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.UserPassword.verifyEmailAddressMail">
+<code class="sig-name descname"><span class="pre">verifyEmailAddressMail</span></code><em class="property"> <span class="pre">=</span> <span class="pre">user_verify_address</span></em><a class="headerlink" href="#core.modules.user.UserPassword.verifyEmailAddressMail" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.UserPassword.verifyFailedTemplate">
+<code class="sig-name descname"><span class="pre">verifyFailedTemplate</span></code><em class="property"> <span class="pre">=</span> <span class="pre">user_verify_failed</span></em><a class="headerlink" href="#core.modules.user.UserPassword.verifyFailedTemplate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.UserPassword.passwordRecoveryTemplate">
+<code class="sig-name descname"><span class="pre">passwordRecoveryTemplate</span></code><em class="property"> <span class="pre">=</span> <span class="pre">user_passwordrecover</span></em><a class="headerlink" href="#core.modules.user.UserPassword.passwordRecoveryTemplate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.UserPassword.passwordRecoveryMail">
+<code class="sig-name descname"><span class="pre">passwordRecoveryMail</span></code><em class="property"> <span class="pre">=</span> <span class="pre">user_password_recovery</span></em><a class="headerlink" href="#core.modules.user.UserPassword.passwordRecoveryMail" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.UserPassword.passwordRecoveryAlreadySendTemplate">
+<code class="sig-name descname"><span class="pre">passwordRecoveryAlreadySendTemplate</span></code><em class="property"> <span class="pre">=</span> <span class="pre">user_passwordrecover_already_sent</span></em><a class="headerlink" href="#core.modules.user.UserPassword.passwordRecoveryAlreadySendTemplate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.UserPassword.passwordRecoverySuccessTemplate">
+<code class="sig-name descname"><span class="pre">passwordRecoverySuccessTemplate</span></code><em class="property"> <span class="pre">=</span> <span class="pre">user_passwordrecover_success</span></em><a class="headerlink" href="#core.modules.user.UserPassword.passwordRecoverySuccessTemplate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.UserPassword.passwordRecoveryInvalidTokenTemplate">
+<code class="sig-name descname"><span class="pre">passwordRecoveryInvalidTokenTemplate</span></code><em class="property"> <span class="pre">=</span> <span class="pre">user_passwordrecover_invalid_token</span></em><a class="headerlink" href="#core.modules.user.UserPassword.passwordRecoveryInvalidTokenTemplate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.UserPassword.passwordRecoveryInstuctionsSendTemplate">
+<code class="sig-name descname"><span class="pre">passwordRecoveryInstuctionsSendTemplate</span></code><em class="property"> <span class="pre">=</span> <span class="pre">user_passwordrecover_mail_sent</span></em><a class="headerlink" href="#core.modules.user.UserPassword.passwordRecoveryInstuctionsSendTemplate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.UserPassword.getAuthMethodName">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">getAuthMethodName</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.UserPassword.getAuthMethodName" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.UserPassword.login">
+<code class="sig-name descname"><span class="pre">login</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skey</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.UserPassword.login" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.UserPassword.pwrecover">
+<code class="sig-name descname"><span class="pre">pwrecover</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">authtoken</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skey</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.UserPassword.pwrecover" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.UserPassword.verify">
+<code class="sig-name descname"><span class="pre">verify</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skey</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.UserPassword.verify" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.UserPassword.canAdd">
+<code class="sig-name descname"><span class="pre">canAdd</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.UserPassword.canAdd" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.UserPassword.addSkel">
+<code class="sig-name descname"><span class="pre">addSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.UserPassword.addSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prepare the add-Skel for rendering.
+Currently only calls self.userModule.addSkel() and sets skel[“status”].value depening on
+self.registrationEmailVerificationRequired and self.registrationAdminVerificationRequired
+:return: server.skeleton.Skeleton</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.UserPassword.add">
+<code class="sig-name descname"><span class="pre">add</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.UserPassword.add" title="Permalink to this definition">¶</a></dt>
+<dd><p>Allows guests to register a new account if self.registrationEnabled is set to true</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#core.modules.user.UserPassword.addSkel" title="core.modules.user.UserPassword.addSkel"><code class="xref py py-func docutils literal notranslate"><span class="pre">addSkel()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">onAdded()</span></code>, <a class="reference internal" href="#core.modules.user.UserPassword.canAdd" title="core.modules.user.UserPassword.canAdd"><code class="xref py py-func docutils literal notranslate"><span class="pre">canAdd()</span></code></a></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The rendered, added object of the entry, eventually with error hints.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.Unauthorized</span></code>, if the current user does not have the required permissions.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><code class="xref py py-exc docutils literal notranslate"><span class="pre">server.errors.PreconditionFailed</span></code>, if the <em>skey</em> could not be verified.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.modules.user.GoogleAccount">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.modules.user.</span></code><code class="sig-name descname"><span class="pre">GoogleAccount</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">userModule</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">modulePath</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.GoogleAccount" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py attribute">
+<dt id="core.modules.user.GoogleAccount.registrationEnabled">
+<code class="sig-name descname"><span class="pre">registrationEnabled</span></code><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#core.modules.user.GoogleAccount.registrationEnabled" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.GoogleAccount.getAuthMethodName">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">getAuthMethodName</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.GoogleAccount.getAuthMethodName" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.GoogleAccount.login">
+<code class="sig-name descname"><span class="pre">login</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skey</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">token</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.GoogleAccount.login" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.modules.user.TimeBasedOTP">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.modules.user.</span></code><code class="sig-name descname"><span class="pre">TimeBasedOTP</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">userModule</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">modulePath</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.TimeBasedOTP" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py class">
+<dt id="core.modules.user.TimeBasedOTP.otpSkel">
+<em class="property"><span class="pre">class</span> </em><code class="sig-name descname"><span class="pre">otpSkel</span></code><a class="headerlink" href="#core.modules.user.TimeBasedOTP.otpSkel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">viur.core.skeleton.RelSkel</span></code></p>
+<dl class="py attribute">
+<dt id="core.modules.user.TimeBasedOTP.otpSkel.otptoken">
+<code class="sig-name descname"><span class="pre">otptoken</span></code><a class="headerlink" href="#core.modules.user.TimeBasedOTP.otpSkel.otptoken" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.TimeBasedOTP.windowSize">
+<code class="sig-name descname"><span class="pre">windowSize</span></code><em class="property"> <span class="pre">=</span> <span class="pre">5</span></em><a class="headerlink" href="#core.modules.user.TimeBasedOTP.windowSize" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.TimeBasedOTP.otpTemplate">
+<code class="sig-name descname"><span class="pre">otpTemplate</span></code><em class="property"> <span class="pre">=</span> <span class="pre">user_login_timebasedotp</span></em><a class="headerlink" href="#core.modules.user.TimeBasedOTP.otpTemplate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.TimeBasedOTP.get2FactorMethodName">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">get2FactorMethodName</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.TimeBasedOTP.get2FactorMethodName" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.TimeBasedOTP.canHandle">
+<code class="sig-name descname"><span class="pre">canHandle</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">userKey</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.TimeBasedOTP.canHandle" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.TimeBasedOTP.startProcessing">
+<code class="sig-name descname"><span class="pre">startProcessing</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">userKey</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.TimeBasedOTP.startProcessing" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.TimeBasedOTP.generateOtps">
+<code class="sig-name descname"><span class="pre">generateOtps</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">secret</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeDrift</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.TimeBasedOTP.generateOtps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates all valid tokens for the given secret</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.TimeBasedOTP.otp">
+<code class="sig-name descname"><span class="pre">otp</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">otptoken</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skey</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.TimeBasedOTP.otp" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.TimeBasedOTP.updateTimeDrift">
+<code class="sig-name descname"><span class="pre">updateTimeDrift</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">userKey</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">idx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.TimeBasedOTP.updateTimeDrift" title="Permalink to this definition">¶</a></dt>
+<dd><p>Updates the clock-drift value.
+The value is only changed in 1/10 steps, so that a late submit by an user doesn’t skew
+it out of bounds. Maximum change per call is 0.3 minutes.
+:param userKey: For which user should the update occour
+:param idx: How many steps before/behind was that token
+:return:</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="core.modules.user.User">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">core.modules.user.</span></code><code class="sig-name descname"><span class="pre">User</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">moduleName</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">modulePath</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.User" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">viur.core.prototypes.list.List</span></code></p>
+<dl class="py attribute">
+<dt id="core.modules.user.User.kindName">
+<code class="sig-name descname"><span class="pre">kindName</span></code><em class="property"> <span class="pre">=</span> <span class="pre">user</span></em><a class="headerlink" href="#core.modules.user.User.kindName" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.User.addTemplate">
+<code class="sig-name descname"><span class="pre">addTemplate</span></code><em class="property"> <span class="pre">=</span> <span class="pre">user_add</span></em><a class="headerlink" href="#core.modules.user.User.addTemplate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.User.addSuccessTemplate">
+<code class="sig-name descname"><span class="pre">addSuccessTemplate</span></code><em class="property"> <span class="pre">=</span> <span class="pre">user_add_success</span></em><a class="headerlink" href="#core.modules.user.User.addSuccessTemplate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.User.lostPasswordTemplate">
+<code class="sig-name descname"><span class="pre">lostPasswordTemplate</span></code><em class="property"> <span class="pre">=</span> <span class="pre">user_lostpassword</span></em><a class="headerlink" href="#core.modules.user.User.lostPasswordTemplate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.User.verifyEmailAddressMail">
+<code class="sig-name descname"><span class="pre">verifyEmailAddressMail</span></code><em class="property"> <span class="pre">=</span> <span class="pre">user_verify_address</span></em><a class="headerlink" href="#core.modules.user.User.verifyEmailAddressMail" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.User.passwordRecoveryMail">
+<code class="sig-name descname"><span class="pre">passwordRecoveryMail</span></code><em class="property"> <span class="pre">=</span> <span class="pre">user_password_recovery</span></em><a class="headerlink" href="#core.modules.user.User.passwordRecoveryMail" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.User.authenticationProviders">
+<code class="sig-name descname"><span class="pre">authenticationProviders</span></code><a class="headerlink" href="#core.modules.user.User.authenticationProviders" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.User.secondFactorProviders">
+<code class="sig-name descname"><span class="pre">secondFactorProviders</span></code><a class="headerlink" href="#core.modules.user.User.secondFactorProviders" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.User.validAuthenticationMethods">
+<code class="sig-name descname"><span class="pre">validAuthenticationMethods</span></code><em class="property"> <span class="pre">=</span> <span class="pre">[None,</span> <span class="pre">None,</span> <span class="pre">None]</span></em><a class="headerlink" href="#core.modules.user.User.validAuthenticationMethods" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.User.secondFactorTimeWindow">
+<code class="sig-name descname"><span class="pre">secondFactorTimeWindow</span></code><a class="headerlink" href="#core.modules.user.User.secondFactorTimeWindow" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="core.modules.user.User.adminInfo">
+<code class="sig-name descname"><span class="pre">adminInfo</span></code><a class="headerlink" href="#core.modules.user.User.adminInfo" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.User.extendAccessRights">
+<code class="sig-name descname"><span class="pre">extendAccessRights</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.User.extendAccessRights" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.User.addSkel">
+<code class="sig-name descname"><span class="pre">addSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.User.addSkel" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.User.editSkel">
+<code class="sig-name descname"><span class="pre">editSkel</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.User.editSkel" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.User.secondFactorProviderByClass">
+<code class="sig-name descname"><span class="pre">secondFactorProviderByClass</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cls</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.User.secondFactorProviderByClass" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.User.getCurrentUser">
+<code class="sig-name descname"><span class="pre">getCurrentUser</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.User.getCurrentUser" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.User.continueAuthenticationFlow">
+<code class="sig-name descname"><span class="pre">continueAuthenticationFlow</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">caller</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">userKey</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.User.continueAuthenticationFlow" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.User.secondFactorSucceeded">
+<code class="sig-name descname"><span class="pre">secondFactorSucceeded</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">secondFactor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">userKey</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.User.secondFactorSucceeded" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.User.authenticateUser">
+<code class="sig-name descname"><span class="pre">authenticateUser</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">userKey</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.User.authenticateUser" title="Permalink to this definition">¶</a></dt>
+<dd><p>Performs Log-In for the current session and the given userKey.</p>
+<p>This resets the current session: All fields not explicitly marked as persistent
+by conf[“viur.session.persistentFieldsOnLogin”] are gone afterwards.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>authProvider</strong> (<em>object</em>) – Which authentication-provider issued the authenticateUser request</p></li>
+<li><p><strong>userKey</strong> (<em>db.Key</em>) – The (DB-)Key of the user we shall authenticate</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.User.logout">
+<code class="sig-name descname"><span class="pre">logout</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skey</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.User.logout" title="Permalink to this definition">¶</a></dt>
+<dd><p>Implements the logout action. It also terminates the current session (all keys not listed
+in viur.session.persistentFieldsOnLogout will be lost).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.User.login">
+<code class="sig-name descname"><span class="pre">login</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.User.login" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.User.onLogin">
+<code class="sig-name descname"><span class="pre">onLogin</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.User.onLogin" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.User.onLogout">
+<code class="sig-name descname"><span class="pre">onLogout</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">usr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.User.onLogout" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.User.edit">
+<code class="sig-name descname"><span class="pre">edit</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.User.edit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.User.view">
+<code class="sig-name descname"><span class="pre">view</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.User.view" title="Permalink to this definition">¶</a></dt>
+<dd><p>Allow a special key “self” to reference always the current user</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.User.canView">
+<code class="sig-name descname"><span class="pre">canView</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.User.canView" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.User.getAuthMethods">
+<code class="sig-name descname"><span class="pre">getAuthMethods</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.User.getAuthMethods" title="Permalink to this definition">¶</a></dt>
+<dd><p>Inform tools like Viur-Admin which authentication to use</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="core.modules.user.User.onDeleted">
+<code class="sig-name descname"><span class="pre">onDeleted</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skel</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.User.onDeleted" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invalidate all sessions of that user</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt id="core.modules.user.createNewUserIfNotExists">
+<code class="sig-prename descclassname"><span class="pre">core.modules.user.</span></code><code class="sig-name descname"><span class="pre">createNewUserIfNotExists</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#core.modules.user.createNewUserIfNotExists" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a new Admin user, if the userDB is empty</p>
+</dd></dl>
+
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Mausbrand Informationssysteme GmbH.
+      <span class="lastupdated">
+        Last updated on Mar 12, 2021.
+      </span>
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

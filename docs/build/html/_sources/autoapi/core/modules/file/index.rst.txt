@@ -1,0 +1,306 @@
+:mod:`core.modules.file`
+========================
+
+.. py:module:: core.modules.file
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   core.modules.file.injectStoreURLBone
+   core.modules.file.fileBaseSkel
+   core.modules.file.fileNodeSkel
+   core.modules.file.File
+
+
+
+Functions
+~~~~~~~~~
+
+.. autoapisummary::
+
+   core.modules.file.importBlobFromViur2
+   core.modules.file.thumbnailer
+   core.modules.file.sanitizeFileName
+   core.modules.file.decodeFileName
+   core.modules.file.startCheckForUnreferencedBlobs
+   core.modules.file.doCheckForUnreferencedBlobs
+   core.modules.file.startCleanupDeletedFiles
+   core.modules.file.doCleanupDeletedFiles
+
+
+.. data:: client
+   
+
+   
+
+.. data:: bucket
+   
+
+   
+
+.. data:: iamClient
+   
+
+   
+
+.. function:: importBlobFromViur2(dlKey)
+
+
+.. class:: injectStoreURLBone
+
+   Bases: :class:`baseBone`
+
+   .. method:: unserialize(self, skel, name)
+
+
+
+.. function:: thumbnailer(fileSkel, existingFiles, params)
+
+
+.. function:: sanitizeFileName(fileName: str) -> str
+
+   Sanitize the filename so it can be safely downloaded or be embedded into html
+
+
+.. class:: fileBaseSkel
+
+   Bases: :class:`viur.core.prototypes.tree.TreeSkel`
+
+   Default file leaf skeleton.
+
+   .. attribute:: kindName
+      :annotation: = file
+
+      
+
+   .. attribute:: size
+      
+
+      
+
+   .. attribute:: dlkey
+      
+
+      
+
+   .. attribute:: name
+      
+
+      
+
+   .. attribute:: mimetype
+      
+
+      
+
+   .. attribute:: weak
+      
+
+      
+
+   .. attribute:: pending
+      
+
+      
+
+   .. attribute:: width
+      
+
+      
+
+   .. attribute:: height
+      
+
+      
+
+   .. attribute:: downloadUrl
+      
+
+      
+
+   .. attribute:: derived
+      
+
+      
+
+   .. attribute:: pendingparententry
+      
+
+      def refresh(self):
+      # Update from blobimportmap
+      try:
+              oldKeyHash = sha256(self["dlkey"]).hexdigest().encode("hex")
+              res = db.Get(db.Key.from_path("viur-blobimportmap", oldKeyHash))
+      except:
+              res = None
+      if res and res["oldkey"] == self["dlkey"]:
+              self["dlkey"] = res["newkey"]
+              self["servingurl"] = res["servingurl"]
+              logging.info("Refreshing file dlkey %s (%s)" % (self["dlkey"], self["servingurl"]))
+      else:
+              if self["servingurl"]:
+                      try:
+                              self["servingurl"] = images.get_serving_url(self["dlkey"])
+                      except Exception as e:
+                              logging.exception(e)
+
+      super(fileBaseSkel, self).refresh()
+
+
+   .. method:: preProcessBlobLocks(self, locks)
+
+      Ensure that our dlkey is locked even if we don't have a filebone here
+
+
+   .. method:: refresh(cls, skelValues)
+      :classmethod:
+
+
+
+.. class:: fileNodeSkel
+
+   Bases: :class:`viur.core.prototypes.tree.TreeSkel`
+
+   Default file node skeleton.
+
+   .. attribute:: kindName
+      :annotation: = file_rootNode
+
+      
+
+   .. attribute:: name
+      
+
+      
+
+   .. attribute:: rootNode
+      
+
+      
+
+
+.. function:: decodeFileName(name)
+
+
+.. class:: File
+
+   Bases: :class:`viur.core.prototypes.tree.Tree`
+
+   .. attribute:: leafSkelCls
+      
+
+      
+
+   .. attribute:: nodeSkelCls
+      
+
+      
+
+   .. attribute:: maxuploadsize
+      
+
+      
+
+   .. attribute:: uploadHandler
+      :annotation: = []
+
+      
+
+   .. attribute:: adminInfo
+      
+
+      
+
+   .. attribute:: blobCacheTime
+      
+
+      
+
+   .. method:: deleteRecursive(self, parentKey)
+
+
+   .. method:: signUploadURL(self, mimeTypes: Union[(List[str], None)] = None, maxSize: Union[(int, None)] = None, node: Union[(str, None)] = None)
+
+      Internal helper that will create a signed upload-url that can be used to retrieve an uploadURL from
+      getUploadURL for guests / users without having file/add permissions. This URL is valid for an hour and can
+      be used to upload multiple files.
+      :param mimeTypes: A list of valid mimetypes that can be uploaded (wildcards like "image/*" are supported) or
+              None (no restriction on filetypes)
+      :param maxSize: The maximum filesize in bytes or None for no limit
+      :param node: The (string encoded) key of a file-leaf (=directory) where this file will be uploaded into or
+              None (the file will then not show up in the filebrowser).
+              .. Warning::
+                      If node is set it's the callers responsibility to ensure node is a valid key and that the user has
+                      the permission to upload into that directory. ViUR does *not* enforce any canAccess restrictions for
+                      keys passed to this function!
+      :return: authData and authSig for the getUploadURL function below
+
+
+   .. method:: initializeUpload(self, fileName: str, mimeType: str, node: Union[(str, None)], size: Union[(int, None)] = None) -> Tuple[(str, str)]
+
+      Internal helper that registers a new upload. Will create the pending fileSkel entry (needed to remove any
+      started uploads from GCS if that file isn't used) and creates a resumable (and signed) uploadURL for that.
+      :param fileName: Name of the file that will be uploaded
+      :param mimeType: Mimetype of said file
+      :param node: If set (to a string-key representation of a file-node) the upload will be written to this directory
+      :param size: The *exact* filesize we're accepting in Bytes. Used to enforce a filesize limit by getUploadURL
+      :return: Str-Key of the new file-leaf entry, the signed upload-url
+
+
+   .. method:: getUploadURL(self, fileName, mimeType, size=None, skey=None, *args, **kwargs)
+
+
+   .. method:: getAvailableRootNodes__(self, name, *args, **kwargs)
+
+
+   .. method:: download(self, blobKey, fileName='', download='', sig='', *args, **kwargs)
+
+      Download a file.
+      :param blobKey: The unique blob key of the file.
+      :type blobKey: str
+      :param fileName: Optional filename to provide in the header.
+      :type fileName: str
+      :param download: Set header to attachment retrival, set explictly to "1" if download is wanted.
+      :type download: str
+
+
+   .. method:: add(self, skelType, node=None, *args, **kwargs)
+
+
+   .. method:: onItemUploaded(self, skel)
+
+
+
+.. data:: json
+   :annotation: = True
+
+   
+
+.. data:: html
+   :annotation: = True
+
+   
+
+.. function:: startCheckForUnreferencedBlobs()
+
+   Start searching for blob locks that have been recently freed
+
+
+.. function:: doCheckForUnreferencedBlobs(cursor=None)
+
+
+.. function:: startCleanupDeletedFiles()
+
+   Increase deletion counter on each blob currently not referenced and delete
+   it if that counter reaches maxIterCount
+
+
+.. function:: doCleanupDeletedFiles(cursor=None)
+
+
