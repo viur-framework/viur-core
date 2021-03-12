@@ -34,7 +34,7 @@ from viur.core import request
 from viur.core import languages as servertrans
 from viur.core.i18n import initializeTranslations
 from viur.core import logging as viurLogging  # Initialize request logging
-from viur.core.utils import currentRequest, currentSession, currentLanguage, currentRequestData
+from viur.core.utils import currentRequest, currentSession, currentLanguage, currentRequestData, projectID
 from viur.core.session import GaeSession
 import logging
 import webob
@@ -241,11 +241,11 @@ def setup(modules, render=None, default="html"):
 		(=> /user instead of /html/user)
 		:type default: str
 	"""
+	from viur.core.bones import bone
 	import skeletons  # This import is not used here but _must_ remain to ensure that the
 	# application's data models are explicitly imported at some place!
-
-	from viur.core.bones import bone
-
+	assert projectID in conf["viur.validApplicationIDs"], \
+		"Refusing to start, applicationID %s is not in conf['viur.validApplicationIDs']" % projectID
 	if not render:
 		import viur.core.render
 		render = viur.core.render
