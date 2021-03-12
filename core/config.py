@@ -44,10 +44,8 @@ conf = {
 	"viur.domainLanguageMapping": {},
 	# For how long we'll keep successfully send emails in the viur-emails table
 	"viur.email.logRetention": timedelta(days=30),
-	# Function that actually delivers the email using the service provider of choice. See email.py for more details
-	"viur.email.transportFunction": None,
-	# Function that gets called after an email has been successfully send.
-	"viur.email.transportSuccessful": None,
+	# Class that actually delivers the email using the service provider of choice. See email.py for more details
+	"viur.email.transportClass": None,
 	# If set, we'll enable sending emails from the local development server. Otherwise, they'll just be logged.
 	"viur.email.sendFromLocalDevelopmentServer": False,
 	# If set, all outgoing emails will be send to this address (overriding the 'dests'-parameter in utils.sendEmail)
@@ -143,6 +141,9 @@ conf = {
 
 	# If set, must be a tuple of two functions serializing/restoring additional environmental data in deferred requests
 	"viur.tasks.customEnvironmentHandler": None,
+
+	# Which application-ids we're supposed to run on
+	"viur.validApplicationIDs": [],
 
 	# Will be set to server.__version__ in server.__init__
 	"viur.version": None,
