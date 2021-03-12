@@ -9,7 +9,7 @@ from viur.core.bones.colorBone import colorBone
 from viur.core.bones.credentialBone import credentialBone
 from viur.core.bones.selectBone import selectBone
 from viur.core.bones.booleanBone import booleanBone
-from viur.core.bones.relationalBone import relationalBone
+from viur.core.bones.relationalBone import relationalBone, RelationalConsistency
 from viur.core.bones.treeLeafBone import treeLeafBone
 from viur.core.bones.treeNodeBone import treeNodeBone
 from viur.core.bones.dateBone import dateBone
@@ -22,3 +22,4 @@ from viur.core.bones.emailBone import emailBone
 from viur.core.bones.randomSliceBone import randomSliceBone
 from viur.core.bones.spatialBone import spatialBone
 from viur.core.bones.recordBone import recordBone
+from viur.core.bones.rawValueBone import rawValueBone
