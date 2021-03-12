@@ -6,7 +6,7 @@ from typing import Any, Union, List, Dict
 from viur.core.config import conf
 from viur.core import db, utils
 from viur.core.utils import projectID
-from viur.core.tasks import callDeferred, QueryIter, PeriodicTask
+from viur.core.tasks import callDeferred, QueryIter, PeriodicTask, DeleteEntitiesIter
 
 """
 	This module implements an email delivery system for ViUR. Emails will be queued so that we don't overwhelm
@@ -34,7 +34,7 @@ def cleanOldEmailsFromLog(*args, **kwargs):
 	"""
 	qry = db.Query("viur-emails").filter("isSend =", True) \
 		.filter("creationDate <", utils.utcNow() - conf["viur.email.logRetention"])
-	DeleteOldEmailsFromLog.startIterOnQuery(qry)
+	DeleteEntitiesIter.startIterOnQuery(qry)
 
 
 class EmailTransport(ABC):
@@ -79,16 +79,6 @@ class EmailTransport(ABC):
 			:param entity: The entity which has been send
 		"""
 		pass
-
-
-class DeleteOldEmailsFromLog(QueryIter):
-	"""
-		Simple Query-Iter to delete all entities encountered
-	"""
-
-	@classmethod
-	def handleEntry(cls, entry, customData):
-		db.Delete(entry.key)
 
 
 @callDeferred
