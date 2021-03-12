@@ -142,9 +142,9 @@ class stringBone(baseBone):
 				dbFilter.order(order)
 		return (dbFilter)
 
-	def getSearchTags(self, skeltonValues, name):
+	def getSearchTags(self, skeletonValues, name):
 		res = set()
-		value = skeltonValues[name]
+		value = skeletonValues[name]
 		if not value:
 			return res
 		if self.languages and isinstance(value, dict):

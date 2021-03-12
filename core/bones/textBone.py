@@ -283,9 +283,9 @@ class textBone(baseBone):
 					idx = values.find("/file/download/", seperatorIdx)
 		return newFileKeys
 
-	def getSearchTags(self, skeltonValues, name):
+	def getSearchTags(self, skeletonValues, name):
 		res = set()
-		value = skeltonValues[name]
+		value = skeletonValues[name]
 		if not value:
 			return res
 		if self.languages and isinstance(value, dict):
