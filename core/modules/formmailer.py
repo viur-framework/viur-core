@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from viur.core.skeleton import RelSkel
-from viur.core import errors, utils, securitykey, exposed
+from viur.core import errors, utils, securitykey, exposed, email
 from viur.core.bones import baseBone
 from viur.core.prototypes.basic import BasicApplication
 
@@ -42,7 +42,7 @@ class Formmailer(BasicApplication):
 			opts = {}
 
 		# Send the email!
-		utils.sendEMail(rcpts, self.mailTemplate, skel, **opts)
+		email.sendEMail(dests=rcpts, tpl=self.mailTemplate, skel=skel, **opts)
 		self.onAdded(skel)
 
 		return self.render.addSuccess(skel)
