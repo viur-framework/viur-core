@@ -1,6 +1,0 @@
-:mod:`core.db`
-==============
-
-.. py:module:: core.db
-
-
