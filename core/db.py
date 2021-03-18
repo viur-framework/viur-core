@@ -591,75 +591,6 @@ class Query(object):
 		self._distinct = keyList
 		return self
 
-	def isKeysOnly(self):
-		"""
-			Returns True if this query is configured as *keys only*, False otherwise.
-
-			:rtype: bool
-		"""
-		raise NotImplementedError()
-		return self.datastoreQuery.IsKeysOnly()
-
-	def getQueryOptions(self):
-		"""
-			Returns a datastore_query.QueryOptions for the current instance.
-
-			:rtype: datastore_query.QueryOptions
-		"""
-		raise NotImplementedError()
-		return (self.datastoreQuery.GetQueryOptions())
-
-	def getQuery(self):
-		"""
-			Returns a datastore_query.Query for the current instance.
-
-			:rtype: datastore_query.Query
-		"""
-		raise NotImplementedError()
-		return (self.datastoreQuery.GetQuery())
-
-	def getOrder(self):
-		"""
-			Gets a datastore_query.Order for the current instance.
-
-			:returns: The sort orders set on the current query, or None.
-			:rtype: datastore_query.Order or None
-		"""
-		raise NotImplementedError()
-		if self.datastoreQuery is None:
-			return (None)
-
-		return (self.datastoreQuery.GetOrder())
-
-	def getFilter(self):
-		"""
-			Returns the filters applied to the current query as dictionary.
-
-			:returns: Filter as dictionary.
-			:rtype: dict
-		"""
-		raise NotImplementedError()
-		return self.filters
-
-	def getOrders(self):
-		"""
-			Returns a list of orders applied to this query.
-
-			Every element in the list returned (if any), is a tuple of (property,direction).
-
-			Property is the name of the property used to sort, direction a bool
-			(false => ascending, True => descending).
-
-			:returns: list of orderings, in tuples (property,direction).
-			:rtype: list
-		"""
-		raise NotImplementedError()
-		try:
-			order = self.datastoreQuery.__orderings
-			return [(prop, dir) for (prop, dir) in order]
-		except:
-			return []
-
 	def getCursor(self):
 		"""
 			Get a valid cursor from the last run of this query.
@@ -682,7 +613,6 @@ class Query(object):
 		elif isinstance(self.queries, list):
 			q = self.queries[0]
 		return q.currentCursor.decode("ASCII") if q.currentCursor else None
-		return self.lastCursor.decode("ASCII") if self.lastCursor else None
 
 	def getKind(self):
 		"""
@@ -691,17 +621,6 @@ class Query(object):
 			:rtype: str
 		"""
 		return self.kind
-
-	def setKind(self, newKind):
-		"""
-			Sets the kind of this query.
-
-			:param newKind: New query kind.
-			:type newKind: str
-		"""
-		if self.datastoreQuery is None:
-			return
-		self.datastoreQuery.__kind = newKind
 
 	def _runSingleFilterQuery(self, query, limit):
 		qry = __client__.query(kind=query.kind)

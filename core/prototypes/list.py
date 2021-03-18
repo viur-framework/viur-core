@@ -106,6 +106,22 @@ class List(BasicApplication):
 		return self.render.view(skel)
 
 	@exposed
+	def structure(self, *args, **kwargs):
+		"""
+		:returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
+			in each bone.
+
+		:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
+		"""
+		skel = self.viewSkel()
+		if not self.canAdd():  # We can't use canView here as it would require passing a skeletonInstance.
+			# As a fallback, we'll check if the user has the permissions to view at least one entry
+			qry = self.listFilter(skel.all())
+			if not qry or not qry.getEntry():
+				raise errors.Unauthorized()
+		return self.render.view(skel)
+
+	@exposed
 	def view(self, *args, **kwargs):
 		"""
 		Prepares and renders a single entry for viewing.
@@ -130,21 +146,13 @@ class List(BasicApplication):
 			raise errors.NotAcceptable()
 		if not key:
 			raise errors.NotAcceptable()
+		# We return a single entry for viewing
 		skel = self.viewSkel()
-		if key == u"structure":
-			# We dump just the structure of that skeleton, including it's default values
-			if not self.canView(skel):
-				raise errors.Unauthorized()
-		else: # We return a single entry for viewing
-			# We probably have a Database or SEO-Key here
-			#seoKey = "viur.viurActiveSeoKeys ="
-			#skel = self.viewSkel().all().filter(seoKey, args[0]).getSkel()
-			skel = self.viewSkel()
-			if not skel.fromDB(key):
-				raise errors.NotFound()
-			if not self.canView(skel):
-				raise errors.Forbidden()
-			self.onView(skel)
+		if not skel.fromDB(key):
+			raise errors.NotFound()
+		if not self.canView(skel):
+			raise errors.Forbidden()
+		self.onView(skel)
 		return self.render.view(skel)
 
 	@exposed
