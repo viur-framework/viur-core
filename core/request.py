@@ -354,7 +354,7 @@ class BrowseHandler():  # webapp.RequestHandler
 				task()
 
 	def processTypeHint(self, typeHint: typing.ClassVar, inValue: typing.Union[str, typing.List[str]],
-						parsingOnly: bool) -> tuple[typing.Union[str, typing.List[str]], typing.Any]:
+						parsingOnly: bool) -> typing.Tuple[typing.Union[str, typing.List[str]], typing.Any]:
 		"""
 			Helper function to enforce/convert the incoming :param: inValue to the type defined in :param: typeHint.
 			Returns a string 2-tuple of the new value we'll store in self.kwargs as well as the parsed value that's
