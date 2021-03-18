@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import threading
-import sys, traceback, os, inspect, unicodedata
+import sys, traceback, os, inspect, unicodedata, typing
 from viur.core.config import conf
 from urllib import parse
 from string import Template
@@ -13,6 +13,52 @@ from viur.core import utils, db
 from viur.core.utils import currentSession, currentLanguage
 import logging
 from time import time
+from abc import ABC, abstractmethod
+
+
+class RequestValidator(ABC):
+	"""
+		RequestValidators can be used to validate a request early on. If the validate method returns a tuple,
+		the request is aborted. Can be used to block requests from bots.
+
+		To register a new validator, append it to :attr: viur.core.request.BrowseHandler.requestValidators
+	"""
+	# Internal name to trace which validator aborted the request
+	name = "RequestValidator"
+
+	@staticmethod
+	@abstractmethod
+	def validate(request: 'BrowseHandler') -> typing.Optional[typing.Tuple[int, str, str]]:
+		"""
+			The function that checks the current request. If the request is valid, simply return None.
+			If the request should be blocked, it must return a tuple of
+			- The HTTP status code (as int)
+			- The Description of that status code (eg "Forbidden")
+			- The Response Body (can be a simple string or an HTML-Page)
+		:param request: The Request instance to check
+		:return: None on success, an Error-Tuple otherwise
+		"""
+		raise NotImplementedError()
+
+
+class FetchMetaDataValidator(RequestValidator):
+	"""
+		This validator examines the headers "Sec-Fetch-Site", "sec-fetch-mode" and "sec-fetch-dest" as
+		recommended by https://web.dev/fetch-metadata/
+	"""
+	name = "FetchMetaDataValidator"
+
+	@staticmethod
+	def validate(request: 'BrowseHandler') -> typing.Optional[typing.Tuple[int, str, str]]:
+		headers = request.request.headers
+		if not headers.get("sec-fetch-site"):  # These headers are not send by all browsers
+			return None
+		if headers.get('sec-fetch-site') in {"same-origin", "none"}:  # A Request from our site
+			return None
+		if headers.get('sec-fetch-mode') == 'navigate' and not request.isPostRequest \
+				and headers.get('sec-fetch-dest') not in {'object', 'embed'}:  # Incoming navigation GET request
+			return None
+		return 403, "Forbidden", "Request rejected due to fetch metadata"
 
 
 class BrowseHandler():  # webapp.RequestHandler
@@ -22,6 +68,9 @@ class BrowseHandler():  # webapp.RequestHandler
 
 		:warning: Don't instantiate! Don't subclass! DON'T TOUCH! ;)
 	"""
+
+	# List of requestValidators used to preflight-check an request before it's being dispatched within ViUR
+	requestValidators = [FetchMetaDataValidator]
 
 	# COPY START
 
@@ -156,6 +205,14 @@ class BrowseHandler():  # webapp.RequestHandler
 		self.disableCache = False  # Shall this request bypass the caches?
 		self.args = []
 		self.kwargs = {}
+		# Check if we should process or abort the request
+		for validator, reqValidatorResult in [(x, x.validate(self)) for x in self.requestValidators]:
+			if reqValidatorResult is not None:
+				logging.warning("Request rejected by validator %s" % validator.name)
+				statusCode, statusStr, statusDescr = reqValidatorResult
+				self.response.status = '%d %s' % (statusCode, statusStr)
+				self.response.write(statusDescr)
+				return
 		path = self.request.path
 		if self.isDevServer:
 			# We'll have to emulate the task-queue locally as far as possible until supported by dev_appserver again
