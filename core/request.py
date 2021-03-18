@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
-import threading
-import sys, traceback, os, inspect, unicodedata, typing
+import traceback, os, unicodedata, typing
 from viur.core.config import conf
 from urllib import parse
 from string import Template
@@ -355,6 +353,86 @@ class BrowseHandler():  # webapp.RequestHandler
 				logging.info("Running task directly after request: %s" % str(task))
 				task()
 
+	def processTypeHint(self, typeHint: typing.ClassVar, inValue: typing.Union[str, typing.List[str]],
+						parsingOnly: bool) -> tuple[typing.Union[str, typing.List[str]], typing.Any]:
+		"""
+			Helper function to enforce/convert the incoming :param: inValue to the type defined in :param: typeHint.
+			Returns a string 2-tuple of the new value we'll store in self.kwargs as well as the parsed value that's
+			passed to the caller. The first value is always the unmodified string, the unmodified list of strings or
+			(in case typeHint is List[T] and the provided inValue is a simple string) a List containing only inValue.
+			The second returned value is inValue converted to whatever type is suggested by typeHint.
+
+			.. Warning: ViUR traditionally supports two ways to supply data to exposed functions: As *args (via
+				Path components in the URL) and **kwargs (using POST or appending ?name=value parameters to the URL).
+				When using a typeHint List[T], that parameter can only be submitted as a keyword argument. Trying to
+				fill that parameter using a *args parameter will raise TypeError.
+
+			.. Example: Giving the following function, it's possible to fill *a* either by /test/aaa or by /test?a=aaa
+				>>> @exposed
+				>>> def test(a: str)
+				In case of
+				>>> @exposed
+				>>> def test(a: List[str])
+				only /test?a=aaa is valid. Invocations like /test/aaa will be rejected
+
+			:param typeHint: Type to which inValue should be converted to
+			:param inValue: The value that should be converted to the given type
+			:param parsingOnly: If true, the parameter is a keyword argument which we can convert to List
+			:return: 2-tuple of the original string-value and the converted value
+		"""
+		typeOrigin = typing.get_origin(typeHint)
+		if typeOrigin is typing.Union:
+			typeArgs = typing.get_args(typeHint)
+			if len(typeArgs) == 2 and isinstance(None, typeArgs[1]): # is None:
+				# This is typing.Optional
+				return self.processTypeHint(typeArgs[0], inValue, parsingOnly)
+		elif typeOrigin is list:
+			if parsingOnly:
+				raise TypeError("Cannot convert *args argument to list")
+			typeArgs = typing.get_args(typeHint)
+			if len(typeArgs) != 1:
+				raise TypeError("Invalid List subtype")
+			typeArgs = typeArgs[0]
+			if not isinstance(inValue, list):
+				inValue = [inValue]  # Force to List
+			strRes = []
+			parsedRes = []
+			for elem in inValue:
+				a, b = self.processTypeHint(typeArgs, elem, parsingOnly)
+				strRes.append(a)
+				parsedRes.append(b)
+			if len(strRes) == 1:
+				strRes = strRes[0]
+			return strRes, parsedRes
+		elif typeHint is str:
+			if not isinstance(inValue, str):
+				raise TypeError("Input argument to str typehint is not a string (probably a list)")
+			return inValue, inValue
+		elif typeHint is int:
+			if not isinstance(inValue, str):
+				raise TypeError("Input argument to int typehint is not a string (probably a list)")
+			if not inValue.replace("-", "", 1).isdigit():
+				raise TypeError("Failed to parse an integer typehint")
+			i = int(inValue)
+			return str(i), i
+		elif typeHint is float:
+			if not isinstance(inValue, str):
+				raise TypeError("Input argument to float typehint is not a string (probably a list)")
+			if not inValue.replace("-", "", 1).replace(",", ".", 1).replace(".","", 1).isdigit():
+				raise TypeError("Failed to parse an float typehint")
+			f = float(inValue)
+			if f != f:
+				raise TypeError("Parsed float is a NaN-Value")
+			return str(f), f
+		elif typeHint is bool:
+			if not isinstance(inValue, str):
+				raise TypeError("Input argument to boolean typehint is not a string (probably a list)")
+			if inValue in [str(True), u"1", u"yes"] :
+				return "True", True
+			else:
+				return "False", False
+		raise ValueError("TypeHint %s not supported" % typeHint)
+
 	def findAndCall(self, path, *args, **kwargs):  # Do the actual work: process the request
 		# Prevent Hash-collision attacks
 		kwargs = {}
@@ -378,7 +456,7 @@ class BrowseHandler():  # webapp.RequestHandler
 		except UnicodeError:
 			# We received invalid unicode data (usually happens when someone tries to exploit unicode normalisation bugs)
 			raise errors.ReadFromClientError()
-		if "self" in kwargs:  # self is reserved for bound methods
+		if "self" in kwargs or "return" in kwargs:  # self or return is reserved for bound methods
 			raise errors.BadRequest()
 		# Parse the URL
 		path = parse.urlparse(path).path
@@ -443,37 +521,41 @@ class BrowseHandler():  # webapp.RequestHandler
 				logging.debug("Caching disabled by X-Viur-Disable-Cache header")
 				self.disableCache = True
 		try:
+			annotations = typing.get_type_hints(caller)
+			if annotations and not self.internalRequest:
+				newKwargs = {}  # The dict of new **kwargs we'll pass to the caller
+				newArgs = []  # List of new *args we'll pass to the caller
+				argsOrder = list(caller.__code__.co_varnames)[1: caller.__code__.co_argcount]
+				# Map args in
+				for idx in range(0, min(len(self.args), len(argsOrder))):
+					paramKey = argsOrder[idx]
+					if paramKey in annotations:  # We have to enforce a type-annotation for this *args parameter
+						_, newTypeValue = self.processTypeHint(annotations[paramKey], self.args[idx], True)
+						newArgs.append(newTypeValue)
+					else:
+						newArgs.append(self.args[idx])
+				newArgs.extend(self.args[min(len(self.args), len(argsOrder)):])
+				# Last, we map the kwargs in
+				for k, v in kwargs.items():
+					if k in annotations:
+						newStrValue, newTypeValue = self.processTypeHint(annotations[k], v, False)
+						self.kwargs[k] = newStrValue
+						newKwargs[k] = newTypeValue
+					else:
+						newKwargs[k] = v
+			else:
+				newArgs = self.args
+				newKwargs = self.kwargs
 			if (conf["viur.debug.traceExternalCallRouting"] and not self.internalRequest) or conf[
 				"viur.debug.traceInternalCallRouting"]:
-				logging.debug("Calling %s with args=%s and kwargs=%s" % (str(caller), str(args), str(kwargs)))
-			res = caller(*self.args, **self.kwargs)
+				logging.debug("Calling %s with args=%s and kwargs=%s" % (str(caller), str(newArgs), str(newKwargs)))
+			res = caller(*newArgs, **newKwargs)
 			res = str(res).encode("UTF-8") if not isinstance(res, bytes) else res
 			self.response.write(res)
 		except TypeError as e:
 			if self.internalRequest:  # We provide that "service" only for requests originating from outside
 				raise
-			# Check if the function got too few arguments and raise a NotAcceptable error
-			tmpRes = {}
-			argsOrder = list(caller.__code__.co_varnames)[1: caller.__code__.co_argcount]
-			# Map default values in
-			reversedArgsOrder = argsOrder[:: -1]
-			for defaultValue in list(caller.__defaults__ or [])[:: -1]:
-				tmpRes[reversedArgsOrder.pop(0)] = defaultValue
-			del reversedArgsOrder
-			# Map args in
-			setArgs = []  # Store a list of args already set by *args
-			for idx in range(0, min(len(args), len(argsOrder))):
-				setArgs.append(argsOrder[idx])
-				tmpRes[argsOrder[idx]] = args[idx]
-			# Last, we map the kwargs in
-			for k, v in kwargs.items():
-				if k in setArgs:  # This key has already been set by *args
-					raise (errors.NotAcceptable())  # We reraise that exception as we got duplicate arguments
-				tmpRes[k] = v
-			# Last check, that every parameter is satisfied:
-			if not all([x in tmpRes.keys() for x in argsOrder]):
-				raise (errors.NotAcceptable())
-			raise
+			raise errors.NotAcceptable()
 
 	def saveSession(self):
 		currentSession.get().save(self)
