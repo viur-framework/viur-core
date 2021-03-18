@@ -180,7 +180,8 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 				if renderName == default:  # default or render (sub)namespace?
 					setattr(res, moduleName, obj)
 				else:
-					if not renderName in dir(res):
+					if not renderName in dir(res) or getattr(res, renderName) is True:
+						# Render is not build yet, or it is just the simple marker that a given render should be build
 						setattr(res, renderName, ExtendableObject())
 					setattr(getattr(res, renderName), moduleName, obj)
 				if renderName != default:
