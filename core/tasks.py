@@ -21,7 +21,7 @@ from viur.core.utils import currentLanguage, currentRequest, currentSession
 
 class JsonKeyEncoder(json.JSONEncoder):
 	"""
-		Add support for Keys in deferred tasks
+		Add support for Keys, Datetime, Bytes and db.Entities in deferred tasks
 	"""
 
 	def default(self, o: Any) -> Any:
@@ -33,19 +33,30 @@ class JsonKeyEncoder(json.JSONEncoder):
 			return {".__bytes__": base64.b64encode(o).decode("ASCII")}
 		return json.JSONEncoder.default(self, o)
 
+	def encode(self, o):
+		# We can't handle entities in default() as they're a subclass of dict, which is directly handled by json
+		if isinstance(o, db.Entity):
+			return json.JSONEncoder.encode(self,{".__entity__": o, ".__ekey__": db.encodeKey(o.key) if o.key else None})
+		return json.JSONEncoder.encode(self, o)
+
+
 
 def jsonDecodeObjectHook(obj):
 	"""
-		Inverse to JsonKeyEncoder: Check if the object matches a keymarker and parse it's key
+		Inverse to JsonKeyEncoder: Check if the object matches a custom ViUR type and recreate it accordingly
 	"""
 	if len(obj) == 1:
-		if len(obj) == 1 and ".__key__" in obj:
+		if ".__key__" in obj:
 			return db.KeyClass.from_legacy_urlsafe(obj[".__key__"])
-		elif len(obj) == 1 and ".__datetime__" in obj:
+		elif ".__datetime__" in obj:
 			value = datetime.strptime(obj[".__datetime__"], "d.%m.%Y %H:%M:%S")
 			return datetime(value.year, value.month, value.day, value.hour, value.minute, value.second, tzinfo=pytz.UTC)
 		elif ".__bytes__" in obj:
 			return base64.b64decode(obj[".__bytes__"])
+	elif len(obj) == 2 and ".__entity__" in obj and ".__ekey__" in obj:
+		r = db.Entity(db.KeyClass.from_legacy_urlsafe(obj[".__ekey__"]) if obj[".__ekey__"] else None)
+		r.update(obj[".__entity__"])
+		return r
 	return obj
 
 
