@@ -300,7 +300,7 @@ class UserPassword(object):
 			skey = securitykey.create(duration=60 * 60 * 24 * 7, userKey=utils.normalizeKey(skel["key"]), name=skel["name"])
 			skel.skey = baseBone(descr="Skey")
 			skel["skey"] = skey
-			utils.sendEMail([skel["name"]], self.userModule.verifyEmailAddressMail, skel)
+			email.sendEMail(dests=[skel["name"]], tpl=self.userModule.verifyEmailAddressMail, skel=skel)
 		self.userModule.onAdded(skel)  # Call onAdded on our parent user module
 		return self.userModule.render.addSuccess(skel)
 
