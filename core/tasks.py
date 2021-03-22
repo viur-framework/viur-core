@@ -19,26 +19,27 @@ from viur.core.config import conf
 from viur.core.utils import currentLanguage, currentRequest, currentSession
 
 
-class JsonKeyEncoder(json.JSONEncoder):
+#class JsonKeyEncoder(json.JSONEncoder):
+def preprocessJsonObject(o):
 	"""
-		Add support for Keys, Datetime, Bytes and db.Entities in deferred tasks
+		Add support for Keys, Datetime, Bytes and db.Entities in deferred tasks.
+		This is not a subclass of json.JSONEncoder anymore, as db.Entites are a subclass of dict, which
+		is always handled from the json module itself.
 	"""
-
-	def default(self, o: Any) -> Any:
-		if isinstance(o, db.KeyClass):
-			return {".__key__": db.encodeKey(o)}
-		elif isinstance(o, datetime):
-			return {".__datetime__": o.astimezone(pytz.UTC).strftime("d.%m.%Y %H:%M:%S")}
-		elif isinstance(o, bytes):
-			return {".__bytes__": base64.b64encode(o).decode("ASCII")}
-		return json.JSONEncoder.default(self, o)
-
-	def encode(self, o):
-		# We can't handle entities in default() as they're a subclass of dict, which is directly handled by json
-		if isinstance(o, db.Entity):
-			return json.JSONEncoder.encode(self,{".__entity__": o, ".__ekey__": db.encodeKey(o.key) if o.key else None})
-		return json.JSONEncoder.encode(self, o)
-
+	if isinstance(o, db.KeyClass):
+		return {".__key__": db.encodeKey(o)}
+	elif isinstance(o, datetime):
+		return {".__datetime__": o.astimezone(pytz.UTC).strftime("d.%m.%Y %H:%M:%S")}
+	elif isinstance(o, bytes):
+		return {".__bytes__": base64.b64encode(o).decode("ASCII")}
+	elif isinstance(o, db.Entity):
+		return {".__entity__": preprocessJsonObject(dict(o)), ".__ekey__": db.encodeKey(o.key) if o.key else None}
+	elif isinstance(o, dict):
+		return {preprocessJsonObject(k): preprocessJsonObject(v) for k, v in o.items()}
+	elif isinstance(o, (list, tuple, set)):
+		return [preprocessJsonObject(x) for x in o]
+	else:
+		return o
 
 
 def jsonDecodeObjectHook(obj):
@@ -62,7 +63,8 @@ def jsonDecodeObjectHook(obj):
 
 _gaeApp = os.environ.get("GAE_APPLICATION")
 regionMap = {  # FIXME! Can we even determine the region like this?
-	"h": "europe-west3"
+	"h": "europe-west3",
+	"e": "europe-west1"
 }
 queueRegion = None
 if _gaeApp:
@@ -472,8 +474,7 @@ def callDeferred(func):
 					   and callable(conf["viur.tasks.customEnvironmentHandler"][0]), \
 					"Your customEnvironmentHandler must be a tuple of two callable if set!"
 				env["custom"] = conf["viur.tasks.customEnvironmentHandler"][0]()
-			pickled = json.dumps((command, (funcPath, args, kwargs, env)), cls=JsonKeyEncoder).encode("UTF-8")
-
+			pickled = json.dumps(preprocessJsonObject((command, (funcPath, args, kwargs, env)))).encode("UTF-8")
 			project = utils.projectID
 			location = queueRegion
 			parent = taskClient.queue_path(project, location, queue)
@@ -629,7 +630,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
 				'relative_uri': '/_tasks/queryIter'
 			}
 		}
-		task['app_engine_http_request']['body'] = json.dumps(qryDict, cls=JsonKeyEncoder).encode("UTF-8")
+		task['app_engine_http_request']['body'] = json.dumps(preprocessJsonObject(qryDict)).encode("UTF-8")
 		taskClient.create_task(parent=parent, task=task)
 
 	@classmethod
