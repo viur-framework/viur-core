@@ -555,7 +555,14 @@ class BrowseHandler():  # webapp.RequestHandler
 		except TypeError as e:
 			if self.internalRequest:  # We provide that "service" only for requests originating from outside
 				raise
-			raise errors.NotAcceptable()
+			if "viur/core/request.py\", line 5" in traceback.format_exc().splitlines()[-3]:
+				# Don't raise NotAcceptable for type-errors raised deep somewhere inside caller.
+				# We check if the last line in traceback originates from viur/core/request.py and a line starting with
+				# 5 and only raise NotAcceptable then. Otherwise a "normal" 500 Server error will be raised.
+				# This is kinda hackish, however this is much faster than reevaluating the args and kwargs passed
+				# to caller as we did in ViUR2.
+				raise errors.NotAcceptable()
+			raise
 
 	def saveSession(self):
 		currentSession.get().save(self)
