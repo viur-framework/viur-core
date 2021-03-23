@@ -22,7 +22,9 @@ def ensureDerived(key: db.KeyClass, srcKey, deriveMap: Dict[str, Any]):
 	from viur.core.skeleton import skeletonByKind, updateRelations
 	deriveFuncMap = conf["viur.file.derivers"]
 	skel = skeletonByKind("file")()
-	assert skel.fromDB(key)
+	if not skel.fromDB(key):
+		logging.info("File-Entry went missing in ensureDerived")
+		return
 	if not skel["derived"]:
 		logging.info("No Derives for this file")
 		skel["derived"] = {}
@@ -138,6 +140,23 @@ class fileBone(treeLeafBone):
 			return [val["dest"]["dlkey"]]
 
 	def refresh(self, skel, boneName):
+		from viur.core.skeleton import skeletonByKind
+		def recreateFileEntryIfNeeded(val):
+			# Recreate the (weak) filenetry referenced by the relation *val*. (ViUR2 might have deleted them)
+			skel = skeletonByKind("file")()
+			if skel.fromDB(val["key"]):  # This file-object exist, no need to recreate it
+				return
+			skel["key"] = val["key"]
+			skel["name"] = val["name"]
+			skel["mimetype"] = val["mimetype"]
+			skel["dlkey"] = val["dlkey"]
+			skel["size"] = val["size"]
+			skel["width"] = val["width"]
+			skel["height"] = val["height"]
+			skel["weak"] = True
+			skel["pending"] = False
+			k = skel.toDB()
+
 		from viur.core.modules.file import importBlobFromViur2
 		super().refresh(skel, boneName)
 		if conf.get("viur.viur2import.blobsource"):
@@ -146,5 +165,7 @@ class fileBone(treeLeafBone):
 			if isinstance(val, list):
 				for x in val:
 					importBlobFromViur2(x["dest"]["dlkey"])
+					recreateFileEntryIfNeeded(x["dest"])
 			elif isinstance(val, dict):
 				importBlobFromViur2(val["dest"]["dlkey"])
+				recreateFileEntryIfNeeded(val["dest"])
