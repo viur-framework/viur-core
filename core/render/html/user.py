@@ -28,7 +28,8 @@ class Render(DefaultRender):  # Render user-data to xml
 			tpl = tpl or self.parent.loginTemplate
 		else:
 			tpl = tpl or self.loginTemplate
-		return self.add(skel, tpl=tpl)
+		return self.add(skel, tpl=tpl, loginFailed=kwargs.get("loginFailed", False),
+						accountStatus=kwargs.get("accountStatus"))
 
 	def loginChoices(self, authMethods, tpl=None, **kwargs):
 		if "loginChoicesTemplate" in dir(self.parent):

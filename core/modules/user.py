@@ -20,6 +20,7 @@ from google.auth.transport import requests
 from viur.core.i18n import translate
 from viur.core.utils import currentRequest, currentSession, utcNow
 from viur.core.session import killSessionByUser
+from typing import Optional
 
 class userSkel(Skeleton):
 	kindName = "user"
@@ -172,13 +173,18 @@ class UserPassword(object):
 				if x != y:
 					isOkay = False
 
+		accountStatus: Optional[int] = None
 		# Verify that this account isn't blocked
 		if res["status"] < 10:
+			if isOkay:
+				# The username and password is valid, in this case we can inform that user about his account status
+				# (ie account locked or email verification pending)
+				accountStatus = res["status"]
 			isOkay = False
 
 		if not isOkay:
 			skel = self.loginSkel()
-			return self.userModule.render.login(skel, loginFailed=True)
+			return self.userModule.render.login(skel, loginFailed=True, accountStatus=accountStatus)
 		else:
 			return self.userModule.continueAuthenticationFlow(self, res.key)
 
