@@ -222,10 +222,7 @@ class dateBone(baseBone):
 		for key in [x for x in rawFilter.keys() if x.startswith(name)]:
 			resDict = {}
 			if not self.fromClient(resDict, key, rawFilter):  # Parsing succeeded
-				super(dateBone, self).buildDBFilter(name, skel, dbFilter, {
-					# TODO: Should we use utcNow?
-					key: datetime.now().strptime(resDict[key].strftime("%d.%m.%Y %H:%M:%S"), "%d.%m.%Y %H:%M:%S")},
-													prefix=prefix)
+				super(dateBone, self).buildDBFilter(name, skel, dbFilter, {key: resDict[key]}, prefix=prefix)
 		return dbFilter
 
 	def performMagic(self, valuesCache, name, isAdd):

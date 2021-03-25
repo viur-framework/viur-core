@@ -138,10 +138,9 @@ class DefaultRender(object):
 		if bone.type == "date" or bone.type.startswith("date."):
 			if value:
 				if bone.date and bone.time:
-					return value.strftime("%d.%m.%Y %H:%M:%S")
+					return value.strftime("%d.%m.%Y %H:%M:%S%z")
 				elif bone.date:
 					return value.strftime("%d.%m.%Y")
-
 				return value.strftime("%H:%M:%S")
 		elif isinstance(bone, bones.relationalBone):
 			if isinstance(value, dict):
