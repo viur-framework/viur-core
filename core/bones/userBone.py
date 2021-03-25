@@ -25,4 +25,5 @@ class userBone(relationalBone):
 			user = conf["viur.mainApp"].user.getCurrentUser()
 			if user:
 				return self.setBoneValue(skel, key, user["key"], False)
-			return self.setBoneValue(skel, key, None, False)
+			skel[key] = None
+			return True

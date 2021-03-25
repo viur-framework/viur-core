@@ -2,12 +2,13 @@
 import logging, sys
 from datetime import datetime
 from time import time
+from typing import Optional
 
 from viur.core import db, utils, errors, conf, securitykey
 from viur.core import forcePost, forceSSL, exposed, internalExposed
 from viur.core.bones import baseBone, keyBone, numericBone
 from viur.core.prototypes import BasicApplication
-from viur.core.skeleton import Skeleton, skeletonByKind
+from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.tasks import callDeferred
 from viur.core.utils import currentRequest
 from viur.core.cache import flushCache
@@ -295,6 +296,25 @@ class Tree(BasicApplication):
 		return self.render.list(res)
 
 	@exposed
+	def structure(self, skelType: str, *args, **kwargs):
+		"""
+		:returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
+			in each bone.
+
+		:raises: :exc:`viur.core.errors.NotAcceptable`, when an incorrect *skelType* is provided.
+		:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
+		"""
+		if not self._checkSkelType(skelType):
+			raise errors.NotAcceptable()
+		skel = self.viewSkel(skelType)
+		if not self.canAdd(skelType, None):  # We can't use canView here as it would require passing a skeletonInstance.
+			# As a fallback, we'll check if the user has the permissions to view at least one entry
+			qry = self.listFilter(skel.all())
+			if not qry or not qry.getEntry():
+				raise errors.Unauthorized()
+		return self.render.view(skel)
+
+	@exposed
 	def view(self, skelType, key, *args, **kwargs):
 		"""
 		Prepares and renders a single entry for viewing.
@@ -320,17 +340,12 @@ class Tree(BasicApplication):
 		skel = self.viewSkel(skelType)
 		if not key:
 			raise errors.NotAcceptable()
-		if key == "structure":
-			# We dump just the structure of that skeleton, including it's default values
-			if not self.canView(skelType, None):
-				raise errors.Unauthorized()
-		else:
-			# We return a single entry for viewing
-			if not skel.fromDB(key):
-				raise errors.NotFound()
-			if not self.canView(skelType, skel):
-				raise errors.Unauthorized()
-			self.onView(skel)
+		# We return a single entry for viewing
+		if not skel.fromDB(key):
+			raise errors.NotFound()
+		if not self.canView(skelType, skel):
+			raise errors.Unauthorized()
+		self.onView(skel)
 		return self.render.view(skel)
 
 	@exposed
@@ -610,7 +625,7 @@ class Tree(BasicApplication):
 			return False
 		return True
 
-	def canAdd(self, skelType: str, parentNodeSkel: Skeleton):
+	def canAdd(self, skelType: str, parentNodeSkel: Optional[SkeletonInstance]):
 		"""
 		Access control function for adding permission.
 

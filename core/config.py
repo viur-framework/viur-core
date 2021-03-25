@@ -142,6 +142,9 @@ conf = {
 	# If set, must be a tuple of two functions serializing/restoring additional environmental data in deferred requests
 	"viur.tasks.customEnvironmentHandler": None,
 
+	# Which application-ids we're supposed to run on
+	"viur.validApplicationIDs": [],
+
 	# Will be set to server.__version__ in server.__init__
 	"viur.version": None,
 }

@@ -7,7 +7,7 @@ from viur.core.utils import currentRequest, currentLanguage, currentSession
 from viur.core.skeleton import SkeletonInstance
 from viur.core import conf
 from viur.core import securitykey
-from viur.core import utils
+from viur.core import utils, errors
 import datetime, json
 
 class default(DefaultRender):
@@ -150,6 +150,15 @@ def canAccess(*args, **kwargs):
 	return False
 
 
+def index(*args, **kwargs):
+	if currentRequest.get().isDevServer or currentRequest.get().isSSLConnection:
+		raise errors.Redirect("/admin/s/admin.html")
+	else:
+		appVersion = currentRequest.get().request.host
+		raise errors.Redirect("https://%s/admin/s/admin.html" % appVersion)
+index.exposed = True
+
+
 def _postProcessAppObj(obj):
 	obj["skey"] = genSkey
 	obj["timestamp"] = timestamp
@@ -160,4 +169,5 @@ def _postProcessAppObj(obj):
 	obj["canAccess"] = canAccess
 	obj["setLanguage"] = setLanguage
 	obj["getVersion"] = getVersion
+	obj["index"] = index
 	return obj
