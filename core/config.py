@@ -108,7 +108,7 @@ conf = {
 	# If set, viur will emit a CSP http-header with each request. Use security.addCspRule to set this property
 	"viur.security.contentSecurityPolicy": {
 		'enforce': {
-			'style-src': ['self', 'unsafe-inline'],  # unsafe-inline currently required for textBones
+			'style-src': ['self'],
 			'default-src': ['self'],
 			'img-src': ['self', '*.ggpht.com', '*.googleusercontent.com'],  # Serving-URLs of file-Bones will point here
 			'script-src': ['self'],
