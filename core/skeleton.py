@@ -11,7 +11,7 @@ from itertools import chain
 from time import time
 from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, Set
 
-from viur.core import conf, db, errors, utils
+from viur.core import conf, db, errors, utils, email
 from viur.core.bones import baseBone, dateBone, keyBone, relationalBone, selectBone, stringBone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 from viur.core.tasks import CallableTask, CallableTaskBase, callDeferred, QueryIter
@@ -1276,7 +1276,7 @@ class RebuildSearchIndex(QueryIter):
 				txt = f"Subject: Rebuild search index finished for {customData['module']}\n\n" \
 					  f"ViUR finished to rebuild the search index for module {customData['module']}.\n" \
 					  f"{totalCount} records updated in total on this kind."
-				utils.sendEMail(customData["notify"], txt, None)
+				email.sendEMail(dests=customData["notify"], stringTemplate=txt, skel=None)
 		except:  # OverQuota, whatever
 			pass
 
@@ -1363,7 +1363,7 @@ def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, noti
 				txt = ("Subject: Vaccum Relations finished for %s\n\n" +
 					   "ViUR finished to vaccum viur-relations.\n" +
 					   "%d records processed, %d entries removed") % (module, newTotalCount, newRemovedCount)
-				utils.sendEMail([notify], txt, None)
+				email.sendEMail(dests=[notify], stringTemplate=txt, skel=None)
 		except:  # OverQuota, whatever
 			pass
 

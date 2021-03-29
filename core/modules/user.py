@@ -233,7 +233,7 @@ class UserPassword(object):
 				60 * 60 * 24,
 				userKey=utils.normalizeKey(user.key),
 				password=skel["password"])
-			utils.sendEMail([userSkel["name"]], self.userModule.passwordRecoveryMail, userSkel)
+			email.sendEMail(dests=[userSkel["name"]], tpl=self.userModule.passwordRecoveryMail, skel=userSkel)
 			return self.userModule.render.view({}, self.passwordRecoveryInstuctionsSendTemplate)
 
 	@exposed
