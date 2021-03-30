@@ -99,7 +99,7 @@ class dateBone(baseBone):
 				value = datetime.fromtimestamp(float(rawValue), tz=time_zone).replace(microsecond=0)
 		elif not self.date and self.time:
 			try:
-				value = datetime.fromisoformat(value)
+				value = time_zone.localize(datetime.fromisoformat(value))
 			except:
 				try:
 					if str(rawValue).count(":") > 1:
@@ -124,7 +124,7 @@ class dateBone(baseBone):
 			value = tmpRes
 		else:
 			try:
-				value = datetime.fromisoformat(value)
+				value = time_zone.localize(datetime.fromisoformat(value))
 			except:
 				try:
 					if " " in rawValue:  # Date with time
