@@ -99,18 +99,21 @@ class dateBone(baseBone):
 				value = datetime.fromtimestamp(float(rawValue), tz=time_zone).replace(microsecond=0)
 		elif not self.date and self.time:
 			try:
-				if str(rawValue).count(":") > 1:
-					(hour, minute, second) = [int(x.strip()) for x in str(rawValue).split(":")]
-					value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute, second=second, tzinfo=time_zone)
-				elif str(rawValue).count(":") > 0:
-					(hour, minute) = [int(x.strip()) for x in str(rawValue).split(":")]
-					value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute, tzinfo=time_zone)
-				elif str(rawValue).replace("-", "", 1).isdigit():
-					value = datetime(year=1970, month=1, day=1, second=int(rawValue), tzinfo=time_zone)
-				else:
-					value = False  # its invalid
+				value = datetime.fromisoformat(value)
 			except:
-				value = False
+				try:
+					if str(rawValue).count(":") > 1:
+						(hour, minute, second) = [int(x.strip()) for x in str(rawValue).split(":")]
+						value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute, second=second, tzinfo=time_zone)
+					elif str(rawValue).count(":") > 0:
+						(hour, minute) = [int(x.strip()) for x in str(rawValue).split(":")]
+						value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute, tzinfo=time_zone)
+					elif str(rawValue).replace("-", "", 1).isdigit():
+						value = datetime(year=1970, month=1, day=1, second=int(rawValue), tzinfo=time_zone)
+					else:
+						value = False  # its invalid
+				except:
+					value = False
 		elif str(rawValue).lower().startswith("now"):
 			tmpRes = datetime.now(time_zone)
 			if len(str(rawValue)) > 4:
@@ -121,30 +124,33 @@ class dateBone(baseBone):
 			value = tmpRes
 		else:
 			try:
-				if " " in rawValue:  # Date with time
-					try:  # Times with seconds
-						if "-" in rawValue:  # ISO Date
-							value = time_zone.localize(datetime.strptime(str(rawValue), "%Y-%m-%d %H:%M:%S"))
-						elif "/" in rawValue:  # Ami Date
-							value = time_zone.localize(datetime.strptime(str(rawValue), "%m/%d/%Y %H:%M:%S"))
-						else:  # European Date
-							value = time_zone.localize(datetime.strptime(str(rawValue), "%d.%m.%Y %H:%M:%S"))
-					except:
-						if "-" in rawValue:  # ISO Date
-							value = time_zone.localize(datetime.strptime(str(rawValue), "%Y-%m-%d %H:%M"))
-						elif "/" in rawValue:  # Ami Date
-							value = time_zone.localize(datetime.strptime(str(rawValue), "%m/%d/%Y %H:%M"))
-						else:  # European Date
-							value = time_zone.localize(datetime.strptime(str(rawValue), "%d.%m.%Y %H:%M"))
-				else:
-					if "-" in rawValue:  # ISO (Date only)
-						value = time_zone.localize(datetime.strptime(str(rawValue), "%Y-%m-%d"))
-					elif "/" in rawValue:  # Ami (Date only)
-						value = time_zone.localize(datetime.strptime(str(rawValue), "%m/%d/%Y"))
-					else:  # European (Date only)
-						value = time_zone.localize(datetime.strptime(str(rawValue), "%d.%m.%Y"))
+				value = datetime.fromisoformat(value)
 			except:
-				value = False  # its invalid
+				try:
+					if " " in rawValue:  # Date with time
+						try:  # Times with seconds
+							if "-" in rawValue:  # ISO Date
+								value = time_zone.localize(datetime.strptime(str(rawValue), "%Y-%m-%d %H:%M:%S"))
+							elif "/" in rawValue:  # Ami Date
+								value = time_zone.localize(datetime.strptime(str(rawValue), "%m/%d/%Y %H:%M:%S"))
+							else:  # European Date
+								value = time_zone.localize(datetime.strptime(str(rawValue), "%d.%m.%Y %H:%M:%S"))
+						except:
+							if "-" in rawValue:  # ISO Date
+								value = time_zone.localize(datetime.strptime(str(rawValue), "%Y-%m-%d %H:%M"))
+							elif "/" in rawValue:  # Ami Date
+								value = time_zone.localize(datetime.strptime(str(rawValue), "%m/%d/%Y %H:%M"))
+							else:  # European Date
+								value = time_zone.localize(datetime.strptime(str(rawValue), "%d.%m.%Y %H:%M"))
+					else:
+						if "-" in rawValue:  # ISO (Date only)
+							value = time_zone.localize(datetime.strptime(str(rawValue), "%Y-%m-%d"))
+						elif "/" in rawValue:  # Ami (Date only)
+							value = time_zone.localize(datetime.strptime(str(rawValue), "%m/%d/%Y"))
+						else:  # European (Date only)
+							value = time_zone.localize(datetime.strptime(str(rawValue), "%d.%m.%Y"))
+				except:
+					value = False  # its invalid
 		if value is False:
 			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
 		value = value.replace(microsecond=0)
