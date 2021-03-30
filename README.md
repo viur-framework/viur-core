@@ -1,3 +1,5 @@
+[![Documentation Status](https://readthedocs.org/projects/viur-core/badge/?version=latest)](https://viur-core.readthedocs.io/en/latest/?badge=latest)
+
 # UNSTABLE - UNUNSUABLE
 This will become the Python3 Port of the ViUR Server.
 This will be a major update and it's currently _NOT_ usuable.
