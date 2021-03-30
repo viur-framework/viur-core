@@ -4,10 +4,10 @@ from viur.core import request
 from datetime import datetime, timedelta
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.i18n import translate
-from viur.core.utils import currentRequest, currentRequestData, utcNow
+from viur.core.utils import currentRequest, currentRequestData, utcNow, isLocalDevelopmentServer
 from typing import List, Union
 
-import pytz
+import pytz, tzlocal
 
 class dateBone(baseBone):
 	type = "date"
@@ -96,7 +96,7 @@ class dateBone(baseBone):
 			if int(rawValue) < -1 * (2 ** 30) or int(rawValue) > (2 ** 31) - 2:
 				value = False  # its invalid
 			else:
-				value = datetime.fromtimestamp(float(rawValue), tz=time_zone)
+				value = datetime.fromtimestamp(float(rawValue), tz=time_zone).replace(microsecond=0)
 		elif not self.date and self.time:
 			try:
 				if str(rawValue).count(":") > 1:
@@ -147,6 +147,7 @@ class dateBone(baseBone):
 				value = False  # its invalid
 		if value is False:
 			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
+		value = value.replace(microsecond=0)
 		err = self.isInvalid(value)
 		if err:
 			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
@@ -169,6 +170,8 @@ class dateBone(baseBone):
 		"""
 		timeZone = pytz.utc  # Default fallback
 		currReqData = currentRequestData.get()
+		if isLocalDevelopmentServer:
+			return tzlocal.get_localzone()
 		try:
 			# Check the local cache first
 			if "timeZone" in currReqData:
@@ -197,8 +200,9 @@ class dateBone(baseBone):
 	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
 		if value:
 			# Crop unwanted values to zero
+			value = value.replace(microsecond=0)
 			if not self.time:
-				value = value.replace(hour=0, minute=0, second=0, microsecond=0)
+				value = value.replace(hour=0, minute=0, second=0)
 			elif not self.date:
 				value = value.replace(year=1970, month=1, day=1)
 			# We should always deal with timezone aware datetimes
@@ -227,4 +231,4 @@ class dateBone(baseBone):
 
 	def performMagic(self, valuesCache, name, isAdd):
 		if (self.creationMagic and isAdd) or self.updateMagic:
-			valuesCache[name] = utcNow()
+			valuesCache[name] = utcNow().replace(microsecond=0).astimezone(self.guessTimeZone())
