@@ -133,7 +133,7 @@ conf = {
 		"usb": [],
 	},
 	# Shall we emit Cross-Origin-Embedder-Policy: require-corp?
-	"viur.security.enableCOEP": True,
+	"viur.security.enableCOEP": False,
 	# Emit a Cross-Origin-Opener-Policy Header? Valid values are same-origin|same-origin-allow-popups|unsafe-none
 	"viur.security.enableCOOP": "same-origin",
 	# Emit a Cross-Origin-Resource-Policy Header? Valid values are same-site|same-origin|cross-origin
