@@ -294,7 +294,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 			False otherwise (eg. some required fields where missing or invalid).
 			:rtype: bool
 		"""
-		complete = True
+		complete = len(data) > 0  # Empty values are never valid
 		skelValues.errors = []
 
 		for key, _bone in skelValues.items():
@@ -1046,7 +1046,7 @@ class RelSkel(BaseSkeleton):
 			:type data: dict
 			:returns: True if the data was successfully read; False otherwise (eg. some required fields where missing or invalid)
 		"""
-		complete = True
+		complete = len(data) > 0  # Empty values are never valid
 		skelValues.errors = []
 		for key, _bone in skelValues.items():
 			if _bone.readOnly:
