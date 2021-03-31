@@ -113,7 +113,8 @@ conf = {
 			'img-src': ['self', '*.ggpht.com', '*.googleusercontent.com'],  # Serving-URLs of file-Bones will point here
 			'script-src': ['self'],
 			# Required to login with google:
-			'frame-src': ['self', 'www.google.com', 'drive.google.com', 'accounts.google.com']
+			'frame-src': ['self', 'www.google.com', 'drive.google.com', 'accounts.google.com'],
+			'form-action': ['self']
 		}
 	},
 	# If set, viur will emit a HSTS http-header with each request. Use security.enableStrictTransportSecurity to set this property
