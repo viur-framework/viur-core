@@ -3,7 +3,7 @@ import json
 import urllib.parse
 import urllib.request
 from typing import List, Union
-from viur.core import utils
+from viur.core import utils, conf
 from viur.core.bones import bone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.utils import currentRequest
@@ -16,6 +16,11 @@ class captchaBone(bone.baseBone):
 		bone.baseBone.__init__(self, *args, **kwargs)
 		self.defaultValue = self.publicKey = publicKey
 		self.privateKey = privateKey
+		if not self.defaultValue and not self.privateKey:
+			# Merge these values from the side-wide configuration if set
+			if conf["viur.security.captcha.defaultCredentials"]:
+				self.defaultValue = self.publicKey = conf["viur.security.captcha.defaultCredentials"]["sitekey"]
+				self.privateKey = conf["viur.security.captcha.defaultCredentials"]["secret"]
 		self.required = True
 		self.hasDBField = False
 
