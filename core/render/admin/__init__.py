@@ -151,6 +151,12 @@ def canAccess(*args, **kwargs):
 
 
 def index(*args, **kwargs):
+	from viur.core.render import isAdminAvailable, isViAvailable
+	if not isAdminAvailable():
+		if isViAvailable():
+			# The admin is not available, the Vi however is, so redirect there
+			raise errors.Redirect("/vi")
+		raise errors.NotFound()
 	if currentRequest.get().isDevServer or currentRequest.get().isSSLConnection:
 		raise errors.Redirect("/admin/s/admin.html")
 	else:

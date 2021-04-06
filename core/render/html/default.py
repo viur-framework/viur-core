@@ -294,7 +294,8 @@ class Render(object):
 				for entry in value:
 					ret.append(self.collectSkelData(entry))
 				return ret
-
+		elif bone.type == "password":
+			return ""
 		elif bone.type == "key":
 			return db.encodeKey(boneValue) if boneValue else None
 
