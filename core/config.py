@@ -149,6 +149,8 @@ conf = {
 	"viur.security.xContentTypeOptions": True,
 	# Unless set to logical none; ViUR will emit a X-Permitted-Cross-Domain-Policies with each request
 	"viur.security.xPermittedCrossDomainPolicies": "none",
+	# The default sitekey and secret to use for the captcha-bone. If set, must be a dictionary of "sitekey" and "secret"
+	"viur.security.captcha.defaultCredentials": None,
 
 	# Default is 60 minutes lifetime for ViUR sessions
 	"viur.session.lifeTime": 60 * 60,
