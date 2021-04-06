@@ -223,9 +223,6 @@ class BrowseHandler():  # webapp.RequestHandler
 		if self.isSSLConnection:  # Check for HTST and PKP headers only if we have a secure channel.
 			if conf["viur.security.strictTransportSecurity"]:
 				self.response.headers["Strict-Transport-Security"] = conf["viur.security.strictTransportSecurity"]
-			if conf["viur.security.publicKeyPins"]:
-				self.response.headers["Public-Key-Pins"] = conf["viur.security.publicKeyPins"]
-
 		# Check for X-Security-Headers we shall emit
 		if conf["viur.security.xContentTypeOptions"]:
 			self.response.headers["X-Content-Type-Options"] = "nosniff"
@@ -243,6 +240,16 @@ class BrowseHandler():  # webapp.RequestHandler
 		if conf["viur.security.xPermittedCrossDomainPolicies"] is not None:
 			self.response.headers["X-Permitted-Cross-Domain-Policies"] = conf[
 				"viur.security.xPermittedCrossDomainPolicies"]
+		if conf["viur.security.referrerPolicy"]:
+			self.response.headers["Referrer-Policy"] = conf["viur.security.referrerPolicy"]
+		if conf["viur.security.permissionsPolicy"].get("_headerCache"):
+			self.response.headers["Permissions-Policy"] = conf["viur.security.permissionsPolicy"]["_headerCache"]
+		if conf["viur.security.enableCOEP"]:
+			self.response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+		if conf["viur.security.enableCOOP"]:
+			self.response.headers["Cross-Origin-Opener-Policy"] = conf["viur.security.enableCOOP"]
+		if conf["viur.security.enableCORP"]:
+			self.response.headers["Cross-Origin-Resource-Policy"] = conf["viur.security.enableCORP"]
 
 		# Ensure that TLS is used if required
 		if conf["viur.forceSSL"] and not self.isSSLConnection and not self.isDevServer:

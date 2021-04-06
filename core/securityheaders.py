@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from viur.core.config import conf
 import logging
+from typing import Optional, List
 
 
 def addCspRule(objectType, srcOrDirective, enforceMode="monitor"):
@@ -100,30 +101,6 @@ def enableStrictTransportSecurity(maxAge=365 * 24 * 60 * 60, includeSubDomains=F
 	pass
 
 
-def setPublicKeyPins(pins, method="sha256", maxAge=2 * 24 * 60 * 60, includeSubDomains=False, reportUri=None):
-	"""
-		Set certificate pins. There must be at *least* two pins.
-		See https://developer.mozilla.org/en/docs/Web/Security/Public_Key_Pinning for more details.
-		:param pins: List of Pins
-		:param method: Hash algorithm used. Must be currently sha256.
-		:param maxAge: The time, in seconds, that the browser should remember that this site is only to be accessed using one of the pinned keys.
-		:param includeSubDomains: If this optional parameter is specified, this rule applies to all of the site's subdomains as well.
-		:param reportUri: If this optional parameter is specified, pin validation failures are reported to the given URL.
-		:return: None
-	"""
-	for pin in pins:
-		assert not any([x in pin for x in "\"\n\r;"]), "Invalid Pin: %s" % pin
-	assert method in ["sha256"], "Method must be sha256 atm."
-	res = " ".join(["pin-%s=\"%s\";" % (method, pin) for pin in pins])
-	res += " max-age=%s" % maxAge
-	if includeSubDomains:
-		res += "; includeSubDomains"
-	if reportUri:
-		assert not any([x in reportUri for x in "\"\n\r;"]), "Invalid reportUri"
-		res += "; report-uri=\"%s\"" % reportUri
-	conf["viur.security.publicKeyPins"] = res
-
-
 def setXFrameOptions(action, uri=None):
 	"""
 		Sets X-Frame-Options to prevent click-jacking attacks.
@@ -173,3 +150,63 @@ def setXPermittedCrossDomainPolicies(value):
 	if value not in [None, "none", "master-only", "by-content-type", "all"]:
 		raise ValueError("value [None, \"none\", \"master-only\", \"by-content-type\", \"all\"]")
 	conf["viur.security.xPermittedCrossDomainPolicies"] = value
+
+
+# Valid values for the referrer-header as per https://www.w3.org/TR/referrer-policy/#referrer-policies
+validReferrerPolicies = [
+	"no-referrer",
+	"no-referrer-when-downgrade",
+	"origin",
+	"origin-when-cross-origin",
+	"same-origin",
+	"strict-origin",
+	"strict-origin-when-cross-origin",
+	"unsafe-url"
+]
+
+
+def setReferrerPolicy(policy: str):  # FIXME: Replace str with Literal[validReferrerPolicies] when Py3.8 gets supported
+	"""
+		:param policy: The referrer policy to send
+	"""
+	assert policy in validReferrerPolicies, "Policy must be one of %s" % validReferrerPolicies
+	conf["viur.security.referrerPolicy"] = policy
+
+
+def _rebuildPermissionHeaderCache():
+	"""
+		Rebuilds the internal conf["viur.security.permissionsPolicy"]["_headerCache"] string, ie. it constructs
+		the actual header string that's being emitted to the clients.
+	"""
+	conf["viur.security.permissionsPolicy"]["_headerCache"] = ", ".join([
+		"%s=(%s)" % (k, " ".join([("\"%s\"" % x if x != "self" else x) for x in v]))
+		for k, v in conf["viur.security.permissionsPolicy"].items() if k != "_headerCache"
+	])
+
+
+def setPermissionPolicyDirective(directive: str, allowList: Optional[List[str]]):
+	"""
+		Set the permission policy :param: directive the list of allowed origins in :param: allowList.
+		:param directive: The directive to set. Must be one of
+			https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Feature-Policy#directives
+		:param allowList: The list of allowed origins. Use "self" to allow the current domain. Empty list means the feature
+			will be disabled by the browser (it's not accessible by javascript)
+	"""
+	conf["viur.security.permissionsPolicy"][directive] = allowList
+
+
+def setCrossOriginIsolation(coep: bool, coop: str, corp: str):
+	"""
+		Configures the cross origin isolation header that ViUR may emit. This is necessary to enable features like
+		SharedArrayBuffer. See https://web.dev/coop-coep for more information.
+		:param coep: If set True, we'll emit Cross-Origin-Embedder-Policy: require-corp
+		:param coop: The value for the Cross-Origin-Opener-Policy header. Valid values are
+			same-origin | same-origin-allow-popups | unsafe-none
+		:param corp: The value for the Cross-Origin-Resource-Policy header. Valid values are
+			same-site | same-origin | cross-origin
+	"""
+	assert coop in ["same-origin", "same-origin-allow-popups", "unsafe-none"], "Invalid value for the COOP Header"
+	assert corp in ["same-site", "same-origin", "cross-origin"], "Invalid value for the CORP Header"
+	conf["viur.security.enableCOEP"] = bool(coep)
+	conf["viur.security.enableCOOP"] = coop
+	conf["viur.security.enableCORP"] = corp
