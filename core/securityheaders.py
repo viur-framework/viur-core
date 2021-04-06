@@ -37,9 +37,9 @@ def addCspRule(objectType, srcOrDirective, enforceMode="monitor"):
 		:type enforceMode: 'monitor' or 'enforce'
 	"""
 	assert enforceMode in ["monitor", "enforce"], "enforceMode must be 'monitor' or 'enforce'!"
-	assert objectType in ["default-src", "script-src", "object-src", "style-src", "img-src", "media-src",
+	assert objectType in {"default-src", "script-src", "object-src", "style-src", "img-src", "media-src",
 						  "frame-src", "font-src", "connect-src", "report-uri", "frame-ancestors",
-						  "form-action"]
+						  "form-action", "require-trusted-types-for"}
 	assert conf["viur.mainApp"] is None, "You cannot modify CSP rules after server.buildApp() has been run!"
 	assert not any(
 		[x in srcOrDirective for x in [";", "'", "\"", "\n", ","]]), "Invalid character in srcOrDirective!"
@@ -71,7 +71,7 @@ def _rebuildCspHeaderCache():
 			resStr += key
 			for value in values:
 				resStr += " "
-				if value in ["self", "unsafe-inline", "unsafe-eval"]:
+				if value in {"self", "unsafe-inline", "unsafe-eval", "script"}:
 					resStr += "'%s'" % value
 				else:
 					resStr += value
