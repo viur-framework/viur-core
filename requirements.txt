@@ -10,8 +10,9 @@ google-cloud-datastore==2.1.0 --hash=sha256:0181fb775ef8f34970ef0d7718a0325e1a21
 # Dependencies for google-cloud-datastore
 proto-plus==1.18.1 --hash=sha256:600e2793ec1a0bf2b9e5ba18cd9eccbc1bc690a03c73b571bbe59789fbaaeecc
 google-cloud-core==1.6.0 --hash=sha256:40d9c2da2d03549b5ac3dcccf289d4f15e6d1210044c6381ce45c92913e62904
-google-api-core==1.26.2 --hash=sha256:79811ec36d182c9be1398609d651c30803b01fe02d4758c886acc0524ff9b53e
+google-api-core[grpc]==1.26.2 --hash=sha256:79811ec36d182c9be1398609d651c30803b01fe02d4758c886acc0524ff9b53e
 pytz==2021.1 --hash=sha256:eb10ce3e7736052ed3623d49975ce333bcd712c7bb19a58b9e2089d4057d0798
+tzlocal==2.1 --hash=sha256:e2cb6c6b5b604af38597403e9852872d7f534962ae2954c7f35efcb1ccacf4a4
 packaging==20.9 --hash=sha256:67714da7f7bc052e064859c05c595155bd1ee9f69f76557e21f051443c20947a
 googleapis-common-protos==1.53.0 --hash=sha256:f6d561ab8fb16b30020b940e2dd01cd80082f4762fa9f3ee670f4419b4b8dbd0
 protobuf==3.15.6 \\
