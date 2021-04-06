@@ -201,6 +201,8 @@ class DefaultRender(object):
 					"dest": self.renderSkelValues(value["dest"]),
 					"rel": self.renderSkelValues(value.get("rel"))
 				}
+		elif isinstance(bone, passwordBone):
+			return ""
 		else:
 			return value
 

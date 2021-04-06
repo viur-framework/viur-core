@@ -98,13 +98,21 @@ class passwordBone(stringBone):
 		err = self.isInvalid(value)
 		if err:
 			return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
-		skel[name] = value
+		# As we don't escape passwords and allow most special characters we'll hash it early on so we don't open
+		# an XSS attack vector if a password is echoed back to the client (which should not happen)
+		salt = utils.generateRandomString(self.saltLength)
+		passwd = pbkdf2(value[: conf["viur.maxPasswordLength"]], salt)
+		skel[name] = {"pwhash": passwd, "salt": salt}
 
 	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
 		if name in skel.accessedValues and skel.accessedValues[name]:
-			salt = utils.generateRandomString(self.saltLength)
-			passwd = pbkdf2(skel.accessedValues[name][: conf["viur.maxPasswordLength"]], salt)
-			skel.dbEntity[name] = {"pwhash": passwd, "salt": salt}
+			value = skel.accessedValues[name]
+			if isinstance(value, dict):  # It is a pre-hashed value (probably fromClient)
+				skel.dbEntity[name] = value
+			else:  # This has been set by skel["password"] = "secret", we'll still have to hash it
+				salt = utils.generateRandomString(self.saltLength)
+				passwd = pbkdf2(value[: conf["viur.maxPasswordLength"]], salt)
+				skel.dbEntity[name] = {"pwhash": passwd, "salt": salt}
 			# Ensure our indexed flag is up2date
 			indexed = self.indexed and parentIndexed
 			if indexed and name in skel.dbEntity.exclude_from_indexes:

@@ -151,6 +151,8 @@ class DefaultRender(object):
 				}
 		elif isinstance(bone, bones.recordBone):
 			return self.renderSkelValues(value)
+		elif isinstance(bone, bones.passwordBone):
+			return ""
 		elif isinstance(bone, bones.keyBone):
 			return db.encodeKey(value) if value else None
 		else:
