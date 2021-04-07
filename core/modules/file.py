@@ -320,7 +320,7 @@ class File(Tree):
 		# Validate the the contentType from the client seems legit
 		mimeType = mimeType.lower()
 		assert len(mimeType.split("/")) == 2, "Invalid Mime-Type"
-		assert all([x in string.ascii_letters + string.digits + "/-." for x in mimeType]), "Invalid Mime-Type"
+		assert all([x in string.ascii_letters + string.digits + "/-.+" for x in mimeType]), "Invalid Mime-Type"
 		if authData and authSig:
 			# First, validate the signature, otherwise we don't need to proceed any further
 			if not utils.hmacVerify(authData.encode("ASCII"), authSig):
