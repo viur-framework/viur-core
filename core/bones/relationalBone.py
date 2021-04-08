@@ -844,7 +844,7 @@ class relationalBone(baseBone):
 			:return: Wherever that operation succeeded or not.
 
 		"""
-		assert not (self.languages ^ language), "Language is required or not supported"
+		assert not (bool(self.languages) ^ bool(language)), "Language is required or not supported"
 		assert not append or self.multiple, "Can't append - bone is not multiple"
 		if not self.multiple and not self.using:
 			if not (isinstance(value, str) or isinstance(value, db.KeyClass)):
