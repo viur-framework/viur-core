@@ -14,7 +14,7 @@ class Page(Tree):
 	adminInfo = {
 		"name": u"Pages",  # Name of this module, as shown in ViUR Admin (will be translated at runtime)
 		"handler": "tree.nodeonly.page",  # Which handler to invoke
-		"icon": "icons/modules/hierarchy.svg",  # Icon for this module
+		"icon": "icon-cloud",  # Icon for this module
 		"columns": ["name", "language", "isactive"],
 		"previewurls": {
 			"Web": "/{{module}}/view/{{key}}"
