@@ -734,7 +734,7 @@ class baseBone(object):  # One Bone:
 			:return: Wherever that operation succeeded or not.
 
 		"""
-		assert not (self.languages ^ language), "Language is required or not supported"
+		assert not (bool(self.languages) ^ bool(language)), "Language is required or not supported"
 		assert not append or self.multiple, "Can't append - bone is not multiple"
 		val, errs = self.singleValueFromClient(value, skel, boneName, {boneName: value})
 		if errs:
