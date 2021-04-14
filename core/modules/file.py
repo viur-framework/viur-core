@@ -91,25 +91,26 @@ def thumbnailer(fileSkel, existingFiles, params):
 		logging.warning("Blob %s is missing from Cloudstore!" % fileSkel["dlkey"])
 		return
 	fileData = BytesIO()
-	outData = BytesIO()
 	blob.download_to_file(fileData)
 	resList = []
 	for sizeDict in params:
 		fileData.seek(0)
+		outData = BytesIO()
 		img = Image.open(fileData)
+		fileExtension = sizeDict.get("fileExtension", "webp")
 		if "width" in sizeDict and "height" in sizeDict:
 			width = sizeDict["width"]
 			height = sizeDict["height"]
+			targetName = "thumbnail-%s-%s.%s" % (width, height, fileExtension)
 		elif "width" in sizeDict:
 			width = sizeDict["width"]
 			height = int((float(img.size[1]) * float(width / float(img.size[0]))))
+			targetName = "thumbnail-w%s.%s" % (width, fileExtension)
 		else:  # No default fallback - ignore
 			continue
-		fileExtension = sizeDict.get("fileExtension", "webp")
 		mimeType = sizeDict.get("mimeType", "image/webp")
 		img = img.resize((width, height), Image.ANTIALIAS)
 		img.save(outData, fileExtension)
-		targetName = "thumbnail-%s-%s.%s" % (width, height, fileExtension)
 		outSize = outData.tell()
 		outData.seek(0)
 		targetBlob = bucket.blob("%s/derived/%s" % (fileSkel["dlkey"], targetName))
