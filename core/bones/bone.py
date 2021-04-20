@@ -504,7 +504,7 @@ class baseBone(object):  # One Bone:
 						loadVal = [x for x in loadVal.values() if x is not True]
 				if loadVal and isinstance(loadVal, list):
 					loadVal = loadVal[0]
-				if loadVal:
+				if loadVal is not None:
 					res = self.singleValueUnserialize(loadVal, skel, name)
 			skel.accessedValues[name] = res
 			return True
