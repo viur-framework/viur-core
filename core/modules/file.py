@@ -227,7 +227,7 @@ class File(Tree):
 	adminInfo = {
 		"name": "File",
 		"handler": "tree.simple.file",
-		"icon": "icons/modules/my_files.svg"
+		"icon": "icon-file-system"
 	}
 
 	blobCacheTime = 60 * 60 * 24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set

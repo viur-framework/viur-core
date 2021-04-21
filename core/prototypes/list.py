@@ -31,7 +31,7 @@ class List(BasicApplication):
 		return {
 			"name": self.__class__.__name__,  # Module name as shown in the admin tools
 			"handler": "list",  # Which handler to invoke
-			"icon": "icons/modules/list.svg"  # Icon for this module
+			"icon": "icon-list"  # Icon for this module
 		}
 
 	def __init__(self, moduleName, modulePath, *args, **kwargs):
