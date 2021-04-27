@@ -319,10 +319,15 @@ class EmailTransportSendInBlue(EmailTransport):
 		}
 		for dest in dests:
 			dataDict["to"].append(EmailTransportSendInBlue.splitAddress(dest))
-		for dest in bcc:
-			dataDict["bcc"].append(EmailTransportSendInBlue.splitAddress(dest))
-		for dest in cc:
-			dataDict["cc"].append(EmailTransportSendInBlue.splitAddress(dest))
+		# intitialize bcc and cc lists in dataDict
+		if bcc:
+			dataDict["bcc"] = []
+			for dest in bcc:
+				dataDict["bcc"].append(EmailTransportSendInBlue.splitAddress(dest))
+		if cc:
+			dataDict["cc"] = []
+			for dest in cc:
+				dataDict["cc"].append(EmailTransportSendInBlue.splitAddress(dest))
 		if headers:
 			if "Reply-To" in headers:
 				dataDict["replyTo"] = EmailTransportSendInBlue.splitAddress(headers["Reply-To"])
