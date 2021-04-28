@@ -27,7 +27,7 @@ class Singleton(BasicApplication):
 		return {
 			"name": self.__class__.__name__,  # Module name as shown in the admin tools
 			"handler": "singleton",  # Which handler to invoke
-			"icon": "icons/modules/singleton.svg",  # Icon for this module
+			"icon": "icon-component",  # Icon for this module
 		}
 
 	def __init__(self, moduleName, modulePath, *args, **kwargs):
