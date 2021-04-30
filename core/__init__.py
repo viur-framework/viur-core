@@ -234,6 +234,8 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
 			(=> /user instead of /html/user)
 	"""
 	from viur.core.bones import bone
+	# noinspection PyUnresolvedReferences
+	import skeletons  # This import is not used here but _must_ remain to ensure that the
 	# application's data models are explicitly imported at some place!
 	assert projectID in conf["viur.validApplicationIDs"], \
 		"Refusing to start, applicationID %s is not in conf['viur.validApplicationIDs']" % projectID
