@@ -323,11 +323,13 @@ class EmailTransportSendInBlue(EmailTransport):
 		if bcc:
 			dataDict["bcc"] = []
 			for dest in bcc:
-				dataDict["bcc"].append(EmailTransportSendInBlue.splitAddress(dest))
+				if dest:
+					dataDict["bcc"].append(EmailTransportSendInBlue.splitAddress(dest))
 		if cc:
 			dataDict["cc"] = []
 			for dest in cc:
-				dataDict["cc"].append(EmailTransportSendInBlue.splitAddress(dest))
+				if dest:
+					dataDict["cc"].append(EmailTransportSendInBlue.splitAddress(dest))
 		if headers:
 			if "Reply-To" in headers:
 				dataDict["replyTo"] = EmailTransportSendInBlue.splitAddress(headers["Reply-To"])
