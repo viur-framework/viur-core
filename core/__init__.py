@@ -189,7 +189,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
 				# Apply Renderers postProcess Filters
 				if "_postProcessAppObj" in render:
 					render["_postProcessAppObj"](targetResolverRender)
-		if hasattr(moduleName, "seoLanguageMap"):
+		if hasattr(moduleClass, "seoLanguageMap"):
 			conf["viur.languageModuleMap"][moduleName] = moduleClass.seoLanguageMap
 	conf["viur.mainResolver"] = resolverDict
 
