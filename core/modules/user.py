@@ -160,11 +160,11 @@ class UserPassword(object):
 		password = passwordBone(descr="Password", indexed=True, params={"justinput": True}, required=True)
 
 	class lostPasswordStep1Skel(RelSkel):
-		name = stringBone(descr="Username", required=True)
+		name = emailBone(descr="Username", required=True)
 		captcha = captchaBone(descr=u"Captcha", required=True)
 
 	class lostPasswordStep2Skel(RelSkel):
-		name = stringBone(descr="Verification Code", required=True)
+		recoveryKey = stringBone(descr="Verification Code", required=True)
 		password = passwordBone(descr="New Password", required=True)
 
 	@exposed
@@ -249,15 +249,15 @@ class UserPassword(object):
 			if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
 				raise errors.PreconditionFailed()
 			self.passwordRecoveryRateLimit.decrementQuota()
-			recoverKey = utils.generateRandomString(13)  # This is the key the user will have to Copy&Paste
-			self.sendUserPasswordRecoveryCode(skel["name"].lower(), recoverKey)  # Send the code in the background
+			recoveryKey = utils.generateRandomString(13)  # This is the key the user will have to Copy&Paste
+			self.sendUserPasswordRecoveryCode(skel["name"].lower(), recoveryKey)  # Send the code in the background
 			session["user.auth_userpassword.pwrecover"] = {
 				"name": skel["name"].lower(),
-				"recoverKey": recoverKey,
+				"recoveryKey": recoveryKey,
 				"creationdate": utcNow(),
 				"errorCount": 0
 			}
-			del recoverKey
+			del recoveryKey
 			return self.pwrecover()  # Fall through to the second step as that key in the session is now set
 		else:
 			if request.isPostRequest and kwargs.get("abort") == "1" \
@@ -274,12 +274,12 @@ class UserPassword(object):
 					tpl=self.passwordRecoveryFailedTemplate,
 					reason=self.passwordRecoveryKeyExpired)
 			skel = self.lostPasswordStep2Skel()
-			if not request.isPostRequest or not skel.fromClient(kwargs):
+			if not skel.fromClient(kwargs) or not request.isPostRequest:
 				return self.userModule.render.edit(skel, self.passwordRecoveryStep2Template)
 			if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
 				raise errors.PreconditionFailed()
 			self.passwordRecoveryRateLimit.decrementQuota()
-			if not hmac.compare_digest(session["user.auth_userpassword.pwrecover"]["recoverKey"], skel["name"]):
+			if not hmac.compare_digest(session["user.auth_userpassword.pwrecover"]["recoveryKey"], skel["recoveryKey"]):
 				# The key was invalid, increase error-count or abort this recovery process altogether
 				session["user.auth_userpassword.pwrecover"]["errorCount"] += 1
 				if session["user.auth_userpassword.pwrecover"]["errorCount"] > 3:
