@@ -29,6 +29,8 @@ __version__ = (3, -99, -99)  # Which API do we expose to our application
 
 
 
+from types import ModuleType
+from typing import Dict, Union
 from viur.core.config import conf
 from viur.core import request
 from viur.core import languages as servertrans
@@ -41,7 +43,6 @@ import webob
 
 # Copy our Version into the config so that our renders can access it
 conf["viur.version"] = __version__
-
 
 
 def setDefaultLanguage(lang):
@@ -68,10 +69,10 @@ from viur.core.tasks import TaskHandler, runStartupTasks
 from viur.core import i18n
 
 
-def mapModule(moduleObj: object, moduleName: str, targetResoveRender: dict):
+def mapModule(moduleObj: object, moduleName: str, targetResolverRender: dict):
 	"""
 		Maps each function that's exposed of moduleObj into the branch of `prop:server.conf["viur.mainResolver"]`
-		that's referenced by `prop:targetResoveRender`. Will also walk `prop:_viurMapSubmodules` if set
+		that's referenced by `prop:targetResolverRender`. Will also walk `prop:_viurMapSubmodules` if set
 		and map these sub-modules also.
 	"""
 	moduleFunctions = {}
@@ -83,27 +84,27 @@ def mapModule(moduleObj: object, moduleName: str, targetResoveRender: dict):
 		# Map the module under each translation
 		if "seoLanguageMap" in dir(moduleObj) and lang in moduleObj.seoLanguageMap:
 			translatedModuleName = moduleObj.seoLanguageMap[lang]
-			if not translatedModuleName in targetResoveRender:
-				targetResoveRender[translatedModuleName] = {}
+			if translatedModuleName not in targetResolverRender:
+				targetResolverRender[translatedModuleName] = {}
 			for fname, fcall in moduleFunctions.items():
-				targetResoveRender[translatedModuleName][fname] = fcall
+				targetResolverRender[translatedModuleName][fname] = fcall
 				# Map translated function names
 				if getattr(fcall, "seoLanguageMap", None) and lang in fcall.seoLanguageMap:
-					targetResoveRender[translatedModuleName][fcall.seoLanguageMap[lang]] = fcall
+					targetResolverRender[translatedModuleName][fcall.seoLanguageMap[lang]] = fcall
 			if "_viurMapSubmodules" in dir(moduleObj):
 				# Map any Functions on deeper nested function
 				subModules = moduleObj._viurMapSubmodules
 				for subModule in subModules:
 					obj = getattr(moduleObj, subModule, None)
 					if obj:
-						mapModule(obj, subModule, targetResoveRender[translatedModuleName])
+						mapModule(obj, subModule, targetResolverRender[translatedModuleName])
 	if moduleName == "index":
-		targetFunctionLevel = targetResoveRender
+		targetFunctionLevel = targetResolverRender
 	else:
 		# Map the module also under it's original name
-		if not moduleName in targetResoveRender:
-			targetResoveRender[moduleName] = {}
-		targetFunctionLevel = targetResoveRender[moduleName]
+		if moduleName not in targetResolverRender:
+			targetResolverRender[moduleName] = {}
+		targetFunctionLevel = targetResolverRender[moduleName]
 	for fname, fcall in moduleFunctions.items():
 		targetFunctionLevel[fname] = fcall
 		# Map translated function names
@@ -119,7 +120,7 @@ def mapModule(moduleObj: object, moduleName: str, targetResoveRender: dict):
 				mapModule(obj, subModule, targetFunctionLevel)
 
 
-def buildApp(config, renderers, default=None, *args, **kwargs):
+def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Dict], default: str = None):
 	"""
 		Creates the application-context for the current instance.
 
@@ -132,71 +133,66 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 		- get the corresponding renderer attached
 		- will be attached to ``conf["viur.mainApp"]``
 
-		:param config: Usually the module provided as *modules* directory within the application.
-		:type config: module | object
-		:param renders: Usually the module *server.renders*, or a dictionary renderName => renderClass.
-		:type renders: module | dict
-		:param default: Name of the renderer, which will form the root of the application.\
-		This will be the renderer, which wont get a prefix, usually jinja2. \
-		(=> /user instead of /jinja2/user)
-		:type default: str
+		:param modules: Usually the module provided as *modules* directory within the application.
+		:param renderers: Usually the module *server.renders*, or a dictionary renderName => renderClass.
+		:param default: Name of the renderer, which will form the root of the application.
+			This will be the renderer, which wont get a prefix, usually html.
+			(=> /user instead of /html/user)
 	"""
 
 	class ExtendableObject(object):
 		pass
 
-	if isinstance(renderers, dict):
-		rendlist = renderers
-	else:  # build up the dict from viur.core.render
-		rendlist = {}
-		for key in dir(renderers):
-			if not "__" in key:
-				rendlist[key] = {}
-				rendsublist = getattr(renderers, key)
-				for subkey in dir(rendsublist):
-					if not "__" in subkey:
-						rendlist[key][subkey] = getattr(rendsublist, subkey)
-	if "index" in dir(config):
-		res = config.index()
+	if not isinstance(renderers, dict):
+		# build up the dict from viur.core.render
+		renderers, renderRootModule = {}, renderers
+		for key, renderModule in vars(renderRootModule).items():
+			if "__" not in key:
+				renderers[key] = {}
+				for subkey, render in vars(renderModule).items():
+					if "__" not in subkey:
+						renderers[key][subkey] = render
+		del renderRootModule
+	from viur.core.prototypes import BasicApplication  # avoid circular import
+	if hasattr(modules, "index"):
+		if issubclass(modules.index, BasicApplication):
+			root = modules.index("index", "")
+		else:
+			root = modules.index()  # old style for backward compatibility
 	else:
-		res = ExtendableObject()
-	config._tasks = TaskHandler
+		root = ExtendableObject()
+	modules._tasks = TaskHandler
 	resolverDict = {}
-	for moduleName in dir(config):  # iterate over all modules
+	for moduleName, moduleClass in vars(modules).items():  # iterate over all modules
 		if moduleName == "index":
-			mapModule(res, "index", resolverDict)
+			mapModule(root, "index", resolverDict)
+			if isinstance(root, BasicApplication):
+				root.render = renderers[default]["default"](parent=root)
 			continue
-		moduleClass = getattr(config, moduleName)
-		for renderName in list(rendlist.keys()):  # look, if a particular render should be built
-			if renderName in dir(getattr(config, moduleName)) \
-					and getattr(getattr(config, moduleName), renderName) == True:
+		for renderName, render in renderers.items():  # look, if a particular render should be built
+			if getattr(moduleClass, renderName, False) is True:
 				modulePath = "%s/%s" % ("/" + renderName if renderName != default else "", moduleName)
-				obj = moduleClass(moduleName, modulePath)
-				if moduleName in rendlist[renderName]:  # we have a special render for this
-					obj.render = rendlist[renderName][moduleName](parent=obj)
-				else:  # Attach the default render
-					obj.render = rendlist[renderName]["default"](parent=obj)
-				setattr(obj, "_moduleName", moduleName)
+				moduleInstance = moduleClass(moduleName, modulePath)
+				# Attach the module-specific or the default render
+				moduleInstance.render = render.get(moduleName, render["default"])(parent=moduleInstance)
 				if renderName == default:  # default or render (sub)namespace?
-					setattr(res, moduleName, obj)
+					setattr(root, moduleName, moduleInstance)
+					targetResolverRender = resolverDict
 				else:
-					if not renderName in dir(res) or getattr(res, renderName) is True:
+					if getattr(root, renderName, True) is True:
 						# Render is not build yet, or it is just the simple marker that a given render should be build
-						setattr(res, renderName, ExtendableObject())
-					setattr(getattr(res, renderName), moduleName, obj)
-				if renderName != default:
-					if not renderName in resolverDict:
-						resolverDict[renderName] = {}
-					targetResoveRender = resolverDict[renderName]
-				else:
-					targetResoveRender = resolverDict
-				mapModule(obj, moduleName, targetResoveRender)
+						setattr(root, renderName, ExtendableObject())
+					# Attach the module to the given renderer node
+					setattr(getattr(root, renderName), moduleName, moduleInstance)
+					targetResolverRender = resolverDict.setdefault(renderName, {})
+				mapModule(moduleInstance, moduleName, targetResolverRender)
 				# Apply Renderers postProcess Filters
-				if "_postProcessAppObj" in rendlist[renderName]:
-					rendlist[renderName]["_postProcessAppObj"](targetResoveRender)
-		if "seoLanguageMap" in dir(moduleClass):
+				if "_postProcessAppObj" in render:
+					render["_postProcessAppObj"](targetResolverRender)
+		if hasattr(moduleClass, "seoLanguageMap"):
 			conf["viur.languageModuleMap"][moduleName] = moduleClass.seoLanguageMap
 	conf["viur.mainResolver"] = resolverDict
+
 	if conf["viur.exportPassword"] is not None or conf["viur.importPassword"] is not None:
 		# Enable the Database ex/import API
 		from viur.core.dbtransfer import DbTransfer
@@ -210,10 +206,8 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 				pass  # Dont render this instance unusable
 		elif conf["viur.exportPassword"]:
 			logging.warning("The Export-API is enabled. Everyone having that key can read the whole database!")
-
-		setattr(res, "dbtransfer", DbTransfer())
-		mapModule(res.dbtransfer, "dbtransfer", resolverDict)
-		#resolverDict["dbtransfer"]
+		setattr(root, "dbtransfer", DbTransfer())
+		mapModule(root.dbtransfer, "dbtransfer", resolverDict)
 	if conf["viur.debug.traceExternalCallRouting"] or conf["viur.debug.traceInternalCallRouting"]:
 		from viur.core import email
 		try:
@@ -221,28 +215,26 @@ def buildApp(config, renderers, default=None, *args, **kwargs):
 									"ViUR just started a new Instance with calltracing enabled! This will log sensitive information!")
 		except:  # OverQuota, whatever
 			pass  # Dont render this instance unusable
-	if default in rendlist and "renderEmail" in dir(rendlist[default]["default"]()):
-		conf["viur.emailRenderer"] = rendlist[default]["default"]().renderEmail
-	elif "html" in list(rendlist.keys()):
-		conf["viur.emailRenderer"] = rendlist["html"]["default"]().renderEmail
+	if default in renderers and hasattr(renderers[default]["default"], "renderEmail"):
+		conf["viur.emailRenderer"] = renderers[default]["default"]().renderEmail
+	elif "html" in renderers:
+		conf["viur.emailRenderer"] = renderers["html"]["default"]().renderEmail
 
-	return res
+	return root
 
 
-def setup(modules, render=None, default="html"):
+def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = None, default: str = "html"):
 	"""
 		Define whats going to be served by this instance.
 
-		:param config: Usually the module provided as *modules* directory within the application.
-		:type config: module | object
-		:param renders: Usually the module *server.renders*, or a dictionary renderName => renderClass.
-		:type renders: module | dict
+		:param modules: Usually the module provided as *modules* directory within the application.
+		:param render: Usually the module *server.renders*, or a dictionary renderName => renderClass.
 		:param default: Name of the renderer, which will form the root of the application.\
-		This will be the renderer, which wont get a prefix, usually html. \
-		(=> /user instead of /html/user)
-		:type default: str
+			This will be the renderer, which wont get a prefix, usually html. \
+			(=> /user instead of /html/user)
 	"""
 	from viur.core.bones import bone
+	# noinspection PyUnresolvedReferences
 	import skeletons  # This import is not used here but _must_ remain to ensure that the
 	# application's data models are explicitly imported at some place!
 	assert projectID in conf["viur.validApplicationIDs"], \
@@ -251,35 +243,34 @@ def setup(modules, render=None, default="html"):
 		import viur.core.render
 		render = viur.core.render
 	conf["viur.mainApp"] = buildApp(modules, render, default)
-	renderPrefix = ["/%s" % x for x in dir(render) if (not x.startswith("_") and x != default)] + [""]
 	# conf["viur.wsgiApp"] = webapp.WSGIApplication([(r'/(.*)', BrowseHandler)])
 	# Ensure that our Content Security Policy Header Cache gets build
 	from viur.core import securityheaders
 	securityheaders._rebuildCspHeaderCache()
 	securityheaders._rebuildPermissionHeaderCache()
 	bone.setSystemInitialized()
-	# Assert that all security releated headers are in a sane state
+	# Assert that all security related headers are in a sane state
 	if conf["viur.security.contentSecurityPolicy"] and conf["viur.security.contentSecurityPolicy"]["_headerCache"]:
-		for k, v in conf["viur.security.contentSecurityPolicy"]["_headerCache"].items():
-			assert k.startswith(
-				"Content-Security-Policy"), "Got unexpected header in conf['viur.security.contentSecurityPolicy']['_headerCache']"
+		for k in conf["viur.security.contentSecurityPolicy"]["_headerCache"]:
+			if not k.startswith("Content-Security-Policy"):
+				raise AssertionError("Got unexpected header in "
+									 "conf['viur.security.contentSecurityPolicy']['_headerCache']")
 	if conf["viur.security.strictTransportSecurity"]:
-		assert conf["viur.security.strictTransportSecurity"].startswith(
-			"max-age"), "Got unexpected header in conf['viur.security.strictTransportSecurity']"
-	assert conf["viur.security.xPermittedCrossDomainPolicies"] in [None, "none", "master-only", "by-content-type",
-																   "all"], \
-		"conf[\"viur.security.xPermittedCrossDomainPolicies\"] must be one of [None, \"none\", \"master-only\", \"by-content-type\", \"all\"]"
+		if not conf["viur.security.strictTransportSecurity"].startswith("max-age"):
+			raise AssertionError("Got unexpected header in conf['viur.security.strictTransportSecurity']")
+	crossDomainPolicies = {None, "none", "master-only", "by-content-type", "all"}
+	if conf["viur.security.xPermittedCrossDomainPolicies"] not in crossDomainPolicies:
+		raise AssertionError("conf[\"viur.security.xPermittedCrossDomainPolicies\"] "
+							 f"must be one of {crossDomainPolicies!r}")
 	if conf["viur.security.xFrameOptions"] is not None and isinstance(conf["viur.security.xFrameOptions"], tuple):
 		mode, uri = conf["viur.security.xFrameOptions"]
 		assert mode in ["deny", "sameorigin", "allow-from"]
 		if mode == "allow-from":
-			assert uri is not None and (
-					uri.lower().startswith("https://") or uri.lower().startswith("http://"))
+			assert uri is not None and (uri.lower().startswith("https://") or uri.lower().startswith("http://"))
 	runStartupTasks()  # Add a deferred call to run all queued startup tasks
 	initializeTranslations()
 	assert conf["viur.file.hmacKey"], "You must set a secret and unique Application-Key to viur.file.hmacKey"
 	return app
-
 
 
 def app(environ, start_response):
