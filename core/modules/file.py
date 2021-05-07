@@ -365,31 +365,6 @@ class File(Tree):
 		}
 		return self.render.view(resDict)
 
-	@internalExposed
-	def getAvailableRootNodes__(self, name, *args, **kwargs):
-		thisuser = utils.getCurrentUser()
-		if not thisuser:
-			return []
-		repo = self.ensureOwnUserRootNode()
-		res = [{
-			"name": str("My Files"),
-			"key": str(repo.key.id_or_name)
-		}]
-		if 0 and "root" in thisuser["access"]:  # FIXME!
-			# Add at least some repos from other users
-			repos = db.Query(self.viewNodeSkel.kindName + "_rootNode").filter("type =", "user").run(100)
-			for repo in repos:
-				if not "user" in repo:
-					continue
-				user = db.Query("user").filter("uid =", repo.user).getEntry()
-				if not user or not "name" in user:
-					continue
-				res.append({
-					"name": user["name"],
-					"key": str(repo.key())
-				})
-		return res
-
 	@exposed
 	def download(self, blobKey, fileName="", download="", sig="", *args, **kwargs):
 		"""
