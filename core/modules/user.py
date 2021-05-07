@@ -164,7 +164,7 @@ class UserPassword(object):
 		captcha = captchaBone(descr=u"Captcha", required=True)
 
 	class lostPasswordStep2Skel(RelSkel):
-		recoveryKey = stringBone(descr="Verification Code", required=True, visible=False)
+		recoveryKey = stringBone(descr="Verification Code", required=True)
 		password = passwordBone(descr="New Password", required=True)
 
 	@exposed
