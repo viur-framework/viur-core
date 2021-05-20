@@ -235,7 +235,7 @@ def flushCache(prefix: str = None, key: Union[db.KeyClass, None] = None, kind: U
 		items = db.Query(viurCacheName).filter("accessedEntries =", kind).iter()
 		for item in items:
 			logging.info("Deleted cache entry %s", item["path"])
-			db.Delete(item.key())
+			db.Delete(item.key)
 
 
 __all__ = ["enableCache", "flushCache"]
