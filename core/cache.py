@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import logging
+import logging, os
 from datetime import timedelta
 from functools import wraps
 from hashlib import sha512
@@ -87,9 +87,8 @@ def keyFromArgs(f, userSensitive, languageSensitive, evaluatedArgs, path, args, 
 			return None
 	res["__path"] = path  # Different path might have different output (html,xml,..)
 	try:
-		appVersion = currentRequest.get().request.environ["CURRENT_VERSION_ID"].split('.')[0]
+		appVersion = os.getenv("GAE_VERSION")
 	except:
-		# FIXME
 		logging.error("Could not determine the current application version! Caching might produce unexpected results!")
 		appVersion = ""
 	res["__appVersion"] = appVersion
@@ -236,7 +235,7 @@ def flushCache(prefix: str = None, key: Union[db.KeyClass, None] = None, kind: U
 		items = db.Query(viurCacheName).filter("accessedEntries =", kind).iter()
 		for item in items:
 			logging.info("Deleted cache entry %s", item["path"])
-			db.Delete(item.key())
+			db.Delete(item.key)
 
 
 __all__ = ["enableCache", "flushCache"]

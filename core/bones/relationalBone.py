@@ -389,7 +389,7 @@ class relationalBone(baseBone):
 		dbVals.filter("viur_src_kind =", skel.kindName)
 		dbVals.filter("viur_dest_kind =", self.kind)
 		dbVals.filter("viur_src_property =", boneName)
-		dbVals.filter("src.key =", key)
+		dbVals.filter("src.__key__ =", key)
 		db.Delete([x for x in dbVals.run(keysOnly=True)])
 
 	def isInvalid(self, key):

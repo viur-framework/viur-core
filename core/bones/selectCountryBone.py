@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
-from viur.core.bones.selectBone import selectBone
 from collections import OrderedDict
+
+from viur.core.bones.selectBone import selectBone
 
 ISO3CODES = {
 	"abw": "Aruba",
@@ -486,7 +486,7 @@ ISO2CODES = {
 	"zw": "Zimbabwe"
 }
 
-ISO2TOISO3 = {  # Convert iso2 to iso3 codes
+ISO3TOISO2 = {  # Convert iso3 to iso2 codes
 	'yem': 'ye',
 	'bvt': 'bv',
 	'mnp': 'mp',
@@ -728,7 +728,8 @@ ISO2TOISO3 = {  # Convert iso2 to iso3 codes
 	'tha': 'th'
 }
 
-ISO3TOISO2 = {v: k for k, v in ISO2TOISO3.items()}  # Build the invert map
+ISO2TOISO3 = {v: k for k, v in ISO3TOISO2.items()}  # Build the invert map
+
 
 class selectCountryBone(selectBone):
 	ISO2 = 2
@@ -748,13 +749,13 @@ class selectCountryBone(selectBone):
 		if isinstance(val, str) and len(val) == 3 and self.codes == self.ISO2:
 			# We got an ISO3 code from the db, but are using ISO2
 			try:
-				return ISO2TOISO3[val]
-			except:
+				return ISO3TOISO2[val]
+			except KeyError:
 				pass
 		elif isinstance(val, str) and len(val) == 2 and self.codes == self.ISO3:
 			# We got ISO2 code, wanted ISO3
 			try:
-				return ISO3TOISO2[val]
-			except:
+				return ISO2TOISO3[val]
+			except KeyError:
 				pass
 		return val
