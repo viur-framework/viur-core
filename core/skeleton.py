@@ -1187,6 +1187,7 @@ def processRemovedRelations(removedKey, cursor=None):
 
 @callDeferred
 def updateRelations(destID, minChangeTime, changeList, cursor=None):
+	changeList = None  # Temp. disable the changeList evaluation as it causes the cursor to fail
 	logging.debug("Starting updateRelations for %s ; minChangeTime %s, Changelist: %s", destID, minChangeTime,
 				  changeList)
 	updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", destID) \
