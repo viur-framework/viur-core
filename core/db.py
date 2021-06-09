@@ -659,7 +659,7 @@ class Query(object):
 		else:
 			qry.order = [x[0] if x[1] == SortOrder.Ascending else "-" + x[0] for x in query.orders]
 		qryRes = qry.fetch(limit=limit, start_cursor=query.startCursor, end_cursor=query.endCursor)
-		res = next(qryRes.pages)
+		res = list(qryRes)
 		query.currentCursor = qryRes.next_page_token
 		return res
 
