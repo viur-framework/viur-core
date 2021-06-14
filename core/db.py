@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+
+import os
+
 from viur.core.config import conf
 from viur.core import utils
 import logging
@@ -660,7 +663,10 @@ class Query(object):
 			qry.order = [x[0] if x[1] == SortOrder.Ascending else "-" + x[0] for x in query.orders]
 		qryRes = qry.fetch(limit=limit, start_cursor=query.startCursor, end_cursor=query.endCursor)
 		res = list(qryRes)
-		query.currentCursor = qryRes.next_page_token
+		if os.getenv("DATASTORE_EMULATOR_HOST"):
+			query.currentCursor = qryRes.next_page_token if query.startCursor != qryRes.next_page_token else None
+		else:
+			query.currentCursor = qryRes.next_page_token
 		return res
 
 	def _mergeMultiQueryResults(self, inputRes: List[List[Entity]]) -> List[Entity]:
