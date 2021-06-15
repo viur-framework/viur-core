@@ -100,7 +100,7 @@ class GaeSession:
 					pass
 				sameSite = "; SameSite=%s" % self.sameSite if self.sameSite else ""
 				secure = "; Secure" if not req.isDevServer else ""
-				maxAge = "; Max-Age=99999" if not self.sessionCookie else ""
+				maxAge = "; Max-Age=%s" % conf["viur.session.lifeTime"] if not self.sessionCookie else ""
 				req.response.headerlist.append(("Set-Cookie", "%s=%s; Path=/; HttpOnly%s%s%s" % (
 				self.cookieName, self.cookieKey, sameSite, secure, maxAge)))
 		except Exception as e:
