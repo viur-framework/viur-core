@@ -11,10 +11,11 @@ from datetime import timedelta
 from hashlib import sha512
 from typing import Dict, List, Union
 
-from viur.core import conf, db, errors, prototypes, securitykey, utils
+from viur.core import db, errors, prototypes, securitykey, utils
 from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
 from viur.core.skeleton import RelSkel, SkeletonInstance
 from viur.core.utils import currentLanguage, currentRequest
+from viur.core.config import unsetMarker, conf
 
 
 @jinjaGlobalFunction
@@ -617,7 +618,20 @@ def embedSvg(render, name: str, classes: Union[List[str], None] = None, **kwargs
 
 
 @jinjaGlobalFunction
-def downloadUrlFor(render, fileObj, expires, derived=None):
+def downloadUrlFor(render, fileObj, expires=conf["viur.downloadUrlFor.expiration"], derived=None):
+	"""
+		Constructs a signed download-url for the given file-bone. Mostly a wrapper around
+		:meth:`viur.core.utils.downloadUrlFor`.
+
+		:param fileObj: The file-bone (eg. skel["file"])
+		:param expires: 0/None if the file is supposed to be public (which causes it to be cached on the google ede
+			caches), otherwise it's lifetime in seconds
+		:param derived: Optional the filename of a derived file, otherwise the the download-link will point to the
+			originally uploaded file.
+		:return: THe signed download-url relative to the current domain (eg /download/...)
+	"""
+	if expires is unsetMarker:
+		raise ValueError("expires must be explicitly set")
 	if "dlkey" not in fileObj and "dest" in fileObj:
 		fileObj = fileObj["dest"]
 	if expires:
