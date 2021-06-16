@@ -1,20 +1,25 @@
 # -*- coding: utf-8 -*-
 from viur.core import conf
-from viur.core.skeleton import skeletonByKind
+from viur.core.skeleton import skeletonByKind, Skeleton
+from typing import Dict, List, Any, Union, Callable
 
 
 class BasicApplication(object):
 	"""
-	BasicApplication is a generic class serving as the base for the four BasicApplications.
+		BasicApplication is a generic class serving as the base for the four BasicApplications.
 
-	:ivar kindName: Name of the kind of data entities that are managed by the application. \
-	This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the \
-	application. For more information, refer to the function :func:`_resolveSkel`.
-	:vartype kindName: str
+	"""
 
-	:ivar render: will be set to the appropriate render instance at runtime
+	kindName:str = None
+	"""
+		Name of the datastore kind that's going to be handled by this application.
+		This information is used to bind a specific :class:`viur.core.skeleton.Skeleton`-class to this
+		application. For more information, refer to the function :func:`~_resolveSkelCls`.
+	"""
 
-	:ivar adminInfo: A ``dict`` holding the informations nessesary for the Vi/Admin to handle this module. If set to
+	adminInfo:Union[Dict[str, Any], Callable] = None
+	"""
+		A ``dict`` holding the information necessary for the Vi/Admin to handle this module. If set to
 		``None``, this module will be ignored by the frontend. The currently supported values are:
 
 			name: ``str``
@@ -86,20 +91,24 @@ class BasicApplication(object):
 			editViews: ``Dict[str, Any]``
 				(Optional) If set, will embed another list-widget in the edit forms for
 				a given entity. See .... for more details.
-
-
-		Test
+				
+			If this is a function, it must take no parameters and return the dictionary as shown above. This
+			can be used to customize the appearance of the Vi/Admin to individual users.
 	"""
 
-	kindName = None  # The generic kindname for this module.
 
-	adminInfo = None
-	accessRights = None
+	accessRights:List[str] = None
+	"""
+		If set, a list of access rights (like add, edit, delete) that this module may support.
+		These will be prefixed on instance startup with the actual module name (becomming file-add, file-edit etc)
+		and registered in ``viur.core.config.conf["viur.accessRights"]`` so these will be available on the
+		access bone in user/add or user/edit.
+	"""
 
 	def __init__(self, moduleName, modulePath, *args, **kwargs):
-		self.moduleName = moduleName
-		self.modulePath = modulePath
-		self.render = None
+		self.moduleName = moduleName  #: Name of this module (usually it's class name, eg "file")
+		self.modulePath = modulePath  #: Path to this module in our URL-Routing (eg. json/file")
+		self.render = None  #: will be set to the appropriate render instance at runtime
 
 		if self.adminInfo and self.accessRights:
 			for r in self.accessRights:
@@ -108,20 +117,19 @@ class BasicApplication(object):
 				if not rightName in conf["viur.accessRights"]:
 					conf["viur.accessRights"].append(rightName)
 
-	def _resolveSkelCls(self, *args, **kwargs):
+	def _resolveSkelCls(self, *args, **kwargs) -> Skeleton:
 		"""
-		Retrieve the generally associated :class:`server.skeleton.Skeleton` that is used by
+		Retrieve the generally associated :class:`viur.core.skeleton.Skeleton` that is used by
 		the application.
 
 		This is either be defined by the member variable *kindName* or by a Skeleton named like the
 		application class in lower-case order.
 
 		If this behavior is not wanted, it can be definitely overridden by defining module-specific
-		:func:`viewSkel`,:func:`addSkel`, or :func:`editSkel` functions, or by overriding this
+		:func:`~viewSkel`, :func:`~addSkel`, or :func:`~editSkel` functions, or by overriding this
 		function in general.
 
-		:return: Returns a Skeleton instance that matches the application.
-		:rtype: server.skeleton.Skeleton
+		:return: Returns a Skeleton class that matches the application.
 		"""
 
 		return skeletonByKind(self.kindName if self.kindName else str(type(self).__name__).lower())

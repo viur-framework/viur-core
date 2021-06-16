@@ -11,21 +11,13 @@ import logging
 
 class List(BasicApplication):
 	"""
-	List is a ViUR BasicApplication.
+		The list prototype will only handle a single kind and arrange it's entities in a flat list.
+		This list can be filtered and/or sorted but there is no hierarchy/relationship between the items
+		in that list.
 
-	It is used for multiple data entities of the same kind, and needs to be sub-classed for individual
-	modules.
-
-	:ivar kindName: Name of the kind of data entities that are managed by the application. \
-	This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the \
-	application. For more information, refer to the function :func:`_resolveSkel`.
-	:vartype kindName: str
-
-	:ivar adminInfo: todo short info on how to use adminInfo.
-	:vartype adminInfo: dict | callable
 	"""
 
-	accessRights = ["add", "edit", "view", "delete"]  # Possible access rights for this app
+	accessRights = ["add", "edit", "view", "delete"]  #: Possible access rights for this app
 
 	def adminInfo(self):
 		return {
@@ -37,45 +29,57 @@ class List(BasicApplication):
 	def __init__(self, moduleName, modulePath, *args, **kwargs):
 		super(List, self).__init__(moduleName, modulePath, *args, **kwargs)
 
-	def viewSkel(self, *args, **kwargs):
+	def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
 		"""
-		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
+		Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
 		for viewing an existing entry from the list.
 
-		The default is a Skeleton instance returned by :func:`_resolveSkel`.
+		The default is a Skeleton instance returned by :func:`~_resolveSkelCls`.
+
+		This SkeletonInstance can be post-processed (just returning a subskel or manually removing single bones) - which
+		is the recommended way to ensure a given user cannot see certain fields. A Jinja-Template may choose not to
+		display certain bones, but if the json or xml render is attached (or the user can use the vi or admin render)
+		he could still see all values. This also prevents the user from filtering by these bones, so no binary search
+		is possible.
 
 		.. seealso:: :func:`addSkel`, :func:`editSkel`, :func:`_resolveSkel`
 
 		:return: Returns a Skeleton instance for viewing an entry.
-		:rtype: server.skeleton.Skeleton
 		"""
 		return self._resolveSkelCls(*args, **kwargs)()
 
-	def addSkel(self, *args, **kwargs):
+	def addSkel(self, *args, **kwargs) -> SkeletonInstance:
 		"""
-		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
+		Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
 		for adding an entry to the list.
 
 		The default is a Skeleton instance returned by :func:`_resolveSkel`.
 
+		Like in :func:`viewSkel`, the skeleton can be post-processed. Bones that are being removed aren't visible
+		and cannot be set, but it's also possible to just set a bone to readOnly (revealing it's value to the user,
+		but preventing any modification. It's possible to pre-set values on that skeleton (and if that bone is
+		readOnly, enforcing these values).
+
 		.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`_resolveSkel`
 
 		:return: Returns a Skeleton instance for adding an entry.
-		:rtype: server.skeleton.Skeleton
 		"""
 		return self._resolveSkelCls(*args, **kwargs)()
 
-	def editSkel(self, *args, **kwargs):
+	def editSkel(self, *args, **kwargs) -> SkeletonInstance:
 		"""
-		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
+		Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
 		for editing an existing entry from the list.
 
 		The default is a Skeleton instance returned by :func:`_resolveSkel`.
 
+		Like in :func:`viewSkel`, the skeleton can be post-processed. Bones that are being removed aren't visible
+		and cannot be set, but it's also possible to just set a bone to readOnly (revealing it's value to the user,
+		but preventing any modification.
+
 		.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`_resolveSkel`
 
 		:return: Returns a Skeleton instance for editing an entry.
-		:rtype: server.skeleton.Skeleton
 		"""
 		return self._resolveSkelCls(*args, **kwargs)()
 
@@ -134,9 +138,9 @@ class List(BasicApplication):
 
 		:returns: The rendered representation of the requested entity.
 
-		:raises: :exc:`server.errors.NotAcceptable`, when no *key* is provided.
-		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
-		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
+		:raises: :exc:`viur.core.errors.NotAcceptable`, when no *key* is provided.
+		:raises: :exc:`viur.core.errors.NotFound`, when no entry with the given *key* was found.
+		:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
 		"""
 		if "key" in kwargs:
 			key = kwargs["key"]
@@ -166,11 +170,11 @@ class List(BasicApplication):
 		by calling the function :func:`listFilter`, which updates the query-filter to match only
 		elements which the user is allowed to see.
 
-		.. seealso:: :func:`listFilter`, :func:`server.db.mergeExternalFilter`
+		.. seealso:: :func:`listFilter`, :func:`viur.core.db.mergeExternalFilter`
 
 		:returns: The rendered list objects for the matching entries.
 
-		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
+		:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
 		"""
 		query = self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs))  # Access control
 		if query is None:
@@ -193,10 +197,10 @@ class List(BasicApplication):
 
 		:returns: The rendered, edited object of the entry, eventually with error hints.
 
-		:raises: :exc:`server.errors.NotAcceptable`, when no *key* is provided.
-		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
-		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
-		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
+		:raises: :exc:`viur.core.errors.NotAcceptable`, when no *key* is provided.
+		:raises: :exc:`viur.core.errors.NotFound`, when no entry with the given *key* was found.
+		:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
+		:raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
 		if "skey" in kwargs:
 			skey = kwargs["skey"]
@@ -243,8 +247,8 @@ class List(BasicApplication):
 
 		:returns: The rendered, added object of the entry, eventually with error hints.
 
-		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
-		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
+		:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
+		:raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
 		if "skey" in kwargs:
 			skey = kwargs["skey"]
@@ -283,9 +287,9 @@ class List(BasicApplication):
 
 		:returns: The rendered, deleted object of the entry.
 
-		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
-		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
-		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
+		:raises: :exc:`viur.core.errors.NotFound`, when no entry with the given *key* was found.
+		:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
+		:raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
 
 		skel = self.editSkel()
@@ -347,10 +351,10 @@ class List(BasicApplication):
 		is allowed to see.
 
 		:param filter: Query which should be altered.
-		:type filter: :class:`server.db.Query`
+		:type filter: :class:`viur.core.db.Query`
 
 		:returns: The altered filter, or None if access is not granted.
-		:type filter: :class:`server.db.Query`
+		:type filter: :class:`viur.core.db.Query`
 		"""
 		user = utils.getCurrentUser()
 
@@ -462,7 +466,7 @@ class List(BasicApplication):
 		.. seealso:: :func:`edit`
 
 		:param skel: The Skeleton that should be edited.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		:returns: True, if editing entries is allowed, False otherwise.
 		:rtype: bool
@@ -494,7 +498,7 @@ class List(BasicApplication):
 		It should be overridden for a module-specific behavior.
 
 		:param skel: The Skeleton that should be deleted.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`delete`
 
@@ -523,7 +527,7 @@ class List(BasicApplication):
 		It can be overridden for a module-specific behavior.
 
 		:param skel: The Skeleton that is going to be added.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`add`, :func:`onAdded`
 		"""
@@ -537,7 +541,7 @@ class List(BasicApplication):
 		The default is writing a log entry.
 
 		:param skel: The Skeleton that has been added.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`add`, , :func:`onAdd`
 		"""
@@ -554,7 +558,7 @@ class List(BasicApplication):
 		It can be overridden for a module-specific behavior.
 
 		:param skel: The Skeleton that is going to be edited.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`edit`, :func:`onEdited`
 		"""
@@ -568,7 +572,7 @@ class List(BasicApplication):
 		The default is writing a log entry.
 
 		:param skel: The Skeleton that has been modified.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`edit`, :func:`onEdit`
 		"""
@@ -586,7 +590,7 @@ class List(BasicApplication):
 		The default is doing nothing.
 
 		:param skel: The Skeleton that is viewed.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`view`
 		"""
@@ -599,7 +603,7 @@ class List(BasicApplication):
 		It can be overridden for a module-specific behavior.
 
 		:param skel: The Skeleton that is going to be deleted.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`delete`, :func:`onDeleted`
 		"""
@@ -613,7 +617,7 @@ class List(BasicApplication):
 		The default is writing a log entry.
 
 		:param skel: The Skeleton that has been deleted.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`delete`, :func:`onDelete`
 		"""
