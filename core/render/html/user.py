@@ -78,7 +78,7 @@ class Render(DefaultRender):  # Render user-data to xml
 			tpl = tpl or self.passwdRecoverInfoTemplate
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
 		if skel:
-			skel = self.collectSkelData(skel)
+			skel.renderPreparation = self.renderBoneValue
 		return (template.render(skel=skel, msg=msg, **kwargs))
 
 	def passwdRecover(self, *args, **kwargs):
