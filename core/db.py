@@ -200,6 +200,8 @@ def fixUnindexableProperties(entry: Entity):
 				innerEntry = Entity()
 				innerEntry.update(v)
 				entry[k] = fixUnindexableProperties(innerEntry)
+				if isinstance(v, Entity):
+					innerEntry.key = v.key
 			else:
 				resList.append(k)
 	entry.exclude_from_indexes = resList
