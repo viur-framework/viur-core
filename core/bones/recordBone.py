@@ -56,10 +56,6 @@ class recordBone(baseBone):
 	def singleValueFromClient(self, value, skel, name, origData):
 		usingSkel = self.using()
 		usingSkel.fromClient(value)
-
-		# Discard any errors from non-required bones
-		usingSkel.errors = [err for err in usingSkel.errors if getattr(usingSkel, err.fieldPath[0]).required]
-
 		return usingSkel, usingSkel.errors
 
 	def getSearchTags(self, values, key):
