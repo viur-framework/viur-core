@@ -9,7 +9,7 @@ from collections import OrderedDict
 # from google.appengine.api import memcache, users
 from datetime import timedelta
 from hashlib import sha512
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Optional
 
 from viur.core import db, errors, prototypes, securitykey, utils
 from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
@@ -618,13 +618,15 @@ def embedSvg(render, name: str, classes: Union[List[str], None] = None, **kwargs
 
 
 @jinjaGlobalFunction
-def downloadUrlFor(render, fileObj, expires=conf["viur.downloadUrlFor.expiration"], derived=None):
+def downloadUrlFor(render: 'viur.core.render.html.default.Render', fileObj: dict,
+				   expires: Union[None, int] = conf["viur.downloadUrlFor.expiration"],
+				   derived: Optional[str] = None) -> Optional[str]:
 	"""
 		Constructs a signed download-url for the given file-bone. Mostly a wrapper around
 		:meth:`viur.core.utils.downloadUrlFor`.
 
 		:param fileObj: The file-bone (eg. skel["file"])
-		:param expires: 0/None if the file is supposed to be public (which causes it to be cached on the google ede
+		:param expires: None if the file is supposed to be public (which causes it to be cached on the google ede
 			caches), otherwise it's lifetime in seconds
 		:param derived: Optional the filename of a derived file, otherwise the the download-link will point to the
 			originally uploaded file.

@@ -129,7 +129,7 @@ def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
 		:param folder: The GCS-Folder (= the download-key) for that file
 		:param fileName: The name of that file. Either the original filename as uploaded or the name of a dervived file
 		:param derived: True, if it points to a derived file, False if it points to the original uploaded file
-		:param expires: 0/None if the file is supposed to be public (which causes it to be cached on the google ede
+		:param expires: None if the file is supposed to be public (which causes it to be cached on the google ede
 			caches), otherwise a timedelta of how long that link should be valid
 		:return: THe signed download-url relative to the current domain (eg /download/...)
 	"""
