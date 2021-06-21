@@ -164,11 +164,16 @@ class Render(object):
 
 		if bone.type == "relational" or bone.type.startswith("relational."):
 			ret.update({
-				"type": bone.type,
 				"module": bone.module,
 				"format": bone.format,
 				"using": self.renderSkelStructure(bone.using()) if bone.using else None,
 				"relskel": self.renderSkelStructure(bone._refSkelCache())
+			})
+
+		elif bone.type == "record" or bone.type.startswith("record."):
+			ret.update({
+				"format": bone.format,
+				"using": self.renderSkelStructure(bone.using())
 			})
 
 		elif bone.type == "select" or bone.type.startswith("select."):
@@ -294,11 +299,14 @@ class Render(object):
 		elif bone.type == "record" or bone.type.startswith("record."):
 			value = boneValue
 			if value:
-				ret = []
-				for entry in value:
-					entry.renderPreparation = self.renderBoneValue
-					ret.append(entry)
-				return ret
+				if bone.multiple:
+					ret = []
+					for entry in value:
+						entry.renderPreparation = self.renderBoneValue
+						ret.append(entry)
+					return ret
+				value.renderPreparation = self.renderBoneValue
+				return value
 		elif bone.type == "password":
 			return ""
 		elif bone.type == "key":
@@ -367,7 +375,7 @@ class Render(object):
 		skel["skey"] = securitykey.create()
 		if currentRequest.get().kwargs.get("nomissing") == "1":
 			if isinstance(skel, SkeletonInstance):
-				super(SkeletonInstance, skel).__setattr__("errors", {})
+				super(SkeletonInstance, skel).__setattr__("errors", [])
 		skel.renderPreparation = self.renderBoneValue
 		return template.render(skel={"structure": self.renderSkelStructure(skel),
 									 "errors": skel.errors,
@@ -408,7 +416,7 @@ class Render(object):
 
 		if currentRequest.get().kwargs.get("nomissing") == "1":
 			if isinstance(skel, SkeletonInstance):
-				super(SkeletonInstance, skel).__setattr__("errors", {})
+				super(SkeletonInstance, skel).__setattr__("errors", [])
 		skel.renderPreparation = self.renderBoneValue
 		return template.render(skel={"structure": self.renderSkelStructure(skel),
 									 "errors": skel.errors,

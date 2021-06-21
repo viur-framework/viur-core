@@ -16,6 +16,10 @@ from datetime import datetime, date, time
 import binascii
 from dataclasses import dataclass, field
 from contextvars import ContextVar
+try:
+	from viur import dbaccelerator
+except ImportError:
+	dbaccelerator = None
 
 """
 	Tiny wrapper around *google.appengine.api.datastore*.
@@ -132,13 +136,19 @@ def Get(keys: Union[KeyClass, List[KeyClass]]) -> Union[List[Entity], Entity, No
 		for key in keys:
 			if not key.kind.startswith("viur"):
 				dataLog.add(key)
-		# GetMulti does not obey orderings - results can be returned in any order. We'll need to fix this here
-		resList = list(__client__.get_multi(keys))
-		resList.sort(key=lambda x: keys.index(x.key) if x else -1)
-		return resList
+		if dbaccelerator and not IsInTransaction():  # Use the fast-path fetch
+			return dbaccelerator.fetchMulti(keys)
+		else:
+			# GetMulti does not obey orderings - results can be returned in any order. We'll need to fix this here
+			resList = list(__client__.get_multi(keys))
+			resList.sort(key=lambda x: keys.index(x.key) if x else -1)
+			return resList
 	if not keys.kind.startswith("viur"):
 		dataLog.add(keys)
-	return __client__.get(keys)
+	if dbaccelerator and not IsInTransaction():  # Use the fast-path fetch
+		return dbaccelerator.fetchMulti([keys])[0]
+	else:
+		return __client__.get(keys)
 
 
 def Put(entity: Union[Entity, List[Entity]]):
@@ -200,6 +210,8 @@ def fixUnindexableProperties(entry: Entity):
 				innerEntry = Entity()
 				innerEntry.update(v)
 				entry[k] = fixUnindexableProperties(innerEntry)
+				if isinstance(v, Entity):
+					innerEntry.key = v.key
 			else:
 				resList.append(k)
 	entry.exclude_from_indexes = resList
@@ -661,8 +673,13 @@ class Query(object):
 			qry.order = [x[0] if x[1] == SortOrder.Ascending else "-" + x[0] for x in newSortOrder]
 		else:
 			qry.order = [x[0] if x[1] == SortOrder.Ascending else "-" + x[0] for x in query.orders]
-		qryRes = qry.fetch(limit=limit, start_cursor=query.startCursor, end_cursor=query.endCursor)
-		res = list(qryRes)
+		if dbaccelerator and not IsInTransaction():  # Use the fast-path fetch
+			qry.keys_only()
+			qryRes = qry.fetch(limit=limit, start_cursor=query.startCursor, end_cursor=query.endCursor)
+			res = dbaccelerator.fetchMulti([x.key for x in next(qryRes.pages)])
+		else:
+			qryRes = qry.fetch(limit=limit, start_cursor=query.startCursor, end_cursor=query.endCursor)
+			res = list(qryRes)
 		if os.getenv("DATASTORE_EMULATOR_HOST"):
 			query.currentCursor = qryRes.next_page_token if query.startCursor != qryRes.next_page_token else None
 		else:

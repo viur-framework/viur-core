@@ -22,9 +22,9 @@
 		class="select ignt-select ignt-select--{{ boneName }}
 			{{ "is-required" if boneParams.required }}
 			{{ "is-readonly" if boneParams.readOnly }}
-			{{ "is-invalid" if boneWasInvalid else "is-valid" }}"
+			{{ "is-invalid" if boneErrors else "is-valid" }}"
 		{{'readonly' if boneParams.readOnly}}
-		{{'required' if boneParams.required}}
+		{{'required' if boneParams.required and "." not in boneName }}
     >
         {%- for key, descr in boneParams["values"].items() %}
             {% if loop.first %}
@@ -33,7 +33,7 @@
                 </option>
             {% endif %}
 
-            <option value="{{ key }}" {{ "selected" if boneValue["key"] == key }}>
+            <option value="{{ key }}" {{ "selected" if boneValue and boneValue["key"] == key }}>
                 {{ descr }}
             </option>
         {% endfor -%}

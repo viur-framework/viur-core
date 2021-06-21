@@ -9,12 +9,13 @@ from collections import OrderedDict
 # from google.appengine.api import memcache, users
 from datetime import timedelta
 from hashlib import sha512
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Optional
 
-from viur.core import conf, db, errors, prototypes, securitykey, utils
+from viur.core import db, errors, prototypes, securitykey, utils
 from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
 from viur.core.skeleton import RelSkel, SkeletonInstance
 from viur.core.utils import currentLanguage, currentRequest
+from viur.core.config import unsetMarker, conf
 
 
 @jinjaGlobalFunction
@@ -504,7 +505,7 @@ def shortKey(render, val):
 
 
 @jinjaGlobalFunction
-def renderEditBone(render, skel, boneName):
+def renderEditBone(render, skel, boneName, boneErrors=None, prefix=None):
 	if not isinstance(skel, dict) or not all([x in skel for x in ["errors", "structure", "value"]]):
 		raise ValueError("This does not look like an editable Skeleton!")
 
@@ -532,15 +533,20 @@ def renderEditBone(render, skel, boneName):
 
 	tpl = render.getEnv().get_template(fn)
 
-	return tpl.render(boneName=boneName, boneParams=boneParams, boneValue=skel["value"].get(boneName, None))
+	return tpl.render(
+		boneName=((prefix + ".") if prefix else "") + boneName,
+		boneParams=boneParams,
+		boneValue=skel["value"].get(boneName, None),
+		boneErrors=boneErrors
+	)
 
 
 @jinjaGlobalFunction
-def renderEditForm(render, skel, ignore=None, hide=None):
+def renderEditForm(render, skel, ignore=None, hide=None, prefix=None):
 	if not isinstance(skel, dict) or not all([x in skel.keys() for x in ["errors", "structure", "value"]]):
 		raise ValueError("This does not look like an editable Skeleton!")
 
-	res = u""
+	res = ""
 
 	sectionTpl = render.getEnv().get_template(render.getTemplateFileName("editform_category"))
 	rowTpl = render.getEnv().get_template(render.getTemplateFileName("editform_row"))
@@ -557,13 +563,17 @@ def renderEditForm(render, skel, ignore=None, hide=None):
 	for category, boneList in sections.items():
 		allReadOnly = True
 		allHidden = True
-		categoryContent = u""
+		categoryContent = ""
 
 		for boneName, boneParams in boneList:
 			if ignore and boneName in ignore:
 				continue
 
-			boneWasInvalid = isinstance(skel["errors"], dict) and boneName in skel["errors"].keys()
+			#print("--- skel[\"errors\"] ---")
+			#print(skel["errors"])
+
+			pathToBone = ((prefix + ".") if prefix else "") + boneName
+			boneErrors = [entry for entry in skel["errors"] if ".".join(entry.fieldPath).startswith(pathToBone)]
 
 			if hide and boneName in hide:
 				boneParams["visible"] = False
@@ -574,17 +584,21 @@ def renderEditForm(render, skel, ignore=None, hide=None):
 			if boneParams["visible"]:
 				allHidden = False
 
-			editWidget = renderEditBone(render, skel, boneName)
-			categoryContent += rowTpl.render(boneName=boneName,
-											 boneParams=boneParams,
-											 boneWasInvalid=boneWasInvalid,
-											 editWidget=editWidget)
+			editWidget = renderEditBone(render, skel, boneName, boneErrors, prefix=prefix)
+			categoryContent += rowTpl.render(
+				boneName=pathToBone,
+				boneParams=boneParams,
+				boneErrors=boneErrors,
+				editWidget=editWidget
+			)
 
-		res += sectionTpl.render(categoryName=category,
-								 categoryClassName="".join([x for x in category if x in string.ascii_letters]),
-								 categoryContent=categoryContent,
-								 allReadOnly=allReadOnly,
-								 allHidden=allHidden)
+		res += sectionTpl.render(
+			categoryName=category,
+			categoryClassName="".join([x for x in category if x in string.ascii_letters]),
+			categoryContent=categoryContent,
+			allReadOnly=allReadOnly,
+			allHidden=allHidden
+		)
 
 	return res
 
@@ -619,7 +633,22 @@ def embedSvg(render, name: str, classes: Union[List[str], None] = None, **kwargs
 
 
 @jinjaGlobalFunction
-def downloadUrlFor(render, fileObj, expires, derived=None):
+def downloadUrlFor(render: 'viur.core.render.html.default.Render', fileObj: dict,
+				   expires: Union[None, int] = conf["viur.downloadUrlFor.expiration"],
+				   derived: Optional[str] = None) -> Optional[str]:
+	"""
+		Constructs a signed download-url for the given file-bone. Mostly a wrapper around
+		:meth:`viur.core.utils.downloadUrlFor`.
+
+		:param fileObj: The file-bone (eg. skel["file"])
+		:param expires: None if the file is supposed to be public (which causes it to be cached on the google ede
+			caches), otherwise it's lifetime in seconds
+		:param derived: Optional the filename of a derived file, otherwise the the download-link will point to the
+			originally uploaded file.
+		:return: THe signed download-url relative to the current domain (eg /download/...)
+	"""
+	if expires is unsetMarker:
+		raise ValueError("expires must be explicitly set")
 	if "dlkey" not in fileObj and "dest" in fileObj:
 		fileObj = fileObj["dest"]
 	if expires:

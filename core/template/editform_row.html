@@ -4,7 +4,7 @@
 			class="label ignt-label
 				{{ "is-required" if boneParams.required }}
 				{{ "is-readonly" if boneParams.readOnly }}
-				{{ "is-invalid" if boneWasInvalid else "is-valid" }}"
+				{{ "is-invalid" if boneErrors else "is-valid" }}"
 		>
 			{{ boneParams.descr }}
 		</label>
