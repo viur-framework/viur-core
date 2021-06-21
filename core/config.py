@@ -6,6 +6,8 @@ import sys
 
 apiVersion = 1  # What format do we use to store data in the bigtable
 
+unsetMarker = object()  # Special marker signaling that a key has no value (not even None) set
+
 # Conf is static, local Dictionary. Changes here are local to the current instance
 conf = {
 	# Accessrights available on this Application
@@ -42,6 +44,8 @@ conf = {
 	"viur.disableCache": False,
 	# Maps Domains to alternative default languages
 	"viur.domainLanguageMapping": {},
+	# If set, the expiration parameter for :meth:`viur.core.render.html.env.viur.downloadUrlFor` can be omitted
+	"viur.downloadUrlFor.expiration": unsetMarker,
 	# For how long we'll keep successfully send emails in the viur-emails table
 	"viur.email.logRetention": timedelta(days=30),
 	# Class that actually delivers the email using the service provider of choice. See email.py for more details
