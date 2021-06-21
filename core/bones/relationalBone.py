@@ -3,8 +3,6 @@ from viur.core.bones import baseBone
 from viur.core.bones.bone import getSystemInitialized
 from viur.core import db, utils
 from viur.core.errors import ReadFromClientError
-from typing import List, Union
-
 try:
 	import extjson
 except ImportError:
@@ -13,8 +11,8 @@ except ImportError:
 from time import time
 from datetime import datetime
 import logging
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from typing import List, Any
+from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity, MultipleConstraints
+from typing import List, Any, Optional, Union
 from enum import Enum
 from itertools import chain
 
@@ -59,33 +57,60 @@ class relationalBone(baseBone):
 	type = "relational"
 	kind = None
 
-	def __init__(self, kind=None, module=None, refKeys=None, parentKeys=None, multiple=False, format="$(dest.name)",
-				 using=None, updateLevel=0, consistency=RelationalConsistency.Ignore, *args, **kwargs):
+	def __init__(self, kind: str = None, module: Optional[str] = None, refKeys: Optional[List[str]] = None,
+				 parentKeys: Optional[List[str]] = None, multiple: Union[bool, MultipleConstraints] = False,
+				 format: str = "value['dest']['name']", using: Optional['viur.core.skeleton.RelSkel'] = None,
+				 updateLevel: int = 0, consistency: RelationalConsistency = RelationalConsistency.Ignore,
+				 *args, **kwargs):
 		"""
 			Initialize a new relationalBone.
 
 			:param kind: KindName of the referenced property.
-			:type kind: str
 			:param module: Name of the module which should be used to select entities of kind "type". If not set,
 				the value of "type" will be used (the kindName must match the moduleName)
-			:type type: str
 			:param refKeys: A list of properties to include from the referenced property. These properties will be
 				available in the template without having to fetch the referenced property. Filtering is also only possible
 				by properties named here!
-			:type refKeys: list of str
 			:param parentKeys: A list of properties from the current skeleton to include. If mixing filtering by
 				relational properties and properties of the class itself, these must be named here.
-			:type parentKeys: list of str
-			:param multiple: If True, allow referencing multiple Elements of the given class. (Eg. n:n-relation.
-				otherwise its n:1 )
-			:type multiple: False
-			:param format: Hint for the admin how to display such an relation. See admin/utils.py:formatString for
-				more information
-			:type format: str
-			:type format: String
-			:param updateLevel: level 0==always update refkeys (old behavior), 1==update refKeys only on
-				rebuildSearchIndex, 2==update only if explicitly set
-			:type updateLevel: int
+			:param multiple: If True, allow referencing multiple Elements of the given class. (Eg. n:n-relation).
+				Otherwise its n:1, (you can only select exactly one). It's possible to use a unique constraint on this
+				bone, allowing for at-most-1:1 or at-most-1:n relations. Instead of true, it's also possible to use
+				a :class:MultipleConstraints instead.
+			:param format: Hint for the frontend how to display such an relation. This is now a python expression
+				evaluated by safeeval on the client side. The following values will be passed to the expression:
+					- value: dict: The value to display. This will be always a dict (= a single value) - even if the
+						relation is multiple (in which case the expression is evaluated once per referenced entity)
+					- structure: dict: The structure of the skeleton this bone is part of as a dictionary as it's
+						transferred to the fronted by the admin/vi-render.
+					- language: str: The current language used by the frontend in ISO2 code (eg. "de"). This will be
+						always set, even if the project did not enable the multi-language feature.
+			:param updateLevel: Indicates how ViUR should keep the values copied from the referenced entity into our
+				entity up to date. If this bone is indexed, it's recommended to leave this set to 0, as
+				filtering/sorting by this bone will produce stale results. Possible values are:
+					- 0: always update refkeys (old behavior). If the referenced entity is edited, ViUR will update this
+						entity also (after a small delay, as these updates happen deferred)
+					- 1: update refKeys only on	rebuildSearchIndex. If the referenced entity changes, this entity will
+						remain unchanged (this relationalBone will still have the old values), but it can be updated
+						by either by editing this entity or running a rebuildSearchIndex over our kind.
+					- 2: update only if explicitly set. A rebuildSearchIndex will not trigger an update, this bone has
+						to be explicitly modified (in an edit) to have it's values updated
+			:param consistency: Can be used to implement SQL-like constrains on this relation. Possible values are:
+				- RelationalConsistency.Ignore: If the referenced entity gets deleted, this bone will not change. It
+					will still reflect the old values. This will be even be preserved over edits, however if that
+					referenced value is once deleted by the user (assigning a different value to this bone or removing
+					that value of the list of relations if we are multiple) there's no way of restoring it
+				- RelationalConsistency.PreventDeletion: Will prevent deleting the referenced entity as long as it's
+					selected in this bone (calling skel.delete() on the referenced entity will raise errors.Locked).
+					It's still (technically) possible to remove the underlying datastore entity using db.Delete manually,
+					but this *must not* be used on a skeleton object as it will leave a whole bunch of references in a
+					stale state.
+				- RelationalConsistency.SetNull: Will set this bone to None (or remove the relation from the list in
+					case we are multiple) when the referenced entity is deleted.
+				- RelationalConsistency.CascadeDeletion: (Dangerous!) Will delete this entity when the referenced entity
+					is deleted. Warning: Unlike relational updates this will cascade. If Entity A references B with
+					CascadeDeletion set, and B references C also with CascadeDeletion; if C gets deleted, both B and A
+					will be deleted as well.
 		"""
 		baseBone.__init__(self, *args, **kwargs)
 		self.multiple = multiple
