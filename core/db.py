@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+
+import os
+
 from viur.core.config import conf
 from viur.core import utils
 import logging
@@ -207,6 +210,8 @@ def fixUnindexableProperties(entry: Entity):
 				innerEntry = Entity()
 				innerEntry.update(v)
 				entry[k] = fixUnindexableProperties(innerEntry)
+				if isinstance(v, Entity):
+					innerEntry.key = v.key
 			else:
 				resList.append(k)
 	entry.exclude_from_indexes = resList
@@ -674,8 +679,11 @@ class Query(object):
 			res = dbaccelerator.fetchMulti([x.key for x in next(qryRes.pages)])
 		else:
 			qryRes = qry.fetch(limit=limit, start_cursor=query.startCursor, end_cursor=query.endCursor)
-			res = list(next(qryRes.pages))
-		query.currentCursor = qryRes.next_page_token
+			res = list(qryRes)
+		if os.getenv("DATASTORE_EMULATOR_HOST"):
+			query.currentCursor = qryRes.next_page_token if query.startCursor != qryRes.next_page_token else None
+		else:
+			query.currentCursor = qryRes.next_page_token
 		return res
 
 	def _mergeMultiQueryResults(self, inputRes: List[List[Entity]]) -> List[Entity]:
