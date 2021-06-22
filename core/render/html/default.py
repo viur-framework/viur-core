@@ -275,21 +275,25 @@ class Render(object):
 					if not k:
 						continue
 					if bone.using is not None and k["rel"]:
-						usingData = self.collectSkelData(k["rel"])
+						k["rel"].renderPreparation = self.renderBoneValue
+						usingData = k["rel"]
 					else:
 						usingData = None
+					k["dest"].renderPreparation = self.renderBoneValue
 					tmpList.append({
-						"dest": self.collectSkelData(k["dest"]),
+						"dest": k["dest"],
 						"rel": usingData
 					})
 				return tmpList
 			elif isinstance(boneValue, dict):
 				if bone.using is not None and boneValue["rel"]:
-					usingData = self.collectSkelData(boneValue["rel"])
+					boneValue["rel"].renderPreparation = self.renderBoneValue
+					usingData = boneValue["rel"]
 				else:
 					usingData = None
+				boneValue["dest"].renderPreparation = self.renderBoneValue
 				return {
-					"dest": self.collectSkelData(boneValue["dest"]),
+					"dest": boneValue["dest"],
 					"rel": usingData
 				}
 		elif bone.type == "record" or bone.type.startswith("record."):
@@ -298,12 +302,11 @@ class Render(object):
 				if bone.multiple:
 					ret = []
 					for entry in value:
-						ret.append(self.collectSkelData(entry))
-
+						entry.renderPreparation = self.renderBoneValue
+						ret.append(entry)
 					return ret
-
-				return self.collectSkelData(value)
-
+				value.renderPreparation = self.renderBoneValue
+				return value
 		elif bone.type == "password":
 			return ""
 		elif bone.type == "key":
@@ -323,6 +326,10 @@ class Render(object):
 
 			:returns: A dictionary or list of dictionaries.
 			:rtype: dict | list
+
+			 .. deprecated:: 3.0.0
+				This method is deprecated since ViUR 3.0. Instead, attach a renderPreparation method to the skeleton
+				and pass the skeleton itself.
 		"""
 		# logging.error("collectSkelData %s", skel)
 		if isinstance(skel, list):
@@ -369,9 +376,10 @@ class Render(object):
 		if currentRequest.get().kwargs.get("nomissing") == "1":
 			if isinstance(skel, SkeletonInstance):
 				super(SkeletonInstance, skel).__setattr__("errors", [])
+		skel.renderPreparation = self.renderBoneValue
 		return template.render(skel={"structure": self.renderSkelStructure(skel),
 									 "errors": skel.errors,
-									 "value": self.collectSkelData(skel)},
+									 "value": skel},
 							   params=params, **kwargs)
 
 	def edit(self, skel, tpl=None, params=None, **kwargs):
@@ -409,10 +417,10 @@ class Render(object):
 		if currentRequest.get().kwargs.get("nomissing") == "1":
 			if isinstance(skel, SkeletonInstance):
 				super(SkeletonInstance, skel).__setattr__("errors", [])
-
+		skel.renderPreparation = self.renderBoneValue
 		return template.render(skel={"structure": self.renderSkelStructure(skel),
 									 "errors": skel.errors,
-									 "value": self.collectSkelData(skel)},
+									 "value": skel},
 							   params=params, **kwargs)
 
 	def addSuccess(self, skel, tpl=None, params=None, *args, **kwargs):
@@ -438,9 +446,9 @@ class Render(object):
 				tpl = self.addSuccessTemplate
 
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-		res = self.collectSkelData(skel)
-
-		return template.render({"skel": res}, params=params, **kwargs)
+		if isinstance(skel, SkeletonInstance):
+			skel.renderPreparation = self.renderBoneValue
+		return template.render({"skel": skel}, params=params, **kwargs)
 
 	def editSuccess(self, skel, tpl=None, params=None, *args, **kwargs):
 		"""
@@ -465,8 +473,9 @@ class Render(object):
 				tpl = self.editSuccessTemplate
 
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-		res = self.collectSkelData(skel)
-		return template.render(skel=res, params=params, **kwargs)
+		if isinstance(skel, SkeletonInstance):
+			skel.renderPreparation = self.renderBoneValue
+		return template.render(skel=skel, params=params, **kwargs)
 
 	def deleteSuccess(self, skel, tpl=None, params=None, *args, **kwargs):
 		"""
@@ -520,9 +529,6 @@ class Render(object):
 		except errors.HTTPException as e:  # Not found - try default fallbacks
 			tpl = "list"
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-		# resList = []
-		# for skel in skellist:
-		#	resList.append(self.collectSkelData(skel))
 		for skel in skellist:
 			skel.renderPreparation = self.renderBoneValue
 		return template.render(skellist=skellist, params=params, **kwargs)  # SkelListWrapper(resList, skellist)
@@ -579,7 +585,6 @@ class Render(object):
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
 
 		if isinstance(skel, SkeletonInstance):
-			# res = self.collectSkelData(skel)
 			skel.renderPreparation = self.renderBoneValue
 		return template.render(skel=skel, params=params, **kwargs)
 
@@ -795,11 +800,10 @@ class Render(object):
 			:return: Returns the rendered email subject and body.
 		"""
 		if isinstance(skel, SkeletonInstance):
-			res = self.collectSkelData(skel)
+			skel.renderPreparation = self.renderBoneValue
 		elif isinstance(skel, list) and all([isinstance(x, SkeletonInstance) for x in skel]):
-			res = [self.collectSkelData(x) for x in skel]
-		else:
-			res = skel
+			for x in skel:
+				x.renderPreparation = self.renderBoneValue
 		if file is not None:
 			try:
 				tpl = self.getEnv().from_string(codecs.open("emails/" + file + ".email", "r", "utf-8").read())
@@ -808,7 +812,7 @@ class Render(object):
 				tpl = self.getEnv().get_template(file + ".email")
 		else:
 			tpl = self.getEnv().from_string(template)
-		content = tpl.render(skel=res, dests=dests, **kwargs).lstrip().splitlines()
+		content = tpl.render(skel=skel, dests=dests, **kwargs).lstrip().splitlines()
 		if len(content) == 1:
 			content.insert(0, "")  # add empty subject
 		return content[0], os.linesep.join(content[1:]).lstrip()
