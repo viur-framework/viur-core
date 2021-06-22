@@ -17,7 +17,7 @@ from viur.core.tasks import callDeferred, QueryIter, PeriodicTask, DeleteEntitie
 	class (and point conf["viur.email.transportClass"] to that class). This module needs a custom queue
 	(viur-emails) with a larger backoff value (so that we don't try to deliver the same email multiple times within a
 	short timeframe). A suggested configuration would be
-	
+
 	- name: viur-emails
 		rate: 1/s
 		retry_parameters:
@@ -43,8 +43,8 @@ class EmailTransport(ABC):
 	@staticmethod
 	@abstractmethod
 	def deliverEmail(*, sender: str, dests: List[str], cc: List[str], bcc: List[str], subject: str, body: str,
-							headers: Dict[str, str], attachments: List[Dict[str, bytes]],
-							customData: Union[dict, None], **kwargs):
+					 headers: Dict[str, str], attachments: List[Dict[str, bytes]],
+					 customData: Union[dict, None], **kwargs):
 		"""
 			The actual email delivery must be implemented here. All email-adresses can be either in the form of
 			"mm@example.com" or "Max Musterman <mm@example.com>". If the delivery was successful, this method
@@ -304,7 +304,7 @@ class EmailTransportSendInBlue(EmailTransport):
 
 	@staticmethod
 	def deliverEmail(*, sender: str, dests: List[str], cc: List[str], bcc: List[str], subject: str, body: str,
-						headers: Dict[str, str], attachments: List[Dict[str, bytes]], **kwargs):
+					 headers: Dict[str, str], attachments: List[Dict[str, bytes]], **kwargs):
 		"""
 			Internal function for delivering Emails using Send in Blue. This function requires the
 			conf["viur.email.sendInBlue.apiKey"] to be set.

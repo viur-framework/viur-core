@@ -36,7 +36,7 @@ class ReadFromClientError:
 	severity: ReadFromClientErrorSeverity
 	errorMessage: str
 	fieldPath: List[str] = field(default_factory=list)
-	invalidatedFields: List[str] = None  # must be last property since python enforces default args after properties without default args
+	invalidatedFields: List[str] = None
 
 
 class UniqueLockMethod(Enum):
@@ -44,11 +44,13 @@ class UniqueLockMethod(Enum):
 	SameSet = 2  # Same Set of entries (including duplicates), any order
 	SameList = 3  # Same Set of entries (including duplicates), in this specific order
 
+
 @dataclass
 class UniqueValue:  # Mark a bone as unique (it must have a different value for each entry)
 	method: UniqueLockMethod  # How to handle multiple values (for bones with multiple=True)
 	lockEmpty: bool  # If False, empty values ("", 0) are not locked - needed if a field is unique but not required
 	message: str  # Error-Message displayed to the user if the requested value is already taken
+
 
 @dataclass
 class MultipleConstraints:  # Used to define constraints on multiple bones
@@ -56,13 +58,14 @@ class MultipleConstraints:  # Used to define constraints on multiple bones
 	maxAmount: int = 0  # Upper bound of how many entries can be submitted
 	preventDuplicates: bool = False  # Prevent the same value of being used twice
 
+
 class baseBone(object):  # One Bone:
 	hasDBField = True
 	type = "hidden"
 	isClonedInstance = False
 
 	def __init__(self, descr="", defaultValue=None, required=False, params=None, multiple=False, indexed=True,
-				 languages = None, searchable=False, vfunc=None, readOnly=False, visible=True, unique=False,
+				 languages=None, searchable=False, vfunc=None, readOnly=False, visible=True, unique=False,
 				 isEmptyFunc=None, getEmtpyValueFunc=None, **kwargs):
 		"""
 			Initializes a new Bone.
@@ -175,7 +178,7 @@ class baseBone(object):  # One Bone:
 
 	def __setattr__(self, key, value):
 		if not self.isClonedInstance and getSystemInitialized() and key != "isClonedInstance" and not key.startswith(
-				"_"):
+			"_"):
 			raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
 		super(baseBone, self).__setattr__(key, value)
 
@@ -228,9 +231,9 @@ class baseBone(object):  # One Bone:
 							tmpDict[partKey] = value
 						res[lang] = tmpDict
 			return res, fieldSubmitted
-		else: # No multi-lang
+		else:  # No multi-lang
 			if not collectSubfields:
-				if name not in data: ## Empty!
+				if name not in data:  ## Empty!
 					return None, False
 				val = data[name]
 				if multiple and not isinstance(val, list):
@@ -378,7 +381,6 @@ class baseBone(object):  # One Bone:
 			if len(set(value)) != len(value):
 				res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Duplicate items"))
 		return res
-
 
 	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
 		return value
@@ -599,12 +601,12 @@ class baseBone(object):  # One Bone:
 				return  # This query is unsatisfiable
 			elif isinstance(queries, db.QueryDefinition):
 				inEqFilter = [x for x in queries.filters.keys() if
-						  (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
+							  (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
 			elif isinstance(queries, list):
 				inEqFilter = None
 				for singeFilter in queries:
 					newInEqFilter = [x for x in singeFilter.filter.keys() if
-								  (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
+									 (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
 					if inEqFilter and newInEqFilter and inEqFilter != newInEqFilter:
 						raise NotImplementedError("Impossible ordering!")
 					inEqFilter = newInEqFilter
@@ -629,6 +631,7 @@ class baseBone(object):  # One Bone:
 			elif isinstance(value, str):
 				return "S-%s" % res
 			raise NotImplementedError("Type %s can't be safely used in an uniquePropertyIndex" % type(value))
+
 		if not value and not self.unique.lockEmpty:
 			return []  # We are zero/empty string and these should not be locked
 		if not self.multiple:
@@ -654,7 +657,6 @@ class baseBone(object):  # One Bone:
 		if val is None:
 			return []
 		return self._hashValueForUniquePropertyIndex(val)
-
 
 	def getReferencedBlobs(self, skel, name):
 		"""
@@ -749,7 +751,7 @@ class baseBone(object):  # One Bone:
 			if not isinstance(skel[boneName], list):
 				skel[boneName] = []
 			skel[boneName].append(val)
-		else: # Just language
+		else:  # Just language
 			skel[boneName][language] = val
 		return True
 

@@ -23,6 +23,7 @@ except:
 
 __undefindedC__ = object()
 
+
 class MetaBaseSkel(type):
 	"""
 		This is the meta class for Skeletons.
@@ -84,7 +85,8 @@ class SkeletonInstance:
 			self.boneMap = clonedBoneMap
 		elif subSkelNames:
 			boneList = ["key"] + list(chain(*[skelCls.subSkels.get(x, []) for x in ["*"] + subSkelNames]))
-			doesMatch = lambda name: name in boneList or any([name.startswith(x[:-1]) for x in boneList if x[-1] == "*"])
+			doesMatch = lambda name: name in boneList or any(
+				[name.startswith(x[:-1]) for x in boneList if x[-1] == "*"])
 			if fullClone:
 				self.boneMap = {k: copy.deepcopy(v) for k, v in skelCls.__boneMap__.items() if doesMatch(k)}
 				for v in self.boneMap.values():
@@ -307,7 +309,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 				skelValues.errors.extend(errors)
 				for error in errors:
 					if (error.severity == ReadFromClientErrorSeverity.Empty and _bone.required) \
-							or error.severity == ReadFromClientErrorSeverity.Invalid:
+						or error.severity == ReadFromClientErrorSeverity.Invalid:
 						complete = False
 		if (len(data) == 0
 			or (len(data) == 1 and "key" in data)
@@ -349,8 +351,8 @@ class MetaSkel(MetaBaseSkel):
 
 		# Automatic determination of the kindName, if the class is not part of the server.
 		if (cls.kindName is __undefindedC__
-				and not relNewFileName.strip(os.path.sep).startswith("viur")
-				and not "viur_doc_build" in dir(sys)):
+			and not relNewFileName.strip(os.path.sep).startswith("viur")
+			and not "viur_doc_build" in dir(sys)):
 			if cls.__name__.endswith("Skel"):
 				cls.kindName = cls.__name__.lower()[:-4]
 			else:
@@ -377,7 +379,7 @@ class MetaSkel(MetaBaseSkel):
 								 (cls.kindName, relNewFileName, relOldFileName))
 		# Ensure that all skeletons are defined in folders listed in conf["viur.skeleton.searchPath"]
 		if (not any([relNewFileName.startswith(x) for x in conf["viur.skeleton.searchPath"]])
-				and not "viur_doc_build" in dir(sys)):  # Do not check while documentation build
+			and not "viur_doc_build" in dir(sys)):  # Do not check while documentation build
 			raise NotImplementedError(
 				"Skeletons must be defined in a folder listed in conf[\"viur.skeleton.searchPath\"]")
 		if cls.kindName and cls.kindName is not __undefindedC__:
@@ -471,7 +473,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 			tag = "".join([x for x in tag.lower() if x in conf["viur.searchValidChars"]])
 			if len(tag) >= self.minLength:
 				resSet.add(tag)
-				for x in range(1, 1+len(tag)-self.minLength):
+				for x in range(1, 1 + len(tag) - self.minLength):
 					resSet.add(tag[x:])
 		return resSet
 
@@ -479,12 +481,14 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 		"""
 		Collect searchTags from skeleton and build viurTags
 		"""
+
 		def tagsFromSkel(skel):
 			tags = set()
 			for boneName, bone in skel.items():
 				if bone.searchable:
 					tags = tags.union(bone.getSearchTags(skel, boneName))
 			return tags
+
 		tags = tagsFromSkel(skel)
 		entry["viurTags"] = list(chain(*[self._tagsFromString(x) for x in tags if len(x) < 100]))
 		return entry
@@ -493,12 +497,12 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 		"""
 		Run a fulltext search
 		"""
-		keywords = [queryString.lower()]  #list(self._tagsFromString(queryString))[:10]
+		keywords = [queryString.lower()]  # list(self._tagsFromString(queryString))[:10]
 		resultScoreMap = {}
 		resultEntryMap = {}
 		for keyword in keywords:
 			qryBase = databaseQuery.clone()
-			for entry in qryBase.filter("viurTags >=", keyword).filter("viurTags <", keyword+"\ufffd").run():
+			for entry in qryBase.filter("viurTags >=", keyword).filter("viurTags <", keyword + "\ufffd").run():
 				if not entry.key in resultScoreMap:
 					resultScoreMap[entry.key] = 1
 				else:
@@ -509,6 +513,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 		resultList.sort(key=lambda x: x[1])
 		resList = [resultEntryMap[x[0]] for x in resultList[:databaseQuery.queries.limit]]
 		return resList
+
 
 class seoKeyBone(stringBone):
 	def unserialize(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> bool:
@@ -636,7 +641,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		return True
 
 	@classmethod
-	def toDB(cls, skelValues: SkeletonInstance, clearUpdateTag: bool=False) -> db.KeyClass:
+	def toDB(cls, skelValues: SkeletonInstance, clearUpdateTag: bool = False) -> db.KeyClass:
 		"""
 			Store current Skeleton entity to data store.
 
@@ -781,7 +786,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					if currentKey != lastRequestedSeoKeys.get(language):  # This one is new or has changed
 						newSeoKey = currentSeoKeys[language]
 						for _ in range(0, 3):
-							entryUsingKey = db.Query(skelValues.kindName).filter("viurActiveSeoKeys =", newSeoKey).getEntry()
+							entryUsingKey = db.Query(skelValues.kindName).filter("viurActiveSeoKeys =",
+																				 newSeoKey).getEntry()
 							if entryUsingKey and entryUsingKey.name != dbObj.name:
 								# It's not unique; append a random string and try again
 								newSeoKey = "%s-%s" % (currentSeoKeys[language], utils.generateRandomString(5).lower())
@@ -836,6 +842,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 						for x in v:
 							if isinstance(x, dict):
 								fixDotNames(x)
+
 			if conf.get("viur.viur2import.blobsource"):  # Try to fix these only when converting from ViUR2
 				fixDotNames(dbObj)
 
@@ -975,7 +982,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 						if not lockObj:
 							logging.error("Programming error detected: Lockobj %s missing!" % lockKey)
 						elif lockObj["references"] != dbObj.key.id_or_name:
-							logging.error("Programming error detected: %s did not hold lock for %s" % (skel["key"], lockKey))
+							logging.error(
+								"Programming error detected: %s did not hold lock for %s" % (skel["key"], lockKey))
 						else:
 							flushList.append(lockObj)
 					if flushList:
@@ -1058,10 +1066,10 @@ class RelSkel(BaseSkeleton):
 				skelValues.errors.extend(errors)
 				for err in errors:
 					if err.severity == ReadFromClientErrorSeverity.Empty and _bone.required \
-							or err.severity == ReadFromClientErrorSeverity.Invalid:
+						or err.severity == ReadFromClientErrorSeverity.Invalid:
 						complete = False
 		if (len(data) == 0 or (len(data) == 1 and "key" in data) or (
-				"nomissing" in data and str(data["nomissing"]) == "1")):
+			"nomissing" in data and str(data["nomissing"]) == "1")):
 			skelValues.errors = []
 			return False  # Force the skeleton to be displayed to the user again
 		return complete
@@ -1150,7 +1158,6 @@ class SkelList(list):
 		self.getCursor = lambda: None
 		self.renderPreparation = None
 		self.customQueryInfo = {}
-
 
 
 ### Tasks ###

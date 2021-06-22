@@ -68,10 +68,10 @@ class numericBone(baseBone):
 			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid Value")]
 		else:
 			if self.precision and (str(rawValue).replace(".", "", 1).replace("-", "", 1).isdigit()) and float(
-					rawValue) >= self.min and float(rawValue) <= self.max:
+				rawValue) >= self.min and float(rawValue) <= self.max:
 				value = round(float(rawValue), self.precision)
 			elif not self.precision and (str(rawValue).replace("-", "", 1).isdigit()) and int(
-					rawValue) >= self.min and int(rawValue) <= self.max:
+				rawValue) >= self.min and int(rawValue) <= self.max:
 				value = int(rawValue)
 			else:
 				return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid Value")]

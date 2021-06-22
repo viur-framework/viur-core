@@ -99,8 +99,8 @@ class Render(object):
 			htmlpath = "html"
 		currReq = currentRequest.get()
 		if not ignoreStyle \
-				and "style" in currReq.kwargs \
-				and all([x in validChars for x in currReq.kwargs["style"].lower()]):
+			and "style" in currReq.kwargs \
+			and all([x in validChars for x in currReq.kwargs["style"].lower()]):
 			stylePostfix = "_" + currReq.kwargs["style"]
 		else:
 			stylePostfix = ""

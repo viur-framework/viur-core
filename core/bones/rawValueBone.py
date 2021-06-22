@@ -2,6 +2,7 @@
 from viur.core.bones import baseBone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 
+
 class rawValueBone(baseBone):
 	"""
 		Stores it's data without applying any pre/post-processing or filtering. Can be used to store non-html content.

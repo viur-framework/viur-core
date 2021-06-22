@@ -12,12 +12,6 @@ from viur.core.prototypes.tree import TreeLeafSkel
 from viur.core.render.json.default import DefaultRender
 from viur.core.modules.file import decodeFileName
 from viur.core.utils import currentRequest
-#from google.appengine.api import datastore, datastore_types, urlfetch
-#from google.appengine.ext import blobstore
-#from google.appengine.ext.blobstore import BlobInfo
-#from google.appengine.api.images import get_serving_url
-#from google.appengine.datastore import datastore_query
-
 from hashlib import sha256
 
 
@@ -173,7 +167,7 @@ class DbTransfer(object):
 				# if isinstance(val, dict) or isinstance(val, list):
 				#	val = pickle.dumps( val )
 				dbEntry[k] = val
-		#dbEntry = fixUnindexed(dbEntry)
+		# dbEntry = fixUnindexed(dbEntry)
 		try:
 			db.Put(dbEntry)
 		except:
@@ -510,8 +504,8 @@ def iterImport(module, target, exportKey, cursor=None, amount=0):
 
 				# Special case: Convert old module root nodes!!!
 				if (isinstance(skel, (HierarchySkel, TreeLeafSkel))
-						and k in ["parentdir", "parententry", "parentrepo"]
-						and entry[k]):
+					and k in ["parentdir", "parententry", "parentrepo"]
+					and entry[k]):
 
 					key = db.Key(encoded=str(entry[k]))
 					if key.parent():

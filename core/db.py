@@ -16,6 +16,7 @@ from datetime import datetime, date, time
 import binascii
 from dataclasses import dataclass, field
 from contextvars import ContextVar
+
 try:
 	from viur import dbaccelerator
 except ImportError:
@@ -390,7 +391,7 @@ class Query(object):
 		if "cursor" in filters and filters["cursor"] and filters["cursor"].lower() != "none":
 			self.setCursor(filters["cursor"])
 		if "limit" in filters and str(filters["limit"]).isdigit() and int(filters["limit"]) > 0 and int(
-				filters["limit"]) <= 100:
+			filters["limit"]) <= 100:
 			self.limit(int(filters["limit"]))
 		return self
 
@@ -546,11 +547,11 @@ class Query(object):
 		assert isinstance(self.queries, QueryDefinition)
 		self.queries.startCursor = startCursor
 		self.queries.endCursor = endCursor
-		#if isinstance(startCursor, str) and startCursor.startswith("h-"):
+		# if isinstance(startCursor, str) and startCursor.startswith("h-"):
 		#	self._startCursor = bytes.fromhex(startCursor[2:])
-		#else:
+		# else:
 		#	self._startCursor = startCursor
-		#self._endCursor = endCursor
+		# self._endCursor = endCursor
 		return self
 
 		def untrustedCursorHelper(cursor):
@@ -763,7 +764,7 @@ class Query(object):
 		"""
 		resultList = list(resultList)
 		if resultList and resultList[0].key.kind != self.origKind and resultList[0].key.parent and \
-				resultList[0].key.parent.kind == self.origKind:
+			resultList[0].key.parent.kind == self.origKind:
 			return list(Get([x.key.parent for x in resultList]))
 		return resultList
 
@@ -823,13 +824,15 @@ class Query(object):
 		else:  # We have just one single query
 			res = self._fixKind(self._runSingleFilterQuery(self.queries, limit if limit != -1 else self.queries.limit))
 		if conf["viur.debug.traceQueries"]:
-			#orders = self.queries.orders
+			# orders = self.queries.orders
 			filters = self.queries
-			distinctOn = "" # "" distinct on %s" % str(self._distinct) if self._distinct else ""
+			distinctOn = ""  # "" distinct on %s" % str(self._distinct) if self._distinct else ""
 			if self.kind != self.origKind:
-				logging.debug("Queried %s via %s with filter %s and orders %s. Returned %s results" % (self.origKind, self.kind, filters, distinctOn, len(res)))
+				logging.debug("Queried %s via %s with filter %s and orders %s. Returned %s results" % (
+				self.origKind, self.kind, filters, distinctOn, len(res)))
 			else:
-				logging.debug("Queried %s with filter %s and orders %s. Returned %s results" % (self.kind, filters, distinctOn, len(res)))
+				logging.debug("Queried %s with filter %s and orders %s. Returned %s results" % (
+				self.kind, filters, distinctOn, len(res)))
 		if res:
 			self._lastEntry = res[-1]
 		return res
@@ -857,7 +860,7 @@ class Query(object):
 		"""
 		if self.srcSkel is None:
 			raise NotImplementedError("This query has not been created using skel.all()")
-		#limit = limit if limit != -1 else self._limit
+		# limit = limit if limit != -1 else self._limit
 		if limit != -1 and not (0 < limit < 100):
 			logging.error(("Limit", limit))
 			raise NotImplementedError(
@@ -949,19 +952,19 @@ class Query(object):
 		res = Query(self.getKind(), self.srcSkel)
 		res.kind = self.kind
 		res.queries = deepcopy(self.queries)
-		#res.filters = deepcopy(self.filters)
-		#res.orders = deepcopy(self.orders)
-		#res._limit = self._limit
+		# res.filters = deepcopy(self.filters)
+		# res.orders = deepcopy(self.orders)
+		# res._limit = self._limit
 		res._filterHook = self._filterHook
 		res._orderHook = self._orderHook
-		#res._startCursor = self._startCursor
-		#res._endCursor = self._endCursor
+		# res._startCursor = self._startCursor
+		# res._endCursor = self._endCursor
 		res._customMultiQueryMerge = self._customMultiQueryMerge
 		res._calculateInternalMultiQueryLimit = self._calculateInternalMultiQueryLimit
 		res.customQueryInfo = self.customQueryInfo
 		res.origKind = self.origKind
 		res._fulltextQueryString = self._fulltextQueryString
-		#res._distinct = self._distinct
+		# res._distinct = self._distinct
 		return res
 
 	def __repr__(self):

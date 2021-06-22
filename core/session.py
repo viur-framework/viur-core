@@ -7,7 +7,6 @@ from viur.core.tasks import PeriodicTask, callDeferred
 from viur.core import db, utils
 from viur.core.config import conf
 
-
 """
 	Provides a fast and reliable session implementation for the Google AppEngine™.
 	Import singleton ``current`` to access the currently active session.
@@ -76,7 +75,7 @@ class GaeSession:
 		"""
 		try:
 			if self.changed or self.isInitial:
-				if not (req.isSSLConnection or req.isDevServer) :  # We will not issue sessions over http anymore
+				if not (req.isSSLConnection or req.isDevServer):  # We will not issue sessions over http anymore
 					return False
 				# Get the current user id
 				try:
@@ -102,7 +101,7 @@ class GaeSession:
 				secure = "; Secure" if not req.isDevServer else ""
 				maxAge = "; Max-Age=%s" % conf["viur.session.lifeTime"] if not self.sessionCookie else ""
 				req.response.headerlist.append(("Set-Cookie", "%s=%s; Path=/; HttpOnly%s%s%s" % (
-				self.cookieName, self.cookieKey, sameSite, secure, maxAge)))
+					self.cookieName, self.cookieKey, sameSite, secure, maxAge)))
 		except Exception as e:
 			raise  # FIXME
 			logging.exception(e)
@@ -208,6 +207,7 @@ class GaeSession:
 				dbSession["securityKey"] = utils.generateRandomString(13)
 				db.Put(dbSession)
 				return dbSession["securityKey"]
+
 			try:
 				newSkey = db.RunInTransaction(exchangeSecurityKey)
 			except:  # This should be transaction collision

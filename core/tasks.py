@@ -19,7 +19,7 @@ from viur.core.config import conf
 from viur.core.utils import currentLanguage, currentRequest, currentSession
 
 
-#class JsonKeyEncoder(json.JSONEncoder):
+# class JsonKeyEncoder(json.JSONEncoder):
 def preprocessJsonObject(o):
 	"""
 		Add support for Keys, Datetime, Bytes and db.Entities in deferred tasks.
@@ -210,7 +210,7 @@ class TaskHandler:
 			logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
 			raise errors.Forbidden()
 		if req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs \
-				and (not utils.isLocalDevelopmentServer or os.getenv("TASKS_EMULATOR") is None):
+			and (not utils.isLocalDevelopmentServer or os.getenv("TASKS_EMULATOR") is None):
 			logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
 			raise errors.Forbidden()
 		# Check if the retry count exceeds our warning threshold
@@ -335,10 +335,10 @@ class TaskHandler:
 
 		tasks = db.SkelListRef()
 		tasks.extend([{
-				"key": x.key,
-				"name": str(x.name),
-				"descr": str(x.descr)
-			} for x in _callableTasks.values() if x().canCall()
+			"key": x.key,
+			"name": str(x.name),
+			"descr": str(x.descr)
+		} for x in _callableTasks.values() if x().canCall()
 		])
 
 		return self.render.list(tasks)
@@ -361,7 +361,7 @@ class TaskHandler:
 		else:
 			skey = ""
 		if len(kwargs) == 0 or skey == "" or not skel.fromClient(kwargs) or (
-				"bounce" in kwargs and kwargs["bounce"] == "1"):
+			"bounce" in kwargs and kwargs["bounce"] == "1"):
 			return self.render.add(skel)
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
@@ -428,7 +428,7 @@ def callDeferred(func):
 		except:  # This will fail for warmup requests
 			req = None
 		if req is not None and req.request.headers.get("X-Appengine-Taskretrycount") \
-				and "DEFERED_TASK_CALLED" not in dir(req):
+			and "DEFERED_TASK_CALLED" not in dir(req):
 			# This is the deferred call
 			req.DEFERED_TASK_CALLED = True  # Defer recursive calls to an deferred function again.
 			if self is __undefinedFlag_:
