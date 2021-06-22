@@ -113,7 +113,9 @@ def getCurrentUser(render):
 	:rtype: dict
 	"""
 	currentUser = utils.getCurrentUser()
-	return render.collectSkelData(currentUser) if currentUser else None
+	if currentUser:
+		currentUser.renderPreparation = render.renderBoneValue
+	return currentUser
 
 
 @jinjaGlobalFunction
@@ -188,8 +190,8 @@ def getSkel(render, module, key=None, skel="viewSkel"):
 		else:  # No Access-Test for this module
 			if not skel.fromDB(key):
 				return None
-
-		return render.collectSkelData(skel)
+		skel.renderPreparation = render.renderBoneValue
+		return skel
 
 	return False
 
