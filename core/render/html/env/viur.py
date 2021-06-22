@@ -537,7 +537,7 @@ def renderEditBone(render, skel, boneName, boneErrors=None, prefix=None):
 	return tpl.render(
 		boneName=((prefix + ".") if prefix else "") + boneName,
 		boneParams=boneParams,
-		boneValue=skel["value"].get(boneName, None),
+		boneValue=skel["value"][boneName],
 		boneErrors=boneErrors
 	)
 
