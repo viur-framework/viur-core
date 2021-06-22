@@ -3,6 +3,7 @@ from viur.core.bones import stringBone
 from viur.core import utils
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 
+
 class credentialBone(stringBone):
 	"""
 		A bone for storing credentials.
@@ -36,5 +37,5 @@ class credentialBone(stringBone):
 	def singleValueFromClient(self, value, skel, name, origData):
 		err = self.isInvalid(value)
 		if not err:
-			return utils.escapeString(value, 4*1024), None
+			return utils.escapeString(value, 4 * 1024), None
 		return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]

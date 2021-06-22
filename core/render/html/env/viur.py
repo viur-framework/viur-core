@@ -83,10 +83,10 @@ def execRequest(render, path, *args, **kwargs):
 			currReq.internalRequest = lastRequestState
 			return (u"Path not found %s (failed Part was %s)" % (path, currpath))
 	if (not hasattr(caller, '__call__')
-			or ((not "exposed" in dir(caller)
-				 or not caller.exposed))
-			and (not "internalExposed" in dir(caller)
-				 or not caller.internalExposed)):
+		or ((not "exposed" in dir(caller)
+			 or not caller.exposed))
+		and (not "internalExposed" in dir(caller)
+			 or not caller.internalExposed)):
 		currReq.kwargs = tmp_params  # Reset RequestParams
 		currReq.internalRequest = lastRequestState
 		return (u"%s not callable or not exposed" % str(caller))
@@ -100,7 +100,7 @@ def execRequest(render, path, *args, **kwargs):
 	currReq.internalRequest = lastRequestState
 	if cachetime:
 		pass
-		#memcache.set(cacheKey, resstr, cachetime)
+	# memcache.set(cacheKey, resstr, cachetime)
 	return resstr
 
 
@@ -302,6 +302,7 @@ def getList(render, module, skel="viewSkel", _noEmptyFilter=False, *args, **kwar
 		for skel in mylist:
 			skel.renderPreparation = render.renderBoneValue
 	return mylist
+
 
 @jinjaGlobalFunction
 def getSecurityKey(render, **kwargs):
@@ -569,8 +570,8 @@ def renderEditForm(render, skel, ignore=None, hide=None, prefix=None):
 			if ignore and boneName in ignore:
 				continue
 
-			#print("--- skel[\"errors\"] ---")
-			#print(skel["errors"])
+			# print("--- skel[\"errors\"] ---")
+			# print(skel["errors"])
 
 			pathToBone = ((prefix + ".") if prefix else "") + boneName
 			boneErrors = [entry for entry in skel["errors"] if ".".join(entry.fieldPath).startswith(pathToBone)]
@@ -662,6 +663,7 @@ def downloadUrlFor(render: 'viur.core.render.html.default.Render', fileObj: dict
 	else:
 		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileObj["name"], derived=False, expires=expires)
 
+
 @jinjaGlobalFunction
 def srcSetFor(render, fileObj, expires):
 	if "dlkey" not in fileObj and "dest" in fileObj:
@@ -676,14 +678,16 @@ def srcSetFor(render, fileObj, expires):
 	for fileName, derivate in fileObj["derived"].items():
 		params = derivate["params"]
 		if params.get("group") == "srcset":
-			resList.append("%s %sw" % (utils.downloadUrlFor(fileObj["dlkey"], fileName, True, expires), params["width"]))
+			resList.append(
+				"%s %sw" % (utils.downloadUrlFor(fileObj["dlkey"], fileName, True, expires), params["width"]))
 	return ", ".join(resList)
+
 
 @jinjaGlobalFunction
 def seoUrlForEntry(render, *args, **kwargs):
 	return utils.seoUrlToEntry(*args, **kwargs)
 
+
 @jinjaGlobalFunction
 def seoUrlToFunction(render, *args, **kwargs):
 	return utils.seoUrlToFunction(*args, **kwargs)
-

@@ -4,12 +4,12 @@ from viur.core.db import Entity, KeyClass, keyHelper, KEY_SPECIAL_PROPERTY
 from viur.core.utils import normalizeKey
 import logging
 
+
 class keyBone(baseBone):
 	type = "key"
 
 	def __init__(self, descr="Key", readOnly=True, visible=False, **kwargs):
 		super(keyBone, self).__init__(descr=descr, readOnly=True, visible=visible, defaultValue=None, **kwargs)
-
 
 	def unserialize(self, skel: 'viur.core.skeleton.SkeletonValues', name: str) -> bool:
 		"""
@@ -22,6 +22,7 @@ class keyBone(baseBone):
 			:type expando: db.Entity
 			:returns: bool
 		"""
+
 		def fixVals(val):
 			if isinstance(val, str):
 				try:
@@ -31,7 +32,9 @@ class keyBone(baseBone):
 			elif not isinstance(val, KeyClass):
 				val = None
 			return val
-		if name=="key" and isinstance(skel.dbEntity, Entity) and skel.dbEntity.key and not skel.dbEntity.key.is_partial:
+
+		if name == "key" and isinstance(skel.dbEntity,
+										Entity) and skel.dbEntity.key and not skel.dbEntity.key.is_partial:
 			skel.accessedValues[name] = skel.dbEntity.key
 			return True
 		elif name in skel.dbEntity:
@@ -69,7 +72,6 @@ class keyBone(baseBone):
 			return True
 		return False
 
-
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		"""
 			Parses the searchfilter a client specified in his Request into
@@ -90,6 +92,7 @@ class keyBone(baseBone):
 			:type rawFilter: dict
 			:returns: The modified :class:`server.db.Query`
 		"""
+
 		def _decodeKey(key):
 			if isinstance(key, KeyClass):
 				return key
@@ -100,12 +103,13 @@ class keyBone(baseBone):
 					logging.exception(e)
 					logging.warning("Could not decode key %s" % key)
 					raise RuntimeError()
+
 		if name in rawFilter:
 			if isinstance(rawFilter[name], list):
 				if isinstance(dbFilter.filters, list):
 					raise ValueError("In-Filter already used!")
 				elif dbFilter.filters is None:
-					return dbFilter # Query is already unsatisfiable
+					return dbFilter  # Query is already unsatisfiable
 				oldFilter = dbFilter.filters
 				dbFilter.filters = []
 				for key in rawFilter[name]:

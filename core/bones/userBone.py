@@ -7,7 +7,8 @@ class userBone(relationalBone):
 	kind = "user"
 	datafields = ["name"]
 
-	def __init__(self, creationMagic=False, updateMagic=False, visible=None, multiple=False, readOnly=False, *args, **kwargs):
+	def __init__(self, creationMagic=False, updateMagic=False, visible=None, multiple=False, readOnly=False, *args,
+				 **kwargs):
 		if creationMagic or updateMagic:
 			readOnly = False
 			if visible is None:

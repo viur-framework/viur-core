@@ -214,10 +214,10 @@ class List(BasicApplication):
 		if not self.canEdit(skel):
 			raise errors.Unauthorized()
 		if (len(kwargs) == 0  # no data supplied
-				or skey == ""  # no security key
-				or not currentRequest.get().isPostRequest  # failure if not using POST-method
-				or not skel.fromClient(kwargs)  # failure on reading into the bones
-				or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before changing
+			or skey == ""  # no security key
+			or not currentRequest.get().isPostRequest  # failure if not using POST-method
+			or not skel.fromClient(kwargs)  # failure on reading into the bones
+			or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before changing
 		):
 			# render the skeleton in the version it could as far as it could be read.
 			return self.render.edit(skel)
@@ -254,10 +254,10 @@ class List(BasicApplication):
 			raise errors.Unauthorized()
 		skel = self.addSkel()
 		if (len(kwargs) == 0  # no data supplied
-				or skey == ""  # no skey supplied
-				or not currentRequest.get().isPostRequest  # failure if not using POST-method
-				or not skel.fromClient(kwargs)  # failure on reading into the bones
-				or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
+			or skey == ""  # no skey supplied
+			or not currentRequest.get().isPostRequest  # failure if not using POST-method
+			or not skel.fromClient(kwargs)  # failure on reading into the bones
+			or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
 		):
 			# render the skeleton in the version it could as far as it could be read.
 			return self.render.add(skel)
@@ -440,8 +440,8 @@ class List(BasicApplication):
 			return True
 
 		if (user and user["access"]
-				and ("%s-add" % self.moduleName in user["access"]
-					 or "%s-edit" % self.moduleName in user["access"])):
+			and ("%s-add" % self.moduleName in user["access"]
+				 or "%s-edit" % self.moduleName in user["access"])):
 			return True
 
 		return False

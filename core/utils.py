@@ -11,7 +11,6 @@ from typing import Any, Union
 import google.auth
 from viur.core import conf, db
 
-
 # Proxy to context depended variables
 currentRequest = ContextVar("Request", default=None)
 currentRequestData = ContextVar("Request-Data", default=None)
@@ -22,12 +21,13 @@ currentLanguage = ContextVar("Language", default=None)
 _, projectID = google.auth.default()
 del _
 # Determine our basePath (as os.getCWD is broken on appengine)
-projectBasePath = globals()["__file__"].replace("/viur/core/utils.py","")
+projectBasePath = globals()["__file__"].replace("/viur/core/utils.py", "")
 isLocalDevelopmentServer = os.environ['GAE_ENV'] == "localdev"
 
 
 def utcNow():
 	return datetime.now(timezone.utc)
+
 
 def generateRandomString(length: int = 13) -> str:
 	"""

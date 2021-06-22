@@ -104,7 +104,8 @@ class RateLimit(object):
 		keyBase = currentDateTime.strftime("%Y-%m-%d-%%s")
 		cacheKeys = []
 		for x in range(0, self.steps):
-			cacheKeys.append(db.Key(self.rateLimitKind, "%s-%s-%s" % (self.resource, endPoint, keyBase % (currentStep - x))))
+			cacheKeys.append(
+				db.Key(self.rateLimitKind, "%s-%s-%s" % (self.resource, endPoint, keyBase % (currentStep - x))))
 		tmpRes = db.Get(cacheKeys)
 		return sum([x["value"] for x in tmpRes if currentDateTime < x["expires"]]) <= self.maxRate
 

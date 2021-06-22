@@ -121,19 +121,21 @@ class relationalBone(baseBone):
 			from viur.core.skeleton import RefSkel, SkeletonInstance
 			self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
 			self._skeletonInstanceClassRef = SkeletonInstance
-		#	self._usingSkelCache = using() if using else None
-		#else:
-		#	self._refSkelCache = None
-		#	self._usingSkelCache = None
+
+	#	self._usingSkelCache = using() if using else None
+	# else:
+	#	self._refSkelCache = None
+	#	self._usingSkelCache = None
 
 	def setSystemInitialized(self):
 		super(relationalBone, self).setSystemInitialized()
 		from viur.core.skeleton import RefSkel, SkeletonInstance
 		self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
 		self._skeletonInstanceClassRef = SkeletonInstance
-		#from viur.core.skeleton import RefSkel, skeletonByKind
-		#self._refSkelCache = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
-		#self._usingSkelCache = self.using() if self.using else None
+
+	# from viur.core.skeleton import RefSkel, skeletonByKind
+	# self._refSkelCache = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
+	# self._usingSkelCache = self.using() if self.using else None
 
 	def _getSkels(self):
 		refSkel = self._refSkelCache()
@@ -146,6 +148,7 @@ class relationalBone(baseBone):
 			:param value: Json-Encoded datastore property
 			:return: Our Value (with restored RelSkel and using-Skel)
 		"""
+
 		def fixFromDictToEntry(inDict):
 			if not isinstance(inDict, dict):
 				return None
@@ -192,7 +195,6 @@ class relationalBone(baseBone):
 		else:
 			usingData = None
 		return {"dest": relSkel, "rel": usingData}
-
 
 	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
 		oldRelationalLocks = set(skel.dbEntity.get("%s_outgoingRelationalLocks" % name) or [])
@@ -316,7 +318,6 @@ class relationalBone(baseBone):
 				referencedEntry["viur_incomming_relational_locks"] = [x for x in incommingLocks if x != skel["key"]]
 				db.Put(referencedEntry)
 
-
 	def postSavedHandler(self, skel, boneName, key):
 		if not skel[boneName]:
 			values = []
@@ -329,9 +330,9 @@ class relationalBone(baseBone):
 		else:
 			values = [skel[boneName]]
 		values = [x for x in values if x is not None]
-		#elif isinstance(skel[boneName], dict):
+		# elif isinstance(skel[boneName], dict):
 		#	values = [dict((k, v) for k, v in skel[boneName].items())]
-		#else:
+		# else:
 		#	values = [dict((k, v) for k, v in x.items()) for x in skel[boneName]]
 		parentValues = db.Entity()
 		srcEntity = skel.dbEntity
@@ -400,6 +401,7 @@ class relationalBone(baseBone):
 
 	def singleValueFromClient(self, value, skel, name, origData):
 		oldValues = skel[name]
+
 		def restoreSkels(key, usingData, index=None):
 			refSkel, usingSkel = self._getSkels()
 			isEntryFromBackup = False  # If the referenced entry has been deleted, restore information from backup
@@ -433,7 +435,8 @@ class relationalBone(baseBone):
 			else:
 				if index:
 					errors.append(
-						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value submitted", [str(index)]))
+						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value submitted",
+											[str(index)]))
 				else:
 					errors.append(
 						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value submitted"))
@@ -445,6 +448,7 @@ class relationalBone(baseBone):
 							error.fieldPath.insert(0, str(index))
 					errors.extend(usingSkel.errors)
 			return refSkel, usingSkel, errors
+
 		if self.using and isinstance(value, dict):
 			usingData = value
 			destKey = usingData["key"]
@@ -452,7 +456,7 @@ class relationalBone(baseBone):
 		else:
 			destKey = value
 			usingData = None
-		#if not destKey:  # Allow setting this bone back to empty
+		# if not destKey:  # Allow setting this bone back to empty
 		#	return None, [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value submitted")]
 		assert isinstance(destKey, str)
 		refSkel, usingSkel, errors = restoreSkels(destKey, usingData)
@@ -479,7 +483,7 @@ class relationalBone(baseBone):
 			"viur_dest_kind =": self.kind,
 			"viur_src_property =": name
 
-		}, orders = [], startCursor=origQueries.startCursor, endCursor=origQueries.endCursor)
+		}, orders=[], startCursor=origQueries.startCursor, endCursor=origQueries.endCursor)
 		for k, v in origQueries.filters.items():  # Merge old filters in
 			# Ensure that all non-relational-filters are in parentKeys
 			if k == db.KEY_SPECIAL_PROPERTY:
@@ -725,6 +729,7 @@ class relationalBone(baseBone):
 		"""
 			Refresh all values we might have cached from other entities.
 		"""
+
 		def updateInplace(relDict):
 			"""
 				Fetches the entity referenced by valDict["dest.key"] and updates all dest.* keys
@@ -740,6 +745,7 @@ class relationalBone(baseBone):
 			for boneName in self.refKeys:
 				if boneName != "key" and boneName in newValues:
 					relDict["dest"].dbEntity[boneName] = newValues[boneName]
+
 		if not skel[boneName] or self.updateLevel == 2:
 			return
 		logging.debug("Refreshing relationalBone %s of %s" % (boneName, skel.kindName))
@@ -870,9 +876,10 @@ class relationalBone(baseBone):
 			if not (isinstance(value, tuple) and len(value) == 2 and
 					(isinstance(value[0], str) or isinstance(value[0], db.KeyClass))
 					and isinstance(value[1], self._skeletonInstanceClassRef)) and not (isinstance(value, list)
-					and all((isinstance(x, tuple) and len(x) == 2 and
-					(isinstance(x[0], str) or isinstance(x[0], db.KeyClass))
-					and isinstance(x[1], self._skeletonInstanceClassRef) for x in value))):
+																					   and all(
+					(isinstance(x, tuple) and len(x) == 2 and
+					 (isinstance(x[0], str) or isinstance(x[0], db.KeyClass))
+					 and isinstance(x[1], self._skeletonInstanceClassRef) for x in value))):
 				raise ValueError("You must supply (db.Key, RelSkel) or a list hereof to %s" % boneName)
 			if not isinstance(value, list):
 				realValue = [value]
@@ -919,6 +926,7 @@ class relationalBone(baseBone):
 		"""
 			Returns the list of blob keys referenced from this bone
 		"""
+
 		def blobsFromRefSet(refSet):
 			result = set()
 			if refSet is None:
@@ -939,7 +947,7 @@ class relationalBone(baseBone):
 					result = result.union(blobsFromRefSet(refSet))
 		elif self.multiple:
 			for refSet in skel[name]:
-					result = result.union(blobsFromRefSet(refSet))
+				result = result.union(blobsFromRefSet(refSet))
 		elif self.languages:
 			for refSet in skel[name].values():
 				result = result.union(blobsFromRefSet(refSet))

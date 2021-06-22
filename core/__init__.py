@@ -27,8 +27,6 @@
 
 __version__ = (3, -99, -99)  # Which API do we expose to our application
 
-
-
 from types import ModuleType
 from typing import Dict, Union
 from viur.core.config import conf
@@ -319,6 +317,7 @@ def exposed(f):
 			g.exposed = True
 			g.seoLanguageMap = f
 			return g
+
 		return exposeWithTranslations
 	else:
 		f.exposed = True

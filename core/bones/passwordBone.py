@@ -17,10 +17,10 @@ from typing import List, Union
 def pbkdf2(password, salt, iterations=1001, keylen=42):
 	"""
 		An implementation of PBKDF2 (http://wikipedia.org/wiki/PBKDF2)
-		
-		Mostly based on the implementation of 
+
+		Mostly based on the implementation of
 		https://github.com/mitsuhiko/python-pbkdf2/blob/master/pbkdf2.py
-		
+
 		:copyright: (c) Copyright 2011 by Armin Ronacher.
 		:license: BSD, see LICENSE for more details.
 	"""
@@ -51,7 +51,7 @@ class passwordBone(stringBone):
 		A bone holding passwords.
 		This is always empty if read from the database.
 		If its saved, its ignored if its values is still empty.
-		If its value is not empty, its hashed (with salt) and only the resulting hash 
+		If its value is not empty, its hashed (with salt) and only the resulting hash
 		will be written to the database
 	"""
 	type = "password"
@@ -68,7 +68,7 @@ class passwordBone(stringBone):
 	tooShortMessage = translate("server.bones.passwordBone.tooShortMessage",
 								defaultText="The entered password is to short - it requires at least {{length}} characters.")
 	tooWeakMessage = translate("server.bones.passwordBone.tooWeakMessage",
-								defaultText="The entered password is too weak.")
+							   defaultText="The entered password is too weak.")
 
 	def isInvalid(self, value):
 		if not value:

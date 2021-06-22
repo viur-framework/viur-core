@@ -54,7 +54,7 @@ class FetchMetaDataValidator(RequestValidator):
 		if headers.get('sec-fetch-site') in {"same-origin", "none"}:  # A Request from our site
 			return None
 		if headers.get('sec-fetch-mode') == 'navigate' and not request.isPostRequest \
-				and headers.get('sec-fetch-dest') not in {'object', 'embed'}:  # Incoming navigation GET request
+			and headers.get('sec-fetch-dest') not in {'object', 'embed'}:  # Incoming navigation GET request
 			return None
 		return 403, "Forbidden", "Request rejected due to fetch metadata"
 
@@ -390,7 +390,7 @@ class BrowseHandler():  # webapp.RequestHandler
 		typeOrigin = typing.get_origin(typeHint)
 		if typeOrigin is typing.Union:
 			typeArgs = typing.get_args(typeHint)
-			if len(typeArgs) == 2 and isinstance(None, typeArgs[1]): # is None:
+			if len(typeArgs) == 2 and isinstance(None, typeArgs[1]):  # is None:
 				# This is typing.Optional
 				return self.processTypeHint(typeArgs[0], inValue, parsingOnly)
 		elif typeOrigin is list:
@@ -425,7 +425,7 @@ class BrowseHandler():  # webapp.RequestHandler
 		elif typeHint is float:
 			if not isinstance(inValue, str):
 				raise TypeError("Input argument to float typehint is not a string (probably a list)")
-			if not inValue.replace("-", "", 1).replace(",", ".", 1).replace(".","", 1).isdigit():
+			if not inValue.replace("-", "", 1).replace(",", ".", 1).replace(".", "", 1).isdigit():
 				raise TypeError("Failed to parse an float typehint")
 			f = float(inValue)
 			if f != f:
@@ -434,7 +434,7 @@ class BrowseHandler():  # webapp.RequestHandler
 		elif typeHint is bool:
 			if not isinstance(inValue, str):
 				raise TypeError("Input argument to boolean typehint is not a string (probably a list)")
-			if inValue in [str(True), u"1", u"yes"] :
+			if inValue in [str(True), u"1", u"yes"]:
 				return "True", True
 			else:
 				return "False", False
@@ -573,5 +573,3 @@ class BrowseHandler():  # webapp.RequestHandler
 
 	def saveSession(self):
 		currentSession.get().save(self)
-
-

@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime, timedelta
-#from google.appengine.ext import db
-#from google.appengine.api import memcache
-import sys
 
 apiVersion = 1  # What format do we use to store data in the bigtable
 
