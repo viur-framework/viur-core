@@ -257,8 +257,8 @@ class baseBone(object):  # One Bone:
 							continue
 						fieldSubmitted = True
 						partKey = key.replace(prefix, "")
-						firstKey, remainingKey = partKey.split(".", maxsplit=1)
 						try:
+							firstKey, remainingKey = partKey.split(".", maxsplit=1)
 							firstKey = int(firstKey)
 						except:
 							continue
