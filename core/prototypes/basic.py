@@ -64,9 +64,14 @@ class BasicApplication(object):
 				the frontend (like "add", "edit", "delete" or "preview"); it can be an action defined by a plugin
 				loaded by the frontend; or it can be a so called "server side action" (see "customActions" below)
 
-			customActions: ``List[str, dict]``
+			customActions: ``Dict[str, dict]``
 				(Optional) A mapping of names of server-defined actions that can be used
 				in the ``actions`` list above to their definition dictionary. See .... for more details.
+				
+			disabledActions: ``List[str, dict]``
+				(Optional) A list of disabled actions. The frontend will inject default actions like add or edit
+				even if they're not listed in actions. Listing them here will prevent that. It's up to the frontend
+				to decide if that action won't be visible at all or it's button just being disabled.
 
 			sortIndex: ``int``
 				(Optional) Defines the order in which the modules will appear in the main bar in

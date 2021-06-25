@@ -9,7 +9,7 @@ import sys
 from functools import partial
 from itertools import chain
 from time import time
-from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, Set
+from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, Set, Optional
 
 from viur.core import conf, db, errors, utils, email
 from viur.core.bones import baseBone, dateBone, keyBone, relationalBone, selectBone, stringBone
@@ -31,7 +31,7 @@ class MetaBaseSkel(type):
 	_skelCache = {}  # Mapping kindName -> SkelCls
 	_allSkelClasses = set()  # list of all known skeleton classes (including Ref and Mail-Skels)
 
-	__reservedKeywords_ = {"self", "cursor", "amount", "orderby", "orderdir",
+	__reservedKeywords_ = {"self", "cursor", "amount", "orderby", "orderdir", "limit"
 						   "style", "items", "keys", "values"}
 
 	def __init__(cls, name, bases, dct):
@@ -58,24 +58,38 @@ class MetaBaseSkel(type):
 		super(MetaBaseSkel, cls).__init__(name, bases, dct)
 
 
-def skeletonByKind(kindName):
-	if not kindName:
-		return None
-
+def skeletonByKind(kindName: str) -> "Skeleton":
+	"""
+		Returns the Skeleton-Class for the given kindName. That skeleton must exist, otherwise an exception is raised.
+		:param kindName: The kindname to retreive the skeleton for
+		:return: The skeleton-class for that kind
+	"""
 	assert kindName in MetaBaseSkel._skelCache, "Unknown skeleton '%s'" % kindName
 	return MetaBaseSkel._skelCache[kindName]
 
 
-def listKnownSkeletons():
+def listKnownSkeletons() -> List[str]:
+	"""
+		:return: A list of all known kindnames (all kindnames for which a skeleton is defined)
+	"""
 	return list(MetaBaseSkel._skelCache.keys())[:]
 
 
-def iterAllSkelClasses():
+def iterAllSkelClasses() -> Iterable["Skeleton"]:
+	"""
+		:return: An iterator that yields each Skeleton-Class once. (Only top-level skeletons are returned, so no
+			RefSkel classes will be included)
+	"""
 	for cls in list(MetaBaseSkel._allSkelClasses):  # We'll add new classes here during setSystemInitialized()
 		yield cls
 
 
 class SkeletonInstance:
+	"""
+		The actual wrapper around a Skeleton-Class. An object of this class is what's actually returned when you
+		call a Skeleton-Class. With ViUR3, you don't get an instance of a Skeleton-Class any more - it's always this
+		class. This is much faster as this is a small class.
+	"""
 	__slots__ = {"dbEntity", "accessedValues", "renderAccessedValues", "boneMap", "errors", "skeletonCls",
 				 "renderPreparation"}
 
@@ -128,8 +142,6 @@ class SkeletonInstance:
 		if isinstance(value, baseBone):
 			raise AttributeError("Don't assign this bone object as skel[\"%s\"] = ... anymore to the skeleton. "
 								 "Use skel.%s = ... for bone to skeleton assignment!" % (key, key))
-		# elif isinstance(value, db.Key):
-		#	value = str(value[1])
 		self.accessedValues[key] = value
 
 	def __getitem__(self, key):
