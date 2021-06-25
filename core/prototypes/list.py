@@ -316,7 +316,7 @@ class List(BasicApplication):
 		if args and args[0]:
 			# We probably have a Database or SEO-Key here
 			seoKey = "viur.viurActiveSeoKeys ="
-			skel = self.viewSkel().all(_excludeFromAccessLog=True).filter(seoKey, args[0]).getSkel()
+			skel = self.viewSkel().all(_excludeFromAccessLog=True).filter(seoKey, str(args[0]).lower()).getSkel()
 			if skel:
 				db.currentDbAccessLog.get(set()).add(skel["key"])
 				if not self.canView(skel):
