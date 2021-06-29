@@ -497,7 +497,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 		"""
 		Run a fulltext search
 		"""
-		keywords = [queryString.lower()]  # list(self._tagsFromString(queryString))[:10]
+		keywords = list(self._tagsFromString(queryString))[:10]
 		resultScoreMap = {}
 		resultEntryMap = {}
 		for keyword in keywords:
@@ -510,7 +510,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 				if not entry.key in resultEntryMap:
 					resultEntryMap[entry.key] = entry
 		resultList = [(k, v) for k, v in resultScoreMap.items()]
-		resultList.sort(key=lambda x: x[1])
+		resultList.sort(key=lambda x: x[1], reverse=True)
 		resList = [resultEntryMap[x[0]] for x in resultList[:databaseQuery.queries.limit]]
 		return resList
 
