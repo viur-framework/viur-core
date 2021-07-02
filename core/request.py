@@ -387,16 +387,19 @@ class BrowseHandler():  # webapp.RequestHandler
 			:param parsingOnly: If true, the parameter is a keyword argument which we can convert to List
 			:return: 2-tuple of the original string-value and the converted value
 		"""
-		typeOrigin = typing.get_origin(typeHint)
+		try:
+			typeOrigin = typeHint.__origin__  # Was: typing.get_origin(typeHint) (not supported in python 3.7)
+		except:
+			typeOrigin = None
 		if typeOrigin is typing.Union:
-			typeArgs = typing.get_args(typeHint)
+			typeArgs = typeHint.__args__  # Was: typing.get_args(typeHint) (not supported in python 3.7)
 			if len(typeArgs) == 2 and isinstance(None, typeArgs[1]):  # is None:
 				# This is typing.Optional
 				return self.processTypeHint(typeArgs[0], inValue, parsingOnly)
 		elif typeOrigin is list:
 			if parsingOnly:
 				raise TypeError("Cannot convert *args argument to list")
-			typeArgs = typing.get_args(typeHint)
+			typeArgs = typeHint.__args__  # Was: typing.get_args(typeHint) (not supported in python 3.7)
 			if len(typeArgs) != 1:
 				raise TypeError("Invalid List subtype")
 			typeArgs = typeArgs[0]
