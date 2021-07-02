@@ -262,36 +262,30 @@ def modulePath(render):
 
 
 @jinjaGlobalFunction
-def getList(render, module, skel="viewSkel", _noEmptyFilter=False, *args, **kwargs):
+def getList(render: 'viur.core.render.html.default.Render', module: str, skel: str = "viewSkel",
+			_noEmptyFilter: bool = False, *args, **kwargs) -> Union[bool, None, List[SkeletonInstance]]:
 	"""
-	Jinja2 global: Fetches a list of entries which match the given filter criteria.
+		Jinja2 global: Fetches a list of entries which match the given filter criteria.
 
-	:param module: Name of the module from which list should be fetched.
-	:type module: str
-
-	:param skel: Name of the skeleton that is used to fetching the list.
-	:type skel: str
-
-	:param _noEmptyFilter: If True, this function will not return any results if at least one
-	parameter is an empty list. This is useful to prevent filtering (e.g. by key) not being
-	performed because the list is empty.
-	:type _noEmptyFilter: bool
-
-	:returns: Returns a dict that contains the "skellist" and "cursor" information,
-	or None on error case.
-	:rtype: dict
+		:param module: Name of the module from which list should be fetched.
+		:param skel: Name of the skeleton that is used to fetching the list.
+		:param _noEmptyFilter: If True, this function will not return any results if at least one
+		parameter is an empty list. This is useful to prevent filtering (e.g. by key) not being
+		performed because the list is empty.
+		:returns: Returns a dict that contains the "skellist" and "cursor" information,
+		or None on error case.
 	"""
 	if not module in dir(conf["viur.mainApp"]):
 		logging.error("Jinja2-Render can't fetch a list from an unknown module %s!" % module)
 		return False
 	caller = getattr(conf["viur.mainApp"], module)
-	if not skel in dir(caller):
-		logging.error("Jinja2-Render cannot fetch a list with an unknown skeleton %s!" % skel)
+	if not "viewSkel" in dir(caller):
+		logging.error("Jinja2-Render cannot fetch a list from %s due to missing viewSkel function" % module)
 		return False
 	if _noEmptyFilter:  # Test if any value of kwargs is an empty list
 		if any([isinstance(x, list) and not len(x) for x in kwargs.values()]):
 			return []
-	query = getattr(caller, skel)().all()
+	query = getattr(caller, "viewSkel")(skel).all()
 	query.mergeExternalFilter(kwargs)
 	if "listFilter" in dir(caller):
 		query = caller.listFilter(query)
