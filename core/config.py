@@ -141,7 +141,7 @@ conf = {
 	# Emit a Cross-Origin-Resource-Policy Header? Valid values are same-site|same-origin|cross-origin
 	"viur.security.enableCORP": "same-origin",
 	# If set, viur will emit a HSTS http-header with each request. Use security.enableStrictTransportSecurity to set this property
-	"viur.security.strictTransportSecurity": None,
+	"viur.security.strictTransportSecurity": "max-age=22118400",
 	# If set, ViUR will emit a X-Frame-Options header,
 	"viur.security.xFrameOptions": ("sameorigin", None),
 	# ViUR will emit a X-XSS-Protection header if set (the default),
