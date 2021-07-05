@@ -468,10 +468,11 @@ class relationalBone(baseBone):
 				return None, None, errors  # We could not parse this
 			if usingSkel:
 				if not usingSkel.fromClient(usingData):
+					usingSkel.errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Incomplete data"))
+				if index:
 					for error in usingSkel.errors:
-						if index:
-							error.fieldPath.insert(0, str(index))
-					errors.extend(usingSkel.errors)
+						error.fieldPath.insert(0, str(index))
+				errors.extend(usingSkel.errors)
 			return refSkel, usingSkel, errors
 
 		if self.using and isinstance(value, dict):

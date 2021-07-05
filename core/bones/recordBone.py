@@ -55,7 +55,10 @@ class recordBone(baseBone):
 
 	def singleValueFromClient(self, value, skel, name, origData):
 		usingSkel = self.using()
-		usingSkel.fromClient(value)
+		if not usingSkel.fromClient(value, not (self.required or self.multiple)):
+			usingSkel.errors.append(
+				ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Incomplete data")
+			)
 		return usingSkel, usingSkel.errors
 
 	def getSearchTags(self, values, key):
