@@ -47,9 +47,27 @@ class LanguageWrapper(dict):
 
 
 class translate:
+	"""
+		This class is the replacement for the old translate() function provided by ViUR2.  This classes __init__
+		takes the unique translation key (a string usually something like "user.auth_user_password.loginfailed" which
+		uniquely defines this text fragment), a default text that will be used if no translation for this key has been
+		added yet (in the projects default language) and a hint (an optional text that can convey context information
+		for the persons translating these texts - they are not shown to the end-user). This class will resolve it's
+		translations upfront, so the actual resolving (by casting this class to string) is fast. This resolves most
+		translation issues with bones, which can now take an instance of this class as it's description/hints.
+	"""
+
 	__slots__ = ["key", "defaultText", "hint", "translationCache"]
 
-	def __init__(self, key, defaultText=None, hint=None):
+	def __init__(self, key: str, defaultText: str = None, hint: str = None):
+		"""
+		:param key: The unique key defining this text fragment. Usually it's path/filename and a uniqe descriptor
+			in that file
+		:param defaultText:  The text to use if no translation has been added yet. While optional, it's recommended
+			to set this, as we use the key instead if neither are available.
+		:param hint: A text only shown to the person translating this text, as the key/defaultText may have different
+			meanings in the target language.
+		"""
 		super(translate, self).__init__()
 		self.key = key.lower()
 		self.defaultText = defaultText
@@ -138,6 +156,13 @@ class TranslationExtension(Extension):
 
 
 def initializeTranslations():
+	"""
+		Fetches all translations from the datastore and populates the *systemTranslations* dictionary of this module.
+		Currently, the translate-class will resolve using that dictionary; but as we expect projects to grow and
+		accumulate translations that are no longer/not yet used, we plan to made the translation-class fetch it's
+		translations directly from the datastore, so we don't have to allocate memory for unused translations.
+
+	"""
 	global systemTranslations
 	invertMap = {}
 	for srcLang, dstLang in conf["viur.languageAliasMap"].items():
@@ -207,13 +232,13 @@ localizedMonthNames = {
 
 def localizedStrfTime(datetimeObj: datetime, format: str) -> str:
 	"""
-	Provides correct localized names for directives like %a which dont get translated on GAE properly as we can't
-	set the locale (for each request).
-	This currently replaces %a, %A, %b, %B, %c, %x and %X.
+		Provides correct localized names for directives like %a which dont get translated on GAE properly as we can't
+		set the locale (for each request).
+		This currently replaces %a, %A, %b, %B, %c, %x and %X.
 
-	:param datetimeObj: Datetime-instance to call strftime on
-	:param format: String containing the Format to apply.
-	:returns: Date and time formatted according to format with correct localization
+		:param datetimeObj: Datetime-instance to call strftime on
+		:param format: String containing the Format to apply.
+		:returns: Date and time formatted according to format with correct localization
 	"""
 	if "%c" in format:
 		format = format.replace("%c", str(localizedDateTime))
