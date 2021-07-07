@@ -1,18 +1,30 @@
 # -*- coding: utf-8 -*-
 
 """
-	This module provides onetime keys. Such a Securitykey can only be used once to authenticate an action like
-	edit an entry. Unless specified otherwise, keys are bound to a session. This prevents such actions from beeing
-	executed without explicit user consent so an attacker can't send special crafted links (like /user/delete/xxx)
-	to a authenticated user as these links would lack a valid securityKey.
+	This module provides onetime keys.
+	There are two types of security keys:
+	- If :meth:create is called without arguments, it returns the current session CSRF token. Repeated calls to
+		:meth:create will return the same CSRF token (for the same session) until that token has been redeemed.
+		This security key will be valid as long the session is active and it's not possible to store data along with
+		that key. These are usually used as a CSRF token.
+		This has been changed from ViUR2 - where it was possible to create a arbitrary number of security keys per
+		session.
+	- If :meth:create is called with a duration (and optional keyword-parameters), it will create a security key
+		that is *not* bound to the current session, but it's possible to store custom data (the excess keyword
+		arguments passed to :meth:create). As these are not bound to the session, each call to :meth:create will yield
+		a new token. These are used if it's expected that the token may be redeemed on a different device (eg. when
+		sending an email address confirmation email)
 
-	Its also possible to store data along with a securityKey and specify a lifeTime.
-
+	..note: There's a hidden 3rd type of security-key: The sessions static security key. This key is only revealed once
+		(during login, as the protected header Sec-X-ViUR-StaticSKey). This can be used instead of the onetime sessions
+		security key by sending it back as the same protected http header and setting the skey value to
+		"staticSessionKey". This is only intended for non-webbrowser, programmatic access
+		(ViUR Admin, import tools etc) where CSRF attacks are not applicable. Therefore that header is prefixed with
+		"Sec-" - so it cannot be read or set by javascript.
 """
 from datetime import datetime, timedelta
 from viur.core.utils import generateRandomString
 from viur.core.utils import currentSession, currentRequest
-from viur.core import request
 from viur.core import db, conf
 from viur.core.tasks import PeriodicTask, callDeferred
 from typing import Union
@@ -21,15 +33,13 @@ from viur.core.utils import utcNow
 securityKeyKindName = "viur-securitykeys"
 
 
-def create(duration: Union[None, int] = None, **kwargs):
+def create(duration: Union[None, int] = None, **kwargs) -> str:
 	"""
-		Creates a new onetime Securitykey for the current session
-		If duration is not set, this key is valid only for the current session.
-		Otherwise, the key and its data is serialized and saved inside the datastore
-		for up to duration-seconds
+		Creates a new onetime Securitykey or returns the current sessions csrf-token.
+		The custom data (given as keyword arguments) that can be stored with the key if :param:duration is set must
+		be serializable by the datastore.
 
-		:param duration: Make this key valid for a fixed timeframe (and independend of the current session)
-		:type duration: int or None
+		:param duration: Make this key valid for a fixed timeframe (and independent of the current session)
 		:returns: The new onetime key
 	"""
 	if not duration:
@@ -46,13 +56,14 @@ def create(duration: Union[None, int] = None, **kwargs):
 
 def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
 	"""
-		Validates a onetime securitykey
+		Validates a security key. If useSessionKey is true, the key is expected to be the sessions current security key
+		(or it's static security key). Otherwise it must be a key created with a duration (so it's not session
+		dependent)
 
-		:type key: str
 		:param key: The key to validate
-		:type useSessionKey: Bool
 		:param useSessionKey: If True, we validate against the session's skey, otherwise we'll lookup an unbound key
-		:returns: False if the key was not valid for whatever reasons, the data (given during createSecurityKey) as dictionary or True if the dict is empty.
+		:returns: False if the key was not valid for whatever reasons, the data (given during createSecurityKey) as
+			dictionary or True if the dict is empty (or :param:useSessionKey was true).
 	"""
 	if useSessionKey:
 		if key == "staticSessionKey":
