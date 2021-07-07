@@ -126,6 +126,10 @@ class stringBone(baseBone):
 					prop = name + ".idx"
 			if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
 				order = (prop, db.SortOrder.Descending)
+			elif "orderdir" in rawFilter and rawFilter["orderdir"] == "2":
+				order = (prop, db.SortOrder.InvertedAscending)
+			elif "orderdir" in rawFilter and rawFilter["orderdir"] == "3":
+				order = (prop, db.SortOrder.InvertedDescending)
 			else:
 				order = (prop, db.SortOrder.Ascending)
 			inEqFilter = [x for x in dbFilter.queries.filters.keys() if  # FIXME: This will break on multi queries
