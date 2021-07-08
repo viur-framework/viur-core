@@ -14,9 +14,17 @@ from time import time
 from abc import ABC, abstractmethod
 
 
+"""
+	This module implements the WSGI (Web Server Gateway Interface) layer for ViUR. This is the main entry
+	point for incomming http requests. The main class is the :class:BrowserHandler. Each request will get it's
+	own instance of that class which then holds the reference to the request and response object.
+	Additionally, this module defines the RequestValidator interface which provides a very early hook into the
+	request processing (useful for global ratelimiting, DDoS prevention or access control).  
+"""
+
 class RequestValidator(ABC):
 	"""
-		RequestValidators can be used to validate a request early on. If the validate method returns a tuple,
+		RequestValidators can be used to validate a request very early on. If the validate method returns a tuple,
 		the request is aborted. Can be used to block requests from bots.
 
 		To register a new validator, append it to :attr: viur.core.request.BrowseHandler.requestValidators
@@ -63,6 +71,19 @@ class BrowseHandler():  # webapp.RequestHandler
 	"""
 		This class accepts the requests, collect its parameters and routes the request
 		to its destination function.
+		The basic control flow is
+		- Setting up internal variables
+		- Running the Request validators
+		- Emitting the headers (especially the security related ones)
+		- Run the TLS check (ensure it's a secure connection or check if the URL is whitelisted)
+		- Load or initialize a new session
+		- Set up i18n (choosing the language etc)
+		- Run the request preprocessor (if any)
+		- Normalize & sanity check the parameters
+		- Resolve the exposed function and call it
+		- Save the session / tear down the request
+		- Return the response generated
+
 
 		:warning: Don't instantiate! Don't subclass! DON'T TOUCH! ;)
 	"""
@@ -140,7 +161,9 @@ class BrowseHandler():  # webapp.RequestHandler
 
 	def selectLanguage(self, path: str):
 		"""
-			Tries to select the best language for the current request.
+			Tries to select the best language for the current request. Depending on the value of
+			conf["viur.languageMethod"], we'll either try to load it from the session, determine it by the domain
+			or extract it from the URL.
 		"""
 		sessionReference = currentSession.get()
 		if not conf["viur.availableLanguages"]:
@@ -443,7 +466,11 @@ class BrowseHandler():  # webapp.RequestHandler
 				return "False", False
 		raise ValueError("TypeHint %s not supported" % typeHint)
 
-	def findAndCall(self, path, *args, **kwargs):  # Do the actual work: process the request
+	def findAndCall(self, path:str, *args, **kwargs):
+		"""
+			Does the actual work of sanitizing the parameter, determine which @exposed (or @internalExposed) function
+			to call (and with witch parameters)
+		"""
 		# Prevent Hash-collision attacks
 		kwargs = {}
 		stopCount = conf["viur.maxPostParamsCount"]

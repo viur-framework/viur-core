@@ -28,7 +28,7 @@
 __version__ = (3, -99, -99)  # Which API do we expose to our application
 
 from types import ModuleType
-from typing import Dict, Union
+from typing import Dict, Union, Callable
 from viur.core.config import conf
 from viur.core import request
 from viur.core import languages as servertrans
@@ -43,17 +43,22 @@ import webob
 conf["viur.version"] = __version__
 
 
-def setDefaultLanguage(lang):
+def setDefaultLanguage(lang: str):
 	"""
-	Configures default language to *lang*.
+		Sets the default language used by ViUR to *lang*.
 
-	:param lang: Name of the language module to use by default.
-	:type lang: str
+		:param lang: Name of the language module to use by default.
 	"""
 	conf["viur.defaultLanguage"] = lang.lower()
 
 
-def setDefaultDomainLanguage(domain, lang):
+def setDefaultDomainLanguage(domain: str, lang: str):
+	"""
+		If conf["viur.languageMethod"] is set to "domain", this function allows setting the map of which domain
+		should use which language.
+		:param domain: The domain for which the language should be set
+		:param lang: The language to use (in ISO2 format, e.g. "DE")
+	"""
 	host = domain.lower().strip(" /")
 	if host.startswith("www."):
 		host = host[4:]
@@ -286,7 +291,7 @@ def app(environ, start_response):
 
 
 ## Decorators ##
-def forceSSL(f):
+def forceSSL(f: Callable) -> Callable:
 	"""
 		Decorator, which forces usage of an encrypted Channel for a given resource.
 		Has no effect on development-servers.
@@ -295,7 +300,7 @@ def forceSSL(f):
 	return f
 
 
-def forcePost(f):
+def forcePost(f: Callable) -> Callable:
 	"""
 		Decorator, which forces usage of an http post request.
 	"""
@@ -303,7 +308,7 @@ def forcePost(f):
 	return f
 
 
-def exposed(f):
+def exposed(f: Callable) -> Callable:
 	"""
 		Decorator, which marks an function as exposed.
 
@@ -325,7 +330,7 @@ def exposed(f):
 		return f
 
 
-def internalExposed(f):
+def internalExposed(f: Callable) -> Callable:
 	"""
 		Decorator, marks an function as internal exposed.
 

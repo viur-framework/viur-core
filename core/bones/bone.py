@@ -594,6 +594,10 @@ class baseBone(object):  # One Bone:
 		if "orderby" in rawFilter and rawFilter["orderby"] == name:
 			if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
 				order = (rawFilter["orderby"], db.SortOrder.Descending)
+			elif "orderdir" in rawFilter and rawFilter["orderdir"] == "2":
+				order = (rawFilter["orderby"], db.SortOrder.InvertedAscending)
+			elif "orderdir" in rawFilter and rawFilter["orderdir"] == "3":
+				order = (rawFilter["orderby"], db.SortOrder.InvertedDescending)
 			else:
 				order = (rawFilter["orderby"], db.SortOrder.Ascending)
 			queries = dbFilter.queries

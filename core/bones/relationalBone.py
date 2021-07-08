@@ -650,6 +650,10 @@ class relationalBone(baseBone):
 				orderPropertyPath = "%s.%s.%s" % (name, _type, param)
 			if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
 				order = (orderPropertyPath, db.SortOrder.Descending)
+			elif "orderdir" in rawFilter and rawFilter["orderdir"] == "2":
+				order = (orderPropertyPath, db.SortOrder.InvertedAscending)
+			elif "orderdir" in rawFilter and rawFilter["orderdir"] == "3":
+				order = (orderPropertyPath, db.SortOrder.InvertedDescending)
 			else:
 				order = (orderPropertyPath, db.SortOrder.Ascending)
 			dbFilter = dbFilter.order(order)
