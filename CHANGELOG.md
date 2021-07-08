@@ -17,6 +17,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - Support for appengine.mail api has been removed. Use the provided Send in Blue transport (or any other 3rd party) instead
 - The hierarchy and tree prototype have been merged
 - Support for translation-dictionaries shipped with the application has been removed. Use the viur-translation datastore kind instead
+- The cache (viur.core.cache) is now automatically evicted in most cases based on entities accessed / queries run.
 
 ### Removed
 - Memcache support. Caching for the datastore is not supported anymore
