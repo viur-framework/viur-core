@@ -1,0 +1,17 @@
+<div class="switch ignt-switch">
+	<input
+			class="switch-input ignt-input--boolean ignt-input--{{ boneName }}
+				{{ "is-required" if boneParams.required }}
+				{{ "is-readonly" if boneParams.readOnly }}
+			{{ "is-invalid" if boneErrors else "is-valid" }}"
+			id="ignt-id-{{ boneName }}"
+			type="checkbox"
+			name="{{ boneName }}"
+			value="True"
+			{{ "checked" if boneValue }}
+			{{ "required" if boneParams.required }}
+			{{ "readonly" if boneParams.readOnly }}
+			{% if boneErrors %} aria-invalid="true" {% endif %}
+	>
+	<label class="switch-label" for="ignt-id-{{ boneName }}"></label>
+</div>

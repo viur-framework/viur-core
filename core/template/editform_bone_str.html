@@ -1,0 +1,84 @@
+{% if boneParams.multiple and boneParams.languages %}
+    <div class="vi-bone-translator">
+        <div class="vi-bone-editor">
+            {% for lang in boneParams.languages %}
+                <div class="vi-languageWrapper js-viur-bones-str-language-wrapper" data-name="{{ boneName }}"
+                     data-lang="{{ lang }}">
+                    <div class="js-viur-bones-str-multi-str-wrapper">
+                        {% if boneValue %}
+                            {% for val in boneValue.get(lang, []) %}
+                                <div class="js-viur-bones-str-single-str-wrapper">
+                                    <input class="input js-viur-bones-str-translated-single" type="text"
+                                           name="{{ boneName }}.{{ lang }}"
+                                           value="{{ val }}">
+                                    <button class="button js-viur-bones-str-delte-single-str-wrapper">Delete</button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                        <button class="button js-viur-bones-str-add-single-str-wrapper">Add</button>
+                    </div>
+                </div>
+            {% endfor %}
+            <select class="select js-viur-bones-str-language-selector" name="{{ boneName }}_language_selector"
+                    data-name="{{ boneName }}"
+                    id="">
+                {% for lang in boneParams.languages %}
+                    <option value="{{ lang }}">{{ lang }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+{% elif not boneParams.multiple and boneParams.languages %}
+    <div class="vi-bone-translator" id="">
+        <div class="vi-bone-editor">
+            {% for lang in boneParams.languages %}
+                <div class="vi-languageWrapper js-viur-bones-str-language-wrapper" data-name="{{ boneName }}"
+                     data-lang="{{ lang }}">
+                    <input class="input" type="text"
+                           name="{{ boneName }}.{{ lang }}"
+                           value="{% if boneValue %}{{ boneValue.get(lang,"") }}{% endif %}">
+                </div>
+            {% endfor %}
+        </div>
+        <select class="select js-viur-bones-str-language-selector" name="{{ boneName }}_language_selector"
+                data-name="{{ boneName }}"
+                id="">
+            {% for lang in boneParams.languages %}
+                <option value="{{ lang }}">{{ lang }}</option>
+            {% endfor %}
+        </select>
+    </div>
+{% elif boneParams.multiple and not boneParams.languages %}
+    <div class="js-viur-bones-str-multi-str-wrapper" data-name="{{ boneName }}">
+        {% if boneValue %}
+            {% for val in boneValue %}
+                <div class="js-viur-bones-str-single-str-wrapper">
+                    <input class="input js-viur-bones-str-translated-single" type="text"
+                           name="{{ boneName }}"
+                           value="{{ val }}">
+                    <button class="button js-viur-bones-str-delte-single-str-wrapper">Delete</button>
+                </div>
+            {% endfor %}
+        {% endif %}
+        <button class="button js-viur-bones-str-add-single-str-wrapper">Add</button>
+    </div>
+{% else %}
+    <input
+        name="{{ boneName }}"
+        type="{{ "email" if boneParams.type == "str.email" else "text" }}"
+        title="{{ boneParams.tooltip or boneParams.descr or boneName }}"
+        placeholder="{{ boneParams.tooltip or boneParams.descr or boneName }}"
+        class="input ignt-input ignt-input--string ignt-input--{{ boneName }}
+            {{ "is-required" if boneParams.required }}
+			{{ "is-readonly" if boneParams.readOnly }}
+			{{ "is-invalid" if boneErrors else "is-valid" }}"
+        id="ignt-id-{{ boneName }}"
+        value="{{ boneValue|default("", true) }}"
+        {% if boneParams.maxlength %}
+            maxlength="{{ boneParams.maxlength|int }}"
+        {% endif %}
+        {{ "required" if boneParams.required and "." not in boneName }}
+        {{ "readonly" if boneParams.readOnly }}
+		{% if boneErrors %} aria-invalid="true" {% endif %}
+    >
+{% endif %}

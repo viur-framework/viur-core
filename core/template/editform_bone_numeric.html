@@ -1,0 +1,28 @@
+{%- if boneParams.precision < 0 -%}
+    {# if precision is < 0, we only allow powers of 10 to be selected by forcing the last n digits to be allways
+    zero (ie. ..., 0, 10, 20, ... or ..., 0, 100, 200, ...). We ensure that the last digits of our min/max value
+    matches that alley by foring the last n digits to be 0. Otherwise we  might end up in shifted alleys
+    ( ..., -4, 6, 16, ... or the like) #}
+    {%- set min = (boneParams.min|string)[:-(boneParams.precision|abs)]+"0"*(boneParams.precision|abs) -%}
+    {%- set max = (boneParams.max|string)[:-(boneParams.precision|abs)]+"0"*(boneParams.precision|abs) -%}
+{%- else -%}
+    {% set min = boneParams.min -%}
+    {% set max = boneParams.max -%}
+{%- endif -%}
+
+<input
+		class="input ignt-input ignt-input-numeric ignt-input--{{ boneName }}
+			{{ "is-required" if boneParams.required }}
+			{{ "is-readonly" if boneParams.readOnly }}
+			{{ "is-invalid" if boneErrors else "is-valid" }}"
+		value="{{ boneValue|default("", true) }}"
+		name="{{ boneName }}"
+		type="number"
+		title="{{ boneParams.tooltip or boneParams.descr or boneName }}"
+		id="ignt-id-{{boneName}}"
+        {% if min %} min="{{ min }}" {% endif %}
+        {% if max %} max="{{ max }}" {% endif %}
+        {{ "readonly" if boneParams.readOnly }}
+        {{ "required" if boneParams.required }}
+        {% if boneErrors %} aria-invalid="true" {% endif %}
+>

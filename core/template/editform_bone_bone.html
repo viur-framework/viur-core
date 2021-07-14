@@ -1,0 +1,11 @@
+<input
+		class="switch-input ignt-input--boolean ignt-input--{{ boneName }}
+			{{ "is-required" if boneParams.required }}
+			{{ "is-readonly" if boneParams.readOnly }}
+			{{ "is-invalid" if boneErrors else "is-valid" }}"
+		name="{{ boneName }}"
+		value="{{ boneValue or "" }}"
+		{{ "required" if boneParams.required }}
+		{{ "readonly" if boneParams.readOnly }}
+		{% if boneErrors %} aria-invalid="true" {% endif %}
+>

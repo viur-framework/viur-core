@@ -1,0 +1,34 @@
+{% if boneParams.languages %}
+    {% for lang in boneParams.languages %}
+        <div class="vi-language-wrapper js-viur-bones-text-language-wrapper" data-name="{{ boneName }}"
+             data-lang="{{ lang }}">
+            <textarea class="textarea vi-textarea" name="{{ boneName }}.{{ lang }}">
+                {%- if boneValue -%}{{ boneValue.get(lang,"") }}{%- endif -%}
+            </textarea>
+            <div class="textarea vi-textarea vi-text-bone-preview" style="display: none">
+                {% if boneValue %}{{ boneValue.get(lang,"") }}{% endif %}
+            </div>
+            <button class="btn textedit icon btn--edit" type="button">Text bearbeiten</button>
+        </div>
+    {% endfor %}
+
+    <select class="select js-viur-bones-text-language-selector" name="{{ boneName }}_language_selector"
+            data-name="{{ boneName }}">
+        {% for lang in boneParams.languages %}
+            <option value="{{ lang }}">{{ lang }}</option>
+        {% endfor %}
+    </select>
+{% else %}
+    <textarea
+        name="{{ boneName }}"
+		class="textarea ignt-textarea ignt-textarea--{{ boneName }}
+				{{ "is-required" if boneParams.required }}
+				{{ "is-readonly" if boneParams.readOnly }}
+				{{ "is-invalid" if boneErrors else "is-valid" }}"
+		id="ignt-id-{{ boneName }}"
+        {{ "readonly" if boneParams.readOnly }}
+        {{ "required" if boneParams.required }}
+	>
+		{{- boneValue|default("",true) -}}
+	</textarea>
+{% endif %}
