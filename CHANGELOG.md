@@ -6,6 +6,9 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 
 ## [develop] - Current development version
 
+## Added
+- Added validations to catch invalid recipient addresses early in sendEmail
+
 ## [3.0.0]
 
 ### Changed
