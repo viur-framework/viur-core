@@ -181,6 +181,9 @@ def sendEMail(*,
 	cc = normalizeToList(cc)
 	bcc = normalizeToList(bcc)
 	assert dests or cc or bcc, "No destination address given"
+	assert all([isinstance(x, str) and x for x in dests]), "Found non-string or empty destination address"
+	assert all([isinstance(x, str) and x for x in cc]), "Found non-string or empty cc address"
+	assert all([isinstance(x, str) and x for x in bcc]), "Found non-string or empty bcc address"
 	attachments = normalizeToList(attachments)
 	if not (bool(stringTemplate) ^ bool(tpl)):
 		raise ValueError("You have to set the params 'tpl' xor a 'stringTemplate'.")

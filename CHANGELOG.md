@@ -6,8 +6,12 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 
 ## [develop] - Current development version
 
+## Added
+- Added validations to catch invalid recipient addresses early in sendEmail
+
 ### Fixed
 - Bones with different languages can now be tested with {% if skel["bone"] %} as expected
+
 
 ## [3.0.0]
 
