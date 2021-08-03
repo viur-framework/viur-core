@@ -111,11 +111,13 @@ conf = {
 		'enforce': {
 			'style-src': ['self'],
 			'default-src': ['self'],
-			'img-src': ['self', '*.ggpht.com', '*.googleusercontent.com'],  # Serving-URLs of file-Bones will point here
+			'img-src': ['self', 'storage.googleapis.com'],  # Serving-URLs of file-Bones will point here
 			'script-src': ['self'],
 			# Required to login with google:
 			'frame-src': ['self', 'www.google.com', 'drive.google.com', 'accounts.google.com'],
-			'form-action': ['self']
+			'form-action': ['self'],
+			'connect-src': ['self'],
+			'upgrade-insecure-requests': [],
 		}
 	},
 	# Per default, we'll emit Referrer-Policy: strict-origin so no referrers leak to external services
