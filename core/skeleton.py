@@ -854,7 +854,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 						for k2, v2 in list(entity.items()):
 							if k2.startswith("%s." % k):
 								del entity[k2]
-								entity[k2.replace(".", "__")] = v2
+								backupKey= k2.replace(".", "__")
+								entity[backupKey] = v2
+								entity.exclude_from_indexes = list(entity.exclude_from_indexes) + [backupKey]
 						fixDotNames(v)
 					elif isinstance(v, list):
 						for x in v:

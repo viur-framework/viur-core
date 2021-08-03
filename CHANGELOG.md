@@ -11,6 +11,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 
 ### Fixed
 - Bones with different languages can now be tested with {% if skel["bone"] %} as expected
+- Several bugs regarding importing data from an ViUR2 instance
 
 
 ## [3.0.0]
