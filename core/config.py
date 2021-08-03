@@ -115,7 +115,9 @@ conf = {
 			'script-src': ['self'],
 			# Required to login with google:
 			'frame-src': ['self', 'www.google.com', 'drive.google.com', 'accounts.google.com'],
-			'form-action': ['self']
+			'form-action': ['self'],
+			'connect-src': ['self'],
+			'upgrade-insecure-requests': [],
 		}
 	},
 	# Per default, we'll emit Referrer-Policy: strict-origin so no referrers leak to external services

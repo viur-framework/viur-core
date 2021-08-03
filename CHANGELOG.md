@@ -8,6 +8,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 
 ## Added
 - Added validations to catch invalid recipient addresses early in sendEmail
+- 'connect-src': self and 'upgrade-insecure-requests' CSP directives by default
 
 ### Fixed
 - Bones with different languages can now be tested with {% if skel["bone"] %} as expected
