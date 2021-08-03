@@ -482,6 +482,10 @@ class baseBone(object):  # One Bone:
 			else:  # We could not parse this, maybe it has been written before languages had been set?
 				for language in self.languages:
 					res[language] = None
+					oldKey = "%s.%s" % (name, language)
+					if oldKey in skel.dbEntity and skel.dbEntity[oldKey]:
+						res[language] = self.singleValueUnserialize(skel.dbEntity[oldKey], skel, name)
+						loadVal = None  # Don't try to import later again, this format takes precedence
 				mainLang = self.languages[0]
 				if loadVal is None:
 					pass
