@@ -514,8 +514,8 @@ class baseBone(object):  # One Bone:
 				loadVal = loadVal[0]
 			if loadVal is not None:
 				res = self.singleValueUnserialize(loadVal, skel, name)
-			skel.accessedValues[name] = res
-			return True
+		skel.accessedValues[name] = res
+		return True
 
 	def delete(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
 		"""
