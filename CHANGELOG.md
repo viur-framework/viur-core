@@ -14,6 +14,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - Replaced *.ggpht.com and *.googleusercontent.com CSP directives by storage.googleapis.com
 
 ### Fixed
+- AdminInfo for tree modules without a leaf skel
 - Bones with different languages can now be tested with {% if skel["bone"] %} as expected
 - Several bugs regarding importing data from an ViUR2 instance
 
