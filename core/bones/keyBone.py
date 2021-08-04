@@ -2,7 +2,7 @@
 from viur.core.bones.bone import baseBone
 from viur.core.db import Entity, KeyClass, keyHelper, KEY_SPECIAL_PROPERTY
 from viur.core.utils import normalizeKey
-import logging
+import logging, copy
 
 
 class keyBone(baseBone):
@@ -106,22 +106,22 @@ class keyBone(baseBone):
 
 		if name in rawFilter:
 			if isinstance(rawFilter[name], list):
-				if isinstance(dbFilter.filters, list):
+				if isinstance(dbFilter.queries, list):
 					raise ValueError("In-Filter already used!")
-				elif dbFilter.filters is None:
+				elif dbFilter.queries is None:
 					return dbFilter  # Query is already unsatisfiable
-				oldFilter = dbFilter.filters
-				dbFilter.filters = []
+				oldFilter = dbFilter.queries
+				dbFilter.queries = []
 				for key in rawFilter[name]:
-					newFilter = oldFilter.copy()
+					newFilter = copy.deepcopy(oldFilter)
 					try:
 						if name == "key":
-							newFilter["%s%s =" % (prefix or "", KEY_SPECIAL_PROPERTY)] = _decodeKey(key)
+							newFilter.filters["%s%s =" % (prefix or "", KEY_SPECIAL_PROPERTY)] = _decodeKey(key)
 						else:
-							newFilter["%s%s =" % (prefix or "", name)] = _decodeKey(key)
+							newFilter.filters["%s%s =" % (prefix or "", name)] = _decodeKey(key)
 					except:  # Invalid key or something
 						raise RuntimeError()
-					dbFilter.filters.append(newFilter)
+					dbFilter.queries.append(newFilter)
 			else:
 				try:
 					if name == "key":
