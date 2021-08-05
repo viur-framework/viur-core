@@ -142,8 +142,8 @@ class TranslationExtension(Extension):
 				lastToken = None
 		if lastToken:
 			args.append(lastToken.value)
-		if not 0 < len(args) < 3:
-			raise SyntaxError("Translation-Key missing!")
+		if not 0 < len(args) <= 3:
+			raise SyntaxError("Translation-Key missing or excess parameters!")
 		args += [""] * (3 - len(args))
 		args += [kwargs]
 		trKey = args[0]
