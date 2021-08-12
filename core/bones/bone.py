@@ -617,7 +617,7 @@ class baseBone(object):  # One Bone:
 			elif isinstance(queries, list):
 				inEqFilter = None
 				for singeFilter in queries:
-					newInEqFilter = [x for x in singeFilter.filter.keys() if
+					newInEqFilter = [x for x in singeFilter.filters.keys() if
 									 (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
 					if inEqFilter and newInEqFilter and inEqFilter != newInEqFilter:
 						raise NotImplementedError("Impossible ordering!")
