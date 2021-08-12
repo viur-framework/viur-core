@@ -397,16 +397,22 @@ class baseBone(object):  # One Bone:
 		if name in skel.accessedValues:
 			newVal = skel.accessedValues[name]
 			if self.languages and self.multiple:
-				res = {"_viurLanguageWrapper_": True}
+				res = db.Entity()
+				res["_viurLanguageWrapper_"] = True
 				for language in self.languages:
 					res[language] = []
+					if not self.indexed:
+						res.exclude_from_indexes.add(language)
 					if language in newVal:
 						for singleValue in newVal[language]:
 							res[language].append(self.singleValueSerialize(singleValue, skel, name, parentIndexed))
 			elif self.languages:
-				res = {"_viurLanguageWrapper_": True}
+				res = db.Entity()
+				res["_viurLanguageWrapper_"] = True
 				for language in self.languages:
-					res[language] = []
+					res[language] = None
+					if not self.indexed:
+						res.exclude_from_indexes.add(language)
 					if language in newVal:
 						res[language] = self.singleValueSerialize(newVal[language], skel, name, parentIndexed)
 			elif self.multiple:

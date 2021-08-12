@@ -20,6 +20,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - Bones with different languages can now be tested with {% if skel["bone"] %} as expected
 - Querying by keybones with a list of keys
 - Several bugs regarding importing data from an ViUR2 instance
+- Correctly exclude non-indexed but translated bones from the datastore index
 
 
 ## [3.0.0]
