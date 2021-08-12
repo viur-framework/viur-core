@@ -538,6 +538,22 @@ class seoKeyBone(stringBone):
 		except KeyError:
 			skel.accessedValues[name] = self.getDefaultValue(skel)
 
+	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
+		# Serialize also to skel["viur"]["viurCurrentSeoKeys"], so we can use this bone in relations
+		if name in skel.accessedValues:
+			newVal = skel.accessedValues[name]
+			if not skel.dbEntity.get("viur"):
+				skel.dbEntity["viur"] = db.Entity()
+			res = db.Entity()
+			res["_viurLanguageWrapper_"] = True
+			for language in self.languages:
+				if not self.indexed:
+					res.exclude_from_indexes.add(language)
+				res[language] = None
+				if language in newVal:
+					res[language] = self.singleValueSerialize(newVal[language], skel, name, parentIndexed)
+			skel.dbEntity["viur"]["viurCurrentSeoKeys"] = res
+		return True
 
 class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 	kindName: str = __undefindedC__  # To which kind we save our data to
