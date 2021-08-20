@@ -12,6 +12,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 
 ## Changed
 - Replaced *.ggpht.com and *.googleusercontent.com CSP directives by storage.googleapis.com
+- Migrated Login with Google from Google Sign-In to Identity Services
 
 ### Fixed
 - AdminInfo for tree modules without a leaf skel
