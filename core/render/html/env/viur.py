@@ -11,6 +11,7 @@ from datetime import timedelta
 from hashlib import sha512
 from typing import Dict, List, Union, Optional
 
+import viur.core.render.html.default
 from viur.core import db, errors, prototypes, securitykey, utils
 from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
 from viur.core.skeleton import RelSkel, SkeletonInstance
@@ -210,6 +211,23 @@ def getHostUrl(render, forceSSL=False, *args, **kwargs):
 		url = "https://" + url[7:]
 	return url
 
+@jinjaGlobalFunction
+def getVersionHash(render: 'viur.core.render.html.default.Render') -> str:
+	"""
+		Jinja2 global: Return the application hash for the current version. This can be used for cache-busting in
+			resource links (eg. /static/css/style.css?v={{ getVersionHash() }}. This hash is stable for each version
+			deployed (identical across all instances), but will change whenever a new version is deployed.
+	:return: The current version hash
+	"""
+	return utils.versionHash
+
+@jinjaGlobalFunction
+def getAppVersion(render: 'viur.core.render.html.default.Render') -> str:
+	"""
+		Jinja2 global: Return the application version for the current version as set on deployment.
+	:return: The current version
+	"""
+	return utils.appVersion
 
 @jinjaGlobalFunction
 def redirect(render, url):

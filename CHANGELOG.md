@@ -9,6 +9,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 ## Added
 - Added validations to catch invalid recipient addresses early in sendEmail
 - 'connect-src': self and 'upgrade-insecure-requests' CSP directives by default
+- versionHash and appVersion variables to utils and jinja2 render 
 
 ## Changed
 - Replaced *.ggpht.com and *.googleusercontent.com CSP directives by storage.googleapis.com
