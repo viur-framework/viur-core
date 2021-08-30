@@ -7,19 +7,18 @@ from viur.core.tasks import PeriodicTask, callDeferred
 from viur.core import db, utils
 from viur.core.config import conf
 
-
 """
-	Provides a fast and reliable session implementation for the Google AppEngine™.
-	Import singleton ``current`` to access the currently active session.
+	Provides the session implementation for the Google AppEngine™ based on the datastore.
+	To access the current session,  and call currentSession.get()
 
 	Example:
 
 	.. code-block:: python
 
-		from session import current as currentSession
-
-		currentSession["your_key"] = "your_data"
-		data = currentSession["your_key"]
+		from viur.core.utils import currentSession
+		sessionData = currentSession.get()
+		sessionData["your_key"] = "your_data"
+		data = sessionData["your_key"]
 
 	A get-method is provided for convenience.
 	It returns None instead of raising an Exception if the key is not found.
@@ -27,7 +26,26 @@ from viur.core.config import conf
 
 
 class GaeSession:
-	"""Store Sessions inside the Big Table/Memcache"""
+	"""
+		Store Sessions inside the datastore.
+		The behaviour of this module can be customized in the following ways:
+
+		- :prop:sameSite can be set to None, "none", "lax" or "strict" to influence the same-site tag on the cookies
+			we set
+		- :prop:sessionCookie is set to True by default, causing the cookie to be treated as a session cookie (it will
+			be deleted on browser close). If set to False, it will be emitted with the life-time in
+			conf["viur.session.lifeTime"].
+		- The config variable conf["viur.session.lifeTime"]: Determines, how ling (in Minutes) a session stays valid.
+			Even if :prop:sessionCookie is set to True, we'll void a session server-side after no request has been made
+			within said lifeTime.
+		- The config variables conf["viur.session.persistentFieldsOnLogin"] and
+			conf["viur.session.persistentFieldsOnLogout"] lists fields, that may survive a login/logout action.
+			For security reasons, we completely destroy a session on login/logout (it will be deleted, a new empty
+			database object will be created and a new cookie with a different key is sent to the browser). This causes
+			all data currently stored to be lost. Only keys listed in these variables will be copied into the new
+			session.
+
+	"""
 	kindName = "viur-session"
 	sameSite = "lax"  # Either None (dont issue sameSite header), "none", "lax" or "strict"
 	sessionCookie = True  # If True, issue the cookie without a lifeTime (will disappear on browser close)
@@ -38,7 +56,7 @@ class GaeSession:
 			Initializes the Session.
 
 			If the client supplied a valid Cookie, the session is read
-			from the memcache/datastore, otherwise a new, empty session
+			from the datastore, otherwise a new, empty session
 			will be initialized.
 		"""
 		self.changed = False
@@ -70,13 +88,13 @@ class GaeSession:
 
 	def save(self, req):
 		"""
-			Writes the session to the memcache/datastore.
+			Writes the session to the datastore.
 
 			Does nothing, if the session hasn't been changed in the current request.
 		"""
 		try:
 			if self.changed or self.isInitial:
-				if not (req.isSSLConnection or req.isDevServer) :  # We will not issue sessions over http anymore
+				if not (req.isSSLConnection or req.isDevServer):  # We will not issue sessions over http anymore
 					return False
 				# Get the current user id
 				try:
@@ -102,7 +120,7 @@ class GaeSession:
 				secure = "; Secure" if not req.isDevServer else ""
 				maxAge = "; Max-Age=%s" % conf["viur.session.lifeTime"] if not self.sessionCookie else ""
 				req.response.headerlist.append(("Set-Cookie", "%s=%s; Path=/; HttpOnly%s%s%s" % (
-				self.cookieName, self.cookieKey, sameSite, secure, maxAge)))
+					self.cookieName, self.cookieKey, sameSite, secure, maxAge)))
 		except Exception as e:
 			raise  # FIXME
 			logging.exception(e)
@@ -208,6 +226,7 @@ class GaeSession:
 				dbSession["securityKey"] = utils.generateRandomString(13)
 				db.Put(dbSession)
 				return dbSession["securityKey"]
+
 			try:
 				newSkey = db.RunInTransaction(exchangeSecurityKey)
 			except:  # This should be transaction collision

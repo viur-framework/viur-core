@@ -35,7 +35,6 @@ bucket = client.lookup_bucket("%s.appspot.com" % projectID)
 iamClient = iam_credentials_v1.IAMCredentialsClient()
 
 
-
 def importBlobFromViur2(dlKey):
 	if not conf.get("viur.viur2import.blobsource"):
 		return False
@@ -45,7 +44,7 @@ def importBlobFromViur2(dlKey):
 			return existingImport["dlurl"]
 		return False
 	try:
-		importDataReq = urlopen(conf["viur.viur2import.blobsource"]["infoURL"]+dlKey)
+		importDataReq = urlopen(conf["viur.viur2import.blobsource"]["infoURL"] + dlKey)
 	except:
 		marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
 		marker["success"] = False
@@ -59,7 +58,7 @@ def importBlobFromViur2(dlKey):
 		db.Put(marker)
 		return False
 	importData = json.loads(importDataReq.read())
-	srcBlob = storage.Blob(bucket=bucket, name=conf["viur.viur2import.blobsource"]["gsdir"]+"/"+importData["key"])
+	srcBlob = storage.Blob(bucket=bucket, name=conf["viur.viur2import.blobsource"]["gsdir"] + "/" + importData["key"])
 	if not srcBlob.exists():
 		marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
 		marker["success"] = False
@@ -74,7 +73,6 @@ def importBlobFromViur2(dlKey):
 	marker["dlurl"] = utils.downloadUrlFor(dlKey, importData["name"], False, None)
 	db.Put(marker)
 	return marker["dlurl"]
-
 
 
 class injectStoreURLBone(baseBone):
@@ -249,7 +247,7 @@ class File(Tree):
 				skel.delete()
 
 	def signUploadURL(self, mimeTypes: Union[List[str], None] = None, maxSize: Union[int, None] = None,
-					  node:Union[str, None] = None):
+					  node: Union[str, None] = None):
 		"""
 		Internal helper that will create a signed upload-url that can be used to retrieve an uploadURL from
 		getUploadURL for guests / users without having file/add permissions. This URL is valid for an hour and can
@@ -266,7 +264,7 @@ class File(Tree):
 		:return: authData and authSig for the getUploadURL function below
 		"""
 		dataDict = {
-			"validUntil": (datetime.now()+timedelta(hours=1)).strftime("%Y%m%d%H%M"),
+			"validUntil": (datetime.now() + timedelta(hours=1)).strftime("%Y%m%d%H%M"),
 			"validMimeTypes": [x.lower() for x in mimeTypes] if mimeTypes else None,
 			"maxSize": maxSize,
 			"node": node,
@@ -275,12 +273,11 @@ class File(Tree):
 		sig = utils.hmacSign(dataStr)
 		return dataStr.decode("ASCII"), sig
 
-
 	def initializeUpload(self,
-						fileName: str,
-						mimeType: str,
-						node: Union[str, None],
-						size: Union[int, None] = None) -> Tuple[str, str]:
+						 fileName: str,
+						 mimeType: str,
+						 node: Union[str, None],
+						 size: Union[int, None] = None) -> Tuple[str, str]:
 		"""
 		Internal helper that registers a new upload. Will create the pending fileSkel entry (needed to remove any
 		started uploads from GCS if that file isn't used) and creates a resumable (and signed) uploadURL for that.
@@ -332,7 +329,7 @@ class File(Tree):
 			if authData["validMimeTypes"]:
 				for validMimeType in authData["validMimeTypes"]:
 					if validMimeType == mimeType or (
-							validMimeType.endswith("*") and mimeType.startswith(validMimeType[:-1])):
+						validMimeType.endswith("*") and mimeType.startswith(validMimeType[:-1])):
 						break
 				else:
 					raise errors.NotAcceptable()

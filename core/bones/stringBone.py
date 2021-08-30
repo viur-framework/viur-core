@@ -10,7 +10,6 @@ from typing import List, Union
 from viur.core.utils import currentLanguage
 
 
-
 class stringBone(baseBone):
 	type = "str"
 
@@ -22,7 +21,7 @@ class stringBone(baseBone):
 		super(stringBone, self).__init__(defaultValue=defaultValue, *args, **kwargs)
 		self.caseSensitive = caseSensitive
 		if not (languages is None or (isinstance(languages, list) and len(languages) > 0 and all(
-				[isinstance(x, str) for x in languages]))):
+			[isinstance(x, str) for x in languages]))):
 			raise ValueError("languages must be None or a list of strings")
 		self.languages = languages
 		if defaultValue is None:
@@ -56,7 +55,7 @@ class stringBone(baseBone):
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		if not name in rawFilter and not any(
-				[(x.startswith(name + "$") or x.startswith(name + ".")) for x in rawFilter.keys()]):
+			[(x.startswith(name + "$") or x.startswith(name + ".")) for x in rawFilter.keys()]):
 			return (super(stringBone, self).buildDBFilter(name, skel, dbFilter, rawFilter, prefix))
 		hasInequalityFilter = False
 		if not self.languages:
@@ -104,7 +103,7 @@ class stringBone(baseBone):
 
 	def buildDBSort(self, name, skel, dbFilter, rawFilter):
 		if "orderby" in rawFilter and (rawFilter["orderby"] == name or (
-				isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
+			isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
 			"%s." % name) and self.languages)):
 			if self.languages:
 				lang = None
@@ -127,6 +126,10 @@ class stringBone(baseBone):
 					prop = name + ".idx"
 			if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
 				order = (prop, db.SortOrder.Descending)
+			elif "orderdir" in rawFilter and rawFilter["orderdir"] == "2":
+				order = (prop, db.SortOrder.InvertedAscending)
+			elif "orderdir" in rawFilter and rawFilter["orderdir"] == "3":
+				order = (prop, db.SortOrder.InvertedDescending)
 			else:
 				order = (prop, db.SortOrder.Ascending)
 			inEqFilter = [x for x in dbFilter.queries.filters.keys() if  # FIXME: This will break on multi queries

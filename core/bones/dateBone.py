@@ -9,6 +9,7 @@ from typing import List, Union
 
 import pytz, tzlocal
 
+
 class dateBone(baseBone):
 	type = "date"
 
@@ -104,7 +105,8 @@ class dateBone(baseBone):
 				try:
 					if str(rawValue).count(":") > 1:
 						(hour, minute, second) = [int(x.strip()) for x in str(rawValue).split(":")]
-						value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute, second=second, tzinfo=time_zone)
+						value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute, second=second,
+										 tzinfo=time_zone)
 					elif str(rawValue).count(":") > 0:
 						(hour, minute) = [int(x.strip()) for x in str(rawValue).split(":")]
 						value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute, tzinfo=time_zone)
@@ -152,7 +154,8 @@ class dateBone(baseBone):
 				except:
 					value = False  # its invalid
 		if value is False:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
+			return self.getEmptyValue(), [
+				ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
 		value = value.replace(microsecond=0)
 		err = self.isInvalid(value)
 		if err:

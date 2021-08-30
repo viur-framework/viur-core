@@ -4,7 +4,7 @@ from viur.core.render.json.default import DefaultRender, CustomJsonEncoder
 from viur.core.render.vi.user import UserRender as user
 from viur.core.render.json.file import FileRender as file
 from viur.core.skeleton import Skeleton
-#from google.appengine.api import app_identity
+# from google.appengine.api import app_identity
 from viur.core import conf
 from viur.core import securitykey
 from viur.core import utils
@@ -15,8 +15,10 @@ import datetime, json
 from viur.core.utils import currentRequest, currentLanguage
 from viur.core.skeleton import SkeletonInstance
 
+
 class default(DefaultRender):
 	kind = "json.vi"
+
 
 __all__ = [default]
 
@@ -66,7 +68,7 @@ def getStructure(adminTree, module):
 					except TypeError:
 						continue
 					if isinstance(skel, SkeletonInstance):
-						storeType = stype.replace("Skel", "")+("LeafSkel" if treeType == "leaf" else "NodeSkel")
+						storeType = stype.replace("Skel", "") + ("LeafSkel" if treeType == "leaf" else "NodeSkel")
 						res[storeType] = default().renderSkelStructure(skel)
 	if res:
 		return json.dumps(res, cls=CustomJsonEncoder)
@@ -79,6 +81,8 @@ def setLanguage(lang, skey):
 		return
 	if lang in conf["viur.availableLanguages"]:
 		currentLanguage.set(lang)
+
+
 setLanguage.exposed = True
 
 
@@ -127,17 +131,17 @@ def canAccess(*args, **kwargs):
 		# Give the user the chance to login :)
 		return True
 	if (len(pathList) >= 3
-			and pathList[1] == "user"
-			and (pathList[2].startswith("auth_")
-				 or pathList[2].startswith("f2_")
-				 or pathList[2] == "getAuthMethods"
-				 or pathList[2] == "logout")):
+		and pathList[1] == "user"
+		and (pathList[2].startswith("auth_")
+			 or pathList[2].startswith("f2_")
+			 or pathList[2] == "getAuthMethods"
+			 or pathList[2] == "logout")):
 		# Give the user the chance to login :)
 		return True
 	if (len(pathList) >= 4
-			and pathList[1] == "user"
-			and pathList[2] == "view"
-			and pathList[3] == "self"):
+		and pathList[1] == "user"
+		and pathList[2] == "view"
+		and pathList[3] == "self"):
 		# Give the user the chance to view himself.
 		return True
 	return False
@@ -155,6 +159,8 @@ def index(*args, **kwargs):
 	else:
 		appVersion = currentRequest.get().request.host
 		raise errors.Redirect("https://%s/vi/s/main.html" % appVersion)
+
+
 index.exposed = True
 
 

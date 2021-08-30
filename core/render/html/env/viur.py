@@ -83,10 +83,10 @@ def execRequest(render, path, *args, **kwargs):
 			currReq.internalRequest = lastRequestState
 			return (u"Path not found %s (failed Part was %s)" % (path, currpath))
 	if (not hasattr(caller, '__call__')
-			or ((not "exposed" in dir(caller)
-				 or not caller.exposed))
-			and (not "internalExposed" in dir(caller)
-				 or not caller.internalExposed)):
+		or ((not "exposed" in dir(caller)
+			 or not caller.exposed))
+		and (not "internalExposed" in dir(caller)
+			 or not caller.internalExposed)):
 		currReq.kwargs = tmp_params  # Reset RequestParams
 		currReq.internalRequest = lastRequestState
 		return (u"%s not callable or not exposed" % str(caller))
@@ -100,7 +100,7 @@ def execRequest(render, path, *args, **kwargs):
 	currReq.internalRequest = lastRequestState
 	if cachetime:
 		pass
-		#memcache.set(cacheKey, resstr, cachetime)
+	# memcache.set(cacheKey, resstr, cachetime)
 	return resstr
 
 
@@ -262,36 +262,30 @@ def modulePath(render):
 
 
 @jinjaGlobalFunction
-def getList(render, module, skel="viewSkel", _noEmptyFilter=False, *args, **kwargs):
+def getList(render: 'viur.core.render.html.default.Render', module: str, skel: str = "viewSkel",
+			_noEmptyFilter: bool = False, *args, **kwargs) -> Union[bool, None, List[SkeletonInstance]]:
 	"""
-	Jinja2 global: Fetches a list of entries which match the given filter criteria.
+		Jinja2 global: Fetches a list of entries which match the given filter criteria.
 
-	:param module: Name of the module from which list should be fetched.
-	:type module: str
-
-	:param skel: Name of the skeleton that is used to fetching the list.
-	:type skel: str
-
-	:param _noEmptyFilter: If True, this function will not return any results if at least one
-	parameter is an empty list. This is useful to prevent filtering (e.g. by key) not being
-	performed because the list is empty.
-	:type _noEmptyFilter: bool
-
-	:returns: Returns a dict that contains the "skellist" and "cursor" information,
-	or None on error case.
-	:rtype: dict
+		:param module: Name of the module from which list should be fetched.
+		:param skel: Name of the skeleton that is used to fetching the list.
+		:param _noEmptyFilter: If True, this function will not return any results if at least one
+		parameter is an empty list. This is useful to prevent filtering (e.g. by key) not being
+		performed because the list is empty.
+		:returns: Returns a dict that contains the "skellist" and "cursor" information,
+		or None on error case.
 	"""
 	if not module in dir(conf["viur.mainApp"]):
 		logging.error("Jinja2-Render can't fetch a list from an unknown module %s!" % module)
 		return False
 	caller = getattr(conf["viur.mainApp"], module)
-	if not skel in dir(caller):
-		logging.error("Jinja2-Render cannot fetch a list with an unknown skeleton %s!" % skel)
+	if not "viewSkel" in dir(caller):
+		logging.error("Jinja2-Render cannot fetch a list from %s due to missing viewSkel function" % module)
 		return False
 	if _noEmptyFilter:  # Test if any value of kwargs is an empty list
 		if any([isinstance(x, list) and not len(x) for x in kwargs.values()]):
 			return []
-	query = getattr(caller, skel)().all()
+	query = getattr(caller, "viewSkel")(skel).all()
 	query.mergeExternalFilter(kwargs)
 	if "listFilter" in dir(caller):
 		query = caller.listFilter(query)
@@ -302,6 +296,7 @@ def getList(render, module, skel="viewSkel", _noEmptyFilter=False, *args, **kwar
 		for skel in mylist:
 			skel.renderPreparation = render.renderBoneValue
 	return mylist
+
 
 @jinjaGlobalFunction
 def getSecurityKey(render, **kwargs):
@@ -536,7 +531,7 @@ def renderEditBone(render, skel, boneName, boneErrors=None, prefix=None):
 	return tpl.render(
 		boneName=((prefix + ".") if prefix else "") + boneName,
 		boneParams=boneParams,
-		boneValue=skel["value"].get(boneName, None),
+		boneValue=skel["value"][boneName] if boneName in skel["value"] else None,
 		boneErrors=boneErrors
 	)
 
@@ -569,8 +564,8 @@ def renderEditForm(render, skel, ignore=None, hide=None, prefix=None):
 			if ignore and boneName in ignore:
 				continue
 
-			#print("--- skel[\"errors\"] ---")
-			#print(skel["errors"])
+			# print("--- skel[\"errors\"] ---")
+			# print(skel["errors"])
 
 			pathToBone = ((prefix + ".") if prefix else "") + boneName
 			boneErrors = [entry for entry in skel["errors"] if ".".join(entry.fieldPath).startswith(pathToBone)]
@@ -662,6 +657,7 @@ def downloadUrlFor(render: 'viur.core.render.html.default.Render', fileObj: dict
 	else:
 		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileObj["name"], derived=False, expires=expires)
 
+
 @jinjaGlobalFunction
 def srcSetFor(render, fileObj, expires):
 	if "dlkey" not in fileObj and "dest" in fileObj:
@@ -676,14 +672,16 @@ def srcSetFor(render, fileObj, expires):
 	for fileName, derivate in fileObj["derived"].items():
 		params = derivate["params"]
 		if params.get("group") == "srcset":
-			resList.append("%s %sw" % (utils.downloadUrlFor(fileObj["dlkey"], fileName, True, expires), params["width"]))
+			resList.append(
+				"%s %sw" % (utils.downloadUrlFor(fileObj["dlkey"], fileName, True, expires), params["width"]))
 	return ", ".join(resList)
+
 
 @jinjaGlobalFunction
 def seoUrlForEntry(render, *args, **kwargs):
 	return utils.seoUrlToEntry(*args, **kwargs)
 
+
 @jinjaGlobalFunction
 def seoUrlToFunction(render, *args, **kwargs):
 	return utils.seoUrlToFunction(*args, **kwargs)
-

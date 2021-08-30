@@ -113,14 +113,14 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
 					style = s[: s.find(":")].strip()
 					value = s[s.find(":") + 1:].strip()
 					if any([c in style for c in filterChars]) or any(
-							[c in value for c in filterChars]):
+						[c in value for c in filterChars]):
 						# Either the key or the value contains a character that's not supposed to be there
 						continue
 					if value.lower().startswith("expression") or value.lower().startswith("import"):
 						# IE evaluates JS inside styles if the keyword expression is present
 						continue
 					if style in self.validHtml["validStyles"] and not any(
-							[(x in value) for x in ["\"", ":", ";"]]):
+						[(x in value) for x in ["\"", ":", ";"]]):
 						syleRes[style] = value
 				if len(syleRes.keys()):
 					cacheTagStart += " style=\"%s\"" % "; ".join(

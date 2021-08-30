@@ -11,7 +11,7 @@ from viur.core.ratelimit import RateLimit
 from time import time
 from viur.core import db, exposed, forceSSL
 from hashlib import sha512
-#from google.appengine.api import users, app_identity
+# from google.appengine.api import users, app_identity
 import logging
 import datetime
 import hmac, hashlib
@@ -22,6 +22,7 @@ from viur.core.i18n import translate
 from viur.core.utils import currentRequest, currentSession, utcNow
 from viur.core.session import killSessionByUser
 from typing import Optional
+
 
 class userSkel(Skeleton):
 	kindName = "user"
@@ -261,7 +262,7 @@ class UserPassword(object):
 			return self.pwrecover()  # Fall through to the second step as that key in the session is now set
 		else:
 			if request.isPostRequest and kwargs.get("abort") == "1" \
-					and securitykey.validate(kwargs.get("skey"), useSessionKey=True):
+				and securitykey.validate(kwargs.get("skey"), useSessionKey=True):
 				# Allow a user to abort the process if a wrong email has been used
 				session["user.auth_userpassword.pwrecover"] = None
 				return self.pwrecover()
@@ -333,12 +334,12 @@ class UserPassword(object):
 			db.RunInTransaction(updateChangeDateTxn, user.key)
 			email.sendEMail(tpl=self.passwordRecoveryMail, skel={"recoveryKey": recoveryKey}, dests=[userName])
 
-
 	@exposed
 	def verify(self, skey, *args, **kwargs):
 		data = securitykey.validate(skey, useSessionKey=False)
 		skel = self.userModule.editSkel()
-		if not data or not isinstance(data, dict) or "userKey" not in data or not skel.fromDB(data["userKey"].id_or_name):
+		if not data or not isinstance(data, dict) or "userKey" not in data or not skel.fromDB(
+			data["userKey"].id_or_name):
 			return self.userModule.render.view(None, self.verifyFailedTemplate)
 		if self.registrationAdminVerificationRequired:
 			skel["status"] = 2
@@ -390,10 +391,10 @@ class UserPassword(object):
 			raise errors.Unauthorized()
 		skel = self.addSkel()
 		if (len(kwargs) == 0  # no data supplied
-				or skey == ""  # no skey supplied
-				or not currentRequest.get().isPostRequest  # bail out if not using POST-method
-				or not skel.fromClient(kwargs)  # failure on reading into the bones
-				or ("bounce" in kwargs and kwargs["bounce"] == "1")):  # review before adding
+			or skey == ""  # no skey supplied
+			or not currentRequest.get().isPostRequest  # bail out if not using POST-method
+			or not skel.fromClient(kwargs)  # failure on reading into the bones
+			or ("bounce" in kwargs and kwargs["bounce"] == "1")):  # review before adding
 			# render the skeleton in the version it could as far as it could be read.
 			return self.userModule.render.add(skel)
 		if not securitykey.validate(skey, useSessionKey=True):
@@ -401,7 +402,8 @@ class UserPassword(object):
 		skel.toDB()
 		if self.registrationEmailVerificationRequired and str(skel["status"]) == "1":
 			# The user will have to verify his email-address. Create an skey and send it to his address
-			skey = securitykey.create(duration=60 * 60 * 24 * 7, userKey=utils.normalizeKey(skel["key"]), name=skel["name"])
+			skey = securitykey.create(duration=60 * 60 * 24 * 7, userKey=utils.normalizeKey(skel["key"]),
+									  name=skel["name"])
 			skel.skey = baseBone(descr="Skey")
 			skel["skey"] = skey
 			email.sendEMail(dests=[skel["name"]], tpl=self.userModule.verifyEmailAddressMail, skel=skel)
@@ -463,13 +465,13 @@ class GoogleAccount(object):
 		if isAdd or (now - userSkel["lastlogin"]) > datetime.timedelta(minutes=30):
 			# Conserve DB-Writes: Update the user max once in 30 Minutes
 			userSkel["lastlogin"] = now
-			#if users.is_current_user_admin():
+			# if users.is_current_user_admin():
 			#	if not userSkel["access"]:
 			#		userSkel["access"] = []
 			#	if not "root" in userSkel["access"]:
 			#		userSkel["access"].append("root")
 			#	userSkel["gaeadmin"] = True
-			#else:
+			# else:
 			#	userSkel["gaeadmin"] = False
 			assert userSkel.toDB()
 		return self.userModule.continueAuthenticationFlow(self, userSkel["key"])
@@ -498,11 +500,11 @@ class TimeBasedOTP(object):
 		if all([(x in user and user[x]) for x in ["otpid", "otpkey"]]):
 			logging.info("OTP wanted for user")
 			currentSession.get()["_otp_user"] = {"uid": str(userKey),
-											"otpid": user["otpid"],
-											"otpkey": user["otpkey"],
-											"otptimedrift": user["otptimedrift"],
-											"timestamp": time(),
-											"failures": 0}
+												 "otpid": user["otpid"],
+												 "otpkey": user["otpkey"],
+												 "otptimedrift": user["otptimedrift"],
+												 "timestamp": time(),
+												 "failures": 0}
 			currentSession.get().markChanged()
 			return self.userModule.render.loginSucceeded(msg="X-VIUR-2FACTOR-TimeBasedOTP")
 
@@ -854,10 +856,11 @@ def createNewUserIfNotExists():
 	"""
 	userMod = getattr(conf["viur.mainApp"], "user", None)
 	if (userMod  # We have a user module
-			and isinstance(userMod, User)
-			and "addSkel" in dir(userMod)
-			and "validAuthenticationMethods" in dir(userMod)  # Its our user module :)
-			and any([issubclass(x[0], UserPassword) for x in userMod.validAuthenticationMethods])):  # It uses UserPassword login
+		and isinstance(userMod, User)
+		and "addSkel" in dir(userMod)
+		and "validAuthenticationMethods" in dir(userMod)  # Its our user module :)
+		and any([issubclass(x[0], UserPassword) for x in
+				 userMod.validAuthenticationMethods])):  # It uses UserPassword login
 		if not db.Query(userMod.addSkel().kindName).getEntry():  # There's currently no user in the database
 			addSkel = skeletonByKind(userMod.addSkel().kindName)()  # Ensure we have the full skeleton
 			uname = "admin@%s.appspot.com" % utils.projectID

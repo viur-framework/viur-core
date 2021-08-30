@@ -56,8 +56,8 @@ class selectBone(baseBone):
 		for key in self.values.keys():
 			if str(key) == str(value):
 				return key, None
-		return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value selected")]
-
+		return self.getEmptyValue(), [
+			ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value selected")]
 
 	def buildDBFilter__(self, name, skel, dbFilter, rawFilter, prefix=None):
 		"""
@@ -84,4 +84,3 @@ class selectBone(baseBone):
 
 		if name in rawFilter:
 			dbFilter.filter((prefix or "") + name + " AC", rawFilter[name])
-

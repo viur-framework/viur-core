@@ -1,4 +1,49 @@
-# -*- coding: utf-8 -*-
+"""
+	This module provides configuration for most of the http security headers.
+	The features currently supported are
+		- Content security policy (https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP)
+		- Strict transport security (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security)
+		- X-Frame-Options (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options)
+		- X-XSS-Protection (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-XSS-Protection)
+		- X-Content-Type-Options (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options)
+		- X-Permitted-Cross-Domain-Policies (https://www.adobe.com/devnet-docs/acrobatetk/tools/AppSec/xdomain.html)
+		- Referrer-Policy (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referrer-Policy)
+		- Permissions-Policy (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Feature-Policy)
+		- Cross origin isolation (https://web.dev/coop-coep)
+
+	If a feature is not yet supported, you could always set the header directly (e.g. by attaching a request
+	preprocessor). ViUR contains a default configuration for most of these headers where possible, however manual
+	review is mandatory for each project.
+
+	The content security policy will prevent inline css and javascript by default, but is configured to allow embedding
+	images from cloud-storage and sign-in with google.
+
+	Strict transport security is enabled by default (with a TTL of one year), but without preload or include-subdomains.
+
+	X-Frame-Options is limited to the same origin, preventing urls from this project from being embedded in iframes that
+	don't originate from the same origin.
+
+	X-XSS-Protection is enabled.
+
+	X-Content-Type-Options is set to nosniff
+
+	X-Permitted-Cross-Domain-Policies is set to "none", denying embedding resources in pdf files and the like
+
+	Referrer-Policy is set to strict-origin, preventing leakage of URLs to 3rd-partys.
+
+	The Permissions-Policy will only allow auto-play by default (thus access to the camera-api etc. is disabled)
+
+	Cross origin isolation is currently disabled by default (as it's incompatible with many popular services like
+	embedding a map or sign-in with google).
+
+
+	ViUR also protects it's cookies by default (setting httponly, secure and samesite=lax). This can be changed by
+	setting the corresponding class-level variables on class:`GaeSession<viur.core.session.GaeSession>`.
+
+
+
+"""
+
 from viur.core.config import conf
 import logging
 from typing import Optional, List

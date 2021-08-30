@@ -29,8 +29,9 @@ class TreeSkel(Skeleton):
 	@classmethod
 	def refresh(cls, skelValues):  # ViUR2 Compatibility
 		super().refresh(skelValues)
-		if not skelValues["parententry"] and skelValues.dbEntity.get("parentdir"): # parentdir for viur2 compatibility
-			skelValues["parententry"] = utils.normalizeKey(db.KeyClass.from_legacy_urlsafe(skelValues.dbEntity["parentdir"]))
+		if not skelValues["parententry"] and skelValues.dbEntity.get("parentdir"):  # parentdir for viur2 compatibility
+			skelValues["parententry"] = utils.normalizeKey(
+				db.KeyClass.from_legacy_urlsafe(skelValues.dbEntity["parentdir"]))
 
 
 class Tree(BasicApplication):
@@ -137,7 +138,6 @@ class Tree(BasicApplication):
 		"""
 		return self._resolveSkelCls(skelType, *args, **kwargs)()
 
-
 	def ensureOwnModuleRootNode(self):
 		"""
 		Ensures, that general root-node for the current module exists.
@@ -149,7 +149,6 @@ class Tree(BasicApplication):
 		key = "rep_module_repo"
 		kindName = self.viewSkel("node").kindName
 		return db.GetOrInsert(db.Key(kindName, key), creationdate=utils.utcNow(), rootNode=1)
-
 
 	def getAvailableRootNodes(self, *args, **kwargs):
 		"""
@@ -217,16 +216,16 @@ class Tree(BasicApplication):
 
 		# Fix all nodes
 		for repo in db.Query(self.viewSkel("node").kindName) \
-				.filter("parententry =", parentNode) \
-				.iter(keysOnly=True):  # fixme KeysOnly not working
+			.filter("parententry =", parentNode) \
+			.iter(keysOnly=True):  # fixme KeysOnly not working
 			self.updateParentRepo(repo.key, newRepoKey, depth=depth + 1)
 			db.RunInTransaction(fixTxn, repo.key, newRepoKey)
 
 		# Fix the leafs on this level
 		if self.leafSkelCls:
 			for repo in db.Query(self.viewSkel("leaf").kindName) \
-					.filter("parententry =", parentNode) \
-					.iter(keysOnly=True):
+				.filter("parententry =", parentNode) \
+				.iter(keysOnly=True):
 				db.RunInTransaction(fixTxn, repo.key, newRepoKey)
 
 	## Internal exposed functions
@@ -244,7 +243,7 @@ class Tree(BasicApplication):
 			currentNodeSkel = self.viewSkel("node")
 			if not currentNodeSkel.fromDB(key):
 				return []  # Either invalid key or listFilter prevented us from fetching anything
-			if currentNodeSkel["parententry"] == currentNodeSkel["parentrepo"]: # We reached the top level
+			if currentNodeSkel["parententry"] == currentNodeSkel["parentrepo"]:  # We reached the top level
 				break
 			levelQry = self.viewSkel("node").all().filter("parententry =", currentNodeSkel["parententry"])
 			currentLevel = [{"skel": x,
@@ -585,7 +584,8 @@ class Tree(BasicApplication):
 		# Ensure a changed parentRepo get's proagated
 		if currentParentRepo != parentNodeSkel["parentrepo"]:
 			self.updateParentRepo(key, parentNodeSkel["parentrepo"])
-		return self.render.editSuccess(skel)  # new Sig, has no args and kwargs , skelType = skelType, action = "move", destNode = parentNodeSkel )
+		return self.render.editSuccess(
+			skel)  # new Sig, has no args and kwargs , skelType = skelType, action = "move", destNode = parentNodeSkel )
 
 	## Default access control functions
 
@@ -746,7 +746,6 @@ class Tree(BasicApplication):
 			return True
 		return False
 
-
 	## Overridable eventhooks
 
 	def onAdd(self, skel):
@@ -858,6 +857,7 @@ class Tree(BasicApplication):
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
+
 
 Tree.vi = True
 Tree.admin = True

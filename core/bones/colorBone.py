@@ -16,10 +16,12 @@ class colorBone(baseBone):
 	def singleValueFromClient(self, value, skel, name, origData):
 		value = value.lower()
 		if value.count("#") > 1:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
+			return self.getEmptyValue(), [
+				ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
 		for char in value:
 			if not char in "#0123456789abcdef":
-				return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
+				return self.getEmptyValue(), [
+					ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
 		if self.mode == "rgb":
 			if len(value) == 3:
 				value = "#" + value
@@ -29,13 +31,15 @@ class colorBone(baseBone):
 				if len(value) == 6:
 					value = "#" + value
 			else:
-				return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
+				return self.getEmptyValue(), [
+					ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
 		if self.mode == "rgba":
 			if len(value) == 8 or len(value) == 9:
 				if len(value) == 8:
 					value = "#" + value
 			else:
-				return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
+				return self.getEmptyValue(), [
+					ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
 		err = self.isInvalid(value)
 		if not err:
 			return value, None

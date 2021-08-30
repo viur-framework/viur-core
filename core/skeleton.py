@@ -9,7 +9,7 @@ import sys
 from functools import partial
 from itertools import chain
 from time import time
-from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, Set
+from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, Set, Optional
 
 from viur.core import conf, db, errors, utils, email
 from viur.core.bones import baseBone, dateBone, keyBone, relationalBone, selectBone, stringBone
@@ -23,6 +23,7 @@ except:
 
 __undefindedC__ = object()
 
+
 class MetaBaseSkel(type):
 	"""
 		This is the meta class for Skeletons.
@@ -31,7 +32,7 @@ class MetaBaseSkel(type):
 	_skelCache = {}  # Mapping kindName -> SkelCls
 	_allSkelClasses = set()  # list of all known skeleton classes (including Ref and Mail-Skels)
 
-	__reservedKeywords_ = {"self", "cursor", "amount", "orderby", "orderdir",
+	__reservedKeywords_ = {"self", "cursor", "orderby", "orderdir", "limit"
 						   "style", "items", "keys", "values"}
 
 	def __init__(cls, name, bases, dct):
@@ -58,24 +59,38 @@ class MetaBaseSkel(type):
 		super(MetaBaseSkel, cls).__init__(name, bases, dct)
 
 
-def skeletonByKind(kindName):
-	if not kindName:
-		return None
-
+def skeletonByKind(kindName: str) -> "Skeleton":
+	"""
+		Returns the Skeleton-Class for the given kindName. That skeleton must exist, otherwise an exception is raised.
+		:param kindName: The kindname to retreive the skeleton for
+		:return: The skeleton-class for that kind
+	"""
 	assert kindName in MetaBaseSkel._skelCache, "Unknown skeleton '%s'" % kindName
 	return MetaBaseSkel._skelCache[kindName]
 
 
-def listKnownSkeletons():
+def listKnownSkeletons() -> List[str]:
+	"""
+		:return: A list of all known kindnames (all kindnames for which a skeleton is defined)
+	"""
 	return list(MetaBaseSkel._skelCache.keys())[:]
 
 
-def iterAllSkelClasses():
+def iterAllSkelClasses() -> Iterable["Skeleton"]:
+	"""
+		:return: An iterator that yields each Skeleton-Class once. (Only top-level skeletons are returned, so no
+			RefSkel classes will be included)
+	"""
 	for cls in list(MetaBaseSkel._allSkelClasses):  # We'll add new classes here during setSystemInitialized()
 		yield cls
 
 
 class SkeletonInstance:
+	"""
+		The actual wrapper around a Skeleton-Class. An object of this class is what's actually returned when you
+		call a Skeleton-Class. With ViUR3, you don't get an instance of a Skeleton-Class any more - it's always this
+		class. This is much faster as this is a small class.
+	"""
 	__slots__ = {"dbEntity", "accessedValues", "renderAccessedValues", "boneMap", "errors", "skeletonCls",
 				 "renderPreparation"}
 
@@ -84,7 +99,8 @@ class SkeletonInstance:
 			self.boneMap = clonedBoneMap
 		elif subSkelNames:
 			boneList = ["key"] + list(chain(*[skelCls.subSkels.get(x, []) for x in ["*"] + subSkelNames]))
-			doesMatch = lambda name: name in boneList or any([name.startswith(x[:-1]) for x in boneList if x[-1] == "*"])
+			doesMatch = lambda name: name in boneList or any(
+				[name.startswith(x[:-1]) for x in boneList if x[-1] == "*"])
 			if fullClone:
 				self.boneMap = {k: copy.deepcopy(v) for k, v in skelCls.__boneMap__.items() if doesMatch(k)}
 				for v in self.boneMap.values():
@@ -128,8 +144,6 @@ class SkeletonInstance:
 		if isinstance(value, baseBone):
 			raise AttributeError("Don't assign this bone object as skel[\"%s\"] = ... anymore to the skeleton. "
 								 "Use skel.%s = ... for bone to skeleton assignment!" % (key, key))
-		# elif isinstance(value, db.Key):
-		#	value = str(value[1])
 		self.accessedValues[key] = value
 
 	def __getitem__(self, key):
@@ -274,7 +288,8 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		return bone.setBoneValue(skelValues, boneName, value, append)
 
 	@classmethod
-	def fromClient(cls, skelValues, data):
+	def fromClient(cls, skelValues: SkeletonInstance, data: Dict[str, Union[List[str], str]],
+				   allowEmptyRequired=False) -> bool:
 		"""
 			Load supplied *data* into Skeleton.
 
@@ -294,6 +309,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 			False otherwise (eg. some required fields where missing or invalid).
 			:rtype: bool
 		"""
+		assert not allowEmptyRequired, "allowEmptyRequired is only valid on RelSkels"
 		complete = len(data) > 0  # Empty values are never valid
 		skelValues.errors = []
 
@@ -306,8 +322,10 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 					err.fieldPath.insert(0, str(key))
 				skelValues.errors.extend(errors)
 				for error in errors:
-					if (error.severity == ReadFromClientErrorSeverity.Empty and _bone.required) \
-							or error.severity == ReadFromClientErrorSeverity.Invalid:
+					if (error.severity == ReadFromClientErrorSeverity.Empty and _bone.required and
+						error.fieldPath == [key]) or error.severity == ReadFromClientErrorSeverity.Invalid:
+						# We'll consider empty required bones only as an error, if they're on the top-level (and not
+						# further down the hierarchy (in an record- or relational-Bone)
 						complete = False
 		if (len(data) == 0
 			or (len(data) == 1 and "key" in data)
@@ -349,8 +367,8 @@ class MetaSkel(MetaBaseSkel):
 
 		# Automatic determination of the kindName, if the class is not part of the server.
 		if (cls.kindName is __undefindedC__
-				and not relNewFileName.strip(os.path.sep).startswith("viur")
-				and not "viur_doc_build" in dir(sys)):
+			and not relNewFileName.strip(os.path.sep).startswith("viur")
+			and not "viur_doc_build" in dir(sys)):
 			if cls.__name__.endswith("Skel"):
 				cls.kindName = cls.__name__.lower()[:-4]
 			else:
@@ -377,7 +395,7 @@ class MetaSkel(MetaBaseSkel):
 								 (cls.kindName, relNewFileName, relOldFileName))
 		# Ensure that all skeletons are defined in folders listed in conf["viur.skeleton.searchPath"]
 		if (not any([relNewFileName.startswith(x) for x in conf["viur.skeleton.searchPath"]])
-				and not "viur_doc_build" in dir(sys)):  # Do not check while documentation build
+			and not "viur_doc_build" in dir(sys)):  # Do not check while documentation build
 			raise NotImplementedError(
 				"Skeletons must be defined in a folder listed in conf[\"viur.skeleton.searchPath\"]")
 		if cls.kindName and cls.kindName is not __undefindedC__:
@@ -471,7 +489,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 			tag = "".join([x for x in tag.lower() if x in conf["viur.searchValidChars"]])
 			if len(tag) >= self.minLength:
 				resSet.add(tag)
-				for x in range(1, 1+len(tag)-self.minLength):
+				for x in range(1, 1 + len(tag) - self.minLength):
 					resSet.add(tag[x:])
 		return resSet
 
@@ -479,12 +497,14 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 		"""
 		Collect searchTags from skeleton and build viurTags
 		"""
+
 		def tagsFromSkel(skel):
 			tags = set()
 			for boneName, bone in skel.items():
 				if bone.searchable:
 					tags = tags.union(bone.getSearchTags(skel, boneName))
 			return tags
+
 		tags = tagsFromSkel(skel)
 		entry["viurTags"] = list(chain(*[self._tagsFromString(x) for x in tags if len(x) < 100]))
 		return entry
@@ -493,12 +513,12 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 		"""
 		Run a fulltext search
 		"""
-		keywords = [queryString.lower()]  #list(self._tagsFromString(queryString))[:10]
+		keywords = list(self._tagsFromString(queryString))[:10]
 		resultScoreMap = {}
 		resultEntryMap = {}
 		for keyword in keywords:
 			qryBase = databaseQuery.clone()
-			for entry in qryBase.filter("viurTags >=", keyword).filter("viurTags <", keyword+"\ufffd").run():
+			for entry in qryBase.filter("viurTags >=", keyword).filter("viurTags <", keyword + "\ufffd").run():
 				if not entry.key in resultScoreMap:
 					resultScoreMap[entry.key] = 1
 				else:
@@ -506,9 +526,10 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 				if not entry.key in resultEntryMap:
 					resultEntryMap[entry.key] = entry
 		resultList = [(k, v) for k, v in resultScoreMap.items()]
-		resultList.sort(key=lambda x: x[1])
+		resultList.sort(key=lambda x: x[1], reverse=True)
 		resList = [resultEntryMap[x[0]] for x in resultList[:databaseQuery.queries.limit]]
 		return resList
+
 
 class seoKeyBone(stringBone):
 	def unserialize(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> bool:
@@ -565,7 +586,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		return db.Query(skelValues.kindName, srcSkelClass=skelValues, **kwargs)
 
 	@classmethod
-	def fromClient(cls, skelValues: SkeletonInstance, data: Dict[str, Union[List[str], str]]) -> bool:
+	def fromClient(cls, skelValues: SkeletonInstance, data: Dict[str, Union[List[str], str]],
+				   allowEmptyRequired=False) -> bool:
 		"""
 			This function works similar to :func:`~server.skeleton.Skeleton.setValues`, except that
 			the values retrieved from *data* are checked against the bones and their validity checks.
@@ -580,6 +602,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		:return: True, if all values have been read correctly (without errors), False otherwise
 		"""
 		assert skelValues.renderPreparation is None, "Cannot modify values while rendering"
+		assert not allowEmptyRequired, "allowEmptyRequired is only valid on RelSkels"
 		# Load data into this skeleton
 		complete = super().fromClient(skelValues, data)
 
@@ -636,7 +659,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		return True
 
 	@classmethod
-	def toDB(cls, skelValues: SkeletonInstance, clearUpdateTag: bool=False) -> db.KeyClass:
+	def toDB(cls, skelValues: SkeletonInstance, clearUpdateTag: bool = False) -> db.KeyClass:
 		"""
 			Store current Skeleton entity to data store.
 
@@ -781,7 +804,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					if currentKey != lastRequestedSeoKeys.get(language):  # This one is new or has changed
 						newSeoKey = currentSeoKeys[language]
 						for _ in range(0, 3):
-							entryUsingKey = db.Query(skelValues.kindName).filter("viurActiveSeoKeys =", newSeoKey).getEntry()
+							entryUsingKey = db.Query(skelValues.kindName).filter("viurActiveSeoKeys =",
+																				 newSeoKey).getEntry()
 							if entryUsingKey and entryUsingKey.name != dbObj.name:
 								# It's not unique; append a random string and try again
 								newSeoKey = "%s-%s" % (currentSeoKeys[language], utils.generateRandomString(5).lower())
@@ -836,6 +860,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 						for x in v:
 							if isinstance(x, dict):
 								fixDotNames(x)
+
 			if conf.get("viur.viur2import.blobsource"):  # Try to fix these only when converting from ViUR2
 				fixDotNames(dbObj)
 
@@ -975,7 +1000,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 						if not lockObj:
 							logging.error("Programming error detected: Lockobj %s missing!" % lockKey)
 						elif lockObj["references"] != dbObj.key.id_or_name:
-							logging.error("Programming error detected: %s did not hold lock for %s" % (skel["key"], lockKey))
+							logging.error(
+								"Programming error detected: %s did not hold lock for %s" % (skel["key"], lockKey))
 						else:
 							flushList.append(lockObj)
 					if flushList:
@@ -1033,7 +1059,8 @@ class RelSkel(BaseSkeleton):
 	"""
 
 	@classmethod
-	def fromClient(cls, skelValues, data):
+	def fromClient(cls, skelValues: SkeletonInstance, data: Dict[str, Union[List[str], str]],
+				   allowEmptyRequired=False) -> bool:
 		"""
 			Reads the data supplied by data.
 			Unlike setValues, error-checking is performed.
@@ -1048,20 +1075,32 @@ class RelSkel(BaseSkeleton):
 		"""
 		complete = len(data) > 0  # Empty values are never valid
 		skelValues.errors = []
+		allBonesEmpty = True  # Indicates if all bones in this skeleton are empty
+		requiredBonesEmpty = False  # If True, at least one bone marked with required=True is also empty
 		for key, _bone in skelValues.items():
 			if _bone.readOnly:
 				continue
 			errors = _bone.fromClient(skelValues, key, data)
+			thisBoneEmpty = False
 			if errors:
 				for err in errors:
 					err.fieldPath.insert(0, str(key))
 				skelValues.errors.extend(errors)
 				for err in errors:
-					if err.severity == ReadFromClientErrorSeverity.Empty and _bone.required \
-							or err.severity == ReadFromClientErrorSeverity.Invalid:
+					if err.fieldPath == [key] and err.severity == ReadFromClientErrorSeverity.Empty:
+						thisBoneEmpty = True
+						if _bone.required:
+							requiredBonesEmpty = True
+					if err.severity == ReadFromClientErrorSeverity.Invalid:
 						complete = False
+			allBonesEmpty &= thisBoneEmpty
+		# Special Case for recordBones that are not required, but contain required bones
+		if requiredBonesEmpty and not (allBonesEmpty and allowEmptyRequired):
+			# There's at least one required Bone that's empty; but either allowEmptyRequired is not true, or we have
+			# at least one other bone in this skeleton, that have data; so we have to reject this skeleton
+			complete = False
 		if (len(data) == 0 or (len(data) == 1 and "key" in data) or (
-				"nomissing" in data and str(data["nomissing"]) == "1")):
+			"nomissing" in data and str(data["nomissing"]) == "1")):
 			skelValues.errors = []
 			return False  # Force the skeleton to be displayed to the user again
 		return complete
@@ -1150,7 +1189,6 @@ class SkelList(list):
 		self.getCursor = lambda: None
 		self.renderPreparation = None
 		self.customQueryInfo = {}
-
 
 
 ### Tasks ###

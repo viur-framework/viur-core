@@ -14,9 +14,17 @@ from time import time
 from abc import ABC, abstractmethod
 
 
+"""
+	This module implements the WSGI (Web Server Gateway Interface) layer for ViUR. This is the main entry
+	point for incomming http requests. The main class is the :class:BrowserHandler. Each request will get it's
+	own instance of that class which then holds the reference to the request and response object.
+	Additionally, this module defines the RequestValidator interface which provides a very early hook into the
+	request processing (useful for global ratelimiting, DDoS prevention or access control).  
+"""
+
 class RequestValidator(ABC):
 	"""
-		RequestValidators can be used to validate a request early on. If the validate method returns a tuple,
+		RequestValidators can be used to validate a request very early on. If the validate method returns a tuple,
 		the request is aborted. Can be used to block requests from bots.
 
 		To register a new validator, append it to :attr: viur.core.request.BrowseHandler.requestValidators
@@ -54,7 +62,7 @@ class FetchMetaDataValidator(RequestValidator):
 		if headers.get('sec-fetch-site') in {"same-origin", "none"}:  # A Request from our site
 			return None
 		if headers.get('sec-fetch-mode') == 'navigate' and not request.isPostRequest \
-				and headers.get('sec-fetch-dest') not in {'object', 'embed'}:  # Incoming navigation GET request
+			and headers.get('sec-fetch-dest') not in {'object', 'embed'}:  # Incoming navigation GET request
 			return None
 		return 403, "Forbidden", "Request rejected due to fetch metadata"
 
@@ -63,6 +71,19 @@ class BrowseHandler():  # webapp.RequestHandler
 	"""
 		This class accepts the requests, collect its parameters and routes the request
 		to its destination function.
+		The basic control flow is
+		- Setting up internal variables
+		- Running the Request validators
+		- Emitting the headers (especially the security related ones)
+		- Run the TLS check (ensure it's a secure connection or check if the URL is whitelisted)
+		- Load or initialize a new session
+		- Set up i18n (choosing the language etc)
+		- Run the request preprocessor (if any)
+		- Normalize & sanity check the parameters
+		- Resolve the exposed function and call it
+		- Save the session / tear down the request
+		- Return the response generated
+
 
 		:warning: Don't instantiate! Don't subclass! DON'T TOUCH! ;)
 	"""
@@ -140,7 +161,9 @@ class BrowseHandler():  # webapp.RequestHandler
 
 	def selectLanguage(self, path: str):
 		"""
-			Tries to select the best language for the current request.
+			Tries to select the best language for the current request. Depending on the value of
+			conf["viur.languageMethod"], we'll either try to load it from the session, determine it by the domain
+			or extract it from the URL.
 		"""
 		sessionReference = currentSession.get()
 		if not conf["viur.availableLanguages"]:
@@ -387,16 +410,19 @@ class BrowseHandler():  # webapp.RequestHandler
 			:param parsingOnly: If true, the parameter is a keyword argument which we can convert to List
 			:return: 2-tuple of the original string-value and the converted value
 		"""
-		typeOrigin = typing.get_origin(typeHint)
+		try:
+			typeOrigin = typeHint.__origin__  # Was: typing.get_origin(typeHint) (not supported in python 3.7)
+		except:
+			typeOrigin = None
 		if typeOrigin is typing.Union:
-			typeArgs = typing.get_args(typeHint)
-			if len(typeArgs) == 2 and isinstance(None, typeArgs[1]): # is None:
+			typeArgs = typeHint.__args__  # Was: typing.get_args(typeHint) (not supported in python 3.7)
+			if len(typeArgs) == 2 and isinstance(None, typeArgs[1]):  # is None:
 				# This is typing.Optional
 				return self.processTypeHint(typeArgs[0], inValue, parsingOnly)
 		elif typeOrigin is list:
 			if parsingOnly:
 				raise TypeError("Cannot convert *args argument to list")
-			typeArgs = typing.get_args(typeHint)
+			typeArgs = typeHint.__args__  # Was: typing.get_args(typeHint) (not supported in python 3.7)
 			if len(typeArgs) != 1:
 				raise TypeError("Invalid List subtype")
 			typeArgs = typeArgs[0]
@@ -425,7 +451,7 @@ class BrowseHandler():  # webapp.RequestHandler
 		elif typeHint is float:
 			if not isinstance(inValue, str):
 				raise TypeError("Input argument to float typehint is not a string (probably a list)")
-			if not inValue.replace("-", "", 1).replace(",", ".", 1).replace(".","", 1).isdigit():
+			if not inValue.replace("-", "", 1).replace(",", ".", 1).replace(".", "", 1).isdigit():
 				raise TypeError("Failed to parse an float typehint")
 			f = float(inValue)
 			if f != f:
@@ -434,13 +460,17 @@ class BrowseHandler():  # webapp.RequestHandler
 		elif typeHint is bool:
 			if not isinstance(inValue, str):
 				raise TypeError("Input argument to boolean typehint is not a string (probably a list)")
-			if inValue in [str(True), u"1", u"yes"] :
+			if inValue in [str(True), u"1", u"yes"]:
 				return "True", True
 			else:
 				return "False", False
 		raise ValueError("TypeHint %s not supported" % typeHint)
 
-	def findAndCall(self, path, *args, **kwargs):  # Do the actual work: process the request
+	def findAndCall(self, path:str, *args, **kwargs):
+		"""
+			Does the actual work of sanitizing the parameter, determine which @exposed (or @internalExposed) function
+			to call (and with witch parameters)
+		"""
 		# Prevent Hash-collision attacks
 		kwargs = {}
 		stopCount = conf["viur.maxPostParamsCount"]
@@ -573,5 +603,3 @@ class BrowseHandler():  # webapp.RequestHandler
 
 	def saveSession(self):
 		currentSession.get().save(self)
-
-

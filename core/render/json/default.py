@@ -7,6 +7,7 @@ from viur.core.utils import currentRequest
 from viur.core.i18n import translate
 from typing import Any
 
+
 class CustomJsonEncoder(json.JSONEncoder):
 	"""
 		This custom JSON-Encoder for this json-render ensures that translations are evaluated and can be dumped.
@@ -16,6 +17,7 @@ class CustomJsonEncoder(json.JSONEncoder):
 		if isinstance(o, translate):
 			return str(o)
 		return json.JSONEncoder.default(self, o)
+
 
 class DefaultRender(object):
 	kind = "json"
@@ -50,11 +52,11 @@ class DefaultRender(object):
 			"languages": bone.languages,
 		}
 		if bone.multiple and isinstance(bone.multiple, bones.MultipleConstraints):
-				ret["multiple"] = {
-					"minAmount": bone.multiple.minAmount,
-					"maxAmount": bone.multiple.maxAmount,
-					"preventDuplicates": bone.multiple.preventDuplicates,
-				}
+			ret["multiple"] = {
+				"minAmount": bone.multiple.minAmount,
+				"maxAmount": bone.multiple.maxAmount,
+				"preventDuplicates": bone.multiple.preventDuplicates,
+			}
 		else:
 			ret["multiple"] = bone.multiple
 
@@ -121,7 +123,6 @@ class DefaultRender(object):
 			res[key] = self.renderBoneStructure(bone)
 		return [(key, val) for key, val in res.items()]
 
-
 	def renderSingleBoneValue(self, value, bone, skel, key):
 		"""
 		Renders the value of a bone.
@@ -142,7 +143,8 @@ class DefaultRender(object):
 			if isinstance(value, dict):
 				return {
 					"dest": self.renderSkelValues(value["dest"], injectDownloadURL=isinstance(bone, bones.fileBone)),
-					"rel": self.renderSkelValues(value["rel"], injectDownloadURL=isinstance(bone, bones.fileBone)) if value["rel"] else None,
+					"rel": self.renderSkelValues(value["rel"], injectDownloadURL=isinstance(bone, bones.fileBone)) if
+					value["rel"] else None,
 				}
 		elif isinstance(bone, bones.recordBone):
 			return self.renderSkelValues(value)
@@ -205,7 +207,8 @@ class DefaultRender(object):
 		elif isinstance(skel, SkeletonInstance):
 			vals = self.renderSkelValues(skel)
 			struct = self.renderSkelStructure(skel)
-			errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage, "invalidatedFields": x.invalidatedFields} for x in skel.errors]
+			errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage,
+					   "invalidatedFields": x.invalidatedFields} for x in skel.errors]
 		else:  # Hopefully we can pass it directly...
 			vals = skel
 			struct = None

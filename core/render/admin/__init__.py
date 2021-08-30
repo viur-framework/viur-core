@@ -10,8 +10,10 @@ from viur.core import securitykey
 from viur.core import utils, errors
 import datetime, json
 
+
 class default(DefaultRender):
-		kind = "json.admin"
+	kind = "json.admin"
+
 
 __all__ = [default]
 
@@ -61,7 +63,7 @@ def getStructure(adminTree, module):
 					except TypeError:
 						continue
 					if isinstance(skel, SkeletonInstance):
-						storeType = stype.replace("Skel", "")+("LeafSkel" if treeType == "leaf" else "NodeSkel")
+						storeType = stype.replace("Skel", "") + ("LeafSkel" if treeType == "leaf" else "NodeSkel")
 						res[storeType] = default().renderSkelStructure(skel)
 	if res:
 		return json.dumps(res, cls=CustomJsonEncoder)
@@ -162,6 +164,8 @@ def index(*args, **kwargs):
 	else:
 		appVersion = currentRequest.get().request.host
 		raise errors.Redirect("https://%s/admin/s/admin.html" % appVersion)
+
+
 index.exposed = True
 
 

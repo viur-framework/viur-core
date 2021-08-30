@@ -163,7 +163,8 @@ class spatialBone(baseBone):
 		rawLat = value.get("lat", None)
 		rawLng = value.get("lng", None)
 		if rawLat is None and rawLng is None:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "Field not submitted")]
+			return self.getEmptyValue(), [
+				ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "Field not submitted")]
 		elif rawLat is None or rawLng is None:
 			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value submitted")]
 		try:
@@ -173,10 +174,11 @@ class spatialBone(baseBone):
 			assert rawLat == rawLat
 			assert rawLng == rawLng
 		except:
-			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
+			return self.getEmptyValue(), [
+				ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
 		err = self.isInvalid((rawLat, rawLng))
 		if err:
-			return self.getEmptyValue(),[ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
+			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 		return (rawLat, rawLng), None
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
@@ -279,7 +281,8 @@ class spatialBone(baseBone):
 		# If a result further away than this distance there might be missing results before that result
 		# If there are no results in a give lane (f.e. because we are close the border and there is no point
 		# in between) we choose a arbitrary large value for that lower bound
-		expectedAmount = self.calculateInternalMultiQueryLimit(dbFilter, targetAmount)  # How many items we expect in each direction
+		expectedAmount = self.calculateInternalMultiQueryLimit(dbFilter,
+															   targetAmount)  # How many items we expect in each direction
 		limits = [
 			haversine(latRight[-1][name]["coordinates"]["lat"], lng, lat, lng) if latRight and len(
 				latRight) == expectedAmount else 2 ** 31,  # Lat - Right Side
@@ -299,7 +302,8 @@ class spatialBone(baseBone):
 		for item in (latRight + latLeft + lngBottom + lngTop):
 			tmpDict[str(item.key)] = item
 		# Build up the final results
-		tmpList = [(haversine(x[name]["coordinates"]["lat"], x[name]["coordinates"]["lng"], lat, lng), x) for x in tmpDict.values()]
+		tmpList = [(haversine(x[name]["coordinates"]["lat"], x[name]["coordinates"]["lng"], lat, lng), x) for x in
+				   tmpDict.values()]
 		tmpList.sort(key=lambda x: x[0])
 		return [x[1] for x in tmpList[:targetAmount]]
 
