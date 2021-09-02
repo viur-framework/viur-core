@@ -11,7 +11,9 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - 'connect-src': self and 'upgrade-insecure-requests' CSP directives by default
 
 ## Changed
+- [Breaking] srcSetFor function in jinja2 now needs a list with or height instead of deriving from groups
 - Replaced *.ggpht.com and *.googleusercontent.com CSP directives by storage.googleapis.com
+
 
 ### Fixed
 - AdminInfo for tree modules without a leaf skel

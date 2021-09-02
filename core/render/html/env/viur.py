@@ -659,21 +659,26 @@ def downloadUrlFor(render: 'viur.core.render.html.default.Render', fileObj: dict
 
 
 @jinjaGlobalFunction
-def srcSetFor(render, fileObj, expires):
+def srcSetFor(render, fileObj, expires, width=None, height=None):
+	if not width and not height:
+		logging.error("Neither width or height supplied to srcSetFor")
+		return ""
 	if "dlkey" not in fileObj and "dest" in fileObj:
 		fileObj = fileObj["dest"]
 	if expires:
 		expires = timedelta(minutes=expires)
 	if not isinstance(fileObj, (SkeletonInstance, dict)) or not "dlkey" in fileObj or "derived" not in fileObj:
-		return None
+		logging.error("Invalid fileObj supplied to srcSetFor")
+		return ""
 	if not isinstance(fileObj["derived"], dict):
 		return ""
 	resList = []
-	for fileName, derivate in fileObj["derived"].items():
-		params = derivate["params"]
-		if params.get("group") == "srcset":
-			resList.append(
-				"%s %sw" % (utils.downloadUrlFor(fileObj["dlkey"], fileName, True, expires), params["width"]))
+	for fileName, derivate in fileObj["derived"]["files"].items():
+		customData = derivate.get("customData", {})
+		if width and customData.get("width") in width:
+			resList.append("%s %sw" % (utils.downloadUrlFor(fileObj["dlkey"], fileName, True, expires), customData["width"]))
+		if height and customData.get("height") in height:
+			resList.append("%s %sh" % (utils.downloadUrlFor(fileObj["dlkey"], fileName, True, expires), customData["height"]))
 	return ", ".join(resList)
 
 
