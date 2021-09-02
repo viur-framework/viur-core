@@ -35,7 +35,7 @@ bucket = client.lookup_bucket("%s.appspot.com" % projectID)
 iamClient = iam_credentials_v1.IAMCredentialsClient()
 
 
-def importBlobFromViur2(dlKey):
+def importBlobFromViur2(dlKey, fileName):
 	if not conf.get("viur.viur2import.blobsource"):
 		return False
 	existingImport = db.Get(db.Key("viur-viur2-blobimport", dlKey))
@@ -43,34 +43,40 @@ def importBlobFromViur2(dlKey):
 		if existingImport["success"]:
 			return existingImport["dlurl"]
 		return False
-	try:
-		importDataReq = urlopen(conf["viur.viur2import.blobsource"]["infoURL"] + dlKey)
-	except:
-		marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
-		marker["success"] = False
-		marker["error"] = "Failed URL-FETCH 1"
-		db.Put(marker)
-		return False
-	if importDataReq.status != 200:
-		marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
-		marker["success"] = False
-		marker["error"] = "Failed URL-FETCH 2"
-		db.Put(marker)
-		return False
-	importData = json.loads(importDataReq.read())
-	srcBlob = storage.Blob(bucket=bucket, name=conf["viur.viur2import.blobsource"]["gsdir"] + "/" + importData["key"])
+	if conf["viur.viur2import.blobsource"]["infoURL"]:
+		try:
+			importDataReq = urlopen(conf["viur.viur2import.blobsource"]["infoURL"] + dlKey)
+		except:
+			marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
+			marker["success"] = False
+			marker["error"] = "Failed URL-FETCH 1"
+			db.Put(marker)
+			return False
+		if importDataReq.status != 200:
+			marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
+			marker["success"] = False
+			marker["error"] = "Failed URL-FETCH 2"
+			db.Put(marker)
+			return False
+		importData = json.loads(importDataReq.read())
+		oldBlobName = conf["viur.viur2import.blobsource"]["gsdir"] + "/" + importData["key"]
+		srcBlob = storage.Blob(bucket=bucket, name=conf["viur.viur2import.blobsource"]["gsdir"] + "/" + importData["key"])
+	else:
+		oldBlobName = conf["viur.viur2import.blobsource"]["gsdir"] + "/" + dlKey
+		srcBlob = storage.Blob(bucket=bucket, name=conf["viur.viur2import.blobsource"]["gsdir"] + "/" + dlKey)
 	if not srcBlob.exists():
 		marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
 		marker["success"] = False
 		marker["error"] = "Local SRC-Blob missing"
+		marker["oldBlobName"] = oldBlobName
 		db.Put(marker)
 		return False
-	bucket.rename_blob(srcBlob, "%s/source/%s" % (dlKey, importData["name"]))
+	bucket.rename_blob(srcBlob, "%s/source/%s" % (dlKey, fileName))
 	marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
 	marker["success"] = True
-	marker["old_src_key"] = importData["key"]
-	marker["old_src_name"] = importData["name"]
-	marker["dlurl"] = utils.downloadUrlFor(dlKey, importData["name"], False, None)
+	marker["old_src_key"] = dlKey
+	marker["old_src_name"] = fileName
+	marker["dlurl"] = utils.downloadUrlFor(dlKey, fileName, False, None)
 	db.Put(marker)
 	return marker["dlurl"]
 
@@ -178,7 +184,7 @@ class fileBaseSkel(TreeSkel):
 	def refresh(cls, skelValues):
 		super().refresh(skelValues)
 		if conf.get("viur.viur2import.blobsource"):
-			importData = importBlobFromViur2(skelValues["dlkey"])
+			importData = importBlobFromViur2(skelValues["dlkey"], skelValues["name"])
 			if importData:
 				if not skelValues["downloadUrl"]:
 					skelValues["downloadUrl"] = importData

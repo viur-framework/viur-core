@@ -164,8 +164,10 @@ class fileBone(treeLeafBone):
 			val = skel[boneName]
 			if isinstance(val, list):
 				for x in val:
-					importBlobFromViur2(x["dest"]["dlkey"])
+					importBlobFromViur2(x["dest"]["dlkey"], x["dest"]["name"])
 					recreateFileEntryIfNeeded(x["dest"])
 			elif isinstance(val, dict):
-				importBlobFromViur2(val["dest"]["dlkey"])
+				if not "dest" in val:
+					return
+				importBlobFromViur2(val["dest"]["dlkey"], val["dest"]["name"])
 				recreateFileEntryIfNeeded(val["dest"])
