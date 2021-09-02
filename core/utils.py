@@ -101,6 +101,9 @@ def escapeString(val, maxLength=254):
 		.replace(">", "&gt;") \
 		.replace("\"", "&quot;") \
 		.replace("'", "&#39;") \
+		.replace("(", "&#040;") \
+		.replace(")", "&#041;") \
+		.replace("=", "&#061;") \
 		.replace("\n", "") \
 		.replace("\0", "")
 
