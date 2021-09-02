@@ -12,7 +12,9 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - The ability to import blobs that have been copied client-side from the old (non cloud-storage) blobstore
 
 ## Changed
+- [Breaking] srcSetFor function in jinja2 now needs a list with or height instead of deriving from groups
 - Replaced *.ggpht.com and *.googleusercontent.com CSP directives by storage.googleapis.com
+
 
 ### Fixed
 - AdminInfo for tree modules without a leaf skel
