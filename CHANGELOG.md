@@ -9,6 +9,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 ## Added
 - Added validations to catch invalid recipient addresses early in sendEmail
 - 'connect-src': self and 'upgrade-insecure-requests' CSP directives by default
+- The ability to import blobs that have been copied client-side from the old (non cloud-storage) blobstore
 
 ## Changed
 - Replaced *.ggpht.com and *.googleusercontent.com CSP directives by storage.googleapis.com
