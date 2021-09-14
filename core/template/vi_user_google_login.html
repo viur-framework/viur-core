@@ -3,10 +3,11 @@
     <meta charset="UTF-8">
     <title>Google Login</title>
     <script src="/resources/js/vi_user_google_login.js"></script>
-    <script src="https://apis.google.com/js/platform.js" async defer></script>
-    <meta name="google-signin-client_id" content="{{ clientID }}">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
-<div class="g-signin2" data-onsuccess="onSignIn"></div>
+<div id="g_id_onload" data-client_id="{{ clientID }}" data-callback="onSignIn" data-ux_mode="popup"
+     data-auto_prompt="false"></div>
+<div class="g_id_signin" data-type="standard"></div>
 </body>
 </html>

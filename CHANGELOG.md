@@ -15,6 +15,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 ## Changed
 - [Breaking] srcSetFor function in jinja2 now needs a list with or height instead of deriving from groups
 - Replaced *.ggpht.com and *.googleusercontent.com CSP directives by storage.googleapis.com
+- Migrated Login with Google from Google Sign-In to Identity Services
 
 
 ### Fixed
