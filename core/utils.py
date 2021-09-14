@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Union
 import google.auth
 from viur.core import conf, db
+from pathlib import Path
 
 # Proxy to context depended variables
 currentRequest = ContextVar("Request", default=None)
@@ -21,7 +22,8 @@ currentLanguage = ContextVar("Language", default=None)
 _, projectID = google.auth.default()
 del _
 # Determine our basePath (as os.getCWD is broken on appengine)
-projectBasePath = globals()["__file__"].replace("/viur/core/utils.py", "")
+projectBasePath = str(Path().absolute()) #os.path.abspath(os.getcwd())
+coreBasePath = globals()["__file__"].replace("/viur/core/utils.py","")
 isLocalDevelopmentServer = os.environ['GAE_ENV'] == "localdev"
 
 

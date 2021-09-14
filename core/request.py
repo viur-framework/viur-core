@@ -324,7 +324,7 @@ class BrowseHandler():  # webapp.RequestHandler
 					logging.exception(newE)
 					res = None
 			if not res:
-				tpl = Template(open(conf["viur.errorTemplate"], "r").read())
+				tpl = Template(open(utils.coreBasePath+conf["viur.errorTemplate"], "r").read())
 				res = tpl.safe_substitute({"error_code": e.status, "error_name": e.name, "error_descr": e.descr})
 			self.response.write(res.encode("UTF-8"))
 		except Exception as e:  # Something got really wrong
@@ -341,7 +341,7 @@ class BrowseHandler():  # webapp.RequestHandler
 					logging.exception(newE)
 					res = None
 			if not res:
-				tpl = Template(open(conf["viur.errorTemplate"], "r").read())
+				tpl = Template(open(utils.coreBasePath+conf["viur.errorTemplate"], "r").read())
 				descr = "The server encountered an unexpected error and is unable to process your request."
 				if self.isDevServer:  # Were running on development Server
 					strIO = StringIO()
