@@ -27,6 +27,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - Several bugs regarding importing data from an ViUR2 instance
 - Correctly exclude non-indexed but translated bones from the datastore index
 - Reenabled changelist evaluation in updateRelations
+- Thumbnailer is now ignoring images PIL cannot load (eg SVGs)
 
 
 ## [3.0.0]
