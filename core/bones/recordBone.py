@@ -44,6 +44,9 @@ class recordBone(baseBone):
 		return usingSkel
 
 	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+		if not value:
+			return value
+
 		return value.serialize(parentIndexed=False)
 
 	def parseSubfieldsFromClient(self) -> bool:
