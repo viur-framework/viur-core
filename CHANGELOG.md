@@ -28,6 +28,8 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - Correctly exclude non-indexed but translated bones from the datastore index
 - Reenabled changelist evaluation in updateRelations
 
+### Removed
+- Internals resorting of values in selectBone. They will be shown in the order specified
 
 ## [3.0.0]
 
