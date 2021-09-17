@@ -6,6 +6,35 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 
 ## [develop] - Current development version
 
+## [3.0.1]
+
+## Added
+- Added validations to catch invalid recipient addresses early in sendEmail
+- 'connect-src': self and 'upgrade-insecure-requests' CSP directives by default
+- versionHash and appVersion variables to utils and jinja2 render 
+- The ability to import blobs that have been copied client-side from the old (non cloud-storage) blobstore
+- Support for custom colorprofiles in thumbnails 
+
+## Changed
+- [Breaking] srcSetFor function in jinja2 now needs a list with or height instead of deriving from groups
+- Replaced *.ggpht.com and *.googleusercontent.com CSP directives by storage.googleapis.com
+- Migrated Login with Google from Google Sign-In to Identity Services
+
+
+### Fixed
+- AdminInfo for tree modules without a leaf skel
+- Referencing viurCurrentSeoKeys in relationalBones
+- Helptext support in Jinja2 translation extension
+- Bones with different languages can now be tested with {% if skel["bone"] %} as expected
+- Querying by keybones with a list of keys
+- Several bugs regarding importing data from an ViUR2 instance
+- Correctly exclude non-indexed but translated bones from the datastore index
+- Reenabled changelist evaluation in updateRelations
+- Thumbnailer is now ignoring images PIL cannot load (eg SVGs)
+
+### Removed
+- Internals resorting of values in selectBone. They will be shown in the order specified
+
 ## [3.0.0]
 
 ### Changed
