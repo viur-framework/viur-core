@@ -6,6 +6,8 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 
 ## [develop] - Current development version
 
+## [3.0.1]
+
 ## Added
 - Added validations to catch invalid recipient addresses early in sendEmail
 - 'connect-src': self and 'upgrade-insecure-requests' CSP directives by default
