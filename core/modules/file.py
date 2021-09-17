@@ -14,7 +14,7 @@ from urllib.request import urlopen
 from viur.core.config import conf
 
 import google.auth
-from PIL import Image
+from PIL import Image, ImageCms
 from google.auth import compute_engine
 from google.auth.transport import requests
 from google.cloud import storage
@@ -104,6 +104,14 @@ def thumbnailer(fileSkel, existingFiles, params):
 			img = Image.open(fileData)
 		except Image.UnidentifiedImageError:  # We can't load this image; so there's no need to try other resolutions
 			return []
+		iccProfile = img.info.get('icc_profile')
+		if iccProfile:
+			# JPEGs might be encoded with a non-standard color-profile; we need to compensate for this if we convert
+			# to WEBp as we'll loose this color-profile information
+			f = BytesIO(iccProfile)
+			src_profile = ImageCms.ImageCmsProfile(f)
+			dst_profile = ImageCms.createProfile('sRGB')
+			img = ImageCms.profileToProfile(img, inputProfile=src_profile, outputProfile=dst_profile, outputMode="RGB")
 		fileExtension = sizeDict.get("fileExtension", "webp")
 		if "width" in sizeDict and "height" in sizeDict:
 			width = sizeDict["width"]

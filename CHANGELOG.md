@@ -11,6 +11,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - 'connect-src': self and 'upgrade-insecure-requests' CSP directives by default
 - versionHash and appVersion variables to utils and jinja2 render 
 - The ability to import blobs that have been copied client-side from the old (non cloud-storage) blobstore
+- Support for custom colorprofiles in thumbnails 
 
 ## Changed
 - [Breaking] srcSetFor function in jinja2 now needs a list with or height instead of deriving from groups
@@ -29,6 +30,8 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - Reenabled changelist evaluation in updateRelations
 - Thumbnailer is now ignoring images PIL cannot load (eg SVGs)
 
+### Removed
+- Internals resorting of values in selectBone. They will be shown in the order specified
 
 ## [3.0.0]
 
