@@ -100,7 +100,10 @@ def thumbnailer(fileSkel, existingFiles, params):
 	for sizeDict in params:
 		fileData.seek(0)
 		outData = BytesIO()
-		img = Image.open(fileData)
+		try:
+			img = Image.open(fileData)
+		except Image.UnidentifiedImageError:  # We can't load this image; so there's no need to try other resolutions
+			return []
 		iccProfile = img.info.get('icc_profile')
 		if iccProfile:
 			# JPEGs might be encoded with a non-standard color-profile; we need to compensate for this if we convert
