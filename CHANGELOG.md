@@ -6,6 +6,9 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 
 ## [develop] - Current development version
 
+### Fixed
+- Queries that return more than 300 entities with active dbaccelerator
+
 ## [3.0.1]
 
 ## Added
