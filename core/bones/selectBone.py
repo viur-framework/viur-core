@@ -21,7 +21,13 @@ class selectBone(baseBone):
 		if defaultValue is None and multiple:
 			defaultValue = []
 		super(selectBone, self).__init__(defaultValue=defaultValue, multiple=multiple, *args, **kwargs)
+
+		# es sollte immer möglich sein, auch eine Liste direkt zu übergeben, die dann in ein dict umgewandelt wird.
+		if isinstance(values, list):
+			values = {i: i for i in values}
+
 		self.values = values
+
 
 	def singleValueFromClient(self, value, skel, name, origData):
 		if not str(value):
