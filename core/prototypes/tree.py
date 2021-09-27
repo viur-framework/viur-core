@@ -750,7 +750,7 @@ class Tree(BasicApplication):
 
 	## Overridable eventhooks
 
-	def onAdd(self, skel):
+	def onAdd(self, skelType, skel):
 		"""
 		Hook function that is called before adding an entry.
 
@@ -763,7 +763,7 @@ class Tree(BasicApplication):
 		"""
 		pass
 
-	def onAdded(self, skel):
+	def onAdded(self, skelType, skel):
 		"""
 		Hook function that is called after adding an entry.
 
@@ -775,13 +775,13 @@ class Tree(BasicApplication):
 
 		.. seealso:: :func:`add`, :func:`onAdd`
 		"""
-		logging.info("Entry added: %s" % skel["key"])
+		logging.info("Entry of kind %r added: %s", skelType, skel["key"])
 		flushCache(kind=skel.kindName)
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-	def onEdit(self, skel):
+	def onEdit(self, skelType, skel):
 		"""
 		Hook function that is called before editing an entry.
 
@@ -794,7 +794,7 @@ class Tree(BasicApplication):
 		"""
 		pass
 
-	def onEdited(self, skel):
+	def onEdited(self, skelType, skel):
 		"""
 		Hook function that is called after modifying an entry.
 
@@ -806,13 +806,13 @@ class Tree(BasicApplication):
 
 		.. seealso:: :func:`edit`, :func:`onEdit`
 		"""
-		logging.info("Entry changed: %s" % skel["key"])
+		logging.info("Entry of kind %r changed: %s", skelType, skel["key"])
 		flushCache(key=skel["key"])
 		user = utils.getCurrentUser()
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-	def onView(self, skel):
+	def onView(self, skelType, skel):
 		"""
 		Hook function that is called when viewing an entry.
 
@@ -826,7 +826,7 @@ class Tree(BasicApplication):
 		"""
 		pass
 
-	def onDelete(self, skel):
+	def onDelete(self, skelType, skel):
 		"""
 		Hook function that is called before deleting an entry.
 
@@ -839,7 +839,7 @@ class Tree(BasicApplication):
 		"""
 		pass
 
-	def onDeleted(self, skel):
+	def onDeleted(self, skelType, skel):
 		"""
 		Hook function that is called after deleting an entry.
 
