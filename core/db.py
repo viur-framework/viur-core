@@ -362,6 +362,9 @@ class Query(object):
 		return old
 
 	def mergeExternalFilter(self, filters: dict) -> Query:
+		return self.mergeFilter(filters)
+
+	def mergeFilter(self, filters: dict) -> Query:
 		"""
 			Safely merges filters according to the data model.
 
@@ -420,7 +423,7 @@ class Query(object):
 			The following examples are equivalent: ``filter( "name", "John" )``
 			and ``filter( {"name": "John"} )``.
 
-			See also :func:`server.db.Query.mergeExternalFilter` for a safer filter implementation.
+			See also :func:`server.db.Query.mergeFilter` for a safer filter implementation.
 
 			:param prop: Name of the property + operation we'll filter by
 			:param value: The value of that filter. Only valid, if *key* is a string.
