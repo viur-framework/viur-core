@@ -98,6 +98,14 @@ class Tree(BasicApplication):
 
 		return self.nodeSkelCls
 
+	def baseSkel(self, skelType: str, *args, **kwargs) -> Skeleton:
+		"""
+		Liefert ein unmodifiziertes Basis-Skeleton.
+		Diese Funktion sollte nur vom System aufgerufen werden, z.B. wenn in einem Task einfach nur das pure Skeleton
+		des Moduls benötigt wird.
+		"""
+		return self._resolveSkelCls(skelType, *args, **kwargs)()
+
 	def viewSkel(self, skelType: str, *args, **kwargs):
 		"""
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
@@ -110,7 +118,7 @@ class Tree(BasicApplication):
 		:return: Returns a Skeleton instance for viewing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkelCls(skelType, *args, **kwargs)()
+		return self.baseSkel(skelType, *args, **kwargs)
 
 	def addSkel(self, skelType: str, *args, **kwargs):
 		"""
@@ -124,7 +132,7 @@ class Tree(BasicApplication):
 		:return: Returns a Skeleton instance for adding an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkelCls(skelType, *args, **kwargs)()
+		return self.baseSkel(skelType, *args, **kwargs)
 
 	def editSkel(self, skelType: str, *args, **kwargs):
 		"""
@@ -138,7 +146,7 @@ class Tree(BasicApplication):
 		:return: Returns a Skeleton instance for editing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkelCls(skelType, *args, **kwargs)()
+		return self.baseSkel(skelType, *args, **kwargs)
 
 	def ensureOwnModuleRootNode(self):
 		"""

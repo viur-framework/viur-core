@@ -46,7 +46,7 @@ class List(BasicApplication):
 
 			:return: Returns a Skeleton instance for viewing an entry.
 		"""
-		return self._resolveSkelCls(*args, **kwargs)()
+		return self.baseSkel(*args, **kwargs)
 
 	def addSkel(self, *args, **kwargs) -> SkeletonInstance:
 		"""
@@ -64,7 +64,7 @@ class List(BasicApplication):
 
 			:return: Returns a Skeleton instance for adding an entry.
 		"""
-		return self._resolveSkelCls(*args, **kwargs)()
+		return self.baseSkel(*args, **kwargs)
 
 	def editSkel(self, *args, **kwargs) -> SkeletonInstance:
 		"""
@@ -81,7 +81,7 @@ class List(BasicApplication):
 
 			:return: Returns a Skeleton instance for editing an entry.
 		"""
-		return self._resolveSkelCls(*args, **kwargs)()
+		return self.baseSkel(*args, **kwargs)
 
 	## External exposed functions
 
