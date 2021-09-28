@@ -139,6 +139,13 @@ class SkeletonInstance:
 	def __contains__(self, item):
 		return item in self.boneMap
 
+	# Ja, es sollte möglich sein ein skel.get() aufzurufen um auf ein Bone zu gehen welches nicht definiert ist.
+	def get(self, item, default=None):
+		if item not in self:
+			return default
+
+		return self[item]
+
 	def __setitem__(self, key, value):
 		assert self.renderPreparation is None, "Cannot modify values while rendering"
 		if isinstance(value, baseBone):
@@ -172,6 +179,7 @@ class SkeletonInstance:
 					  "preProcessSerializedData", "preProcessBlobLocks", "postSavedHandler", "setBoneValue",
 					  "delete", "postDeletedHandler", "refresh"}:
 			return partial(getattr(self.skeletonCls, item), self)
+
 		return self.boneMap[item]
 
 	def __delattr__(self, item):
