@@ -9,6 +9,14 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 ### Fixed
 - Queries that return more than 300 entities with active dbaccelerator
 
+## Added
+- extendCsp function for overriding the CSP-Header on a per-request basis
+- support for nonces and hashes in CSP-Rules
+
+## Changed
+- Default CSP-Rules needed for login with Google have been narrowed
+
+
 ## [3.0.1]
 
 ## Added
@@ -22,7 +30,6 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - [Breaking] srcSetFor function in jinja2 now needs a list with or height instead of deriving from groups
 - Replaced *.ggpht.com and *.googleusercontent.com CSP directives by storage.googleapis.com
 - Migrated Login with Google from Google Sign-In to Identity Services
-
 
 ### Fixed
 - AdminInfo for tree modules without a leaf skel
