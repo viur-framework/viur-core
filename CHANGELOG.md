@@ -13,6 +13,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 ## Added
 - extendCsp function for overriding the CSP-Header on a per-request basis
 - support for nonces and hashes in CSP-Rules
+- Supply version_id in logging entries
 
 ## Changed
 - Default CSP-Rules needed for login with Google have been narrowed
