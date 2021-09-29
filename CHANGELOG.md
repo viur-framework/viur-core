@@ -6,6 +6,9 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 
 ## [develop] - Current development version
 
+### Fixed
+- Queries that return more than 300 entities with active dbaccelerator
+
 ## Added
 - extendCsp function for overriding the CSP-Header on a per-request basis
 - support for nonces and hashes in CSP-Rules
