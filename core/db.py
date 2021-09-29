@@ -668,7 +668,7 @@ class Query(object):
 		if dbaccelerator and not IsInTransaction():  # Use the fast-path fetch
 			qry.keys_only()
 			qryRes = qry.fetch(limit=limit, start_cursor=query.startCursor, end_cursor=query.endCursor)
-			res = dbaccelerator.fetchMulti([x.key for x in next(qryRes.pages)])
+			res = dbaccelerator.fetchMulti([x.key for x in qryRes])
 		else:
 			qryRes = qry.fetch(limit=limit, start_cursor=query.startCursor, end_cursor=query.endCursor)
 			res = list(qryRes)
