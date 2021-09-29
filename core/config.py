@@ -109,15 +109,16 @@ conf = {
 	# If set, viur will emit a CSP http-header with each request. Use security.addCspRule to set this property
 	"viur.security.contentSecurityPolicy": {
 		'enforce': {
-			'style-src': ['self', 'accounts.google.com'],
+			'style-src': ['self', 'https://accounts.google.com/gsi/style'],
 			'default-src': ['self'],
 			'img-src': ['self', 'storage.googleapis.com'],  # Serving-URLs of file-Bones will point here
-			'script-src': ['self', 'accounts.google.com'],
+			'script-src': ['self', 'https://accounts.google.com/gsi/client'],
 			# Required to login with google:
 			'frame-src': ['self', 'www.google.com', 'drive.google.com', 'accounts.google.com'],
 			'form-action': ['self'],
 			'connect-src': ['self', 'accounts.google.com'],
 			'upgrade-insecure-requests': [],
+			"object-src": ['none'],
 		}
 	},
 	# Per default, we'll emit Referrer-Policy: strict-origin so no referrers leak to external services
