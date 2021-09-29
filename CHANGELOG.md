@@ -7,6 +7,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 ## [develop] - Current development version
 
 ### Fixed
+- Distinct-filters being ignored in datastore queries
 - Queries that return more than 300 entities with active dbaccelerator
 
 ## Added

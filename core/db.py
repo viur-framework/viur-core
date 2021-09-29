@@ -583,7 +583,11 @@ class Query(object):
 			Ensure only entities with distinct values on the fields listed are returned.
 			This will implicitly override your SortOrder as all fields listed in keyList have to be sorted first.
 		"""
-		self._distinct = keyList
+		if isinstance(self.queries, QueryDefinition):
+			self.queries.distinct = keyList
+		elif isinstance(self.queries, list):
+			for query in self.queries:
+				query.distinct = keyList
 		return self
 
 	def getCursor(self) -> Optional[str]:
