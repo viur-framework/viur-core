@@ -68,7 +68,7 @@ def ensureDerived(key: db.KeyClass, srcKey, deriveMap: Dict[str, Any]):
 		# Queue that updateRelations call at least 30 seconds into the future, so that other ensureDerived calls from
 		# the same fileBone have the chance to finish, otherwise that updateRelations Task will call postSavedHandler
 		# on that fileBone again - re-queueing any ensureDerivedCalls that have not finished yet.
-		updateRelations(key, time() + 1, ["derived"], _countdown=30)
+		updateRelations(key, time() + 1, "derived", _countdown=30)
 
 
 class fileBone(treeLeafBone):
