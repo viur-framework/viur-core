@@ -586,7 +586,11 @@ class Query(object):
 			Ensure only entities with distinct values on the fields listed are returned.
 			This will implicitly override your SortOrder as all fields listed in keyList have to be sorted first.
 		"""
-		self._distinct = keyList
+		if isinstance(self.queries, QueryDefinition):
+			self.queries.distinct = keyList
+		elif isinstance(self.queries, list):
+			for query in self.queries:
+				query.distinct = keyList
 		return self
 
 	def getCursor(self) -> Optional[str]:
@@ -667,7 +671,7 @@ class Query(object):
 		if dbaccelerator and not IsInTransaction():  # Use the fast-path fetch
 			qry.keys_only()
 			qryRes = qry.fetch(limit=limit, start_cursor=query.startCursor, end_cursor=query.endCursor)
-			res = dbaccelerator.fetchMulti([x.key for x in next(qryRes.pages)])
+			res = dbaccelerator.fetchMulti([x.key for x in qryRes])
 		else:
 			qryRes = qry.fetch(limit=limit, start_cursor=query.startCursor, end_cursor=query.endCursor)
 			res = list(qryRes)
