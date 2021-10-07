@@ -662,6 +662,8 @@ def downloadUrlFor(render: 'viur.core.render.html.default.Render', fileObj: dict
 	"""
 	if expires is unsetMarker:
 		raise ValueError("expires must be explicitly set")
+	if not fileObj:
+		return None
 	if "dlkey" not in fileObj and "dest" in fileObj:
 		fileObj = fileObj["dest"]
 	if expires:
