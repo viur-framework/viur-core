@@ -565,7 +565,7 @@ class Tree(BasicApplication):
 		for x in range(0, 99):
 			if currLevel.key == skel["key"]:
 				break
-			if "rootNode" in currLevel and currLevel["rootNode"] == 1:
+			if ("rootNode" in currLevel and currLevel["rootNode"] == 1) or not currLevel["parententry"]:
 				# We reached a rootNode, so this is okay
 				break
 			currLevel = db.Get(currLevel["parententry"])
