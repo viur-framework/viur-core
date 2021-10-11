@@ -397,16 +397,22 @@ class baseBone(object):  # One Bone:
 		if name in skel.accessedValues:
 			newVal = skel.accessedValues[name]
 			if self.languages and self.multiple:
-				res = {"_viurLanguageWrapper_": True}
+				res = db.Entity()
+				res["_viurLanguageWrapper_"] = True
 				for language in self.languages:
 					res[language] = []
+					if not self.indexed:
+						res.exclude_from_indexes.add(language)
 					if language in newVal:
 						for singleValue in newVal[language]:
 							res[language].append(self.singleValueSerialize(singleValue, skel, name, parentIndexed))
 			elif self.languages:
-				res = {"_viurLanguageWrapper_": True}
+				res = db.Entity()
+				res["_viurLanguageWrapper_"] = True
 				for language in self.languages:
-					res[language] = []
+					res[language] = None
+					if not self.indexed:
+						res.exclude_from_indexes.add(language)
 					if language in newVal:
 						res[language] = self.singleValueSerialize(newVal[language], skel, name, parentIndexed)
 			elif self.multiple:
@@ -441,77 +447,85 @@ class baseBone(object):  # One Bone:
 		"""
 		if name in skel.dbEntity:
 			loadVal = skel.dbEntity[name]
-			if self.languages and self.multiple:
-				res = {}
-				if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
-					for language in self.languages:
-						res[language] = []
-						if language in loadVal:
-							tmpVal = loadVal[language]
-							if not isinstance(tmpVal, list):
-								tmpVal = [tmpVal]
-							for singleValue in tmpVal:
-								res[language].append(self.singleValueUnserialize(singleValue, skel, name))
-				else:  # We could not parse this, maybe it has been written before languages had been set?
-					for language in self.languages:
-						res[language] = []
-					mainLang = self.languages[0]
-					if loadVal is None:
-						pass
-					elif isinstance(loadVal, list):
-						for singleValue in loadVal:
-							res[mainLang].append(self.singleValueUnserialize(singleValue, skel, name))
-					else:  # Hopefully it's a value stored before languages and multiple has been set
-						res[mainLang].append(self.singleValueUnserialize(loadVal, skel, name))
-			elif self.languages:
-				res = {}
-				if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
-					for language in self.languages:
-						res[language] = None
-						if language in loadVal:
-							tmpVal = loadVal[language]
-							if isinstance(tmpVal, list) and tmpVal:
-								tmpVal = tmpVal[0]
-							res[language] = self.singleValueUnserialize(tmpVal, skel, name)
-				else:  # We could not parse this, maybe it has been written before languages had been set?
-					for language in self.languages:
-						res[language] = None
-					mainLang = self.languages[0]
-					if loadVal is None:
-						pass
-					elif isinstance(loadVal, list) and loadVal:
-						res[mainLang] = self.singleValueUnserialize(loadVal, skel, name)
-					else:  # Hopefully it's a value stored before languages and multiple has been set
-						res[mainLang] = self.singleValueUnserialize(loadVal, skel, name)
-			elif self.multiple:
-				res = []
-				if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
-					# Pick one language we'll use
-					if conf["viur.defaultLanguage"] in loadVal:
-						loadVal = loadVal[conf["viur.defaultLanguage"]]
-					else:
-						loadVal = [x for x in loadVal.values() if x is not True]
-				if loadVal and not isinstance(loadVal, list):
-					loadVal = [loadVal]
-				if loadVal:
-					for val in loadVal:
-						res.append(self.singleValueUnserialize(val, skel, name))
-			else:  # Not multiple, no languages
-				res = None
-				if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
-					# Pick one language we'll use
-					if conf["viur.defaultLanguage"] in loadVal:
-						loadVal = loadVal[conf["viur.defaultLanguage"]]
-					else:
-						loadVal = [x for x in loadVal.values() if x is not True]
-				if loadVal and isinstance(loadVal, list):
-					loadVal = loadVal[0]
-				if loadVal is not None:
-					res = self.singleValueUnserialize(loadVal, skel, name)
-			skel.accessedValues[name] = res
-			return True
-		skel.accessedValues[name] = self.getDefaultValue(skel)
-		return False
+		elif conf.get("viur.viur2import.blobsource") and any([x.startswith("%s." % name) for x in skel.dbEntity.keys()]):
+			# We're importing from an old ViUR2 instance - there may only be keys prefixed with our name
+			loadVal = None
+		else:
+			skel.accessedValues[name] = self.getDefaultValue(skel)
+			return False
+		if self.languages and self.multiple:
+			res = {}
+			if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
+				for language in self.languages:
+					res[language] = []
+					if language in loadVal:
+						tmpVal = loadVal[language]
+						if not isinstance(tmpVal, list):
+							tmpVal = [tmpVal]
+						for singleValue in tmpVal:
+							res[language].append(self.singleValueUnserialize(singleValue, skel, name))
+			else:  # We could not parse this, maybe it has been written before languages had been set?
+				for language in self.languages:
+					res[language] = []
+				mainLang = self.languages[0]
+				if loadVal is None:
+					pass
+				elif isinstance(loadVal, list):
+					for singleValue in loadVal:
+						res[mainLang].append(self.singleValueUnserialize(singleValue, skel, name))
+				else:  # Hopefully it's a value stored before languages and multiple has been set
+					res[mainLang].append(self.singleValueUnserialize(loadVal, skel, name))
+		elif self.languages:
+			res = {}
+			if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
+				for language in self.languages:
+					res[language] = None
+					if language in loadVal:
+						tmpVal = loadVal[language]
+						if isinstance(tmpVal, list) and tmpVal:
+							tmpVal = tmpVal[0]
+						res[language] = self.singleValueUnserialize(tmpVal, skel, name)
+			else:  # We could not parse this, maybe it has been written before languages had been set?
+				for language in self.languages:
+					res[language] = None
+					oldKey = "%s.%s" % (name, language)
+					if oldKey in skel.dbEntity and skel.dbEntity[oldKey]:
+						res[language] = self.singleValueUnserialize(skel.dbEntity[oldKey], skel, name)
+						loadVal = None  # Don't try to import later again, this format takes precedence
+				mainLang = self.languages[0]
+				if loadVal is None:
+					pass
+				elif isinstance(loadVal, list) and loadVal:
+					res[mainLang] = self.singleValueUnserialize(loadVal, skel, name)
+				else:  # Hopefully it's a value stored before languages and multiple has been set
+					res[mainLang] = self.singleValueUnserialize(loadVal, skel, name)
+		elif self.multiple:
+			res = []
+			if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
+				# Pick one language we'll use
+				if conf["viur.defaultLanguage"] in loadVal:
+					loadVal = loadVal[conf["viur.defaultLanguage"]]
+				else:
+					loadVal = [x for x in loadVal.values() if x is not True]
+			if loadVal and not isinstance(loadVal, list):
+				loadVal = [loadVal]
+			if loadVal:
+				for val in loadVal:
+					res.append(self.singleValueUnserialize(val, skel, name))
+		else:  # Not multiple, no languages
+			res = None
+			if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
+				# Pick one language we'll use
+				if conf["viur.defaultLanguage"] in loadVal:
+					loadVal = loadVal[conf["viur.defaultLanguage"]]
+				else:
+					loadVal = [x for x in loadVal.values() if x is not True]
+			if loadVal and isinstance(loadVal, list):
+				loadVal = loadVal[0]
+			if loadVal is not None:
+				res = self.singleValueUnserialize(loadVal, skel, name)
+		skel.accessedValues[name] = res
+		return True
 
 	def delete(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
 		"""
@@ -609,7 +623,7 @@ class baseBone(object):  # One Bone:
 			elif isinstance(queries, list):
 				inEqFilter = None
 				for singeFilter in queries:
-					newInEqFilter = [x for x in singeFilter.filter.keys() if
+					newInEqFilter = [x for x in singeFilter.filters.keys() if
 									 (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
 					if inEqFilter and newInEqFilter and inEqFilter != newInEqFilter:
 						raise NotImplementedError("Impossible ordering!")

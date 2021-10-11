@@ -25,7 +25,7 @@ except ImportError:
 """
 	Tiny wrapper around *google.cloud.datastore*.
 
-	This module provides some utility functions and a wrapper around queries with commonly needed functionality for 
+	This module provides some utility functions and a wrapper around queries with commonly needed functionality for
 	relations. It also ensures that datastore access is recorded accordingly so the caching module can function
 	correctly.
 """
@@ -583,7 +583,11 @@ class Query(object):
 			Ensure only entities with distinct values on the fields listed are returned.
 			This will implicitly override your SortOrder as all fields listed in keyList have to be sorted first.
 		"""
-		self._distinct = keyList
+		if isinstance(self.queries, QueryDefinition):
+			self.queries.distinct = keyList
+		elif isinstance(self.queries, list):
+			for query in self.queries:
+				query.distinct = keyList
 		return self
 
 	def getCursor(self) -> Optional[str]:
@@ -664,7 +668,7 @@ class Query(object):
 		if dbaccelerator and not IsInTransaction():  # Use the fast-path fetch
 			qry.keys_only()
 			qryRes = qry.fetch(limit=limit, start_cursor=query.startCursor, end_cursor=query.endCursor)
-			res = dbaccelerator.fetchMulti([x.key for x in next(qryRes.pages)])
+			res = dbaccelerator.fetchMulti([x.key for x in qryRes])
 		else:
 			qryRes = qry.fetch(limit=limit, start_cursor=query.startCursor, end_cursor=query.endCursor)
 			res = list(qryRes)
@@ -973,7 +977,7 @@ def acquireTransactionSuccessMarker() -> str:
 		Generates a token that will be written to the firestore (under "viur-transactionmarker") if the transaction
 		completes successfully. Currently only used by deferredTasks to check if the task should actually execute
 		or if the transaction it was created in failed.
-	:return: Name of the entry in viur-transactionmarker
+		:return: Name of the entry in viur-transactionmarker
 	"""
 	txn = __client__.current_transaction
 	assert txn, "acquireTransactionSuccessMarker cannot be called outside an transaction"
@@ -986,7 +990,24 @@ def acquireTransactionSuccessMarker() -> str:
 	return marker
 
 
-def RunInTransaction(callee, *args, **kwargs):
+def RunInTransaction(callee: Callable, *args, **kwargs) -> Any:
+	"""
+		Runs the function given in :param:callee inside a transaction.
+		Inside a transaction it's guaranteed that
+		- either all or no changes are written to the datastore
+		- no other transaction is currently reading/writing the entities accessed
+
+		See (transactions)[https://cloud.google.com/datastore/docs/concepts/cloud-datastore-transactions] for more
+		information.
+
+		..Warning: The datastore may produce unexpected results if a entity that have been written inside a transaction
+			is read (or returned in a query) again. In this case you will the the *old* state of that entity. Keep that
+			in mind if wrapping functions to run in a transaction that may have not been designed to handle this case.
+		:param callee: The function that will be run inside a transaction
+		:param args: All args will be passed into the callee
+		:param kwargs: All kwargs will be passed into the callee
+		:return: Whatever the callee function returned
+	"""
 	with __client__.transaction():
 		res = callee(*args, **kwargs)
 	return res

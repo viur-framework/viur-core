@@ -538,6 +538,22 @@ class seoKeyBone(stringBone):
 		except KeyError:
 			skel.accessedValues[name] = self.getDefaultValue(skel)
 
+	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
+		# Serialize also to skel["viur"]["viurCurrentSeoKeys"], so we can use this bone in relations
+		if name in skel.accessedValues:
+			newVal = skel.accessedValues[name]
+			if not skel.dbEntity.get("viur"):
+				skel.dbEntity["viur"] = db.Entity()
+			res = db.Entity()
+			res["_viurLanguageWrapper_"] = True
+			for language in self.languages:
+				if not self.indexed:
+					res.exclude_from_indexes.add(language)
+				res[language] = None
+				if language in newVal:
+					res[language] = self.singleValueSerialize(newVal[language], skel, name, parentIndexed)
+			skel.dbEntity["viur"]["viurCurrentSeoKeys"] = res
+		return True
 
 class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 	kindName: str = __undefindedC__  # To which kind we save our data to
@@ -854,7 +870,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 						for k2, v2 in list(entity.items()):
 							if k2.startswith("%s." % k):
 								del entity[k2]
-								entity[k2.replace(".", "__")] = v2
+								backupKey= k2.replace(".", "__")
+								entity[backupKey] = v2
+								entity.exclude_from_indexes = list(entity.exclude_from_indexes) + [backupKey]
 						fixDotNames(v)
 					elif isinstance(v, list):
 						for x in v:
@@ -926,8 +944,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		skel.postSavedHandler(key, dbObj)
 
 		if not clearUpdateTag and not isAdd:
-			updateRelations(key, time() + 1,
-							changeList if len(changeList) < 30 else None)
+			if changeList and len(changeList) < 5:  # Only a few bones have changed, process these individually
+				for idx, changedBone in enumerate(changeList):
+					updateRelations(key, time() + 1, changedBone, _countdown=10 * idx)
+			else:  # Update all inbound relations, regardless of which bones they mirror
+				updateRelations(key, time() + 1, None)
 
 		# Inform the custom DB Adapter of the changes made to the entry
 		if skelValues.customDatabaseAdapter:
@@ -1224,14 +1245,30 @@ def processRemovedRelations(removedKey, cursor=None):
 
 
 @callDeferred
-def updateRelations(destID, minChangeTime, changeList, cursor=None):
-	changeList = None  # Temp. disable the changeList evaluation as it causes the cursor to fail
-	logging.debug("Starting updateRelations for %s ; minChangeTime %s, Changelist: %s", destID, minChangeTime,
-				  changeList)
-	updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", destID) \
+def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: Optional[str], cursor: Optional[str] = None):
+	"""
+		This function updates Entities, which may have a copy of values from another entity which has been recently
+		edited (updated). In ViUR, relations are implemented by copying the values from the referenced entity into the
+		entity that's referencing them. This allows ViUR to run queries over properties of referenced entities and
+		prevents additional db.Get's to these referenced entities if the main entity is read. However, this forces
+		us to track changes made to entities as we might have to update these mirrored values. 	This is the deferred
+		call from meth:`viur.core.skeleton.Skeleton.toDB()` after an update (edit) on one Entity to do exactly that.
+
+		:param destKey: The database-key of the entity that has been edited
+		:param minChangeTime: The timestamp on which the edit occurred. As we run deferred, and the entity might have
+			been edited multiple times before we get acutally called, we can ignore entities that have been updated
+			in the meantime as they're  already up2date
+		:param changedBone: If set, we'll update only entites that have a copy of that bone. Relations mirror only
+			key and name by default, so we don't have to update these if only another bone has been changed.
+		:param cursor: The database cursor for the current request as we only process five entities at once and then
+			defer again.
+	"""
+	logging.debug("Starting updateRelations for %s ; minChangeTime %s, changedBone: %s, cursor: %s",
+				  destKey, minChangeTime, changedBone, cursor)
+	updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", destKey) \
 		.filter("viur_delayed_update_tag <", minChangeTime).filter("viur_relational_updateLevel =", 0)
-	if changeList:
-		updateListQuery.filter("viur_foreign_keys IN", changeList)
+	if changedBone:
+		updateListQuery.filter("viur_foreign_keys =", changedBone)
 	if cursor:
 		updateListQuery.setCursor(cursor)
 	updateList = updateListQuery.run(limit=5)
@@ -1248,12 +1285,12 @@ def updateRelations(destID, minChangeTime, changeList, cursor=None):
 		try:
 			skel = skeletonByKind(srcRel["viur_src_kind"])()
 		except AssertionError:
-			logging.info("Deleting %s which refers to unknown kind %s" % (str(srcRel.key), srcRel["viur_src_kind"]))
+			logging.info("Ignoring %s which refers to unknown kind %s" % (str(srcRel.key), srcRel["viur_src_kind"]))
 			continue
 		db.RunInTransaction(updateTxn, skel, srcRel["src"].key, srcRel.key)
 	nextCursor = updateListQuery.getCursor()
 	if len(updateList) == 5 and nextCursor:
-		updateRelations(destID, minChangeTime, changeList, nextCursor)
+		updateRelations(destKey, minChangeTime, changedBone, nextCursor)
 
 
 @CallableTask

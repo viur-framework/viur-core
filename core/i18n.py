@@ -24,6 +24,11 @@ class LanguageWrapper(dict):
 	def __str__(self):
 		return str(self.resolve())
 
+	def __bool__(self):
+		# Overridden to support if skel["bone"] tests in html render
+		# (otherwise that test is always true as this dict contains keys)
+		return bool(str(self))
+
 	def resolve(self):
 		"""
 			Causes this wrapper to evaluate to the best language available for the current request.
@@ -137,8 +142,8 @@ class TranslationExtension(Extension):
 				lastToken = None
 		if lastToken:
 			args.append(lastToken.value)
-		if not 0 < len(args) < 3:
-			raise SyntaxError("Translation-Key missing!")
+		if not 0 < len(args) <= 3:
+			raise SyntaxError("Translation-Key missing or excess parameters!")
 		args += [""] * (3 - len(args))
 		args += [kwargs]
 		trKey = args[0]
