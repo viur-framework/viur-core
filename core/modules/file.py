@@ -14,7 +14,7 @@ from urllib.request import urlopen
 from viur.core.config import conf
 
 import google.auth
-from PIL import Image
+from PIL import Image, ImageCms
 from google.auth import compute_engine
 from google.auth.transport import requests
 from google.cloud import storage
@@ -35,7 +35,7 @@ bucket = client.lookup_bucket("%s.appspot.com" % projectID)
 iamClient = iam_credentials_v1.IAMCredentialsClient()
 
 
-def importBlobFromViur2(dlKey):
+def importBlobFromViur2(dlKey, fileName):
 	if not conf.get("viur.viur2import.blobsource"):
 		return False
 	existingImport = db.Get(db.Key("viur-viur2-blobimport", dlKey))
@@ -43,34 +43,40 @@ def importBlobFromViur2(dlKey):
 		if existingImport["success"]:
 			return existingImport["dlurl"]
 		return False
-	try:
-		importDataReq = urlopen(conf["viur.viur2import.blobsource"]["infoURL"] + dlKey)
-	except:
-		marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
-		marker["success"] = False
-		marker["error"] = "Failed URL-FETCH 1"
-		db.Put(marker)
-		return False
-	if importDataReq.status != 200:
-		marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
-		marker["success"] = False
-		marker["error"] = "Failed URL-FETCH 2"
-		db.Put(marker)
-		return False
-	importData = json.loads(importDataReq.read())
-	srcBlob = storage.Blob(bucket=bucket, name=conf["viur.viur2import.blobsource"]["gsdir"] + "/" + importData["key"])
+	if conf["viur.viur2import.blobsource"]["infoURL"]:
+		try:
+			importDataReq = urlopen(conf["viur.viur2import.blobsource"]["infoURL"] + dlKey)
+		except:
+			marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
+			marker["success"] = False
+			marker["error"] = "Failed URL-FETCH 1"
+			db.Put(marker)
+			return False
+		if importDataReq.status != 200:
+			marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
+			marker["success"] = False
+			marker["error"] = "Failed URL-FETCH 2"
+			db.Put(marker)
+			return False
+		importData = json.loads(importDataReq.read())
+		oldBlobName = conf["viur.viur2import.blobsource"]["gsdir"] + "/" + importData["key"]
+		srcBlob = storage.Blob(bucket=bucket, name=conf["viur.viur2import.blobsource"]["gsdir"] + "/" + importData["key"])
+	else:
+		oldBlobName = conf["viur.viur2import.blobsource"]["gsdir"] + "/" + dlKey
+		srcBlob = storage.Blob(bucket=bucket, name=conf["viur.viur2import.blobsource"]["gsdir"] + "/" + dlKey)
 	if not srcBlob.exists():
 		marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
 		marker["success"] = False
 		marker["error"] = "Local SRC-Blob missing"
+		marker["oldBlobName"] = oldBlobName
 		db.Put(marker)
 		return False
-	bucket.rename_blob(srcBlob, "%s/source/%s" % (dlKey, importData["name"]))
+	bucket.rename_blob(srcBlob, "%s/source/%s" % (dlKey, fileName))
 	marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
 	marker["success"] = True
-	marker["old_src_key"] = importData["key"]
-	marker["old_src_name"] = importData["name"]
-	marker["dlurl"] = utils.downloadUrlFor(dlKey, importData["name"], False, None)
+	marker["old_src_key"] = dlKey
+	marker["old_src_name"] = fileName
+	marker["dlurl"] = utils.downloadUrlFor(dlKey, fileName, False, None)
 	db.Put(marker)
 	return marker["dlurl"]
 
@@ -94,7 +100,18 @@ def thumbnailer(fileSkel, existingFiles, params):
 	for sizeDict in params:
 		fileData.seek(0)
 		outData = BytesIO()
-		img = Image.open(fileData)
+		try:
+			img = Image.open(fileData)
+		except Image.UnidentifiedImageError:  # We can't load this image; so there's no need to try other resolutions
+			return []
+		iccProfile = img.info.get('icc_profile')
+		if iccProfile:
+			# JPEGs might be encoded with a non-standard color-profile; we need to compensate for this if we convert
+			# to WEBp as we'll loose this color-profile information
+			f = BytesIO(iccProfile)
+			src_profile = ImageCms.ImageCmsProfile(f)
+			dst_profile = ImageCms.createProfile('sRGB')
+			img = ImageCms.profileToProfile(img, inputProfile=src_profile, outputProfile=dst_profile, outputMode="RGB")
 		fileExtension = sizeDict.get("fileExtension", "webp")
 		if "width" in sizeDict and "height" in sizeDict:
 			width = sizeDict["width"]
@@ -178,7 +195,7 @@ class fileBaseSkel(TreeSkel):
 	def refresh(cls, skelValues):
 		super().refresh(skelValues)
 		if conf.get("viur.viur2import.blobsource"):
-			importData = importBlobFromViur2(skelValues["dlkey"])
+			importData = importBlobFromViur2(skelValues["dlkey"], skelValues["name"])
 			if importData:
 				if not skelValues["downloadUrl"]:
 					skelValues["downloadUrl"] = importData

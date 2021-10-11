@@ -45,6 +45,7 @@
 """
 
 from viur.core.config import conf
+from viur.core.utils import currentRequest
 import logging
 from typing import Optional, List
 
@@ -118,7 +119,9 @@ def _rebuildCspHeaderCache():
 			resStr += key
 			for value in values:
 				resStr += " "
-				if value in {"self", "unsafe-inline", "unsafe-eval", "script"}:
+				if value in {"self", "unsafe-inline", "unsafe-eval", "script", "none"} or \
+					any([value.startswith(x) for x in ["sha256-", "sha384-", "sha512-"]]):
+					# We don't permit nonce- in project wide config as this will be reused on multiple requests
 					resStr += "'%s'" % value
 				else:
 					resStr += value
@@ -128,6 +131,49 @@ def _rebuildCspHeaderCache():
 				"Content-Security-Policy-Report-Only"] = resStr
 		else:
 			conf["viur.security.contentSecurityPolicy"]["_headerCache"]["Content-Security-Policy"] = resStr
+
+
+def extendCsp(additionalRules: dict = None, overrideRules: dict = None) -> None:
+	"""
+		Adds additional csp rules to the current request. ViUR will emit a default csp-header based on the
+		project-wide config. For some requests, it's needed to extend or override these rules without having to include
+		them in the project config. Each dictionary must be in the same format as the
+		conf["viur.security.contentSecurityPolicy"]. Values in additionalRules will extend the project-specific
+		configuration, while overrideRules will replace them.
+
+		..Note: This function will only work on CSP-Rules in "enforce" mode, "monitor" is not suppored
+
+		:param additionalRules: Dictionary with additional csp-rules to emit
+		:param overrideRules: Values in this dictionary will override the corresponding default rule
+	"""
+	assert additionalRules or overrideRules, "Either additionalRules or overrideRules must be given!"
+	tmpDict = {}  # Copy the project-wide config in
+	if conf["viur.security.contentSecurityPolicy"].get("enforce"):
+		tmpDict.update(conf["viur.security.contentSecurityPolicy"]["enforce"])
+	if overrideRules:  # Merge overrideRules
+		for k, v in overrideRules.items():
+			if v is None and k in tmpDict:
+				del tmpDict[k]
+			else:
+				tmpDict[k] = v
+	if additionalRules:  # Merge the extension dict
+		for k, v in additionalRules.items():
+			if k not in tmpDict:
+				tmpDict[k] = []
+			tmpDict[k].extend(v)
+	resStr = ""  # Rebuild the CSP-Header
+	for key, values in tmpDict.items():
+		resStr += key
+		for value in values:
+			resStr += " "
+			if value in {"self", "unsafe-inline", "unsafe-eval", "script", "none"} or \
+				any([value.startswith(x) for x in ["nonce-", "sha256-", "sha384-", "sha512-"]]):
+				resStr += "'%s'" % value
+			else:
+				resStr += value
+		resStr += "; "
+	currentRequest.get().response.headers["Content-Security-Policy"] = resStr
+
 
 
 def enableStrictTransportSecurity(maxAge=365 * 24 * 60 * 60, includeSubDomains=False, preload=False):

@@ -431,6 +431,9 @@ class GoogleAccount(object):
 			raise errors.PreconditionFailed("Please configure 'viur.user.google.clientID' in your conf!")
 		if not skey or not token:
 			currentRequest.get().response.headers["Content-Type"] = "text/html"
+			if currentRequest.get().response.headers.get("cross-origin-opener-policy") == "same-origin":
+				# We have to allow popups here
+				currentRequest.get().response.headers["cross-origin-opener-policy"] = "same-origin-allow-popups"
 			# Fixme: Render with Jinja2?
 			tplStr = open("viur/core/template/vi_user_google_login.html", "r").read()
 			tplStr = tplStr.replace("{{ clientID }}", conf["viur.user.google.clientID"])

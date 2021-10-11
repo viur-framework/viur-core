@@ -49,7 +49,7 @@ def getStructure(adminTree, module):
 		if stype in dir(moduleObj):
 			try:
 				skel = getattr(moduleObj, stype)()
-			except TypeError:
+			except (TypeError, ValueError):
 				continue
 			if isinstance(skel, SkeletonInstance):
 				res[stype] = default().renderSkelStructure(skel)
@@ -60,7 +60,7 @@ def getStructure(adminTree, module):
 				if stype in dir(moduleObj):
 					try:
 						skel = getattr(moduleObj, stype)(treeType)
-					except TypeError:
+					except (TypeError, ValueError):
 						continue
 					if isinstance(skel, SkeletonInstance):
 						storeType = stype.replace("Skel", "") + ("LeafSkel" if treeType == "leaf" else "NodeSkel")

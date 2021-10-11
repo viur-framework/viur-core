@@ -21,6 +21,10 @@ currentLanguage = ContextVar("Language", default=None)
 # Determine which ProjectID we currently run in (as the app_identity module isn't available anymore)
 _, projectID = google.auth.default()
 del _
+appVersion = os.getenv("GAE_VERSION")  # Name of this version as deployed to the appengine
+# Hash of appVersion used for cache-busting for static resources (css etc) that does not reveal the actual version name
+versionHash = urlsafe_b64encode(hashlib.sha256((appVersion+projectID).encode("UTF8")).digest()).decode("ASCII")
+versionHash = "".join([x for x in versionHash if x in string.digits+string.ascii_letters])[1:7]  # Strip +, / and =
 # Determine our basePath (as os.getCWD is broken on appengine)
 projectBasePath = str(Path().absolute()) #os.path.abspath(os.getcwd())
 coreBasePath = globals()["__file__"].replace("/viur/core/utils.py","")
@@ -103,6 +107,9 @@ def escapeString(val, maxLength=254):
 		.replace(">", "&gt;") \
 		.replace("\"", "&quot;") \
 		.replace("'", "&#39;") \
+		.replace("(", "&#040;") \
+		.replace(")", "&#041;") \
+		.replace("=", "&#061;") \
 		.replace("\n", "") \
 		.replace("\0", "")
 

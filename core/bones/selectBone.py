@@ -18,37 +18,10 @@ class selectBone(baseBone):
 			:param values: dict of key->value pairs from which the user can choose from. Values will be translated
 			:type values: dict
 		"""
-
 		if defaultValue is None and multiple:
 			defaultValue = []
-
 		super(selectBone, self).__init__(defaultValue=defaultValue, multiple=multiple, *args, **kwargs)
-
-		if "sortBy" in kwargs:
-			logging.warning("The sortBy parameter is deprecated. Please use an orderedDict for 'values' instead")
-
-		if isinstance(values, dict) and not isinstance(values, OrderedDict):
-			vals = list(values.items())
-			if "sortBy" in kwargs:
-				sortBy = kwargs["sortBy"]
-
-				if not sortBy in ["keys", "values"]:
-					raise ValueError("sortBy must be \"keys\" or \"values\"")
-
-				if sortBy == "keys":
-					vals.sort(key=lambda x: x[0])
-				else:
-					vals.sort(key=lambda x: x[1])
-			else:
-				vals.sort(key=lambda x: x[1])
-
-			self.values = OrderedDict(vals)
-
-		elif isinstance(values, list):
-			self.values = OrderedDict([(x, x) for x in values])
-
-		elif isinstance(values, OrderedDict):
-			self.values = values
+		self.values = values
 
 	def singleValueFromClient(self, value, skel, name, origData):
 		if not str(value):
