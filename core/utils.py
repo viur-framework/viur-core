@@ -116,6 +116,18 @@ def escapeString(val, maxLength=254):
 
 	return val
 
+def unescapeString(val):
+	val = str(val).strip() \
+		.replace("&lt;", "<") \
+		.replace("&gt;", ">") \
+		.replace("&quot;", "\"") \
+		.replace("&#39;", "'") \
+		.replace("&#040;", "(") \
+		.replace("&#041;", ")") \
+		.replace("&#061;", "=")
+
+	return val
+
 
 def hmacSign(data: Any) -> str:
 	assert conf["viur.file.hmacKey"] is not None, "No hmac-key set!"

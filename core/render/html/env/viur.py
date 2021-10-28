@@ -237,7 +237,7 @@ def redirect(render, url):
 	:param url: URL to redirect to.
 	:type url: str
 	"""
-	raise errors.Redirect(url)
+	raise errors.Redirect(utils.unescapeString(url))
 
 
 @jinjaGlobalFunction
