@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import json
 from collections import OrderedDict
-from viur.core import bones, utils, db
+from viur.core import bones, utils
+from viur import datastore as db
 from viur.core.skeleton import SkeletonInstance
 from viur.core.utils import currentRequest
 from viur.core.i18n import translate

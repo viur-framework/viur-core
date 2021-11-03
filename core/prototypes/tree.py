@@ -4,7 +4,8 @@ from datetime import datetime
 from time import time
 from typing import Optional
 
-from viur.core import db, utils, errors, conf, securitykey
+from viur.core import utils, errors, conf, securitykey
+from viur import datastore as db
 from viur.core import forcePost, forceSSL, exposed, internalExposed
 from viur.core.bones import baseBone, keyBone, numericBone
 from viur.core.prototypes import BasicApplication
@@ -31,7 +32,7 @@ class TreeSkel(Skeleton):
 		super().refresh(skelValues)
 		if not skelValues["parententry"] and skelValues.dbEntity.get("parentdir"):  # parentdir for viur2 compatibility
 			skelValues["parententry"] = utils.normalizeKey(
-				db.KeyClass.from_legacy_urlsafe(skelValues.dbEntity["parentdir"]))
+				db.Key.from_legacy_urlsafe(skelValues.dbEntity["parentdir"]))
 
 
 class Tree(BasicApplication):
@@ -174,7 +175,7 @@ class Tree(BasicApplication):
 		"""
 		return []
 
-	def getRootNode(self, entryKey: db.KeyClass) -> Skeleton:
+	def getRootNode(self, entryKey: db.Key) -> Skeleton:
 		"""
 		Returns the root-node for a given child.
 
@@ -231,7 +232,7 @@ class Tree(BasicApplication):
 	## Internal exposed functions
 
 	@internalExposed
-	def pathToKey(self, key: db.KeyClass):
+	def pathToKey(self, key: db.Key):
 		"""
 		Returns the recursively expanded path through the Tree from the root-node to a
 		requested node.

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from viur.core.bones.bone import baseBone
-from viur.core.db import Entity, KeyClass, keyHelper, KEY_SPECIAL_PROPERTY
+from viur.datastore import Entity, Key, keyHelper, KEY_SPECIAL_PROPERTY
 from viur.core.utils import normalizeKey
 import logging, copy
 
@@ -26,10 +26,10 @@ class keyBone(baseBone):
 		def fixVals(val):
 			if isinstance(val, str):
 				try:
-					val = normalizeKey(KeyClass.from_legacy_urlsafe(val))
+					val = normalizeKey(Key.from_legacy_urlsafe(val))
 				except:
 					val = None
-			elif not isinstance(val, KeyClass):
+			elif not isinstance(val, Key):
 				val = None
 			return val
 
@@ -94,11 +94,11 @@ class keyBone(baseBone):
 		"""
 
 		def _decodeKey(key):
-			if isinstance(key, KeyClass):
+			if isinstance(key, Key):
 				return key
 			else:
 				try:
-					return KeyClass.from_legacy_urlsafe(key)
+					return Key.from_legacy_urlsafe(key)
 				except Exception as e:
 					logging.exception(e)
 					logging.warning("Could not decode key %s" % key)
