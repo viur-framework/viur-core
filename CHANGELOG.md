@@ -6,29 +6,40 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 
 ## [develop] - Current development version
 
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [3.0.2]
+
+### Added
+- extendCsp function for overriding the CSP-Header on a per-request basis
+- support for nonces and hashes in CSP-Rules
+- Supply version_id in logging entries
+
+### Changed
+- Default CSP-Rules needed for login with Google have been narrowed
+
 ### Fixed
 - Rebuilding file dervies if the file is being referenced in relations
 - Distinct-filters being ignored in datastore queries
 - Queries that return more than 300 entities with active dbaccelerator
 
-## Added
-- extendCsp function for overriding the CSP-Header on a per-request basis
-- support for nonces and hashes in CSP-Rules
-
-## Changed
-- Default CSP-Rules needed for login with Google have been narrowed
-
 
 ## [3.0.1]
 
-## Added
+### Added
 - Added validations to catch invalid recipient addresses early in sendEmail
 - 'connect-src': self and 'upgrade-insecure-requests' CSP directives by default
 - versionHash and appVersion variables to utils and jinja2 render 
 - The ability to import blobs that have been copied client-side from the old (non cloud-storage) blobstore
 - Support for custom colorprofiles in thumbnails 
 
-## Changed
+### Changed
 - [Breaking] srcSetFor function in jinja2 now needs a list with or height instead of deriving from groups
 - Replaced *.ggpht.com and *.googleusercontent.com CSP directives by storage.googleapis.com
 - Migrated Login with Google from Google Sign-In to Identity Services

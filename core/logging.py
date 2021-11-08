@@ -5,13 +5,14 @@ from google.cloud.logging import Resource
 from google.cloud.logging.handlers import CloudLoggingHandler
 from google.cloud.logging_v2.handlers.handlers import EXCLUDED_LOGGER_DEFAULTS
 
-from viur.core.utils import currentRequest, projectID
+from viur.core.utils import currentRequest, projectID, appVersion, isLocalDevelopmentServer
 
 client = google.cloud.logging.Client()
 requestLoggingRessource = Resource(type="gae_app",
 								   labels={
 									   "project_id": projectID,
 									   "module_id": "default",
+									   "version_id": appVersion if not isLocalDevelopmentServer else "dev_appserver",
 								   })
 
 requestLogger = client.logger("ViUR")

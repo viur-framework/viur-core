@@ -25,7 +25,7 @@
  See file LICENSE for more information.
 """
 
-__version__ = (3, 0, 0)  # Which API do we expose to our application
+__version__ = (3, 0, 2)  # Which API do we expose to our application
 
 from types import ModuleType
 from typing import Dict, Union, Callable
