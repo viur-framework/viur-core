@@ -4,7 +4,8 @@ from hmac import compare_digest
 from time import time
 
 from viur.core.tasks import PeriodicTask, callDeferred
-from viur.core import db, utils
+from viur.core import utils
+from viur import datastore as db
 from viur.core.config import conf
 
 """

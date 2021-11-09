@@ -9,7 +9,8 @@ from viur.core import errors, conf, securitykey
 from viur.core.tasks import StartupTask, callDeferred
 from viur.core.ratelimit import RateLimit
 from time import time
-from viur.core import db, exposed, forceSSL
+from viur.core import exposed, forceSSL
+from viur import datastore as db
 from hashlib import sha512
 # from google.appengine.api import users, app_identity
 import logging

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from viur.core import utils, errors, conf, securitykey, db
+from viur.core import utils, errors, conf, securitykey
+from viur import datastore as db
 from viur.core import forcePost, forceSSL, exposed, internalExposed
 from viur.core.skeleton import SkeletonInstance
 from viur.core.prototypes import BasicApplication

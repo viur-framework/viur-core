@@ -12,7 +12,8 @@ from hashlib import sha512
 from typing import Dict, List, Union, Optional
 
 import viur.core.render.html.default
-from viur.core import db, errors, prototypes, securitykey, utils
+from viur.core import errors, prototypes, securitykey, utils
+from viur import datastore as db
 from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
 from viur.core.skeleton import RelSkel, SkeletonInstance
 from viur.core.utils import currentLanguage, currentRequest
@@ -510,7 +511,7 @@ def shortKey(render, val):
 	"""
 
 	try:
-		k = db.KeyClass.from_legacy_urlsafe(str(val))
+		k = db.Key.from_legacy_urlsafe(str(val))
 		return k.id_or_name
 
 	except:

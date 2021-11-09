@@ -11,7 +11,8 @@ from itertools import chain
 from time import time
 from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, Set, Optional
 
-from viur.core import conf, db, errors, utils, email
+from viur.core import conf, errors, utils, email
+from viur import datastore as db
 from viur.core.bones import baseBone, dateBone, keyBone, relationalBone, selectBone, stringBone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 from viur.core.tasks import CallableTask, CallableTaskBase, callDeferred, QueryIter
@@ -647,7 +648,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		return complete
 
 	@classmethod
-	def fromDB(cls, skelValues: SkeletonInstance, key: Union[str, db.KeyClass]) -> bool:
+	def fromDB(cls, skelValues: SkeletonInstance, key: Union[str, db.Key]) -> bool:
 		"""
 			Load entity with *key* from the data store into the Skeleton.
 
@@ -676,7 +677,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		return True
 
 	@classmethod
-	def toDB(cls, skelValues: SkeletonInstance, clearUpdateTag: bool = False) -> db.KeyClass:
+	def toDB(cls, skelValues: SkeletonInstance, clearUpdateTag: bool = False) -> db.Key:
 		"""
 			Store current Skeleton entity to data store.
 

@@ -7,7 +7,8 @@ import webob
 from viur.core import errors
 from urllib.parse import urljoin, urlparse, unquote
 from viur.core.logging import requestLogger, client as loggingClient, requestLoggingRessource
-from viur.core import utils, db
+from viur.core import utils
+from viur import datastore as db
 from viur.core.utils import currentSession, currentLanguage
 import logging
 from time import time
@@ -19,7 +20,7 @@ from abc import ABC, abstractmethod
 	point for incomming http requests. The main class is the :class:BrowserHandler. Each request will get it's
 	own instance of that class which then holds the reference to the request and response object.
 	Additionally, this module defines the RequestValidator interface which provides a very early hook into the
-	request processing (useful for global ratelimiting, DDoS prevention or access control).  
+	request processing (useful for global ratelimiting, DDoS prevention or access control).
 """
 
 class RequestValidator(ABC):

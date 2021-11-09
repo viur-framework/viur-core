@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from viur.core import utils, db
+from viur.core import utils
+from viur import datastore as db
 from viur.core.utils import currentRequest
 from viur.core.tasks import PeriodicTask, DeleteEntitiesIter
 from datetime import timedelta

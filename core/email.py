@@ -4,7 +4,8 @@ from urllib import request
 from abc import ABC, abstractmethod
 from typing import Any, Union, List, Dict
 from viur.core.config import conf
-from viur.core import db, utils
+from viur.core import utils
+from viur import datastore as db
 from viur.core.utils import projectID
 from viur.core.tasks import callDeferred, QueryIter, PeriodicTask, DeleteEntitiesIter
 
@@ -82,7 +83,7 @@ class EmailTransport(ABC):
 
 
 @callDeferred
-def sendEmailDeferred(emailKey: db.KeyClass):
+def sendEmailDeferred(emailKey: db.Key):
 	"""
 		Callback from the Taskqueue to send the given Email
 		:param emailKey: Database-Key of the email we should send
