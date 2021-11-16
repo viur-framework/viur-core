@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from viur.core import conf
-from viur.core.skeleton import skeletonByKind, Skeleton
+from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
 from typing import Dict, List, Any, Union, Callable
 
 
@@ -122,7 +122,7 @@ class BasicApplication(object):
 				if not rightName in conf["viur.accessRights"]:
 					conf["viur.accessRights"].append(rightName)
 
-	def baseSkel(self, *args, **kwargs) -> Skeleton:
+	def baseSkel(self, *args, **kwargs) -> SkeletonInstance:
 		"""
 		Liefert ein unmodifiziertes Basis-Skeleton.
 		Diese Funktion sollte nur vom System aufgerufen werden, z.B. wenn in einem Task einfach nur das pure Skeleton
