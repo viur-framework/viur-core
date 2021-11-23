@@ -286,7 +286,7 @@ class baseBone(object):  # One Bone:
 		return False
 
 	def singleValueFromClient(self, value, skel, name, origData):
-		# The baseBone will not read any data in fromClient. Use rawValueBone if needed.
+		# The baseBone will not read any data in fromClient. Use rawBone if needed.
 		return self.getEmptyValue(), [
 			ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Will not read a baseBone fromClient!")]
 

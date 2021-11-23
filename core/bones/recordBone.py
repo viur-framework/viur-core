@@ -62,7 +62,8 @@ class recordBone(baseBone):
 			usingSkel.errors.append(
 				ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Incomplete data")
 			)
-		return usingSkel, usingSkel.errors
+			return usingSkel, usingSkel.errors
+		return usingSkel, []  # es ist Niemanden geholfen, wenn ein setBoneValue fehlschlägt, weil man eine Wert leer setzt, der nicht required ist, und das aber als Fehler gewertet wird.
 
 	def getSearchTags(self, values, key):
 		def getValues(res, skel, valuesCache):
