@@ -647,6 +647,7 @@ def embedSvg(render, name: str, classes: Union[List[str], None] = None, **kwargs
 
 @jinjaGlobalFunction
 def downloadUrlFor(render: 'viur.core.render.html.default.Render', fileObj: dict,
+                   filename: str = "",
 				   expires: Union[None, int] = conf["viur.downloadUrlFor.expiration"],
 				   derived: Optional[str] = None) -> Optional[str]:
 	"""
@@ -673,9 +674,9 @@ def downloadUrlFor(render: 'viur.core.render.html.default.Render', fileObj: dict
 	if derived and ("derived" not in fileObj or not isinstance(fileObj["derived"], dict)):
 		return None
 	if derived:
-		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=derived, derived=True, expires=expires)
+		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=derived, derived=True, expires=expires, download_filename=filename)
 	else:
-		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileObj["name"], derived=False, expires=expires)
+		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileObj["name"], derived=False, expires=expires, download_filename=filename)
 
 
 @jinjaGlobalFunction

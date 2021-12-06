@@ -380,13 +380,13 @@ class File(Tree):
 		return self.render.view(resDict)
 
 	@exposed
-	def download(self, blobKey, fileName="", download="", sig="", *args, **kwargs):
+	def download(self, blobKey, filename="", download="", sig="", *args, **kwargs):
 		"""
 		Download a file.
 		:param blobKey: The unique blob key of the file.
 		:type blobKey: str
-		:param fileName: Optional filename to provide in the header.
-		:type fileName: str
+		:param filename: Optional filename to provide in the header.
+		:type filename: str
 		:param download: Set header to attachment retrival, set explictly to "1" if download is wanted.
 		:type download: str
 		"""
@@ -414,8 +414,10 @@ class File(Tree):
 		if not blob:
 			raise errors.Gone()
 		if download:
-			fileName = sanitizeFileName(blob.name.split("/")[-1])
-			contentDisposition = "attachment; filename=%s" % fileName
+			if not filename:
+				filename = sanitizeFileName(blob.name.split("/")[-1])
+
+			contentDisposition = "attachment; filename=%s" % filename
 		else:
 			contentDisposition = None
 		if isinstance(credentials, ServiceAccountCredentials):  # We run locally with an service-account.json
