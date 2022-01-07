@@ -713,8 +713,8 @@ class User(List):
 
 	def continueAuthenticationFlow(self, caller, userKey):
 		currSess = currentSession.get()
-		currSess["_mayBeUserKey"] = str(userKey)
-		currSess["_secondFactorStart"] = datetime.datetime.now()
+		currSess["_mayBeUserKey"] = userKey.id_or_name
+		currSess["_secondFactorStart"] = utils.utcNow()
 		currSess.markChanged()
 		for authProvider, secondFactor in self.validAuthenticationMethods:
 			if isinstance(caller, authProvider):
@@ -732,10 +732,10 @@ class User(List):
 	def secondFactorSucceeded(self, secondFactor, userKey):
 		currSess = currentSession.get()
 		logging.debug("Got SecondFactorSucceeded call from %s." % secondFactor)
-		if str(currSess["_mayBeUserKey"]) != str(userKey):
+		if currSess["_mayBeUserKey"] != userKey.id_or_name:
 			raise errors.Forbidden()
 		# Assert that the second factor verification finished in time
-		if datetime.datetime.now() - currSess["_secondFactorStart"] > self.secondFactorTimeWindow:
+		if utils.utcNow() - currSess["_secondFactorStart"] > self.secondFactorTimeWindow:
 			raise errors.RequestTimeout()
 		return self.authenticateUser(userKey)
 
