@@ -42,10 +42,12 @@ class numericBone(baseBone):
 			return "NaN not allowed"
 
 	def getEmptyValue(self):
-		if self.precision:
+		if not self.required:
+			return None
+		elif self.precision:
 			return 0.0
-		else:
-			return 0
+
+		return 0
 
 	def isEmpty(self, rawValue: Any):
 		if isinstance(rawValue, str) and not rawValue:

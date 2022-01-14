@@ -158,6 +158,7 @@ class DefaultRender(object):
 
 	def renderBoneValue(self, bone, skel, key):
 		boneVal = skel[key]
+
 		if bone.languages and bone.multiple:
 			res = {}
 			for language in bone.languages:
