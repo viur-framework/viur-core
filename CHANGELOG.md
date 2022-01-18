@@ -12,6 +12,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 ### Changed
 
 ### Fixed
+- Running two deferred tasks inside the same request
 
 ### Removed
 
