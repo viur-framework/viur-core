@@ -7,6 +7,17 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 ## [develop] - Current development version
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+
+## [3.0.3]
+
+### Added
 - child-src to addCspRule in securityheaders
 
 ### Changed
