@@ -436,6 +436,8 @@ def callDeferred(func):
 			else:
 				return func(self, *args, **kwargs)
 		else:
+			if req:
+				req.DEFERED_TASK_CALLED = True  # Defer recursive calls to an deferred function again.
 			try:
 				if self.__class__.__name__ == "index":
 					funcPath = func.__name__
