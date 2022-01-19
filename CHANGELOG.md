@@ -14,6 +14,19 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 
 ### Removed
 
+
+## [3.0.3]
+
+### Added
+- child-src to addCspRule in securityheaders
+
+### Changed
+
+### Fixed
+- Running two deferred tasks inside the same request
+
+### Removed
+
 ## [3.0.2]
 
 ### Added
