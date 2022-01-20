@@ -417,11 +417,14 @@ class baseBone(object):  # One Bone:
 						res[language] = self.singleValueSerialize(newVal[language], skel, name, parentIndexed)
 			elif self.multiple:
 				res = []
+
 				# Convert single-value into list as this is required here.
-				if not isinstance(newVal, list):
+				if not isinstance(newVal, list) and newVal is not None:
 					newVal = [newVal]
-				for singleValue in newVal:
+
+				for singleValue in (newVal or []):
 					res.append(self.singleValueSerialize(singleValue, skel, name, parentIndexed))
+
 			else:  # No Languages, not Multiple
 				res = self.singleValueSerialize(newVal, skel, name, parentIndexed)
 			skel.dbEntity[name] = res
