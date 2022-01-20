@@ -18,6 +18,16 @@ from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
 from viur.core.skeleton import RelSkel, SkeletonInstance
 from viur.core.utils import currentLanguage, currentRequest
 from viur.core.config import unsetMarker, conf
+from viur.core.i18n import translate as translationClass
+
+
+@jinjaGlobalFunction
+def translate(render, key, **kwargs):
+	res = str(translationClass(key))
+	for k, v in kwargs.items():
+		res = res.replace("{{%s}}" % k, str(v))
+	return res
+
 
 
 @jinjaGlobalFunction
