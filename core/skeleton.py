@@ -1161,7 +1161,7 @@ class RelSkel(BaseSkeleton):
 
 	# return {k: v for k, v in self.valuesCache.entity.items() if k in self.__boneNames__}
 
-	def unserialize(self, values):
+	def unserialize(self, values: Union[db.Entity, dict]):
 		"""
 			Loads 'values' into this skeleton.
 
@@ -1169,7 +1169,12 @@ class RelSkel(BaseSkeleton):
 			:type values: dict | db.Entry
 			:return:
 		"""
-		self.dbEntity = values
+		if not isinstance(values, db.Entity):
+			self.dbEntity = db.Entity()
+			self.dbEntity.update(values)
+		else:
+			self.dbEntity = values
+
 		self.accessedValues = {}
 		self.renderAccessedValues = {}
 		# self.valuesCache = {"entity": values, "changedValues": {}, "cachedRenderValues": {}}
@@ -1285,8 +1290,8 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: Optional[s
 		:param cursor: The database cursor for the current request as we only process five entities at once and then
 			defer again.
 	"""
-	logging.debug("Starting updateRelations for %s ; minChangeTime %s, changedBone: %s, cursor: %s",
-				  destKey, minChangeTime, changedBone, cursor)
+	#logging.debug("Starting updateRelations for %s ; minChangeTime %s, changedBone: %s, cursor: %s",
+	#			  destKey, minChangeTime, changedBone, cursor)
 	updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", destKey) \
 		.filter("viur_delayed_update_tag <", minChangeTime).filter("viur_relational_updateLevel =", 0)
 	if changedBone:
