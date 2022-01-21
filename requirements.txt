@@ -1,4 +1,4 @@
-viur-datastore==0.1 --hash=sha256:ad84dfdfb65df09f45de6c962ce80c24864ec437d80da232af04f56c3d2cb80a
+viur-datastore==0.3 --hash=sha256:ad84dfdfb65df09f45de6c962ce80c24864ec437d80da232af04f56c3d2cb80a
 
 google-auth==2.3.3 --hash=sha256:a348a50b027679cb7dae98043ac8dbcc1d7951f06d8387496071a1e05a2465c0
 # Dependencies for google-auth:
@@ -195,5 +195,4 @@ backports.zoneinfo==0.2.1 \\
   --hash=sha256:8961c0f32cd0336fb8e8ead11a1f8cd99ec07145ec2931122faaac1c8f7fd987 \\
   --hash=sha256:a76b38c52400b762e48131494ba26be363491ac4f9a04c1b7e92483d169f6582 \\
   --hash=sha256:5c144945a7752ca544b4b78c8c41544cdfaf9786f25fe5ffb10e838e19a27570 \\
-  --hash=sha256:f04e857b59d9d1ccc39ce2da1021d196e47234873820cbeaad210724b1ee28ac \\
-  --hash=sha256:fadbfe37f74051d024037f223b8e001611eac868b5c5b06144ef4d8b799862f2
+  --hash=sha256:f04e857b59d9d1ccc39ce2da1021d196e47234873820cbeaa
