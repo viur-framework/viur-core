@@ -70,11 +70,11 @@ jobs:
         run: |
           echo ::set-output name=current_version::${GITHUB_REF#refs/tags/v}
 
-      - name: fetch changelog info
-        id: changelog_reader
-        uses: mindsers/changelog-reader-action@v2
-        with:
-          version: ${{ steps.tag_name.outputs.current_version }}
+      #- name: fetch changelog info
+      #  id: changelog_reader
+      #  uses: mindsers/changelog-reader-action@v2
+      #  with:
+      #    version: ${{ steps.tag_name.outputs.current_version }}
 
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@master
@@ -98,11 +98,11 @@ jobs:
         run: |
           echo ::set-output name=current_version::${GITHUB_REF#refs/tags/v}
 
-      - name: fetch changelog info
-        id: changelog_reader
-        uses: mindsers/changelog-reader-action@v2
-        with:
-          version: ${{ steps.tag_name.outputs.current_version }}
+      #- name: fetch changelog info
+      #  id: changelog_reader
+      #  uses: mindsers/changelog-reader-action@v2
+      #  with:
+      #    version: ${{ steps.tag_name.outputs.current_version }}
 
       - name: create release
         uses: softprops/action-gh-release@v1
