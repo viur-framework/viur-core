@@ -530,6 +530,20 @@ class Query(object):
 		if self.queries is None:
 			# This Query is unsatisfiable - don't try to bother
 			return self
+
+		# Check for correct order subscript
+		orders = []
+		for order in orderings:
+			if isinstance(order, str):
+				order = (order, SortOrder.Ascending)
+
+			assert isinstance(order[0], str) and isinstance(order[1], SortOrder), \
+				f"Invalid ordering {order}, it has to be a tuple. Try: `(\"{order}\", SortOrder.Ascending)`"
+
+			orders.append(order)
+
+		orderings = tuple(orders)
+
 		if self._orderHook is not None:
 			try:
 				orderings = self._orderHook(self, orderings)
@@ -538,11 +552,13 @@ class Query(object):
 				return self
 			if orderings is None:
 				return self
+
 		if isinstance(self.queries, list):
 			for query in self.queries:
 				query.orders = list(orderings)
 		else:
 			self.queries.orders = list(orderings)
+
 		return self
 
 	def setCursor(self, startCursor: str, endCursor: Optional[str] = None) -> Query:
