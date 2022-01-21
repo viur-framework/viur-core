@@ -27,7 +27,7 @@ def preprocessJsonObject(o):
 		This is not a subclass of json.JSONEncoder anymore, as db.Entites are a subclass of dict, which
 		is always handled from the json module itself.
 	"""
-	if isinstance(o, db.KeyClass):
+	if isinstance(o, db.Key):
 		return {".__key__": db.encodeKey(o)}
 	elif isinstance(o, datetime):
 		return {".__datetime__": o.astimezone(pytz.UTC).strftime("d.%m.%Y %H:%M:%S")}
@@ -49,14 +49,14 @@ def jsonDecodeObjectHook(obj):
 	"""
 	if len(obj) == 1:
 		if ".__key__" in obj:
-			return db.KeyClass.from_legacy_urlsafe(obj[".__key__"])
+			return db.Key.from_legacy_urlsafe(obj[".__key__"])
 		elif ".__datetime__" in obj:
 			value = datetime.strptime(obj[".__datetime__"], "d.%m.%Y %H:%M:%S")
 			return datetime(value.year, value.month, value.day, value.hour, value.minute, value.second, tzinfo=pytz.UTC)
 		elif ".__bytes__" in obj:
 			return base64.b64decode(obj[".__bytes__"])
 	elif len(obj) == 2 and ".__entity__" in obj and ".__ekey__" in obj:
-		r = db.Entity(db.KeyClass.from_legacy_urlsafe(obj[".__ekey__"]) if obj[".__ekey__"] else None)
+		r = db.Entity(db.Key.from_legacy_urlsafe(obj[".__ekey__"]) if obj[".__ekey__"] else None)
 		r.update(obj[".__entity__"])
 		return r
 	return obj

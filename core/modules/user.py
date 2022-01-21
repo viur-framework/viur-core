@@ -436,7 +436,7 @@ class GoogleAccount(object):
 				# We have to allow popups here
 				currentRequest.get().response.headers["cross-origin-opener-policy"] = "same-origin-allow-popups"
 			# Fixme: Render with Jinja2?
-			tplStr = open("viur/core/template/vi_user_google_login.html", "r").read()
+			tplStr = open("/viur/core/template/vi_user_google_login.html", "r").read()
 			tplStr = tplStr.replace("{{ clientID }}", conf["viur.user.google.clientID"])
 			return tplStr
 		if not securitykey.validate(skey, useSessionKey=True):
