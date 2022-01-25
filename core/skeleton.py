@@ -339,8 +339,17 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 						# further down the hierarchy (in an record- or relational-Bone)
 						complete = False
 
+						# Oft ist es als Entwickler so, das ein edit/add fehlschlägt, man weiß aber nicht wieso,
+						# es sei denn man benutzt dafür so ein tolles Tool wie das Vi, dass einem die Fehler dann
+						# entsprechend präsentiert, es sei denn, das Tool ist gerade kaputt oder es tut nicht das was
+						# es soll, dann ist man wieder genau an dieser stelle und schreibt logging.debug hier hin,
+						# obwohl man das im einfachsten Fall über eine Konfig-Variable lösen könnte, die dann das
+						# logging aktiviert. Gut, ich hätte es jetzt einfach als conf..variable machen können, aber
+						# ist das überhaupt die beste Lösung??
+
 						# todo: Make this flaggable, either by config or by development server flag.
-						logging.debug("%s: %s: %r", cls.kindName, error.fieldPath, error.errorMessage)
+						if cls.kindName:
+							logging.debug("%s: %s: %r", cls.kindName, error.fieldPath, error.errorMessage)
 
 		if (len(data) == 0
 			or (len(data) == 1 and "key" in data)
