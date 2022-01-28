@@ -19,7 +19,7 @@ from abc import ABC, abstractmethod
 	point for incomming http requests. The main class is the :class:BrowserHandler. Each request will get it's
 	own instance of that class which then holds the reference to the request and response object.
 	Additionally, this module defines the RequestValidator interface which provides a very early hook into the
-	request processing (useful for global ratelimiting, DDoS prevention or access control).  
+	request processing (useful for global ratelimiting, DDoS prevention or access control).
 """
 
 class RequestValidator(ABC):
@@ -315,6 +315,11 @@ class BrowseHandler():  # webapp.RequestHandler
 				raise
 			self.response.body = b""
 			self.response.status = '%d %s' % (e.status, e.descr)
+
+			# Set machine-readable x-viur-error response header in case there is an exception description.
+			if e.descr:
+				self.response.headers["x-viur-error"] = e.descr
+
 			res = None
 			if conf["viur.errorHandler"]:
 				try:
