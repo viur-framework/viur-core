@@ -257,11 +257,11 @@ class File(Tree):
 
 			if skel.fromDB(str(fileEntry.key())):
 				skel.delete()
-		dirs = db.Query(self.nodeSkelCls().kindName).filter("parentdir", parentKey).iter(keysOnly=True)
+		dirs = db.Query(self.nodeSkelCls().kindName).filter("parentdir", parentKey).iter()
 		for d in dirs:
-			self.deleteRecursive(str(d))
+			self.deleteRecursive(d.key)
 			skel = self.nodeSkelCls()
-			if skel.fromDB(str(d)):
+			if skel.fromDB(d.key):
 				skel.delete()
 
 	def signUploadURL(self, mimeTypes: Union[List[str], None] = None, maxSize: Union[int, None] = None,
