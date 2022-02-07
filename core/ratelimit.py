@@ -108,7 +108,7 @@ class RateLimit(object):
 			cacheKeys.append(
 				db.Key(self.rateLimitKind, "%s-%s-%s" % (self.resource, endPoint, keyBase % (currentStep - x))))
 		tmpRes = db.Get(cacheKeys)
-		return sum([x["value"] for x in tmpRes if currentDateTime < x["expires"]]) <= self.maxRate
+		return sum([x["value"] for x in tmpRes if x and currentDateTime < x["expires"]]) <= self.maxRate
 
 
 @PeriodicTask(60)
