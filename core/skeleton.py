@@ -702,7 +702,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 			# Load the current values from Datastore or create a new, empty db.Entity
 			if not dbKey:
 				# We'll generate the key we'll be stored under early so we can use it for locks etc
-				dbKey = db.__client__.allocate_ids(db.Key(skel.kindName), 1)[0]
+				dbKey = db.AllocateIDs(db.Key(skel.kindName))
 				dbObj = db.Entity(dbKey)
 				oldCopy = {}
 				dbObj["viur"] = {}
@@ -1289,7 +1289,10 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: Optional[s
 		except AssertionError:
 			logging.info("Ignoring %s which refers to unknown kind %s" % (str(srcRel.key), srcRel["viur_src_kind"]))
 			continue
-		db.RunInTransaction(updateTxn, skel, srcRel["src"].key, srcRel.key)
+		if db.IsInTransaction():
+			updateTxn(skel, srcRel["src"].key, srcRel.key)
+		else:
+			db.RunInTransaction(updateTxn, skel, srcRel["src"].key, srcRel.key)
 	nextCursor = updateListQuery.getCursor()
 	if len(updateList) == 5 and nextCursor:
 		updateRelations(destKey, minChangeTime, changedBone, nextCursor)
