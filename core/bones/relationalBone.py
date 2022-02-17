@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 from viur.core.bones import baseBone
 from viur.core.bones.bone import getSystemInitialized
-from viur.core import utils
-from viur import datastore as db
+from viur.core import utils, db
 from viur.core.errors import ReadFromClientError
 try:
 	import extjson

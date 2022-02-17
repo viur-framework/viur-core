@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from viur.core.bones import baseBone
 from viur.core.config import conf
-from viur import datastore as db
+from viur.core import db
 from viur.core import request
 from viur.core import utils
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity

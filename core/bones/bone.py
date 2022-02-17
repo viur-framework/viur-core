@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from viur.core.config import conf
-from viur import datastore as db
+from viur.core import db
 import logging
 import hashlib
 import copy

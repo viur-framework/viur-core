@@ -14,8 +14,7 @@ from google.cloud import tasks_v2
 from google.cloud.tasks_v2.services.cloud_tasks.transports import CloudTasksGrpcTransport
 from google.protobuf import timestamp_pb2
 
-from viur.core import errors, utils
-from viur import datastore as db
+from viur.core import errors, utils, db
 from viur.core.config import conf
 from viur.core.utils import currentLanguage, currentRequest, currentSession
 
