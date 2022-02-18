@@ -37,7 +37,7 @@ class randomSliceBone(baseBone):
 			:type name: str
 			:returns: dict
 		"""
-		skel.dbEntity[name] = random
+		skel.dbEntity[name] = random()
 		skel.dbEntity.exclude_from_indexes.discard(name)  # Random bones can never be not indexed
 		return True
 
