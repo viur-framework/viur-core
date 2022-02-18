@@ -9,8 +9,7 @@ from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from typing import Any, Union
 import google.auth
-from viur.core import conf
-from viur import datastore as db
+from viur.core import conf, db
 
 # Proxy to context depended variables
 currentRequest = ContextVar("Request", default=None)

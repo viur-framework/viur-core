@@ -26,6 +26,9 @@ conf = {
 	# Cache strategy used by the database. 2: Aggressive, 1: Safe, 0: Off
 	"viur.db.caching": 2,
 
+	# Database engine module
+	"viur.db.engine":"viur.datastore",
+
 	# If enabled, user-generated exceptions from the server.errors module won't be caught and handled
 	"viur.debug.traceExceptions": False,
 	# If enabled, ViUR will log which (exposed) function are called from outside with what arguments

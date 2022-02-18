@@ -4,8 +4,7 @@ from urllib import request
 from abc import ABC, abstractmethod
 from typing import Any, Union, List, Dict
 from viur.core.config import conf
-from viur.core import utils
-from viur import datastore as db
+from viur.core import utils, db
 from viur.core.utils import projectID
 from viur.core.tasks import callDeferred, QueryIter, PeriodicTask, DeleteEntitiesIter
 

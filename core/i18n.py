@@ -2,7 +2,7 @@ from datetime import datetime
 
 from jinja2.ext import Extension, nodes
 
-from viur import datastore as db
+from viur.core import db
 from viur.core.config import conf
 from viur.core.utils import currentLanguage
 

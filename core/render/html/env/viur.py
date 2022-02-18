@@ -12,8 +12,7 @@ from hashlib import sha512
 from typing import Dict, List, Union, Optional
 
 import viur.core.render.html.default
-from viur.core import errors, prototypes, securitykey, utils
-from viur import datastore as db
+from viur.core import errors, prototypes, securitykey, utils, db
 from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
 from viur.core.skeleton import RelSkel, SkeletonInstance
 from viur.core.utils import currentLanguage, currentRequest
