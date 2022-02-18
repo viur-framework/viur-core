@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from viur.core.bones import baseBone
 from math import pow, floor, ceil
-from viur import datastore as db
+from viur.core import db
 import logging
 import math
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity

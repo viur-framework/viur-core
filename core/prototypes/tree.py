@@ -4,8 +4,7 @@ from datetime import datetime
 from time import time
 from typing import Optional
 
-from viur.core import utils, errors, conf, securitykey
-from viur import datastore as db
+from viur.core import utils, errors, conf, securitykey, db
 from viur.core import forcePost, forceSSL, exposed, internalExposed
 from viur.core.bones import baseBone, keyBone, numericBone
 from viur.core.prototypes import BasicApplication

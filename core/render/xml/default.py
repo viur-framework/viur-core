@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from viur.core.bones import *
-from viur import datastore as db
+from viur.core import db
 from xml.dom import minidom
 from datetime import datetime, date, time
 
