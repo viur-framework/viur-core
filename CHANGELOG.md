@@ -11,6 +11,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 ### Changed
 
 ### Fixed
+- deleteRecursive function in tree-prototype
 
 ### Removed
 
