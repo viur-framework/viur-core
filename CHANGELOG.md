@@ -17,6 +17,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 ### Fixed
 - Serializing randomSliceBone
 - Recursive deletion in modules/file.py 
+- deleteRecursive function in tree-prototype
 
 ### Removed
 
