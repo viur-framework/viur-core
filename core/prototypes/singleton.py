@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from viur.core import db, utils, session, errors, conf, securitykey, exposed, forceSSL
+from viur.core import utils, session, errors, conf, securitykey, exposed, forceSSL, db
 from viur.core.prototypes import BasicApplication
 from viur.core.cache import flushCache
 

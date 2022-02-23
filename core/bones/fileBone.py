@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from viur.core.bones import treeLeafBone
-from viur.core import db, request, conf
+from viur.core import request, conf, db
 from viur.core.utils import downloadUrlFor
 from viur.core.tasks import callDeferred
 # from google.appengine.api import images
@@ -12,7 +12,7 @@ from time import time
 
 
 @callDeferred
-def ensureDerived(key: db.KeyClass, srcKey, deriveMap: Dict[str, Any]):
+def ensureDerived(key: db.Key, srcKey, deriveMap: Dict[str, Any]):
 	"""
 	Ensure that pending thumbnails or other derived Files are build
 	:param key: DB-Key of the file-object on which we should update the derivemap

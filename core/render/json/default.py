@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 import json
 from collections import OrderedDict
-from viur.core import bones, utils, db
+from viur.core import bones, utils
+from viur.core import db
 from viur.core.skeleton import SkeletonInstance
 from viur.core.utils import currentRequest
 from viur.core.i18n import translate
+from datetime import datetime
 from typing import Any
 
 
@@ -16,6 +18,10 @@ class CustomJsonEncoder(json.JSONEncoder):
 	def default(self, o: Any) -> Any:
 		if isinstance(o, translate):
 			return str(o)
+		elif isinstance(o, datetime):
+			return o.isoformat()
+		elif isinstance(o, db.Key):
+			return db.encodeKey(o)
 		return json.JSONEncoder.default(self, o)
 
 
@@ -50,6 +56,7 @@ class DefaultRender(object):
 			"readonly": bone.readOnly,
 			"unique": bone.unique.method.value if bone.unique else False,
 			"languages": bone.languages,
+			"emptyValue": bone.getEmptyValue()
 		}
 		if bone.multiple and isinstance(bone.multiple, bones.MultipleConstraints):
 			ret["multiple"] = {
@@ -136,10 +143,7 @@ class DefaultRender(object):
 		:return: A dict containing the rendered attributes.
 		:rtype: dict
 		"""
-		if bone.type == "date" or bone.type.startswith("date."):
-			if value:
-				return value.isoformat()
-		elif isinstance(bone, bones.relationalBone):
+		if isinstance(bone, bones.relationalBone):
 			if isinstance(value, dict):
 				return {
 					"dest": self.renderSkelValues(value["dest"], injectDownloadURL=isinstance(bone, bones.fileBone)),
@@ -150,8 +154,6 @@ class DefaultRender(object):
 			return self.renderSkelValues(value)
 		elif isinstance(bone, bones.passwordBone):
 			return ""
-		elif isinstance(bone, bones.keyBone):
-			return db.encodeKey(value) if value else None
 		else:
 			return value
 		return None

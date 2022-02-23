@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from viur.core.bones import baseBone
 from viur.core.bones.bone import getSystemInitialized
-from viur.core import db, utils
+from viur.core import utils, db
 from viur.core.errors import ReadFromClientError
 try:
 	import extjson
@@ -183,7 +183,7 @@ class relationalBone(baseBone):
 				for k, v in inDict["dest"].items():
 					res["dest"][k] = v
 				if "key" in res["dest"]:
-					res["dest"].key = utils.normalizeKey(db.KeyClass.from_legacy_urlsafe(res["dest"]["key"]))
+					res["dest"].key = utils.normalizeKey(db.Key.from_legacy_urlsafe(res["dest"]["key"]))
 			if "rel" in inDict and inDict["rel"]:
 				res["rel"] = db.Entity()
 				for k, v in inDict["rel"].items():
@@ -845,7 +845,7 @@ class relationalBone(baseBone):
 
 		return res
 
-	def createRelSkelFromKey(self, key: Union[str, db.KeyClass], rel: Union[dict, None] = None):
+	def createRelSkelFromKey(self, key: Union[str, db.Key], rel: Union[dict, None] = None):
 		"""
 			Creates a relSkel instance valid for this bone from the given database key.
 		"""
@@ -883,20 +883,20 @@ class relationalBone(baseBone):
 		assert not (bool(self.languages) ^ bool(language)), "Language is required or not supported"
 		assert not append or self.multiple, "Can't append - bone is not multiple"
 		if not self.multiple and not self.using:
-			if not (isinstance(value, str) or isinstance(value, db.KeyClass)):
+			if not (isinstance(value, str) or isinstance(value, db.Key)):
 				logging.error(value)
 				logging.error(type(value))
 				raise ValueError("You must supply exactly one Database-Key to %s" % boneName)
 			realValue = (value, None)
 		elif not self.multiple and self.using:
 			if not isinstance(value, tuple) or len(value) != 2 or \
-				not (isinstance(value[0], str) or isinstance(value[0], db.KeyClass)) or \
+				not (isinstance(value[0], str) or isinstance(value[0], db.Key)) or \
 				not isinstance(value[1], self._skeletonInstanceClassRef):
 				raise ValueError("You must supply a tuple of (Database-Key, relSkel) to %s" % boneName)
 			realValue = value
 		elif self.multiple and not self.using:
-			if not (isinstance(value, str) or isinstance(value, db.KeyClass)) and not (isinstance(value, list)) \
-				and all([isinstance(x, str) or isinstance(x, db.KeyClass) for x in value]):
+			if not (isinstance(value, str) or isinstance(value, db.Key)) and not (isinstance(value, list)) \
+				and all([isinstance(x, str) or isinstance(x, db.Key) for x in value]):
 				raise ValueError("You must supply a Database-Key or a list hereof to %s" % boneName)
 			if isinstance(value, list):
 				realValue = [(x, None) for x in value]
@@ -904,11 +904,11 @@ class relationalBone(baseBone):
 				realValue = [(value, None)]
 		else:  # which means (self.multiple and self.using)
 			if not (isinstance(value, tuple) and len(value) == 2 and
-					(isinstance(value[0], str) or isinstance(value[0], db.KeyClass))
+					(isinstance(value[0], str) or isinstance(value[0], db.Key))
 					and isinstance(value[1], self._skeletonInstanceClassRef)) and not (isinstance(value, list)
 																					   and all(
 					(isinstance(x, tuple) and len(x) == 2 and
-					 (isinstance(x[0], str) or isinstance(x[0], db.KeyClass))
+					 (isinstance(x[0], str) or isinstance(x[0], db.Key))
 					 and isinstance(x[1], self._skeletonInstanceClassRef) for x in value))):
 				raise ValueError("You must supply (db.Key, RelSkel) or a list hereof to %s" % boneName)
 			if not isinstance(value, list):

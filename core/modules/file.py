@@ -21,7 +21,7 @@ from google.cloud import storage
 from google.cloud._helpers import _NOW, _datetime_to_rfc3339
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
-from viur.core import db, errors, exposed, forcePost, forceSSL, internalExposed, securitykey, utils
+from viur.core import errors, exposed, forcePost, forceSSL, internalExposed, securitykey, utils, db
 from viur.core.bones import *
 from viur.core.prototypes.tree import Tree, TreeSkel
 from viur.core.skeleton import skeletonByKind
@@ -256,11 +256,11 @@ class File(Tree):
 
 			if skel.fromDB(str(fileEntry.key())):
 				skel.delete()
-		dirs = db.Query(self.nodeSkelCls().kindName).filter("parentdir", parentKey).iter(keysOnly=True)
+		dirs = db.Query(self.nodeSkelCls().kindName).filter("parentdir", parentKey).iter()
 		for d in dirs:
-			self.deleteRecursive(str(d))
+			self.deleteRecursive(d.key)
 			skel = self.nodeSkelCls()
-			if skel.fromDB(str(d)):
+			if skel.fromDB(d.key):
 				skel.delete()
 
 	def signUploadURL(self, mimeTypes: Union[List[str], None] = None, maxSize: Union[int, None] = None,

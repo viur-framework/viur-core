@@ -5,7 +5,7 @@ from functools import wraps
 from hashlib import sha512
 from typing import List, Union, Callable, Tuple, Dict
 
-from viur.core import db, tasks, utils
+from viur.core import tasks, utils, db
 from viur.core.config import conf
 from viur.core.utils import currentLanguage, currentRequest
 
@@ -19,12 +19,12 @@ from viur.core.utils import currentLanguage, currentRequest
 		- Their TTL is exceeded
 		- They're explicitly removed from the cache by calling :meth:`viur.core.cache.flushCache` using their path
 		- A Datastore entity that has been accessed using db.Get() from within the cached function has been modified
-		- The wrapped function has run a query over a kind in which an entity has been added/edited/deleted 
-	
+		- The wrapped function has run a query over a kind in which an entity has been added/edited/deleted
+
 	..Warning: As this cache is intended to be used with exposed functions, it will not only store the result of the
 		wrapped function, but will also store and restore the Content-Type http header. This can cause unexpected
 		behaviour if it's used to cache the result of non top-level functions, as calls to these functions now may
-		cause this header to be rewritten. 
+		cause this header to be rewritten.
 """
 
 viurCacheName = "viur-cache"
@@ -201,7 +201,7 @@ def enableCache(urls: List[str], userSensitive: int = 0, languageSensitive: bool
 
 
 @tasks.callDeferred
-def flushCache(prefix: str = None, key: Union[db.KeyClass, None] = None, kind: Union[str, None] = None):
+def flushCache(prefix: str = None, key: Union[db.Key, None] = None, kind: Union[str, None] = None):
 	"""
 		Flushes the cache. Its possible the flush only a part of the cache by specifying
 		the path-prefix. The path is equal to the url that caused it to be cached (eg /page/view) and must be one
@@ -236,7 +236,7 @@ def flushCache(prefix: str = None, key: Union[db.KeyClass, None] = None, kind: U
 		for item in items:
 			logging.info("Deleted cache entry %s", item["path"])
 			db.Delete(item.key)
-		if not isinstance(key, db.KeyClass):
+		if not isinstance(key, db.Key):
 			key = db.Key(encoded=key)
 		items = db.Query(viurCacheName).filter("accessedEntries =", key.kind).iter()
 		for item in items:
