@@ -1,18 +1,22 @@
-import traceback, os, unicodedata, typing
-from viur.core.config import conf
-from urllib import parse
-from string import Template
-from io import StringIO
-import webob
-from viur.core import errors
-from urllib.parse import urljoin, urlparse, unquote
-from viur.core.logging import requestLogger, client as loggingClient, requestLoggingRessource
-from viur.core import utils, db
-from viur.core.utils import currentSession, currentLanguage
 import logging
-from time import time
+import os
+import sys
+import traceback
+import typing
+import unicodedata
 from abc import ABC, abstractmethod
+from io import StringIO
+from string import Template
+from time import time
+from urllib import parse
+from urllib.parse import unquote, urljoin, urlparse
 
+import webob
+
+from viur.core import db, errors, utils
+from viur.core.config import conf
+from viur.core.logging import client as loggingClient, requestLogger, requestLoggingRessource
+from viur.core.utils import currentLanguage, currentSession
 
 """
 	This module implements the WSGI (Web Server Gateway Interface) layer for ViUR. This is the main entry
@@ -21,6 +25,7 @@ from abc import ABC, abstractmethod
 	Additionally, this module defines the RequestValidator interface which provides a very early hook into the
 	request processing (useful for global ratelimiting, DDoS prevention or access control).
 """
+
 
 class RequestValidator(ABC):
 	"""
@@ -341,17 +346,53 @@ class BrowseHandler():  # webapp.RequestHandler
 					logging.exception(newE)
 					res = None
 			if not res:
-				tpl = Template(open(conf["viur.errorTemplate"], "r").read())
+				with open(conf["viur.errorTemplate"], "r") as fh:
+					tpl = Template(fh.read())
 				descr = "The server encountered an unexpected error and is unable to process your request."
-				if self.isDevServer:  # Were running on development Server
+				debugInformation = ""
+				# We're running on development server or verbose mode is on
+				if self.isDevServer or conf["viur.debug.verboseErrorHandler"]:
 					strIO = StringIO()
 					traceback.print_exc(file=strIO)
 					descr = strIO.getvalue()
-					descr = descr.replace("<", "&lt;").replace(">", "&gt;").replace(" ", "&nbsp;").replace("\n",
-																										   "<br />")
-				res = tpl.safe_substitute(
-					{"error_code": "500", "error_name": "Internal Server Error", "error_descr": descr})
+					descr = descr.replace("<", "&lt;").replace(">", "&gt;") \
+						.replace(" ", "&nbsp;").replace("\n", "<br />")
+					params = "\n".join(
+						f'<tr><td>{key}</td><td><pre>{value!r}</pre></td></tr>'
+						for key, value in self.request.params.items()
+					)
+					try:
+						currentUser = utils.getCurrentUser()
+					except Exception:  # noqa
+						currentUser = None
+					debugInformation = [
+						("Debug Information", ""),  # header
+						# Request data
+						("Request Method", self.request.method),
+						("Request URL ", self.request.url),
+						("Request Path (post-processed)", self.request.path),
+						("Request Params", f"<table><tr><th>Key</th><th>Value</th></tr>{params}</table>"),
+						# Session related data
+						("User", currentUser and currentUser["name"]),
+						("Language", currentLanguage.get()),
+						# Environment
+						("Python Version", sys.version),
+						("ViUR-Core Version", ".".join(map(str, conf["viur.version"]))),
+						# ("ViUR-Datastore Version", db.__version__), # TODO: N/A in datastore
+					]
+					debugInformation = "\n".join(
+						f'<div>{label}</div><div>{value}</div>'
+						for label, value in debugInformation
+					)
+
+				res = tpl.safe_substitute({
+					"error_code": "500",
+					"error_name": "Internal Server Error",
+					"error_descr": descr,
+					"debug_information": debugInformation,
+				})
 			self.response.write(res.encode("UTF-8"))
+
 		finally:
 			self.saveSession()
 			SEVERITY = "DEBUG"
@@ -466,7 +507,7 @@ class BrowseHandler():  # webapp.RequestHandler
 				return "False", False
 		raise ValueError("TypeHint %s not supported" % typeHint)
 
-	def findAndCall(self, path:str, *args, **kwargs):
+	def findAndCall(self, path: str, *args, **kwargs):
 		"""
 			Does the actual work of sanitizing the parameter, determine which @exposed (or @internalExposed) function
 			to call (and with witch parameters)
