@@ -7,10 +7,17 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 ## [develop] - Current development version
 
 ### Added
+- "viur.db.engine" config variable to inject different database drivers
+- Global jinja2 function "translate" for instances where compile-time resolving is not possible 
+- Passing getEmptyValue() in the structure definition in json-render
 
 ### Changed
+- Replaced viur.core.db with a shim around viur-datastore
 
 ### Fixed
+- Serializing randomSliceBone
+- Recursive deletion in modules/file.py 
+- deleteRecursive function in tree-prototype
 
 ### Removed
 

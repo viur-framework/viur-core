@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from viur.core.bones import treeLeafBone
-from viur.core import request, conf
-from viur import datastore as db
+from viur.core import request, conf, db
 from viur.core.utils import downloadUrlFor
 from viur.core.tasks import callDeferred
 # from google.appengine.api import images

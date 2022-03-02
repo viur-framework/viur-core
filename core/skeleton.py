@@ -11,8 +11,7 @@ from itertools import chain
 from time import time
 from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, Set, Optional
 
-from viur.core import conf, errors, utils, email
-from viur import datastore as db
+from viur.core import conf, errors, utils, email, db
 from viur.core.bones import baseBone, dateBone, keyBone, relationalBone, selectBone, stringBone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 from viur.core.tasks import CallableTask, CallableTaskBase, callDeferred, QueryIter

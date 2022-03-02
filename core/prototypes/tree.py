@@ -4,8 +4,7 @@ from datetime import datetime
 from time import time
 from typing import Optional
 
-from viur.core import utils, errors, conf, securitykey
-from viur import datastore as db
+from viur.core import utils, errors, conf, securitykey, db
 from viur.core import forcePost, forceSSL, exposed, internalExposed
 from viur.core.bones import baseBone, keyBone, numericBone
 from viur.core.prototypes import BasicApplication
@@ -502,18 +501,17 @@ class Tree(BasicApplication):
 		"""
 		nodeKey = db.keyHelper(nodeKey, self.viewSkel("node").kindName)
 		if self.leafSkelCls:
-			for f in db.Query(self.viewSkel("leaf").kindName).filter("parententry =", nodeKey).iter(
-				keysOnly=True):
-				s = self.viewSkel("leaf")
-				if not s.fromDB(f):
+			for leaf in db.Query(self.viewSkel("leaf").kindName).filter("parententry =", nodeKey).iter():
+				leafSkel = self.viewSkel("leaf")
+				if not leafSkel.fromDB(leaf.key):
 					continue
-				s.delete()
-		for d in db.Query(self.viewSkel("node").kindName).filter("parententry =", nodeKey).iter(keysOnly=True):
-			self.deleteRecursive(str(d))
-			s = self.viewSkel("node")
-			if not s.fromDB(d):
+				leafSkel.delete()
+		for node in db.Query(self.viewSkel("node").kindName).filter("parententry =", nodeKey).iter():
+			self.deleteRecursive(node.key)
+			nodeSkel = self.viewSkel("node")
+			if not nodeSkel.fromDB(node.key):
 				continue
-			s.delete()
+			nodeSkel.delete()
 
 	@exposed
 	@forceSSL

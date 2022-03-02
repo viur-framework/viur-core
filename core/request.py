@@ -7,8 +7,7 @@ import webob
 from viur.core import errors
 from urllib.parse import urljoin, urlparse, unquote
 from viur.core.logging import requestLogger, client as loggingClient, requestLoggingRessource
-from viur.core import utils
-from viur import datastore as db
+from viur.core import utils, db
 from viur.core.utils import currentSession, currentLanguage
 import logging
 from time import time

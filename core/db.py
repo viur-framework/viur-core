@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-import warnings
-from viur.datastore import *
+import importlib, logging
+from viur.core import conf
 
-warnings.warn("The viur.core.db module is deprecated. Use viur.datastore instead", DeprecationWarning)
+if conf["viur.db.engine"] =="viur.datastore":
+	from viur.datastore import *
+else:
+	globals().update(importlib.import_module(conf["viur.db.engine"]).__dict__)
 
 KeyClass = Key
 
-Conflict = Error = AllocateIds = None
-
-__all__ = [KEY_SPECIAL_PROPERTY, DATASTORE_BASE_TYPES, SortOrder, Entity, Key, KeyClass, Put, Get, Delete, AllocateIds,
-		   Conflict, Error, keyHelper, fixUnindexableProperties, GetOrInsert, Query, IsInTransaction,
+__all__ = [KEY_SPECIAL_PROPERTY, DATASTORE_BASE_TYPES, SortOrder, Entity, Key, KeyClass, Put, Get, Delete, AllocateIDs,
+		   Collision, keyHelper, fixUnindexableProperties, GetOrInsert, Query, QueryDefinition, IsInTransaction,
 		   acquireTransactionSuccessMarker, RunInTransaction]

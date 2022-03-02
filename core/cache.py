@@ -5,8 +5,7 @@ from functools import wraps
 from hashlib import sha512
 from typing import List, Union, Callable, Tuple, Dict
 
-from viur.core import tasks, utils
-from viur import datastore as db
+from viur.core import tasks, utils, db
 from viur.core.config import conf
 from viur.core.utils import currentLanguage, currentRequest
 
