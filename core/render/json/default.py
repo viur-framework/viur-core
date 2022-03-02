@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 from collections import OrderedDict
-from viur.core import bones, utils
+from viur.core import bones, utils, config
 from viur.core import db
 from viur.core.skeleton import SkeletonInstance
 from viur.core.utils import currentRequest
@@ -198,7 +198,8 @@ class DefaultRender(object):
 		for key, bone in skel.items():
 			res[key] = self.renderBoneValue(bone, skel, key)
 		if injectDownloadURL and "dlkey" in skel and "name" in skel:
-			res["downloadUrl"] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False)
+			res["downloadUrl"] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False,
+													  expires=config.conf["viur.render.json.downloadUrlExpiration"])
 		return res
 
 	def renderEntry(self, skel, actionName, params=None):
