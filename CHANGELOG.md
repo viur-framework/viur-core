@@ -10,6 +10,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - "viur.db.engine" config variable to inject different database drivers
 - Global jinja2 function "translate" for instances where compile-time resolving is not possible 
 - Passing getEmptyValue() in the structure definition in json-render
+- A verbose error handler output, controllable by the "viur.debug.verboseErrorHandler" config variable.
 
 ### Changed
 - Replaced viur.core.db with a shim around viur-datastore

@@ -315,11 +315,24 @@ class BrowseHandler():  # webapp.RequestHandler
 			except Exception as e:
 				logging.exception(e)
 				raise
-		except errors.HTTPException as e:
-			if conf["viur.debug.traceExceptions"]:
-				raise
+		except Exception as e:
+			if isinstance(e, errors.HTTPException):
+				if conf["viur.debug.traceExceptions"]:
+					raise
+				errorCode = e.status
+				errorName = e.name
+				errorDescr = e.descr
+			else:
+				# Something got really wrong
+				logging.error("Viur caught an unhandled exception!")
+				logging.exception(e)
+				errorCode = 500
+				errorName = "Internal Server Error"
+				errorDescr = "The server encountered an unexpected error and is unable to process your request."
+
 			self.response.body = b""
-			self.response.status = '%d %s' % (e.status, e.name)
+			self.response.status = f"{errorCode} {errorName}"
+
 			res = None
 			if conf["viur.errorHandler"]:
 				try:
@@ -327,36 +340,20 @@ class BrowseHandler():  # webapp.RequestHandler
 				except Exception as newE:
 					logging.error("viur.errorHandler failed!")
 					logging.exception(newE)
-					res = None
-			if not res:
-				tpl = Template(open(conf["viur.errorTemplate"], "r").read())
-				res = tpl.safe_substitute({"error_code": e.status, "error_name": e.name, "error_descr": e.descr})
-			self.response.write(res.encode("UTF-8"))
-		except Exception as e:  # Something got really wrong
-			logging.error("Viur caught an unhandled exception!")
-			logging.exception(e)
-			self.response.body = b""
-			self.response.status = 500
-			res = None
-			if conf["viur.errorHandler"]:
-				try:
-					res = conf["viur.errorHandler"](e)
-				except Exception as newE:
-					logging.error("viur.errorHandler failed!")
-					logging.exception(newE)
-					res = None
+
 			if not res:
 				with open(conf["viur.errorTemplate"], "r") as fh:
 					tpl = Template(fh.read())
-				descr = "The server encountered an unexpected error and is unable to process your request."
 				debugInformation = ""
 				# We're running on development server or verbose mode is on
 				if self.isDevServer or conf["viur.debug.verboseErrorHandler"]:
-					strIO = StringIO()
-					traceback.print_exc(file=strIO)
-					descr = strIO.getvalue()
-					descr = descr.replace("<", "&lt;").replace(">", "&gt;") \
-						.replace(" ", "&nbsp;").replace("\n", "<br />")
+					if not isinstance(e, errors.HTTPException):
+						# No traceback on HTTPException, use conf["viur.debug.traceExceptions"] for debugging
+						strIO = StringIO()
+						traceback.print_exc(file=strIO)
+						errorDescr = strIO.getvalue() \
+							.replace("<", "&lt;").replace(">", "&gt;") \
+							.replace(" ", "&nbsp;").replace("\n", "<br />")
 					params = "\n".join(
 						f'<tr><td>{key}</td><td><pre>{value!r}</pre></td></tr>'
 						for key, value in self.request.params.items()
@@ -386,9 +383,9 @@ class BrowseHandler():  # webapp.RequestHandler
 					)
 
 				res = tpl.safe_substitute({
-					"error_code": "500",
-					"error_name": "Internal Server Error",
-					"error_descr": descr,
+					"error_code": errorCode,
+					"error_name": errorName,
+					"error_descr": errorDescr,
 					"debug_information": debugInformation,
 				})
 			self.response.write(res.encode("UTF-8"))
