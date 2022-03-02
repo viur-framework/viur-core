@@ -314,7 +314,7 @@ class BrowseHandler():  # webapp.RequestHandler
 			if conf["viur.debug.traceExceptions"]:
 				raise
 			self.response.body = b""
-			self.response.status = '%d %s' % (e.status, e.descr)
+			self.response.status = '%d %s' % (e.status, e.name)
 			res = None
 			if conf["viur.errorHandler"]:
 				try:
