@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
+import logging
 import string
 from html import entities as htmlentitydefs
 from html.parser import HTMLParser
-from typing import Any, Dict, List, Union
-
+from typing import Any, Dict, List, Union, Tuple, Optional
+from base64 import urlsafe_b64decode
+from datetime import datetime
 from viur.core.bones import baseBone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core import utils
 
 _defaultTags = {
 	"validTags": [  # List of HTML-Tags which are valid
@@ -27,6 +30,42 @@ _defaultTags = {
 	"validClasses": ["vitxt-*", "viur-txt-*"],  # List of valid class-names that are valid
 	"singleTags": ["br", "img", "hr"]  # List of tags, which don't have a corresponding end tag
 }
+
+
+def parseDownloadUrl(urlStr: str) -> Tuple[Optional[str], Optional[bool], Optional[str]]:
+	"""
+		Parses a file download-url (/file/download/xxxx?sig=yyyy) into it's components
+		blobKey, derived (yes/no) and filename. Will return None for each component if the url
+		could not be parsed.
+	"""
+	if not urlStr.startswith("/file/download/"):
+		return None, None, None
+	dataStr, sig = urlStr[15:].split("?")  # Strip /file/download/ and split on ?
+	sig = sig[4:]  # Strip sig=
+	if not utils.hmacVerify(dataStr.encode("ASCII"), sig):
+		# Invalid signature, bail out
+		return None, None, None
+	# Split the blobKey into the individual fields it should contain
+	dlPath, validUntil = urlsafe_b64decode(dataStr).decode("UTF-8").split("\0")
+	if validUntil != "0" and datetime.strptime(validUntil, "%Y%m%d%H%M") < datetime.now():
+		# Signature expired, bail out
+		return None, None, None
+	blobkey, derived, fileName = dlPath.split("/")
+	derived = derived != "source"
+	return blobkey, derived, fileName
+
+class CollectBlobKeys(HTMLParser):
+	def __init__(self):
+		super(CollectBlobKeys, self).__init__()
+		self.blobs = set()
+
+	def handle_starttag(self, tag, attrs):
+		if tag in ["a", "img"]:
+			for k, v in attrs:
+				if k == "src":
+					blobKey, _ , _ = parseDownloadUrl(v)
+					if blobKey:
+						self.blobs.add(blobKey)
 
 
 class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
@@ -96,11 +135,12 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
 				elif k == "src":
 					# We ensure that any src tag starts with an actual url
 					checker = v.lower()
-					if not (checker.startswith("http://") or checker.startswith("https://") or \
-							checker.startswith("/")):
+					if not (checker.startswith("http://") or checker.startswith("https://") or checker.startswith("/")):
 						continue
-				if not tag in self.validHtml["validAttrs"].keys() or not k in \
-																		 self.validHtml["validAttrs"][tag]:
+					blobKey, derived, fileName = parseDownloadUrl(v)
+					if blobKey:
+						v = utils.downloadUrlFor(blobKey, fileName, derived, expires=None)
+				if not tag in self.validHtml["validAttrs"].keys() or not k in self.validHtml["validAttrs"][tag]:
 					# That attribute is not valid on this tag
 					continue
 				if k.lower()[0:2] != 'on' and v.lower()[0:10] != 'javascript':
@@ -248,40 +288,26 @@ class textBone(baseBone):
 		if len(value) > self.maxLength:
 			return "Maximum length exceeded"
 
-	def getReferencedBlobs(self, valuesCache, name):
+	def getReferencedBlobs(self, skel, name):
 		"""
 			Test for /file/download/ links inside our text body.
 			Doesn't check for actual <a href=> or <img src=> yet.
 		"""
-		newFileKeys = []
-		return newFileKeys  # FIXME!!
-		if self.languages:
-			if valuesCache[name]:
-				for lng in self.languages:
-					if lng in valuesCache[name]:
-						val = valuesCache[name][lng]
-						if not val:
-							continue
-						idx = val.find("/file/download/")
-						while idx != -1:
-							idx += 15
-							seperatorIdx = min([x for x in [val.find("/", idx), val.find("\"", idx)] if x != -1])
-							fk = val[idx:seperatorIdx]
-							if not fk in newFileKeys:
-								newFileKeys.append(fk)
-							idx = val.find("/file/download/", seperatorIdx)
-		else:
-			values = valuesCache.get(name)
-			if values:
-				idx = values.find("/file/download/")
-				while idx != -1:
-					idx += 15
-					seperatorIdx = min([x for x in [values.find("/", idx), values.find("\"", idx)] if x != -1])
-					fk = values[idx:seperatorIdx]
-					if fk not in newFileKeys:
-						newFileKeys.append(fk)
-					idx = values.find("/file/download/", seperatorIdx)
-		return newFileKeys
+
+		if self.languages and skel[name]:
+			newFileKeys = set()
+			for lng in self.languages:
+				if lng in skel[name] and skel[name][lng]:
+					collector = CollectBlobKeys()
+					collector.feed(skel[name][lng])
+					newFileKeys.update(collector.blobs)
+			return list(newFileKeys)
+		elif skel[name]:
+			collector = CollectBlobKeys()
+			collector.feed(skel[name])
+			return list(collector.blobs)
+		return []
+
 
 	def getSearchTags(self, skeletonValues, name):
 		res = set()

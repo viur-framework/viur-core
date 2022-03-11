@@ -4,10 +4,11 @@ import hmac
 import os
 import random
 import string
+import logging
 from base64 import urlsafe_b64encode
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
-from typing import Any, Union
+from typing import Any, Union, Optional
 import google.auth
 from viur.core import conf, db
 
@@ -149,6 +150,40 @@ def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
 	resstr = hmacSign(sigStr)
 	return "/file/download/%s?sig=%s" % (sigStr.decode("ASCII"), resstr)
 
+def srcSetFor(fileObj: dict, expires: Optional[int], width: Optional[int] = None, height: Optional[int] = None) -> str:
+	"""
+		Generates a string suitable for use as the srcset tag in html. This functionality provides the browser
+		with a list of images in different sizes and allows it to choose the smallest file that will fill it's viewport
+		without upscaling.
+		:param fileObj: The file-bone (or if multiple=True a single value from it) to generate the srcset for
+		:param expires: None if the file is supposed to be public (which causes it to be cached on the google ede
+			caches), otherwise it's lifetime in seconds
+		:param width: A list of widths that should be included in the srcset. If a given width is not available, it will
+			be skipped.
+		:param height: A list of heights that should be included in the srcset. If a given height is not available,
+			it will	be skipped.
+		:return: The srctag generated or an empty string if a invalid file object was supplied
+	"""
+	if not width and not height:
+		logging.error("Neither width or height supplied to srcSetFor")
+		return ""
+	if "dlkey" not in fileObj and "dest" in fileObj:
+		fileObj = fileObj["dest"]
+	if expires:
+		expires = timedelta(minutes=expires)
+	if not isinstance(fileObj, (SkeletonInstance, dict)) or not "dlkey" in fileObj or "derived" not in fileObj:
+		logging.error("Invalid fileObj supplied to srcSetFor")
+		return ""
+	if not isinstance(fileObj["derived"], dict):
+		return ""
+	resList = []
+	for fileName, derivate in fileObj["derived"]["files"].items():
+		customData = derivate.get("customData", {})
+		if width and customData.get("width") in width:
+			resList.append("%s %sw" % (downloadUrlFor(fileObj["dlkey"], fileName, True, expires), customData["width"]))
+		if height and customData.get("height") in height:
+			resList.append("%s %sh" % (downloadUrlFor(fileObj["dlkey"], fileName, True, expires), customData["height"]))
+	return ", ".join(resList)
 
 def seoUrlToEntry(module, entry=None, skelType=None, language=None):
 	from viur.core import conf
@@ -215,3 +250,5 @@ def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
 	else:
 		parent = None
 	return db.Key(key.kind, key.id_or_name, parent=parent)
+
+from viur.core.skeleton import SkeletonInstance

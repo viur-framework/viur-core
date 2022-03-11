@@ -16,6 +16,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - Replaced viur.core.db with a shim around viur-datastore
 
 ### Fixed
+- files embedded in textBones don't expire anymore and get correctly locked
 - Serializing randomSliceBone
 - Recursive deletion in modules/file.py 
 - deleteRecursive function in tree-prototype
