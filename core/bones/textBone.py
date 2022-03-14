@@ -8,7 +8,7 @@ from base64 import urlsafe_b64decode
 from datetime import datetime
 from viur.core.bones import baseBone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import utils
+from viur.core import utils, db
 
 _defaultTags = {
 	"validTags": [  # List of HTML-Tags which are valid
@@ -19,7 +19,7 @@ _defaultTags = {
 		"a": ["href", "target", "title"],
 		"abbr": ["title"],
 		"span": ["title"],
-		"img": ["src", "srcset", "alt", "title"],
+		"img": ["src", "alt", "title"],  # "srcset" must not be in this list. It will be injected by ViUR
 		"td": ["colspan", "rowspan"],
 		"p": ["data-indent"],
 		"blockquote": ["cite"]
@@ -69,13 +69,14 @@ class CollectBlobKeys(HTMLParser):
 
 
 class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
-	def __init__(self, validHtml=None):
+	def __init__(self, validHtml=None, srcSet=None):
 		global _defaultTags
 		super(HtmlSerializer, self).__init__()
 		self.result = ""  # The final result that will be returned
 		self.openTagsList = []  # List of tags that still need to be closed
 		self.tagCache = []  # Tuple of tags that have been processed but not written yet
 		self.validHtml = validHtml
+		self.srcSet = srcSet
 
 	def handle_data(self, data):
 		data = str(data) \
@@ -140,6 +141,13 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
 					blobKey, derived, fileName = parseDownloadUrl(v)
 					if blobKey:
 						v = utils.downloadUrlFor(blobKey, fileName, derived, expires=None)
+						if self.srcSet:
+							# Build the src set with files already available. If a derived file is not yet build,
+							# getReferencedBlobs will catch it, build it, and we're going to be re-called afterwards.
+							fileObj = db.Query("file").filter("dlkey =", blobKey)\
+								.order(("creationdate", db.SortOrder.Ascending)).getEntry()
+							srcSet = utils.srcSetFor(fileObj, None, self.srcSet.get("width"), self.srcSet.get("height"))
+							cacheTagStart += ' srcSet="%s"' % srcSet
 				if not tag in self.validHtml["validAttrs"].keys() or not k in self.validHtml["validAttrs"][tag]:
 					# That attribute is not valid on this tag
 					continue
@@ -248,7 +256,16 @@ class textBone(baseBone):
 		return ({"name": name, "mode": mode, "target": target, "type": "text"})
 
 	def __init__(self, validHtml: Union[None, Dict] = __undefinedC__, languages: Union[None, List[str]] = None,
-				 maxLength: int = 200000, defaultValue: Any = None, indexed: bool = False, *args, **kwargs):
+				 maxLength: int = 200000, defaultValue: Any = None, indexed: bool = False,
+				 srcSet:Optional[Dict[str, List]] = None, *args, **kwargs):
+		"""
+			:param validHtml: If set, must be a structure like :prop:_defaultTags
+			:param languages: If set, this bone can store a different content for each language
+			:param maxLength: Limit content to maxLength bytes
+			:param indexed: Must not be set True, unless you limit maxLength accordingly
+			:param srcSet: If set, inject srcset tags to embedded images. Must be a dict of
+				"width": [List of Ints], "height": [List of Ints], eg {"height": [720, 1080]}
+		"""
 		super(textBone, self).__init__(defaultValue=defaultValue, indexed=indexed, *args, **kwargs)
 		if validHtml == textBone.__undefinedC__:
 			global _defaultTags
@@ -259,6 +276,7 @@ class textBone(baseBone):
 		self.languages = languages
 		self.validHtml = validHtml
 		self.maxLength = maxLength
+		self.srcSet = srcSet
 		if defaultValue is None:
 			if self.languages:
 				self.defaultValue = {}
@@ -271,7 +289,7 @@ class textBone(baseBone):
 	def singleValueFromClient(self, value, skel, name, origData):
 		err = self.isInvalid(value)  # Returns None on success, error-str otherwise
 		if not err:
-			return HtmlSerializer(self.validHtml).sanitize(value), None
+			return HtmlSerializer(self.validHtml, self.srcSet).sanitize(value), None
 		else:
 			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
@@ -290,24 +308,47 @@ class textBone(baseBone):
 
 	def getReferencedBlobs(self, skel, name):
 		"""
-			Test for /file/download/ links inside our text body.
-			Doesn't check for actual <a href=> or <img src=> yet.
+			Parse our html for embedded img or hrefs pointing to files. These will be locked,
+			so even if they are deleted from the file browser, we'll still keep that blob alive
+			so we don't have broken links/images in this bone.
 		"""
-
+		newFileKeys = set()
 		if self.languages and skel[name]:
-			newFileKeys = set()
 			for lng in self.languages:
 				if lng in skel[name] and skel[name][lng]:
 					collector = CollectBlobKeys()
 					collector.feed(skel[name][lng])
 					newFileKeys.update(collector.blobs)
-			return list(newFileKeys)
 		elif skel[name]:
 			collector = CollectBlobKeys()
 			collector.feed(skel[name])
-			return list(collector.blobs)
-		return []
+			newFileKeys = collector.blobs
+		if newFileKeys and self.srcSet:
+			deriveDict = {
+				"thumbnail": [
+								 {"width": x} for x in (self.srcSet.get("width") or [])
+							 ] + [
+								 {"height": x} for x in (self.srcSet.get("height") or [])
+							 ]
+			}
+			from viur.core.bones.fileBone import ensureDerived
+			for blobKey in newFileKeys:
+				fileObj = db.Query("file").filter("dlkey =", blobKey)\
+					.order(("creationdate", db.SortOrder.Ascending)).getEntry()
+				if fileObj:
+					ensureDerived(fileObj.key, "%s_%s" % (skel.kindName, name), deriveDict, skel["key"])
+		return list(newFileKeys)
 
+	def refresh(self, skel, boneName) -> None:
+		"""
+			Re-parse our text. This will cause our src-set to rebuild.
+		"""
+		if self.srcSet:
+			val = skel[boneName]
+			if self.languages and isinstance(val, dict):
+				skel[boneName] = {k: self.singleValueFromClient(v, skel, boneName, None)[0] for k, v in val.items()}
+			elif not self.languages and isinstance(val, str):
+				skel[boneName] = self.singleValueFromClient(val, skel, boneName, None)[0]
 
 	def getSearchTags(self, skeletonValues, name):
 		res = set()
