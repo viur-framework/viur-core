@@ -262,8 +262,8 @@ def killSessionByUser(user=None):
 	query = db.Query(GaeSession.kindName)
 	if user is not None:
 		query.filter("user =", str(user))
-	for key in query.iter(keysOnly=True):
-		db.Delete(key)
+	for obj in query.iter():
+		db.Delete(obj.key)
 
 
 @PeriodicTask(60 * 4)
