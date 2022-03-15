@@ -9,6 +9,7 @@ from urllib.parse import urljoin, urlparse, unquote
 from viur.core.logging import requestLogger, client as loggingClient, requestLoggingRessource
 from viur.core import utils, db
 from viur.core.utils import currentSession, currentLanguage
+from viur.core.securityheaders import extendCsp
 import logging
 from time import time
 from abc import ABC, abstractmethod
@@ -269,6 +270,7 @@ class BrowseHandler():  # webapp.RequestHandler
 			if not res:
 				tpl = Template(open(utils.coreBasePath+conf["viur.errorTemplate"], "r").read())
 				res = tpl.safe_substitute({"error_code": e.status, "error_name": e.name, "error_descr": e.descr})
+				extendCsp({"style-src":['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
 			self.response.write(res.encode("UTF-8"))
 		except Exception as e:  # Something got really wrong
 			logging.error("Viur caught an unhandled exception!")
@@ -294,6 +296,7 @@ class BrowseHandler():  # webapp.RequestHandler
 																										   "<br />")
 				res = tpl.safe_substitute(
 					{"error_code": "500", "error_name": "Internal Server Error", "error_descr": descr})
+				extendCsp({"style-src":['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
 			self.response.write(res.encode("UTF-8"))
 		finally:
 			self.saveSession()

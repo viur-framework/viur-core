@@ -89,8 +89,7 @@ def addCspRule(objectType, srcOrDirective, enforceMode="monitor"):
 						  "form-action", "require-trusted-types-for"}
 	assert conf["viur.mainApp"] is None, "You cannot modify CSP rules after server.buildApp() has been run!"
 	assert not any(
-		[x in srcOrDirective for x in [";", "\"", "\n", ","]]), "Invalid character in srcOrDirective!"
-	assert srcOrDirective.startswith("'sha256-") if "'" in srcOrDirective else True, "Invalid string prefix in srcOrDirective"
+		[x in srcOrDirective for x in [";", "'", "\"", "\n", ","]]), "Invalid character in srcOrDirective!"
 	if conf["viur.security.contentSecurityPolicy"] is None:
 		conf["viur.security.contentSecurityPolicy"] = {"_headerCache": {}}
 	if not enforceMode in conf["viur.security.contentSecurityPolicy"]:
