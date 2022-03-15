@@ -60,7 +60,7 @@ conf = {
 	# If set, ViUR call this function instead of rendering the viur.errorTemplate if an exception occurs
 	"viur.errorHandler": None,
 	# Path to the template to render if an unhandled error occurs. This is a Python String-template, *not* a jinja2 one!
-	"viur.errorTemplate": "/viur/core/template/error.html",
+	"viur.errorTemplate": "viur/core/template/error.html",
 
 	# Path to the static SVGs folder. Will be used by the jinja-renderer-method: embedSvg
 	"viur.static.embedSvg.path": "/static/svgs/",

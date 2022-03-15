@@ -28,7 +28,7 @@ appVersion = os.getenv("GAE_VERSION")  # Name of this version as deployed to the
 versionHash = urlsafe_b64encode(hashlib.sha256((appVersion+projectID).encode("UTF8")).digest()).decode("ASCII")
 versionHash = "".join([x for x in versionHash if x in string.digits+string.ascii_letters])[1:7]  # Strip +, / and =
 # Determine our basePath (as os.getCWD is broken on appengine)
-projectBasePath = str(Path().absolute()) #os.path.abspath(os.getcwd())
+projectBasePath = str(Path().absolute())
 coreBasePath = globals()["__file__"].replace("/viur/core/utils.py","")
 isLocalDevelopmentServer = os.environ['GAE_ENV'] == "localdev"
 
