@@ -11,7 +11,6 @@ from typing import Any, Union
 import google.auth
 
 from viur.core import conf, db
-from viur import datastore as db
 from pathlib import Path
 
 # Proxy to context depended variables
