@@ -356,7 +356,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 class MetaSkel(MetaBaseSkel):
 	def __init__(cls, name, bases, dct):
 		super(MetaSkel, cls).__init__(name, bases, dct)
-		relNewFileName = inspect.getfile(cls).replace(utils.projectBasePath, "")
+		relNewFileName = inspect.getfile(cls).replace(utils.projectBasePath, "").replace(utils.coreBasePath, "")
 
 		# Check if we have an abstract skeleton
 		if cls.__name__.endswith("AbstractSkel"):
@@ -375,7 +375,8 @@ class MetaSkel(MetaBaseSkel):
 				cls.kindName = cls.__name__.lower()
 		# Try to determine which skeleton definition takes precedence
 		if cls.kindName and cls.kindName is not __undefindedC__ and cls.kindName in MetaBaseSkel._skelCache:
-			relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]).replace(utils.projectBasePath, "")
+			relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName])\
+				.replace(utils.projectBasePath, "").replace(utils.coreBasePath,"")
 			idxOld = min(
 				[x for (x, y) in enumerate(conf["viur.skeleton.searchPath"]) if relOldFileName.startswith(y)] + [999])
 			idxNew = min(
