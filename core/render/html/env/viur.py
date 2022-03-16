@@ -703,26 +703,7 @@ def srcSetFor(render: 'viur.core.render.html.default.Render', fileObj: dict, exp
 			it will	be skipped.
 		:return: The srctag generated or an empty string if a invalid file object was supplied
 	"""
-	if not width and not height:
-		logging.error("Neither width or height supplied to srcSetFor")
-		return ""
-	if "dlkey" not in fileObj and "dest" in fileObj:
-		fileObj = fileObj["dest"]
-	if expires:
-		expires = timedelta(minutes=expires)
-	if not isinstance(fileObj, (SkeletonInstance, dict)) or not "dlkey" in fileObj or "derived" not in fileObj:
-		logging.error("Invalid fileObj supplied to srcSetFor")
-		return ""
-	if not isinstance(fileObj["derived"], dict):
-		return ""
-	resList = []
-	for fileName, derivate in fileObj["derived"]["files"].items():
-		customData = derivate.get("customData", {})
-		if width and customData.get("width") in width:
-			resList.append("%s %sw" % (utils.downloadUrlFor(fileObj["dlkey"], fileName, True, expires), customData["width"]))
-		if height and customData.get("height") in height:
-			resList.append("%s %sh" % (utils.downloadUrlFor(fileObj["dlkey"], fileName, True, expires), customData["height"]))
-	return ", ".join(resList)
+	return utils.srcSetFor(fileObj, expires, width, height)
 
 
 @jinjaGlobalFunction
