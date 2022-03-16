@@ -11,3 +11,7 @@ twine="*"
 
 [requires]
 python_version = "3.8"
+
+[scripts]
+build = "python -m build --wheel"
+release = "twine upload dist/*"
