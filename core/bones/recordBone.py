@@ -26,7 +26,7 @@ class recordBone(baseBone):
 
 	# self._usingSkelCache = self.using()
 
-	def singleValueUnserialize(self, val, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+	def singleValueUnserialize(self, val):
 		if isinstance(val, str):
 			try:
 				value = extjson.loads(val)

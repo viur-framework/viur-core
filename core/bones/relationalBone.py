@@ -167,7 +167,7 @@ class relationalBone(baseBone):
 		usingSkel = self.using() if self.using else None
 		return refSkel, usingSkel
 
-	def singleValueUnserialize(self, val, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+	def singleValueUnserialize(self, val):
 		"""
 			Restores one of our values (including the Rel- and Using-Skel) from the serialized data read from the datastore
 			:param value: Json-Encoded datastore property
