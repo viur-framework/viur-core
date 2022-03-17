@@ -327,6 +327,10 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 						# We'll consider empty required bones only as an error, if they're on the top-level (and not
 						# further down the hierarchy (in an record- or relational-Bone)
 						complete = False
+
+						if conf["viur.debug.skeleton.fromClient"] and cls.kindName:
+							logging.debug("%s: %s: %r", cls.kindName, error.fieldPath, error.errorMessage)
+
 		if (len(data) == 0
 			or (len(data) == 1 and "key" in data)
 			or ("nomissing" in data and str(data["nomissing"]) == "1")):
@@ -640,10 +644,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		for checkFunc in skelValues.interBoneValidations:
 			errors = checkFunc(skelValues)
 			if errors:
-				for err in errors:
-					if err.severity.value > 1:
+				for error in errors:
+					if error.severity.value > 1:
 						complete = False
+						if conf["viur.debug.skeleton.fromClient"]:
+							logging.debug("%s: %s: %r", cls.kindName, error.fieldPath, error.errorMessage)
+
 				skelValues.errors.extend(errors)
+
 		return complete
 
 	@classmethod
