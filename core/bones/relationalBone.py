@@ -59,7 +59,7 @@ class relationalBone(baseBone):
 
 	def __init__(self, kind: str = None, module: Optional[str] = None, refKeys: Optional[List[str]] = None,
 				 parentKeys: Optional[List[str]] = None, multiple: Union[bool, MultipleConstraints] = False,
-				 format: str = "value['dest']['name']", using: Optional['viur.core.skeleton.RelSkel'] = None,
+				 format: str = "$(dest.name)", using: Optional['viur.core.skeleton.RelSkel'] = None,
 				 updateLevel: int = 0, consistency: RelationalConsistency = RelationalConsistency.Ignore,
 				 *args, **kwargs):
 		"""

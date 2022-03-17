@@ -86,7 +86,7 @@ class fileBone(treeLeafBone):
 	type = "relational.tree.leaf.file"
 	refKeys = ["name", "key", "mimetype", "dlkey", "size", "width", "height", "derived"]
 
-	def __init__(self, format="value['dest']['name']", derive: Union[None, Dict[str, Any]] = None,
+	def __init__(self, derive: Union[None, Dict[str, Any]] = None,
 				 validMimeTypes: Union[None, List[str]] = None, maxFileSize: Union[None, int] = None, *args, **kwargs):
 		"""
 		Initializes a new Filebone. All properties inherited by relationalBone are supported.
@@ -108,7 +108,7 @@ class fileBone(treeLeafBone):
 		"""
 		if "dlkey" not in self.refKeys:
 			self.refKeys.append("dlkey")
-		super(fileBone, self).__init__(format=format, *args, **kwargs)
+		super(fileBone, self).__init__(*args, **kwargs)
 		self.derive = derive
 		self.validMimeTypes = validMimeTypes
 		self.maxFileSize = maxFileSize
