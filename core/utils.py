@@ -133,7 +133,9 @@ def hmacVerify(data: Any, signature: str) -> bool:
 
 
 def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
-				   expires: Union[timedelta, None] = timedelta(hours=1)) -> str:
+				   expires: Union[timedelta, None] = timedelta(hours=1),
+				   download_filename=None
+    ) -> str:
 	"""
 		Utility function that creates a signed download-url for the given folder/filename combination
 
@@ -148,10 +150,17 @@ def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
 		filePath = "%s/derived/%s" % (folder, fileName)
 	else:
 		filePath = "%s/source/%s" % (folder, fileName)
+
 	sigStr = "%s\0%s" % (filePath, ((datetime.now() + expires).strftime("%Y%m%d%H%M") if expires else 0))
 	sigStr = urlsafe_b64encode(sigStr.encode("UTF-8"))
 	resstr = hmacSign(sigStr)
-	return "/file/download/%s?sig=%s" % (sigStr.decode("ASCII"), resstr)
+
+	url = f"/file/download/{sigStr.decode('ASCII')}"
+
+	if download_filename:
+		url += f"/{download_filename}"
+
+	return url + f"?sig={resstr}"
 
 def srcSetFor(fileObj: dict, expires: Optional[int], width: Optional[int] = None, height: Optional[int] = None) -> str:
 	"""
