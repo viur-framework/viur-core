@@ -740,7 +740,11 @@ class selectCountryBone(selectBone):
 		assert codes in [self.ISO2, self.ISO3]
 		assert values is None
 
-		super().__init__(values=OrderedDict(sorted(ISO2CODES.items(), key=lambda i: i[1])), *args, **kwargs)
+		super().__init__(
+			values=OrderedDict(sorted((ISO2CODES if codes == self.ISO2 else ISO3CODES).items(), key=lambda i: i[1])),
+			*args, **kwargs
+		)
+
 		self.codes = codes
 
 	def singleValueUnserialize(self, val, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
