@@ -111,6 +111,8 @@ def dumpConfig(adminTree):
 	for k, v in conf.items():
 		if k.lower().startswith("admin."):
 			res["configuration"][k[6:]] = v
+
+	currentRequest.get().response.headers["Content-Type"] = "application/json"
 	return json.dumps(res)
 
 
