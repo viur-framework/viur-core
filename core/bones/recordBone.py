@@ -62,7 +62,8 @@ class recordBone(baseBone):
 			usingSkel.errors.append(
 				ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Incomplete data")
 			)
-		return usingSkel, usingSkel.errors
+			return usingSkel, usingSkel.errors
+		return usingSkel, []
 
 	def getSearchTags(self, values, key):
 		def getValues(res, skel, valuesCache):
