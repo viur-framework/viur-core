@@ -1016,7 +1016,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				bone.delete(skel, boneName)
 				if bone.unique:
 					flushList = []
-					for lockValue in viurData["%s_uniqueIndexValue" % boneName]:
+					for lockValue in viurData.get("%s_uniqueIndexValue" % boneName) or []:
 						lockKey = db.Key("%s_%s_uniquePropertyIndex" % (skel.kindName, boneName), lockValue)
 						lockObj = db.Get(lockKey)
 						if not lockObj:
