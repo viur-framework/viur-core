@@ -21,7 +21,24 @@ class selectBone(baseBone):
 		if defaultValue is None and multiple:
 			defaultValue = []
 		super(selectBone, self).__init__(defaultValue=defaultValue, multiple=multiple, *args, **kwargs)
-		self.values = values
+
+		# handle sequencials as dicts
+		if isinstance(values, (list, tuple)):
+			values = {i: i for i in values}
+
+		assert isinstance(values, (dict, OrderedDict)) or callable(values)
+		self._values = values
+
+	def __getattribute__(self, item):
+		if item == "values":
+			values = self._values
+			if callable(values):
+				values = values()
+				assert isinstance(values, (dict, OrderedDict))
+
+			return values
+
+		return super().__getattribute__(item)
 
 	def singleValueFromClient(self, value, skel, name, origData):
 		if not str(value):
