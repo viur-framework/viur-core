@@ -1160,15 +1160,20 @@ class RelSkel(BaseSkeleton):
 
 	# return {k: v for k, v in self.valuesCache.entity.items() if k in self.__boneNames__}
 
-	def unserialize(self, values):
+	def unserialize(self, values: Union[db.Entity, dict]):
 		"""
 			Loads 'values' into this skeleton.
 
 			:param values: dict with values we'll assign to our bones
-			:type values: dict | db.Entry
+			:type values: dict | db.Entity
 			:return:
 		"""
-		self.dbEntity = values
+		if not isinstance(values, db.Entity):
+			self.dbEntity = db.Entity()
+			self.dbEntity.update(values)
+		else:
+			self.dbEntity = values
+
 		self.accessedValues = {}
 		self.renderAccessedValues = {}
 		# self.valuesCache = {"entity": values, "changedValues": {}, "cachedRenderValues": {}}
