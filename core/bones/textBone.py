@@ -46,7 +46,10 @@ def parseDownloadUrl(urlStr: str) -> Tuple[Optional[str], Optional[bool], Option
 		# Invalid signature, bail out
 		return None, None, None
 	# Split the blobKey into the individual fields it should contain
-	dlPath, validUntil = urlsafe_b64decode(dataStr).decode("UTF-8").split("\0")
+	try:
+		dlPath, validUntil, _ = urlsafe_b64decode(dataStr).decode("UTF-8").split("\0")
+	except:  # It's the old format, without an downloadFileName
+		dlPath, validUntil = urlsafe_b64decode(dataStr).decode("UTF-8").split("\0")
 	if validUntil != "0" and datetime.strptime(validUntil, "%Y%m%d%H%M") < datetime.now():
 		# Signature expired, bail out
 		return None, None, None
