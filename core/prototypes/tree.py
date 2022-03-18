@@ -103,47 +103,55 @@ class Tree(BasicApplication):
 
 		return self.nodeSkelCls
 
+	def baseSkel(self, skelType: str, *args, **kwargs) -> Skeleton:
+		"""
+		Return unmodified base skeleton for the given skelType.
+
+		.. seealso:: :func:`~baseSkel`
+		"""
+		return self._resolveSkelCls(skelType, *args, **kwargs)()
+
 	def viewSkel(self, skelType: str, *args, **kwargs):
 		"""
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for viewing an existing entry from the list.
 
-		The default is a Skeleton instance returned by :func:`_resolveSkel`.
+		The default is a Skeleton instance returned by :func:`~baseSkel`.
 
-		.. seealso:: :func:`addSkel`, :func:`editSkel`, :func:`_resolveSkel`
+		.. seealso:: :func:`addSkel`, :func:`editSkel`, :func:`~baseSkel`
 
 		:return: Returns a Skeleton instance for viewing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkelCls(skelType, *args, **kwargs)()
+		return self.baseSkel(skelType, *args, **kwargs)
 
 	def addSkel(self, skelType: str, *args, **kwargs):
 		"""
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for adding an entry to the list.
 
-		The default is a Skeleton instance returned by :func:`_resolveSkel`.
+		The default is a Skeleton instance returned by :func:`~baseSkel`.
 
-		.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`_resolveSkel`
+		.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`~baseSkel`
 
 		:return: Returns a Skeleton instance for adding an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkelCls(skelType, *args, **kwargs)()
+		return self.baseSkel(skelType, *args, **kwargs)
 
 	def editSkel(self, skelType: str, *args, **kwargs):
 		"""
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for editing an existing entry from the list.
 
-		The default is a Skeleton instance returned by :func:`_resolveSkel`.
+		The default is a Skeleton instance returned by :func:`~baseSkel`.
 
-		.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`_resolveSkel`
+		.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`~baseSkel`
 
 		:return: Returns a Skeleton instance for editing an entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkelCls(skelType, *args, **kwargs)()
+		return self.baseSkel(skelType, *args, **kwargs)
 
 	def ensureOwnModuleRootNode(self):
 		"""
