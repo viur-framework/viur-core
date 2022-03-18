@@ -132,17 +132,8 @@ def hmacVerify(data: Any, signature: str) -> bool:
 	return hmac.compare_digest(hmacSign(data), signature)
 
 
-def sanitizeFileName(fileName: str) -> str:
-	"""
-		Sanitize the filename so it can be safely downloaded or be embedded into html
-	"""
-	fileName = fileName[:100]  # Limit to 100 Chars max
-	fileName = "".join([x for x in fileName if x not in "\0'\"<>\n;$&?#:;/\\"])  # Remove invalid Chars
-	return fileName.strip(".")  # Ensure the filename does not start or end with a dot
-
 def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
-				   expires: Union[timedelta, None] = timedelta(hours=1),
-				   downloadFileName: Optional[str] = None) -> str:
+				   expires: Union[timedelta, None] = timedelta(hours=1)) -> str:
 	"""
 		Utility function that creates a signed download-url for the given folder/filename combination
 
@@ -151,19 +142,13 @@ def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
 		:param derived: True, if it points to a derived file, False if it points to the original uploaded file
 		:param expires: None if the file is supposed to be public (which causes it to be cached on the google ede
 			caches), otherwise a timedelta of how long that link should be valid
-		:param downloadName: If set, we'll force to browser to download this blob with the given filename
 		:return: THe signed download-url relative to the current domain (eg /download/...)
 	"""
 	if derived:
 		filePath = "%s/derived/%s" % (folder, fileName)
 	else:
 		filePath = "%s/source/%s" % (folder, fileName)
-	if downloadFileName:
-		downloadFileName = sanitizeFileName(downloadFileName)
-	else:
-		downloadFileName = ""
-	expires = ((datetime.now() + expires).strftime("%Y%m%d%H%M") if expires else 0)
-	sigStr = "%s\0%s\0%s" % (filePath, expires, downloadFileName)
+	sigStr = "%s\0%s" % (filePath, ((datetime.now() + expires).strftime("%Y%m%d%H%M") if expires else 0))
 	sigStr = urlsafe_b64encode(sigStr.encode("UTF-8"))
 	resstr = hmacSign(sigStr)
 	return "/file/download/%s?sig=%s" % (sigStr.decode("ASCII"), resstr)

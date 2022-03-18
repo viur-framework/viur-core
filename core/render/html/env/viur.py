@@ -658,7 +658,7 @@ def embedSvg(render, name: str, classes: Union[List[str], None] = None, **kwargs
 @jinjaGlobalFunction
 def downloadUrlFor(render: 'viur.core.render.html.default.Render', fileObj: dict,
 				   expires: Union[None, int] = conf["viur.downloadUrlFor.expiration"],
-				   derived: Optional[str] = None, downloadFileName: Optional[str] = None) -> Optional[str]:
+				   derived: Optional[str] = None) -> Optional[str]:
 	"""
 		Constructs a signed download-url for the given file-bone. Mostly a wrapper around
 		:meth:`viur.core.utils.downloadUrlFor`.
@@ -681,9 +681,9 @@ def downloadUrlFor(render: 'viur.core.render.html.default.Render', fileObj: dict
 	if derived and ("derived" not in fileObj or not isinstance(fileObj["derived"], dict)):
 		return None
 	if derived:
-		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=derived, derived=True, expires=expires, downloadFileName=downloadFileName)
+		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=derived, derived=True, expires=expires)
 	else:
-		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileObj["name"], derived=False, expires=expires, downloadFileName=downloadFileName)
+		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileObj["name"], derived=False, expires=expires)
 
 
 @jinjaGlobalFunction
