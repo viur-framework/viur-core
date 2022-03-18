@@ -139,6 +139,12 @@ class SkeletonInstance:
 	def __contains__(self, item):
 		return item in self.boneMap
 
+	def get(self, item, default=None):
+		if item not in self:
+			return default
+
+		return self[item]
+
 	def __setitem__(self, key, value):
 		assert self.renderPreparation is None, "Cannot modify values while rendering"
 		if isinstance(value, baseBone):
