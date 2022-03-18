@@ -190,6 +190,9 @@ class SkeletonInstance:
 	def __repr__(self) -> str:
 		return f"<SkeletonInstance of {self.skeletonCls.__name__} with {dict(self)}>"
 
+	def __str__(self) -> str:
+		return str(dict(self))
+
 	def clone(self):
 		res = SkeletonInstance(self.skeletonCls, clonedBoneMap=copy.deepcopy(self.boneMap))
 		for k, v in res.boneMap.items():
@@ -591,6 +594,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
 	def __repr__(self):
 		return "<skeleton %s with data=%r>" % (self.kindName, {k: self[k] for k in self.keys()})
+
+	def __str__(self):
+		return str({k: self[k] for k in self.keys()})
 
 	def __init__(self, *args, **kwargs):
 		super(Skeleton, self).__init__(*args, **kwargs)
