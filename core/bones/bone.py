@@ -418,11 +418,10 @@ class baseBone(object):  # One Bone:
 			elif self.multiple:
 				res = []
 
-				# Convert single-value into list as this is required here.
-				if not isinstance(newVal, list) and newVal is not None:
-					newVal = [newVal]
+				assert newVal is None or isinstance(newVal, (list, tuple)), \
+					f"Cannot handle {repr(newVal)} here. Expecting list or tuple."
 
-				for singleValue in (newVal or []):
+				for singleValue in (newVal or ()):
 					res.append(self.singleValueSerialize(singleValue, skel, name, parentIndexed))
 
 			else:  # No Languages, not Multiple
