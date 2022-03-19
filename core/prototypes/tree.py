@@ -568,10 +568,10 @@ class Tree(BasicApplication):
 
 		## Test for recursion
 		currLevel = db.Get(parentNodeSkel["key"])
-		for x in range(0, 99):
+		for _ in range(0, 99):
 			if currLevel.key == skel["key"]:
 				break
-			if ("rootNode" in currLevel and currLevel["rootNode"] == 1) or not currLevel["parententry"]:
+			if currLevel.get("rootNode"):
 				# We reached a rootNode, so this is okay
 				break
 			currLevel = db.Get(currLevel["parententry"])
