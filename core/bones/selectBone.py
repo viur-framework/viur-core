@@ -1,30 +1,30 @@
-# -*- coding: utf-8 -*-
-from viur.core.bones import baseBone
 from collections import OrderedDict
-import logging
+from viur.core.i18n import translate
+from viur.core.bones import baseBone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from typing import List, Union
 
 
 class selectBone(baseBone):
 	type = "select"
 
-	def __init__(self, defaultValue=None, values={}, multiple=False, *args, **kwargs):
+	def __init__(self, defaultValue=None, values=(), multiple=False, *args, **kwargs):
 		"""
 			Creates a new selectBone.
 
 			:param defaultValue: List of keys which will be checked by default
 			:type defaultValue: list
-			:param values: dict of key->value pairs from which the user can choose from. Values will be translated
-			:type values: dict
+
+			:param values: dict of key->value pairs from which the user can choose from.
+			:type values: dict | OrderedDict | list | tuple | callable
 		"""
 		if defaultValue is None and multiple:
 			defaultValue = []
+
 		super(selectBone, self).__init__(defaultValue=defaultValue, multiple=multiple, *args, **kwargs)
 
-		# handle sequencials as dicts
+		# handle list/tuple as dicts
 		if isinstance(values, (list, tuple)):
-			values = {i: i for i in values}
+			values = {i: translate(i) for i in values}
 
 		assert isinstance(values, (dict, OrderedDict)) or callable(values)
 		self._values = values
