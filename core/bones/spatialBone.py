@@ -118,7 +118,7 @@ class spatialBone(baseBone):
 			}
 		return res
 
-	def singleValueUnserialize(self, val, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+	def singleValueUnserialize(self, val):
 		if not val:
 			return None
 		return val["coordinates"]["lat"], val["coordinates"]["lng"]

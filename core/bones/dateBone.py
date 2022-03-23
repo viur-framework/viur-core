@@ -218,7 +218,7 @@ class dateBone(baseBone):
 			assert value.tzinfo, "Encountered a native Datetime object in %s - refusing to save." % name
 		return value
 
-	def singleValueUnserialize(self, value, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+	def singleValueUnserialize(self, value):
 		if isinstance(value, datetime):
 			# Serialized value is timezone aware.
 			# If local timezone is needed, set here, else force UTC.

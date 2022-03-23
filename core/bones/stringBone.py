@@ -35,7 +35,7 @@ class stringBone(baseBone):
 			return {"val": value, "idx": value.lower() if isinstance(value, str) else None}
 		return value
 
-	def singleValueUnserialize(self, value, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+	def singleValueUnserialize(self, value):
 		if isinstance(value, dict) and "val" in value:
 			return value["val"]
 		elif value:
