@@ -81,25 +81,7 @@ class Tree(BasicApplication):
 		return None
 
 	def _resolveSkelCls(self, skelType: str, *args, **kwargs):
-<<<<<<< cure/baseSkel
 		if not self._checkSkelType(skelType):
-=======
-		"""
-		Retrieve the generally associated :class:`server.skeleton.Skeleton` that is used by
-		the application.
-
-		This is either be defined by the member variable *kindName* or by a Skeleton named like the
-		application class in lower-case order.
-
-		If this behavior is not wanted, it can be definitely overridden by defining module-specific
-		:func:`viewSkel`,:func:`addSkel`, or :func:`editSkel` functions, or by overriding this
-		function in general.
-
-		:return: Returns a Skeleton instance that matches the application.
-		:rtype: server.skeleton.Skeleton
-		"""
-		if not (skelType := self._checkSkelType(skelType)):
->>>>>>> develop
 			raise ValueError("Unsupported skelType")
 
 		if skelType == "leaf":
