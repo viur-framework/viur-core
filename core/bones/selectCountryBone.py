@@ -745,7 +745,7 @@ class selectCountryBone(selectBone):
 			self.values = OrderedDict(sorted(ISO3CODES.items(), key=lambda i: i[1]))
 		self.codes = codes
 
-	def singleValueUnserialize(self, val, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+	def singleValueUnserialize(self, val):
 		if isinstance(val, str) and len(val) == 3 and self.codes == self.ISO2:
 			# We got an ISO3 code from the db, but are using ISO2
 			try:
