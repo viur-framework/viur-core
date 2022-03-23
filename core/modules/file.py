@@ -26,7 +26,7 @@ from viur.core.bones import *
 from viur.core.prototypes.tree import Tree, TreeSkel
 from viur.core.skeleton import skeletonByKind
 from viur.core.tasks import PeriodicTask, callDeferred
-from viur.core.utils import projectID
+from viur.core.utils import projectID, sanitizeFileName
 from google.cloud import iam_credentials_v1
 
 credentials, project = google.auth.default()
@@ -133,14 +133,6 @@ def thumbnailer(fileSkel, existingFiles, params):
 		resList.append((targetName, outSize, mimeType, {"mimetype": mimeType, "width": width, "height": height}))
 	return resList
 
-
-def sanitizeFileName(fileName: str) -> str:
-	"""
-		Sanitize the filename so it can be safely downloaded or be embedded into html
-	"""
-	fileName = fileName[:100]  # Limit to 100 Chars max
-	fileName = "".join([x for x in fileName if x not in "\0'\"<>\n;$&?#:;/\\"])  # Remove invalid Chars
-	return fileName.strip(".")  # Ensure the filename does not start or end with a dot
 
 
 class fileBaseSkel(TreeSkel):
@@ -401,19 +393,26 @@ class File(Tree):
 				raise errors.Forbidden()
 			validUntil = "-1"  # Prevent this from being cached down below
 			blob = bucket.get_blob(blobKey)
+			downloadFilename = ""
 		else:
 			# We got an request including a signature (probably a guest or a user without file-view access)
 			# First, validate the signature, otherwise we don't need to proceed any further
 			if not utils.hmacVerify(blobKey.encode("ASCII"), sig):
 				raise errors.Forbidden()
 			# Split the blobKey into the individual fields it should contain
-			dlPath, validUntil = urlsafe_b64decode(blobKey).decode("UTF-8").split("\0")
+			try:
+				dlPath, validUntil, downloadFilename = urlsafe_b64decode(blobKey).decode("UTF-8").split("\0")
+			except:  # It's the old format, without an downloadFileName
+				dlPath, validUntil = urlsafe_b64decode(blobKey).decode("UTF-8").split("\0")
+				downloadFilename = ""
 			if validUntil != "0" and datetime.strptime(validUntil, "%Y%m%d%H%M") < datetime.now():
 				raise errors.Gone()
 			blob = bucket.get_blob(dlPath)
 		if not blob:
 			raise errors.Gone()
-		if download:
+		if downloadFilename:
+			contentDisposition = "attachment; filename=%s" % downloadFilename
+		elif download:
 			fileName = sanitizeFileName(blob.name.split("/")[-1])
 			contentDisposition = "attachment; filename=%s" % fileName
 		else:

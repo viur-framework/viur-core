@@ -4,12 +4,15 @@ import hmac
 import os
 import random
 import string
+import logging
 from base64 import urlsafe_b64encode
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
-from typing import Any, Union
+from typing import Any, Union, Optional
 import google.auth
+
 from viur.core import conf, db
+from pathlib import Path
 
 # Proxy to context depended variables
 currentRequest = ContextVar("Request", default=None)
@@ -25,7 +28,8 @@ appVersion = os.getenv("GAE_VERSION")  # Name of this version as deployed to the
 versionHash = urlsafe_b64encode(hashlib.sha256((appVersion+projectID).encode("UTF8")).digest()).decode("ASCII")
 versionHash = "".join([x for x in versionHash if x in string.digits+string.ascii_letters])[1:7]  # Strip +, / and =
 # Determine our basePath (as os.getCWD is broken on appengine)
-projectBasePath = globals()["__file__"].replace("/viur/core/utils.py", "")
+projectBasePath = str(Path().absolute())
+coreBasePath = globals()["__file__"].replace("/viur/core/utils.py","")
 isLocalDevelopmentServer = os.environ['GAE_ENV'] == "localdev"
 
 
@@ -128,8 +132,17 @@ def hmacVerify(data: Any, signature: str) -> bool:
 	return hmac.compare_digest(hmacSign(data), signature)
 
 
+def sanitizeFileName(fileName: str) -> str:
+	"""
+		Sanitize the filename so it can be safely downloaded or be embedded into html
+	"""
+	fileName = fileName[:100]  # Limit to 100 Chars max
+	fileName = "".join([x for x in fileName if x not in "\0'\"<>\n;$&?#:;/\\"])  # Remove invalid Chars
+	return fileName.strip(".")  # Ensure the filename does not start or end with a dot
+
 def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
-				   expires: Union[timedelta, None] = timedelta(hours=1)) -> str:
+				   expires: Union[timedelta, None] = timedelta(hours=1),
+				   downloadFileName: Optional[str] = None) -> str:
 	"""
 		Utility function that creates a signed download-url for the given folder/filename combination
 
@@ -138,17 +151,57 @@ def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
 		:param derived: True, if it points to a derived file, False if it points to the original uploaded file
 		:param expires: None if the file is supposed to be public (which causes it to be cached on the google ede
 			caches), otherwise a timedelta of how long that link should be valid
+		:param downloadName: If set, we'll force to browser to download this blob with the given filename
 		:return: THe signed download-url relative to the current domain (eg /download/...)
 	"""
 	if derived:
 		filePath = "%s/derived/%s" % (folder, fileName)
 	else:
 		filePath = "%s/source/%s" % (folder, fileName)
-	sigStr = "%s\0%s" % (filePath, ((datetime.now() + expires).strftime("%Y%m%d%H%M") if expires else 0))
+	if downloadFileName:
+		downloadFileName = sanitizeFileName(downloadFileName)
+	else:
+		downloadFileName = ""
+	expires = ((datetime.now() + expires).strftime("%Y%m%d%H%M") if expires else 0)
+	sigStr = "%s\0%s\0%s" % (filePath, expires, downloadFileName)
 	sigStr = urlsafe_b64encode(sigStr.encode("UTF-8"))
 	resstr = hmacSign(sigStr)
 	return "/file/download/%s?sig=%s" % (sigStr.decode("ASCII"), resstr)
 
+def srcSetFor(fileObj: dict, expires: Optional[int], width: Optional[int] = None, height: Optional[int] = None) -> str:
+	"""
+		Generates a string suitable for use as the srcset tag in html. This functionality provides the browser
+		with a list of images in different sizes and allows it to choose the smallest file that will fill it's viewport
+		without upscaling.
+		:param fileObj: The file-bone (or if multiple=True a single value from it) to generate the srcset for
+		:param expires: None if the file is supposed to be public (which causes it to be cached on the google ede
+			caches), otherwise it's lifetime in seconds
+		:param width: A list of widths that should be included in the srcset. If a given width is not available, it will
+			be skipped.
+		:param height: A list of heights that should be included in the srcset. If a given height is not available,
+			it will	be skipped.
+		:return: The srctag generated or an empty string if a invalid file object was supplied
+	"""
+	if not width and not height:
+		logging.error("Neither width or height supplied to srcSetFor")
+		return ""
+	if "dlkey" not in fileObj and "dest" in fileObj:
+		fileObj = fileObj["dest"]
+	if expires:
+		expires = timedelta(minutes=expires)
+	if not isinstance(fileObj, (SkeletonInstance, dict)) or not "dlkey" in fileObj or "derived" not in fileObj:
+		logging.error("Invalid fileObj supplied to srcSetFor")
+		return ""
+	if not isinstance(fileObj["derived"], dict):
+		return ""
+	resList = []
+	for fileName, derivate in fileObj["derived"]["files"].items():
+		customData = derivate.get("customData", {})
+		if width and customData.get("width") in width:
+			resList.append("%s %sw" % (downloadUrlFor(fileObj["dlkey"], fileName, True, expires), customData["width"]))
+		if height and customData.get("height") in height:
+			resList.append("%s %sh" % (downloadUrlFor(fileObj["dlkey"], fileName, True, expires), customData["height"]))
+	return ", ".join(resList)
 
 def seoUrlToEntry(module, entry=None, skelType=None, language=None):
 	from viur.core import conf
@@ -215,3 +268,5 @@ def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
 	else:
 		parent = None
 	return db.Key(key.kind, key.id_or_name, parent=parent)
+
+from viur.core.skeleton import SkeletonInstance
