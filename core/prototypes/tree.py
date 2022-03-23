@@ -81,7 +81,7 @@ class Tree(BasicApplication):
 		return None
 
 	def _resolveSkelCls(self, skelType: str, *args, **kwargs):
-		if not self._checkSkelType(skelType):
+		if not (skelType := self._checkSkelType(skelType)):
 			raise ValueError("Unsupported skelType")
 
 		if skelType == "leaf":
