@@ -122,17 +122,6 @@ class BasicApplication(object):
 				if not rightName in conf["viur.accessRights"]:
 					conf["viur.accessRights"].append(rightName)
 
-	def baseSkel(self, *args, **kwargs) -> SkeletonInstance:
-		"""
-		Returns an unmodified base skeleton for this module.
-
-		This function should only be used in cases where a full, unmodified skeleton of the module is required, e.g.
-		for administrative or maintenance purposes.
-
-		By default, baseSkel is used by :func:`~viewSkel`, :func:`~addSkel`, and :func:`~editSkel`.
-		"""
-		return self._resolveSkelCls(*args, **kwargs)()
-
 	def _resolveSkelCls(self, *args, **kwargs) -> Skeleton:
 		"""
 		Retrieve the generally associated :class:`viur.core.skeleton.Skeleton` that is used by
@@ -149,3 +138,14 @@ class BasicApplication(object):
 		"""
 
 		return skeletonByKind(self.kindName if self.kindName else str(type(self).__name__).lower())
+
+	def baseSkel(self, *args, **kwargs) -> SkeletonInstance:
+		"""
+		Returns an instance of an unmodified base skeleton for this module.
+
+		This function should only be used in cases where a full, unmodified skeleton of the module is required, e.g.
+		for administrative or maintenance purposes.
+
+		By default, baseSkel is used by :func:`~viewSkel`, :func:`~addSkel`, and :func:`~editSkel`.
+		"""
+		return self._resolveSkelCls(*args, **kwargs)()

@@ -86,7 +86,7 @@ class Tree(BasicApplication):
 		"""
 		Return unmodified base skeleton for the given skelType.
 
-		.. seealso:: :func:`~baseSkel`
+		.. seealso:: :func:`addSkel`, :func:`editSkel`, :func:`viewSkel`, :func:`~baseSkel`
 		"""
 		return self._resolveSkelCls(skelType, *args, **kwargs)()
 

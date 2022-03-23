@@ -50,9 +50,9 @@ class Singleton(BasicApplication):
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for viewing the existing entry.
 
-		The default is a Skeleton instance returned by :func:`_resolveSkel`.
+		The default is a Skeleton instance returned by :func:`~baseSkel`.
 
-		.. seealso:: :func:`addSkel`, :func:`editSkel`, :func:`_resolveSkel`
+		.. seealso:: :func:`addSkel`, :func:`editSkel`, :func:`~baseSkel`
 
 		:return: Returns a Skeleton instance for viewing the singleton entry.
 		:rtype: server.skeleton.Skeleton
@@ -64,9 +64,9 @@ class Singleton(BasicApplication):
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for editing the existing entry.
 
-		The default is a Skeleton instance returned by :func:`_resolveSkel`.
+		The default is a Skeleton instance returned by :func:`~baseSkel`.
 
-		.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`_resolveSkel`
+		.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`~baseSkel`
 
 		:return: Returns a Skeleton instance for editing the entry.
 		:rtype: server.skeleton.Skeleton
