@@ -24,6 +24,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - killSessionByUser function
 
 ### Removed
+- conf['viur.debug.traceQueries'] flag. It has to be set on viur-datastore directly
 
 
 ## [3.0.3]
