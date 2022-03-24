@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from viur.core import conf
-from viur.core.skeleton import skeletonByKind, Skeleton
+from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
 from typing import Dict, List, Any, Union, Callable
 
 
@@ -67,7 +67,7 @@ class BasicApplication(object):
 			customActions: ``Dict[str, dict]``
 				(Optional) A mapping of names of server-defined actions that can be used
 				in the ``actions`` list above to their definition dictionary. See .... for more details.
-				
+
 			disabledActions: ``List[str, dict]``
 				(Optional) A list of disabled actions. The frontend will inject default actions like add or edit
 				even if they're not listed in actions. Listing them here will prevent that. It's up to the frontend
@@ -96,7 +96,7 @@ class BasicApplication(object):
 			editViews: ``Dict[str, Any]``
 				(Optional) If set, will embed another list-widget in the edit forms for
 				a given entity. See .... for more details.
-				
+
 			If this is a function, it must take no parameters and return the dictionary as shown above. This
 			can be used to customize the appearance of the Vi/Admin to individual users.
 	"""
@@ -138,3 +138,14 @@ class BasicApplication(object):
 		"""
 
 		return skeletonByKind(self.kindName if self.kindName else str(type(self).__name__).lower())
+
+	def baseSkel(self, *args, **kwargs) -> SkeletonInstance:
+		"""
+		Returns an instance of an unmodified base skeleton for this module.
+
+		This function should only be used in cases where a full, unmodified skeleton of the module is required, e.g.
+		for administrative or maintenance purposes.
+
+		By default, baseSkel is used by :func:`~viewSkel`, :func:`~addSkel`, and :func:`~editSkel`.
+		"""
+		return self._resolveSkelCls(*args, **kwargs)()

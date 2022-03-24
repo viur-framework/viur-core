@@ -14,7 +14,7 @@ class Singleton(BasicApplication):
 
 	:ivar kindName: Name of the kind of data entities that are managed by the application. \
 	This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the \
-	application. For more information, refer to the function :func:`_resolveSkel`.
+	application. For more information, refer to the function :func:`~baseSkel`.
 	:vartype kindName: str
 
 	:ivar adminInfo: todo short info on how to use adminInfo.
@@ -50,28 +50,28 @@ class Singleton(BasicApplication):
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for viewing the existing entry.
 
-		The default is a Skeleton instance returned by :func:`_resolveSkel`.
+		The default is a Skeleton instance returned by :func:`~baseSkel`.
 
-		.. seealso:: :func:`addSkel`, :func:`editSkel`, :func:`_resolveSkel`
+		.. seealso:: :func:`addSkel`, :func:`editSkel`, :func:`~baseSkel`
 
 		:return: Returns a Skeleton instance for viewing the singleton entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkelCls(*args, **kwargs)()
+		return self.baseSkel(*args, **kwargs)
 
 	def editSkel(self, *args, **kwargs):
 		"""
 		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
 		for editing the existing entry.
 
-		The default is a Skeleton instance returned by :func:`_resolveSkel`.
+		The default is a Skeleton instance returned by :func:`~baseSkel`.
 
-		.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`_resolveSkel`
+		.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`~baseSkel`
 
 		:return: Returns a Skeleton instance for editing the entry.
 		:rtype: server.skeleton.Skeleton
 		"""
-		return self._resolveSkelCls(*args, **kwargs)()
+		return self.baseSkel(*args, **kwargs)
 
 	## External exposed functions
 
