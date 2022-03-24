@@ -113,7 +113,6 @@ class relationalBone(baseBone):
 					will be deleted as well.
 		"""
 		baseBone.__init__(self, multiple=multiple, *args, **kwargs)
-		self.multiple = multiple
 		self.format = format
 		# self._dbValue = None #Store the original result fetched from the db here so we have that information in case a referenced entity has been deleted
 
