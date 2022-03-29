@@ -22,6 +22,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - Recursive deletion in modules/file.py 
 - deleteRecursive function in tree-prototype
 - killSessionByUser function
+- deferred calls with _countdown etc. set from a cronjob
 
 ### Removed
 
