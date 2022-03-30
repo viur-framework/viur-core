@@ -3,7 +3,7 @@ from viur.core import utils, errors, conf, securitykey, db
 from viur.core import forcePost, forceSSL, exposed, internalExposed
 from viur.core.skeleton import SkeletonInstance
 from viur.core.prototypes import BasicApplication
-from viur.core.utils import currentRequest
+from viur.core.utils import currentRequest, currentLanguage
 from viur.core.cache import flushCache
 
 import logging
@@ -313,29 +313,35 @@ class List(BasicApplication):
 		"""
 			Default, SEO-Friendly fallback for view and list.
 
-			:param args:
-			:param kwargs:
-			:return:
+			:param args: The first argument - if provided - is interpreted as seoKey.
+			:param kwargs: Used for the fallback list.
+			:return: The rendered entity or list.
 		"""
 		if args and args[0]:
 			# We probably have a Database or SEO-Key here
-			seoKey = "viur.viurActiveSeoKeys ="
-			skel = self.viewSkel().all(_excludeFromAccessLog=True).filter(seoKey, str(args[0]).lower()).getSkel()
+			seoKey = str(args[0]).lower()
+			skel = self.viewSkel().all(_excludeFromAccessLog=True).filter("viur.viurActiveSeoKeys =", seoKey).getSkel()
 			if skel:
 				db.currentDbAccessLog.get(set()).add(skel["key"])
 				if not self.canView(skel):
 					raise errors.Forbidden()
+				lang = currentLanguage.get()
+				# Check whether this is the current seo-key, otherwise redirect to it
+				if (
+					skel["viurCurrentSeoKeys"]
+					and (currentSeoKey := skel["viurCurrentSeoKeys"].get(lang))
+					and seoKey != currentSeoKey
+				):
+					modulePath = self.modulePath
+					if getattr(self, "seoLanguageMap", None) and self.seoLanguageMap.get(lang):
+						modulePath = "".join(modulePath.rsplit("/")[:-1] + [self.seoLanguageMap[lang]])
+					raise errors.Redirect(f"/{modulePath}/{currentSeoKey}", status=301)
 				self.onView(skel)
 				return self.render.view(skel)
 		# This was unsuccessfully, we'll render a list instead
 		if not kwargs:
 			kwargs = self.getDefaultListParams()
-		qry = self.viewSkel().all().mergeExternalFilter(kwargs)
-		qry = self.listFilter(qry)
-		if not qry:
-			raise errors.Forbidden()
-		res = qry.fetch()
-		return self.render.list(res)
+		return self.list(kwargs)
 
 	def getDefaultListParams(self):
 		return {}
