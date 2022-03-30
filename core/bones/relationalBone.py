@@ -112,8 +112,7 @@ class relationalBone(baseBone):
 					CascadeDeletion set, and B references C also with CascadeDeletion; if C gets deleted, both B and A
 					will be deleted as well.
 		"""
-		baseBone.__init__(self, *args, **kwargs)
-		self.multiple = multiple
+		baseBone.__init__(self, multiple=multiple, *args, **kwargs)
 		self.format = format
 		# self._dbValue = None #Store the original result fetched from the db here so we have that information in case a referenced entity has been deleted
 

@@ -653,6 +653,14 @@ class baseBone(object):  # One Bone:
 				return "I-%s" % res
 			elif isinstance(value, str):
 				return "S-%s" % res
+			elif isinstance(value, db.Key):
+				# We Hash the keys here by our self instead of relying on str() or to_legacy_urlsafe()
+				# as these may change in the future, which would invalidate all existing locks
+				def keyHash(key):
+					if key is None:
+						return "-"
+					return "%s-%s-<%s>" % (hashValue(key.kind), hashValue(key.id_or_name), keyHash(key.parent))
+				return "K-%s" % keyHash(value)
 			raise NotImplementedError("Type %s can't be safely used in an uniquePropertyIndex" % type(value))
 
 		if not value and not self.unique.lockEmpty:
