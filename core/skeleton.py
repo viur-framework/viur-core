@@ -1473,6 +1473,5 @@ def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, noti
 			pass
 
 
-# Forward references to SkelList and SkelInstance
-db.SkeletonInstanceRef = SkeletonInstance
-db.SkelListRef = SkelList
+# Forward our references to SkelInstance to the database (needed for queries)
+db.config["SkeletonInstanceRef"] = SkeletonInstance

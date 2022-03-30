@@ -35,8 +35,6 @@ conf = {
 	"viur.debug.traceExternalCallRouting": False,
 	# If enabled, ViUR will log which (internal-exposed) function are called from templates with what arguments
 	"viur.debug.traceInternalCallRouting": False,
-	# If enabled, we log all datastore queries performed
-	"viur.debug.traceQueries": False,
 	# If enabled, log errors raises from skeleton.fromClient()
 	"viur.debug.skeleton.fromClient": False,
 

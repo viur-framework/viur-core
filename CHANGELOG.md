@@ -25,6 +25,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - unique=True on multiple=True relationalBones
 
 ### Removed
+- conf['viur.debug.traceQueries'] flag. It has to be set on the viur-datastore config (viur.core.db.config["traceQueries"]).
 
 
 ## [3.0.3]
