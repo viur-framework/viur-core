@@ -735,14 +735,16 @@ class selectCountryBone(selectBone):
 	ISO2 = 2
 	ISO3 = 3
 
-	def __init__(self, codes=ISO2, *args, **kwargs):
+	def __init__(self, codes=ISO2, values=None, *args, **kwargs):
 		global ISO2CODES, ISO3CODES
-		super(selectBone, self).__init__(*args, **kwargs)
 		assert codes in [self.ISO2, self.ISO3]
-		if codes == self.ISO2:
-			self.values = OrderedDict(sorted(ISO2CODES.items(), key=lambda i: i[1]))
-		else:
-			self.values = OrderedDict(sorted(ISO3CODES.items(), key=lambda i: i[1]))
+		assert values is None
+
+		super().__init__(
+			values=OrderedDict(sorted((ISO2CODES if codes == self.ISO2 else ISO3CODES).items(), key=lambda i: i[1])),
+			*args, **kwargs
+		)
+
 		self.codes = codes
 
 	def singleValueUnserialize(self, val):

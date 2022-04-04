@@ -64,7 +64,10 @@ class userSkel(Skeleton):
 	# Generic properties
 	access = selectBone(
 		descr=u"Access rights",
-		values={"root": "Superuser"},
+		values=lambda: {
+			right: translate("server.modules.user.accessright.%s" % right, defaultText=right)
+				for right in sorted(conf["viur.accessRights"])
+		},
 		indexed=True,
 		multiple=True
 	)
@@ -655,12 +658,6 @@ class User(List):
 			setattr(self, "f2_%s" % pInstance.__class__.__name__.lower(), pInstance)
 			self._viurMapSubmodules.append("f2_%s" % pInstance.__class__.__name__.lower())
 
-	def extendAccessRights(self, skel):
-		accessRights = skel.access.values.copy()
-		for right in conf["viur.accessRights"]:
-			accessRights[right] = translate("server.modules.user.accessright.%s" % right, defaultText=right)
-		skel.access.values = accessRights
-
 	def addSkel(self):
 		skel = super(User, self).addSkel().clone()
 		user = utils.getCurrentUser()
@@ -673,7 +670,6 @@ class User(List):
 			skel.access.visible = False
 		else:
 			# An admin tries to add a new user.
-			self.extendAccessRights(skel)
 			skel.status.readOnly = False
 			skel.status.visible = True
 			skel.access.readOnly = False
@@ -687,7 +683,6 @@ class User(List):
 
 	def editSkel(self, *args, **kwargs):
 		skel = super(User, self).editSkel().clone()
-		self.extendAccessRights(skel)
 
 		skel.password = passwordBone(descr="Passwort", required=False)
 
