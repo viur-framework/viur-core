@@ -19,12 +19,12 @@ from viur.core.utils import currentLanguage, currentRequest
 		- Their TTL is exceeded
 		- They're explicitly removed from the cache by calling :meth:`viur.core.cache.flushCache` using their path
 		- A Datastore entity that has been accessed using db.Get() from within the cached function has been modified
-		- The wrapped function has run a query over a kind in which an entity has been added/edited/deleted 
-	
+		- The wrapped function has run a query over a kind in which an entity has been added/edited/deleted
+
 	..Warning: As this cache is intended to be used with exposed functions, it will not only store the result of the
 		wrapped function, but will also store and restore the Content-Type http header. This can cause unexpected
 		behaviour if it's used to cache the result of non top-level functions, as calls to these functions now may
-		cause this header to be rewritten. 
+		cause this header to be rewritten.
 """
 
 viurCacheName = "viur-cache"
@@ -147,9 +147,8 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
 				currReq.response.headers['Content-Type'] = dbRes["content-type"]
 				return dbRes["data"]
 		# If we made it this far, the request wasn't cached or too old; we need to rebuild it
-		oldAccessLog = db.startAccessDataLog()
 		res = f(self, *args, **kwargs)
-		accessedEntries = db.popAccessData(oldAccessLog)
+		accessedEntries = db.currentDbAccessLog.get()
 		dbEntity = db.Entity(db.Key(viurCacheName, key))
 		dbEntity["data"] = res
 		dbEntity["creationtime"] = utils.utcNow()
