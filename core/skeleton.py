@@ -139,6 +139,12 @@ class SkeletonInstance:
 	def __contains__(self, item):
 		return item in self.boneMap
 
+	def get(self, item, default=None):
+		if item not in self:
+			return default
+
+		return self[item]
+
 	def __setitem__(self, key, value):
 		assert self.renderPreparation is None, "Cannot modify values while rendering"
 		if isinstance(value, baseBone):
@@ -189,6 +195,9 @@ class SkeletonInstance:
 
 	def __repr__(self) -> str:
 		return f"<SkeletonInstance of {self.skeletonCls.__name__} with {dict(self)}>"
+
+	def __str__(self) -> str:
+		return str(dict(self))
 
 	def clone(self):
 		res = SkeletonInstance(self.skeletonCls, clonedBoneMap=copy.deepcopy(self.boneMap))
@@ -327,6 +336,10 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 						# We'll consider empty required bones only as an error, if they're on the top-level (and not
 						# further down the hierarchy (in an record- or relational-Bone)
 						complete = False
+
+						if conf["viur.debug.skeleton.fromClient"] and cls.kindName:
+							logging.debug("%s: %s: %r", cls.kindName, error.fieldPath, error.errorMessage)
+
 		if (len(data) == 0
 			or (len(data) == 1 and "key" in data)
 			or ("nomissing" in data and str(data["nomissing"]) == "1")):
@@ -588,6 +601,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 	def __repr__(self):
 		return "<skeleton %s with data=%r>" % (self.kindName, {k: self[k] for k in self.keys()})
 
+	def __str__(self):
+		return str({k: self[k] for k in self.keys()})
+
 	def __init__(self, *args, **kwargs):
 		super(Skeleton, self).__init__(*args, **kwargs)
 		assert self.kindName and self.kindName is not __undefindedC__, "You must set kindName on this skeleton!"
@@ -640,10 +656,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		for checkFunc in skelValues.interBoneValidations:
 			errors = checkFunc(skelValues)
 			if errors:
-				for err in errors:
-					if err.severity.value > 1:
+				for error in errors:
+					if error.severity.value > 1:
 						complete = False
+						if conf["viur.debug.skeleton.fromClient"]:
+							logging.debug("%s: %s: %r", cls.kindName, error.fieldPath, error.errorMessage)
+
 				skelValues.errors.extend(errors)
+
 		return complete
 
 	@classmethod
@@ -1016,7 +1036,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				bone.delete(skel, boneName)
 				if bone.unique:
 					flushList = []
-					for lockValue in viurData["%s_uniqueIndexValue" % boneName]:
+					for lockValue in viurData.get("%s_uniqueIndexValue" % boneName) or []:
 						lockKey = db.Key("%s_%s_uniquePropertyIndex" % (skel.kindName, boneName), lockValue)
 						lockObj = db.Get(lockKey)
 						if not lockObj:
@@ -1140,15 +1160,20 @@ class RelSkel(BaseSkeleton):
 
 	# return {k: v for k, v in self.valuesCache.entity.items() if k in self.__boneNames__}
 
-	def unserialize(self, values):
+	def unserialize(self, values: Union[db.Entity, dict]):
 		"""
 			Loads 'values' into this skeleton.
 
 			:param values: dict with values we'll assign to our bones
-			:type values: dict | db.Entry
+			:type values: dict | db.Entity
 			:return:
 		"""
-		self.dbEntity = values
+		if not isinstance(values, db.Entity):
+			self.dbEntity = db.Entity()
+			self.dbEntity.update(values)
+		else:
+			self.dbEntity = values
+
 		self.accessedValues = {}
 		self.renderAccessedValues = {}
 		# self.valuesCache = {"entity": values, "changedValues": {}, "cachedRenderValues": {}}

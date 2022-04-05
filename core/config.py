@@ -37,6 +37,8 @@ conf = {
 	"viur.debug.traceInternalCallRouting": False,
 	# If enabled, we log all datastore queries performed
 	"viur.debug.traceQueries": False,
+	# If enabled, log errors raises from skeleton.fromClient()
+	"viur.debug.skeleton.fromClient": False,
 
 	# Unless overridden by the Project: Use english as default language
 	"viur.defaultLanguage": "en",
