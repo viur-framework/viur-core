@@ -325,17 +325,10 @@ class List(BasicApplication):
 				db.currentDbAccessLog.get(set()).add(skel["key"])
 				if not self.canView(skel):
 					raise errors.Forbidden()
-				lang = currentLanguage.get()
+				seoUrl = utils.seoUrlToEntry(self.moduleName, skel)
 				# Check whether this is the current seo-key, otherwise redirect to it
-				if (
-					skel["viurCurrentSeoKeys"]
-					and (currentSeoKey := skel["viurCurrentSeoKeys"].get(lang))
-					and seoKey != currentSeoKey
-				):
-					modulePath = self.modulePath
-					if getattr(self, "seoLanguageMap", None) and self.seoLanguageMap.get(lang):
-						modulePath = "".join(modulePath.rsplit("/")[:-1] + [self.seoLanguageMap[lang]])
-					raise errors.Redirect(f"/{modulePath}/{currentSeoKey}", status=301)
+				if currentRequest.get().request.path != seoUrl:
+					raise errors.Redirect(seoUrl, status=301)
 				self.onView(skel)
 				return self.render.view(skel)
 		# This was unsuccessfully, we'll render a list instead
