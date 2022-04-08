@@ -12,6 +12,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - Global jinja2 function "translate" for instances where compile-time resolving is not possible 
 - Passing getEmptyValue() in the structure definition in json-render
 - Support for srcsets in textBone
+- `language` paramater in `BaseSkeleton.setBoneValue()`
 
 ### Changed
 - Replaced viur.core.db with a shim around viur-datastore
@@ -25,6 +26,8 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - killSessionByUser function
 - deferred calls with _countdown etc. set from a cronjob
 - unique=True on multiple=True relationalBones
+- `setBoneValue` works now for multiple and (multiple and language) bones
+- default `defaultValue` for multiple and language `selectBone` 
 
 
 ### Removed

@@ -1,26 +1,35 @@
 from collections import OrderedDict
-from viur.core.i18n import translate
+from numbers import Number
+from typing import Callable, Dict, List, Tuple, Union
+
 from viur.core.bones import baseBone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.i18n import translate
+
+SelectBoneValue = Union[str, Number]
+SelectBoneMultiple = List[SelectBoneValue]
 
 
 class selectBone(baseBone):
 	type = "select"
 
-	def __init__(self, defaultValue=None, values=(), multiple=False, *args, **kwargs):
+	def __init__(self, defaultValue: Union[None, Dict[str, Union[SelectBoneMultiple, SelectBoneValue]], SelectBoneMultiple] = None,
+				 values: Union[Dict, List, Tuple, Callable] = (),
+				 multiple: bool = False, languages: bool = False, *args, **kwargs):
 		"""
 			Creates a new selectBone.
 
-			:param defaultValue: List of keys which will be checked by default
-			:type defaultValue: list
-
+			:param defaultValue: key(s) which will be checked by default
 			:param values: dict of key->value pairs from which the user can choose from.
-			:type values: dict | OrderedDict | list | tuple | callable
 		"""
 		if defaultValue is None and multiple:
-			defaultValue = []
+			if languages:
+				defaultValue = {}
+			else:
+				defaultValue = []
 
-		super(selectBone, self).__init__(defaultValue=defaultValue, multiple=multiple, *args, **kwargs)
+		super(selectBone, self).__init__(
+			defaultValue=defaultValue, multiple=multiple, languages=languages, *args, **kwargs)
 
 		# handle list/tuple as dicts
 		if isinstance(values, (list, tuple)):
