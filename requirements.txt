@@ -1,4 +1,4 @@
-viur-datastore==0.9 --hash=sha256:63dd694672805bc9cdbec31b1219fa4e1a87b0529a38cf3e9e7e458800588896
+viur-datastore==1.1 --hash=sha256:4d595f2cdeeb35a4a9f29ccd478f5f473b6de3d9a5eaab5d55577ba0f5e63c18
 
 google-auth==2.6.3 --hash=sha256:d65bb0e3701eaaa64fd2aa85e1325580524b0bddc6dc5db3ab89c481b6a20141
 # Dependencies for google-auth:
