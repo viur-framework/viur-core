@@ -150,8 +150,6 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
 		oldAccessLog = db.startDataAccessLog()
 		try:
 			res = f(self, *args, **kwargs)
-		except:
-			raise
 		finally:
 			accessedEntries = db.endDataAccessLog(oldAccessLog)
 		dbEntity = db.Entity(db.Key(viurCacheName, key))
