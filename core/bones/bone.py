@@ -418,7 +418,7 @@ class baseBone(object):  # One Bone:
 			elif self.multiple:
 				res = []
 
-				assert newVal is None or isinstance(newVal, (list, tuple)), \
+				assert newVal is None or not isinstance(newVal, (list, tuple)), \
 					f"Cannot handle {repr(newVal)} here. Expecting list or tuple."
 
 				for singleValue in (newVal or ()):
