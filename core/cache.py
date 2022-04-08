@@ -147,9 +147,13 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
 				currReq.response.headers['Content-Type'] = dbRes["content-type"]
 				return dbRes["data"]
 		# If we made it this far, the request wasn't cached or too old; we need to rebuild it
-		oldAccessLog = db.startAccessDataLog()
-		res = f(self, *args, **kwargs)
-		accessedEntries = db.popAccessData(oldAccessLog)
+		oldAccessLog = db.startDataAccessLog()
+		try:
+			res = f(self, *args, **kwargs)
+		except:
+			raise
+		finally:
+			accessedEntries = db.endDataAccessLog(oldAccessLog)
 		dbEntity = db.Entity(db.Key(viurCacheName, key))
 		dbEntity["data"] = res
 		dbEntity["creationtime"] = utils.utcNow()
