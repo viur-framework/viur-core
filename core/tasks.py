@@ -287,6 +287,9 @@ class TaskHandler:
 				raise errors.Forbidden()
 		if cronName not in _periodicTasks:
 			logging.warning("Got Cron request '%s' which doesn't have any tasks" % cronName)
+		# We must defer from cron, as tasks will interpret it as a call originating from task-queue - causing deferred
+		# functions to be called directly, wich causes calls with _countdown etc set to fail.
+		req.DEFERED_TASK_CALLED = True
 		for task, interval in _periodicTasks[cronName].items():  # Call all periodic tasks bound to that queue
 			periodicTaskName = task.periodicTaskName.lower()
 			if interval:  # Ensure this task doesn't get called to often

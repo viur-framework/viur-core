@@ -15,6 +15,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 
 ### Changed
 - Replaced viur.core.db with a shim around viur-datastore
+- selectBone() now also accepts for a callable, list or tuple as values parameter
 - Improve SEO url integration: refactoring and redirect from old keys to the current
 
 ### Fixed
@@ -23,7 +24,9 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - Recursive deletion in modules/file.py 
 - deleteRecursive function in tree-prototype
 - killSessionByUser function
+- deferred calls with _countdown etc. set from a cronjob
 - unique=True on multiple=True relationalBones
+
 
 ### Removed
 - conf['viur.debug.traceQueries'] flag. It has to be set on the viur-datastore config (viur.core.db.config["traceQueries"]).
