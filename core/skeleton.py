@@ -9,12 +9,12 @@ import sys
 from functools import partial
 from itertools import chain
 from time import time
-from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, Set, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Union
 
-from viur.core import conf, errors, utils, email, db
+from viur.core import conf, db, email, errors, utils
 from viur.core.bones import baseBone, dateBone, keyBone, relationalBone, selectBone, stringBone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
-from viur.core.tasks import CallableTask, CallableTaskBase, callDeferred, QueryIter
+from viur.core.tasks import CallableTask, CallableTaskBase, QueryIter, callDeferred
 
 try:
 	import pytz
@@ -274,27 +274,25 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 				bone.setSystemInitialized()
 
 	@classmethod
-	def setBoneValue(cls, skelValues, boneName, value, append=False):
+	def setBoneValue(cls, skelValues: Any, boneName: str, value: Any,
+					 append: bool = False, language: Optional[str] = None) -> bool:
 		"""
 			Allow setting a bones value without calling fromClient or assigning to valuesCache directly.
 			Santy-Checks are performed; if the value is invalid, that bone flips back to its original
 			(default) value and false is returned.
 
 			:param boneName: The Bone which should be modified
-			:type boneName: str
 			:param value: The value that should be assigned. It's type depends on the type of that bone
-			:type value: object
 			:param append: If true, the given value is appended to the values of that bone instead of
 				replacing it. Only supported on bones with multiple=True
-			:type append: bool
+			:param language: Set/append which language
 			:return: Wherever that operation succeeded or not.
-			:rtype: bool
 		"""
 		bone = getattr(skelValues, boneName, None)
 		if not isinstance(bone, baseBone):
 			raise ValueError("%s is no valid bone on this skeleton (%s)" % (boneName, str(skelValues)))
 		skelValues[boneName]  # FIXME, ensure this bone is unserialized first
-		return bone.setBoneValue(skelValues, boneName, value, append)
+		return bone.setBoneValue(skelValues, boneName, value, append, language)
 
 	@classmethod
 	def fromClient(cls, skelValues: SkeletonInstance, data: Dict[str, Union[List[str], str]],

@@ -769,9 +769,22 @@ class baseBone(object):  # One Bone:
 		"""
 		assert not (bool(self.languages) ^ bool(language)), "Language is required or not supported"
 		assert not append or self.multiple, "Can't append - bone is not multiple"
-		val, errs = self.singleValueFromClient(value, skel, boneName, {boneName: value})
-		if errs:
-			for e in errs:
+
+		if not append and self.multiple:
+			# set multiple values at once
+			val = []
+			errors = []
+			for singleValue in value:
+				singleValue, singleError = self.singleValueFromClient(singleValue, skel, boneName, {boneName: value})
+				val.append(singleValue)
+				if singleError:
+					errors.extend(singleError)
+		else:
+			# set or append one value
+			val, errors = self.singleValueFromClient(value, skel, boneName, {boneName: value})
+
+		if errors:
+			for e in errors:
 				if e.severity in [ReadFromClientErrorSeverity.Invalid, ReadFromClientErrorSeverity.NotSet]:
 					# If an invalid datatype (or a non-parseable structure) have been passed, abort the store
 					return False
