@@ -17,6 +17,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 ### Changed
 - Replaced viur.core.db with a shim around viur-datastore
 - selectBone() now also accepts for a callable, list or tuple as values parameter
+- Improve SEO url integration: refactoring and redirect from old keys to the current
 
 ### Fixed
 - files embedded in textBones don't expire anymore and get correctly locked
