@@ -29,6 +29,7 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - unique=True on multiple=True relationalBones
 - `setBoneValue` works now for multiple and (multiple and language) bones
 - default `defaultValue` for multiple and language `selectBone` 
+- randomSliceBone with limit=1 returning no result
 
 
 ### Removed

@@ -3,6 +3,7 @@ from viur.core.bones import baseBone
 from viur.core import db
 from random import random, sample, shuffle
 from itertools import chain
+from math import ceil
 
 
 class randomSliceBone(baseBone):
@@ -123,7 +124,7 @@ class randomSliceBone(baseBone):
 			:returns: The amount of elements db.Query should fetch on each subquery
 			:rtype: int
 		"""
-		return int(targetAmount * self.sliceSize)
+		return ceil(targetAmount * self.sliceSize)
 
 	def customMultiQueryMerge(self, dbFilter, result, targetAmount):
 		"""
