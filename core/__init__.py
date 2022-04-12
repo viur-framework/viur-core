@@ -308,7 +308,7 @@ def forcePost(f: Callable) -> Callable:
 	return f
 
 
-def exposed(f: Callable) -> Callable:
+def exposed(f: Union[Callable, dict]) -> Callable:
 	"""
 		Decorator, which marks an function as exposed.
 
