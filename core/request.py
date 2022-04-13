@@ -62,6 +62,8 @@ class FetchMetaDataValidator(RequestValidator):
 			return None
 		if headers.get('sec-fetch-site') in {"same-origin", "none"}:  # A Request from our site
 			return None
+		if os.environ['GAE_ENV'] == "localdev" and headers.get('sec-fetch-site') == "same-site":  # We are accepting a request with same-site only in local dev mode
+			return None
 		if headers.get('sec-fetch-mode') == 'navigate' and not request.isPostRequest \
 			and headers.get('sec-fetch-dest') not in {'object', 'embed'}:  # Incoming navigation GET request
 			return None
