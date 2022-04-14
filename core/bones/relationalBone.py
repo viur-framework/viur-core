@@ -617,7 +617,7 @@ class relationalBone(baseBone):
 				dbFilter.setFilterHook(lambda s, filter, value: self.filterHook(name, s, filter, value))
 				dbFilter.setOrderHook(lambda s, orderings: self.orderHook(name, s, orderings))
 
-		elif name in rawFilter and rawFilter[name].lower() == "none":
+		elif name in rawFilter and isinstance(rawFilter[name], str) and rawFilter[name].lower() == "none":
 			dbFilter = dbFilter.filter("%s =" % name, None)
 
 		return dbFilter
