@@ -4,7 +4,7 @@ from hmac import compare_digest
 from time import time
 
 from viur.core.tasks import PeriodicTask, callDeferred
-from viur.core import db, utils
+from viur.core import utils, db
 from viur.core.config import conf
 
 """
@@ -262,8 +262,8 @@ def killSessionByUser(user=None):
 	query = db.Query(GaeSession.kindName)
 	if user is not None:
 		query.filter("user =", str(user))
-	for key in query.iter(keysOnly=True):
-		db.Delete(key)
+	for obj in query.iter():
+		db.Delete(obj.key)
 
 
 @PeriodicTask(60 * 4)

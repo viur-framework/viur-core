@@ -32,7 +32,11 @@ class ViURDefaultLogger(CloudLoggingHandler):
 			record,
 			message,
 			resource=self.resource,
-			labels=self.labels,
+			labels={
+				"project_id": projectID,
+				"module_id": "default",
+				"version_id": appVersion if not isLocalDevelopmentServer else "dev_appserver",
+			},
 			trace=TRACE
 		)
 

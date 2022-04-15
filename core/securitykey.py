@@ -25,7 +25,7 @@
 from datetime import datetime, timedelta
 from viur.core.utils import generateRandomString
 from viur.core.utils import currentSession, currentRequest
-from viur.core import db, conf
+from viur.core import db
 from viur.core.tasks import PeriodicTask, callDeferred
 from typing import Union
 from viur.core.utils import utcNow
@@ -43,6 +43,7 @@ def create(duration: Union[None, int] = None, **kwargs) -> str:
 		:returns: The new onetime key
 	"""
 	if not duration:
+		assert not kwargs, "kwargs are not allowed when session security key is wanted"
 		return currentSession.get().getSecurityKey()
 	key = generateRandomString()
 	duration = int(duration)

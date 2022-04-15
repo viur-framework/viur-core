@@ -7,12 +7,13 @@ from viur.core.bones.bone import ReadFromClientErrorSeverity, UniqueValue, Uniqu
 from viur.core.bones.passwordBone import pbkdf2
 from viur.core import errors, conf, securitykey
 from viur.core.tasks import StartupTask, callDeferred
+from viur.core.securityheaders import extendCsp
 from viur.core.ratelimit import RateLimit
 from time import time
-from viur.core import db, exposed, forceSSL
+from viur.core import exposed, forceSSL, db
 from hashlib import sha512
 # from google.appengine.api import users, app_identity
-import logging
+import logging, os
 import datetime
 import hmac, hashlib
 import json
@@ -63,7 +64,10 @@ class userSkel(Skeleton):
 	# Generic properties
 	access = selectBone(
 		descr=u"Access rights",
-		values={"root": "Superuser"},
+		values=lambda: {
+			right: translate("server.modules.user.accessright.%s" % right, defaultText=right)
+				for right in sorted(conf["viur.accessRights"])
+		},
 		indexed=True,
 		multiple=True
 	)
@@ -435,8 +439,10 @@ class GoogleAccount(object):
 				# We have to allow popups here
 				currentRequest.get().response.headers["cross-origin-opener-policy"] = "same-origin-allow-popups"
 			# Fixme: Render with Jinja2?
-			tplStr = open("viur/core/template/vi_user_google_login.html", "r").read()
+			tplStr = open(os.path.join(utils.coreBasePath,"viur/core/template/vi_user_google_login.html"), "r").read()
 			tplStr = tplStr.replace("{{ clientID }}", conf["viur.user.google.clientID"])
+			extendCsp({"script-src":["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
+					   "style-src":["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]})
 			return tplStr
 		if not securitykey.validate(skey, useSessionKey=True):
 			raise errors.PreconditionFailed()
@@ -652,12 +658,6 @@ class User(List):
 			setattr(self, "f2_%s" % pInstance.__class__.__name__.lower(), pInstance)
 			self._viurMapSubmodules.append("f2_%s" % pInstance.__class__.__name__.lower())
 
-	def extendAccessRights(self, skel):
-		accessRights = skel.access.values.copy()
-		for right in conf["viur.accessRights"]:
-			accessRights[right] = translate("server.modules.user.accessright.%s" % right, defaultText=right)
-		skel.access.values = accessRights
-
 	def addSkel(self):
 		skel = super(User, self).addSkel().clone()
 		user = utils.getCurrentUser()
@@ -670,7 +670,6 @@ class User(List):
 			skel.access.visible = False
 		else:
 			# An admin tries to add a new user.
-			self.extendAccessRights(skel)
 			skel.status.readOnly = False
 			skel.status.visible = True
 			skel.access.readOnly = False
@@ -684,7 +683,6 @@ class User(List):
 
 	def editSkel(self, *args, **kwargs):
 		skel = super(User, self).editSkel().clone()
-		self.extendAccessRights(skel)
 
 		skel.password = passwordBone(descr="Passwort", required=False)
 
@@ -713,8 +711,8 @@ class User(List):
 
 	def continueAuthenticationFlow(self, caller, userKey):
 		currSess = currentSession.get()
-		currSess["_mayBeUserKey"] = str(userKey)
-		currSess["_secondFactorStart"] = datetime.datetime.now()
+		currSess["_mayBeUserKey"] = userKey.id_or_name
+		currSess["_secondFactorStart"] = utils.utcNow()
 		currSess.markChanged()
 		for authProvider, secondFactor in self.validAuthenticationMethods:
 			if isinstance(caller, authProvider):
@@ -732,10 +730,10 @@ class User(List):
 	def secondFactorSucceeded(self, secondFactor, userKey):
 		currSess = currentSession.get()
 		logging.debug("Got SecondFactorSucceeded call from %s." % secondFactor)
-		if str(currSess["_mayBeUserKey"]) != str(userKey):
+		if currSess["_mayBeUserKey"] != userKey.id_or_name:
 			raise errors.Forbidden()
 		# Assert that the second factor verification finished in time
-		if datetime.datetime.now() - currSess["_secondFactorStart"] > self.secondFactorTimeWindow:
+		if utils.utcNow() - currSess["_secondFactorStart"] > self.secondFactorTimeWindow:
 			raise errors.RequestTimeout()
 		return self.authenticateUser(userKey)
 

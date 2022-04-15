@@ -3,7 +3,7 @@ from viur.core import utils, errors, conf, securitykey, db
 from viur.core import forcePost, forceSSL, exposed, internalExposed
 from viur.core.skeleton import SkeletonInstance
 from viur.core.prototypes import BasicApplication
-from viur.core.utils import currentRequest
+from viur.core.utils import currentRequest, currentLanguage
 from viur.core.cache import flushCache
 
 import logging
@@ -34,7 +34,7 @@ class List(BasicApplication):
 			Retrieve a new instance of a :class:`viur.core.skeleton.SkeletonInstance` that is used by the application
 			for viewing an existing entry from the list.
 
-			The default is a Skeleton instance returned by :func:`~_resolveSkelCls`.
+			The default is a Skeleton instance returned by :func:`~baseSkel`.
 
 			This SkeletonInstance can be post-processed (just returning a subskel or manually removing single bones) - which
 			is the recommended way to ensure a given user cannot see certain fields. A Jinja-Template may choose not to
@@ -42,46 +42,46 @@ class List(BasicApplication):
 			he could still see all values. This also prevents the user from filtering by these bones, so no binary search
 			is possible.
 
-			.. seealso:: :func:`addSkel`, :func:`editSkel`, :func:`_resolveSkel`
+			.. seealso:: :func:`addSkel`, :func:`editSkel`, :func:`~baseSkel`
 
 			:return: Returns a Skeleton instance for viewing an entry.
 		"""
-		return self._resolveSkelCls(*args, **kwargs)()
+		return self.baseSkel(*args, **kwargs)
 
 	def addSkel(self, *args, **kwargs) -> SkeletonInstance:
 		"""
 			Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
 			for adding an entry to the list.
 
-			The default is a Skeleton instance returned by :func:`_resolveSkel`.
+			The default is a Skeleton instance returned by :func:`~baseSkel`.
 
 			Like in :func:`viewSkel`, the skeleton can be post-processed. Bones that are being removed aren't visible
 			and cannot be set, but it's also possible to just set a bone to readOnly (revealing it's value to the user,
 			but preventing any modification. It's possible to pre-set values on that skeleton (and if that bone is
 			readOnly, enforcing these values).
 
-			.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`_resolveSkel`
+			.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`~baseSkel`
 
 			:return: Returns a Skeleton instance for adding an entry.
 		"""
-		return self._resolveSkelCls(*args, **kwargs)()
+		return self.baseSkel(*args, **kwargs)
 
 	def editSkel(self, *args, **kwargs) -> SkeletonInstance:
 		"""
 			Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
 			for editing an existing entry from the list.
 
-			The default is a Skeleton instance returned by :func:`_resolveSkel`.
+			The default is a Skeleton instance returned by :func:`~baseSkel`.
 
 			Like in :func:`viewSkel`, the skeleton can be post-processed. Bones that are being removed aren't visible
 			and cannot be set, but it's also possible to just set a bone to readOnly (revealing it's value to the user,
 			but preventing any modification.
 
-			.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`_resolveSkel`
+			.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`~baseSkel`
 
 			:return: Returns a Skeleton instance for editing an entry.
 		"""
-		return self._resolveSkelCls(*args, **kwargs)()
+		return self.baseSkel(*args, **kwargs)
 
 	## External exposed functions
 
@@ -313,29 +313,28 @@ class List(BasicApplication):
 		"""
 			Default, SEO-Friendly fallback for view and list.
 
-			:param args:
-			:param kwargs:
-			:return:
+			:param args: The first argument - if provided - is interpreted as seoKey.
+			:param kwargs: Used for the fallback list.
+			:return: The rendered entity or list.
 		"""
 		if args and args[0]:
 			# We probably have a Database or SEO-Key here
-			seoKey = "viur.viurActiveSeoKeys ="
-			skel = self.viewSkel().all(_excludeFromAccessLog=True).filter(seoKey, str(args[0]).lower()).getSkel()
+			seoKey = str(args[0]).lower()
+			skel = self.viewSkel().all(_excludeFromAccessLog=True).filter("viur.viurActiveSeoKeys =", seoKey).getSkel()
 			if skel:
 				db.currentDbAccessLog.get(set()).add(skel["key"])
 				if not self.canView(skel):
 					raise errors.Forbidden()
+				seoUrl = utils.seoUrlToEntry(self.moduleName, skel)
+				# Check whether this is the current seo-key, otherwise redirect to it
+				if currentRequest.get().request.path != seoUrl:
+					raise errors.Redirect(seoUrl, status=301)
 				self.onView(skel)
 				return self.render.view(skel)
 		# This was unsuccessfully, we'll render a list instead
 		if not kwargs:
 			kwargs = self.getDefaultListParams()
-		qry = self.viewSkel().all().mergeExternalFilter(kwargs)
-		qry = self.listFilter(qry)
-		if not qry:
-			raise errors.Forbidden()
-		res = qry.fetch()
-		return self.render.list(res)
+		return self.list(kwargs)
 
 	def getDefaultListParams(self):
 		return {}

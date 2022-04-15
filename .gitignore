@@ -3,3 +3,6 @@
 *.bak
 .idea/
 /docs/build/
+dist
+viur_core.egg-info
+.env

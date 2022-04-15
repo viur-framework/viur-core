@@ -9,6 +9,7 @@ from urllib.parse import urljoin, urlparse, unquote
 from viur.core.logging import requestLogger, client as loggingClient, requestLoggingRessource
 from viur.core import utils, db
 from viur.core.utils import currentSession, currentLanguage
+from viur.core.securityheaders import extendCsp
 import logging
 from time import time
 from abc import ABC, abstractmethod
@@ -19,7 +20,7 @@ from abc import ABC, abstractmethod
 	point for incomming http requests. The main class is the :class:BrowserHandler. Each request will get it's
 	own instance of that class which then holds the reference to the request and response object.
 	Additionally, this module defines the RequestValidator interface which provides a very early hook into the
-	request processing (useful for global ratelimiting, DDoS prevention or access control).  
+	request processing (useful for global ratelimiting, DDoS prevention or access control).
 """
 
 class RequestValidator(ABC):
@@ -61,6 +62,8 @@ class FetchMetaDataValidator(RequestValidator):
 			return None
 		if headers.get('sec-fetch-site') in {"same-origin", "none"}:  # A Request from our site
 			return None
+		if os.environ['GAE_ENV'] == "localdev" and headers.get('sec-fetch-site') == "same-site":  # We are accepting a request with same-site only in local dev mode
+			return None
 		if headers.get('sec-fetch-mode') == 'navigate' and not request.isPostRequest \
 			and headers.get('sec-fetch-dest') not in {'object', 'embed'}:  # Incoming navigation GET request
 			return None
@@ -91,64 +94,6 @@ class BrowseHandler():  # webapp.RequestHandler
 	# List of requestValidators used to preflight-check an request before it's being dispatched within ViUR
 	requestValidators = [FetchMetaDataValidator]
 
-	# COPY START
-
-	def redirect(self, uri, permanent=False, abort=False, code=None, body=None,
-				 request=None, response=None):
-		"""Issues an HTTP redirect to the given relative URI.
-
-		This won't stop code execution unless **abort** is True. A common
-		practice is to return when calling this method::
-
-			return redirect('/some-path')
-
-		:param uri:
-			A relative or absolute URI (e.g., ``'../flowers.html'``).
-		:param permanent:
-			If True, uses a 301 redirect instead of a 302 redirect.
-		:param abort:
-			If True, raises an exception to perform the redirect.
-		:param code:
-			The redirect status code. Supported codes are 301, 302, 303, 305,
-			and 307.  300 is not supported because it's not a real redirect
-			and 304 because it's the answer for a request with defined
-			``If-Modified-Since`` headers.
-		:param body:
-			Response body, if any.
-		:param request:
-			Optional request object. If not set, uses :func:`get_request`.
-		:param response:
-			Optional response object. If not set, a new response is created.
-		:returns:
-			A :class:`Response` instance.
-		"""
-		request = self.request
-		response = self.response
-		if uri.startswith(('.', '/')):
-			uri = str(urljoin(request.url, uri))
-
-		if code is None:
-			if permanent:
-				code = 301
-			else:
-				code = 302
-
-		assert code in (301, 302, 303, 305, 307), \
-			'Invalid redirect status code.'
-
-		if abort:
-			headers = response.headers.copy() if response is not None else []
-			headers['Location'] = uri
-			_abort(code, headers=headers)
-
-		response.headers['Location'] = uri
-		response.status = code
-		if body is not None:
-			response.write(body)
-
-		return response
-
-	# COPY END
 
 	def __init__(self, request: webob.Request, response: webob.Response):
 		super()
@@ -291,7 +236,8 @@ class BrowseHandler():  # webapp.RequestHandler
 				# Redirect the user to the startpage (using ssl this time)
 				host = self.request.host_url.lower()
 				host = host[host.find("://") + 3:].strip(" /")  # strip http(s)://
-				self.redirect("https://%s/" % host)
+				self.response.status = "302 Found"
+				self.response.headers['Location'] = "https://%s/" % host
 				return
 		if path.startswith("/_ah/warmup"):
 			self.response.write("okay")
@@ -305,16 +251,21 @@ class BrowseHandler():  # webapp.RequestHandler
 		except errors.Redirect as e:
 			if conf["viur.debug.traceExceptions"]:
 				raise
-			try:
-				self.redirect(e.url, code=e.status)
-			except Exception as e:
-				logging.exception(e)
-				raise
+			self.response.status = '%d %s' % (e.status, e.name)
+			url = e.url
+			if url.startswith(('.', '/')):
+				url = str(urljoin(self.request.url, url))
+			self.response.headers['Location'] = url
 		except errors.HTTPException as e:
 			if conf["viur.debug.traceExceptions"]:
 				raise
 			self.response.body = b""
-			self.response.status = '%d %s' % (e.status, e.descr)
+			self.response.status = '%d %s' % (e.status, e.name)
+
+			# Set machine-readable x-viur-error response header in case there is an exception description.
+			if e.descr:
+				self.response.headers["x-viur-error"] = e.descr.replace("\n", "")
+
 			res = None
 			if conf["viur.errorHandler"]:
 				try:
@@ -324,8 +275,9 @@ class BrowseHandler():  # webapp.RequestHandler
 					logging.exception(newE)
 					res = None
 			if not res:
-				tpl = Template(open(conf["viur.errorTemplate"], "r").read())
+				tpl = Template(open(os.path.join(utils.coreBasePath,conf["viur.errorTemplate"]), "r").read())
 				res = tpl.safe_substitute({"error_code": e.status, "error_name": e.name, "error_descr": e.descr})
+				extendCsp({"style-src":['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
 			self.response.write(res.encode("UTF-8"))
 		except Exception as e:  # Something got really wrong
 			logging.error("Viur caught an unhandled exception!")
@@ -341,7 +293,7 @@ class BrowseHandler():  # webapp.RequestHandler
 					logging.exception(newE)
 					res = None
 			if not res:
-				tpl = Template(open(conf["viur.errorTemplate"], "r").read())
+				tpl = Template(open(os.path.join(utils.coreBasePath,conf["viur.errorTemplate"]), "r").read())
 				descr = "The server encountered an unexpected error and is unable to process your request."
 				if self.isDevServer:  # Were running on development Server
 					strIO = StringIO()
@@ -351,6 +303,7 @@ class BrowseHandler():  # webapp.RequestHandler
 																										   "<br />")
 				res = tpl.safe_substitute(
 					{"error_code": "500", "error_name": "Internal Server Error", "error_descr": descr})
+				extendCsp({"style-src":['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
 			self.response.write(res.encode("UTF-8"))
 		finally:
 			self.saveSession()

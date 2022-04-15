@@ -417,8 +417,13 @@ class baseBone(object):  # One Bone:
 						res[language] = self.singleValueSerialize(newVal[language], skel, name, parentIndexed)
 			elif self.multiple:
 				res = []
-				for singleValue in newVal:
+
+				assert newVal is None or isinstance(newVal, (list, tuple)), \
+					f"Cannot handle {repr(newVal)} here. Expecting list or tuple."
+
+				for singleValue in (newVal or ()):
 					res.append(self.singleValueSerialize(singleValue, skel, name, parentIndexed))
+
 			else:  # No Languages, not Multiple
 				res = self.singleValueSerialize(newVal, skel, name, parentIndexed)
 			skel.dbEntity[name] = res
@@ -431,7 +436,7 @@ class baseBone(object):  # One Bone:
 			return True
 		return False
 
-	def singleValueUnserialize(self, val, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+	def singleValueUnserialize(self, val):
 		return val
 
 	def unserialize(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> bool:
@@ -463,7 +468,7 @@ class baseBone(object):  # One Bone:
 						if not isinstance(tmpVal, list):
 							tmpVal = [tmpVal]
 						for singleValue in tmpVal:
-							res[language].append(self.singleValueUnserialize(singleValue, skel, name))
+							res[language].append(self.singleValueUnserialize(singleValue))
 			else:  # We could not parse this, maybe it has been written before languages had been set?
 				for language in self.languages:
 					res[language] = []
@@ -472,9 +477,9 @@ class baseBone(object):  # One Bone:
 					pass
 				elif isinstance(loadVal, list):
 					for singleValue in loadVal:
-						res[mainLang].append(self.singleValueUnserialize(singleValue, skel, name))
+						res[mainLang].append(self.singleValueUnserialize(singleValue))
 				else:  # Hopefully it's a value stored before languages and multiple has been set
-					res[mainLang].append(self.singleValueUnserialize(loadVal, skel, name))
+					res[mainLang].append(self.singleValueUnserialize(loadVal))
 		elif self.languages:
 			res = {}
 			if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
@@ -484,21 +489,21 @@ class baseBone(object):  # One Bone:
 						tmpVal = loadVal[language]
 						if isinstance(tmpVal, list) and tmpVal:
 							tmpVal = tmpVal[0]
-						res[language] = self.singleValueUnserialize(tmpVal, skel, name)
+						res[language] = self.singleValueUnserialize(tmpVal)
 			else:  # We could not parse this, maybe it has been written before languages had been set?
 				for language in self.languages:
 					res[language] = None
 					oldKey = "%s.%s" % (name, language)
 					if oldKey in skel.dbEntity and skel.dbEntity[oldKey]:
-						res[language] = self.singleValueUnserialize(skel.dbEntity[oldKey], skel, name)
+						res[language] = self.singleValueUnserialize(skel.dbEntity[oldKey])
 						loadVal = None  # Don't try to import later again, this format takes precedence
 				mainLang = self.languages[0]
 				if loadVal is None:
 					pass
 				elif isinstance(loadVal, list) and loadVal:
-					res[mainLang] = self.singleValueUnserialize(loadVal, skel, name)
+					res[mainLang] = self.singleValueUnserialize(loadVal)
 				else:  # Hopefully it's a value stored before languages and multiple has been set
-					res[mainLang] = self.singleValueUnserialize(loadVal, skel, name)
+					res[mainLang] = self.singleValueUnserialize(loadVal)
 		elif self.multiple:
 			res = []
 			if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
@@ -511,7 +516,7 @@ class baseBone(object):  # One Bone:
 				loadVal = [loadVal]
 			if loadVal:
 				for val in loadVal:
-					res.append(self.singleValueUnserialize(val, skel, name))
+					res.append(self.singleValueUnserialize(val))
 		else:  # Not multiple, no languages
 			res = None
 			if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
@@ -523,7 +528,7 @@ class baseBone(object):  # One Bone:
 			if loadVal and isinstance(loadVal, list):
 				loadVal = loadVal[0]
 			if loadVal is not None:
-				res = self.singleValueUnserialize(loadVal, skel, name)
+				res = self.singleValueUnserialize(loadVal)
 		skel.accessedValues[name] = res
 		return True
 
@@ -648,6 +653,14 @@ class baseBone(object):  # One Bone:
 				return "I-%s" % res
 			elif isinstance(value, str):
 				return "S-%s" % res
+			elif isinstance(value, db.Key):
+				# We Hash the keys here by our self instead of relying on str() or to_legacy_urlsafe()
+				# as these may change in the future, which would invalidate all existing locks
+				def keyHash(key):
+					if key is None:
+						return "-"
+					return "%s-%s-<%s>" % (hashValue(key.kind), hashValue(key.id_or_name), keyHash(key.parent))
+				return "K-%s" % keyHash(value)
 			raise NotImplementedError("Type %s can't be safely used in an uniquePropertyIndex" % type(value))
 
 		if not value and not self.unique.lockEmpty:
@@ -756,9 +769,25 @@ class baseBone(object):  # One Bone:
 		"""
 		assert not (bool(self.languages) ^ bool(language)), "Language is required or not supported"
 		assert not append or self.multiple, "Can't append - bone is not multiple"
-		val, errs = self.singleValueFromClient(value, skel, boneName, {boneName: value})
-		if errs:
-			return False
+
+		if not append and self.multiple:
+			# set multiple values at once
+			val = []
+			errors = []
+			for singleValue in value:
+				singleValue, singleError = self.singleValueFromClient(singleValue, skel, boneName, {boneName: value})
+				val.append(singleValue)
+				if singleError:
+					errors.extend(singleError)
+		else:
+			# set or append one value
+			val, errors = self.singleValueFromClient(value, skel, boneName, {boneName: value})
+
+		if errors:
+			for e in errors:
+				if e.severity in [ReadFromClientErrorSeverity.Invalid, ReadFromClientErrorSeverity.NotSet]:
+					# If an invalid datatype (or a non-parseable structure) have been passed, abort the store
+					return False
 		if not append and not language:
 			skel[boneName] = val
 		elif append and language:

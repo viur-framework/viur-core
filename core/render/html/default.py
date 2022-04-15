@@ -8,8 +8,7 @@ from typing import Any, Dict, List, Union, Tuple
 
 from jinja2 import Environment, FileSystemLoader, ChoiceLoader
 
-from viur.core import db
-from viur.core import utils, errors, securitykey
+from viur.core import utils, errors, securitykey, db
 from viur.core.bones import *
 from viur.core.i18n import LanguageWrapper
 from viur.core.i18n import TranslationExtension

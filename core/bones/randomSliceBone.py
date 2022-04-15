@@ -3,6 +3,7 @@ from viur.core.bones import baseBone
 from viur.core import db
 from random import random, sample, shuffle
 from itertools import chain
+from math import ceil
 
 
 class randomSliceBone(baseBone):
@@ -37,7 +38,7 @@ class randomSliceBone(baseBone):
 			:type name: str
 			:returns: dict
 		"""
-		skel.dbEntity[name] = random
+		skel.dbEntity[name] = random()
 		skel.dbEntity.exclude_from_indexes.discard(name)  # Random bones can never be not indexed
 		return True
 
@@ -88,32 +89,33 @@ class randomSliceBone(baseBone):
 
 		if "orderby" in rawFilter and rawFilter["orderby"] == name:
 			# We select a random set of elements from that collection
-			assert not isinstance(dbFilter.datastoreQuery,
-								  db.MultiQuery), "Orderby random is not possible on a query that already uses an IN-filter!"
-			origFilter = dbFilter.datastoreQuery
+			assert not isinstance(dbFilter.queries,
+								  list), "Orderby random is not possible on a query that already uses an IN-filter!"
+			origFilter: dict = dbFilter.queries.filters
 			origKind = dbFilter.getKind()
 			queries = []
 			for unused in range(0, self.slices):  # Fetch 3 Slices from the set
 				rndVal = random()  # Choose our Slice center
 				# Right Side
-				q = db.DatastoreQuery(kind=origKind)
+				q = db.QueryDefinition(origKind, {}, [])
 				property, value = applyFilterHook(dbFilter, "%s <=" % name, rndVal)
-				q[property] = value
-				q.Order((name, db.DESCENDING))
+				q.filters[property] = value
+				q.orders = [(name, db.SortOrder.Descending)]
 				queries.append(q)
 				# Left Side
-				q = db.DatastoreQuery(kind=origKind)
+				q = db.QueryDefinition(origKind, {}, [])
 				property, value = applyFilterHook(dbFilter, "%s >" % name, rndVal)
-				q[property] = value
+				q.filters[property] = value
+				q.orders = [(name, db.SortOrder.Ascending)]
 				queries.append(q)
-			dbFilter.datastoreQuery = db.MultiQuery(queries, None)
+			dbFilter.queries = queries
 			# Map the original filter back in
 			for k, v in origFilter.items():
-				dbFilter.datastoreQuery[k] = v
+				dbFilter.filter(k, v)
 			dbFilter._customMultiQueryMerge = self.customMultiQueryMerge
 			dbFilter._calculateInternalMultiQueryLimit = self.calculateInternalMultiQueryLimit
 
-	def calculateInternalMultiQueryLimit(self, targetAmount):
+	def calculateInternalMultiQueryLimit(self, query, targetAmount):
 		"""
 			Tells :class:`server.db.Query` How much entries should be fetched in each subquery.
 
@@ -122,7 +124,7 @@ class randomSliceBone(baseBone):
 			:returns: The amount of elements db.Query should fetch on each subquery
 			:rtype: int
 		"""
-		return int(targetAmount * self.sliceSize)
+		return ceil(targetAmount * self.sliceSize)
 
 	def customMultiQueryMerge(self, dbFilter, result, targetAmount):
 		"""
@@ -142,7 +144,7 @@ class randomSliceBone(baseBone):
 		# Remove duplicates
 		tmpDict = {}
 		for item in res:
-			tmpDict[str(item.key())] = item
+			tmpDict[str(item.key)] = item
 		res = list(tmpDict.values())
 		# Slice the requested amount of results our 3times lager set
 		res = sample(res, min(len(res), targetAmount))

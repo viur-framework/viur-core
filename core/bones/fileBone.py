@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from viur.core.bones import treeLeafBone
-from viur.core import db, request, conf
+from viur.core import request, conf, db
 from viur.core.utils import downloadUrlFor
 from viur.core.tasks import callDeferred
 # from google.appengine.api import images
@@ -12,12 +12,13 @@ from time import time
 
 
 @callDeferred
-def ensureDerived(key: db.KeyClass, srcKey, deriveMap: Dict[str, Any]):
+def ensureDerived(key: db.Key, srcKey, deriveMap: Dict[str, Any], refreshKey: db.Key = None):
 	"""
 	Ensure that pending thumbnails or other derived Files are build
 	:param key: DB-Key of the file-object on which we should update the derivemap
 	:param srcKey: Prefix for a (hopefully) stable key to prevent rebuilding derives over and over again
 	:param deriveMap: List of DeriveDicts we should build/update
+	:param refreshKey: If set, we'll fetch and refresh the skeleton after building new derives
 	"""
 	from viur.core.skeleton import skeletonByKind, updateRelations
 	deriveFuncMap = conf["viur.file.derivers"]
@@ -69,6 +70,15 @@ def ensureDerived(key: db.KeyClass, srcKey, deriveMap: Dict[str, Any]):
 		# the same fileBone have the chance to finish, otherwise that updateRelations Task will call postSavedHandler
 		# on that fileBone again - re-queueing any ensureDerivedCalls that have not finished yet.
 		updateRelations(key, time() + 1, "derived", _countdown=30)
+		if refreshKey:
+			def refreshTxn():
+				skel = skeletonByKind(refreshKey.kind)()
+				if not skel.fromDB(refreshKey):
+					return
+				skel.refresh()
+				skel.toDB(clearUpdateTag=True)
+			db.RunInTransaction(refreshTxn)
+
 
 
 class fileBone(treeLeafBone):

@@ -1,27 +1,53 @@
-# -*- coding: utf-8 -*-
-from viur.core.bones import baseBone
 from collections import OrderedDict
-import logging
+from numbers import Number
+from typing import Callable, Dict, List, Tuple, Union
+
+from viur.core.bones import baseBone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from typing import List, Union
+from viur.core.i18n import translate
+
+SelectBoneValue = Union[str, Number]
+SelectBoneMultiple = List[SelectBoneValue]
 
 
 class selectBone(baseBone):
 	type = "select"
 
-	def __init__(self, defaultValue=None, values={}, multiple=False, *args, **kwargs):
+	def __init__(self, defaultValue: Union[None, Dict[str, Union[SelectBoneMultiple, SelectBoneValue]], SelectBoneMultiple] = None,
+				 values: Union[Dict, List, Tuple, Callable] = (),
+				 multiple: bool = False, languages: bool = False, *args, **kwargs):
 		"""
 			Creates a new selectBone.
 
-			:param defaultValue: List of keys which will be checked by default
-			:type defaultValue: list
-			:param values: dict of key->value pairs from which the user can choose from. Values will be translated
-			:type values: dict
+			:param defaultValue: key(s) which will be checked by default
+			:param values: dict of key->value pairs from which the user can choose from.
 		"""
 		if defaultValue is None and multiple:
-			defaultValue = []
-		super(selectBone, self).__init__(defaultValue=defaultValue, multiple=multiple, *args, **kwargs)
-		self.values = values
+			if languages:
+				defaultValue = {}
+			else:
+				defaultValue = []
+
+		super(selectBone, self).__init__(
+			defaultValue=defaultValue, multiple=multiple, languages=languages, *args, **kwargs)
+
+		# handle list/tuple as dicts
+		if isinstance(values, (list, tuple)):
+			values = {i: translate(i) for i in values}
+
+		assert isinstance(values, (dict, OrderedDict)) or callable(values)
+		self._values = values
+
+	def __getattribute__(self, item):
+		if item == "values":
+			values = self._values
+			if callable(values):
+				values = values()
+				assert isinstance(values, (dict, OrderedDict))
+
+			return values
+
+		return super().__getattribute__(item)
 
 	def singleValueFromClient(self, value, skel, name, origData):
 		if not str(value):

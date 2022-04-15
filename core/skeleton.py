@@ -9,12 +9,12 @@ import sys
 from functools import partial
 from itertools import chain
 from time import time
-from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, Set, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Union
 
-from viur.core import conf, db, errors, utils, email
+from viur.core import conf, db, email, errors, utils
 from viur.core.bones import baseBone, dateBone, keyBone, relationalBone, selectBone, stringBone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
-from viur.core.tasks import CallableTask, CallableTaskBase, callDeferred, QueryIter
+from viur.core.tasks import CallableTask, CallableTaskBase, QueryIter, callDeferred
 
 try:
 	import pytz
@@ -139,6 +139,12 @@ class SkeletonInstance:
 	def __contains__(self, item):
 		return item in self.boneMap
 
+	def get(self, item, default=None):
+		if item not in self:
+			return default
+
+		return self[item]
+
 	def __setitem__(self, key, value):
 		assert self.renderPreparation is None, "Cannot modify values while rendering"
 		if isinstance(value, baseBone):
@@ -189,6 +195,9 @@ class SkeletonInstance:
 
 	def __repr__(self) -> str:
 		return f"<SkeletonInstance of {self.skeletonCls.__name__} with {dict(self)}>"
+
+	def __str__(self) -> str:
+		return str(dict(self))
 
 	def clone(self):
 		res = SkeletonInstance(self.skeletonCls, clonedBoneMap=copy.deepcopy(self.boneMap))
@@ -265,27 +274,25 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 				bone.setSystemInitialized()
 
 	@classmethod
-	def setBoneValue(cls, skelValues, boneName, value, append=False):
+	def setBoneValue(cls, skelValues: Any, boneName: str, value: Any,
+					 append: bool = False, language: Optional[str] = None) -> bool:
 		"""
 			Allow setting a bones value without calling fromClient or assigning to valuesCache directly.
 			Santy-Checks are performed; if the value is invalid, that bone flips back to its original
 			(default) value and false is returned.
 
 			:param boneName: The Bone which should be modified
-			:type boneName: str
 			:param value: The value that should be assigned. It's type depends on the type of that bone
-			:type value: object
 			:param append: If true, the given value is appended to the values of that bone instead of
 				replacing it. Only supported on bones with multiple=True
-			:type append: bool
+			:param language: Set/append which language
 			:return: Wherever that operation succeeded or not.
-			:rtype: bool
 		"""
 		bone = getattr(skelValues, boneName, None)
 		if not isinstance(bone, baseBone):
 			raise ValueError("%s is no valid bone on this skeleton (%s)" % (boneName, str(skelValues)))
 		skelValues[boneName]  # FIXME, ensure this bone is unserialized first
-		return bone.setBoneValue(skelValues, boneName, value, append)
+		return bone.setBoneValue(skelValues, boneName, value, append, language)
 
 	@classmethod
 	def fromClient(cls, skelValues: SkeletonInstance, data: Dict[str, Union[List[str], str]],
@@ -327,6 +334,10 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 						# We'll consider empty required bones only as an error, if they're on the top-level (and not
 						# further down the hierarchy (in an record- or relational-Bone)
 						complete = False
+
+						if conf["viur.debug.skeleton.fromClient"] and cls.kindName:
+							logging.debug("%s: %s: %r", cls.kindName, error.fieldPath, error.errorMessage)
+
 		if (len(data) == 0
 			or (len(data) == 1 and "key" in data)
 			or ("nomissing" in data and str(data["nomissing"]) == "1")):
@@ -356,7 +367,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 class MetaSkel(MetaBaseSkel):
 	def __init__(cls, name, bases, dct):
 		super(MetaSkel, cls).__init__(name, bases, dct)
-		relNewFileName = inspect.getfile(cls).replace(utils.projectBasePath, "")
+		relNewFileName = inspect.getfile(cls).replace(utils.projectBasePath, "").replace(utils.coreBasePath, "")
 
 		# Check if we have an abstract skeleton
 		if cls.__name__.endswith("AbstractSkel"):
@@ -375,7 +386,8 @@ class MetaSkel(MetaBaseSkel):
 				cls.kindName = cls.__name__.lower()
 		# Try to determine which skeleton definition takes precedence
 		if cls.kindName and cls.kindName is not __undefindedC__ and cls.kindName in MetaBaseSkel._skelCache:
-			relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]).replace(utils.projectBasePath, "")
+			relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName])\
+				.replace(utils.projectBasePath, "").replace(utils.coreBasePath,"")
 			idxOld = min(
 				[x for (x, y) in enumerate(conf["viur.skeleton.searchPath"]) if relOldFileName.startswith(y)] + [999])
 			idxNew = min(
@@ -587,6 +599,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 	def __repr__(self):
 		return "<skeleton %s with data=%r>" % (self.kindName, {k: self[k] for k in self.keys()})
 
+	def __str__(self):
+		return str({k: self[k] for k in self.keys()})
+
 	def __init__(self, *args, **kwargs):
 		super(Skeleton, self).__init__(*args, **kwargs)
 		assert self.kindName and self.kindName is not __undefindedC__, "You must set kindName on this skeleton!"
@@ -639,14 +654,18 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		for checkFunc in skelValues.interBoneValidations:
 			errors = checkFunc(skelValues)
 			if errors:
-				for err in errors:
-					if err.severity.value > 1:
+				for error in errors:
+					if error.severity.value > 1:
 						complete = False
+						if conf["viur.debug.skeleton.fromClient"]:
+							logging.debug("%s: %s: %r", cls.kindName, error.fieldPath, error.errorMessage)
+
 				skelValues.errors.extend(errors)
+
 		return complete
 
 	@classmethod
-	def fromDB(cls, skelValues: SkeletonInstance, key: Union[str, db.KeyClass]) -> bool:
+	def fromDB(cls, skelValues: SkeletonInstance, key: Union[str, db.Key]) -> bool:
 		"""
 			Load entity with *key* from the data store into the Skeleton.
 
@@ -675,7 +694,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		return True
 
 	@classmethod
-	def toDB(cls, skelValues: SkeletonInstance, clearUpdateTag: bool = False) -> db.KeyClass:
+	def toDB(cls, skelValues: SkeletonInstance, clearUpdateTag: bool = False) -> db.Key:
 		"""
 			Store current Skeleton entity to data store.
 
@@ -700,7 +719,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 			# Load the current values from Datastore or create a new, empty db.Entity
 			if not dbKey:
 				# We'll generate the key we'll be stored under early so we can use it for locks etc
-				dbKey = db.__client__.allocate_ids(db.Key(skel.kindName), 1)[0]
+				dbKey = db.AllocateIDs(db.Key(skel.kindName))
 				dbObj = db.Entity(dbKey)
 				oldCopy = {}
 				dbObj["viur"] = {}
@@ -1015,7 +1034,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 				bone.delete(skel, boneName)
 				if bone.unique:
 					flushList = []
-					for lockValue in viurData["%s_uniqueIndexValue" % boneName]:
+					for lockValue in viurData.get("%s_uniqueIndexValue" % boneName) or []:
 						lockKey = db.Key("%s_%s_uniquePropertyIndex" % (skel.kindName, boneName), lockValue)
 						lockObj = db.Get(lockKey)
 						if not lockObj:
@@ -1139,15 +1158,20 @@ class RelSkel(BaseSkeleton):
 
 	# return {k: v for k, v in self.valuesCache.entity.items() if k in self.__boneNames__}
 
-	def unserialize(self, values):
+	def unserialize(self, values: Union[db.Entity, dict]):
 		"""
 			Loads 'values' into this skeleton.
 
 			:param values: dict with values we'll assign to our bones
-			:type values: dict | db.Entry
+			:type values: dict | db.Entity
 			:return:
 		"""
-		self.dbEntity = values
+		if not isinstance(values, db.Entity):
+			self.dbEntity = db.Entity()
+			self.dbEntity.update(values)
+		else:
+			self.dbEntity = values
+
 		self.accessedValues = {}
 		self.renderAccessedValues = {}
 		# self.valuesCache = {"entity": values, "changedValues": {}, "cachedRenderValues": {}}
@@ -1287,7 +1311,10 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: Optional[s
 		except AssertionError:
 			logging.info("Ignoring %s which refers to unknown kind %s" % (str(srcRel.key), srcRel["viur_src_kind"]))
 			continue
-		db.RunInTransaction(updateTxn, skel, srcRel["src"].key, srcRel.key)
+		if db.IsInTransaction():
+			updateTxn(skel, srcRel["src"].key, srcRel.key)
+		else:
+			db.RunInTransaction(updateTxn, skel, srcRel["src"].key, srcRel.key)
 	nextCursor = updateListQuery.getCursor()
 	if len(updateList) == 5 and nextCursor:
 		updateRelations(destKey, minChangeTime, changedBone, nextCursor)
@@ -1444,6 +1471,5 @@ def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, noti
 			pass
 
 
-# Forward references to SkelList and SkelInstance
-db.SkeletonInstanceRef = SkeletonInstance
-db.SkelListRef = SkelList
+# Forward our references to SkelInstance to the database (needed for queries)
+db.config["SkeletonInstanceRef"] = SkeletonInstance
