@@ -29,12 +29,14 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - Re-Added translation() jinja2 function
 - get() function to skeleton
 - Support for overriding the fileName under wich a blob will be downloaded
+- Implement baseSkel for all module prototypes (#378)
 
 ### Changed
-- Replaced viur.core.db with a shim around viur-datastore
-- selectBone() now also accepts for a callable, list or tuple as values parameter
+- Replaced viur.core.db by viur-datastore (#400)
+- selectBone() values accept for list, tuple or callable (#390)
 - Improve SEO url integration: refactoring and redirect from old keys to the current
 - Allow sec-fetch-site=same-site on local development server
+- Set parentnode and parentrepo before fromClient() (#402)
 
 ### Fixed
 - files embedded in textBones don't expire anymore and get correctly locked
@@ -42,9 +44,10 @@ For the 2.x changelog see the [viur/server](https://github.com/viur-framework/se
 - Recursive deletion in modules/file.py
 - deleteRecursive function in tree-prototype
 - killSessionByUser function
-- deferred calls with _countdown etc. set from a cronjob
-- unique=True on multiple=True relationalBones
-- `setBoneValue` works now for multiple and (multiple and language) bones
+- Fixes on the Tree prototype (#381)
+- Fixed deferred calls with _countdown set failing when called from a cronjob (#403)
+- Fixed unique=True on multiple=True relationalBones (#401)
+- `setBoneValue` works now for multiple and (multiple and language) bones (#410)
 - default `defaultValue` for multiple and language `selectBone`
 - randomSliceBone with limit=1 returning no result
 - ratelimit module
