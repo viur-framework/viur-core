@@ -43,6 +43,7 @@ def create(duration: Union[None, int] = None, **kwargs) -> str:
 		:returns: The new onetime key
 	"""
 	if not duration:
+		assert not kwargs, "kwargs are not allowed when session security key is wanted"
 		return currentSession.get().getSecurityKey()
 	key = generateRandomString()
 	duration = int(duration)
