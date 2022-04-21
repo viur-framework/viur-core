@@ -107,6 +107,9 @@ class baseBone(object):  # One Bone:
 		self.required = required
 		self.params = params or {}
 		self.multiple = multiple
+		if not (languages is None or (isinstance(languages, list) and len(languages) > 0 and all(
+				[isinstance(x, str) for x in languages]))):
+			raise ValueError("languages must be None or a list of strings")
 		self.languages = languages
 		self.indexed = indexed
 		# Convert a None default-value to the empty container that's expected if the bone is multiple or has languages
