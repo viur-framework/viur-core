@@ -558,7 +558,7 @@ class seoKeyBone(stringBone):
 				skel.dbEntity["viur"] = db.Entity()
 			res = db.Entity()
 			res["_viurLanguageWrapper_"] = True
-			for language in self.languages:
+			for language in (self.languages or []):
 				if not self.indexed:
 					res.exclude_from_indexes.add(language)
 				res[language] = None
