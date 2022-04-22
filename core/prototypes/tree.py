@@ -380,7 +380,7 @@ class Tree(BasicApplication):
 		skel = self.addSkel(skelType)
 		parentNodeSkel = self.editSkel("node")
 		if not parentNodeSkel.fromDB(node):
-			raise errors.NotFound()
+			raise errors.NotFound("The provided parent node could not be found.")
 		if not self.canAdd(skelType, parentNodeSkel):
 			raise errors.Unauthorized()
 
