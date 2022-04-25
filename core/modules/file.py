@@ -259,9 +259,6 @@ class File(Tree):
 		skel["size"] = blob.size
 		skel["mimetype"] = mimetype
 		skel["dlkey"] = dl_key
-		skel["parentdir"] = None
-		skel["parententry"] = None
-		skel["pending"] = False
 		skel["weak"] = True
 		skel["width"] = 0
 		skel["height"] = 0
