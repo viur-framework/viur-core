@@ -239,13 +239,15 @@ class File(Tree):
 
 	blobCacheTime = 60 * 60 * 24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
 
-	def write(self, filename: str, content: Any, mimetype: str = "text/plain"):
+	def write(self, filename: str, content: Any, mimetype: str = "text/plain", width: int = 0, height: int = 0):
 		"""
 		Write a file from any buffer into the file module.
 
 		:param filename: Filename to be written.
 		:param content:  The file content to be written, as bytes-like object.
 		:param mimetype: The file's mimetype.
+		:param width: Optional width information for the file.
+		:param height: Optional height information for the file.
 
 		:return: Returns the key of the file object written. This can be associated e.g. with a fileBone.
 		"""
@@ -260,8 +262,8 @@ class File(Tree):
 		skel["mimetype"] = mimetype
 		skel["dlkey"] = dl_key
 		skel["weak"] = True
-		skel["width"] = 0
-		skel["height"] = 0
+		skel["width"] = width
+		skel["height"] = height
 
 		return skel.toDB()
 
