@@ -67,7 +67,6 @@ class baseBone(object):  # One Bone:
 		self,
 		defaultValue: Any = None,
 		descr: str = "",
-		getEmtpyValueFunc=None,
 		indexed: bool = True,
 		isEmptyFunc=None,
 		languages: Union[None, List[str]] = None,
@@ -150,9 +149,6 @@ class baseBone(object):  # One Bone:
 
 		if isEmptyFunc:
 			self.isEmpty = isEmptyFunc
-
-		if getEmtpyValueFunc:
-			self.getEmptyValue = getEmtpyValueFunc
 
 	def setSystemInitialized(self):
 		"""
