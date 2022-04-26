@@ -12,11 +12,6 @@ class numericBone(baseBone):
 		Can be used for ints and floats.
 		For floats, the precision can be specified in decimal-places.
 	"""
-
-	@staticmethod
-	def generageSearchWidget(target, name="NUMERIC BONE", mode="range"):
-		return ({"name": name, "mode": mode, "target": target, "type": "numeric"})
-
 	type = "numeric"
 
 	def __init__(self, precision=0, min=-int(pow(2, 30)), max=int(pow(2, 30)), defaultValue=None, *args, **kwargs):

@@ -254,10 +254,6 @@ class textBone(baseBone):
 
 	type = "text"
 
-	@staticmethod
-	def generageSearchWidget(target, name="TEXT BONE", mode="equals"):
-		return ({"name": name, "mode": mode, "target": target, "type": "text"})
-
 	def __init__(self, validHtml: Union[None, Dict] = __undefinedC__, languages: Union[None, List[str]] = None,
 				 maxLength: int = 200000, defaultValue: Any = None, indexed: bool = False,
 				 srcSet:Optional[Dict[str, List]] = None, *args, **kwargs):
