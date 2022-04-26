@@ -17,8 +17,8 @@ class stringBone(baseBone):
 	def generageSearchWidget(target, name="STRING BONE", mode="equals"):
 		return ({"name": name, "mode": mode, "target": target, "type": "string"})
 
-	def __init__(self, caseSensitive=True, *args, **kwargs):
-		super(stringBone, self).__init__(*args, **kwargs)
+	def __init__(self, *, caseSensitive=True, **kwargs):
+		super().__init__(**kwargs)
 		self.caseSensitive = caseSensitive
 
 	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):

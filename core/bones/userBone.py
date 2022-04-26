@@ -7,17 +7,19 @@ class userBone(relationalBone):
 	kind = "user"
 	datafields = ["name"]
 
-	def __init__(self, creationMagic=False, updateMagic=False, visible=None, multiple=False, readOnly=False, *args,
-				 **kwargs):
+	def __init__(self, *, creationMagic=False, updateMagic=False, visible=None, readOnly=False, **kwargs):
 		if creationMagic or updateMagic:
 			readOnly = False
 			if visible is None:
 				visible = False  # defaults
 		elif visible is None:
 			visible = True
-		super(userBone, self).__init__(multiple=multiple, visible=visible, readOnly=readOnly, *args, **kwargs)
+
+		super().__init__(visible=visible, readOnly=readOnly, **kwargs)
+
 		self.creationMagic = creationMagic
 		self.updateMagic = updateMagic
+
 		if self.multiple and (creationMagic or updateMagic):
 			raise ValueError("Cannot be multiple and have a creation/update-magic set!")
 

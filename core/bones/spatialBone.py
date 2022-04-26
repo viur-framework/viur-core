@@ -47,7 +47,7 @@ class spatialBone(baseBone):
 
 	type = "spatial"
 
-	def __init__(self, boundsLat, boundsLng, gridDimensions, *args, **kwargs):
+	def __init__(self, *, boundsLat, boundsLng, gridDimensions, **kwargs):
 		"""
 			Initializes a new spatialBone.
 
@@ -58,7 +58,7 @@ class spatialBone(baseBone):
 			:param gridDimensions: Number of sub-regions the map will be divided in
 			:type gridDimensions: (int, int)
 		"""
-		super(spatialBone, self).__init__(*args, **kwargs)
+		super().__init__(**kwargs)
 		assert isinstance(boundsLat, tuple) and len(boundsLat) == 2, "boundsLat must be a tuple of (int, int)"
 		assert isinstance(boundsLng, tuple) and len(boundsLng) == 2, "boundsLng must be a tuple of (int, int)"
 		assert isinstance(gridDimensions, tuple) and len(

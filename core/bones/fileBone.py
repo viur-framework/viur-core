@@ -80,14 +80,19 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: Dict[str, Any], refreshKey: db
 			db.RunInTransaction(refreshTxn)
 
 
-
 class fileBone(treeLeafBone):
 	kind = "file"
 	type = "relational.tree.leaf.file"
 	refKeys = ["name", "key", "mimetype", "dlkey", "size", "width", "height", "derived"]
 
-	def __init__(self, format="value['dest']['name']", derive: Union[None, Dict[str, Any]] = None,
-				 validMimeTypes: Union[None, List[str]] = None, maxFileSize: Union[None, int] = None, *args, **kwargs):
+	def __init__(
+		self,
+		*,
+		derive: Union[None, Dict[str, Any]] = None,
+		validMimeTypes: Union[None, List[str]] = None,
+		maxFileSize: Union[None, int] = None,
+		**kwargs
+	):
 		"""
 		Initializes a new Filebone. All properties inherited by relationalBone are supported.
 		:param format: Hint for the UI how to display a file entry (defaults to it's filename)
@@ -106,9 +111,11 @@ class fileBone(treeLeafBone):
 		:param maxFileSize: The maximum filesize accepted by this bone in bytes. None means no limit. This will always
 			be checked against the original file uploaded - not any of it's derivatives.
 		"""
+		super().__init__(**kwargs)
+
 		if "dlkey" not in self.refKeys:
 			self.refKeys.append("dlkey")
-		super(fileBone, self).__init__(format=format, *args, **kwargs)
+
 		self.derive = derive
 		self.validMimeTypes = validMimeTypes
 		self.maxFileSize = maxFileSize

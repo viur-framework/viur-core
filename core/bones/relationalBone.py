@@ -57,11 +57,20 @@ class relationalBone(baseBone):
 	type = "relational"
 	kind = None
 
-	def __init__(self, kind: str = None, module: Optional[str] = None, refKeys: Optional[List[str]] = None,
-				 parentKeys: Optional[List[str]] = None, multiple: Union[bool, MultipleConstraints] = False,
-				 format: str = "value['dest']['name']", using: Optional['viur.core.skeleton.RelSkel'] = None,
-				 updateLevel: int = 0, consistency: RelationalConsistency = RelationalConsistency.Ignore,
-				 *args, **kwargs):
+	def __init__(
+		self,
+		*,
+		kind: str = None,
+		module: Optional[str] = None,
+		refKeys: Optional[List[str]] = None,
+		parentKeys: Optional[List[str]] = None,
+		multiple: Union[bool, MultipleConstraints] = False,
+		format: str = "value['dest']['name']",
+		using: Optional['viur.core.skeleton.RelSkel'] = None,
+		updateLevel: int = 0,
+		consistency: RelationalConsistency = RelationalConsistency.Ignore,
+		**kwargs
+	):
 		"""
 			Initialize a new relationalBone.
 
@@ -112,9 +121,8 @@ class relationalBone(baseBone):
 					CascadeDeletion set, and B references C also with CascadeDeletion; if C gets deleted, both B and A
 					will be deleted as well.
 		"""
-		baseBone.__init__(self, multiple=multiple, *args, **kwargs)
+		super().__init__(multiple=multiple, **kwargs)
 		self.format = format
-		# self._dbValue = None #Store the original result fetched from the db here so we have that information in case a referenced entity has been deleted
 
 		if kind:
 			self.kind = kind

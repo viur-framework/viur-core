@@ -19,7 +19,7 @@ class numericBone(baseBone):
 
 	type = "numeric"
 
-	def __init__(self, precision=0, min=-int(pow(2, 30)), max=int(pow(2, 30)), defaultValue=None, *args, **kwargs):
+	def __init__(self, *, precision=0, min=-int(pow(2, 30)), max=int(pow(2, 30)), **kwargs):
 		"""
 			Initializes a new NumericBone.
 
@@ -30,10 +30,9 @@ class numericBone(baseBone):
 			:param max: Maximum accepted value (including).
 			:type max: float
 		"""
-		super(numericBone, self).__init__(defaultValue=defaultValue, *args, **kwargs)
+		super().__init__(**kwargs)
+
 		self.precision = precision
-		if not self.precision and "mode" in kwargs and kwargs["mode"] == "float":  # Fallback for old API
-			self.precision = 8
 		self.min = min
 		self.max = max
 

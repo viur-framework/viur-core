@@ -14,8 +14,8 @@ except ImportError:
 class recordBone(baseBone):
 	type = "record"
 
-	def __init__(self, using, format=None, indexed=False, *args, **kwargs):
-		super(recordBone, self).__init__(*args, **kwargs)
+	def __init__(self, *, using, format=None, indexed=False, **kwargs):
+		super().__init__(indexed=indexed, **kwargs)
 		self.using = using
 		self.format = format
 		if not format or indexed:
