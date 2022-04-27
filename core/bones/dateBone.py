@@ -13,18 +13,14 @@ import pytz, tzlocal
 class dateBone(baseBone):
 	type = "date"
 
-	@staticmethod
-	def generageSearchWidget(target, name="DATE BONE", mode="range"):
-		return ({"name": name, "mode": mode, "target": target, "type": "date"})
-
 	def __init__(
 		self,
 		*,
 		creationMagic: bool = False,
-		updateMagic: bool = False,
 		date: bool = True,
-		time: bool = True,
 		localize: bool = False,
+		time: bool = True,
+		updateMagic: bool = False,
 		**kwargs
 	):
 		"""

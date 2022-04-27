@@ -9,12 +9,13 @@ class booleanBone(baseBone):
 	type = "bool"
 	trueStrs = [str(True), u"1", u"yes"]
 
-	@staticmethod
-	def generageSearchWidget(target, name="BOOLEAN BONE"):
-		return ({"name": name, "target": target, "type": "boolean"})
-
-	def __init__(self, *, defaultValue=False, **kwargs):
-		if defaultValue not in [True, False]:
+	def __init__(
+		self,
+		*,
+		defaultValue: bool = False,
+		**kwargs
+	):
+		if defaultValue not in (True, False):
 			raise ValueError("Only 'True' or 'False' can be provided as booleanBone defaultValue")
 
 		super().__init__(defaultValue=defaultValue, **kwargs)

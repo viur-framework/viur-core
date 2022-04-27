@@ -1,20 +1,31 @@
 # Changelog
 
 This file documents any relevant changes done to ViUR Core since version 3.0.0.
-For the 2.x changelog see the [viur/server](https://github.com/viur-framework/server) repository
 
 
-## [develop] - Current development version
+## [develop]
 
 ### Added
 
 ### Changed
 
 ### Fixed
-- serializing stringBones with languages without prior fromClient call
 
 ### Removed
 
+
+## [3.1.1] - Current development version
+
+### Added
+
+### Changed
+- Updated viur-datastore to v1.2.2
+
+### Fixed
+- serializing stringBones with languages without prior fromClient call (#421)
+- Fixed seoKeyBone failing to serialize if no languages has been set on the project (#422)
+
+### Removed
 
 
 ## [3.1.0]

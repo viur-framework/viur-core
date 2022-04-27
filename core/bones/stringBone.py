@@ -13,11 +13,12 @@ from viur.core.utils import currentLanguage
 class stringBone(baseBone):
 	type = "str"
 
-	@staticmethod
-	def generageSearchWidget(target, name="STRING BONE", mode="equals"):
-		return ({"name": name, "mode": mode, "target": target, "type": "string"})
-
-	def __init__(self, *, caseSensitive=True, **kwargs):
+	def __init__(
+		self,
+		*,
+		caseSensitive: bool = True,
+		**kwargs
+	):
 		super().__init__(**kwargs)
 		self.caseSensitive = caseSensitive
 
