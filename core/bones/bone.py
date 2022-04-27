@@ -70,7 +70,7 @@ class baseBone(object):  # One Bone:
 		indexed: bool = True,
 		isEmptyFunc=None,
 		languages: Union[None, List[str]] = None,
-		multiple: bool = False,
+		multiple: Union[bool, MultipleConstraints] = False,
 		params: Dict = None,
 		readOnly: bool = False,
 		required: bool = False,

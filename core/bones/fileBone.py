@@ -89,8 +89,8 @@ class fileBone(treeLeafBone):
 		self,
 		*,
 		derive: Union[None, Dict[str, Any]] = None,
-		validMimeTypes: Union[None, List[str]] = None,
 		maxFileSize: Union[None, int] = None,
+		validMimeTypes: Union[None, List[str]] = None,
 		**kwargs
 	):
 		"""
