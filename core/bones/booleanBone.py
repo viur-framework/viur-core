@@ -9,10 +9,6 @@ class booleanBone(baseBone):
 	type = "bool"
 	trueStrs = [str(True), u"1", u"yes"]
 
-	@staticmethod
-	def generageSearchWidget(target, name="BOOLEAN BONE"):
-		return ({"name": name, "target": target, "type": "boolean"})
-
 	def __init__(self, defaultValue=False, *args, **kwargs):
 		assert defaultValue in [True, False]
 		super(booleanBone, self).__init__(defaultValue=defaultValue, *args, **kwargs)
