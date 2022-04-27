@@ -239,7 +239,7 @@ class File(Tree):
 
 	blobCacheTime = 60 * 60 * 24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
 
-	def write(self, filename: str, content: Any, mimetype: str = "text/plain", width: int = 0, height: int = 0):
+	def write(self, filename: str, content: Any, mimetype: str = "text/plain", width: int = None, height: int = None) -> db.Key:
 		"""
 		Write a file from any buffer into the file module.
 
