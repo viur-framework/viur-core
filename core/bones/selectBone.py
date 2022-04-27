@@ -57,29 +57,3 @@ class selectBone(baseBone):
 				return key, None
 		return self.getEmptyValue(), [
 			ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value selected")]
-
-	def buildDBFilter__(self, name, skel, dbFilter, rawFilter, prefix=None):
-		"""
-			Parses the searchfilter a client specified in his Request into
-			something understood by the datastore.
-			This function must:
-
-				* Ignore all filters not targeting this bone
-				* Safely handle malformed data in rawFilter
-					(this parameter is directly controlled by the client)
-
-			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:param skel: The :class:`server.db.Query` this bone is part of
-			:type skel: :class:`server.skeleton.Skeleton`
-			:param dbFilter: The current :class:`server.db.Query` instance the filters should be applied to
-			:type dbFilter: :class:`server.db.Query`
-			:param rawFilter: The dictionary of filters the client wants to have applied
-			:type rawFilter: dict
-			:returns: The modified :class:`server.db.Query`
-		"""
-		if not self.multiple:
-			return super(selectBone, self).buildDBFilter(name, skel, dbFilter, rawFilter, prefix)
-
-		if name in rawFilter:
-			dbFilter.filter((prefix or "") + name + " AC", rawFilter[name])
