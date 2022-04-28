@@ -13,8 +13,13 @@ from viur.core.utils import currentLanguage
 class stringBone(baseBone):
 	type = "str"
 
-	def __init__(self, caseSensitive=True, *args, **kwargs):
-		super(stringBone, self).__init__(*args, **kwargs)
+	def __init__(
+		self,
+		*,
+		caseSensitive: bool = True,
+		**kwargs
+	):
+		super().__init__(**kwargs)
 		self.caseSensitive = caseSensitive
 
 	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):

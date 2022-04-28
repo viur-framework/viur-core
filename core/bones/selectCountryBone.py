@@ -735,14 +735,14 @@ class selectCountryBone(selectBone):
 	ISO2 = 2
 	ISO3 = 3
 
-	def __init__(self, codes=ISO2, values=None, *args, **kwargs):
+	def __init__(self, *, codes=ISO2, values=None, **kwargs):
 		global ISO2CODES, ISO3CODES
 		assert codes in [self.ISO2, self.ISO3]
 		assert values is None
 
 		super().__init__(
 			values=OrderedDict(sorted((ISO2CODES if codes == self.ISO2 else ISO3CODES).items(), key=lambda i: i[1])),
-			*args, **kwargs
+			**kwargs
 		)
 
 		self.codes = codes

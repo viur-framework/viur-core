@@ -17,7 +17,7 @@ from viur.core.cache import flushCache
 class TreeSkel(Skeleton):
 	parententry = keyBone(descr="Parent", visible=False, indexed=True, readOnly=True)
 	parentrepo = keyBone(descr="BaseRepo", visible=False, indexed=True, readOnly=True)
-	sortindex = numericBone(descr="SortIndex", mode="float", visible=False, indexed=True, readOnly=True, max=pow(2, 30))
+	sortindex = numericBone(descr="SortIndex", visible=False, indexed=True, readOnly=True, precision=8, max=pow(2, 30))
 
 	@classmethod
 	def preProcessSerializedData(cls, skelValues, entity):

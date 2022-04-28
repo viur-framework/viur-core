@@ -12,8 +12,8 @@ from viur.core.utils import currentRequest
 class captchaBone(bone.baseBone):
 	type = "captcha"
 
-	def __init__(self, publicKey=None, privateKey=None, *args, **kwargs):
-		bone.baseBone.__init__(self, *args, **kwargs)
+	def __init__(self, *, publicKey=None, privateKey=None, **kwargs):
+		super().__init__(**kwargs)
 		self.defaultValue = self.publicKey = publicKey
 		self.privateKey = privateKey
 		if not self.defaultValue and not self.privateKey:
@@ -22,7 +22,6 @@ class captchaBone(bone.baseBone):
 				self.defaultValue = self.publicKey = conf["viur.security.captcha.defaultCredentials"]["sitekey"]
 				self.privateKey = conf["viur.security.captcha.defaultCredentials"]["secret"]
 		self.required = True
-		self.hasDBField = False
 
 	def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
 		return False
