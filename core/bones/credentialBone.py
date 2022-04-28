@@ -13,8 +13,8 @@ class credentialBone(stringBone):
 	"""
 	type = "str.credential"
 
-	def __init__(self, *args, **kwargs):
-		super(credentialBone, self).__init__(*args, **kwargs)
+	def __init__(self, **kwargs):
+		super().__init__(**kwargs)
 		if self.multiple or self.languages:
 			raise ValueError("Credential-Bones cannot be multiple or translated!")
 

@@ -14,8 +14,19 @@ except ImportError:
 class recordBone(baseBone):
 	type = "record"
 
-	def __init__(self, using, format=None, indexed=False, *args, **kwargs):
-		super(recordBone, self).__init__(*args, **kwargs)
+	def __init__(
+		self,
+		*,
+		format: str = None,
+		indexed: bool = False,
+		using: 'viur.core.skeleton.RelSkel' = None,
+		**kwargs
+	):
+		from viur.core.skeleton import RelSkel
+		if not issubclass(using, RelSkel):
+			raise ValueError("recordBone requires for valid using-parameter (subclass of viur.core.skeleton.RelSkel)")
+
+		super().__init__(indexed=indexed, **kwargs)
 		self.using = using
 		self.format = format
 		if not format or indexed:

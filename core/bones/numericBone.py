@@ -2,8 +2,8 @@
 from viur.core.bones import baseBone
 from math import pow
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-import logging
-from typing import Any
+import logging, warnings
+from typing import Any, Union
 
 
 class numericBone(baseBone):
@@ -14,7 +14,15 @@ class numericBone(baseBone):
 	"""
 	type = "numeric"
 
-	def __init__(self, precision=0, min=-int(pow(2, 30)), max=int(pow(2, 30)), defaultValue=None, *args, **kwargs):
+	def __init__(
+		self,
+		*,
+		max: Union[int, float] = int(pow(2, 30)),
+		min: Union[int, float] = -int(pow(2, 30)),
+		mode=None,  # deprecated!
+		precision: int = 0,
+		**kwargs
+	):
 		"""
 			Initializes a new NumericBone.
 
@@ -25,10 +33,22 @@ class numericBone(baseBone):
 			:param max: Maximum accepted value (including).
 			:type max: float
 		"""
-		super(numericBone, self).__init__(defaultValue=defaultValue, *args, **kwargs)
+		super().__init__(**kwargs)
+
+		if mode:
+			logging.warning("mode-parameter to numericBone is deprecated")
+			warnings.warn(
+				"mode-parameter to numericBone is deprecated", DeprecationWarning
+			)
+
+		if not precision and mode == "float":
+			logging.warning("mode='float' is deprecated, use precision=8 for same behavior")
+			warnings.warn(
+				"mode='float' is deprecated, use precision=8 for same behavior", DeprecationWarning
+			)
+			precision = 8
+
 		self.precision = precision
-		if not self.precision and "mode" in kwargs and kwargs["mode"] == "float":  # Fallback for old API
-			self.precision = 8
 		self.min = min
 		self.max = max
 

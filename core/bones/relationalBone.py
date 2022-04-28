@@ -11,7 +11,7 @@ except ImportError:
 from time import time
 from datetime import datetime
 import logging
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity, MultipleConstraints
+from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from typing import List, Any, Optional, Union
 from enum import Enum
 from itertools import chain
@@ -52,16 +52,24 @@ class relationalBone(baseBone):
 		If you filter a list by relational properties, this will also use the old data! (Eg. filtering A's list by
 		B's new name won't return any result)
 	"""
-	refKeys = ["key", "name"]
-	parentKeys = ["key", "name"]
+	refKeys = ["key", "name"]  # todo: turn into a tuple, as it should not be mutable.
+	parentKeys = ["key", "name"]  # todo: turn into a tuple, as it should not be mutable.
 	type = "relational"
 	kind = None
 
-	def __init__(self, kind: str = None, module: Optional[str] = None, refKeys: Optional[List[str]] = None,
-				 parentKeys: Optional[List[str]] = None, multiple: Union[bool, MultipleConstraints] = False,
-				 format: str = "value['dest']['name']", using: Optional['viur.core.skeleton.RelSkel'] = None,
-				 updateLevel: int = 0, consistency: RelationalConsistency = RelationalConsistency.Ignore,
-				 *args, **kwargs):
+	def __init__(
+		self,
+		*,
+		consistency: RelationalConsistency = RelationalConsistency.Ignore,
+		format: str = "value['dest']['name']",  # todo: Replace by old version (see #383)
+		kind: str = None,
+		module: Optional[str] = None,
+		parentKeys: Optional[List[str]] = None,
+		refKeys: Optional[List[str]] = None,
+		updateLevel: int = 0,  # todo: make an enum from this as well?
+		using: Optional['viur.core.skeleton.RelSkel'] = None,
+		**kwargs
+	):
 		"""
 			Initialize a new relationalBone.
 
@@ -112,9 +120,8 @@ class relationalBone(baseBone):
 					CascadeDeletion set, and B references C also with CascadeDeletion; if C gets deleted, both B and A
 					will be deleted as well.
 		"""
-		baseBone.__init__(self, multiple=multiple, *args, **kwargs)
+		super().__init__(**kwargs)
 		self.format = format
-		# self._dbValue = None #Store the original result fetched from the db here so we have that information in case a referenced entity has been deleted
 
 		if kind:
 			self.kind = kind
@@ -125,7 +132,7 @@ class relationalBone(baseBone):
 			self.module = self.kind
 
 		if self.kind is None or self.module is None:
-			raise NotImplementedError("Type and Module of relationalbone's must not be None")
+			raise NotImplementedError("Type and Module of relationalBone must not be None")
 
 		if refKeys:
 			if not "key" in refKeys:
@@ -145,11 +152,6 @@ class relationalBone(baseBone):
 			from viur.core.skeleton import RefSkel, SkeletonInstance
 			self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
 			self._skeletonInstanceClassRef = SkeletonInstance
-
-	#	self._usingSkelCache = using() if using else None
-	# else:
-	#	self._refSkelCache = None
-	#	self._usingSkelCache = None
 
 	def setSystemInitialized(self):
 		super(relationalBone, self).setSystemInitialized()

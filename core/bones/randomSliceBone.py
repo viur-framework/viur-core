@@ -14,7 +14,7 @@ class randomSliceBone(baseBone):
 
 	type = "randomslice"
 
-	def __init__(self, visible=False, readOnly=True, slices=2, sliceSize=0.5, *args, **kwargs):
+	def __init__(self, *, visible=False, readOnly=True, slices=2, sliceSize=0.5, **kwargs):
 		"""
 			Initializes a new randomSliceBone.
 
@@ -22,7 +22,7 @@ class randomSliceBone(baseBone):
 		"""
 		if visible or not readOnly:
 			raise NotImplemented("A RandomSliceBone must not visible and readonly!")
-		baseBone.__init__(self, indexed=True, visible=False, readOnly=True, *args, **kwargs)
+		super().__init__(indexed=True, visible=False, readOnly=True, **kwargs)
 		self.slices = slices
 		self.sliceSize = sliceSize
 

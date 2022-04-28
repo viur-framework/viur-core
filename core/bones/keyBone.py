@@ -8,8 +8,8 @@ import logging, copy
 class keyBone(baseBone):
 	type = "key"
 
-	def __init__(self, descr="Key", readOnly=True, visible=False, **kwargs):
-		super(keyBone, self).__init__(descr=descr, readOnly=True, visible=visible, defaultValue=None, **kwargs)
+	def __init__(self, *, descr="Key", readOnly=True, visible=False, **kwargs):
+		super(keyBone, self).__init__(descr=descr, readOnly=readOnly, visible=visible, defaultValue=None, **kwargs)
 
 	def unserialize(self, skel: 'viur.core.skeleton.SkeletonValues', name: str) -> bool:
 		"""

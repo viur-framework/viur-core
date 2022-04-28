@@ -13,23 +13,20 @@ SelectBoneMultiple = List[SelectBoneValue]
 class selectBone(baseBone):
 	type = "select"
 
-	def __init__(self, defaultValue: Union[None, Dict[str, Union[SelectBoneMultiple, SelectBoneValue]], SelectBoneMultiple] = None,
-				 values: Union[Dict, List, Tuple, Callable] = (),
-				 multiple: bool = False, languages: bool = False, *args, **kwargs):
+	def __init__(
+		self,
+		*,
+		defaultValue: Union[None, Dict[str, Union[SelectBoneMultiple, SelectBoneValue]], SelectBoneMultiple] = None,
+		values: Union[Dict, List, Tuple, Callable] = (),
+		**kwargs
+	):
 		"""
 			Creates a new selectBone.
 
 			:param defaultValue: key(s) which will be checked by default
 			:param values: dict of key->value pairs from which the user can choose from.
 		"""
-		if defaultValue is None and multiple:
-			if languages:
-				defaultValue = {}
-			else:
-				defaultValue = []
-
-		super(selectBone, self).__init__(
-			defaultValue=defaultValue, multiple=multiple, languages=languages, *args, **kwargs)
+		super().__init__(defaultValue=defaultValue, **kwargs)
 
 		# handle list/tuple as dicts
 		if isinstance(values, (list, tuple)):

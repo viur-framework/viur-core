@@ -9,9 +9,16 @@ class booleanBone(baseBone):
 	type = "bool"
 	trueStrs = [str(True), u"1", u"yes"]
 
-	def __init__(self, defaultValue=False, *args, **kwargs):
-		assert defaultValue in [True, False]
-		super(booleanBone, self).__init__(defaultValue=defaultValue, *args, **kwargs)
+	def __init__(
+		self,
+		*,
+		defaultValue: bool = False,
+		**kwargs
+	):
+		if defaultValue not in (True, False):
+			raise ValueError("Only 'True' or 'False' can be provided as booleanBone defaultValue")
+
+		super().__init__(defaultValue=defaultValue, **kwargs)
 
 	def singleValueFromClient(self, value, skel, name, origData):
 		if str(value) in self.trueStrs:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import logging
 import string
 from html import entities as htmlentitydefs
@@ -254,9 +253,14 @@ class textBone(baseBone):
 
 	type = "text"
 
-	def __init__(self, validHtml: Union[None, Dict] = __undefinedC__, languages: Union[None, List[str]] = None,
-				 maxLength: int = 200000, defaultValue: Any = None, indexed: bool = False,
-				 srcSet:Optional[Dict[str, List]] = None, *args, **kwargs):
+	def __init__(
+		self,
+		*,
+		validHtml: Union[None, Dict] = __undefinedC__,
+		maxLength: int = 200000,
+		srcSet: Optional[Dict[str, List]] = None,
+		**kwargs
+	):
 		"""
 			:param validHtml: If set, must be a structure like :prop:_defaultTags
 			:param languages: If set, this bone can store a different content for each language
@@ -265,22 +269,15 @@ class textBone(baseBone):
 			:param srcSet: If set, inject srcset tags to embedded images. Must be a dict of
 				"width": [List of Ints], "height": [List of Ints], eg {"height": [720, 1080]}
 		"""
-		super(textBone, self).__init__(defaultValue=defaultValue, indexed=indexed, *args, **kwargs)
+		super().__init__(**kwargs)
+
 		if validHtml == textBone.__undefinedC__:
 			global _defaultTags
 			validHtml = _defaultTags
-		if not (languages is None or (isinstance(languages, list) and languages
-									  and all(isinstance(x, str) for x in languages))):
-			raise ValueError("languages must be None or a list of strings")
-		self.languages = languages
+
 		self.validHtml = validHtml
 		self.maxLength = maxLength
 		self.srcSet = srcSet
-		if defaultValue is None:
-			if self.languages:
-				self.defaultValue = {}
-			else:
-				self.defaultValue = ""
 
 	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
 		return value
