@@ -26,7 +26,7 @@ class selectBone(baseBone):
 			:param defaultValue: key(s) which will be checked by default
 			:param values: dict of key->value pairs from which the user can choose from.
 		"""
-		super(selectBone, self).__init__(defaultValue=defaultValue, **kwargs)
+		super().__init__(defaultValue=defaultValue, **kwargs)
 
 		# handle list/tuple as dicts
 		if isinstance(values, (list, tuple)):

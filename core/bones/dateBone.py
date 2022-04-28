@@ -39,7 +39,7 @@ class dateBone(baseBone):
                                 contains date and time-information! Per default, UTC time is used.
 			:type localize: bool
 		"""
-		super().__init__(self, **kwargs)
+		super().__init__(**kwargs)
 
 		if creationMagic or updateMagic:
 			self.readonly = True
