@@ -222,7 +222,7 @@ def seoUrlToEntry(module, entry=None, skelType=None, language=None):
 		if lang in (currentSeoKeys or {}):
 			pathComponents.append(str(currentSeoKeys[lang]))
 		elif "key" in entry:
-			pathComponents.append(str(entry["key"]))
+			pathComponents.append(str(entry["key"].id_or_name) if isinstance(entry["key"], db.Key) else str(entry["key"]))
 		elif "name" in dir(entry):
 			pathComponents.append(str(entry.name))
 		return "/".join(pathComponents)
