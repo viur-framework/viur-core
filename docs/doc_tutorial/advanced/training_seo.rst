@@ -80,7 +80,7 @@ A timestamp, a bone value, a composition of bones values, ….
 .. code-block:: python
     :name: entry seo-map
     :caption: skeletons/myorders.py
-    :emphasize-lines: 21-39
+    :emphasize-lines: 20-38
 
     from typing import Union, Dict
 
@@ -88,12 +88,11 @@ A timestamp, a bone value, a composition of bones values, ….
     from viur.core.bones import *
 
     class MyOrdersSkel(Skeleton):
-        # Defaults
         first_name = stringBone(
-            descr="Vorname",
+            descr="Customer's firstname",
         )
         last_name = stringBone(
-            descr="Nachname",
+            descr="Customer's lastname",
         )
         # [...]
 
