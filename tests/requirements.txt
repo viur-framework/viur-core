@@ -1,0 +1,6 @@
+pytz==2022.1
+tzlocal==4.2
+googleapis-common-protos[grpc]==1.56.0
+requests==2.27.1
+jinja2==3.1.1
+webob==1.8.7
