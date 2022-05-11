@@ -6,7 +6,7 @@ import hashlib
 import copy
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import Union, List, Set, Any
+from typing import Union, Dict, List, Set, Any
 
 __systemIsIntitialized_ = False
 
@@ -60,13 +60,25 @@ class MultipleConstraints:  # Used to define constraints on multiple bones
 
 
 class baseBone(object):  # One Bone:
-	hasDBField = True
 	type = "hidden"
 	isClonedInstance = False
 
-	def __init__(self, descr="", defaultValue=None, required=False, params=None, multiple=False, indexed=True,
-				 languages=None, searchable=False, vfunc=None, readOnly=False, visible=True, unique=False,
-				 isEmptyFunc=None, getEmtpyValueFunc=None, **kwargs):
+	def __init__(
+		self,
+		defaultValue: Any = None,
+		descr: str = "",
+		indexed: bool = True,
+		isEmptyFunc=None,
+		languages: Union[None, List[str]] = None,
+		multiple: Union[bool, MultipleConstraints] = False,
+		params: Dict = None,
+		readOnly: bool = False,
+		required: bool = False,
+		searchable: bool = False,
+		unique: Union[None, UniqueValue] = None,
+		vfunc: callable = None,  # todo: rename to verify_function?
+		visible: bool = True,
+	):
 		"""
 			Initializes a new Bone.
 
@@ -100,15 +112,23 @@ class baseBone(object):  # One Bone:
 				The kwarg 'multiple' is not supported by all bones
 
 		"""
-		# if kwargs.get("indexed") is not None:
-		#	logging.warning("Indexed on bones is not supported anymore!")
 		self.isClonedInstance = getSystemInitialized()
+
 		self.descr = descr
-		self.required = required
 		self.params = params or {}
 		self.multiple = multiple
+		self.required = required
+		self.readOnly = readOnly
+		self.searchable = searchable
+		self.visible = visible
+
+		if not (languages is None or (isinstance(languages, list) and len(languages) > 0 and all(
+				[isinstance(x, str) for x in languages]))):
+			raise ValueError("languages must be None or a list of strings")
 		self.languages = languages
+
 		self.indexed = indexed
+
 		# Convert a None default-value to the empty container that's expected if the bone is multiple or has languages
 		if defaultValue is None and self.languages:
 			self.defaultValue = {}
@@ -116,21 +136,19 @@ class baseBone(object):  # One Bone:
 			self.defaultValue = []
 		else:
 			self.defaultValue = defaultValue
-		self.searchable = searchable
+
 		if vfunc:
 			self.isInvalid = vfunc
-		self.readOnly = readOnly
-		self.visible = visible
+
 		if unique:
 			if not isinstance(unique, UniqueValue):
 				raise ValueError("Unique must be an instance of UniqueValue")
 			if not self.multiple and unique.method.value != 1:
 				raise ValueError("'SameValue' is the only valid method on non-multiple bones")
 		self.unique = unique
+
 		if isEmptyFunc:
 			self.isEmpty = isEmptyFunc
-		if getEmtpyValueFunc:
-			self.getEmptyValue = getEmtpyValueFunc
 
 	def setSystemInitialized(self):
 		"""

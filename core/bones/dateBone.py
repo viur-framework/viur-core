@@ -13,11 +13,16 @@ import pytz, tzlocal
 class dateBone(baseBone):
 	type = "date"
 
-	@staticmethod
-	def generageSearchWidget(target, name="DATE BONE", mode="range"):
-		return ({"name": name, "mode": mode, "target": target, "type": "date"})
-
-	def __init__(self, creationMagic=False, updateMagic=False, date=True, time=True, localize=False, *args, **kwargs):
+	def __init__(
+		self,
+		*,
+		creationMagic: bool = False,
+		date: bool = True,
+		localize: bool = False,
+		time: bool = True,
+		updateMagic: bool = False,
+		**kwargs
+	):
 		"""
 			Initializes a new dateBone.
 
@@ -34,17 +39,23 @@ class dateBone(baseBone):
                                 contains date and time-information! Per default, UTC time is used.
 			:type localize: bool
 		"""
-		baseBone.__init__(self, *args, **kwargs)
+		super().__init__(**kwargs)
+
 		if creationMagic or updateMagic:
 			self.readonly = True
+
 		self.creationMagic = creationMagic
 		self.updateMagic = updateMagic
+
 		if not (date or time):
 			raise ValueError("Attempt to create an empty datebone! Set date or time to True!")
+
 		if localize and not (date and time):
 			raise ValueError("Localization is only possible with date and time!")
+
 		if self.multiple and (creationMagic or updateMagic):
 			raise ValueError("Cannot be multiple and have a creation/update-magic set!")
+
 		self.date = date
 		self.time = time
 		self.localize = localize
@@ -215,7 +226,7 @@ class dateBone(baseBone):
 			elif not self.date:
 				value = value.replace(year=1970, month=1, day=1)
 			# We should always deal with timezone aware datetimes
-			assert value.tzinfo, "Encountered a native Datetime object in %s - refusing to save." % name
+			assert value.tzinfo, "Encountered a naive Datetime object in %s - refusing to save." % name
 		return value
 
 	def singleValueUnserialize(self, value):

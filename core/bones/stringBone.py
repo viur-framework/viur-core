@@ -13,22 +13,14 @@ from viur.core.utils import currentLanguage
 class stringBone(baseBone):
 	type = "str"
 
-	@staticmethod
-	def generageSearchWidget(target, name="STRING BONE", mode="equals"):
-		return ({"name": name, "mode": mode, "target": target, "type": "string"})
-
-	def __init__(self, caseSensitive=True, languages=None, defaultValue=None, *args, **kwargs):
-		super(stringBone, self).__init__(defaultValue=defaultValue, *args, **kwargs)
+	def __init__(
+		self,
+		*,
+		caseSensitive: bool = True,
+		**kwargs
+	):
+		super().__init__(**kwargs)
 		self.caseSensitive = caseSensitive
-		if not (languages is None or (isinstance(languages, list) and len(languages) > 0 and all(
-			[isinstance(x, str) for x in languages]))):
-			raise ValueError("languages must be None or a list of strings")
-		self.languages = languages
-		if defaultValue is None:
-			if self.languages:
-				self.defaultValue = {}
-			else:
-				self.defaultValue = ""
 
 	def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
 		if not self.caseSensitive and parentIndexed:

@@ -8,8 +8,8 @@ from typing import List, Union
 class colorBone(baseBone):
 	type = "color"
 
-	def __init__(self, mode="rgb", *args, **kwargs):  # mode rgb/rgba
-		baseBone.__init__(self, *args, **kwargs)
+	def __init__(self, *, mode="rgb", **kwargs):  # mode rgb/rgba
+		super().__init__(**kwargs)
 		assert mode in {"rgb", "rgba"}
 		self.mode = mode
 

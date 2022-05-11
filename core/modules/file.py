@@ -9,7 +9,7 @@ from base64 import urlsafe_b64decode
 from datetime import datetime, timedelta
 from io import BytesIO
 from quopri import decodestring
-from typing import Dict, Tuple, Union, List
+from typing import Any, Dict, Tuple, Union, List
 from urllib.request import urlopen
 from viur.core.config import conf
 
@@ -238,6 +238,34 @@ class File(Tree):
 	}
 
 	blobCacheTime = 60 * 60 * 24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
+
+	def write(self, filename: str, content: Any, mimetype: str = "text/plain", width: int = None, height: int = None) -> db.Key:
+		"""
+		Write a file from any buffer into the file module.
+
+		:param filename: Filename to be written.
+		:param content:  The file content to be written, as bytes-like object.
+		:param mimetype: The file's mimetype.
+		:param width: Optional width information for the file.
+		:param height: Optional height information for the file.
+
+		:return: Returns the key of the file object written. This can be associated e.g. with a fileBone.
+		"""
+		dl_key = utils.generateRandomString()
+
+		blob = bucket.blob("%s/source/%s" % (dl_key, filename))
+		blob.upload_from_file(BytesIO(content), content_type=mimetype)
+
+		skel = self.addSkel("leaf")
+		skel["name"] = filename
+		skel["size"] = blob.size
+		skel["mimetype"] = mimetype
+		skel["dlkey"] = dl_key
+		skel["weak"] = True
+		skel["width"] = width
+		skel["height"] = height
+
+		return skel.toDB()
 
 	@callDeferred
 	def deleteRecursive(self, parentKey):

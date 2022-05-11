@@ -13,23 +13,20 @@ SelectBoneMultiple = List[SelectBoneValue]
 class selectBone(baseBone):
 	type = "select"
 
-	def __init__(self, defaultValue: Union[None, Dict[str, Union[SelectBoneMultiple, SelectBoneValue]], SelectBoneMultiple] = None,
-				 values: Union[Dict, List, Tuple, Callable] = (),
-				 multiple: bool = False, languages: bool = False, *args, **kwargs):
+	def __init__(
+		self,
+		*,
+		defaultValue: Union[None, Dict[str, Union[SelectBoneMultiple, SelectBoneValue]], SelectBoneMultiple] = None,
+		values: Union[Dict, List, Tuple, Callable] = (),
+		**kwargs
+	):
 		"""
 			Creates a new selectBone.
 
 			:param defaultValue: key(s) which will be checked by default
 			:param values: dict of key->value pairs from which the user can choose from.
 		"""
-		if defaultValue is None and multiple:
-			if languages:
-				defaultValue = {}
-			else:
-				defaultValue = []
-
-		super(selectBone, self).__init__(
-			defaultValue=defaultValue, multiple=multiple, languages=languages, *args, **kwargs)
+		super().__init__(defaultValue=defaultValue, **kwargs)
 
 		# handle list/tuple as dicts
 		if isinstance(values, (list, tuple)):
@@ -57,29 +54,3 @@ class selectBone(baseBone):
 				return key, None
 		return self.getEmptyValue(), [
 			ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value selected")]
-
-	def buildDBFilter__(self, name, skel, dbFilter, rawFilter, prefix=None):
-		"""
-			Parses the searchfilter a client specified in his Request into
-			something understood by the datastore.
-			This function must:
-
-				* Ignore all filters not targeting this bone
-				* Safely handle malformed data in rawFilter
-					(this parameter is directly controlled by the client)
-
-			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:param skel: The :class:`server.db.Query` this bone is part of
-			:type skel: :class:`server.skeleton.Skeleton`
-			:param dbFilter: The current :class:`server.db.Query` instance the filters should be applied to
-			:type dbFilter: :class:`server.db.Query`
-			:param rawFilter: The dictionary of filters the client wants to have applied
-			:type rawFilter: dict
-			:returns: The modified :class:`server.db.Query`
-		"""
-		if not self.multiple:
-			return super(selectBone, self).buildDBFilter(name, skel, dbFilter, rawFilter, prefix)
-
-		if name in rawFilter:
-			dbFilter.filter((prefix or "") + name + " AC", rawFilter[name])
