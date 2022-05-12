@@ -327,7 +327,7 @@ class TextBone(BaseBone):
 								 {"height": x} for x in (self.srcSet.get("height") or [])
 							 ]
 			}
-			from viur.core.bones.FileBone import ensureDerived
+			from viur.core.bones.file import ensureDerived
 			for blobKey in newFileKeys:
 				fileObj = db.Query("file").filter("dlkey =", blobKey)\
 					.order(("creationdate", db.SortOrder.Ascending)).getEntry()
@@ -405,5 +405,6 @@ class TextBone(BaseBone):
 	def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
 		if self.languages:
 			# Not yet implemented as it's unclear if we should keep each language distinct or not
-			raise NotImplementedError
-		return super(TextBone, self).getUniquePropertyIndexValues(valuesCache, name)
+			raise NotImplementedError()
+
+		return super().getUniquePropertyIndexValues(valuesCache, name)

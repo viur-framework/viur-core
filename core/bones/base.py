@@ -59,7 +59,7 @@ class MultipleConstraints:  # Used to define constraints on multiple bones
 	preventDuplicates: bool = False  # Prevent the same value of being used twice
 
 
-class BaseBone(object):  # One Bone:
+class BaseBone(object):
 	type = "hidden"
 	isClonedInstance = False
 
@@ -198,7 +198,7 @@ class BaseBone(object):  # One Bone:
 		if not self.isClonedInstance and getSystemInitialized() and key != "isClonedInstance" and not key.startswith(
 			"_"):
 			raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
-		super(BaseBone, self).__setattr__(key, value)
+		super().__setattr__(key, value)
 
 	def collectRawClientData(self, name, data, multiple, languages, collectSubfields):
 		fieldSubmitted = False

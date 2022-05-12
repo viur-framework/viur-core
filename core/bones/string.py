@@ -45,7 +45,8 @@ class StringBone(BaseBone):
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		if not name in rawFilter and not any(
 			[(x.startswith(name + "$") or x.startswith(name + ".")) for x in rawFilter.keys()]):
-			return (super(StringBone, self).buildDBFilter(name, skel, dbFilter, rawFilter, prefix))
+			return super(StringBone, self).buildDBFilter(name, skel, dbFilter, rawFilter, prefix)
+
 		hasInequalityFilter = False
 		if not self.languages:
 			namefilter = name
@@ -168,5 +169,6 @@ class StringBone(BaseBone):
 	def getUniquePropertyIndexValues(self, skel, name: str) -> List[str]:
 		if self.languages:
 			# Not yet implemented as it's unclear if we should keep each language distinct or not
-			raise NotImplementedError
-		return super(StringBone, self).getUniquePropertyIndexValues(skel, name)
+			raise NotImplementedError()
+
+		return super().getUniquePropertyIndexValues(skel, name)

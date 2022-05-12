@@ -95,6 +95,7 @@ class NumericBone(BaseBone):
 
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		updatedFilter = {}
+
 		for parmKey, paramValue in rawFilter.items():
 			if parmKey.startswith(name):
 				if parmKey != name and not parmKey.startswith(name + "$"):
@@ -110,7 +111,8 @@ class NumericBone(BaseBone):
 					logging.warning("Invalid filtering! Unparsable int/float supplied to NumericBone %s" % name)
 					raise RuntimeError()
 				updatedFilter[parmKey] = paramValue
-		return super(NumericBone, self).buildDBFilter(name, skel, dbFilter, updatedFilter, prefix)
+
+		return super().buildDBFilter(name, skel, dbFilter, updatedFilter, prefix)
 
 	def getSearchTags(self, valuesCache, name):
 		res = set()

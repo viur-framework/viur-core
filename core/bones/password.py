@@ -61,10 +61,14 @@ class PasswordBone(StringBone):
 		# Special characters?
 	]
 	passwordTestThreshold = 3
-	tooShortMessage = translate("server.bones.PasswordBone.tooShortMessage",
-								defaultText="The entered password is to short - it requires at least {{length}} characters.")
-	tooWeakMessage = translate("server.bones.PasswordBone.tooWeakMessage",
-							   defaultText="The entered password is too weak.")
+	tooShortMessage = translate(
+		"core.bones.password.tooShortMessage",
+		defaultText="The entered password is to short - it requires at least {{length}} characters."
+	)
+	tooWeakMessage = translate(
+		"core.bones.password.tooWeakMessage",
+		defaultText="The entered password is too weak."
+	)
 
 	def isInvalid(self, value):
 		if not value:

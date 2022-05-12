@@ -31,11 +31,6 @@ class RecordBone(BaseBone):
 		if not format or indexed:
 			raise NotImplementedError("A RecordBone must not be indexed and must have a format set")
 
-	def setSystemInitialized(self):
-		super(RecordBone, self).setSystemInitialized()
-
-	# self._usingSkelCache = self.using()
-
 	def singleValueUnserialize(self, val):
 		if isinstance(val, str):
 			try:

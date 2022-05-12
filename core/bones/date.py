@@ -178,7 +178,8 @@ class DateBone(BaseBone):
 		if isinstance(value, datetime):
 			if value.year < 1900:
 				return "Year must be >= 1900"
-		return super(DateBone, self).isInvalid(value)
+
+		return super().isInvalid(value)
 
 	def guessTimeZone(self):
 		"""
@@ -243,7 +244,8 @@ class DateBone(BaseBone):
 		for key in [x for x in rawFilter.keys() if x.startswith(name)]:
 			resDict = {}
 			if not self.fromClient(resDict, key, rawFilter):  # Parsing succeeded
-				super(DateBone, self).buildDBFilter(name, skel, dbFilter, {key: resDict[key]}, prefix=prefix)
+				super().buildDBFilter(name, skel, dbFilter, {key: resDict[key]}, prefix=prefix)
+
 		return dbFilter
 
 	def performMagic(self, valuesCache, name, isAdd):

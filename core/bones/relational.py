@@ -151,7 +151,7 @@ class RelationalBone(BaseBone):
 			self._skeletonInstanceClassRef = SkeletonInstance
 
 	def setSystemInitialized(self):
-		super(RelationalBone, self).setSystemInitialized()
+		super().setSystemInitialized()
 		from viur.core.skeleton import RefSkel, SkeletonInstance
 		self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
 		self._skeletonInstanceClassRef = SkeletonInstance

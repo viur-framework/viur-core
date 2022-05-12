@@ -243,7 +243,7 @@ class SpatialBone(BaseBone):
 																								 **kwargs)
 			dbFilter._calculateInternalMultiQueryLimit = self.calculateInternalMultiQueryLimit
 
-	# return( super( SpatialBone, self ).buildDBFilter( name, skel, dbFilter, rawFilter ) )
+	# return super().buildDBFilter(name, skel, dbFilter, rawFilter)
 
 	def calculateInternalMultiQueryLimit(self, dbQuery, targetAmount):
 		"""
