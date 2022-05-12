@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
-from viur.core.bones import baseBone
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-import logging
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from typing import List, Union, Any
+import logging
 
 
-class booleanBone(baseBone):
+class BooleanBone(BaseBone):
 	type = "bool"
 	trueStrs = [str(True), u"1", u"yes"]
 
@@ -16,7 +14,7 @@ class booleanBone(baseBone):
 		**kwargs
 	):
 		if defaultValue not in (True, False):
-			raise ValueError("Only 'True' or 'False' can be provided as booleanBone defaultValue")
+			raise ValueError("Only 'True' or 'False' can be provided as BooleanBone defaultValue")
 
 		super().__init__(defaultValue=defaultValue, **kwargs)
 
@@ -60,6 +58,6 @@ class booleanBone(baseBone):
 				val = True
 			else:
 				val = False
-			return (super(booleanBone, self).buildDBFilter(name, skel, dbFilter, {name: val}, prefix=prefix))
+			return (super(BooleanBone, self).buildDBFilter(name, skel, dbFilter, {name: val}, prefix=prefix))
 		else:
 			return (dbFilter)

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from viur.core.skeleton import RelSkel
 from viur.core import errors, utils, securitykey, exposed, email
-from viur.core.bones import baseBone
+from viur.core.bones import BaseBone
 from viur.core.prototypes.basic import BasicApplication
 
 
@@ -30,7 +30,7 @@ class Formmailer(BasicApplication):
 
 		# Allow bones to perform outstanding "magic" operations before sending the mail
 		for key, _bone in skel.items():
-			if isinstance(_bone, baseBone):
+			if isinstance(_bone, BaseBone):
 				_bone.performMagic(skel, key, isAdd=True)
 
 		# Get recipients

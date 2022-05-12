@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
-from viur.core.bones import baseBone
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 
-class rawBone(baseBone):
+class RawBone(BaseBone):
 	"""
 		Stores it's data without applying any pre/post-processing or filtering. Can be used to store non-html content.
 		Use the dot-notation like "raw.markdown" or similar to describe subsequent types.

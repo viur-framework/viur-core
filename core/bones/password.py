@@ -1,16 +1,12 @@
-# -*- coding: utf-8 -*-
-from viur.core import utils
-from viur.core.bones import stringBone
+from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.bones.string import StringBone
+from viur.core.i18n import translate
+from viur.core import utils, conf
 from hashlib import sha256
-import hmac
+import hmac, codecs, string, random
 from struct import Struct
 from operator import xor
 from itertools import starmap
-from viur.core.config import conf
-import string, random
-import codecs
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core.i18n import translate
 from typing import List, Union
 
 
@@ -46,7 +42,7 @@ def pbkdf2(password, salt, iterations=1001, keylen=42):
 	return codecs.encode(''.join(map(chr, buf))[:keylen].encode("LATIN-1"), 'hex_codec')
 
 
-class passwordBone(stringBone):
+class PasswordBone(StringBone):
 	"""
 		A bone holding passwords.
 		This is always empty if read from the database.
@@ -65,9 +61,9 @@ class passwordBone(stringBone):
 		# Special characters?
 	]
 	passwordTestThreshold = 3
-	tooShortMessage = translate("server.bones.passwordBone.tooShortMessage",
+	tooShortMessage = translate("server.bones.PasswordBone.tooShortMessage",
 								defaultText="The entered password is to short - it requires at least {{length}} characters.")
-	tooWeakMessage = translate("server.bones.passwordBone.tooWeakMessage",
+	tooWeakMessage = translate("server.bones.PasswordBone.tooWeakMessage",
 							   defaultText="The entered password is too weak.")
 
 	def isInvalid(self, value):

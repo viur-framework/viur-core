@@ -59,7 +59,7 @@ class MultipleConstraints:  # Used to define constraints on multiple bones
 	preventDuplicates: bool = False  # Prevent the same value of being used twice
 
 
-class baseBone(object):  # One Bone:
+class BaseBone(object):  # One Bone:
 	type = "hidden"
 	isClonedInstance = False
 
@@ -198,7 +198,7 @@ class baseBone(object):  # One Bone:
 		if not self.isClonedInstance and getSystemInitialized() and key != "isClonedInstance" and not key.startswith(
 			"_"):
 			raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
-		super(baseBone, self).__setattr__(key, value)
+		super(BaseBone, self).__setattr__(key, value)
 
 	def collectRawClientData(self, name, data, multiple, languages, collectSubfields):
 		fieldSubmitted = False
@@ -304,9 +304,9 @@ class baseBone(object):  # One Bone:
 		return False
 
 	def singleValueFromClient(self, value, skel, name, origData):
-		# The baseBone will not read any data in fromClient. Use rawValueBone if needed.
+		# The BaseBone will not read any data in fromClient. Use rawValueBone if needed.
 		return self.getEmptyValue(), [
-			ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Will not read a baseBone fromClient!")]
+			ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Will not read a BaseBone fromClient!")]
 
 	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		"""

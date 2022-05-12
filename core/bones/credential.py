@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
-from viur.core.bones import stringBone
+from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.bones.string import StringBone
 from viur.core import utils
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 
 
-class credentialBone(stringBone):
+class CredentialBone(StringBone):
 	"""
 		A bone for storing credentials.
 		This is always empty if read from the database.

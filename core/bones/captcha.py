@@ -1,15 +1,13 @@
-# -*- coding: utf-8 -*-
 import json
 import urllib.parse
 import urllib.request
 from typing import List, Union
 from viur.core import utils, conf
-from viur.core.bones import bone
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.utils import currentRequest
 
 
-class captchaBone(bone.baseBone):
+class CaptchaBone(BaseBone):
 	type = "captcha"
 
 	def __init__(self, *, publicKey=None, privateKey=None, **kwargs):

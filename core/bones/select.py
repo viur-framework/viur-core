@@ -1,16 +1,15 @@
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.i18n import translate
+
 from collections import OrderedDict
 from numbers import Number
 from typing import Callable, Dict, List, Tuple, Union
-
-from viur.core.bones import baseBone
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core.i18n import translate
 
 SelectBoneValue = Union[str, Number]
 SelectBoneMultiple = List[SelectBoneValue]
 
 
-class selectBone(baseBone):
+class SelectBone(BaseBone):
 	type = "select"
 
 	def __init__(
@@ -21,7 +20,7 @@ class selectBone(baseBone):
 		**kwargs
 	):
 		"""
-			Creates a new selectBone.
+			Creates a new SelectBone.
 
 			:param defaultValue: key(s) which will be checked by default
 			:param values: dict of key->value pairs from which the user can choose from.

@@ -1,20 +1,17 @@
-# -*- coding: utf-8 -*-
-from viur.core.bones import baseBone
-from viur.core.bones.bone import getSystemInitialized
+from viur.core.bones.base import BaseBone, getSystemInitialized, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core import utils, db
-from viur.core.errors import ReadFromClientError
+from time import time
+from datetime import datetime
+from typing import List, Any, Optional, Union
+from enum import Enum
+from itertools import chain
+import logging
+
 try:
 	import extjson
 except ImportError:
 	# FIXME: That json will not read datetime objects
 	import json as extjson
-from time import time
-from datetime import datetime
-import logging
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from typing import List, Any, Optional, Union
-from enum import Enum
-from itertools import chain
 
 
 class RelationalConsistency(Enum):
@@ -24,7 +21,7 @@ class RelationalConsistency(Enum):
 	CascadeDeletion = 4  # Delete this object also if the referenced entry is deleted (Dangerous!)
 
 
-class relationalBone(baseBone):
+class RelationalBone(BaseBone):
 	"""
 		This is our magic class implementing relations.
 
@@ -32,7 +29,7 @@ class relationalBone(baseBone):
 		small-op for each entity returned.
 		However, it costs several more write-ops for writing an entity to the db.
 		(These costs are somewhat around additional (4+len(refKeys)+len(parentKeys)) write-ops for each referenced
-		property) for multiple=True relationalBones and (4+len(refKeys)) for n:1 relations)
+		property) for multiple=True RelationalBones and (4+len(refKeys)) for n:1 relations)
 
 		So don't use this if you expect data being read less frequently than written! (Sorry, we don't have a
 		write-efficient method yet)
@@ -47,7 +44,7 @@ class relationalBone(baseBone):
 			* Both have a property "name".
 			* Entity B gets updated (it name changes).
 			* As "A" has a copy of entity "B"s values, you'll see "B"s old name inside the values of the
-			  relationalBone when fetching entity A.
+			  RelationalBone when fetching entity A.
 
 		If you filter a list by relational properties, this will also use the old data! (Eg. filtering A's list by
 		B's new name won't return any result)
@@ -71,7 +68,7 @@ class relationalBone(baseBone):
 		**kwargs
 	):
 		"""
-			Initialize a new relationalBone.
+			Initialize a new RelationalBone.
 
 			:param kind: KindName of the referenced property.
 			:param module: Name of the module which should be used to select entities of kind "type". If not set,
@@ -99,7 +96,7 @@ class relationalBone(baseBone):
 					- 0: always update refkeys (old behavior). If the referenced entity is edited, ViUR will update this
 						entity also (after a small delay, as these updates happen deferred)
 					- 1: update refKeys only on	rebuildSearchIndex. If the referenced entity changes, this entity will
-						remain unchanged (this relationalBone will still have the old values), but it can be updated
+						remain unchanged (this RelationalBone will still have the old values), but it can be updated
 						by either by editing this entity or running a rebuildSearchIndex over our kind.
 					- 2: update only if explicitly set. A rebuildSearchIndex will not trigger an update, this bone has
 						to be explicitly modified (in an edit) to have it's values updated
@@ -132,7 +129,7 @@ class relationalBone(baseBone):
 			self.module = self.kind
 
 		if self.kind is None or self.module is None:
-			raise NotImplementedError("Type and Module of relationalBone must not be None")
+			raise NotImplementedError("Type and Module of RelationalBone must not be None")
 
 		if refKeys:
 			if not "key" in refKeys:
@@ -154,7 +151,7 @@ class relationalBone(baseBone):
 			self._skeletonInstanceClassRef = SkeletonInstance
 
 	def setSystemInitialized(self):
-		super(relationalBone, self).setSystemInitialized()
+		super(RelationalBone, self).setSystemInitialized()
 		from viur.core.skeleton import RefSkel, SkeletonInstance
 		self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
 		self._skeletonInstanceClassRef = SkeletonInstance
@@ -779,7 +776,7 @@ class relationalBone(baseBone):
 
 		if not skel[boneName] or self.updateLevel == 2:
 			return
-		logging.debug("Refreshing relationalBone %s of %s" % (boneName, skel.kindName))
+		logging.debug("Refreshing RelationalBone %s of %s" % (boneName, skel.kindName))
 		if isinstance(skel[boneName], dict):
 			updateInplace(skel[boneName])
 		elif isinstance(skel[boneName], list):
@@ -988,7 +985,7 @@ class relationalBone(baseBone):
 
 	def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
 		"""
-			By default, relationalBones distinct by referenced keys. Should be overridden if a different
+			By default, RelationalBones distinct by referenced keys. Should be overridden if a different
 			behaviour is required (eg. examine values from `prop:usingSkel`)
 		"""
 		value = valuesCache.get(name)

@@ -65,7 +65,7 @@ class DefaultRender(object):
 		can be overridden and super-called from a custom renderer.
 
 		:param bone: The bone which structure should be rendered.
-		:type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
+		:type bone: Any bone that inherits from :class:`server.bones.base.BaseBone`.
 
 		:return: A dict containing the rendered attributes.
 		:rtype: dict
@@ -90,32 +90,32 @@ class DefaultRender(object):
 				"relskel": self.renderSkelStructure(bone._refSkelCache())
 			})
 
-		elif isinstance(bone, selectBone):
+		elif isinstance(bone, SelectBone):
 			ret.update({
 				"values": bone.values,
 				"multiple": bone.multiple
 			})
 
-		elif isinstance(bone, dateBone):
+		elif isinstance(bone, DateBone):
 			ret.update({
 				"date": bone.date,
 				"time": bone.time
 			})
 
-		elif isinstance(bone, numericBone):
+		elif isinstance(bone, NumericBone):
 			ret.update({
 				"precision": bone.precision,
 				"min": bone.min,
 				"max": bone.max
 			})
 
-		elif isinstance(bone, textBone):
+		elif isinstance(bone, TextBone):
 			ret.update({
 				"validHtml": bone.validHtml,
 				"languages": bone.languages
 			})
 
-		elif isinstance(bone, stringBone):
+		elif isinstance(bone, StringBone):
 			ret.update({
 				"languages": bone.languages
 			})
@@ -175,19 +175,19 @@ class DefaultRender(object):
 		It can be overridden and super-called from a custom renderer.
 
 		:param bone: The bone which value should be rendered.
-		:type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
+		:type bone: Any bone that inherits from :class:`server.bones.base.BaseBone`.
 
 		:return: A dict containing the rendered attributes.
 		:rtype: dict
 		"""
-		if isinstance(bone, dateBone):
+		if isinstance(bone, DateBone):
 			if value:
 				if bone.date and bone.time:
 					return value.strftime("%d.%m.%Y %H:%M:%S")
 				elif bone.date:
 					return value.strftime("%d.%m.%Y")
 				return value.strftime("%H:%M:%S")
-		elif isinstance(bone, relationalBone):
+		elif isinstance(bone, RelationalBone):
 			if isinstance(value, list):
 				tmpList = []
 				for k in value:
@@ -201,7 +201,7 @@ class DefaultRender(object):
 					"dest": self.renderSkelValues(value["dest"]),
 					"rel": self.renderSkelValues(value.get("rel"))
 				}
-		elif isinstance(bone, passwordBone):
+		elif isinstance(bone, PasswordBone):
 			return ""
 		else:
 			return value

@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
-from viur.core.bones import treeLeafBone
+from viur.core.bones.treeleaf import TreeLeafBone
 from viur.core import request, conf, db
 from viur.core.utils import downloadUrlFor
 from viur.core.tasks import callDeferred
-# from google.appengine.api import images
 from hashlib import sha256
 import logging
 from typing import Union, Dict, Any, List
@@ -67,8 +65,8 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: Dict[str, Any], refreshKey: db
 	if resDict:  # Write updated results back and queue updateRelationsTask
 		db.RunInTransaction(updateTxn, key, resDict)
 		# Queue that updateRelations call at least 30 seconds into the future, so that other ensureDerived calls from
-		# the same fileBone have the chance to finish, otherwise that updateRelations Task will call postSavedHandler
-		# on that fileBone again - re-queueing any ensureDerivedCalls that have not finished yet.
+		# the same FileBone have the chance to finish, otherwise that updateRelations Task will call postSavedHandler
+		# on that FileBone again - re-queueing any ensureDerivedCalls that have not finished yet.
 		updateRelations(key, time() + 1, "derived", _countdown=30)
 		if refreshKey:
 			def refreshTxn():
@@ -80,7 +78,7 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: Dict[str, Any], refreshKey: db
 			db.RunInTransaction(refreshTxn)
 
 
-class fileBone(treeLeafBone):
+class FileBone(TreeLeafBone):
 	kind = "file"
 	type = "relational.tree.leaf.file"
 	refKeys = ["name", "key", "mimetype", "dlkey", "size", "width", "height", "derived"]
@@ -94,7 +92,7 @@ class fileBone(treeLeafBone):
 		**kwargs
 	):
 		"""
-		Initializes a new Filebone. All properties inherited by relationalBone are supported.
+		Initializes a new Filebone. All properties inherited by RelationalBone are supported.
 		:param format: Hint for the UI how to display a file entry (defaults to it's filename)
 		:param derive: A set of functions used to derive other files from the referenced ones. Used fe. to create
 			thumbnails / images for srcmaps from hires uploads. If set, must be a dictionary from string (a key from

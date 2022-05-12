@@ -144,7 +144,7 @@ class Render(object):
 		can be overridden and super-called from a custom renderer.
 
 		:param bone: The bone which structure should be rendered.
-		:type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
+		:type bone: Any bone that inherits from :class:`server.bones.base.BaseBone`.
 
 		:return: A dict containing the rendered attributes.
 		:rtype: dict
@@ -225,7 +225,7 @@ class Render(object):
 		res = OrderedDict()
 
 		for key, bone in skel.items():
-			if "__" in key or not isinstance(bone, baseBone):
+			if "__" in key or not isinstance(bone, BaseBone):
 				continue
 
 			res[key] = self.renderBoneStructure(bone)
@@ -245,7 +245,7 @@ class Render(object):
 		It can be overridden and super-called from a custom renderer.
 
 		:param bone: The bone which value should be rendered.
-		:type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
+		:type bone: Any bone that inherits from :class:`server.bones.base.BaseBone`.
 
 		:return: A dict containing the rendered attributes.
 		:rtype: dict
@@ -369,7 +369,7 @@ class Render(object):
 
 		tpl = tpl or self.addTemplate
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-		skeybone = baseBone(descr="SecurityKey", readOnly=True, visible=False)
+		skeybone = BaseBone(descr="SecurityKey", readOnly=True, visible=False)
 		skel.skey = skeybone
 		skel["skey"] = securitykey.create()
 		if currentRequest.get().kwargs.get("nomissing") == "1":
@@ -409,7 +409,7 @@ class Render(object):
 
 		tpl = tpl or self.editTemplate
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-		skeybone = baseBone(descr="SecurityKey", readOnly=True, visible=False)
+		skeybone = BaseBone(descr="SecurityKey", readOnly=True, visible=False)
 		skel.skey = skeybone
 		skel["skey"] = securitykey.create()
 

@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-from viur.core.bones import baseBone
-from math import pow
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 import logging, warnings
+from math import pow
 from typing import Any, Union
 
 
-class numericBone(baseBone):
+class NumericBone(BaseBone):
 	"""
 		Holds numeric values.
 		Can be used for ints and floats.
@@ -36,9 +34,9 @@ class numericBone(baseBone):
 		super().__init__(**kwargs)
 
 		if mode:
-			logging.warning("mode-parameter to numericBone is deprecated")
+			logging.warning("mode-parameter to NumericBone is deprecated")
 			warnings.warn(
-				"mode-parameter to numericBone is deprecated", DeprecationWarning
+				"mode-parameter to NumericBone is deprecated", DeprecationWarning
 			)
 
 		if not precision and mode == "float":
@@ -109,10 +107,10 @@ class numericBone(baseBone):
 						paramValue = float(paramValue)
 				except ValueError:
 					# The value we should filter by is garbage, cancel this query
-					logging.warning("Invalid filtering! Unparsable int/float supplied to numericBone %s" % name)
+					logging.warning("Invalid filtering! Unparsable int/float supplied to NumericBone %s" % name)
 					raise RuntimeError()
 				updatedFilter[parmKey] = paramValue
-		return super(numericBone, self).buildDBFilter(name, skel, dbFilter, updatedFilter, prefix)
+		return super(NumericBone, self).buildDBFilter(name, skel, dbFilter, updatedFilter, prefix)
 
 	def getSearchTags(self, valuesCache, name):
 		res = set()

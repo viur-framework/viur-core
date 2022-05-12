@@ -1,6 +1,6 @@
 from collections import OrderedDict
+from viur.core.bones.select import SelectBone
 
-from viur.core.bones.selectBone import selectBone
 
 ISO3CODES = {
 	"abw": "Aruba",
@@ -731,7 +731,7 @@ ISO3TOISO2 = {  # Convert iso3 to iso2 codes
 ISO2TOISO3 = {v: k for k, v in ISO3TOISO2.items()}  # Build the invert map
 
 
-class selectCountryBone(selectBone):
+class SelectCountryBone(SelectBone):
 	ISO2 = 2
 	ISO3 = 3
 

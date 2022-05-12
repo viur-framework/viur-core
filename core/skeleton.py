@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import copy
@@ -12,8 +11,8 @@ from time import time
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 from viur.core import conf, db, email, errors, utils
-from viur.core.bones import baseBone, dateBone, keyBone, relationalBone, selectBone, stringBone
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
+from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, SelectBone, StringBone
+from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 from viur.core.tasks import CallableTask, CallableTaskBase, QueryIter, callDeferred
 
 try:
@@ -44,7 +43,7 @@ class MetaBaseSkel(type):
 					fillBoneMapRecursive(baseCls)
 			for key in inCls.__dict__:
 				prop = getattr(inCls, key)
-				if isinstance(prop, baseBone):
+				if isinstance(prop, BaseBone):
 					if "." in key:
 						raise AttributeError("Invalid bone '%s': Bone keys may not contain a dot (.)" % key)
 					if key in MetaBaseSkel.__reservedKeywords_:
@@ -120,7 +119,7 @@ class SkeletonInstance:
 		self.skeletonCls = skelCls
 		self.renderPreparation = None
 
-	def items(self, yieldBoneValues: bool = False) -> Iterable[Tuple[str, baseBone]]:
+	def items(self, yieldBoneValues: bool = False) -> Iterable[Tuple[str, BaseBone]]:
 		if yieldBoneValues:
 			for key in self.boneMap.keys():
 				yield key, self[key]
@@ -147,7 +146,7 @@ class SkeletonInstance:
 
 	def __setitem__(self, key, value):
 		assert self.renderPreparation is None, "Cannot modify values while rendering"
-		if isinstance(value, baseBone):
+		if isinstance(value, BaseBone):
 			raise AttributeError("Don't assign this bone object as skel[\"%s\"] = ... anymore to the skeleton. "
 								 "Use skel.%s = ... for bone to skeleton assignment!" % (key, key))
 		self.accessedValues[key] = value
@@ -188,7 +187,7 @@ class SkeletonInstance:
 			del self.renderAccessedValues[item]
 
 	def __setattr__(self, key, value):
-		if key in self.boneMap or isinstance(value, baseBone):
+		if key in self.boneMap or isinstance(value, BaseBone):
 			self.boneMap[key] = value
 		else:
 			super().__setattr__(key, value)
@@ -230,13 +229,13 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 
 		:ivar key: This bone stores the current database key of this entity. \
 		Assigning to this bones value is dangerous and does *not* affect the actual key its stored in.
-		:vartype key: server.bones.baseBone
+		:vartype key: server.bones.BaseBone
 
 		:ivar creationdate: The date and time where this entity has been created.
-		:vartype creationdate: server.bones.dateBone
+		:vartype creationdate: server.bones.DateBone
 
 		:ivar changedate: The date and time of the last change to this entity.
-		:vartype changedate: server.bones.dateBone
+		:vartype changedate: server.bones.DateBone
 	"""
 	__viurBaseSkeletonMarker__ = True
 	boneMap = None
@@ -270,7 +269,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 	def setSystemInitialized(cls):
 		for attrName in dir(cls):
 			bone = getattr(cls, attrName)
-			if isinstance(bone, baseBone):
+			if isinstance(bone, BaseBone):
 				bone.setSystemInitialized()
 
 	@classmethod
@@ -289,7 +288,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 			:return: Wherever that operation succeeded or not.
 		"""
 		bone = getattr(skelValues, boneName, None)
-		if not isinstance(bone, baseBone):
+		if not isinstance(bone, BaseBone):
 			raise ValueError("%s is no valid bone on this skeleton (%s)" % (boneName, str(skelValues)))
 		skelValues[boneName]  # FIXME, ensure this bone is unserialized first
 		return bone.setBoneValue(skelValues, boneName, value, append, language)
@@ -354,7 +353,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 			information.
 		"""
 		for key, bone in skelValues.items():
-			if not isinstance(bone, baseBone):
+			if not isinstance(bone, BaseBone):
 				continue
 			skelValues[key]  # Ensure value gets loaded
 			if "refresh" in dir(bone):
@@ -473,7 +472,7 @@ class CustomDatabaseAdapter:
 class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 	"""
 	This Adapter implements the a simple fulltext search ontop of the datastore.
-	On skel.toDB we collect all words from str/textBones, build all *minLength* postfixes and dump them
+	On skel.toDB we collect all words from str/TextBones, build all *minLength* postfixes and dump them
 	into the property viurTags. When queried, we'll run a prefix-match against this property - thus returning
 	entities with either a exact match or a match inside a word.
 
@@ -543,7 +542,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 		return resList
 
 
-class seoKeyBone(stringBone):
+class seoKeyBone(StringBone):
 	def unserialize(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> bool:
 		try:
 			skel.accessedValues[name] = skel.dbEntity["viur"]["viurCurrentSeoKeys"]
@@ -577,16 +576,16 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 	# The "key" bone stores the current database key of this skeleton.
 	# Warning: Assigning to this bones value now *will* set the key
 	# it gets stored in. Must be kept readOnly to avoid security-issues with add/edit.
-	key = keyBone(descr="key", readOnly=True, visible=False)
+	key = KeyBone(descr="key", readOnly=True, visible=False)
 
 	# The date (including time) when this entry has been created
-	creationdate = dateBone(descr="created at",
+	creationdate = DateBone(descr="created at",
 							readOnly=True, visible=False,
 							creationMagic=True, indexed=True,
 							localize=bool(pytz))
 
 	# The last date (including time) when this entry has been updated
-	changedate = dateBone(descr="updated at",
+	changedate = DateBone(descr="updated at",
 						  readOnly=True, visible=False,
 						  updateMagic=True, indexed=True,
 						  localize=bool(pytz))
@@ -1134,7 +1133,7 @@ class RelSkel(BaseSkeleton):
 					if err.severity == ReadFromClientErrorSeverity.Invalid:
 						complete = False
 			allBonesEmpty &= thisBoneEmpty
-		# Special Case for recordBones that are not required, but contain required bones
+		# Special Case for RecordBones that are not required, but contain required bones
 		if requiredBonesEmpty and not (allBonesEmpty and allowEmptyRequired):
 			# There's at least one required Bone that's empty; but either allowEmptyRequired is not true, or we have
 			# at least one other bone in this skeleton, that have data; so we have to reject this skeleton
@@ -1177,7 +1176,7 @@ class RelSkel(BaseSkeleton):
 		# self.valuesCache = {"entity": values, "changedValues": {}, "cachedRenderValues": {}}
 		return
 		for bkey, _bone in self.items():
-			if isinstance(_bone, baseBone):
+			if isinstance(_bone, BaseBone):
 				if bkey == "key":
 					try:
 						# Reading the value from db.Entity
@@ -1249,7 +1248,7 @@ def processRemovedRelations(removedKey, cursor=None):
 		assert skel.fromDB(entry["src"].key)
 		if entry["viur_relational_consistency"] == 3:  # Set Null
 			for key, _bone in skel.items():
-				if isinstance(_bone, relationalBone):
+				if isinstance(_bone, RelationalBone):
 					relVal = skel[key]
 					if isinstance(relVal, dict) and relVal["dest"]["key"] == removedKey:
 						# FIXME: Should never happen: "key" not in relVal["dest"]
@@ -1338,7 +1337,7 @@ class TaskUpdateSearchIndex(CallableTaskBase):
 	def dataSkel(self):
 		modules = ["*"] + listKnownSkeletons()
 		skel = BaseSkeleton().clone()
-		skel.module = selectBone(descr="Module", values={x: x for x in modules}, required=True)
+		skel.module = SelectBone(descr="Module", values={x: x for x in modules}, required=True)
 		return skel
 
 	def execute(self, module, *args, **kwargs):
@@ -1405,7 +1404,7 @@ class TaskVacuumRelations(CallableTaskBase):
 
 	def dataSkel(self):
 		skel = BaseSkeleton(cloned=True)
-		skel.module = stringBone(descr="Module", required=True)
+		skel.module = StringBone(descr="Module", required=True)
 		return skel
 
 	def execute(self, module, *args, **kwargs):
@@ -1448,7 +1447,7 @@ def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, noti
 			countRemoved += 1
 			continue
 		if srcProp not in skel:
-			logging.info("Deleting %r which refers to non-existing relationalBone %s of %s",
+			logging.info("Deleting %r which refers to non-existing RelationalBone %s of %s",
 						 str(relationObject.key()), srcProp, srcKind)
 			db.Delete(relationObject)
 			countRemoved += 1
