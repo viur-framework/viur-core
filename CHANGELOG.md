@@ -12,6 +12,7 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 ### Fixed
 
 ### Removed
+- Remove class `errors.ReadFromClientError`. Replaced by the new dataclass `bones.bone.ReadFromClienError`.  
 
 ## [3.1.3]
 
