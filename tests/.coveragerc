@@ -1,0 +1,11 @@
+# .coveragerc to control coverage.py
+[run]
+branch = True
+source =
+    ../core/
+
+[report]
+ignore_errors = True
+
+[html]
+title = ViUR-Core Coverage Report

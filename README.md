@@ -1,6 +1,7 @@
 # <img src="https://github.com/viur-framework/viur-artwork/raw/main/icons/icon-core.svg" height="128"> ViUR Core
 
 [![Documentation Status](https://readthedocs.org/projects/viur-core/badge/?version=latest)](https://viur-core.readthedocs.io/en/latest/?badge=latest)
+[![Coverage Status](https://raw.githubusercontent.com/viur-framework/viur-core/coverage-html/coverage.svg)](https://viur-framework.github.io/viur-core/)
 
 Core component and library of the [ViUR framework](https://www.viur.dev).
 
