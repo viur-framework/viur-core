@@ -226,7 +226,7 @@ class dateBone(baseBone):
 			elif not self.date:
 				value = value.replace(year=1970, month=1, day=1)
 			# We should always deal with timezone aware datetimes
-			assert value.tzinfo, "Encountered a native Datetime object in %s - refusing to save." % name
+			assert value.tzinfo, "Encountered a naive Datetime object in %s - refusing to save." % name
 		return value
 
 	def singleValueUnserialize(self, value):

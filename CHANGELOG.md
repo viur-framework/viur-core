@@ -1,9 +1,9 @@
 # Changelog
 
-This file documents any relevant changes done to ViUR Core since version 3.0.0.
+This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
 
-## [develop]
+## [develop] - Current development version
 
 ### Added
 
@@ -13,8 +13,28 @@ This file documents any relevant changes done to ViUR Core since version 3.0.0.
 
 ### Removed
 
+## [3.1.3]
 
-## [3.1.1] - Current development version
+### Changed
+
+- Re-enabled getEmptyValueFunc-parameter for baseBone (without mispelling)
+- Fixed textBone to be indexed=False by default
+- Cleaned up some code in baseBone.__init__()
+
+## [3.1.2]
+
+### Added
+- Manage version number in `version.py` for usage both as `__version__` and in setup.cfg (#430)
+
+### Changed
+- Refactoring all bone-related `__init__` functions (#426)
+
+### Fixed
+
+### Removed
+
+
+## [3.1.1]
 
 ### Added
 
