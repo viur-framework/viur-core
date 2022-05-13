@@ -11,23 +11,23 @@ class TestNumericBone(unittest.TestCase):
 		from viur.core.bones import numericBone
 		self._run_tests(numericBone())
 
-	# def test_isEmpty_emptyNone(self):
-	# 	from viur.core.bones import numericBone
-	# 	self._run_tests(numericBone(getEmtpyValueFunc=lambda: None))
+	def test_isEmpty_emptyNone(self):
+		from viur.core.bones import numericBone
+		self._run_tests(numericBone(getEmptyValueFunc=lambda: None))
 
 	def test_isEmpty_precision(self):
 		from viur.core.bones import numericBone
 		self._run_tests(numericBone(precision=2))
 
-	# def test_isEmpty_precision_emptyNone(self):
-	# 	from viur.core.bones import numericBone
-	# 	self._run_tests(numericBone(precision=2, getEmtpyValueFunc=lambda: None))
+	def test_isEmpty_precision_emptyNone(self):
+		from viur.core.bones import numericBone
+		self._run_tests(numericBone(precision=2, getEmptyValueFunc=lambda: None))
 
 	def _run_tests(self, bone):
 		self.assertFalse(bone.isEmpty(123))
 		self.assertFalse(bone.isEmpty("123"))
-		# self.assertFalse(bone.isEmpty("123.456"))
-		# self.assertFalse(bone.isEmpty("123,456"))
+		# self.assertFalse(bone.isEmpty("123.456"))  # FIXME: Shall this fail?
+		# self.assertFalse(bone.isEmpty("123,456"))  # FIXME: Shall this fail?
 		self.assertFalse(bone.isEmpty(123.456))
 
 		self.assertTrue(bone.isEmpty(""))
