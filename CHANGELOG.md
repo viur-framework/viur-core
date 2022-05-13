@@ -13,6 +13,13 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
 ### Removed
 
+## [3.1.3]
+
+### Changed
+
+- Re-enabled getEmptyValueFunc-parameter for baseBone (without mispelling)
+- Fixed textBone to be indexed=False by default
+- Cleaned up some code in baseBone.__init__()
 
 ## [3.1.2]
 
