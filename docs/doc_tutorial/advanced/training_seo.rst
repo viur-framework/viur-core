@@ -3,14 +3,14 @@ SEO
 ---
 
 ViUR offers the possibility to make URLs SEO-friendly in multiple languages.
-For this you can define seo-identifier for each url component.
+For this you can define seo-identifiers for each url component.
 
 
 Module
 ------
-The modulename is the first part of an URL.
-SEO-Identfiers has to be set as class-attribute ``seoLanguageMap`` of type ``dict[str, str]`` in the module.
-It maps a *language* to the acording *identifier*.
+The module name is the first part of a URL.
+SEO-identifiers have to be set as class-attribute ``seoLanguageMap`` of type ``dict[str, str]`` in the module.
+It maps a *language* to the according *identifier*.
 
 .. code-block:: python
     :name: module seo-map
@@ -25,17 +25,17 @@ It maps a *language* to the acording *identifier*.
             "en": "orders",
         }
 
-By default the module would be available under */myorders*, the lowercase modulename.
-With the defined :attr:`seoLanguageMap`, it's now available under */de/bestellungen* and */en/orders*.
+By default the module would be available under */myorders*, the lowercase module name.
+With the defined :attr:`seoLanguageMap`, it will become available as */de/bestellungen* and */en/orders*.
 
 Great, this part is now user and robot friendly :)
 
 
 Method
 ------
-The methodname is usually the second part of an URL.
+The method name is usually the second part of a URL.
 SEO-Identfiers can be provided to the :meth:`exposed<core.exposed>` decorator of type ``dict[str, str]``.
-It maps a *language* to the acording *identifier*.
+It maps a *language* to the according *identifier*.
 
 .. code-block:: python
     :name: method seo-map
@@ -59,21 +59,21 @@ It maps a *language* to the acording *identifier*.
             ...
 
 By default the method would be available under */myorders/view_the_cart*.
-With the defined `seoLanguageMap`, it's now available under */de/bestellungen/warenkorb* and */en/orders/cart*.
+With the defined `seoLanguageMap`, it will become available as */de/bestellungen/warenkorb* and */en/orders/cart*.
 
 Great, this part is now user and robot friendly as well :)
 
 
 Entry
 -----
-The entrykey is usually used as third part of an URL if you use explicit the view method.
+The entrykey is usually used as third part of a URL if you use explicit the view method.
 By default the :meth:`index<core.prototypes.list.List.index>` method
 of the :class:`List prototype<core.prototypes.list.List>`
 can handle keys or seo-indentifiers of an entry as well.
 
 SEO-Identfiers of an entry (a :class:`Skeleton<core.skeleton.Skeleton>` instance) are defined in the
 method :meth:`getCurrentSEOKeys<core.skeleton.Skeleton.getCurrentSEOKeys>` inside your Skeleton.
-This gives you the posibility to use whatever you want as identifier:
+This gives you the possibility to use whatever you want as identifier:
 A timestamp, a bone value, a composition of bones values, ….
 
 
@@ -108,8 +108,8 @@ A timestamp, a bone value, a composition of bones values, ….
             Return a dictionary of language -> SEO-Friendly key
             this entry should be reachable under.
 
-            The German and English identifiers are identically,
-            they consist the lastname (of the customer)
+            The German and English identifiers are identical,
+            they consist of the lastname (of the customer)
             and the (6 chars zero padded) order number.
 
             If the name is already in use for this module,
@@ -128,8 +128,8 @@ Great, we did it!
 
 .. warning::
 
-    Keep in mind that you can guess the identifiers in this example very easy.
-    Of course should orders not be visible by everyone.
-    Make this site noindexed and define a suitable :meth:`canView<core.prototypes.list.List.canView>`
+    Keep in mind that you can very easily guess the identifiers in this example.
+    For obvious reasons orders should not be visible by everyone.
+    In cases like this make the website noindexed and define a suitable :meth:`canView<core.prototypes.list.List.canView>`
     method inside your module, to restrict the access only to the account
     of the customer and seller.
