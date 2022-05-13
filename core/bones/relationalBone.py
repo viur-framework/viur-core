@@ -61,7 +61,7 @@ class relationalBone(baseBone):
 		self,
 		*,
 		consistency: RelationalConsistency = RelationalConsistency.Ignore,
-		format: str = "value['dest']['name']",  # todo: Replace by old version (see #383)
+		format: str = "$(dest.name)",
 		kind: str = None,
 		module: Optional[str] = None,
 		parentKeys: Optional[List[str]] = None,
