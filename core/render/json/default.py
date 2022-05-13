@@ -40,7 +40,7 @@ class DefaultRender(object):
 		can be overridden and super-called from a custom renderer.
 
 		:param bone: The bone which structure should be rendered.
-		:type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
+		:type bone: Any bone that inherits from :class:`viur.core.bones.base.baseBone`.
 
 		:return: A dict containing the rendered attributes.
 		:rtype: dict
@@ -115,7 +115,7 @@ class DefaultRender(object):
 
 	def renderSkelStructure(self, skel):
 		"""
-		Dumps the structure of a :class:`server.db.skeleton.Skeleton`.
+		Dumps the structure of a :class:`viur.core.db.skeleton.Skeleton`.
 
 		:param skel: Skeleton which structure will be processed.
 		:type skel: server.db.skeleton.Skeleton
@@ -138,7 +138,7 @@ class DefaultRender(object):
 		It can be overridden and super-called from a custom renderer.
 
 		:param bone: The bone which value should be rendered.
-		:type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
+		:type bone: Any bone that inherits from :class:`viur.core.bones.base.baseBone`.
 
 		:return: A dict containing the rendered attributes.
 		:rtype: dict
@@ -182,7 +182,7 @@ class DefaultRender(object):
 
 	def renderSkelValues(self, skel, injectDownloadURL=False):
 		"""
-		Prepares values of one :class:`server.db.skeleton.Skeleton` or a list of skeletons for output.
+		Prepares values of one :class:`viur.core.db.skeleton.Skeleton` or a list of skeletons for output.
 
 		:param skel: Skeleton which contents will be processed.
 		:type skel: server.db.skeleton.Skeleton

@@ -84,13 +84,13 @@ class keyBone(baseBone):
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
 			:type name: str
-			:param skel: The :class:`server.db.Query` this bone is part of
-			:type skel: :class:`server.skeleton.Skeleton`
-			:param dbFilter: The current :class:`server.db.Query` instance the filters should be applied to
-			:type dbFilter: :class:`server.db.Query`
+			:param skel: The :class:`viur.core.db.Query` this bone is part of
+			:type skel: :class:`viur.core.skeleton.Skeleton`
+			:param dbFilter: The current :class:`viur.core.db.Query` instance the filters should be applied to
+			:type dbFilter: :class:`viur.core.db.Query`
 			:param rawFilter: The dictionary of filters the client wants to have applied
 			:type rawFilter: dict
-			:returns: The modified :class:`server.db.Query`
+			:returns: The modified :class:`viur.core.db.Query`
 		"""
 
 		def _decodeKey(key):

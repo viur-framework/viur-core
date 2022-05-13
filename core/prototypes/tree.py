@@ -41,7 +41,7 @@ class Tree(BasicApplication):
 	always consists of nodes (=directories) and leafs (=files).
 
 	:ivar kindName: Name of the kind of data entities that are managed by the application. \
-	This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the \
+	This information is used to bind a specific :class:`viur.core.skeleton.Skeleton`-class to the \
 	application. For more information, refer to the function :func:`_resolveSkel`.\
 	\
 	In difference to the other ViUR BasicApplication, the kindName in Trees evolve into the kindNames\
@@ -99,7 +99,7 @@ class Tree(BasicApplication):
 
 	def viewSkel(self, skelType: str, *args, **kwargs):
 		"""
-		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
+		Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
 		for viewing an existing entry from the list.
 
 		The default is a Skeleton instance returned by :func:`~baseSkel`.
@@ -113,7 +113,7 @@ class Tree(BasicApplication):
 
 	def addSkel(self, skelType: str, *args, **kwargs):
 		"""
-		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
+		Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
 		for adding an entry to the list.
 
 		The default is a Skeleton instance returned by :func:`~baseSkel`.
@@ -127,7 +127,7 @@ class Tree(BasicApplication):
 
 	def editSkel(self, skelType: str, *args, **kwargs):
 		"""
-		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
+		Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
 		for editing an existing entry from the list.
 
 		The default is a Skeleton instance returned by :func:`~baseSkel`.
@@ -145,7 +145,7 @@ class Tree(BasicApplication):
 		If no root-node exists yet, it will be created.
 
 		:returns: The entity of the root-node.
-		:rtype: :class:`server.db.Entity`
+		:rtype: :class:`viur.core.db.Entity`
 		"""
 		key = "rep_module_repo"
 		kindName = self.viewSkel("node").kindName
@@ -183,7 +183,7 @@ class Tree(BasicApplication):
 		:type entryKey: str
 
 		:returns: The entity of the root-node.
-		:rtype: :class:`server.db.Entity`
+		:rtype: :class:`viur.core.db.Entity`
 		"""
 		rootNodeSkel = self.nodeSkelCls()
 		entryKey = db.keyHelper(entryKey, rootNodeSkel.kindName)
@@ -278,11 +278,11 @@ class Tree(BasicApplication):
 		by calling the function :func:`listFilter`, which updates the query-filter to match only
 		elements which the user is allowed to see.
 
-		.. seealso:: :func:`listFilter`, :func:`server.db.mergeExternalFilter`
+		.. seealso:: :func:`listFilter`, :func:`viur.core.db.mergeExternalFilter`
 
 		:returns: The rendered list objects for the matching entries.
 
-		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
+		:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
 		"""
 		if not (skelType := self._checkSkelType(skelType)):
 			raise errors.NotAcceptable(f"Invalid skelType provided.")
@@ -329,9 +329,9 @@ class Tree(BasicApplication):
 		:param node: URL-safe key of the parent.
 		:type node: str
 
-		:raises: :exc:`server.errors.NotAcceptable`, when an incorrect *skelType* is provided.
-		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
-		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
+		:raises: :exc:`viur.core.errors.NotAcceptable`, when an incorrect *skelType* is provided.
+		:raises: :exc:`viur.core.errors.NotFound`, when no entry with the given *key* was found.
+		:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
 		"""
 		if not (skelType := self._checkSkelType(skelType)):
 			raise errors.NotAcceptable(f"Invalid skelType provided.")
@@ -364,10 +364,10 @@ class Tree(BasicApplication):
 
 		:returns: The rendered, added object of the entry, eventually with error hints.
 
-		:raises: :exc:`server.errors.NotAcceptable`, when no valid *skelType* was provided.
-		:raises: :exc:`server.errors.NotFound`, when no valid *node* was found.
-		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
-		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
+		:raises: :exc:`viur.core.errors.NotAcceptable`, when no valid *skelType* was provided.
+		:raises: :exc:`viur.core.errors.NotFound`, when no valid *node* was found.
+		:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
+		:raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
 		if "skey" in kwargs:
 			skey = kwargs["skey"]
@@ -421,10 +421,10 @@ class Tree(BasicApplication):
 
 		:returns: The rendered, modified object of the entry, eventually with error hints.
 
-		:raises: :exc:`server.errors.NotAcceptable`, when no valid *skelType* was provided.
-		:raises: :exc:`server.errors.NotFound`, when no valid *node* was found.
-		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
-		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
+		:raises: :exc:`viur.core.errors.NotAcceptable`, when no valid *skelType* was provided.
+		:raises: :exc:`viur.core.errors.NotFound`, when no valid *node* was found.
+		:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
+		:raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
 		if "skey" in kwargs:
 			skey = kwargs["skey"]
@@ -471,9 +471,9 @@ class Tree(BasicApplication):
 
 		:returns: The rendered, deleted object of the entry.
 
-		:raises: :exc:`server.errors.NotFound`, when no entry with the given *key* was found.
-		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
-		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
+		:raises: :exc:`viur.core.errors.NotFound`, when no entry with the given *key* was found.
+		:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
+		:raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
 		if "skey" in kwargs:
 			skey = kwargs["skey"]
@@ -613,10 +613,10 @@ class Tree(BasicApplication):
 		is allowed to see.
 
 		:param filter: Query which should be altered.
-		:type filter: :class:`server.db.Query`
+		:type filter: :class:`viur.core.db.Query`
 
 		:returns: The altered filter, or None if access is not granted.
-		:type filter: :class:`server.db.Query`
+		:type filter: :class:`viur.core.db.Query`
 		"""
 		user = utils.getCurrentUser()
 		if user and ("%s-view" % self.moduleName in user["access"] or "root" in user["access"]):
@@ -685,7 +685,7 @@ class Tree(BasicApplication):
 		.. seealso:: :func:`edit`
 
 		:param skel: The Skeleton that should be edited.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		:returns: True, if editing entries is allowed, False otherwise.
 		:rtype: bool
@@ -714,7 +714,7 @@ class Tree(BasicApplication):
 		It should be overridden for a module-specific behavior.
 
 		:param skel: The Skeleton that should be deleted.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`delete`
 
@@ -770,7 +770,7 @@ class Tree(BasicApplication):
 		It can be overridden for a module-specific behavior.
 
 		:param skel: The Skeleton that is going to be added.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`add`, :func:`onAdded`
 		"""
@@ -784,7 +784,7 @@ class Tree(BasicApplication):
 		The default is writing a log entry.
 
 		:param skel: The Skeleton that has been added.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`add`, :func:`onAdd`
 		"""
@@ -801,7 +801,7 @@ class Tree(BasicApplication):
 		It can be overridden for a module-specific behavior.
 
 		:param skel: The Skeleton that is going to be edited.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`edit`, :func:`onEdited`
 		"""
@@ -815,7 +815,7 @@ class Tree(BasicApplication):
 		The default is writing a log entry.
 
 		:param skel: The Skeleton that has been modified.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`edit`, :func:`onEdit`
 		"""
@@ -833,7 +833,7 @@ class Tree(BasicApplication):
 		The default is doing nothing.
 
 		:param skel: The Skeleton that is viewed.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`view`
 		"""
@@ -846,7 +846,7 @@ class Tree(BasicApplication):
 		It can be overridden for a module-specific behavior.
 
 		:param skel: The Skeleton that is going to be deleted.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`delete`, :func:`onDeleted`
 		"""
@@ -863,7 +863,7 @@ class Tree(BasicApplication):
 		(if the skeleton was a leaf or a node with no children).
 
 		:param skel: The Skeleton that has been deleted.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`delete`, :func:`onDelete`
 		"""

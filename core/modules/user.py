@@ -384,8 +384,8 @@ class UserPassword(object):
 
 			:returns: The rendered, added object of the entry, eventually with error hints.
 
-			:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
-			:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
+			:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
+			:raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
 		if "skey" in kwargs:
 			skey = kwargs["skey"]

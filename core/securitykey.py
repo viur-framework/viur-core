@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 	This module provides onetime keys.
 	There are two types of security keys:
@@ -27,7 +25,7 @@ from viur.core.utils import generateRandomString
 from viur.core.utils import currentSession, currentRequest
 from viur.core import db
 from viur.core.tasks import PeriodicTask, callDeferred
-from typing import Union
+from typing import Optional, Union
 from viur.core.utils import utcNow
 
 securityKeyKindName = "viur-securitykeys"
@@ -91,7 +89,7 @@ def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
 
 
 @PeriodicTask(60 * 4)
-def startClearSKeys():
+def startClearSKeys() -> None:
 	"""
 		Removes old (expired) skeys
 	"""
@@ -99,7 +97,7 @@ def startClearSKeys():
 
 
 @callDeferred
-def doClearSKeys(timeStamp, cursor):
+def doClearSKeys(timeStamp: str, cursor: Optional[str]) -> None:
 	query = db.Query(securityKeyKindName).filter("until <", datetime.strptime(timeStamp, "%d.%m.%Y %H:%M:%S"))
 	for oldKey in query.run(100, keysOnly=True):
 		db.Delete(oldKey)

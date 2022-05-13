@@ -195,13 +195,13 @@ class spatialBone(baseBone):
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
 			:type name: str
-			:param skel: The :class:`server.db.Query` this bone is part of
-			:type skel: :class:`server.skeleton.Skeleton`
-			:param dbFilter: The current :class:`server.db.Query` instance the filters should be applied to
-			:type dbFilter: :class:`server.db.Query`
+			:param skel: The :class:`viur.core.db.Query` this bone is part of
+			:type skel: :class:`viur.core.skeleton.Skeleton`
+			:param dbFilter: The current :class:`viur.core.db.Query` instance the filters should be applied to
+			:type dbFilter: :class:`viur.core.db.Query`
 			:param rawFilter: The dictionary of filters the client wants to have applied
 			:type rawFilter: dict
-			:returns: The modified :class:`server.db.Query`
+			:returns: The modified :class:`viur.core.db.Query`
 		"""
 		assert prefix is None, "You cannot use spatial data in a relation for now"
 		if name + ".lat" in rawFilter and name + ".lng" in rawFilter:
@@ -250,7 +250,7 @@ class spatialBone(baseBone):
 
 	def calculateInternalMultiQueryLimit(self, dbQuery, targetAmount):
 		"""
-			Tells :class:`server.db.Query` How much entries should be fetched in each subquery.
+			Tells :class:`viur.core.db.Query` How much entries should be fetched in each subquery.
 
 			:param targetAmount: How many entries shall be returned from db.Query
 			:type targetAmount: int
@@ -264,13 +264,13 @@ class spatialBone(baseBone):
 			Randomly returns 'targetAmount' elements from 'result'
 
 			:param dbFilter: The db.Query calling this function
-			:type: dbFilter: server.db.Query
+			:type: dbFilter: viur.core.db.Query
 			:param result: The list of results for each subquery we've run
-			:type result: list of list of :class:`server.db.Entity`
+			:type result: list of list of :class:`viur.core.db.Entity`
 			:param targetAmount: How many results should be returned from db.Query
 			:type targetAmount: int
 			:return: List of elements which should be returned from db.Query
-			:rtype: list of :class:`server.db.Entity`
+			:rtype: list of :class:`viur.core.db.Entity`
 		"""
 		assert len(result) == 4  # There should be exactly one result for each direction
 		result = [list(x) for x in result]  # Remove the iterators

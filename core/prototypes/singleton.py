@@ -13,7 +13,7 @@ class Singleton(BasicApplication):
 	It is used to store one single data entity, and needs to be sub-classed for individual modules.
 
 	:ivar kindName: Name of the kind of data entities that are managed by the application. \
-	This information is used to bind a specific :class:`server.skeleton.Skeleton`-class to the \
+	This information is used to bind a specific :class:`viur.core.skeleton.Skeleton`-class to the \
 	application. For more information, refer to the function :func:`~baseSkel`.
 	:vartype kindName: str
 
@@ -47,7 +47,7 @@ class Singleton(BasicApplication):
 
 	def viewSkel(self, *args, **kwargs):
 		"""
-		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
+		Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
 		for viewing the existing entry.
 
 		The default is a Skeleton instance returned by :func:`~baseSkel`.
@@ -61,7 +61,7 @@ class Singleton(BasicApplication):
 
 	def editSkel(self, *args, **kwargs):
 		"""
-		Retrieve a new instance of a :class:`server.skeleton.Skeleton` that is used by the application
+		Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
 		for editing the existing entry.
 
 		The default is a Skeleton instance returned by :func:`~baseSkel`.
@@ -122,8 +122,8 @@ class Singleton(BasicApplication):
 
 		:returns: The rendered representation of the entity.
 
-		:raises: :exc:`server.errors.NotFound`, if there is no singleton entry existing, yet.
-		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
+		:raises: :exc:`viur.core.errors.NotFound`, if there is no singleton entry existing, yet.
+		:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
 		"""
 
 		skel = self.viewSkel()
@@ -152,8 +152,8 @@ class Singleton(BasicApplication):
 
 		:returns: The rendered, edited object of the entry, eventually with error hints.
 
-		:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
-		:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
+		:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
+		:raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
 
 		if "skey" in kwargs:
@@ -186,7 +186,7 @@ class Singleton(BasicApplication):
 
 	def getContents(self):
 		"""
-		Returns the entity of this singleton application as :class:`server.skeleton.Skeleton` object.
+		Returns the entity of this singleton application as :class:`viur.core.skeleton.Skeleton` object.
 
 		:returns: The content as Skeleton provided by :func:`viewSkel`.
 		"""
@@ -277,7 +277,7 @@ class Singleton(BasicApplication):
 		.. seealso:: :func:`view`
 
 		:param skel: The Skeleton that should be viewed.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		:returns: True, if viewing is allowed, False otherwise.
 		:rtype: bool
@@ -298,7 +298,7 @@ class Singleton(BasicApplication):
 		It can be overridden for a module-specific behavior.
 
 		:param skel: The Skeleton that is going to be edited.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`edit`, :func:`onEdited`
 		"""
@@ -312,7 +312,7 @@ class Singleton(BasicApplication):
 		The default is writing a log entry.
 
 		:param skel: The Skeleton that has been modified.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`edit`, :func:`onEdit`
 		"""
@@ -330,7 +330,7 @@ class Singleton(BasicApplication):
 		The default is doing nothing.
 
 		:param skel: The Skeleton that is being viewed.
-		:type skel: :class:`server.skeleton.Skeleton`
+		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`view`
 		"""

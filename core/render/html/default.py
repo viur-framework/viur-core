@@ -29,7 +29,7 @@ class Render(object):
 		more information. Second, we'll pass data das global variables to templates depending on the
 		current action.
 
-			- For list() we'll pass `skellist` - a :py:class:`server.render.jinja2.default.SkelListWrapper` instance
+			- For list() we'll pass `skellist` - a :py:class:`viur.core.render.jinja2.default.SkelListWrapper` instance
 			- For view(): skel - a dictionary with values from the skeleton prepared for use inside html
 			- For add()/edit: a dictionary as `skel` with `values`, `structure` and `errors` as keys.
 
@@ -80,7 +80,7 @@ class Render(object):
 			their usual way.
 
 			It is advised to override this function in case that
-			:func:`server.render.jinja2.default.Render.getLoaders` is redefined.
+			:func:`viur.core.render.jinja2.default.Render.getLoaders` is redefined.
 
 			:param template: The basename of the template to use.
 			:type template: str
@@ -144,7 +144,7 @@ class Render(object):
 		can be overridden and super-called from a custom renderer.
 
 		:param bone: The bone which structure should be rendered.
-		:type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
+		:type bone: Any bone that inherits from :class:`viur.core.bones.base.baseBone`.
 
 		:return: A dict containing the rendered attributes.
 		:rtype: dict
@@ -214,7 +214,7 @@ class Render(object):
 
 	def renderSkelStructure(self, skel):
 		"""
-			Dumps the structure of a :class:`server.db.skeleton.Skeleton`.
+			Dumps the structure of a :class:`viur.core.db.skeleton.Skeleton`.
 
 			:param skel: Skeleton which structure will be processed.
 			:type skel: server.db.skeleton.Skeleton
@@ -245,7 +245,7 @@ class Render(object):
 		It can be overridden and super-called from a custom renderer.
 
 		:param bone: The bone which value should be rendered.
-		:type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
+		:type bone: Any bone that inherits from :class:`viur.core.bones.base.baseBone`.
 
 		:return: A dict containing the rendered attributes.
 		:rtype: dict
@@ -318,7 +318,7 @@ class Render(object):
 
 	def collectSkelData(self, skel):
 		"""
-			Prepares values of one :class:`server.db.skeleton.Skeleton` or a list of skeletons for output.
+			Prepares values of one :class:`viur.core.db.skeleton.Skeleton` or a list of skeletons for output.
 
 			:param skel: Skeleton which contents will be processed.
 			:type skel: server.db.skeleton.Skeleton

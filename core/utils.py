@@ -33,7 +33,7 @@ coreBasePath = globals()["__file__"].replace("/viur/core/utils.py","")
 isLocalDevelopmentServer = os.environ['GAE_ENV'] == "localdev"
 
 
-def utcNow():
+def utcNow() -> datetime:
 	return datetime.now(timezone.utc)
 
 
@@ -51,16 +51,15 @@ def generateRandomString(length: int = 13) -> str:
 	return "".join(random.choices(string.ascii_letters + string.digits, k=length))
 
 
-def getCurrentUser():
+def getCurrentUser() -> Optional["SkeletonInstance"]:
 	"""
 		Retrieve current user, if logged in.
 
 		If a user is logged in, this function returns a dict containing user data.
-
 		If no user is logged in, the function returns None.
 
-		:rtype: dict | bool
-		:returns: A dict containing information about the logged-in user, None if no user is logged in.
+		:returns: A SkeletonInstance containing information about the logged-in
+			user, None if no user is logged in.
 	"""
 	user = None
 	if "user" in dir(conf["viur.mainApp"]):  # Check for our custom user-api
@@ -68,7 +67,7 @@ def getCurrentUser():
 	return user
 
 
-def markFileForDeletion(dlkey):
+def markFileForDeletion(dlkey: str) -> None:
 	"""
 	Adds a marker to the data store that the file specified as *dlkey* can be deleted.
 
@@ -77,7 +76,6 @@ def markFileForDeletion(dlkey):
 	the mark and the file are removed from the datastore. These delayed checks are necessary
 	due to database inconsistency.
 
-	:type dlkey: str
 	:param dlkey: Unique download-key of the file that shall be marked for deletion.
 	"""
 	fileObj = db.Query("viur-deleted-files").filter("dlkey", dlkey).getEntry()
@@ -91,18 +89,13 @@ def markFileForDeletion(dlkey):
 	db.Put(fileObj)
 
 
-def escapeString(val, maxLength=254):
+def escapeString(val: str, maxLength: int = 254) -> str:
 	"""
 		Quotes several characters and removes "\\\\n" and "\\\\0" to prevent XSS injection.
 
 		:param val: The value to be escaped.
-		:type val: str
-
 		:param maxLength: Cut-off after maxLength characters. A value of 0 means "unlimited".
-		:type maxLength: int
-
 		:returns: The quoted string.
-		:rtype: str
 	"""
 	val = str(val).strip() \
 		.replace("<", "&lt;") \
@@ -140,6 +133,7 @@ def sanitizeFileName(fileName: str) -> str:
 	fileName = "".join([x for x in fileName if x not in "\0'\"<>\n;$&?#:;/\\"])  # Remove invalid Chars
 	return fileName.strip(".")  # Ensure the filename does not start or end with a dot
 
+
 def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
 				   expires: Union[timedelta, None] = timedelta(hours=1),
 				   downloadFileName: Optional[str] = None) -> str:
@@ -167,6 +161,7 @@ def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
 	sigStr = urlsafe_b64encode(sigStr.encode("UTF-8"))
 	resstr = hmacSign(sigStr)
 	return "/file/download/%s?sig=%s" % (sigStr.decode("ASCII"), resstr)
+
 
 def srcSetFor(fileObj: dict, expires: Optional[int], width: Optional[int] = None, height: Optional[int] = None) -> str:
 	"""
@@ -203,6 +198,7 @@ def srcSetFor(fileObj: dict, expires: Optional[int], width: Optional[int] = None
 			resList.append("%s %sh" % (downloadUrlFor(fileObj["dlkey"], fileName, True, expires), customData["height"]))
 	return ", ".join(resList)
 
+
 def seoUrlToEntry(module, entry=None, skelType=None, language=None):
 	from viur.core import conf
 	pathComponents = [""]
@@ -228,7 +224,7 @@ def seoUrlToEntry(module, entry=None, skelType=None, language=None):
 		return "/".join(pathComponents)
 
 
-def seoUrlToFunction(module, function, render=None):
+def seoUrlToFunction(module: str, function: str, render: Optional[str] = None) -> str:
 	from viur.core import conf
 	lang = currentLanguage.get()
 	if module in conf["viur.languageModuleMap"] and lang in conf["viur.languageModuleMap"][module]:
@@ -268,5 +264,6 @@ def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
 	else:
 		parent = None
 	return db.Key(key.kind, key.id_or_name, parent=parent)
+
 
 from viur.core.skeleton import SkeletonInstance

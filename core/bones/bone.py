@@ -88,7 +88,7 @@ class baseBone(object):  # One Bone:
 			:type descr: str
 			:param defaultValue: If set, this bone will be preinitialized with this value
 			:type defaultValue: mixed
-			:param required: If True, the user must enter a valid value for this bone (the server refuses to save the
+			:param required: If True, the user must enter a valid value for this bone (the viur.core refuses to save the
 				skeleton otherwise)
 			:type required: bool
 			:param multiple: If True, multiple values can be given. (ie. n:m relations instead of n:1)
@@ -586,13 +586,13 @@ class baseBone(object):  # One Bone:
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
 			:type name: str
-			:param skel: The :class:`server.db.Query` this bone is part of
-			:type skel: :class:`server.skeleton.Skeleton`
-			:param dbFilter: The current :class:`server.db.Query` instance the filters should be applied to
-			:type dbFilter: :class:`server.db.Query`
+			:param skel: The :class:`viur.core.db.Query` this bone is part of
+			:type skel: :class:`viur.core.skeleton.Skeleton`
+			:param dbFilter: The current :class:`viur.core.db.Query` instance the filters should be applied to
+			:type dbFilter: :class:`viur.core.db.Query`
 			:param rawFilter: The dictionary of filters the client wants to have applied
 			:type rawFilter: dict
-			:returns: The modified :class:`server.db.Query`
+			:returns: The modified :class:`viur.core.db.Query`
 		"""
 		myKeys = [key for key in rawFilter.keys() if (key == name or key.startswith(name + "$"))]
 
@@ -635,13 +635,13 @@ class baseBone(object):  # One Bone:
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
 			:type name: str
-			:param skel: The :class:`server.skeleton.Skeleton` instance this bone is part of
-			:type skel: :class:`server.skeleton.Skeleton`
-			:param dbFilter: The current :class:`server.db.Query` instance the filters should be applied to
-			:type dbFilter: :class:`server.db.Query`
+			:param skel: The :class:`viur.core.skeleton.Skeleton` instance this bone is part of
+			:type skel: :class:`viur.core.skeleton.Skeleton`
+			:param dbFilter: The current :class:`viur.core.db.Query` instance the filters should be applied to
+			:type dbFilter: :class:`viur.core.db.Query`
 			:param rawFilter: The dictionary of filters the client wants to have applied
 			:type rawFilter: dict
-			:returns: The modified :class:`server.db.Query`
+			:returns: The modified :class:`viur.core.db.Query`
 		"""
 		if "orderby" in rawFilter and rawFilter["orderby"] == name:
 			if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":

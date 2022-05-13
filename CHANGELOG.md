@@ -10,6 +10,7 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 ### Changed
 
 ### Fixed
+- Set the cursor of the next chunk on the query in `securitykey.doClearSKeys()` 
 
 ### Removed
 

@@ -612,7 +612,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 			Create a query with the current Skeletons kindName.
 
 			:returns: A db.Query object which allows for entity filtering and sorting.
-			:rtype: :class:`server.db.Query`
+			:rtype: :class:`viur.core.db.Query`
 		"""
 		return db.Query(skelValues.kindName, srcSkelClass=skelValues, **kwargs)
 
@@ -675,7 +675,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
 			To store a Skeleton object to the data store, see :func:`~server.skeleton.Skeleton.toDB`.
 
-			:param key: A :class:`server.DB.Key`, :class:`server.DB.Query`, or string,\
+			:param key: A :class:`viur.core.DB.Key`, :class:`viur.core.DB.Query`, or string,\
 			from which the data shall be fetched.
 
 			:returns: True on success; False if the given key could not be found.
@@ -985,7 +985,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 	@classmethod
 	def preProcessSerializedData(cls, skelValues, entity):
 		"""
-			Can be overridden to modify the :class:`server.db.Entity` before its actually
+			Can be overridden to modify the :class:`viur.core.db.Entity` before its actually
 			written to the data store.
 		"""
 		return entity
