@@ -129,7 +129,7 @@ Great, we did it!
 .. warning::
 
     Keep in mind that you can very easily guess the identifiers in this example.
-    For obvious reasons orders should not be visible by everyone.
+    For obvious reasons orders should not be visible to everyone.
     In cases like this make the website noindexed and define a suitable :meth:`canView<core.prototypes.list.List.canView>`
     method inside your module, to restrict the access only to the account
     of the customer and seller.
