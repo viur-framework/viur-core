@@ -10,6 +10,7 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 ### Changed
 
 ### Fixed
+- Fix unused language parameter of `utils.seoUrlToEntry()`
 
 ### Removed
 
