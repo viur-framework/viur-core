@@ -65,10 +65,12 @@ class BaseBone(object):
 
 	def __init__(
 		self,
+		*,
 		defaultValue: Any = None,
 		descr: str = "",
+		getEmptyValueFunc: callable = None,
 		indexed: bool = True,
-		isEmptyFunc=None,
+		isEmptyFunc: callable = None,  # fixme: Rename this, see below.
 		languages: Union[None, List[str]] = None,
 		multiple: Union[bool, MultipleConstraints] = False,
 		params: Dict = None,
@@ -76,7 +78,7 @@ class BaseBone(object):
 		required: bool = False,
 		searchable: bool = False,
 		unique: Union[None, UniqueValue] = None,
-		vfunc: callable = None,  # todo: rename to verify_function?
+		vfunc: callable = None,  # fixme: Rename this, see below.
 		visible: bool = True,
 	):
 		"""
@@ -114,6 +116,7 @@ class BaseBone(object):
 		"""
 		self.isClonedInstance = getSystemInitialized()
 
+		# Standard definitions
 		self.descr = descr
 		self.params = params or {}
 		self.multiple = multiple
@@ -121,14 +124,19 @@ class BaseBone(object):
 		self.readOnly = readOnly
 		self.searchable = searchable
 		self.visible = visible
-
-		if not (languages is None or (isinstance(languages, list) and len(languages) > 0 and all(
-				[isinstance(x, str) for x in languages]))):
-			raise ValueError("languages must be None or a list of strings")
-		self.languages = languages
-
 		self.indexed = indexed
 
+		# Multi-language support
+		if not (
+			languages is None or
+			(isinstance(languages, list) and len(languages) > 0
+				and all([isinstance(x, str) for x in languages]))
+		):
+			raise ValueError("languages must be None or a list of strings")
+
+		self.languages = languages
+
+		# Default value
 		# Convert a None default-value to the empty container that's expected if the bone is multiple or has languages
 		if defaultValue is None and self.languages:
 			self.defaultValue = {}
@@ -137,18 +145,25 @@ class BaseBone(object):
 		else:
 			self.defaultValue = defaultValue
 
-		if vfunc:
-			self.isInvalid = vfunc
-
+		# Unique values
 		if unique:
 			if not isinstance(unique, UniqueValue):
 				raise ValueError("Unique must be an instance of UniqueValue")
 			if not self.multiple and unique.method.value != 1:
 				raise ValueError("'SameValue' is the only valid method on non-multiple bones")
+
 		self.unique = unique
 
+		# Override some validations and value functions by parameter instead of subclassing
+		# todo: This can be done better and more straightforward.
+		if vfunc:
+			self.isInvalid = vfunc  # fixme: why is this called just vfunc, and not isInvalidValue/isInvalidValueFunc?
+
 		if isEmptyFunc:
-			self.isEmpty = isEmptyFunc
+			self.isEmpty = isEmptyFunc  # fixme: why is this not called isEmptyValue/isEmptyValueFunc?
+
+		if getEmptyValueFunc:
+			self.getEmptyValue = getEmptyValueFunc
 
 	def setSystemInitialized(self):
 		"""

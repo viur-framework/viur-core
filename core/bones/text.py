@@ -259,6 +259,7 @@ class TextBone(BaseBone):
 		validHtml: Union[None, Dict] = __undefinedC__,
 		maxLength: int = 200000,
 		srcSet: Optional[Dict[str, List]] = None,
+		indexed: bool = False,
 		**kwargs
 	):
 		"""
@@ -269,7 +270,7 @@ class TextBone(BaseBone):
 			:param srcSet: If set, inject srcset tags to embedded images. Must be a dict of
 				"width": [List of Ints], "height": [List of Ints], eg {"height": [720, 1080]}
 		"""
-		super().__init__(**kwargs)
+		super().__init__(indexed=indexed, **kwargs)
 
 		if validHtml == TextBone.__undefinedC__:
 			global _defaultTags
