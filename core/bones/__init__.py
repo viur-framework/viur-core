@@ -33,8 +33,9 @@ for __cls_name, __cls in locals().copy().items():
 
 		def __generate_deprecation_constructor(cls, cls_name, old_cls_name):
 			def __init__(self, *args, **kwargs):
-				import logging
+				import logging, warnings
 				logging.warning(f"Use of class '{old_cls_name}' is deprecated, use '{cls_name}' instead.")
+				warnings.warn(f"Use of class '{old_cls_name}' is deprecated, use '{cls_name}' instead.")
 				cls.__init__(self, *args, **kwargs)
 
 			return __init__
