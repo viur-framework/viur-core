@@ -10,6 +10,7 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 ### Changed
 
 ### Fixed
+- required=True bones could still be set to empty if omitted from the request
 
 ### Removed
 
