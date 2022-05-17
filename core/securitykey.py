@@ -27,7 +27,7 @@ from viur.core.utils import generateRandomString
 from viur.core.utils import currentSession, currentRequest
 from viur.core import db
 from viur.core.tasks import PeriodicTask, callDeferred
-from typing import Optional, Union
+from typing import Union
 from viur.core.utils import utcNow
 
 securityKeyKindName = "viur-securitykeys"
