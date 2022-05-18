@@ -101,7 +101,7 @@ def startClearSKeys():
 @callDeferred
 def doClearSKeys(timeStamp: str) -> None:
 	query = db.Query(securityKeyKindName).filter("until <", datetime.strptime(timeStamp, "%d.%m.%Y %H:%M:%S"))
-	for oldKey in query.run(100, keysOnly=True):
+	for oldKey in query.run(100):
 		db.Delete(oldKey)
 	if query.getCursor():
 		doClearSKeys(timeStamp)
