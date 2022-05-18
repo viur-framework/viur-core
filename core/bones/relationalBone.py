@@ -2,7 +2,7 @@
 from viur.core.bones import baseBone
 from viur.core.bones.bone import getSystemInitialized
 from viur.core import utils, db
-from viur.core.errors import ReadFromClientError
+from viur.core.errors import BadRequest
 try:
 	import extjson
 except ImportError:
@@ -461,15 +461,15 @@ class relationalBone(baseBone):
 			else:
 				if index:
 					errors.append(
-						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value submitted",
+						BadRequest(ReadFromClientErrorSeverity.Invalid, "Invalid value submitted",
 											[str(index)]))
 				else:
 					errors.append(
-						ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value submitted"))
+						BadRequest(ReadFromClientErrorSeverity.Invalid, "Invalid value submitted"))
 				return None, None, errors  # We could not parse this
 			if usingSkel:
 				if not usingSkel.fromClient(usingData):
-					usingSkel.errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Incomplete data"))
+					usingSkel.errors.append(BadRequest(ReadFromClientErrorSeverity.Invalid, "Incomplete data"))
 				if index:
 					for error in usingSkel.errors:
 						error.fieldPath.insert(0, str(index))
@@ -484,14 +484,14 @@ class relationalBone(baseBone):
 			destKey = value
 			usingData = None
 		# if not destKey:  # Allow setting this bone back to empty
-		#	return None, [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value submitted")]
+		#	return None, [BadRequest(ReadFromClientErrorSeverity.Empty, name, "No value submitted")]
 		assert isinstance(destKey, str)
 		refSkel, usingSkel, errors = restoreSkels(destKey, usingData)
 		if refSkel:
 			resVal = {"dest": refSkel, "rel": usingSkel}
 			err = self.isInvalid(resVal)
 			if err:
-				return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
+				return self.getEmptyValue(), [BadRequest(ReadFromClientErrorSeverity.Invalid, err)]
 			return resVal, errors
 		else:
 			return self.getEmptyValue(), errors
