@@ -10,10 +10,11 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 ### Changed
 
 ### Fixed
-- Fix unused language parameter of `utils.seoUrlToEntry()`
+- Fix unused language parameter of `utils.seoUrlToEntry()` (#439)
+- Subdependencies updated (#442)
 
 ### Removed
-- Remove class `errors.ReadFromClientError`. Replaced by the new dataclass `bones.bone.ReadFromClienError`.  
+- Remove class `errors.ReadFromClientError`. Replaced by the new dataclass `bones.bone.ReadFromClienError`.  (#437, #443)
 
 ## [3.1.3]
 
