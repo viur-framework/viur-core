@@ -1,12 +1,11 @@
-# -*- coding: utf-8 -*-
-from viur.core.bones import baseBone
+from viur.core.bones.base import BaseBone
 from viur.core import db
 from random import random, sample, shuffle
 from itertools import chain
 from math import ceil
 
 
-class randomSliceBone(baseBone):
+class RandomSliceBone(BaseBone):
 	"""
 		Simulates the orderby=random from SQL.
 		If you sort by this bone, the query will return a random set of elements from that query.
@@ -16,7 +15,7 @@ class randomSliceBone(baseBone):
 
 	def __init__(self, *, visible=False, readOnly=True, slices=2, sliceSize=0.5, **kwargs):
 		"""
-			Initializes a new randomSliceBone.
+			Initializes a new RandomSliceBone.
 
 
 		"""
@@ -82,7 +81,7 @@ class randomSliceBone(baseBone):
 			except:
 				# Either, the filterHook tried to do something special to dbFilter (which won't
 				# work as we are currently rewriting the core part of it) or it thinks that the query
-				# is unsatisfiable (fe. because of a missing ref/parent key in relationalBone).
+				# is unsatisfiable (fe. because of a missing ref/parent key in RelationalBone).
 				# In each case we kill the query here - making it to return no results
 				raise RuntimeError()
 			return property, value

@@ -3,8 +3,8 @@ from viur.core.prototypes.list import List
 from viur.core.skeleton import Skeleton, RelSkel, skeletonByKind
 from viur.core import utils, email
 from viur.core.bones import *
-from viur.core.bones.bone import ReadFromClientErrorSeverity, UniqueValue, UniqueLockMethod
-from viur.core.bones.passwordBone import pbkdf2
+from viur.core.bones.base import ReadFromClientErrorSeverity, UniqueValue, UniqueLockMethod
+from viur.core.bones.password import pbkdf2
 from viur.core import errors, conf, securitykey
 from viur.core.tasks import StartupTask, callDeferred
 from viur.core.securityheaders import extendCsp
@@ -29,7 +29,7 @@ class userSkel(Skeleton):
 	kindName = "user"
 
 	# Properties required by google and custom auth
-	name = emailBone(
+	name = EmailBone(
 		descr=u"E-Mail",
 		required=True,
 		readOnly=True,
@@ -40,7 +40,7 @@ class userSkel(Skeleton):
 	)
 
 	# Properties required by custom auth
-	password = passwordBone(
+	password = PasswordBone(
 		descr=u"Password",
 		required=False,
 		readOnly=True,
@@ -48,21 +48,21 @@ class userSkel(Skeleton):
 	)
 
 	# Properties required by google auth
-	uid = stringBone(
+	uid = StringBone(
 		descr=u"Google's UserID",
 		indexed=True,
 		required=False,
 		readOnly=True,
 		unique=UniqueValue(UniqueLockMethod.SameValue, False, "UID already in use")
 	)
-	gaeadmin = booleanBone(
+	gaeadmin = BooleanBone(
 		descr=u"Is GAE Admin",
 		defaultValue=False,
 		readOnly=True
 	)
 
 	# Generic properties
-	access = selectBone(
+	access = SelectBone(
 		descr=u"Access rights",
 		values=lambda: {
 			right: translate("server.modules.user.accessright.%s" % right, defaultText=right)
@@ -71,7 +71,7 @@ class userSkel(Skeleton):
 		indexed=True,
 		multiple=True
 	)
-	status = selectBone(
+	status = SelectBone(
 		descr=u"Account status",
 		values={
 			1: u"Waiting for email verification",
@@ -83,25 +83,25 @@ class userSkel(Skeleton):
 		required=True,
 		indexed=True
 	)
-	lastlogin = dateBone(
+	lastlogin = DateBone(
 		descr=u"Last Login",
 		readOnly=True,
 		indexed=True
 	)
 
 	# One-Time Password Verification
-	otpid = stringBone(
+	otpid = StringBone(
 		descr=u"OTP serial",
 		required=False,
 		indexed=True,
 		searchable=True
 	)
-	otpkey = credentialBone(
+	otpkey = CredentialBone(
 		descr=u"OTP hex key",
 		required=False,
 		indexed=True
 	)
-	otptimedrift = numericBone(
+	otptimedrift = NumericBone(
 		descr=u"OTP time drift",
 		readOnly=True,
 		defaultValue=0
@@ -161,16 +161,16 @@ class UserPassword(object):
 		return u"X-VIUR-AUTH-User-Password"
 
 	class loginSkel(RelSkel):
-		name = emailBone(descr="E-Mail", required=True, caseSensitive=False, indexed=True)
-		password = passwordBone(descr="Password", indexed=True, params={"justinput": True}, required=True)
+		name = EmailBone(descr="E-Mail", required=True, caseSensitive=False, indexed=True)
+		password = PasswordBone(descr="Password", indexed=True, params={"justinput": True}, required=True)
 
 	class lostPasswordStep1Skel(RelSkel):
-		name = emailBone(descr="Username", required=True)
-		captcha = captchaBone(descr=u"Captcha", required=True)
+		name = EmailBone(descr="Username", required=True)
+		captcha = CaptchaBone(descr=u"Captcha", required=True)
 
 	class lostPasswordStep2Skel(RelSkel):
-		recoveryKey = stringBone(descr="Verification Code", required=True)
-		password = passwordBone(descr="New Password", required=True)
+		recoveryKey = StringBone(descr="Verification Code", required=True)
+		password = PasswordBone(descr="New Password", required=True)
 
 	@exposed
 	@forceSSL
@@ -408,7 +408,7 @@ class UserPassword(object):
 			# The user will have to verify his email-address. Create an skey and send it to his address
 			skey = securitykey.create(duration=60 * 60 * 24 * 7, userKey=utils.normalizeKey(skel["key"]),
 									  name=skel["name"])
-			skel.skey = baseBone(descr="Skey")
+			skel.skey = BaseBone(descr="Skey")
 			skel["skey"] = skey
 			email.sendEMail(dests=[skel["name"]], tpl=self.userModule.verifyEmailAddressMail, skel=skel)
 		self.userModule.onAdded(skel)  # Call onAdded on our parent user module
@@ -520,7 +520,7 @@ class TimeBasedOTP(object):
 		return None
 
 	class otpSkel(RelSkel):
-		otptoken = stringBone(descr="Token", required=True, caseSensitive=False, indexed=True)
+		otptoken = StringBone(descr="Token", required=True, caseSensitive=False, indexed=True)
 
 	def generateOtps(self, secret, timeDrift):
 		"""
@@ -684,7 +684,7 @@ class User(List):
 	def editSkel(self, *args, **kwargs):
 		skel = super(User, self).editSkel().clone()
 
-		skel.password = passwordBone(descr="Passwort", required=False)
+		skel.password = PasswordBone(descr="Passwort", required=False)
 
 		user = utils.getCurrentUser()
 

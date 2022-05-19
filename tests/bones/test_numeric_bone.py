@@ -8,20 +8,20 @@ class TestNumericBone(unittest.TestCase):
 		monkey_patch()
 
 	def test_isEmpty_default_bone(self):
-		from viur.core.bones import numericBone
-		self._run_tests(numericBone())
+		from viur.core.bones import NumericBone
+		self._run_tests(NumericBone())
 
 	def test_isEmpty_emptyNone(self):
-		from viur.core.bones import numericBone
-		self._run_tests(numericBone(getEmptyValueFunc=lambda: None))
+		from viur.core.bones import NumericBone
+		self._run_tests(NumericBone(getEmptyValueFunc=lambda: None))
 
 	def test_isEmpty_precision(self):
-		from viur.core.bones import numericBone
-		self._run_tests(numericBone(precision=2))
+		from viur.core.bones import NumericBone
+		self._run_tests(NumericBone(precision=2))
 
 	def test_isEmpty_precision_emptyNone(self):
-		from viur.core.bones import numericBone
-		self._run_tests(numericBone(precision=2, getEmptyValueFunc=lambda: None))
+		from viur.core.bones import NumericBone
+		self._run_tests(NumericBone(precision=2, getEmptyValueFunc=lambda: None))
 
 	def _run_tests(self, bone):
 		self.assertFalse(bone.isEmpty(123))

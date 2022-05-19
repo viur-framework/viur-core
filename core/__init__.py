@@ -235,7 +235,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
 			This will be the renderer, which wont get a prefix, usually html. \
 			(=> /user instead of /html/user)
 	"""
-	from viur.core.bones import bone
+	from viur.core.bones.base import setSystemInitialized
 	# noinspection PyUnresolvedReferences
 	import skeletons  # This import is not used here but _must_ remain to ensure that the
 	# application's data models are explicitly imported at some place!
@@ -250,7 +250,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
 	from viur.core import securityheaders
 	securityheaders._rebuildCspHeaderCache()
 	securityheaders._rebuildPermissionHeaderCache()
-	bone.setSystemInitialized()
+	setSystemInitialized()
 	# Assert that all security related headers are in a sane state
 	if conf["viur.security.contentSecurityPolicy"] and conf["viur.security.contentSecurityPolicy"]["_headerCache"]:
 		for k in conf["viur.security.contentSecurityPolicy"]["_headerCache"]:

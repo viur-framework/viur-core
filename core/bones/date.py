@@ -1,16 +1,13 @@
-# -*- coding: utf-8 -*-
-from viur.core.bones import baseBone
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core import request
-from datetime import datetime, timedelta
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.i18n import translate
 from viur.core.utils import currentRequest, currentRequestData, utcNow, isLocalDevelopmentServer
 from typing import List, Union
-
+from datetime import datetime, timedelta
 import pytz, tzlocal
 
 
-class dateBone(baseBone):
+class DateBone(BaseBone):
 	type = "date"
 
 	def __init__(
@@ -24,7 +21,7 @@ class dateBone(baseBone):
 		**kwargs
 	):
 		"""
-			Initializes a new dateBone.
+			Initializes a new DateBone.
 
 			:param creationMagic: Use the current time as value when creating an entity; ignoring this bone if the
 				entity gets updated.
@@ -181,7 +178,8 @@ class dateBone(baseBone):
 		if isinstance(value, datetime):
 			if value.year < 1900:
 				return "Year must be >= 1900"
-		return super(dateBone, self).isInvalid(value)
+
+		return super().isInvalid(value)
 
 	def guessTimeZone(self):
 		"""
@@ -246,7 +244,8 @@ class dateBone(baseBone):
 		for key in [x for x in rawFilter.keys() if x.startswith(name)]:
 			resDict = {}
 			if not self.fromClient(resDict, key, rawFilter):  # Parsing succeeded
-				super(dateBone, self).buildDBFilter(name, skel, dbFilter, {key: resDict[key]}, prefix=prefix)
+				super().buildDBFilter(name, skel, dbFilter, {key: resDict[key]}, prefix=prefix)
+
 		return dbFilter
 
 	def performMagic(self, valuesCache, name, isAdd):

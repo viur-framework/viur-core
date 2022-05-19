@@ -40,7 +40,7 @@ class DefaultRender(object):
 		can be overridden and super-called from a custom renderer.
 
 		:param bone: The bone which structure should be rendered.
-		:type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
+		:type bone: Any bone that inherits from :class:`server.bones.base.BaseBone`.
 
 		:return: A dict containing the rendered attributes.
 		:rtype: dict
@@ -138,21 +138,21 @@ class DefaultRender(object):
 		It can be overridden and super-called from a custom renderer.
 
 		:param bone: The bone which value should be rendered.
-		:type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
+		:type bone: Any bone that inherits from :class:`server.bones.base.BaseBone`.
 
 		:return: A dict containing the rendered attributes.
 		:rtype: dict
 		"""
-		if isinstance(bone, bones.relationalBone):
+		if isinstance(bone, bones.RelationalBone):
 			if isinstance(value, dict):
 				return {
-					"dest": self.renderSkelValues(value["dest"], injectDownloadURL=isinstance(bone, bones.fileBone)),
-					"rel": self.renderSkelValues(value["rel"], injectDownloadURL=isinstance(bone, bones.fileBone)) if
+					"dest": self.renderSkelValues(value["dest"], injectDownloadURL=isinstance(bone, bones.FileBone)),
+					"rel": self.renderSkelValues(value["rel"], injectDownloadURL=isinstance(bone, bones.FileBone)) if
 					value["rel"] else None,
 				}
-		elif isinstance(bone, bones.recordBone):
+		elif isinstance(bone, bones.RecordBone):
 			return self.renderSkelValues(value)
-		elif isinstance(bone, bones.passwordBone):
+		elif isinstance(bone, bones.PasswordBone):
 			return ""
 		else:
 			return value

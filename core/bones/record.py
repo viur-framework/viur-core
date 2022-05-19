@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*-
-from viur.core.bones.bone import baseBone, getSystemInitialized
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.bones.base import BaseBone, getSystemInitialized, ReadFromClientError, ReadFromClientErrorSeverity
 from typing import List, Union
 import copy, logging
+
 
 try:
 	import extjson
@@ -11,7 +10,7 @@ except ImportError:
 	import json as extjson
 
 
-class recordBone(baseBone):
+class RecordBone(BaseBone):
 	type = "record"
 
 	def __init__(
@@ -24,18 +23,13 @@ class recordBone(baseBone):
 	):
 		from viur.core.skeleton import RelSkel
 		if not issubclass(using, RelSkel):
-			raise ValueError("recordBone requires for valid using-parameter (subclass of viur.core.skeleton.RelSkel)")
+			raise ValueError("RecordBone requires for valid using-parameter (subclass of viur.core.skeleton.RelSkel)")
 
 		super().__init__(indexed=indexed, **kwargs)
 		self.using = using
 		self.format = format
 		if not format or indexed:
-			raise NotImplementedError("A recordBone must not be indexed and must have a format set")
-
-	def setSystemInitialized(self):
-		super(recordBone, self).setSystemInitialized()
-
-	# self._usingSkelCache = self.using()
+			raise NotImplementedError("A RecordBone must not be indexed and must have a format set")
 
 	def singleValueUnserialize(self, val):
 		if isinstance(val, str):

@@ -1,16 +1,13 @@
-# -*- coding: utf-8 -*-
-from viur.core.bones import baseBone
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.config import conf
-from viur.core import db
-from viur.core import request
-from viur.core import utils
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.utils import currentLanguage
+from viur.core import db, request, utils
 import logging
 from typing import List, Union
-from viur.core.utils import currentLanguage
 
 
-class stringBone(baseBone):
+
+class StringBone(BaseBone):
 	type = "str"
 
 	def __init__(
@@ -48,7 +45,8 @@ class stringBone(baseBone):
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		if not name in rawFilter and not any(
 			[(x.startswith(name + "$") or x.startswith(name + ".")) for x in rawFilter.keys()]):
-			return (super(stringBone, self).buildDBFilter(name, skel, dbFilter, rawFilter, prefix))
+			return super(StringBone, self).buildDBFilter(name, skel, dbFilter, rawFilter, prefix)
+
 		hasInequalityFilter = False
 		if not self.languages:
 			namefilter = name
@@ -171,5 +169,6 @@ class stringBone(baseBone):
 	def getUniquePropertyIndexValues(self, skel, name: str) -> List[str]:
 		if self.languages:
 			# Not yet implemented as it's unclear if we should keep each language distinct or not
-			raise NotImplementedError
-		return super(stringBone, self).getUniquePropertyIndexValues(skel, name)
+			raise NotImplementedError()
+
+		return super().getUniquePropertyIndexValues(skel, name)

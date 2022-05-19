@@ -1,15 +1,14 @@
-# -*- coding: utf-8 -*-
-from viur.core.bones.bone import baseBone
+from viur.core.bones.base import BaseBone
 from viur.core.db import Entity, Key, keyHelper, KEY_SPECIAL_PROPERTY
 from viur.core.utils import normalizeKey
 import logging, copy
 
 
-class keyBone(baseBone):
+class KeyBone(BaseBone):
 	type = "key"
 
 	def __init__(self, *, descr="Key", readOnly=True, visible=False, **kwargs):
-		super(keyBone, self).__init__(descr=descr, readOnly=readOnly, visible=visible, defaultValue=None, **kwargs)
+		super(KeyBone, self).__init__(descr=descr, readOnly=readOnly, visible=visible, defaultValue=None, **kwargs)
 
 	def unserialize(self, skel: 'viur.core.skeleton.SkeletonValues', name: str) -> bool:
 		"""

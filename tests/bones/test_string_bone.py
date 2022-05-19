@@ -9,8 +9,8 @@ class TestStringBone(unittest.TestCase):
 		cls.bone_name = "myStringBone"
 
 	def test_isEmpty_default_bone(self):
-		from viur.core.bones import stringBone
-		self._run_tests(bone := stringBone(descr="empty_str"))
+		from viur.core.bones import StringBone
+		self._run_tests(bone := StringBone(descr="empty_str"))
 		self.assertEqual("", bone.getEmptyValue())
 		self.assertIsNone(bone.defaultValue)
 
@@ -34,8 +34,8 @@ class TestStringBone_setBoneValue(unittest.TestCase):
 		cls.bone_name = "myStringBone"
 
 	def test_setBoneValue_single(self):
-		from viur.core.bones import stringBone
-		bone = stringBone()
+		from viur.core.bones import StringBone
+		bone = StringBone()
 		skel = {}
 		self.assertTrue(bone.setBoneValue(skel, self.bone_name, value := "foo", False, None))
 		self.assertIn(self.bone_name, skel)
@@ -50,8 +50,8 @@ class TestStringBone_setBoneValue(unittest.TestCase):
 			bone.setBoneValue(skel, self.bone_name, "foo", False, "en")
 
 	def test_setBoneValue_multi(self):
-		from viur.core.bones import stringBone
-		bone = stringBone(multiple=True)
+		from viur.core.bones import StringBone
+		bone = StringBone(multiple=True)
 		skel = {}
 		self.assertTrue(bone.setBoneValue(skel, self.bone_name, value := ["foo"], False, None))
 		self.assertIn(self.bone_name, skel)
@@ -76,9 +76,9 @@ class TestStringBone_fromClient(unittest.TestCase):
 		cls.bone_name = "myStringBone"
 
 	def test_fromClient_single(self):
-		from viur.core.bones import stringBone
-		from viur.core.bones.bone import ReadFromClientError
-		bone = stringBone()
+		from viur.core.bones import StringBone
+		from viur.core.bones.base import ReadFromClientError
+		bone = StringBone()
 		skel = {}
 		data = {self.bone_name: "foo"}
 		self.assertIsNone(bone.fromClient(skel, self.bone_name, data))
@@ -91,8 +91,8 @@ class TestStringBone_fromClient(unittest.TestCase):
 		self.assertIsInstance(res[0], ReadFromClientError)
 
 	def test_fromClient_multi(self):
-		from viur.core.bones import stringBone
-		bone = stringBone(multiple=True)
+		from viur.core.bones import StringBone
+		bone = StringBone(multiple=True)
 		skel = {}
 		data = {self.bone_name: ["foo", "bar"]}
 		self.assertIsNone(bone.fromClient(skel, self.bone_name, data))
@@ -100,8 +100,8 @@ class TestStringBone_fromClient(unittest.TestCase):
 		self.assertListEqual(data[self.bone_name], skel[self.bone_name])
 
 	def test_fromClient_lang(self):
-		from viur.core.bones import stringBone
-		bone = stringBone(languages=["en", "de"])
+		from viur.core.bones import StringBone
+		bone = StringBone(languages=["en", "de"])
 		skel = {}
 		lang = "de"
 		data = {f"{self.bone_name}.{lang}": "foo"}
@@ -114,8 +114,8 @@ class TestStringBone_fromClient(unittest.TestCase):
 		self.assertEqual("foo", skel[self.bone_name][lang])
 
 	def test_fromClient_multi_lang(self):
-		from viur.core.bones import stringBone
-		bone = stringBone(multiple=True, languages=["en", "de"])
+		from viur.core.bones import StringBone
+		bone = StringBone(multiple=True, languages=["en", "de"])
 		skel = {}
 		lang = "de"
 		data = {f"{self.bone_name}.{lang}": ["foo", "bar"]}

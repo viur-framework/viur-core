@@ -1,3 +1,5 @@
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core import utils, db
 import logging
 import string
 from html import entities as htmlentitydefs
@@ -5,9 +7,7 @@ from html.parser import HTMLParser
 from typing import Any, Dict, List, Union, Tuple, Optional
 from base64 import urlsafe_b64decode
 from datetime import datetime
-from viur.core.bones import baseBone
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import utils, db
+
 
 _defaultTags = {
 	"validTags": [  # List of HTML-Tags which are valid
@@ -247,7 +247,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
 		return self.result
 
 
-class textBone(baseBone):
+class TextBone(BaseBone):
 	class __undefinedC__:
 		pass
 
@@ -272,7 +272,7 @@ class textBone(baseBone):
 		"""
 		super().__init__(indexed=indexed, **kwargs)
 
-		if validHtml == textBone.__undefinedC__:
+		if validHtml == TextBone.__undefinedC__:
 			global _defaultTags
 			validHtml = _defaultTags
 
@@ -328,7 +328,7 @@ class textBone(baseBone):
 								 {"height": x} for x in (self.srcSet.get("height") or [])
 							 ]
 			}
-			from viur.core.bones.fileBone import ensureDerived
+			from viur.core.bones.file import ensureDerived
 			for blobKey in newFileKeys:
 				fileObj = db.Query("file").filter("dlkey =", blobKey)\
 					.order(("creationdate", db.SortOrder.Ascending)).getEntry()
@@ -406,5 +406,6 @@ class textBone(baseBone):
 	def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
 		if self.languages:
 			# Not yet implemented as it's unclear if we should keep each language distinct or not
-			raise NotImplementedError
-		return super(textBone, self).getUniquePropertyIndexValues(valuesCache, name)
+			raise NotImplementedError()
+
+		return super().getUniquePropertyIndexValues(valuesCache, name)

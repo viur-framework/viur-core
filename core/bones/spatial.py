@@ -1,10 +1,7 @@
-# -*- coding: utf-8 -*-
-from viur.core.bones import baseBone
-from math import pow, floor, ceil
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core import db
-import logging
-import math
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
+import logging, math
+from math import pow, floor, ceil
 from copy import deepcopy
 from typing import Tuple, Any
 
@@ -26,7 +23,7 @@ def haversine(lat1, lng1, lat2, lng2):
 	return math.atan2(math.sqrt(d), math.sqrt(1 - d)) * 12742000  # 12742000 = Avg. Earth size (6371km) in meters*2
 
 
-class spatialBone(baseBone):
+class SpatialBone(BaseBone):
 	"""
 		Allows to query by Elements close to a given position.
 		Prior to use, you must specify for which region of the map the index should be build.
@@ -49,7 +46,7 @@ class spatialBone(baseBone):
 
 	def __init__(self, *, boundsLat, boundsLng, gridDimensions, **kwargs):
 		"""
-			Initializes a new spatialBone.
+			Initializes a new SpatialBone.
 
 			:param boundsLat: Outer bounds (Latitude) of the region we will search in.
 			:type boundsLat: (int, int)
@@ -246,7 +243,7 @@ class spatialBone(baseBone):
 																								 **kwargs)
 			dbFilter._calculateInternalMultiQueryLimit = self.calculateInternalMultiQueryLimit
 
-	# return( super( spatialBone, self ).buildDBFilter( name, skel, dbFilter, rawFilter ) )
+	# return super().buildDBFilter(name, skel, dbFilter, rawFilter)
 
 	def calculateInternalMultiQueryLimit(self, dbQuery, targetAmount):
 		"""

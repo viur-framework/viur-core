@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
-
-from viur.core.bones import stringBone
+from viur.core.bones.string import StringBone
 import string
 from encodings import idna
 
 
-class emailBone(stringBone):
+class EmailBone(StringBone):
 	type = "str.email"
 
 	def isInvalid(self, value):

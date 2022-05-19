@@ -361,10 +361,10 @@ class TaskExportKind(CallableTaskBase):
 
 	def dataSkel(self):
 		skel = BaseSkeleton(cloned=True)
-		skel.module = selectBone(descr="Kinds", values=listKnownSkeletons(), multiple=True, required=True)
-		skel.target = stringBone(descr="URL to Target-Application", required=True,
+		skel.module = SelectBone(descr="Kinds", values=listKnownSkeletons(), multiple=True, required=True)
+		skel.target = StringBone(descr="URL to Target-Application", required=True,
 								 defaultValue="https://your-app-id.appspot.com/dbtransfer/storeEntry2")
-		skel.importkey = stringBone(descr="Import-Key", required=True)
+		skel.importkey = StringBone(descr="Import-Key", required=True)
 		return skel
 
 	def execute(self, module, target, importkey, *args, **kwargs):
@@ -434,10 +434,10 @@ class TaskImportKind(CallableTaskBase):
 	def dataSkel(self):
 		skel = BaseSkeleton(cloned=True)
 
-		skel.module = selectBone(descr="Kinds", values=listKnownSkeletons(), multiple=True, required=True)
-		skel.source = stringBone(descr="URL to Source-Application", required=True,
+		skel.module = SelectBone(descr="Kinds", values=listKnownSkeletons(), multiple=True, required=True)
+		skel.source = StringBone(descr="URL to Source-Application", required=True,
 								 defaultValue="https://<your-app-id>.appspot.com/dbtransfer/iterValues2")
-		skel.exportkey = stringBone(descr="Export-Key", required=True, defaultValue="")
+		skel.exportkey = StringBone(descr="Export-Key", required=True, defaultValue="")
 
 		return skel
 

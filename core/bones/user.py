@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
-from viur.core.bones.relationalBone import relationalBone
+from viur.core.bones.relational import RelationalBone
 from viur.core.config import conf
 
 
-class userBone(relationalBone):
+class UserBone(RelationalBone):
 	kind = "user"
 	datafields = ["name"]
 

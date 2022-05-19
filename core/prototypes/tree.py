@@ -6,7 +6,7 @@ from typing import Optional
 
 from viur.core import utils, errors, conf, securitykey, db
 from viur.core import forcePost, forceSSL, exposed, internalExposed
-from viur.core.bones import keyBone, numericBone
+from viur.core.bones import KeyBone, NumericBone
 from viur.core.prototypes import BasicApplication
 from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.tasks import callDeferred
@@ -15,9 +15,9 @@ from viur.core.cache import flushCache
 
 
 class TreeSkel(Skeleton):
-	parententry = keyBone(descr="Parent", visible=False, indexed=True, readOnly=True)
-	parentrepo = keyBone(descr="BaseRepo", visible=False, indexed=True, readOnly=True)
-	sortindex = numericBone(descr="SortIndex", visible=False, indexed=True, readOnly=True, precision=8, max=pow(2, 30))
+	parententry = KeyBone(descr="Parent", visible=False, indexed=True, readOnly=True)
+	parentrepo = KeyBone(descr="BaseRepo", visible=False, indexed=True, readOnly=True)
+	sortindex = NumericBone(descr="SortIndex", visible=False, indexed=True, readOnly=True, precision=8, max=pow(2, 30))
 
 	@classmethod
 	def preProcessSerializedData(cls, skelValues, entity):

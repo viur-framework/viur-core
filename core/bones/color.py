@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
-from viur.core.bones import baseBone
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-import logging
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from typing import List, Union
+import logging
 
 
-class colorBone(baseBone):
+class ColorBone(BaseBone):
 	type = "color"
 
 	def __init__(self, *, mode="rgb", **kwargs):  # mode rgb/rgba

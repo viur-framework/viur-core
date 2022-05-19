@@ -6,8 +6,8 @@ from viur.core.bones import *
 class pageSkel(TreeSkel):
 	kindName = "page"
 	searchindex = "page"
-	name = stringBone(descr=u"Name", indexed=True, searchable=True, required=True)
-	descr = textBone(descr=u"Content", required=True, searchable=True)
+	name = StringBone(descr=u"Name", indexed=True, searchable=True, required=True)
+	descr = TextBone(descr=u"Content", required=True, searchable=True)
 
 
 class Page(Tree):

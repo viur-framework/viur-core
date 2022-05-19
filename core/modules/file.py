@@ -81,7 +81,7 @@ def importBlobFromViur2(dlKey, fileName):
 	return marker["dlurl"]
 
 
-class injectStoreURLBone(baseBone):
+class injectStoreURLBone(BaseBone):
 	def unserialize(self, skel, name):
 		if "dlkey" in skel.dbEntity and "name" in skel.dbEntity:
 			skel.accessedValues[name] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False)
@@ -141,17 +141,17 @@ class fileBaseSkel(TreeSkel):
 	"""
 	kindName = "file"
 
-	size = stringBone(descr="Size", readOnly=True, indexed=True, searchable=True)
-	dlkey = stringBone(descr="Download-Key", readOnly=True, indexed=True)
-	name = stringBone(descr="Filename", caseSensitive=False, indexed=True, searchable=True)
-	mimetype = stringBone(descr="Mime-Info", readOnly=True, indexed=True)
-	weak = booleanBone(descr="Weak reference", indexed=True, readOnly=True, visible=False)
-	pending = booleanBone(descr="Pending upload", readOnly=True, visible=False, defaultValue=False)
-	width = numericBone(descr="Width", indexed=True, readOnly=True, searchable=True)
-	height = numericBone(descr="Height", indexed=True, readOnly=True, searchable=True)
+	size = StringBone(descr="Size", readOnly=True, indexed=True, searchable=True)
+	dlkey = StringBone(descr="Download-Key", readOnly=True, indexed=True)
+	name = StringBone(descr="Filename", caseSensitive=False, indexed=True, searchable=True)
+	mimetype = StringBone(descr="Mime-Info", readOnly=True, indexed=True)
+	weak = BooleanBone(descr="Weak reference", indexed=True, readOnly=True, visible=False)
+	pending = BooleanBone(descr="Pending upload", readOnly=True, visible=False, defaultValue=False)
+	width = NumericBone(descr="Width", indexed=True, readOnly=True, searchable=True)
+	height = NumericBone(descr="Height", indexed=True, readOnly=True, searchable=True)
 	downloadUrl = injectStoreURLBone(descr="Download-URL", readOnly=True, visible=False)
-	derived = baseBone(descr=u"Derived Files", readOnly=True, visible=False)
-	pendingparententry = keyBone(descr=u"Pending key Reference", readOnly=True, visible=False)
+	derived = BaseBone(descr=u"Derived Files", readOnly=True, visible=False)
+	pendingparententry = KeyBone(descr=u"Pending key Reference", readOnly=True, visible=False)
 
 	"""
 	def refresh(self):
@@ -199,8 +199,8 @@ class fileNodeSkel(TreeSkel):
 		Default file node skeleton.
 	"""
 	kindName = "file_rootNode"
-	name = stringBone(descr="Name", required=True, indexed=True, searchable=True)
-	rootNode = booleanBone(descr=u"Is RootNode", indexed=True)
+	name = StringBone(descr="Name", required=True, indexed=True, searchable=True)
+	rootNode = BooleanBone(descr=u"Is RootNode", indexed=True)
 
 
 def decodeFileName(name):
@@ -249,7 +249,7 @@ class File(Tree):
 		:param width: Optional width information for the file.
 		:param height: Optional height information for the file.
 
-		:return: Returns the key of the file object written. This can be associated e.g. with a fileBone.
+		:return: Returns the key of the file object written. This can be associated e.g. with a FileBone.
 		"""
 		dl_key = utils.generateRandomString()
 
