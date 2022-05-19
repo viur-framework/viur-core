@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
-from viur.core.bones import baseBone
-from viur.core.bones.bone import getSystemInitialized
+from viur.core.bones.bone import baseBone, getSystemInitialized, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core import utils, db
-from viur.core.errors import ReadFromClientError
 try:
 	import extjson
 except ImportError:
@@ -11,7 +9,6 @@ except ImportError:
 from time import time
 from datetime import datetime
 import logging
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from typing import List, Any, Optional, Union
 from enum import Enum
 from itertools import chain

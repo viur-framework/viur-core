@@ -445,7 +445,7 @@ class BrowseHandler():  # webapp.RequestHandler
 					raise errors.NotAcceptable()
 		except UnicodeError:
 			# We received invalid unicode data (usually happens when someone tries to exploit unicode normalisation bugs)
-			raise errors.ReadFromClientError()
+			raise errors.BadRequest()
 		if "self" in kwargs or "return" in kwargs:  # self or return is reserved for bound methods
 			raise errors.BadRequest()
 		# Parse the URL

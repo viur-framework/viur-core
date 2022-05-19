@@ -228,17 +228,3 @@ class ServiceUnavailable(HTTPException):
 
 	def __init__(self, descr="Service Unavailable"):
 		super(ServiceUnavailable, self).__init__(status=503, name="Service Unavailable", descr=descr)
-
-
-class ReadFromClientError(object):
-	"""
-		ReadFromClientError
-
-		Internal use only. Used as a **return-value** (its not raised!) to transport information on errors
-		from fromClient in bones to the surrounding skeleton class
-	"""
-
-	def __init__(self, errors, forceFail=False):
-		super(ReadFromClientError, self).__init__()
-		self.errors = errors
-		self.forceFail = forceFail
