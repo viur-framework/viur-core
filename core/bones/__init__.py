@@ -15,6 +15,7 @@ from viur.core.bones.record import RecordBone
 from viur.core.bones.relational import RelationalBone, RelationalConsistency
 from viur.core.bones.selectcountry import SelectCountryBone
 from viur.core.bones.select import SelectBone
+from viur.core.bones.sortindex import SortIndexBone
 from viur.core.bones.spatial import SpatialBone
 from viur.core.bones.string import StringBone
 from viur.core.bones.text import TextBone
