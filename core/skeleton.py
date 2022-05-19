@@ -329,7 +329,9 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 				skelValues.errors.extend(errors)
 				for error in errors:
 					if (error.severity == ReadFromClientErrorSeverity.Empty and _bone.required and
-						error.fieldPath == [key]) or error.severity == ReadFromClientErrorSeverity.Invalid:
+						error.fieldPath == [key]) or error.severity == ReadFromClientErrorSeverity.Invalid or \
+						(error.severity == ReadFromClientErrorSeverity.NotSet and _bone.required and
+						 _bone.isEmpty(skelValues["key"])):
 						# We'll consider empty required bones only as an error, if they're on the top-level (and not
 						# further down the hierarchy (in an record- or relational-Bone)
 						complete = False
@@ -1126,7 +1128,8 @@ class RelSkel(BaseSkeleton):
 					err.fieldPath.insert(0, str(key))
 				skelValues.errors.extend(errors)
 				for err in errors:
-					if err.fieldPath == [key] and err.severity == ReadFromClientErrorSeverity.Empty:
+					if err.fieldPath == [key] and (err.severity == ReadFromClientErrorSeverity.Empty or
+						(err.severity == ReadFromClientErrorSeverity.NotSet and _bone.isEmpty(skelValues[key]))):
 						thisBoneEmpty = True
 						if _bone.required:
 							requiredBonesEmpty = True

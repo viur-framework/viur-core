@@ -1,4 +1,4 @@
-from viur.core.bones.base import BaseBone, UniqueValue, UniqueLockMethod, MultipleConstraints
+from viur.core.bones.base import BaseBone, ReadFromClientError, UniqueValue, UniqueLockMethod, MultipleConstraints
 from viur.core.bones.boolean import BooleanBone
 from viur.core.bones.captcha import CaptchaBone
 from viur.core.bones.color import ColorBone

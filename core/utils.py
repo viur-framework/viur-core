@@ -140,6 +140,7 @@ def sanitizeFileName(fileName: str) -> str:
 	fileName = "".join([x for x in fileName if x not in "\0'\"<>\n;$&?#:;/\\"])  # Remove invalid Chars
 	return fileName.strip(".")  # Ensure the filename does not start or end with a dot
 
+
 def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
 				   expires: Union[timedelta, None] = timedelta(hours=1),
 				   downloadFileName: Optional[str] = None) -> str:
@@ -167,6 +168,7 @@ def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
 	sigStr = urlsafe_b64encode(sigStr.encode("UTF-8"))
 	resstr = hmacSign(sigStr)
 	return "/file/download/%s?sig=%s" % (sigStr.decode("ASCII"), resstr)
+
 
 def srcSetFor(fileObj: dict, expires: Optional[int], width: Optional[int] = None, height: Optional[int] = None) -> str:
 	"""
@@ -203,14 +205,29 @@ def srcSetFor(fileObj: dict, expires: Optional[int], width: Optional[int] = None
 			resList.append("%s %sh" % (downloadUrlFor(fileObj["dlkey"], fileName, True, expires), customData["height"]))
 	return ", ".join(resList)
 
-def seoUrlToEntry(module, entry=None, skelType=None, language=None):
+
+def seoUrlToEntry(module: str,
+				  entry: Optional["SkeletonInstance"] = None,
+				  skelType: Optional[str] = None,
+				  language: Optional[str] = None) -> str:
+	"""
+	Return the seo-url to a skeleton instance or the module.
+
+	:param module: The module name.
+	:param entry: A skeleton instance or None, to get the path to the module.
+	:param skelType: # FIXME: Not used
+	:param language: For which language.
+		If None, the language of the current request is used.
+	:return: The path (with a leading /).
+	"""
 	from viur.core import conf
 	pathComponents = [""]
-	lang = currentLanguage.get()
+	if language is None:
+		language = currentLanguage.get()
 	if conf["viur.languageMethod"] == "url":
-		pathComponents.append(lang)
-	if module in conf["viur.languageModuleMap"] and lang in conf["viur.languageModuleMap"][module]:
-		module = conf["viur.languageModuleMap"][module][lang]
+		pathComponents.append(language)
+	if module in conf["viur.languageModuleMap"] and language in conf["viur.languageModuleMap"][module]:
+		module = conf["viur.languageModuleMap"][module][language]
 	pathComponents.append(module)
 	if not entry:
 		return "/".join(pathComponents)
@@ -219,8 +236,8 @@ def seoUrlToEntry(module, entry=None, skelType=None, language=None):
 			currentSeoKeys = entry["viurCurrentSeoKeys"]
 		except:
 			return "/".join(pathComponents)
-		if lang in (currentSeoKeys or {}):
-			pathComponents.append(str(currentSeoKeys[lang]))
+		if language in (currentSeoKeys or {}):
+			pathComponents.append(str(currentSeoKeys[language]))
 		elif "key" in entry:
 			pathComponents.append(str(entry["key"].id_or_name) if isinstance(entry["key"], db.Key) else str(entry["key"]))
 		elif "name" in dir(entry):
@@ -268,5 +285,6 @@ def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
 	else:
 		parent = None
 	return db.Key(key.kind, key.id_or_name, parent=parent)
+
 
 from viur.core.skeleton import SkeletonInstance

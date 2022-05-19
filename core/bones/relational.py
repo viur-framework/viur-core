@@ -1,12 +1,10 @@
 from viur.core.bones.base import BaseBone, getSystemInitialized, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core import utils, db
 from time import time
-from datetime import datetime
 from typing import List, Any, Optional, Union
 from enum import Enum
 from itertools import chain
 import logging
-
 try:
 	import extjson
 except ImportError:
