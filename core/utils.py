@@ -42,11 +42,9 @@ def generateRandomString(length: int = 13) -> str:
 	Return a string containing random characters of given *length*.
 	Its safe to use this string in URLs or HTML.
 
-	:type length: int
 	:param length: The desired length of the generated string.
 
 	:returns: A string with random characters of the given length.
-	:rtype: str
 	"""
 	return "".join(random.choices(string.ascii_letters + string.digits, k=length))
 

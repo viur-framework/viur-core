@@ -242,7 +242,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 	boneMap = None
 
 	@classmethod
-	def subSkel(cls, *args, fullClone=False, **kwargs):
+	def subSkel(cls, *name, fullClone: bool = False, **kwargs) -> SkeletonInstance:
 		"""
 			Creates a new sub-skeleton as part of the current skeleton.
 
@@ -257,14 +257,12 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 
 			:param name: Name of the sub-skeleton (that's the key of the subSkels dictionary); \
 						Multiple names can be specified.
-			:type name: str
 
 			:return: The sub-skeleton of the specified type.
-			:rtype: viur.core.skeleton.Skeleton
 		"""
-		if not args:
+		if not name:
 			raise ValueError("Which subSkel?")
-		return cls(subSkelNames=list(args), fullClone=fullClone)
+		return cls(subSkelNames=list(name), fullClone=fullClone)
 
 	@classmethod
 	def setSystemInitialized(cls):
@@ -314,7 +312,6 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 
 			:returns: True if all data was successfully read and taken by the Skeleton's bones.\
 			False otherwise (eg. some required fields where missing or invalid).
-			:rtype: bool
 		"""
 		assert not allowEmptyRequired, "allowEmptyRequired is only valid on RelSkels"
 		complete = len(data) > 0  # Empty values are never valid
@@ -607,12 +604,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		assert self.kindName and self.kindName is not __undefindedC__, "You must set kindName on this skeleton!"
 
 	@classmethod
-	def all(cls, skelValues, **kwargs):
+	def all(cls, skelValues, **kwargs) -> db.Query:
 		"""
 			Create a query with the current Skeletons kindName.
 
 			:returns: A db.Query object which allows for entity filtering and sorting.
-			:rtype: :class:`viur.core.db.Query`
 		"""
 		return db.Query(skelValues.kindName, srcSkelClass=skelValues, **kwargs)
 
