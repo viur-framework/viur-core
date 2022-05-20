@@ -273,12 +273,12 @@ class Singleton(BasicApplication):
 		"""
 		user = utils.getCurrentUser()
 		if not user:
-			return (False)
+			return False
 		if user["access"] and "root" in user["access"]:
-			return (True)
+			return True
 		if user["access"] and "%s-view" % self.moduleName in user["access"]:
-			return (True)
-		return (False)
+			return True
+		return False
 
 	def onEdit(self, skel: SkeletonInstance):
 		"""

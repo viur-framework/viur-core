@@ -92,7 +92,7 @@ def execRequest(render, path, *args, **kwargs):
 		else:
 			currReq.kwargs = tmp_params  # Reset RequestParams
 			currReq.internalRequest = lastRequestState
-			return (u"Path not found %s (failed Part was %s)" % (path, currpath))
+			return u"Path not found %s (failed Part was %s)" % (path, currpath)
 	if (not hasattr(caller, '__call__')
 		or ((not "exposed" in dir(caller)
 			 or not caller.exposed))
@@ -100,7 +100,7 @@ def execRequest(render, path, *args, **kwargs):
 			 or not caller.internalExposed)):
 		currReq.kwargs = tmp_params  # Reset RequestParams
 		currReq.internalRequest = lastRequestState
-		return (u"%s not callable or not exposed" % str(caller))
+		return u"%s not callable or not exposed" % str(caller)
 	try:
 		resstr = caller(*args, **kwargs)
 	except Exception as e:

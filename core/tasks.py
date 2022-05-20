@@ -122,14 +122,14 @@ class CallableTaskBase:
 			Checks wherever the current user can execute this task
 			:returns: bool
 		"""
-		return (False)
+		return False
 
 	def dataSkel(self):
 		"""
 			If additional data is needed, return a skeleton-instance here.
 			These values are then passed to *execute*.
 		"""
-		return (None)
+		return None
 
 	def execute(self):
 		"""
@@ -389,7 +389,7 @@ def noRetry(f):
 			logging.exception(e)
 			raise PermanentTaskFailure()
 
-	return (wrappedFunc)
+	return wrappedFunc
 
 
 def callDeferred(func):
@@ -398,7 +398,7 @@ def callDeferred(func):
 		Unlike Googles implementation, this one works (with bound functions)
 	"""
 	if "viur_doc_build" in dir(sys):
-		return (func)
+		return func
 	__undefinedFlag_ = object()
 
 	def mkDefered(func, self=__undefinedFlag_, *args, **kwargs):
@@ -503,7 +503,7 @@ def callDeferred(func):
 
 	global _deferedTasks
 	_deferedTasks["%s.%s" % (func.__name__, func.__module__)] = func
-	return (lambda *args, **kwargs: mkDefered(func, *args, **kwargs))
+	return lambda *args, **kwargs: mkDefered(func, *args, **kwargs)
 
 
 def PeriodicTask(interval=0, cronName="default"):
@@ -537,7 +537,7 @@ def CallableTask(fn):
 	"""
 	global _callableTasks
 	_callableTasks[fn.key] = fn
-	return (fn)
+	return fn
 
 
 def StartupTask(fn):
@@ -548,7 +548,7 @@ def StartupTask(fn):
 	"""
 	global _startupTasks
 	_startupTasks.append(fn)
-	return (fn)
+	return fn
 
 
 @callDeferred

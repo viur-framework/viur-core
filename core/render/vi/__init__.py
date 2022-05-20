@@ -32,7 +32,7 @@ genSkey.exposed = True
 
 def timestamp(*args, **kwargs):
 	d = datetime.datetime.now()
-	return (json.dumps(d.strftime("%Y-%m-%dT%H-%M-%S")))
+	return json.dumps(d.strftime("%Y-%m-%dT%H-%M-%S"))
 
 
 timestamp.exposed = True
@@ -43,12 +43,12 @@ def getStructure(adminTree, module):
 		or not "adminInfo" in dir(getattr(adminTree, module)) \
 		or not getattr(adminTree, module).adminInfo:
 		# Module not known or no adminInfo for that module
-		return (json.dumps(None))
+		return json.dumps(None)
 	res = {}
 	try:
 		moduleObj = getattr(adminTree, module)
 	except:
-		return (None)
+		return None
 	for stype in ["viewSkel", "editSkel", "addSkel", "viewLeafSkel", "viewNodeSkel", "editNodeSkel", "editLeafSkel",
 				  "addNodeSkel", "addLeafSkel"]:  # Unknown skel type
 		if stype in dir(moduleObj):

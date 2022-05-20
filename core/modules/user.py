@@ -532,7 +532,7 @@ class TimeBasedOTP(object):
 			# Maybe uneven length
 			if len(hexStr) % 2 == 1:
 				hexStr = "0" + hexStr
-			return (("00" * (8 - (len(hexStr) / 2)) + hexStr).decode("hex"))
+			return ("00" * (8 - (len(hexStr) / 2)) + hexStr).decode("hex")
 
 		idx = int(time() / 60.0)  # Current time index
 		idx += int(timeDrift)

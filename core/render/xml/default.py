@@ -269,28 +269,28 @@ class DefaultRender(object):
 		return serializeXML(res)
 
 	def editSuccess(self, skel, params=None, **kwargs):
-		return (serializeXML("OKAY"))
+		return serializeXML("OKAY")
 
 	def addSuccess(self, skel, params=None, **kwargs):
-		return (serializeXML("OKAY"))
+		return serializeXML("OKAY")
 
 	def addDirSuccess(self, rootNode, path, dirname, params=None, *args, **kwargs):
-		return (serializeXML("OKAY"))
+		return serializeXML("OKAY")
 
 	def renameSuccess(self, rootNode, path, src, dest, params=None, *args, **kwargs):
-		return (serializeXML("OKAY"))
+		return serializeXML("OKAY")
 
 	def copySuccess(self, srcrepo, srcpath, name, destrepo, destpath, type, deleteold, params=None, *args, **kwargs):
-		return (serializeXML("OKAY"))
+		return serializeXML("OKAY")
 
 	def deleteSuccess(self, skel, params=None, *args, **kwargs):
-		return (serializeXML("OKAY"))
+		return serializeXML("OKAY")
 
 	def reparentSuccess(self, obj, tpl=None, params=None, *args, **kwargs):
-		return (serializeXML("OKAY"))
+		return serializeXML("OKAY")
 
 	def setIndexSuccess(self, obj, tpl=None, params=None, *args, **kwargs):
-		return (serializeXML("OKAY"))
+		return serializeXML("OKAY")
 
 	def cloneSuccess(self, tpl=None, params=None, *args, **kwargs):
-		return (serializeXML("OKAY"))
+		return serializeXML("OKAY")

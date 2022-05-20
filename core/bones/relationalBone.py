@@ -658,7 +658,7 @@ class relationalBone(baseBone):
 			if self.multiple:
 				dbFilter.setFilterHook(lambda s, filter, value: self.filterHook(name, s, filter, value))
 				dbFilter.setOrderHook(lambda s, orderings: self.orderHook(name, s, orderings))
-		return (dbFilter)
+		return dbFilter
 
 	def filterHook(self, name, query, param, value):  # FIXME
 		"""
@@ -669,7 +669,7 @@ class relationalBone(baseBone):
 		"""
 		if param.startswith("src.") or param.startswith("dest.") or param.startswith("viur_"):
 			# This filter is already valid in our relation
-			return (param, value)
+			return param, value
 		if param.startswith("%s." % name):
 			# We add a constrain filtering by properties of the referenced entity
 			refKey = param.replace("%s." % name, "")
@@ -679,14 +679,14 @@ class relationalBone(baseBone):
 				logging.warning("Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (refKey, name))
 				raise RuntimeError()
 			if self.multiple:
-				return (param.replace("%s." % name, "dest."), value)
+				return param.replace("%s." % name, "dest."), value
 			else:
-				return (param, value)
+				return param, value
 		else:
 			# We filter by a property of this entity
 			if not self.multiple:
 				# Not relational, not multiple - nothing to do here
-				return (param, value)
+				return param, value
 			# Prepend "src."
 			srcKey = param
 			if " " in srcKey:
@@ -700,11 +700,11 @@ class relationalBone(baseBone):
 				if not isinstance(value, db.Key):
 					value = db.Key(value)
 				query.ancestor(value)
-				return (None)
+				return None
 			if srcKey not in self.parentKeys:
 				logging.warning("Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (srcKey, name))
 				raise RuntimeError()
-			return ("src.%s" % param, value)
+			return "src.%s" % param, value
 
 	def orderHook(self, name, query, orderings):  # FIXME
 		"""
@@ -751,7 +751,7 @@ class relationalBone(baseBone):
 						res.append(("src.%s" % orderKey, order[1]))
 					else:
 						res.append("src.%s" % orderKey)
-		return (res)
+		return res
 
 	def refresh(self, skel, boneName):
 		"""

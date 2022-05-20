@@ -45,7 +45,7 @@ class Render(DefaultRender):  # Render user-data to xml
 		else:
 			tpl = tpl or self.loginSuccessTemplate
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-		return (template.render(**kwargs))
+		return template.render(**kwargs)
 
 	def logoutSuccess(self, tpl=None, **kwargs):
 		if "logoutSuccessTemplate" in dir(self.parent):
@@ -53,7 +53,7 @@ class Render(DefaultRender):  # Render user-data to xml
 		else:
 			tpl = tpl or self.logoutSuccessTemplate
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-		return (template.render(**kwargs))
+		return template.render(**kwargs)
 
 	def verifySuccess(self, skel, tpl=None, **kwargs):
 		if "verifySuccessTemplate" in dir(self.parent):
@@ -61,7 +61,7 @@ class Render(DefaultRender):  # Render user-data to xml
 		else:
 			tpl = tpl or self.verifySuccessTemplate
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-		return (template.render(**kwargs))
+		return template.render(**kwargs)
 
 	def verifyFailed(self, tpl=None, **kwargs):
 		if "verifyFailedTemplate" in dir(self.parent):
@@ -69,7 +69,7 @@ class Render(DefaultRender):  # Render user-data to xml
 		else:
 			tpl = tpl or self.verifyFailedTemplate
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-		return (template.render(**kwargs))
+		return template.render(**kwargs)
 
 	def passwdRecoverInfo(self, msg, skel=None, tpl=None, **kwargs):
 		if "passwdRecoverInfoTemplate" in dir(self.parent):
@@ -79,7 +79,7 @@ class Render(DefaultRender):  # Render user-data to xml
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
 		if skel:
 			skel.renderPreparation = self.renderBoneValue
-		return (template.render(skel=skel, msg=msg, **kwargs))
+		return template.render(skel=skel, msg=msg, **kwargs)
 
 	def passwdRecover(self, *args, **kwargs):
-		return (self.edit(*args, **kwargs))
+		return self.edit(*args, **kwargs)

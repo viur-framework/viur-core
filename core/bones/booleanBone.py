@@ -60,6 +60,6 @@ class booleanBone(baseBone):
 				val = True
 			else:
 				val = False
-			return (super(booleanBone, self).buildDBFilter(name, skel, dbFilter, {name: val}, prefix=prefix))
+			return super(booleanBone, self).buildDBFilter(name, skel, dbFilter, {name: val}, prefix=prefix)
 		else:
-			return (dbFilter)
+			return dbFilter

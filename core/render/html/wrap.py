@@ -16,14 +16,14 @@ class ListWrapper(list):
 
 	def __getitem__(self, key):
 		if isinstance(key, int):
-			return (super(ListWrapper, self).__getitem__(key))
+			return super(ListWrapper, self).__getitem__(key)
 		res = []
 		for obj in self:
 			if isinstance(obj, dict) and key in obj:
 				res.append(obj[key])
 			elif key in dir(obj):
 				res.append(getattr(obj, key))
-		return (ListWrapper(res))
+		return ListWrapper(res)
 
 	def __contains__(self, item):
 		if super(ListWrapper, self).__contains__(item):

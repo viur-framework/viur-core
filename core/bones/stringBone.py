@@ -48,7 +48,7 @@ class stringBone(baseBone):
 	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 		if not name in rawFilter and not any(
 			[(x.startswith(name + "$") or x.startswith(name + ".")) for x in rawFilter.keys()]):
-			return (super(stringBone, self).buildDBFilter(name, skel, dbFilter, rawFilter, prefix))
+			return super(stringBone, self).buildDBFilter(name, skel, dbFilter, rawFilter, prefix)
 		hasInequalityFilter = False
 		if not self.languages:
 			namefilter = name
@@ -91,7 +91,7 @@ class stringBone(baseBone):
 				dbFilter.filter((prefix or "") + namefilter + ".idx", str(rawFilter[name]).lower())
 			else:
 				dbFilter.filter((prefix or "") + namefilter, str(rawFilter[name]))
-		return (dbFilter)
+		return dbFilter
 
 	def buildDBSort(self, name, skel, dbFilter, rawFilter):
 		if "orderby" in rawFilter and (rawFilter["orderby"] == name or (
@@ -135,7 +135,7 @@ class stringBone(baseBone):
 					dbFilter.order(order)
 			else:
 				dbFilter.order(order)
-		return (dbFilter)
+		return dbFilter
 
 	def getSearchTags(self, skeletonValues, name):
 		res = set()
