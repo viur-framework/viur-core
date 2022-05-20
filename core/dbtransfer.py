@@ -355,7 +355,7 @@ class TaskExportKind(CallableTaskBase):
 	descr = u"Copies the selected data to the given target application"
 	direct = True
 
-	def canCall(self):
+	def canCall(self) -> bool:
 		user = utils.getCurrentUser()
 		return user is not None and "root" in user["access"]
 
@@ -427,7 +427,7 @@ class TaskImportKind(CallableTaskBase):
 	descr = u"Copies the selected data from the given source application"
 	direct = True
 
-	def canCall(self):
+	def canCall(self) -> bool:
 		user = utils.getCurrentUser()
 		return user is not None and "root" in user["access"]
 

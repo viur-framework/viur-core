@@ -131,7 +131,7 @@ class randomSliceBone(baseBone):
 			Randomly returns 'targetAmount' elements from 'result'
 
 			:param dbFilter: The db.Query calling this function
-			:type: dbFilter: server.db.Query
+			:type: dbFilter: viur.core.db.Query
 			:param result: The list of results for each subquery we've run
 			:type result: list of list of :class:`viur.core.db.Entity`
 			:param targetAmount: How many results should be returned from db.Query

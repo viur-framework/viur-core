@@ -1,9 +1,10 @@
-# -*- coding: utf-8 -*-
-from viur.core import utils, session, errors, conf, securitykey, exposed, forceSSL, db
-from viur.core.prototypes import BasicApplication
-from viur.core.cache import flushCache
-
 import logging
+from typing import Any, Optional
+
+from viur.core import db, errors, exposed, forceSSL, securitykey, utils
+from viur.core.cache import flushCache
+from viur.core.prototypes import BasicApplication
+from viur.core.skeleton import SkeletonInstance
 
 
 class Singleton(BasicApplication):
@@ -33,7 +34,7 @@ class Singleton(BasicApplication):
 	def __init__(self, moduleName, modulePath, *args, **kwargs):
 		super(Singleton, self).__init__(moduleName, modulePath, *args, **kwargs)
 
-	def getKey(self):
+	def getKey(self) -> str:
 		"""
 		Returns the DB-Key for the current context.
 
@@ -41,11 +42,10 @@ class Singleton(BasicApplication):
 		It *must* return *exactly one* key at any given time in any given context.
 
 		:returns: Current context DB-key
-		:rtype: str
 		"""
 		return "%s-modulekey" % self.editSkel().kindName
 
-	def viewSkel(self, *args, **kwargs):
+	def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
 		"""
 		Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
 		for viewing the existing entry.
@@ -55,11 +55,10 @@ class Singleton(BasicApplication):
 		.. seealso:: :func:`addSkel`, :func:`editSkel`, :func:`~baseSkel`
 
 		:return: Returns a Skeleton instance for viewing the singleton entry.
-		:rtype: server.skeleton.Skeleton
 		"""
 		return self.baseSkel(*args, **kwargs)
 
-	def editSkel(self, *args, **kwargs):
+	def editSkel(self, *args, **kwargs) -> SkeletonInstance:
 		"""
 		Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
 		for editing the existing entry.
@@ -69,14 +68,13 @@ class Singleton(BasicApplication):
 		.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`~baseSkel`
 
 		:return: Returns a Skeleton instance for editing the entry.
-		:rtype: server.skeleton.Skeleton
 		"""
 		return self.baseSkel(*args, **kwargs)
 
 	## External exposed functions
 
 	@exposed
-	def preview(self, skey, *args, **kwargs):
+	def preview(self, skey: str, *args, **kwargs) -> Any:
 		"""
 		Renders data for the entry, without reading it from the database.
 		This function allows to preview the entry without writing it to the database.
@@ -99,7 +97,7 @@ class Singleton(BasicApplication):
 		return self.render.view(skel)
 
 	@exposed
-	def structure(self, *args, **kwargs):
+	def structure(self, *args, **kwargs) -> Any:
 		"""
 		:returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
 			in each bone.
@@ -112,7 +110,7 @@ class Singleton(BasicApplication):
 		return self.render.view(skel)
 
 	@exposed
-	def view(self, *args, **kwargs):
+	def view(self, *args, **kwargs) -> Any:
 		"""
 		Prepares and renders the singleton entry for viewing.
 
@@ -140,7 +138,7 @@ class Singleton(BasicApplication):
 
 	@exposed
 	@forceSSL
-	def edit(self, *args, **kwargs):
+	def edit(self, *args, **kwargs) -> Any:
 		"""
 		Modify the existing entry, and render the entry, eventually with error notes on incorrect data.
 
@@ -156,10 +154,7 @@ class Singleton(BasicApplication):
 		:raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
 
-		if "skey" in kwargs:
-			skey = kwargs["skey"]
-		else:
-			skey = ""
+		skey = kwargs.get("skey", "")
 
 		skel = self.editSkel()
 
@@ -184,7 +179,7 @@ class Singleton(BasicApplication):
 		self.onEdited(skel)
 		return self.render.editSuccess(skel)
 
-	def getContents(self):
+	def getContents(self) -> Optional[SkeletonInstance]:
 		"""
 		Returns the entity of this singleton application as :class:`viur.core.skeleton.Skeleton` object.
 
@@ -198,7 +193,7 @@ class Singleton(BasicApplication):
 
 		return skel
 
-	def canPreview(self):
+	def canPreview(self) -> bool:
 		"""
 		Access control function for preview permission.
 
@@ -215,7 +210,6 @@ class Singleton(BasicApplication):
 		.. seealso:: :func:`preview`
 
 		:returns: True, if previewing entries is allowed, False otherwise.
-		:rtype: bool
 		"""
 		user = utils.getCurrentUser()
 
@@ -230,7 +224,7 @@ class Singleton(BasicApplication):
 
 		return False
 
-	def canEdit(self):
+	def canEdit(self) -> bool:
 		"""
 		Access control function for modification permission.
 
@@ -246,7 +240,6 @@ class Singleton(BasicApplication):
 		.. seealso:: :func:`edit`
 
 		:returns: True, if editing is allowed, False otherwise.
-		:rtype: bool
 		"""
 		user = utils.getCurrentUser()
 
@@ -261,7 +254,7 @@ class Singleton(BasicApplication):
 
 		return False
 
-	def canView(self):
+	def canView(self) -> bool:
 		"""
 		Access control function for viewing permission.
 
@@ -276,11 +269,7 @@ class Singleton(BasicApplication):
 
 		.. seealso:: :func:`view`
 
-		:param skel: The Skeleton that should be viewed.
-		:type skel: :class:`viur.core.skeleton.Skeleton`
-
 		:returns: True, if viewing is allowed, False otherwise.
-		:rtype: bool
 		"""
 		user = utils.getCurrentUser()
 		if not user:
@@ -291,20 +280,19 @@ class Singleton(BasicApplication):
 			return (True)
 		return (False)
 
-	def onEdit(self, skel):
+	def onEdit(self, skel: SkeletonInstance):
 		"""
 		Hook function that is called before editing an entry.
 
 		It can be overridden for a module-specific behavior.
 
 		:param skel: The Skeleton that is going to be edited.
-		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`edit`, :func:`onEdited`
 		"""
 		pass
 
-	def onEdited(self, skel):
+	def onEdited(self, skel: SkeletonInstance):
 		"""
 		Hook function that is called after modifying the entry.
 
@@ -312,7 +300,6 @@ class Singleton(BasicApplication):
 		The default is writing a log entry.
 
 		:param skel: The Skeleton that has been modified.
-		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`edit`, :func:`onEdit`
 		"""
@@ -322,7 +309,7 @@ class Singleton(BasicApplication):
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-	def onView(self, skel):
+	def onView(self, skel: SkeletonInstance):
 		"""
 		Hook function that is called when viewing an entry.
 
@@ -330,7 +317,6 @@ class Singleton(BasicApplication):
 		The default is doing nothing.
 
 		:param skel: The Skeleton that is being viewed.
-		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`view`
 		"""

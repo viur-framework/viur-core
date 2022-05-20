@@ -117,7 +117,7 @@ class CallableTaskBase:
 	descr = None  # Human-Readable description
 	kindName = "server-task"
 
-	def canCall(self):
+	def canCall(self) -> bool:
 		"""
 			Checks wherever the current user can execute this task
 			:returns: bool
@@ -359,10 +359,7 @@ class TaskHandler:
 		if not task.canCall():
 			raise errors.Unauthorized()
 		skel = task.dataSkel()
-		if "skey" in kwargs:
-			skey = kwargs["skey"]
-		else:
-			skey = ""
+		skey = kwargs.get("skey", "")
 		if len(kwargs) == 0 or skey == "" or not skel.fromClient(kwargs) or (
 			"bounce" in kwargs and kwargs["bounce"] == "1"):
 			return self.render.add(skel)

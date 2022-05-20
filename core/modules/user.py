@@ -352,7 +352,7 @@ class UserPassword(object):
 		skel.toDB()
 		return self.userModule.render.view(skel, self.verifySuccessTemplate)
 
-	def canAdd(self):
+	def canAdd(self) -> bool:
 		return self.registrationEnabled
 
 	def addSkel(self):
@@ -360,7 +360,7 @@ class UserPassword(object):
 			Prepare the add-Skel for rendering.
 			Currently only calls self.userModule.addSkel() and sets skel["status"].value depening on
 			self.registrationEmailVerificationRequired and self.registrationAdminVerificationRequired
-			:return: server.skeleton.Skeleton
+			:return: viur.core.skeleton.Skeleton
 		"""
 		skel = self.userModule.addSkel()
 		if self.registrationEmailVerificationRequired:
@@ -387,10 +387,7 @@ class UserPassword(object):
 			:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
 			:raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-		if "skey" in kwargs:
-			skey = kwargs["skey"]
-		else:
-			skey = ""
+		skey = kwargs.get("skey", "")
 		if not self.canAdd():
 			raise errors.Unauthorized()
 		skel = self.addSkel()
@@ -499,7 +496,7 @@ class TimeBasedOTP(object):
 	def get2FactorMethodName(*args, **kwargs):
 		return u"X-VIUR-2FACTOR-TimeBasedOTP"
 
-	def canHandle(self, userKey):
+	def canHandle(self, userKey) -> bool:
 		user = db.Get(userKey)
 		return all(
 			[(x in user and (x == "otptimedrift" or bool(user[x]))) for x in ["otpid", "otpkey", "otptimedrift"]])
@@ -821,7 +818,7 @@ class User(List):
 
 		return super(User, self).view(key, *args, **kwargs)
 
-	def canView(self, skel):
+	def canView(self, skel) -> bool:
 		user = self.getCurrentUser()
 		if user:
 			if skel["key"] == user["key"]:

@@ -178,6 +178,6 @@ conf = {
 	# Which application-ids we're supposed to run on
 	"viur.validApplicationIDs": [],
 
-	# Will be set to viur.core.__version__ in server.__init__
+	# Will be set to viur.core.version.__version__ in viur.core.__init__
 	"viur.version": None,
 }

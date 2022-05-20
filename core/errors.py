@@ -56,7 +56,7 @@ class PaymentRequired(HTTPException):
 	"""
 		PaymentRequired
 
-		Not used inside the server. This status-code is reserved for further use and is currently not
+		Not used inside viur.core. This status-code is reserved for further use and is currently not
 		supported by clients.
 	"""
 
@@ -68,7 +68,7 @@ class Forbidden(HTTPException):
 	"""
 		Forbidden
 
-		Not used inside the server. May be utilized in the future to distinguish between requests from
+		Not used inside viur.core. May be utilized in the future to distinguish between requests from
 		guests and users, who are logged in but don't have the permission.
 	"""
 

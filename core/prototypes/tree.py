@@ -1,17 +1,16 @@
-# -*- coding: utf-8 -*-
 import logging
-
 from time import time
-from typing import Optional
+from typing import Any, Dict, List, Literal, Optional, Type, Union
 
-from viur.core import utils, errors, conf, securitykey, db
-from viur.core import forcePost, forceSSL, exposed, internalExposed
+from viur.core import db, errors, exposed, forcePost, forceSSL, internalExposed, securitykey, utils
 from viur.core.bones import keyBone, numericBone
+from viur.core.cache import flushCache
 from viur.core.prototypes import BasicApplication
 from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.tasks import callDeferred
 from viur.core.utils import currentRequest
-from viur.core.cache import flushCache
+
+SkelType = Literal["node", "leaf"]
 
 
 class TreeSkel(Skeleton):
@@ -68,7 +67,7 @@ class Tree(BasicApplication):
 		assert self.nodeSkelCls, "You have to specify at least nodeSkelCls for %r" % self.__class__.__name__
 		super(Tree, self).__init__(moduleName, modulePath, *args, **kwargs)
 
-	def _checkSkelType(self, skelType: str):
+	def _checkSkelType(self, skelType: Any) -> Optional[SkelType]:
 		"""
 		Checks for correct skelType.
 
@@ -80,7 +79,7 @@ class Tree(BasicApplication):
 
 		return None
 
-	def _resolveSkelCls(self, skelType: str, *args, **kwargs):
+	def _resolveSkelCls(self, skelType: SkelType, *args, **kwargs) -> Type[Skeleton]:
 		if not (skelType := self._checkSkelType(skelType)):
 			raise ValueError("Unsupported skelType")
 
@@ -89,7 +88,7 @@ class Tree(BasicApplication):
 
 		return self.nodeSkelCls
 
-	def baseSkel(self, skelType: str, *args, **kwargs) -> Skeleton:
+	def baseSkel(self, skelType: SkelType, *args, **kwargs) -> SkeletonInstance:
 		"""
 		Return unmodified base skeleton for the given skelType.
 
@@ -97,7 +96,7 @@ class Tree(BasicApplication):
 		"""
 		return self._resolveSkelCls(skelType, *args, **kwargs)()
 
-	def viewSkel(self, skelType: str, *args, **kwargs):
+	def viewSkel(self, skelType: SkelType, *args, **kwargs) -> SkeletonInstance:
 		"""
 		Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
 		for viewing an existing entry from the list.
@@ -107,11 +106,10 @@ class Tree(BasicApplication):
 		.. seealso:: :func:`addSkel`, :func:`editSkel`, :func:`~baseSkel`
 
 		:return: Returns a Skeleton instance for viewing an entry.
-		:rtype: server.skeleton.Skeleton
 		"""
 		return self.baseSkel(skelType, *args, **kwargs)
 
-	def addSkel(self, skelType: str, *args, **kwargs):
+	def addSkel(self, skelType: SkelType, *args, **kwargs) -> SkeletonInstance:
 		"""
 		Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
 		for adding an entry to the list.
@@ -121,11 +119,10 @@ class Tree(BasicApplication):
 		.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`~baseSkel`
 
 		:return: Returns a Skeleton instance for adding an entry.
-		:rtype: server.skeleton.Skeleton
 		"""
 		return self.baseSkel(skelType, *args, **kwargs)
 
-	def editSkel(self, skelType: str, *args, **kwargs):
+	def editSkel(self, skelType: SkelType, *args, **kwargs) -> SkeletonInstance:
 		"""
 		Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
 		for editing an existing entry from the list.
@@ -135,23 +132,21 @@ class Tree(BasicApplication):
 		.. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`~baseSkel`
 
 		:return: Returns a Skeleton instance for editing an entry.
-		:rtype: server.skeleton.Skeleton
 		"""
 		return self.baseSkel(skelType, *args, **kwargs)
 
-	def ensureOwnModuleRootNode(self):
+	def ensureOwnModuleRootNode(self) -> db.Entity:
 		"""
 		Ensures, that general root-node for the current module exists.
 		If no root-node exists yet, it will be created.
 
 		:returns: The entity of the root-node.
-		:rtype: :class:`viur.core.db.Entity`
 		"""
 		key = "rep_module_repo"
 		kindName = self.viewSkel("node").kindName
 		return db.GetOrInsert(db.Key(kindName, key), creationdate=utils.utcNow(), rootNode=1)
 
-	def getAvailableRootNodes(self, *args, **kwargs):
+	def getAvailableRootNodes(self, *args, **kwargs) -> List[Dict[Literal["name", "key"], str]]:
 		"""
 		Default function for providing a list of root node items.
 		This list is requested by several module-internal functions and *must* be
@@ -163,7 +158,7 @@ class Tree(BasicApplication):
 					def getAvailableRootNodes(self, *args, **kwargs):
 						q = db.Query(self.rootKindName)
 							ret = [{"key": str(e.key()),
-								"name": e.get("name", str(e.key().id_or_name()))}
+								"name": e.get("name", str(e.key().id_or_name()))} #FIXME
 								for e in q.run(limit=25)]
 							return ret
 
@@ -171,19 +166,16 @@ class Tree(BasicApplication):
 		:param kwargs: Can be used in custom implementations.
 		:return: Returns a list of dicts which must provide a "key" and a "name" entry with \
 					respective information.
-		:rtype: list of dict
 		"""
 		return []
 
-	def getRootNode(self, entryKey: db.Key) -> Skeleton:
+	def getRootNode(self, entryKey: Union[db.Key, str, int]) -> SkeletonInstance:
 		"""
 		Returns the root-node for a given child.
 
 		:param entryKey: URL-Safe key of the child entry
-		:type entryKey: str
 
 		:returns: The entity of the root-node.
-		:rtype: :class:`viur.core.db.Entity`
 		"""
 		rootNodeSkel = self.nodeSkelCls()
 		entryKey = db.keyHelper(entryKey, rootNodeSkel.kindName)
@@ -201,11 +193,11 @@ class Tree(BasicApplication):
 		This will delete all entries which are children of *nodeKey*, except *key* nodeKey.
 
 		:param parentNode: URL-safe key of the node which children should be fixed.
-		:param newNode: URL-safe key of the new repository.
+		:param newRepoKey: URL-safe key of the new repository.
 		:param depth: Safety level depth preventing infinitive loops.
 		"""
 		if depth > 99:
-			logging.critical("Maximum recursion depth reached in server.applications.tree/fixParentRepo")
+			logging.critical("Maximum recursion depth reached in %s/updateParentRepo", self.updateParentRepo.__module__)
 			logging.critical("Your data is corrupt!")
 			logging.critical("Params: parentNode: %s, newRepoKey: %s" % (parentNode, newRepoKey))
 			return
@@ -257,18 +249,17 @@ class Tree(BasicApplication):
 	## External exposed functions
 
 	@exposed
-	def listRootNodes(self, *args, **kwargs):
+	def listRootNodes(self, *args, **kwargs) -> Any:
 		"""
 		Renders a list of all available repositories for the current user using the
 		modules default renderer.
 
 		:returns: The rendered representation of the available root-nodes.
-		:rtype: str
 		"""
 		return self.render.listRootNodes(self.getAvailableRootNodes(*args, **kwargs))
 
 	@exposed
-	def list(self, skelType, *args, **kwargs):
+	def list(self, skelType: SkelType, *args, **kwargs) -> Any:
 		"""
 		Prepares and renders a list of entries.
 
@@ -294,7 +285,7 @@ class Tree(BasicApplication):
 		return self.render.list(res)
 
 	@exposed
-	def structure(self, skelType: str, *args, **kwargs):
+	def structure(self, skelType: SkelType, *args, **kwargs) -> Any:
 		"""
 		:returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
 			in each bone.
@@ -313,7 +304,7 @@ class Tree(BasicApplication):
 		return self.render.view(skel)
 
 	@exposed
-	def view(self, skelType, key, *args, **kwargs):
+	def view(self, skelType: SkelType, key: Union[db.Key, str, int], *args, **kwargs) -> Any:
 		"""
 		Prepares and renders a single entry for viewing.
 
@@ -325,9 +316,7 @@ class Tree(BasicApplication):
 		:returns: The rendered representation of the requested entity.
 
 		:param skelType: May either be "node" or "leaf".
-		:type skelType: str
-		:param node: URL-safe key of the parent.
-		:type node: str
+		:param key: URL-safe key of the parent.
 
 		:raises: :exc:`viur.core.errors.NotAcceptable`, when an incorrect *skelType* is provided.
 		:raises: :exc:`viur.core.errors.NotFound`, when no entry with the given *key* was found.
@@ -348,7 +337,7 @@ class Tree(BasicApplication):
 
 	@exposed
 	@forceSSL
-	def add(self, skelType, node, *args, **kwargs):
+	def add(self, skelType: SkelType, node: Union[db.Key, str, int], *args, **kwargs) -> Any:
 		"""
 		Add a new entry with the given parent *node*, and render the entry, eventually with error notes
 		on incorrect data. Data is taken by any other arguments in *kwargs*.
@@ -358,9 +347,7 @@ class Tree(BasicApplication):
 		.. seealso:: :func:`canAdd`, :func:`onAdd`, , :func:`onAdded`
 
 		:param skelType: Defines the type of the new entry and may either be "node" or "leaf".
-		:type skelType: str
 		:param node: URL-safe key of the parent.
-		:type node: str
 
 		:returns: The rendered, added object of the entry, eventually with error hints.
 
@@ -369,10 +356,7 @@ class Tree(BasicApplication):
 		:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-		if "skey" in kwargs:
-			skey = kwargs["skey"]
-		else:
-			skey = ""
+		skey = kwargs.get("skey", "")
 
 		if not (skelType := self._checkSkelType(skelType)):
 			raise errors.NotAcceptable(f"Invalid skelType provided.")
@@ -405,7 +389,7 @@ class Tree(BasicApplication):
 
 	@exposed
 	@forceSSL
-	def edit(self, skelType, key, *args, **kwargs):
+	def edit(self, skelType: SkelType, key: Union[db.Key, str, int], *args, **kwargs) -> Any:
 		"""
 		Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
 		Data is taken by any other arguments in *kwargs*.
@@ -415,9 +399,7 @@ class Tree(BasicApplication):
 		.. seealso:: :func:`canEdit`, :func:`onEdit`, :func:`onEdited`
 
 		:param skelType: Defines the type of the entry that should be modified and may either be "node" or "leaf".
-		:type skelType: str
 		:param key: URL-safe key of the item to be edited.
-		:type key: str
 
 		:returns: The rendered, modified object of the entry, eventually with error hints.
 
@@ -426,10 +408,7 @@ class Tree(BasicApplication):
 		:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-		if "skey" in kwargs:
-			skey = kwargs["skey"]
-		else:
-			skey = ""
+		skey = kwargs.get("skey", "")
 
 		if not (skelType := self._checkSkelType(skelType)):
 			raise errors.NotAcceptable(f"Invalid skelType provided.")
@@ -456,7 +435,7 @@ class Tree(BasicApplication):
 	@exposed
 	@forceSSL
 	@forcePost
-	def delete(self, skelType, key, *args, **kwargs):
+	def delete(self, skelType: SkelType, key: Union[db.Key, str, int], *args, **kwargs) -> Any:
 		"""
 		Deletes an entry or an directory (including its contents).
 
@@ -465,9 +444,7 @@ class Tree(BasicApplication):
 		.. seealso:: :func:`canDelete`, :func:`onDelete`, :func:`onDeleted`
 
 		:param skelType: Defines the type of the entry that should be deleted and may either be "node" or "leaf".
-		:type skelType: str
 		:param key: URL-safe key of the item to be deleted.
-		:type key: str
 
 		:returns: The rendered, deleted object of the entry.
 
@@ -475,10 +452,7 @@ class Tree(BasicApplication):
 		:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
 		:raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-		if "skey" in kwargs:
-			skey = kwargs["skey"]
-		else:
-			skey = ""
+		skey = kwargs.get("skey", "")
 		if not (skelType := self._checkSkelType(skelType)):
 			raise errors.NotAcceptable(f"Invalid skelType provided.")
 		skel = self.addSkel(skelType)
@@ -496,14 +470,13 @@ class Tree(BasicApplication):
 		return self.render.deleteSuccess(skel, skelType=skelType)
 
 	@callDeferred
-	def deleteRecursive(self, parentKey):
+	def deleteRecursive(self, parentKey: str):
 		"""
 		Recursively processes a delete request.
 
 		This will delete all entries which are children of *nodeKey*, except *key* nodeKey.
 
-		:param key: URL-safe key of the node which children should be deleted.
-		:type key: str
+		:param parentKey: URL-safe key of the node which children should be deleted.
 		"""
 		nodeKey = db.keyHelper(parentKey, self.viewSkel("node").kindName)
 		if self.leafSkelCls:
@@ -522,7 +495,7 @@ class Tree(BasicApplication):
 	@exposed
 	@forceSSL
 	@forcePost
-	def move(self, skelType: str, key: str, parentNode: str, *args, **kwargs) -> str:
+	def move(self, skelType: SkelType, key: str, parentNode: str, *args, **kwargs) -> str:
 		"""
 		Move a node (including its contents) or a leaf to another node.
 
@@ -604,7 +577,7 @@ class Tree(BasicApplication):
 
 	## Default access control functions
 
-	def listFilter(self, filter):
+	def listFilter(self, query: db.Query) -> Optional[db.Query]:
 		"""
 		Access control function on item listing.
 
@@ -612,18 +585,16 @@ class Tree(BasicApplication):
 		and is used to modify the provided filter parameter to match only items that the current user
 		is allowed to see.
 
-		:param filter: Query which should be altered.
-		:type filter: :class:`viur.core.db.Query`
+		:param query: Query which should be altered.
 
 		:returns: The altered filter, or None if access is not granted.
-		:type filter: :class:`viur.core.db.Query`
 		"""
 		user = utils.getCurrentUser()
 		if user and ("%s-view" % self.moduleName in user["access"] or "root" in user["access"]):
-			return filter
+			return query
 		return None
 
-	def canView(self, skelType: str, skel: Skeleton) -> bool:
+	def canView(self, skelType: SkelType, skel: SkeletonInstance) -> bool:
 		"""
 		Checks if the current user can view the given entry.
 		Should be identical to what's allowed by listFilter.
@@ -640,7 +611,7 @@ class Tree(BasicApplication):
 			return False
 		return True
 
-	def canAdd(self, skelType: str, parentNodeSkel: Optional[SkeletonInstance]):
+	def canAdd(self, skelType: SkelType, parentNodeSkel: Optional[SkeletonInstance]) -> bool:
 		"""
 		Access control function for adding permission.
 
@@ -655,8 +626,10 @@ class Tree(BasicApplication):
 
 		.. seealso:: :func:`add`
 
+		:param skelType: Defines the type of the node that should be added.
+		:param parentNodeSkel: The parent node where a new entry should be added.
+
 		:returns: True, if adding entries is allowed, False otherwise.
-		:rtype: bool
 		"""
 		user = utils.getCurrentUser()
 		if not user:
@@ -669,7 +642,7 @@ class Tree(BasicApplication):
 			return True
 		return False
 
-	def canEdit(self, skelType: str, skel):
+	def canEdit(self, skelType: SkelType, skel: SkeletonInstance) -> bool:
 		"""
 		Access control function for modification permission.
 
@@ -684,11 +657,10 @@ class Tree(BasicApplication):
 
 		.. seealso:: :func:`edit`
 
+		:param skelType: Defines the type of the node that should be edited.
 		:param skel: The Skeleton that should be edited.
-		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		:returns: True, if editing entries is allowed, False otherwise.
-		:rtype: bool
 		"""
 		user = utils.getCurrentUser()
 		if not user:
@@ -699,7 +671,7 @@ class Tree(BasicApplication):
 			return True
 		return False
 
-	def canDelete(self, skelType: str, skel):
+	def canDelete(self, skelType: SkelType, skel: SkeletonInstance) -> bool:
 		"""
 		Access control function for delete permission.
 
@@ -713,13 +685,12 @@ class Tree(BasicApplication):
 
 		It should be overridden for a module-specific behavior.
 
+		:param skelType: Defines the type of the node that should be deleted.
 		:param skel: The Skeleton that should be deleted.
-		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`delete`
 
 		:returns: True, if deleting entries is allowed, False otherwise.
-		:rtype: bool
 		"""
 		user = utils.getCurrentUser()
 		if not user:
@@ -730,7 +701,7 @@ class Tree(BasicApplication):
 			return True
 		return False
 
-	def canMove(self, skelType: str, node: SkeletonInstance, destNode: SkeletonInstance) -> bool:
+	def canMove(self, skelType: SkelType, node: SkeletonInstance, destNode: SkeletonInstance) -> bool:
 		"""
 		Access control function for moving permission.
 
@@ -746,7 +717,7 @@ class Tree(BasicApplication):
 
 		:param skelType: Defines the type of the node that shall be deleted.
 		:param node: URL-safe key of the node to be moved.
-		:param node: URL-safe key of the node where *node* should be moved to.
+		:param destNode: URL-safe key of the node where *node* should be moved to.
 
 		.. seealso:: :func:`move`
 
@@ -763,28 +734,28 @@ class Tree(BasicApplication):
 
 	## Overridable eventhooks
 
-	def onAdd(self, skelType, skel):
+	def onAdd(self, skelType: SkelType, skel: SkeletonInstance):
 		"""
 		Hook function that is called before adding an entry.
 
 		It can be overridden for a module-specific behavior.
 
+		:param skelType: Defines the type of the node that shall be added.
 		:param skel: The Skeleton that is going to be added.
-		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`add`, :func:`onAdded`
 		"""
 		pass
 
-	def onAdded(self, skelType, skel):
+	def onAdded(self, skelType: SkelType, skel: SkeletonInstance):
 		"""
 		Hook function that is called after adding an entry.
 
 		It should be overridden for a module-specific behavior.
 		The default is writing a log entry.
 
+		:param skelType: Defines the type of the node that has been added.
 		:param skel: The Skeleton that has been added.
-		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`add`, :func:`onAdd`
 		"""
@@ -794,28 +765,28 @@ class Tree(BasicApplication):
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-	def onEdit(self, skelType, skel):
+	def onEdit(self, skelType: SkelType, skel: SkeletonInstance):
 		"""
 		Hook function that is called before editing an entry.
 
 		It can be overridden for a module-specific behavior.
 
+		:param skelType: Defines the type of the node that shall be edited.
 		:param skel: The Skeleton that is going to be edited.
-		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`edit`, :func:`onEdited`
 		"""
 		pass
 
-	def onEdited(self, skelType, skel):
+	def onEdited(self, skelType: SkelType, skel: SkeletonInstance):
 		"""
 		Hook function that is called after modifying an entry.
 
 		It should be overridden for a module-specific behavior.
 		The default is writing a log entry.
 
+		:param skelType: Defines the type of the node that has been edited.
 		:param skel: The Skeleton that has been modified.
-		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`edit`, :func:`onEdit`
 		"""
@@ -825,34 +796,34 @@ class Tree(BasicApplication):
 		if user:
 			logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
-	def onView(self, skelType, skel):
+	def onView(self, skelType: SkelType, skel: SkeletonInstance):
 		"""
 		Hook function that is called when viewing an entry.
 
 		It should be overridden for a module-specific behavior.
 		The default is doing nothing.
 
+		:param skelType: Defines the type of the node that is viewed.
 		:param skel: The Skeleton that is viewed.
-		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`view`
 		"""
 		pass
 
-	def onDelete(self, skelType, skel):
+	def onDelete(self, skelType: SkelType, skel: SkeletonInstance):
 		"""
 		Hook function that is called before deleting an entry.
 
 		It can be overridden for a module-specific behavior.
 
+		:param skelType: Defines the type of the node that shall be deleted.
 		:param skel: The Skeleton that is going to be deleted.
-		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`delete`, :func:`onDeleted`
 		"""
 		pass
 
-	def onDeleted(self, skelType, skel):
+	def onDeleted(self, skelType: SkelType, skel: SkeletonInstance):
 		"""
 		Hook function that is called after deleting an entry.
 
@@ -862,8 +833,8 @@ class Tree(BasicApplication):
 		..warning: Saving the skeleton again will undo the deletion
 		(if the skeleton was a leaf or a node with no children).
 
+		:param skelType: Defines the type of the node that is deleted.
 		:param skel: The Skeleton that has been deleted.
-		:type skel: :class:`viur.core.skeleton.Skeleton`
 
 		.. seealso:: :func:`delete`, :func:`onDelete`
 		"""

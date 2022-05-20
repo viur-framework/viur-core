@@ -1,12 +1,11 @@
-# -*- coding: utf-8 -*-
-from viur.core import utils, errors, conf, securitykey, db
-from viur.core import forcePost, forceSSL, exposed, internalExposed
-from viur.core.skeleton import SkeletonInstance
-from viur.core.prototypes import BasicApplication
-from viur.core.utils import currentRequest, currentLanguage
-from viur.core.cache import flushCache
-
 import logging
+from typing import Any, Optional
+
+from viur.core import db, errors, exposed, forcePost, forceSSL, securitykey, utils
+from viur.core.cache import flushCache
+from viur.core.prototypes import BasicApplication
+from viur.core.skeleton import SkeletonInstance
+from viur.core.utils import currentRequest
 
 
 class List(BasicApplication):
@@ -14,7 +13,6 @@ class List(BasicApplication):
 		The list prototype will only handle a single kind and arrange it's entities in a flat list.
 		This list can be filtered and/or sorted but there is no hierarchy/relationship between the items
 		in that list.
-
 	"""
 
 	accessRights = ["add", "edit", "view", "delete"]  #: Possible access rights for this app
@@ -87,7 +85,7 @@ class List(BasicApplication):
 
 	@exposed
 	@forcePost
-	def preview(self, skey, *args, **kwargs):
+	def preview(self, skey: str, *args, **kwargs) -> Any:
 		"""
 			Renders data for an entry, without reading from the database.
 			This function allows to preview an entry without writing it to the database.
@@ -110,7 +108,7 @@ class List(BasicApplication):
 		return self.render.view(skel)
 
 	@exposed
-	def structure(self, *args, **kwargs):
+	def structure(self, *args, **kwargs) -> Any:
 		"""
 			:returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
 				in each bone.
@@ -126,7 +124,7 @@ class List(BasicApplication):
 		return self.render.view(skel)
 
 	@exposed
-	def view(self, *args, **kwargs):
+	def view(self, *args, **kwargs) -> Any:
 		"""
 			Prepares and renders a single entry for viewing.
 
@@ -160,7 +158,7 @@ class List(BasicApplication):
 		return self.render.view(skel)
 
 	@exposed
-	def list(self, *args, **kwargs):
+	def list(self, *args, **kwargs) -> Any:
 		"""
 			Prepares and renders a list of entries.
 
@@ -184,7 +182,7 @@ class List(BasicApplication):
 
 	@forceSSL
 	@exposed
-	def edit(self, *args, **kwargs):
+	def edit(self, *args, **kwargs) -> Any:
 		"""
 			Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
 			Data is taken by any other arguments in *kwargs*.
@@ -202,10 +200,7 @@ class List(BasicApplication):
 			:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
 			:raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-		if "skey" in kwargs:
-			skey = kwargs["skey"]
-		else:
-			skey = ""
+		skey = kwargs.get("skey", "")
 		if "key" in kwargs:
 			key = kwargs["key"]
 		elif len(args) == 1:
@@ -236,7 +231,7 @@ class List(BasicApplication):
 
 	@forceSSL
 	@exposed
-	def add(self, *args, **kwargs):
+	def add(self, *args, **kwargs) -> Any:
 		"""
 			Add a new entry, and render the entry, eventually with error notes on incorrect data.
 			Data is taken by any other arguments in *kwargs*.
@@ -250,10 +245,7 @@ class List(BasicApplication):
 			:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
 			:raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-		if "skey" in kwargs:
-			skey = kwargs["skey"]
-		else:
-			skey = ""
+		skey = kwargs.get("skey", "")
 		if not self.canAdd():
 			raise errors.Unauthorized()
 		skel = self.addSkel()
@@ -277,7 +269,7 @@ class List(BasicApplication):
 	@forceSSL
 	@forcePost
 	@exposed
-	def delete(self, key, skey, *args, **kwargs):
+	def delete(self, key: str, skey, *args, **kwargs) -> Any:
 		"""
 			Delete an entry.
 
@@ -309,7 +301,7 @@ class List(BasicApplication):
 		return self.render.deleteSuccess(skel)
 
 	@exposed
-	def index(self, *args, **kwargs):
+	def index(self, *args, **kwargs) -> Any:
 		"""
 			Default, SEO-Friendly fallback for view and list.
 
@@ -341,7 +333,7 @@ class List(BasicApplication):
 
 	## Default access control functions
 
-	def listFilter(self, filter):
+	def listFilter(self, query: db.Query) -> Optional[db.Query]:
 		"""
 			Access control function on item listing.
 
@@ -349,16 +341,14 @@ class List(BasicApplication):
 			and is used to modify the provided filter parameter to match only items that the current user
 			is allowed to see.
 
-			:param filter: Query which should be altered.
-			:type filter: :class:`viur.core.db.Query`
+			:param query: Query which should be altered.
 
 			:returns: The altered filter, or None if access is not granted.
-			:type filter: :class:`viur.core.db.Query`
 		"""
 		user = utils.getCurrentUser()
 
 		if user and ("%s-view" % self.moduleName in user["access"] or "root" in user["access"]):
-			return filter
+			return query
 
 		return None
 
@@ -384,7 +374,7 @@ class List(BasicApplication):
 
 		return True
 
-	def canAdd(self):
+	def canAdd(self) -> bool:
 		"""
 			Access control function for adding permission.
 
@@ -400,7 +390,6 @@ class List(BasicApplication):
 			.. seealso:: :func:`add`
 
 			:returns: True, if adding entries is allowed, False otherwise.
-			:rtype: bool
 		"""
 		user = utils.getCurrentUser()
 		if not user:
@@ -416,7 +405,7 @@ class List(BasicApplication):
 
 		return False
 
-	def canPreview(self):
+	def canPreview(self) -> bool:
 		"""
 			Access control function for preview permission.
 
@@ -433,7 +422,6 @@ class List(BasicApplication):
 			.. seealso:: :func:`preview`
 
 			:returns: True, if previewing entries is allowed, False otherwise.
-			:rtype: bool
 		"""
 		user = utils.getCurrentUser()
 		if not user:
@@ -449,7 +437,7 @@ class List(BasicApplication):
 
 		return False
 
-	def canEdit(self, skel: SkeletonInstance):
+	def canEdit(self, skel: SkeletonInstance) -> bool:
 		"""
 			Access control function for modification permission.
 
@@ -465,10 +453,8 @@ class List(BasicApplication):
 			.. seealso:: :func:`edit`
 
 			:param skel: The Skeleton that should be edited.
-			:type skel: :class:`viur.core.skeleton.Skeleton`
 
 			:returns: True, if editing entries is allowed, False otherwise.
-			:rtype: bool
 		"""
 		user = utils.getCurrentUser()
 		if not user:
@@ -497,12 +483,10 @@ class List(BasicApplication):
 			It should be overridden for a module-specific behavior.
 
 			:param skel: The Skeleton that should be deleted.
-			:type skel: :class:`viur.core.skeleton.Skeleton`
 
 			.. seealso:: :func:`delete`
 
 			:returns: True, if deleting entries is allowed, False otherwise.
-			:rtype: bool
 		"""
 		user = utils.getCurrentUser()
 
@@ -526,7 +510,6 @@ class List(BasicApplication):
 			It can be overridden for a module-specific behavior.
 
 			:param skel: The Skeleton that is going to be added.
-			:type skel: :class:`viur.core.skeleton.Skeleton`
 
 			.. seealso:: :func:`add`, :func:`onAdded`
 		"""
@@ -540,7 +523,6 @@ class List(BasicApplication):
 			The default is writing a log entry.
 
 			:param skel: The Skeleton that has been added.
-			:type skel: :class:`viur.core.skeleton.Skeleton`
 
 			.. seealso:: :func:`add`, , :func:`onAdd`
 		"""
@@ -557,7 +539,6 @@ class List(BasicApplication):
 			It can be overridden for a module-specific behavior.
 
 			:param skel: The Skeleton that is going to be edited.
-			:type skel: :class:`viur.core.skeleton.Skeleton`
 
 			.. seealso:: :func:`edit`, :func:`onEdited`
 		"""
@@ -571,7 +552,6 @@ class List(BasicApplication):
 			The default is writing a log entry.
 
 			:param skel: The Skeleton that has been modified.
-			:type skel: :class:`viur.core.skeleton.Skeleton`
 
 			.. seealso:: :func:`edit`, :func:`onEdit`
 		"""
@@ -589,7 +569,6 @@ class List(BasicApplication):
 			The default is doing nothing.
 
 			:param skel: The Skeleton that is viewed.
-			:type skel: :class:`viur.core.skeleton.Skeleton`
 
 			.. seealso:: :func:`view`
 		"""
@@ -602,7 +581,6 @@ class List(BasicApplication):
 			It can be overridden for a module-specific behavior.
 
 			:param skel: The Skeleton that is going to be deleted.
-			:type skel: :class:`viur.core.skeleton.Skeleton`
 
 			.. seealso:: :func:`delete`, :func:`onDeleted`
 		"""
@@ -616,7 +594,6 @@ class List(BasicApplication):
 			The default is writing a log entry.
 
 			:param skel: The Skeleton that has been deleted.
-			:type skel: :class:`viur.core.skeleton.Skeleton`
 
 			.. seealso:: :func:`delete`, :func:`onDelete`
 		"""

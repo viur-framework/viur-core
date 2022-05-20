@@ -124,7 +124,7 @@ def getVersion(*args, **kwargs):
 getVersion.exposed = True
 
 
-def canAccess(*args, **kwargs):
+def canAccess(*args, **kwargs) -> bool:
 	user = utils.getCurrentUser()
 	if user and ("root" in user["access"] or "admin" in user["access"]):
 		return True

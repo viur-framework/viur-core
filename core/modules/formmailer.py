@@ -51,7 +51,7 @@ class Formmailer(BasicApplication):
 	def add(self, *args, **kwargs):
 		return self.index(*args, **kwargs)
 
-	def canUse(self):
+	def canUse(self) -> bool:
 		return False
 
 	def mailSkel(self):
