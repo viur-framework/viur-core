@@ -25,7 +25,7 @@ from viur.core.utils import generateRandomString
 from viur.core.utils import currentSession, currentRequest
 from viur.core import db
 from viur.core.tasks import PeriodicTask, callDeferred
-from typing import Optional, Union
+from typing import Union
 from viur.core.utils import utcNow
 
 securityKeyKindName = "viur-securitykeys"
@@ -97,10 +97,9 @@ def startClearSKeys() -> None:
 
 
 @callDeferred
-def doClearSKeys(timeStamp: str, cursor: Optional[str]) -> None:
+def doClearSKeys(timeStamp: str) -> None:
 	query = db.Query(securityKeyKindName).filter("until <", datetime.strptime(timeStamp, "%d.%m.%Y %H:%M:%S"))
-	for oldKey in query.run(100, keysOnly=True):
+	for oldKey in query.run(100):
 		db.Delete(oldKey)
-	newCursor = query.getCursor()
-	if newCursor:
-		doClearSKeys(timeStamp, newCursor)
+	if query.getCursor():
+		doClearSKeys(timeStamp)

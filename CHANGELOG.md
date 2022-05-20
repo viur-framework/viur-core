@@ -2,8 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-
-## [develop] - Current development version
+## [main] - Current main version
 
 ### Added
 
@@ -13,6 +12,15 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - Set the cursor of the next chunk on the query in `securitykey.doClearSKeys()` 
 
 ### Removed
+
+## [3.1.4] - Current development version
+
+### Fixed
+- Fix unused language parameter of `utils.seoUrlToEntry()` (#439)
+- Subdependencies updated (#442)
+
+### Removed
+- Remove class `errors.ReadFromClientError`. Replaced by the new dataclass `bones.bone.ReadFromClienError`.  (#437, #443)
 
 ## [3.1.3]
 
