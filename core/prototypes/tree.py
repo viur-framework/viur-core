@@ -1,12 +1,8 @@
-# -*- coding: utf-8 -*-
 import logging
-
-from time import time
 from typing import Optional
-
 from viur.core import utils, errors, conf, securitykey, db
 from viur.core import forcePost, forceSSL, exposed, internalExposed
-from viur.core.bones import KeyBone, NumericBone
+from viur.core.bones import KeyBone, SortIndexBone
 from viur.core.prototypes import BasicApplication
 from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.tasks import callDeferred
@@ -15,15 +11,20 @@ from viur.core.cache import flushCache
 
 
 class TreeSkel(Skeleton):
-	parententry = KeyBone(descr="Parent", visible=False, indexed=True, readOnly=True)
-	parentrepo = KeyBone(descr="BaseRepo", visible=False, indexed=True, readOnly=True)
-	sortindex = NumericBone(descr="SortIndex", visible=False, indexed=True, readOnly=True, precision=8, max=pow(2, 30))
-
-	@classmethod
-	def preProcessSerializedData(cls, skelValues, entity):
-		if not ("sortindex" in entity and entity["sortindex"]):
-			entity["sortindex"] = time()
-		return entity
+	parententry = KeyBone(
+		descr="Parent",
+		visible=False,
+		readOnly=True,
+	)
+	parentrepo = KeyBone(
+		descr="BaseRepo",
+		visible=False,
+		readOnly=True,
+	)
+	sortindex = SortIndexBone(
+		visible=False,
+		readOnly=True,
+	)
 
 	@classmethod
 	def refresh(cls, skelValues):  # ViUR2 Compatibility
