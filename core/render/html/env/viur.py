@@ -668,6 +668,8 @@ def downloadUrlFor(render: 'viur.core.render.html.default.Render', fileObj: dict
 			caches), otherwise it's lifetime in seconds
 		:param derived: Optional the filename of a derived file, otherwise the the download-link will point to the
 			originally uploaded file.
+		:param downloadFileName: Optionally the filename that the file should be saved as, this will also make the download immediate
+		:param fileName: Optionally the filename that the file should be saved as
 		:return: THe signed download-url relative to the current domain (eg /download/...)
 	"""
 	if expires is unsetMarker:
@@ -682,7 +684,9 @@ def downloadUrlFor(render: 'viur.core.render.html.default.Render', fileObj: dict
 		return None
 	if derived:
 		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=derived, derived=True, expires=expires, downloadFileName=downloadFileName)
-	else:
+	elif not derived and fileName:
+		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileName, derived=False, expires=expires, downloadFileName=downloadFileName)
+    else:
 		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileObj["name"], derived=False, expires=expires, downloadFileName=downloadFileName)
 
 
