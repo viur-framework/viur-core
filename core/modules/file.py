@@ -444,7 +444,8 @@ class File(Tree):
 			fileName = sanitizeFileName(blob.name.split("/")[-1])
 			contentDisposition = "attachment; filename=%s" % fileName
 		else:
-			contentDisposition = None
+			fileName = sanitizeFileName(blob.name.split("/")[-1])
+			contentDisposition = "filename=%s" % fileName
 		if isinstance(credentials, ServiceAccountCredentials):  # We run locally with an service-account.json
 			expiresAt = datetime.now() + timedelta(seconds=60)
 			signedUrl = blob.generate_signed_url(expiresAt, response_disposition=contentDisposition, version="v4")
