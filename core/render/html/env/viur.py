@@ -658,11 +658,11 @@ def embedSvg(render, name: str, classes: Union[List[str], None] = None, **kwargs
 @jinjaGlobalFunction
 def downloadUrlFor(render: 'viur.core.render.html.default.Render', fileObj: dict,
 				   expires: Union[None, int] = conf["viur.downloadUrlFor.expiration"],
-				   derived: Optional[str] = None, downloadFileName: Optional[str] = None) -> Optional[str]:
+				   derived: Optional[str] = None, downloadFileName: Optional[str] = None, 
+				   fileName: Optional[str] = None) -> Optional[str]:
 	"""
 		Constructs a signed download-url for the given file-bone. Mostly a wrapper around
 		:meth:`viur.core.utils.downloadUrlFor`.
-
 		:param fileObj: The file-bone (eg. skel["file"])
 		:param expires: None if the file is supposed to be public (which causes it to be cached on the google ede
 			caches), otherwise it's lifetime in seconds
@@ -686,7 +686,7 @@ def downloadUrlFor(render: 'viur.core.render.html.default.Render', fileObj: dict
 		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=derived, derived=True, expires=expires, downloadFileName=downloadFileName)
 	elif not derived and fileName:
 		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileName, derived=False, expires=expires, downloadFileName=downloadFileName)
-    else:
+	else:
 		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileObj["name"], derived=False, expires=expires, downloadFileName=downloadFileName)
 
 
