@@ -8,7 +8,7 @@ class SortIndexBone(NumericBone):
     def __init__(
         self,
         *,
-        defaultValue: typing.Union[int, float] = lambda: time.time(),
+        defaultValue: typing.Union[int, float] = lambda skeletonInstance, bone: time.time(),
         descr: str = "SortIndex",
         max: typing.Union[int, float] = pow(2, 30),
         precision: int = 8,
