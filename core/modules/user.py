@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 from viur.core.prototypes.list import List
 from viur.core.skeleton import Skeleton, RelSkel, skeletonByKind
-from viur.core import utils, email
 from viur.core.bones import *
+from viur.core import utils, email
 from viur.core.bones.base import ReadFromClientErrorSeverity, UniqueValue, UniqueLockMethod
 from viur.core.bones.password import pbkdf2
 from viur.core import errors, conf, securitykey
