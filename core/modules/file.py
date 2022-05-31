@@ -19,7 +19,8 @@ from google.cloud import storage
 from google.cloud._helpers import _NOW, _datetime_to_rfc3339
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
-from viur.core import bones, errors, exposed, forcePost, forceSSL, internalExposed, securitykey, utils, db
+from viur.core import errors, exposed, forcePost, forceSSL, internalExposed, securitykey, utils, db
+from viur.core.bones import *
 from viur.core.prototypes.tree import Tree, TreeSkel
 from viur.core.skeleton import skeletonByKind
 from viur.core.tasks import PeriodicTask, callDeferred
@@ -78,7 +79,7 @@ def importBlobFromViur2(dlKey, fileName):
 	return marker["dlurl"]
 
 
-class InjectStoreURLBone(bones.BaseBone):
+class InjectStoreURLBone(BaseBone):
 
 	def unserialize(self, skel, name):
 		if "dlkey" in skel.dbEntity and "name" in skel.dbEntity:
@@ -139,46 +140,46 @@ class fileBaseSkel(TreeSkel):
 	"""
 	kindName = "file"
 
-	size = bones.StringBone(
+	size = StringBone(
 		descr="Size",
 		readOnly=True,
 		searchable=True
 	)
 
-	dlkey = bones.StringBone(
+	dlkey = StringBone(
 		descr="Download-Key",
 		readOnly=True
 	)
-	name = bones.StringBone(
+	name = StringBone(
 		descr="Filename",
 		caseSensitive=False,
 		searchable=True
 	)
 
-	mimetype = bones.StringBone(
+	mimetype = StringBone(
 		descr="Mime-Info",
 		readOnly=True
 	)
 
-	weak = bones.BooleanBone(
+	weak = BooleanBone(
 		descr="Weak reference",
 		readOnly=True,
 		visible=False
 	)
-	pending = bones.BooleanBone(
+	pending = BooleanBone(
 		descr="Pending upload",
 		readOnly=True,
 		visible=False,
 		defaultValue=False
 	)
 
-	width = bones.NumericBone(
+	width = NumericBone(
 		descr="Width",
 		readOnly=True,
 		searchable=True
 	)
 
-	height = bones.NumericBone(
+	height = NumericBone(
 		descr="Height",
 		readOnly=True,
 		searchable=True
@@ -190,13 +191,13 @@ class fileBaseSkel(TreeSkel):
 		visible=False
 	)
 
-	derived = bones.BaseBone(
+	derived = BaseBone(
 		descr="Derived Files",
 		readOnly=True,
 		visible=False
 	)
 
-	pendingparententry = bones.KeyBone(
+	pendingparententry = KeyBone(
 		descr="Pending key Reference",
 		readOnly=True,
 		visible=False
@@ -227,13 +228,13 @@ class fileNodeSkel(TreeSkel):
 	"""
 	kindName = "file_rootNode"
 
-	name = bones.StringBone(
+	name = StringBone(
 		descr="Name",
 		required=True,
 		searchable=True
 	)
 
-	rootNode = bones.BooleanBone(
+	rootNode = BooleanBone(
 		descr="Is RootNode"
 	)
 
