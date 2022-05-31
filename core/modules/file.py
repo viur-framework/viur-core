@@ -20,7 +20,7 @@ from google.cloud._helpers import _NOW, _datetime_to_rfc3339
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
 from viur.core import errors, exposed, forcePost, forceSSL, internalExposed, securitykey, utils, db
-from viur.core.bones import *
+from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
 from viur.core.prototypes.tree import Tree, TreeSkel
 from viur.core.skeleton import skeletonByKind
 from viur.core.tasks import PeriodicTask, callDeferred
