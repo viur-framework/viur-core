@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import base64
 import email.header
 import json
@@ -22,7 +20,7 @@ from google.cloud._helpers import _NOW, _datetime_to_rfc3339
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
 from viur.core import errors, exposed, forcePost, forceSSL, internalExposed, securitykey, utils, db
-from viur.core.bones import *
+from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
 from viur.core.prototypes.tree import Tree, TreeSkel
 from viur.core.skeleton import skeletonByKind
 from viur.core.tasks import PeriodicTask, callDeferred
@@ -81,7 +79,8 @@ def importBlobFromViur2(dlKey, fileName):
 	return marker["dlurl"]
 
 
-class injectStoreURLBone(BaseBone):
+class InjectStoreURLBone(BaseBone):
+
 	def unserialize(self, skel, name):
 		if "dlkey" in skel.dbEntity and "name" in skel.dbEntity:
 			skel.accessedValues[name] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False)
@@ -141,39 +140,68 @@ class fileBaseSkel(TreeSkel):
 	"""
 	kindName = "file"
 
-	size = StringBone(descr="Size", readOnly=True, indexed=True, searchable=True)
-	dlkey = StringBone(descr="Download-Key", readOnly=True, indexed=True)
-	name = StringBone(descr="Filename", caseSensitive=False, indexed=True, searchable=True)
-	mimetype = StringBone(descr="Mime-Info", readOnly=True, indexed=True)
-	weak = BooleanBone(descr="Weak reference", indexed=True, readOnly=True, visible=False)
-	pending = BooleanBone(descr="Pending upload", readOnly=True, visible=False, defaultValue=False)
-	width = NumericBone(descr="Width", indexed=True, readOnly=True, searchable=True)
-	height = NumericBone(descr="Height", indexed=True, readOnly=True, searchable=True)
-	downloadUrl = injectStoreURLBone(descr="Download-URL", readOnly=True, visible=False)
-	derived = BaseBone(descr=u"Derived Files", readOnly=True, visible=False)
-	pendingparententry = KeyBone(descr=u"Pending key Reference", readOnly=True, visible=False)
+	size = StringBone(
+		descr="Size",
+		readOnly=True,
+		searchable=True
+	)
 
-	"""
-	def refresh(self):
-		# Update from blobimportmap
-		try:
-			oldKeyHash = sha256(self["dlkey"]).hexdigest().encode("hex")
-			res = db.Get(db.Key.from_path("viur-blobimportmap", oldKeyHash))
-		except:
-			res = None
-		if res and res["oldkey"] == self["dlkey"]:
-			self["dlkey"] = res["newkey"]
-			self["servingurl"] = res["servingurl"]
-			logging.info("Refreshing file dlkey %s (%s)" % (self["dlkey"], self["servingurl"]))
-		else:
-			if self["servingurl"]:
-				try:
-					self["servingurl"] = images.get_serving_url(self["dlkey"])
-				except Exception as e:
-					logging.exception(e)
+	dlkey = StringBone(
+		descr="Download-Key",
+		readOnly=True
+	)
+	name = StringBone(
+		descr="Filename",
+		caseSensitive=False,
+		searchable=True
+	)
 
-		super(fileBaseSkel, self).refresh()
-	"""
+	mimetype = StringBone(
+		descr="Mime-Info",
+		readOnly=True
+	)
+
+	weak = BooleanBone(
+		descr="Weak reference",
+		readOnly=True,
+		visible=False
+	)
+	pending = BooleanBone(
+		descr="Pending upload",
+		readOnly=True,
+		visible=False,
+		defaultValue=False
+	)
+
+	width = NumericBone(
+		descr="Width",
+		readOnly=True,
+		searchable=True
+	)
+
+	height = NumericBone(
+		descr="Height",
+		readOnly=True,
+		searchable=True
+	)
+
+	downloadUrl = InjectStoreURLBone(
+		descr="Download-URL",
+		readOnly=True,
+		visible=False
+	)
+
+	derived = BaseBone(
+		descr="Derived Files",
+		readOnly=True,
+		visible=False
+	)
+
+	pendingparententry = KeyBone(
+		descr="Pending key Reference",
+		readOnly=True,
+		visible=False
+	)
 
 	def preProcessBlobLocks(self, locks):
 		"""
@@ -199,8 +227,16 @@ class fileNodeSkel(TreeSkel):
 		Default file node skeleton.
 	"""
 	kindName = "file_rootNode"
-	name = StringBone(descr="Name", required=True, indexed=True, searchable=True)
-	rootNode = BooleanBone(descr=u"Is RootNode", indexed=True)
+
+	name = StringBone(
+		descr="Name",
+		required=True,
+		searchable=True
+	)
+
+	rootNode = BooleanBone(
+		descr="Is RootNode"
+	)
 
 
 def decodeFileName(name):
