@@ -1,4 +1,4 @@
-from .base import BaseBone, ReadFromClientError, UniqueValue, UniqueLockMethod, MultipleConstraints
+from .base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity, UniqueValue, UniqueLockMethod, MultipleConstraints
 from .boolean import BooleanBone
 from .captcha import CaptchaBone
 from .color import ColorBone
