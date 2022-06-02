@@ -26,6 +26,7 @@ from .user import UserBone
 # Expose only specific names
 __all = [
 	"ReadFromClientError",
+	"ReadFromClientErrorSeverity",
 	"UniqueValue",
 	"UniqueLockMethod",
 	"MultipleConstraints",
