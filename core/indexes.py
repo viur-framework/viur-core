@@ -80,7 +80,7 @@ class IndexMannager:
 			pass
 		# We don't have this index yet.. Build it
 		# Clone the original Query
-		queryRes = origQuery.clone(keysOnly=True).datastoreQuery.Run(limit=self.maxPages * self.pageSize)
+		queryRes = origQuery.clone().datastoreQuery.Run(limit=self.maxPages * self.pageSize)
 		# Build-Up the index
 		res = list()
 		previousCursor = None  # The first page dosnt have any cursor

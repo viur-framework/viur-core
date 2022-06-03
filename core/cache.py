@@ -221,14 +221,14 @@ def flushCache(prefix: str = None, key: Union[db.Key, None] = None, kind: Union[
 	if prefix is None and key is None and kind is None:
 		prefix = "/*"
 	if prefix is not None:
-		items = db.Query(viurCacheName).filter("path =", prefix.rstrip("*")).iter(keysOnly=True)
+		items = db.Query(viurCacheName).filter("path =", prefix.rstrip("*")).iter()
 		for item in items:
 			db.Delete(item)
 		if prefix.endswith("*"):
 			items = db.Query(viurCacheName) \
 				.filter("path >", prefix.rstrip("*")) \
 				.filter("path <", prefix.rstrip("*") + u"\ufffd") \
-				.iter(keysOnly=True)
+				.iter()
 			for item in items:
 				db.Delete(item)
 		logging.debug("Flushing cache succeeded. Everything matching \"%s\" is gone." % prefix)

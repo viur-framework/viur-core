@@ -385,7 +385,7 @@ def iterExport(module, target, importKey, cursor=None):
 	query = Skel().all().cursor(cursor)
 
 	startCursor = cursor
-	query.run(100, keysOnly=True)
+	query.run(100)
 	endCursor = query.getCursor().urlsafe()
 
 	exportItems(module, target, importKey, startCursor, endCursor)
