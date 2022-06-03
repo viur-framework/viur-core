@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from viur.core.skeleton import RelSkel
 from viur.core import errors, utils, securitykey, exposed, email
 from viur.core.bones import baseBone

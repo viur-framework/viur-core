@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from viur.core.bones import baseBone
 from viur.core import request
 from datetime import datetime, timedelta

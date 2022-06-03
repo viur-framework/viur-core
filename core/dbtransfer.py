@@ -1,5 +1,4 @@
 #!/usr/bin/python2
-# -*- coding: utf-8 -*-
 import logging, pickle, json, collections, cgi, urllib
 from datetime import datetime
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from viur.core.bones.bone import baseBone
 from viur.core.db import Entity, Key, keyHelper, KEY_SPECIAL_PROPERTY
 from viur.core.utils import normalizeKey

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from viur.core.bones import baseBone
 from viur.core.config import conf
 from viur.core import db

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import pprint
 from logging import critical, debug, error, info, warning
 from typing import Any

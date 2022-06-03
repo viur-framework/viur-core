@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 class ListWrapper(list):
 	"""
 		Monkey-Patching for lists.

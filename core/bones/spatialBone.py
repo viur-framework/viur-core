@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from viur.core.bones import baseBone
 from math import pow, floor, ceil
 from viur.core import db

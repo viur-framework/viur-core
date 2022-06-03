@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from viur.core.bones import treeLeafBone
 from viur.core import request, conf, db
 from viur.core.utils import downloadUrlFor

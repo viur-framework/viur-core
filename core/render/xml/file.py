@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json
 from viur.core.render.xml.default import DefaultRender, serializeXML
 

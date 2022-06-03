@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from .default import DefaultRender as default
 from .user import UserRender as user
 from .file import FileRender as file

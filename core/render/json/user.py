@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import time, json
 from string import Template
 from . import default as DefaultRender

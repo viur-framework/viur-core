@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from viur.core.render.json.default import DefaultRender, CustomJsonEncoder
 from viur.core.render.vi.user import UserRender as user
 from viur.core.render.json.file import FileRender as file

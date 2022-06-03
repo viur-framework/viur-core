@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from viur.core.bones import *
 from viur.core import db
 from xml.dom import minidom

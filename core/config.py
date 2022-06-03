@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from datetime import datetime, timedelta
 
 apiVersion = 1  # What format do we use to store data in the bigtable

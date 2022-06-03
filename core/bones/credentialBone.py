@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from viur.core.bones import stringBone
 from viur.core import utils
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity

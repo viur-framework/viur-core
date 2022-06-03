@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from viur.core.render.json.user import UserRender as user
 import string, json
 

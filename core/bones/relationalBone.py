@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from viur.core.bones.bone import baseBone, getSystemInitialized, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core import utils, db
 try:
