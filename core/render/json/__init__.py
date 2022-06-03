@@ -7,7 +7,7 @@ import json
 __all__ = [default]
 
 
-def genSkey(*args, **kwargs):
+def genSkey(*args, **kwargs) -> str:
 	return json.dumps(securitykey.create())
 
 

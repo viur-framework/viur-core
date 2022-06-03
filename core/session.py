@@ -155,7 +155,6 @@ class GaeSession:
 			Returns the value stored under the given key.
 
 			:param key: Key to retrieve from the session variables.
-			:type key: str
 
 			:return: Returns None if the key doesn't exist.
 		"""

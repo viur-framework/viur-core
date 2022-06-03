@@ -398,15 +398,12 @@ class File(Tree):
 		return self.render.view(resDict)
 
 	@exposed
-	def download(self, blobKey, fileName="", download="", sig="", *args, **kwargs):
+	def download(self, blobKey: str, fileName: str="", download: str="", sig: str="", *args, **kwargs):
 		"""
 		Download a file.
 		:param blobKey: The unique blob key of the file.
-		:type blobKey: str
 		:param fileName: Optional filename to provide in the header.
-		:type fileName: str
 		:param download: Set header to attachment retrival, set explictly to "1" if download is wanted.
-		:type download: str
 		"""
 		global credentials, bucket
 		if not sig:

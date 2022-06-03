@@ -5,7 +5,8 @@ from viur.core import request
 from viur.core import utils
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 import logging
-from typing import List, Union
+from typing import Dict, List, Optional, Union
+
 from viur.core.utils import currentLanguage
 
 
@@ -44,7 +45,13 @@ class stringBone(baseBone):
 			return utils.escapeString(value), None
 		return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
-	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
+
+	def buildDBFilter(self,
+					  name: str,
+					  skel: 'viur.core.skeleton.SkeletonInstance',
+					  dbFilter: db.Query,
+					  rawFilter: Dict,
+					  prefix: Optional[str] = None) -> db.Query:
 		if not name in rawFilter and not any(
 			[(x.startswith(name + "$") or x.startswith(name + ".")) for x in rawFilter.keys()]):
 			return super(stringBone, self).buildDBFilter(name, skel, dbFilter, rawFilter, prefix)
@@ -92,7 +99,11 @@ class stringBone(baseBone):
 				dbFilter.filter((prefix or "") + namefilter, str(rawFilter[name]))
 		return dbFilter
 
-	def buildDBSort(self, name, skel, dbFilter, rawFilter):
+	def buildDBSort(self,
+					name: str,
+					skel: 'viur.core.skeleton.SkeletonInstance',
+					dbFilter: db.Query,
+					rawFilter: Dict) -> Optional[db.Query]:
 		if "orderby" in rawFilter and (rawFilter["orderby"] == name or (
 			isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
 			"%s." % name) and self.languages)):

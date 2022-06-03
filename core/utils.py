@@ -142,7 +142,7 @@ def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
 		:param derived: True, if it points to a derived file, False if it points to the original uploaded file
 		:param expires: None if the file is supposed to be public (which causes it to be cached on the google ede
 			caches), otherwise a timedelta of how long that link should be valid
-		:param downloadName: If set, we'll force to browser to download this blob with the given filename
+		:param downloadFileName: If set, we'll force to browser to download this blob with the given filename
 		:return: THe signed download-url relative to the current domain (eg /download/...)
 	"""
 	if derived:

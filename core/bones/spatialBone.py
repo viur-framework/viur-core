@@ -1,11 +1,12 @@
-from viur.core.bones import baseBone
-from math import pow, floor, ceil
-from viur.core import db
 import logging
 import math
-from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from copy import deepcopy
-from typing import Tuple, Any
+from math import floor
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+from viur.core import db
+from viur.core.bones import baseBone
+from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 
 
 def haversine(lat1, lng1, lat2, lng2):
@@ -46,16 +47,13 @@ class spatialBone(baseBone):
 
 	type = "spatial"
 
-	def __init__(self, *, boundsLat, boundsLng, gridDimensions, **kwargs):
+	def __init__(self, *, boundsLat: Tuple[int, int], boundsLng: Tuple[int, int], gridDimensions: Tuple[int, int], **kwargs):
 		"""
 			Initializes a new spatialBone.
 
 			:param boundsLat: Outer bounds (Latitude) of the region we will search in.
-			:type boundsLat: (int, int)
 			:param boundsLng: Outer bounds (Latitude) of the region we will search in.
-			:type boundsLng: (int, int)
 			:param gridDimensions: Number of sub-regions the map will be divided in
-			:type gridDimensions: (int, int)
 		"""
 		super().__init__(**kwargs)
 		assert isinstance(boundsLat, tuple) and len(boundsLat) == 2, "boundsLat must be a tuple of (int, int)"
@@ -76,12 +74,11 @@ class spatialBone(baseBone):
 		lngDelta = float(self.boundsLng[1] - self.boundsLng[0])
 		return latDelta / float(self.gridDimensions[0]), lngDelta / float(self.gridDimensions[1])
 
-	def isInvalid(self, value):
+	def isInvalid(self, value: Tuple[int, int]) -> Union[str, bool]:
 		"""
 			Tests, if the point given by 'value' is inside our boundaries.
 			We'll reject all values outside that region.
 			:param value: (latitude, longitude) of the location of this entry.
-			:type value: (float, float)
 			:return: An error-description or False if the value is valid
 			:rtype: str | False
 		"""
@@ -137,7 +134,7 @@ class spatialBone(baseBone):
 				return True
 		return rawValue == self.getEmptyValue()
 
-	def getEmptyValue(self) -> Tuple[float]:
+	def getEmptyValue(self) -> Tuple[float, float]:
 		"""
 			If you need a special marker for empty, use 91.0, 181.0.
 			These are both out of range for Latitude (-90, +90) and Longitude (-180, 180) but will be accepted
@@ -145,7 +142,7 @@ class spatialBone(baseBone):
 		"""
 		return 0.0, 0.0
 
-	def singleValueFromClient(self, value, skel, name, origData):
+	def singleValueFromClient(self, value: Dict, skel: str, name: str, origData: Dict):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -153,11 +150,9 @@ class spatialBone(baseBone):
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
+
 			:param name: Our name in the skeleton
-			:type name: str
-			:param data: *User-supplied* request-data
-			:type data: dict
-			:returns: None or String
+			:param value: *User-supplied* request-data
 		"""
 		rawLat = value.get("lat", None)
 		rawLng = value.get("lng", None)
@@ -180,7 +175,13 @@ class spatialBone(baseBone):
 			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 		return (rawLat, rawLng), None
 
-	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
+
+	def buildDBFilter(self,
+					  name: str,
+					  skel: 'viur.core.skeleton.SkeletonInstance',
+					  dbFilter: db.Query,
+					  rawFilter: Dict,
+					  prefix: Optional[str] = None) -> db.Query:
 		"""
 			Parses the searchfilter a client specified in his Request into
 			something understood by the datastore.
@@ -193,13 +194,9 @@ class spatialBone(baseBone):
 			For detailed information, how this geo-spatial search works, see the ViUR documentation.
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
 			:param skel: The :class:`viur.core.db.Query` this bone is part of
-			:type skel: :class:`viur.core.skeleton.Skeleton`
 			:param dbFilter: The current :class:`viur.core.db.Query` instance the filters should be applied to
-			:type dbFilter: :class:`viur.core.db.Query`
 			:param rawFilter: The dictionary of filters the client wants to have applied
-			:type rawFilter: dict
 			:returns: The modified :class:`viur.core.db.Query`
 		"""
 		assert prefix is None, "You cannot use spatial data in a relation for now"
@@ -247,29 +244,28 @@ class spatialBone(baseBone):
 
 	# return( super( spatialBone, self ).buildDBFilter( name, skel, dbFilter, rawFilter ) )
 
-	def calculateInternalMultiQueryLimit(self, dbQuery, targetAmount):
+	def calculateInternalMultiQueryLimit(self, dbQuery: db.Query, targetAmount: int):
 		"""
 			Tells :class:`viur.core.db.Query` How much entries should be fetched in each subquery.
 
 			:param targetAmount: How many entries shall be returned from db.Query
-			:type targetAmount: int
 			:returns: The amount of elements db.Query should fetch on each subquery
-			:rtype: int
 		"""
 		return targetAmount * 2
 
-	def customMultiQueryMerge(self, name, lat, lng, dbFilter, result, targetAmount):
+	def customMultiQueryMerge(self, name, lat, lng, dbFilter: db.Query,
+							  result: List[db.Entity], targetAmount: int
+							  ) -> List[db.Entity]:
 		"""
 			Randomly returns 'targetAmount' elements from 'result'
 
+			:param name:
+			:param lat:
+			:param lng:
 			:param dbFilter: The db.Query calling this function
-			:type: dbFilter: viur.core.db.Query
 			:param result: The list of results for each subquery we've run
-			:type result: list of list of :class:`viur.core.db.Entity`
 			:param targetAmount: How many results should be returned from db.Query
-			:type targetAmount: int
 			:return: List of elements which should be returned from db.Query
-			:rtype: list of :class:`viur.core.db.Entity`
 		"""
 		assert len(result) == 4  # There should be exactly one result for each direction
 		result = [list(x) for x in result]  # Remove the iterators
@@ -306,26 +302,25 @@ class spatialBone(baseBone):
 		tmpList.sort(key=lambda x: x[0])
 		return [x[1] for x in tmpList[:targetAmount]]
 
-	def setBoneValue(self, valuesCache, boneName, value, append, *args, **kwargs):
+	def setBoneValue(self,
+					 skel: 'SkeletonInstance',
+					 boneName: str,
+					 value: Any,
+					 append: bool,
+					 language: Union[None, str] = None) -> bool:
 		"""
 			Set our value to 'value'.
 			Santy-Checks are performed; if the value is invalid, we flip our value back to its original
 			(default) value and return false.
 
-			:param valuesCache: Dictionary with the current values from the skeleton we belong to
-			:type valuesCache: dict
+			:param skel: Dictionary with the current values from the skeleton we belong to
 			:param boneName: The Bone which should be modified
-			:type boneName: str
 			:param value: The value that should be assigned. It's type depends on the type of that bone
-			:type boneName: object
 			:param append: If true, the given value is appended to the values of that bone instead of
 				replacing it. Only supported on bones with multiple=True
-			:type append: bool
 			:return: Wherever that operation succeeded or not.
-			:rtype: bool
-
 		"""
 		if append:
 			raise ValueError("append is not possible on %s bones" % self.type)
 		assert isinstance(value, tuple) and len(value) == 2, "Value must be a tuple of (lat, lng)"
-		valuesCache[boneName] = value
+		skel[boneName] = value

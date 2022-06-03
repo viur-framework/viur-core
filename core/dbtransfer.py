@@ -1,28 +1,31 @@
 #!/usr/bin/python2
-import logging, pickle, json, collections, cgi, urllib
+import cgi
+import collections
+import json
+import logging
+import pickle
+import urllib
 from datetime import datetime
-
-from viur.core import db, request, errors, conf, exposed, utils, email
-from viur.core.bones import *
-from viur.core.skeleton import BaseSkeleton, skeletonByKind, listKnownSkeletons
-from viur.core.tasks import CallableTask, CallableTaskBase, callDeferred
+from hashlib import sha256
 from viur.core.prototypes.hierarchy import HierarchySkel
+
+from viur.core import conf, db, email, errors, exposed, utils
+from viur.core.bones import *
+from viur.core.modules.file import decodeFileName
 from viur.core.prototypes.tree import TreeLeafSkel
 from viur.core.render.json.default import DefaultRender
-from viur.core.modules.file import decodeFileName
+from viur.core.skeleton import BaseSkeleton, listKnownSkeletons, skeletonByKind
+from viur.core.tasks import CallableTask, CallableTaskBase, callDeferred
 from viur.core.utils import currentRequest
-from hashlib import sha256
 
 
 class DbTransfer(object):
 
-	def _checkKey(self, key, export=True):
+	def _checkKey(self, key: str, export: bool = True):
 		"""
 			Utility function to compare the given key with the keys stored in our conf in constant time
 			:param key: The key we should validate
-			:type key: str
 			:param export: If True, we validate against the export-key, otherwise the import-key
-			:type export: bool
 			:returns: True if the key is correct, False otherwise
 		"""
 		isValid = True

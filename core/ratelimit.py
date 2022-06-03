@@ -21,11 +21,8 @@ class RateLimit(object):
 		Initializes a new RateLimit gate.
 
 		:param resource: Name of the resource to protect
-		:type resource: str
 		:param maxRate: Amount of tries allowed in the give time-span
-		:type maxRate: int
 		:param minutes: Length of the time-span in minutes
-		:type minutes: int
 		:param method: Lock by IP or by the current user
 		"""
 		super(RateLimit, self).__init__()

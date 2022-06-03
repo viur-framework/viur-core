@@ -1,8 +1,11 @@
-from viur.core.bones import baseBone
+import logging
+import warnings
 from math import pow
+from typing import Any, Dict, Optional, Union
+
+from viur.core import db
+from viur.core.bones import baseBone
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
-import logging, warnings
-from typing import Any, Union
 
 
 class numericBone(baseBone):
@@ -26,11 +29,8 @@ class numericBone(baseBone):
 			Initializes a new NumericBone.
 
 			:param precision: How may decimal places should be saved. Zero casts the value to int instead of float.
-			:type precision: int
 			:param min: Minimum accepted value (including).
-			:type min: float
 			:param max: Maximum accepted value (including).
-			:type max: float
 		"""
 		super().__init__(**kwargs)
 
@@ -94,7 +94,13 @@ class numericBone(baseBone):
 			return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 		return value, None
 
-	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
+
+	def buildDBFilter(self,
+					  name: str,
+					  skel: 'viur.core.skeleton.SkeletonInstance',
+					  dbFilter: db.Query,
+					  rawFilter: Dict,
+					  prefix: Optional[str] = None) -> db.Query:
 		updatedFilter = {}
 		for parmKey, paramValue in rawFilter.items():
 			if parmKey.startswith(name):

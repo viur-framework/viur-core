@@ -307,7 +307,6 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 			data with this function failed (through this might violates the assumed consistency-model).
 
 			:param data: Dictionary from which the data is read.
-			:type data: dict
 
 			:returns: True if all data was successfully read and taken by the Skeleton's bones.\
 			False otherwise (eg. some required fields where missing or invalid).
@@ -1105,7 +1104,6 @@ class RelSkel(BaseSkeleton):
 			So its possible to call save() afterwards even if reading data fromClient faild (through this might violates the assumed consitency-model!).
 
 			:param data: Dictionary from which the data is read
-			:type data: dict
 			:returns: True if the data was successfully read; False otherwise (eg. some required fields where missing or invalid)
 		"""
 		complete = len(data) > 0  # Empty values are never valid
@@ -1158,8 +1156,6 @@ class RelSkel(BaseSkeleton):
 			Loads 'values' into this skeleton.
 
 			:param values: dict with values we'll assign to our bones
-			:type values: dict | db.Entity
-			:return:
 		"""
 		if not isinstance(values, db.Entity):
 			self.dbEntity = db.Entity()
@@ -1189,17 +1185,13 @@ class RelSkel(BaseSkeleton):
 
 class RefSkel(RelSkel):
 	@classmethod
-	def fromSkel(cls, kindName: str, *args: List[str]):
+	def fromSkel(cls, kindName: str, *args: List[str]) -> Type[RefSkel]:
 		"""
 			Creates a relSkel from a skeleton-class using only the bones explicitly named
 			in \*args
 
-			:param skelCls: A class or instance of BaseSkel we'll adapt the model from
-			:type skelCls: BaseSkeleton
 			:param args: List of bone names we'll adapt
-			:type args: list of str
 			:return: A new instance of RefSkel
-			:rtype: RefSkel
 		"""
 		newClass = type("RefSkelFor" + kindName, (RefSkel,), {})
 		fromSkel = skeletonByKind(kindName)

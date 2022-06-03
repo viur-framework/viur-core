@@ -1,18 +1,21 @@
-import pprint
 from logging import critical, debug, error, info, warning
+
+import pprint
 from typing import Any
 
-from viur.core.render.html.utils import jinjaGlobalFunction
+from ..utils import jinjaGlobalFunction
+from ..default import Render
 
 
 @jinjaGlobalFunction
-def logging(render, msg: str, level: str = "info", *args, **kwargs):
+def logging(render: Render, msg: str, level: str = "info", *args, **kwargs) -> None:
 	"""
 	Jinja2 global: Write log-level entry.
+
 	The function shall be used for debug and tracing purposes.
 
+	:param render: The html-renderer instance.
 	:param msg: Message to be delivered into logging.
-
 	:param level: Logging level. This can either be "info" (default), "debug", "warning", "error" or "critical".
 	"""
 
@@ -31,11 +34,12 @@ def logging(render, msg: str, level: str = "info", *args, **kwargs):
 
 
 @jinjaGlobalFunction
-def pprint(render, obj: Any) -> str:
+def pprint(render: Render, obj: Any) -> str:
 	"""
 	Jinja2 global: Provides a pprint function that renders into HTML.
 	The function shall be used for debug purposes.
 
+	:param render: The html-renderer instance.
 	:param obj: Object to be pprinted.
 	:return: HTML-enabled pprint output.
 	"""

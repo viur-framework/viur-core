@@ -1,20 +1,19 @@
 import base64
+import grpc
 import json
 import logging
 import os
+import pytz
 import sys
 from datetime import datetime, timedelta
 from functools import wraps
-from time import sleep
-from typing import Any, Callable, Dict
-
-import grpc
-import pytz
 from google.cloud import tasks_v2
 from google.cloud.tasks_v2.services.cloud_tasks.transports import CloudTasksGrpcTransport
 from google.protobuf import timestamp_pb2
+from time import sleep
+from typing import Any, Callable, Dict, Optional, Tuple
 
-from viur.core import errors, utils, db
+from viur.core import db, errors, utils
 from viur.core.config import conf
 from viur.core.utils import currentLanguage, currentRequest, currentSession
 
@@ -150,17 +149,14 @@ class TaskHandler:
 	def __init__(self, moduleName, modulePath):
 		pass
 
-	def findBoundTask(self, task, obj=None, depth=0):
+	def findBoundTask(self, task: Callable, obj: object = None, depth: int = 0) -> Optional[Tuple[Callable, object]]:
 		"""
 			Tries to locate the instance, this function belongs to.
 			If it succeeds in finding it, it returns the function and its instance (-> its "self").
 			Otherwise, None is returned.
 			:param task: A callable decorated with @PeriodicTask
-			:type task: callable
 			:param obj: Object, which will be scanned in the current iteration. None means start at conf["viur.mainApp"].
-			:type obj: object
 			:param depth: Current iteration depth.
-			:type depth: int
 		"""
 		if depth > 3 or not "periodicTaskName" in dir(task):  # Limit the maximum amount of recursions
 			return None
@@ -422,7 +418,6 @@ def callDeferred(func):
 
 			return  # Ensure no result gets passed back
 
-		from viur.core.utils import getCurrentUser
 		try:
 			req = currentRequest.get()
 		except:  # This will fail for warmup requests
@@ -506,14 +501,14 @@ def callDeferred(func):
 	return lambda *args, **kwargs: mkDefered(func, *args, **kwargs)
 
 
-def PeriodicTask(interval=0, cronName="default"):
+def PeriodicTask(interval: int = 0, cronName: str = "default") -> Callable:
 	"""
 		Decorator to call a function periodic during maintenance.
 		Interval defines a lower bound for the call-frequency for this task;
 		it will not be called faster than each interval minutes.
 		(Note that the actual delay between two sequent might be much larger)
+
 		:param interval: Call at most every interval minutes. 0 means call as often as possible.
-		:type interval: int
 	"""
 
 	def mkDecorator(fn):
@@ -530,7 +525,7 @@ def PeriodicTask(interval=0, cronName="default"):
 	return mkDecorator
 
 
-def CallableTask(fn):
+def CallableTask(fn: Callable) -> Callable:
 	"""Marks a Class as representing a user-callable Task.
 	It *should* extend CallableTaskBase and *must* provide
 	its API
@@ -540,7 +535,7 @@ def CallableTask(fn):
 	return fn
 
 
-def StartupTask(fn):
+def StartupTask(fn: Callable) -> Callable:
 	"""
 		Functions decorated with this are called shortly at instance startup.
 		It's *not* guaranteed that they actually run on the instance that just started up!

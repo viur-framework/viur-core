@@ -1,35 +1,34 @@
+from collections import OrderedDict
+
 import logging
 import os
 import string
 import urllib
 import urllib.parse
-from collections import OrderedDict
-# from google.appengine.ext import db
-# from google.appengine.api import memcache, users
 from datetime import timedelta
 from hashlib import sha512
-from typing import Dict, List, Union, Optional
+from typing import Any, Dict, List, NoReturn, Optional, Union
 
 import viur.core.render.html.default
-from viur.core import errors, prototypes, securitykey, utils, db
+from viur.core import db, errors, prototypes, securitykey, utils
+from viur.core.config import conf, unsetMarker
+from viur.core.i18n import translate as translationClass
 from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
 from viur.core.skeleton import RelSkel, SkeletonInstance
 from viur.core.utils import currentLanguage, currentRequest
-from viur.core.config import unsetMarker, conf
-from viur.core.i18n import translate as translationClass
+from ..default import Render
 
 
 @jinjaGlobalFunction
-def translate(render, key, **kwargs):
+def translate(render: Render, key: str, **kwargs) -> str:
 	res = str(translationClass(key))
 	for k, v in kwargs.items():
 		res = res.replace("{{%s}}" % k, str(v))
 	return res
 
 
-
 @jinjaGlobalFunction
-def execRequest(render, path, *args, **kwargs):
+def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
 	"""
 	Jinja2 global: Perform an internal Request.
 
@@ -37,16 +36,11 @@ def execRequest(render, path, *args, **kwargs):
 	All optional parameters are passed to the requested resource.
 
 	:param path: Local part of the url, e.g. user/list. Must not start with an /.
-	Must not include an protocol or hostname.
-	:type path: str
+		Must not include an protocol or hostname.
 
 	:returns: Whatever the requested resource returns. This is *not* limited to strings!
 	"""
-	if "cachetime" in kwargs:
-		cachetime = kwargs["cachetime"]
-		del kwargs["cachetime"]
-	else:
-		cachetime = 0
+	cachetime = kwargs.pop("cachetime", 0)
 	if conf["viur.disableCache"] or currentRequest.get().disableCache:  # Caching disabled by config
 		cachetime = 0
 	cacheEnvKey = None
@@ -71,6 +65,7 @@ def execRequest(render, path, *args, **kwargs):
 		tmpList.append(appVersion)
 		mysha512 = sha512()
 		mysha512.update(str(tmpList).encode("UTF8"))
+		# TODO: Add hook for optional memcache or remove these remnants
 		cacheKey = "jinja2_cache_%s" % mysha512.hexdigest()
 		res = None  # memcache.get(cacheKey)
 		if res:
@@ -115,12 +110,11 @@ def execRequest(render, path, *args, **kwargs):
 
 
 @jinjaGlobalFunction
-def getCurrentUser(render):
+def getCurrentUser(render: Render) -> Optional[SkeletonInstance]:
 	"""
 	Jinja2 global: Returns the current user from the session, or None if not logged in.
 
 	:return: A dict containing user data. Returns None if no user data is available.
-	:rtype: dict
 	"""
 	currentUser = utils.getCurrentUser()
 	if currentUser:
@@ -129,7 +123,7 @@ def getCurrentUser(render):
 
 
 @jinjaGlobalFunction
-def getSkel(render, module, key=None, skel="viewSkel"):
+def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel") -> Union[dict, bool, None]:
 	"""
 	Jinja2 global: Fetch an entry from a given module, and return the data as a dict,
 	prepared for direct use in the output.
@@ -138,17 +132,11 @@ def getSkel(render, module, key=None, skel="viewSkel"):
 	(e.g. an editSkel).
 
 	:param module: Name of the module, from which the data should be fetched.
-	:type module: str
-
 	:param key: Requested entity-key in an urlsafe-format. If the module is a Singleton
 	application, the parameter can be omitted.
-	:type key: str
-
 	:param skel: Specifies and optionally different data-model
-	:type skel: str
 
 	:returns: dict on success, False on error.
-	:rtype: dict | bool
 	"""
 	if module not in dir(conf["viur.mainApp"]):
 		logging.error("getSkel called with unknown module %s!" % module)
@@ -177,7 +165,7 @@ def getSkel(render, module, key=None, skel="viewSkel"):
 				isAllowed = obj.canView()
 			elif isinstance(obj, prototypes.tree.Tree):
 				k = db.Key(key)
-				if k.kind().endswith("_rootNode"):
+				if k.kind.endswith("_rootNode"):
 					isAllowed = obj.canView("node", skel)
 				else:
 					isAllowed = obj.canView("leaf", skel)
@@ -207,7 +195,7 @@ def getSkel(render, module, key=None, skel="viewSkel"):
 
 
 @jinjaGlobalFunction
-def getHostUrl(render, forceSSL=False, *args, **kwargs):
+def getHostUrl(render: Render, forceSSL=False, *args, **kwargs):
 	"""
 	Jinja2 global: Retrieve hostname with protocol.
 
@@ -220,43 +208,46 @@ def getHostUrl(render, forceSSL=False, *args, **kwargs):
 		url = "https://" + url[7:]
 	return url
 
+
 @jinjaGlobalFunction
-def getVersionHash(render: 'viur.core.render.html.default.Render') -> str:
+def getVersionHash(render: Render) -> str:
 	"""
-		Jinja2 global: Return the application hash for the current version. This can be used for cache-busting in
+	Jinja2 global: Return the application hash for the current version. This can be used for cache-busting in
 			resource links (eg. /static/css/style.css?v={{ getVersionHash() }}. This hash is stable for each version
 			deployed (identical across all instances), but will change whenever a new version is deployed.
 	:return: The current version hash
 	"""
 	return utils.versionHash
 
+
 @jinjaGlobalFunction
-def getAppVersion(render: 'viur.core.render.html.default.Render') -> str:
+def getAppVersion(render: Render) -> str:
 	"""
-		Jinja2 global: Return the application version for the current version as set on deployment.
+	Jinja2 global: Return the application version for the current version as set on deployment.
 	:return: The current version
 	"""
 	return utils.appVersion
 
+
 @jinjaGlobalFunction
-def redirect(render, url):
+def redirect(render: Render, url: str) -> NoReturn:
 	"""
 	Jinja2 global: Redirect to another URL.
 
 	:param url: URL to redirect to.
-	:type url: str
+
+	:raises: :exc:`viur.core.errors.Redirect`
 	"""
 	raise errors.Redirect(url)
 
 
 @jinjaGlobalFunction
-def getLanguage(render, resolveAlias=False):
+def getLanguage(render: Render, resolveAlias: bool = False) -> str:
 	"""
 	Jinja2 global: Returns the language used for this request.
 
 	:param resolveAlias: If True, the function tries to resolve the current language
-	using conf["viur.languageAliasMap"].
-	:type resolveAlias: bool
+		using conf["viur.languageAliasMap"].
 	"""
 	lang = currentLanguage.get()
 	if resolveAlias and lang in conf["viur.languageAliasMap"]:
@@ -265,7 +256,7 @@ def getLanguage(render, resolveAlias=False):
 
 
 @jinjaGlobalFunction
-def moduleName(render):
+def moduleName(render: Render) -> str:
 	"""
 	Jinja2 global: Retrieve name of current module where this renderer is used within.
 
@@ -277,7 +268,7 @@ def moduleName(render):
 
 
 @jinjaGlobalFunction
-def modulePath(render):
+def modulePath(render: Render) -> str:
 	"""
 	Jinja2 global: Retrieve path of current module the renderer is used within.
 
@@ -289,17 +280,18 @@ def modulePath(render):
 
 
 @jinjaGlobalFunction
-def getList(render: 'viur.core.render.html.default.Render', module: str, skel: str = "viewSkel",
+def getList(render: Render, module: str, skel: str = "viewSkel",
 			_noEmptyFilter: bool = False, *args, **kwargs) -> Union[bool, None, List[SkeletonInstance]]:
 	"""
-		Jinja2 global: Fetches a list of entries which match the given filter criteria.
+	Jinja2 global: Fetches a list of entries which match the given filter criteria.
 
-		:param module: Name of the module from which list should be fetched.
-		:param skel: Name of the skeleton that is used to fetching the list.
-		:param _noEmptyFilter: If True, this function will not return any results if at least one
+	:param render: The html-renderer instance.
+	:param module: Name of the module from which list should be fetched.
+	:param skel: Name of the skeleton that is used to fetching the list.
+	:param _noEmptyFilter: If True, this function will not return any results if at least one
 		parameter is an empty list. This is useful to prevent filtering (e.g. by key) not being
 		performed because the list is empty.
-		:returns: Returns a dict that contains the "skellist" and "cursor" information,
+	:returns: Returns a dict that contains the "skellist" and "cursor" information,
 		or None on error case.
 	"""
 	if not module in dir(conf["viur.mainApp"]):
@@ -326,7 +318,7 @@ def getList(render: 'viur.core.render.html.default.Render', module: str, skel: s
 
 
 @jinjaGlobalFunction
-def getSecurityKey(render, **kwargs):
+def getSecurityKey(render: Render, **kwargs) -> str:
 	"""
 	Jinja2 global: Creates a new ViUR security key.
 	"""
@@ -334,18 +326,17 @@ def getSecurityKey(render, **kwargs):
 
 
 @jinjaGlobalFunction
-def getStructure(render, module, skel="viewSkel", subSkel=None):
+def getStructure(render: Render,
+				 module: str,
+				 skel: str = "viewSkel",
+				 subSkel: Optional[str] = None) -> Union[Dict, bool]:
 	"""
 	Jinja2 global: Returns the skeleton structure instead of data for a module.
 
+	:param render: The html-renderer instance.
 	:param module: Module from which the skeleton is retrieved.
-	:type module: str
-
 	:param skel: Name of the skeleton.
-	:type skel: str
-
 	:param subSkel: If set, return just that subskel instead of the whole skeleton
-	:type subSkel: str or None
 	"""
 	if not module in dir(conf["viur.mainApp"]):
 		return False
@@ -369,14 +360,13 @@ def getStructure(render, module, skel="viewSkel", subSkel=None):
 
 
 @jinjaGlobalFunction
-def requestParams(render):
+def requestParams(render: Render) -> Dict[str, str]:
 	"""
 	Jinja2 global: Allows for accessing the request-parameters from the template.
 
 	These returned values are escaped, as users tend to use these in an unsafe manner.
 
 	:returns: dict of parameter and values.
-	:rtype: dict
 	"""
 	res = {}
 	for k, v in currentRequest.get().kwargs.items():
@@ -385,14 +375,13 @@ def requestParams(render):
 
 
 @jinjaGlobalFunction
-def updateURL(render, **kwargs):
+def updateURL(render: Render, **kwargs) -> str:
 	"""
 	Jinja2 global: Constructs a new URL based on the current requests url.
 
 	Given parameters are replaced if they exists in the current requests url, otherwise there appended.
 
 	:returns: Returns a well-formed URL.
-	:rtype: str
 	"""
 	tmpparams = {}
 	tmpparams.update(currentRequest.get().kwargs)
@@ -412,20 +401,17 @@ def updateURL(render, **kwargs):
 
 
 @jinjaGlobalFilter
-def fileSize(render, value, binary=False):
+def fileSize(render: Render, value: Union[int, float], binary: bool = False) -> str:
 	"""
 	Jinja2 filter: Format the value in an 'human-readable' file size (i.e. 13 kB, 4.1 MB, 102 Bytes, etc).
 	Per default, decimal prefixes are used (Mega, Giga, etc.). When the second parameter is set to True,
 	the binary prefixes are used (Mebi, Gibi).
 
+	:param render: The html-renderer instance.
 	:param value: Value to be calculated.
-	:type value: int | float
-
 	:param binary: Decimal prefixes behavior
-	:type binary: bool
 
 	:returns: The formatted file size string in human readable format.
-	:type: str
 	"""
 	bytes = float(value)
 	base = binary and 1024 or 1000
@@ -458,17 +444,14 @@ def fileSize(render, value, binary=False):
 
 
 @jinjaGlobalFilter
-def urlencode(render, val):
+def urlencode(render: Render, val: str) -> str:
 	"""
 	Jinja2 filter: Make a string URL-safe.
 
+	:param render: The html-renderer instance.
 	:param val: String to be quoted.
-	:type val: str
-
 	:returns: Quoted string.
-	:rtype: str
 	"""
-
 	# quote_plus fails if val is None
 	if not val:
 		return ""
@@ -479,6 +462,7 @@ def urlencode(render, val):
 	return urllib.parse.quote_plus(val)
 
 
+# TODO
 '''
 This has been disabled until we are sure
 	a) what use-cases it has
@@ -486,16 +470,14 @@ This has been disabled until we are sure
 	c) doesn't introduce any XSS vulnerability
   - TS 13.03.2016
 @jinjaGlobalFilter
-def className(render, s):
+def className(render: Render, s: str) -> str:
 	"""
 	Jinja2 filter: Converts a URL or name into a CSS-class name, by replacing slashes by underscores.
 	Example call could be```{{self|string|toClassName}}```.
 
 	:param s: The string to be converted, probably ``self|string`` in the Jinja2 template.
-	:type s: str
 
 	:return: CSS class name.
-	:rtype: str
 	"""
 	l = re.findall('\'([^\']*)\'', str(s))
 	if l:
@@ -507,27 +489,24 @@ def className(render, s):
 
 
 @jinjaGlobalFilter
-def shortKey(render, val):
+def shortKey(render: Render, val: str) -> Optional[str]:
 	"""
 	Jinja2 filter: Make a shortkey from an entity-key.
 
+	:param render: The html-renderer instance.
 	:param val: Entity-key as string.
-	:type val: str
 
 	:returns: Shortkey on success, None on error.
-	:rtype: str
 	"""
-
 	try:
 		k = db.Key.from_legacy_urlsafe(str(val))
 		return k.id_or_name
-
 	except:
 		return None
 
 
 @jinjaGlobalFunction
-def renderEditBone(render, skel, boneName, boneErrors=None, prefix=None):
+def renderEditBone(render: Render, skel, boneName, boneErrors=None, prefix=None):
 	if not isinstance(skel, dict) or not all([x in skel for x in ["errors", "structure", "value"]]):
 		raise ValueError("This does not look like an editable Skeleton!")
 
@@ -564,7 +543,24 @@ def renderEditBone(render, skel, boneName, boneErrors=None, prefix=None):
 
 
 @jinjaGlobalFunction
-def renderEditForm(render, skel, ignore=None, hide=None, prefix=None):
+def renderEditForm(render: Render,
+				   skel: Dict,
+				   ignore:List[str]=None,
+				   hide:List[str]=None,
+				   prefix=None) -> str:
+	"""Render an edit-form based on a skeleton.
+
+	Render an HTML-form with lables and inputs from the skeleton structure
+	using templates for each bone-types.
+
+	:param render: The html-renderer instance.
+	:param skel: The skelton which provides the structure.
+	:param ignore: Don't render fields for these bones (name of the bone).
+	:param hide: Render these fields as hidden fields (name of the bone).
+	:param prefix: Prefix added to the bone names.
+
+	:return: A string containing the HTML-form.
+	"""
 	if not isinstance(skel, dict) or not all([x in skel.keys() for x in ["errors", "structure", "value"]]):
 		raise ValueError("This does not look like an editable Skeleton!")
 
@@ -626,7 +622,7 @@ def renderEditForm(render, skel, ignore=None, hide=None, prefix=None):
 
 
 @jinjaGlobalFunction
-def embedSvg(render, name: str, classes: Union[List[str], None] = None, **kwargs: Dict[str, str]) -> str:
+def embedSvg(render: Render, name: str, classes: Union[List[str], None] = None, **kwargs: Dict[str, str]) -> str:
 	"""
 	jinja2 function to get an <img/>-tag for a SVG.
 	This method will not check the existence of a SVG!
@@ -655,18 +651,22 @@ def embedSvg(render, name: str, classes: Union[List[str], None] = None, **kwargs
 
 
 @jinjaGlobalFunction
-def downloadUrlFor(render: 'viur.core.render.html.default.Render', fileObj: dict,
+def downloadUrlFor(render: Render,
+				   fileObj: dict,
 				   expires: Union[None, int] = conf["viur.downloadUrlFor.expiration"],
-				   derived: Optional[str] = None, downloadFileName: Optional[str] = None) -> Optional[str]:
+				   derived: Optional[str] = None,
+				   downloadFileName: Optional[str] = None) -> Optional[str]:
 	"""
 		Constructs a signed download-url for the given file-bone. Mostly a wrapper around
 		:meth:`viur.core.utils.downloadUrlFor`.
 
+		:param render: The jinja renderer instance
 		:param fileObj: The file-bone (eg. skel["file"])
 		:param expires: None if the file is supposed to be public (which causes it to be cached on the google ede
 			caches), otherwise it's lifetime in seconds
-		:param derived: Optional the filename of a derived file, otherwise the the download-link will point to the
+		:param derived: Optional the filename of a derived file, otherwise the download-link will point to the
 			originally uploaded file.
+		:param downloadFileName: The filename to use when saving the response payload locally.
 		:return: THe signed download-url relative to the current domain (eg /download/...)
 	"""
 	if expires is unsetMarker:
@@ -680,13 +680,15 @@ def downloadUrlFor(render: 'viur.core.render.html.default.Render', fileObj: dict
 	if derived and ("derived" not in fileObj or not isinstance(fileObj["derived"], dict)):
 		return None
 	if derived:
-		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=derived, derived=True, expires=expires, downloadFileName=downloadFileName)
+		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=derived, derived=True, expires=expires,
+									downloadFileName=downloadFileName)
 	else:
-		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileObj["name"], derived=False, expires=expires, downloadFileName=downloadFileName)
+		return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileObj["name"], derived=False, expires=expires,
+									downloadFileName=downloadFileName)
 
 
 @jinjaGlobalFunction
-def srcSetFor(render: 'viur.core.render.html.default.Render', fileObj: dict, expires: Optional[int],
+def srcSetFor(render: Render, fileObj: dict, expires: Optional[int],
 			  width: Optional[int] = None, height: Optional[int] = None) -> str:
 	"""
 		Generates a string suitable for use as the srcset tag in html. This functionality provides the browser
@@ -706,10 +708,10 @@ def srcSetFor(render: 'viur.core.render.html.default.Render', fileObj: dict, exp
 
 
 @jinjaGlobalFunction
-def seoUrlForEntry(render, *args, **kwargs):
+def seoUrlForEntry(render: Render, *args, **kwargs):
 	return utils.seoUrlToEntry(*args, **kwargs)
 
 
 @jinjaGlobalFunction
-def seoUrlToFunction(render, *args, **kwargs):
+def seoUrlToFunction(render: Render, *args, **kwargs):
 	return utils.seoUrlToFunction(*args, **kwargs)

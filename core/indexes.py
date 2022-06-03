@@ -135,7 +135,6 @@ class IndexMannager:
 			(Actually it removes it from the db so it gets rebuild on next use)
 
 			:param query: Query for which the index should be refreshed
-			:type query: db.Query
 		"""
 		key = self.keyFromQuery(query)
 		try:

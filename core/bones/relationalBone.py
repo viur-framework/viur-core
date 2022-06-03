@@ -1,14 +1,14 @@
-from viur.core.bones.bone import baseBone, getSystemInitialized, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import utils, db
+from viur.core import db, utils
+from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity, baseBone, getSystemInitialized
+
 try:
 	import extjson
 except ImportError:
 	# FIXME: That json will not read datetime objects
 	import json as extjson
 from time import time
-from datetime import datetime
 import logging
-from typing import List, Any, Optional, Union
+from typing import List, Any, Optional, Union, Dict
 from enum import Enum
 from itertools import chain
 
@@ -539,7 +539,13 @@ class relationalBone(baseBone):
 			dbFilter.order(*orderList)
 		return name, skel, dbFilter, rawFilter
 
-	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
+
+	def buildDBFilter(self,
+					  name: str,
+					  skel: 'viur.core.skeleton.SkeletonInstance',
+					  dbFilter: db.Query,
+					  rawFilter: Dict,
+					  prefix: Optional[str] = None) -> db.Query:
 		relSkel, _usingSkelCache = self._getSkels()
 		origQueries = dbFilter.queries
 
@@ -620,7 +626,11 @@ class relationalBone(baseBone):
 
 		return dbFilter
 
-	def buildDBSort(self, name, skel, dbFilter, rawFilter):
+	def buildDBSort(self,
+					name: str,
+					skel: 'viur.core.skeleton.SkeletonInstance',
+					dbFilter: db.Query,
+					rawFilter: Dict) -> Optional[db.Query]:
 		origFilter = dbFilter.queries
 		if origFilter is None or not "orderby" in rawFilter:  # This query is unsatisfiable or not sorted
 			return dbFilter
@@ -862,7 +872,11 @@ class relationalBone(baseBone):
 			"rel": rel or None
 		}
 
-	def setBoneValue(self, skel: 'SkeletonInstance', boneName: str, value: Any, append: bool,
+	def setBoneValue(self,
+					 skel: 'SkeletonInstance',
+					 boneName: str,
+					 value: Any,
+					 append: bool,
 					 language: Union[None, str] = None) -> bool:
 		"""
 			Set our value to 'value'.
@@ -875,7 +889,6 @@ class relationalBone(baseBone):
 				replacing it. Only supported on bones with multiple=True
 			:param language: Set/append which language
 			:return: Wherever that operation succeeded or not.
-
 		"""
 		assert not (bool(self.languages) ^ bool(language)), "Language is required or not supported"
 		assert not append or self.multiple, "Can't append - bone is not multiple"

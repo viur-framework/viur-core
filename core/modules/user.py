@@ -733,17 +733,14 @@ class User(List):
 			raise errors.RequestTimeout()
 		return self.authenticateUser(userKey)
 
-	def authenticateUser(self, userKey, **kwargs):
+	def authenticateUser(self, userKey: db.Key, **kwargs):
 		"""
 			Performs Log-In for the current session and the given userKey.
 
 			This resets the current session: All fields not explicitly marked as persistent
 			by conf["viur.session.persistentFieldsOnLogin"] are gone afterwards.
 
-			:param authProvider: Which authentication-provider issued the authenticateUser request
-			:type authProvider: object
 			:param userKey: The (DB-)Key of the user we shall authenticate
-			:type userKey: db.Key
 		"""
 		currSess = currentSession.get()
 		res = db.Get(userKey)
