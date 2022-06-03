@@ -169,7 +169,7 @@ class Tree(BasicApplication):
 		"""
 		return []
 
-	def getRootNode(self, entryKey: Union[db.Key, str, int]) -> SkeletonInstance:
+	def getRootNode(self, entryKey: str) -> SkeletonInstance:
 		"""
 		Returns the root-node for a given child.
 
@@ -304,7 +304,7 @@ class Tree(BasicApplication):
 		return self.render.view(skel)
 
 	@exposed
-	def view(self, skelType: SkelType, key: Union[db.Key, str, int], *args, **kwargs) -> Any:
+	def view(self, skelType: SkelType, key: str, *args, **kwargs) -> Any:
 		"""
 		Prepares and renders a single entry for viewing.
 
@@ -337,7 +337,7 @@ class Tree(BasicApplication):
 
 	@exposed
 	@forceSSL
-	def add(self, skelType: SkelType, node: Union[db.Key, str, int], *args, **kwargs) -> Any:
+	def add(self, skelType: SkelType, node: str, *args, **kwargs) -> Any:
 		"""
 		Add a new entry with the given parent *node*, and render the entry, eventually with error notes
 		on incorrect data. Data is taken by any other arguments in *kwargs*.
@@ -389,7 +389,7 @@ class Tree(BasicApplication):
 
 	@exposed
 	@forceSSL
-	def edit(self, skelType: SkelType, key: Union[db.Key, str, int], *args, **kwargs) -> Any:
+	def edit(self, skelType: SkelType, key: str, *args, **kwargs) -> Any:
 		"""
 		Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
 		Data is taken by any other arguments in *kwargs*.
@@ -435,7 +435,7 @@ class Tree(BasicApplication):
 	@exposed
 	@forceSSL
 	@forcePost
-	def delete(self, skelType: SkelType, key: Union[db.Key, str, int], *args, **kwargs) -> Any:
+	def delete(self, skelType: SkelType, key: str, *args, **kwargs) -> Any:
 		"""
 		Deletes an entry or an directory (including its contents).
 
