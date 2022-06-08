@@ -815,6 +815,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 			# Ensure the SEO-Keys are up2date
 			lastRequestedSeoKeys = dbObj["viur"].get("viurLastRequestedSeoKeys") or {}
 			lastSetSeoKeys = dbObj["viur"].get("viurCurrentSeoKeys") or {}
+			# Filter garbage serialized into this field by the seoKeyBone
+			lastSetSeoKeys = {k: v for k, v in lastSetSeoKeys.items() if not k.startswith("_") and v}
 			currentSeoKeys = skel.getCurrentSEOKeys()
 			if not isinstance(dbObj["viur"].get("viurCurrentSeoKeys"), dict):
 				dbObj["viur"]["viurCurrentSeoKeys"] = {}
@@ -840,9 +842,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					if currentKey != lastRequestedSeoKeys.get(language):  # This one is new or has changed
 						newSeoKey = currentSeoKeys[language]
 						for _ in range(0, 3):
-							entryUsingKey = db.Query(skelValues.kindName).filter("viurActiveSeoKeys =",
+							entryUsingKey = db.Query(skelValues.kindName).filter("viur.viurActiveSeoKeys =",
 																				 newSeoKey).getEntry()
-							if entryUsingKey and entryUsingKey.name != dbObj.name:
+							if entryUsingKey and entryUsingKey.key != dbObj.key:
 								# It's not unique; append a random string and try again
 								newSeoKey = "%s-%s" % (currentSeoKeys[language], utils.generateRandomString(5).lower())
 							else:
@@ -854,7 +856,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 					lastSetSeoKeys[language] = newSeoKey
 				else:
 					# We'll use the database-key instead
-					lastSetSeoKeys[language] = dbObj.key.id_or_name
+					lastSetSeoKeys[language] = str(dbObj.key.id_or_name)
 				# Store the current, active key for that language
 				dbObj["viur"]["viurCurrentSeoKeys"][language] = lastSetSeoKeys[language]
 			if not dbObj["viur"].get("viurActiveSeoKeys"):

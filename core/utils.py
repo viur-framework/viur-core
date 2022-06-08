@@ -239,7 +239,13 @@ def seoUrlToEntry(module: str,
 		if language in (currentSeoKeys or {}):
 			pathComponents.append(str(currentSeoKeys[language]))
 		elif "key" in entry:
-			pathComponents.append(str(entry["key"].id_or_name) if isinstance(entry["key"], db.Key) else str(entry["key"]))
+			key = entry["key"]
+			if isinstance(key, str):
+				try:
+					key = db.Key.from_legacy_urlsafe(key)
+				except:
+					pass
+			pathComponents.append(str(key.id_or_name) if isinstance(key, db.Key) else str(key))
 		elif "name" in dir(entry):
 			pathComponents.append(str(entry.name))
 		return "/".join(pathComponents)
