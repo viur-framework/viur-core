@@ -437,12 +437,12 @@ class RelationalBone(BaseBone):
 				logging.info("Invalid reference key >%s< detected on bone '%s'",
 							 key, name)
 				if isinstance(oldValues, dict):
-					if oldValues["dest"].key == dbKey:
+					if oldValues["dest"]["key"] == dbKey:
 						entry = oldValues["dest"]
 						isEntryFromBackup = True
 				elif isinstance(oldValues, list):
 					for dbVal in oldValues:
-						if dbVal["dest"].key == dbKey:
+						if dbVal["dest"]["key"] == dbKey:
 							entry = dbVal["dest"]
 							isEntryFromBackup = True
 			if isEntryFromBackup:
