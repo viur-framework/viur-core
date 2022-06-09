@@ -101,7 +101,7 @@ class BrowseHandler():  # webapp.RequestHandler
 		self.request = request
 		self.response = response
 		self.maxLogLevel = logging.DEBUG
-		self._traceID = request.headers.get('X-Cloud-Trace-Context') or utils.generateRandomString()
+		self._traceID = request.headers.get('X-Cloud-Trace-Context', "").split("/")[0] or utils.generateRandomString()
 		db.currentDbAccessLog.set(set())
 
 	def selectLanguage(self, path: str):
@@ -307,29 +307,42 @@ class BrowseHandler():  # webapp.RequestHandler
 			self.response.write(res.encode("UTF-8"))
 		finally:
 			self.saveSession()
-			SEVERITY = "DEBUG"
-			if self.maxLogLevel >= 50:
-				SEVERITY = "CRITICAL"
-			elif self.maxLogLevel >= 40:
-				SEVERITY = "ERROR"
-			elif self.maxLogLevel >= 30:
-				SEVERITY = "WARNING"
-			elif self.maxLogLevel >= 20:
-				SEVERITY = "INFO"
+			if self.isDevServer:
+				# Emit the outer log only on dev_appserver (we'll use the existing request log when live)
+				SEVERITY = "DEBUG"
+				if self.maxLogLevel >= 50:
+					SEVERITY = "CRITICAL"
+				elif self.maxLogLevel >= 40:
+					SEVERITY = "ERROR"
+				elif self.maxLogLevel >= 30:
+					SEVERITY = "WARNING"
+				elif self.maxLogLevel >= 20:
+					SEVERITY = "INFO"
 
-			TRACE = "projects/{}/traces/{}".format(loggingClient.project, self._traceID)
+				TRACE = "projects/{}/traces/{}".format(loggingClient.project, self._traceID)
 
-			REQUEST = {
-				'requestMethod': self.request.method,
-				'requestUrl': self.request.url,
-				'status': self.response.status_code,
-				'userAgent': self.request.headers.get('USER-AGENT'),
-				'responseSize': self.response.content_length,
-				'latency': "%0.3fs" % (time() - self.startTime),
-				'remoteIp': self.request.environ.get("HTTP_X_APPENGINE_USER_IP")
-			}
-			requestLogger.log_text("", client=loggingClient, severity=SEVERITY, http_request=REQUEST, trace=TRACE,
-								   resource=requestLoggingRessource)
+				REQUEST = {
+					'requestMethod': self.request.method,
+					'requestUrl': self.request.url,
+					'status': self.response.status_code,
+					'userAgent': self.request.headers.get('USER-AGENT'),
+					'responseSize': self.response.content_length,
+					'latency': "%0.3fs" % (time() - self.startTime),
+					'remoteIp': self.request.environ.get("HTTP_X_APPENGINE_USER_IP")
+				}
+				requestLogger.log_text(
+					"",
+					client=loggingClient,
+					severity=SEVERITY,
+					http_request=REQUEST,
+					trace=TRACE,
+					resource=requestLoggingRessource,
+					operation={
+						"first": True,
+						"last": True,
+						"id": self._traceID
+					}
+				)
 		if self.isDevServer:
 			while self.pendingTasks:
 				task = self.pendingTasks.pop()

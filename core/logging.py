@@ -25,8 +25,10 @@ class ViURDefaultLogger(CloudLoggingHandler):
 			currentReq = currentRequest.get()
 			TRACE = "projects/{}/traces/{}".format(client.project, currentReq._traceID)
 			currentReq.maxLogLevel = max(currentReq.maxLogLevel, record.levelno)
+			logID = currentReq.request.environ.get("HTTP_X_APPENGINE_REQUEST_LOG_ID")
 		except:
 			TRACE = None
+			logID = None
 
 		self.transport.send(
 			record,
@@ -37,7 +39,12 @@ class ViURDefaultLogger(CloudLoggingHandler):
 				"module_id": "default",
 				"version_id": appVersion if not isLocalDevelopmentServer else "dev_appserver",
 			},
-			trace=TRACE
+			trace=TRACE,
+			operation={
+				"first": False,
+				"last": False,
+				"id": logID
+			}
 		)
 
 

@@ -7,6 +7,7 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 ### Added
 
 ### Changed
+- Reworked logging to work with the new logviewer 
 
 ### Fixed
 - required=True bones could still be set to empty if omitted from the request
