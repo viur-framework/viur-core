@@ -184,7 +184,7 @@ class UserPassword(object):
 			return self.userModule.render.login(self.loginSkel())
 
 		if not self.loginRateLimit.isQuotaAvailable():
-			raise errors.Forbidden()
+			raise errors.TooManyRequests.fromRateLimit(self.loginRateLimit)
 
 		name = name.lower().strip()
 		query = db.Query(self.userModule.viewSkel().kindName)
@@ -248,7 +248,7 @@ class UserPassword(object):
 			to 10 actions per 15 minutes. (One complete recovery process consists of two calls).
 		"""
 		if not self.passwordRecoveryRateLimit.isQuotaAvailable():
-			raise errors.Forbidden()  # Quota exhausted, bail out
+			raise errors.TooManyRequests.fromRateLimit(self.passwordRecoveryRateLimit)  # Quota exhausted, bail out
 		session = currentSession.get()
 		request = currentRequest.get()
 		recoverStep = session.get("user.auth_userpassword.pwrecover")

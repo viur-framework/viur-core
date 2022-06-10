@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from viur.core.ratelimit import RateLimit
+
 
 class HTTPException(Exception):
 	"""
@@ -172,6 +174,32 @@ class Locked(HTTPException):
 
 	def __init__(self, descr="Ressource is Locked"):
 		super(Locked, self).__init__(status=423, name="Ressource is Locked", descr=descr)
+
+
+class TooManyRequests(HTTPException):
+	"""
+		Too Many Requests
+
+		The 429 status code indicates that the user has sent too many
+		requests in a given amount of time ("rate limiting").
+	"""
+
+	def __init__(self, descr: str = "Too Many Requests"):
+		super(TooManyRequests, self).__init__(status=429, name="Too Many Requests", descr=descr)
+
+	@classmethod
+	def fromRateLimit(cls, ratelimit: RateLimit, setRetryAfterHeader: bool = True):
+		"""Creates an exception instance based on a RateLimit configuration.
+
+		:param ratelimit: The RateLimit instance used to control the rate limit.
+		:param setRetryAfterHeader: Set the Retry-After header on the current request response.
+		:return: A new instance of :class:`TooManyRequests`
+		"""
+		if setRetryAfterHeader:
+			from viur.core import currentRequest
+			currentRequest.get().response.headers["Retry-After"] = str(ratelimit.maxRate * 60)
+		return cls(f"{ratelimit.steps} requests allowed per {ratelimit.maxRate} minute(s)."
+				   f" Try again later.")
 
 
 class Censored(HTTPException):
