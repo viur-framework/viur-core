@@ -188,7 +188,7 @@ class TooManyRequests(HTTPException):
 		super(TooManyRequests, self).__init__(status=429, name="Too Many Requests", descr=descr)
 
 	@classmethod
-	def fromRateLimit(cls, ratelimit: RateLimit, setRetryAfterHeader: bool = True):
+	def fromRateLimit(cls, ratelimit: RateLimit, setRetryAfterHeader: bool = True) -> 'TooManyRequests':
 		"""Creates an exception instance based on a RateLimit configuration.
 
 		:param ratelimit: The RateLimit instance used to control the rate limit.
