@@ -5,6 +5,7 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 ## [main] - Current main version
 
 ### Added
+- Ratelimit to login with username/password
 
 ### Changed
 

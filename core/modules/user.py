@@ -128,6 +128,8 @@ class UserPassword(object):
 
 	# The default rate-limit for password recovery (10 tries each 15 minutes)
 	passwordRecoveryRateLimit = RateLimit("user.passwordrecovery", 10, 15, "ip")
+	# Limit (invalid) login-retries to once per 5 seconds
+	loginRateLimit = RateLimit("user.login", 12, 1, "ip")
 
 	# Default translations for password recovery
 	passwordRecoveryKeyExpired = translate(
@@ -181,6 +183,9 @@ class UserPassword(object):
 		if not name or not password or not securitykey.validate(skey, useSessionKey=True):
 			return self.userModule.render.login(self.loginSkel())
 
+		if not self.loginRateLimit.isQuotaAvailable():
+			raise errors.Forbidden()
+
 		name = name.lower().strip()
 		query = db.Query(self.userModule.viewSkel().kindName)
 		res = query.filter("name.idx >=", name).getEntry()
@@ -221,6 +226,7 @@ class UserPassword(object):
 			isOkay = False
 
 		if not isOkay:
+			self.loginRateLimit.decrementQuota()  # Only failed login attempts will count to the quota
 			skel = self.loginSkel()
 			return self.userModule.render.login(skel, loginFailed=True, accountStatus=accountStatus)
 		else:
