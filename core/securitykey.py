@@ -95,7 +95,7 @@ def startClearSKeys():
 	"""
 		Removes old (expired) skeys
 	"""
-	doClearSKeys((datetime.now() - timedelta(seconds=300)).strftime("%d.%m.%Y %H:%M:%S"), None)
+	doClearSKeys((datetime.now() - timedelta(seconds=300)).strftime("%d.%m.%Y %H:%M:%S"))
 
 
 @callDeferred
