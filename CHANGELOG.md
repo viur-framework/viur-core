@@ -8,6 +8,7 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - Ratelimit to login with username/password
 
 ### Changed
+- Reworked logging to work with the new logviewer 
 
 ### Fixed
 - Fixed restoring relations in edit if the referenced entity has been deleted
