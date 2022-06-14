@@ -244,6 +244,7 @@ class TaskHandler:
 					"Your customEnvironmentHandler must be a tuple of two callable if set!"
 				conf["viur.tasks.customEnvironmentHandler"][1](env["custom"])
 		if cmd == "rel":
+			currentRequest.get().DEFERED_TASK_CALLED = True
 			caller = conf["viur.mainApp"]
 			pathlist = [x for x in funcPath.split("/") if x]
 			for currpath in pathlist:
@@ -264,7 +265,7 @@ class TaskHandler:
 				logging.error("ViUR missed a deferred task! %s(%s,%s)", funcPath, args, kwargs)
 			# We call the deferred function *directly* (without walking through the mkDeferred lambda), so ensure
 			# that any hit to another deferred function will defer again
-			req.DEFERED_TASK_CALLED = True
+			currentRequest.get().DEFERED_TASK_CALLED = True
 			try:
 				_deferedTasks[funcPath](*args, **kwargs)
 			except PermanentTaskFailure:
