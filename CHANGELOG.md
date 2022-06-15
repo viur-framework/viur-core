@@ -11,6 +11,7 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - Reworked logging to work with the new logviewer 
 
 ### Fixed
+- Fixed uploading files using pre-signed calls to getUploadURL
 - Fixed restoring relations in edit if the referenced entity has been deleted
 - required=True bones could still be set to empty if omitted from the request
 - treeNodeBone enforcing "_rootNode" suffix on it's kind which this isn't true for ViUR3 anymore.
