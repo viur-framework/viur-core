@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from viur.core import utils, db
+from viur.core import db, errors, utils
 from viur.core.utils import currentRequest
 from viur.core.tasks import PeriodicTask, DeleteEntitiesIter
 from datetime import timedelta
@@ -108,6 +108,24 @@ class RateLimit(object):
 				db.Key(self.rateLimitKind, "%s-%s-%s" % (self.resource, endPoint, keyBase % (currentStep - x))))
 		tmpRes = db.Get(cacheKeys)
 		return sum([x["value"] for x in tmpRes if x and currentDateTime < x["expires"]]) <= self.maxRate
+
+	def assertQuotaIsAvailable(self, setRetryAfterHeader: bool = True) -> bool:
+		"""Assert quota is available.
+
+		If not quota is available a :class:`viur.core.errors.TooManyRequests`
+		exception will be raised.
+
+		:param setRetryAfterHeader: Set the Retry-After header on the
+			current request response, if the quota is exceeded.
+		:return: True if quota is available.
+		:raises: :exc:`viur.core.errors.TooManyRequests`, if no quote is available.
+		"""
+		if self.isQuotaAvailable():
+			return True
+		if setRetryAfterHeader:
+			currentRequest.get().response.headers["Retry-After"] = str(self.maxRate * 60)
+		raise errors.TooManyRequests(f"{self.steps} requests allowed per {self.maxRate} minute(s)."
+									 f" Try again later.")
 
 
 @PeriodicTask(60)
