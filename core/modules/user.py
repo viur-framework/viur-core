@@ -183,8 +183,7 @@ class UserPassword(object):
 		if not name or not password or not securitykey.validate(skey, useSessionKey=True):
 			return self.userModule.render.login(self.loginSkel())
 
-		if not self.loginRateLimit.isQuotaAvailable():
-			raise errors.Forbidden()
+		self.loginRateLimit.assertQuotaIsAvailable()
 
 		name = name.lower().strip()
 		query = db.Query(self.userModule.viewSkel().kindName)
@@ -247,8 +246,7 @@ class UserPassword(object):
 			To prevent automated attacks, the fist step is guarded by a captcha and we limited calls to this function
 			to 10 actions per 15 minutes. (One complete recovery process consists of two calls).
 		"""
-		if not self.passwordRecoveryRateLimit.isQuotaAvailable():
-			raise errors.Forbidden()  # Quota exhausted, bail out
+		self.passwordRecoveryRateLimit.assertQuotaIsAvailable()
 		session = currentSession.get()
 		request = currentRequest.get()
 		recoverStep = session.get("user.auth_userpassword.pwrecover")

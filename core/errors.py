@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+
 class HTTPException(Exception):
 	"""
 		Base-Class for all Exceptions that should match to an http error-code
@@ -172,6 +173,18 @@ class Locked(HTTPException):
 
 	def __init__(self, descr="Ressource is Locked"):
 		super(Locked, self).__init__(status=423, name="Ressource is Locked", descr=descr)
+
+
+class TooManyRequests(HTTPException):
+	"""
+		Too Many Requests
+
+		The 429 status code indicates that the user has sent too many
+		requests in a given amount of time ("rate limiting").
+	"""
+
+	def __init__(self, descr: str = "Too Many Requests"):
+		super(TooManyRequests, self).__init__(status=429, name="Too Many Requests", descr=descr)
 
 
 class Censored(HTTPException):
