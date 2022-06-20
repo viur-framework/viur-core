@@ -417,6 +417,14 @@ class BrowseHandler():  # webapp.RequestHandler
 				return "True", True
 			else:
 				return "False", False
+		elif typeOrigin is typing.Literal:
+			inValueStr = str(inValue)
+			for literal in typeHint.__args__:
+				if inValueStr == str(literal):
+					return inValue, literal
+			raise TypeError("Input argument must be one of these Literals: "
+							+ ", ".join(map(repr, typeHint.__args__)))
+
 		raise ValueError("TypeHint %s not supported" % typeHint)
 
 	def findAndCall(self, path:str, *args, **kwargs):
