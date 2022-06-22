@@ -433,6 +433,15 @@ class File(Tree):
 			"uploadUrl": uploadUrl,
 			"uploadKey": targetKey,
 		}
+		if authData and authSig:
+			# In this case, we'd have to store the key in the users session so he can call add() later on
+			session = utils.currentSession.get()
+			if not "pendingFileUploadKeys" in session:
+				session["pendingFileUploadKeys"] = []
+			session["pendingFileUploadKeys"].append(targetKey)
+			# Clamp to the latest 50 pending uploads
+			session["pendingFileUploadKeys"] = session["pendingFileUploadKeys"][-50:]
+			session.markChanged()
 		return self.render.view(resDict)
 
 	@exposed
@@ -535,7 +544,12 @@ class File(Tree):
 			else:
 				rootNode = None
 			if not self.canAdd("leaf", rootNode):
-				raise errors.Forbidden()
+				# Check for a marker in this session (created if using a signed upload URL)
+				session = utils.currentSession.get()
+				if targetKey not in (session.get("pendingFileUploadKeys") or []):
+					raise errors.Forbidden()
+				session["pendingFileUploadKeys"].remove(targetKey)
+				session.markChanged()
 			blobs = list(bucket.list_blobs(prefix="%s/" % skel["dlkey"]))
 			if len(blobs) != 1:
 				logging.error("Invalid number of blobs in folder")
