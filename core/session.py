@@ -271,7 +271,7 @@ def startClearSessions():
 	"""
 		Removes old (expired) Sessions
 	"""
-	doClearSessions(time() - (conf["viur.session.lifeTime"] + 300), None)
+	doClearSessions(time() - (conf["viur.session.lifeTime"] + 300))
 
 
 @callDeferred
