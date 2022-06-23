@@ -39,6 +39,11 @@ class SelectBone(BaseBone):
 			values = self._values
 			if callable(values):
 				values = values()
+
+				# handle list/tuple as dicts
+				if isinstance(values, (list, tuple)):
+					values = {i: translate(i) for i in values}
+
 				assert isinstance(values, (dict, OrderedDict))
 
 			return values
