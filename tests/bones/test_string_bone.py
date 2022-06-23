@@ -126,3 +126,74 @@ class TestStringBone_fromClient(unittest.TestCase):
 		self.assertIn("en", skel[self.bone_name])
 		self.assertListEqual([], skel[self.bone_name]["en"])
 		self.assertNotIn("fr", skel[self.bone_name])
+
+	def test_singleValueFromClient(self):
+		from viur.core.bones import StringBone
+		from viur.core.bones import ReadFromClientError
+		from viur.core.bones import ReadFromClientErrorSeverity
+		bone = StringBone()
+		skel = {}
+		# hint: StringBone has no specific isInvalid(), so every value is valid like in BaseBone
+		res = bone.singleValueFromClient("Foo", skel, self.bone_name, None)
+		self.assertEqual(("Foo", None), res)
+		res = bone.singleValueFromClient("", skel, self.bone_name, None)
+		self.assertEqual(("", None), res)
+		res = bone.singleValueFromClient(None, skel, self.bone_name, None)
+		self.assertEqual(("None", None), res)
+
+		# Custom isInvalid function which checks for truthy values to test invalid case as well
+		bone = StringBone(vfunc=lambda value: not value)
+		res = bone.singleValueFromClient("Foo", skel, self.bone_name, None)
+		self.assertEqual(("Foo", None), res)
+		res = bone.singleValueFromClient("", skel, self.bone_name, None)
+		self.assertEqual("", res[0])
+		self.assertIsInstance(res[1], list)
+		self.assertTrue(res[1])  # list is not empty (hopefully contains a ReadFromClientError)
+		self.assertIsInstance(rfce := res[1][0], ReadFromClientError)
+		self.assertIs(ReadFromClientErrorSeverity.Invalid, rfce.severity)
+
+
+class TestStringBoneSerialize(unittest.TestCase):
+	@classmethod
+	def setUpClass(cls) -> None:
+		from main import monkey_patch
+		monkey_patch()
+		cls.bone_name = "myStringBone"
+
+	def test_singleValueSerialize_caseSensitive(self):
+		from viur.core.bones import StringBone
+		bone = StringBone(caseSensitive=True)
+		skel = {}
+		res = bone.singleValueSerialize("Foo", skel, self.bone_name, True)
+		self.assertEqual("Foo", res)
+		res = bone.singleValueSerialize("Foo", skel, self.bone_name, False)
+		self.assertEqual("Foo", res)
+		res = bone.singleValueSerialize(None, skel, self.bone_name, True)
+		self.assertEqual(None, res)
+		res = bone.singleValueSerialize(None, skel, self.bone_name, False)
+		self.assertEqual(None, res)
+
+	def test_singleValueSerialize_caseInSensitive(self):
+		from viur.core.bones import StringBone
+		bone = StringBone(caseSensitive=False)
+		skel = {}
+		res = bone.singleValueSerialize("Foo", skel, self.bone_name, True)
+		self.assertDictEqual({"val": "Foo", "idx": "foo"}, res)
+		res = bone.singleValueSerialize("Foo", skel, self.bone_name, False)
+		self.assertEqual("Foo", res)
+		res = bone.singleValueSerialize(None, skel, self.bone_name, True)
+		self.assertDictEqual({"val": None, "idx": None}, res)
+		res = bone.singleValueSerialize(None, skel, self.bone_name, False)
+		self.assertEqual(None, res)
+
+	def test_singleValueUnserialize(self):
+		from viur.core.bones import StringBone
+		bone = StringBone()
+		res = bone.singleValueUnserialize({"val": "Foo", "idx": "foo"})
+		self.assertEqual("Foo", res)
+		res = bone.singleValueUnserialize({"idx": "foo"})
+		self.assertEqual("{'idx': 'foo'}", res)  # TODO: Should a broken dict really be casted to a str?
+		res = bone.singleValueUnserialize("Foo")
+		self.assertEqual("Foo", res)
+		res = bone.singleValueUnserialize(None)
+		self.assertEqual("", res)
