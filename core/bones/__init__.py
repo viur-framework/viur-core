@@ -25,37 +25,37 @@ from .user import UserBone
 
 # Expose only specific names
 __all = [
-	"ReadFromClientError",
-	"ReadFromClientErrorSeverity",
-	"UniqueValue",
-	"UniqueLockMethod",
-	"MultipleConstraints",
-	"RelationalConsistency"
+    "ReadFromClientError",
+    "ReadFromClientErrorSeverity",
+    "UniqueValue",
+    "UniqueLockMethod",
+    "MultipleConstraints",
+    "RelationalConsistency"
 ]
 
 for __cls_name, __cls in locals().copy().items():
-	if __cls_name.startswith("__"):
-		continue
+    if __cls_name.startswith("__"):
+        continue
 
-	if __cls_name.endswith("Bone"):
-		__old_cls_name = __cls_name[0].lower() + __cls_name[1:]
+    if __cls_name.endswith("Bone"):
+        __old_cls_name = __cls_name[0].lower() + __cls_name[1:]
 
-		__all += [__cls_name, __old_cls_name]
+        __all += [__cls_name, __old_cls_name]
 
-		# Dynamically create a class providing a deprecation logging message for every lower-case bone name
-		def __generate_deprecation_constructor(cls, cls_name, old_cls_name):
-			def __init__(self, *args, **kwargs):
-				import logging, warnings
-				logging.warning(f"Use of class '{old_cls_name}' is deprecated, use '{cls_name}' instead.")
-				warnings.warn(f"Use of class '{old_cls_name}' is deprecated, use '{cls_name}' instead.")
-				cls.__init__(self, *args, **kwargs)
+        # Dynamically create a class providing a deprecation logging message for every lower-case bone name
+        def __generate_deprecation_constructor(cls, cls_name, old_cls_name):
+            def __init__(self, *args, **kwargs):
+                import logging, warnings
+                logging.warning(f"Use of class '{old_cls_name}' is deprecated, use '{cls_name}' instead.")
+                warnings.warn(f"Use of class '{old_cls_name}' is deprecated, use '{cls_name}' instead.")
+                cls.__init__(self, *args, **kwargs)
 
-			return __init__
+            return __init__
 
-		locals()[__old_cls_name] = type(__old_cls_name, (__cls, ), {
-			"__init__": __generate_deprecation_constructor(__cls, __cls_name, __old_cls_name)
-		})
+        locals()[__old_cls_name] = type(__old_cls_name, (__cls, ), {
+            "__init__": __generate_deprecation_constructor(__cls, __cls_name, __old_cls_name)
+        })
 
-		#print(__old_cls_name, "installed as ", locals()[__old_cls_name], issubclass(locals()[__old_cls_name], __cls))
+        #print(__old_cls_name, "installed as ", locals()[__old_cls_name], issubclass(locals()[__old_cls_name], __cls))
 
 __all__ = __all
