@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import hashlib
 import hmac
 import os
@@ -33,7 +32,7 @@ coreBasePath = globals()["__file__"].replace("/viur/core/utils.py","")
 isLocalDevelopmentServer = os.environ['GAE_ENV'] == "localdev"
 
 
-def utcNow():
+def utcNow() -> datetime:
 	return datetime.now(timezone.utc)
 
 
@@ -42,25 +41,22 @@ def generateRandomString(length: int = 13) -> str:
 	Return a string containing random characters of given *length*.
 	Its safe to use this string in URLs or HTML.
 
-	:type length: int
 	:param length: The desired length of the generated string.
 
 	:returns: A string with random characters of the given length.
-	:rtype: str
 	"""
 	return "".join(random.choices(string.ascii_letters + string.digits, k=length))
 
 
-def getCurrentUser():
+def getCurrentUser() -> Optional["SkeletonInstance"]:
 	"""
 		Retrieve current user, if logged in.
 
 		If a user is logged in, this function returns a dict containing user data.
-
 		If no user is logged in, the function returns None.
 
-		:rtype: dict | bool
-		:returns: A dict containing information about the logged-in user, None if no user is logged in.
+		:returns: A SkeletonInstance containing information about the logged-in
+			user, None if no user is logged in.
 	"""
 	user = None
 	if "user" in dir(conf["viur.mainApp"]):  # Check for our custom user-api
@@ -68,7 +64,7 @@ def getCurrentUser():
 	return user
 
 
-def markFileForDeletion(dlkey):
+def markFileForDeletion(dlkey: str) -> None:
 	"""
 	Adds a marker to the data store that the file specified as *dlkey* can be deleted.
 
@@ -77,7 +73,6 @@ def markFileForDeletion(dlkey):
 	the mark and the file are removed from the datastore. These delayed checks are necessary
 	due to database inconsistency.
 
-	:type dlkey: str
 	:param dlkey: Unique download-key of the file that shall be marked for deletion.
 	"""
 	fileObj = db.Query("viur-deleted-files").filter("dlkey", dlkey).getEntry()
@@ -91,18 +86,13 @@ def markFileForDeletion(dlkey):
 	db.Put(fileObj)
 
 
-def escapeString(val, maxLength=254):
+def escapeString(val: str, maxLength: int = 254) -> str:
 	"""
 		Quotes several characters and removes "\\\\n" and "\\\\0" to prevent XSS injection.
 
 		:param val: The value to be escaped.
-		:type val: str
-
 		:param maxLength: Cut-off after maxLength characters. A value of 0 means "unlimited".
-		:type maxLength: int
-
 		:returns: The quoted string.
-		:rtype: str
 	"""
 	val = str(val).strip() \
 		.replace("<", "&lt;") \
@@ -152,7 +142,7 @@ def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
 		:param derived: True, if it points to a derived file, False if it points to the original uploaded file
 		:param expires: None if the file is supposed to be public (which causes it to be cached on the google ede
 			caches), otherwise a timedelta of how long that link should be valid
-		:param downloadName: If set, we'll force to browser to download this blob with the given filename
+		:param downloadFileName: If set, we'll force to browser to download this blob with the given filename
 		:return: THe signed download-url relative to the current domain (eg /download/...)
 	"""
 	if derived:
@@ -251,7 +241,7 @@ def seoUrlToEntry(module: str,
 		return "/".join(pathComponents)
 
 
-def seoUrlToFunction(module, function, render=None):
+def seoUrlToFunction(module: str, function: str, render: Optional[str] = None) -> str:
 	from viur.core import conf
 	lang = currentLanguage.get()
 	if module in conf["viur.languageModuleMap"] and lang in conf["viur.languageModuleMap"][module]:

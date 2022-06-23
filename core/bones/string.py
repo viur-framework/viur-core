@@ -2,9 +2,9 @@ from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientEr
 from viur.core.config import conf
 from viur.core.utils import currentLanguage
 from viur.core import db, request, utils
+from typing import Dict, List, Optional, Union
+from viur.core.utils import currentLanguage
 import logging
-from typing import List, Union
-
 
 
 class StringBone(BaseBone):
@@ -42,12 +42,20 @@ class StringBone(BaseBone):
 			return utils.escapeString(value), None
 		return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
-	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
-		if not name in rawFilter and not any(
-			[(x.startswith(name + "$") or x.startswith(name + ".")) for x in rawFilter.keys()]):
-			return super(StringBone, self).buildDBFilter(name, skel, dbFilter, rawFilter, prefix)
 
-		hasInequalityFilter = False
+	def buildDBFilter(
+		self,
+		name: str,
+		skel: 'viur.core.skeleton.SkeletonInstance',
+		dbFilter: db.Query,
+		rawFilter: Dict,
+		prefix: Optional[str] = None
+	) -> db.Query:
+		if name not in rawFilter and not any(
+			[(x.startswith(name + "$") or x.startswith(name + ".")) for x in rawFilter.keys()]
+		):
+			return super().buildDBFilter(name, skel, dbFilter, rawFilter, prefix)
+
 		if not self.languages:
 			namefilter = name
 		else:
@@ -63,6 +71,7 @@ class StringBone(BaseBone):
 				if not lang or not lang in self.languages:
 					lang = self.languages[0]
 			namefilter = "%s.%s" % (name, lang)
+
 		if name + "$lk" in rawFilter:  # Do a prefix-match
 			if not self.caseSensitive:
 				dbFilter.filter((prefix or "") + namefilter + ".idx >=", str(rawFilter[name + "$lk"]).lower())
@@ -71,27 +80,34 @@ class StringBone(BaseBone):
 			else:
 				dbFilter.filter((prefix or "") + namefilter + " >=", str(rawFilter[name + "$lk"]))
 				dbFilter.filter((prefix or "") + namefilter + " <", str(rawFilter[name + "$lk"] + u"\ufffd"))
-			hasInequalityFilter = True
+
 		if name + "$gt" in rawFilter:  # All entries after
 			if not self.caseSensitive:
 				dbFilter.filter((prefix or "") + namefilter + ".idx >", str(rawFilter[name + "$gt"]).lower())
 			else:
 				dbFilter.filter((prefix or "") + namefilter + " >", str(rawFilter[name + "$gt"]))
-			hasInequalityFilter = True
+
 		if name + "$lt" in rawFilter:  # All entries before
 			if not self.caseSensitive:
 				dbFilter.filter((prefix or "") + namefilter + ".idx <", str(rawFilter[name + "$lt"]).lower())
 			else:
 				dbFilter.filter((prefix or "") + namefilter + " <", str(rawFilter[name + "$lt"]))
-			hasInequalityFilter = True
+
 		if name in rawFilter:  # Normal, strict match
 			if not self.caseSensitive:
 				dbFilter.filter((prefix or "") + namefilter + ".idx", str(rawFilter[name]).lower())
 			else:
 				dbFilter.filter((prefix or "") + namefilter, str(rawFilter[name]))
-		return (dbFilter)
 
-	def buildDBSort(self, name, skel, dbFilter, rawFilter):
+		return dbFilter
+
+	def buildDBSort(
+		self,
+		name: str,
+		skel: 'viur.core.skeleton.SkeletonInstance',
+		dbFilter: db.Query,
+		rawFilter: Dict
+	) -> Optional[db.Query]:
 		if "orderby" in rawFilter and (rawFilter["orderby"] == name or (
 			isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
 			"%s." % name) and self.languages)):
@@ -133,7 +149,7 @@ class StringBone(BaseBone):
 					dbFilter.order(order)
 			else:
 				dbFilter.order(order)
-		return (dbFilter)
+		return dbFilter
 
 	def getSearchTags(self, skeletonValues, name):
 		res = set()

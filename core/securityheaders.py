@@ -39,18 +39,15 @@
 
 	ViUR also protects it's cookies by default (setting httponly, secure and samesite=lax). This can be changed by
 	setting the corresponding class-level variables on class:`GaeSession<viur.core.session.GaeSession>`.
-
-
-
 """
 
 from viur.core.config import conf
 from viur.core.utils import currentRequest
 import logging
-from typing import Optional, List
+from typing import Literal, Optional, List
 
 
-def addCspRule(objectType, srcOrDirective, enforceMode="monitor"):
+def addCspRule(objectType: str, srcOrDirective: str, enforceMode: str = "monitor"):
 	"""
 		This function helps configuring and reporting of content security policy rules and violations.
 		To enable CSP, call addCspRule() from your projects main file before calling server.setup().
@@ -77,11 +74,8 @@ def addCspRule(objectType, srcOrDirective, enforceMode="monitor"):
 
 
 		:param objectType: For which type of objects should this directive be enforced? (script-src, img-src, ...)
-		:type objectType: str
 		:param srcOrDirective: Either a domain which should be white-listed or a CSP-Keyword like 'self', 'unsafe-inline', etc.
-		:type srcOrDirective: str
 		:param enforceMode: Should this directive be enforced or just logged?
-		:type enforceMode: 'monitor' or 'enforce'
 	"""
 	assert enforceMode in ["monitor", "enforce"], "enforceMode must be 'monitor' or 'enforce'!"
 	assert objectType in {"default-src", "script-src", "object-src", "style-src", "img-src", "media-src",
@@ -174,32 +168,28 @@ def extendCsp(additionalRules: dict = None, overrideRules: dict = None) -> None:
 	currentRequest.get().response.headers["Content-Security-Policy"] = resStr
 
 
-
-def enableStrictTransportSecurity(maxAge=365 * 24 * 60 * 60, includeSubDomains=False, preload=False):
+def enableStrictTransportSecurity(maxAge: int = 365 * 24 * 60 * 60,
+								  includeSubDomains: bool = False,
+								  preload: bool = False) -> None:
 	"""
 		Enables HTTP strict transport security.
 
 		:param maxAge: The time, in seconds, that the browser should remember that this site is only to be accessed using HTTPS.
 		:param includeSubDomains: If this parameter is set, this rule applies to all of the site's subdomains as well.
 		:param preload: If set, we'll issue a hint that preloading would be appreciated.
-		:return: None
 	"""
 	conf["viur.security.strictTransportSecurity"] = "max-age=%s" % maxAge
 	if includeSubDomains:
 		conf["viur.security.strictTransportSecurity"] += "; includeSubDomains"
 	if preload:
 		conf["viur.security.strictTransportSecurity"] += "; preload"
-	pass
 
 
-def setXFrameOptions(action, uri=None):
+def setXFrameOptions(action: str, uri: Optional[str] = None) -> None:
 	"""
 		Sets X-Frame-Options to prevent click-jacking attacks.
 		:param action: off | deny | sameorigin | allow-from
-		:type action: str
 		:param uri: URL to whitelist
-		:type uri: str
-		:return:
 	"""
 	if action == "off":
 		conf["viur.security.xFrameOptions"] = None
@@ -211,12 +201,10 @@ def setXFrameOptions(action, uri=None):
 		conf["viur.security.xFrameOptions"] = (action, uri)
 
 
-def setXXssProtection(enable):
+def setXXssProtection(enable: Optional[bool]) -> None:
 	"""
 		Sets X-XSS-Protection header. If set, mode will always be block.
 		:param enable: Enable the protection or not. Set to None to drop this header
-		:type enable: bool | None
-		:return:
 	"""
 	if enable is True or enable is False or enable is None:
 		conf["viur.security.xXssProtection"] = enable
@@ -224,12 +212,10 @@ def setXXssProtection(enable):
 		raise ValueError("enable must be exactly one of None | True | False")
 
 
-def setXContentTypeNoSniff(enable):
+def setXContentTypeNoSniff(enable: bool) -> None:
 	"""
 		Sets X-Content-Type-Options if enable is true, otherwise no header is emited.
 		:param enable: Enable emitting this header or not
-		:type enable: bool
-		:return:
 	"""
 	if enable is True or enable is False:
 		conf["viur.security.xContentTypeOptions"] = enable
@@ -237,7 +223,7 @@ def setXContentTypeNoSniff(enable):
 		raise ValueError("enable must be one of True | False")
 
 
-def setXPermittedCrossDomainPolicies(value):
+def setXPermittedCrossDomainPolicies(value: str) -> None:
 	if value not in [None, "none", "master-only", "by-content-type", "all"]:
 		raise ValueError("value [None, \"none\", \"master-only\", \"by-content-type\", \"all\"]")
 	conf["viur.security.xPermittedCrossDomainPolicies"] = value
@@ -256,7 +242,7 @@ validReferrerPolicies = [
 ]
 
 
-def setReferrerPolicy(policy: str):  # FIXME: Replace str with Literal[validReferrerPolicies] when Py3.8 gets supported
+def setReferrerPolicy(policy: str):  # fixme: replace str with literal[validreferrerpolicies] when py3.8 gets supported - This is not how Literal works... We can use a Enum for this.
 	"""
 		:param policy: The referrer policy to send
 	"""
@@ -264,7 +250,7 @@ def setReferrerPolicy(policy: str):  # FIXME: Replace str with Literal[validRefe
 	conf["viur.security.referrerPolicy"] = policy
 
 
-def _rebuildPermissionHeaderCache():
+def _rebuildPermissionHeaderCache() -> None:
 	"""
 		Rebuilds the internal conf["viur.security.permissionsPolicy"]["_headerCache"] string, ie. it constructs
 		the actual header string that's being emitted to the clients.
@@ -275,7 +261,7 @@ def _rebuildPermissionHeaderCache():
 	])
 
 
-def setPermissionPolicyDirective(directive: str, allowList: Optional[List[str]]):
+def setPermissionPolicyDirective(directive: str, allowList: Optional[List[str]]) -> None:
 	"""
 		Set the permission policy :param: directive the list of allowed origins in :param: allowList.
 		:param directive: The directive to set. Must be one of
@@ -286,7 +272,7 @@ def setPermissionPolicyDirective(directive: str, allowList: Optional[List[str]])
 	conf["viur.security.permissionsPolicy"][directive] = allowList
 
 
-def setCrossOriginIsolation(coep: bool, coop: str, corp: str):
+def setCrossOriginIsolation(coep: bool, coop: str, corp: str) -> None:
 	"""
 		Configures the cross origin isolation header that ViUR may emit. This is necessary to enable features like
 		SharedArrayBuffer. See https://web.dev/coop-coep for more information.

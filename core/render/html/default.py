@@ -1,19 +1,17 @@
-# -*- coding: utf-8 -*-
+from collections import OrderedDict, namedtuple
+
 import codecs
 import logging
 import os
-from collections import OrderedDict
-from collections import namedtuple
-from typing import Any, Dict, List, Union, Tuple
+import warnings
+from jinja2 import ChoiceLoader, Environment, FileSystemLoader
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
-from jinja2 import Environment, FileSystemLoader, ChoiceLoader
-
-from viur.core import utils, errors, securitykey, db
+from viur.core import db, errors, securitykey, utils
 from viur.core.bones import *
-from viur.core.i18n import LanguageWrapper
-from viur.core.i18n import TranslationExtension
-from viur.core.skeleton import SkeletonInstance
-from viur.core.utils import currentRequest, currentLanguage
+from viur.core.i18n import LanguageWrapper, TranslationExtension
+from viur.core.skeleton import SkelList, SkeletonInstance
+from viur.core.utils import currentLanguage, currentRequest
 from . import utils as jinjaUtils
 from .wrap import ListWrapper
 
@@ -29,7 +27,7 @@ class Render(object):
 		more information. Second, we'll pass data das global variables to templates depending on the
 		current action.
 
-			- For list() we'll pass `skellist` - a :py:class:`server.render.jinja2.default.SkelListWrapper` instance
+			- For list() we'll pass `skellist` - a :py:class:`viur.core.render.jinja2.default.SkelListWrapper` instance
 			- For view(): skel - a dictionary with values from the skeleton prepared for use inside html
 			- For add()/edit: a dictionary as `skel` with `values`, `structure` and `errors` as keys.
 
@@ -71,7 +69,7 @@ class Render(object):
 			Render.__haveEnvImported_ = True
 		self.parent = parent
 
-	def getTemplateFileName(self, template, ignoreStyle=False):
+	def getTemplateFileName(self, template: str, ignoreStyle: bool = False) -> str:
 		"""
 			Returns the filename of the template.
 
@@ -80,16 +78,12 @@ class Render(object):
 			their usual way.
 
 			It is advised to override this function in case that
-			:func:`server.render.jinja2.default.Render.getLoaders` is redefined.
+			:func:`viur.core.render.jinja2.default.Render.getLoaders` is redefined.
 
 			:param template: The basename of the template to use.
-			:type template: str
-
 			:param ignoreStyle: Ignore any maybe given style hints.
-			:type ignoreStyle: bool
 
 			:returns: Filename of the template
-			:rtype: str
 		"""
 		validChars = "abcdefghijklmnopqrstuvwxyz1234567890-"
 		if "htmlpath" in dir(self):
@@ -113,7 +107,7 @@ class Render(object):
 		for fn in fnames:  # check subfolders
 			prefix = template.split("_")[0]
 			if os.path.isfile(os.path.join(utils.projectBasePath, htmlpath, prefix, fn)):
-				return ("%s/%s" % (prefix, fn))
+				return "%s/%s" % (prefix, fn)
 		for fn in fnames:  # Check the templatefolder of the application
 			if os.path.isfile(os.path.join(utils.projectBasePath, htmlpath, fn)):
 				return fn
@@ -122,7 +116,7 @@ class Render(object):
 				return fn
 		raise errors.NotFound("Template %s not found." % template)
 
-	def getLoaders(self):
+	def getLoaders(self) -> ChoiceLoader:
 		"""
 			Return the list of Jinja2 loaders which should be used.
 
@@ -136,7 +130,7 @@ class Render(object):
 
 		return ChoiceLoader([FileSystemLoader(htmlpath), FileSystemLoader("viur/core/template/")])
 
-	def renderBoneStructure(self, bone):
+	def renderBoneStructure(self, bone: baseBone) -> Dict[str, Any]:
 		"""
 		Renders the structure of a bone.
 
@@ -144,10 +138,9 @@ class Render(object):
 		can be overridden and super-called from a custom renderer.
 
 		:param bone: The bone which structure should be rendered.
-		:type bone: Any bone that inherits from :class:`server.bones.base.BaseBone`.
+		:type bone: Any bone that inherits from :class:`server.bones.BaseBone`.
 
 		:return: A dict containing the rendered attributes.
-		:rtype: dict
 		"""
 
 		# Base bone contents.
@@ -212,15 +205,12 @@ class Render(object):
 
 		return ret
 
-	def renderSkelStructure(self, skel):
+	def renderSkelStructure(self, skel: SkeletonInstance) -> Dict:
 		"""
-			Dumps the structure of a :class:`server.db.skeleton.Skeleton`.
+			Dumps the structure of a :class:`viur.core.skeleton.Skeleton`.
 
 			:param skel: Skeleton which structure will be processed.
-			:type skel: server.db.skeleton.Skeleton
-
-			:returns: The rendered dictionary.
-			:rtype: dict
+			:returns: The rendered structure.
 		"""
 		res = OrderedDict()
 
@@ -237,7 +227,13 @@ class Render(object):
 
 		return res
 
-	def renderBoneValue(self, bone, skel, key, boneValue, isLanguageWrapped: bool = False):
+	def renderBoneValue(self,
+						bone: baseBone,
+						skel: SkeletonInstance,
+						key: Any,  # TODO: unused
+						boneValue: Any,
+						isLanguageWrapped: bool = False
+						) -> Union[List, Dict, KeyValueWrapper, LanguageWrapper, str, None]:
 		"""
 		Renders the value of a bone.
 
@@ -245,10 +241,17 @@ class Render(object):
 		It can be overridden and super-called from a custom renderer.
 
 		:param bone: The bone which value should be rendered.
+<<<<<<< HEAD
 		:type bone: Any bone that inherits from :class:`server.bones.base.BaseBone`.
+=======
+			(inherited from :class:`viur.core.bones.base.baseBone`).
+		:param skel: The skeleton containing the bone instance.
+		:param key: The name of the bone.
+		:param boneValue: The value of the bone.
+		:param isLanguageWrapped: Is this bone wrapped inside a :class:`LanguageWrapper`?
+>>>>>>> main
 
 		:return: A dict containing the rendered attributes.
-		:rtype: dict
 		"""
 		if bone.languages and not isLanguageWrapped:
 			res = LanguageWrapper(bone.languages)
@@ -316,20 +319,21 @@ class Render(object):
 
 		return None
 
-	def collectSkelData(self, skel):
+	def collectSkelData(self, skel: SkeletonInstance) -> Union[Dict, List]:
 		"""
-			Prepares values of one :class:`server.db.skeleton.Skeleton` or a list of skeletons for output.
+			Prepares values of one :class:`viur.core.skeleton.Skeleton` or a list of skeletons for output.
 
 			:param skel: Skeleton which contents will be processed.
-			:type skel: server.db.skeleton.Skeleton
 
 			:returns: A dictionary or list of dictionaries.
-			:rtype: dict | list
 
 			 .. deprecated:: 3.0.0
 				This method is deprecated since ViUR 3.0. Instead, attach a renderPreparation method to the skeleton
 				and pass the skeleton itself.
 		"""
+		warnings.warn("The method 'collectSkelData' is deprecated since ViUR 3.0. "
+					  "Instead, attach a renderPreparation method to the skeleton "
+					  "and pass the skeleton itself.", DeprecationWarning, 2)
 		# logging.error("collectSkelData %s", skel)
 		if isinstance(skel, list):
 			return [self.collectSkelData(x) for x in skel]
@@ -341,7 +345,7 @@ class Render(object):
 				res[key] = ListWrapper(res[key])
 		return res
 
-	def add(self, skel, tpl=None, params=None, *args, **kwargs):
+	def add(self, skel: SkeletonInstance, tpl: str = None, params: Any = None, *args, **kwargs) -> str:
 		"""
 			Renders a page for adding an entry.
 
@@ -353,16 +357,10 @@ class Render(object):
 			Any data in \*\*kwargs is passed unmodified to the template.
 
 			:param skel: Skeleton of the entry which should be created.
-			:type skel: server.db.skeleton.Skeleton
-
 			:param tpl: Name of a different template, which should be used instead of the default one.
-			:type tpl: str
-
 			:param params: Optional data that will be passed unmodified to the template
-			:type params: object
 
 			:return: Returns the emitted HTML response.
-			:rtype: str
 		"""
 		if not tpl and "addTemplate" in dir(self.parent):
 			tpl = self.parent.addTemplate
@@ -381,7 +379,7 @@ class Render(object):
 									 "value": skel},
 							   params=params, **kwargs)
 
-	def edit(self, skel, tpl=None, params=None, **kwargs):
+	def edit(self, skel: SkeletonInstance, tpl: str = None, params: Any = None, **kwargs) -> str:
 		"""
 			Renders a page for modifying an entry.
 
@@ -393,16 +391,10 @@ class Render(object):
 			Any data in \*\*kwargs is passed unmodified to the template.
 
 			:param skel: Skeleton of the entry which should be modified.
-			:type skel: server.db.skeleton.Skeleton
-
 			:param tpl: Name of a different template, which should be used instead of the default one.
-			:type tpl: str
-
 			:param params: Optional data that will be passed unmodified to the template
-			:type params: object
 
 			:return: Returns the emitted HTML response.
-			:rtype: str
 		"""
 		if not tpl and "editTemplate" in dir(self.parent):
 			tpl = self.parent.editTemplate
@@ -422,21 +414,15 @@ class Render(object):
 									 "value": skel},
 							   params=params, **kwargs)
 
-	def addSuccess(self, skel, tpl=None, params=None, *args, **kwargs):
+	def addSuccess(self, skel: SkeletonInstance, tpl: str = None, params: Any = None, *args, **kwargs) -> str:
 		"""
 			Renders a page, informing that the entry has been successfully created.
 
 			:param skel: Skeleton which contains the data of the new entity
-			:type skel: server.db.skeleton.Skeleton
-
 			:param tpl: Name of a different template, which should be used instead of the default one.
-			:type tpl: str
-
 			:param params: Optional data that will be passed unmodified to the template
-			:type params: object
 
 			:return: Returns the emitted HTML response.
-			:rtype: str
 		"""
 		if not tpl:
 			if "addSuccessTemplate" in dir(self.parent):
@@ -449,21 +435,15 @@ class Render(object):
 			skel.renderPreparation = self.renderBoneValue
 		return template.render({"skel": skel}, params=params, **kwargs)
 
-	def editSuccess(self, skel, tpl=None, params=None, *args, **kwargs):
+	def editSuccess(self, skel: SkeletonInstance, tpl: str = None, params: Any = None, *args, **kwargs) -> str:
 		"""
 			Renders a page, informing that the entry has been successfully modified.
 
 			:param skel: Skeleton which contains the data of the modified entity
-			:type skel: server.db.skeleton.Skeleton
-
 			:param tpl: Name of a different template, which should be used instead of the default one.
-			:type tpl: str
-
 			:param params: Optional data that will be passed unmodified to the template
-			:type params: object
 
 			:return: Returns the emitted HTML response.
-			:rtype: str
 		"""
 		if not tpl:
 			if "editSuccessTemplate" in dir(self.parent):
@@ -476,7 +456,7 @@ class Render(object):
 			skel.renderPreparation = self.renderBoneValue
 		return template.render(skel=skel, params=params, **kwargs)
 
-	def deleteSuccess(self, skel, tpl=None, params=None, *args, **kwargs):
+	def deleteSuccess(self, skel: SkeletonInstance, tpl: str = None, params: Any = None, *args, **kwargs) -> str:
 		"""
 			Renders a page, informing that the entry has been successfully deleted.
 
@@ -484,14 +464,11 @@ class Render(object):
 			List and Hierarchy pass the id of the deleted entry, while Tree passes
 			the rootNode and path.
 
+			:param skel: Skeleton which contains the data of the deleted entity
 			:param params: Optional data that will be passed unmodified to the template
-			:type params: object
-
 			:param tpl: Name of a different template, which should be used instead of the default one.
-			:type tpl: str
 
 			:return: Returns the emitted HTML response.
-			:rtype: str
 		"""
 		if not tpl:
 			if "deleteSuccessTemplate" in dir(self.parent):
@@ -502,23 +479,17 @@ class Render(object):
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
 		return template.render(params=params, **kwargs)
 
-	def list(self, skellist, tpl=None, params=None, **kwargs):
+	def list(self, skellist: SkelList, tpl: str = None, params: Any = None, **kwargs) -> str:
 		"""
 			Renders a list of entries.
 
 			Any data in \*\*kwargs is passed unmodified to the template.
 
 			:param skellist: List of Skeletons with entries to display.
-			:type skellist: server.db.skeleton.SkelList
-
 			:param tpl: Name of a different template, which should be used instead of the default one.
-			:param: tpl: str
-
 			:param params: Optional data that will be passed unmodified to the template
-			:type params: object
 
 			:return: Returns the emitted HTML response.
-			:rtype: str
 		"""
 		if not tpl and "listTemplate" in dir(self.parent):
 			tpl = self.parent.listTemplate
@@ -532,18 +503,18 @@ class Render(object):
 			skel.renderPreparation = self.renderBoneValue
 		return template.render(skellist=skellist, params=params, **kwargs)  # SkelListWrapper(resList, skellist)
 
-	def listRootNodes(self, repos, tpl=None, params=None, **kwargs):
+	def listRootNodes(self,
+					  repos: List[Dict[Literal["key", "name"], Any]],
+					  tpl: str = None,
+					  params: Any = None,
+					  **kwargs
+					  ) -> str:
 		"""
 			Renders a list of available repositories.
 
 			:param repos: List of repositories (dict with "key"=>Repo-Key and "name"=>Repo-Name)
-			:type repos: list
-
 			:param tpl: Name of a different template, which should be used instead of the default one.
-			:param: tpl: str
-
 			:param params: Optional data that will be passed unmodified to the template
-			:type params: object
 
 			:return: Returns the emitted HTML response.
 			:rtype: str
@@ -559,23 +530,17 @@ class Render(object):
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
 		return template.render(repos=repos, params=params, **kwargs)
 
-	def view(self, skel, tpl=None, params=None, **kwargs):
+	def view(self, skel: SkeletonInstance, tpl: str = None, params: Any = None, **kwargs) -> str:
 		"""
 			Renders a single entry.
 
 			Any data in \*\*kwargs is passed unmodified to the template.
 
 			:param skel: Skeleton to be displayed.
-			:type skellist: server.db.skeleton.Skeleton
-
 			:param tpl: Name of a different template, which should be used instead of the default one.
-			:param: tpl: str
-
 			:param params: Optional data that will be passed unmodified to the template
-			:type params: object
 
 			:return: Returns the emitted HTML response.
-			:rtype: str
 		"""
 		if not tpl and "viewTemplate" in dir(self.parent):
 			tpl = self.parent.viewTemplate
@@ -588,7 +553,13 @@ class Render(object):
 		return template.render(skel=skel, params=params, **kwargs)
 
 	## Extended functionality for the Tree-Application ##
-	def listRootNodeContents(self, subdirs, entries, tpl=None, params=None, **kwargs):
+	def listRootNodeContents(self,
+							 subdirs: List,
+							 entries: SkelList,
+							 tpl: str = None,
+							 params: Any = None,
+							 **kwargs
+							 ) -> str:
 		"""
 			Renders the contents of a given RootNode.
 
@@ -596,19 +567,11 @@ class Render(object):
 			child-types: Entries and folders.
 
 			:param subdirs: List of (sub-)directories on the current level
-			:type repos: list
-
 			:param entries: List of entries of the current level
-			:type entries: server.db.skeleton.SkelList
-
 			:param tpl: Name of a different template, which should be used instead of the default one
-			:param: tpl: str
-
 			:param params: Optional data that will be passed unmodified to the template
-			:type params: object
 
 			:return: Returns the emitted HTML response.
-			:rtype: str
 		"""
 		if "listRootNodeContentsTemplate" in dir(self.parent):
 			tpl = tpl or self.parent.listRootNodeContentsTemplate
@@ -618,53 +581,34 @@ class Render(object):
 		return template.render(subdirs=subdirs, entries=[self.collectSkelData(x) for x in entries], params=params,
 							   **kwargs)
 
-	def addDirSuccess(self, rootNode, path, dirname, params=None, *args, **kwargs):
+	def addDirSuccess(self, rootNode: str, path: str, dirname: str, params: Any = None, *args, **kwargs) -> str:
 		"""
 			Renders a page, informing that the directory has been successfully created.
 
 			:param rootNode: RootNode-key in which the directory has been created
-			:type rootNode: str
-
 			:param path: Path in which the directory has been created
-			:type path: str
-
 			:param dirname: Name of the newly created directory
-			:type dirname: str
-
 			:param params: Optional data that will be passed unmodified to the template
-			:type params: object
 
 			:return: Returns the emitted HTML response.
-			:rtype: str
 		"""
-
 		tpl = self.addDirSuccessTemplate
 		if "addDirSuccessTemplate" in dir(self.parent):
 			tpl = self.parent.addDirSuccessTemplate
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
 		return template.render(rootNode=rootNode, path=path, dirname=dirname, params=params)
 
-	def renameSuccess(self, rootNode, path, src, dest, params=None, *args, **kwargs):
+	def renameSuccess(self, rootNode: str, path: str, src: str, dest: str, params: Any = None, *args, **kwargs) -> str:
 		"""
 			Renders a page, informing that the entry has been successfully renamed.
 
 			:param rootNode: RootNode-key in which the entry has been renamed
-			:type rootNode: str
-
 			:param path: Path in which the entry has been renamed
-			:type path: str
-
 			:param src: Old name of the entry
-			:type src: str
-
 			:param dest: New name of the entry
-			:type dest: str
-
 			:param params: Optional data that will be passed unmodified to the template
-			:type params: object
 
 			:return: Returns the emitted HTML response.
-			:rtype: str
 		"""
 		tpl = self.renameSuccessTemplate
 		if "renameSuccessTemplate" in dir(self.parent):
@@ -672,36 +616,23 @@ class Render(object):
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
 		return template.render(rootNode=rootNode, path=path, src=src, dest=dest, params=params)
 
-	def copySuccess(self, srcrepo, srcpath, name, destrepo, destpath, type, deleteold, params=None, *args, **kwargs):
+	def copySuccess(self, srcrepo: str, srcpath: str, name: str,
+					destrepo: str, destpath: str,
+					type: str, deleteold: str,
+					params: Any = None, *args, **kwargs) -> str:
 		"""
 			Renders a page, informing that an entry has been successfully copied/moved.
 
 			:param srcrepo: RootNode-key from which has been copied/moved
-			:type srcrepo: str
-
 			:param srcpath: Path from which the entry has been copied/moved
-			:type srcpath: str
-
 			:param name: Name of the entry which has been copied/moved
-			:type name: str
-
 			:param destrepo: RootNode-key to which has been copied/moved
-			:type destrepo: str
-
 			:param destpath: Path to which the entries has been copied/moved
-			:type destpath: str
-
 			:param type: "entry": Copy/Move an entry, everything else: Copy/Move an directory
-			:type type: str
-
 			:param deleteold: "0": Copy, "1": Move
-			:type deleteold: str
-
 			:param params: Optional data that will be passed unmodified to the template
-			:type params: object
 
 			:return: Returns the emitted HTML response.
-			:rtype: str
 		"""
 		tpl = self.copySuccessTemplate
 		if "copySuccessTemplate" in dir(self.parent):
@@ -710,18 +641,16 @@ class Render(object):
 		return template.render(srcrepo=srcrepo, srcpath=srcpath, name=name, destrepo=destrepo, destpath=destpath,
 							   type=type, deleteold=deleteold, params=params)
 
-	def reparentSuccess(self, obj, tpl=None, params=None, **kwargs):
+	def reparentSuccess(self, obj: SkeletonInstance, tpl: Optional[str] = None,
+						params: Any = None, **kwargs) -> str:
 		"""
 			Renders a page informing that the item was successfully moved.
 
-			:param obj: ndb.Expando instance of the item that was moved.
-			:type obj: ndb.Expando
-
+			:param obj: Skeleton instance of the item that was moved.
 			:param tpl: Name of a different template, which should be used instead of the default one
-			:type tpl: str
-
 			:param params: Optional data that will be passed unmodified to the template
-			:type params: object
+
+			:return: Returns the emitted HTML response.
 		"""
 		if not tpl:
 			if "reparentSuccessTemplate" in dir(self.parent):
@@ -732,21 +661,16 @@ class Render(object):
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
 		return template.render(repoObj=obj, params=params, **kwargs)
 
-	def setIndexSuccess(self, obj, tpl=None, params=None, *args, **kwargs):
+	def setIndexSuccess(self, obj: SkeletonInstance, tpl: Optional[str] = None,
+						params: Any = None, *args, **kwargs) -> str:
 		"""
 			Renders a page informing that the items sortindex was successfully changed.
 
-			:param obj: ndb.Expando instance of the item that was changed
-			:type obj: ndb.Expando
-
+			:param obj: Skeleton instance of the item that was changed
 			:param tpl: Name of a different template, which should be used instead of the default one
-			:type tpl: str
-
 			:param params: Optional data that will be passed unmodified to the template
-			:type params: object
 
 			:return: Returns the emitted HTML response.
-			:rtype: str
 		"""
 		if not tpl:
 			if "setIndexSuccessTemplate" in dir(self.parent):
@@ -757,21 +681,14 @@ class Render(object):
 		template = self.getEnv().get_template(self.getTemplateFileName(tpl))
 		return template.render(skel=obj, repoObj=obj, params=params, **kwargs)
 
-	def cloneSuccess(self, tpl=None, params=None, *args, **kwargs):
+	def cloneSuccess(self, tpl: str = None, params: Any = None, *args, **kwargs) -> str:
 		"""
 			Renders a page informing that the items sortindex was successfully changed.
 
-			:param obj: ndb.Expando instance of the item that was changed
-			:type obj: ndb.Expando
-
 			:param tpl: Name of a different template, which should be used instead of the default one
-			:type tpl: str
-
 			:param params: Optional data that will be passed unmodified to the template
-			:type params: object
 
 			:return: Returns the emitted HTML response.
-			:rtype: str
 		"""
 		if not tpl:
 			if "cloneSuccessTemplate" in dir(self.parent):
@@ -816,15 +733,14 @@ class Render(object):
 			content.insert(0, "")  # add empty subject
 		return content[0], os.linesep.join(content[1:]).lstrip()
 
-	def getEnv(self):
+	def getEnv(self) -> Environment:
 		"""
 			Constucts the Jinja2 environment.
 
 			If an application specifies an jinja2Env function, this function
 			can alter the environment before its used to parse any template.
 
-			:returns: Extended Jinja2 environment.
-			:rtype: jinja2.Environment
+			:return: Extended Jinja2 environment.
 		"""
 
 		def mkLambda(func, s):

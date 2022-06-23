@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from viur.core.prototypes.tree import Tree, TreeSkel
 from viur.core.bones import *
 

@@ -1,19 +1,19 @@
-# -*- coding: utf-8 -*-
-from viur.core.config import conf
-from viur.core import db
-import logging
-import hashlib
 import copy
-from enum import Enum
+import hashlib
+import logging
 from dataclasses import dataclass, field
-from typing import Union, Dict, List, Set, Any
+from enum import Enum
+from typing import Any, Dict, List, Optional, Set, Union
+
+from viur.core import db
+from viur.core.config import conf
 
 __systemIsIntitialized_ = False
 
 
 def setSystemInitialized():
 	global __systemIsIntitialized_
-	from viur.core.skeleton import iterAllSkelClasses, skeletonByKind
+	from viur.core.skeleton import iterAllSkelClasses
 	__systemIsIntitialized_ = True
 	for skelCls in iterAllSkelClasses():
 		skelCls.setSystemInitialized()
@@ -85,34 +85,25 @@ class BaseBone(object):
 			Initializes a new Bone.
 
 			:param descr: Textual, human-readable description of that bone. Will be translated.
-			:type descr: str
 			:param defaultValue: If set, this bone will be preinitialized with this value
-			:type defaultValue: mixed
-			:param required: If True, the user must enter a valid value for this bone (the server refuses to save the
+			:param required: If True, the user must enter a valid value for this bone (the viur.core refuses to save the
 				skeleton otherwise)
-			:type required: bool
 			:param multiple: If True, multiple values can be given. (ie. n:m relations instead of n:1)
-			:type multiple: bool
 			:param searchable: If True, this bone will be included in the fulltext search. Can be used
 				without the need of also been indexed.
-			:type searchable: bool
 			:param vfunc: If given, a callable validating the user-supplied value for this bone. This
 				callable must return None if the value is valid, a String containing an meaningful
 				error-message for the user otherwise.
-			:type vfunc: callable
 			:param readOnly: If True, the user is unable to change the value of this bone. If a value for
 				this bone is given along the POST-Request during Add/Edit, this value will be ignored.
 				Its still possible for the developer to modify this value by assigning skel.bone.value.
-			:type readOnly: bool
 			:param visible: If False, the value of this bone should be hidden from the user. This does *not*
 				protect the value from beeing exposed in a template, nor from being transferred to the
 				client (ie to the admin or as hidden-value in html-forms)
 				Again: This is just a hint. It cannot be used as a security precaution.
-			:type visible: bool
 
 			.. NOTE::
 				The kwarg 'multiple' is not supported by all bones
-
 		"""
 		self.isClonedInstance = getSystemInitialized()
 
@@ -188,7 +179,6 @@ class BaseBone(object):
 
 			Warning: rawValue might be the string/object received from the user (untrusted input!) or the value
 				returned by get
-
 		"""
 		return not bool(rawValue)
 
@@ -326,17 +316,17 @@ class BaseBone(object):
 	def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
 		"""
 			Reads a value from the client.
+
 			If this value is valid for this bone,
 			store this value and return None.
 			Otherwise our previous value is
 			left unchanged and an error-message
 			is returned.
 
+			:param skel: The skeleton instance where the values should be loaded.
 			:param name: Our name in the skeleton
-			:type name: str
 			:param data: User-supplied request-data
-			:type data: dict
-			:returns: None or str
+			:returns: None or a list of errors
 		"""
 		subFields = self.parseSubfieldsFromClient()
 		parsedData, fieldSubmitted = self.collectRawClientData(name, data, self.multiple, self.languages, subFields)
@@ -424,8 +414,6 @@ class BaseBone(object):
 			can write into the datastore.
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:returns: dict
 		"""
 		if name in skel.accessedValues:
 			newVal = skel.accessedValues[name]
@@ -477,11 +465,8 @@ class BaseBone(object):
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
 			this bone accordingly.
+
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:param expando: An instance of the dictionary-like db.Entity class
-			:type expando: db.Entity
-			:returns: bool
 		"""
 		if name in skel.dbEntity:
 			loadVal = skel.dbEntity[name]
@@ -568,13 +553,15 @@ class BaseBone(object):
 	def delete(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
 		"""
 			Like postDeletedHandler, but runs inside the transaction
-		:param skel:
-		:param name:
-		:return:
 		"""
 		pass
 
-	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
+	def buildDBFilter(self,
+					  name: str,
+					  skel: 'viur.core.skeleton.SkeletonInstance',
+					  dbFilter: db.Query,
+					  rawFilter: Dict,
+					  prefix: Optional[str] = None) -> db.Query:
 		"""
 			Parses the searchfilter a client specified in his Request into
 			something understood by the datastore.
@@ -585,14 +572,10 @@ class BaseBone(object):
 					(this parameter is directly controlled by the client)
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:param skel: The :class:`server.db.Query` this bone is part of
-			:type skel: :class:`server.skeleton.Skeleton`
-			:param dbFilter: The current :class:`server.db.Query` instance the filters should be applied to
-			:type dbFilter: :class:`server.db.Query`
+			:param skel: The :class:`viur.core.db.Query` this bone is part of
+			:param dbFilter: The current :class:`viur.core.db.Query` instance the filters should be applied to
 			:param rawFilter: The dictionary of filters the client wants to have applied
-			:type rawFilter: dict
-			:returns: The modified :class:`server.db.Query`
+			:returns: The modified :class:`viur.core.db.Query`
 		"""
 		myKeys = [key for key in rawFilter.keys() if (key == name or key.startswith(name + "$"))]
 
@@ -626,7 +609,11 @@ class BaseBone(object):
 
 		return dbFilter
 
-	def buildDBSort(self, name, skel, dbFilter, rawFilter):
+	def buildDBSort(self,
+					name: str,
+					skel: 'viur.core.skeleton.SkeletonInstance',
+					dbFilter: db.Query,
+					rawFilter: Dict) -> Optional[db.Query]:
 		"""
 			Same as buildDBFilter, but this time its not about filtering
 			the results, but by sorting them.
@@ -634,14 +621,11 @@ class BaseBone(object):
 			malformed data!
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:param skel: The :class:`server.skeleton.Skeleton` instance this bone is part of
-			:type skel: :class:`server.skeleton.Skeleton`
-			:param dbFilter: The current :class:`server.db.Query` instance the filters should be applied to
-			:type dbFilter: :class:`server.db.Query`
+			:param skel: The :class:`viur.core.skeleton.Skeleton` instance this bone is part of
+			:param dbFilter: The current :class:`viur.core.db.Query` instance the filters should be applied to
 			:param rawFilter: The dictionary of filters the client wants to have applied
-			:type rawFilter: dict
-			:returns: The modified :class:`server.db.Query`
+			:returns: The modified :class:`viur.core.db.Query`,
+				None if the query is unsatisfiable.
 		"""
 		if "orderby" in rawFilter and rawFilter["orderby"] == name:
 			if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
@@ -713,7 +697,7 @@ class BaseBone(object):
 		# Lock the value for that specific list
 		return [hashValue(", ".join(tmpList))]
 
-	def getUniquePropertyIndexValues(self, skel, name: str) -> List[str]:
+	def getUniquePropertyIndexValues(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> List[str]:
 		"""
 			Returns a list of hashes for our current value(s), used to store in the uniquePropertyValue index.
 		"""
@@ -722,58 +706,46 @@ class BaseBone(object):
 			return []
 		return self._hashValueForUniquePropertyIndex(val)
 
-	def getReferencedBlobs(self, skel, name):
+	def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
 		"""
 			Returns the list of blob keys referenced from this bone
 		"""
 		return []
 
-	def performMagic(self, valuesCache, name, isAdd):
+	def performMagic(self, valuesCache: Dict, name: str, isAdd: bool):
 		"""
 			This function applies "magically" functionality which f.e. inserts the current Date or the current user.
 			:param isAdd: Signals whereever this is an add or edit operation.
-			:type isAdd: bool
 		"""
 		pass  # We do nothing by default
 
-	def postSavedHandler(self, skel, boneName, key):
+	def postSavedHandler(self, skel: 'viur.core.skeleton.SkeletonInstance', boneName: str, key: str):
 		"""
 			Can be overridden to perform further actions after the main entity has been written.
 
 			:param boneName: Name of this bone
-			:type boneName: str
-
 			:param skel: The skeleton this bone belongs to
-			:type skel: Skeleton
-
 			:param key: The (new?) Database Key we've written to
-			:type key: str
-
-			:param dbObj: The db.Entity object written
-			:type dbObj: db.Entity
 		"""
 		pass
 
-	def postDeletedHandler(self, skel, boneName, key):
+	def postDeletedHandler(self, skel: 'viur.core.skeleton.SkeletonInstance', boneName: str, key: str):
 		"""
 			Can be overridden to perform  further actions after the main entity has been deleted.
 
 			:param skel: The skeleton this bone belongs to
-			:type skel: Skeleton
 			:param boneName: Name of this bone
-			:type boneName: str
 			:param key: The old Database Key of the entity we've deleted
-			:type key: str
 		"""
 		pass
 
-	def refresh(self, skel, boneName) -> None:
+	def refresh(self, skel: 'viur.core.skeleton.SkeletonInstance', boneName: str) -> None:
 		"""
 			Refresh all values we might have cached from other entities.
 		"""
 		pass
 
-	def mergeFrom(self, valuesCache, boneName, otherSkel):
+	def mergeFrom(self, valuesCache: Dict, boneName: str, otherSkel: 'viur.core.skeleton.SkeletonInstance'):
 		"""
 			Clones the values from other into this instance
 		"""
@@ -785,7 +757,11 @@ class BaseBone(object):
 			return
 		valuesCache[boneName] = copy.deepcopy(otherSkel.valuesCache.get(boneName, None))
 
-	def setBoneValue(self, skel: 'SkeletonInstance', boneName: str, value: Any, append: bool,
+	def setBoneValue(self,
+					 skel: 'SkeletonInstance',
+					 boneName: str,
+					 value: Any,
+					 append: bool,
 					 language: Union[None, str] = None) -> bool:
 		"""
 			Set our value to 'value'.

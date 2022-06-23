@@ -19,7 +19,7 @@ requestLogger = client.logger("ViUR")
 
 
 class ViURDefaultLogger(CloudLoggingHandler):
-	def emit(self, record):
+	def emit(self, record: logging.LogRecord):
 		message = super(ViURDefaultLogger, self).format(record)
 		try:
 			currentReq = currentRequest.get()

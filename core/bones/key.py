@@ -1,7 +1,7 @@
 from viur.core.bones.base import BaseBone
-from viur.core.db import Entity, Key, keyHelper, KEY_SPECIAL_PROPERTY
-from viur.core.utils import normalizeKey
-import logging, copy
+from viur.core import db, utils
+from typing import Dict, Optional
+import logging
 
 
 class KeyBone(BaseBone):
@@ -16,24 +16,23 @@ class KeyBone(BaseBone):
 			read from the datastore and populates
 			this bone accordingly.
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:param expando: An instance of the dictionary-like db.Entity class
-			:type expando: db.Entity
-			:returns: bool
 		"""
 
 		def fixVals(val):
 			if isinstance(val, str):
 				try:
-					val = normalizeKey(Key.from_legacy_urlsafe(val))
+					val = utils.normalizeKey(db.Key.from_legacy_urlsafe(val))
 				except:
 					val = None
-			elif not isinstance(val, Key):
+			elif not isinstance(val, db.Key):
 				val = None
 			return val
 
-		if name == "key" and isinstance(skel.dbEntity,
-										Entity) and skel.dbEntity.key and not skel.dbEntity.key.is_partial:
+		if (name == "key"
+			and isinstance(skel.dbEntity, db.Entity)
+			and skel.dbEntity.key
+			and not skel.dbEntity.key.is_partial
+		):
 			skel.accessedValues[name] = skel.dbEntity.key
 			return True
 		elif name in skel.dbEntity:
@@ -59,8 +58,6 @@ class KeyBone(BaseBone):
 			can write into the datastore.
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:returns: dict
 		"""
 		if name in skel.accessedValues:
 			if name == "key":
@@ -71,7 +68,15 @@ class KeyBone(BaseBone):
 			return True
 		return False
 
-	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
+
+	def buildDBFilter(
+		self,
+		  name: str,
+		  skel: 'viur.core.skeleton.SkeletonInstance',
+		  dbFilter: db.Query,
+		  rawFilter: Dict,
+		  prefix: Optional[str] = None
+	) -> db.Query:
 		"""
 			Parses the searchfilter a client specified in his Request into
 			something understood by the datastore.
@@ -82,22 +87,18 @@ class KeyBone(BaseBone):
 					(this parameter is directly controlled by the client)
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:param skel: The :class:`server.db.Query` this bone is part of
-			:type skel: :class:`server.skeleton.Skeleton`
-			:param dbFilter: The current :class:`server.db.Query` instance the filters should be applied to
-			:type dbFilter: :class:`server.db.Query`
+			:param skel: The :class:`viur.core.db.Query` this bone is part of
+			:param dbFilter: The current :class:`viur.core.db.Query` instance the filters should be applied to
 			:param rawFilter: The dictionary of filters the client wants to have applied
-			:type rawFilter: dict
-			:returns: The modified :class:`server.db.Query`
+			:returns: The modified :class:`viur.core.db.Query`
 		"""
 
 		def _decodeKey(key):
-			if isinstance(key, Key):
+			if isinstance(key, db.Key):
 				return key
 			else:
 				try:
-					return Key.from_legacy_urlsafe(key)
+					return db.Key.from_legacy_urlsafe(key)
 				except Exception as e:
 					logging.exception(e)
 					logging.warning("Could not decode key %s" % key)
@@ -115,7 +116,7 @@ class KeyBone(BaseBone):
 					newFilter = copy.deepcopy(oldFilter)
 					try:
 						if name == "key":
-							newFilter.filters["%s%s =" % (prefix or "", KEY_SPECIAL_PROPERTY)] = _decodeKey(key)
+							newFilter.filters["%s%s =" % (prefix or "", db.KEY_SPECIAL_PROPERTY)] = _decodeKey(key)
 						else:
 							newFilter.filters["%s%s =" % (prefix or "", name)] = _decodeKey(key)
 					except:  # Invalid key or something
@@ -124,7 +125,7 @@ class KeyBone(BaseBone):
 			else:
 				try:
 					if name == "key":
-						dbFilter.filter("%s%s =" % (prefix or "", KEY_SPECIAL_PROPERTY), _decodeKey(rawFilter[name]))
+						dbFilter.filter("%s%s =" % (prefix or "", db.KEY_SPECIAL_PROPERTY), _decodeKey(rawFilter[name]))
 					else:
 						dbFilter.filter("%s%s =" % (prefix or "", name), _decodeKey(rawFilter[name]))
 				except:  # Invalid key or something

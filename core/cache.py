@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import logging, os
 from datetime import timedelta
 from functools import wraps

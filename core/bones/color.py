@@ -11,7 +11,7 @@ class ColorBone(BaseBone):
 		assert mode in {"rgb", "rgba"}
 		self.mode = mode
 
-	def singleValueFromClient(self, value, skel, name, origData):
+	def singleValueFromClient(self, value, skel: 'viur.core.skeleton.SkeletonInstance', name: str, origData):
 		value = value.lower()
 		if value.count("#") > 1:
 			return self.getEmptyValue(), [

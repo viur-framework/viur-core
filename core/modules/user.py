@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from viur.core.prototypes.list import List
 from viur.core.skeleton import Skeleton, RelSkel, skeletonByKind
 from viur.core.bones import *
@@ -356,7 +355,7 @@ class UserPassword(object):
 		skel.toDB()
 		return self.userModule.render.view(skel, self.verifySuccessTemplate)
 
-	def canAdd(self):
+	def canAdd(self) -> bool:
 		return self.registrationEnabled
 
 	def addSkel(self):
@@ -364,7 +363,7 @@ class UserPassword(object):
 			Prepare the add-Skel for rendering.
 			Currently only calls self.userModule.addSkel() and sets skel["status"].value depening on
 			self.registrationEmailVerificationRequired and self.registrationAdminVerificationRequired
-			:return: server.skeleton.Skeleton
+			:return: viur.core.skeleton.Skeleton
 		"""
 		skel = self.userModule.addSkel()
 		if self.registrationEmailVerificationRequired:
@@ -388,13 +387,10 @@ class UserPassword(object):
 
 			:returns: The rendered, added object of the entry, eventually with error hints.
 
-			:raises: :exc:`server.errors.Unauthorized`, if the current user does not have the required permissions.
-			:raises: :exc:`server.errors.PreconditionFailed`, if the *skey* could not be verified.
+			:raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
+			:raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
 		"""
-		if "skey" in kwargs:
-			skey = kwargs["skey"]
-		else:
-			skey = ""
+		skey = kwargs.get("skey", "")
 		if not self.canAdd():
 			raise errors.Unauthorized()
 		skel = self.addSkel()
@@ -503,7 +499,7 @@ class TimeBasedOTP(object):
 	def get2FactorMethodName(*args, **kwargs):
 		return u"X-VIUR-2FACTOR-TimeBasedOTP"
 
-	def canHandle(self, userKey):
+	def canHandle(self, userKey) -> bool:
 		user = db.Get(userKey)
 		return all(
 			[(x in user and (x == "otptimedrift" or bool(user[x]))) for x in ["otpid", "otpkey", "otptimedrift"]])
@@ -539,7 +535,7 @@ class TimeBasedOTP(object):
 			# Maybe uneven length
 			if len(hexStr) % 2 == 1:
 				hexStr = "0" + hexStr
-			return (("00" * (8 - (len(hexStr) / 2)) + hexStr).decode("hex"))
+			return ("00" * (8 - (len(hexStr) / 2)) + hexStr).decode("hex")
 
 		idx = int(time() / 60.0)  # Current time index
 		idx += int(timeDrift)
@@ -741,17 +737,14 @@ class User(List):
 			raise errors.RequestTimeout()
 		return self.authenticateUser(userKey)
 
-	def authenticateUser(self, userKey, **kwargs):
+	def authenticateUser(self, userKey: db.Key, **kwargs):
 		"""
 			Performs Log-In for the current session and the given userKey.
 
 			This resets the current session: All fields not explicitly marked as persistent
 			by conf["viur.session.persistentFieldsOnLogin"] are gone afterwards.
 
-			:param authProvider: Which authentication-provider issued the authenticateUser request
-			:type authProvider: object
 			:param userKey: The (DB-)Key of the user we shall authenticate
-			:type userKey: db.Key
 		"""
 		currSess = currentSession.get()
 		res = db.Get(userKey)
@@ -825,7 +818,7 @@ class User(List):
 
 		return super(User, self).view(key, *args, **kwargs)
 
-	def canView(self, skel):
+	def canView(self, skel) -> bool:
 		user = self.getCurrentUser()
 		if user:
 			if skel["key"] == user["key"]:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
                  iii
                 iii
@@ -73,7 +72,7 @@ from viur.core import i18n
 
 def mapModule(moduleObj: object, moduleName: str, targetResolverRender: dict):
 	"""
-		Maps each function that's exposed of moduleObj into the branch of `prop:server.conf["viur.mainResolver"]`
+		Maps each function that's exposed of moduleObj into the branch of `prop:viur.core.conf["viur.mainResolver"]`
 		that's referenced by `prop:targetResolverRender`. Will also walk `prop:_viurMapSubmodules` if set
 		and map these sub-modules also.
 	"""
@@ -136,7 +135,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
 		- will be attached to ``conf["viur.mainApp"]``
 
 		:param modules: Usually the module provided as *modules* directory within the application.
-		:param renderers: Usually the module *server.renders*, or a dictionary renderName => renderClass.
+		:param renderers: Usually the module *viur.core.renders*, or a dictionary renderName => renderClass.
 		:param default: Name of the renderer, which will form the root of the application.
 			This will be the renderer, which wont get a prefix, usually html.
 			(=> /user instead of /html/user)
@@ -230,7 +229,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
 		Define whats going to be served by this instance.
 
 		:param modules: Usually the module provided as *modules* directory within the application.
-		:param render: Usually the module *server.renders*, or a dictionary renderName => renderClass.
+		:param render: Usually the module *viur.core.renders*, or a dictionary renderName => renderClass.
 		:param default: Name of the renderer, which will form the root of the application.\
 			This will be the renderer, which wont get a prefix, usually html. \
 			(=> /user instead of /html/user)
@@ -275,7 +274,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
 	return app
 
 
-def app(environ, start_response):
+def app(environ: dict, start_response: Callable):
 	req = webob.Request(environ)
 	resp = webob.Response()
 	handler = request.BrowseHandler(req, resp)

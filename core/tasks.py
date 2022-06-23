@@ -1,20 +1,19 @@
 import base64
+import grpc
 import json
 import logging
 import os
+import pytz
 import sys
 from datetime import datetime, timedelta
 from functools import wraps
-from time import sleep
-from typing import Any, Callable, Dict
-
-import grpc
-import pytz
 from google.cloud import tasks_v2
 from google.cloud.tasks_v2.services.cloud_tasks.transports import CloudTasksGrpcTransport
 from google.protobuf import timestamp_pb2
+from time import sleep
+from typing import Any, Callable, Dict, Optional, Tuple
 
-from viur.core import errors, utils, db
+from viur.core import db, errors, utils
 from viur.core.config import conf
 from viur.core.utils import currentLanguage, currentRequest, currentSession
 
@@ -117,19 +116,19 @@ class CallableTaskBase:
 	descr = None  # Human-Readable description
 	kindName = "server-task"
 
-	def canCall(self):
+	def canCall(self) -> bool:
 		"""
 			Checks wherever the current user can execute this task
 			:returns: bool
 		"""
-		return (False)
+		return False
 
 	def dataSkel(self):
 		"""
 			If additional data is needed, return a skeleton-instance here.
 			These values are then passed to *execute*.
 		"""
-		return (None)
+		return None
 
 	def execute(self):
 		"""
@@ -150,17 +149,14 @@ class TaskHandler:
 	def __init__(self, moduleName, modulePath):
 		pass
 
-	def findBoundTask(self, task, obj=None, depth=0):
+	def findBoundTask(self, task: Callable, obj: object = None, depth: int = 0) -> Optional[Tuple[Callable, object]]:
 		"""
 			Tries to locate the instance, this function belongs to.
 			If it succeeds in finding it, it returns the function and its instance (-> its "self").
 			Otherwise, None is returned.
 			:param task: A callable decorated with @PeriodicTask
-			:type task: callable
 			:param obj: Object, which will be scanned in the current iteration. None means start at conf["viur.mainApp"].
-			:type obj: object
 			:param depth: Current iteration depth.
-			:type depth: int
 		"""
 		if depth > 3 or not "periodicTaskName" in dir(task):  # Limit the maximum amount of recursions
 			return None
@@ -359,10 +355,7 @@ class TaskHandler:
 		if not task.canCall():
 			raise errors.Unauthorized()
 		skel = task.dataSkel()
-		if "skey" in kwargs:
-			skey = kwargs["skey"]
-		else:
-			skey = ""
+		skey = kwargs.get("skey", "")
 		if len(kwargs) == 0 or skey == "" or not skel.fromClient(kwargs) or (
 			"bounce" in kwargs and kwargs["bounce"] == "1"):
 			return self.render.add(skel)
@@ -392,7 +385,7 @@ def noRetry(f):
 			logging.exception(e)
 			raise PermanentTaskFailure()
 
-	return (wrappedFunc)
+	return wrappedFunc
 
 
 def callDeferred(func):
@@ -401,7 +394,7 @@ def callDeferred(func):
 		Unlike Googles implementation, this one works (with bound functions)
 	"""
 	if "viur_doc_build" in dir(sys):
-		return (func)
+		return func
 	__undefinedFlag_ = object()
 
 	def mkDefered(func, self=__undefinedFlag_, *args, **kwargs):
@@ -425,7 +418,6 @@ def callDeferred(func):
 
 			return  # Ensure no result gets passed back
 
-		from viur.core.utils import getCurrentUser
 		try:
 			req = currentRequest.get()
 		except:  # This will fail for warmup requests
@@ -506,17 +498,17 @@ def callDeferred(func):
 
 	global _deferedTasks
 	_deferedTasks["%s.%s" % (func.__name__, func.__module__)] = func
-	return (lambda *args, **kwargs: mkDefered(func, *args, **kwargs))
+	return lambda *args, **kwargs: mkDefered(func, *args, **kwargs)
 
 
-def PeriodicTask(interval=0, cronName="default"):
+def PeriodicTask(interval: int = 0, cronName: str = "default") -> Callable:
 	"""
 		Decorator to call a function periodic during maintenance.
 		Interval defines a lower bound for the call-frequency for this task;
 		it will not be called faster than each interval minutes.
 		(Note that the actual delay between two sequent might be much larger)
+
 		:param interval: Call at most every interval minutes. 0 means call as often as possible.
-		:type interval: int
 	"""
 
 	def mkDecorator(fn):
@@ -533,17 +525,17 @@ def PeriodicTask(interval=0, cronName="default"):
 	return mkDecorator
 
 
-def CallableTask(fn):
+def CallableTask(fn: Callable) -> Callable:
 	"""Marks a Class as representing a user-callable Task.
 	It *should* extend CallableTaskBase and *must* provide
 	its API
 	"""
 	global _callableTasks
 	_callableTasks[fn.key] = fn
-	return (fn)
+	return fn
 
 
-def StartupTask(fn):
+def StartupTask(fn: Callable) -> Callable:
 	"""
 		Functions decorated with this are called shortly at instance startup.
 		It's *not* guaranteed that they actually run on the instance that just started up!
@@ -551,7 +543,7 @@ def StartupTask(fn):
 	"""
 	global _startupTasks
 	_startupTasks.append(fn)
-	return (fn)
+	return fn
 
 
 @callDeferred

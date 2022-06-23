@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 	This module provides onetime keys.
 	There are two types of security keys:
@@ -91,7 +89,7 @@ def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
 
 
 @PeriodicTask(60 * 4)
-def startClearSKeys():
+def startClearSKeys() -> None:
 	"""
 		Removes old (expired) skeys
 	"""

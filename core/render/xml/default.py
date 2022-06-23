@@ -1,8 +1,11 @@
-# -*- coding: utf-8 -*-
+from typing import Any, Dict
+
 from viur.core.bones import *
 from viur.core import db
 from xml.dom import minidom
 from datetime import datetime, date, time
+
+from viur.core.skeleton import SkeletonInstance
 
 
 def serializeXML(data):
@@ -57,7 +60,7 @@ class DefaultRender(object):
 	def __init__(self, parent=None, *args, **kwargs):
 		super(DefaultRender, self).__init__(*args, **kwargs)
 
-	def renderBoneStructure(self, bone):
+	def renderBoneStructure(self, bone: baseBone) -> Dict:
 		"""
 		Renders the structure of a bone.
 
@@ -65,10 +68,9 @@ class DefaultRender(object):
 		can be overridden and super-called from a custom renderer.
 
 		:param bone: The bone which structure should be rendered.
-		:type bone: Any bone that inherits from :class:`server.bones.base.BaseBone`.
+		:type bone: Any bone that inherits from :class:`server.bones.BaseBone`.
 
 		:return: A dict containing the rendered attributes.
-		:rtype: dict
 		"""
 
 		# Base bone contents.
@@ -122,15 +124,13 @@ class DefaultRender(object):
 
 		return ret
 
-	def renderSkelStructure(self, skel):
+	def renderSkelStructure(self, skel: SkeletonInstance) -> Dict:
 		"""
-		Dumps the structure of a :class:`server.db.skeleton.Skeleton`.
+		Dumps the structure of a :class:`viur.core.skeleton.Skeleton`.
 
 		:param skel: Skeleton which structure will be processed.
-		:type skel: server.db.skeleton.Skeleton
 
 		:returns: The rendered dictionary.
-		:rtype: dict
 		"""
 		if isinstance(skel, dict):
 			return None
@@ -167,7 +167,7 @@ class DefaultRender(object):
 			res = self.renderSingleBoneValue(boneVal, bone, skel, key)
 		return res
 
-	def renderSingleBoneValue(self, value, bone, skel, key):
+	def renderSingleBoneValue(self, value: Any, bone: baseBone, skel: SkeletonInstance, key: str) -> Dict:
 		"""
 		Renders the value of a bone.
 
@@ -175,10 +175,12 @@ class DefaultRender(object):
 		It can be overridden and super-called from a custom renderer.
 
 		:param bone: The bone which value should be rendered.
+<<<<<<< HEAD
 		:type bone: Any bone that inherits from :class:`server.bones.base.BaseBone`.
+=======
+>>>>>>> main
 
 		:return: A dict containing the rendered attributes.
-		:rtype: dict
 		"""
 		if isinstance(bone, DateBone):
 			if value:
@@ -206,12 +208,11 @@ class DefaultRender(object):
 		else:
 			return value
 
-	def renderSkelValues(self, skel):
+	def renderSkelValues(self, skel: SkeletonInstance):
 		"""
-		Prepares values of one :class:`server.db.skeleton.Skeleton` or a list of skeletons for output.
+		Prepares values of one :class:`viur.core.skeleton.Skeleton` or a list of skeletons for output.
 
 		:param skel: Skeleton which contents will be processed.
-		:type skel: server.db.skeleton.Skeleton
 
 		:returns: A dictionary or list of dictionaries.
 		:rtype: dict
@@ -269,28 +270,28 @@ class DefaultRender(object):
 		return serializeXML(res)
 
 	def editSuccess(self, skel, params=None, **kwargs):
-		return (serializeXML("OKAY"))
+		return serializeXML("OKAY")
 
 	def addSuccess(self, skel, params=None, **kwargs):
-		return (serializeXML("OKAY"))
+		return serializeXML("OKAY")
 
 	def addDirSuccess(self, rootNode, path, dirname, params=None, *args, **kwargs):
-		return (serializeXML("OKAY"))
+		return serializeXML("OKAY")
 
 	def renameSuccess(self, rootNode, path, src, dest, params=None, *args, **kwargs):
-		return (serializeXML("OKAY"))
+		return serializeXML("OKAY")
 
 	def copySuccess(self, srcrepo, srcpath, name, destrepo, destpath, type, deleteold, params=None, *args, **kwargs):
-		return (serializeXML("OKAY"))
+		return serializeXML("OKAY")
 
 	def deleteSuccess(self, skel, params=None, *args, **kwargs):
-		return (serializeXML("OKAY"))
+		return serializeXML("OKAY")
 
 	def reparentSuccess(self, obj, tpl=None, params=None, *args, **kwargs):
-		return (serializeXML("OKAY"))
+		return serializeXML("OKAY")
 
 	def setIndexSuccess(self, obj, tpl=None, params=None, *args, **kwargs):
-		return (serializeXML("OKAY"))
+		return serializeXML("OKAY")
 
 	def cloneSuccess(self, tpl=None, params=None, *args, **kwargs):
-		return (serializeXML("OKAY"))
+		return serializeXML("OKAY")

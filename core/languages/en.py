@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 en = {
 	"const_day_0_short": u"Sun",  # Abbreviation Day-names (starting with Sunday)
 	"const_day_1_short": u"Mon",

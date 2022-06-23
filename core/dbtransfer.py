@@ -1,29 +1,31 @@
 #!/usr/bin/python2
-# -*- coding: utf-8 -*-
-import logging, pickle, json, collections, cgi, urllib
+import cgi
+import collections
+import json
+import logging
+import pickle
+import urllib
 from datetime import datetime
-
-from viur.core import db, request, errors, conf, exposed, utils, email
-from viur.core.bones import *
-from viur.core.skeleton import BaseSkeleton, skeletonByKind, listKnownSkeletons
-from viur.core.tasks import CallableTask, CallableTaskBase, callDeferred
+from hashlib import sha256
 from viur.core.prototypes.hierarchy import HierarchySkel
+
+from viur.core import conf, db, email, errors, exposed, utils
+from viur.core.bones import *
+from viur.core.modules.file import decodeFileName
 from viur.core.prototypes.tree import TreeLeafSkel
 from viur.core.render.json.default import DefaultRender
-from viur.core.modules.file import decodeFileName
+from viur.core.skeleton import BaseSkeleton, listKnownSkeletons, skeletonByKind
+from viur.core.tasks import CallableTask, CallableTaskBase, callDeferred
 from viur.core.utils import currentRequest
-from hashlib import sha256
 
 
 class DbTransfer(object):
 
-	def _checkKey(self, key, export=True):
+	def _checkKey(self, key: str, export: bool = True):
 		"""
 			Utility function to compare the given key with the keys stored in our conf in constant time
 			:param key: The key we should validate
-			:type key: str
 			:param export: If True, we validate against the export-key, otherwise the import-key
-			:type export: bool
 			:returns: True if the key is correct, False otherwise
 		"""
 		isValid = True
@@ -40,13 +42,13 @@ class DbTransfer(object):
 		for a, b in zip(str(key), str(expectedKey)):
 			if a != b:
 				isValid = False
-		return (isValid)
+		return isValid
 
 	@exposed
 	def listModules(self, key):
 		if not self._checkKey(key, export=False):
 			raise errors.Forbidden()
-		return (pickle.dumps(listKnownSkeletons()))
+		return pickle.dumps(listKnownSkeletons())
 
 	@exposed
 	def getCfg(self, module, key):
@@ -56,7 +58,7 @@ class DbTransfer(object):
 		assert skel is not None
 		res = skel()
 		r = DefaultRender()
-		return (pickle.dumps(r.renderSkelStructure(res)))
+		return pickle.dumps(r.renderSkelStructure(res))
 
 	@exposed
 	def getAppId(self, key, *args, **kwargs):
@@ -64,7 +66,7 @@ class DbTransfer(object):
 			raise errors.Forbidden()
 		return pickle.dumps("hsk-py3-test")
 		# FIXME!
-		return (pickle.dumps(db.Query("SharedConfData").getEntry().key().app()))  # app_identity.get_application_id()
+		return pickle.dumps(db.Query("SharedConfData").getEntry().key().app()))  # app_identity.get_application_id(
 
 	def getUploads(self, field_name=None):
 		"""
@@ -123,13 +125,13 @@ class DbTransfer(object):
 			e["available"] = True
 			db.Put(e)
 
-		return (json.dumps({"action": "addSuccess", "values": res}))
+		return json.dumps({"action": "addSuccess", "values": res})
 
 	@exposed
 	def getUploadURL(self, key, *args, **kwargs):
 		if not self._checkKey(key, export=False):
 			raise errors.Forbidden()
-		return (blobstore.create_upload_url("/dbtransfer/upload"))
+		return blobstore.create_upload_url("/dbtransfer/upload")
 
 	@exposed
 	def storeEntry(self, e, key):
@@ -259,7 +261,7 @@ class DbTransfer(object):
 				logging.error(str(type(v)))
 			res[k] = v
 		res["key"] = str(obj.key())
-		return (res)
+		return res
 
 	@exposed
 	def exportDb(self, cursor=None, key=None, *args, **kwargs):
@@ -273,7 +275,7 @@ class DbTransfer(object):
 		r = []
 		for res in q.Run(limit=5):
 			r.append(self.genDict(res))
-		return (pickle.dumps({"cursor": str(q.GetCursor().urlsafe()), "values": r}).encode("HEX"))
+		return pickle.dumps({"cursor": str(q.GetCursor().urlsafe()), "values": r}).encode("HEX")
 
 	@exposed
 	def exportBlob(self, cursor=None, key=None):
@@ -285,7 +287,7 @@ class DbTransfer(object):
 		r = []
 		for res in q.run(limit=16):
 			r.append(str(res.key()))
-		return (pickle.dumps({"cursor": str(q.cursor()), "values": r}).encode("HEX"))
+		return pickle.dumps({"cursor": str(q.cursor()), "values": r}).encode("HEX")
 
 	@exposed
 	def exportBlob2(self, cursor=None, key=None):
@@ -355,7 +357,7 @@ class TaskExportKind(CallableTaskBase):
 	descr = u"Copies the selected data to the given target application"
 	direct = True
 
-	def canCall(self):
+	def canCall(self) -> bool:
 		user = utils.getCurrentUser()
 		return user is not None and "root" in user["access"]
 
@@ -427,7 +429,7 @@ class TaskImportKind(CallableTaskBase):
 	descr = u"Copies the selected data from the given source application"
 	direct = True
 
-	def canCall(self):
+	def canCall(self) -> bool:
 		user = utils.getCurrentUser()
 		return user is not None and "root" in user["access"]
 

@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 from viur.core import db, errors, utils
-from viur.core.utils import currentRequest
 from viur.core.tasks import PeriodicTask, DeleteEntitiesIter
+from typing import Literal, Union
 from datetime import timedelta
 
 
@@ -16,17 +15,14 @@ class RateLimit(object):
 	"""
 	rateLimitKind = "viur-ratelimit"
 
-	def __init__(self, resource, maxRate, minutes, method):
+	def __init__(self, resource: str, maxRate: int, minutes: int, method: Literal["ip", "user"]):
 		"""
 		Initializes a new RateLimit gate.
+
 		:param resource: Name of the resource to protect
-		:type resource: str
 		:param maxRate: Amount of tries allowed in the give time-span
-		:type maxRate: int
 		:param minutes: Length of the time-span in minutes
-		:type minutes: int
 		:param method: Lock by IP or by the current user
-		:type method: 'ip' | 'user'
 		"""
 		super(RateLimit, self).__init__()
 		self.resource = resource
@@ -37,7 +33,7 @@ class RateLimit(object):
 		assert method in ["ip", "user"], "method must be 'ip' or 'user'"
 		self.useUser = method == "user"
 
-	def _getEndpointKey(self):
+	def _getEndpointKey(self) -> Union[db.Key, str]:
 		"""
 		:warning:
 			It's invalid to call _getEndpointKey if method is set to user and there's no user logged in!
@@ -49,7 +45,7 @@ class RateLimit(object):
 			assert user, "Cannot decrement usage from guest!"
 			return user["key"]
 		else:
-			remoteAddr = currentRequest.get().request.remote_addr
+			remoteAddr = utils.currentRequest.get().request.remote_addr
 			if "::" in remoteAddr:  # IPv6 in shorted form
 				remoteAddr = remoteAddr.split(":")
 				blankIndex = remoteAddr.index("")
@@ -62,7 +58,7 @@ class RateLimit(object):
 			else:  # It's IPv4, simply return that address
 				return remoteAddr
 
-	def _getCurrentTimeKey(self):
+	def _getCurrentTimeKey(self) -> str:
 		"""
 		:return: the current lockperiod used in second position of the memcache key
 		"""
@@ -72,12 +68,12 @@ class RateLimit(object):
 		currentStep = int(secsinceMidnight / self.secondsPerStep)
 		return key % currentStep
 
-	def decrementQuota(self):
+	def decrementQuota(self) -> None:
 		"""
 		Removes one attempt from the pool of available Quota for that user/ip
 		"""
 
-		def updateTxn(cacheKey):
+		def updateTxn(cacheKey: str) -> None:
 			key = db.Key(self.rateLimitKind, cacheKey)
 			obj = db.Get(key)
 			if obj is None:
@@ -90,11 +86,10 @@ class RateLimit(object):
 		lockKey = "%s-%s-%s" % (self.resource, self._getEndpointKey(), self._getCurrentTimeKey())
 		db.RunInTransaction(updateTxn, lockKey)
 
-	def isQuotaAvailable(self):
+	def isQuotaAvailable(self) -> bool:
 		"""
 		Checks if there's currently quota available for the current user/ip
 		:return: True if there's quota available, False otherwise
-		:rtype: bool
 		"""
 		endPoint = self._getEndpointKey()
 		currentDateTime = utils.utcNow()
@@ -123,11 +118,13 @@ class RateLimit(object):
 		if self.isQuotaAvailable():
 			return True
 		if setRetryAfterHeader:
-			currentRequest.get().response.headers["Retry-After"] = str(self.maxRate * 60)
-		raise errors.TooManyRequests(f"{self.steps} requests allowed per {self.maxRate} minute(s)."
-									 f" Try again later.")
+			utils.currentRequest.get().response.headers["Retry-After"] = str(self.maxRate * 60)
+
+		raise errors.TooManyRequests(
+			f"{self.steps} requests allowed per {self.maxRate} minute(s). Try again later."
+		)
 
 
 @PeriodicTask(60)
-def cleanOldRateLocks(*args, **kwargs):
+def cleanOldRateLocks(*args, **kwargs) -> None:
 	DeleteEntitiesIter.startIterOnQuery(db.Query(RateLimit.rateLimitKind).filter("expires <", utils.utcNow()))

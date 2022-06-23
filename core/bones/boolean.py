@@ -1,11 +1,12 @@
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from typing import List, Union, Any
+from viur.core import db
+from typing import Dict, List, Optional, Union, Any
 import logging
 
 
 class BooleanBone(BaseBone):
 	type = "bool"
-	trueStrs = [str(True), u"1", u"yes"]
+	trueStrs = [str(True), "1", "yes"]
 
 	def __init__(
 		self,
@@ -18,7 +19,7 @@ class BooleanBone(BaseBone):
 
 		super().__init__(defaultValue=defaultValue, **kwargs)
 
-	def singleValueFromClient(self, value, skel, name, origData):
+	def singleValueFromClient(self, value, skel: 'viur.core.skeleton.SkeletonInstance', name: str, origData):
 		if str(value) in self.trueStrs:
 			return True, None
 		else:
@@ -32,17 +33,13 @@ class BooleanBone(BaseBone):
 			return True
 		return not bool(rawValue)
 
-	def refresh(self, skel, boneName) -> None:
+	def refresh(self, skel: 'viur.core.skeleton.SkeletonInstance', boneName: str) -> None:
 		"""
 			Inverse of serialize. Evaluates whats
 			read from the datastore and populates
 			this bone accordingly.
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:param expando: An instance of the dictionary-like db.Entity class
-			:type expando: :class:`db.Entity`
-			:returns: bool
 		"""
 		if not isinstance(skel[boneName], bool):
 			val = skel[boneName]
@@ -51,13 +48,21 @@ class BooleanBone(BaseBone):
 			else:
 				skel[boneName] = False
 
-	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
+	def buildDBFilter(
+		self,
+		name: str,
+		skel: 'viur.core.skeleton.SkeletonInstance',
+		dbFilter: db.Query,
+		rawFilter: Dict,
+		prefix: Optional[str] = None
+	) -> db.Query:
 		if name in rawFilter:
 			val = rawFilter[name]
 			if str(val) in self.trueStrs:
 				val = True
 			else:
 				val = False
+
 			return super().buildDBFilter(name, skel, dbFilter, {name: val}, prefix=prefix)
 
 		return dbFilter

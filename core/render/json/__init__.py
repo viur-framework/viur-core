@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from .default import DefaultRender as default
 from .user import UserRender as user
 from .file import FileRender as file
@@ -9,7 +7,7 @@ import json
 __all__ = [default]
 
 
-def genSkey(*args, **kwargs):
+def genSkey(*args, **kwargs) -> str:
 	return json.dumps(securitykey.create())
 
 

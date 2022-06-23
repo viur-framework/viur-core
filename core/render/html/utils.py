@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 __jinjaGlobals_ = {}
 __jinjaFilters_ = {}
 __jinjaExtensions_ = []
