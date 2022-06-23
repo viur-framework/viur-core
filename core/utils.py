@@ -145,6 +145,8 @@ def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
 		:param downloadFileName: If set, we'll force to browser to download this blob with the given filename
 		:return: THe signed download-url relative to the current domain (eg /download/...)
 	"""
+	# Undo escaping on ()= performed on fileNames
+	fileName = fileName.replace("&#040;", "(").replace("&#041;", ")").replace("&#061;", "=")
 	if derived:
 		filePath = "%s/derived/%s" % (folder, fileName)
 	else:

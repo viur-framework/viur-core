@@ -550,6 +550,8 @@ class File(Tree):
 				raise errors.PreconditionFailed()
 			blob = blobs[0]
 			skel["mimetype"] = utils.escapeString(blob.content_type)
+			if any([x in blob.name for x in "$<>'\""]):  # Prevent these Characters from being used in a fileName
+				raise errors.PreconditionFailed()
 			skel["name"] = utils.escapeString(blob.name.replace("%s/source/" % skel["dlkey"], ""))
 			skel["size"] = blob.size
 			skel["parentrepo"] = rootNode["key"] if rootNode else None
