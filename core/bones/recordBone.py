@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from viur.core.bones.bone import baseBone, getSystemInitialized
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from typing import List, Union

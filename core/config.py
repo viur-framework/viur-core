@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from datetime import datetime, timedelta
 
 apiVersion = 1  # What format do we use to store data in the bigtable
@@ -29,7 +28,7 @@ conf = {
 	# Database engine module
 	"viur.db.engine":"viur.datastore",
 
-	# If enabled, user-generated exceptions from the server.errors module won't be caught and handled
+	# If enabled, user-generated exceptions from the viur.core.errors module won't be caught and handled
 	"viur.debug.traceExceptions": False,
 	# If enabled, ViUR will log which (exposed) function are called from outside with what arguments
 	"viur.debug.traceExternalCallRouting": False,
@@ -178,6 +177,6 @@ conf = {
 	# Which application-ids we're supposed to run on
 	"viur.validApplicationIDs": [],
 
-	# Will be set to server.__version__ in server.__init__
+	# Will be set to viur.core.version.__version__ in viur.core.__init__
 	"viur.version": None,
 }

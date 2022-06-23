@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json
 from collections import OrderedDict
 from viur.core import bones, utils, config
@@ -7,7 +6,7 @@ from viur.core.skeleton import SkeletonInstance
 from viur.core.utils import currentRequest
 from viur.core.i18n import translate
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 
 class CustomJsonEncoder(json.JSONEncoder):
@@ -32,7 +31,7 @@ class DefaultRender(object):
 		super(DefaultRender, self).__init__(*args, **kwargs)
 		self.parent = parent
 
-	def renderBoneStructure(self, bone):
+	def renderBoneStructure(self, bone: bones.baseBone) -> Dict[str, Any]:
 		"""
 		Renders the structure of a bone.
 
@@ -40,10 +39,8 @@ class DefaultRender(object):
 		can be overridden and super-called from a custom renderer.
 
 		:param bone: The bone which structure should be rendered.
-		:type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
 
 		:return: A dict containing the rendered attributes.
-		:rtype: dict
 		"""
 
 		# Base bone contents.
@@ -113,15 +110,13 @@ class DefaultRender(object):
 
 		return ret
 
-	def renderSkelStructure(self, skel):
+	def renderSkelStructure(self, skel: SkeletonInstance) -> Optional[List[Tuple[str, Dict[str, Any]]]]:
 		"""
-		Dumps the structure of a :class:`server.db.skeleton.Skeleton`.
+		Dumps the structure of a :class:`viur.core.skeleton.Skeleton`.
 
 		:param skel: Skeleton which structure will be processed.
-		:type skel: server.db.skeleton.Skeleton
 
 		:returns: The rendered dictionary.
-		:rtype: dict
 		"""
 		if isinstance(skel, dict):
 			return None
@@ -130,7 +125,11 @@ class DefaultRender(object):
 			res[key] = self.renderBoneStructure(bone)
 		return [(key, val) for key, val in res.items()]
 
-	def renderSingleBoneValue(self, value, bone, skel, key):
+	def renderSingleBoneValue(self, value: Any,
+							  bone: bones.baseBone,
+							  skel: SkeletonInstance,
+							  key
+							  ) -> Union[Dict, str, None]:
 		"""
 		Renders the value of a bone.
 
@@ -138,17 +137,15 @@ class DefaultRender(object):
 		It can be overridden and super-called from a custom renderer.
 
 		:param bone: The bone which value should be rendered.
-		:type bone: Any bone that inherits from :class:`server.bones.base.baseBone`.
 
 		:return: A dict containing the rendered attributes.
-		:rtype: dict
 		"""
 		if isinstance(bone, bones.relationalBone):
 			if isinstance(value, dict):
 				return {
 					"dest": self.renderSkelValues(value["dest"], injectDownloadURL=isinstance(bone, bones.fileBone)),
-					"rel": self.renderSkelValues(value["rel"], injectDownloadURL=isinstance(bone, bones.fileBone)) if
-					value["rel"] else None,
+					"rel": (self.renderSkelValues(value["rel"], injectDownloadURL=isinstance(bone, bones.fileBone))
+							if value["rel"] else None),
 				}
 		elif isinstance(bone, bones.recordBone):
 			return self.renderSkelValues(value)
@@ -158,7 +155,7 @@ class DefaultRender(object):
 			return value
 		return None
 
-	def renderBoneValue(self, bone, skel, key):
+	def renderBoneValue(self, bone: bones.baseBone, skel: SkeletonInstance, key: str) -> Union[List, Dict, None]:
 		boneVal = skel[key]
 		if bone.languages and bone.multiple:
 			res = {}
@@ -180,15 +177,11 @@ class DefaultRender(object):
 			res = self.renderSingleBoneValue(boneVal, bone, skel, key)
 		return res
 
-	def renderSkelValues(self, skel, injectDownloadURL=False):
+	def renderSkelValues(self, skel: SkeletonInstance, injectDownloadURL: bool = False) -> Optional[Dict]:
 		"""
-		Prepares values of one :class:`server.db.skeleton.Skeleton` or a list of skeletons for output.
+		Prepares values of one :class:`viur.core.skeleton.Skeleton` or a list of skeletons for output.
 
 		:param skel: Skeleton which contents will be processed.
-		:type skel: server.db.skeleton.Skeleton
-
-		:returns: A dictionary or list of dictionaries.
-		:rtype: dict
 		"""
 		if skel is None:
 			return None
@@ -202,7 +195,7 @@ class DefaultRender(object):
 													  expires=config.conf["viur.render.json.downloadUrlExpiration"])
 		return res
 
-	def renderEntry(self, skel, actionName, params=None):
+	def renderEntry(self, skel: SkeletonInstance, actionName, params=None):
 		if isinstance(skel, list):
 			vals = [self.renderSkelValues(x) for x in skel]
 			struct = self.renderSkelStructure(skel[0])
@@ -226,13 +219,13 @@ class DefaultRender(object):
 		currentRequest.get().response.headers["Content-Type"] = "application/json"
 		return json.dumps(res, cls=CustomJsonEncoder)
 
-	def view(self, skel, action="view", params=None, *args, **kwargs):
+	def view(self, skel: SkeletonInstance, action="view", params=None, *args, **kwargs):
 		return self.renderEntry(skel, action, params)
 
-	def add(self, skel, action="add", params=None, **kwargs):
+	def add(self, skel: SkeletonInstance, action="add", params=None, **kwargs):
 		return self.renderEntry(skel, action, params)
 
-	def edit(self, skel, action="edit", params=None, **kwargs):
+	def edit(self, skel: SkeletonInstance, action="edit", params=None, **kwargs):
 		return self.renderEntry(skel, action, params)
 
 	def list(self, skellist, action="list", params=None, **kwargs):
@@ -255,10 +248,10 @@ class DefaultRender(object):
 		currentRequest.get().response.headers["Content-Type"] = "application/json"
 		return json.dumps(res, cls=CustomJsonEncoder)
 
-	def editSuccess(self, skel, params=None, **kwargs):
+	def editSuccess(self, skel: SkeletonInstance, params=None, **kwargs):
 		return self.renderEntry(skel, "editSuccess", params)
 
-	def addSuccess(self, skel, params=None, **kwargs):
+	def addSuccess(self, skel: SkeletonInstance, params=None, **kwargs):
 		return self.renderEntry(skel, "addSuccess", params)
 
 	def addDirSuccess(self, rootNode, path, dirname, params=None, *args, **kwargs):
@@ -288,7 +281,7 @@ class DefaultRender(object):
 	def copySuccess(self, srcrepo, srcpath, name, destrepo, destpath, type, deleteold, params=None, *args, **kwargs):
 		return json.dumps("OKAY")
 
-	def deleteSuccess(self, skel, params=None, *args, **kwargs):
+	def deleteSuccess(self, skel: SkeletonInstance, params=None, *args, **kwargs):
 		return json.dumps("OKAY")
 
 	def reparentSuccess(self, obj, tpl=None, params=None, *args, **kwargs):

@@ -94,7 +94,6 @@ class BrowseHandler():  # webapp.RequestHandler
 	# List of requestValidators used to preflight-check an request before it's being dispatched within ViUR
 	requestValidators = [FetchMetaDataValidator]
 
-
 	def __init__(self, request: webob.Request, response: webob.Response):
 		super()
 		self.startTime = time()
@@ -104,7 +103,7 @@ class BrowseHandler():  # webapp.RequestHandler
 		self._traceID = request.headers.get('X-Cloud-Trace-Context') or utils.generateRandomString()
 		db.currentDbAccessLog.set(set())
 
-	def selectLanguage(self, path: str):
+	def selectLanguage(self, path: str) -> str:
 		"""
 			Tries to select the best language for the current request. Depending on the value of
 			conf["viur.languageMethod"], we'll either try to load it from the session, determine it by the domain
@@ -142,7 +141,7 @@ class BrowseHandler():  # webapp.RequestHandler
 			if len(tmppath) > 0 and tmppath[0] in conf["viur.availableLanguages"] + list(
 				conf["viur.languageAliasMap"].keys()):
 				currentLanguage.set(tmppath[0])
-				return (path[len(tmppath[0]) + 1:])  # Return the path stripped by its language segment
+				return path[len(tmppath[0]) + 1:]  # Return the path stripped by its language segment
 			else:  # This URL doesnt contain an language prefix, try to read it from session
 				if "lang" in sessionReference:
 					currentLanguage.set(sessionReference["lang"])
@@ -152,7 +151,7 @@ class BrowseHandler():  # webapp.RequestHandler
 						currentLanguage.set(lng)
 		return path
 
-	def processRequest(self):
+	def processRequest(self) -> None:
 		"""
 			Bring up the enviroment for this request, start processing and handle errors
 		"""
@@ -427,7 +426,7 @@ class BrowseHandler():  # webapp.RequestHandler
 
 		raise ValueError("TypeHint %s not supported" % typeHint)
 
-	def findAndCall(self, path:str, *args, **kwargs):
+	def findAndCall(self, path: str, *args, **kwargs) -> None:
 		"""
 			Does the actual work of sanitizing the parameter, determine which @exposed (or @internalExposed) function
 			to call (and with witch parameters)
@@ -562,5 +561,5 @@ class BrowseHandler():  # webapp.RequestHandler
 				raise errors.NotAcceptable()
 			raise
 
-	def saveSession(self):
+	def saveSession(self) -> None:
 		currentSession.get().save(self)

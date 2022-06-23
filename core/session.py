@@ -1,8 +1,10 @@
-# -*- coding: utf-8 -*-
+from typing import Any, Optional
+
 import logging
 from hmac import compare_digest
 from time import time
 
+from viur.core.request import BrowseHandler
 from viur.core.tasks import PeriodicTask, callDeferred
 from viur.core import utils, db
 from viur.core.config import conf
@@ -51,7 +53,7 @@ class GaeSession:
 	sessionCookie = True  # If True, issue the cookie without a lifeTime (will disappear on browser close)
 	cookieName = f"viurCookie_{utils.projectID}"
 
-	def load(self, req):
+	def load(self, req: BrowseHandler):
 		"""
 			Initializes the Session.
 
@@ -86,7 +88,7 @@ class GaeSession:
 		else:
 			self.reset()
 
-	def save(self, req):
+	def save(self, req: BrowseHandler):
 		"""
 			Writes the session to the datastore.
 
@@ -125,13 +127,13 @@ class GaeSession:
 			raise  # FIXME
 			logging.exception(e)
 
-	def __contains__(self, key):
+	def __contains__(self, key: str) -> bool:
 		"""
 			Returns True if the given *key* is set in the current session.
 		"""
 		return key in self.session
 
-	def __delitem__(self, key):
+	def __delitem__(self, key: str) -> None:
 		"""
 			Removes a *key* from the session.
 
@@ -140,7 +142,7 @@ class GaeSession:
 		del self.session[key]
 		self.changed = True
 
-	def __getitem__(self, key):
+	def __getitem__(self, key) -> Any:
 		"""
 			Returns the value stored under the given *key*.
 
@@ -148,12 +150,11 @@ class GaeSession:
 		"""
 		return self.session[key]
 
-	def get(self, key):
+	def get(self, key: str) -> Any:
 		"""
 			Returns the value stored under the given key.
 
 			:param key: Key to retrieve from the session variables.
-			:type key: str
 
 			:return: Returns None if the key doesn't exist.
 		"""
@@ -162,7 +163,7 @@ class GaeSession:
 		else:
 			return None
 
-	def __setitem__(self, key, item):
+	def __setitem__(self, key: str, item: Any):
 		"""
 			Stores a new value under the given key.
 
@@ -172,7 +173,7 @@ class GaeSession:
 		self.session[key] = item
 		self.changed = True
 
-	def markChanged(self):
+	def markChanged(self) -> None:
 		"""
 			Explicitly mark the current session as changed.
 			This will force save() to write into the memcache /
@@ -181,7 +182,7 @@ class GaeSession:
 		"""
 		self.changed = True
 
-	def reset(self):
+	def reset(self) -> None:
 		"""
 			Invalids the current session and starts a new one.
 
@@ -202,16 +203,16 @@ class GaeSession:
 		if lang:
 			self.session["language"] = lang
 
-	def items(self):
+	def items(self) -> 'dict_items':
 		"""
 			Returns all items in the current session.
 		"""
 		return self.session.items()
 
-	def getSecurityKey(self):
+	def getSecurityKey(self) -> Optional[str]:
 		return self.securityKey
 
-	def validateSecurityKey(self, key):
+	def validateSecurityKey(self, key: str) -> bool:
 		"""
 		Checks if key matches the current CSRF-Token of our session. On success, a new key is generated.
 		"""
@@ -238,7 +239,7 @@ class GaeSession:
 			return True
 		return False
 
-	def validateStaticSecurityKey(self, key):
+	def validateStaticSecurityKey(self, key: str) -> bool:
 		"""
 		Checks if key matches the current *static* CSRF-Token of our session.
 		"""
@@ -246,7 +247,7 @@ class GaeSession:
 
 
 @callDeferred
-def killSessionByUser(user=None):
+def killSessionByUser(user: Optional[str] = None):
 	"""
 		Invalidates all active sessions for the given *user*.
 
@@ -256,7 +257,6 @@ def killSessionByUser(user=None):
 		Use "guest" as to kill all sessions not associated with an user.
 
 		:param user: UserID, "guest" or None.
-		:type user: str | None
 	"""
 	logging.error("Invalidating all sessions for %s" % user)
 	query = db.Query(GaeSession.kindName)

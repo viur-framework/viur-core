@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from viur.core.bones.relationalBone import relationalBone
 from viur.core.config import conf
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import copy
@@ -9,7 +8,7 @@ import sys
 from functools import partial
 from itertools import chain
 from time import time
-from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
 
 from viur.core import conf, db, email, errors, utils
 from viur.core.bones import baseBone, dateBone, keyBone, relationalBone, selectBone, stringBone
@@ -59,7 +58,7 @@ class MetaBaseSkel(type):
 		super(MetaBaseSkel, cls).__init__(name, bases, dct)
 
 
-def skeletonByKind(kindName: str) -> "Skeleton":
+def skeletonByKind(kindName: str) -> Type[Skeleton]:
 	"""
 		Returns the Skeleton-Class for the given kindName. That skeleton must exist, otherwise an exception is raised.
 		:param kindName: The kindname to retreive the skeleton for
@@ -230,19 +229,19 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 
 		:ivar key: This bone stores the current database key of this entity. \
 		Assigning to this bones value is dangerous and does *not* affect the actual key its stored in.
-		:vartype key: server.bones.baseBone
+		:vartype key: viur.core.bones.baseBone
 
 		:ivar creationdate: The date and time where this entity has been created.
-		:vartype creationdate: server.bones.dateBone
+		:vartype creationdate: viur.core.bones.dateBone
 
 		:ivar changedate: The date and time of the last change to this entity.
-		:vartype changedate: server.bones.dateBone
+		:vartype changedate: viur.core.bones.dateBone
 	"""
 	__viurBaseSkeletonMarker__ = True
 	boneMap = None
 
 	@classmethod
-	def subSkel(cls, *args, fullClone=False, **kwargs):
+	def subSkel(cls, *name, fullClone: bool = False, **kwargs) -> SkeletonInstance:
 		"""
 			Creates a new sub-skeleton as part of the current skeleton.
 
@@ -257,14 +256,12 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 
 			:param name: Name of the sub-skeleton (that's the key of the subSkels dictionary); \
 						Multiple names can be specified.
-			:type name: str
 
 			:return: The sub-skeleton of the specified type.
-			:rtype: server.skeleton.Skeleton
 		"""
-		if not args:
+		if not name:
 			raise ValueError("Which subSkel?")
-		return cls(subSkelNames=list(args), fullClone=fullClone)
+		return cls(subSkelNames=list(name), fullClone=fullClone)
 
 	@classmethod
 	def setSystemInitialized(cls):
@@ -300,21 +297,19 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 		"""
 			Load supplied *data* into Skeleton.
 
-			This function works similar to :func:`~server.skeleton.Skeleton.setValues`, except that
+			This function works similar to :func:`~viur.core.skeleton.Skeleton.setValues`, except that
 			the values retrieved from *data* are checked against the bones and their validity checks.
 
 			Even if this function returns False, all bones are guaranteed to be in a valid state.
 			The ones which have been read correctly are set to their valid values;
 			Bones with invalid values are set back to a safe default (None in most cases).
-			So its possible to call :func:`~server.skeleton.Skeleton.toDB` afterwards even if reading
+			So its possible to call :func:`~viur.core.skeleton.Skeleton.toDB` afterwards even if reading
 			data with this function failed (through this might violates the assumed consistency-model).
 
 			:param data: Dictionary from which the data is read.
-			:type data: dict
 
 			:returns: True if all data was successfully read and taken by the Skeleton's bones.\
 			False otherwise (eg. some required fields where missing or invalid).
-			:rtype: bool
 		"""
 		assert not allowEmptyRequired, "allowEmptyRequired is only valid on RelSkels"
 		complete = len(data) > 0  # Empty values are never valid
@@ -360,7 +355,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 			if "refresh" in dir(bone):
 				bone.refresh(skelValues, key)
 
-	def __new__(cls, *args, **kwargs):
+	def __new__(cls, *args, **kwargs) -> SkeletonInstance:
 		return SkeletonInstance(cls, *args, **kwargs)
 
 
@@ -376,7 +371,7 @@ class MetaSkel(MetaBaseSkel):
 			# Prevent any further processing by this class; it has to be sub-classed before it can be used
 			return
 
-		# Automatic determination of the kindName, if the class is not part of the server.
+		# Automatic determination of the kindName, if the class is not part of viur.core.
 		if (cls.kindName is __undefindedC__
 			and not relNewFileName.strip(os.path.sep).startswith("viur")
 			and not "viur_doc_build" in dir(sys)):
@@ -607,12 +602,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 		assert self.kindName and self.kindName is not __undefindedC__, "You must set kindName on this skeleton!"
 
 	@classmethod
-	def all(cls, skelValues, **kwargs):
+	def all(cls, skelValues, **kwargs) -> db.Query:
 		"""
 			Create a query with the current Skeletons kindName.
 
 			:returns: A db.Query object which allows for entity filtering and sorting.
-			:rtype: :class:`server.db.Query`
 		"""
 		return db.Query(skelValues.kindName, srcSkelClass=skelValues, **kwargs)
 
@@ -620,13 +614,13 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 	def fromClient(cls, skelValues: SkeletonInstance, data: Dict[str, Union[List[str], str]],
 				   allowEmptyRequired=False) -> bool:
 		"""
-			This function works similar to :func:`~server.skeleton.Skeleton.setValues`, except that
+			This function works similar to :func:`~viur.core.skeleton.Skeleton.setValues`, except that
 			the values retrieved from *data* are checked against the bones and their validity checks.
 
 			Even if this function returns False, all bones are guaranteed to be in a valid state.
 			The ones which have been read correctly are set to their valid values;
 			Bones with invalid values are set back to a safe default (None in most cases).
-			So its possible to call :func:`~server.skeleton.Skeleton.toDB` afterwards even if reading
+			So its possible to call :func:`~viur.core.skeleton.Skeleton.toDB` afterwards even if reading
 			data with this function failed (through this might violates the assumed consistency-model).
 
 		:param data: Dictionary from which the data is read.
@@ -673,9 +667,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 			from the data store into the Skeleton structure's bones. Any previous
 			data of the bones will discard.
 
-			To store a Skeleton object to the data store, see :func:`~server.skeleton.Skeleton.toDB`.
+			To store a Skeleton object to the data store, see :func:`~viur.core.skeleton.Skeleton.toDB`.
 
-			:param key: A :class:`server.DB.Key`, :class:`server.DB.Query`, or string,\
+			:param key: A :class:`viur.core.DB.Key`, :class:`viur.core.DB.Query`, or string,\
 			from which the data shall be fetched.
 
 			:returns: True on success; False if the given key could not be found.
@@ -702,7 +696,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 			If an *key* value is set to the object, this entity will ne updated;
 			Otherwise an new entity will be created.
 
-			To read a Skeleton object from the data store, see :func:`~server.skeleton.Skeleton.fromDB`.
+			To read a Skeleton object from the data store, see :func:`~viur.core.skeleton.Skeleton.fromDB`.
 
 			:param clearUpdateTag: If True, this entity won't be marked dirty;
 				This avoids from being fetched by the background task updating relations.
@@ -985,7 +979,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 	@classmethod
 	def preProcessSerializedData(cls, skelValues, entity):
 		"""
-			Can be overridden to modify the :class:`server.db.Entity` before its actually
+			Can be overridden to modify the :class:`viur.core.db.Entity` before its actually
 			written to the data store.
 		"""
 		return entity
@@ -1089,7 +1083,7 @@ class RelSkel(BaseSkeleton):
 	"""
 		This is a Skeleton-like class that acts as a container for Skeletons used as a
 		additional information data skeleton for
-		:class:`~server.bones.extendedRelationalBone.extendedRelationalBone`.
+		:class:`~viur.core.bones.extendedRelationalBone.extendedRelationalBone`.
 
 		It needs to be sub-classed where information about the kindName and its attributes
 		(bones) are specified.
@@ -1110,7 +1104,6 @@ class RelSkel(BaseSkeleton):
 			So its possible to call save() afterwards even if reading data fromClient faild (through this might violates the assumed consitency-model!).
 
 			:param data: Dictionary from which the data is read
-			:type data: dict
 			:returns: True if the data was successfully read; False otherwise (eg. some required fields where missing or invalid)
 		"""
 		complete = len(data) > 0  # Empty values are never valid
@@ -1163,8 +1156,6 @@ class RelSkel(BaseSkeleton):
 			Loads 'values' into this skeleton.
 
 			:param values: dict with values we'll assign to our bones
-			:type values: dict | db.Entity
-			:return:
 		"""
 		if not isinstance(values, db.Entity):
 			self.dbEntity = db.Entity()
@@ -1194,17 +1185,13 @@ class RelSkel(BaseSkeleton):
 
 class RefSkel(RelSkel):
 	@classmethod
-	def fromSkel(cls, kindName: str, *args: List[str]):
+	def fromSkel(cls, kindName: str, *args: List[str]) -> Type[RefSkel]:
 		"""
 			Creates a relSkel from a skeleton-class using only the bones explicitly named
 			in \*args
 
-			:param skelCls: A class or instance of BaseSkel we'll adapt the model from
-			:type skelCls: BaseSkeleton
 			:param args: List of bone names we'll adapt
-			:type args: list of str
 			:return: A new instance of RefSkel
-			:rtype: RefSkel
 		"""
 		newClass = type("RefSkelFor" + kindName, (RefSkel,), {})
 		fromSkel = skeletonByKind(kindName)
@@ -1395,7 +1382,7 @@ class TaskVacuumRelations(CallableTaskBase):
 	name = u"Vacuum viur-relations (dangerous)"
 	descr = u"Drop stale inbound relations for the given kind"
 
-	def canCall(self):
+	def canCall(self) -> bool:
 		"""
 		Checks wherever the current user can execute this task
 		:returns: bool

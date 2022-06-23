@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from . import html
 from . import admin
 from . import xml

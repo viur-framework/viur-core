@@ -1,15 +1,14 @@
-# -*- coding: utf-8 -*-
-from viur.core.bones.bone import baseBone, getSystemInitialized, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import utils, db
+from viur.core import db, utils
+from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity, baseBone, getSystemInitialized
+
 try:
 	import extjson
 except ImportError:
 	# FIXME: That json will not read datetime objects
 	import json as extjson
 from time import time
-from datetime import datetime
 import logging
-from typing import List, Any, Optional, Union
+from typing import List, Any, Optional, Union, Dict
 from enum import Enum
 from itertools import chain
 
@@ -540,7 +539,13 @@ class relationalBone(baseBone):
 			dbFilter.order(*orderList)
 		return name, skel, dbFilter, rawFilter
 
-	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
+
+	def buildDBFilter(self,
+					  name: str,
+					  skel: 'viur.core.skeleton.SkeletonInstance',
+					  dbFilter: db.Query,
+					  rawFilter: Dict,
+					  prefix: Optional[str] = None) -> db.Query:
 		relSkel, _usingSkelCache = self._getSkels()
 		origQueries = dbFilter.queries
 
@@ -621,7 +626,11 @@ class relationalBone(baseBone):
 
 		return dbFilter
 
-	def buildDBSort(self, name, skel, dbFilter, rawFilter):
+	def buildDBSort(self,
+					name: str,
+					skel: 'viur.core.skeleton.SkeletonInstance',
+					dbFilter: db.Query,
+					rawFilter: Dict) -> Optional[db.Query]:
 		origFilter = dbFilter.queries
 		if origFilter is None or not "orderby" in rawFilter:  # This query is unsatisfiable or not sorted
 			return dbFilter
@@ -658,7 +667,7 @@ class relationalBone(baseBone):
 			if self.multiple:
 				dbFilter.setFilterHook(lambda s, filter, value: self.filterHook(name, s, filter, value))
 				dbFilter.setOrderHook(lambda s, orderings: self.orderHook(name, s, orderings))
-		return (dbFilter)
+		return dbFilter
 
 	def filterHook(self, name, query, param, value):  # FIXME
 		"""
@@ -669,7 +678,7 @@ class relationalBone(baseBone):
 		"""
 		if param.startswith("src.") or param.startswith("dest.") or param.startswith("viur_"):
 			# This filter is already valid in our relation
-			return (param, value)
+			return param, value
 		if param.startswith("%s." % name):
 			# We add a constrain filtering by properties of the referenced entity
 			refKey = param.replace("%s." % name, "")
@@ -679,14 +688,14 @@ class relationalBone(baseBone):
 				logging.warning("Invalid filtering! %s is not in refKeys of RelationalBone %s!" % (refKey, name))
 				raise RuntimeError()
 			if self.multiple:
-				return (param.replace("%s." % name, "dest."), value)
+				return param.replace("%s." % name, "dest."), value
 			else:
-				return (param, value)
+				return param, value
 		else:
 			# We filter by a property of this entity
 			if not self.multiple:
 				# Not relational, not multiple - nothing to do here
-				return (param, value)
+				return param, value
 			# Prepend "src."
 			srcKey = param
 			if " " in srcKey:
@@ -700,11 +709,11 @@ class relationalBone(baseBone):
 				if not isinstance(value, db.Key):
 					value = db.Key(value)
 				query.ancestor(value)
-				return (None)
+				return None
 			if srcKey not in self.parentKeys:
 				logging.warning("Invalid filtering! %s is not in parentKeys of RelationalBone %s!" % (srcKey, name))
 				raise RuntimeError()
-			return ("src.%s" % param, value)
+			return "src.%s" % param, value
 
 	def orderHook(self, name, query, orderings):  # FIXME
 		"""
@@ -751,7 +760,7 @@ class relationalBone(baseBone):
 						res.append(("src.%s" % orderKey, order[1]))
 					else:
 						res.append("src.%s" % orderKey)
-		return (res)
+		return res
 
 	def refresh(self, skel, boneName):
 		"""
@@ -863,7 +872,11 @@ class relationalBone(baseBone):
 			"rel": rel or None
 		}
 
-	def setBoneValue(self, skel: 'SkeletonInstance', boneName: str, value: Any, append: bool,
+	def setBoneValue(self,
+					 skel: 'SkeletonInstance',
+					 boneName: str,
+					 value: Any,
+					 append: bool,
 					 language: Union[None, str] = None) -> bool:
 		"""
 			Set our value to 'value'.
@@ -876,7 +889,6 @@ class relationalBone(baseBone):
 				replacing it. Only supported on bones with multiple=True
 			:param language: Set/append which language
 			:return: Wherever that operation succeeded or not.
-
 		"""
 		assert not (bool(self.languages) ^ bool(language)), "Language is required or not supported"
 		assert not append or self.multiple, "Can't append - bone is not multiple"

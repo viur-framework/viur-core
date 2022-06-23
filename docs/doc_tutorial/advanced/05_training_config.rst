@@ -13,7 +13,7 @@ It simply can be imported into any server-side module with
 All ViUR-specific parameters have the prefix **viur.**. Parameters that influence or extend information
 used by the Admin-tools start with the prefix **admin.** or more specialized with **admin.vi.**.
 If parameters are changed for configuration issues, this should be done on the server's main entry (i.e. that
-Python source file that calls ``server.run()``).
+Python source file that calls ``viur.core.run()``).
 
 This section gives an overview and detailed information about how to use ViURs pre-defined configuration
 parameters.
@@ -83,7 +83,7 @@ viur.contentSecurityPolicy
 ..........................
 Emit Content-Security-Policy HTTP-header with each request.
 
-Use :meth:`server.securityheaders.addCspRule` to modify this property.
+Use :meth:`viur.core.securityheaders.addCspRule` to modify this property.
 
 
 viur.db.caching
@@ -162,7 +162,7 @@ viur.emailRecipientOverride
 Override recipients for all outgoing email. This should be done for testing purposes only.
 
 If set, all outgoing emails will be send to this address
-(always overriding the *dests*-parameter in `server.utils.sendEmail`_).
+(always overriding the *dests*-parameter in `viur.core.utils.sendEmail`_).
 
 ::
 
@@ -198,7 +198,7 @@ Defines a custom error handler. If set, ViUR calls this function instead of rend
 `viur.errorTemplate`_ in case of exception.
 
 The function must accept one argument (an instance of the Python exception object (possibly an instance of
-`server.errors.HTTPException`_), in case that an HTTP-exception occurs).
+`viur.core.errors.HTTPException`_), in case that an HTTP-exception occurs).
 
 
 viur.errorTemplate
@@ -262,7 +262,7 @@ If ViUR encounters an missing translation, it logs it by creating an entry in th
 
 viur.mainApp
 ............
-Holds a reference to the pre-build application-instance that's created by ``server.run()``.
+Holds a reference to the pre-build application-instance that's created by ``viur.core.run()``.
 **May not be overridden, reassigned or modified!**
 
 
@@ -320,14 +320,14 @@ viur.security.contentSecurityPolicy
 ...................................
 If set, viur will emit a CSP http-header with each request.
 
-Use :meth:`server.securityheaders.addCspRule` to set this property.
+Use :meth:`viur.core.securityheaders.addCspRule` to set this property.
 
 
 viur.security.strictTransportSecurity
 .....................................
 If set, viur will emit a HSTS http-header with each request.
 
-Use :meth:`server.securityheaders.enableStrictTransportSecurity` to set this property. Only partially supported on the Appengine atm.
+Use :meth:`viur.core.securityheaders.enableStrictTransportSecurity` to set this property. Only partially supported on the Appengine atm.
 
 
 viur.security.publicKeyPins
@@ -344,7 +344,7 @@ viur.security.xFrameOptions
 ...........................
 If set, ViUR will emit a X-Frame-Options header.
 
-Use :meth:`server.securityheaders.setXFrameOptions` to set this property.
+Use :meth:`viur.core.securityheaders.setXFrameOptions` to set this property.
 
 viur.security.xXssProtection
 ............................

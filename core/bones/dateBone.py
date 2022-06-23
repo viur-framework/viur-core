@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 from viur.core.bones import baseBone
-from viur.core import request
+from viur.core import db, request
 from datetime import datetime, timedelta
 from viur.core.bones.bone import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.i18n import translate
 from viur.core.utils import currentRequest, currentRequestData, utcNow, isLocalDevelopmentServer
-from typing import List, Union
+from typing import Dict, List, Optional, Union
 
 import pytz, tzlocal
 
@@ -28,16 +27,11 @@ class dateBone(baseBone):
 
 			:param creationMagic: Use the current time as value when creating an entity; ignoring this bone if the
 				entity gets updated.
-			:type creationMagic: bool
 			:param updateMagic: Use the current time whenever this entity is saved.
-			:type updateMagic: bool
 			:param date: Should this bone contain a date-information?
-			:type date: bool
 			:param time: Should this bone contain time information?
-			:type time: bool
 			:param localize: Assume users timezone for in and output? Only valid if this bone
                                 contains date and time-information! Per default, UTC time is used.
-			:type localize: bool
 		"""
 		super().__init__(**kwargs)
 
@@ -60,7 +54,7 @@ class dateBone(baseBone):
 		self.time = time
 		self.localize = localize
 
-	def singleValueFromClient(self, value, skel, name, origData):
+	def singleValueFromClient(self, value: str, skel: 'viur.core.skeleton.SkeletonInstance', name: str, origData):
 		"""
 			Reads a value from the client.
 			If this value is valid for this bone,
@@ -94,9 +88,7 @@ class dateBone(baseBone):
 			The resulting year must be >= 1900.
 
 			:param name: Our name in the skeleton
-			:type name: str
-			:param value: *User-supplied* request-data
-			:type value: str(value) has to be of valid format
+			:param value: *User-supplied* request-data, has to be of valid format
 			:returns: tuple[datetime or None, [Errors] or None]
 		"""
 		if self.date and self.time and self.localize:
@@ -242,7 +234,13 @@ class dateBone(baseBone):
 			# We got garbage from the datastore
 			return None
 
-	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
+
+	def buildDBFilter(self,
+					  name: str,
+					  skel: 'viur.core.skeleton.SkeletonInstance',
+					  dbFilter: db.Query,
+					  rawFilter: Dict,
+					  prefix: Optional[str] = None) -> db.Query:
 		for key in [x for x in rawFilter.keys() if x.startswith(name)]:
 			resDict = {}
 			if not self.fromClient(resDict, key, rawFilter):  # Parsing succeeded

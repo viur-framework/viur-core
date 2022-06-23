@@ -1,23 +1,21 @@
-# -*- coding: utf-8 -*-
 from viur.core import conf
 from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
-from typing import Dict, List, Any, Union, Callable
+from typing import Dict, List, Any, Type, Union, Callable
 
 
 class BasicApplication(object):
 	"""
 		BasicApplication is a generic class serving as the base for the four BasicApplications.
-
 	"""
 
-	kindName:str = None
+	kindName: str = None
 	"""
 		Name of the datastore kind that's going to be handled by this application.
 		This information is used to bind a specific :class:`viur.core.skeleton.Skeleton`-class to this
 		application. For more information, refer to the function :func:`~_resolveSkelCls`.
 	"""
 
-	adminInfo:Union[Dict[str, Any], Callable] = None
+	adminInfo: Union[Dict[str, Any], Callable] = None
 	"""
 		A ``dict`` holding the information necessary for the Vi/Admin to handle this module. If set to
 		``None``, this module will be ignored by the frontend. The currently supported values are:
@@ -101,8 +99,7 @@ class BasicApplication(object):
 			can be used to customize the appearance of the Vi/Admin to individual users.
 	"""
 
-
-	accessRights:List[str] = None
+	accessRights: List[str] = None
 	"""
 		If set, a list of access rights (like add, edit, delete) that this module may support.
 		These will be prefixed on instance startup with the actual module name (becomming file-add, file-edit etc)
@@ -122,7 +119,7 @@ class BasicApplication(object):
 				if not rightName in conf["viur.accessRights"]:
 					conf["viur.accessRights"].append(rightName)
 
-	def _resolveSkelCls(self, *args, **kwargs) -> Skeleton:
+	def _resolveSkelCls(self, *args, **kwargs) -> Type[Skeleton]:
 		"""
 		Retrieve the generally associated :class:`viur.core.skeleton.Skeleton` that is used by
 		the application.

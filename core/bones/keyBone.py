@@ -1,8 +1,11 @@
-# -*- coding: utf-8 -*-
+import copy
+import logging
+from typing import Dict, Optional
+
+from viur.core import db
 from viur.core.bones.bone import baseBone
-from viur.core.db import Entity, Key, keyHelper, KEY_SPECIAL_PROPERTY
+from viur.core.db import Entity, KEY_SPECIAL_PROPERTY, Key
 from viur.core.utils import normalizeKey
-import logging, copy
 
 
 class keyBone(baseBone):
@@ -17,10 +20,6 @@ class keyBone(baseBone):
 			read from the datastore and populates
 			this bone accordingly.
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:param expando: An instance of the dictionary-like db.Entity class
-			:type expando: db.Entity
-			:returns: bool
 		"""
 
 		def fixVals(val):
@@ -60,8 +59,6 @@ class keyBone(baseBone):
 			can write into the datastore.
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:returns: dict
 		"""
 		if name in skel.accessedValues:
 			if name == "key":
@@ -72,7 +69,13 @@ class keyBone(baseBone):
 			return True
 		return False
 
-	def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
+
+	def buildDBFilter(self,
+					  name: str,
+					  skel: 'viur.core.skeleton.SkeletonInstance',
+					  dbFilter: db.Query,
+					  rawFilter: Dict,
+					  prefix: Optional[str] = None) -> db.Query:
 		"""
 			Parses the searchfilter a client specified in his Request into
 			something understood by the datastore.
@@ -83,14 +86,10 @@ class keyBone(baseBone):
 					(this parameter is directly controlled by the client)
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:param skel: The :class:`server.db.Query` this bone is part of
-			:type skel: :class:`server.skeleton.Skeleton`
-			:param dbFilter: The current :class:`server.db.Query` instance the filters should be applied to
-			:type dbFilter: :class:`server.db.Query`
+			:param skel: The :class:`viur.core.db.Query` this bone is part of
+			:param dbFilter: The current :class:`viur.core.db.Query` instance the filters should be applied to
 			:param rawFilter: The dictionary of filters the client wants to have applied
-			:type rawFilter: dict
-			:returns: The modified :class:`server.db.Query`
+			:returns: The modified :class:`viur.core.db.Query`
 		"""
 
 		def _decodeKey(key):

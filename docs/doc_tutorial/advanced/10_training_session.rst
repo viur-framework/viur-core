@@ -2,7 +2,7 @@
 Sessions
 --------
 
-ViUR has a built-in session management system provided by :class:`server.session`.
+ViUR has a built-in session management system provided by :class:`viur.core.session`.
 
 This allows storing information between different http-requests.
 Sessions are automatically created as needed. As the first information is stored inside the session

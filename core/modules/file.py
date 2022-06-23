@@ -1,33 +1,28 @@
-# -*- coding: utf-8 -*-
-
 import base64
 import email.header
+import google.auth
 import json
 import logging
 import string
+from PIL import Image, ImageCms
 from base64 import urlsafe_b64decode
 from datetime import datetime, timedelta
-from io import BytesIO
-from quopri import decodestring
-from typing import Any, Dict, Tuple, Union, List
-from urllib.request import urlopen
-from viur.core.config import conf
-
-import google.auth
-from PIL import Image, ImageCms
 from google.auth import compute_engine
 from google.auth.transport import requests
-from google.cloud import storage
-from google.cloud._helpers import _NOW, _datetime_to_rfc3339
+from google.cloud import iam_credentials_v1, storage
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
+from io import BytesIO
+from quopri import decodestring
+from typing import Any, List, Tuple, Union
+from urllib.request import urlopen
 
-from viur.core import errors, exposed, forcePost, forceSSL, internalExposed, securitykey, utils, db
+from viur.core import db, errors, exposed, forcePost, forceSSL, securitykey, utils
 from viur.core.bones import *
-from viur.core.prototypes.tree import Tree, TreeSkel
+from viur.core.config import conf
+from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import skeletonByKind
 from viur.core.tasks import PeriodicTask, callDeferred
 from viur.core.utils import projectID, sanitizeFileName
-from google.cloud import iam_credentials_v1
 
 credentials, project = google.auth.default()
 client = storage.Client(project, credentials)
@@ -400,15 +395,12 @@ class File(Tree):
 		return self.render.view(resDict)
 
 	@exposed
-	def download(self, blobKey, fileName="", download="", sig="", *args, **kwargs):
+	def download(self, blobKey: str, fileName: str = "", download: str = "", sig: str = "", *args, **kwargs):
 		"""
 		Download a file.
 		:param blobKey: The unique blob key of the file.
-		:type blobKey: str
 		:param fileName: Optional filename to provide in the header.
-		:type fileName: str
 		:param download: Set header to attachment retrival, set explictly to "1" if download is wanted.
-		:type download: str
 		"""
 		global credentials, bucket
 		if not sig:
@@ -479,7 +471,7 @@ class File(Tree):
 	@exposed
 	@forceSSL
 	@forcePost
-	def add(self, skelType, node=None, *args, **kwargs):
+	def add(self, skelType: SkelType, node=None, *args, **kwargs):
 		## We can't add files directly (they need to be uploaded
 		# if skelType != "node":
 		#	raise errors.NotAcceptable()

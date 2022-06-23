@@ -1,6 +1,6 @@
 from datetime import datetime
-
 from jinja2.ext import Extension, nodes
+from typing import List, Tuple, Union
 
 from viur.core import db
 from viur.core.config import conf
@@ -12,29 +12,28 @@ systemTranslations = {}
 class LanguageWrapper(dict):
 	"""
 		Wrapper-class for a multi-language value.
-		Its a dictionary, allowing accessing each stored language,
+		It's a dictionary, allowing accessing each stored language,
 		but can also be used as a string, in which case it tries to
 		guess the correct language.
 	"""
 
-	def __init__(self, languages):
+	def __init__(self, languages: Union[List[str], Tuple[str]]):
 		super(LanguageWrapper, self).__init__()
 		self.languages = languages
 
-	def __str__(self):
+	def __str__(self) -> str:
 		return str(self.resolve())
 
-	def __bool__(self):
+	def __bool__(self) -> bool:
 		# Overridden to support if skel["bone"] tests in html render
 		# (otherwise that test is always true as this dict contains keys)
 		return bool(str(self))
 
-	def resolve(self):
+	def resolve(self) -> Union[str, List[str]]:
 		"""
 			Causes this wrapper to evaluate to the best language available for the current request.
 
-			:returns: str|list of str
-			:rtype: str|list of str
+			:returns: A item stored inside this instance or the empty string.
 		"""
 		lang = currentLanguage.get()
 		if not lang:
@@ -79,10 +78,10 @@ class translate:
 		self.hint = hint
 		self.translationCache = None
 
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return "<translate object for %s>" % self.key
 
-	def __str__(self):
+	def __str__(self) -> str:
 		if self.translationCache is None:
 			global systemTranslations
 			self.translationCache = systemTranslations.get(self.key, {})
@@ -97,7 +96,7 @@ class translate:
 		trStr = self.translationCache.get(lang, "")
 		return trStr
 
-	def translate(self, **kwargs):
+	def translate(self, **kwargs) -> str:
 		res = str(self)
 		for k, v in kwargs.items():
 			res = res.replace("{{%s}}" % k, str(v))
@@ -152,7 +151,7 @@ class TranslationExtension(Extension):
 		args.append(nodes.Const(trDict))
 		return nodes.CallBlock(self.call_method("_translate", args), [], [], []).set_lineno(lineno)
 
-	def _translate(self, key, defaultText, hint, kwargs, trDict, caller):
+	def _translate(self, key, defaultText, hint, kwargs, trDict, caller) -> str:
 		# Perform the actual translation during render
 		lng = currentLanguage.get()
 		if lng in trDict:
@@ -160,13 +159,12 @@ class TranslationExtension(Extension):
 		return str(defaultText).format(kwargs)
 
 
-def initializeTranslations():
+def initializeTranslations() -> None:
 	"""
 		Fetches all translations from the datastore and populates the *systemTranslations* dictionary of this module.
 		Currently, the translate-class will resolve using that dictionary; but as we expect projects to grow and
 		accumulate translations that are no longer/not yet used, we plan to made the translation-class fetch it's
 		translations directly from the datastore, so we don't have to allocate memory for unused translations.
-
 	"""
 	global systemTranslations
 	invertMap = {}
@@ -237,7 +235,7 @@ localizedMonthNames = {
 
 def localizedStrfTime(datetimeObj: datetime, format: str) -> str:
 	"""
-		Provides correct localized names for directives like %a which dont get translated on GAE properly as we can't
+		Provides correct localized names for directives like %a which don't get translated on GAE properly as we can't
 		set the locale (for each request).
 		This currently replaces %a, %A, %b, %B, %c, %x and %X.
 

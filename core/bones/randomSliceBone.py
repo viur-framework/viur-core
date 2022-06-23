@@ -1,4 +1,5 @@
-# -*- coding: utf-8 -*-
+from typing import Dict, List, Optional
+
 from viur.core.bones import baseBone
 from viur.core import db
 from random import random, sample, shuffle
@@ -35,14 +36,16 @@ class randomSliceBone(baseBone):
 			float [0..1) as value for this bone.
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:returns: dict
 		"""
 		skel.dbEntity[name] = random()
 		skel.dbEntity.exclude_from_indexes.discard(name)  # Random bones can never be not indexed
 		return True
 
-	def buildDBSort(self, name, skel, dbFilter, rawFilter):
+	def buildDBSort(self,
+					name: str,
+					skel: 'viur.core.skeleton.SkeletonInstance',
+					dbFilter: db.Query,
+					rawFilter: Dict) -> Optional[db.Query]:
 		"""
 			Same as buildDBFilter, but this time its not about filtering
 			the results, but by sorting them.
@@ -54,14 +57,10 @@ class randomSliceBone(baseBone):
 			a random selection)
 
 			:param name: The property-name this bone has in its Skeleton (not the description!)
-			:type name: str
-			:param skel: The :class:`server.skeleton.Skeleton` instance this bone is part of
-			:type skel: :class:`server.skeleton.Skeleton`
-			:param dbFilter: The current :class:`server.db.Query` instance the filters should be applied to
-			:type dbFilter: :class:`server.db.Query`
+			:param skel: The :class:`viur.core.skeleton.Skeleton` instance this bone is part of
+			:param dbFilter: The current :class:`viur.core.db.Query` instance the filters should be applied to
 			:param rawFilter: The dictionary of filters the client wants to have applied
-			:type rawFilter: dict
-			:returns: The modified :class:`server.db.Query`
+			:returns: The modified :class:`viur.core.db.Query`
 		"""
 
 		def applyFilterHook(dbfilter, property, value):
@@ -69,11 +68,6 @@ class randomSliceBone(baseBone):
 				Applies dbfilter._filterHook to the given filter if set,
 				else return the unmodified filter.
 				Allows orderby=random also be used in relational-queries.
-
-			:param dbfilter:
-			:param property:
-			:param value:
-			:return:
 			"""
 			if dbFilter._filterHook is None:
 				return property, value
@@ -115,29 +109,23 @@ class randomSliceBone(baseBone):
 			dbFilter._customMultiQueryMerge = self.customMultiQueryMerge
 			dbFilter._calculateInternalMultiQueryLimit = self.calculateInternalMultiQueryLimit
 
-	def calculateInternalMultiQueryLimit(self, query, targetAmount):
+	def calculateInternalMultiQueryLimit(self, query: db.Query, targetAmount: int) -> int:
 		"""
-			Tells :class:`server.db.Query` How much entries should be fetched in each subquery.
+			Tells :class:`viur.core.db.Query` How much entries should be fetched in each subquery.
 
 			:param targetAmount: How many entries shall be returned from db.Query
-			:type targetAmount: int
 			:returns: The amount of elements db.Query should fetch on each subquery
-			:rtype: int
 		"""
 		return ceil(targetAmount * self.sliceSize)
 
-	def customMultiQueryMerge(self, dbFilter, result, targetAmount):
+	def customMultiQueryMerge(self, dbFilter: db.Query, result: List[db.Entity], targetAmount: int) -> List[db.Entity]:
 		"""
 			Randomly returns 'targetAmount' elements from 'result'
 
 			:param dbFilter: The db.Query calling this function
-			:type: dbFilter: server.db.Query
 			:param result: The list of results for each subquery we've run
-			:type result: list of list of :class:`server.db.Entity`
 			:param targetAmount: How many results should be returned from db.Query
-			:type targetAmount: int
 			:return: list of elements which should be returned from db.Query
-			:rtype: list of :class:`server.db.Entity`
 		"""
 		# res is a list of iterators at this point, chain them together
 		res = chain(*[list(x) for x in result])

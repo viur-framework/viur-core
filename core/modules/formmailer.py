@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from viur.core.skeleton import RelSkel
 from viur.core import errors, utils, securitykey, exposed, email
 from viur.core.bones import baseBone
@@ -51,7 +50,7 @@ class Formmailer(BasicApplication):
 	def add(self, *args, **kwargs):
 		return self.index(*args, **kwargs)
 
-	def canUse(self):
+	def canUse(self) -> bool:
 		return False
 
 	def mailSkel(self):

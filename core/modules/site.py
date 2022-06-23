@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from viur.core import errors, exposed
 
 

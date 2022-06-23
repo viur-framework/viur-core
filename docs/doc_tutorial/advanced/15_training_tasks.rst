@@ -11,7 +11,7 @@ Time based
 ----------
 
 A common problem on the GAE is having certain functionality executed in a regular interval.
-ViUR simplifies this down to a decorator. Just wrap a function with :meth:`server.tasks.PeriodicTask` and
+ViUR simplifies this down to a decorator. Just wrap a function with :meth:`viur.core.tasks.PeriodicTask` and
 ViUR will call it in a regular interval.
 The decorator takes one argument - the interval in minutes.
 ViUR will not call your function faster than once in each interval-minutes.
@@ -44,7 +44,7 @@ Deferred
 --------
 
 Sometimes its necessary to delay the execution of some specific code, so it won't slow down the
-response of the current request. ViUR provides the :meth:`server.tasks.callDefered` Decorator for such cases.
+response of the current request. ViUR provides the :meth:`viur.core.tasks.callDefered` Decorator for such cases.
 A function decorated this way will never execute in the context of the current request. All calls to
 such a function are catched, its parameters serialized, and a task is created to call this function later.
 These calls are executed in a deferred task which can run up to 10 minutes. As these tasks run deferred, they run outside
@@ -74,8 +74,8 @@ the contents of that bone yet.
 It would be a waste of resources if we rebuild each index frequently.
 So this task is only called on demand. If the developer has made changes to the datamodel,
 he calls that task once for each affected kind.
-Creating such a task is also easy, it's a Class derived from :py:class:`server.tasks.CallableTaskBase` and decorated with
-:meth:`server.tasks.CallableTask`. The derived subclass must override the following properties and functions.
+Creating such a task is also easy, it's a Class derived from :py:class:`viur.core.tasks.CallableTaskBase` and decorated with
+:meth:`viur.core.tasks.CallableTask`. The derived subclass must override the following properties and functions.
 
 +-------------+----------------------------+----------------------------------------------------------------------+
 | Name        | Type                       | Description                                                          |
@@ -101,7 +101,7 @@ Creating such a task is also easy, it's a Class derived from :py:class:`server.t
 On instance startup
 -------------------
 
-The last hook you can use is the :meth:`server.tasks.StartupTask` decorator. This way you can have code being executed
+The last hook you can use is the :meth:`viur.core.tasks.StartupTask` decorator. This way you can have code being executed
 whenever a new instance starts up without slowing down the instance startup itself (The code will be called deferred
 shortly after an instance gets ready).
 Useful to ensure some database initialization or the like.
