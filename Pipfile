@@ -14,5 +14,5 @@ python_version = "3.8"
 
 [scripts]
 build = "python -m build --wheel"
-release = "twine upload --config-file=.pypirc dist/*"
-develop = "twine upload --config-file=.pypirc --repository=testpypi  dist/*"
+release = "twine upload dist/*"
+develop = "twine upload --repository=testpypi  dist/*"
