@@ -31,7 +31,7 @@ class DefaultRender(object):
         super(DefaultRender, self).__init__(*args, **kwargs)
         self.parent = parent
 
-    def renderBoneStructure(self, bone: bones.baseBone) -> Dict[str, Any]:
+    def renderBoneStructure(self, bone: bones.BaseBone) -> Dict[str, Any]:
         """
         Renders the structure of a bone.
 
@@ -127,7 +127,7 @@ class DefaultRender(object):
         return [(key, val) for key, val in res.items()]
 
     def renderSingleBoneValue(self, value: Any,
-                              bone: bones.baseBone,
+                              bone: bones.BaseBone,
                               skel: SkeletonInstance,
                               key
                               ) -> Union[Dict, str, None]:
@@ -145,8 +145,8 @@ class DefaultRender(object):
         if isinstance(bone, bones.RelationalBone):
             if isinstance(value, dict):
                 return {
-                    "dest": self.renderSkelValues(value["dest"], injectDownloadURL=isinstance(bone, bones.fileBone)),
-                    "rel": (self.renderSkelValues(value["rel"], injectDownloadURL=isinstance(bone, bones.fileBone))
+                    "dest": self.renderSkelValues(value["dest"], injectDownloadURL=isinstance(bone, bones.FileBone)),
+                    "rel": (self.renderSkelValues(value["rel"], injectDownloadURL=isinstance(bone, bones.FileBone))
                             if value["rel"] else None),
                 }
         elif isinstance(bone, bones.RecordBone):
@@ -157,7 +157,7 @@ class DefaultRender(object):
             return value
         return None
 
-    def renderBoneValue(self, bone: bones.baseBone, skel: SkeletonInstance, key: str) -> Union[List, Dict, None]:
+    def renderBoneValue(self, bone: bones.BaseBone, skel: SkeletonInstance, key: str) -> Union[List, Dict, None]:
         boneVal = skel[key]
         if bone.languages and bone.multiple:
             res = {}
