@@ -8,12 +8,12 @@ __all__ = [default]
 
 
 def genSkey(*args, **kwargs) -> str:
-	return json.dumps(securitykey.create())
+    return json.dumps(securitykey.create())
 
 
 genSkey.exposed = True
 
 
 def _postProcessAppObj(obj):  # Register our SKey function
-	obj["skey"] = genSkey
-	return obj
+    obj["skey"] = genSkey
+    return obj
