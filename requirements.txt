@@ -10,7 +10,8 @@ pyasn1==0.4.8 --hash=sha256:39c7e2ec30515947ff4e87fb6f456dfc6e84857d34be479c9d4a
 
 google-cloud-datastore==2.5.1 --hash=sha256:d5fa56a2fb20eb4bb2006a6cf502974dda95e16a9938ec9e0c5c57f187e000c7
 # Dependencies for google-cloud-datastore
-proto-plus==1.20.3 --hash=sha256:f28b225bc9e6c14e206fb7f8e996a46fb2ccd902648e512d496abb6a716a4ae5
+proto-plus==1.20.6 --hash=sha256:449b4537e83f4776bd69051c4d776db8ffe3f9d0641f1e87b06c116eb94c90e9 \\
+  --hash=sha256:c6c43c3fcfc360fdab46b47e2e9e805ff56e13169f9f2e45caf88b6b593215ab
 google-cloud-core==2.3.0 --hash=sha256:35900f614045a33d5208e1d50f0d7945df98ce088388ce7237e7a2db12d5656e \\
   --hash=sha256:fdaa629e6174b4177c2d56eb8ab1ddd87661064d0a3e9bb06b62e4d7e2344669
 google-api-core[grpc]==2.7.2 --hash=sha256:65480309a7437f739e4476da037af02a3ec8263f1d1f89f72bbdc8f54fe402d2 \\
