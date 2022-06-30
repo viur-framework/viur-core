@@ -50,6 +50,8 @@ class MetaBaseSkel(type):
                         raise AttributeError("Invalid bone '%s': Bone cannot have any of the following names: %s" %
                                              (key, str(MetaBaseSkel.__reservedKeywords_)))
                     boneMap[key] = prop
+                elif prop is None and key in boneMap:  # Allow removing a bone in a subclass by setting it to None
+                    del boneMap[key]
 
         fillBoneMapRecursive(cls)
         cls.__boneMap__ = boneMap
