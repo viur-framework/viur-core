@@ -472,53 +472,58 @@ class CustomDatabaseAdapter:
 
 class ViurTagsSearchAdapter(CustomDatabaseAdapter):
     """
-    This Adapter implements the a simple fulltext search ontop of the datastore.
-    On skel.toDB we collect all words from str/TextBones, build all *minLength* postfixes and dump them
-    into the property viurTags. When queried, we'll run a prefix-match against this property - thus returning
-    entities with either a exact match or a match inside a word.
+    This Adapter implements a simple fulltext search on top of the datastore.
+
+    On skel.toDB(), all words from String-/TextBones are collected with all *min_length* postfixes and dumped
+    into the property `viurTags`. When queried, we'll run a prefix-match against this property - thus returning
+    entities with either an exact match or a match within a word.
 
     Example:
         For the word "hello" we'll write "hello", "ello" and "llo" into viurTags.
         When queried with "hello" we'll have an exact match.
         When queried with "hel" we'll match the prefix for "hello"
-        When queried with "ell" we'll prefix-match "ello"
+        When queried with "ell" we'll prefix-match "ello" - this is only enabled when substring_matching is True.
 
-    We'll automatically add this adapter if a skeleton has no other database adapter defined
+    We'll automatically add this adapter if a skeleton has no other database adapter defined.
     """
     providesFulltextSearch = True
     fulltextSearchGuaranteesQueryConstrains = True
 
-    def __init__(self, minLength: int = 3):
-        super(ViurTagsSearchAdapter, self).__init__()
-        self.minLength = minLength
+    def __init__(self, min_length: int = 3, max_length: int = 99, substring_matching: bool = True):
+        super().__init__()
+        self.min_length = min_length
+        self.max_length = max_length
+        self.substring_matching = substring_matching
 
     def _tagsFromString(self, value: str) -> Set[str]:
         """
-        Extract all words including all minLength postfixes from given string
+        Extract all words including all min_length postfixes from given string
         """
-        resSet = set()
+        res = set()
+
         for tag in value.split(" "):
             tag = "".join([x for x in tag.lower() if x in conf["viur.searchValidChars"]])
-            if len(tag) >= self.minLength:
-                resSet.add(tag)
-                for x in range(1, 1 + len(tag) - self.minLength):
-                    resSet.add(tag[x:])
-        return resSet
+
+            if len(tag) >= self.min_length:
+                res.add(tag)
+
+                if self.substring_matching:
+                    for i in range(1, 1 + len(tag) - self.min_length):
+                        res.add(tag[i:])
+
+        return res
 
     def preprocessEntry(self, entry: db.Entity, skel: Skeleton, changeList: List[str], isAdd: bool) -> db.Entity:
         """
         Collect searchTags from skeleton and build viurTags
         """
+        tags = set()
 
-        def tagsFromSkel(skel):
-            tags = set()
-            for boneName, bone in skel.items():
-                if bone.searchable:
-                    tags = tags.union(bone.getSearchTags(skel, boneName))
-            return tags
+        for boneName, bone in skel.items():
+            if bone.searchable:
+                tags = tags.union(bone.getSearchTags(skel, boneName))
 
-        tags = tagsFromSkel(skel)
-        entry["viurTags"] = list(chain(*[self._tagsFromString(x) for x in tags if len(x) < 100]))
+        entry["viurTags"] = list(chain(*[self._tagsFromString(x) for x in tags if len(x) <= self.max_length]))
         return entry
 
     def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> List[db.Entity]:
@@ -528,6 +533,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
         keywords = list(self._tagsFromString(queryString))[:10]
         resultScoreMap = {}
         resultEntryMap = {}
+
         for keyword in keywords:
             qryBase = databaseQuery.clone()
             for entry in qryBase.filter("viurTags >=", keyword).filter("viurTags <", keyword + "\ufffd").run():
@@ -537,10 +543,11 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
                     resultScoreMap[entry.key] += 1
                 if not entry.key in resultEntryMap:
                     resultEntryMap[entry.key] = entry
+
         resultList = [(k, v) for k, v in resultScoreMap.items()]
         resultList.sort(key=lambda x: x[1], reverse=True)
-        resList = [resultEntryMap[x[0]] for x in resultList[:databaseQuery.queries.limit]]
-        return resList
+
+        return [resultEntryMap[x[0]] for x in resultList[:databaseQuery.queries.limit]]
 
 
 class seoKeyBone(StringBone):
