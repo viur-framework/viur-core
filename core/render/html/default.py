@@ -241,15 +241,11 @@ class Render(object):
         It can be overridden and super-called from a custom renderer.
 
         :param bone: The bone which value should be rendered.
-<<<<<<< HEAD
-        :type bone: Any bone that inherits from :class:`server.bones.base.BaseBone`.
-=======
             (inherited from :class:`viur.core.bones.base.baseBone`).
         :param skel: The skeleton containing the bone instance.
         :param key: The name of the bone.
         :param boneValue: The value of the bone.
         :param isLanguageWrapped: Is this bone wrapped inside a :class:`LanguageWrapper`?
->>>>>>> main
 
         :return: A dict containing the rendered attributes.
         """

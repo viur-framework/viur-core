@@ -175,10 +175,6 @@ class DefaultRender(object):
         It can be overridden and super-called from a custom renderer.
 
         :param bone: The bone which value should be rendered.
-<<<<<<< HEAD
-        :type bone: Any bone that inherits from :class:`server.bones.base.BaseBone`.
-=======
->>>>>>> main
 
         :return: A dict containing the rendered attributes.
         """

@@ -2,10 +2,9 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.2.0-rc3] - Release candidate
+## [3.2.0-rc4] - Release candidate
 
 ### Added
-
 - Implement `errors.TooManyRequests` exception (#463)
 - Improved logging to cope with the new logviewer (#461)
 - Added ratelimit to login with username/password (#455)
@@ -25,6 +24,7 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - PEP8-compliant naming of Bone classes (#435, #452, #471)
 
 ### Fixed
+- Allow removing a bone in a subclass by setting it to None (#472)
 - Fix downloadURLs with special characters `(`, `)` or `=` inside of filenames (#467)
 - Fixed uploading files using pre-signed calls to getUploadURL (#465)
 - Fixed restoring relations in edit if the referenced entity has been deleted (#460)
@@ -32,6 +32,7 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - Use of original filename when a file is downloaded (#451)
 - Fixed treeNodeBone enforcing "_rootNode" suffix on it's kind (#444)
 - Fixed required=True bones could still be set empty if omitted from the postdata (#440)
+
 
 ### Removed
 
