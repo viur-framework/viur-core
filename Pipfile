@@ -13,6 +13,7 @@ twine="*"
 python_version = "3.8"
 
 [scripts]
+clean = "rm -rf dist build viur_core.egg-info"
 build = "python -m build --wheel"
 release = "twine upload dist/*"
-develop = "twine upload --repository=testpypi  dist/*"
+develop = "twine upload --repository=testpypi dist/*"
