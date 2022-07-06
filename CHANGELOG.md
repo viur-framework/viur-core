@@ -2,7 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.2.0-rc5] - Release candidate
+## [3.2.0-rc6] - Release candidate
 
 ### Added
 - Use setuptools' install_requires from requirements.txt (#475)
