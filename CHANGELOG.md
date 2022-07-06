@@ -2,9 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.2.0-rc4] - Release candidate
+## [3.2.0-rc5] - Release candidate
 
 ### Added
+- Use setuptools' install_requires from requirements.txt (#475)
 - Implement `errors.TooManyRequests` exception (#463)
 - Improved logging to cope with the new logviewer (#461)
 - Added ratelimit to login with username/password (#455)
@@ -12,6 +13,7 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - Unit test suite starting with bones (#432, #466)
 
 ### Changed
+- Customizable ViurTagsSearchAdapter (#474)
 - Use of 4-spaces instead of tabs for PEP8-conformity (#470)
 - Remove unused parameter in doClearSessions (#468)
 - Improved logging to cope with the new logviewer (#461)
