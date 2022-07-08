@@ -208,13 +208,6 @@ Defines a custom error template. This is a path to the template to render if an 
 This is a Python String-template, *not* a Jinja2 one! Might have no effect if `viur.errorHandler` is set.
 
 
-viur.exportPassword
-...................
-Activates the database export API if set.
-
-Must be exactly 32 chars. *Everyone knowing this password can dump the entire database!*
-
-
 viur.forceSSL
 .............
 Enable HTTPS enforcement.
@@ -225,18 +218,6 @@ Enable HTTPS enforcement.
 
 If set True, all requests must be encrypted (ignored on development server). If unencrypted requests are received,
 a redirect to https://your.domain/ is raised (the path and request paremeters are *not* preserved for security reasons).
-
-
-viur.importPassword
-...................
-Activates the database import API if set.
-
-Must be exactly 32 chars.
-
-.. Warning::
-    *Everyone knowing this password can overwrite the entire database!* Never use in a production environment.
-
-    ViUR will bug you repeatedly until you turn it off.
 
 
 viur.languageAliasMap

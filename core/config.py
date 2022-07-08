@@ -64,11 +64,6 @@ conf = {
     # Path to the static SVGs folder. Will be used by the jinja-renderer-method: embedSvg
     "viur.static.embedSvg.path": "/static/svgs/",
 
-    # Activates the Database export API if set. Must be exactly 32 chars. *Everyone* knowing this password can dump the whole database!
-    "viur.exportPassword": None,
-    # Activates the Database import API if set. Must be exactly 32 chars. *Everyone* knowing this password can rewrite the whole database!
-    "viur.importPassword": None,
-
     # If true, all requests must be encrypted (ignored on development server)
     "viur.forceSSL": True,
 

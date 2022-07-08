@@ -194,21 +194,6 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
             conf["viur.languageModuleMap"][moduleName] = moduleClass.seoLanguageMap
     conf["viur.mainResolver"] = resolverDict
 
-    if conf["viur.exportPassword"] is not None or conf["viur.importPassword"] is not None:
-        # Enable the Database ex/import API
-        from viur.core.dbtransfer import DbTransfer
-        if conf["viur.importPassword"]:
-            logging.critical("The Import-API is enabled! Never do this on production systems!")
-            from viur.core import email
-            try:
-                email.sendEMailToAdmins("Active Database import API",
-                                        "ViUR just started a new Instance with an ENABLED DATABASE IMPORT API! You have been warned.")
-            except:  # OverQuota, whatever
-                pass  # Dont render this instance unusable
-        elif conf["viur.exportPassword"]:
-            logging.warning("The Export-API is enabled. Everyone having that key can read the whole database!")
-        setattr(root, "dbtransfer", DbTransfer())
-        mapModule(root.dbtransfer, "dbtransfer", resolverDict)
     if conf["viur.debug.traceExternalCallRouting"] or conf["viur.debug.traceInternalCallRouting"]:
         from viur.core import email
         try:
