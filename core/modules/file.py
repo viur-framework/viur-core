@@ -127,6 +127,7 @@ def thumbnailer(fileSkel, existingFiles, params):
         targetBlob.upload_from_file(outData, content_type=mimeType)
         resList.append((targetName, outSize, mimeType, {"mimetype": mimeType, "width": width, "height": height}))
     return resList
+
 def test_thumbnailer(fileSkel, existingFiles, params):
     import requests
 
@@ -140,7 +141,7 @@ def test_thumbnailer(fileSkel, existingFiles, params):
 
     skeys = [securitykey.create(60) for i in range(len(conf["derives"][derivedKey]))]
 
-    data = {"url": imageurl,
+    dataDict = {"url": imageurl,
             "name": fileSkel["name"],
             "sizes": conf["derives"][derivedKey],
             "auths": auths,
@@ -148,10 +149,13 @@ def test_thumbnailer(fileSkel, existingFiles, params):
             "minetype": fileSkel["mimetype"],
             "baseUrl": "https://ag-dev-viur3.ey.r.appspot.com",
             "targetKey": fileSkel["dlkey"]}
-    print(data)
+
     headers = {'Content-type': 'application/json'}
-    r = requests.post(functionurl, data=json.dumps(data), headers=headers)
-    print(r.status_code)
+    dataStr = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
+    sig = utils.hmacSign(dataStr)
+
+    r = requests.post(functionurl, data=json.dumps({"dataStr":dataStr.decode('ASCII'),"sign":sig}), headers=headers)
+
 
     derivedData = r.json()
     reslist = []
@@ -378,7 +382,9 @@ class File(Tree):
                          fileName: str,
                          mimeType: str,
                          node: Union[str, None],
-                         size: Union[int, None] = None) -> Tuple[str, str]:
+                         size: Union[int, None] = None,
+                         targetKey:str=None,
+                         folder:str="source") -> Tuple[str, str]:
         """
         Internal helper that registers a new upload. Will create the pending fileSkel entry (needed to remove any
         started uploads from GCS if that file isn't used) and creates a resumable (and signed) uploadURL for that.
@@ -390,8 +396,9 @@ class File(Tree):
         """
         global bucket
         fileName = sanitizeFileName(fileName)
-        targetKey = utils.generateRandomString()
-        blob = bucket.blob("%s/source/%s" % (targetKey, fileName))
+        if targetKey is None:
+            targetKey = utils.generateRandomString()
+        blob = bucket.blob("%s/%s/%s" % (targetKey, folder,fileName))
         uploadUrl = blob.create_resumable_upload_session(content_type=mimeType, size=size, timeout=60)
         # Create a corresponding file-lock object early, otherwise we would have to ensure that the file-lock object
         # the user creates matches the file he had uploaded
@@ -490,6 +497,10 @@ class File(Tree):
 
     @exposed
     def download(self, blobKey: str, fileName: str = "", download: str = "", sig: str = "", *args, **kwargs):
+        logging.debug("blobkey is")
+        logging.debug(blobKey)
+        logging.debug("sig is")
+        logging.debug(sig)
         """
         Download a file.
         :param blobKey: The unique blob key of the file.
