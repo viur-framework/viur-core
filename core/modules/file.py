@@ -4,6 +4,7 @@ import google.auth
 import json
 import logging
 import string
+import hmac
 from PIL import Image, ImageCms
 from base64 import urlsafe_b64decode
 from datetime import datetime, timedelta
@@ -126,7 +127,39 @@ def thumbnailer(fileSkel, existingFiles, params):
         targetBlob.upload_from_file(outData, content_type=mimeType)
         resList.append((targetName, outSize, mimeType, {"mimetype": mimeType, "width": width, "height": height}))
     return resList
+def test_thumbnailer(fileSkel, existingFiles, params):
+    import requests
 
+    imageurl = utils.downloadUrlFor(fileSkel["dlkey"], fileSkel["name"], derived=False)
+    functionurl = "https://europe-west3-ag-dev-viur3.cloudfunctions.net/imagerenderer"
+
+    derivedKey = "testthumbnail"
+    filemodule = File("file", "modules/file" )
+    auths = [filemodule.signUploadURL(mimeTypes=["image/*"], maxSize=5 * 1024 * 1024, node="####") for i in
+             range(len(conf["derives"][derivedKey]))]
+
+    skeys = [securitykey.create(60) for i in range(len(conf["derives"][derivedKey]))]
+
+    data = {"url": imageurl,
+            "name": fileSkel["name"],
+            "sizes": conf["derives"][derivedKey],
+            "auths": auths,
+            "skeys": skeys,
+            "minetype": fileSkel["mimetype"],
+            "baseUrl": "https://ag-dev-viur3.ey.r.appspot.com",
+            "targetKey": fileSkel["dlkey"]}
+    print(data)
+    headers = {'Content-type': 'application/json'}
+    r = requests.post(functionurl, data=json.dumps(data), headers=headers)
+    print(r.status_code)
+
+    derivedData = r.json()
+    reslist = []
+    logging.info(derivedData["values"])
+    for derived in derivedData["values"]:
+        for key, value in derived.items():
+            reslist.append((key, value["size"], value["mimetype"], value["customData"]))
+    return reslist
 
 
 class fileBaseSkel(TreeSkel):
@@ -421,8 +454,24 @@ class File(Tree):
         else:
             size = None
 
-        if not securitykey.validate(skey, useSessionKey=True):
-            raise errors.PreconditionFailed()
+        if kwargs.get("thmubnailer", False):
+            if kwargs.get("thmubnailer_secKey", "") == conf["thmubnailer_secKey"]:
+                if not securitykey.validate(skey, useSessionKey=False):
+                    raise errors.PreconditionFailed()
+
+        else:
+            if not securitykey.validate(skey, useSessionKey=True):
+                raise errors.PreconditionFailed()
+        if kwargs.get("thmubnailer", False):
+            if hmac.compare_digest(bytes(kwargs.get("thmubnailer_secKey", ""), encoding='utf8'),conf["thmubnailer_secKey"]):
+                targetKey = kwargs.get("targetKey", None)
+                folder = kwargs.get("folder", "source")
+                targetKey, uploadUrl = self.initializeUpload(fileName, mimeType.lower(), node, size, targetKey, folder)
+            else:
+                logging.error("Wrong thmubnailer_secKey")
+        else:
+            targetKey, uploadUrl = self.initializeUpload(fileName, mimeType.lower(), node, size)
+
         targetKey, uploadUrl = self.initializeUpload(fileName, mimeType.lower(), node, size)
         resDict = {
             "uploadUrl": uploadUrl,
