@@ -470,7 +470,10 @@ class BrowseHandler():  # webapp.RequestHandler
             raise errors.BadRequest()
         # Parse the URL
         path = parse.urlparse(path).path
-        self.pathlist = [unicodedata.normalize("NFC", parse.unquote(x)) for x in path.strip("/").split("/")]
+        if path:
+            self.pathlist = [unicodedata.normalize("NFC", parse.unquote(x)) for x in path.strip("/").split("/")]
+        else:
+            self.pathlist = []
         caller = conf["viur.mainResolver"]
         idx = 0  # Count how may items from *args we'd have consumed (so the rest can go into *args of the called func
         for currpath in self.pathlist:
