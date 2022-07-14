@@ -249,6 +249,7 @@ class BrowseHandler():  # webapp.RequestHandler
             self.findAndCall(path)
         except errors.Redirect as e:
             if conf["viur.debug.traceExceptions"]:
+                logging.warning("""conf["viur.debug.traceExceptions"] is set, won't handle this exception""")
                 raise
             self.response.status = '%d %s' % (e.status, e.name)
             url = e.url
@@ -257,6 +258,7 @@ class BrowseHandler():  # webapp.RequestHandler
             self.response.headers['Location'] = url
         except errors.HTTPException as e:
             if conf["viur.debug.traceExceptions"]:
+                logging.warning("""conf["viur.debug.traceExceptions"] is set, won't handle this exception""")
                 raise
             self.response.body = b""
             self.response.status = '%d %s' % (e.status, e.name)
