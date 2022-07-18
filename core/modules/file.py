@@ -129,21 +129,24 @@ def thumbnailer(fileSkel, existingFiles, params):
     return resList
 
 def test_thumbnailer(fileSkel, existingFiles, params):
+
+    if not conf.get("viur.file.thumbnailerURL",False):
+        raise ValueError("viur.file.thumbnailerURL is not set")
     import requests
 
     imageurl = utils.downloadUrlFor(fileSkel["dlkey"], fileSkel["name"], derived=False)
-    functionurl = "https://europe-west3-ag-dev-viur3.cloudfunctions.net/imagerenderer"
+
 
     derivedKey = "testthumbnail"
     filemodule = File("file", "modules/file" )
-    auths = [filemodule.signUploadURL(mimeTypes=["image/*"], maxSize=5 * 1024 * 1024, node="####") for i in
-             range(len(conf["derives"][derivedKey]))]
+    auths = [filemodule.signUploadURL(mimeTypes=["image/*"], maxSize=5 * 1024 * 1024) for i in
+             range(len(params))]
 
-    skeys = [securitykey.create(60) for i in range(len(conf["derives"][derivedKey]))]
+    skeys = [securitykey.create(60) for i in range(len(params))]
 
     dataDict = {"url": imageurl,
             "name": fileSkel["name"],
-            "sizes": conf["derives"][derivedKey],
+            "sizes": params,
             "auths": auths,
             "skeys": skeys,
             "minetype": fileSkel["mimetype"],
@@ -154,9 +157,9 @@ def test_thumbnailer(fileSkel, existingFiles, params):
     dataStr = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
     sig = utils.hmacSign(dataStr)
 
-    r = requests.post(functionurl, data=json.dumps({"dataStr":dataStr.decode('ASCII'),"sign":sig}), headers=headers)
+    r = requests.post(conf["viur.file.thumbnailerURL"], data=json.dumps({"dataStr":dataStr.decode('ASCII'),"sign":sig}), headers=headers)
 
-
+    print(r.content)
     derivedData = r.json()
     reslist = []
     logging.info(derivedData["values"])
@@ -392,6 +395,8 @@ class File(Tree):
         :param mimeType: Mimetype of said file
         :param node: If set (to a string-key representation of a file-node) the upload will be written to this directory
         :param size: The *exact* filesize we're accepting in Bytes. Used to enforce a filesize limit by getUploadURL
+        :param targetKey: If set it's the Folder in the GSC
+        :param folder: Name of the folder in the targetKey Folder
         :return: Str-Key of the new file-leaf entry, the signed upload-url
         """
         global bucket
@@ -461,21 +466,20 @@ class File(Tree):
         else:
             size = None
 
-        if kwargs.get("thmubnailer", False):
-            if kwargs.get("thmubnailer_secKey", "") == conf["thmubnailer_secKey"]:
+        if kwargs.get("thumbnailer", False):
+            if kwargs.get("thumbnailer_secKey", "") == conf["thumbnailer_secKey"]:
                 if not securitykey.validate(skey, useSessionKey=False):
                     raise errors.PreconditionFailed()
-
         else:
             if not securitykey.validate(skey, useSessionKey=True):
                 raise errors.PreconditionFailed()
-        if kwargs.get("thmubnailer", False):
-            if hmac.compare_digest(bytes(kwargs.get("thmubnailer_secKey", ""), encoding='utf8'),conf["thmubnailer_secKey"]):
+        if kwargs.get("thumbnailer", False):
+            if hmac.compare_digest(bytes(kwargs.get("thumbnailer_secKey", ""), encoding='utf8'),conf["thumbnailer_secKey"]):
                 targetKey = kwargs.get("targetKey", None)
                 folder = kwargs.get("folder", "source")
                 targetKey, uploadUrl = self.initializeUpload(fileName, mimeType.lower(), node, size, targetKey, folder)
             else:
-                logging.error("Wrong thmubnailer_secKey")
+                logging.error("Wrong thumbnailer_secKey")
         else:
             targetKey, uploadUrl = self.initializeUpload(fileName, mimeType.lower(), node, size)
 
@@ -497,10 +501,6 @@ class File(Tree):
 
     @exposed
     def download(self, blobKey: str, fileName: str = "", download: str = "", sig: str = "", *args, **kwargs):
-        logging.debug("blobkey is")
-        logging.debug(blobKey)
-        logging.debug("sig is")
-        logging.debug(sig)
         """
         Download a file.
         :param blobKey: The unique blob key of the file.
