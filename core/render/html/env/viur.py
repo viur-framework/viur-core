@@ -679,10 +679,6 @@ def downloadUrlFor(render: Render,
         return None
     if derived and ("derived" not in fileObj or not isinstance(fileObj["derived"], dict)):
         return None
-    logging.error("url is")
-    logging.error(expires)
-    logging.error(fileObj["dlkey"])
-    logging.error(fileObj["name"])
     if derived:
         return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=derived, derived=True, expires=expires,
                                     downloadFileName=downloadFileName)

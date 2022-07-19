@@ -132,12 +132,14 @@ def test_thumbnailer(fileSkel, existingFiles, params):
 
     if not conf.get("viur.file.thumbnailerURL",False):
         raise ValueError("viur.file.thumbnailerURL is not set")
+    if not conf.get("viur.file.thumbnailer_secKey",False):
+        raise ValueError("viur.file.thumbnailer_secKey is not set")
+
     import requests
 
     imageurl = utils.downloadUrlFor(fileSkel["dlkey"], fileSkel["name"], derived=False)
 
 
-    derivedKey = "testthumbnail"
     filemodule = File("file", "modules/file" )
     auths = [filemodule.signUploadURL(mimeTypes=["image/*"], maxSize=5 * 1024 * 1024) for i in
              range(len(params))]
@@ -467,23 +469,24 @@ class File(Tree):
             size = None
 
         if kwargs.get("thumbnailer", False):
-            if kwargs.get("thumbnailer_secKey", "") == conf["thumbnailer_secKey"]:
+            if kwargs.get("thumbnailer_secKey", "") == conf["viur.file.thumbnailer_secKey"]:
                 if not securitykey.validate(skey, useSessionKey=False):
                     raise errors.PreconditionFailed()
         else:
             if not securitykey.validate(skey, useSessionKey=True):
                 raise errors.PreconditionFailed()
+
         if kwargs.get("thumbnailer", False):
-            if hmac.compare_digest(bytes(kwargs.get("thumbnailer_secKey", ""), encoding='utf8'),conf["thumbnailer_secKey"]):
+            if hmac.compare_digest(bytes(kwargs.get("thumbnailer_secKey", ""), encoding='utf8'),conf["viur.file.thumbnailer_secKey"]):
                 targetKey = kwargs.get("targetKey", None)
                 folder = kwargs.get("folder", "source")
                 targetKey, uploadUrl = self.initializeUpload(fileName, mimeType.lower(), node, size, targetKey, folder)
             else:
-                logging.error("Wrong thumbnailer_secKey")
+                logging.error("Wrong secKey")
         else:
             targetKey, uploadUrl = self.initializeUpload(fileName, mimeType.lower(), node, size)
 
-        targetKey, uploadUrl = self.initializeUpload(fileName, mimeType.lower(), node, size)
+
         resDict = {
             "uploadUrl": uploadUrl,
             "uploadKey": targetKey,
