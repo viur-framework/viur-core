@@ -1,7 +1,7 @@
 from viur.core.bones.base import BaseBone
 from viur.core import db, utils
 from typing import Dict, Optional
-import logging
+import logging,copy
 
 
 class KeyBone(BaseBone):
