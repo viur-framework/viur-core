@@ -219,6 +219,10 @@ class TaskHandler:
                                             retryCount))
         cmd, data = json.loads(req.body, object_hook=jsonDecodeObjectHook)
         funcPath, args, kwargs, env = data
+        if conf.get("viur.tasks.logs", False):
+            logging.info("Call Task %s with CMD = %s" % (funcPath,cmd))
+            logging.info("Call Task Arguments args = %s kwargs = %s" % (str(args), str(kwargs)))
+            logging.info("Call Task Env = %s" % (str(env)))
         if env:
             if "user" in env and env["user"]:
                 currentSession.get()["user"] = env["user"]
@@ -239,6 +243,7 @@ class TaskHandler:
                     "Your customEnvironmentHandler must be a tuple of two callable if set!"
                 conf["viur.tasks.customEnvironmentHandler"][1](env["custom"])
         if cmd == "rel":
+            currentRequest.get().DEFERED_TASK_CALLED = True
             caller = conf["viur.mainApp"]
             pathlist = [x for x in funcPath.split("/") if x]
             for currpath in pathlist:
@@ -248,18 +253,20 @@ class TaskHandler:
                     return
                 caller = getattr(caller, currpath)
             try:
+                logging.debug("We call the Function Now")
                 caller(*args, **kwargs)
             except PermanentTaskFailure:
-                pass
+                logging.error("PermanentTaskFailure")
             except Exception as e:
                 logging.exception(e)
                 raise errors.RequestTimeout()  # Task-API should retry
         elif cmd == "unb":
+            currentRequest.get().DEFERED_TASK_CALLED = True
             if not funcPath in _deferedTasks:
                 logging.error("ViUR missed a deferred task! %s(%s,%s)", funcPath, args, kwargs)
             # We call the deferred function *directly* (without walking through the mkDeferred lambda), so ensure
             # that any hit to another deferred function will defer again
-            req.DEFERED_TASK_CALLED = True
+            currentRequest.get().DEFERED_TASK_CALLED = True
             try:
                 _deferedTasks[funcPath](*args, **kwargs)
             except PermanentTaskFailure:
@@ -421,9 +428,10 @@ def callDeferred(func):
         except:  # This will fail for warmup requests
             req = None
         if req is not None and req.request.headers.get("X-Appengine-Taskretrycount") \
-            and "DEFERED_TASK_CALLED" not in dir(req):
+            and "DEFERED_TASK_CALLED" in dir(req):
             # This is the deferred call
-            req.DEFERED_TASK_CALLED = True  # Defer recursive calls to an deferred function again.
+            del req.DEFERED_TASK_CALLED  # Defer recursive calls to an deferred function again.
+
             if self is __undefinedFlag_:
                 return func(*args, **kwargs)
             else:
@@ -493,6 +501,10 @@ def callDeferred(func):
             response = taskClient.create_task(parent=parent, task=task)
 
             print('Created task {}'.format(response.name))
+            if conf.get("viur.tasks.logs",False):
+                logging.info("Create Task %s.%s" % (func.__name__, func.__module__))
+                logging.info("Create Task Arguments args = %s kwargs = %s"%(str(args),str(kwargs)))
+
 
     global _deferedTasks
     _deferedTasks["%s.%s" % (func.__name__, func.__module__)] = func
