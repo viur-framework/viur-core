@@ -2,23 +2,43 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [main] - Current main version
+## [3.2.0-rc6] - Release candidate
 
 ### Added
-- Ratelimit to login with username/password
+- Use setuptools' install_requires from requirements.txt (#475)
+- Implement `errors.TooManyRequests` exception (#463)
+- Improved logging to cope with the new logviewer (#461)
+- Added ratelimit to login with username/password (#455)
+- Providing a `SortIndexBone` (#446, #453)
+- Unit test suite starting with bones (#432, #466)
 
 ### Changed
-- Reworked logging to work with the new logviewer 
+- Customizable ViurTagsSearchAdapter (#474)
+- Use of 4-spaces instead of tabs for PEP8-conformity (#470)
+- Remove unused parameter in doClearSessions (#468)
+- Improved logging to cope with the new logviewer (#461)
+- Improve docstrings and type hints (#458)
+- Add support for `Literal` type annotations in processTypeHint (#457)
+- Fix docs logo and improve maintainability of CSS (#445)
+- Fixing file module (#454)
+- Remove keysOnly argument from some queries and remove unused cursor (#449)
+- Remove the unused cursor parameter in doClearSKeys (#438)
+- PEP8-compliant naming of Bone classes (#435, #452, #471)
 
 ### Fixed
-- Fixed restoring relations in edit if the referenced entity has been deleted
-- required=True bones could still be set to empty if omitted from the request
-- treeNodeBone enforcing "_rootNode" suffix on it's kind which this isn't true for ViUR3 anymore.
-- Fixed seoKeys and URLs
+- Allow removing a bone in a subclass by setting it to None (#472)
+- Fix downloadURLs with special characters `(`, `)` or `=` inside of filenames (#467)
+- Fixed uploading files using pre-signed calls to getUploadURL (#465)
+- Fixed restoring relations in edit if the referenced entity has been deleted (#460)
+- Fixed seoKey handling in skeletons and fixed seoURLtoEntry (#459)
+- Use of original filename when a file is downloaded (#451)
+- Fixed treeNodeBone enforcing "_rootNode" suffix on it's kind (#444)
+- Fixed required=True bones could still be set empty if omitted from the postdata (#440)
+
 
 ### Removed
 
-## [3.1.4] - Current development version
+## [3.1.4]
 
 ### Fixed
 - Fix unused language parameter of `utils.seoUrlToEntry()` (#439)

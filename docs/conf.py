@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # This file is execfile()d with the current directory set to its
 # containing dir.
 #
@@ -28,12 +27,12 @@ sys.path.insert(0, os.path.abspath('..'))
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-	'sphinx.ext.autodoc',
-	'autoapi.extension'
+    'sphinx.ext.autodoc',
+    'autoapi.extension'
 ]
 
 autodoc_default_options = {
-	'ignore-module-all': True
+    'ignore-module-all': True
 }
 
 autoapi_dirs = ['../core']
@@ -59,7 +58,7 @@ author = 'Mausbrand Informationssysteme GmbH'
 # built documents.
 #
 _version_spec = importlib.util.spec_from_file_location(
-	"version", f"../core/version.py")
+    "version", f"../core/version.py")
 _version_module = importlib.util.module_from_spec(_version_spec)
 _version_spec.loader.exec_module(_version_module)
 # The short X.Y version.

@@ -1,65 +1,52 @@
-# -*- coding: utf-8 -*-
-from viur.core.render.html.utils import jinjaGlobalFunction
 import re
+from typing import Optional
+
+from viur.core.render.html.utils import jinjaGlobalFunction
+from ..default import Render
 
 
 @jinjaGlobalFunction
-def regexMatch(render, pattern, string, flags=0):
-	"""
-	Jinja2 global: Match a string for regular expression pattern.
-	This function internally runs re.match().
+def regexMatch(render: Render, pattern: str, string: str, flags: int = 0) -> re.Match:
+    """
+    Jinja2 global: Match a string for regular expression pattern.
+    This function internally runs re.match().
 
-	:param s: String where to be searched in.
-	:type s: str
+    :param render: The html-renderer instance.
+    :param pattern: Regular expression pattern to be matched.
+    :param string: String where to be searched in.
+    :param flags: Flags to be passed to re.search().
 
-	:param pattern: Regular expression pattern to be matched.
-	:type pattern: str
-
-	:param flags: Flags to be passed to re.search().
-	:type flags: int
-
-	:return: A matching object on success, else None.
-	:rtype: ``re.MatchObject``
-	"""
-	return re.match(pattern, string)
+    :return: A matching object on success, else None.
+    """
+    return re.match(pattern, string, flags)
 
 
 @jinjaGlobalFunction
-def regexReplace(render, s, pattern, replace):
-	"""
-	Jinja2 global: Replace string by regular expression pattern.
+def regexReplace(render: Render, string: str, pattern: str, replace: str) -> str:
+    """
+    Jinja2 global: Replace string by regular expression pattern.
 
-	:param s: String to be replaced.
-	:type s: str
+    :param render: The html-renderer instance.
+    :param string: String to be replaced.
+    :param pattern: Regular expression pattern to be matched.
+    :param replace: Replacement string to be inserted for every matching pattern.
 
-	:param pattern: Regular expression pattern to be matched.
-	:type pattern: str
-
-	:param replace: Replacement string to be inserted for every matching pattern.
-	:type replace: str
-
-	:return: The string with the replaced matches.
-	:rtype: str
-	"""
-	return re.sub(pattern, replace, s)
+    :return: The string with the replaced matches.
+    """
+    return re.sub(pattern, replace, string)
 
 
 @jinjaGlobalFunction
-def regexSearch(render, s, pattern, flags=0):
-	"""
-	Jinja2 global: Search a string for regular expression pattern.
-	This function internally runs re.search().
+def regexSearch(render: Render, string: str, pattern: str, flags=0) -> Optional[re.Match]:
+    """
+    Jinja2 global: Search a string for regular expression pattern.
+    This function internally runs re.search().
 
-	:param s: String where to be searched in.
-	:type s: str
+    :param render: The html-renderer instance.
+    :param string: String where to be searched in.
+    :param pattern: Regular expression pattern to be matched.
+    :param flags: Flags to be passed to re.search().
 
-	:param pattern: Regular expression pattern to be matched.
-	:type pattern: str
-
-	:param flags: Flags to be passed to re.search().
-	:type flags: int
-
-	:return: A matching object on success, else None.
-	:rtype: ``re.MatchObject``
-	"""
-	return re.search(pattern, s, flags)
+    :return: A matching object on success, else None.
+    """
+    return re.search(pattern, string, flags)

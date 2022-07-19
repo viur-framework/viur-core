@@ -1,26 +1,25 @@
-# -*- coding: utf-8 -*-
 from viur.core import errors, exposed
 
 
 class Site(object):
-	adminInfo = None
+    adminInfo = None
 
-	def __init__(self, *args, **kwargs):
-		super(Site, self).__init__()
-		self.modulePath = ""
+    def __init__(self, *args, **kwargs):
+        super(Site, self).__init__()
+        self.modulePath = ""
 
-	@exposed
-	def index(self, template="index", *arg, **kwargs):
-		if ".." in template or "/" in template:
-			return
+    @exposed
+    def index(self, template="index", *arg, **kwargs):
+        if ".." in template or "/" in template:
+            return
 
-		try:
+        try:
 
-			template = self.render.getEnv().get_template(self.render.getTemplateFileName("sites/" + template))
-		except:
-			raise errors.NotFound()
+            template = self.render.getEnv().get_template(self.render.getTemplateFileName("sites/" + template))
+        except:
+            raise errors.NotFound()
 
-		return template.render()
+        return template.render()
 
 
 Site.html = True

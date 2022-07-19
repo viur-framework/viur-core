@@ -1,23 +1,23 @@
-# -*- coding: utf-8 -*-
-from viur.core.render.html.utils import jinjaGlobalFunction, jinjaGlobalFilter
 import json
+from typing import Any
+
+from ..utils import jinjaGlobalFilter
+from ..default import Render
 
 
 @jinjaGlobalFilter
-def parseJSON(render, s):
-	"""
-	Jinja2 filter: Parses a JSON-string into a dict.
+def parseJSON(render: Render, value: str) -> Any:
+    """
+    Jinja2 filter: Parses a JSON-string into a python object.
 
-	:param s: The string to be parsed.
-	:type s: str
+    :param render: The html-renderer instance.
+    :param value: The string to be parsed.
+    :return: The parsed python object. \
+                Returns None if no JSON could be parsed.
+    """
+    try:
+        ret = json.loads(value)
+    except ValueError:
+        ret = None
 
-	:return: The parsed dict object. \
-				Returns None if no JSON could be parsed.
-	:rtype: dict
-	"""
-	try:
-		ret = json.loads(s)
-	except ValueError:
-		ret = None
-
-	return ret
+    return ret

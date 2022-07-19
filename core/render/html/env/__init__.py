@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from . import date
 from . import debug
 from . import regex
