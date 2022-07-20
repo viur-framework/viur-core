@@ -253,7 +253,6 @@ class TaskHandler:
                     return
                 caller = getattr(caller, currpath)
             try:
-                logging.debug("We call the Function Now")
                 caller(*args, **kwargs)
             except PermanentTaskFailure:
                 logging.error("PermanentTaskFailure")
@@ -261,16 +260,14 @@ class TaskHandler:
                 logging.exception(e)
                 raise errors.RequestTimeout()  # Task-API should retry
         elif cmd == "unb":
-            currentRequest.get().DEFERED_TASK_CALLED = True
             if not funcPath in _deferedTasks:
                 logging.error("ViUR missed a deferred task! %s(%s,%s)", funcPath, args, kwargs)
             # We call the deferred function *directly* (without walking through the mkDeferred lambda), so ensure
             # that any hit to another deferred function will defer again
-            currentRequest.get().DEFERED_TASK_CALLED = True
             try:
                 _deferedTasks[funcPath](*args, **kwargs)
             except PermanentTaskFailure:
-                pass
+                logging.error("PermanentTaskFailure")
             except Exception as e:
                 logging.exception(e)
                 raise errors.RequestTimeout()  # Task-API should retry
@@ -430,15 +427,20 @@ def callDeferred(func):
         if req is not None and req.request.headers.get("X-Appengine-Taskretrycount") \
             and "DEFERED_TASK_CALLED" in dir(req):
             # This is the deferred call
-            del req.DEFERED_TASK_CALLED  # Defer recursive calls to an deferred function again.
+            '''
+            We must delete the DEFERED_TASK_CALLED from the currentRequest , because if an calldeferrd Task calls
+            an calldeferrd Task the the wrapper function should not know we are in a deferd Task.
+
+            '''
+
+            del currentRequest.get().DEFERED_TASK_CALLED  # Defer recursive calls to an deferred function again.
+
 
             if self is __undefinedFlag_:
                 return func(*args, **kwargs)
             else:
                 return func(self, *args, **kwargs)
         else:
-            if req:
-                req.DEFERED_TASK_CALLED = True  # Defer recursive calls to an deferred function again.
             try:
                 if self.__class__.__name__ == "index":
                     funcPath = func.__name__
