@@ -128,7 +128,7 @@ def thumbnailer(fileSkel, existingFiles, params):
         resList.append((targetName, outSize, mimeType, {"mimetype": mimeType, "width": width, "height": height}))
     return resList
 
-def test_thumbnailer(fileSkel, existingFiles, params):
+def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
 
     if not conf.get("viur.file.thumbnailerURL",False):
         raise ValueError("viur.file.thumbnailerURL is not set")
@@ -148,7 +148,7 @@ def test_thumbnailer(fileSkel, existingFiles, params):
 
     dataDict = {"url": imageurl,
             "name": fileSkel["name"],
-            "sizes": params,
+            "params": params,
             "auths": auths,
             "skeys": skeys,
             "minetype": fileSkel["mimetype"],
@@ -158,10 +158,9 @@ def test_thumbnailer(fileSkel, existingFiles, params):
     headers = {'Content-type': 'application/json'}
     dataStr = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
     sig = utils.hmacSign(dataStr)
+    datadump=json.dumps({"dataStr":dataStr.decode('ASCII'),"sign":sig})
+    r = requests.post(conf["viur.file.thumbnailerURL"], data=datadump, headers=headers)
 
-    r = requests.post(conf["viur.file.thumbnailerURL"], data=json.dumps({"dataStr":dataStr.decode('ASCII'),"sign":sig}), headers=headers)
-
-    print(r.content)
     derivedData = r.json()
     reslist = []
     logging.info(derivedData["values"])
