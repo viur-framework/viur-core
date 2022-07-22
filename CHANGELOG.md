@@ -2,9 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.2.0-rc6] - Release candidate
+## [3.2.0]
 
 ### Added
+- Added [`CONTRIBUTING.md`](CONTRIBUTING.md)
 - Use setuptools' install_requires from requirements.txt (#475)
 - Implement `errors.TooManyRequests` exception (#463)
 - Improved logging to cope with the new logviewer (#461)
@@ -13,6 +14,8 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - Unit test suite starting with bones (#432, #466)
 
 ### Changed
+- Ported `IndexMannager` (sic!) and renamed to `Pagination` (#481)
+- Hint when `conf["viur.debug.traceExceptions"]` is set (#480)
 - Customizable ViurTagsSearchAdapter (#474)
 - Use of 4-spaces instead of tabs for PEP8-conformity (#470)
 - Remove unused parameter in doClearSessions (#468)
@@ -26,6 +29,8 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - PEP8-compliant naming of Bone classes (#435, #452, #471)
 
 ### Fixed
+- Fixed missing `import copy` in KeyBone (#482)
+- Fixing empty string routing to exposed functions (#479)
 - Allow removing a bone in a subclass by setting it to None (#472)
 - Fix downloadURLs with special characters `(`, `)` or `=` inside of filenames (#467)
 - Fixed uploading files using pre-signed calls to getUploadURL (#465)
@@ -35,8 +40,8 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - Fixed treeNodeBone enforcing "_rootNode" suffix on it's kind (#444)
 - Fixed required=True bones could still be set empty if omitted from the postdata (#440)
 
-
 ### Removed
+- Removed dbtransfer and its usage (#477)
 
 ## [3.1.4]
 
