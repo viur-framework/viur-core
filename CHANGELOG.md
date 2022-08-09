@@ -2,6 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
+## [3.2.1]
+
+### Fixed
+-  Fixing invalid datetime (de)serialization for tasks (#484)
+
+
 ## [3.2.0]
 
 ### Added
