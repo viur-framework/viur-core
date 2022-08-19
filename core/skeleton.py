@@ -718,8 +718,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         assert skelValues.renderPreparation is None, "Cannot modify values while rendering"
 
         def txnUpdate(dbKey, mergeFrom, clearUpdateTag):
+            skel = mergeFrom.skeletonCls()
+
             blobList = set()
-            skel = skeletonByKind(mergeFrom.kindName)()
             changeList = []
 
             # Load the current values from Datastore or create a new, empty db.Entity
