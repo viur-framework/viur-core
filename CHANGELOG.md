@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
+
+## develop
+
+- Updated viur-datastore to v1.3.1
+
 ## [3.2.0]
 
 ### Added
