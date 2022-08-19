@@ -2,10 +2,15 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
+## [3.2.2]
 
-## develop
-
+### Changed
 - Updated viur-datastore to v1.3.1
+
+## [3.2.1]
+
+### Fixed
+-  Fixing invalid datetime (de)serialization for tasks (#484)
 
 ## [3.2.0]
 
