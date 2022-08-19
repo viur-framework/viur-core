@@ -200,6 +200,9 @@ class SkeletonInstance:
     def __str__(self) -> str:
         return str(dict(self))
 
+    def __len__(self) -> int:
+        return len(self.boneMap)
+
     def clone(self):
         res = SkeletonInstance(self.skeletonCls, clonedBoneMap=copy.deepcopy(self.boneMap))
         for k, v in res.boneMap.items():
