@@ -202,8 +202,6 @@ def initializeTranslations() -> None:
 
         systemTranslations[tr["key"]] = trDict
 
-    print(systemTranslations)
-
 
 localizedDateTime = translate("const_datetimeformat", "%a %b %d %H:%M:%S %Y", "Localized Time and Date format string")
 localizedDate = translate("const_dateformat", "%m/%d/%Y", "Localized Date only format string")
