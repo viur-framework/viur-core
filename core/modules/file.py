@@ -270,26 +270,9 @@ class File(Tree):
 
     blobCacheTime = 60 * 60 * 24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
 
-    def upload(self, content: Any, mimetype: str = "text/plain") -> str:
-        """
-        Uploads a blob of content, optionally with a given mimetype.
-
-        :param content:  The file content to be written, as bytes-like object.
-        :param mimetype: The file's mimetype.
-
-        :return: Returns the download key of the blob, which is used to identify the blob uniquely.
-        """
-        dl_key = utils.generateRandomString()
-
-        blob = bucket.blob("%s/source/%s" % (dl_key, filename))
-        blob.upload_from_file(BytesIO(content), content_type=mimetype)
-
-        return dl_key
-
     def write(self, filename: str, content: Any, mimetype: str = "text/plain", width: int = None, height: int = None) -> db.Key:
         """
-        Write a file from a blob of content into the file module,
-        by creating file skeleton and optionally a folder to store into.
+        Write a file from any buffer into the file module.
 
         :param filename: Filename to be written.
         :param content:  The file content to be written, as bytes-like object.
@@ -299,9 +282,11 @@ class File(Tree):
 
         :return: Returns the key of the file object written. This can be associated e.g. with a FileBone.
         """
-        dl_key = self.upload(content, mimetype)
+        dl_key = utils.generateRandomString()
 
-        # Create the FileSkel
+        blob = bucket.blob("%s/source/%s" % (dl_key, filename))
+        blob.upload_from_file(BytesIO(content), content_type=mimetype)
+
         skel = self.addSkel("leaf")
         skel["name"] = filename
         skel["size"] = blob.size
