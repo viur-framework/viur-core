@@ -25,6 +25,7 @@ class List(BasicApplication):
         }
 
     def __init__(self, moduleName, modulePath, *args, **kwargs):
+
         super(List, self).__init__(moduleName, modulePath, *args, **kwargs)
 
     def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
