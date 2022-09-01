@@ -281,7 +281,7 @@ class BrowseHandler():  # webapp.RequestHandler
                 extendCsp({"style-src":['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
             self.response.write(res.encode("UTF-8"))
         except Exception as e:  # Something got really wrong
-            logging.error("VIUR has caught an unhandled exception!")
+            logging.error("ViUR has caught an unhandled exception!")
             logging.exception(e)
             self.response.body = b""
             self.response.status = 500
