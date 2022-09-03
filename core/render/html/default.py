@@ -13,7 +13,6 @@ from viur.core.i18n import LanguageWrapper, TranslationExtension
 from viur.core.skeleton import SkelList, SkeletonInstance
 from viur.core.utils import currentLanguage, currentRequest
 from . import utils as jinjaUtils
-from .wrap import ListWrapper
 
 KeyValueWrapper = namedtuple("KeyValueWrapper", ["key", "descr"])
 
@@ -27,7 +26,7 @@ class Render(object):
         more information. Second, we'll pass data das global variables to templates depending on the
         current action.
 
-            - For list() we'll pass `skellist` - a :py:class:`viur.core.render.jinja2.default.SkelListWrapper` instance
+            - For list() a `skellist` is provided containing all requested skeletons to a limit
             - For view(): skel - a dictionary with values from the skeleton prepared for use inside html
             - For add()/edit: a dictionary as `skel` with `values`, `structure` and `errors` as keys.
 
@@ -234,7 +233,6 @@ class Render(object):
         """
         Renders the value of a bone.
 
-        This function is used by :func:`collectSkelData`.
         It can be overridden and super-called from a custom renderer.
 
         :param bone: The bone which value should be rendered.
@@ -311,32 +309,6 @@ class Render(object):
             return boneValue
 
         return None
-
-    def collectSkelData(self, skel: SkeletonInstance) -> Union[Dict, List]:
-        """
-            Prepares values of one :class:`viur.core.skeleton.Skeleton` or a list of skeletons for output.
-
-            :param skel: Skeleton which contents will be processed.
-
-            :returns: A dictionary or list of dictionaries.
-
-             .. deprecated:: 3.0.0
-                This method is deprecated since ViUR 3.0. Instead, attach a renderPreparation method to the skeleton
-                and pass the skeleton itself.
-        """
-        warnings.warn("The method 'collectSkelData' is deprecated since ViUR 3.0. "
-                      "Instead, attach a renderPreparation method to the skeleton "
-                      "and pass the skeleton itself.", DeprecationWarning, 2)
-        # logging.error("collectSkelData %s", skel)
-        if isinstance(skel, list):
-            return [self.collectSkelData(x) for x in skel]
-        res = {}
-        for key, bone in skel.items():
-            val = self.renderBoneValue(bone, skel, key, skel[key])
-            res[key] = val
-            if isinstance(res[key], list):
-                res[key] = ListWrapper(res[key])
-        return res
 
     def add(self, skel: SkeletonInstance, tpl: str = None, params: Any = None, *args, **kwargs) -> str:
         """

@@ -171,7 +171,6 @@ class DefaultRender(object):
         """
         Renders the value of a bone.
 
-        This function is used by :func:`collectSkelData`.
         It can be overridden and super-called from a custom renderer.
 
         :param bone: The bone which value should be rendered.
