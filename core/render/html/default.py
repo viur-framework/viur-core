@@ -41,21 +41,18 @@ class Render(object):
 
     """
     kind = "html"
+
     listTemplate = "list"
     viewTemplate = "view"
     addTemplate = "add"
     editTemplate = "edit"
+
     addSuccessTemplate = "add_success"
     editSuccessTemplate = "edit_success"
     deleteSuccessTemplate = "delete_success"
-    listRepositoriesTemplate = "list_repositories"
-    listRootNodeContentsTemplate = "list_rootNode_contents"
-    addDirSuccessTemplate = "add_dir_success"
-    renameSuccessTemplate = "rename_success"
-    copySuccessTemplate = "copy_success"
 
+    listRepositoriesTemplate = "list_repositories"
     reparentSuccessTemplate = "reparent_success"
-    setIndexSuccessTemplate = "setindex_success"
     cloneSuccessTemplate = "clone_success"
 
     __haveEnvImported_ = False
@@ -549,93 +546,6 @@ class Render(object):
         return template.render(skel=skel, params=params, **kwargs)
 
     ## Extended functionality for the Tree-Application ##
-    def listRootNodeContents(self,
-                             subdirs: List,
-                             entries: SkelList,
-                             tpl: str = None,
-                             params: Any = None,
-                             **kwargs
-                             ) -> str:
-        """
-            Renders the contents of a given RootNode.
-
-            This differs from list(), as one level in the tree-application may contains two different
-            child-types: Entries and folders.
-
-            :param subdirs: List of (sub-)directories on the current level
-            :param entries: List of entries of the current level
-            :param tpl: Name of a different template, which should be used instead of the default one
-            :param params: Optional data that will be passed unmodified to the template
-
-            :return: Returns the emitted HTML response.
-        """
-        if "listRootNodeContentsTemplate" in dir(self.parent):
-            tpl = tpl or self.parent.listRootNodeContentsTemplate
-        else:
-            tpl = tpl or self.listRootNodeContentsTemplate
-        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-        return template.render(subdirs=subdirs, entries=[self.collectSkelData(x) for x in entries], params=params,
-                               **kwargs)
-
-    def addDirSuccess(self, rootNode: str, path: str, dirname: str, params: Any = None, *args, **kwargs) -> str:
-        """
-            Renders a page, informing that the directory has been successfully created.
-
-            :param rootNode: RootNode-key in which the directory has been created
-            :param path: Path in which the directory has been created
-            :param dirname: Name of the newly created directory
-            :param params: Optional data that will be passed unmodified to the template
-
-            :return: Returns the emitted HTML response.
-        """
-        tpl = self.addDirSuccessTemplate
-        if "addDirSuccessTemplate" in dir(self.parent):
-            tpl = self.parent.addDirSuccessTemplate
-        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-        return template.render(rootNode=rootNode, path=path, dirname=dirname, params=params)
-
-    def renameSuccess(self, rootNode: str, path: str, src: str, dest: str, params: Any = None, *args, **kwargs) -> str:
-        """
-            Renders a page, informing that the entry has been successfully renamed.
-
-            :param rootNode: RootNode-key in which the entry has been renamed
-            :param path: Path in which the entry has been renamed
-            :param src: Old name of the entry
-            :param dest: New name of the entry
-            :param params: Optional data that will be passed unmodified to the template
-
-            :return: Returns the emitted HTML response.
-        """
-        tpl = self.renameSuccessTemplate
-        if "renameSuccessTemplate" in dir(self.parent):
-            tpl = self.parent.renameSuccessTemplate
-        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-        return template.render(rootNode=rootNode, path=path, src=src, dest=dest, params=params)
-
-    def copySuccess(self, srcrepo: str, srcpath: str, name: str,
-                    destrepo: str, destpath: str,
-                    type: str, deleteold: str,
-                    params: Any = None, *args, **kwargs) -> str:
-        """
-            Renders a page, informing that an entry has been successfully copied/moved.
-
-            :param srcrepo: RootNode-key from which has been copied/moved
-            :param srcpath: Path from which the entry has been copied/moved
-            :param name: Name of the entry which has been copied/moved
-            :param destrepo: RootNode-key to which has been copied/moved
-            :param destpath: Path to which the entries has been copied/moved
-            :param type: "entry": Copy/Move an entry, everything else: Copy/Move an directory
-            :param deleteold: "0": Copy, "1": Move
-            :param params: Optional data that will be passed unmodified to the template
-
-            :return: Returns the emitted HTML response.
-        """
-        tpl = self.copySuccessTemplate
-        if "copySuccessTemplate" in dir(self.parent):
-            tpl = self.parent.copySuccessTemplate
-        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-        return template.render(srcrepo=srcrepo, srcpath=srcpath, name=name, destrepo=destrepo, destpath=destpath,
-                               type=type, deleteold=deleteold, params=params)
 
     def reparentSuccess(self, obj: SkeletonInstance, tpl: Optional[str] = None,
                         params: Any = None, **kwargs) -> str:
@@ -656,26 +566,6 @@ class Render(object):
 
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))
         return template.render(repoObj=obj, params=params, **kwargs)
-
-    def setIndexSuccess(self, obj: SkeletonInstance, tpl: Optional[str] = None,
-                        params: Any = None, *args, **kwargs) -> str:
-        """
-            Renders a page informing that the items sortindex was successfully changed.
-
-            :param obj: Skeleton instance of the item that was changed
-            :param tpl: Name of a different template, which should be used instead of the default one
-            :param params: Optional data that will be passed unmodified to the template
-
-            :return: Returns the emitted HTML response.
-        """
-        if not tpl:
-            if "setIndexSuccessTemplate" in dir(self.parent):
-                tpl = self.parent.setIndexSuccessTemplate
-            else:
-                tpl = self.setIndexSuccessTemplate
-
-        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-        return template.render(skel=obj, repoObj=obj, params=params, **kwargs)
 
     def cloneSuccess(self, tpl: str = None, params: Any = None, *args, **kwargs) -> str:
         """

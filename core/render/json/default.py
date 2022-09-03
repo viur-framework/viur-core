@@ -1,7 +1,6 @@
 import json
 from collections import OrderedDict
-from viur.core import bones, utils, config
-from viur.core import db
+from viur.core import bones, utils, config, db
 from viur.core.skeleton import SkeletonInstance
 from viur.core.utils import currentRequest
 from viur.core.i18n import translate
@@ -256,40 +255,15 @@ class DefaultRender(object):
     def addSuccess(self, skel: SkeletonInstance, params=None, **kwargs):
         return self.renderEntry(skel, "addSuccess", params)
 
-    def addDirSuccess(self, rootNode, path, dirname, params=None, *args, **kwargs):
-        return json.dumps("OKAY")
-
-    def listRootNodes(self, rootNodes, tpl=None, params=None):
+    def listRootNodes(self, rootNodes, *args, **kwargs):
         for rn in rootNodes:
             rn["key"] = db.encodeKey(rn["key"])
         return json.dumps(rootNodes)
-
-    def listRootNodeContents(self, subdirs, entrys, tpl=None, params=None, **kwargs):
-        res = {
-            "subdirs": subdirs
-        }
-
-        skels = []
-
-        for skel in entrys:
-            skels.append(self.renderSkelValues(skel))
-
-        res["entrys"] = skels
-        return json.dumps(res, cls=CustomJsonEncoder)
-
-    def renameSuccess(self, rootNode, path, src, dest, params=None, *args, **kwargs):
-        return json.dumps("OKAY")
-
-    def copySuccess(self, srcrepo, srcpath, name, destrepo, destpath, type, deleteold, params=None, *args, **kwargs):
-        return json.dumps("OKAY")
 
     def deleteSuccess(self, skel: SkeletonInstance, params=None, *args, **kwargs):
         return json.dumps("OKAY")
 
     def reparentSuccess(self, obj, tpl=None, params=None, *args, **kwargs):
-        return json.dumps("OKAY")
-
-    def setIndexSuccess(self, obj, tpl=None, params=None, *args, **kwargs):
         return json.dumps("OKAY")
 
     def cloneSuccess(self, tpl=None, params=None, *args, **kwargs):
