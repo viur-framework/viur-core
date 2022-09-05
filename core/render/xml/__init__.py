@@ -1,6 +1,5 @@
 from .default import DefaultRender as default, serializeXML
 from .user import UserRender as user
-from .file import FileRender as file
 from viur.core import conf
 from viur.core import securitykey
 import datetime
