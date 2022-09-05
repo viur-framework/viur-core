@@ -3,8 +3,8 @@ from collections import OrderedDict, namedtuple
 import codecs
 import logging
 import os
-import warnings
-from jinja2 import ChoiceLoader, Environment, FileSystemLoader
+
+from jinja2 import ChoiceLoader, Environment, FileSystemLoader, Template
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 from viur.core import db, errors, securitykey, utils
@@ -50,9 +50,7 @@ class Render(object):
     editSuccessTemplate = "edit_success"
     deleteSuccessTemplate = "delete_success"
 
-    listRepositoriesTemplate = "list_repositories"
-    reparentSuccessTemplate = "reparent_success"
-    cloneSuccessTemplate = "clone_success"
+    listRepositoriesTemplate = "list_repositories"  # fixme: This is a relict, should be solved differently (later!).
 
     __haveEnvImported_ = False
 
@@ -126,7 +124,7 @@ class Render(object):
 
         return ChoiceLoader([FileSystemLoader(htmlpath), FileSystemLoader("viur/core/template/")])
 
-    def renderBoneStructure(self, bone: baseBone) -> Dict[str, Any]:
+    def renderBoneStructure(self, bone: BaseBone) -> Dict[str, Any]:
         """
         Renders the structure of a bone.
 
@@ -224,7 +222,7 @@ class Render(object):
         return res
 
     def renderBoneValue(self,
-                        bone: baseBone,
+                        bone: BaseBone,
                         skel: SkeletonInstance,
                         key: Any,  # TODO: unused
                         boneValue: Any,
@@ -236,7 +234,7 @@ class Render(object):
         It can be overridden and super-called from a custom renderer.
 
         :param bone: The bone which value should be rendered.
-            (inherited from :class:`viur.core.bones.base.baseBone`).
+            (inherited from :class:`viur.core.bones.base.BaseBone`).
         :param skel: The skeleton containing the bone instance.
         :param key: The name of the bone.
         :param boneValue: The value of the bone.
@@ -310,192 +308,120 @@ class Render(object):
 
         return None
 
-    def add(self, skel: SkeletonInstance, tpl: str = None, params: Any = None, *args, **kwargs) -> str:
+    def get_action_template(self, action: str, tpl: str) -> Template:
         """
-            Renders a page for adding an entry.
-
-            The template must construct the HTML-form on itself; the required information
-            are passed via skel.structure, skel.value and skel.errors.
-
-            A jinja2-macro, which builds such kind of forms, is shipped with the server.
-
-            Any data in \*\*kwargs is passed unmodified to the template.
-
-            :param skel: Skeleton of the entry which should be created.
-            :param tpl: Name of a different template, which should be used instead of the default one.
-            :param params: Optional data that will be passed unmodified to the template
-
-            :return: Returns the emitted HTML response.
+        Internal function for retrieving a template from an action name.
         """
-        if not tpl and "addTemplate" in dir(self.parent):
-            tpl = self.parent.addTemplate
+        if not tpl:
+            default_tpl = action + "Template"
+            tpl = getattr(self.parent, default_tpl, None) or getattr(self, default_tpl)
 
-        tpl = tpl or self.addTemplate
-        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-        skeybone = BaseBone(descr="SecurityKey", readOnly=True, visible=False)
-        skel.skey = skeybone
+        return self.getEnv().get_template(self.getTemplateFileName(tpl))
+
+    def render_action_template(
+        self,
+        default: str,
+        skel: SkeletonInstance,
+        action: str,
+        tpl: str = None,
+        params: Dict = None,
+        **kwargs
+    ) -> str:
+        """
+        Internal action rendering that provides a variable structure to render an input-form.
+        The required information is passed via skel["structure"], skel["value"] and skel["errors"].
+
+        Any data in **kwargs is passed unmodified to the template.
+
+        :param default: The default action to render, which is used to construct a template name.
+        :param skel: Skeleton of which should be used for the action.
+        :param action: The name of the action, which is passed into the template.
+        :param tpl: Name of a different template, which should be used instead of the default one.
+        :param params: Optional data that will be passed unmodified to the template.
+
+        Any data in **kwargs is passed unmodified to the template.
+
+        :return: Returns the emitted HTML response.
+        """
+        template = self.get_action_template(default, tpl)
+
+        skel.skey = BaseBone(descr="SecurityKey", readOnly=True, visible=False)
         skel["skey"] = securitykey.create()
+
+        # fixme: Is this still be used?
         if currentRequest.get().kwargs.get("nomissing") == "1":
             if isinstance(skel, SkeletonInstance):
                 super(SkeletonInstance, skel).__setattr__("errors", [])
+
         skel.renderPreparation = self.renderBoneValue
-        return template.render(skel={"structure": self.renderSkelStructure(skel),
-                                     "errors": skel.errors,
-                                     "value": skel},
-                               params=params, **kwargs)
 
-    def edit(self, skel: SkeletonInstance, tpl: str = None, params: Any = None, **kwargs) -> str:
+        return template.render(
+            skel={
+                "structure": self.renderSkelStructure(skel),
+                "errors": skel.errors,
+                "value": skel
+            },
+            action=action,
+            params=params,
+            **kwargs
+        )
+
+    def render_action_view_template(
+        self,
+        default: str,
+        skel: SkeletonInstance,
+        action: str,
+        tpl: str = None,
+        params: Dict = None,
+        **kwargs
+    ) -> str:
         """
-            Renders a page for modifying an entry.
+        Renders a page, informing that an entry has been successfully handled by a given action.
 
-            The template must construct the HTML-form on itself; the required information
-            are passed via skel.structure, skel.value and skel.errors.
+        :param default: The default action to render, which is used to construct a template name.
+        :param skel: Skeleton which contains the data of the corresponding entity.
+        :param action: The name of the action, which is passed into the template.
+        :param tpl: Name of a different template, which should be used instead of the default one.
+        :param params: Optional data that will be passed unmodified to the template
 
-            A jinja2-macro, which builds such kind of forms, is shipped with the server.
+        Any data in **kwargs is passed unmodified to the template.
 
-            Any data in \*\*kwargs is passed unmodified to the template.
-
-            :param skel: Skeleton of the entry which should be modified.
-            :param tpl: Name of a different template, which should be used instead of the default one.
-            :param params: Optional data that will be passed unmodified to the template
-
-            :return: Returns the emitted HTML response.
+        :return: Returns the emitted HTML response.
         """
-        if not tpl and "editTemplate" in dir(self.parent):
-            tpl = self.parent.editTemplate
+        template = self.get_action_template(default, tpl)
 
-        tpl = tpl or self.editTemplate
-        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-        skeybone = BaseBone(descr="SecurityKey", readOnly=True, visible=False)
-        skel.skey = skeybone
-        skel["skey"] = securitykey.create()
-
-        if currentRequest.get().kwargs.get("nomissing") == "1":
-            if isinstance(skel, SkeletonInstance):
-                super(SkeletonInstance, skel).__setattr__("errors", [])
-        skel.renderPreparation = self.renderBoneValue
-        return template.render(skel={"structure": self.renderSkelStructure(skel),
-                                     "errors": skel.errors,
-                                     "value": skel},
-                               params=params, **kwargs)
-
-    def addSuccess(self, skel: SkeletonInstance, tpl: str = None, params: Any = None, *args, **kwargs) -> str:
-        """
-            Renders a page, informing that the entry has been successfully created.
-
-            :param skel: Skeleton which contains the data of the new entity
-            :param tpl: Name of a different template, which should be used instead of the default one.
-            :param params: Optional data that will be passed unmodified to the template
-
-            :return: Returns the emitted HTML response.
-        """
-        if not tpl:
-            if "addSuccessTemplate" in dir(self.parent):
-                tpl = self.parent.addSuccessTemplate
-            else:
-                tpl = self.addSuccessTemplate
-
-        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
         if isinstance(skel, SkeletonInstance):
             skel.renderPreparation = self.renderBoneValue
-        return template.render({"skel": skel}, params=params, **kwargs)
 
-    def editSuccess(self, skel: SkeletonInstance, tpl: str = None, params: Any = None, *args, **kwargs) -> str:
+        return template.render(
+            skel=skel,
+            action=action,
+            params=params,
+            **kwargs
+        )
+
+    def list(self, skellist: SkelList, action: str = "list", tpl: str = None, params: Any = None, **kwargs) -> str:
         """
-            Renders a page, informing that the entry has been successfully modified.
+        Renders a list of entries.
 
-            :param skel: Skeleton which contains the data of the modified entity
-            :param tpl: Name of a different template, which should be used instead of the default one.
-            :param params: Optional data that will be passed unmodified to the template
+        :param skellist: List of Skeletons with entries to display.
+        :param action: Name of the action to perform.
+        :param tpl: Name of a different template, which should be used instead of the default one.
 
-            :return: Returns the emitted HTML response.
+        :param params: Optional data that will be passed unmodified to the template
+
+        Any data in **kwargs is passed unmodified to the template.
+
+        :return: Returns the emitted HTML response.
         """
-        if not tpl:
-            if "editSuccessTemplate" in dir(self.parent):
-                tpl = self.parent.editSuccessTemplate
-            else:
-                tpl = self.editSuccessTemplate
+        template = self.get_action_template("list", tpl)
 
-        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-        if isinstance(skel, SkeletonInstance):
-            skel.renderPreparation = self.renderBoneValue
-        return template.render(skel=skel, params=params, **kwargs)
-
-    def deleteSuccess(self, skel: SkeletonInstance, tpl: str = None, params: Any = None, *args, **kwargs) -> str:
-        """
-            Renders a page, informing that the entry has been successfully deleted.
-
-            The provided parameters depend on the application calling this:
-            List and Hierarchy pass the id of the deleted entry, while Tree passes
-            the rootNode and path.
-
-            :param skel: Skeleton which contains the data of the deleted entity
-            :param params: Optional data that will be passed unmodified to the template
-            :param tpl: Name of a different template, which should be used instead of the default one.
-
-            :return: Returns the emitted HTML response.
-        """
-        if not tpl:
-            if "deleteSuccessTemplate" in dir(self.parent):
-                tpl = self.parent.deleteSuccessTemplate
-            else:
-                tpl = self.deleteSuccessTemplate
-
-        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-        return template.render(params=params, **kwargs)
-
-    def list(self, skellist: SkelList, tpl: str = None, params: Any = None, **kwargs) -> str:
-        """
-            Renders a list of entries.
-
-            Any data in \*\*kwargs is passed unmodified to the template.
-
-            :param skellist: List of Skeletons with entries to display.
-            :param tpl: Name of a different template, which should be used instead of the default one.
-            :param params: Optional data that will be passed unmodified to the template
-
-            :return: Returns the emitted HTML response.
-        """
-        if not tpl and "listTemplate" in dir(self.parent):
-            tpl = self.parent.listTemplate
-        tpl = tpl or self.listTemplate
-        try:
-            fn = self.getTemplateFileName(tpl)
-        except errors.HTTPException as e:  # Not found - try default fallbacks
-            tpl = "list"
-        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
         for skel in skellist:
             skel.renderPreparation = self.renderBoneValue
-        return template.render(skellist=skellist, params=params, **kwargs)  # SkelListWrapper(resList, skellist)
 
-    def listRootNodes(self,
-                      repos: List[Dict[Literal["key", "name"], Any]],
-                      tpl: str = None,
-                      params: Any = None,
-                      **kwargs
-                      ) -> str:
-        """
-            Renders a list of available repositories.
+        return template.render(skellist=skellist, action=action, params=params, **kwargs)
 
-            :param repos: List of repositories (dict with "key"=>Repo-Key and "name"=>Repo-Name)
-            :param tpl: Name of a different template, which should be used instead of the default one.
-            :param params: Optional data that will be passed unmodified to the template
-
-            :return: Returns the emitted HTML response.
-            :rtype: str
-        """
-        if "listRepositoriesTemplate" in dir(self.parent):
-            tpl = tpl or self.parent.listTemplate
-        if not tpl:
-            tpl = self.listRepositoriesTemplate
-        try:
-            fn = self.getTemplateFileName(tpl)
-        except errors.HTTPException as e:  # Not found - try default fallbacks
-            tpl = "list"
-        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-        return template.render(repos=repos, params=params, **kwargs)
-
-    def view(self, skel: SkeletonInstance, tpl: str = None, params: Any = None, **kwargs) -> str:
+    def view(self, skel: SkeletonInstance, action: str = "view", tpl: str = None, params: Any = None, **kwargs) -> str:
         """
             Renders a single entry.
 
@@ -507,55 +433,90 @@ class Render(object):
 
             :return: Returns the emitted HTML response.
         """
-        if not tpl and "viewTemplate" in dir(self.parent):
-            tpl = self.parent.viewTemplate
+        return self.render_action_view_template("view", skel, action, tpl, params, **kwargs)
 
-        tpl = tpl or self.viewTemplate
-        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-
-        if isinstance(skel, SkeletonInstance):
-            skel.renderPreparation = self.renderBoneValue
-        return template.render(skel=skel, params=params, **kwargs)
-
-    ## Extended functionality for the Tree-Application ##
-
-    def reparentSuccess(self, obj: SkeletonInstance, tpl: Optional[str] = None,
-                        params: Any = None, **kwargs) -> str:
+    def add(self, skel: SkeletonInstance, action: str = "add", tpl: str = None, params: Any = None, **kwargs) -> str:
         """
-            Renders a page informing that the item was successfully moved.
+        Renders a page for adding an entry.
 
-            :param obj: Skeleton instance of the item that was moved.
-            :param tpl: Name of a different template, which should be used instead of the default one
-            :param params: Optional data that will be passed unmodified to the template
-
-            :return: Returns the emitted HTML response.
+        For details, see self.render_action_template().
         """
-        if not tpl:
-            if "reparentSuccessTemplate" in dir(self.parent):
-                tpl = self.parent.reparentSuccessTemplate
-            else:
-                tpl = self.reparentSuccessTemplate
+        return self.render_action_template("add", skel, action, tpl, params, **kwargs)
 
-        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-        return template.render(repoObj=obj, params=params, **kwargs)
-
-    def cloneSuccess(self, tpl: str = None, params: Any = None, *args, **kwargs) -> str:
+    def edit(self, skel: SkeletonInstance, action: str = "edit", tpl: str = None, params: Any = None, **kwargs) -> str:
         """
-            Renders a page informing that the items sortindex was successfully changed.
+        Renders a page for modifying an entry.
 
-            :param tpl: Name of a different template, which should be used instead of the default one
-            :param params: Optional data that will be passed unmodified to the template
-
-            :return: Returns the emitted HTML response.
+        For details, see self.render_action_template().
         """
-        if not tpl:
-            if "cloneSuccessTemplate" in dir(self.parent):
-                tpl = self.parent.cloneSuccessTemplate
-            else:
-                tpl = self.cloneSuccessTemplate
+        return self.render_action_template("edit", skel, action, tpl, params, **kwargs)
 
-        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-        return template.render(params=params, **kwargs)
+    def addSuccess(
+        self,
+        skel: SkeletonInstance,
+        action: str = "addSuccess",
+        tpl: str = None,
+        params: Any = None,
+        **kwargs
+    ) -> str:
+        """
+        Renders a page, informing that an entry has been successfully created.
+
+        For details, see self.render_action_view_template().
+        """
+        return self.render_action_view_template("addSuccess", skel, action, tpl, params, **kwargs)
+
+    def editSuccess(
+        self,
+        skel: SkeletonInstance,
+        action: str = "editSuccess",
+        tpl: str = None,
+        params: Any = None,
+        **kwargs
+    ) -> str:
+        """
+        Renders a page, informing that an entry has been successfully modified.
+
+        For details, see self.render_action_view_template().
+        """
+        return self.render_action_view_template("editSuccess", skel, action, tpl, params, **kwargs)
+
+    def deleteSuccess(
+        self,
+        skel: SkeletonInstance,
+        action: str = "deleteSuccess",
+        tpl: str = None,
+        params: Any = None,
+        **kwargs
+    ) -> str:
+        """
+        Renders a page, informing that an entry has been successfully deleted.
+
+        For details, see self.render_action_view_template().
+        """
+        return self.render_action_view_template("deleteSuccess", skel, action, tpl, params, **kwargs)
+
+    def listRootNodes(  # fixme: This is a relict, should be solved differently (later!).
+        self,
+        repos: List[Dict[Literal["key", "name"], Any]],
+        action: str = "listrootnodes",
+        tpl: str = None,
+        params: Any = None,
+        **kwargs
+    ) -> str:
+        """
+        Renders a list of available root nodes.
+
+        :param repos: List of repositories (dict with "key"=>Repo-Key and "name"=>Repo-Name)
+        :param tpl: Name of a different template, which should be used instead of the default one.
+        :param params: Optional data that will be passed unmodified to the template
+
+        Any data in **kwargs is passed unmodified to the template.
+
+        :return: Returns the emitted HTML response.
+        """
+        template = self.get_action_template("listRootNodes", tpl)
+        return template.render(repos=repos, action=action, params=params, **kwargs)
 
     def renderEmail(self,
                     dests: List[str],
@@ -593,7 +554,7 @@ class Render(object):
 
     def getEnv(self) -> Environment:
         """
-            Constucts the Jinja2 environment.
+            Constructs the Jinja2 environment.
 
             If an application specifies an jinja2Env function, this function
             can alter the environment before its used to parse any template.
