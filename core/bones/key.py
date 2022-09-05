@@ -23,7 +23,8 @@ class KeyBone(BaseBone):
 
     def singleValueFromClient(self, value, skel, name, origData):
         # check for correct key
-        value = value.strip()
+        if isinstance(value, str):
+            value = value.strip()
 
         if self.allowed_kinds:
             try:
