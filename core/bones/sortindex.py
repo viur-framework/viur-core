@@ -1,5 +1,5 @@
 from viur.core.bones.numeric import NumericBone
-import time, typing
+import time, typing,sys
 
 
 class SortIndexBone(NumericBone):
@@ -10,7 +10,7 @@ class SortIndexBone(NumericBone):
         *,
         defaultValue: typing.Union[int, float] = lambda *args, **kwargs: time.time(),
         descr: str = "SortIndex",
-        max: typing.Union[int, float] = pow(2, 30),
+        max: typing.Union[int, float] = sys.maxsize,
         precision: int = 8,
         **kwargs
     ):
