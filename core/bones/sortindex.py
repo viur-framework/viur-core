@@ -1,5 +1,5 @@
 from viur.core.bones.numeric import NumericBone
-import time, typing,sys
+import time, typing
 
 
 class SortIndexBone(NumericBone):
