@@ -83,7 +83,7 @@ class DefaultRender(object):
 
         elif bone.type == "select" or bone.type.startswith("select."):
             ret.update({
-                "values": [(k, str(v)) for k, v in bone.values.items()],
+                "values": [(k, translate(v)) for k, v in bone.values.items()],
             })
 
         elif bone.type == "date" or bone.type.startswith("date."):
