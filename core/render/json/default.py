@@ -72,6 +72,8 @@ class DefaultRender(object):
                 "using": self.renderSkelStructure(bone.using()) if bone.using else None,
                 "relskel": self.renderSkelStructure(bone._refSkelCache())
             })
+            if bone.type.startswith("relational.tree.leaf.file"):
+                ret.update({"validMimeTypes":bone.validMimeTypes})
 
         elif bone.type == "record" or bone.type.startswith("record."):
             ret.update({
