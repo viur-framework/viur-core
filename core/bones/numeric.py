@@ -4,7 +4,7 @@ from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientEr
 from viur.core import db
 from math import pow
 from typing import Any, Dict, Optional, Union
-
+import sys
 
 class NumericBone(BaseBone):
     """
@@ -17,8 +17,8 @@ class NumericBone(BaseBone):
     def __init__(
         self,
         *,
-        max: Union[int, float] = int(pow(2, 30)),
-        min: Union[int, float] = -int(pow(2, 30)),
+        max: Union[int, float] = sys.maxsize,
+        min: Union[int, float] = -(sys.maxsize - 1),
         mode=None,  # deprecated!
         precision: int = 0,
         **kwargs

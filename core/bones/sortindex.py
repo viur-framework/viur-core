@@ -10,7 +10,6 @@ class SortIndexBone(NumericBone):
         *,
         defaultValue: typing.Union[int, float] = lambda *args, **kwargs: time.time(),
         descr: str = "SortIndex",
-        max: typing.Union[int, float] = sys.maxsize,
         precision: int = 8,
         **kwargs
     ):
