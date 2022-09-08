@@ -70,6 +70,9 @@ class translate:
             meanings in the target language.
         """
         super(translate, self).__init__()
+
+        if not isinstance(key,str):
+            key=str(key)
         self.key = key.lower()
         self.defaultText = defaultText or key
         self.hint = hint
