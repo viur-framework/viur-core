@@ -16,7 +16,6 @@ class SortIndexBone(NumericBone):
         super().__init__(
             defaultValue=defaultValue,
             descr=descr,
-            max=max,
             precision=precision,
             **kwargs
         )
