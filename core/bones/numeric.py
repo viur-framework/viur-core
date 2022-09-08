@@ -2,9 +2,13 @@ import logging
 import warnings
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core import db
-from math import pow
 from typing import Any, Dict, Optional, Union
 import sys
+
+# Constants for Mne (MIN/MAX-never-exceed)
+MIN = -(sys.maxsize - 1)
+MAX = sys.maxsize
+
 
 class NumericBone(BaseBone):
     """
@@ -17,8 +21,8 @@ class NumericBone(BaseBone):
     def __init__(
         self,
         *,
-        max: Union[int, float] = sys.maxsize,
-        min: Union[int, float] = -(sys.maxsize - 1),
+        max: Union[int, float] = MAX,
+        min: Union[int, float] = MIN,
         mode=None,  # deprecated!
         precision: int = 0,
         **kwargs
@@ -48,6 +52,13 @@ class NumericBone(BaseBone):
         self.precision = precision
         self.min = min
         self.max = max
+
+    def __setattr__(self, key, value):
+        if key in ("min", "max"):
+            if value < MIN or value > MAX:
+                raise ValueError(f"{key} can only be set to something between {MIN} and {MAX}")
+
+        return super().__setattr__(key, value)
 
     def isInvalid(self, value):
         if value != value:  # NaN
