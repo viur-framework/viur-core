@@ -116,12 +116,12 @@ class DefaultRender(object):
         elif isinstance(bone, TextBone):
             ret.update({
                 "validHtml": bone.validHtml,
-                "languages": bone.languages
+                "maxLength": bone.maxLength
             })
 
         elif isinstance(bone, StringBone):
             ret.update({
-                "languages": bone.languages
+                "maxLength": bone.maxLength
             })
 
         return ret

@@ -102,12 +102,12 @@ class DefaultRender(object):
         elif bone.type == "text" or bone.type.startswith("text."):
             ret.update({
                 "validHtml": bone.validHtml,
-                "languages": bone.languages
+                "maxLength": bone.maxLength
             })
 
         elif bone.type == "str" or bone.type.startswith("str."):
             ret.update({
-                "languages": bone.languages
+                "maxLength": bone.maxLength
             })
 
         return ret

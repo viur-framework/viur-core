@@ -188,13 +188,12 @@ class Render(object):
         elif bone.type == "text" or bone.type.startswith("text."):
             ret.update({
                 "validHtml": bone.validHtml,
-                "languages": bone.languages
+                "maxLength": bone.maxLength
             })
 
         elif bone.type == "str" or bone.type.startswith("str."):
             ret.update({
-                "languages": bone.languages,
-                "multiple": bone.multiple
+                "maxLength": bone.maxLength
             })
         elif bone.type == "captcha" or bone.type.startswith("captcha."):
             ret.update({
