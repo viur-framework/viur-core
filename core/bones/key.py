@@ -14,14 +14,17 @@ class KeyBone(BaseBone):
         readOnly: bool = True,  # default is readonly
         visible: bool = False,  # default is invisible
         allowed_kinds: Union[None, List[str]] = None,  # None allows for any kind
+        check: bool = False,  # check for entity existence
         **kwargs
     ):
         super().__init__(descr=descr, readOnly=readOnly, visible=visible, defaultValue=None, **kwargs)
         self.allowed_kinds = allowed_kinds
+        self.check = check
 
     def singleValueFromClient(self, value, skel, name, origData):
+        # check for correct key
         if isinstance(value, str):
-            value = value.strip()  # bypass bug https://github.com/viur-framework/viur-datastore/issues/12
+            value = value.strip()
 
         if self.allowed_kinds:
             try:
@@ -39,9 +42,19 @@ class KeyBone(BaseBone):
                     )
                 ]
 
+        # Check custom validity
         err = self.isInvalid(key)
         if err:
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
+
+        if self.check:
+            if db.Get(key) is None:
+                return self.getEmptyValue(), [
+                    ReadFromClientError(
+                        ReadFromClientErrorSeverity.Invalid,
+                        "The provided key does not exist"
+                    )
+                ]
 
         return key, None
 
