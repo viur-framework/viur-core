@@ -318,8 +318,13 @@ class TextBone(BaseBone):
                     newFileKeys.update(collector.blobs)
         elif skel[name]:
             collector = CollectBlobKeys()
-            collector.feed(skel[name])
+            if self.multiple:
+                for entry in skel[name]:
+                    collector.feed(entry)
+            else:
+                collector.feed(skel[name])
             newFileKeys = collector.blobs
+
         if newFileKeys and self.srcSet:
             deriveDict = {
                 "thumbnail": [
