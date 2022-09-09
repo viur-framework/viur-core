@@ -15,11 +15,14 @@ pycodestyle:  # Same as scanner.linter value. Other option is flake8
         - E241 # multiple spaces after ‘,’
         - E242 # tab after ‘,’
         - E704 # multiple statements on one line (def)
-        - W502 # line break after binary operator
         - W503 # line break before binary operator
+        - W504 # line break after binary operator
         - W505 # doc line too long (82 > 79 characters)
-    show-pep8: True
-    show-source: True
+    count: False # print total number of errors and warnings to standard error and set exit code to 1 if total is not null
+    first: False # show first occurrence of each error
+    show-pep8: True # show text of PEP 8 for each error (implies --first)
+    show-source: True # show source code for each error
+    statistics: True # count errors and warnings
 
 no_blank_comment: False  # If True, no comment is made on PR without any errors.
 descending_issues_order: False  # If True, PEP 8 issues in message will be displayed in descending order of line numbers in the file
