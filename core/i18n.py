@@ -70,6 +70,8 @@ class translate:
             meanings in the target language.
         """
         super(translate, self).__init__()
+
+        key = str(key)  # ensure key is a str
         self.key = key.lower()
         self.defaultText = defaultText or key
         self.hint = hint
