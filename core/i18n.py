@@ -71,7 +71,7 @@ class translate:
         """
         super(translate, self).__init__()
 
-        if not isinstance(key,str):
+        key = str(key)  # ensure key is a a str
             key=str(key)
         self.key = key.lower()
         self.defaultText = defaultText or key
