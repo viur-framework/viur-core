@@ -339,13 +339,16 @@ class BaseBone(object):
             for language in self.languages:
                 res[language] = []
                 if language in parsedData:
-                    for singleValue in parsedData[language]:
+                    for idx,singleValue in enumerate(parsedData[language]):
                         if self.isEmpty(singleValue):
                             continue
                         isEmpty = False
                         parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
                         res[language].append(parsedVal)
                         if parseErrors:
+                            for parseError in parseErrors:
+                                parseError.fieldPath.insert(0, language)
+                                parseError.fieldPath.insert(1, str(idx))
                             errors.extend(parseErrors)
         elif self.languages:  # and not self.multiple is implicit - this would have been handled above
             res = {}
@@ -359,6 +362,8 @@ class BaseBone(object):
                     parsedVal, parseErrors = self.singleValueFromClient(parsedData[language], skel, name, data)
                     res[language] = parsedVal
                     if parseErrors:
+                        for parseError in parseErrors:
+                            parseError.fieldPath.insert(0,language)
                         errors.extend(parseErrors)
         elif self.multiple:  # and not self.languages is implicit - this would have been handled above
             res = []
