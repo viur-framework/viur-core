@@ -308,15 +308,15 @@ class Render(object):
 
         return None
 
-    def get_action_template(self, action: str, tpl: str) -> Template:
+    def get_template(self, action: str, template: str) -> Template:
         """
         Internal function for retrieving a template from an action name.
         """
-        if not tpl:
-            default_tpl = action + "Template"
-            tpl = getattr(self.parent, default_tpl, None) or getattr(self, default_tpl)
+        if not template:
+            default_template = action + "Template"
+            template = getattr(self.parent, default_template, None) or getattr(self, default_template)
 
-        return self.getEnv().get_template(self.getTemplateFileName(tpl))
+        return self.getEnv().get_template(self.getTemplateFileName(template))
 
     def render_action_template(
         self,
@@ -343,7 +343,7 @@ class Render(object):
 
         :return: Returns the emitted HTML response.
         """
-        template = self.get_action_template(default, tpl)
+        template = self.get_template(default, tpl)
 
         skel.skey = BaseBone(descr="SecurityKey", readOnly=True, visible=False)
         skel["skey"] = securitykey.create()
@@ -366,7 +366,7 @@ class Render(object):
             **kwargs
         )
 
-    def render_action_view_template(
+    def render_view_template(
         self,
         default: str,
         skel: SkeletonInstance,
@@ -376,7 +376,7 @@ class Render(object):
         **kwargs
     ) -> str:
         """
-        Renders a page, informing that an entry has been successfully handled by a given action.
+        Renders a page with an entry.
 
         :param default: The default action to render, which is used to construct a template name.
         :param skel: Skeleton which contains the data of the corresponding entity.
@@ -388,7 +388,7 @@ class Render(object):
 
         :return: Returns the emitted HTML response.
         """
-        template = self.get_action_template(default, tpl)
+        template = self.get_template(default, tpl)
 
         if isinstance(skel, SkeletonInstance):
             skel.renderPreparation = self.renderBoneValue
@@ -402,10 +402,10 @@ class Render(object):
 
     def list(self, skellist: SkelList, action: str = "list", tpl: str = None, params: Any = None, **kwargs) -> str:
         """
-        Renders a list of entries.
+        Renders a page with a list of entries.
 
         :param skellist: List of Skeletons with entries to display.
-        :param action: Name of the action to perform.
+        :param action: The name of the action, which is passed into the template.
         :param tpl: Name of a different template, which should be used instead of the default one.
 
         :param params: Optional data that will be passed unmodified to the template
@@ -414,7 +414,7 @@ class Render(object):
 
         :return: Returns the emitted HTML response.
         """
-        template = self.get_action_template("list", tpl)
+        template = self.get_template("list", tpl)
 
         for skel in skellist:
             skel.renderPreparation = self.renderBoneValue
@@ -423,17 +423,11 @@ class Render(object):
 
     def view(self, skel: SkeletonInstance, action: str = "view", tpl: str = None, params: Any = None, **kwargs) -> str:
         """
-            Renders a single entry.
+        Renders a page for viewing an entry.
 
-            Any data in \*\*kwargs is passed unmodified to the template.
-
-            :param skel: Skeleton to be displayed.
-            :param tpl: Name of a different template, which should be used instead of the default one.
-            :param params: Optional data that will be passed unmodified to the template
-
-            :return: Returns the emitted HTML response.
+        For details, see self.render_view_template().
         """
-        return self.render_action_view_template("view", skel, action, tpl, params, **kwargs)
+        return self.render_view_template("view", skel, action, tpl, params, **kwargs)
 
     def add(self, skel: SkeletonInstance, action: str = "add", tpl: str = None, params: Any = None, **kwargs) -> str:
         """
@@ -462,9 +456,9 @@ class Render(object):
         """
         Renders a page, informing that an entry has been successfully created.
 
-        For details, see self.render_action_view_template().
+        For details, see self.render_view_template().
         """
-        return self.render_action_view_template("addSuccess", skel, action, tpl, params, **kwargs)
+        return self.render_view_template("addSuccess", skel, action, tpl, params, **kwargs)
 
     def editSuccess(
         self,
@@ -477,9 +471,9 @@ class Render(object):
         """
         Renders a page, informing that an entry has been successfully modified.
 
-        For details, see self.render_action_view_template().
+        For details, see self.render_view_template().
         """
-        return self.render_action_view_template("editSuccess", skel, action, tpl, params, **kwargs)
+        return self.render_view_template("editSuccess", skel, action, tpl, params, **kwargs)
 
     def deleteSuccess(
         self,
@@ -492,9 +486,9 @@ class Render(object):
         """
         Renders a page, informing that an entry has been successfully deleted.
 
-        For details, see self.render_action_view_template().
+        For details, see self.render_view_template().
         """
-        return self.render_action_view_template("deleteSuccess", skel, action, tpl, params, **kwargs)
+        return self.render_view_template("deleteSuccess", skel, action, tpl, params, **kwargs)
 
     def listRootNodes(  # fixme: This is a relict, should be solved differently (later!).
         self,
@@ -508,6 +502,7 @@ class Render(object):
         Renders a list of available root nodes.
 
         :param repos: List of repositories (dict with "key"=>Repo-Key and "name"=>Repo-Name)
+        :param action: The name of the action, which is passed into the template.
         :param tpl: Name of a different template, which should be used instead of the default one.
         :param params: Optional data that will be passed unmodified to the template
 
@@ -515,7 +510,7 @@ class Render(object):
 
         :return: Returns the emitted HTML response.
         """
-        template = self.get_action_template("listRootNodes", tpl)
+        template = self.get_template("listRootNodes", tpl)
         return template.render(repos=repos, action=action, params=params, **kwargs)
 
     def renderEmail(self,
