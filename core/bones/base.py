@@ -339,7 +339,7 @@ class BaseBone(object):
             for language in self.languages:
                 res[language] = []
                 if language in parsedData:
-                    for idx,singleValue in enumerate(parsedData[language]):
+                    for idx, singleValue in enumerate(parsedData[language]):
                         if self.isEmpty(singleValue):
                             continue
                         isEmpty = False
@@ -347,8 +347,7 @@ class BaseBone(object):
                         res[language].append(parsedVal)
                         if parseErrors:
                             for parseError in parseErrors:
-                                parseError.fieldPath.insert(0, language)
-                                parseError.fieldPath.insert(1, str(idx))
+                                parseError.fieldPath[:0] = [language, str(idx)]
                             errors.extend(parseErrors)
         elif self.languages:  # and not self.multiple is implicit - this would have been handled above
             res = {}
@@ -363,7 +362,7 @@ class BaseBone(object):
                     res[language] = parsedVal
                     if parseErrors:
                         for parseError in parseErrors:
-                            parseError.fieldPath.insert(0,language)
+                            parseError.fieldPath[:0] = language
                         errors.extend(parseErrors)
         elif self.multiple:  # and not self.languages is implicit - this would have been handled above
             res = []
@@ -374,8 +373,8 @@ class BaseBone(object):
                 parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
                 res.append(parsedVal)
                 if parseErrors:
-                    for err in parseErrors:
-                        err.fieldPath.insert(0, str(idx))
+                    for parseError in parseErrors:
+                        parseError.fieldPath[:0] = str(idx)
                     errors.extend(parseErrors)
         else:  # No Languages, not multiple
             if self.isEmpty(parsedData):
@@ -682,6 +681,7 @@ class BaseBone(object):
                     if key is None:
                         return "-"
                     return "%s-%s-<%s>" % (hashValue(key.kind), hashValue(key.id_or_name), keyHash(key.parent))
+
                 return "K-%s" % keyHash(value)
             raise NotImplementedError("Type %s can't be safely used in an uniquePropertyIndex" % type(value))
 
