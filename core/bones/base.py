@@ -362,7 +362,7 @@ class BaseBone(object):
                     res[language] = parsedVal
                     if parseErrors:
                         for parseError in parseErrors:
-                            parseError.fieldPath[:0] = language
+                            parseError.fieldPath.insert(0, language)
                         errors.extend(parseErrors)
         elif self.multiple:  # and not self.languages is implicit - this would have been handled above
             res = []
@@ -374,7 +374,7 @@ class BaseBone(object):
                 res.append(parsedVal)
                 if parseErrors:
                     for parseError in parseErrors:
-                        parseError.fieldPath[:0] = str(idx)
+                        parseError.fieldPath.insert(0, str(idx))
                     errors.extend(parseErrors)
         else:  # No Languages, not multiple
             if self.isEmpty(parsedData):
