@@ -58,10 +58,8 @@ class SpatialBone(BaseBone):
         assert isinstance(boundsLng, tuple) and len(boundsLng) == 2, "boundsLng must be a tuple of (float, float)"
         assert isinstance(gridDimensions, tuple) and len(
             gridDimensions) == 2, "gridDimensions must be a tuple of (int, int)"
-        """
-        Checks if boundsLat and boundsLng have possible values
-        See https://docs.mapbox.com/help/glossary/lat-lon/
-        """
+        # Checks if boundsLat and boundsLng have possible values
+        # See https://docs.mapbox.com/help/glossary/lat-lon/
         assert boundsLat[0] >= -90 and boundsLat[0] <= 90, "boundsLat[0] must be between -90 and 90"
         assert boundsLat[1] >= -90 and boundsLat[1] <= 90, "boundsLat[1] must be between -90 and 90"
         assert boundsLng[0] >= -180 and boundsLng[0] <= 180, "boundsLng[0] must be between -180 and 180"
