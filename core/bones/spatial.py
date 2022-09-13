@@ -45,7 +45,7 @@ class SpatialBone(BaseBone):
 
     type = "spatial"
 
-    def __init__(self, *, boundsLat: [float, float], boundsLng: Tuple[float, float], gridDimensions: Tuple[int, int], **kwargs):
+    def __init__(self, *, boundsLat: Tuple[float, float], boundsLng: Tuple[float, float], gridDimensions: Tuple[int, int], **kwargs):
         """
             Initializes a new SpatialBone.
 
