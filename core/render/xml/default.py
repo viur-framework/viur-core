@@ -124,6 +124,11 @@ class DefaultRender(object):
                 "maxLength": bone.maxLength
             })
 
+        elif isinstance(bone, SpatialBone):
+            ret.update({
+                "boundsLat": bone.boundsLat,
+                "boundsLng": bone.boundsLng
+            })
         return ret
 
     def renderSkelStructure(self, skel: SkeletonInstance) -> Dict:
