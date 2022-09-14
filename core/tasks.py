@@ -428,9 +428,10 @@ def callDeferred(func):
         if req is not None and req.request.headers.get("X-Appengine-Taskretrycount") \
             and "DEFERED_TASK_CALLED" not in dir(req):
 
-            if self is __undefinedFlag_:
+            if self is __undefinedFlag_: #cmd = unb
                 return func(*args, **kwargs)
-            else:
+            else: #cmd = rel
+                req.DEFERED_TASK_CALLED = True
                 return func(self, *args, **kwargs)
         else:
             try:
