@@ -243,7 +243,6 @@ class TaskHandler:
                     "Your customEnvironmentHandler must be a tuple of two callable if set!"
                 conf["viur.tasks.customEnvironmentHandler"][1](env["custom"])
         if cmd == "rel":
-            currentRequest.get().DEFERED_TASK_CALLED = True
             caller = conf["viur.mainApp"]
             pathlist = [x for x in funcPath.split("/") if x]
             for currpath in pathlist:
@@ -264,6 +263,8 @@ class TaskHandler:
                 logging.error("ViUR missed a deferred task! %s(%s,%s)", funcPath, args, kwargs)
             # We call the deferred function *directly* (without walking through the mkDeferred lambda), so ensure
             # that any hit to another deferred function will defer again
+
+            currentRequest.get().DEFERED_TASK_CALLED = True
             try:
                 _deferedTasks[funcPath](*args, **kwargs)
             except PermanentTaskFailure:
@@ -425,16 +426,7 @@ def callDeferred(func):
         except:  # This will fail for warmup requests
             req = None
         if req is not None and req.request.headers.get("X-Appengine-Taskretrycount") \
-            and "DEFERED_TASK_CALLED" in dir(req):
-            # This is the deferred call
-            '''
-            We must delete the DEFERED_TASK_CALLED from the currentRequest , because if an calldeferrd Task calls
-            an calldeferrd Task the the wrapper function should not know we are in a deferd Task.
-
-            '''
-
-            del currentRequest.get().DEFERED_TASK_CALLED  # Defer recursive calls to an deferred function again.
-
+            and "DEFERED_TASK_CALLED" not in dir(req):
 
             if self is __undefinedFlag_:
                 return func(*args, **kwargs)
