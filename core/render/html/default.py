@@ -195,9 +195,16 @@ class Render(object):
             ret.update({
                 "maxLength": bone.maxLength
             })
+
         elif bone.type == "captcha" or bone.type.startswith("captcha."):
             ret.update({
                 "publicKey": bone.publicKey,
+            })
+
+        elif bone.type == "spatial":
+            ret.update({
+                "boundsLat": bone.boundsLat,
+                "boundsLng": bone.boundsLng
             })
 
         return ret
