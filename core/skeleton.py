@@ -200,6 +200,9 @@ class SkeletonInstance:
     def __str__(self) -> str:
         return str(dict(self))
 
+    def __len__(self) -> int:
+        return len(self.boneMap)
+
     def clone(self):
         res = SkeletonInstance(self.skeletonCls, clonedBoneMap=copy.deepcopy(self.boneMap))
         for k, v in res.boneMap.items():
@@ -718,8 +721,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         assert skelValues.renderPreparation is None, "Cannot modify values while rendering"
 
         def txnUpdate(dbKey, mergeFrom, clearUpdateTag):
+            skel = mergeFrom.skeletonCls()
+
             blobList = set()
-            skel = skeletonByKind(mergeFrom.kindName)()
             changeList = []
 
             # Load the current values from Datastore or create a new, empty db.Entity

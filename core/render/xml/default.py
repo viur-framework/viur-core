@@ -91,6 +91,8 @@ class DefaultRender(object):
                 "using": self.renderSkelStructure(bone.using()) if bone.using else None,
                 "relskel": self.renderSkelStructure(bone._refSkelCache())
             })
+            if bone.type.startswith("relational.tree.leaf.file"):
+                ret.update({"validMimeTypes":bone.validMimeTypes})
 
         elif isinstance(bone, SelectBone):
             ret.update({
@@ -114,12 +116,12 @@ class DefaultRender(object):
         elif isinstance(bone, TextBone):
             ret.update({
                 "validHtml": bone.validHtml,
-                "languages": bone.languages
+                "maxLength": bone.maxLength
             })
 
         elif isinstance(bone, StringBone):
             ret.update({
-                "languages": bone.languages
+                "maxLength": bone.maxLength
             })
 
         return ret
@@ -171,7 +173,6 @@ class DefaultRender(object):
         """
         Renders the value of a bone.
 
-        This function is used by :func:`collectSkelData`.
         It can be overridden and super-called from a custom renderer.
 
         :param bone: The bone which value should be rendered.
@@ -271,22 +272,10 @@ class DefaultRender(object):
     def addSuccess(self, skel, params=None, **kwargs):
         return serializeXML("OKAY")
 
-    def addDirSuccess(self, rootNode, path, dirname, params=None, *args, **kwargs):
-        return serializeXML("OKAY")
-
-    def renameSuccess(self, rootNode, path, src, dest, params=None, *args, **kwargs):
-        return serializeXML("OKAY")
-
-    def copySuccess(self, srcrepo, srcpath, name, destrepo, destpath, type, deleteold, params=None, *args, **kwargs):
-        return serializeXML("OKAY")
-
     def deleteSuccess(self, skel, params=None, *args, **kwargs):
         return serializeXML("OKAY")
 
     def reparentSuccess(self, obj, tpl=None, params=None, *args, **kwargs):
-        return serializeXML("OKAY")
-
-    def setIndexSuccess(self, obj, tpl=None, params=None, *args, **kwargs):
         return serializeXML("OKAY")
 
     def cloneSuccess(self, tpl=None, params=None, *args, **kwargs):
