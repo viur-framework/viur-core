@@ -61,13 +61,13 @@ class SpatialBone(BaseBone):
         # Checks if boundsLat and boundsLng have possible values
         # See https://docs.mapbox.com/help/glossary/lat-lon/
         if not -90 <= boundsLat[0] <= 90:
-			raise ValueError(f"boundsLat[0] must be between -90 and 90. Got {boundsLat[0]!r}")
+            raise ValueError(f"boundsLat[0] must be between -90 and 90. Got {boundsLat[0]!r}")
         if not -90 <= boundsLat[1] <= 90:
-			raise ValueError(f"boundsLat[1] must be between -90 and 90. Got {boundsLat[1]!r}")
+            raise ValueError(f"boundsLat[1] must be between -90 and 90. Got {boundsLat[1]!r}")
         if not -180 <= boundsLng[0] <= 180:
-			raise ValueError(f"boundsLng[0] must be between -180 and 180. Got {boundsLng[0]!r}")
+            raise ValueError(f"boundsLng[0] must be between -180 and 180. Got {boundsLng[0]!r}")
         if not -180 <= boundsLng[1] <= 180:
-			raise ValueError(f"boundsLng[1] must be between -180 and 180. Got {boundsLng[1]!r}")
+            raise ValueError(f"boundsLng[1] must be between -180 and 180. Got {boundsLng[1]!r}")
         assert not (self.indexed and self.multiple), "Spatial-Bone cannot be indexed when multiple"
         self.boundsLat = boundsLat
         self.boundsLng = boundsLng
