@@ -1,14 +1,62 @@
-from viur.core.bones.base import BaseBone
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core import db, utils
-from typing import Dict, Optional
-import logging
+from typing import Dict, Optional, Union, List
+import logging, copy
 
 
 class KeyBone(BaseBone):
     type = "key"
 
-    def __init__(self, *, descr="Key", readOnly=True, visible=False, **kwargs):
-        super(KeyBone, self).__init__(descr=descr, readOnly=readOnly, visible=visible, defaultValue=None, **kwargs)
+    def __init__(
+        self,
+        *,
+        descr: str = "Key",
+        readOnly: bool = True,  # default is readonly
+        visible: bool = False,  # default is invisible
+        allowed_kinds: Union[None, List[str]] = None,  # None allows for any kind
+        check: bool = False,  # check for entity existence
+        **kwargs
+    ):
+        super().__init__(descr=descr, readOnly=readOnly, visible=visible, defaultValue=None, **kwargs)
+        self.allowed_kinds = allowed_kinds
+        self.check = check
+
+    def singleValueFromClient(self, value, skel, name, origData):
+        # check for correct key
+        if isinstance(value, str):
+            value = value.strip()
+
+        if self.allowed_kinds:
+            try:
+                key = db.keyHelper(value, self.allowed_kinds[0], self.allowed_kinds[1:])
+            except ValueError as e:
+                return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, e.args[0])]
+        else:
+            try:
+                key = db.normalizeKey(db.Key.from_legacy_urlsafe(value))
+            except:
+                return self.getEmptyValue(), [
+                    ReadFromClientError(
+                        ReadFromClientErrorSeverity.Invalid,
+                        "The provided key is not a valid database key"
+                    )
+                ]
+
+        # Check custom validity
+        err = self.isInvalid(key)
+        if err:
+            return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
+
+        if self.check:
+            if db.Get(key) is None:
+                return self.getEmptyValue(), [
+                    ReadFromClientError(
+                        ReadFromClientErrorSeverity.Invalid,
+                        "The provided key does not exist"
+                    )
+                ]
+
+        return key, None
 
     def unserialize(self, skel: 'viur.core.skeleton.SkeletonValues', name: str) -> bool:
         """

@@ -45,7 +45,7 @@ class SpatialBone(BaseBone):
 
     type = "spatial"
 
-    def __init__(self, *, boundsLat: Tuple[int, int], boundsLng: Tuple[int, int], gridDimensions: Tuple[int, int], **kwargs):
+    def __init__(self, *, boundsLat: Tuple[float, float], boundsLng: Tuple[float, float], gridDimensions: Tuple[int, int], **kwargs):
         """
             Initializes a new SpatialBone.
 
@@ -54,10 +54,20 @@ class SpatialBone(BaseBone):
             :param gridDimensions: Number of sub-regions the map will be divided in
         """
         super().__init__(**kwargs)
-        assert isinstance(boundsLat, tuple) and len(boundsLat) == 2, "boundsLat must be a tuple of (int, int)"
-        assert isinstance(boundsLng, tuple) and len(boundsLng) == 2, "boundsLng must be a tuple of (int, int)"
+        assert isinstance(boundsLat, tuple) and len(boundsLat) == 2, "boundsLat must be a tuple of (float, float)"
+        assert isinstance(boundsLng, tuple) and len(boundsLng) == 2, "boundsLng must be a tuple of (float, float)"
         assert isinstance(gridDimensions, tuple) and len(
             gridDimensions) == 2, "gridDimensions must be a tuple of (int, int)"
+        # Checks if boundsLat and boundsLng have possible values
+        # See https://docs.mapbox.com/help/glossary/lat-lon/
+        if not -90 <= boundsLat[0] <= 90:
+            raise ValueError(f"boundsLat[0] must be between -90 and 90. Got {boundsLat[0]!r}")
+        if not -90 <= boundsLat[1] <= 90:
+            raise ValueError(f"boundsLat[1] must be between -90 and 90. Got {boundsLat[1]!r}")
+        if not -180 <= boundsLng[0] <= 180:
+            raise ValueError(f"boundsLng[0] must be between -180 and 180. Got {boundsLng[0]!r}")
+        if not -180 <= boundsLng[1] <= 180:
+            raise ValueError(f"boundsLng[1] must be between -180 and 180. Got {boundsLng[1]!r}")
         assert not (self.indexed and self.multiple), "Spatial-Bone cannot be indexed when multiple"
         self.boundsLat = boundsLat
         self.boundsLng = boundsLng
@@ -72,7 +82,7 @@ class SpatialBone(BaseBone):
         lngDelta = float(self.boundsLng[1] - self.boundsLng[0])
         return latDelta / float(self.gridDimensions[0]), lngDelta / float(self.gridDimensions[1])
 
-    def isInvalid(self, value: Tuple[int, int]) -> Union[str, bool]:
+    def isInvalid(self, value: Tuple[float, float]) -> Union[str, bool]:
         """
             Tests, if the point given by 'value' is inside our boundaries.
             We'll reject all values outside that region.

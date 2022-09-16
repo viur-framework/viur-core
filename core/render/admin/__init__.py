@@ -1,6 +1,5 @@
 from viur.core.render.json.default import DefaultRender, CustomJsonEncoder
 from viur.core.render.json.user import UserRender as user
-from viur.core.render.json.file import FileRender as file
 from viur.core.utils import currentRequest, currentLanguage, currentSession
 from viur.core.skeleton import SkeletonInstance
 from viur.core import conf

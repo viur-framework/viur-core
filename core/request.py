@@ -249,6 +249,7 @@ class BrowseHandler():  # webapp.RequestHandler
             self.findAndCall(path)
         except errors.Redirect as e:
             if conf["viur.debug.traceExceptions"]:
+                logging.warning("""conf["viur.debug.traceExceptions"] is set, won't handle this exception""")
                 raise
             self.response.status = '%d %s' % (e.status, e.name)
             url = e.url
@@ -257,6 +258,7 @@ class BrowseHandler():  # webapp.RequestHandler
             self.response.headers['Location'] = url
         except errors.HTTPException as e:
             if conf["viur.debug.traceExceptions"]:
+                logging.warning("""conf["viur.debug.traceExceptions"] is set, won't handle this exception""")
                 raise
             self.response.body = b""
             self.response.status = '%d %s' % (e.status, e.name)
@@ -279,7 +281,7 @@ class BrowseHandler():  # webapp.RequestHandler
                 extendCsp({"style-src":['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
             self.response.write(res.encode("UTF-8"))
         except Exception as e:  # Something got really wrong
-            logging.error("Viur caught an unhandled exception!")
+            logging.error("ViUR has caught an unhandled exception!")
             logging.exception(e)
             self.response.body = b""
             self.response.status = 500
@@ -470,7 +472,10 @@ class BrowseHandler():  # webapp.RequestHandler
             raise errors.BadRequest()
         # Parse the URL
         path = parse.urlparse(path).path
-        self.pathlist = [unicodedata.normalize("NFC", parse.unquote(x)) for x in path.strip("/").split("/")]
+        if path:
+            self.pathlist = [unicodedata.normalize("NFC", parse.unquote(x)) for x in path.strip("/").split("/")]
+        else:
+            self.pathlist = []
         caller = conf["viur.mainResolver"]
         idx = 0  # Count how may items from *args we'd have consumed (so the rest can go into *args of the called func
         for currpath in self.pathlist:

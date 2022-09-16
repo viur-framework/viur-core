@@ -28,7 +28,7 @@ def preprocessJsonObject(o):
     if isinstance(o, db.Key):
         return {".__key__": db.encodeKey(o)}
     elif isinstance(o, datetime):
-        return {".__datetime__": o.astimezone(pytz.UTC).strftime("d.%m.%Y %H:%M:%S")}
+        return {".__datetime__": o.astimezone(pytz.UTC).strftime("%d.%m.%Y %H:%M:%S")}
     elif isinstance(o, bytes):
         return {".__bytes__": base64.b64encode(o).decode("ASCII")}
     elif isinstance(o, db.Entity):
@@ -49,7 +49,7 @@ def jsonDecodeObjectHook(obj):
         if ".__key__" in obj:
             return db.Key.from_legacy_urlsafe(obj[".__key__"])
         elif ".__datetime__" in obj:
-            value = datetime.strptime(obj[".__datetime__"], "d.%m.%Y %H:%M:%S")
+            value = datetime.strptime(obj[".__datetime__"], "%d.%m.%Y %H:%M:%S")
             return datetime(value.year, value.month, value.day, value.hour, value.minute, value.second, tzinfo=pytz.UTC)
         elif ".__bytes__" in obj:
             return base64.b64decode(obj[".__bytes__"])
