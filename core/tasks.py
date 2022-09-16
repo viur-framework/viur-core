@@ -220,9 +220,8 @@ class TaskHandler:
         cmd, data = json.loads(req.body, object_hook=jsonDecodeObjectHook)
         funcPath, args, kwargs, env = data
         if conf.get("viur.tasks.logs", False):
-            logging.info("Call Task %s with CMD = %s" % (funcPath,cmd))
-            logging.info("Call Task Arguments args = %s kwargs = %s" % (str(args), str(kwargs)))
-            logging.info("Call Task Env = %s" % (str(env)))
+            logging.info(f"Call task {funcPath} with cmd={cmd!r} args={args!r} kwargs={kwargs!r} env={env!r}")
+
         if env:
             if "user" in env and env["user"]:
                 currentSession.get()["user"] = env["user"]
@@ -495,10 +494,8 @@ def callDeferred(func):
             # Use the client to build and send the task.
             response = taskClient.create_task(parent=parent, task=task)
 
-            print('Created task {}'.format(response.name))
             if conf.get("viur.tasks.logs",False):
-                logging.info("Create Task %s.%s" % (func.__name__, func.__module__))
-                logging.info("Create Task Arguments args = %s kwargs = %s"%(str(args),str(kwargs)))
+                logging.info(f"Create task {func.__name__}.{func.__module__} with args={args!r} kwargs={kwargs!r} env={env!r}")
 
 
     global _deferedTasks
