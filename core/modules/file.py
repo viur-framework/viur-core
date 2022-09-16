@@ -158,8 +158,6 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
             response_disposition=contentDisposition,
             version="v4")
 
-    logging.debug("signedUrl===")
-    logging.debug(signedUrl)
 
     dataDict = {"url": signedUrl,
             "name": fileSkel["name"],
@@ -207,7 +205,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
                     "name": fileSkel["name"],
                     "params": params,
                     "minetype": fileSkel["mimetype"],
-                    "baseUrl": "https://ag-dev-viur3.ey.r.appspot.com",
+                    "baseUrl":  utils.currentRequest.get().request.host_url.lower(),
                     "targetKey": fileSkel["dlkey"],
                     "nameOnly": False,
                     "uploadUrls":uploadUrls
@@ -217,12 +215,14 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
     sig = utils.hmacSign(dataStr)
     datadump = json.dumps({"dataStr": dataStr.decode('ASCII'), "sign": sig})
     r = _requests.post(conf["viur.file.thumbnailerURL"], data=datadump, headers=headers)
-    logging.debug(r.content)
-    derivedData = r.json()
     reslist = []
-    for derived in derivedData["values"]:
-        for key, value in derived.items():
-            reslist.append((key, value["size"], value["mimetype"], value["customData"]))
+    try :
+        derivedData = r.json()
+        for derived in derivedData["values"]:
+            for key, value in derived.items():
+                reslist.append((key, value["size"], value["mimetype"], value["customData"]))
+    except Exception as e:
+        logging.error(f"cloudfunction_thumbnailer failed with: {e!r}")
     return reslist
 
 
