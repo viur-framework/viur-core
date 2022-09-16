@@ -129,7 +129,7 @@ class BaseBone(object):
             not isinstance(required, bool)
             and (not isinstance(required, (tuple, list)) or any(not isinstance(value, str) for value in required))
         ):
-            raise TypeError(f"required must be boolean or a tuple/list or strings. Got: {required}")
+            raise TypeError(f"required must be boolean or a tuple/list of strings. Got: {required!r}")
 
         self.languages = languages
 
