@@ -17,6 +17,9 @@ from viur.core import db, errors, utils
 from viur.core.config import conf
 from viur.core.utils import currentLanguage, currentRequest, currentSession
 
+logger = logging.getLogger("viur.core.tasks")
+logger.setLevel(logging.WARNING)
+
 
 # class JsonKeyEncoder(json.JSONEncoder):
 def preprocessJsonObject(o):
@@ -219,8 +222,7 @@ class TaskHandler:
                                             retryCount))
         cmd, data = json.loads(req.body, object_hook=jsonDecodeObjectHook)
         funcPath, args, kwargs, env = data
-        if conf.get("viur.tasks.logs", False):
-            logging.info(f"Call task {funcPath} with cmd={cmd!r} args={args!r} kwargs={kwargs!r} env={env!r}")
+        logger.debug(f"Call task {funcPath} with cmd={cmd!r} args={args!r} kwargs={kwargs!r} env={env!r}")
 
         if env:
             if "user" in env and env["user"]:
@@ -494,8 +496,8 @@ def callDeferred(func):
             # Use the client to build and send the task.
             response = taskClient.create_task(parent=parent, task=task)
 
-            if conf.get("viur.tasks.logs",False):
-                logging.info(f"Create task {func.__name__}.{func.__module__} with args={args!r} kwargs={kwargs!r} env={env!r}")
+
+            logger.debug(f"Create task {func.__name__}.{func.__module__} with args={args!r} kwargs={kwargs!r} env={env!r}")
 
 
     global _deferedTasks
