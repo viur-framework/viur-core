@@ -54,7 +54,8 @@ def importBlobFromViur2(dlKey, fileName):
             return False
         importData = json.loads(importDataReq.read())
         oldBlobName = conf["viur.viur2import.blobsource"]["gsdir"] + "/" + importData["key"]
-        srcBlob = storage.Blob(bucket=bucket, name=conf["viur.viur2import.blobsource"]["gsdir"] + "/" + importData["key"])
+        srcBlob = storage.Blob(bucket=bucket,
+                               name=conf["viur.viur2import.blobsource"]["gsdir"] + "/" + importData["key"])
     else:
         oldBlobName = conf["viur.viur2import.blobsource"]["gsdir"] + "/" + dlKey
         srcBlob = storage.Blob(bucket=bucket, name=conf["viur.viur2import.blobsource"]["gsdir"] + "/" + dlKey)
@@ -128,18 +129,17 @@ def thumbnailer(fileSkel, existingFiles, params):
         resList.append((targetName, outSize, mimeType, {"mimetype": mimeType, "width": width, "height": height}))
     return resList
 
-def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
 
-    if not conf.get("viur.file.thumbnailerURL",False):
+def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
+    if not conf.get("viur.file.thumbnailerURL", False):
         raise ValueError("viur.file.thumbnailerURL is not set")
-    if not conf.get("viur.file.thumbnailer_secKey",False):
+    if not conf.get("viur.file.thumbnailer_secKey", False):
         raise ValueError("viur.file.thumbnailer_secKey is not set")
 
     import requests as _requests
 
-
     if utils.isLocalDevelopmentServer:
-        signedUrl=utils.downloadUrlFor(fileSkel["dlkey"],fileSkel["name"])
+        signedUrl = utils.downloadUrlFor(fileSkel["dlkey"], fileSkel["name"])
     else:
         blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"], fileSkel["name"]))
         if not blob:
@@ -156,33 +156,33 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
             response_disposition=contentDisposition,
             version="v4")
 
-
     dataDict = {"url": signedUrl,
-            "name": fileSkel["name"],
-            "params": params,
-            "minetype": fileSkel["mimetype"],
-            "baseUrl": "https://ag-dev-viur3.ey.r.appspot.com",
-            "targetKey": fileSkel["dlkey"],
-            "nameOnly":True
+                "name": fileSkel["name"],
+                "params": params,
+                "minetype": fileSkel["mimetype"],
+                "baseUrl": "https://ag-dev-viur3.ey.r.appspot.com",
+                "targetKey": fileSkel["dlkey"],
+                "nameOnly": True
                 }
 
     headers = {'Content-type': 'application/json'}
     dataStr = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
     sig = utils.hmacSign(dataStr)
-    datadump=json.dumps({"dataStr":dataStr.decode('ASCII'),"sign":sig})
+    datadump = json.dumps({"dataStr": dataStr.decode('ASCII'), "sign": sig})
     r = _requests.post(conf["viur.file.thumbnailerURL"], data=datadump, headers=headers)
 
     derivedData = r.json()
 
-    uploadUrls= {}
+    uploadUrls = {}
     for data in derivedData["values"]:
         fileName = sanitizeFileName(data["name"])
 
         blob = bucket.blob("%s/derived/%s" % (fileSkel["dlkey"], fileName))
-        uploadUrls[fileSkel["dlkey"]+fileName]=blob.create_resumable_upload_session(content_type=fileSkel["mimetype"], size=data["size"], timeout=60)
+        uploadUrls[fileSkel["dlkey"] + fileName] = blob.create_resumable_upload_session(
+            content_type=fileSkel["mimetype"], size=data["size"], timeout=60)
 
     if utils.isLocalDevelopmentServer:
-        signedUrl=utils.downloadUrlFor(fileSkel["dlkey"],fileSkel["name"])
+        signedUrl = utils.downloadUrlFor(fileSkel["dlkey"], fileSkel["name"])
     else:
         blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"], fileSkel["name"]))
         authRequest = requests.Request()
@@ -195,24 +195,22 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
             response_disposition=contentDisposition,
             version="v4")
 
-
-
     dataDict = {"url": signedUrl,
-                    "name": fileSkel["name"],
-                    "params": params,
-                    "minetype": fileSkel["mimetype"],
-                    "baseUrl":  utils.currentRequest.get().request.host_url.lower(),
-                    "targetKey": fileSkel["dlkey"],
-                    "nameOnly": False,
-                    "uploadUrls":uploadUrls
-                    }
+                "name": fileSkel["name"],
+                "params": params,
+                "minetype": fileSkel["mimetype"],
+                "baseUrl": utils.currentRequest.get().request.host_url.lower(),
+                "targetKey": fileSkel["dlkey"],
+                "nameOnly": False,
+                "uploadUrls": uploadUrls
+                }
 
     dataStr = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
     sig = utils.hmacSign(dataStr)
     datadump = json.dumps({"dataStr": dataStr.decode('ASCII'), "sign": sig})
     r = _requests.post(conf["viur.file.thumbnailerURL"], data=datadump, headers=headers)
     reslist = []
-    try :
+    try:
         derivedData = r.json()
         for derived in derivedData["values"]:
             for key, value in derived.items():
@@ -363,7 +361,8 @@ class File(Tree):
 
     blobCacheTime = 60 * 60 * 24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
 
-    def write(self, filename: str, content: Any, mimetype: str = "text/plain", width: int = None, height: int = None) -> db.Key:
+    def write(self, filename: str, content: Any, mimetype: str = "text/plain", width: int = None,
+              height: int = None) -> db.Key:
         """
         Write a file from any buffer into the file module.
 
@@ -452,7 +451,7 @@ class File(Tree):
         fileName = sanitizeFileName(fileName)
 
         targetKey = utils.generateRandomString()
-        blob = bucket.blob("%s/source/%s" % (targetKey,fileName))
+        blob = bucket.blob("%s/source/%s" % (targetKey, fileName))
         uploadUrl = blob.create_resumable_upload_session(content_type=mimeType, size=size, timeout=60)
         # Create a corresponding file-lock object early, otherwise we would have to ensure that the file-lock object
         # the user creates matches the file he had uploaded
@@ -515,13 +514,10 @@ class File(Tree):
         else:
             size = None
 
-
         if not securitykey.validate(skey, useSessionKey=True):
             raise errors.PreconditionFailed()
 
-
         targetKey, uploadUrl = self.initializeUpload(fileName, mimeType.lower(), node, size)
-
 
         resDict = {
             "uploadUrl": uploadUrl,
