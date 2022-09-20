@@ -227,16 +227,10 @@ class DefaultRender(object):
         currentRequest.get().response.headers["Content-Type"] = "application/json"
         return json.dumps(res, cls=CustomJsonEncoder)
 
-    def view(self, skel: SkeletonInstance, action="view", params=None, *args, **kwargs):
+    def view(self, skel: SkeletonInstance, action: str = "view", params=None, **kwargs):
         return self.renderEntry(skel, action, params)
 
-    def add(self, skel: SkeletonInstance, action="add", params=None, **kwargs):
-        return self.renderEntry(skel, action, params)
-
-    def edit(self, skel: SkeletonInstance, action="edit", params=None, **kwargs):
-        return self.renderEntry(skel, action, params)
-
-    def list(self, skellist, action="list", params=None, **kwargs):
+    def list(self, skellist, action: str = "list", params=None, **kwargs):
         res = {}
         skels = []
 
@@ -256,22 +250,23 @@ class DefaultRender(object):
         currentRequest.get().response.headers["Content-Type"] = "application/json"
         return json.dumps(res, cls=CustomJsonEncoder)
 
-    def editSuccess(self, skel: SkeletonInstance, params=None, **kwargs):
-        return self.renderEntry(skel, "editSuccess", params)
+    def add(self, skel: SkeletonInstance, action: str = "add", params=None, **kwargs):
+        return self.renderEntry(skel, action, params)
 
-    def addSuccess(self, skel: SkeletonInstance, params=None, **kwargs):
-        return self.renderEntry(skel, "addSuccess", params)
+    def edit(self, skel: SkeletonInstance, action: str = "edit", params=None, **kwargs):
+        return self.renderEntry(skel, action, params)
 
-    def listRootNodes(self, rootNodes, *args, **kwargs):
-        for rn in rootNodes:
-            rn["key"] = db.encodeKey(rn["key"])
-        return json.dumps(rootNodes)
+    def editSuccess(self, skel: SkeletonInstance, action: str = "editSuccess", params=None, **kwargs):
+        return self.renderEntry(skel, action, params)
+
+    def addSuccess(self, skel: SkeletonInstance, action: str = "addSuccess", params=None, **kwargs):
+        return self.renderEntry(skel, action, params)
 
     def deleteSuccess(self, skel: SkeletonInstance, params=None, *args, **kwargs):
         return json.dumps("OKAY")
 
-    def reparentSuccess(self, obj, tpl=None, params=None, *args, **kwargs):
-        return json.dumps("OKAY")
+    def listRootNodes(self, rootNodes, *args, **kwargs):
+        for rn in rootNodes:
+            rn["key"] = db.encodeKey(rn["key"])
 
-    def cloneSuccess(self, tpl=None, params=None, *args, **kwargs):
-        return json.dumps("OKAY")
+        return json.dumps(rootNodes)
