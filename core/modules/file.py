@@ -149,8 +149,6 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         authRequest = requests.Request()
         expiresAt = datetime.now() + timedelta(seconds=60)
         signing_credentials = compute_engine.IDTokenCredentials(authRequest, "")
-        logging.debug("signing_credentials=>")
-        logging.debug(signing_credentials)
         contentDisposition = "filename=%s" % fileSkel["name"]
         signedUrl = blob.generate_signed_url(
             expiresAt,
@@ -175,8 +173,6 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
     r = _requests.post(conf["viur.file.thumbnailerURL"], data=datadump, headers=headers)
 
     derivedData = r.json()
-
-    logging.info(derivedData["values"])
 
     uploadUrls= {}
     for data in derivedData["values"]:
@@ -222,7 +218,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
             for key, value in derived.items():
                 reslist.append((key, value["size"], value["mimetype"], value["customData"]))
     except Exception as e:
-        logging.error(f"cloudfunction_thumbnailer failed with: {e!r}")
+        logging.error(f"cloudfunction_thumbnailer failed with: {e=}")
     return reslist
 
 
