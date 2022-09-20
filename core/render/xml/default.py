@@ -279,9 +279,3 @@ class DefaultRender(object):
 
     def deleteSuccess(self, skel, params=None, *args, **kwargs):
         return serializeXML("OKAY")
-
-    def reparentSuccess(self, obj, tpl=None, params=None, *args, **kwargs):
-        return serializeXML("OKAY")
-
-    def cloneSuccess(self, tpl=None, params=None, *args, **kwargs):
-        return serializeXML("OKAY")
