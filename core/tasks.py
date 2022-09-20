@@ -17,6 +17,9 @@ from viur.core import db, errors, utils
 from viur.core.config import conf
 from viur.core.utils import currentLanguage, currentRequest, currentSession
 
+logger = logging.getLogger("viur.core.tasks")
+logger.setLevel(logging.WARNING)
+
 
 # class JsonKeyEncoder(json.JSONEncoder):
 def preprocessJsonObject(o):
@@ -200,7 +203,6 @@ class TaskHandler:
             This catches one deferred call and routes it to its destination
         """
         global _deferedTasks, _appengineServiceIPs
-
         req = currentRequest.get().request
         if 'X-AppEngine-TaskName' not in req.headers:
             logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
@@ -220,6 +222,8 @@ class TaskHandler:
                                             retryCount))
         cmd, data = json.loads(req.body, object_hook=jsonDecodeObjectHook)
         funcPath, args, kwargs, env = data
+        logger.debug(f"Call task {funcPath} with {cmd=} {args=} {kwargs=} {env=}")
+
         if env:
             if "user" in env and env["user"]:
                 currentSession.get()["user"] = env["user"]
@@ -251,7 +255,7 @@ class TaskHandler:
             try:
                 caller(*args, **kwargs)
             except PermanentTaskFailure:
-                pass
+                logging.error("PermanentTaskFailure")
             except Exception as e:
                 logging.exception(e)
                 raise errors.RequestTimeout()  # Task-API should retry
@@ -260,15 +264,15 @@ class TaskHandler:
                 logging.error("ViUR missed a deferred task! %s(%s,%s)", funcPath, args, kwargs)
             # We call the deferred function *directly* (without walking through the mkDeferred lambda), so ensure
             # that any hit to another deferred function will defer again
-            req.DEFERED_TASK_CALLED = True
+
+            currentRequest.get().DEFERED_TASK_CALLED = True
             try:
                 _deferedTasks[funcPath](*args, **kwargs)
             except PermanentTaskFailure:
-                pass
+                logging.error("PermanentTaskFailure")
             except Exception as e:
                 logging.exception(e)
                 raise errors.RequestTimeout()  # Task-API should retry
-
     deferred.exposed = True
 
     def cron(self, cronName="default", *args, **kwargs):
@@ -424,15 +428,13 @@ def callDeferred(func):
             req = None
         if req is not None and req.request.headers.get("X-Appengine-Taskretrycount") \
             and "DEFERED_TASK_CALLED" not in dir(req):
-            # This is the deferred call
-            req.DEFERED_TASK_CALLED = True  # Defer recursive calls to an deferred function again.
-            if self is __undefinedFlag_:
+
+            if self is __undefinedFlag_: #cmd = unb
                 return func(*args, **kwargs)
-            else:
+            else: #cmd = rel
+                req.DEFERED_TASK_CALLED = True
                 return func(self, *args, **kwargs)
         else:
-            if req:
-                req.DEFERED_TASK_CALLED = True  # Defer recursive calls to an deferred function again.
             try:
                 if self.__class__.__name__ == "index":
                     funcPath = func.__name__
@@ -494,7 +496,8 @@ def callDeferred(func):
             # Use the client to build and send the task.
             response = taskClient.create_task(parent=parent, task=task)
 
-            print('Created task {}'.format(response.name))
+            logger.debug(f"Create task {func.__name__}.{func.__module__} with {args=} {kwargs=} {env=}")
+
 
     global _deferedTasks
     _deferedTasks["%s.%s" % (func.__name__, func.__module__)] = func
