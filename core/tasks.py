@@ -222,7 +222,7 @@ class TaskHandler:
                                             retryCount))
         cmd, data = json.loads(req.body, object_hook=jsonDecodeObjectHook)
         funcPath, args, kwargs, env = data
-        logger.debug(f"Call task {funcPath} with cmd={cmd!r} args={args!r} kwargs={kwargs!r} env={env!r}")
+        logger.debug(f"Call task {funcPath} with {cmd=} {args=} {kwargs=} {env=}")
 
         if env:
             if "user" in env and env["user"]:
@@ -496,8 +496,7 @@ def callDeferred(func):
             # Use the client to build and send the task.
             response = taskClient.create_task(parent=parent, task=task)
 
-
-            logger.debug(f"Create task {func.__name__}.{func.__module__} with args={args!r} kwargs={kwargs!r} env={env!r}")
+            logger.debug(f"Create task {func.__name__}.{func.__module__} with {args=} {kwargs=} {env=}")
 
 
     global _deferedTasks
