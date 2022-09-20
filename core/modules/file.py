@@ -160,7 +160,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
                 "name": fileSkel["name"],
                 "params": params,
                 "minetype": fileSkel["mimetype"],
-                "baseUrl": "https://ag-dev-viur3.ey.r.appspot.com",
+                "baseUrl": utils.currentRequest.get().request.host_url.lower(),
                 "targetKey": fileSkel["dlkey"],
                 "nameOnly": True
                 }
