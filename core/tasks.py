@@ -87,7 +87,7 @@ else:
 
 _periodicTasks: Dict[str, Dict[Callable, int]] = {}
 _callableTasks = {}
-_deferedTasks = {}
+_deferredTasks = {}
 _startupTasks = []
 _appengineServiceIPs = {"10.0.0.1", "0.1.0.1", "0.1.0.2"}
 
@@ -183,7 +183,7 @@ class TaskHandler:
         """
             This processes one chunk of a queryIter (see below).
         """
-        global _deferedTasks, _appengineServiceIPs
+        global _deferredTasks, _appengineServiceIPs
         req = currentRequest.get().request
         if 'X-AppEngine-TaskName' not in req.headers:
             logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
@@ -202,7 +202,7 @@ class TaskHandler:
         """
             This catches one deferred call and routes it to its destination
         """
-        global _deferedTasks, _appengineServiceIPs
+        global _deferredTasks, _appengineServiceIPs
         req = currentRequest.get().request
         if 'X-AppEngine-TaskName' not in req.headers:
             logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
@@ -260,14 +260,14 @@ class TaskHandler:
                 logging.exception(e)
                 raise errors.RequestTimeout()  # Task-API should retry
         elif cmd == "unb":
-            if not funcPath in _deferedTasks:
+            if not funcPath in _deferredTasks:
                 logging.error("ViUR missed a deferred task! %s(%s,%s)", funcPath, args, kwargs)
             # We call the deferred function *directly* (without walking through the mkDeferred lambda), so ensure
             # that any hit to another deferred function will defer again
 
             currentRequest.get().DEFERED_TASK_CALLED = True
             try:
-                _deferedTasks[funcPath](*args, **kwargs)
+                _deferredTasks[funcPath](*args, **kwargs)
             except PermanentTaskFailure:
                 logging.error("PermanentTaskFailure")
             except Exception as e:
@@ -402,12 +402,12 @@ def CallDeferred(func):
 
     __undefinedFlag_ = object()
 
-    def mkDefered(func, self=__undefinedFlag_, *args, **kwargs):
+    def make_deferred(func, self=__undefinedFlag_, *args, **kwargs):
         # Extract possibly provided task flags from kwargs
         queue = kwargs.pop("_queue", "default")
         taskargs = {k: kwargs.pop(f"_{k}", None) for k in ("countdown", "eta", "name", "target", "retry_options")}
 
-        logger.debug(f"mkDefered {func=}, {self=}, {args=}, {kwargs=}, {queue=}, {taskargs=}")
+        logger.debug(f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, {queue=}, {taskargs=}")
 
         try:
             req = currentRequest.get()
@@ -450,7 +450,7 @@ def CallDeferred(func):
             except:
                 funcPath = "%s.%s" % (func.__name__, func.__module__)
 
-                if self != __undefinedFlag_:
+                if self is not __undefinedFlag_:
                     args = (self,) + args  # Re-append self to args, as this function is (hopefully) unbound
 
                 command = "unb"
@@ -497,6 +497,7 @@ def CallDeferred(func):
                 }
             }
 
+            # Set a schedule time in case countdown was set.
             if seconds := taskargs.get("countdown"):
                 # We must send a Timestamp Protobuf instead of a date-string
                 timestamp = timestamp_pb2.Timestamp()
@@ -510,10 +511,9 @@ def CallDeferred(func):
 
             logger.info(f"Created task {func.__name__}.{func.__module__} with {args=} {kwargs=} {env=}")
 
-
-    global _deferedTasks
-    _deferedTasks["%s.%s" % (func.__name__, func.__module__)] = func
-    return lambda *args, **kwargs: mkDefered(func, *args, **kwargs)
+    global _deferredTasks
+    _deferredTasks["%s.%s" % (func.__name__, func.__module__)] = func
+    return lambda *args, **kwargs: make_deferred(func, *args, **kwargs)
 
 
 def callDeferred(func):
