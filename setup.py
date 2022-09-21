@@ -5,7 +5,7 @@ requirements = {}
 for line in open("requirements.txt").readlines():
     if "==" not in line or line.strip().startswith("#"):
         continue
-    line = line.split(maxsplit=1)[0].strip(" \t;").split("==", 1)
+    line = line.split("--hash", maxsplit=1)[0].strip(" \t\\\r\n").split("==", 1)
     requirements[line[0]] = line[1]
 
 # Check for "[grpc]" packages and remove the non-"[grpc]"-version of them
