@@ -17,10 +17,6 @@ from viur.core import db, errors, utils
 from viur.core.config import conf
 from viur.core.utils import currentLanguage, currentRequest, currentSession
 
-logger = logging.getLogger("viur.core.tasks")
-logger.setLevel(logging.WARNING)
-
-
 # class JsonKeyEncoder(json.JSONEncoder):
 def preprocessJsonObject(o):
     """
@@ -87,7 +83,7 @@ else:
 
 _periodicTasks: Dict[str, Dict[Callable, int]] = {}
 _callableTasks = {}
-_deferredTasks = {}
+_deferred_tasks = {}
 _startupTasks = []
 _appengineServiceIPs = {"10.0.0.1", "0.1.0.1", "0.1.0.2"}
 
@@ -183,7 +179,7 @@ class TaskHandler:
         """
             This processes one chunk of a queryIter (see below).
         """
-        global _deferredTasks, _appengineServiceIPs
+        global _deferred_tasks, _appengineServiceIPs
         req = currentRequest.get().request
         if 'X-AppEngine-TaskName' not in req.headers:
             logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
@@ -202,7 +198,7 @@ class TaskHandler:
         """
             This catches one deferred call and routes it to its destination
         """
-        global _deferredTasks, _appengineServiceIPs
+        global _deferred_tasks, _appengineServiceIPs
         req = currentRequest.get().request
         if 'X-AppEngine-TaskName' not in req.headers:
             logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
@@ -222,7 +218,7 @@ class TaskHandler:
                                             retryCount))
         cmd, data = json.loads(req.body, object_hook=jsonDecodeObjectHook)
         funcPath, args, kwargs, env = data
-        logger.debug(f"Call task {funcPath} with {cmd=} {args=} {kwargs=} {env=}")
+        logging.debug(f"Call task {funcPath} with {cmd=} {args=} {kwargs=} {env=}")
 
         if env:
             if "user" in env and env["user"]:
@@ -260,14 +256,14 @@ class TaskHandler:
                 logging.exception(e)
                 raise errors.RequestTimeout()  # Task-API should retry
         elif cmd == "unb":
-            if not funcPath in _deferredTasks:
+            if not funcPath in _deferred_tasks:
                 logging.error("ViUR missed a deferred task! %s(%s,%s)", funcPath, args, kwargs)
             # We call the deferred function *directly* (without walking through the mkDeferred lambda), so ensure
             # that any hit to another deferred function will defer again
 
             currentRequest.get().DEFERED_TASK_CALLED = True
             try:
-                _deferredTasks[funcPath](*args, **kwargs)
+                _deferred_tasks[funcPath](*args, **kwargs)
             except PermanentTaskFailure:
                 logging.error("PermanentTaskFailure")
             except Exception as e:
@@ -407,7 +403,7 @@ def CallDeferred(func):
         queue = kwargs.pop("_queue", "default")
         taskargs = {k: kwargs.pop(f"_{k}", None) for k in ("countdown", "eta", "name", "target", "retry_options")}
 
-        logger.debug(f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, {queue=}, {taskargs=}")
+        logging.debug(f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, {queue=}, {taskargs=}")
 
         try:
             req = currentRequest.get()
@@ -416,7 +412,7 @@ def CallDeferred(func):
 
         if not queueRegion:
             # Run tasks inline
-            logger.debug(f"{func=} will be executed inline")
+            logging.debug(f"{func=} will be executed inline")
 
             if self is __undefinedFlag_:
                 task = lambda: func(*args, **kwargs)
@@ -506,13 +502,13 @@ def CallDeferred(func):
 
             # Use the client to build and send the task.
             parent = taskClient.queue_path(utils.projectID, queueRegion, queue)
-            logger.debug(f"{parent=}, {task=}")
+            logging.debug(f"{parent=}, {task=}")
             taskClient.create_task(parent=parent, task=task)
 
-            logger.info(f"Created task {func.__name__}.{func.__module__} with {args=} {kwargs=} {env=}")
+            logging.info(f"Created task {func.__name__}.{func.__module__} with {args=} {kwargs=} {env=}")
 
-    global _deferredTasks
-    _deferredTasks["%s.%s" % (func.__name__, func.__module__)] = func
+    global _deferred_tasks
+    _deferred_tasks["%s.%s" % (func.__name__, func.__module__)] = func
     return lambda *args, **kwargs: make_deferred(func, *args, **kwargs)
 
 
