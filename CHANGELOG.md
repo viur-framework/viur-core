@@ -2,9 +2,18 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.2.2]
+## [3.2.3]
+
+### Fixed
+
+- Fixed setup.py requirements extraction to respect conditionals
+- Fixed getReferencedBlobs of TextBone so it allows multiple=True data to be saved (#490)
+
+### Changed
 
 - Updated viur-datastore to v1.3.2
+
+## [3.2.2]
 
 ### Changed
 - Updated viur-datastore to v1.3.1
