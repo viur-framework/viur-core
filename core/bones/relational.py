@@ -789,11 +789,19 @@ class RelationalBone(BaseBone):
         if not skel[boneName] or self.updateLevel == 2:
             return
         logging.debug("Refreshing RelationalBone %s of %s" % (boneName, skel.kindName))
-        if isinstance(skel[boneName], dict):
-            updateInplace(skel[boneName])
-        elif isinstance(skel[boneName], list):
-            for k in skel[boneName]:
-                updateInplace(k)
+        if isinstance(skel[boneName], dict) and "dest" not in skel[boneName]:  # multi lang
+            for l in skel[boneName]:
+                if isinstance(skel[boneName][l], dict):
+                    updateInplace(skel[boneName][l])
+                elif isinstance(skel[boneName][l], list):
+                    for k in skel[boneName][l]:
+                        updateInplace(k)
+        else:
+            if isinstance(skel[boneName], dict):
+                updateInplace(skel[boneName])
+            elif isinstance(skel[boneName], list):
+                for k in skel[boneName]:
+                    updateInplace(k)
 
     def getSearchTags(self, skeletonValues, key):
         def getValues(res, skel, valuesCache):
