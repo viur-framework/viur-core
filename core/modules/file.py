@@ -134,8 +134,6 @@ def thumbnailer(fileSkel, existingFiles, params):
 def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
     if not conf.get("viur.file.thumbnailerURL", False):
         raise ValueError("viur.file.thumbnailerURL is not set")
-    if not conf.get("viur.file.thumbnailer_secKey", False):
-        raise ValueError("viur.file.thumbnailer_secKey is not set")
 
     import requests as _requests
     orgifileName = fileSkel["name"].replace("&#040;", "(").replace("&#041;", ")").replace("&#061;", "=")
