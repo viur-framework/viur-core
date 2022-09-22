@@ -38,7 +38,10 @@ class StringBone(BaseBone):
         return ""
 
     def isEmpty(self, value):
-        return not bool(value.strip())
+        if not value:
+            return True
+
+        return not bool(str(value).strip())
 
     def singleValueFromClient(self, value, skel, name, origData):
         value = utils.escapeString(value,self.maxLength)
