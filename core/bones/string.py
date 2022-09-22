@@ -37,13 +37,15 @@ class StringBone(BaseBone):
     def getEmptyValue(self):
         return ""
 
+    def isEmpty(self, value):
+        return not bool(value.strip())
+
     def singleValueFromClient(self, value, skel, name, origData):
         value = utils.escapeString(value,self.maxLength)
         err = self.isInvalid(value)
         if not err:
             return utils.escapeString(value,self.maxLength), None
         return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
-
 
     def buildDBFilter(
         self,
