@@ -86,9 +86,10 @@ class InjectStoreURLBone(BaseBone):
 
 
 def thumbnailer(fileSkel, existingFiles, params):
-    blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"], fileSkel["name"]))
+    orgifileName = fileSkel["name"].replace("&#040;", "(").replace("&#041;", ")").replace("&#061;", "=")
+    blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"],orgifileName))
     if not blob:
-        logging.warning("Blob %s is missing from Cloudstore!" % fileSkel["dlkey"])
+        logging.warning("Blob %s/source/%s is missing from Cloudstore!" % (fileSkel["dlkey"], orgifileName))
         return
     fileData = BytesIO()
     blob.download_to_file(fileData)
@@ -137,13 +138,13 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         raise ValueError("viur.file.thumbnailer_secKey is not set")
 
     import requests as _requests
-
+    orgifileName = fileSkel["name"].replace("&#040;", "(").replace("&#041;", ")").replace("&#061;", "=")
     if utils.isLocalDevelopmentServer:
         signedUrl = utils.downloadUrlFor(fileSkel["dlkey"], fileSkel["name"])
     else:
-        blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"], fileSkel["name"]))
+        blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"],orgifileName))
         if not blob:
-            logging.warning("Blob %s is missing from Cloudstore!" % fileSkel["dlkey"])
+            logging.warning("Blob %s/source/%s is missing from Cloudstore!" %  (fileSkel["dlkey"],orgifileName))
             return
 
         authRequest = requests.Request()
@@ -170,21 +171,25 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
     sig = utils.hmacSign(dataStr)
     datadump = json.dumps({"dataStr": dataStr.decode('ASCII'), "sign": sig})
     r = _requests.post(conf["viur.file.thumbnailerURL"], data=datadump, headers=headers)
+    try:
+        derivedData = r.json()
 
-    derivedData = r.json()
-
+    except Exception as e:
+        logging.error(f"cloudfunction_thumbnailer failed with: {e=}")
+        return []
     uploadUrls = {}
     for data in derivedData["values"]:
         fileName = sanitizeFileName(data["name"])
-
         blob = bucket.blob("%s/derived/%s" % (fileSkel["dlkey"], fileName))
-        uploadUrls[fileSkel["dlkey"] + fileName] = blob.create_resumable_upload_session(
-            content_type=fileSkel["mimetype"], size=data["size"], timeout=60)
+        uploadUrls[fileSkel["dlkey"] + fileName] = blob.create_resumable_upload_session(timeout=60,content_type=data["mimeType"])
 
     if utils.isLocalDevelopmentServer:
         signedUrl = utils.downloadUrlFor(fileSkel["dlkey"], fileSkel["name"])
     else:
-        blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"], fileSkel["name"]))
+        blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"], orgifileName))
+        if not blob:
+            logging.warning("Blob %s/source/%s is missing from Cloudstore!" % (fileSkel["dlkey"], orgifileName))
+            return
         authRequest = requests.Request()
         expiresAt = datetime.now() + timedelta(seconds=60)
         signing_credentials = compute_engine.IDTokenCredentials(authRequest, "")
@@ -215,6 +220,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         for derived in derivedData["values"]:
             for key, value in derived.items():
                 reslist.append((key, value["size"], value["mimetype"], value["customData"]))
+
     except Exception as e:
         logging.error(f"cloudfunction_thumbnailer failed with: {e=}")
     return reslist
