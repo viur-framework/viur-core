@@ -252,7 +252,21 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
             assert uri is not None and (uri.lower().startswith("https://") or uri.lower().startswith("http://"))
     runStartupTasks()  # Add a deferred call to run all queued startup tasks
     initializeTranslations()
-    assert conf["viur.file.hmacKey"], "You must set a secret and unique Application-Key to viur.file.hmacKey"
+    if conf["viur.file.hmacKey"] is None:
+        from viur.core import db
+        key = db.Key("viur-conf", "viur-conf-modulekey")
+        obj = db.Get(key)
+        if not obj:  # we not have a conf yet
+            logging.warning("Create new hmac Key")
+            hmacKey = utils.generateRandomString(length=20)
+            obj = db.Entity(key)
+            obj["hmacKey"] = hmacKey
+            db.Put(obj)
+            conf["viur.file.hmacKey"] = bytes(hmacKey, "utf-8")
+        else:
+            if obj["hmacKey"]:
+                conf["viur.file.hmacKey"] = bytes(obj["hmacKey"], "utf-8")
+
     return app
 
 
