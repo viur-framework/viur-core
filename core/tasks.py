@@ -5,6 +5,7 @@ import logging
 import os
 import pytz
 import sys
+import requests
 from datetime import datetime, timedelta
 from functools import wraps
 from google.cloud import tasks_v2
@@ -64,14 +65,24 @@ def jsonDecodeObjectHook(obj):
 
 
 _gaeApp = os.environ.get("GAE_APPLICATION")
-regionMap = {  # FIXME! Can we even determine the region like this?
-    "h": "europe-west3",
-    "e": "europe-west1"
-}
+
 queueRegion = None
 if _gaeApp:
-    regionPrefix = _gaeApp.split("~")[0]
-    queueRegion = regionMap.get(regionPrefix)
+
+    try:
+        headers = {"Metadata-Flavor": "Google"}
+        r = requests.get("http://metadata.google.internal/computeMetadata/v1/instance/zone", headers=headers)
+        # r.text should be look like this "projects/(project-number)/zones/(zone)-1"
+        # like so "projects/1234567890/zones/europe-west3-1"
+        queueRegion = "-".join(r.text.split("/")[-1].split("-")[:2])
+    except:  # Something went wrong with the Google Metadata Sever we use the old way
+        logging.warning("Can't get the queueRegion from the MetaData Server")
+        regionPrefix = _gaeApp.split("~")[0]
+        regionMap = {
+            "h": "europe-west3",
+            "e": "europe-west1"
+        }
+        queueRegion = regionMap.get(regionPrefix)
 
 if not queueRegion and utils.isLocalDevelopmentServer and os.getenv("TASKS_EMULATOR") is None:
     # Probably local development server
