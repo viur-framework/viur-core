@@ -254,7 +254,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     initializeTranslations()
     if conf["viur.file.hmacKey"] is None:
         from viur.core import db
-        key = db.Key("viur-conf", "viur-conf-modulekey")
+        key = db.Key("viur-conf", "viur-conf")
         obj = db.Get(key)
         if not obj:  # we not have a conf yet
             logging.warning("Create new hmac Key")
