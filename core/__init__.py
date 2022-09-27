@@ -255,18 +255,16 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     if conf["viur.file.hmacKey"] is None:
         from viur.core import db
         key = db.Key("viur-conf", "viur-conf")
-        obj = db.Get(key)
-        if not obj:  # we not have a conf yet
-            logging.warning("Create new hmac Key")
-            hmacKey = utils.generateRandomString(length=20)
+        if not (obj := db.Get(key)):  # create a new "viur-conf"?
+            logging.info("Creating new viur-conf")
             obj = db.Entity(key)
-            obj["hmacKey"] = hmacKey
-            db.Put(obj)
-            conf["viur.file.hmacKey"] = bytes(hmacKey, "utf-8")
-        else:
-            if obj["hmacKey"]:
-                conf["viur.file.hmacKey"] = bytes(obj["hmacKey"], "utf-8")
 
+        if "hmacKey" not in obj:  # create a new hmacKey
+            logging.info("Creating new hmacKey")
+            obj["hmacKey"] = utils.generateRandomString(length=20)            
+            db.Put(obj)
+
+        conf["viur.file.hmacKey"] = bytes(obj["hmacKey"], "utf-8")
     return app
 
 
