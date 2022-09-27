@@ -75,8 +75,8 @@ if _gaeApp:
         # r.text should be look like this "projects/(project-number)/zones/(zone)-1"
         # like so "projects/1234567890/zones/europe-west3-1"
         queueRegion = "-".join(r.text.split("/")[-1].split("-")[:2])
-    except:  # Something went wrong with the Google Metadata Sever we use the old way
-        logging.warning("Can't get the queueRegion from the MetaData Server")
+    except Exception as e:  # Something went wrong with the Google Metadata Sever we use the old way
+        logging.warning(f"Can't obtain queueRegion from Google MetaData Server due exception {e=}")
         regionPrefix = _gaeApp.split("~")[0]
         regionMap = {
             "h": "europe-west3",
