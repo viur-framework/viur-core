@@ -326,7 +326,7 @@ class List(BasicApplication):
         # This was unsuccessfully, we'll render a list instead
         if not kwargs:
             kwargs = self.getDefaultListParams()
-        return self.list(kwargs)
+        return self.list(**kwargs)
 
     def getDefaultListParams(self):
         return {}
