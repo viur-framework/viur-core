@@ -4,7 +4,7 @@ import google.auth
 import json
 import logging
 import string
-import hmac
+import html
 from PIL import Image, ImageCms
 from base64 import urlsafe_b64decode
 from datetime import datetime, timedelta
@@ -86,7 +86,7 @@ class InjectStoreURLBone(BaseBone):
 
 
 def thumbnailer(fileSkel, existingFiles, params):
-    orgifileName = fileSkel["name"].replace("&#040;", "(").replace("&#041;", ")").replace("&#061;", "=")
+    orgifileName = html.unescape(fileSkel["name"])
     blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"], orgifileName))
     if not blob:
         logging.warning("Blob %s/source/%s is missing from Cloudstore!" % (fileSkel["dlkey"], orgifileName))
@@ -162,7 +162,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         datadump = json.dumps({"dataStr": dataStr.decode('ASCII'), "sign": sig})
         return _requests.post(conf["viur.file.thumbnailerURL"], data=datadump, headers=headers)
 
-    orgifileName = fileSkel["name"].replace("&#040;", "(").replace("&#041;", ")").replace("&#061;", "=")
+    orgifileName = html.unescape(fileSkel["name"])
 
     if not (url := getsignedurl()):
         return
