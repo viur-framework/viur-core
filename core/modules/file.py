@@ -87,7 +87,7 @@ class InjectStoreURLBone(BaseBone):
 
 def thumbnailer(fileSkel, existingFiles, params):
     orgifileName = fileSkel["name"].replace("&#040;", "(").replace("&#041;", ")").replace("&#061;", "=")
-    blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"],orgifileName))
+    blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"], orgifileName))
     if not blob:
         logging.warning("Blob %s/source/%s is missing from Cloudstore!" % (fileSkel["dlkey"], orgifileName))
         return
@@ -135,86 +135,72 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
     if not conf.get("viur.file.thumbnailerURL", False):
         raise ValueError("viur.file.thumbnailerURL is not set")
 
-    import requests as _requests
+    def getsignedurl():
+        if utils.isLocalDevelopmentServer:
+            signedUrl = utils.downloadUrlFor(fileSkel["dlkey"], fileSkel["name"])
+        else:
+            path = f"""{fileSkel["dlkey"]}/source/{orgifileName}"""
+            if not (blob := bucket.get_blob(path)):
+                logging.warning(f"Blob {path} is missing from Cloudstore!")
+                return None
+            authRequest = requests.Request()
+            expiresAt = datetime.now() + timedelta(seconds=60)
+            signing_credentials = compute_engine.IDTokenCredentials(authRequest, "")
+            contentDisposition = "filename=%s" % fileSkel["name"]
+            signedUrl = blob.generate_signed_url(
+                expiresAt,
+                credentials=signing_credentials,
+                response_disposition=contentDisposition,
+                version="v4")
+        return signedUrl
+
+    def make_request():
+        import requests as _requests
+        headers = {'Content-type': 'application/json'}
+        dataStr = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
+        sig = utils.hmacSign(dataStr)
+        datadump = json.dumps({"dataStr": dataStr.decode('ASCII'), "sign": sig})
+        return _requests.post(conf["viur.file.thumbnailerURL"], data=datadump, headers=headers)
+
     orgifileName = fileSkel["name"].replace("&#040;", "(").replace("&#041;", ")").replace("&#061;", "=")
-    if utils.isLocalDevelopmentServer:
-        signedUrl = utils.downloadUrlFor(fileSkel["dlkey"], fileSkel["name"])
-    else:
-        blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"],orgifileName))
-        if not blob:
-            logging.warning("Blob %s/source/%s is missing from Cloudstore!" %  (fileSkel["dlkey"],orgifileName))
-            return
 
-        authRequest = requests.Request()
-        expiresAt = datetime.now() + timedelta(seconds=60)
-        signing_credentials = compute_engine.IDTokenCredentials(authRequest, "")
-        contentDisposition = "filename=%s" % fileSkel["name"]
-        signedUrl = blob.generate_signed_url(
-            expiresAt,
-            credentials=signing_credentials,
-            response_disposition=contentDisposition,
-            version="v4")
+    if not (url := getsignedurl()):
+        return
+    dataDict = {
+        "url": url,
+        "name": fileSkel["name"],
+        "params": params,
+        "minetype": fileSkel["mimetype"],
+        "baseUrl": utils.currentRequest.get().request.host_url.lower(),
+        "targetKey": fileSkel["dlkey"],
+        "nameOnly": True
+    }
 
-    dataDict = {"url": signedUrl,
-                "name": fileSkel["name"],
-                "params": params,
-                "minetype": fileSkel["mimetype"],
-                "baseUrl": utils.currentRequest.get().request.host_url.lower(),
-                "targetKey": fileSkel["dlkey"],
-                "nameOnly": True
-                }
-
-    headers = {'Content-type': 'application/json'}
-    dataStr = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
-    sig = utils.hmacSign(dataStr)
-    datadump = json.dumps({"dataStr": dataStr.decode('ASCII'), "sign": sig})
-    r = _requests.post(conf["viur.file.thumbnailerURL"], data=datadump, headers=headers)
+    resp = make_request()
     try:
-        derivedData = r.json()
+        derivedData = resp.json()
 
     except Exception as e:
         logging.error(f"cloudfunction_thumbnailer failed with: {e=}")
-        return []
+        return
     uploadUrls = {}
     for data in derivedData["values"]:
         fileName = sanitizeFileName(data["name"])
         blob = bucket.blob("%s/derived/%s" % (fileSkel["dlkey"], fileName))
-        uploadUrls[fileSkel["dlkey"] + fileName] = blob.create_resumable_upload_session(timeout=60,content_type=data["mimeType"])
+        uploadUrls[fileSkel["dlkey"] + fileName] = blob.create_resumable_upload_session(timeout=60,
+                                                                                        content_type=data["mimeType"])
 
-    if utils.isLocalDevelopmentServer:
-        signedUrl = utils.downloadUrlFor(fileSkel["dlkey"], fileSkel["name"])
-    else:
-        blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"], orgifileName))
-        if not blob:
-            logging.warning("Blob %s/source/%s is missing from Cloudstore!" % (fileSkel["dlkey"], orgifileName))
-            return
-        authRequest = requests.Request()
-        expiresAt = datetime.now() + timedelta(seconds=60)
-        signing_credentials = compute_engine.IDTokenCredentials(authRequest, "")
-        contentDisposition = "filename=%s" % fileSkel["name"]
-        signedUrl = blob.generate_signed_url(
-            expiresAt,
-            credentials=signing_credentials,
-            response_disposition=contentDisposition,
-            version="v4")
+    if not (url := getsignedurl()):
+        return
 
-    dataDict = {"url": signedUrl,
-                "name": fileSkel["name"],
-                "params": params,
-                "minetype": fileSkel["mimetype"],
-                "baseUrl": utils.currentRequest.get().request.host_url.lower(),
-                "targetKey": fileSkel["dlkey"],
-                "nameOnly": False,
-                "uploadUrls": uploadUrls
-                }
+    dataDict["url"] = url
+    dataDict["nameOnly"] = False
+    dataDict["uploadUrls"] = uploadUrls
 
-    dataStr = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
-    sig = utils.hmacSign(dataStr)
-    datadump = json.dumps({"dataStr": dataStr.decode('ASCII'), "sign": sig})
-    r = _requests.post(conf["viur.file.thumbnailerURL"], data=datadump, headers=headers)
+    resp = make_request()
     reslist = []
     try:
-        derivedData = r.json()
+        derivedData = resp.json()
         for derived in derivedData["values"]:
             for key, value in derived.items():
                 reslist.append((key, value["size"], value["mimetype"], value["customData"]))
