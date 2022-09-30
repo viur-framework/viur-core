@@ -74,7 +74,7 @@ if _gaeApp:
         r = requests.get("http://metadata.google.internal/computeMetadata/v1/instance/zone", headers=headers)
         # r.text should be look like this "projects/(project-number)/zones/(zone)-1"
         # like so "projects/1234567890/zones/europe-west3-1"
-        queueRegion = "-".join(r.text.split("/")[-1].split("-")[:2])
+        queueRegion = r.text.split("/")[-1].rsplit("-", 1)[0]
     except Exception as e:  # Something went wrong with the Google Metadata Sever we use the old way
         logging.warning(f"Can't obtain queueRegion from Google MetaData Server due exception {e=}")
         regionPrefix = _gaeApp.split("~")[0]
