@@ -58,6 +58,9 @@ logger.setLevel(logging.DEBUG)
 for loggerName, level in oldLevels.items():
     logging.getLogger(loggerName).setLevel(level)
 
+for handler in logger.handlers[:]:
+    logger.removeHandler(handler)
+
 handler = ViURDefaultLogger(client, name="ViUR-Messages", resource=Resource(type="gae_app", labels={}))
 logger.addHandler(handler)
 
