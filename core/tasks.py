@@ -17,6 +17,7 @@ from viur.core import db, errors, utils
 from viur.core.config import conf
 from viur.core.utils import currentLanguage, currentRequest, currentSession
 
+
 # class JsonKeyEncoder(json.JSONEncoder):
 def preprocessJsonObject(o):
     """
@@ -269,6 +270,7 @@ class TaskHandler:
             except Exception as e:
                 logging.exception(e)
                 raise errors.RequestTimeout()  # Task-API should retry
+
     deferred.exposed = True
 
     def cron(self, cronName="default", *args, **kwargs):
@@ -414,10 +416,12 @@ def CallDeferred(func):
             # Run tasks inline
             logging.debug(f"{func=} will be executed inline")
 
-            if self is __undefinedFlag_:
-                task = lambda: func(*args, **kwargs)
-            else:
-                task = lambda: func(self, *args, **kwargs)
+            @wraps(func)
+            def task():
+                if self is __undefinedFlag_:
+                    return func(*args, **kwargs)
+                else:
+                    return func(self, *args, **kwargs)
 
             if req:
                 req.pendingTasks.append(task)  # This property only exists on development server!
@@ -509,7 +513,12 @@ def CallDeferred(func):
 
     global _deferred_tasks
     _deferred_tasks["%s.%s" % (func.__name__, func.__module__)] = func
-    return lambda *args, **kwargs: make_deferred(func, *args, **kwargs)
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        return make_deferred(func, *args, **kwargs)
+
+    return wrapper
 
 
 def callDeferred(func):
@@ -523,6 +532,7 @@ def callDeferred(func):
     warnings.warn(msg)
 
     return CallDeferred(func)
+
 
 def PeriodicTask(interval: int = 0, cronName: str = "default") -> Callable:
     """
