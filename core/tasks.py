@@ -262,7 +262,7 @@ class TaskHandler:
             # We call the deferred function *directly* (without walking through the mkDeferred lambda), so ensure
             # that any hit to another deferred function will defer again
 
-            currentRequest.get().DEFERED_TASK_CALLED = True
+            currentRequest.get().DEFERRED_TASK_CALLED = True
             try:
                 _deferred_tasks[funcPath](*args, **kwargs)
             except PermanentTaskFailure:
@@ -287,7 +287,7 @@ class TaskHandler:
             logging.warning("Got Cron request '%s' which doesn't have any tasks" % cronName)
         # We must defer from cron, as tasks will interpret it as a call originating from task-queue - causing deferred
         # functions to be called directly, wich causes calls with _countdown etc set to fail.
-        req.DEFERED_TASK_CALLED = True
+        req.DEFERRED_TASK_CALLED = True
         for task, interval in _periodicTasks[cronName].items():  # Call all periodic tasks bound to that queue
             periodicTaskName = task.periodicTaskName.lower()
             if interval:  # Ensure this task doesn't get called to often
@@ -431,11 +431,11 @@ def CallDeferred(func):
 
             return  # Ensure no result gets passed back
 
-        if req and req.request.headers.get("X-Appengine-Taskretrycount") and "DEFERED_TASK_CALLED" not in dir(req):
+        if req and req.request.headers.get("X-Appengine-Taskretrycount") and "DEFERRED_TASK_CALLED" not in dir(req):
             if self is __undefinedFlag_:
                 return func(*args, **kwargs)
 
-            req.DEFERED_TASK_CALLED = True
+            req.DEFERRED_TASK_CALLED = True
             return func(self, *args, **kwargs)
 
         else:
