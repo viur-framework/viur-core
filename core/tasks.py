@@ -17,6 +17,7 @@ from viur.core import db, errors, utils
 from viur.core.config import conf
 from viur.core.utils import currentLanguage, currentRequest, currentSession
 
+
 # class JsonKeyEncoder(json.JSONEncoder):
 def preprocessJsonObject(o):
     """
@@ -261,7 +262,7 @@ class TaskHandler:
             # We call the deferred function *directly* (without walking through the mkDeferred lambda), so ensure
             # that any hit to another deferred function will defer again
 
-            currentRequest.get().DEFERED_TASK_CALLED = True
+            currentRequest.get().DEFERRED_TASK_CALLED = True
             try:
                 _deferred_tasks[funcPath](*args, **kwargs)
             except PermanentTaskFailure:
@@ -269,6 +270,7 @@ class TaskHandler:
             except Exception as e:
                 logging.exception(e)
                 raise errors.RequestTimeout()  # Task-API should retry
+
     deferred.exposed = True
 
     def cron(self, cronName="default", *args, **kwargs):
@@ -285,7 +287,7 @@ class TaskHandler:
             logging.warning("Got Cron request '%s' which doesn't have any tasks" % cronName)
         # We must defer from cron, as tasks will interpret it as a call originating from task-queue - causing deferred
         # functions to be called directly, wich causes calls with _countdown etc set to fail.
-        req.DEFERED_TASK_CALLED = True
+        req.DEFERRED_TASK_CALLED = True
         for task, interval in _periodicTasks[cronName].items():  # Call all periodic tasks bound to that queue
             periodicTaskName = task.periodicTaskName.lower()
             if interval:  # Ensure this task doesn't get called to often
@@ -414,10 +416,12 @@ def CallDeferred(func):
             # Run tasks inline
             logging.debug(f"{func=} will be executed inline")
 
-            if self is __undefinedFlag_:
-                task = lambda: func(*args, **kwargs)
-            else:
-                task = lambda: func(self, *args, **kwargs)
+            @wraps(func)
+            def task():
+                if self is __undefinedFlag_:
+                    return func(*args, **kwargs)
+                else:
+                    return func(self, *args, **kwargs)
 
             if req:
                 req.pendingTasks.append(task)  # This property only exists on development server!
@@ -427,11 +431,11 @@ def CallDeferred(func):
 
             return  # Ensure no result gets passed back
 
-        if req and req.request.headers.get("X-Appengine-Taskretrycount") and "DEFERED_TASK_CALLED" not in dir(req):
+        if req and req.request.headers.get("X-Appengine-Taskretrycount") and "DEFERRED_TASK_CALLED" not in dir(req):
             if self is __undefinedFlag_:
                 return func(*args, **kwargs)
 
-            req.DEFERED_TASK_CALLED = True
+            req.DEFERRED_TASK_CALLED = True
             return func(self, *args, **kwargs)
 
         else:
@@ -509,7 +513,12 @@ def CallDeferred(func):
 
     global _deferred_tasks
     _deferred_tasks["%s.%s" % (func.__name__, func.__module__)] = func
-    return lambda *args, **kwargs: make_deferred(func, *args, **kwargs)
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        return make_deferred(func, *args, **kwargs)
+
+    return wrapper
 
 
 def callDeferred(func):
@@ -523,6 +532,7 @@ def callDeferred(func):
     warnings.warn(msg)
 
     return CallDeferred(func)
+
 
 def PeriodicTask(interval: int = 0, cronName: str = "default") -> Callable:
     """
