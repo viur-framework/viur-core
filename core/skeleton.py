@@ -14,7 +14,7 @@ from viur.core import conf, db, email, errors, utils
 from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, SelectBone, StringBone
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 from viur.core.tasks import CallableTask, CallableTaskBase, QueryIter, callDeferred
-
+from viur.core.bones.relational import RelationalUpdateLevel
 try:
     import pytz
 except:
@@ -1296,7 +1296,8 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: Optional[s
     logging.debug("Starting updateRelations for %s ; minChangeTime %s, changedBone: %s, cursor: %s",
                   destKey, minChangeTime, changedBone, cursor)
     updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", destKey) \
-        .filter("viur_delayed_update_tag <", minChangeTime).filter("viur_relational_updateLevel =", 0)
+        .filter("viur_delayed_update_tag <", minChangeTime).filter("viur_relational_updateLevel =",
+                                                                   RelationalUpdateLevel.Allways.value)
     if changedBone:
         updateListQuery.filter("viur_foreign_keys =", changedBone)
     if cursor:
