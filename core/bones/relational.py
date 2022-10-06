@@ -151,7 +151,7 @@ class RelationalBone(BaseBone):
             self.parentKeys = parentKeys
 
         self.using = using
-        if isinstance(updateLevel,int):
+        if isinstance(updateLevel, int):
             logging.warning(f"parameter updateLevel = {updateLevel} in RelationalBone is deprecated."
                             f"Please use the RelationalUpdateLevel enum instead")
             warnings.warn(
