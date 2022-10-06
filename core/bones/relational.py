@@ -23,8 +23,8 @@ class RelationalConsistency(Enum):
 
 class RelationalUpdateLevel(Enum):
     Always = 0
-    OnRebuildSearchIndex=1
-    OnValueAssignment=2
+    OnRebuildSearchIndex = 1
+    OnValueAssignment = 2
 
 
 class RelationalBone(BaseBone):
