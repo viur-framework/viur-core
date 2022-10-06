@@ -448,7 +448,7 @@ class BrowseHandler():  # webapp.RequestHandler
         """
         # Prevent Hash-collision attacks
         kwargs = {}
-        stopCount = conf["viur.maxPostParamsCount"]
+        count = total = conf["viur.maxPostParamsCount"]
         try:
             for key, value in self.request.params.iteritems():
                 key = unicodedata.normalize("NFC", key)
@@ -462,9 +462,12 @@ class BrowseHandler():  # webapp.RequestHandler
                         kwargs[key] = [kwargs[key], value]
                 else:
                     kwargs[key] = value
-                stopCount -= 1
-                if not stopCount:  # We reached zero; maximum PostParamsCount exceeded
-                    raise errors.NotAcceptable()
+
+                count -= 1
+                if count == 0:  # We reached zero; maximum PostParamsCount exceeded
+                    raise errors.NotAcceptable(
+                        f"""Too many arguments supplied, exceeding maximum of {total} allowed arguments per request"""
+                    )
         except UnicodeError:
             # We received invalid unicode data (usually happens when someone tries to exploit unicode normalisation bugs)
             raise errors.BadRequest()
