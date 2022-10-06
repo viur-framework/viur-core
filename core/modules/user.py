@@ -5,7 +5,7 @@ from viur.core import utils, email
 from viur.core.bones.base import ReadFromClientErrorSeverity, UniqueValue, UniqueLockMethod
 from viur.core.bones.password import pbkdf2
 from viur.core import errors, conf, securitykey
-from viur.core.tasks import StartupTask, callDeferred
+from viur.core.tasks import StartupTask, CallDeferred
 from viur.core.securityheaders import extendCsp
 from viur.core.ratelimit import RateLimit
 from time import time
@@ -317,7 +317,7 @@ class UserPassword(object):
             session["user.auth_userpassword.pwrecover"] = None
             return self.userModule.render.view(None, self.passwordRecoverySuccessTemplate)
 
-    @callDeferred
+    @CallDeferred
     def sendUserPasswordRecoveryCode(self, userName: str, recoveryKey: str) -> None:
         """
             Sends the given recovery code to the user given in userName. This function runs deferred

@@ -13,8 +13,9 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Ty
 from viur.core import conf, db, email, errors, utils
 from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, SelectBone, StringBone
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
-from viur.core.tasks import CallableTask, CallableTaskBase, QueryIter, callDeferred
+from viur.core.tasks import CallableTask, CallableTaskBase, QueryIter, CallDeferred
 from viur.core.bones.relational import RelationalUpdateLevel
+
 try:
     import pytz
 except:
@@ -1244,7 +1245,7 @@ class SkelList(list):
 
 ### Tasks ###
 
-@callDeferred
+@CallDeferred
 def processRemovedRelations(removedKey, cursor=None):
     updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", removedKey) \
         .filter("viur_relational_consistency >", 2)
@@ -1274,7 +1275,7 @@ def processRemovedRelations(removedKey, cursor=None):
         processRemovedRelations(removedKey, updateListQuery.getCursor())
 
 
-@callDeferred
+@CallDeferred
 def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: Optional[str], cursor: Optional[str] = None):
     """
         This function updates Entities, which may have a copy of values from another entity which has been recently
@@ -1425,7 +1426,7 @@ class TaskVacuumRelations(CallableTaskBase):
         processVacuumRelationsChunk(module.strip(), None, notify=notify)
 
 
-@callDeferred
+@CallDeferred
 def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, notify=None):
     """
         Processes 100 Entries and calls the next batch
