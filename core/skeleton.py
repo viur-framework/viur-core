@@ -1297,7 +1297,7 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: Optional[s
                   destKey, minChangeTime, changedBone, cursor)
     updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", destKey) \
         .filter("viur_delayed_update_tag <", minChangeTime).filter("viur_relational_updateLevel =",
-                                                                   RelationalUpdateLevel.Allways.value)
+                                                                   RelationalUpdateLevel.Always.value)
     if changedBone:
         updateListQuery.filter("viur_foreign_keys =", changedBone)
     if cursor:

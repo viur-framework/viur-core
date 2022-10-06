@@ -22,9 +22,9 @@ class RelationalConsistency(Enum):
 
 
 class RelationalUpdateLevel(Enum):
-    Allways = 0
-    RebuildSearchIndex=1
-    IfSet=2
+    Always = 0
+    OnRebuildSearchIndex=1
+    OnValueAssignment=2
 
 
 class RelationalBone(BaseBone):
@@ -69,7 +69,7 @@ class RelationalBone(BaseBone):
         module: Optional[str] = None,
         parentKeys: Optional[List[str]] = None,
         refKeys: Optional[List[str]] = None,
-        updateLevel: RelationalUpdateLevel = RelationalUpdateLevel.Allways,
+        updateLevel: RelationalUpdateLevel = RelationalUpdateLevel.Always,
         using: Optional['viur.core.skeleton.RelSkel'] = None,
         **kwargs
     ):
@@ -98,16 +98,16 @@ class RelationalBone(BaseBone):
                         always set, even if the project did not enable the multi-language feature.
             :param updateLevel: Indicates how ViUR should keep the values copied from the referenced entity into our
                 entity up to date. If this bone is indexed, it's recommended to leave this set to
-                RelationalUpdateLevel.Allways, as filtering/sorting by this bone will produce stale results.
+                RelationalUpdateLevel.Always, as filtering/sorting by this bone will produce stale results.
                 Possible values are:
-                    - RelationalUpdateLevel.Allways: always update refkeys (old behavior). If the referenced entity is
+                    - RelationalUpdateLevel.Always: always update refkeys (old behavior). If the referenced entity is
                         edited, ViUR will update this
                         entity also (after a small delay, as these updates happen deferred)
-                    - RelationalUpdateLevel.RebuildSearchIndex: update refKeys only on    rebuildSearchIndex. If the
+                    - RelationalUpdateLevel.OnRebuildSearchIndex: update refKeys only on    rebuildSearchIndex. If the
                         referenced entity changes, this entity will remain unchanged
                         (this RelationalBone will still have the old values), but it can be updated
                         by either by editing this entity or running a rebuildSearchIndex over our kind.
-                    - RelationalUpdateLevel.IfSet: update only if explicitly set. A rebuildSearchIndex will not trigger
+                    - RelationalUpdateLevel.OnValueAssignment: update only if explicitly set. A rebuildSearchIndex will not trigger
                         an update, this bone has to be explicitly modified (in an edit) to have it's values updated
             :param consistency: Can be used to implement SQL-like constrains on this relation. Possible values are:
                 - RelationalConsistency.Ignore: If the referenced entity gets deleted, this bone will not change. It
@@ -153,7 +153,7 @@ class RelationalBone(BaseBone):
         self.using = using
         if isinstance(updateLevel,int):
             logging.warning(f"parameter updateLevel = {updateLevel} in RelationalBone is deprecated."
-                            f"Pleas user RelationalUpdateLevel")
+                            f"Please use the RelationalUpdateLevel enum instead")
             warnings.warn(
                 f"parameter updateLevel = {updateLevel} in RelationalBone is deprecated.", DeprecationWarning
             )
@@ -802,7 +802,7 @@ class RelationalBone(BaseBone):
                 if boneName != "key" and boneName in newValues:
                     relDict["dest"].dbEntity[boneName] = newValues[boneName]
 
-        if not skel[boneName] or self.updateLevel == RelationalUpdateLevel.IfSet:
+        if not skel[boneName] or self.updateLevel == RelationalUpdateLevel.OnValueAssignment:
             return
         logging.debug("Refreshing RelationalBone %s of %s" % (boneName, skel.kindName))
         if isinstance(skel[boneName], dict):
