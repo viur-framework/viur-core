@@ -820,7 +820,7 @@ class BaseBone(object):
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
         """Returns a set of strings as search index for this bone.
 
-        :param skel: The skeleton instance where the bone belongs to.
+        :param skel: The skeleton instance where the values should be loaded from.
         :param name: The name of the bone.
         :return: A list of strings, extracted from the bone value
         """
@@ -829,6 +829,21 @@ class BaseBone(object):
     def iter_bone_value(
         self, skel: 'viur.core.skeleton.SkeletonInstance', name: str
     ) -> Iterator[Tuple[Optional[int], Optional[str], Any]]:
+        """Yield all values from the Skeleton related to this bone instance.
+
+        This method handles the multiple/languages cases, which could save
+        a lot of if/elifs.
+        It yields always a triplet: index, language, value
+        Where index is the index (int) of a value inside a multiple bone,
+        language the language (str) of a multi-language-bone
+        and value the value inside this container.
+        index or language is None if the bone is single or not multi-lang.
+
+        :param skel: The skeleton instance where the values should be loaded from.
+        :param name: The name of the bone.
+
+        :return: A generator which yields triplets.
+        """
         value = skel[name]
         if not value:
             return None
