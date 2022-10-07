@@ -349,19 +349,21 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
         return complete
 
     @classmethod
-    def refresh(cls, skelValues):
+    def refresh(cls, skel: SkeletonInstance):
         """
             Refresh the bones current content.
 
             This function causes a refresh of all relational bones and their associated
             information.
         """
-        for key, bone in skelValues.items():
+        logging.debug(f"""Refreshing {skel["key"]=}""")
+
+        for key, bone in skel.items():
             if not isinstance(bone, BaseBone):
                 continue
-            skelValues[key]  # Ensure value gets loaded
-            if "refresh" in dir(bone):
-                bone.refresh(skelValues, key)
+
+            _ = skel[key]  # Ensure value gets loaded
+            bone.refresh(skel, key)
 
     def __new__(cls, *args, **kwargs) -> SkeletonInstance:
         return SkeletonInstance(cls, *args, **kwargs)
@@ -1305,10 +1307,10 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: Optional[s
 
     def updateTxn(skel, key, srcRelKey):
         if not skel.fromDB(key):
-            logging.warning("Cannot update stale reference to %s (referenced from %s)" % (key, srcRelKey))
+            logging.warning(f"Cannot update stale reference to {key=} (referenced from {srcRelKey=})")
             return
-        for key, _bone in skel.items():
-            _bone.refresh(skel, key)
+
+        skel.refresh()
         skel.toDB(clearUpdateTag=True)
 
     for srcRel in updateList:
