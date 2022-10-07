@@ -1,13 +1,12 @@
-from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import utils, db
-import logging
 import string
-from html import entities as htmlentitydefs
-from html.parser import HTMLParser
-from typing import Any, Dict, List, Union, Tuple, Optional
 from base64 import urlsafe_b64decode
 from datetime import datetime
+from html import entities as htmlentitydefs
+from html.parser import HTMLParser
+from typing import Dict, List, Optional, Tuple, Union
 
+from viur.core import db, utils
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 _defaultTags = {
     "validTags": [  # List of HTML-Tags which are valid
@@ -56,6 +55,7 @@ def parseDownloadUrl(urlStr: str) -> Tuple[Optional[str], Optional[bool], Option
     derived = derived != "source"
     return blobkey, derived, fileName
 
+
 class CollectBlobKeys(HTMLParser):
     def __init__(self):
         super(CollectBlobKeys, self).__init__()
@@ -65,7 +65,7 @@ class CollectBlobKeys(HTMLParser):
         if tag in ["a", "img"]:
             for k, v in attrs:
                 if k == "src":
-                    blobKey, _ , _ = parseDownloadUrl(v)
+                    blobKey, _, _ = parseDownloadUrl(v)
                     if blobKey:
                         self.blobs.add(blobKey)
 
@@ -146,7 +146,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                         if self.srcSet:
                             # Build the src set with files already available. If a derived file is not yet build,
                             # getReferencedBlobs will catch it, build it, and we're going to be re-called afterwards.
-                            fileObj = db.Query("file").filter("dlkey =", blobKey)\
+                            fileObj = db.Query("file").filter("dlkey =", blobKey) \
                                 .order(("creationdate", db.SortOrder.Ascending)).getEntry()
                             srcSet = utils.srcSetFor(fileObj, None, self.srcSet.get("width"), self.srcSet.get("height"))
                             cacheTagStart += ' srcSet="%s"' % srcSet
@@ -335,7 +335,7 @@ class TextBone(BaseBone):
             }
             from viur.core.bones.file import ensureDerived
             for blobKey in newFileKeys:
-                fileObj = db.Query("file").filter("dlkey =", blobKey)\
+                fileObj = db.Query("file").filter("dlkey =", blobKey) \
                     .order(("creationdate", db.SortOrder.Ascending)).getEntry()
                 if fileObj:
                     ensureDerived(fileObj.key, "%s_%s" % (skel.kindName, name), deriveDict, skel["key"])
@@ -382,31 +382,6 @@ class TextBone(BaseBone):
                     for key in line.split(" "):
                         res.add(key.lower())
         return res
-
-    def getSearchDocumentFields(self, valuesCache, name, prefix=""):
-        """
-            Returns a list of search-fields (GAE search API) for this bone.
-        """
-        if valuesCache.get(name) is None:
-            # If adding an entry using an subskel, our value might not have been set
-            return []
-        if self.languages:
-            assert isinstance(valuesCache[name],
-                              dict), "The value shall already contain a dict, something is wrong here."
-
-            if self.validHtml:
-                return [
-                    search.HtmlField(name=prefix + name, value=str(valuesCache[name].get(lang, "")), language=lang)
-                    for lang in self.languages]
-            else:
-                return [
-                    search.TextField(name=prefix + name, value=str(valuesCache[name].get(lang, "")), language=lang)
-                    for lang in self.languages]
-        else:
-            if self.validHtml:
-                return [search.HtmlField(name=prefix + name, value=str(valuesCache[name]))]
-            else:
-                return [search.TextField(name=prefix + name, value=str(valuesCache[name]))]
 
     def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
         if self.languages:
