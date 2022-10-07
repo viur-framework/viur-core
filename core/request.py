@@ -449,7 +449,7 @@ class BrowseHandler():  # webapp.RequestHandler
         # Prevent Hash-collision attacks
         kwargs = {}
         if len(self.request.params) > conf["viur.maxPostParamsCount"]:
-            raise errors.NotAcceptable(
+            raise errors.BadRequest(
                 f"Too many arguments supplied, exceeding maximum"
                 f" of {conf['viur.maxPostParamsCount']} allowed arguments per request"
             )
