@@ -448,11 +448,13 @@ class BrowseHandler():  # webapp.RequestHandler
         """
         # Prevent Hash-collision attacks
         kwargs = {}
+
         if len(self.request.params) > conf["viur.maxPostParamsCount"]:
             raise errors.BadRequest(
                 f"Too many arguments supplied, exceeding maximum"
                 f" of {conf['viur.maxPostParamsCount']} allowed arguments per request"
             )
+
         for key, value in self.request.params.items():
             try:
                 key = unicodedata.normalize("NFC", key)
@@ -461,8 +463,10 @@ class BrowseHandler():  # webapp.RequestHandler
                 # We received invalid unicode data (usually happens when
                 # someone tries to exploit unicode normalisation bugs)
                 raise errors.BadRequest()
+
             if key.startswith("_"):  # Ignore keys starting with _ (like VI's _unused_time_stamp)
                 continue
+
             if key in kwargs:
                 if isinstance(kwargs[key], list):
                     kwargs[key].append(value)
@@ -470,8 +474,10 @@ class BrowseHandler():  # webapp.RequestHandler
                     kwargs[key] = [kwargs[key], value]
             else:
                 kwargs[key] = value
+
         if "self" in kwargs or "return" in kwargs:  # self or return is reserved for bound methods
             raise errors.BadRequest()
+
         # Parse the URL
         path = parse.urlparse(path).path
         if path:
