@@ -86,10 +86,10 @@ class InjectStoreURLBone(BaseBone):
 
 
 def thumbnailer(fileSkel, existingFiles, params):
-    orgifileName = html.unescape(fileSkel["name"])
-    blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"], orgifileName))
+    file_name = html.unescape(fileSkel["name"])
+    blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"], file_name))
     if not blob:
-        logging.warning("Blob %s/source/%s is missing from Cloudstore!" % (fileSkel["dlkey"], orgifileName))
+        logging.warning("Blob %s/source/%s is missing from cloud storage!" % (fileSkel["dlkey"], file_name))
         return
     fileData = BytesIO()
     blob.download_to_file(fileData)
@@ -139,9 +139,9 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         if utils.isLocalDevelopmentServer:
             signedUrl = utils.downloadUrlFor(fileSkel["dlkey"], fileSkel["name"])
         else:
-            path = f"""{fileSkel["dlkey"]}/source/{orgifileName}"""
+            path = f"""{fileSkel["dlkey"]}/source/{file_name}"""
             if not (blob := bucket.get_blob(path)):
-                logging.warning(f"Blob {path} is missing from Cloudstore!")
+                logging.warning(f"Blob {path} is missing from cloud storage!")
                 return None
             authRequest = requests.Request()
             expiresAt = datetime.now() + timedelta(seconds=60)
@@ -162,7 +162,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         datadump = json.dumps({"dataStr": dataStr.decode('ASCII'), "sign": sig})
         return _requests.post(conf["viur.file.thumbnailerURL"], data=datadump, headers=headers)
 
-    orgifileName = html.unescape(fileSkel["name"])
+    file_name= html.unescape(fileSkel["name"])
 
     if not (url := getsignedurl()):
         return
