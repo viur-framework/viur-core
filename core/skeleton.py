@@ -14,6 +14,7 @@ from viur.core import conf, db, email, errors, utils
 from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, SelectBone, StringBone
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 from viur.core.tasks import CallableTask, CallableTaskBase, QueryIter, CallDeferred
+from viur.core.bones.relational import RelationalUpdateLevel
 
 try:
     import pytz
@@ -31,8 +32,18 @@ class MetaBaseSkel(type):
     _skelCache = {}  # Mapping kindName -> SkelCls
     _allSkelClasses = set()  # list of all known skeleton classes (including Ref and Mail-Skels)
 
-    __reservedKeywords_ = {"self", "cursor", "orderby", "orderdir", "limit"
-                           "style", "items", "keys", "values"}
+    __reserved_keywords = {
+        "bounce",
+        "cursor",
+        "items",
+        "keys",
+        "limit",
+        "orderby",
+        "orderdir",
+        "self",
+        "style",
+        "values",
+    }
 
     def __init__(cls, name, bases, dct):
         boneMap = {}
@@ -45,10 +56,12 @@ class MetaBaseSkel(type):
                 prop = getattr(inCls, key)
                 if isinstance(prop, BaseBone):
                     if "." in key:
-                        raise AttributeError("Invalid bone '%s': Bone keys may not contain a dot (.)" % key)
-                    if key in MetaBaseSkel.__reservedKeywords_:
-                        raise AttributeError("Invalid bone '%s': Bone cannot have any of the following names: %s" %
-                                             (key, str(MetaBaseSkel.__reservedKeywords_)))
+                        raise AttributeError(f"Invalid bone {key!r}: Bone keys may not contain a dot (.)")
+                    if key in MetaBaseSkel.__reserved_keywords:
+                        raise AttributeError(
+                            f"Invalid bone {key!r}: Bone cannot have any of the following names: "
+                            f"{MetaBaseSkel.__reserved_keywords!r}"
+                        )
                     boneMap[key] = prop
                 elif prop is None and key in boneMap:  # Allow removing a bone in a subclass by setting it to None
                     del boneMap[key]
@@ -1298,7 +1311,8 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: Optional[s
     logging.debug("Starting updateRelations for %s ; minChangeTime %s, changedBone: %s, cursor: %s",
                   destKey, minChangeTime, changedBone, cursor)
     updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", destKey) \
-        .filter("viur_delayed_update_tag <", minChangeTime).filter("viur_relational_updateLevel =", 0)
+        .filter("viur_delayed_update_tag <", minChangeTime).filter("viur_relational_updateLevel =",
+                                                                   RelationalUpdateLevel.Always.value)
     if changedBone:
         updateListQuery.filter("viur_foreign_keys =", changedBone)
     if cursor:

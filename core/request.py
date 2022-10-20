@@ -448,28 +448,36 @@ class BrowseHandler():  # webapp.RequestHandler
         """
         # Prevent Hash-collision attacks
         kwargs = {}
-        stopCount = conf["viur.maxPostParamsCount"]
-        try:
-            for key, value in self.request.params.iteritems():
+
+        if len(self.request.params) > conf["viur.maxPostParamsCount"]:
+            raise errors.BadRequest(
+                f"Too many arguments supplied, exceeding maximum"
+                f" of {conf['viur.maxPostParamsCount']} allowed arguments per request"
+            )
+
+        for key, value in self.request.params.items():
+            try:
                 key = unicodedata.normalize("NFC", key)
                 value = unicodedata.normalize("NFC", value)
-                if key.startswith("_"):  # Ignore keys starting with _ (like VI's _unused_time_stamp)
-                    continue
-                if key in kwargs:
-                    if isinstance(kwargs[key], list):
-                        kwargs[key].append(value)
-                    else:  # Convert that key to a list
-                        kwargs[key] = [kwargs[key], value]
-                else:
-                    kwargs[key] = value
-                stopCount -= 1
-                if not stopCount:  # We reached zero; maximum PostParamsCount exceeded
-                    raise errors.NotAcceptable()
-        except UnicodeError:
-            # We received invalid unicode data (usually happens when someone tries to exploit unicode normalisation bugs)
-            raise errors.BadRequest()
+            except UnicodeError:
+                # We received invalid unicode data (usually happens when
+                # someone tries to exploit unicode normalisation bugs)
+                raise errors.BadRequest()
+
+            if key.startswith("_"):  # Ignore keys starting with _ (like VI's _unused_time_stamp)
+                continue
+
+            if key in kwargs:
+                if isinstance(kwargs[key], list):
+                    kwargs[key].append(value)
+                else:  # Convert that key to a list
+                    kwargs[key] = [kwargs[key], value]
+            else:
+                kwargs[key] = value
+
         if "self" in kwargs or "return" in kwargs:  # self or return is reserved for bound methods
             raise errors.BadRequest()
+
         # Parse the URL
         path = parse.urlparse(path).path
         if path:
