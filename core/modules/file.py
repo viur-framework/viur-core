@@ -132,6 +132,27 @@ def thumbnailer(fileSkel, existingFiles, params):
 
 
 def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
+    """External Thumbnailer for images.
+
+       The corresponding cloudfunction can be found here .
+       https://github.com/viur-framework/viur-cloudfunctions/tree/main/thumbnailer
+
+       You can use it like so:
+       main.py:
+
+       from viur.core.modules.file import cloudfunction_thumbnailer
+
+       conf["viur.file.thumbnailerURL"]="https://xxxxx.cloudfunctions.net/imagerenderer"
+       conf["viur.file.derivers"] = {"thumbnail": cloudfunction_thumbnailer}
+
+       conf["derives_pdf"] = {
+       "thumbnail": [{"width": 1920,"sites":"1,2"}]
+       }
+       skeletons/xxx.py:
+
+       test = FileBone(derive=conf["derives_pdf"])
+       """
+
     if not conf.get("viur.file.thumbnailerURL", False):
         raise ValueError("viur.file.thumbnailerURL is not set")
 
@@ -156,13 +177,12 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
 
     def make_request():
         import requests as _requests
-        headers = {'Content-type': 'application/json'}
         dataStr = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
         sig = utils.hmacSign(dataStr)
         datadump = json.dumps({"dataStr": dataStr.decode('ASCII'), "sign": sig})
-        return _requests.post(conf["viur.file.thumbnailerURL"], data=datadump, headers=headers)
+        return _requests.post(conf["viur.file.thumbnailerURL"], json=datadump)
 
-    file_name= html.unescape(fileSkel["name"])
+    file_name = html.unescape(fileSkel["name"])
 
     if not (url := getsignedurl()):
         return
