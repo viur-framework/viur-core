@@ -1,11 +1,12 @@
 from collections import OrderedDict, namedtuple
 
 import codecs
+import functools
 import logging
 import os
 
 from jinja2 import ChoiceLoader, Environment, FileSystemLoader, Template
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, Tuple, Union
 
 from viur.core import db, errors, securitykey, utils
 from viur.core.bones import *
@@ -564,10 +565,6 @@ class Render(object):
 
             :return: Extended Jinja2 environment.
         """
-
-        def mkLambda(func, s):
-            return lambda *args, **kwargs: func(s, *args, **kwargs)
-
         if not "env" in dir(self):
             loaders = self.getLoaders()
             self.env = Environment(loader=loaders,
@@ -576,11 +573,15 @@ class Render(object):
 
             # Import functions.
             for name, func in jinjaUtils.getGlobalFunctions().items():
-                self.env.globals[name] = mkLambda(func, self)
+                self.env.globals[name] = functools.partial(func, self)
 
             # Import filters.
             for name, func in jinjaUtils.getGlobalFilters().items():
-                self.env.filters[name] = mkLambda(func, self)
+                self.env.filters[name] = functools.partial(func, self)
+
+            # Import tests.
+            for name, func in jinjaUtils.getGlobalTests().items():
+                self.env.tests[name] = functools.partial(func, self)
 
             # Import extensions.
             for ext in jinjaUtils.getGlobalExtensions():

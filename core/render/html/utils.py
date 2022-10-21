@@ -1,5 +1,6 @@
 __jinjaGlobals_ = {}
 __jinjaFilters_ = {}
+__jinjaTests_ = {}
 __jinjaExtensions_ = []
 
 
@@ -9,6 +10,10 @@ def getGlobalFunctions():
 
 def getGlobalFilters():
     return __jinjaFilters_
+
+
+def getGlobalTests():
+    return __jinjaTests_
 
 
 def getGlobalExtensions():
@@ -28,6 +33,16 @@ def jinjaGlobalFilter(f):
     Decorator, marks a function as a Jinja2 filter.
     """
     __jinjaFilters_[f.__name__] = f
+    return f
+
+
+def jinjaGlobalTest(f):
+    """
+    Decorator, marks a function as a Jinja2 test.
+
+    The method name can start with "test_" to avoid name conflicts.
+    """
+    __jinjaTests_[f.__name__.lstrip("test_")] = f
     return f
 
 
