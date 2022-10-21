@@ -19,7 +19,7 @@ from viur.core import db, conf, errors, exposed, forcePost, forceSSL, securityke
 from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import skeletonByKind
-from viur.core.tasks import PeriodicTask, callDeferred
+from viur.core.tasks import PeriodicTask, CallDeferred
 from viur.core.utils import projectID, sanitizeFileName
 
 credentials, project = google.auth.default()
@@ -298,7 +298,7 @@ class File(Tree):
 
         return skel.toDB()
 
-    @callDeferred
+    @CallDeferred
     def deleteRecursive(self, parentKey):
         files = db.Query(self.leafSkelCls().kindName).filter("parentdir =", parentKey).iter()
         for fileEntry in files:
@@ -578,7 +578,7 @@ def startCheckForUnreferencedBlobs():
     doCheckForUnreferencedBlobs()
 
 
-@callDeferred
+@CallDeferred
 def doCheckForUnreferencedBlobs(cursor=None):
     def getOldBlobKeysTxn(dbKey):
         obj = db.Get(dbKey)
@@ -623,7 +623,7 @@ def startCleanupDeletedFiles():
     doCleanupDeletedFiles()
 
 
-@callDeferred
+@CallDeferred
 def doCleanupDeletedFiles(cursor=None):
     maxIterCount = 2  # How often a file will be checked for deletion
     query = db.Query("viur-deleted-files")

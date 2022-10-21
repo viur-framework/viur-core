@@ -6,7 +6,7 @@ from typing import Any, Union, List, Dict
 from viur.core.config import conf
 from viur.core import utils, db
 from viur.core.utils import projectID
-from viur.core.tasks import callDeferred, QueryIter, PeriodicTask, DeleteEntitiesIter
+from viur.core.tasks import CallDeferred, QueryIter, PeriodicTask, DeleteEntitiesIter
 
 """
     This module implements an email delivery system for ViUR. Emails will be queued so that we don't overwhelm
@@ -81,7 +81,7 @@ class EmailTransport(ABC):
         pass
 
 
-@callDeferred
+@CallDeferred
 def sendEmailDeferred(emailKey: db.Key):
     """
         Callback from the Taskqueue to send the given Email

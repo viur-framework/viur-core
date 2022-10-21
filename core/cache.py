@@ -201,7 +201,7 @@ def enableCache(urls: List[str], userSensitive: int = 0, languageSensitive: bool
     return lambda f: wrapCallable(f, urls, userSensitive, languageSensitive, evaluatedArgs, maxCacheTime)
 
 
-@tasks.callDeferred
+@tasks.CallDeferred
 def flushCache(prefix: str = None, key: Union[db.Key, None] = None, kind: Union[str, None] = None):
     """
         Flushes the cache. Its possible the flush only a part of the cache by specifying
