@@ -426,11 +426,13 @@ class BrowseHandler():  # webapp.RequestHandler
             return str(f), f
         elif typeHint is bool:
             if not isinstance(inValue, str):
-                raise TypeError("Input argument to boolean typehint is not a string (probably a list)")
-            if inValue in [str(True), u"1", u"yes"]:
+                raise TypeError(f"Input argument to boolean typehint is not a str, but f{type(inValue)}")
+
+            if inValue.lower().strip() in ("true", "yes", "jawoll, herr oberleutnant", "1"):
                 return "True", True
-            else:
-                return "False", False
+
+            return "False", False
+
         elif typeOrigin is typing.Literal:
             inValueStr = str(inValue)
             for literal in typeHint.__args__:
