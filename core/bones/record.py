@@ -1,7 +1,6 @@
-from viur.core.bones.base import BaseBone, getSystemInitialized, ReadFromClientError, ReadFromClientErrorSeverity
-from typing import List, Union
-import copy, logging
+from typing import List
 
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 try:
     import extjson
@@ -91,23 +90,6 @@ class RecordBone(BaseBone):
                 res = getValues(res, uskel, entry)
         else:
             res = getValues(res, uskel, value)
-
-        return res
-
-    def getSearchDocumentFields(self, valuesCache, name, prefix=""):
-        def getValues(res, skel, valuesCache, searchPrefix):
-            for key, bone in skel.items():
-                if bone.searchable:
-                    res.extend(bone.getSearchDocumentFields(valuesCache, key, prefix=searchPrefix))
-
-        value = valuesCache.get(name)
-        res = []
-
-        if not value:
-            return res
-        uskel = self.using()
-        for idx, val in enumerate(value):
-            getValues(res, uskel, val, "%s%s_%s" % (prefix, name, str(idx)))
 
         return res
 

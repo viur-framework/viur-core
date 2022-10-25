@@ -1,11 +1,12 @@
-from viur.core.bones.base import BaseBone, getSystemInitialized, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import utils, db
-from time import time
-from typing import Dict, List, Any, Optional, Union
-from enum import Enum
-from itertools import chain
 import logging
 import warnings
+from enum import Enum
+from itertools import chain
+from time import time
+from typing import Any, Dict, List, Optional, Union
+
+from viur.core import db, utils
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 
 try:
     import extjson
@@ -841,39 +842,6 @@ class RelationalBone(BaseBone):
                 res = getValues(res, _refSkelCache, value["dest"])
             if value["rel"]:
                 res = getValues(res, _usingSkelCache, value["rel"])
-        return res
-
-    def getSearchDocumentFields(self, valuesCache, name, prefix=""):
-        """
-        Generate fields for Google Search API
-        """
-
-        def getValues(res, skel, valuesCache, searchPrefix):
-            for key, bone in skel.items():
-                if bone.searchable:
-                    res.extend(bone.getSearchDocumentFields(valuesCache, key, prefix=searchPrefix))
-
-        _refSkelCache, _usingSkelCache = self._getSkels()
-        value = valuesCache.get(name)
-        res = []
-
-        if not value:
-            return res
-
-        if self.multiple:
-            for idx, val in enumerate(value):
-                searchPrefix = "%s%s_%s" % (prefix, name, str(idx))
-                if val["dest"]:
-                    getValues(res, _refSkelCache, val["dest"], searchPrefix)
-                if val["rel"]:
-                    getValues(res, _usingSkelCache, val["rel"], searchPrefix)
-        else:
-            searchPrefix = "%s%s" % (prefix, name)
-            if value["dest"]:
-                getValues(res, _refSkelCache, value["dest"], searchPrefix)
-            if value["rel"]:
-                getValues(res, _usingSkelCache, value["rel"], searchPrefix)
-
         return res
 
     def createRelSkelFromKey(self, key: Union[str, db.Key], rel: Union[dict, None] = None):
