@@ -428,7 +428,7 @@ class BrowseHandler():  # webapp.RequestHandler
             if not isinstance(inValue, str):
                 raise TypeError(f"Input argument to boolean typehint is not a str, but f{type(inValue)}")
 
-            if inValue.lower().strip() in ("true", "yes", "jawoll, herr oberleutnant", "1"):
+            if inValue.strip().lower() in ("true", "yes", "1"):
                 return "True", True
 
             return "False", False
