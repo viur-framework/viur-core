@@ -177,10 +177,36 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
 
     def make_request():
         import requests as _requests
+        headers = {"Content-Type": "application/json"}
         dataStr = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
         sig = utils.hmacSign(dataStr)
         datadump = json.dumps({"dataStr": dataStr.decode('ASCII'), "sign": sig})
-        return _requests.post(conf["viur.file.thumbnailerURL"], json=datadump)
+        resp = _requests.post(conf["viur.file.thumbnailerURL"], data=datadump, headers=headers, allow_redirects=False)
+        if resp.status_code != 200:  # Error Handling
+            match resp.status_code:
+                case 302:
+                    #The problem is google resposen 302 to an auth Site when the cloudfunction was not found
+                    #https://cloud.google.com/functions/docs/troubleshooting#login
+                    logging.error("Cloudfunction not found")
+                case 404:
+                    logging.error("Cloudfunction not found")
+                case 403:
+                    logging.error("No permission for the Cloudfunction")
+                case _:
+                    logging.error(
+                        f"cloudfunction_thumbnailer failed with code: {resp.status_code} and data: {resp.content}")
+            return
+
+        try:
+            responsedata = resp.json()
+        except Exception as e:
+            logging.error(f"response could not be converted in json failed with: {e=}")
+            return
+        if "error" in responsedata:
+            logging.error(f"cloudfunction_thumbnailer failed with: {responsedata.get('error')}")
+            return
+
+        return responsedata
 
     file_name = html.unescape(fileSkel["name"])
 
@@ -195,14 +221,9 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         "targetKey": fileSkel["dlkey"],
         "nameOnly": True
     }
-
-    resp = make_request()
-    try:
-        derivedData = resp.json()
-
-    except Exception as e:
-        logging.error(f"cloudfunction_thumbnailer failed with: {e=}")
+    if not (derivedData := make_request()):
         return
+
     uploadUrls = {}
     for data in derivedData["values"]:
         fileName = sanitizeFileName(data["name"])
@@ -217,10 +238,10 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
     dataDict["nameOnly"] = False
     dataDict["uploadUrls"] = uploadUrls
 
-    resp = make_request()
+    if not (derivedData := make_request()):
+        return
     reslist = []
     try:
-        derivedData = resp.json()
         for derived in derivedData["values"]:
             for key, value in derived.items():
                 reslist.append((key, value["size"], value["mimetype"], value["customData"]))
