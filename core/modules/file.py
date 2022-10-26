@@ -178,15 +178,15 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
     def make_request():
         import requests as _requests
         headers = {"Content-Type": "application/json"}
-        dataStr = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
-        sig = utils.hmacSign(dataStr)
-        datadump = json.dumps({"dataStr": dataStr.decode('ASCII'), "sign": sig})
+        data_str = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
+        sig = utils.hmacSign(data_str)
+        datadump = json.dumps({"dataStr": data_str.decode('ASCII'), "sign": sig})
         resp = _requests.post(conf["viur.file.thumbnailerURL"], data=datadump, headers=headers, allow_redirects=False)
         if resp.status_code != 200:  # Error Handling
             match resp.status_code:
                 case 302:
-                    #The problem is google resposen 302 to an auth Site when the cloudfunction was not found
-                    #https://cloud.google.com/functions/docs/troubleshooting#login
+                    # The problem is Google resposen 302 to an auth Site when the cloudfunction was not found
+                    # https://cloud.google.com/functions/docs/troubleshooting#login
                     logging.error("Cloudfunction not found")
                 case 404:
                     logging.error("Cloudfunction not found")
@@ -198,15 +198,15 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
             return
 
         try:
-            responsedata = resp.json()
+            response_data = resp.json()
         except Exception as e:
             logging.error(f"response could not be converted in json failed with: {e=}")
             return
-        if "error" in responsedata:
-            logging.error(f"cloudfunction_thumbnailer failed with: {responsedata.get('error')}")
+        if "error" in response_data:
+            logging.error(f"cloudfunction_thumbnailer failed with: {response_data.get('error')}")
             return
 
-        return responsedata
+        return response_data
 
     file_name = html.unescape(fileSkel["name"])
 
