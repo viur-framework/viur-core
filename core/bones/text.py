@@ -352,31 +352,6 @@ class TextBone(BaseBone):
                     result.add(word.lower())
         return result
 
-    def getSearchDocumentFields(self, valuesCache, name, prefix=""):
-        """
-            Returns a list of search-fields (GAE search API) for this bone.
-        """
-        if valuesCache.get(name) is None:
-            # If adding an entry using an subskel, our value might not have been set
-            return []
-        if self.languages:
-            assert isinstance(valuesCache[name],
-                              dict), "The value shall already contain a dict, something is wrong here."
-
-            if self.validHtml:
-                return [
-                    search.HtmlField(name=prefix + name, value=str(valuesCache[name].get(lang, "")), language=lang)
-                    for lang in self.languages]
-            else:
-                return [
-                    search.TextField(name=prefix + name, value=str(valuesCache[name].get(lang, "")), language=lang)
-                    for lang in self.languages]
-        else:
-            if self.validHtml:
-                return [search.HtmlField(name=prefix + name, value=str(valuesCache[name]))]
-            else:
-                return [search.TextField(name=prefix + name, value=str(valuesCache[name]))]
-
     def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
         if self.languages:
             # Not yet implemented as it's unclear if we should keep each language distinct or not
