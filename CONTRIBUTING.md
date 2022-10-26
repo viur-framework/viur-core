@@ -21,6 +21,7 @@ A pre-release is marked as "rc" for release-candidate and is also published.
 
 In case you have appropriate permissions, a release can be done this way:
 
+- Make sure all hotfixes from `main` are in `develop` as well (`git merge main`)
 - Bump version number in `core/version.py`
   - For a release-candidate, add `-rc1` or similar to the version number
 - Update `CHANGELOG.md` and also check version number there
