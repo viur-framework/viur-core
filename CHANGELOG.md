@@ -2,8 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.3.0-rc1]
+## [3.3.0-rc2]
 
+- Replaceable derived image renderer (#512)
+- Use `.value` of the RelationalUpdateLevel enum in a datastore entity (#534)
 - Removed obsolete methods getSearchDocumentFields (#527)
 - Enforce use of Python>=3.10 (#525)
 - Add `RelationalUpdateLevel` (`Enum`) (#523)
