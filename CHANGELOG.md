@@ -35,6 +35,12 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - Get full skel instance by skeletonCls instead (#487)
 - Providing a way for `len(skel)` (#488)
 
+## [3.2.4]
+
+- Fix broken multi-language relations (#515)
+- Bump protobuf from 3.20.1 to 3.20.2 (#517)
+- Bump protobuf from 3.20.1 to 3.20.2 in /tests (#518)
+
 ## [3.2.3]
 
 - Fixed setup.py requirements extraction to respect conditionals
