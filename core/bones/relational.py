@@ -404,7 +404,7 @@ class RelationalBone(BaseBone):
                     usingSkel = data["rel"]
                     dbObj["rel"] = usingSkel.serialize(parentIndexed=True)
                 dbObj["viur_delayed_update_tag"] = time()
-                dbObj["viur_relational_updateLevel"] = self.updateLevel
+                dbObj["viur_relational_updateLevel"] = self.updateLevel.value
                 dbObj["viur_relational_consistency"] = self.consistency.value
                 dbObj["viur_foreign_keys"] = self.refKeys
                 dbObj["viurTags"] = srcEntity.get("viurTags")  # Copy tags over so we can still use our searchengine
@@ -423,7 +423,7 @@ class RelationalBone(BaseBone):
             dbObj["viur_src_kind"] = skel.kindName  # The kind of the entry referencing
             dbObj["viur_src_property"] = boneName  # The key of the bone referencing
             dbObj["viur_dest_kind"] = self.kind
-            dbObj["viur_relational_updateLevel"] = self.updateLevel
+            dbObj["viur_relational_updateLevel"] = self.updateLevel.value
             dbObj["viur_relational_consistency"] = self.consistency.value
             dbObj["viur_foreign_keys"] = self.refKeys
             db.Put(dbObj)
