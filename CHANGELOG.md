@@ -2,9 +2,29 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.2.2]
+## [3.2.4]
+
+## Fixed
+
+- Fix broken multi-language relations (#515)
+
+## Changed
+
+- Bump protobuf from 3.20.1 to 3.20.2 (#517)
+- Bump protobuf from 3.20.1 to 3.20.2 in /tests (#518)
+
+## [3.2.3]
+
+### Fixed
+
+- Fixed setup.py requirements extraction to respect conditionals
+- Fixed getReferencedBlobs of TextBone so it allows multiple=True data to be saved (#490)
+
+### Changed
 
 - Updated viur-datastore to v1.3.2
+
+## [3.2.2]
 
 ### Changed
 - Updated viur-datastore to v1.3.1
