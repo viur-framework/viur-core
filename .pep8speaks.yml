@@ -22,7 +22,7 @@ pycodestyle:  # Same as scanner.linter value. Other option is flake8
     first: False # show first occurrence of each error
     show-pep8: True # show text of PEP 8 for each error (implies --first)
     show-source: True # show source code for each error
-    statistics: True # count errors and warnings
+    statistics: False # count errors and warnings
 
 no_blank_comment: False  # If True, no comment is made on PR without any errors.
 descending_issues_order: False  # If True, PEP 8 issues in message will be displayed in descending order of line numbers in the file
