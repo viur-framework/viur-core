@@ -34,8 +34,9 @@ jobs:
           python -m pip install -U pycodestyle
 
       - name: Install pipenv
-          run: |
-            python -m pip install --upgrade pipenv wheel
+        run: |
+         python -m pip install --upgrade pipenv wheel
+      
       - id: cache-pipenv
         uses: actions/cache@v1
         with:
@@ -47,8 +48,7 @@ jobs:
         run: |
           pipenv install --deploy --dev
 
-      - name: Run Pycodestyle
-          run: |
-            pipenv shell
-            pipenv run pep8check
+      - name: Run pep8check
+        run: |
+          pipenv run pep8check
           
