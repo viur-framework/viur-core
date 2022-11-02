@@ -31,7 +31,6 @@ jobs:
         run: |
           cd viur
           python -m pip install -U pip
-          if [ -f tests/requirements.txt ]; then python -m pip install -r tests/requirements.txt; fi
           python -m pip install -U pycodestyle
 
       - name: run pep8check
