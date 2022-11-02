@@ -1,10 +1,12 @@
-from viur.core.bones.base import BaseBone, getSystemInitialized, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import utils, db
-from time import time
-from typing import Dict, List, Any, Optional, Union
+import logging
+import warnings
 from enum import Enum
 from itertools import chain
-import logging
+from time import time
+from typing import Any, Dict, List, Optional, Union
+
+from viur.core import db, utils
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 
 try:
     import extjson
@@ -18,6 +20,12 @@ class RelationalConsistency(Enum):
     PreventDeletion = 2  # Lock target object so it cannot be deleted
     SetNull = 3  # Drop Relation if target object is deleted
     CascadeDeletion = 4  # Delete this object also if the referenced entry is deleted (Dangerous!)
+
+
+class RelationalUpdateLevel(Enum):
+    Always = 0
+    OnRebuildSearchIndex = 1
+    OnValueAssignment = 2
 
 
 class RelationalBone(BaseBone):
@@ -62,7 +70,7 @@ class RelationalBone(BaseBone):
         module: Optional[str] = None,
         parentKeys: Optional[List[str]] = None,
         refKeys: Optional[List[str]] = None,
-        updateLevel: int = 0,  # todo: make an enum from this as well?
+        updateLevel: RelationalUpdateLevel = RelationalUpdateLevel.Always,
         using: Optional['viur.core.skeleton.RelSkel'] = None,
         **kwargs
     ):
@@ -90,15 +98,18 @@ class RelationalBone(BaseBone):
                     - language: str: The current language used by the frontend in ISO2 code (eg. "de"). This will be
                         always set, even if the project did not enable the multi-language feature.
             :param updateLevel: Indicates how ViUR should keep the values copied from the referenced entity into our
-                entity up to date. If this bone is indexed, it's recommended to leave this set to 0, as
-                filtering/sorting by this bone will produce stale results. Possible values are:
-                    - 0: always update refkeys (old behavior). If the referenced entity is edited, ViUR will update this
+                entity up to date. If this bone is indexed, it's recommended to leave this set to
+                RelationalUpdateLevel.Always, as filtering/sorting by this bone will produce stale results.
+                Possible values are:
+                    - RelationalUpdateLevel.Always: always update refkeys (old behavior). If the referenced entity is
+                        edited, ViUR will update this
                         entity also (after a small delay, as these updates happen deferred)
-                    - 1: update refKeys only on    rebuildSearchIndex. If the referenced entity changes, this entity will
-                        remain unchanged (this RelationalBone will still have the old values), but it can be updated
+                    - RelationalUpdateLevel.OnRebuildSearchIndex: update refKeys only on    rebuildSearchIndex. If the
+                        referenced entity changes, this entity will remain unchanged
+                        (this RelationalBone will still have the old values), but it can be updated
                         by either by editing this entity or running a rebuildSearchIndex over our kind.
-                    - 2: update only if explicitly set. A rebuildSearchIndex will not trigger an update, this bone has
-                        to be explicitly modified (in an edit) to have it's values updated
+                    - RelationalUpdateLevel.OnValueAssignment: update only if explicitly set. A rebuildSearchIndex will not trigger
+                        an update, this bone has to be explicitly modified (in an edit) to have it's values updated
             :param consistency: Can be used to implement SQL-like constrains on this relation. Possible values are:
                 - RelationalConsistency.Ignore: If the referenced entity gets deleted, this bone will not change. It
                     will still reflect the old values. This will be even be preserved over edits, however if that
@@ -141,6 +152,16 @@ class RelationalBone(BaseBone):
             self.parentKeys = parentKeys
 
         self.using = using
+        if isinstance(updateLevel, int):
+            logging.warning(f"parameter updateLevel = {updateLevel} in RelationalBone is deprecated."
+                            f"Please use the RelationalUpdateLevel enum instead")
+            warnings.warn(
+                f"parameter updateLevel = {updateLevel} in RelationalBone is deprecated.", DeprecationWarning
+            )
+            assert 0 <= updateLevel < 2
+            for n in RelationalUpdateLevel:
+                if updateLevel == n.value:
+                    updateLevel = n
         self.updateLevel = updateLevel
         self.consistency = consistency
 
@@ -383,7 +404,7 @@ class RelationalBone(BaseBone):
                     usingSkel = data["rel"]
                     dbObj["rel"] = usingSkel.serialize(parentIndexed=True)
                 dbObj["viur_delayed_update_tag"] = time()
-                dbObj["viur_relational_updateLevel"] = self.updateLevel
+                dbObj["viur_relational_updateLevel"] = self.updateLevel.value
                 dbObj["viur_relational_consistency"] = self.consistency.value
                 dbObj["viur_foreign_keys"] = self.refKeys
                 dbObj["viurTags"] = srcEntity.get("viurTags")  # Copy tags over so we can still use our searchengine
@@ -402,7 +423,7 @@ class RelationalBone(BaseBone):
             dbObj["viur_src_kind"] = skel.kindName  # The kind of the entry referencing
             dbObj["viur_src_property"] = boneName  # The key of the bone referencing
             dbObj["viur_dest_kind"] = self.kind
-            dbObj["viur_relational_updateLevel"] = self.updateLevel
+            dbObj["viur_relational_updateLevel"] = self.updateLevel.value
             dbObj["viur_relational_consistency"] = self.consistency.value
             dbObj["viur_foreign_keys"] = self.refKeys
             db.Put(dbObj)
@@ -786,9 +807,10 @@ class RelationalBone(BaseBone):
                 if boneName != "key" and boneName in newValues:
                     relDict["dest"].dbEntity[boneName] = newValues[boneName]
 
-        if not skel[boneName] or self.updateLevel == 2:
+        if not skel[boneName] or self.updateLevel == RelationalUpdateLevel.OnValueAssignment:
             return
-        logging.debug("Refreshing RelationalBone %s of %s" % (boneName, skel.kindName))
+
+        # logging.debug("Refreshing RelationalBone %s of %s" % (boneName, skel.kindName))
         if isinstance(skel[boneName], dict) and "dest" not in skel[boneName]:  # multi lang
             for l in skel[boneName]:
                 if isinstance(skel[boneName][l], dict):
@@ -828,39 +850,6 @@ class RelationalBone(BaseBone):
                 res = getValues(res, _refSkelCache, value["dest"])
             if value["rel"]:
                 res = getValues(res, _usingSkelCache, value["rel"])
-        return res
-
-    def getSearchDocumentFields(self, valuesCache, name, prefix=""):
-        """
-        Generate fields for Google Search API
-        """
-
-        def getValues(res, skel, valuesCache, searchPrefix):
-            for key, bone in skel.items():
-                if bone.searchable:
-                    res.extend(bone.getSearchDocumentFields(valuesCache, key, prefix=searchPrefix))
-
-        _refSkelCache, _usingSkelCache = self._getSkels()
-        value = valuesCache.get(name)
-        res = []
-
-        if not value:
-            return res
-
-        if self.multiple:
-            for idx, val in enumerate(value):
-                searchPrefix = "%s%s_%s" % (prefix, name, str(idx))
-                if val["dest"]:
-                    getValues(res, _refSkelCache, val["dest"], searchPrefix)
-                if val["rel"]:
-                    getValues(res, _usingSkelCache, val["rel"], searchPrefix)
-        else:
-            searchPrefix = "%s%s" % (prefix, name)
-            if value["dest"]:
-                getValues(res, _refSkelCache, value["dest"], searchPrefix)
-            if value["rel"]:
-                getValues(res, _usingSkelCache, value["rel"], searchPrefix)
-
         return res
 
     def createRelSkelFromKey(self, key: Union[str, db.Key], rel: Union[dict, None] = None):

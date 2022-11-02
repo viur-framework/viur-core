@@ -27,11 +27,9 @@
 from types import ModuleType
 from typing import Dict, Union, Callable
 from viur.core.config import conf
-from viur.core import request
-from viur.core import languages as servertrans
+from viur.core import request, utils
 from viur.core.i18n import initializeTranslations
 from viur.core import logging as viurLogging  # Initialize request logging
-from viur.core.utils import currentRequest, currentSession, currentLanguage, currentRequestData, projectID
 from viur.core.session import GaeSession
 from viur.core.version import __version__
 import logging
@@ -48,7 +46,6 @@ def setDefaultLanguage(lang: str):
         :param lang: Name of the language module to use by default.
     """
     conf["viur.defaultLanguage"] = lang.lower()
-
 
 def setDefaultDomainLanguage(domain: str, lang: str):
     """
@@ -223,8 +220,8 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     # noinspection PyUnresolvedReferences
     import skeletons  # This import is not used here but _must_ remain to ensure that the
     # application's data models are explicitly imported at some place!
-    assert projectID in conf["viur.validApplicationIDs"], \
-        "Refusing to start, applicationID %s is not in conf['viur.validApplicationIDs']" % projectID
+    assert utils.projectID in conf["viur.validApplicationIDs"], \
+        "Refusing to start, applicationID %s is not in conf['viur.validApplicationIDs']" % utils.projectID
     if not render:
         import viur.core.render
         render = viur.core.render
@@ -255,7 +252,19 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
             assert uri is not None and (uri.lower().startswith("https://") or uri.lower().startswith("http://"))
     runStartupTasks()  # Add a deferred call to run all queued startup tasks
     initializeTranslations()
-    assert conf["viur.file.hmacKey"], "You must set a secret and unique Application-Key to viur.file.hmacKey"
+    if conf["viur.file.hmacKey"] is None:
+        from viur.core import db
+        key = db.Key("viur-conf", "viur-conf")
+        if not (obj := db.Get(key)):  # create a new "viur-conf"?
+            logging.info("Creating new viur-conf")
+            obj = db.Entity(key)
+
+        if "hmacKey" not in obj:  # create a new hmacKey
+            logging.info("Creating new hmacKey")
+            obj["hmacKey"] = utils.generateRandomString(length=20)            
+            db.Put(obj)
+
+        conf["viur.file.hmacKey"] = bytes(obj["hmacKey"], "utf-8")
     return app
 
 
@@ -263,13 +272,22 @@ def app(environ: dict, start_response: Callable):
     req = webob.Request(environ)
     resp = webob.Response()
     handler = request.BrowseHandler(req, resp)
-    currentRequest.set(handler)
-    currentSession.set(GaeSession())
-    currentRequestData.set({})
+
+    # Set context variables
+    utils.currentLanguage.set(conf["viur.defaultLanguage"])
+    utils.currentRequest.set(handler)
+    utils.currentSession.set(GaeSession())
+    utils.currentRequestData.set({})
+
+    # Handle request
     handler.processRequest()
-    currentRequestData.set(None)
-    currentSession.set(None)
-    currentRequest.set(None)
+
+    # Unset context variables
+    utils.currentLanguage.set(None)
+    utils.currentRequestData.set(None)
+    utils.currentSession.set(None)
+    utils.currentRequest.set(None)
+
     return resp(environ, start_response)
 
 

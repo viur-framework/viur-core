@@ -1,6 +1,5 @@
 from viur.core.render.json.default import DefaultRender, CustomJsonEncoder
 from viur.core.render.vi.user import UserRender as user
-from viur.core.render.json.file import FileRender as file
 from viur.core.skeleton import Skeleton
 # from google.appengine.api import app_identity
 from viur.core import conf

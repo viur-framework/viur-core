@@ -11,7 +11,7 @@ twine="*"
 pycodestyle = "*"
 
 [requires]
-python_version = "3.8"
+python_version = "3.10"
 
 [scripts]
 clean = "rm -rf dist build viur_core.egg-info"

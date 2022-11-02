@@ -12,8 +12,10 @@ class HTTPException(Exception):
         """
         super(HTTPException, self).__init__()
         self.status = status
-        self.name = name
-        self.descr = descr
+
+        from .i18n import translate  # fixme: This might be done better
+        self.name = str(translate(name))
+        self.descr = str(translate(descr))
 
     def process(self):
         pass

@@ -1,10 +1,7 @@
-from datetime import datetime
-from jinja2.ext import Extension, nodes
+import datetime
+import jinja2.ext as jinja2
 from typing import List, Tuple, Union
-
-from viur.core import db
-from viur.core.config import conf
-from viur.core.utils import currentLanguage
+from viur.core import conf, db, utils, languages
 
 systemTranslations = {}
 
@@ -35,7 +32,7 @@ class LanguageWrapper(dict):
 
             :returns: A item stored inside this instance or the empty string.
         """
-        lang = currentLanguage.get()
+        lang = utils.currentLanguage.get()
         if not lang:
             lang = self.languages[0]
         else:
@@ -73,8 +70,10 @@ class translate:
             meanings in the target language.
         """
         super(translate, self).__init__()
+
+        key = str(key)  # ensure key is a str
         self.key = key.lower()
-        self.defaultText = defaultText
+        self.defaultText = defaultText or key
         self.hint = hint
         self.translationCache = None
 
@@ -85,14 +84,18 @@ class translate:
         if self.translationCache is None:
             global systemTranslations
             self.translationCache = systemTranslations.get(self.key, {})
+
         try:
-            lang = currentLanguage.get()
+            lang = utils.currentLanguage.get()
         except:
-            return self.defaultText or self.key
+            return self.defaultText
+
         if lang in conf["viur.languageAliasMap"]:
             lang = conf["viur.languageAliasMap"][lang]
+
         if lang not in self.translationCache:
-            return self.defaultText or self.key
+            return self.defaultText
+
         trStr = self.translationCache.get(lang, "")
         return trStr
 
@@ -103,7 +106,7 @@ class translate:
         return res
 
 
-class TranslationExtension(Extension):
+class TranslationExtension(jinja2.Extension):
     """
         Default translation extension for jinja2 render.
         Use like {% translate "translationKey", "defaultText", "translationHint", replaceValue1="replacedText1" %}
@@ -147,13 +150,13 @@ class TranslationExtension(Extension):
         args += [kwargs]
         trKey = args[0]
         trDict = systemTranslations.get(trKey, {})
-        args = [nodes.Const(x) for x in args]
-        args.append(nodes.Const(trDict))
-        return nodes.CallBlock(self.call_method("_translate", args), [], [], []).set_lineno(lineno)
+        args = [jinja2.nodes.Const(x) for x in args]
+        args.append(jinja2.nodes.Const(trDict))
+        return jinja2.nodes.CallBlock(self.call_method("_translate", args), [], [], []).set_lineno(lineno)
 
     def _translate(self, key, defaultText, hint, kwargs, trDict, caller) -> str:
         # Perform the actual translation during render
-        lng = currentLanguage.get()
+        lng = utils.currentLanguage.get()
         if lng in trDict:
             return trDict[lng].format(kwargs)
         return str(defaultText).format(kwargs)
@@ -167,11 +170,30 @@ def initializeTranslations() -> None:
         translations directly from the datastore, so we don't have to allocate memory for unused translations.
     """
     global systemTranslations
+
     invertMap = {}
+
     for srcLang, dstLang in conf["viur.languageAliasMap"].items():
         if dstLang not in invertMap:
             invertMap[dstLang] = []
         invertMap[dstLang].append(srcLang)
+
+    # Load translations from static languages module into systemTranslations
+    for lang in dir(languages):
+        if lang.startswith("__"):
+            continue
+
+        for k, v in getattr(languages, lang).items():
+            if k not in systemTranslations:
+                systemTranslations[k] = {}
+
+            systemTranslations[k][lang] = v
+
+            if lang in invertMap:
+                for i in invertMap[lang]:
+                    systemTranslations[k][i] = v
+
+    # Load translations from datastore into systemTranslations
     for tr in db.Query("viur-translations").run(9999):
         trDict = {}
         for lang, translation in tr["translations"].items():
@@ -179,6 +201,7 @@ def initializeTranslations() -> None:
             if lang in invertMap:
                 for v in invertMap[lang]:
                     trDict[v] = translation
+
         systemTranslations[tr["key"]] = trDict
 
 
@@ -233,7 +256,7 @@ localizedMonthNames = {
 }
 
 
-def localizedStrfTime(datetimeObj: datetime, format: str) -> str:
+def localizedStrfTime(datetimeObj: datetime.datetime, format: str) -> str:
     """
         Provides correct localized names for directives like %a which don't get translated on GAE properly as we can't
         set the locale (for each request).

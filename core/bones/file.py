@@ -1,7 +1,7 @@
 from viur.core.bones.treeleaf import TreeLeafBone
 from viur.core import request, conf, db
 from viur.core.utils import downloadUrlFor
-from viur.core.tasks import callDeferred
+from viur.core.tasks import CallDeferred
 from hashlib import sha256
 import logging
 from typing import Union, Dict, Any, List
@@ -9,7 +9,7 @@ from itertools import chain
 from time import time
 
 
-@callDeferred
+@CallDeferred
 def ensureDerived(key: db.Key, srcKey, deriveMap: Dict[str, Any], refreshKey: db.Key = None):
     """
     Ensure that pending thumbnails or other derived Files are build
