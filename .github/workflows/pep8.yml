@@ -50,5 +50,5 @@ jobs:
       - name: Run Pycodestyle
           run: |
             pipenv shell
-            pipenv run pep8checker
+            pipenv run pep8check
           
