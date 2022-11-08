@@ -30,7 +30,7 @@ from viur.core.config import conf
 from viur.core import request, utils
 from viur.core.i18n import initializeTranslations
 from viur.core import logging as viurLogging  # Initialize request logging
-from viur.core.session import GaeSession
+from viur.core.session import Session
 from viur.core.version import __version__
 import logging
 import webob
@@ -261,7 +261,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
 
         if "hmacKey" not in obj:  # create a new hmacKey
             logging.info("Creating new hmacKey")
-            obj["hmacKey"] = utils.generateRandomString(length=20)            
+            obj["hmacKey"] = utils.generateRandomString(length=20)
             db.Put(obj)
 
         conf["viur.file.hmacKey"] = bytes(obj["hmacKey"], "utf-8")
@@ -276,7 +276,7 @@ def app(environ: dict, start_response: Callable):
     # Set context variables
     utils.currentLanguage.set(conf["viur.defaultLanguage"])
     utils.currentRequest.set(handler)
-    utils.currentSession.set(GaeSession())
+    utils.currentSession.set(Session())
     utils.currentRequestData.set({})
 
     # Handle request
