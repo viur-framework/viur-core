@@ -565,7 +565,7 @@ class Render(object):
 
             :return: Extended Jinja2 environment.
         """
-        if not "env" in dir(self):
+        if "env" not in dir(self):
             loaders = self.getLoaders()
             self.env = Environment(loader=loaders,
                                    extensions=["jinja2.ext.do", "jinja2.ext.loopcontrols", TranslationExtension])
