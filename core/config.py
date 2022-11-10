@@ -8,8 +8,12 @@ unsetMarker = object()  # Special marker signaling that a key has no value (not 
 conf = {
     # Accessrights available on this Application
     "viur.accessRights": ["root", "admin"],
+
     # List of language-codes, which are valid for this application
     "viur.availableLanguages": ["en"],
+
+    # Allowed values that define a str to evaluate to true
+    "viur.bone.boolean.str2true": ("true", "yes", "1"),
 
     # If set, this function will be called for each cache-attempt and the result will be included in
     # the computed cache-key
