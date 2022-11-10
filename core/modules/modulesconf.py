@@ -23,6 +23,9 @@ class ModulesConf(List):
     def canDelete(self, skel: SkeletonInstance) -> bool:
         return False
 
+    def canEdit(self, skel: SkeletonInstance) -> bool:
+        return False
+
 
 @StartupTask
 def read_all_modules():
@@ -36,6 +39,7 @@ def read_all_modules():
                 skel["key"] = dbkey
                 skel["name"] = key
                 skel.toDB()
+
 
 ModulesConf.html = True
 ModulesConf.json = True

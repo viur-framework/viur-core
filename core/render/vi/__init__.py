@@ -1,3 +1,4 @@
+from viur.core.prototypes import List
 from viur.core.render.json.default import DefaultRender, CustomJsonEncoder
 from viur.core.render.vi.user import UserRender as user
 from viur.core import conf
@@ -63,6 +64,8 @@ def getStructure(adminTree, module):
                     if isinstance(skel, SkeletonInstance):
                         storeType = stype.replace("Skel", "") + ("LeafSkel" if treeType == "leaf" else "NodeSkel")
                         res[storeType] = default().renderSkelStructure(skel)
+
+    currentRequest.get().response.headers["Content-Type"] = "application/json"
     if res:
         return json.dumps(res, cls=CustomJsonEncoder)
     else:
@@ -97,6 +100,14 @@ def dumpConfig(adminTree):
                         tmp = v.copy()
                         tmp["name"] = str(tmp["name"])
                         adminConfig[key]["views"].append(tmp)
+
+            if isinstance(app, List):
+                adminConfig[key]["canAdd"] = app.canAdd()
+                adminConfig[key]["canEdit"] = app.canEdit(app.editSkel())
+                adminConfig[key]["canDelete"] = app.canDelete(app.editSkel())
+                adminConfig[key]["canView"] = app.canView(app.viewSkel())
+                adminConfig[key]["canPreview"] = app.canPreview()
+
     res = {"capabilities": conf["viur.capabilities"],
            "modules": adminConfig,
            "configuration": {}
