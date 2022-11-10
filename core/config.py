@@ -30,7 +30,7 @@ conf = {
     "viur.db.caching": 2,
 
     # Database engine module
-    "viur.db.engine":"viur.datastore",
+    "viur.db.engine": "viur.datastore",
 
     # If enabled, user-generated exceptions from the viur.core.errors module won't be caught and handled
     "viur.debug.traceExceptions": False,
@@ -178,4 +178,15 @@ conf = {
 
     # Will be set to viur.core.version.__version__ in viur.core.__init__
     "viur.version": None,
+
+    # Admin Parts
+    "admin.name": "Viur Administartion--Testr",
+    "admin.logo": "",
+    "admin.login.background": "/vi/login-background-2.jpg",
+    # URL for the Logo over the VI Login screen
+    "admin.login.logo": "/vi/logo_test.svg",
+    "admin.color.primary": "#d00f1c",
+    "admin.color.secondary": "#333333",
+
+
 }

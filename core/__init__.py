@@ -160,6 +160,8 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     else:
         root = ExtendableObject()
     modules._tasks = TaskHandler
+    from viur.core.modules.modulesconf import ModulesConf # import works only here because circular imports
+    modules._modulesconf = ModulesConf
     resolverDict = {}
     for moduleName, moduleClass in vars(modules).items():  # iterate over all modules
         if moduleName == "index":
@@ -261,7 +263,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
 
         if "hmacKey" not in obj:  # create a new hmacKey
             logging.info("Creating new hmacKey")
-            obj["hmacKey"] = utils.generateRandomString(length=20)            
+            obj["hmacKey"] = utils.generateRandomString(length=20)
             db.Put(obj)
 
         conf["viur.file.hmacKey"] = bytes(obj["hmacKey"], "utf-8")

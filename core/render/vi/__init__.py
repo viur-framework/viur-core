@@ -1,12 +1,8 @@
 from viur.core.render.json.default import DefaultRender, CustomJsonEncoder
 from viur.core.render.vi.user import UserRender as user
-from viur.core.skeleton import Skeleton
-# from google.appengine.api import app_identity
 from viur.core import conf
 from viur.core import securitykey
 from viur.core import utils
-from viur.core import request
-from viur.core import session
 from viur.core import errors
 import datetime, json
 from viur.core.utils import currentRequest, currentLanguage
@@ -126,7 +122,7 @@ def canAccess(*args, **kwargs) -> bool:
     if user and ("root" in user["access"] or "admin" in user["access"]):
         return True
     pathList = currentRequest.get().pathlist
-    if len(pathList) >= 2 and pathList[1] in ["skey", "getVersion"]:
+    if len(pathList) >= 2 and pathList[1] in ["skey", "getVersion", "settings"]:
         # Give the user the chance to login :)
         return True
     if (len(pathList) >= 3
@@ -163,11 +159,23 @@ def index(*args, **kwargs):
 index.exposed = True
 
 
+def get_settings():
+    fields = ["admin.name", "admin.logo", "admin.login.background", "admin.login.logo", "admin.color.primary",
+              "admin.color.secondary"]
+    res = {}
+    for field in fields:
+        res[field] = conf.get(field, "")
+    currentRequest.get().response.headers["Content-Type"] = "application/json"
+    return json.dumps(res)
+
+
 def _postProcessAppObj(obj):
     obj["skey"] = genSkey
     obj["timestamp"] = timestamp
     obj["config"] = lambda *args, **kwargs: dumpConfig(conf["viur.mainApp"].vi)
     obj["config"].exposed = True
+    obj["settings"] = lambda *args, **kwargs: get_settings()
+    obj["settings"].exposed = True
     obj["getStructure"] = lambda *args, **kwargs: getStructure(conf["viur.mainApp"].vi, *args, **kwargs)
     obj["getStructure"].exposed = True
     obj["canAccess"] = canAccess
