@@ -101,13 +101,6 @@ def dumpConfig(adminTree):
                         tmp["name"] = str(tmp["name"])
                         adminConfig[key]["views"].append(tmp)
 
-            if isinstance(app, List):
-                adminConfig[key]["canAdd"] = app.canAdd()
-                adminConfig[key]["canEdit"] = app.canEdit(app.editSkel())
-                adminConfig[key]["canDelete"] = app.canDelete(app.editSkel())
-                adminConfig[key]["canView"] = app.canView(app.viewSkel())
-                adminConfig[key]["canPreview"] = app.canPreview()
-
     res = {"capabilities": conf["viur.capabilities"],
            "modules": adminConfig,
            "configuration": {}

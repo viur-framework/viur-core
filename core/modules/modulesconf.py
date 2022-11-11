@@ -1,13 +1,18 @@
 from viur.core.bones import StringBone
 from viur.core.tasks import StartupTask
 from viur.core import conf, db
+from viur.core.i18n import translate
 from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.prototypes import List, BasicApplication
 
 
 class ModulesConfSkel(Skeleton):
     kindName = "viur-modules-conf"
-    name = StringBone()
+    name = StringBone(descr=translate("modulename"),readOnly=True)
+    help_text=StringBone(descr=translate("module helptext"))
+    help_text_add=StringBone(descr=translate("add helptext"))
+    help_text_edit=StringBone(descr=translate("edit helptext"))
+    #seo.....
 
 
 class ModulesConf(List):
@@ -22,10 +27,6 @@ class ModulesConf(List):
 
     def canDelete(self, skel: SkeletonInstance) -> bool:
         return False
-
-    def canEdit(self, skel: SkeletonInstance) -> bool:
-        return False
-
 
 @StartupTask
 def read_all_modules():
