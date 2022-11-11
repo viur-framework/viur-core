@@ -607,4 +607,4 @@ class BrowseHandler():  # webapp.RequestHandler
         currentSession.get().save(self)
 
 
-from .i18n import translate
+from .i18n import translate  # noqa:E402
