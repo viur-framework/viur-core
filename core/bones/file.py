@@ -1,12 +1,11 @@
-from viur.core.bones.treeleaf import TreeLeafBone
-from viur.core import request, conf, db
-from viur.core.utils import downloadUrlFor
-from viur.core.tasks import CallDeferred
-from hashlib import sha256
 import logging
-from typing import Union, Dict, Any, List
-from itertools import chain
+from hashlib import sha256
 from time import time
+from typing import Any, Dict, List, Set, Union
+
+from viur.core import conf, db
+from viur.core.bones.treeleaf import TreeLeafBone
+from viur.core.tasks import CallDeferred
 
 
 @CallDeferred
@@ -75,6 +74,7 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: Dict[str, Any], refreshKey: db
                     return
                 skel.refresh()
                 skel.toDB(clearUpdateTag=True)
+
             db.RunInTransaction(refreshTxn)
 
 
@@ -149,18 +149,13 @@ class FileBone(TreeLeafBone):
             else:
                 handleDerives(values)
 
-    def getReferencedBlobs(self, skel, name):
-        val = skel[name]
-        if val is None:
-            return []
-        if self.languages and self.multiple:
-            return chain(*[[y["dest"]["dlkey"] for y in x] for x in val.values() if x])
-        elif self.languages:
-            return [x["dest"]["dlkey"] for x in val.values() if x]
-        elif self.multiple:
-            return [x["dest"]["dlkey"] for x in val]
-        else:
-            return [val["dest"]["dlkey"]]
+    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+        result = set()
+        for idx, lang, value in self.iter_bone_value(skel, name):
+            if value is None:
+                continue
+            result.add(value["dest"]["dlkey"])
+        return result
 
     def refresh(self, skel, boneName):
         from viur.core.skeleton import skeletonByKind

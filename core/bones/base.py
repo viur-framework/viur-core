@@ -3,7 +3,7 @@ import hashlib
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 
 from viur.core import db
 from viur.core.config import conf
@@ -121,7 +121,7 @@ class BaseBone(object):
         if not (
             languages is None or
             (isinstance(languages, list) and len(languages) > 0
-                and all([isinstance(x, str) for x in languages]))
+             and all([isinstance(x, str) for x in languages]))
         ):
             raise ValueError("languages must be None or a list of strings")
 
@@ -474,7 +474,8 @@ class BaseBone(object):
         """
         if name in skel.dbEntity:
             loadVal = skel.dbEntity[name]
-        elif conf.get("viur.viur2import.blobsource") and any([x.startswith("%s." % name) for x in skel.dbEntity.keys()]):
+        elif conf.get("viur.viur2import.blobsource") and any(
+            [x.startswith("%s." % name) for x in skel.dbEntity.keys()]):
             # We're importing from an old ViUR2 instance - there may only be keys prefixed with our name
             loadVal = None
         else:
@@ -711,11 +712,11 @@ class BaseBone(object):
             return []
         return self._hashValueForUniquePropertyIndex(val)
 
-    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
         """
-            Returns the list of blob keys referenced from this bone
+        Returns a set of blob keys referenced from this bone
         """
-        return []
+        return set()
 
     def performMagic(self, valuesCache: Dict, name: str, isAdd: bool):
         """
@@ -816,5 +817,49 @@ class BaseBone(object):
             skel[boneName][language] = val
         return True
 
-    def getSearchTags(self, skeletonInstance, name: str) -> Set[str]:
+    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+        """Returns a set of strings as search index for this bone.
+
+        :param skel: The skeleton instance where the values should be loaded from.
+        :param name: The name of the bone.
+        :return: A list of strings, extracted from the bone value
+        """
         return set()
+
+    def iter_bone_value(
+        self, skel: 'viur.core.skeleton.SkeletonInstance', name: str
+    ) -> Iterator[Tuple[Optional[int], Optional[str], Any]]:
+        """Yield all values from the Skeleton related to this bone instance.
+
+        This method handles the multiple/languages cases, which could save
+        a lot of if/elifs.
+        It yields always a triplet: index, language, value
+        Where index is the index (int) of a value inside a multiple bone,
+        language the language (str) of a multi-language-bone
+        and value the value inside this container.
+        index or language is None if the bone is single or not multi-lang.
+
+        :param skel: The skeleton instance where the values should be loaded from.
+        :param name: The name of the bone.
+
+        :return: A generator which yields triplets.
+        """
+        value = skel[name]
+        if not value:
+            return None
+
+        if self.languages and isinstance(value, dict):
+            for idx, (lang, values) in enumerate(value.items()):
+                if self.multiple:
+                    if not values:
+                        continue
+                    for val in values:
+                        yield idx, lang, val
+                else:
+                    yield None, lang, values
+        else:
+            if self.multiple:
+                for idx, val in enumerate(value):
+                    yield idx, None, val
+            else:
+                yield None, None, value
