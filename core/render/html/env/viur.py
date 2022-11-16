@@ -11,7 +11,7 @@ from typing import Any, Dict, List, NoReturn, Optional, Union
 
 import viur.core.render.html.default
 from viur.core import db, errors, prototypes, securitykey, utils
-from viur.core.config import conf, unsetMarker
+from viur.core.config import conf
 from viur.core.i18n import translate as translationClass
 from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
 from viur.core.skeleton import RelSkel, SkeletonInstance
@@ -669,8 +669,6 @@ def downloadUrlFor(render: Render,
         :param downloadFileName: The filename to use when saving the response payload locally.
         :return: THe signed download-url relative to the current domain (eg /download/...)
     """
-    if expires is unsetMarker:
-        raise ValueError("expires must be explicitly set")
     if "dlkey" not in fileObj and "dest" in fileObj:
         fileObj = fileObj["dest"]
     if expires:
