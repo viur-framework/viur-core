@@ -179,12 +179,12 @@ conf = {
     # Will be set to viur.core.version.__version__ in viur.core.__init__
     "viur.version": None,
 
-    # Admin Parts
-    "admin.name": "Viur Administartion--Testr",
+    # Administration tool configuration
+    "admin.name": "ViUR",
     "admin.logo": "",
-    "admin.login.background": "/vi/login-background-2.jpg",
+    "admin.login.background": "",
     # URL for the Logo over the VI Login screen
-    "admin.login.logo": "/vi/logo_test.svg",
+    "admin.login.logo": "",
     "admin.color.primary": "#d00f1c",
     "admin.color.secondary": "#333333",
 

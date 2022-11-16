@@ -164,13 +164,10 @@ index.exposed = True
 
 
 def get_settings():
-    fields = ["admin.name", "admin.logo", "admin.login.background", "admin.login.logo", "admin.color.primary",
-              "admin.color.secondary"]
-    res = {}
-    for field in fields:
-        res[field] = conf.get(field, "")
+    fields = {key: values for key, values in conf.items()
+              if key.startswith("admin.")}
     currentRequest.get().response.headers["Content-Type"] = "application/json"
-    return json.dumps(res)
+    return json.dumps(fields)
 
 
 def _postProcessAppObj(obj):

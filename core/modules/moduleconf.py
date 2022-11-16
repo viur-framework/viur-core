@@ -6,8 +6,8 @@ from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.prototypes import List, BasicApplication
 
 
-class ModulesConfSkel(Skeleton):
-    kindName = "viur-modules-conf"
+class ModuleConfSkel(Skeleton):
+    kindName = "viur-module-conf"
     name = StringBone(descr=translate("modulename"), readOnly=True)
     help_text = StringBone(descr=translate("module helptext"))
     help_text_add = StringBone(descr=translate("add helptext"))
@@ -15,13 +15,13 @@ class ModulesConfSkel(Skeleton):
     # seo.....
 
 
-class ModulesConf(List):
+class ModuleConf(List):
     """
-        This module is for viur internal purposes only.
+        This module is for ViUR internal purposes only.
         It lists all other modules to be able to provide them with help texts.
     """
-    kindName = "viur-modules-conf"
-    accessRights = ["manage"]
+    kindName = "viur-module-conf"
+    accessRights = ["edit"]
 
     def canAdd(self):
         return False
@@ -37,10 +37,10 @@ def read_all_modules():
         if isinstance(app, BasicApplication):
             db_key = db.Key("viur-modules-conf", f"{module_name}")
             if not db.Get(db_key):
-                skel = getattr(conf["viur.mainApp"], "_modulesconf").addSkel()
+                skel = getattr(conf["viur.mainApp"], "_moduleconf").addSkel()
                 skel["key"] = db_key
                 skel["name"] = module_name
                 skel.toDB()
 
 
-ModulesConf.json = True
+ModuleConf.json = True
