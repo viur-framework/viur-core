@@ -32,15 +32,23 @@ class ModuleConf(List):
 
 @StartupTask
 def read_all_modules():
-    for module_name in dir(conf["viur.mainApp"].vi):
-        app = getattr(conf["viur.mainApp"].vi, module_name)
+    db_module_names = [m["name"] for m in db.Query("viur-module-conf").run(999)]
+    app_module_names = dir(conf["viur.mainApp"].vi)
+
+    for app_module_name in app_module_names:
+        app = getattr(conf["viur.mainApp"].vi, app_module_name)
         if isinstance(app, BasicApplication):
-            db_key = db.Key("viur-modules-conf", f"{module_name}")
-            if not db.Get(db_key):
+            if app_module_name not in db_module_names:
                 skel = getattr(conf["viur.mainApp"], "_moduleconf").addSkel()
-                skel["key"] = db_key
-                skel["name"] = module_name
+                skel["key"] = db.Key("viur-module-conf", f"{app_module_name}")
+                skel["name"] = app_module_name
                 skel.toDB()
+
+    for db_module_name in db_module_names:
+        if db_module_name not in app_module_names:
+            skel = getattr(conf["viur.mainApp"], "_moduleconf").editSkel()
+            if skel.fromDB(db.Key("viur-module-conf", f"{db_module_name}")):
+                skel.delete()
 
 
 ModuleConf.json = True
