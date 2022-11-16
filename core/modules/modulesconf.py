@@ -16,6 +16,10 @@ class ModulesConfSkel(Skeleton):
 
 
 class ModulesConf(List):
+    """
+        This module is for viur internal purposes only.
+        It lists all other modules to be able to provide them with help texts.
+    """
     kindName = "viur-modules-conf"
     accessRights = ["manage"]
 
