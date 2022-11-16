@@ -1,7 +1,6 @@
-from viur.core.bones.base import BaseBone, getSystemInitialized, ReadFromClientError, ReadFromClientErrorSeverity
-from typing import List, Union
-import copy, logging
+from typing import List, Set
 
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 try:
     import extjson
@@ -69,30 +68,20 @@ class RecordBone(BaseBone):
             )
         return usingSkel, usingSkel.errors
 
-    def getSearchTags(self, values, key):
-        def getValues(res, skel, valuesCache):
-            for k, bone in skel.items():
-                if bone.searchable:
-                    for tag in bone.getSearchTags(valuesCache, k):
-                        if tag not in res:
-                            res.append(tag)
-            return res
+    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+        result = set()
 
-        value = values[key]
-        res = []
+        using_skel_cache = self.using()
+        for idx, lang, value in self.iter_bone_value(skel, name):
+            if value is None:
+                continue
+            for key, bone in using_skel_cache.items():
+                if not bone.searchable:
+                    continue
+                for tag in bone.getSearchTags(value, key):
+                    result.add(tag)
 
-        if not value:
-            return res
-
-        uskel = self.using()
-
-        if self.multiple:
-            for entry in value:
-                res = getValues(res, uskel, entry)
-        else:
-            res = getValues(res, uskel, value)
-
-        return res
+        return result
 
     def getSearchDocumentFields(self, valuesCache, name, prefix=""):
         def getValues(res, skel, valuesCache, searchPrefix):
@@ -111,27 +100,20 @@ class RecordBone(BaseBone):
 
         return res
 
-    def getReferencedBlobs(self, skel, name):
-        def blobsFromSkel(relSkel, valuesCache):
-            blobList = set()
-            for key, _bone in relSkel.items():
-                blobList.update(_bone.getReferencedBlobs(relSkel, key))
-            return blobList
+    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+        result = set()
 
-        res = set()
-        value = skel[name]
+        using_skel_cache = self.using()
+        for idx, lang, value in self.iter_bone_value(skel, name):
+            if value is None:
+                continue
+            for key, bone in using_skel_cache.items():
+                if not bone.searchable:
+                    continue
+                for tag in bone.getReferencedBlobs(value, key):
+                    result.add(tag)
 
-        if not value:
-            return res
-        uskel = self.using()
-        if isinstance(value, list):
-            for val in value:
-                res.update(blobsFromSkel(uskel, val))
-
-        elif isinstance(value, dict):
-            res.update(blobsFromSkel(uskel, value))
-
-        return res
+        return result
 
     def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
         """

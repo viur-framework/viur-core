@@ -5,7 +5,7 @@ from hmac import compare_digest
 from time import time
 
 from viur.core.request import BrowseHandler
-from viur.core.tasks import PeriodicTask, callDeferred
+from viur.core.tasks import PeriodicTask, CallDeferred
 from viur.core import utils, db
 from viur.core.config import conf
 
@@ -246,7 +246,7 @@ class GaeSession:
         return compare_digest(self.staticSecurityKey, key)
 
 
-@callDeferred
+@CallDeferred
 def killSessionByUser(user: Optional[str] = None):
     """
         Invalidates all active sessions for the given *user*.
@@ -274,7 +274,7 @@ def startClearSessions():
     doClearSessions(time() - (conf["viur.session.lifeTime"] + 300))
 
 
-@callDeferred
+@CallDeferred
 def doClearSessions(timeStamp: str) -> None:
     query = db.Query(GaeSession.kindName).filter("lastseen <", timeStamp)
     for oldKey in query.run(100):

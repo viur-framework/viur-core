@@ -1,10 +1,9 @@
-from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core.config import conf
-from viur.core.utils import currentLanguage
-from viur.core import db, request, utils
-from typing import Dict, List, Optional, Union
-from viur.core.utils import currentLanguage
 import logging
+from typing import Dict, List, Optional, Set
+
+from viur.core import db, utils
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.utils import currentLanguage
 
 
 class StringBone(BaseBone):
@@ -37,13 +36,18 @@ class StringBone(BaseBone):
     def getEmptyValue(self):
         return ""
 
+    def isEmpty(self, value):
+        if not value:
+            return True
+
+        return not bool(str(value).strip())
+
     def singleValueFromClient(self, value, skel, name, origData):
-        value = utils.escapeString(value,self.maxLength)
+        value = utils.escapeString(value, self.maxLength)
         err = self.isInvalid(value)
         if not err:
-            return utils.escapeString(value,self.maxLength), None
+            return utils.escapeString(value, self.maxLength), None
         return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
-
 
     def buildDBFilter(
         self,
@@ -153,36 +157,15 @@ class StringBone(BaseBone):
                 dbFilter.order(order)
         return dbFilter
 
-    def getSearchTags(self, skeletonValues, name):
-        res = set()
-        value = skeletonValues[name]
-        if not value:
-            return res
-        if self.languages and isinstance(value, dict):
-            if self.multiple:
-                for lang in value.values():
-                    if not lang:
-                        continue
-                    for val in lang:
-                        for line in str(val).splitlines():
-                            for key in line.split(" "):
-                                res.add(key.lower())
-            else:
-                for lang in value.values():
-                    for line in str(lang).splitlines():
-                        for key in line.split(" "):
-                            res.add(key.lower())
-        else:
-            if self.multiple:
-                for val in value:
-                    for line in str(val).splitlines():
-                        for key in line.split(" "):
-                            res.add(key.lower())
-            else:
-                for line in str(value).splitlines():
-                    for key in line.split(" "):
-                        res.add(key.lower())
-        return res
+    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+        result = set()
+        for idx, lang, value in self.iter_bone_value(skel, name):
+            if value is None:
+                continue
+            for line in str(value).splitlines():  # TODO: Can a StringBone be multiline?
+                for word in line.split(" "):
+                    result.add(word.lower())
+        return result
 
     def getUniquePropertyIndexValues(self, skel, name: str) -> List[str]:
         if self.languages:
@@ -190,3 +173,4 @@ class StringBone(BaseBone):
             raise NotImplementedError()
 
         return super().getUniquePropertyIndexValues(skel, name)
+

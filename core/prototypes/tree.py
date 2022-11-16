@@ -6,7 +6,7 @@ from viur.core.bones import KeyBone, SortIndexBone
 from viur.core.cache import flushCache
 from viur.core.prototypes import BasicApplication
 from viur.core.skeleton import Skeleton, SkeletonInstance
-from viur.core.tasks import callDeferred
+from viur.core.tasks import CallDeferred
 from viur.core.utils import currentRequest
 
 SkelType = Literal["node", "leaf"]
@@ -189,7 +189,7 @@ class Tree(BasicApplication):
         rootNodeSkel.fromDB(repo.key)
         return rootNodeSkel
 
-    @callDeferred
+    @CallDeferred
     def updateParentRepo(self, parentNode: str, newRepoKey: str, depth: int = 0):
         """
         Recursively fixes the parentrepo key after a move operation.
@@ -473,7 +473,7 @@ class Tree(BasicApplication):
         self.onDeleted(skelType, skel)
         return self.render.deleteSuccess(skel, skelType=skelType)
 
-    @callDeferred
+    @CallDeferred
     def deleteRecursive(self, parentKey: str):
         """
         Recursively processes a delete request.

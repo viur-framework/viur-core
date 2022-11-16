@@ -154,7 +154,7 @@ The following piece of code is an example for a function that works exactly on t
 
 .. code-block:: python
 
-    @callDeferred
+    @CallDeferred
     def fetchAllPersons(cursor = None):
         # create the query
         query = personSkel().all().filter("age >", 30).cursor(cursor)

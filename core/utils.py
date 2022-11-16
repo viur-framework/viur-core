@@ -9,7 +9,7 @@ from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from typing import Any, Union, Optional
 import google.auth
-
+from urllib.parse import quote
 from viur.core import conf, db
 from pathlib import Path
 
@@ -128,7 +128,9 @@ def sanitizeFileName(fileName: str) -> str:
     """
     fileName = fileName[:100]  # Limit to 100 Chars max
     fileName = "".join([x for x in fileName if x not in "\0'\"<>\n;$&?#:;/\\"])  # Remove invalid Chars
-    return fileName.strip(".")  # Ensure the filename does not start or end with a dot
+    fileName = fileName.strip(".")  # Ensure the filename does not start or end with a dot
+    fileName = quote(fileName)  # Finally quote any non-ASCII characters
+    return fileName
 
 
 def downloadUrlFor(folder: str, fileName: str, derived: bool = False,

@@ -1,13 +1,12 @@
-from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import utils, db
-import logging
 import string
-from html import entities as htmlentitydefs
-from html.parser import HTMLParser
-from typing import Any, Dict, List, Union, Tuple, Optional
 from base64 import urlsafe_b64decode
 from datetime import datetime
+from html import entities as htmlentitydefs
+from html.parser import HTMLParser
+from typing import Dict, List, Optional, Set, Tuple, Union
 
+from viur.core import db, utils
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 _defaultTags = {
     "validTags": [  # List of HTML-Tags which are valid
@@ -56,6 +55,7 @@ def parseDownloadUrl(urlStr: str) -> Tuple[Optional[str], Optional[bool], Option
     derived = derived != "source"
     return blobkey, derived, fileName
 
+
 class CollectBlobKeys(HTMLParser):
     def __init__(self):
         super(CollectBlobKeys, self).__init__()
@@ -65,7 +65,7 @@ class CollectBlobKeys(HTMLParser):
         if tag in ["a", "img"]:
             for k, v in attrs:
                 if k == "src":
-                    blobKey, _ , _ = parseDownloadUrl(v)
+                    blobKey, _, _ = parseDownloadUrl(v)
                     if blobKey:
                         self.blobs.add(blobKey)
 
@@ -146,7 +146,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                         if self.srcSet:
                             # Build the src set with files already available. If a derived file is not yet build,
                             # getReferencedBlobs will catch it, build it, and we're going to be re-called afterwards.
-                            fileObj = db.Query("file").filter("dlkey =", blobKey)\
+                            fileObj = db.Query("file").filter("dlkey =", blobKey) \
                                 .order(("creationdate", db.SortOrder.Ascending)).getEntry()
                             srcSet = utils.srcSetFor(fileObj, None, self.srcSet.get("width"), self.srcSet.get("height"))
                             cacheTagStart += ' srcSet="%s"' % srcSet
@@ -303,25 +303,22 @@ class TextBone(BaseBone):
         if len(value) > self.maxLength:
             return "Maximum length exceeded"
 
-    def getReferencedBlobs(self, skel, name):
+    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
         """
             Parse our html for embedded img or hrefs pointing to files. These will be locked,
             so even if they are deleted from the file browser, we'll still keep that blob alive
             so we don't have broken links/images in this bone.
         """
-        newFileKeys = set()
-        if self.languages and skel[name]:
-            for lng in self.languages:
-                if lng in skel[name] and skel[name][lng]:
-                    collector = CollectBlobKeys()
-                    collector.feed(skel[name][lng])
-                    newFileKeys.update(collector.blobs)
-        elif skel[name]:
-            collector = CollectBlobKeys()
-            collector.feed(skel[name])
-            newFileKeys = collector.blobs
-        if newFileKeys and self.srcSet:
-            deriveDict = {
+        collector = CollectBlobKeys()
+
+        for idx, lang, value in self.iter_bone_value(skel, name):
+            if value:
+                collector.feed(value)
+
+        blob_keys = collector.blobs
+
+        if blob_keys and self.srcSet:
+            derive_dict = {
                 "thumbnail": [
                                  {"width": x} for x in (self.srcSet.get("width") or [])
                              ] + [
@@ -329,12 +326,13 @@ class TextBone(BaseBone):
                              ]
             }
             from viur.core.bones.file import ensureDerived
-            for blobKey in newFileKeys:
-                fileObj = db.Query("file").filter("dlkey =", blobKey)\
+            for blob_key in blob_keys:
+                file_obj = db.Query("file").filter("dlkey =", blob_key) \
                     .order(("creationdate", db.SortOrder.Ascending)).getEntry()
-                if fileObj:
-                    ensureDerived(fileObj.key, "%s_%s" % (skel.kindName, name), deriveDict, skel["key"])
-        return list(newFileKeys)
+                if file_obj:
+                    ensureDerived(file_obj.key, "%s_%s" % (skel.kindName, name), derive_dict, skel["key"])
+
+        return blob_keys
 
     def refresh(self, skel, boneName) -> None:
         """
@@ -347,61 +345,15 @@ class TextBone(BaseBone):
             elif not self.languages and isinstance(val, str):
                 skel[boneName] = self.singleValueFromClient(val, skel, boneName, None)[0]
 
-    def getSearchTags(self, skeletonValues, name):
-        res = set()
-        value = skeletonValues[name]
-        if not value:
-            return res
-        if self.languages and isinstance(value, dict):
-            if self.multiple:
-                for lang in value.values():
-                    if not lang:
-                        continue
-                    for val in lang:
-                        for line in str(val).splitlines():
-                            for key in line.split(" "):
-                                res.add(key.lower())
-            else:
-                for lang in value.values():
-                    for line in str(lang).splitlines():
-                        for key in line.split(" "):
-                            res.add(key.lower())
-        else:
-            if self.multiple:
-                for val in value:
-                    for line in str(val).splitlines():
-                        for key in line.split(" "):
-                            res.add(key.lower())
-            else:
-                for line in str(value).splitlines():
-                    for key in line.split(" "):
-                        res.add(key.lower())
-        return res
-
-    def getSearchDocumentFields(self, valuesCache, name, prefix=""):
-        """
-            Returns a list of search-fields (GAE search API) for this bone.
-        """
-        if valuesCache.get(name) is None:
-            # If adding an entry using an subskel, our value might not have been set
-            return []
-        if self.languages:
-            assert isinstance(valuesCache[name],
-                              dict), "The value shall already contain a dict, something is wrong here."
-
-            if self.validHtml:
-                return [
-                    search.HtmlField(name=prefix + name, value=str(valuesCache[name].get(lang, "")), language=lang)
-                    for lang in self.languages]
-            else:
-                return [
-                    search.TextField(name=prefix + name, value=str(valuesCache[name].get(lang, "")), language=lang)
-                    for lang in self.languages]
-        else:
-            if self.validHtml:
-                return [search.HtmlField(name=prefix + name, value=str(valuesCache[name]))]
-            else:
-                return [search.TextField(name=prefix + name, value=str(valuesCache[name]))]
+    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+        result = set()
+        for idx, lang, value in self.iter_bone_value(skel, name):
+            if value is None:
+                continue
+            for line in str(value).splitlines():
+                for word in line.split(" "):
+                    result.add(word.lower())
+        return result
 
     def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
         if self.languages:

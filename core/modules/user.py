@@ -5,7 +5,7 @@ from viur.core import utils, email
 from viur.core.bones.base import ReadFromClientErrorSeverity, UniqueValue, UniqueLockMethod
 from viur.core.bones.password import pbkdf2
 from viur.core import errors, conf, securitykey
-from viur.core.tasks import StartupTask, callDeferred
+from viur.core.tasks import StartupTask, CallDeferred
 from viur.core.securityheaders import extendCsp
 from viur.core.ratelimit import RateLimit
 from time import time
@@ -317,7 +317,7 @@ class UserPassword(object):
             session["user.auth_userpassword.pwrecover"] = None
             return self.userModule.render.view(None, self.passwordRecoverySuccessTemplate)
 
-    @callDeferred
+    @CallDeferred
     def sendUserPasswordRecoveryCode(self, userName: str, recoveryKey: str) -> None:
         """
             Sends the given recovery code to the user given in userName. This function runs deferred
@@ -535,19 +535,19 @@ class TimeBasedOTP(object):
             # Maybe uneven length
             if len(hexStr) % 2 == 1:
                 hexStr = "0" + hexStr
-            return ("00" * (8 - (len(hexStr) / 2)) + hexStr).decode("hex")
+            return bytes.fromhex("00" * int(8 - (len(hexStr) / 2)) + hexStr)
 
         idx = int(time() / 60.0)  # Current time index
         idx += int(timeDrift)
         res = []
         for slot in range(idx - self.windowSize, idx + self.windowSize):
-            currHash = hmac.new(secret.decode("HEX"), asBytes(slot), hashlib.sha1).digest()
+            currHash = hmac.new(bytes.fromhex(secret), asBytes(slot), hashlib.sha1).digest()
             # Magic code from https://tools.ietf.org/html/rfc4226 :)
-            offset = ord(currHash[19]) & 0xf
-            code = ((ord(currHash[offset]) & 0x7f) << 24 |
-                    (ord(currHash[offset + 1]) & 0xff) << 16 |
-                    (ord(currHash[offset + 2]) & 0xff) << 8 |
-                    (ord(currHash[offset + 3]) & 0xff))
+            offset = currHash[19] & 0xf
+            code = ((currHash[offset] & 0x7f) << 24 |
+                    (currHash[offset + 1] & 0xff) << 16 |
+                    (currHash[offset + 2] & 0xff) << 8 |
+                    (currHash[offset + 3] & 0xff))
             res.append(int(str(code)[-6:]))  # We use only the last 6 digits
         return res
 

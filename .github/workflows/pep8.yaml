@@ -1,0 +1,39 @@
+name: PEP8 linter
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        python: [ "3.10" ]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          path: viur
+          fetch-depth: "0"
+
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install dependencies
+        run: |
+          cd viur
+          python -m pip install -U pip
+          python -m pip install -U pycodestyle
+
+      - name: run pep8check
+        run: |
+          cd /home/runner/work/viur-core/viur-core/viur
+          git show -U0 ${GITHUB_SHA} | pycodestyle --diff
