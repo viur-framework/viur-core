@@ -130,6 +130,11 @@ class BaseBone(object):
             and (not isinstance(required, (tuple, list)) or any(not isinstance(value, str) for value in required))
         ):
             raise TypeError(f"required must be boolean or a tuple/list of strings. Got: {required!r}")
+        if isinstance(required, (tuple, list)) and not languages:
+            raise ValueError("You set required to a list of languages, but defined no languages.")
+        if isinstance(required, (tuple, list)) and languages and (diff := set(required).difference(languages)):
+            raise ValueError(f"The language(s) {', '.join(map(repr, diff))} can not be required, "
+                             f"because they're not defined.")
 
         self.languages = languages
 
