@@ -2,7 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.3.0-rc3]
+## [3.3.0-rc4]
 
 - Rewrite `getReferencedBlobs` and `getSearchTags` (#528)
 - Improve `utils.sanitizeFileName` to quote non-ASCII (#547)

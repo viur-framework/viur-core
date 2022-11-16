@@ -310,8 +310,11 @@ class TextBone(BaseBone):
             so we don't have broken links/images in this bone.
         """
         collector = CollectBlobKeys()
+
         for idx, lang, value in self.iter_bone_value(skel, name):
-            collector.feed(value)
+            if value:
+                collector.feed(value)
+
         blob_keys = collector.blobs
 
         if blob_keys and self.srcSet:
