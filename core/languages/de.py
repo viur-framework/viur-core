@@ -341,7 +341,7 @@ de = {
     "service unavailable": "Dienst nicht verfügbar",
 
     #Moduleconfig
-    "modulename": "Modulename",
+    "modulename": "Modulname",
     "module helptext": "Modul Hilfetext",
     "add helptext": "Hinzufügen Hilfetext",
     "edit helptext": "Editieren Hilfetext",
