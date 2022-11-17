@@ -343,8 +343,13 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                     err.fieldPath.insert(0, str(key))
                 skelValues.errors.extend(errors)
                 for error in errors:
-                    if (error.severity == ReadFromClientErrorSeverity.Empty and _bone.required and
-                        error.fieldPath == [key]) or error.severity == ReadFromClientErrorSeverity.Invalid or \
+                    is_empty = error.severity == ReadFromClientErrorSeverity.Empty and bool(_bone.required)
+                    if _bone.languages and isinstance(_bone.required, (list, tuple)):
+                        is_empty &= any([key, lang] == error.fieldPath
+                                        for lang in _bone.required)
+                    else:
+                        is_empty &= error.fieldPath == [key]
+                    if is_empty or error.severity == ReadFromClientErrorSeverity.Invalid or \
                         (error.severity == ReadFromClientErrorSeverity.NotSet and _bone.required and
                          _bone.isEmpty(skelValues["key"])):
                         # We'll consider empty required bones only as an error, if they're on the top-level (and not

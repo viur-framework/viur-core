@@ -75,7 +75,7 @@ class BaseBone(object):
         multiple: Union[bool, MultipleConstraints] = False,
         params: Dict = None,
         readOnly: bool = False,
-        required: bool = False,
+        required: Union[bool, List[str], Tuple[str]] = False,
         searchable: bool = False,
         unique: Union[None, UniqueValue] = None,
         vfunc: callable = None,  # fixme: Rename this, see below.
@@ -87,7 +87,8 @@ class BaseBone(object):
             :param descr: Textual, human-readable description of that bone. Will be translated.
             :param defaultValue: If set, this bone will be preinitialized with this value
             :param required: If True, the user must enter a valid value for this bone (the viur.core refuses to save the
-                skeleton otherwise)
+                skeleton otherwise).
+                If a list/tuple of languages (strings) is provided, these language must be entered.
             :param multiple: If True, multiple values can be given. (ie. n:m relations instead of n:1)
             :param searchable: If True, this bone will be included in the fulltext search. Can be used
                 without the need of also been indexed.
@@ -124,6 +125,16 @@ class BaseBone(object):
              and all([isinstance(x, str) for x in languages]))
         ):
             raise ValueError("languages must be None or a list of strings")
+        if (
+            not isinstance(required, bool)
+            and (not isinstance(required, (tuple, list)) or any(not isinstance(value, str) for value in required))
+        ):
+            raise TypeError(f"required must be boolean or a tuple/list of strings. Got: {required!r}")
+        if isinstance(required, (tuple, list)) and not languages:
+            raise ValueError("You set required to a list of languages, but defined no languages.")
+        if isinstance(required, (tuple, list)) and languages and (diff := set(required).difference(languages)):
+            raise ValueError(f"The language(s) {', '.join(map(repr, diff))} can not be required, "
+                             f"because they're not defined.")
 
         self.languages = languages
 
@@ -334,6 +345,7 @@ class BaseBone(object):
             return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "Field not submitted")]
         errors = []
         isEmpty = True
+        filled_languages = set()
         if self.languages and self.multiple:
             res = {}
             for language in self.languages:
@@ -343,6 +355,7 @@ class BaseBone(object):
                         if self.isEmpty(singleValue):
                             continue
                         isEmpty = False
+                        filled_languages.add(language)
                         parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
                         res[language].append(parsedVal)
                         if parseErrors:
@@ -358,6 +371,7 @@ class BaseBone(object):
                         res[language] = self.getEmptyValue()
                         continue
                     isEmpty = False
+                    filled_languages.add(language)
                     parsedVal, parseErrors = self.singleValueFromClient(parsedData[language], skel, name, data)
                     res[language] = parsedVal
                     if parseErrors:
@@ -386,6 +400,11 @@ class BaseBone(object):
                 if parseErrors:
                     errors.extend(parseErrors)
         skel[name] = res
+        if self.languages and isinstance(self.required, (list, tuple)):
+            missing = set(self.required).difference(filled_languages)
+            if missing:
+                return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "Field not set", fieldPath=[lang])
+                        for lang in missing]
         if isEmpty:
             return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "Field not set")]
         if self.multiple and isinstance(self.multiple, MultipleConstraints):
