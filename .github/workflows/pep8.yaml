@@ -9,7 +9,7 @@ on:
       - '**'
 
 jobs:
-  test:
+  linter:
     strategy:
       matrix:
         python: [ "3.10" ]
@@ -19,7 +19,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          path: viur
           fetch-depth: "0"
 
       - name: Set up Python ${{ matrix.python }}
@@ -29,11 +28,15 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd viur
           python -m pip install -U pip
           python -m pip install -U pycodestyle
 
-      - name: run pep8check
+      - name: run pep8check @pull_request
+        if: ${{ github.event_name == 'pull_request' }}
         run: |
-          cd /home/runner/work/viur-core/viur-core/viur
+          git diff -U0 origin/${GITHUB_BASE_REF}..${GITHUB_SHA} | pycodestyle --diff
+
+      - name: run pep8check @push
+        if: ${{ github.event_name == 'push' }}
+        run: |
           git show -U0 ${GITHUB_SHA} | pycodestyle --diff
