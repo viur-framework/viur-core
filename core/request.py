@@ -10,6 +10,7 @@ from viur.core.logging import requestLogger, client as loggingClient, requestLog
 from viur.core import utils, db
 from viur.core.utils import currentSession, currentLanguage
 from viur.core.securityheaders import extendCsp
+from viur.core.tasks import _appengineServiceIPs
 import logging
 from time import time
 from abc import ABC, abstractmethod
@@ -101,6 +102,7 @@ class BrowseHandler():  # webapp.RequestHandler
         self.response = response
         self.maxLogLevel = logging.DEBUG
         self._traceID = request.headers.get('X-Cloud-Trace-Context', "").split("/")[0] or utils.generateRandomString()
+        self.is_deferred = False
         db.currentDbAccessLog.set(set())
 
     def selectLanguage(self, path: str) -> str:
@@ -166,6 +168,9 @@ class BrowseHandler():  # webapp.RequestHandler
         self.internalRequest = False
         self.isDevServer = os.environ['GAE_ENV'] == "localdev"  # Were running on development Server
         self.isSSLConnection = self.request.host_url.lower().startswith("https://")  # We have an encrypted channel
+        if self.request.headers.get("X-AppEngine-TaskName", None) is not None:
+            if self.request.environ.get("HTTP_X_APPENGINE_USER_IP") in _appengineServiceIPs:
+                self.is_deferred = True
         currentLanguage.set(conf["viur.defaultLanguage"])
         self.disableCache = False  # Shall this request bypass the caches?
         self.args = []
