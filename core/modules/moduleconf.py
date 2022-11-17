@@ -1,3 +1,5 @@
+import logging
+
 from viur.core.bones import StringBone
 from viur.core.tasks import StartupTask
 from viur.core import conf, db
@@ -29,6 +31,14 @@ class ModuleConf(List):
     def canDelete(self, skel: SkeletonInstance) -> bool:
         return False
 
+    @classmethod
+    def get_by_module_name(cls, module_name: str):
+        db_key = db.Key("viur-module-conf", f"{module_name}")
+        skel = getattr(conf["viur.mainApp"], "_moduleconf").viewSkel()
+        if not skel.fromDB(db_key):
+            logging.error(f"module({module_name}) not found in viur-module-conf")
+            return None
+        return skel
 
 @StartupTask
 def read_all_modules():
@@ -43,12 +53,6 @@ def read_all_modules():
                 skel["key"] = db.Key("viur-module-conf", f"{app_module_name}")
                 skel["name"] = app_module_name
                 skel.toDB()
-
-    for db_module_name in db_module_names:
-        if db_module_name not in app_module_names:
-            skel = getattr(conf["viur.mainApp"], "_moduleconf").editSkel()
-            if skel.fromDB(db.Key("viur-module-conf", f"{db_module_name}")):
-                skel.delete()
 
 
 ModuleConf.json = True
