@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-import os
 apiVersion = 1  # What format do we use to store data in the bigtable
 
 unsetMarker = object()  # Special marker signaling that a key has no value (not even None) set
@@ -179,5 +178,6 @@ conf = {
     # Will be set to viur.core.version.__version__ in viur.core.__init__
     "viur.version": None,
 
-    "viur.instance.isDevServer": os.environ.get('GAE_ENV') == "localdev",
+    # Will be set in viur.core.__init__
+    "viur.instance.isDevServer": False,
 }

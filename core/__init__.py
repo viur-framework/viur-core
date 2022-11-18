@@ -34,9 +34,14 @@ from viur.core.session import GaeSession
 from viur.core.version import __version__
 import logging
 import webob
+import os
 
 # Copy our Version into the config so that our renders can access it
 conf["viur.version"] = tuple(__version__.split(".", 3))
+
+#Set conf instance vars
+conf["viur.instance.isDevServer"] = os.getenv('GAE_ENV') == "localdev"
+
 
 
 def setDefaultLanguage(lang: str):
@@ -261,7 +266,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
 
         if "hmacKey" not in obj:  # create a new hmacKey
             logging.info("Creating new hmacKey")
-            obj["hmacKey"] = utils.generateRandomString(length=20)            
+            obj["hmacKey"] = utils.generateRandomString(length=20)
             db.Put(obj)
 
         conf["viur.file.hmacKey"] = bytes(obj["hmacKey"], "utf-8")
