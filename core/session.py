@@ -96,7 +96,7 @@ class GaeSession:
         """
         try:
             if self.changed or self.isInitial:
-                if not (req.isSSLConnection or req.isDevServer):  # We will not issue sessions over http anymore
+                if not (req.isSSLConnection or conf["viur.instance.isDevServer"]):  # We will not issue sessions over http anymore
                     return False
                 # Get the current user id
                 try:
@@ -119,7 +119,7 @@ class GaeSession:
                     raise  # FIXME
                     pass
                 sameSite = "; SameSite=%s" % self.sameSite if self.sameSite else ""
-                secure = "; Secure" if not req.isDevServer else ""
+                secure = "; Secure" if not conf["viur.instance.isDevServer"] else ""
                 maxAge = "; Max-Age=%s" % conf["viur.session.lifeTime"] if not self.sessionCookie else ""
                 req.response.headerlist.append(("Set-Cookie", "%s=%s; Path=/; HttpOnly%s%s%s" % (
                     self.cookieName, self.cookieKey, sameSite, secure, maxAge)))

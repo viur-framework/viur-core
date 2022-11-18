@@ -287,7 +287,7 @@ class TaskHandler:
     def cron(self, cronName="default", *args, **kwargs):
         global _callableTasks, _periodicTasks, _appengineServiceIPs
         req = currentRequest.get()
-        if not req.isDevServer:
+        if not conf["viur.instance.isDevServer"]:
             if 'X-Appengine-Cron' not in req.request.headers:
                 logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Cron" was not set.')
                 raise errors.Forbidden()
