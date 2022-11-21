@@ -20,7 +20,16 @@ class JsonBone(BaseBone):
             return False
 
         value = skel.accessedValues[name]
-        skel.dbEntity[name] = json.dumps(value) if value is not None else None
+        if isinstance(value, str):
+            try:
+                _ = json.loads(value)
+                del _
+            except Exception as e:
+                raise f"Error in serialize in JsonBone: {e=}"
+
+            skel.dbEntity[name] = value
+        else:
+            skel.dbEntity[name] = json.dumps(value) if value is not None else None
 
         # Ensure our indexed flag is False
         skel.dbEntity.exclude_from_indexes.add(name)
@@ -36,8 +45,7 @@ class JsonBone(BaseBone):
 
     def singleValueFromClient(self, value, *args, **kwargs):
         if value:
-            value = str(value)
-            # Try to parse a JSON string
+            value = str(value)  # Try to parse a JSON string
             try:
                 value = json.loads(value)
             except Exception as e:
