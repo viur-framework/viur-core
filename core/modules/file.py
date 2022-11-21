@@ -21,11 +21,11 @@ from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringB
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import skeletonByKind
 from viur.core.tasks import PeriodicTask, CallDeferred
-from viur.core.utils import projectID, sanitizeFileName
+from viur.core.utils import  sanitizeFileName
 
 credentials, project = google.auth.default()
 client = storage.Client(project, credentials)
-bucket = client.lookup_bucket("%s.appspot.com" % projectID)
+bucket = client.lookup_bucket("%s.appspot.com" % conf["viur.instance.projectID"])
 iamClient = iam_credentials_v1.IAMCredentialsClient()
 
 
@@ -157,7 +157,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         raise ValueError("viur.file.thumbnailerURL is not set")
 
     def getsignedurl():
-        if utils.isLocalDevelopmentServer:
+        if conf["viur.instance.isDevServer"]:
             signedUrl = utils.downloadUrlFor(fileSkel["dlkey"], fileSkel["name"])
         else:
             path = f"""{fileSkel["dlkey"]}/source/{file_name}"""
@@ -613,7 +613,7 @@ class File(Tree):
             expiresAt = datetime.now() + timedelta(seconds=60)
             signedUrl = blob.generate_signed_url(expiresAt, response_disposition=contentDisposition, version="v4")
             raise errors.Redirect(signedUrl)
-        elif utils.isLocalDevelopmentServer:  # No Service-Account to sign with - Serve everything directly
+        elif conf["viur.instance.isDevServer"]:  # No Service-Account to sign with - Serve everything directly
             response = utils.currentRequest.get().response
             response.headers["Content-Type"] = blob.content_type
             if contentDisposition:

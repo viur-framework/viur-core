@@ -51,7 +51,7 @@ class GaeSession:
     kindName = "viur-session"
     sameSite = "lax"  # Either None (dont issue sameSite header), "none", "lax" or "strict"
     sessionCookie = True  # If True, issue the cookie without a lifeTime (will disappear on browser close)
-    cookieName = f"viurCookie_{utils.projectID}"
+    cookieName = f'viurCookie_{conf["viur.instance.projectID"]}'
 
     def load(self, req: BrowseHandler):
         """

@@ -1,18 +1,17 @@
 import logging
-
 import google.cloud.logging
 from google.cloud.logging import Resource
 from google.cloud.logging.handlers import CloudLoggingHandler
 from google.cloud.logging_v2.handlers.handlers import EXCLUDED_LOGGER_DEFAULTS
 
-from viur.core.utils import currentRequest, projectID, appVersion, isLocalDevelopmentServer
-
+from viur.core.utils import currentRequest
+from viur.core.config import conf
 client = google.cloud.logging.Client()
 requestLoggingRessource = Resource(type="gae_app",
                                    labels={
-                                       "project_id": projectID,
+                                       "project_id": conf["viur.instance.projectID"],
                                        "module_id": "default",
-                                       "version_id": appVersion if not isLocalDevelopmentServer else "dev_appserver",
+                                       "version_id": conf["viur.instance.appVersion"] if not conf["viur.instance.isDevServer"] else "dev_appserver",
                                    })
 
 requestLogger = client.logger("ViUR")
@@ -35,9 +34,9 @@ class ViURDefaultLogger(CloudLoggingHandler):
             message,
             resource=self.resource,
             labels={
-                "project_id": projectID,
+                "project_id": conf["viur.instance.projectID"],
                 "module_id": "default",
-                "version_id": appVersion if not isLocalDevelopmentServer else "dev_appserver",
+                "version_id": conf["viur.instance.appVersion"] if not conf["viur.instance.isDevServer"] else "dev_appserver",
             },
             trace=TRACE,
             operation={

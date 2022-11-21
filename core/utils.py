@@ -1,14 +1,10 @@
-import hashlib
 import hmac
-import os
 import random
-import string
 import logging
-from base64 import urlsafe_b64encode
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from typing import Any, Union, Optional
-import google.auth
+
 from urllib.parse import quote
 from viur.core import conf, db
 from pathlib import Path
@@ -19,17 +15,14 @@ currentRequestData = ContextVar("Request-Data", default=None)
 currentSession = ContextVar("Session", default=None)
 currentLanguage = ContextVar("Language", default=None)
 
-# Determine which ProjectID we currently run in (as the app_identity module isn't available anymore)
-_, projectID = google.auth.default()
-del _
-appVersion = os.getenv("GAE_VERSION")  # Name of this version as deployed to the appengine
-# Hash of appVersion used for cache-busting for static resources (css etc) that does not reveal the actual version name
-versionHash = urlsafe_b64encode(hashlib.sha256((appVersion+projectID).encode("UTF8")).digest()).decode("ASCII")
-versionHash = "".join([x for x in versionHash if x in string.digits+string.ascii_letters])[1:7]  # Strip +, / and =
+
+
+
+
 # Determine our basePath (as os.getCWD is broken on appengine)
 projectBasePath = str(Path().absolute())
 coreBasePath = globals()["__file__"].replace("/viur/core/utils.py","")
-isLocalDevelopmentServer = os.environ['GAE_ENV'] == "localdev"
+
 
 
 def utcNow() -> datetime:
