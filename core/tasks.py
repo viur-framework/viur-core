@@ -426,7 +426,6 @@ def CallDeferred(func):
         if not queueRegion:
             # Run tasks inline
             logging.debug(f"{func=} will be executed inline")
-
             @wraps(func)
             def task():
                 if self is __undefinedFlag_:
@@ -435,6 +434,7 @@ def CallDeferred(func):
                     return func(self, *args, **kwargs)
 
             if req:
+                req.is_deferred = True
                 req.pendingTasks.append(task)  # This property only exists on development server!
             else:
                 # Warmup request or something - we have to call it now as we can't defer it :/

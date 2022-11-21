@@ -168,8 +168,10 @@ class BrowseHandler():  # webapp.RequestHandler
         self.internalRequest = False
         self.isDevServer = os.environ['GAE_ENV'] == "localdev"  # Were running on development Server
         self.isSSLConnection = self.request.host_url.lower().startswith("https://")  # We have an encrypted channel
-        if self.request.headers.get("X-AppEngine-TaskName", None) is not None:
+        if self.request.headers.get("X-AppEngine-TaskName", None) is not None:  # Check if we run in the appengine
             if self.request.environ.get("HTTP_X_APPENGINE_USER_IP") in _appengineServiceIPs:
+                self.is_deferred = True
+            elif os.getenv("TASKS_EMULATOR") is not None:
                 self.is_deferred = True
         currentLanguage.set(conf["viur.defaultLanguage"])
         self.disableCache = False  # Shall this request bypass the caches?
