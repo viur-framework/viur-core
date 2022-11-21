@@ -24,21 +24,20 @@
  See file LICENSE for more information.
 """
 
+import hashlib
+import logging
+import os
+import string
+from base64 import urlsafe_b64encode
 from types import ModuleType
-from typing import Dict, Union, Callable
+from typing import Callable, Dict, Union
+import google.auth
+import webob
+from viur.core import logging as viurLogging, request, utils  # Initialize request logging
 from viur.core.config import conf
-from viur.core import request, utils
 from viur.core.i18n import initializeTranslations
-from viur.core import logging as viurLogging  # Initialize request logging
 from viur.core.session import GaeSession
 from viur.core.version import __version__
-import logging
-import webob
-import os
-import google.auth
-from base64 import urlsafe_b64encode
-import hashlib
-import string
 
 # Copy our Version into the config so that our renders can access it
 conf["viur.version"] = tuple(__version__.split(".", 3))
