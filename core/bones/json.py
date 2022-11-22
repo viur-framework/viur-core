@@ -1,4 +1,7 @@
 import json
+import logging
+
+from viur.core.bones import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.bones import BaseBone
 
 
@@ -25,7 +28,8 @@ class JsonBone(BaseBone):
                 _ = json.loads(value)
                 del _
             except Exception as e:
-                raise f"Error in serialize in JsonBone: {e=}"
+                logging.error(f"Error in serialize in JsonBone: {e=}")
+                return False
 
             skel.dbEntity[name] = value
         else:
@@ -48,7 +52,11 @@ class JsonBone(BaseBone):
             value = str(value)  # Try to parse a JSON string
             try:
                 value = json.loads(value)
+                return value, None
             except Exception as e:
-                raise f"Error in singleValueFromClient in JsonBone: {e=}"
-
-        return super().singleValueFromClient(value, *args, **kwargs)
+                logging.error(f"Error in singleValueFromClient in JsonBone: {e=}")
+                return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid,
+                                                                  "Cannot parse to JSON")]
+        else:
+            return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.NotSet,
+                                                              "Field not submitted")]
