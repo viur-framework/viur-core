@@ -33,12 +33,10 @@ from types import ModuleType
 from typing import Callable, Dict, Union
 import google.auth
 import webob
-from viur.core import logging as viurLogging, request, utils  # Initialize request logging
 from viur.core.config import conf
-from viur.core.i18n import initializeTranslations
-from viur.core.session import GaeSession
 from viur.core.version import __version__
 
+# We must set the conf before loading the other core modules
 # Copy our Version into the config so that our renders can access it
 conf["viur.version"] = tuple(__version__.split(".", 3))
 
@@ -84,7 +82,10 @@ def setDefaultDomainLanguage(domain: str, lang: str):
 from viur.core import session, errors
 from viur.core.tasks import TaskHandler, runStartupTasks
 from viur.core import i18n
-
+from viur.core import logging as viurLogging  # Initialize request logging
+from viur.core import request, utils
+from viur.core.i18n import initializeTranslations
+from viur.core.session import GaeSession
 
 def mapModule(moduleObj: object, moduleName: str, targetResolverRender: dict):
     """

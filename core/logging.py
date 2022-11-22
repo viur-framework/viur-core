@@ -6,6 +6,7 @@ from google.cloud.logging_v2.handlers.handlers import EXCLUDED_LOGGER_DEFAULTS
 
 from viur.core.utils import currentRequest
 from viur.core.config import conf
+
 client = google.cloud.logging.Client()
 requestLoggingRessource = Resource(type="gae_app",
                                    labels={

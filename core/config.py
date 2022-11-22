@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 apiVersion = 1  # What format do we use to store data in the bigtable
 
 unsetMarker = object()  # Special marker signaling that a key has no value (not even None) set
