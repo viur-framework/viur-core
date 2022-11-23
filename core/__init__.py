@@ -241,7 +241,8 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     import skeletons  # This import is not used here but _must_ remain to ensure that the
     # application's data models are explicitly imported at some place!
     assert conf["viur.instance.project_id"] in conf["viur.validApplicationIDs"], \
-        "Refusing to start, applicationID %s is not in conf['viur.validApplicationIDs']" % conf["viur.instance.project_id"]
+        "Refusing to start, applicationID %s is not in conf['viur.validApplicationIDs']" \
+        % conf["viur.instance.project_id"]
     if not render:
         import viur.core.render
         render = viur.core.render

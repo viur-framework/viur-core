@@ -96,7 +96,8 @@ class GaeSession:
         """
         try:
             if self.changed or self.isInitial:
-                if not (req.isSSLConnection or conf["viur.instance.is_dev_server"]):  # We will not issue sessions over http anymore
+                # We will not issue sessions over http anymore
+                if not (req.isSSLConnection or conf["viur.instance.is_dev_server"]):
                     return False
                 # Get the current user id
                 try:
