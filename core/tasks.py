@@ -434,7 +434,6 @@ def CallDeferred(func):
                     return func(self, *args, **kwargs)
 
             if req:
-                req.is_deferred = True
                 req.pendingTasks.append(task)  # This property only exists on development server!
             else:
                 # Warmup request or something - we have to call it now as we can't defer it :/

@@ -352,6 +352,7 @@ class BrowseHandler():  # webapp.RequestHandler
                     }
                 )
         if self.isDevServer:
+            self.is_deferred = True
             while self.pendingTasks:
                 task = self.pendingTasks.pop()
                 logging.info("Running task directly after request: %s" % str(task))
