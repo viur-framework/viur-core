@@ -217,7 +217,7 @@ def sendEMail(*,
     if conf["viur.email.senderOverride"]:
         sender = conf["viur.email.senderOverride"]
     elif sender is None:
-        sender = f'viur@{conf["viur.instance.projectID"]}.appspotmail.com'
+        sender = f'viur@{conf["viur.instance.project_id"]}.appspotmail.com'
     subject, body = conf["viur.emailRenderer"](dests, tpl, stringTemplate, skel, **kwargs)
     # Push that email to the outgoing queue
     queueEntity = db.Entity(db.Key("viur-emails"))
@@ -235,7 +235,7 @@ def sendEMail(*,
     queueEntity["context"] = context
     queueEntity.exclude_from_indexes = ["body", "attachments", "context"]
     transportClass.validateQueueEntity(queueEntity)  # Will raise an exception if the entity is not valid
-    if conf["viur.instance.isDevServer"] and not conf["viur.email.sendFromLocalDevelopmentServer"]:
+    if conf["viur.instance.is_dev_server"] and not conf["viur.email.sendFromLocalDevelopmentServer"]:
         logging.info("Not sending email from local development server")
         logging.info("Subject: %s", queueEntity["subject"])
         logging.info("Body: %s", queueEntity["body"])

@@ -179,13 +179,13 @@ conf = {
     "viur.version": None,
 
     # Will be set in viur.core.__init__
-    "viur.instance.isDevServer": False,
+    "viur.instance.is_dev_server": False,
 
-    "viur.instance.projectID": None,
+    "viur.instance.project_id": None,
 
     # Name of this version as deployed to the appengine will be also set in viur.core.__init__
-    "viur.instance.appVersion": None,
+    "viur.instance.app_version": None,
 
-    "viur.instance.versionHash": None,
+    "viur.instance.version_hash": None,
 
 }

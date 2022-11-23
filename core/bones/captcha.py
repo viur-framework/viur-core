@@ -41,7 +41,7 @@ class CaptchaBone(BaseBone):
             :param data: *User-supplied* request-data
             :returns: None or a list of errors
         """
-        if conf["viur.instance.isDevServer"]:  # We dont enforce captchas on dev server
+        if conf["viur.instance.is_dev_server"]:  # We dont enforce captchas on dev server
             return None
         user = utils.getCurrentUser()
         if user and "root" in user["access"]:

@@ -178,7 +178,7 @@ class BrowseHandler():  # webapp.RequestHandler
                 self.response.write(statusDescr)
                 return
         path = self.request.path
-        if conf["viur.instance.isDevServer"]:
+        if conf["viur.instance.is_dev_server"]:
             # We'll have to emulate the task-queue locally as far as possible until supported by dev_appserver again
             self.pendingTasks = []
 
@@ -218,7 +218,7 @@ class BrowseHandler():  # webapp.RequestHandler
             self.response.headers["Cross-Origin-Resource-Policy"] = conf["viur.security.enableCORP"]
 
         # Ensure that TLS is used if required
-        if conf["viur.forceSSL"] and not self.isSSLConnection and not conf["viur.instance.isDevServer"]:
+        if conf["viur.forceSSL"] and not self.isSSLConnection and not conf["viur.instance.is_dev_server"]:
             isWhitelisted = False
             reqPath = self.request.path
             for testUrl in conf["viur.noSSLCheckUrls"]:
@@ -295,7 +295,7 @@ class BrowseHandler():  # webapp.RequestHandler
             if not res:
                 tpl = Template(open(os.path.join(utils.coreBasePath,conf["viur.errorTemplate"]), "r").read())
                 descr = "The server encountered an unexpected error and is unable to process your request."
-                if conf["viur.instance.isDevServer"]:  # Were running on development Server
+                if conf["viur.instance.is_dev_server"]:  # Were running on development Server
                     strIO = StringIO()
                     traceback.print_exc(file=strIO)
                     descr = strIO.getvalue()
@@ -307,7 +307,7 @@ class BrowseHandler():  # webapp.RequestHandler
             self.response.write(res.encode("UTF-8"))
         finally:
             self.saveSession()
-            if conf["viur.instance.isDevServer"]:
+            if conf["viur.instance.is_dev_server"]:
                 # Emit the outer log only on dev_appserver (we'll use the existing request log when live)
                 SEVERITY = "DEBUG"
                 if self.maxLogLevel >= 50:
@@ -343,7 +343,7 @@ class BrowseHandler():  # webapp.RequestHandler
                         "id": self._traceID
                     }
                 )
-        if conf["viur.instance.isDevServer"]:
+        if conf["viur.instance.is_dev_server"]:
             while self.pendingTasks:
                 task = self.pendingTasks.pop()
                 logging.info("Running task directly after request: %s" % str(task))
@@ -529,7 +529,7 @@ class BrowseHandler():  # webapp.RequestHandler
             and "forceSSL" in dir(caller) \
             and caller.forceSSL \
             and not self.request.host_url.lower().startswith("https://") \
-            and not conf["viur.instance.isDevServer"]:
+            and not conf["viur.instance.is_dev_server"]:
             raise (errors.PreconditionFailed("You must use SSL to access this ressource!"))
         # Check for forcePost flag
         if "forcePost" in dir(caller) and caller.forcePost and not self.isPostRequest:

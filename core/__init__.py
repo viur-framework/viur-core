@@ -42,19 +42,19 @@ conf["viur.version"] = tuple(__version__.split(".", 3))
 
 # Set conf instance vars
 # Determine which ProjectID we currently run in.
-conf["viur.instance.isDevServer"] = os.getenv('GAE_ENV') == "localdev"
+conf["viur.instance.is_dev_server"] = os.getenv('GAE_ENV') == "localdev"
 
 _, project_id = google.auth.default()
 del _
-conf["viur.instance.projectID"] = project_id
+conf["viur.instance.project_id"] = project_id
 
 app_version = os.getenv("GAE_VERSION")
-conf["viur.instance.appVersion"] = app_version
+conf["viur.instance.app_version"] = app_version
 
 # Hash of appVersion used for cache-busting for static resources (css etc) that does not reveal the actual version name
 version_hash = urlsafe_b64encode(hashlib.sha256((app_version+project_id).encode("UTF8")).digest()).decode("ASCII")
 version_hash = "".join([x for x in version_hash if x in string.digits+string.ascii_letters])[1:7]  # Strip +, / and =
-conf["viur.instance.versionHash"] = version_hash
+conf["viur.instance.version_hash"] = version_hash
 
 def setDefaultLanguage(lang: str):
     """
@@ -240,8 +240,8 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     # noinspection PyUnresolvedReferences
     import skeletons  # This import is not used here but _must_ remain to ensure that the
     # application's data models are explicitly imported at some place!
-    assert conf["viur.instance.projectID"] in conf["viur.validApplicationIDs"], \
-        "Refusing to start, applicationID %s is not in conf['viur.validApplicationIDs']" % conf["viur.instance.projectID"]
+    assert conf["viur.instance.project_id"] in conf["viur.validApplicationIDs"], \
+        "Refusing to start, applicationID %s is not in conf['viur.validApplicationIDs']" % conf["viur.instance.project_id"]
     if not render:
         import viur.core.render
         render = viur.core.render

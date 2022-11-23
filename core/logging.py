@@ -10,9 +10,9 @@ from viur.core.config import conf
 client = google.cloud.logging.Client()
 requestLoggingRessource = Resource(type="gae_app",
                                    labels={
-                                       "project_id": conf["viur.instance.projectID"],
+                                       "project_id": conf["viur.instance.project_id"],
                                        "module_id": "default",
-                                       "version_id": conf["viur.instance.appVersion"] if not conf["viur.instance.isDevServer"] else "dev_appserver",
+                                       "version_id": conf["viur.instance.app_version"] if not conf["viur.instance.is_dev_server"] else "dev_appserver",
                                    })
 
 requestLogger = client.logger("ViUR")
@@ -35,9 +35,9 @@ class ViURDefaultLogger(CloudLoggingHandler):
             message,
             resource=self.resource,
             labels={
-                "project_id": conf["viur.instance.projectID"],
+                "project_id": conf["viur.instance.project_id"],
                 "module_id": "default",
-                "version_id": conf["viur.instance.appVersion"] if not conf["viur.instance.isDevServer"] else "dev_appserver",
+                "version_id": conf["viur.instance.app_version"] if not conf["viur.instance.is_dev_server"] else "dev_appserver",
             },
             trace=TRACE,
             operation={
