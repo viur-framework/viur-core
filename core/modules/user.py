@@ -684,8 +684,7 @@ class User(List):
         skel = super(User, self).editSkel().clone()
 
 
-        skel.password.required=False
-
+        skel.password = PasswordBone(descr="Passwort", required=False)
 
         user = utils.getCurrentUser()
 

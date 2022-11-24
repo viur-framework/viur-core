@@ -48,10 +48,9 @@ _, conf["viur.instance.project_id"] = google.auth.default()
 
 conf["viur.instance.app_version"] = os.getenv("GAE_VERSION")
 
-# Hash of appVersion used for cache-busting for static resources (css etc) that does not reveal the actual version name
-version_hash = urlsafe_b64encode(hashlib.sha256((app_version+project_id).encode("UTF8")).digest()).decode("ASCII")
-version_hash = "".join([x for x in version_hash if x in string.digits+string.ascii_letters])[1:7]  # Strip +, / and =
-conf["viur.instance.version_hash"] = version_hash
+conf["viur.instance.version_hash"] = hashlib.sha256(
+    (conf["viur.instance.app_version"] + conf["viur.instance.project_id"]).encode("UTF-8")).hexdigest()[:10]
+
 
 def setDefaultLanguage(lang: str):
     """
@@ -60,6 +59,7 @@ def setDefaultLanguage(lang: str):
         :param lang: Name of the language module to use by default.
     """
     conf["viur.defaultLanguage"] = lang.lower()
+
 
 def setDefaultDomainLanguage(domain: str, lang: str):
     """
@@ -83,6 +83,7 @@ from viur.core import logging as viurLogging  # Initialize request logging
 from viur.core import request, utils
 from viur.core.i18n import initializeTranslations
 from viur.core.session import GaeSession
+
 
 def mapModule(moduleObj: object, moduleName: str, targetResolverRender: dict):
     """
@@ -238,7 +239,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     import skeletons  # This import is not used here but _must_ remain to ensure that the
     # application's data models are explicitly imported at some place!
     assert conf["viur.instance.project_id"] in conf["viur.validApplicationIDs"], \
-        f"""Refusing to start, {conf["viur.instance.project_id"]=} is not in {conf["viur.validApplicationIDs"]=}" \
+        f"""Refusing to start, {conf["viur.instance.project_id"]=} is not in {conf["viur.validApplicationIDs"]=}"""
     if not render:
         import viur.core.render
         render = viur.core.render
