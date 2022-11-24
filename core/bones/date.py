@@ -1,5 +1,5 @@
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import db, request,conf
+from viur.core import db, request, conf
 from viur.core.i18n import translate
 from viur.core.utils import currentRequest, currentRequestData, utcNow
 from datetime import datetime, timedelta

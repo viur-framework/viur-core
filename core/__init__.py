@@ -44,12 +44,9 @@ conf["viur.version"] = tuple(__version__.split(".", 3))
 # Determine which ProjectID we currently run in.
 conf["viur.instance.is_dev_server"] = os.getenv('GAE_ENV') == "localdev"
 
-_, project_id = google.auth.default()
-del _
-conf["viur.instance.project_id"] = project_id
+_, conf["viur.instance.project_id"] = google.auth.default()
 
-app_version = os.getenv("GAE_VERSION")
-conf["viur.instance.app_version"] = app_version
+conf["viur.instance.app_version"] = os.getenv("GAE_VERSION")
 
 # Hash of appVersion used for cache-busting for static resources (css etc) that does not reveal the actual version name
 version_hash = urlsafe_b64encode(hashlib.sha256((app_version+project_id).encode("UTF8")).digest()).decode("ASCII")
@@ -241,8 +238,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     import skeletons  # This import is not used here but _must_ remain to ensure that the
     # application's data models are explicitly imported at some place!
     assert conf["viur.instance.project_id"] in conf["viur.validApplicationIDs"], \
-        "Refusing to start, applicationID %s is not in conf['viur.validApplicationIDs']" \
-        % conf["viur.instance.project_id"]
+        f"""Refusing to start, {conf["viur.instance.project_id"]=} is not in {conf["viur.validApplicationIDs"]=}" \
     if not render:
         import viur.core.render
         render = viur.core.render

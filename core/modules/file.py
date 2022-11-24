@@ -25,7 +25,7 @@ from viur.core.utils import  sanitizeFileName
 
 credentials, project = google.auth.default()
 client = storage.Client(project, credentials)
-bucket = client.lookup_bucket("%s.appspot.com" % conf["viur.instance.project_id"])
+bucket = client.lookup_bucket(f"""{conf["viur.instance.project_id"]}.appspot.com""")
 iamClient = iam_credentials_v1.IAMCredentialsClient()
 
 
