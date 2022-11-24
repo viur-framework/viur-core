@@ -48,6 +48,7 @@ _, conf["viur.instance.project_id"] = google.auth.default()
 
 conf["viur.instance.app_version"] = os.getenv("GAE_VERSION")
 
+# Hash of appVersion used for cache-busting for static resources (css etc) that does not reveal the actual version name
 conf["viur.instance.version_hash"] = hashlib.sha256(
     (conf["viur.instance.app_version"] + conf["viur.instance.project_id"]).encode("UTF-8")).hexdigest()[:10]
 

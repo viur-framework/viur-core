@@ -683,7 +683,6 @@ class User(List):
     def editSkel(self, *args, **kwargs):
         skel = super(User, self).editSkel().clone()
 
-
         skel.password = PasswordBone(descr="Passwort", required=False)
 
         user = utils.getCurrentUser()
