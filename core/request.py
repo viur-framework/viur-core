@@ -2,15 +2,15 @@ import logging
 import os
 import traceback
 import typing
-import unicodedata
 from abc import ABC, abstractmethod
 from io import StringIO
 from string import Template
-from time import time
 from urllib import parse
 from urllib.parse import unquote, urljoin, urlparse
 
+import unicodedata
 import webob
+from time import time
 
 from viur.core import db, errors, utils
 from viur.core.config import conf
@@ -106,6 +106,7 @@ class BrowseHandler():  # webapp.RequestHandler
         self.response = response
         self.maxLogLevel = logging.DEBUG
         self._traceID = request.headers.get('X-Cloud-Trace-Context', "").split("/")[0] or utils.generateRandomString()
+        self.is_deferred = False
         db.currentDbAccessLog.set(set())
 
     def selectLanguage(self, path: str) -> str:
@@ -171,6 +172,11 @@ class BrowseHandler():  # webapp.RequestHandler
         self.internalRequest = False
         self.isDevServer = os.environ['GAE_ENV'] == "localdev"  # Were running on development Server
         self.isSSLConnection = self.request.host_url.lower().startswith("https://")  # We have an encrypted channel
+        if self.request.headers.get("X-AppEngine-TaskName", None) is not None:  # Check if we run in the appengine
+            if self.request.environ.get("HTTP_X_APPENGINE_USER_IP") in _appengineServiceIPs:
+                self.is_deferred = True
+            elif os.getenv("TASKS_EMULATOR") is not None:
+                self.is_deferred = True
         currentLanguage.set(conf["viur.defaultLanguage"])
         self.disableCache = False  # Shall this request bypass the caches?
         self.args = []
@@ -359,6 +365,7 @@ class BrowseHandler():  # webapp.RequestHandler
                     }
                 )
         if self.isDevServer:
+            self.is_deferred = True
             while self.pendingTasks:
                 task = self.pendingTasks.pop()
                 logging.info("Running task directly after request: %s" % str(task))
@@ -607,4 +614,4 @@ class BrowseHandler():  # webapp.RequestHandler
         currentSession.get().save(self)
 
 
-from .i18n import translate  # noqa:E402
+from .i18n import translate  # noqa: E402
