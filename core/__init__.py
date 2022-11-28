@@ -71,13 +71,13 @@ def setDefaultDomainLanguage(domain: str, lang: str):
 
 ### Multi-Language Part: END
 
-from viur.core import session, errors  # noqa: E402
-from viur.core.tasks import TaskHandler, runStartupTasks  # noqa: E402
-from viur.core import i18n  # noqa: E402
+from viur.core import session, errors
+from viur.core.tasks import TaskHandler, runStartupTasks
+from viur.core import i18n
 from viur.core import logging as viurLogging  # Initialize request logging # noqa: E402
-from viur.core import request, utils  # noqa: E402
-from viur.core.i18n import initializeTranslations  # noqa: E402
-from viur.core.session import GaeSession  # noqa: E402
+from viur.core import request, utils # noqa: E402
+from viur.core.i18n import initializeTranslations# noqa: E402
+from viur.core.session import GaeSession# noqa: E402
 
 
 def mapModule(moduleObj: object, moduleName: str, targetResolverRender: dict):
@@ -234,7 +234,8 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     import skeletons  # This import is not used here but _must_ remain to ensure that the
     # application's data models are explicitly imported at some place!
     if conf["viur.instance.project_id"] not in conf["viur.validApplicationIDs"]:
-        raise RuntimeError(f"""Refusing to start, {conf["viur.instance.project_id"]=} is not in {conf["viur.validApplicationIDs"]=}""")
+        raise RuntimeError(
+            f"""Refusing to start, {conf["viur.instance.project_id"]=} is not in {conf["viur.validApplicationIDs"]=}""")
     if not render:
         import viur.core.render
         render = viur.core.render
