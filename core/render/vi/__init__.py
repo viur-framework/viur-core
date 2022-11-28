@@ -1,7 +1,7 @@
 from viur.core.prototypes import List
 from viur.core.render.json.default import DefaultRender, CustomJsonEncoder
 from viur.core.render.vi.user import UserRender as user
-from viur.core import conf
+from viur.core import conf, exposed
 from viur.core import securitykey
 from viur.core import utils
 from viur.core import errors
@@ -162,15 +162,13 @@ def index(*args, **kwargs):
 
 index.exposed = True
 
-
+@exposed
 def get_settings():
     fields = {key: values for key, values in conf.items()
               if key.startswith("admin.")}
     currentRequest.get().response.headers["Content-Type"] = "application/json"
     return json.dumps(fields)
 
-
-get_settings.index = True
 
 
 def _postProcessAppObj(obj):
