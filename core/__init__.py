@@ -75,9 +75,9 @@ from viur.core import session, errors
 from viur.core.tasks import TaskHandler, runStartupTasks
 from viur.core import i18n
 from viur.core import logging as viurLogging  # Initialize request logging # noqa: E402
-from viur.core import request, utils # noqa: E402
-from viur.core.i18n import initializeTranslations# noqa: E402
-from viur.core.session import GaeSession# noqa: E402
+from viur.core import request, utils  # noqa: E402
+from viur.core.i18n import initializeTranslations  # noqa: E402
+from viur.core.session import GaeSession  # noqa: E402
 
 
 def mapModule(moduleObj: object, moduleName: str, targetResolverRender: dict):
