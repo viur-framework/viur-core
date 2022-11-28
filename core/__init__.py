@@ -26,9 +26,6 @@
 
 import hashlib
 import logging
-import os
-import string
-from base64 import urlsafe_b64encode
 from types import ModuleType
 from typing import Callable, Dict, Union
 import google.auth
@@ -41,12 +38,9 @@ from viur.core.version import __version__
 conf["viur.version"] = tuple(__version__.split(".", 3))
 
 # Set conf instance vars
-# Determine which ProjectID we currently run in.
-conf["viur.instance.is_dev_server"] = os.getenv('GAE_ENV') == "localdev"
+# Determine which ProjectID we currently run in
 
 _, conf["viur.instance.project_id"] = google.auth.default()
-
-conf["viur.instance.app_version"] = os.getenv("GAE_VERSION")
 
 # Hash of appVersion used for cache-busting for static resources (css etc) that does not reveal the actual version name
 conf["viur.instance.version_hash"] = hashlib.sha256(

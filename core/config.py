@@ -1,4 +1,6 @@
+import os
 from datetime import timedelta
+
 apiVersion = 1  # What format do we use to store data in the bigtable
 
 unsetMarker = object()  # Special marker signaling that a key has no value (not even None) set
@@ -29,7 +31,7 @@ conf = {
     "viur.db.caching": 2,
 
     # Database engine module
-    "viur.db.engine":"viur.datastore",
+    "viur.db.engine": "viur.datastore",
 
     # If enabled, user-generated exceptions from the viur.core.errors module won't be caught and handled
     "viur.debug.traceExceptions": False,
@@ -178,13 +180,12 @@ conf = {
     # Will be set to viur.core.version.__version__ in viur.core.__init__
     "viur.version": None,
 
-    # Will be set in viur.core.__init__
-    "viur.instance.is_dev_server": False,
+    "viur.instance.is_dev_server": os.getenv('GAE_ENV') == "localdev",
 
     "viur.instance.project_id": None,
 
     # Name of this version as deployed to the appengine will be also set in viur.core.__init__
-    "viur.instance.app_version": None,
+    "viur.instance.app_version": os.getenv("GAE_VERSION"),
 
     "viur.instance.version_hash": None,
 
