@@ -21,7 +21,7 @@ from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringB
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import skeletonByKind
 from viur.core.tasks import PeriodicTask, CallDeferred
-from viur.core.utils import  sanitizeFileName
+from viur.core.utils import sanitizeFileName
 
 credentials, project = google.auth.default()
 client = storage.Client(project, credentials)
