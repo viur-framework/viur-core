@@ -2,16 +2,14 @@ import hashlib
 import hmac
 import random
 import logging
+import string
 from base64 import urlsafe_b64encode
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from typing import Any, Union, Optional
-
 from urllib.parse import quote
-import string
-from viur.core import conf, db
 from pathlib import Path
-
+from viur.core import conf, db
 
 # Proxy to context depended variables
 currentRequest = ContextVar("Request", default=None)
@@ -19,14 +17,9 @@ currentRequestData = ContextVar("Request-Data", default=None)
 currentSession = ContextVar("Session", default=None)
 currentLanguage = ContextVar("Language", default=None)
 
-
-
-
-
 # Determine our basePath (as os.getCWD is broken on appengine)
 projectBasePath = str(Path().absolute())
 coreBasePath = globals()["__file__"].replace("/viur/core/utils.py","")
-
 
 
 def utcNow() -> datetime:
@@ -284,4 +277,19 @@ def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
     return db.Key(key.kind, key.id_or_name, parent=parent)
 
 
-from viur.core.skeleton import SkeletonInstance
+# DEPRECATED ATTRIBUTES HANDLING
+__utils_conf_replacement = {
+        "projectID": "viur.instance.project_id",
+        "isLocalDevelopmentServer": "viur.instance.is_dev_server",
+    }
+
+
+def __getattr__(attr):
+    if attr in __utils_conf_replacement:
+        import warnings
+        msg = f"Use of `utils.{attr}` is deprecated; Use conf[\"{__utils_conf_replacement[attr]}\"] instead!"
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+        logging.warning(msg)
+        return conf[__utils_conf_replacement[attr]]
+
+    return super(__import__(__name__).__class__).__getattr__(attr)

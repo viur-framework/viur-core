@@ -24,27 +24,13 @@
  See file LICENSE for more information.
 """
 
-import hashlib
-import logging
+import logging, webob
 from types import ModuleType
 from typing import Callable, Dict, Union
-import google.auth
-import webob
 from viur.core.config import conf
-from viur.core.version import __version__
-
-# We must set the conf before loading the other core modules
-# Copy our Version into the config so that our renders can access it
-conf["viur.version"] = tuple(__version__.split(".", 3))
-
-# Set conf instance vars
-# Determine which ProjectID we currently run in
-
-_, conf["viur.instance.project_id"] = google.auth.default()
-
-# Hash of appVersion used for cache-busting for static resources (css etc) that does not reveal the actual version name
-conf["viur.instance.version_hash"] = hashlib.sha256(
-    (conf["viur.instance.app_version"] + conf["viur.instance.project_id"]).encode("UTF-8")).hexdigest()[:10]
+from viur.core import session, errors, i18n, request, utils
+from viur.core.tasks import TaskHandler, runStartupTasks
+from viur.core import logging as viurLogging  # Initialize request logging # noqa: E402
 
 
 def setDefaultLanguage(lang: str):
@@ -67,17 +53,6 @@ def setDefaultDomainLanguage(domain: str, lang: str):
     if host.startswith("www."):
         host = host[4:]
     conf["viur.domainLanguageMapping"][host] = lang.lower()
-
-
-### Multi-Language Part: END
-
-from viur.core import session, errors
-from viur.core.tasks import TaskHandler, runStartupTasks
-from viur.core import i18n
-from viur.core import logging as viurLogging  # Initialize request logging # noqa: E402
-from viur.core import request, utils  # noqa: E402
-from viur.core.i18n import initializeTranslations  # noqa: E402
-from viur.core.session import GaeSession  # noqa: E402
 
 
 def mapModule(moduleObj: object, moduleName: str, targetResolverRender: dict):
@@ -265,7 +240,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
         if mode == "allow-from":
             assert uri is not None and (uri.lower().startswith("https://") or uri.lower().startswith("http://"))
     runStartupTasks()  # Add a deferred call to run all queued startup tasks
-    initializeTranslations()
+    i18n.initializeTranslations()
     if conf["viur.file.hmacKey"] is None:
         from viur.core import db
         key = db.Key("viur-conf", "viur-conf")
@@ -290,7 +265,7 @@ def app(environ: dict, start_response: Callable):
     # Set context variables
     utils.currentLanguage.set(conf["viur.defaultLanguage"])
     utils.currentRequest.set(handler)
-    utils.currentSession.set(GaeSession())
+    utils.currentSession.set(session.GaeSession())
     utils.currentRequestData.set({})
 
     # Handle request
