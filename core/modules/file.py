@@ -80,7 +80,9 @@ class InjectStoreURLBone(BaseBone):
 
     def unserialize(self, skel, name):
         if "dlkey" in skel.dbEntity and "name" in skel.dbEntity:
-            skel.accessedValues[name] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False)
+            skel.accessedValues[name] = utils.downloadUrlFor(
+                skel["dlkey"], skel["name"], derived=False, expires=conf["viur.downloadUrlFor.expiration"]
+            )
             return True
         return False
 

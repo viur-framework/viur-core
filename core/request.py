@@ -10,6 +10,7 @@ from viur.core.logging import requestLogger, client as loggingClient, requestLog
 from viur.core import utils, db
 from viur.core.utils import currentSession, currentLanguage
 from viur.core.securityheaders import extendCsp
+from viur.core.tasks import _appengineServiceIPs
 import logging
 from time import time
 from abc import ABC, abstractmethod
@@ -101,6 +102,7 @@ class BrowseHandler():  # webapp.RequestHandler
         self.response = response
         self.maxLogLevel = logging.DEBUG
         self._traceID = request.headers.get('X-Cloud-Trace-Context', "").split("/")[0] or utils.generateRandomString()
+        self.is_deferred = False
         db.currentDbAccessLog.set(set())
 
     def selectLanguage(self, path: str) -> str:
@@ -165,6 +167,11 @@ class BrowseHandler():  # webapp.RequestHandler
         # Configure some basic parameters for this request
         self.internalRequest = False
         self.isSSLConnection = self.request.host_url.lower().startswith("https://")  # We have an encrypted channel
+        if self.request.headers.get("X-AppEngine-TaskName", None) is not None:  # Check if we run in the appengine
+            if self.request.environ.get("HTTP_X_APPENGINE_USER_IP") in _appengineServiceIPs:
+                self.is_deferred = True
+            elif os.getenv("TASKS_EMULATOR") is not None:
+                self.is_deferred = True
         currentLanguage.set(conf["viur.defaultLanguage"])
         self.disableCache = False  # Shall this request bypass the caches?
         self.args = []
@@ -343,7 +350,10 @@ class BrowseHandler():  # webapp.RequestHandler
                         "id": self._traceID
                     }
                 )
+
         if conf["viur.instance.is_dev_server"]:
+            self.is_deferred = True
+
             while self.pendingTasks:
                 task = self.pendingTasks.pop()
                 logging.info("Running task directly after request: %s" % str(task))

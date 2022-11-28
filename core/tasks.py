@@ -425,7 +425,6 @@ def CallDeferred(func):
         if not queueRegion:
             # Run tasks inline
             logging.debug(f"{func=} will be executed inline")
-
             @wraps(func)
             def task():
                 if self is __undefinedFlag_:
