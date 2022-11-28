@@ -2,8 +2,13 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.3.0-rc4]
+## [3.3.0-rc5]
 
+- Fix InjectStoreURLBone
+- Support grained required-flag for languages (#511)
+- Change linter GitHub Action workflow (#554)
+- Remove `skey == ""` check from add/edit methods. (#548)
+- Hotfix for #528 in TextBone
 - Rewrite `getReferencedBlobs` and `getSearchTags` (#528)
 - Improve `utils.sanitizeFileName` to quote non-ASCII (#547)
 - Accept variations parameters with bool type hints (#533)

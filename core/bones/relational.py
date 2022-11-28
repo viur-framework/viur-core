@@ -158,7 +158,7 @@ class RelationalBone(BaseBone):
             warnings.warn(
                 f"parameter updateLevel = {updateLevel} in RelationalBone is deprecated.", DeprecationWarning
             )
-            assert 0 <= updateLevel < 2
+            assert 0 <= updateLevel < 3
             for n in RelationalUpdateLevel:
                 if updateLevel == n.value:
                     updateLevel = n

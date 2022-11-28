@@ -369,8 +369,7 @@ class TaskHandler:
             raise errors.Unauthorized()
         skel = task.dataSkel()
         skey = kwargs.get("skey", "")
-        if len(kwargs) == 0 or skey == "" or not skel.fromClient(kwargs) or (
-            "bounce" in kwargs and kwargs["bounce"] == "1"):
+        if len(kwargs) == 0 or not skel.fromClient(kwargs) or kwargs.get("bounce") == "1":
             return self.render.add(skel)
         if not securitykey.validate(skey, useSessionKey=True):
             raise errors.PreconditionFailed()
@@ -426,7 +425,6 @@ def CallDeferred(func):
         if not queueRegion:
             # Run tasks inline
             logging.debug(f"{func=} will be executed inline")
-
             @wraps(func)
             def task():
                 if self is __undefinedFlag_:
