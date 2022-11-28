@@ -105,6 +105,16 @@ class BrowseHandler():  # webapp.RequestHandler
         self.is_deferred = False
         db.currentDbAccessLog.set(set())
 
+    def __getattr__(self, attr):
+        if attr == "isDevServer":
+            import warnings
+            msg = f"Use of `{attr}` is deprecated; Use conf[\"viur.project.is_dev_server\"] instead!"
+            warnings.warn(msg, DeprecationWarning, stacklevel=2)
+            logging.warning(msg)
+            return conf["viur.project.is_dev_server"]
+
+        return super().__getattr__(attr)
+
     def selectLanguage(self, path: str) -> str:
         """
             Tries to select the best language for the current request. Depending on the value of
