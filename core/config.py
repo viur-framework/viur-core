@@ -15,6 +15,9 @@ conf = {
     # Allowed values that define a str to evaluate to true
     "viur.bone.boolean.str2true": ("true", "yes", "1"),
 
+    # Globally localize DateBone
+    "viur.bone.date.localize": False,
+
     # If set, this function will be called for each cache-attempt and the result will be included in
     # the computed cache-key
     "viur.cacheEnvironmentKey": None,

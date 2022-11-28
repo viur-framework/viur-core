@@ -1,9 +1,8 @@
-from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import db, request
-from viur.core.i18n import translate
+from visingleValueFromClientur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core import conf, db, request
 from viur.core.utils import currentRequest, currentRequestData, utcNow, isLocalDevelopmentServer
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Union
+from typing import Dict, Optional
 import pytz, tzlocal
 
 
@@ -15,7 +14,7 @@ class DateBone(BaseBone):
         *,
         creationMagic: bool = False,
         date: bool = True,
-        localize: bool = False,
+        localize: bool = None,
         time: bool = True,
         updateMagic: bool = False,
         **kwargs
@@ -33,24 +32,25 @@ class DateBone(BaseBone):
         """
         super().__init__(**kwargs)
 
-        if creationMagic or updateMagic:
-            self.readonly = True
-
-        self.creationMagic = creationMagic
-        self.updateMagic = updateMagic
-
         if not (date or time):
             raise ValueError("Attempt to create an empty datebone! Set date or time to True!")
 
-        if localize and not (date and time):
-            raise ValueError("Localization is only possible with date and time!")
+        if creationMagic or updateMagic:
+            self.readonly = True
 
         if self.multiple and (creationMagic or updateMagic):
             raise ValueError("Cannot be multiple and have a creation/update-magic set!")
 
-        self.date = date
-        self.time = time
-        self.localize = localize
+        if localize is None and date and time:
+            localize = conf["viur.bone.date.localize"]
+        elif localize and not (date and time):
+            raise ValueError("Localization is only possible with date and time!")
+
+        self.creationMagic = bool(creationMagic)
+        self.updateMagic = bool(updateMagic)
+        self.date = bool(date)
+        self.time = bool(time)
+        self.localize = bool(localize)
 
     def singleValueFromClient(self, value: str, skel: 'viur.core.skeleton.SkeletonInstance', name: str, origData):
         """

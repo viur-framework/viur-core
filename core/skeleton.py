@@ -607,24 +607,34 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     # The "key" bone stores the current database key of this skeleton.
     # Warning: Assigning to this bones value now *will* set the key
     # it gets stored in. Must be kept readOnly to avoid security-issues with add/edit.
-    key = KeyBone(descr="key", readOnly=True, visible=False)
+    key = KeyBone(
+        descr="Key",
+        readOnly=True,
+        visible=False
+    )
 
     # The date (including time) when this entry has been created
-    creationdate = DateBone(descr="created at",
-                            readOnly=True, visible=False,
-                            creationMagic=True, indexed=True,
-                            localize=bool(pytz))
+    creationdate = DateBone(
+        descr="Created at",
+        readOnly=True,
+        visible=False,
+        creationMagic=True
+    )
 
     # The last date (including time) when this entry has been updated
-    changedate = DateBone(descr="updated at",
-                          readOnly=True, visible=False,
-                          updateMagic=True, indexed=True,
-                          localize=bool(pytz))
+    changedate = DateBone(
+        descr="Updated at",
+        readOnly=True,
+        visible=False,
+        updateMagic=True
+    )
 
-    viurCurrentSeoKeys = seoKeyBone(descr="Seo-Keys",
-                                    readOnly=True,
-                                    visible=False,
-                                    languages=conf["viur.availableLanguages"])
+    viurCurrentSeoKeys = seoKeyBone(
+        descr="SEO-Keys",
+        readOnly=True,
+        visible=False,
+        languages=conf["viur.availableLanguages"]
+    )
 
     def __repr__(self):
         return "<skeleton %s with data=%r>" % (self.kindName, {k: self[k] for k in self.keys()})
