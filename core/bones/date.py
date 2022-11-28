@@ -1,4 +1,4 @@
-from visingleValueFromClientur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core import conf, db, request
 from viur.core.utils import currentRequest, currentRequestData, utcNow, isLocalDevelopmentServer
 from datetime import datetime, timedelta
