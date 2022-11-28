@@ -9,7 +9,9 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Union, Optional
 from urllib.parse import quote
 from pathlib import Path
-from viur.core import conf, db
+from viur.core.config import conf
+from viur.core import db
+
 
 # Proxy to context depended variables
 currentRequest = ContextVar("Request", default=None)
