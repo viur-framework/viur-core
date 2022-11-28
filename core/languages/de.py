@@ -340,7 +340,7 @@ de = {
     "bad gateway": "Falscher Gateway",
     "service unavailable": "Dienst nicht verfügbar",
 
-    #Moduleconfig
+    # Moduleconfig
     "modulename": "Modulname",
     "module helptext": "Modul Hilfetext",
     "add helptext": "Hinzufügen Hilfetext",

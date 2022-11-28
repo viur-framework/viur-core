@@ -160,7 +160,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     else:
         root = ExtendableObject()
     modules._tasks = TaskHandler
-    from viur.core.modules.moduleconf import ModuleConf # import works only here because circular imports
+    from viur.core.modules.moduleconf import ModuleConf  # noqa: E402 # import works only here because circular imports
     modules._moduleconf = ModuleConf
     resolverDict = {}
     for moduleName, moduleClass in vars(modules).items():  # iterate over all modules
