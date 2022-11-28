@@ -170,13 +170,15 @@ def get_settings():
     return json.dumps(fields)
 
 
+get_settings.index = True
+
+
 def _postProcessAppObj(obj):
     obj["skey"] = genSkey
     obj["timestamp"] = timestamp
     obj["config"] = lambda *args, **kwargs: dumpConfig(conf["viur.mainApp"].vi)
     obj["config"].exposed = True
-    obj["settings"] = lambda *args, **kwargs: get_settings()
-    obj["settings"].exposed = True
+    obj["settings"] = get_settings
     obj["getStructure"] = lambda *args, **kwargs: getStructure(conf["viur.mainApp"].vi, *args, **kwargs)
     obj["getStructure"].exposed = True
     obj["canAccess"] = canAccess

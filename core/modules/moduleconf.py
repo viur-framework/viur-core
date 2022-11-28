@@ -1,6 +1,7 @@
 import logging
 
-from viur.core.bones import StringBone
+from viur.core.bones import StringBone, TextBone
+from viur.core.bones.text import _defaultTags
 from viur.core.tasks import StartupTask
 from viur.core import conf, db
 from viur.core.i18n import translate
@@ -10,10 +11,14 @@ from viur.core.prototypes import List, BasicApplication
 
 class ModuleConfSkel(Skeleton):
     kindName = "viur-module-conf"
+    _valid_tags = ['b', 'a', 'i', 'u', 'span', 'div', 'p', 'ol', 'ul', 'li', 'abbr', 'sub', 'sup', 'h1', 'h2', 'h3',
+                   'h4', 'h5', 'h6', 'br', 'hr', 'strong', 'blockquote', 'em']
+    _valid_html = _defaultTags
+    _valid_html["validTags"] = _valid_tags
     name = StringBone(descr=translate("modulename"), readOnly=True)
-    help_text = StringBone(descr=translate("module helptext"))
-    help_text_add = StringBone(descr=translate("add helptext"))
-    help_text_edit = StringBone(descr=translate("edit helptext"))
+    help_text = TextBone(descr=translate("module helptext"), validHtml=_valid_html)
+    help_text_add = TextBone(descr=translate("add helptext"), validHtml=_valid_html)
+    help_text_edit = TextBone(descr=translate("edit helptext"), validHtml=_valid_html)
     # seo.....
 
 
@@ -39,6 +44,7 @@ class ModuleConf(List):
             logging.error(f"module({module_name}) not found in viur-module-conf")
             return None
         return skel
+
 
 @StartupTask
 def read_all_modules():
