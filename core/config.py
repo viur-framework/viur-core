@@ -1,6 +1,9 @@
-import os, datetime, hashlib
+import os
+import datetime
+import hashlib
 import google.auth
 from viur.core.version import __version__
+
 
 apiVersion = 1  # What format do we use to store data in the bigtable
 

@@ -24,11 +24,12 @@
  See file LICENSE for more information.
 """
 
-import logging, webob
+import logging
+import webob
 from types import ModuleType
 from typing import Callable, Dict, Union
-from viur.core.config import conf
 from viur.core import session, errors, i18n, request, utils
+from viur.core.config import conf
 from viur.core.tasks import TaskHandler, runStartupTasks
 from viur.core import logging as viurLogging  # Initialize request logging # noqa: E402
 
