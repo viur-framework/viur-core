@@ -162,6 +162,7 @@ def index(*args, **kwargs):
 
 index.exposed = True
 
+
 @exposed
 def get_settings():
     fields = {key: values for key, values in conf.items()
