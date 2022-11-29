@@ -2,8 +2,13 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.3.0-rc5]
+## [3.3.0-rc6]
 
+- Don't translate name for HTTP Reason Phrase (#549)
+- Updating viur-datastore==1.3.3 (#563)
+- Bump pillow from 9.1.1 to 9.3.0 (#560)
+- Add is_deferred flag to currentRequest (#556)
+- Update relational.py (#561)
 - Fix InjectStoreURLBone
 - Support grained required-flag for languages (#511)
 - Change linter GitHub Action workflow (#554)
