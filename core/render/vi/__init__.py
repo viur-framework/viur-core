@@ -167,6 +167,9 @@ index.exposed = True
 def get_settings():
     fields = {key: values for key, values in conf.items()
               if key.startswith("admin.")}
+
+    fields["admin.user.google.clientID"] = conf.get("viur.user.google.clientID", "")
+
     currentRequest.get().response.headers["Content-Type"] = "application/json"
     return json.dumps(fields)
 
