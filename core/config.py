@@ -1,7 +1,14 @@
-from datetime import timedelta
+import os
+import datetime
+import hashlib
+import google.auth
+from viur.core.version import __version__
 
 apiVersion = 1  # What format do we use to store data in the bigtable
 
+
+__project_id = google.auth.default()[1]
+__version = os.getenv("GAE_VERSION")
 
 # Conf is static, local Dictionary. Changes here are local to the current instance
 conf = {
@@ -29,7 +36,7 @@ conf = {
     "viur.db.caching": 2,
 
     # Database engine module
-    "viur.db.engine":"viur.datastore",
+    "viur.db.engine": "viur.datastore",
 
     # If enabled, user-generated exceptions from the viur.core.errors module won't be caught and handled
     "viur.debug.traceExceptions": False,
@@ -47,7 +54,7 @@ conf = {
     # Maps Domains to alternative default languages
     "viur.domainLanguageMapping": {},
     # For how long we'll keep successfully send emails in the viur-emails table
-    "viur.email.logRetention": timedelta(days=30),
+    "viur.email.logRetention": datetime.timedelta(days=30),
     # Class that actually delivers the email using the service provider of choice. See email.py for more details
     "viur.email.transportClass": None,
     # If set, we'll enable sending emails from the local development server. Otherwise, they'll just be logged.
@@ -70,12 +77,29 @@ conf = {
 
     # Hmac-Key used to sign download urls - set automatically
     "viur.file.hmacKey": None,
-    # Call-Map for file preprocessers
+
+    # Call-Map for file pre-processors
     "viur.file.derivers": {},
+
+    # Determine whether instance is running on a local development server
+    "viur.instance.is_dev_server": os.getenv("GAE_ENV") == "localdev",
+
+    # The instance's project ID
+    "viur.instance.project_id": __project_id,
+
+    # Name of this version as deployed to the appengine
+    "viur.instance.app_version": __version,
+
+    # Version hash that does not reveal the actual version name, can be used for cache-busting static resources
+    "viur.instance.version_hash": hashlib.sha256((__version + __project_id).encode("UTF-8")).hexdigest()[:10],
 
     # Allows mapping of certain languages to one translation (ie. us->en)
     "viur.languageAliasMap": {},
-    # Defines how translations are applied. session: Per Session, url: inject language prefix in url, domain: one domain per language
+
+    # Defines how translations are applied:
+    # - session: Per Session
+    # - url: inject language prefix in url
+    # - domain: one domain per language
     "viur.languageMethod": "session",
 
     # Maps modules to their translation (if set)
@@ -176,6 +200,6 @@ conf = {
     # Which application-ids we're supposed to run on
     "viur.validApplicationIDs": [],
 
-    # Will be set to viur.core.version.__version__ in viur.core.__init__
-    "viur.version": None,
+    # Semantic version number of viur-core as a tuple of 3 (major, minor, patch-level)
+    "viur.version": tuple(__version__.split(".", 3)),
 }

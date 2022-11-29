@@ -24,19 +24,14 @@
  See file LICENSE for more information.
 """
 
-from types import ModuleType
-from typing import Dict, Union, Callable
-from viur.core.config import conf
-from viur.core import request, utils
-from viur.core.i18n import initializeTranslations
-from viur.core import logging as viurLogging  # Initialize request logging
-from viur.core.session import GaeSession
-from viur.core.version import __version__
 import logging
 import webob
-
-# Copy our Version into the config so that our renders can access it
-conf["viur.version"] = tuple(__version__.split(".", 3))
+from types import ModuleType
+from typing import Callable, Dict, Union
+from viur.core import session, errors, i18n, request, utils
+from viur.core.config import conf
+from viur.core.tasks import TaskHandler, runStartupTasks
+from viur.core import logging as viurLogging  # Initialize request logging
 
 
 def setDefaultLanguage(lang: str):
@@ -46,6 +41,7 @@ def setDefaultLanguage(lang: str):
         :param lang: Name of the language module to use by default.
     """
     conf["viur.defaultLanguage"] = lang.lower()
+
 
 def setDefaultDomainLanguage(domain: str, lang: str):
     """
@@ -58,13 +54,6 @@ def setDefaultDomainLanguage(domain: str, lang: str):
     if host.startswith("www."):
         host = host[4:]
     conf["viur.domainLanguageMapping"][host] = lang.lower()
-
-
-### Multi-Language Part: END
-
-from viur.core import session, errors
-from viur.core.tasks import TaskHandler, runStartupTasks
-from viur.core import i18n
 
 
 def mapModule(moduleObj: object, moduleName: str, targetResolverRender: dict):
@@ -220,8 +209,9 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     # noinspection PyUnresolvedReferences
     import skeletons  # This import is not used here but _must_ remain to ensure that the
     # application's data models are explicitly imported at some place!
-    assert utils.projectID in conf["viur.validApplicationIDs"], \
-        "Refusing to start, applicationID %s is not in conf['viur.validApplicationIDs']" % utils.projectID
+    if conf["viur.instance.project_id"] not in conf["viur.validApplicationIDs"]:
+        raise RuntimeError(
+            f"""Refusing to start, {conf["viur.instance.project_id"]=} is not in {conf["viur.validApplicationIDs"]=}""")
     if not render:
         import viur.core.render
         render = viur.core.render
@@ -251,7 +241,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
         if mode == "allow-from":
             assert uri is not None and (uri.lower().startswith("https://") or uri.lower().startswith("http://"))
     runStartupTasks()  # Add a deferred call to run all queued startup tasks
-    initializeTranslations()
+    i18n.initializeTranslations()
     if conf["viur.file.hmacKey"] is None:
         from viur.core import db
         key = db.Key("viur-conf", "viur-conf")
@@ -261,7 +251,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
 
         if "hmacKey" not in obj:  # create a new hmacKey
             logging.info("Creating new hmacKey")
-            obj["hmacKey"] = utils.generateRandomString(length=20)            
+            obj["hmacKey"] = utils.generateRandomString(length=20)
             db.Put(obj)
 
         conf["viur.file.hmacKey"] = bytes(obj["hmacKey"], "utf-8")
@@ -276,7 +266,7 @@ def app(environ: dict, start_response: Callable):
     # Set context variables
     utils.currentLanguage.set(conf["viur.defaultLanguage"])
     utils.currentRequest.set(handler)
-    utils.currentSession.set(GaeSession())
+    utils.currentSession.set(session.GaeSession())
     utils.currentRequestData.set({})
 
     # Handle request

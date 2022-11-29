@@ -109,6 +109,14 @@ class BrowseHandler():  # webapp.RequestHandler
         self.is_deferred = False
         db.currentDbAccessLog.set(set())
 
+    @property
+    def isDevServer(self) -> bool:
+        import warnings
+        msg = "Use of `isDevServer` is deprecated; Use conf[\"viur.project.is_dev_server\"] instead!"
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+        logging.warning(msg)
+        return conf["viur.project.is_dev_server"]
+
     def selectLanguage(self, path: str) -> str:
         """
             Tries to select the best language for the current request. Depending on the value of
@@ -170,7 +178,6 @@ class BrowseHandler():  # webapp.RequestHandler
 
         # Configure some basic parameters for this request
         self.internalRequest = False
-        self.isDevServer = os.environ['GAE_ENV'] == "localdev"  # Were running on development Server
         self.isSSLConnection = self.request.host_url.lower().startswith("https://")  # We have an encrypted channel
         if self.request.headers.get("X-AppEngine-TaskName", None) is not None:  # Check if we run in the appengine
             if self.request.environ.get("HTTP_X_APPENGINE_USER_IP") in _appengineServiceIPs:
@@ -190,7 +197,7 @@ class BrowseHandler():  # webapp.RequestHandler
                 self.response.write(statusDescr)
                 return
         path = self.request.path
-        if self.isDevServer:
+        if conf["viur.instance.is_dev_server"]:
             # We'll have to emulate the task-queue locally as far as possible until supported by dev_appserver again
             self.pendingTasks = []
 
@@ -230,7 +237,7 @@ class BrowseHandler():  # webapp.RequestHandler
             self.response.headers["Cross-Origin-Resource-Policy"] = conf["viur.security.enableCORP"]
 
         # Ensure that TLS is used if required
-        if conf["viur.forceSSL"] and not self.isSSLConnection and not self.isDevServer:
+        if conf["viur.forceSSL"] and not self.isSSLConnection and not conf["viur.instance.is_dev_server"]:
             isWhitelisted = False
             reqPath = self.request.path
             for testUrl in conf["viur.noSSLCheckUrls"]:
@@ -315,7 +322,7 @@ class BrowseHandler():  # webapp.RequestHandler
             if not res:
                 tpl = Template(open(os.path.join(utils.coreBasePath, conf["viur.errorTemplate"]), "r").read())
                 descr = "The server encountered an unexpected error and is unable to process your request."
-                if self.isDevServer:  # Were running on development Server
+                if conf["viur.instance.is_dev_server"]:  # Were running on development Server
                     strIO = StringIO()
                     traceback.print_exc(file=strIO)
                     descr = strIO.getvalue()
@@ -328,7 +335,7 @@ class BrowseHandler():  # webapp.RequestHandler
 
         finally:
             self.saveSession()
-            if self.isDevServer:
+            if conf["viur.instance.is_dev_server"]:
                 # Emit the outer log only on dev_appserver (we'll use the existing request log when live)
                 SEVERITY = "DEBUG"
                 if self.maxLogLevel >= 50:
@@ -364,8 +371,10 @@ class BrowseHandler():  # webapp.RequestHandler
                         "id": self._traceID
                     }
                 )
-        if self.isDevServer:
+
+        if conf["viur.instance.is_dev_server"]:
             self.is_deferred = True
+
             while self.pendingTasks:
                 task = self.pendingTasks.pop()
                 logging.info("Running task directly after request: %s" % str(task))
@@ -548,10 +557,10 @@ class BrowseHandler():  # webapp.RequestHandler
                 raise (errors.MethodNotAllowed())
         # Check for forceSSL flag
         if not self.internalRequest \
-            and "forceSSL" in dir(caller) \
-            and caller.forceSSL \
-            and not self.request.host_url.lower().startswith("https://") \
-            and not self.isDevServer:
+                and "forceSSL" in dir(caller) \
+                and caller.forceSSL \
+                and not self.request.host_url.lower().startswith("https://") \
+                and not conf["viur.instance.is_dev_server"]:
             raise (errors.PreconditionFailed("You must use SSL to access this ressource!"))
         # Check for forcePost flag
         if "forcePost" in dir(caller) and caller.forcePost and not self.isPostRequest:

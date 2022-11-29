@@ -81,11 +81,11 @@ if _gaeApp:
         }
         queueRegion = regionMap.get(regionPrefix)
 
-if not queueRegion and utils.isLocalDevelopmentServer and os.getenv("TASKS_EMULATOR") is None:
+if not queueRegion and conf["viur.instance.is_dev_server"] and os.getenv("TASKS_EMULATOR") is None:
     # Probably local development server
     logging.warning("Taskqueue disabled, tasks will run inline!")
 
-if not utils.isLocalDevelopmentServer or os.getenv("TASKS_EMULATOR") is None:
+if not conf["viur.instance.is_dev_server"] or os.getenv("TASKS_EMULATOR") is None:
     taskClient = tasks_v2.CloudTasksClient()
 else:
     taskClient = tasks_v2.CloudTasksClient(
@@ -215,9 +215,9 @@ class TaskHandler:
         if 'X-AppEngine-TaskName' not in req.headers:
             logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
             raise errors.Forbidden()
-        if req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs \
-            and (not utils.isLocalDevelopmentServer or os.getenv("TASKS_EMULATOR") is None):
-            logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
+        if req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs:
+            if not conf["viur.instance.is_dev_server"] or os.getenv("TASKS_EMULATOR") is None:
+                logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
             raise errors.Forbidden()
         # Check if the retry count exceeds our warning threshold
         retryCount = req.headers.get("X-Appengine-Taskretrycount", None)
@@ -287,7 +287,7 @@ class TaskHandler:
     def cron(self, cronName="default", *args, **kwargs):
         global _callableTasks, _periodicTasks, _appengineServiceIPs
         req = currentRequest.get()
-        if not req.isDevServer:
+        if not conf["viur.instance.is_dev_server"]:
             if 'X-Appengine-Cron' not in req.request.headers:
                 logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Cron" was not set.')
                 raise errors.Forbidden()
@@ -514,7 +514,7 @@ def CallDeferred(func):
                 task["schedule_time"] = timestamp
 
             # Use the client to build and send the task.
-            parent = taskClient.queue_path(utils.projectID, queueRegion, queue)
+            parent = taskClient.queue_path(conf["viur.instance.project_id"], queueRegion, queue)
             logging.debug(f"{parent=}, {task=}")
             taskClient.create_task(parent=parent, task=task)
 
@@ -663,7 +663,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
             if req:
                 req.pendingTasks.append(task)  # < This property will be only exist on development server!
                 return
-        project = utils.projectID
+        project = conf["viur.instance.project_id"]
         location = queueRegion
         parent = taskClient.queue_path(project, location, cls.queueName)
         task = {

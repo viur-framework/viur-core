@@ -1,7 +1,7 @@
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import db, request
+from viur.core import db, request, conf
 from viur.core.i18n import translate
-from viur.core.utils import currentRequest, currentRequestData, utcNow, isLocalDevelopmentServer
+from viur.core.utils import currentRequest, currentRequestData, utcNow
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union
 import pytz, tzlocal
@@ -181,7 +181,7 @@ class DateBone(BaseBone):
         """
         timeZone = pytz.utc  # Default fallback
         currReqData = currentRequestData.get()
-        if isLocalDevelopmentServer:
+        if conf["viur.instance.is_dev_server"]:
             return tzlocal.get_localzone()
         try:
             # Check the local cache first
