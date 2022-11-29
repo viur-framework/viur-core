@@ -177,6 +177,7 @@ def srcSetFor(fileObj: dict, expires: Optional[int], width: Optional[int] = None
         fileObj = fileObj["dest"]
     if expires:
         expires = timedelta(minutes=expires)
+    from viur.core.skeleton import SkeletonInstance  # avoid circular imports
     if not isinstance(fileObj, (SkeletonInstance, dict)) or not "dlkey" in fileObj or "derived" not in fileObj:
         logging.error("Invalid fileObj supplied to srcSetFor")
         return ""
