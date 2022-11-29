@@ -107,11 +107,11 @@ class BrowseHandler():  # webapp.RequestHandler
 
     @property
     def isDevServer(self) -> bool:
-          import warnings
-          msg = f"Use of `{attr}` is deprecated; Use conf[\"viur.project.is_dev_server\"] instead!"
-          warnings.warn(msg, DeprecationWarning, stacklevel=2)
-          logging.warning(msg)
-          return conf["viur.project.is_dev_server"]
+        import warnings
+        msg = "Use of `isDevServer` is deprecated; Use conf[\"viur.project.is_dev_server\"] instead!"
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+        logging.warning(msg)
+        return conf["viur.project.is_dev_server"]
 
     def selectLanguage(self, path: str) -> str:
         """
