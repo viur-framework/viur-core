@@ -1,20 +1,22 @@
-import traceback, os, unicodedata, typing
-from viur.core.config import conf
-from urllib import parse
-from string import Template
-from io import StringIO
-import webob
-from viur.core import errors
-from urllib.parse import urljoin, urlparse, unquote
-from viur.core.logging import requestLogger, client as loggingClient, requestLoggingRessource
-from viur.core import utils, db
-from viur.core.utils import currentSession, currentLanguage
-from viur.core.securityheaders import extendCsp
-from viur.core.tasks import _appengineServiceIPs
 import logging
-from time import time
+import os
+import traceback
+import typing
 from abc import ABC, abstractmethod
+from io import StringIO
+from string import Template
+from urllib import parse
+from urllib.parse import unquote, urljoin, urlparse
 
+import unicodedata
+import webob
+from time import time
+
+from viur.core import db, errors, utils
+from viur.core.config import conf
+from viur.core.logging import client as loggingClient, requestLogger, requestLoggingRessource
+from viur.core.securityheaders import extendCsp
+from viur.core.utils import currentLanguage, currentSession
 
 """
     This module implements the WSGI (Web Server Gateway Interface) layer for ViUR. This is the main entry
@@ -23,6 +25,7 @@ from abc import ABC, abstractmethod
     Additionally, this module defines the RequestValidator interface which provides a very early hook into the
     request processing (useful for global ratelimiting, DDoS prevention or access control).
 """
+
 
 class RequestValidator(ABC):
     """
@@ -63,7 +66,8 @@ class FetchMetaDataValidator(RequestValidator):
             return None
         if headers.get('sec-fetch-site') in {"same-origin", "none"}:  # A Request from our site
             return None
-        if os.environ['GAE_ENV'] == "localdev" and headers.get('sec-fetch-site') == "same-site":  # We are accepting a request with same-site only in local dev mode
+        if os.environ['GAE_ENV'] == "localdev" and headers.get('sec-fetch-site') == "same-site":
+            # We are accepting a request with same-site only in local dev mode
             return None
         if headers.get('sec-fetch-mode') == 'navigate' and not request.isPostRequest \
             and headers.get('sec-fetch-dest') not in {'object', 'embed'}:  # Incoming navigation GET request
@@ -255,12 +259,14 @@ class BrowseHandler():  # webapp.RequestHandler
         if path.startswith("/_ah/warmup"):
             self.response.write("okay")
             return
+
         try:
-            currentSession.get().load(self)  # self.request.cookies )
+            currentSession.get().load(self)
             path = self.selectLanguage(path)[1:]
             if conf["viur.requestPreprocessor"]:
                 path = conf["viur.requestPreprocessor"](path)
             self.findAndCall(path)
+
         except errors.Redirect as e:
             if conf["viur.debug.traceExceptions"]:
                 logging.warning("""conf["viur.debug.traceExceptions"] is set, won't handle this exception""")
@@ -270,6 +276,7 @@ class BrowseHandler():  # webapp.RequestHandler
             if url.startswith(('.', '/')):
                 url = str(urljoin(self.request.url, url))
             self.response.headers['Location'] = url
+
         except errors.HTTPException as e:
             if conf["viur.debug.traceExceptions"]:
                 logging.warning("""conf["viur.debug.traceExceptions"] is set, won't handle this exception""")
@@ -290,10 +297,15 @@ class BrowseHandler():  # webapp.RequestHandler
                     logging.exception(newE)
                     res = None
             if not res:
-                tpl = Template(open(os.path.join(utils.coreBasePath,conf["viur.errorTemplate"]), "r").read())
-                res = tpl.safe_substitute({"error_code": e.status, "error_name": e.name, "error_descr": e.descr})
-                extendCsp({"style-src":['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
+                tpl = Template(open(os.path.join(utils.coreBasePath, conf["viur.errorTemplate"]), "r").read())
+                res = tpl.safe_substitute({
+                    "error_code": e.status,
+                    "error_name": translate(e.name),
+                    "error_descr": e.descr,
+                })
+                extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
             self.response.write(res.encode("UTF-8"))
+
         except Exception as e:  # Something got really wrong
             logging.error("ViUR has caught an unhandled exception!")
             logging.exception(e)
@@ -308,7 +320,7 @@ class BrowseHandler():  # webapp.RequestHandler
                     logging.exception(newE)
                     res = None
             if not res:
-                tpl = Template(open(os.path.join(utils.coreBasePath,conf["viur.errorTemplate"]), "r").read())
+                tpl = Template(open(os.path.join(utils.coreBasePath, conf["viur.errorTemplate"]), "r").read())
                 descr = "The server encountered an unexpected error and is unable to process your request."
                 if conf["viur.instance.is_dev_server"]:  # Were running on development Server
                     strIO = StringIO()
@@ -318,8 +330,9 @@ class BrowseHandler():  # webapp.RequestHandler
                                                                                                            "<br />")
                 res = tpl.safe_substitute(
                     {"error_code": "500", "error_name": "Internal Server Error", "error_descr": descr})
-                extendCsp({"style-src":['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
+                extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
             self.response.write(res.encode("UTF-8"))
+
         finally:
             self.saveSession()
             if conf["viur.instance.is_dev_server"]:
@@ -608,3 +621,6 @@ class BrowseHandler():  # webapp.RequestHandler
 
     def saveSession(self) -> None:
         currentSession.get().save(self)
+
+
+from .i18n import translate  # noqa: E402
