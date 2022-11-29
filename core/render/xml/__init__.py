@@ -33,7 +33,6 @@ def generateAdminConfig(adminTree):
 
 def dumpConfig(adminConfig):
     return serializeXML({
-        "capabilities": conf["viur.capabilities"],
         "modules": adminConfig
     })
 
