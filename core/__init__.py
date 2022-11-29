@@ -31,7 +31,7 @@ from typing import Callable, Dict, Union
 from viur.core import session, errors, i18n, request, utils
 from viur.core.config import conf
 from viur.core.tasks import TaskHandler, runStartupTasks
-from viur.core import logging as viurLogging  # Initialize request logging # noqa: E402
+from viur.core import logging as viurLogging  # Initialize request logging
 
 
 def setDefaultLanguage(lang: str):
