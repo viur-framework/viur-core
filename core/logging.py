@@ -77,3 +77,60 @@ for logger_name in EXCLUDED_LOGGER_DEFAULTS:
     logger = logging.getLogger(logger_name)
     logger.propagate = False
     logger.addHandler(sh)
+
+
+BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
+RESET_SEQ = "\033[0m"
+COLOR_SEQ = "\033[1;%dm"
+BOLD_SEQ = "\033[1m"
+
+LEVELS = {
+    "WARNING": YELLOW,
+    "INFO": CYAN,
+    "DEBUG": MAGENTA,
+    "CRITICAL": RED,
+    "ERROR": RED
+}
+
+
+class ViURLocalFormatter(logging.Formatter):
+    def format(self, record):
+        if "pathname" in record.__dict__.keys():
+            # truncate the pathname
+            if "/deploy" in record.pathname:
+                pathname = "." + record.pathname.split("/deploy")[1]
+            else:
+                pathname = record.pathname
+                if len(pathname) > 20:
+                    pathname = ".../" + "/".join(pathname.split("/")[-3:])
+            record.pathname = pathname
+
+        levelname = record.levelname
+
+        if levelname in LEVELS:
+            levelname_color = COLOR_SEQ % (30 + LEVELS[levelname]) + levelname + RESET_SEQ
+            record.levelname = levelname_color
+
+        return super().format(record)
+
+
+if conf["viur.instance.is_dev_server"]:
+    logger = logging.getLogger()
+
+    if True:  # fixme: Provide a conf-flag for this!
+        logger.handlers = []  # don't upload logs to gcloud
+    else:
+        for handler in logger.handlers:
+            if not isinstance(handler, ViURDefaultLogger):
+                logger.removeHandler(handler)
+
+    logger.setLevel(logging.DEBUG)
+
+    sh = logging.StreamHandler()
+    formatter = ViURLocalFormatter(
+        f"[%(asctime)s] %(pathname)s:%(lineno)d [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+
+    sh.setFormatter(formatter)
+    logger.addHandler(sh)
