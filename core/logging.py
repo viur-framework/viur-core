@@ -38,8 +38,9 @@ class ViURDefaultLogger(CloudLoggingHandler):
             labels={
                 "project_id": conf["viur.instance.project_id"],
                 "module_id": "default",
-                "version_id": conf["viur.instance.app_version"] if not conf[
-                    "viur.instance.is_dev_server"] else "dev_appserver",
+                "version_id": (conf["viur.instance.app_version"] 
+                               if not conf["viur.instance.is_dev_server"] 
+                               else "dev_appserver"),
             },
             trace=TRACE,
             operation={
