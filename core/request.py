@@ -113,7 +113,7 @@ class BrowseHandler():  # webapp.RequestHandler
     @property
     def isDevServer(self) -> bool:
         import warnings
-        msg = "Use of `isDevServer` is deprecated; Use conf[\"viur.project.is_dev_server\"] instead!"
+        msg = "Use of `isDevServer` is deprecated; Use `conf[\"viur.instance.is_dev_server\"]` instead!"
         warnings.warn(msg, DeprecationWarning, stacklevel=2)
         logging.warning(msg)
         return conf["viur.instance.is_dev_server"]
