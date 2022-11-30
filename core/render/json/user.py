@@ -1,5 +1,4 @@
-import time, json
-from string import Template
+import json
 from . import default as DefaultRender
 
 

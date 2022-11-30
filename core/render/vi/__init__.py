@@ -1,12 +1,9 @@
+from viur.core.prototypes import List
 from viur.core.render.json.default import DefaultRender, CustomJsonEncoder
 from viur.core.render.vi.user import UserRender as user
-from viur.core.skeleton import Skeleton
-# from google.appengine.api import app_identity
-from viur.core import conf
+from viur.core import conf, exposed
 from viur.core import securitykey
 from viur.core import utils
-from viur.core import request
-from viur.core import session
 from viur.core import errors
 import datetime, json
 from viur.core.utils import currentRequest, currentLanguage
@@ -67,6 +64,8 @@ def getStructure(adminTree, module):
                     if isinstance(skel, SkeletonInstance):
                         storeType = stype.replace("Skel", "") + ("LeafSkel" if treeType == "leaf" else "NodeSkel")
                         res[storeType] = default().renderSkelStructure(skel)
+
+    currentRequest.get().response.headers["Content-Type"] = "application/json"
     if res:
         return json.dumps(res, cls=CustomJsonEncoder)
     else:
@@ -101,6 +100,7 @@ def dumpConfig(adminTree):
                         tmp = v.copy()
                         tmp["name"] = str(tmp["name"])
                         adminConfig[key]["views"].append(tmp)
+
     res = {"capabilities": conf["viur.capabilities"],
            "modules": adminConfig,
            "configuration": {}
@@ -126,7 +126,7 @@ def canAccess(*args, **kwargs) -> bool:
     if user and ("root" in user["access"] or "admin" in user["access"]):
         return True
     pathList = currentRequest.get().pathlist
-    if len(pathList) >= 2 and pathList[1] in ["skey", "getVersion"]:
+    if len(pathList) >= 2 and pathList[1] in ["skey", "getVersion", "settings"]:
         # Give the user the chance to login :)
         return True
     if (len(pathList) >= 3
@@ -163,11 +163,24 @@ def index(*args, **kwargs):
 index.exposed = True
 
 
+@exposed
+def get_settings():
+    fields = {key: values for key, values in conf.items()
+              if key.startswith("admin.")}
+
+    fields["admin.user.google.clientID"] = conf.get("viur.user.google.clientID", "")
+
+    currentRequest.get().response.headers["Content-Type"] = "application/json"
+    return json.dumps(fields)
+
+
+
 def _postProcessAppObj(obj):
     obj["skey"] = genSkey
     obj["timestamp"] = timestamp
     obj["config"] = lambda *args, **kwargs: dumpConfig(conf["viur.mainApp"].vi)
     obj["config"].exposed = True
+    obj["settings"] = get_settings
     obj["getStructure"] = lambda *args, **kwargs: getStructure(conf["viur.mainApp"].vi, *args, **kwargs)
     obj["getStructure"].exposed = True
     obj["canAccess"] = canAccess
