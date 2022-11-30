@@ -17,6 +17,7 @@ from viur.core.config import conf
 from viur.core.logging import client as loggingClient, requestLogger, requestLoggingRessource
 from viur.core.securityheaders import extendCsp
 from viur.core.utils import currentLanguage, currentSession
+from viur.core.tasks import _appengineServiceIPs
 
 """
     This module implements the WSGI (Web Server Gateway Interface) layer for ViUR. This is the main entry
