@@ -12,32 +12,32 @@ class Conf(dict):
     Conf class wraps the conf dict and allows to handle deprecated keys or other special operations.
     """
 
-    def __getitem__(self, item):
+    def __getitem__(self, key):
         # VIUR3.3: Handle deprecations...
-        match item:
+        match key:
             case "viur.downloadUrlFor.expiration":
-                msg = f"{item!r} was substituted by `viur.render.html.downloadUrlExpiration`"
+                msg = f"{key!r} was substituted by `viur.render.html.downloadUrlExpiration`"
                 warnings.warn(msg, DeprecationWarning)
                 logging.warning(msg)
 
-                item = "viur.render.html.downloadUrlExpiration"
+                key = "viur.render.html.downloadUrlExpiration"
 
-        return super().__getitem__(item)
+        return super().__getitem__(key)
 
-    def __setitem__(self, item, value):
+    def __setitem__(self, key, value):
         # VIUR3.3: Handle deprecations...
-        match item:
+        match key:
             case "viur.downloadUrlFor.expiration":
-                raise ValueError(f"{item!r} was substituted by `viur.render.html.downloadUrlExpiration`, please fix!")
+                raise ValueError(f"{key!r} was substituted by `viur.render.html.downloadUrlExpiration`, please fix!")
 
         # Avoid to set conf values to something which is already the default
-        if item in self and self[item] == value:
-            msg = f"Setting conf[\"{item}\"] to {value!r} has no effect, as this value has already been set"
+        if key in self and self[key] == value:
+            msg = f"Setting conf[\"{key}\"] to {value!r} has no effect, as this value has already been set"
             warnings.warn(msg)
             logging.warning(msg)
             return
 
-        super().__setitem__(item, value)
+        super().__setitem__(key, value)
 
 
 # Some values used more than once below
