@@ -101,10 +101,11 @@ def dumpConfig(adminTree):
                         tmp["name"] = str(tmp["name"])
                         adminConfig[key]["views"].append(tmp)
 
-    res = {"capabilities": conf["viur.capabilities"],
-           "modules": adminConfig,
-           "configuration": {}
-           }
+    res = {
+        "modules": adminConfig,
+        "configuration": {}
+    }
+
     for k, v in conf.items():
         if k.lower().startswith("admin."):
             res["configuration"][k[6:]] = v
@@ -172,7 +173,6 @@ def get_settings():
 
     currentRequest.get().response.headers["Content-Type"] = "application/json"
     return json.dumps(fields)
-
 
 
 def _postProcessAppObj(obj):
