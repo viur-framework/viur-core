@@ -6,12 +6,24 @@ from viur.core.version import __version__
 
 apiVersion = 1  # What format do we use to store data in the bigtable
 
-
 __project_id = google.auth.default()[1]
 __version = os.getenv("GAE_VERSION")
 
 # Conf is static, local Dictionary. Changes here are local to the current instance
 conf = {
+    # Administration tool configuration
+    "admin.name": "ViUR",
+    # URL for the Logo in the Topbar of the VI
+    "admin.logo": "",
+    # URL for the big Image in the background of the VI Login screen
+    "admin.login.background": "",
+    # URL for the Logo over the VI Login screen
+    "admin.login.logo": "",
+    # primary Color for the  VI
+    "admin.color.primary": "#d00f1c",
+    # secondary Color for the  VI
+    "admin.color.secondary": "#333333",
+
     # Accessrights available on this Application
     "viur.accessRights": ["root", "admin"],
 
@@ -199,16 +211,6 @@ conf = {
 
     # Which application-ids we're supposed to run on
     "viur.validApplicationIDs": [],
-
-
-    # Administration tool configuration
-    "admin.name": "ViUR",
-    "admin.logo": "",
-    "admin.login.background": "",
-    # URL for the Logo over the VI Login screen
-    "admin.login.logo": "",
-    "admin.color.primary": "#d00f1c",
-    "admin.color.secondary": "#333333",
 
     # Semantic version number of viur-core as a tuple of 3 (major, minor, patch-level)
     "viur.version": tuple(__version__.split(".", 3)),
