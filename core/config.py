@@ -28,7 +28,7 @@ class Conf(dict):
         # VIUR3.3: Handle deprecations...
         match key:
             case "viur.downloadUrlFor.expiration":
-                raise ValueError(f"{key!r} was substituted by `viur.render.html.downloadUrlExpiration`, please fix!")
+                raise ValueError(f"{key!r} was replaced by `viur.render.html.downloadUrlExpiration`, please fix!")
 
         # Avoid to set conf values to something which is already the default
         if key in self and self[key] == value:
@@ -48,6 +48,23 @@ __version = os.getenv("GAE_VERSION")
 # Changes here apply locally to the current instance only.
 
 conf = Conf({
+    # Administration tool configuration
+    "admin.name": "ViUR",
+
+    # URL for the Logo in the Topbar of the VI
+    "admin.logo": "",
+
+    # URL for the big Image in the background of the VI Login screen
+    "admin.login.background": "",
+
+    # URL for the Logo over the VI Login screen
+    "admin.login.logo": "",
+
+    # primary color for the  VI
+    "admin.color.primary": "#d00f1c",
+
+    # secondary color for the  VI
+    "admin.color.secondary": "#333333",
 
     # Additional access rights available on this project
     "viur.accessRights": ["root", "admin"],

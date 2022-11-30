@@ -53,7 +53,8 @@ class DefaultRender(object):
             "readonly": bone.readOnly,
             "unique": bone.unique.method.value if bone.unique else False,
             "languages": bone.languages,
-            "emptyValue": bone.getEmptyValue()
+            "emptyValue": bone.getEmptyValue(),
+            "indexed": bone.indexed
         }
         if bone.multiple and isinstance(bone.multiple, bones.MultipleConstraints):
             ret["multiple"] = {
