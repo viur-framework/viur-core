@@ -2,8 +2,28 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.3.0-rc2]
+## [3.3.0-rc6]
 
+- Don't translate name for HTTP Reason Phrase (#549)
+- Updating viur-datastore==1.3.3 (#563)
+- Bump pillow from 9.1.1 to 9.3.0 (#560)
+- Add is_deferred flag to currentRequest (#556)
+- Update relational.py (#561)
+- Fix InjectStoreURLBone
+- Support grained required-flag for languages (#511)
+- Change linter GitHub Action workflow (#554)
+- Remove `skey == ""` check from add/edit methods. (#548)
+- Hotfix for #528 in TextBone
+- Rewrite `getReferencedBlobs` and `getSearchTags` (#528)
+- Improve `utils.sanitizeFileName` to quote non-ASCII (#547)
+- Accept variations parameters with bool type hints (#533)
+- Remove context from `git show`/`git diff` for linting (#545)
+- Fixing PEP8-issue reported by linter (#543)
+- Add support for custom Jinja tests (#532)
+- Extend linter config (#539)
+- Add workflow of GitHub-Action for linting (#540)
+- Add configuration for pep8speaks to enforce PEP-8-compliant pull request  (#504)
+- Upgrade read the docs to v2 (#535)
 - Replaceable derived image renderer (#512)
 - Use `.value` of the RelationalUpdateLevel enum in a datastore entity (#534)
 - Removed obsolete methods getSearchDocumentFields (#527)
@@ -18,7 +38,6 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - Add bones to `__all__` (#522)
 - Create a new hmac Key if no one is set (#516)
 - Implement isEmpty-function for StringBone (#514)
-- Merge branch 'main' into develop
 - Refactoring default renders for HTML/JSON/XML (#494)
 - Fix UNB Task and add Logging (#508)
 - Fixed generateOtps function to work on python3 (#509)
@@ -30,10 +49,8 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - Set new max Value for SortIndexBone (#499)
 - Re-enabling translations in VIUR3 (#491)
 - Add valid mime types to the BoneStructure (#498)
-- Merge branch 'main' into develop
 - Removing unused functions from renderers (#492)
 - Improving KeyBone (#493)
-- Merge branch 'main' into develop
 - Get full skel instance by skeletonCls instead (#487)
 - Providing a way for `len(skel)` (#488)
 

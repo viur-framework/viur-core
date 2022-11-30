@@ -1,7 +1,8 @@
 import datetime
 import jinja2.ext as jinja2
 from typing import List, Tuple, Union
-from viur.core import conf, db, utils, languages
+from viur.core.config import conf
+from viur.core import db, utils, languages
 
 systemTranslations = {}
 

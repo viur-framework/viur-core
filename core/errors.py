@@ -1,4 +1,3 @@
-
 class HTTPException(Exception):
     """
         Base-Class for all Exceptions that should match to an http error-code
@@ -14,7 +13,7 @@ class HTTPException(Exception):
         self.status = status
 
         from .i18n import translate  # fixme: This might be done better
-        self.name = str(translate(name))
+        self.name = name
         self.descr = str(translate(descr))
 
     def process(self):

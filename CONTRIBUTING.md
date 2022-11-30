@@ -23,7 +23,7 @@ In case you have appropriate permissions, a release can be done this way:
 
 - Make sure all hotfixes from `main` are in `develop` as well (`git merge main`)
 - Bump version number in `core/version.py`
-  - For a release-candidate, add `-rc1` or similar to the version number
+  - For a release-candidate, add `-rcN` to the version number, and count N up.
 - Update `CHANGELOG.md` and also check version number there
   - To quickly generate a changelog, run `git log --pretty="- %s" main..develop`
   - todo: Changelog shall be generated automatically later.

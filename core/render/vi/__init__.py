@@ -153,7 +153,7 @@ def index(*args, **kwargs):
             # The Vi is not available, the admin however is, so redirect there
             raise errors.Redirect("/admin")
         raise errors.NotFound()
-    if currentRequest.get().isDevServer or currentRequest.get().isSSLConnection:
+    if conf["viur.instance.is_dev_server"] or currentRequest.get().isSSLConnection:
         raise errors.Redirect("/vi/s/main.html")
     else:
         appVersion = currentRequest.get().request.host

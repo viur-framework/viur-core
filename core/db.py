@@ -1,5 +1,5 @@
-import importlib, logging
-from viur.core import conf
+import importlib
+from viur.core.config import conf
 
 if conf["viur.db.engine"] =="viur.datastore":
     from viur.datastore import *
