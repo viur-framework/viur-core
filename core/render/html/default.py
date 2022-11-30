@@ -146,7 +146,8 @@ class Render(object):
             "multiple": bone.multiple,
             "params": bone.params,
             "visible": bone.visible,
-            "readOnly": bone.readOnly
+            "readOnly": bone.readOnly,
+            "indexed": bone.indexed
         }
 
         if bone.type == "relational" or bone.type.startswith("relational."):
