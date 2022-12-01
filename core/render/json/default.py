@@ -22,7 +22,7 @@ class CustomJsonEncoder(json.JSONEncoder):
             return o.isoformat()
         elif isinstance(o, db.Key):
             return db.encodeKey(o)
-        elif isinstance(o,Enum):
+        elif isinstance(o, Enum):
             return o.value
         return json.JSONEncoder.default(self, o)
 
