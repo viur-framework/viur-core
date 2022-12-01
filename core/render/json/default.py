@@ -234,7 +234,8 @@ class DefaultRender(object):
     def list(self, skellist, action: str = "list", params=None, **kwargs):
         res = {}
         skels = []
-
+        print("skellist")
+        print(skellist.get_orders())
         if skellist:
             for skel in skellist:
                 skels.append(self.renderSkelValues(skel))

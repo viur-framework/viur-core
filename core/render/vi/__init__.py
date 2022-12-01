@@ -100,6 +100,8 @@ def dumpConfig(adminTree):
                         tmp = v.copy()
                         tmp["name"] = str(tmp["name"])
                         adminConfig[key]["views"].append(tmp)
+        if "indexes" in dir(app) and key in adminConfig:
+            adminConfig[key]["indexes"] = app.indexes
 
     res = {"capabilities": conf["viur.capabilities"],
            "modules": adminConfig,

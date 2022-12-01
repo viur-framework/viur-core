@@ -25,7 +25,9 @@
 """
 
 import logging
+import os
 import webob
+import yaml
 from types import ModuleType
 from typing import Callable, Dict, Union
 from viur.core import session, errors, i18n, request, utils
@@ -33,6 +35,18 @@ from viur.core.config import conf
 from viur.core.tasks import TaskHandler, runStartupTasks
 from viur.core import logging as viurLogging  # Initialize request logging
 
+
+def load_indexes_from_file():
+    try:
+        with open(os.path.join(utils.coreBasePath, 'index.yaml'), 'r') as file:
+            indexes = yaml.safe_load(file)
+            indexes = indexes.get("indexes", [])
+            for index in indexes:
+                index["properties"] = [_property["name"] for _property in index["properties"]]
+    except FileNotFoundError as e:
+        logging.error("index.yaml not found")
+        return
+    return indexes
 
 def setDefaultLanguage(lang: str):
     """
@@ -152,6 +166,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     from viur.core.modules.moduleconf import ModuleConf  # noqa: E402 # import works only here because circular imports
     modules._moduleconf = ModuleConf
     resolverDict = {}
+    indexes = load_indexes_from_file()
     for moduleName, moduleClass in vars(modules).items():  # iterate over all modules
         if moduleName == "index":
             mapModule(root, "index", resolverDict)
@@ -164,6 +179,11 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
                 moduleInstance = moduleClass(moduleName, modulePath)
                 # Attach the module-specific or the default render
                 moduleInstance.render = render.get(moduleName, render["default"])(parent=moduleInstance)
+                module_indexes = []
+                for index in indexes:
+                    if index["kind"] == moduleName:
+                        module_indexes.append(index)
+                moduleInstance.indexes = module_indexes
                 if renderName == default:  # default or render (sub)namespace?
                     setattr(root, moduleName, moduleInstance)
                     targetResolverRender = resolverDict
