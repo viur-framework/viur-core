@@ -96,10 +96,12 @@ def dumpConfig(adminTree):
                         tmp = v.copy()
                         tmp["name"] = str(tmp["name"])
                         adminConfig[key]["views"].append(tmp)
-    res = {"capabilities": conf["viur.capabilities"],
-           "modules": adminConfig,
-           "configuration": {}
-           }
+
+    res = {
+        "modules": adminConfig,
+        "configuration": {}
+    }
+
     for k, v in conf.items():
         if k.lower().startswith("admin."):
             res["configuration"][k[6:]] = v

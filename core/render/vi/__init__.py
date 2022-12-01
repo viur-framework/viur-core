@@ -103,10 +103,11 @@ def dumpConfig(adminTree):
         if "indexes" in dir(app) and key in adminConfig:
             adminConfig[key]["indexes"] = app.indexes
 
-    res = {"capabilities": conf["viur.capabilities"],
-           "modules": adminConfig,
-           "configuration": {}
-           }
+    res = {
+        "modules": adminConfig,
+        "configuration": {}
+    }
+
     for k, v in conf.items():
         if k.lower().startswith("admin."):
             res["configuration"][k[6:]] = v
@@ -174,7 +175,6 @@ def get_settings():
 
     currentRequest.get().response.headers["Content-Type"] = "application/json"
     return json.dumps(fields)
-
 
 
 def _postProcessAppObj(obj):

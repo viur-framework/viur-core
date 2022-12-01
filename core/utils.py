@@ -290,7 +290,7 @@ __utils_conf_replacement = {
 def __getattr__(attr):
     if attr in __utils_conf_replacement:
         import warnings
-        msg = f"Use of `utils.{attr}` is deprecated; Use conf[\"{__utils_conf_replacement[attr]}\"] instead!"
+        msg = f"Use of `utils.{attr}` is deprecated; Use `conf[\"{__utils_conf_replacement[attr]}\"]` instead!"
         warnings.warn(msg, DeprecationWarning, stacklevel=2)
         logging.warning(msg)
         return conf[__utils_conf_replacement[attr]]
