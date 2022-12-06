@@ -38,14 +38,14 @@ from viur.core import logging as viurLogging  # Initialize request logging
 
 def load_indexes_from_file():
     try:
-        with open(os.path.join(utils.coreBasePath, 'index.yaml'), 'r') as file:
+        with open(os.path.join(utils.coreBasePath, "index.yaml"), "r") as file:
             indexes = yaml.safe_load(file)
             indexes = indexes.get("indexes", [])
             for index in indexes:
                 index["properties"] = [_property["name"] for _property in index["properties"]]
     except FileNotFoundError as e:
-        logging.error("index.yaml not found")
-        return
+        logging.warning("index.yaml not found")
+        return {}
     return indexes
 
 def setDefaultLanguage(lang: str):
