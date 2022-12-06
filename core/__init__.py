@@ -35,6 +35,7 @@ from viur.core.tasks import TaskHandler, runStartupTasks
 from viur.core import logging as viurLogging  # Initialize request logging
 import logging  # this import has to stay here, see #571
 
+
 def load_indexes_from_file() -> Dict[str, List]:
     """
         Loads all indexes from the index.yaml and stores it in a dictionary  sorted by the module(kind)
