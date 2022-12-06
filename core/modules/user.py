@@ -620,7 +620,6 @@ class TimeBasedOTP(object):
 
 
 class AuthenticatorOTP:
-
     class AuthenticatorOtpSkel(RelSkel):
         otptoken = StringBone(descr="Token", required=True, caseSensitive=False, indexed=True)
 
@@ -645,20 +644,20 @@ class AuthenticatorOTP:
 
         time_otp = pyotp.TOTP(otp_token)
         uri = time_otp.provisioning_uri(name=cuser["name"], issuer_name=conf["viur.instance.project_id"])
-        #TODO find better name for issuer_name
+        # TODO find better name for issuer_name
         img = qrcode.make(uri, image_factory=qrcode.image.svg.SvgPathImage, box_size=30)
         user["otp_token"] = otp_token
         db.Put(user)
         currentSession.get().markChanged()
-        #todo how to render ?
+        # todo how to render ?
         return img.to_string().decode("utf-8")
 
     @exposed
     @forceSSL
-    def verify(self, otptoken=None,skey=None):
+    def verify(self, otptoken=None, skey=None):
         user_key = db.Key("user", currentSession.get()["_mayBeUserKey"])
-        if otptoken is None: #We must render the input
-          raise errors.PreconditionFailed()
+        if otptoken is None:  # We must render the input
+            raise errors.PreconditionFailed()
         if not securitykey.validate(skey, useSessionKey=True):
             raise errors.PreconditionFailed()
 
@@ -671,13 +670,14 @@ class AuthenticatorOTP:
         else:
             return self.userModule.render.edit(self.AuthenticatorOtpSkel(), tpl="user_login_secondfactor_authy")
 
-
     def canHandle(self, userKey) -> bool:
         user = db.Get(userKey)
         return "otp_token" in user
 
     def startProcessing(self, userKey):
         return self.userModule.render.edit(self.AuthenticatorOtpSkel(), tpl="user_login_secondfactor_authy")
+
+
 class User(List):
     kindName = "user"
     addTemplate = "user_add"
