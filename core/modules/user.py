@@ -22,6 +22,9 @@ from viur.core.i18n import translate
 from viur.core.utils import currentRequest, currentSession, utcNow
 from viur.core.session import killSessionByUser
 from typing import Optional
+import pyotp
+import qrcode
+import qrcode.image.svg
 
 
 class userSkel(Skeleton):
@@ -65,7 +68,7 @@ class userSkel(Skeleton):
         descr=u"Access rights",
         values=lambda: {
             right: translate("server.modules.user.accessright.%s" % right, defaultText=right)
-                for right in sorted(conf["viur.accessRights"])
+            for right in sorted(conf["viur.accessRights"])
         },
         indexed=True,
         multiple=True
@@ -104,6 +107,10 @@ class userSkel(Skeleton):
         descr=u"OTP time drift",
         readOnly=True,
         defaultValue=0
+    )
+    # Authenticator OTP
+    otp_token = CredentialBone(
+        readOnly=True
     )
 
 
@@ -438,10 +445,10 @@ class GoogleAccount(object):
                 # We have to allow popups here
                 currentRequest.get().response.headers["cross-origin-opener-policy"] = "same-origin-allow-popups"
             # Fixme: Render with Jinja2?
-            tplStr = open(os.path.join(utils.coreBasePath,"viur/core/template/vi_user_google_login.html"), "r").read()
+            tplStr = open(os.path.join(utils.coreBasePath, "viur/core/template/vi_user_google_login.html"), "r").read()
             tplStr = tplStr.replace("{{ clientID }}", conf["viur.user.google.clientID"])
-            extendCsp({"script-src":["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
-                       "style-src":["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]})
+            extendCsp({"script-src": ["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
+                       "style-src": ["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]})
             return tplStr
         if not securitykey.validate(skey, useSessionKey=True):
             raise errors.PreconditionFailed()
@@ -612,6 +619,65 @@ class TimeBasedOTP(object):
         db.RunInTransaction(updateTransaction, userKey, idx)
 
 
+class AuthenticatorOTP:
+
+    class AuthenticatorOtpSkel(RelSkel):
+        otptoken = StringBone(descr="Token", required=True, caseSensitive=False, indexed=True)
+
+    def __init__(self, userModule, modulePath):
+        self.userModule = userModule
+        self.modulePath = modulePath
+
+    @exposed
+    @forceSSL
+    def add(self, *args, **kwargs):
+        cuser = utils.getCurrentUser()
+        if not cuser:
+            raise errors.Unauthorized()
+        user = db.Get(cuser["key"])
+        if not user:
+            raise errors.NotFound()
+
+        otp_token = user.get("otp_token", "")
+
+        if otp_token == "" or otp_token is None:
+            otp_token = pyotp.random_base32()
+
+        time_otp = pyotp.TOTP(otp_token)
+        uri = time_otp.provisioning_uri(name=cuser["name"], issuer_name=conf["viur.instance.project_id"])
+        #TODO find better name for issuer_name
+        img = qrcode.make(uri, image_factory=qrcode.image.svg.SvgPathImage, box_size=30)
+        user["otp_token"] = otp_token
+        db.Put(user)
+        currentSession.get().markChanged()
+        #todo how to render ?
+        return img.to_string().decode("utf-8")
+
+    @exposed
+    @forceSSL
+    def verify(self, otptoken=None,skey=None):
+        user_key = db.Key("user", currentSession.get()["_mayBeUserKey"])
+        if otptoken is None: #We must render the input
+          raise errors.PreconditionFailed()
+        if not securitykey.validate(skey, useSessionKey=True):
+            raise errors.PreconditionFailed()
+
+        user = db.Get(user_key)
+        if not user:
+            raise errors.NotFound()
+        totp = pyotp.TOTP(user["otp_token"])
+        if totp.verify(otptoken):
+            return self.userModule.secondFactorSucceeded(self, user_key)
+        else:
+            return self.userModule.render.edit(self.AuthenticatorOtpSkel(), tpl="user_login_secondfactor_authy")
+
+
+    def canHandle(self, userKey) -> bool:
+        user = db.Get(userKey)
+        return "otp_token" in user
+
+    def startProcessing(self, userKey):
+        return self.userModule.render.edit(self.AuthenticatorOtpSkel(), tpl="user_login_secondfactor_authy")
 class User(List):
     kindName = "user"
     addTemplate = "user_add"
@@ -621,9 +687,9 @@ class User(List):
     passwordRecoveryMail = "user_password_recovery"
 
     authenticationProviders = [UserPassword, GoogleAccount]
-    secondFactorProviders = [TimeBasedOTP]
-
-    validAuthenticationMethods = [(UserPassword, TimeBasedOTP), (UserPassword, None), (GoogleAccount, None)]
+    secondFactorProviders = [TimeBasedOTP, AuthenticatorOTP]
+    validAuthenticationMethods = [(UserPassword, AuthenticatorOTP), (UserPassword, TimeBasedOTP), (UserPassword, None),
+                                  (GoogleAccount, None)]
 
     secondFactorTimeWindow = datetime.timedelta(minutes=10)
 
