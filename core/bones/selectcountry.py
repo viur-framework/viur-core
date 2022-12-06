@@ -732,6 +732,7 @@ ISO2TOISO3 = {v: k for k, v in ISO3TOISO2.items()}  # Build the invert map
 
 
 class SelectCountryBone(SelectBone):
+    type = "select.country"
     ISO2 = 2
     ISO3 = 3
 
