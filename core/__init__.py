@@ -48,10 +48,7 @@ def load_indexes_from_file() -> Dict[str, List]:
             indexes = indexes.get("indexes", [])
             for index in indexes:
                 index["properties"] = [_property["name"] for _property in index["properties"]]
-                if index["kind"] in indexes_dict:
-                    indexes_dict[index["kind"]].append(index)
-                else:
-                    indexes_dict[index["kind"]] = [index]
+                indexes_dict.setdefault(index["kind"], []).append(index)
 
     except FileNotFoundError:
         logging.warning("index.yaml not found")
