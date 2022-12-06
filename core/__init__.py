@@ -29,24 +29,36 @@ import os
 import webob
 import yaml
 from types import ModuleType
-from typing import Callable, Dict, Union
+from typing import Callable, Dict, Union, List
 from viur.core import session, errors, i18n, request, utils
 from viur.core.config import conf
 from viur.core.tasks import TaskHandler, runStartupTasks
 from viur.core import logging as viurLogging  # Initialize request logging
 
 
-def load_indexes_from_file():
+def load_indexes_from_file() -> Dict[str, List]:
+    """
+        Loads all indexes from the index.yaml and stores it in a dictionary  sorted by the module(kind)
+        :return A dictionary of indexes per module
+    """
+    indexes_dict = {}
     try:
         with open(os.path.join(utils.coreBasePath, "index.yaml"), "r") as file:
             indexes = yaml.safe_load(file)
             indexes = indexes.get("indexes", [])
             for index in indexes:
                 index["properties"] = [_property["name"] for _property in index["properties"]]
-    except FileNotFoundError as e:
+                if index["kind"] in indexes_dict:
+                    indexes_dict[index["kind"]].append(index)
+                else:
+                    indexes_dict[index["kind"]] = [index]
+
+    except FileNotFoundError:
         logging.warning("index.yaml not found")
         return {}
-    return indexes
+
+    return indexes_dict
+
 
 def setDefaultLanguage(lang: str):
     """
@@ -179,11 +191,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
                 moduleInstance = moduleClass(moduleName, modulePath)
                 # Attach the module-specific or the default render
                 moduleInstance.render = render.get(moduleName, render["default"])(parent=moduleInstance)
-                module_indexes = []
-                for index in indexes:
-                    if index["kind"] == moduleName:
-                        module_indexes.append(index)
-                moduleInstance.indexes = module_indexes
+                moduleInstance.indexes = indexes.get(moduleName, [])
                 if renderName == default:  # default or render (sub)namespace?
                     setattr(root, moduleName, moduleInstance)
                     targetResolverRender = resolverDict

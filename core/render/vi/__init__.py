@@ -100,8 +100,8 @@ def dumpConfig(adminTree):
                         tmp = v.copy()
                         tmp["name"] = str(tmp["name"])
                         adminConfig[key]["views"].append(tmp)
-        if "indexes" in dir(app) and key in adminConfig:
-            adminConfig[key]["indexes"] = app.indexes
+        if key in adminConfig and (indexes := getattr(app, "indexes", [])):
+            adminConfig[key]["indexes"] = indexes
 
     res = {
         "modules": adminConfig,
