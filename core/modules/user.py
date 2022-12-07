@@ -636,7 +636,6 @@ class AuthenticatorOTP:
         """
         return self.userModule.render.secound_factor_add(otp_uri=AuthenticatorOTP.generate_otp_secret())
 
-
     def canHandle(self, userKey) -> bool:
         """
             We can only handle the second factor if we have sorted an otp_secret before.

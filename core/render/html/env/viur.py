@@ -717,6 +717,7 @@ def seoUrlForEntry(render: Render, *args, **kwargs):
 def seoUrlToFunction(render: Render, *args, **kwargs):
     return utils.seoUrlToFunction(*args, **kwargs)
 
+
 @jinjaGlobalFunction
 def seoUrlToFunction(render: Render, *args, **kwargs):
     return utils.seoUrlToFunction(*args, **kwargs)
