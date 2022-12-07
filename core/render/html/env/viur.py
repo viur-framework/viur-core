@@ -18,6 +18,9 @@ from viur.core.skeleton import RelSkel, SkeletonInstance
 from viur.core.utils import currentLanguage, currentRequest
 from ..default import Render
 
+import qrcode
+import qrcode.image.svg
+
 
 @jinjaGlobalFunction
 def translate(render: Render, key: str, **kwargs) -> str:
@@ -713,3 +716,12 @@ def seoUrlForEntry(render: Render, *args, **kwargs):
 @jinjaGlobalFunction
 def seoUrlToFunction(render: Render, *args, **kwargs):
     return utils.seoUrlToFunction(*args, **kwargs)
+
+@jinjaGlobalFunction
+def seoUrlToFunction(render: Render, *args, **kwargs):
+    return utils.seoUrlToFunction(*args, **kwargs)
+
+
+@jinjaGlobalFunction
+def otp_uri_to_qrcode(render: Render, uri: str, *args, **kwargs) -> str:
+    return qrcode.make(uri,image_factory=qrcode.image.svg.SvgPathImage, box_size=30).to_string().decode("utf-8")

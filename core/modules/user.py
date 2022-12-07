@@ -23,8 +23,6 @@ from viur.core.utils import currentRequest, currentSession, utcNow
 from viur.core.session import killSessionByUser
 from typing import Optional
 import pyotp
-import qrcode
-import qrcode.image.svg
 
 
 class userSkel(Skeleton):
@@ -620,8 +618,8 @@ class TimeBasedOTP(object):
 
 
 class AuthenticatorOTP:
-    class AuthenticatorOtpSkel(RelSkel):
-        otptoken = StringBone(descr="Token", required=True, caseSensitive=False, indexed=True)
+    otp_template = "user_login_secondfactor"
+    otp_add_template = "user_secondfactor_add"
 
     def __init__(self, userModule, modulePath):
         self.userModule = userModule
@@ -629,7 +627,24 @@ class AuthenticatorOTP:
 
     @exposed
     @forceSSL
-    def add(self, *args, **kwargs):
+    def add(self):
+        return self.userModule.render.secound_factor_add(otp_uri=AuthenticatorOTP.generate_otp_token())
+
+
+    def canHandle(self, userKey) -> bool:
+        user = db.Get(userKey)
+        return "otp_token" in user and user["otp_token"] is not None and len(str(user["otp_token"])) > 0
+
+    @classmethod
+    def get2FactorMethodName(*args, **kwargs):
+        return "X-VIUR-2FACTOR-AuthenticatorOTP"
+
+    @classmethod
+    def generate_otp_token(cls):
+        """
+            Generate a new OTP Token if there is no one and write it in the user entry.
+            :return a otp uri like otpauth://totp/Example:alice@google.com?secret=ABCDEFGH1234&issuer=Example
+        """
         cuser = utils.getCurrentUser()
         if not cuser:
             raise errors.Unauthorized()
@@ -645,12 +660,14 @@ class AuthenticatorOTP:
         time_otp = pyotp.TOTP(otp_token)
         uri = time_otp.provisioning_uri(name=cuser["name"], issuer_name=conf["viur.instance.project_id"])
         # TODO find better name for issuer_name
-        img = qrcode.make(uri, image_factory=qrcode.image.svg.SvgPathImage, box_size=30)
+
         user["otp_token"] = otp_token
         db.Put(user)
         currentSession.get().markChanged()
-        # todo how to render ?
-        return img.to_string().decode("utf-8")
+        return uri
+
+    def startProcessing(self, userKey):
+        return self.userModule.render.edit(RelSkel(), action="authenticatorOTP", tpl=self.otp_template)
 
     @exposed
     @forceSSL
@@ -668,14 +685,7 @@ class AuthenticatorOTP:
         if totp.verify(otptoken):
             return self.userModule.secondFactorSucceeded(self, user_key)
         else:
-            return self.userModule.render.edit(self.AuthenticatorOtpSkel(), tpl="user_login_secondfactor_authy")
-
-    def canHandle(self, userKey) -> bool:
-        user = db.Get(userKey)
-        return "otp_token" in user
-
-    def startProcessing(self, userKey):
-        return self.userModule.render.edit(self.AuthenticatorOtpSkel(), tpl="user_login_secondfactor_authy")
+            return self.userModule.render.edit(RelSkel(), action="authenticatorOTP", tpl=self.otp_template,)
 
 
 class User(List):
