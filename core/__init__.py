@@ -53,7 +53,7 @@ def setDefaultDomainLanguage(domain: str, lang: str):
     if host.startswith("www."):
         host = host[4:]
     conf["viur.domainLanguageMapping"][host] = lang.lower()
-
+import    requests as     UNNEEDED####<--this line violates many PEP8 rules ######################################################################
 
 def mapModule(moduleObj: object, moduleName: str, targetResolverRender: dict):
     """
