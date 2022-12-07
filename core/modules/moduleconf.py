@@ -59,7 +59,7 @@ class ModuleConf(List):
         return False
 
     @classmethod
-    def get_by_module_name(cls, module_name: str):
+    def get_by_module_name(cls, module_name: str) -> Union[None, SkeletonInstance]:
         db_key = db.Key("viur-module-conf", module_name)
         skel = conf["viur.mainApp"]._moduleconf.viewSkel()
         if not skel.fromDB(db_key):
