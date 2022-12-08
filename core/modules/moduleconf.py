@@ -47,10 +47,7 @@ class ModuleConf(List):
     accessRights = ["edit"]
 
     def adminInfo(self):
-        admin_info = super().adminInfo()
-        admin_info["icon"] = "icon-settings"
-        admin_info["display"] = "hidden"
-        return admin_info
+        return super().adminInfo() | conf.get("viur.moduleconf.admin_info") or {}
 
     def canAdd(self):
         return False
