@@ -8,7 +8,6 @@ from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from typing import Any, Union, Optional
 from urllib.parse import quote
-from pathlib import Path
 from viur.core.config import conf
 from viur.core import db
 
