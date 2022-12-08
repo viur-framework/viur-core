@@ -107,8 +107,10 @@ class userSkel(Skeleton):
         defaultValue=0
     )
     # Authenticator OTP
-    otp_sec = CredentialBone(
+    otp_secret = CredentialBone(
+        descr=u"OTP Secret key",
         readOnly=True
+
     )
 
 
@@ -631,9 +633,6 @@ class AuthenticatorOTP:
     @exposed
     @forceSSL
     def add(self):
-        """
-
-        """
         return self.userModule.render.secound_factor_add(otp_uri=AuthenticatorOTP.generate_otp_secret())
 
     def canHandle(self, userKey) -> bool:
