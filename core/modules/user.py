@@ -438,7 +438,9 @@ class GoogleAccount(object):
                 # We have to allow popups here
                 currentRequest.get().response.headers["cross-origin-opener-policy"] = "same-origin-allow-popups"
             # Fixme: Render with Jinja2?
-            tplStr = open(os.path.join(utils.coreBasePath,"viur/core/template/vi_user_google_login.html"), "r").read()
+            tplStr = open(
+                os.path.join(conf["viur.instance.core_base_path"], "viur/core/template/vi_user_google_login.html"),
+                "r").read()
             tplStr = tplStr.replace("{{ clientID }}", conf["viur.user.google.clientID"])
             extendCsp({"script-src":["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
                        "style-src":["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]})

@@ -19,10 +19,6 @@ currentRequestData = ContextVar("Request-Data", default=None)
 currentSession = ContextVar("Session", default=None)
 currentLanguage = ContextVar("Language", default=None)
 
-# Determine our basePath (as os.getCWD is broken on appengine)
-projectBasePath = str(Path().absolute())
-coreBasePath = globals()["__file__"].replace("/viur/core/utils.py","")
-
 
 def utcNow() -> datetime:
     return datetime.now(timezone.utc)

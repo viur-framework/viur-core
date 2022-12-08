@@ -13,6 +13,7 @@ from viur.core.bones import *
 from viur.core.i18n import LanguageWrapper, TranslationExtension
 from viur.core.skeleton import SkelList, SkeletonInstance
 from viur.core.utils import currentLanguage, currentRequest
+from viur.core import conf
 from . import utils as jinjaUtils
 
 KeyValueWrapper = namedtuple("KeyValueWrapper", ["key", "descr"])
@@ -101,13 +102,13 @@ class Render(object):
                       template + ".html"]
         for fn in fnames:  # check subfolders
             prefix = template.split("_")[0]
-            if os.path.isfile(os.path.join(utils.projectBasePath, htmlpath, prefix, fn)):
+            if os.path.isfile(os.path.join(conf["viur.instance.core_base_path"], htmlpath, prefix, fn)):
                 return "%s/%s" % (prefix, fn)
         for fn in fnames:  # Check the templatefolder of the application
-            if os.path.isfile(os.path.join(utils.projectBasePath, htmlpath, fn)):
+            if os.path.isfile(os.path.join(conf["viur.instance.core_base_path"], htmlpath, fn)):
                 return fn
         for fn in fnames:  # Check the fallback
-            if os.path.isfile(os.path.join(utils.projectBasePath, "viur", "core", "template", fn)):
+            if os.path.isfile(os.path.join(conf["viur.instance.core_base_path"], "viur", "core", "template", fn)):
                 return fn
         raise errors.NotFound("Template %s not found." % template)
 
