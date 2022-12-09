@@ -2,7 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.3.0-rc8]
+## [3.3.0]
 
 - Fixed `import logging` must stay behind other imports in `__init__.py` (#573)
 - Added distinctive type `select.country` for `SelectCountryBone` (#575)
