@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for bones/selectcountry.py: 38%</title>
+    <title>Coverage for bones/selectcountry.py: 40%</title>
     <link rel="icon" sizes="32x32" href="favicon_32.png">
     <link rel="stylesheet" href="style.css" type="text/css">
     <script type="text/javascript" src="coverage_html.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>bones/selectcountry.py</b>:
-            <span class="pc_cov">38%</span>
+            <span class="pc_cov">40%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -55,8 +55,8 @@
             </div>
         </aside>
         <h2>
-            <span class="text">26 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">11<span class="text"> run</span></button>
+            <span class="text">27 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">12<span class="text"> run</span></button>
             <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">15<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
             <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">0<span class="text"> partial</span></button>
@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="d_6b0da3f663d51593_sortindex_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io">coverage.py v6.5.0</a>,
-            created at 2022-12-09 17:56 +0000
+            created at 2022-12-09 18:31 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"/>
@@ -816,35 +816,36 @@
     <p class="pln"><span class="n"><a id="t732" href="#t732">732</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t733" href="#t733">733</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t734" href="#t734">734</a></span><span class="t"><span class="key">class</span> <span class="nam">SelectCountryBone</span><span class="op">(</span><span class="nam">SelectBone</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t735" href="#t735">735</a></span><span class="t">    <span class="nam">ISO2</span> <span class="op">=</span> <span class="num">2</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t736" href="#t736">736</a></span><span class="t">    <span class="nam">ISO3</span> <span class="op">=</span> <span class="num">3</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t737" href="#t737">737</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t738" href="#t738">738</a></span><span class="t">    <span class="key">def</span> <span class="nam">__init__</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="op">*</span><span class="op">,</span> <span class="nam">codes</span><span class="op">=</span><span class="nam">ISO2</span><span class="op">,</span> <span class="nam">values</span><span class="op">=</span><span class="key">None</span><span class="op">,</span> <span class="op">**</span><span class="nam">kwargs</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t739" href="#t739">739</a></span><span class="t">        <span class="key">global</span> <span class="nam">ISO2CODES</span><span class="op">,</span> <span class="nam">ISO3CODES</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t740" href="#t740">740</a></span><span class="t">        <span class="key">assert</span> <span class="nam">codes</span> <span class="key">in</span> <span class="op">[</span><span class="nam">self</span><span class="op">.</span><span class="nam">ISO2</span><span class="op">,</span> <span class="nam">self</span><span class="op">.</span><span class="nam">ISO3</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t741" href="#t741">741</a></span><span class="t">        <span class="key">assert</span> <span class="nam">values</span> <span class="key">is</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t742" href="#t742">742</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t743" href="#t743">743</a></span><span class="t">        <span class="nam">super</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">__init__</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t744" href="#t744">744</a></span><span class="t">            <span class="nam">values</span><span class="op">=</span><span class="nam">OrderedDict</span><span class="op">(</span><span class="nam">sorted</span><span class="op">(</span><span class="op">(</span><span class="nam">ISO2CODES</span> <span class="key">if</span> <span class="nam">codes</span> <span class="op">==</span> <span class="nam">self</span><span class="op">.</span><span class="nam">ISO2</span> <span class="key">else</span> <span class="nam">ISO3CODES</span><span class="op">)</span><span class="op">.</span><span class="nam">items</span><span class="op">(</span><span class="op">)</span><span class="op">,</span> <span class="nam">key</span><span class="op">=</span><span class="key">lambda</span> <span class="nam">i</span><span class="op">:</span> <span class="nam">i</span><span class="op">[</span><span class="num">1</span><span class="op">]</span><span class="op">)</span><span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t745" href="#t745">745</a></span><span class="t">            <span class="op">**</span><span class="nam">kwargs</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t746" href="#t746">746</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t747" href="#t747">747</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t748" href="#t748">748</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">codes</span> <span class="op">=</span> <span class="nam">codes</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t749" href="#t749">749</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t750" href="#t750">750</a></span><span class="t">    <span class="key">def</span> <span class="nam">singleValueUnserialize</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">val</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t751" href="#t751">751</a></span><span class="t">        <span class="key">if</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">val</span><span class="op">,</span> <span class="nam">str</span><span class="op">)</span> <span class="key">and</span> <span class="nam">len</span><span class="op">(</span><span class="nam">val</span><span class="op">)</span> <span class="op">==</span> <span class="num">3</span> <span class="key">and</span> <span class="nam">self</span><span class="op">.</span><span class="nam">codes</span> <span class="op">==</span> <span class="nam">self</span><span class="op">.</span><span class="nam">ISO2</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t752" href="#t752">752</a></span><span class="t">            <span class="com"># We got an ISO3 code from the db, but are using ISO2</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t753" href="#t753">753</a></span><span class="t">            <span class="key">try</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t754" href="#t754">754</a></span><span class="t">                <span class="key">return</span> <span class="nam">ISO3TOISO2</span><span class="op">[</span><span class="nam">val</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t755" href="#t755">755</a></span><span class="t">            <span class="key">except</span> <span class="nam">KeyError</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t756" href="#t756">756</a></span><span class="t">                <span class="key">pass</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t757" href="#t757">757</a></span><span class="t">        <span class="key">elif</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">val</span><span class="op">,</span> <span class="nam">str</span><span class="op">)</span> <span class="key">and</span> <span class="nam">len</span><span class="op">(</span><span class="nam">val</span><span class="op">)</span> <span class="op">==</span> <span class="num">2</span> <span class="key">and</span> <span class="nam">self</span><span class="op">.</span><span class="nam">codes</span> <span class="op">==</span> <span class="nam">self</span><span class="op">.</span><span class="nam">ISO3</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t758" href="#t758">758</a></span><span class="t">            <span class="com"># We got ISO2 code, wanted ISO3</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t759" href="#t759">759</a></span><span class="t">            <span class="key">try</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t760" href="#t760">760</a></span><span class="t">                <span class="key">return</span> <span class="nam">ISO2TOISO3</span><span class="op">[</span><span class="nam">val</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t761" href="#t761">761</a></span><span class="t">            <span class="key">except</span> <span class="nam">KeyError</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t762" href="#t762">762</a></span><span class="t">                <span class="key">pass</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t763" href="#t763">763</a></span><span class="t">        <span class="key">return</span> <span class="nam">val</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t735" href="#t735">735</a></span><span class="t">    <span class="nam">type</span> <span class="op">=</span> <span class="str">"select.country"</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t736" href="#t736">736</a></span><span class="t">    <span class="nam">ISO2</span> <span class="op">=</span> <span class="num">2</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t737" href="#t737">737</a></span><span class="t">    <span class="nam">ISO3</span> <span class="op">=</span> <span class="num">3</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t738" href="#t738">738</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t739" href="#t739">739</a></span><span class="t">    <span class="key">def</span> <span class="nam">__init__</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="op">*</span><span class="op">,</span> <span class="nam">codes</span><span class="op">=</span><span class="nam">ISO2</span><span class="op">,</span> <span class="nam">values</span><span class="op">=</span><span class="key">None</span><span class="op">,</span> <span class="op">**</span><span class="nam">kwargs</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t740" href="#t740">740</a></span><span class="t">        <span class="key">global</span> <span class="nam">ISO2CODES</span><span class="op">,</span> <span class="nam">ISO3CODES</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t741" href="#t741">741</a></span><span class="t">        <span class="key">assert</span> <span class="nam">codes</span> <span class="key">in</span> <span class="op">[</span><span class="nam">self</span><span class="op">.</span><span class="nam">ISO2</span><span class="op">,</span> <span class="nam">self</span><span class="op">.</span><span class="nam">ISO3</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t742" href="#t742">742</a></span><span class="t">        <span class="key">assert</span> <span class="nam">values</span> <span class="key">is</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t743" href="#t743">743</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t744" href="#t744">744</a></span><span class="t">        <span class="nam">super</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">__init__</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t745" href="#t745">745</a></span><span class="t">            <span class="nam">values</span><span class="op">=</span><span class="nam">OrderedDict</span><span class="op">(</span><span class="nam">sorted</span><span class="op">(</span><span class="op">(</span><span class="nam">ISO2CODES</span> <span class="key">if</span> <span class="nam">codes</span> <span class="op">==</span> <span class="nam">self</span><span class="op">.</span><span class="nam">ISO2</span> <span class="key">else</span> <span class="nam">ISO3CODES</span><span class="op">)</span><span class="op">.</span><span class="nam">items</span><span class="op">(</span><span class="op">)</span><span class="op">,</span> <span class="nam">key</span><span class="op">=</span><span class="key">lambda</span> <span class="nam">i</span><span class="op">:</span> <span class="nam">i</span><span class="op">[</span><span class="num">1</span><span class="op">]</span><span class="op">)</span><span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t746" href="#t746">746</a></span><span class="t">            <span class="op">**</span><span class="nam">kwargs</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t747" href="#t747">747</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t748" href="#t748">748</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t749" href="#t749">749</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">codes</span> <span class="op">=</span> <span class="nam">codes</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t750" href="#t750">750</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t751" href="#t751">751</a></span><span class="t">    <span class="key">def</span> <span class="nam">singleValueUnserialize</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">val</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t752" href="#t752">752</a></span><span class="t">        <span class="key">if</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">val</span><span class="op">,</span> <span class="nam">str</span><span class="op">)</span> <span class="key">and</span> <span class="nam">len</span><span class="op">(</span><span class="nam">val</span><span class="op">)</span> <span class="op">==</span> <span class="num">3</span> <span class="key">and</span> <span class="nam">self</span><span class="op">.</span><span class="nam">codes</span> <span class="op">==</span> <span class="nam">self</span><span class="op">.</span><span class="nam">ISO2</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t753" href="#t753">753</a></span><span class="t">            <span class="com"># We got an ISO3 code from the db, but are using ISO2</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t754" href="#t754">754</a></span><span class="t">            <span class="key">try</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t755" href="#t755">755</a></span><span class="t">                <span class="key">return</span> <span class="nam">ISO3TOISO2</span><span class="op">[</span><span class="nam">val</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t756" href="#t756">756</a></span><span class="t">            <span class="key">except</span> <span class="nam">KeyError</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t757" href="#t757">757</a></span><span class="t">                <span class="key">pass</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t758" href="#t758">758</a></span><span class="t">        <span class="key">elif</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">val</span><span class="op">,</span> <span class="nam">str</span><span class="op">)</span> <span class="key">and</span> <span class="nam">len</span><span class="op">(</span><span class="nam">val</span><span class="op">)</span> <span class="op">==</span> <span class="num">2</span> <span class="key">and</span> <span class="nam">self</span><span class="op">.</span><span class="nam">codes</span> <span class="op">==</span> <span class="nam">self</span><span class="op">.</span><span class="nam">ISO3</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t759" href="#t759">759</a></span><span class="t">            <span class="com"># We got ISO2 code, wanted ISO3</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t760" href="#t760">760</a></span><span class="t">            <span class="key">try</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t761" href="#t761">761</a></span><span class="t">                <span class="key">return</span> <span class="nam">ISO2TOISO3</span><span class="op">[</span><span class="nam">val</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t762" href="#t762">762</a></span><span class="t">            <span class="key">except</span> <span class="nam">KeyError</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t763" href="#t763">763</a></span><span class="t">                <span class="key">pass</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t764" href="#t764">764</a></span><span class="t">        <span class="key">return</span> <span class="nam">val</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -854,7 +855,7 @@
             <a id="nextFileLink" class="nav" href="d_6b0da3f663d51593_sortindex_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io">coverage.py v6.5.0</a>,
-            created at 2022-12-09 17:56 +0000
+            created at 2022-12-09 18:31 +0000
         </p>
     </div>
 </footer>

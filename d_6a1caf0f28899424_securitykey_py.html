@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="d_6a1caf0f28899424_session_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io">coverage.py v6.5.0</a>,
-            created at 2022-12-09 17:56 +0000
+            created at 2022-12-09 18:31 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"/>
@@ -108,7 +108,7 @@
     <p class="mis show_mis"><span class="n"><a id="t24" href="#t24">24</a></span><span class="t"><span class="key">from</span> <span class="nam">viur</span><span class="op">.</span><span class="nam">core</span><span class="op">.</span><span class="nam">utils</span> <span class="key">import</span> <span class="nam">generateRandomString</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t25" href="#t25">25</a></span><span class="t"><span class="key">from</span> <span class="nam">viur</span><span class="op">.</span><span class="nam">core</span><span class="op">.</span><span class="nam">utils</span> <span class="key">import</span> <span class="nam">currentSession</span><span class="op">,</span> <span class="nam">currentRequest</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t26" href="#t26">26</a></span><span class="t"><span class="key">from</span> <span class="nam">viur</span><span class="op">.</span><span class="nam">core</span> <span class="key">import</span> <span class="nam">db</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t27" href="#t27">27</a></span><span class="t"><span class="key">from</span> <span class="nam">viur</span><span class="op">.</span><span class="nam">core</span><span class="op">.</span><span class="nam">tasks</span> <span class="key">import</span> <span class="nam">PeriodicTask</span><span class="op">,</span> <span class="nam">callDeferred</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t27" href="#t27">27</a></span><span class="t"><span class="key">from</span> <span class="nam">viur</span><span class="op">.</span><span class="nam">core</span><span class="op">.</span><span class="nam">tasks</span> <span class="key">import</span> <span class="nam">PeriodicTask</span><span class="op">,</span> <span class="nam">CallDeferred</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t28" href="#t28">28</a></span><span class="t"><span class="key">from</span> <span class="nam">typing</span> <span class="key">import</span> <span class="nam">Union</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t29" href="#t29">29</a></span><span class="t"><span class="key">from</span> <span class="nam">viur</span><span class="op">.</span><span class="nam">core</span><span class="op">.</span><span class="nam">utils</span> <span class="key">import</span> <span class="nam">utcNow</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t30" href="#t30">30</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -180,7 +180,7 @@
     <p class="mis show_mis"><span class="n"><a id="t96" href="#t96">96</a></span><span class="t">    <span class="nam">doClearSKeys</span><span class="op">(</span><span class="op">(</span><span class="nam">datetime</span><span class="op">.</span><span class="nam">now</span><span class="op">(</span><span class="op">)</span> <span class="op">-</span> <span class="nam">timedelta</span><span class="op">(</span><span class="nam">seconds</span><span class="op">=</span><span class="num">300</span><span class="op">)</span><span class="op">)</span><span class="op">.</span><span class="nam">strftime</span><span class="op">(</span><span class="str">"%d.%m.%Y %H:%M:%S"</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t97" href="#t97">97</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t98" href="#t98">98</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t99" href="#t99">99</a></span><span class="t"><span class="op">@</span><span class="nam">callDeferred</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t99" href="#t99">99</a></span><span class="t"><span class="op">@</span><span class="nam">CallDeferred</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t100" href="#t100">100</a></span><span class="t"><span class="key">def</span> <span class="nam">doClearSKeys</span><span class="op">(</span><span class="nam">timeStamp</span><span class="op">:</span> <span class="nam">str</span><span class="op">)</span> <span class="op">-></span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t101" href="#t101">101</a></span><span class="t">    <span class="nam">query</span> <span class="op">=</span> <span class="nam">db</span><span class="op">.</span><span class="nam">Query</span><span class="op">(</span><span class="nam">securityKeyKindName</span><span class="op">)</span><span class="op">.</span><span class="nam">filter</span><span class="op">(</span><span class="str">"until &lt;"</span><span class="op">,</span> <span class="nam">datetime</span><span class="op">.</span><span class="nam">strptime</span><span class="op">(</span><span class="nam">timeStamp</span><span class="op">,</span> <span class="str">"%d.%m.%Y %H:%M:%S"</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t102" href="#t102">102</a></span><span class="t">    <span class="key">for</span> <span class="nam">oldKey</span> <span class="key">in</span> <span class="nam">query</span><span class="op">.</span><span class="nam">run</span><span class="op">(</span><span class="num">100</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -196,7 +196,7 @@
             <a id="nextFileLink" class="nav" href="d_6a1caf0f28899424_session_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io">coverage.py v6.5.0</a>,
-            created at 2022-12-09 17:56 +0000
+            created at 2022-12-09 18:31 +0000
         </p>
     </div>
 </footer>
