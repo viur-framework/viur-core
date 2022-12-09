@@ -8,7 +8,7 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - Added distinctive type `select.country` for `SelectCountryBone` (#575)
 - Added `Conf`-class to be used by global `conf`-variable (#567)
 - Removed unused keys from `conf`: `conf["viur.capabilities"]`, `conf["viur.db.caching"]` and `apiVersion`
-- Added system-module `ModuleConf` (#551)
+- Added system-module `ModuleConf` (#551, #577)
 - Added `indexed`-flag in bone structures (#568)
 - Renamed `utils.projectID` to `conf["viur.instance.project_id"]` (#562)
 - Renamed `utils.isLocalDevelopmentServer` to `conf["viur.instance.is_dev_server"]` (#562)
