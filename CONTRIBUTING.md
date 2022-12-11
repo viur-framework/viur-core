@@ -34,7 +34,11 @@ In case you have appropriate permissions, a release can be done this way:
   - Release the package
     - PyPI: `pipenv run release`
     - TestPyPI: `pipenv run develop`
-- When all went well, finally create a tag equally to the version number in `core/version.py` 
+- When all went well, finally create a tag equally to the version number in `core/version.py`
+- In case this is a new minor release, remove all release candidate tags using
+  ```
+  for i in `git tag`; do if [[ $i == *-rc* ]]; then git tag -d $i; git push origin :$i; fi; done
+  ```
 
 ## Branches
 
