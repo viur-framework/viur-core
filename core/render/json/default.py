@@ -1,5 +1,7 @@
 import json
 from collections import OrderedDict
+from enum import Enum
+
 from viur.core import bones, utils, config, db
 from viur.core.skeleton import SkeletonInstance
 from viur.core.utils import currentRequest
@@ -20,6 +22,8 @@ class CustomJsonEncoder(json.JSONEncoder):
             return o.isoformat()
         elif isinstance(o, db.Key):
             return db.encodeKey(o)
+        elif isinstance(o, Enum):
+            return o.value
         return json.JSONEncoder.default(self, o)
 
 
@@ -53,7 +57,8 @@ class DefaultRender(object):
             "readonly": bone.readOnly,
             "unique": bone.unique.method.value if bone.unique else False,
             "languages": bone.languages,
-            "emptyValue": bone.getEmptyValue()
+            "emptyValue": bone.getEmptyValue(),
+            "indexed": bone.indexed
         }
         if bone.multiple and isinstance(bone.multiple, bones.MultipleConstraints):
             ret["multiple"] = {
@@ -233,7 +238,6 @@ class DefaultRender(object):
     def list(self, skellist, action: str = "list", params=None, **kwargs):
         res = {}
         skels = []
-
         if skellist:
             for skel in skellist:
                 skels.append(self.renderSkelValues(skel))
@@ -247,6 +251,9 @@ class DefaultRender(object):
         res["skellist"] = skels
         res["action"] = action
         res["params"] = params
+        res["orders"] = skellist.get_orders()
+
+
         currentRequest.get().response.headers["Content-Type"] = "application/json"
         return json.dumps(res, cls=CustomJsonEncoder)
 

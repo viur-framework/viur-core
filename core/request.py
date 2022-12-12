@@ -17,6 +17,7 @@ from viur.core.config import conf
 from viur.core.logging import client as loggingClient, requestLogger, requestLoggingRessource
 from viur.core.securityheaders import extendCsp
 from viur.core.utils import currentLanguage, currentSession
+from viur.core.tasks import _appengineServiceIPs
 
 """
     This module implements the WSGI (Web Server Gateway Interface) layer for ViUR. This is the main entry
@@ -112,10 +113,10 @@ class BrowseHandler():  # webapp.RequestHandler
     @property
     def isDevServer(self) -> bool:
         import warnings
-        msg = "Use of `isDevServer` is deprecated; Use conf[\"viur.project.is_dev_server\"] instead!"
+        msg = "Use of `isDevServer` is deprecated; Use `conf[\"viur.instance.is_dev_server\"]` instead!"
         warnings.warn(msg, DeprecationWarning, stacklevel=2)
         logging.warning(msg)
-        return conf["viur.project.is_dev_server"]
+        return conf["viur.instance.is_dev_server"]
 
     def selectLanguage(self, path: str) -> str:
         """
