@@ -264,7 +264,8 @@ class UserPassword:
                 session["user.auth_userpassword.pwrecover"] = None
                 return self.pwrecover()
             # We're in the second step - the code has been send and is waiting for confirmation from the user
-            if utils.utcNow() - session["user.auth_userpassword.pwrecover"]["creationdate"] > datetime.timedelta(minutes=15):
+            if utils.utcNow() - session["user.auth_userpassword.pwrecover"]["creationdate"] \
+                    > datetime.timedelta(minutes=15):
                 # This recovery-process is expired; reset the session and start over
                 session["user.auth_userpassword.pwrecover"] = None
                 return self.userModule.render.view(
@@ -287,8 +288,12 @@ class UserPassword:
                         tpl=self.passwordRecoveryFailedTemplate,
                         reason=self.passwordRecoveryKeyInvalid)
                 return self.userModule.render.edit(skel, self.passwordRecoveryStep2Template)  # Let's try again
+
             # If we made it here, the key was correct, so we'd hopefully have a valid user for this
-            uSkel = self.viewSkel().all().filter("name.idx =", session["user.auth_userpassword.pwrecover"]["name"]).getSkel()
+            uSkel = self.viewSkel().all().filter(
+                "name.idx =", session["user.auth_userpassword.pwrecover"]["name"]
+            ).getSkel()
+            
             if not uSkel:  # This *should* never happen - if we don't have a matching account we'll not send the key.
                 session["user.auth_userpassword.pwrecover"] = None
                 return self.userModule.render.view(
