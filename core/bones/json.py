@@ -1,16 +1,15 @@
+import ast
 import json
-import logging
-
-from viur.core.bones import ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core.bones import BaseBone
+from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.bones.raw import RawBone
 
 
-class JsonBone(BaseBone):
+class JsonBone(RawBone):
     """
-    This bone saves its content as a JSON-string.
+    This bone saves its content as a JSON-string, but unpacks its content to a dict or list when used.
     """
 
-    type = "json"
+    type = "raw.json"
 
     def __init__(self, indexed=False, multiple=False, languages=None, *args, **kwargs):
         assert not multiple
@@ -19,26 +18,15 @@ class JsonBone(BaseBone):
         super().__init__(*args, **kwargs)
 
     def serialize(self, skel, name, parentIndexed):
-        if name not in skel.accessedValues:
-            return False
+        if value := skel.accessedValues.get(name):
+            skel.dbEntity[name] = json.dumps(value)
 
-        value = skel.accessedValues[name]
-        if isinstance(value, str):
-            try:
-                _ = json.loads(value)
-                del _
-            except Exception as e:
-                logging.error(f"Error in serialize in JsonBone: {e=}")
-                return False
+            # Ensure this bone is NOT indexed!
+            skel.dbEntity.exclude_from_indexes.add(name)
 
-            skel.dbEntity[name] = value
-        else:
-            skel.dbEntity[name] = json.dumps(value) if value is not None else None
+            return True
 
-        # Ensure our indexed flag is False
-        skel.dbEntity.exclude_from_indexes.add(name)
-
-        return True
+        return False
 
     def unserialize(self, skel, name):
         if data := skel.dbEntity.get(name):
@@ -49,14 +37,22 @@ class JsonBone(BaseBone):
 
     def singleValueFromClient(self, value, *args, **kwargs):
         if value:
-            value = str(value)  # Try to parse a JSON string
-            try:
-                value = json.loads(value)
-                return value, None
-            except Exception as e:
-                logging.error(f"Error in singleValueFromClient in JsonBone: {e=}")
-                return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid,
-                                                                  "Cannot parse to JSON")]
-        else:
-            return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.NotSet,
-                                                              "Field not submitted")]
+            if not isinstance(value, (list, dict)):
+                value = str(value)
+
+                # Try to parse a JSON string
+                try:
+                    value = json.loads(value)
+
+                except json.decoder.JSONDecodeError as e:
+                    # Try to parse a Python dict as fallback
+                    try:
+                        value = ast.literal_eval(value)
+
+                    except (SyntaxError, ValueError):
+                        # If this fails, report back the JSON parse error
+                        return self.getEmptyValue(), [
+                            ReadFromClientError(ReadFromClientErrorSeverity.Invalid, f"Invalid JSON supplied: {e!s}")
+                        ]
+
+        return super().singleValueFromClient(value, *args, **kwargs)
