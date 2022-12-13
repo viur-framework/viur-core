@@ -34,6 +34,7 @@ __all = [
     "DateBone",
     "EmailBone",
     "FileBone",
+    "JsonBone",
     "KeyBone",
     "MultipleConstraints",
     "NumericBone",

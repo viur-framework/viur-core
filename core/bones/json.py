@@ -1,6 +1,7 @@
 import ast
 import json
-from viur.core.bones import RawBone
+from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.bones.raw import RawBone
 
 
 class JsonBone(RawBone):
@@ -42,13 +43,16 @@ class JsonBone(RawBone):
                 # Try to parse a JSON string
                 try:
                     value = json.loads(value)
-                except json.decoder.JSONDecodeError:
-                    # Try to parse a Python dict
+
+                except json.decoder.JSONDecodeError as e:
+                    # Try to parse a Python dict as fallback
                     try:
                         value = ast.literal_eval(value)
-                    except SyntaxError:
-                        raise
 
-                    # raise anything which doesn't work
+                    except (SyntaxError, ValueError):
+                        # If this fails, report back the JSON parse error
+                        return self.getEmptyValue(), [
+                            ReadFromClientError(ReadFromClientErrorSeverity.Invalid, f"Invalid JSON supplied: {e!s}")
+                        ]
 
         return super().singleValueFromClient(value, *args, **kwargs)
