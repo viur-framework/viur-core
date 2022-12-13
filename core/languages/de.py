@@ -338,5 +338,11 @@ de = {
     "internal server error": "Interner Serverfehler",
     "not implemented": "Nicht implementiert",
     "bad gateway": "Falscher Gateway",
-    "service unavailable": "Dienst nicht verfügbar"
+    "service unavailable": "Dienst nicht verfügbar",
+
+    # Moduleconfig
+    "modulename": "Modulname",
+    "module helptext": "Modul Hilfetext",
+    "add helptext": "Hinzufügen Hilfetext",
+    "edit helptext": "Editieren Hilfetext",
 }
