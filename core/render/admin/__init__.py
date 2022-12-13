@@ -96,10 +96,12 @@ def dumpConfig(adminTree):
                         tmp = v.copy()
                         tmp["name"] = str(tmp["name"])
                         adminConfig[key]["views"].append(tmp)
-    res = {"capabilities": conf["viur.capabilities"],
-           "modules": adminConfig,
-           "configuration": {}
-           }
+
+    res = {
+        "modules": adminConfig,
+        "configuration": {}
+    }
+
     for k, v in conf.items():
         if k.lower().startswith("admin."):
             res["configuration"][k[6:]] = v
@@ -156,7 +158,7 @@ def index(*args, **kwargs):
             # The admin is not available, the Vi however is, so redirect there
             raise errors.Redirect("/vi")
         raise errors.NotFound()
-    if currentRequest.get().isDevServer or currentRequest.get().isSSLConnection:
+    if conf["viur.instance.is_dev_server"] or currentRequest.get().isSSLConnection:
         raise errors.Redirect("/admin/s/admin.html")
     else:
         appVersion = currentRequest.get().request.host

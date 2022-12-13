@@ -860,7 +860,7 @@ def createNewUserIfNotExists():
                  userMod.validAuthenticationMethods])):  # It uses UserPassword login
         if not db.Query(userMod.addSkel().kindName).getEntry():  # There's currently no user in the database
             addSkel = skeletonByKind(userMod.addSkel().kindName)()  # Ensure we have the full skeleton
-            uname = "admin@%s.appspot.com" % utils.projectID
+            uname = f"""admin@{conf["viur.instance.project_id"]}.appspot.com"""
             pw = utils.generateRandomString(13)
             addSkel["name"] = uname
             addSkel["status"] = 10  # Ensure its enabled right away
