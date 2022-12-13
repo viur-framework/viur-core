@@ -48,7 +48,7 @@ __version = os.getenv("GAE_VERSION")
 # Determine our basePath (as os.getCWD is broken on appengine)
 __project_base_path = str(Path().absolute())
 
-__core_base_path = globals()["__file__"].replace("/viur/core/config.py", "")
+__core_base_path = __file__.replace("/viur/core/config.py", "")
 
 # Conf is a static, local dictionary.
 # Changes here apply locally to the current instance only.

@@ -277,9 +277,11 @@ def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
 
 # DEPRECATED ATTRIBUTES HANDLING
 __utils_conf_replacement = {
-        "projectID": "viur.instance.project_id",
-        "isLocalDevelopmentServer": "viur.instance.is_dev_server",
-    }
+    "projectID": "viur.instance.project_id",
+    "isLocalDevelopmentServer": "viur.instance.is_dev_server",
+    "projectBasePath": "viur.instance.project_base_path",
+    "coreBasePath": "viur.instance.core_base_path"
+}
 
 
 def __getattr__(attr):
