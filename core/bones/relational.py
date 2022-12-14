@@ -3,7 +3,7 @@ import warnings
 from enum import Enum
 from itertools import chain
 from time import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Set, Union
 
 from viur.core import db, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
@@ -158,7 +158,7 @@ class RelationalBone(BaseBone):
             warnings.warn(
                 f"parameter updateLevel = {updateLevel} in RelationalBone is deprecated.", DeprecationWarning
             )
-            assert 0 <= updateLevel < 2
+            assert 0 <= updateLevel < 3
             for n in RelationalUpdateLevel:
                 if updateLevel == n.value:
                     updateLevel = n
@@ -825,32 +825,26 @@ class RelationalBone(BaseBone):
                 for k in skel[boneName]:
                     updateInplace(k)
 
-    def getSearchTags(self, skeletonValues, key):
-        def getValues(res, skel, valuesCache):
-            for k, bone in skel.items():
-                if bone.searchable:
-                    for tag in bone.getSearchTags(valuesCache, k):
-                        if tag not in res:
-                            res.add(tag)
-            return res
+    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+        result = set()
 
-        _refSkelCache, _usingSkelCache = self._getSkels()
-        value = skeletonValues[key]
-        res = set()
-        if not value:
-            return res
-        if self.multiple:
-            for val in value:
-                if val["dest"]:
-                    res = getValues(res, _refSkelCache, val["dest"])
-                if val["rel"]:
-                    res = getValues(res, _usingSkelCache, val["rel"])
-        else:
+        def get_values(skel_, values_cache):
+            for key, bone in skel_.items():
+                if not bone.searchable:
+                    continue
+                for tag in bone.getSearchTags(values_cache, key):
+                    result.add(tag)
+
+        ref_skel_cache, using_skel_cache = self._getSkels()
+        for idx, lang, value in self.iter_bone_value(skel, name):
+            if value is None:
+                continue
             if value["dest"]:
-                res = getValues(res, _refSkelCache, value["dest"])
+                get_values(ref_skel_cache, value["dest"])
             if value["rel"]:
-                res = getValues(res, _usingSkelCache, value["rel"])
-        return res
+                get_values(using_skel_cache, value["rel"])
+
+        return result
 
     def createRelSkelFromKey(self, key: Union[str, db.Key], rel: Union[dict, None] = None):
         """
@@ -964,37 +958,17 @@ class RelationalBone(BaseBone):
                     skel[boneName] = tmpRes
         return True
 
-    def getReferencedBlobs(self, skel, name):
-        """
-            Returns the list of blob keys referenced from this bone
-        """
-
-        def blobsFromRefSet(refSet):
-            result = set()
-            if refSet is None:
-                return result
-            for key, _bone in refSet["dest"].items():
-                result = result.union(_bone.getReferencedBlobs(refSet["dest"], key))
-            if refSet["rel"]:
-                for key, _bone in refSet["rel"].items():
-                    result = result.union(_bone.getReferencedBlobs(refSet["rel"], key))
-            return result
-
+    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
         result = set()
-        if not skel[name]:
-            return result
-        if self.multiple and self.languages:
-            for langContainer in skel[name].values():
-                for refSet in langContainer:
-                    result = result.union(blobsFromRefSet(refSet))
-        elif self.multiple:
-            for refSet in skel[name]:
-                result = result.union(blobsFromRefSet(refSet))
-        elif self.languages:
-            for refSet in skel[name].values():
-                result = result.union(blobsFromRefSet(refSet))
-        else:
-            result = result.union(blobsFromRefSet(skel[name]))
+        for idx, lang, value in self.iter_bone_value(skel, name):
+            if value is None:
+                continue
+            logging.debug((idx, lang, value, name))
+            for key, bone_ in value["dest"].items():
+                result.update(bone_.getReferencedBlobs(value["dest"], key))
+            if value["rel"]:
+                for key, bone_ in value["rel"].items():
+                    result.update(bone_.getReferencedBlobs(value["rel"], key))
         return result
 
     def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:

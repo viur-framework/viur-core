@@ -1,19 +1,23 @@
-import traceback, os, unicodedata, typing
-from viur.core.config import conf
-from urllib import parse
-from string import Template
-from io import StringIO
-import webob
-from viur.core import errors
-from urllib.parse import urljoin, urlparse, unquote
-from viur.core.logging import requestLogger, client as loggingClient, requestLoggingRessource
-from viur.core import utils, db
-from viur.core.utils import currentSession, currentLanguage
-from viur.core.securityheaders import extendCsp
 import logging
-from time import time
+import os
+import traceback
+import typing
 from abc import ABC, abstractmethod
+from io import StringIO
+from string import Template
+from urllib import parse
+from urllib.parse import unquote, urljoin, urlparse
 
+import unicodedata
+import webob
+from time import time
+
+from viur.core import db, errors, utils
+from viur.core.config import conf
+from viur.core.logging import client as loggingClient, requestLogger, requestLoggingRessource
+from viur.core.securityheaders import extendCsp
+from viur.core.utils import currentLanguage, currentSession
+from viur.core.tasks import _appengineServiceIPs
 
 """
     This module implements the WSGI (Web Server Gateway Interface) layer for ViUR. This is the main entry
@@ -22,6 +26,7 @@ from abc import ABC, abstractmethod
     Additionally, this module defines the RequestValidator interface which provides a very early hook into the
     request processing (useful for global ratelimiting, DDoS prevention or access control).
 """
+
 
 class RequestValidator(ABC):
     """
@@ -62,7 +67,8 @@ class FetchMetaDataValidator(RequestValidator):
             return None
         if headers.get('sec-fetch-site') in {"same-origin", "none"}:  # A Request from our site
             return None
-        if os.environ['GAE_ENV'] == "localdev" and headers.get('sec-fetch-site') == "same-site":  # We are accepting a request with same-site only in local dev mode
+        if os.environ['GAE_ENV'] == "localdev" and headers.get('sec-fetch-site') == "same-site":
+            # We are accepting a request with same-site only in local dev mode
             return None
         if headers.get('sec-fetch-mode') == 'navigate' and not request.isPostRequest \
             and headers.get('sec-fetch-dest') not in {'object', 'embed'}:  # Incoming navigation GET request
@@ -101,7 +107,16 @@ class BrowseHandler():  # webapp.RequestHandler
         self.response = response
         self.maxLogLevel = logging.DEBUG
         self._traceID = request.headers.get('X-Cloud-Trace-Context', "").split("/")[0] or utils.generateRandomString()
+        self.is_deferred = False
         db.currentDbAccessLog.set(set())
+
+    @property
+    def isDevServer(self) -> bool:
+        import warnings
+        msg = "Use of `isDevServer` is deprecated; Use `conf[\"viur.instance.is_dev_server\"]` instead!"
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+        logging.warning(msg)
+        return conf["viur.instance.is_dev_server"]
 
     def selectLanguage(self, path: str) -> str:
         """
@@ -164,8 +179,12 @@ class BrowseHandler():  # webapp.RequestHandler
 
         # Configure some basic parameters for this request
         self.internalRequest = False
-        self.isDevServer = os.environ['GAE_ENV'] == "localdev"  # Were running on development Server
         self.isSSLConnection = self.request.host_url.lower().startswith("https://")  # We have an encrypted channel
+        if self.request.headers.get("X-AppEngine-TaskName", None) is not None:  # Check if we run in the appengine
+            if self.request.environ.get("HTTP_X_APPENGINE_USER_IP") in _appengineServiceIPs:
+                self.is_deferred = True
+            elif os.getenv("TASKS_EMULATOR") is not None:
+                self.is_deferred = True
         currentLanguage.set(conf["viur.defaultLanguage"])
         self.disableCache = False  # Shall this request bypass the caches?
         self.args = []
@@ -179,7 +198,7 @@ class BrowseHandler():  # webapp.RequestHandler
                 self.response.write(statusDescr)
                 return
         path = self.request.path
-        if self.isDevServer:
+        if conf["viur.instance.is_dev_server"]:
             # We'll have to emulate the task-queue locally as far as possible until supported by dev_appserver again
             self.pendingTasks = []
 
@@ -219,7 +238,7 @@ class BrowseHandler():  # webapp.RequestHandler
             self.response.headers["Cross-Origin-Resource-Policy"] = conf["viur.security.enableCORP"]
 
         # Ensure that TLS is used if required
-        if conf["viur.forceSSL"] and not self.isSSLConnection and not self.isDevServer:
+        if conf["viur.forceSSL"] and not self.isSSLConnection and not conf["viur.instance.is_dev_server"]:
             isWhitelisted = False
             reqPath = self.request.path
             for testUrl in conf["viur.noSSLCheckUrls"]:
@@ -241,12 +260,14 @@ class BrowseHandler():  # webapp.RequestHandler
         if path.startswith("/_ah/warmup"):
             self.response.write("okay")
             return
+
         try:
-            currentSession.get().load(self)  # self.request.cookies )
+            currentSession.get().load(self)
             path = self.selectLanguage(path)[1:]
             if conf["viur.requestPreprocessor"]:
                 path = conf["viur.requestPreprocessor"](path)
             self.findAndCall(path)
+
         except errors.Redirect as e:
             if conf["viur.debug.traceExceptions"]:
                 logging.warning("""conf["viur.debug.traceExceptions"] is set, won't handle this exception""")
@@ -256,6 +277,7 @@ class BrowseHandler():  # webapp.RequestHandler
             if url.startswith(('.', '/')):
                 url = str(urljoin(self.request.url, url))
             self.response.headers['Location'] = url
+
         except errors.HTTPException as e:
             if conf["viur.debug.traceExceptions"]:
                 logging.warning("""conf["viur.debug.traceExceptions"] is set, won't handle this exception""")
@@ -276,10 +298,15 @@ class BrowseHandler():  # webapp.RequestHandler
                     logging.exception(newE)
                     res = None
             if not res:
-                tpl = Template(open(os.path.join(utils.coreBasePath,conf["viur.errorTemplate"]), "r").read())
-                res = tpl.safe_substitute({"error_code": e.status, "error_name": e.name, "error_descr": e.descr})
-                extendCsp({"style-src":['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
+                tpl = Template(open(os.path.join(utils.coreBasePath, conf["viur.errorTemplate"]), "r").read())
+                res = tpl.safe_substitute({
+                    "error_code": e.status,
+                    "error_name": translate(e.name),
+                    "error_descr": e.descr,
+                })
+                extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
             self.response.write(res.encode("UTF-8"))
+
         except Exception as e:  # Something got really wrong
             logging.error("ViUR has caught an unhandled exception!")
             logging.exception(e)
@@ -294,9 +321,9 @@ class BrowseHandler():  # webapp.RequestHandler
                     logging.exception(newE)
                     res = None
             if not res:
-                tpl = Template(open(os.path.join(utils.coreBasePath,conf["viur.errorTemplate"]), "r").read())
+                tpl = Template(open(os.path.join(utils.coreBasePath, conf["viur.errorTemplate"]), "r").read())
                 descr = "The server encountered an unexpected error and is unable to process your request."
-                if self.isDevServer:  # Were running on development Server
+                if conf["viur.instance.is_dev_server"]:  # Were running on development Server
                     strIO = StringIO()
                     traceback.print_exc(file=strIO)
                     descr = strIO.getvalue()
@@ -304,11 +331,12 @@ class BrowseHandler():  # webapp.RequestHandler
                                                                                                            "<br />")
                 res = tpl.safe_substitute(
                     {"error_code": "500", "error_name": "Internal Server Error", "error_descr": descr})
-                extendCsp({"style-src":['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
+                extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
             self.response.write(res.encode("UTF-8"))
+
         finally:
             self.saveSession()
-            if self.isDevServer:
+            if conf["viur.instance.is_dev_server"]:
                 # Emit the outer log only on dev_appserver (we'll use the existing request log when live)
                 SEVERITY = "DEBUG"
                 if self.maxLogLevel >= 50:
@@ -344,7 +372,10 @@ class BrowseHandler():  # webapp.RequestHandler
                         "id": self._traceID
                     }
                 )
-        if self.isDevServer:
+
+        if conf["viur.instance.is_dev_server"]:
+            self.is_deferred = True
+
             while self.pendingTasks:
                 task = self.pendingTasks.pop()
                 logging.info("Running task directly after request: %s" % str(task))
@@ -426,11 +457,13 @@ class BrowseHandler():  # webapp.RequestHandler
             return str(f), f
         elif typeHint is bool:
             if not isinstance(inValue, str):
-                raise TypeError("Input argument to boolean typehint is not a string (probably a list)")
-            if inValue in [str(True), u"1", u"yes"]:
+                raise TypeError(f"Input argument to boolean typehint is not a str, but f{type(inValue)}")
+
+            if inValue.strip().lower() in conf["viur.bone.boolean.str2true"]:
                 return "True", True
-            else:
-                return "False", False
+
+            return "False", False
+
         elif typeOrigin is typing.Literal:
             inValueStr = str(inValue)
             for literal in typeHint.__args__:
@@ -525,10 +558,10 @@ class BrowseHandler():  # webapp.RequestHandler
                 raise (errors.MethodNotAllowed())
         # Check for forceSSL flag
         if not self.internalRequest \
-            and "forceSSL" in dir(caller) \
-            and caller.forceSSL \
-            and not self.request.host_url.lower().startswith("https://") \
-            and not self.isDevServer:
+                and "forceSSL" in dir(caller) \
+                and caller.forceSSL \
+                and not self.request.host_url.lower().startswith("https://") \
+                and not conf["viur.instance.is_dev_server"]:
             raise (errors.PreconditionFailed("You must use SSL to access this ressource!"))
         # Check for forcePost flag
         if "forcePost" in dir(caller) and caller.forcePost and not self.isPostRequest:
@@ -589,3 +622,6 @@ class BrowseHandler():  # webapp.RequestHandler
 
     def saveSession(self) -> None:
         currentSession.get().save(self)
+
+
+from .i18n import translate  # noqa: E402

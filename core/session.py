@@ -50,7 +50,7 @@ class Session:
     kindName = "viur-session"
     sameSite = "lax"  # Either None (don't issue sameSite header), "none", "lax" or "strict"
     sessionCookie = True  # If True, issue the cookie without a lifeTime (will disappear on browser close)
-    cookieName = f"viur_cookie_{utils.projectID}"
+    cookieName = f'viurCookie_{conf["viur.instance.project_id"]}'
 
     def __init__(self):
         super().__init__()
@@ -97,7 +97,8 @@ class Session:
         """
         try:
             if self.changed or self.isInitial:
-                if not (req.isSSLConnection or req.isDevServer):  # Won't issue sessions over http anymore
+                # We will not issue sessions over http anymore
+                if not (req.isSSLConnection or conf["viur.instance.is_dev_server"]):
                     return False
 
                 # Get the current user id
@@ -122,7 +123,7 @@ class Session:
                     raise  # FIXME???
 
                 sameSite = "; SameSite=%s" % self.sameSite if self.sameSite else ""
-                secure = "; Secure" if not req.isDevServer else ""
+                secure = "; Secure" if not conf["viur.instance.is_dev_server"] else ""
                 maxAge = "; Max-Age=%s" % conf["viur.session.lifeTime"] if not self.sessionCookie else ""
                 req.response.headerlist.append(("Set-Cookie", "%s=%s; Path=/; HttpOnly%s%s%s" % (
                     self.cookieName, self.cookieKey, sameSite, secure, maxAge)))
