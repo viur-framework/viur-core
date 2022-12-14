@@ -290,26 +290,28 @@ class UserPassword:
                 return self.userModule.render.edit(skel, self.passwordRecoveryStep2Template)  # Let's try again
 
             # If we made it here, the key was correct, so we'd hopefully have a valid user for this
-            user_skel = self.viewSkel().all().filter(
-                "name.idx =", session["user.auth_userpassword.pwrecover"]["name"]
-            ).getSkel()
+            skel = self.viewSkel().all().filter(
+                "name.idx =", session["user.auth_userpassword.pwrecover"]["name"]).getSkel()
 
-            if not user_skel:  # This *should* never happen - if we don't have a matching account we'll not send the key.
+            if skel:  # This *should* never happen - if we don't have a matching account we'll not send the key.
                 session["user.auth_userpassword.pwrecover"] = None
                 return self.userModule.render.view(
                     skel=None,
                     tpl=self.passwordRecoveryFailedTemplate,
                     reason=self.passwordRecoveryUserNotFound)
-            if uSkel["status"] != 10:  # The account is locked or not yet validated. Abort the process
+
+            if skel["status"] != 10:  # The account is locked or not yet validated. Abort the process.
                 session["user.auth_userpassword.pwrecover"] = None
                 return self.userModule.render.view(
                     skel=None,
                     tpl=self.passwordRecoveryFailedTemplate,
                     reason=self.passwordRecoveryAccountLocked)
+
             # Update the password, save the user, reset his session and show the success-template
-            uSkel["password"] = skel["password"]
-            uSkel.toDB()
+            skel["password"] = skel["password"]
+            skel.toDB()
             session["user.auth_userpassword.pwrecover"] = None
+
             return self.userModule.render.view(None, self.passwordRecoverySuccessTemplate)
 
     @tasks.CallDeferred
