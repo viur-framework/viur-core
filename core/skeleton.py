@@ -16,11 +16,6 @@ from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverit
 from viur.core.tasks import CallableTask, CallableTaskBase, QueryIter, CallDeferred
 from viur.core.bones.relational import RelationalUpdateLevel
 
-try:
-    import pytz
-except:
-    pytz = None
-
 __undefindedC__ = object()
 
 
@@ -610,16 +605,22 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     key = KeyBone(descr="key", readOnly=True, visible=False)
 
     # The date (including time) when this entry has been created
-    creationdate = DateBone(descr="created at",
-                            readOnly=True, visible=False,
-                            creationMagic=True, indexed=True,
-                            localize=bool(pytz))
+    creationdate = DateBone(
+        descr="created at",
+        readOnly=True,
+        visible=False,
+        creationMagic=True,
+        indexed=True,
+    )
 
     # The last date (including time) when this entry has been updated
-    changedate = DateBone(descr="updated at",
-                          readOnly=True, visible=False,
-                          updateMagic=True, indexed=True,
-                          localize=bool(pytz))
+    changedate = DateBone(
+        descr="updated at",
+        readOnly=True,
+        visible=False,
+        updateMagic=True,
+        indexed=True,
+    )
 
     viurCurrentSeoKeys = seoKeyBone(descr="Seo-Keys",
                                     readOnly=True,
