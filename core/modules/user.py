@@ -363,15 +363,20 @@ class UserPassword:
             :return: viur.core.skeleton.Skeleton
         """
         skel = self.userModule.addSkel()
+
         if self.registrationEmailVerificationRequired:
             defaultStatusValue = 1
         elif self.registrationAdminVerificationRequired:
             defaultStatusValue = 2
         else:  # No further verification required
             defaultStatusValue = 10
+
         skel.status.readOnly = True
         skel["status"] = defaultStatusValue
-        skel.password.required = True  # The user will have to set a password for his account
+
+        if "password" in skel:
+            skel.password.required = True  # The user will have to set a password
+
         return skel
 
     @forceSSL
@@ -674,17 +679,21 @@ class User(List):
             skel.status.visible = True
             skel.access.readOnly = False
             skel.access.visible = True
-        # Unlock and require a password
-        skel.password.required = True
-        skel.password.visible = True
-        skel.password.readOnly = False
-        skel.name.readOnly = False  # Dont enforce readonly name in user/add
+
+        if "password" in skel:
+            # Unlock and require a password
+            skel.password.required = True
+            skel.password.visible = True
+            skel.password.readOnly = False
+
+        skel.name.readOnly = False  # Don't enforce readonly name in user/add
         return skel
 
     def editSkel(self, *args, **kwargs):
         skel = super(User, self).editSkel().clone()
 
-        skel.password = PasswordBone(descr="Passwort", required=False)
+        if "password" in skel:
+            skel.password.required = False
 
         user = utils.getCurrentUser()
 
