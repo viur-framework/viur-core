@@ -1,16 +1,14 @@
-from typing import Any, Optional
-
+import hmac
 import logging
-from hmac import compare_digest
-from time import time
-
+import time
 from viur.core.request import BrowseHandler
-from viur.core.tasks import PeriodicTask, CallDeferred
-from viur.core import utils, db, conf
+from viur.core.config import conf  # this import has to stay alone due partial import
+from viur.core import db, utils, tasks
+from typing import Any, Optional
 
 """
     Provides the session implementation for the Google AppEngine™ based on the datastore.
-    To access the current session,  and call currentSession.get()
+    To access the current session, use `utils.currentSession.get()`.
 
     Example:
 
@@ -50,7 +48,7 @@ class Session:
     kindName = "viur-session"
     sameSite = "lax"  # Either None (don't issue sameSite header), "none", "lax" or "strict"
     sessionCookie = True  # If True, issue the cookie without a lifeTime (will disappear on browser close)
-    cookieName = f'viurCookie_{conf["viur.instance.project_id"]}'
+    cookieName = f'viur_cookie_{conf["viur.instance.project_id"]}'
 
     def __init__(self):
         super().__init__()
@@ -72,7 +70,7 @@ class Session:
         if self.cookieName in req.request.cookies:
             cookie = str(req.request.cookies[self.cookieName])
             if data := db.Get(db.Key(self.kindName, cookie)):  # Loaded successfully from Memcache
-                if data["lastseen"] < time() - conf["viur.session.lifeTime"]:
+                if data["lastseen"] < time.time() - conf["viur.session.lifeTime"]:
                     # This session is too old
                     self.reset()
                     return False
@@ -82,7 +80,7 @@ class Session:
                 self.securityKey = data["securityKey"]
                 self.cookieKey = cookie
 
-                if data["lastseen"] < time() - 5 * 60:  # Refresh every 5 Minutes
+                if data["lastseen"] < time.time() - 5 * 60:  # Refresh every 5 Minutes
                     self.changed = True
             else:
                 self.reset()
@@ -113,7 +111,7 @@ class Session:
                     dbSession["data"] = db.fixUnindexableProperties(self.session)
                     dbSession["staticSecurityKey"] = self.staticSecurityKey
                     dbSession["securityKey"] = self.securityKey
-                    dbSession["lastseen"] = time()
+                    dbSession["lastseen"] = time.time()
                     dbSession["user"] = str(userid) if userid else None  # to allow filtering for specific users
                     dbSession["guest"] = userid is None  # to allow filtering guest sessions
                     dbSession.exclude_from_indexes = ["data"]
@@ -214,7 +212,7 @@ class Session:
         """
         Checks if key matches the current CSRF-Token of our session. On success, a new key is generated.
         """
-        if compare_digest(self.securityKey, key):
+        if hmac.compare_digest(self.securityKey, key):
             # It looks good so far, check if we can acquire that skey inside a transaction
             def exchangeSecurityKey():
                 dbSession = db.Get(db.Key(self.kindName, self.cookieKey))
@@ -241,10 +239,10 @@ class Session:
         """
         Checks if key matches the current *static* CSRF-Token of our session.
         """
-        return compare_digest(self.staticSecurityKey, key)
+        return hmac.compare_digest(self.staticSecurityKey, key)
 
 
-@CallDeferred
+@tasks.CallDeferred
 def killSessionByUser(user: Optional[str] = None):
     """
         Invalidates all active sessions for the given *user*.
@@ -264,15 +262,15 @@ def killSessionByUser(user: Optional[str] = None):
         db.Delete(obj.key)
 
 
-@PeriodicTask(60 * 4)
+@tasks.PeriodicTask(60 * 4)
 def startClearSessions():
     """
         Removes old (expired) Sessions
     """
-    doClearSessions(time() - (conf["viur.session.lifeTime"] + 300))
+    doClearSessions(time.time() - (conf["viur.session.lifeTime"] + 300))
 
 
-@CallDeferred
+@tasks.CallDeferred
 def doClearSessions(timeStamp: str) -> None:
     query = db.Query(Session.kindName).filter("lastseen <", timeStamp)
     for oldKey in query.run(100):
