@@ -46,9 +46,9 @@ __project_id = google.auth.default()[1]
 __version = os.getenv("GAE_VERSION")
 
 # Determine our basePath (as os.getCWD is broken on appengine)
-__project_base_path = str(Path().absolute())
+__project_base_path = Path().absolute()
 
-__core_base_path = __file__.replace("/viur/core/config.py", "")
+__core_base_path = pathlib.Path(__file__).parent.parent.parent
 
 # Conf is a static, local dictionary.
 # Changes here apply locally to the current instance only.
