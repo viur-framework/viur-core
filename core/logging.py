@@ -59,35 +59,38 @@ class ViURLocalFormatter(logging.Formatter):
     BOLD_SEQ = "\033[1m"
 
     LEVELS = {
+        "DEBUG": CYAN,
+        "INFO": MAGENTA,
         "WARNING": YELLOW,
-        "INFO": CYAN,
-        "DEBUG": BLUE,
         "CRITICAL": RED,
         "ERROR": RED
     }
 
     def format(self, record: logging.LogRecord) -> str:
-        if "pathname" in record.__dict__.keys():
-            # truncate the pathname
-            if "/deploy" in record.pathname:
-                pathname = record.pathname.split("/deploy/")[1]
-            else:
-                pathname = record.pathname
-                if len(pathname) > 20:
-                    parts = pathname.split("/")
-                    del parts[1:-3]
-                    parts.insert(1, "...")
-                    pathname = "/".join(parts)
+        # truncate the pathname
+        if "/deploy" in record.pathname:
+            pathname = record.pathname.split("/deploy/")[1]
+        else:
+            # When we have a module in a very deep package path, like
+            # google.cloud.resourcemanager_v3.services.projects.client,
+            # we turn it into something like google/.../projects/client.
+            pathname = record.pathname
+            if len(pathname) > 20:
+                parts = pathname.split("/")
+                del parts[1:-3]
+                parts.insert(1, "...")
+                pathname = "/".join(parts)
 
-            record.pathname = pathname
+        record.pathname = pathname
 
-        levelname = record.levelname
+        msg = super().format(record)
 
-        if levelname in ViURLocalFormatter.LEVELS:
-            record.levelname = ViURLocalFormatter.COLOR_SEQ % (30 + ViURLocalFormatter.LEVELS[levelname]) \
-                               + levelname + ViURLocalFormatter.RESET_SEQ
+        # colorize entire message according to the levelname
+        if record.levelname in ViURLocalFormatter.LEVELS:
+            colorize = ViURLocalFormatter.COLOR_SEQ % (ViURLocalFormatter.LEVELS[record.levelname] + 30)
+            return colorize + msg + ViURLocalFormatter.RESET_SEQ
 
-        return super().format(record)
+        return msg
 
 
 # Logger config
@@ -119,22 +122,20 @@ for name, level in {
 for handler in logger.handlers[:]:
     logger.removeHandler(handler)
 
-# Plug-in ViURDefaultLogger & custom formatter when running in the cloud
 if not conf["viur.instance.is_dev_server"]:
+    # Plug-in ViURDefaultLogger
     handler = ViURDefaultLogger(client, name="ViUR-Messages", resource=Resource(type="gae_app", labels={}))
     logger.addHandler(handler)
 
+    # Custom formatter when running in the cloud
     formatter = logging.Formatter("%(levelname)-8s %(asctime)s %(filename)s:%(lineno)s] %(message)s")
 
-# Use ViURLocalFormatter for local debug message formatting
 else:
-    formatter = ViURLocalFormatter(
-        f"[%(asctime)s] %(pathname)s:%(lineno)d [%(levelname)s] %(message)s"
-    )
-
-sh = logging.StreamHandler()
-sh.setFormatter(formatter)
-logger.addHandler(sh)
+    # Use ViURLocalFormatter for local debug message formatting
+    formatter = ViURLocalFormatter(f"[%(asctime)s] %(pathname)s:%(lineno)d [%(levelname)s] %(message)s")
+    sh = logging.StreamHandler()
+    sh.setFormatter(formatter)
+    logger.addHandler(sh)
 
 # https://github.com/googleapis/python-logging/issues/13#issuecomment-539723753
 for logger_name in EXCLUDED_LOGGER_DEFAULTS:
