@@ -66,7 +66,7 @@ class ViURLocalFormatter(logging.Formatter):
         "ERROR": RED
     }
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         if "pathname" in record.__dict__.keys():
             # truncate the pathname
             if "/deploy" in record.pathname:
@@ -74,7 +74,10 @@ class ViURLocalFormatter(logging.Formatter):
             else:
                 pathname = record.pathname
                 if len(pathname) > 20:
-                    pathname = ".../" + "/".join(pathname.split("/")[-3:])
+                    parts = pathname.split("/")
+                    del parts[1:-3]
+                    parts.insert(1, "...")
+                    pathname = "/".join(parts)
 
             record.pathname = pathname
 
@@ -126,8 +129,7 @@ if not conf["viur.instance.is_dev_server"]:
 # Use ViURLocalFormatter for local debug message formatting
 else:
     formatter = ViURLocalFormatter(
-        f"[%(asctime)s] %(pathname)s:%(lineno)d [%(levelname)s] %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
+        f"[%(asctime)s] %(pathname)s:%(lineno)d [%(levelname)s] %(message)s"
     )
 
 sh = logging.StreamHandler()
