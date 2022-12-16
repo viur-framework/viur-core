@@ -48,7 +48,7 @@ __version = os.getenv("GAE_VERSION")
 # Determine our basePath (as os.getCWD is broken on appengine)
 __project_base_path = Path().absolute()
 
-__core_base_path = pathlib.Path(__file__).parent.parent.parent
+__core_base_path = Path(__file__).parent.parent.parent
 
 # Conf is a static, local dictionary.
 # Changes here apply locally to the current instance only.
