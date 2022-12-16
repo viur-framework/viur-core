@@ -1,27 +1,26 @@
-from viur.core.prototypes.list import List
-from viur.core.skeleton import Skeleton, RelSkel, skeletonByKind
-from viur.core.bones import *
-from viur.core import utils, email
-from viur.core.bones.base import ReadFromClientErrorSeverity, UniqueValue, UniqueLockMethod
-from viur.core.bones.password import pbkdf2
-from viur.core import errors, conf, securitykey
-from viur.core.tasks import StartupTask, CallDeferred
-from viur.core.securityheaders import extendCsp
-from viur.core.ratelimit import RateLimit
-from time import time
-from viur.core import exposed, forceSSL, db
-from hashlib import sha512
-# from google.appengine.api import users, app_identity
-import logging, os
 import datetime
-import hmac, hashlib
+import hashlib
+import hmac
 import json
-from google.oauth2 import id_token
-from google.auth.transport import requests
-from viur.core.i18n import translate
-from viur.core.utils import currentRequest, currentSession, utcNow
-from viur.core.session import killSessionByUser
+import logging
+from time import time
 from typing import Optional
+
+from google.auth.transport import requests
+from google.oauth2 import id_token
+
+from viur.core import conf, db, email, errors, exposed, forceSSL, securitykey, utils
+from viur.core.bones import *
+from viur.core.bones.base import UniqueLockMethod, UniqueValue
+from viur.core.bones.password import pbkdf2
+from viur.core.i18n import translate
+from viur.core.prototypes.list import List
+from viur.core.ratelimit import RateLimit
+from viur.core.securityheaders import extendCsp
+from viur.core.session import killSessionByUser
+from viur.core.skeleton import RelSkel, Skeleton, skeletonByKind
+from viur.core.tasks import CallDeferred, StartupTask
+from viur.core.utils import currentRequest, currentSession, utcNow
 
 
 class userSkel(Skeleton):
@@ -65,7 +64,7 @@ class userSkel(Skeleton):
         descr=u"Access rights",
         values=lambda: {
             right: translate("server.modules.user.accessright.%s" % right, defaultText=right)
-                for right in sorted(conf["viur.accessRights"])
+            for right in sorted(conf["viur.accessRights"])
         },
         indexed=True,
         multiple=True
@@ -438,12 +437,13 @@ class GoogleAccount(object):
                 # We have to allow popups here
                 currentRequest.get().response.headers["cross-origin-opener-policy"] = "same-origin-allow-popups"
             # Fixme: Render with Jinja2?
-            tplStr = open(
-                os.path.join(conf["viur.instance.core_base_path"], "viur/core/template/vi_user_google_login.html"),
-                "r").read()
+            with (conf["viur.instance.core_base_path"]
+                  .joinpath("viur/core/template/vi_user_google_login.html")
+                  .open() as tpl_file):
+                tplStr = tpl_file.read()
             tplStr = tplStr.replace("{{ clientID }}", conf["viur.user.google.clientID"])
-            extendCsp({"script-src":["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
-                       "style-src":["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]})
+            extendCsp({"script-src": ["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
+                       "style-src": ["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]})
             return tplStr
         if not securitykey.validate(skey, useSessionKey=True):
             raise errors.PreconditionFailed()

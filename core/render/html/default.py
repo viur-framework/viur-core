@@ -102,13 +102,13 @@ class Render(object):
                       template + ".html"]
         for fn in fnames:  # check subfolders
             prefix = template.split("_")[0]
-            if os.path.isfile(os.path.join(conf["viur.instance.core_base_path"], htmlpath, prefix, fn)):
+            if conf["viur.instance.project_base_path"].joinpath(htmlpath, prefix, fn).is_file():
                 return "%s/%s" % (prefix, fn)
         for fn in fnames:  # Check the templatefolder of the application
-            if os.path.isfile(os.path.join(conf["viur.instance.core_base_path"], htmlpath, fn)):
+            if conf["viur.instance.project_base_path"].joinpath(htmlpath, fn).is_file():
                 return fn
         for fn in fnames:  # Check the fallback
-            if os.path.isfile(os.path.join(conf["viur.instance.core_base_path"], "viur", "core", "template", fn)):
+            if conf["viur.instance.project_base_path"].joinpath("viur", "core", "template", fn).is_file():
                 return fn
         raise errors.NotFound("Template %s not found." % template)
 
