@@ -108,7 +108,7 @@ class Render(object):
             if conf["viur.instance.project_base_path"].joinpath(htmlpath, fn).is_file():
                 return fn
         for fn in fnames:  # Check the fallback
-            if conf["viur.instance.project_base_path"].joinpath("viur", "core", "template", fn).is_file():
+            if conf["viur.instance.core_base_path"].joinpath("template", fn).is_file():
                 return fn
         raise errors.NotFound("Template %s not found." % template)
 
