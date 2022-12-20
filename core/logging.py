@@ -110,7 +110,8 @@ requestLoggingRessource = Resource(
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
-# Inherit old logger levels
+# Calling getLogger(name) ensures that any placeholder loggers held by loggerDict are fully initialized
+# (https://stackoverflow.com/a/53250066)
 for name, level in {
             k: v.getEffectiveLevel()
             for k, v in logging.root.manager.loggerDict.items()
@@ -118,27 +119,25 @@ for name, level in {
         }.items():
     logging.getLogger(name).setLevel(level)
 
-# Remove handlers from logger
+# Remove any existing handler from logger
 for handler in logger.handlers[:]:
     logger.removeHandler(handler)
+
+# Disable internal logging
+# https://github.com/googleapis/python-logging/issues/13#issuecomment-539723753
+for logger_name in EXCLUDED_LOGGER_DEFAULTS:
+    excluded_logger = logging.getLogger(logger_name)
+    excluded_logger.propagate = False
+    excluded_logger.addHandler(logging.NullHandler())
 
 if not conf["viur.instance.is_dev_server"]:
     # Plug-in ViURDefaultLogger
     handler = ViURDefaultLogger(client, name="ViUR-Messages", resource=Resource(type="gae_app", labels={}))
     logger.addHandler(handler)
 
-    # Custom formatter when running in the cloud
-    formatter = logging.Formatter("%(levelname)-8s %(asctime)s %(filename)s:%(lineno)s] %(message)s")
-
 else:
     # Use ViURLocalFormatter for local debug message formatting
     formatter = ViURLocalFormatter(f"[%(asctime)s] %(pathname)s:%(lineno)d [%(levelname)s] %(message)s")
     sh = logging.StreamHandler()
     sh.setFormatter(formatter)
-    logger.addHandler(sh)
-
-# https://github.com/googleapis/python-logging/issues/13#issuecomment-539723753
-for logger_name in EXCLUDED_LOGGER_DEFAULTS:
-    logger = logging.getLogger(logger_name)
-    logger.propagate = False
     logger.addHandler(sh)
