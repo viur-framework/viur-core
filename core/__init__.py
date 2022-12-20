@@ -43,7 +43,7 @@ def load_indexes_from_file() -> Dict[str, List]:
     """
     indexes_dict = {}
     try:
-        with open(os.path.join(utils.coreBasePath, "index.yaml"), "r") as file:
+        with open(os.path.join(utils.projectBasePath, "index.yaml"), "r") as file:
             indexes = yaml.safe_load(file)
             indexes = indexes.get("indexes", [])
             for index in indexes:

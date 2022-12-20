@@ -243,7 +243,7 @@ class UserPassword:
             # This is the first step, where we ask for the username of the account we'll going to reset the password on
             skel = self.lostPasswordStep1Skel()
             if not request.isPostRequest or not skel.fromClient(kwargs):
-                return self.userModule.render.edit(skel, self.passwordRecoveryStep1Template)
+                return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
             if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
                 raise errors.PreconditionFailed()
             self.passwordRecoveryRateLimit.decrementQuota()
@@ -274,7 +274,7 @@ class UserPassword:
                     reason=self.passwordRecoveryKeyExpired)
             skel = self.lostPasswordStep2Skel()
             if not skel.fromClient(kwargs) or not request.isPostRequest:
-                return self.userModule.render.edit(skel, self.passwordRecoveryStep2Template)
+                return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep2Template)
             if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
                 raise errors.PreconditionFailed()
             self.passwordRecoveryRateLimit.decrementQuota()
@@ -287,7 +287,8 @@ class UserPassword:
                         skel=None,
                         tpl=self.passwordRecoveryFailedTemplate,
                         reason=self.passwordRecoveryKeyInvalid)
-                return self.userModule.render.edit(skel, self.passwordRecoveryStep2Template)  # Let's try again
+
+                return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep2Template)  # Let's try again
 
             # If we made it here, the key was correct, so we'd hopefully have a valid user for this
             skel = self.viewSkel().all().filter(
@@ -312,7 +313,7 @@ class UserPassword:
             skel.toDB()
             session["user.auth_userpassword.pwrecover"] = None
 
-            return self.userModule.render.view(None, self.passwordRecoverySuccessTemplate)
+            return self.userModule.render.view(None, tpl=self.passwordRecoverySuccessTemplate)
 
     @tasks.CallDeferred
     def sendUserPasswordRecoveryCode(self, userName: str, recoveryKey: str) -> None:
@@ -344,13 +345,13 @@ class UserPassword:
         skel = self.userModule.editSkel()
         if not data or not isinstance(data, dict) or "userKey" not in data or not skel.fromDB(
             data["userKey"].id_or_name):
-            return self.userModule.render.view(None, self.verifyFailedTemplate)
+            return self.userModule.render.view(None, tpl=self.verifyFailedTemplate)
         if self.registrationAdminVerificationRequired:
             skel["status"] = 2
         else:
             skel["status"] = 10
         skel.toDB()
-        return self.userModule.render.view(skel, self.verifySuccessTemplate)
+        return self.userModule.render.view(skel, tpl=self.verifySuccessTemplate)
 
     def canAdd(self) -> bool:
         return self.registrationEnabled
