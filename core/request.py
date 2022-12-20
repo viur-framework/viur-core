@@ -298,8 +298,10 @@ class BrowseHandler():  # webapp.RequestHandler
                     logging.exception(newE)
                     res = None
             if not res:
-                tpl = Template(
-                    open(os.path.join(conf["viur.instance.core_base_path"], conf["viur.errorTemplate"]), "r").read())
+                with (conf["viur.instance.core_base_path"]
+                      .joinpath(conf["viur.errorTemplate"])
+                      .open() as tpl_file):
+                    tpl = Template(tpl_file.read())
                 res = tpl.safe_substitute({
                     "error_code": e.status,
                     "error_name": translate(e.name),
@@ -322,8 +324,10 @@ class BrowseHandler():  # webapp.RequestHandler
                     logging.exception(newE)
                     res = None
             if not res:
-                tpl = Template(
-                    open(os.path.join(conf["viur.instance.core_base_path"], conf["viur.errorTemplate"]), "r").read())
+                with (conf["viur.instance.core_base_path"]
+                      .joinpath(conf["viur.errorTemplate"])
+                      .open() as tpl_file):
+                    tpl = Template(tpl_file.read())
                 descr = "The server encountered an unexpected error and is unable to process your request."
                 if conf["viur.instance.is_dev_server"]:  # Were running on development Server
                     strIO = StringIO()
