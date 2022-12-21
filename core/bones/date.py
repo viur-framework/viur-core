@@ -40,8 +40,8 @@ class DateBone(BaseBone):
         if localize and not (date and time):
             raise ValueError("Localization is only possible with date and time!")
         # Default localize all DateBones, if not explicitly defined
-        elif localize is None and date and time:
-            localize = True
+        elif localize is None:
+            localize = date and time
 
         # Magic is only possible in non-multiple bones and why ever only on readonly bones...
         if creationMagic or updateMagic:
