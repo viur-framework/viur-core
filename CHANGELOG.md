@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
+## [3.3.1]
+
+- Fixed user module renderer calls from password recovery (#597)
+- Fixed path of index.yaml in packaged version (#590)
+
 ## [3.3.0]
 
 - Fixed `import logging` must stay behind other imports in `__init__.py` (#573)
