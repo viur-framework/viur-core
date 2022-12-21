@@ -18,7 +18,7 @@ from typing import Optional
 
 
 class UserSkel(skeleton.Skeleton):
-
+    kindName = "user"
     # Properties required by google and custom auth
     name = EmailBone(
         descr="E-Mail",
