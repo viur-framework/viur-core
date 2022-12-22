@@ -187,6 +187,13 @@ conf = Conf({
     # Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks
     "viur.maxPostParamsCount": 250,
 
+    # Describing the internal ModuleConfig-module
+    "viur.moduleconf.admin_info": {
+        "name": "Module Configuration",
+        "icon": "icon-settings",
+        "display": "hidden",
+    },
+
     # List of URLs for which viur.forceSSL is ignored.
     # Add an asterisk to mark that entry as a prefix (exact match otherwise)
     "viur.noSSLCheckUrls": ["/_tasks*", "/ah/*"],
