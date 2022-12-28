@@ -537,8 +537,8 @@ def callDeferred(func):
     import logging, warnings
 
     msg = f"Use of @callDeferred is deprecated, use @CallDeferred instead."
-    logging.warning(msg)
-    warnings.warn(msg)
+    logging.warning(msg, stacklevel=3)
+    warnings.warn(msg, stacklevel=3)
 
     return CallDeferred(func)
 
