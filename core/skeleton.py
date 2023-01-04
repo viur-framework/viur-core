@@ -1,70 +1,90 @@
 from __future__ import annotations
-
 import copy
 import inspect
 import logging
 import os
 import sys
+import string
 from functools import partial
 from itertools import chain
 from time import time
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
-
 from viur.core import conf, db, email, errors, utils
-from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, SelectBone, StringBone
+from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, RelationalUpdateLevel, SelectBone, StringBone
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 from viur.core.tasks import CallableTask, CallableTaskBase, QueryIter, CallDeferred
-from viur.core.bones.relational import RelationalUpdateLevel
 
 __undefindedC__ = object()
 
 
 class MetaBaseSkel(type):
     """
-        This is the meta class for Skeletons.
+        This is the metaclass for Skeletons.
         It is used to enforce several restrictions on bone names, etc.
     """
     _skelCache = {}  # Mapping kindName -> SkelCls
     _allSkelClasses = set()  # list of all known skeleton classes (including Ref and Mail-Skels)
 
+    # List of reserved keywords and function names
     __reserved_keywords = {
+        "all",
         "bounce",
+        "clone",
         "cursor",
+        "delete",
+        "fromClient",
+        "fromDB",
+        "get",
+        "getCurrentSEOKeys",
         "items",
         "keys",
         "limit",
         "orderby",
         "orderdir",
+        "postDeletedHandler",
+        "postSavedHandler",
+        "preProcessBlobLocks",
+        "preProcessSerializedData",
+        "refresh",
         "self",
+        "serialize",
+        "setBoneValue",
         "style",
+        "toDB",
+        "unserialize",
         "values",
     }
+
+    __allowed_chars = string.ascii_letters + string.digits + "_"
 
     def __init__(cls, name, bases, dct):
         boneMap = {}
 
-        def fillBoneMapRecursive(inCls):
-            for baseCls in inCls.__bases__:
-                if "__viurBaseSkeletonMarker__" in dir(baseCls):
-                    fillBoneMapRecursive(baseCls)
-            for key in inCls.__dict__:
-                prop = getattr(inCls, key)
+        def fill_bonemap_recursive(cls):
+            for base_cls in cls.__bases__:
+                if "__viurBaseSkeletonMarker__" in dir(base_cls):
+                    fill_bonemap_recursive(base_cls)
+
+            for key in cls.__dict__:
+                prop = getattr(cls, key)
+
                 if isinstance(prop, BaseBone):
-                    if "." in key:
-                        raise AttributeError(f"Invalid bone {key!r}: Bone keys may not contain a dot (.)")
-                    if key in MetaBaseSkel.__reserved_keywords:
-                        raise AttributeError(
-                            f"Invalid bone {key!r}: Bone cannot have any of the following names: "
-                            f"{MetaBaseSkel.__reserved_keywords!r}"
-                        )
+                    if not all([c in MetaBaseSkel.__allowed_chars for c in key]):
+                        raise AttributeError(f"Invalid bone name: {key!r} contains invalid characters")
+                    elif key in MetaBaseSkel.__reserved_keywords:
+                        raise AttributeError(f"Invalid bone name: {key!r} is reserved and cannot be used")
+
                     boneMap[key] = prop
+
                 elif prop is None and key in boneMap:  # Allow removing a bone in a subclass by setting it to None
                     del boneMap[key]
 
-        fillBoneMapRecursive(cls)
+        fill_bonemap_recursive(cls)
         cls.__boneMap__ = boneMap
+
         if not getSystemInitialized():
             MetaBaseSkel._allSkelClasses.add(cls)
+
         super(MetaBaseSkel, cls).__init__(name, bases, dct)
 
 
