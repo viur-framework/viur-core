@@ -72,7 +72,7 @@ class ViURLocalFormatter(logging.Formatter):
     For details on console coloring, see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors.
     """
     COLORS = {
-        name: idx for idx, name in enumerate(["BLACK", "RED", "GREEN", "YELLOW", "BLUE", "MAGENTA", "CYAN", "WHITE"])
+        name: idx for idx, name in enumerate(("BLACK", "RED", "GREEN", "YELLOW", "BLUE", "MAGENTA", "CYAN", "WHITE"))
     }
 
     DEFAULTS = {
