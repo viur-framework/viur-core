@@ -52,13 +52,24 @@ class UserSkel(skeleton.Skeleton):
     )
 
     # Generic properties
+
+    role = SelectBone(
+        descr="user.bone.role",
+        values=conf["viur.user.roles"],
+        required=True,
+        defaultValue=list(conf["viur.user.roles"].keys())[0],
+    )
+
     access = SelectBone(
-        descr="Access rights",
+        descr="user.bone.access",
         values=lambda: {
             right: i18n.translate("server.modules.user.accessright.%s" % right, defaultText=right)
                 for right in sorted(conf["viur.accessRights"])
         },
         multiple=True,
+        params={
+            "readonlyIf": "role and role != 'user'"  # if role is not "user", access is being managed by the role system
+        }
     )
 
     status = SelectBone(
@@ -95,6 +106,36 @@ class UserSkel(skeleton.Skeleton):
         readOnly=True,
         defaultValue=0,
     )
+
+    @classmethod
+    def toDB(cls, skel, *args, **kwargs):
+        # Roles
+        if skel["role"] and skel["role"] != "user":
+            access = conf["viur.mainApp"].vi.user.get_role_defaults(skel["role"])
+
+            for name in dir(conf["viur.mainApp"].vi):
+                if name.startswith("_"):
+                    continue
+
+                module = getattr(conf["viur.mainApp"].vi, name)
+                roles = getattr(module, "roles", {})
+                role = roles.get(skel["role"], roles.get("*", ()))
+
+                # Convert role into tuple if it's not
+                if not isinstance(role, (tuple, list)):
+                    role = (role, )
+
+                if "*" in role:
+                    for right in module.accessRights:
+                        access.add(f"{name}-{right}")
+                else:
+                    for right in role:
+                        if right in module.accessRights:
+                            access.add(f"{name}-{right}")
+
+            skel["access"] = list(access)
+
+        return super().toDB(skel, *args, **kwargs)
 
 
 class UserPassword:
@@ -663,6 +704,9 @@ class User(List):
             # Also put it as an object into self, so that any exposed function is reachable
             setattr(self, "f2_%s" % pInstance.__class__.__name__.lower(), pInstance)
             self._viurMapSubmodules.append("f2_%s" % pInstance.__class__.__name__.lower())
+
+    def get_role_defaults(self, role: str) -> set[str]:
+        return {"admin"}  # every role has admin access
 
     def addSkel(self):
         skel = super(User, self).addSkel().clone()

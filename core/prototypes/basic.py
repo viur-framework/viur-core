@@ -1,6 +1,6 @@
 from viur.core import conf
 from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
-from typing import Dict, List, Any, Type, Union, Callable
+from typing import Dict, List, Any, Type, Tuple, Union, Callable
 
 
 class BasicApplication(object):
@@ -105,6 +105,27 @@ class BasicApplication(object):
         These will be prefixed on instance startup with the actual module name (becomming file-add, file-edit etc)
         and registered in ``viur.core.config.conf["viur.accessRights"]`` so these will be available on the
         access bone in user/add or user/edit.
+    """
+
+    roles: Dict[str: Union[Tuple, str]] = {
+        "viewer": "view",
+        "editor": ("view", "edit"),
+        "admin": "*",
+    }
+    """
+        If set, a list of roles and the access rights for each role in this module can be configured.
+
+        The roles are defined on the role-bone in the user module.
+        The placeholder "*" can be used for either any role or any right, depending where it's specified.
+
+        Example configuration:
+        ```
+        roles = {
+            "*": "view",  # any role can view
+            "editor": ("view", "add", "edit",)  # editors can view, add, edit but not delete
+            "admin": "*"  # admins have all rights provided by this module
+        }
+        ```
     """
 
     def __init__(self, moduleName, modulePath, *args, **kwargs):

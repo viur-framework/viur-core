@@ -67,6 +67,9 @@ de = {
     "account disabled": "deaktiviert",
     "active": "aktiv",
 
+    "user.bone.role": "Rolle",
+    "user.bone.access": "Zugriffsrechte",
+
     # Titles
     "mr.": "Herr",
     "mrs.": "Frau",
