@@ -1,3 +1,4 @@
+import os
 import logging
 import google.cloud.logging
 from google.cloud.logging import Resource
@@ -51,20 +52,46 @@ class ViURDefaultLogger(CloudLoggingHandler):
 class ViURLocalFormatter(logging.Formatter):
     """
     This is a formatter that injects console color sequences for debug output.
+
+    The formatting can be modified using environment variables as follows:
+
+    - VIUR_LOGGING_COLORIZATION can be either FULL (colorize full line) or DECENT (colorize debug level only)
+    - VIUR_LOGGING_COLOR_DEBUG set debug level color
+    - VIUR_LOGGING_COLOR_INFO set info level color
+    - VIUR_LOGGING_COLOR_WARNING set warning level color
+    - VIUR_LOGGING_COLOR_ERROR set error level color
+    - VIUR_LOGGING_COLOR_CRITICAL set critical error level color
+
+    The colors can be "black", "red", "green", "yellow", "blue", "magenta", "cyan" and "white".
+
+    Example configuration using viur-cli
+    ```sh
+    VIUR_LOGGING_COLOR_WARNING=red VIUR_LOGGING_COLORIZATION=decent pipenv run viur run develop
+    ```
+
+    For details on console coloring, see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors.
     """
-
-    BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
-    RESET_SEQ = "\033[0m"
-    COLOR_SEQ = "\033[1;%dm"
-    BOLD_SEQ = "\033[1m"
-
-    LEVELS = {
-        "DEBUG": CYAN,
-        "INFO": MAGENTA,
-        "WARNING": YELLOW,
-        "CRITICAL": RED,
-        "ERROR": RED
+    COLORS = {
+        name: idx for idx, name in enumerate(["BLACK", "RED", "GREEN", "YELLOW", "BLUE", "MAGENTA", "CYAN", "WHITE"])
     }
+
+    DEFAULTS = {
+        "DEBUG": "CYAN",
+        "INFO": "MAGENTA",
+        "WARNING": "YELLOW",
+        "ERROR": "RED",
+        "CRITICAL": "RED",
+    }
+
+    @staticmethod
+    def colorize(level: str, text: str) -> str:
+        """
+        Retrieving colors for given debug level, either from environment or by default.
+        """
+        level = level.upper()
+        color = os.getenv(f"VIUR_LOGGING_COLOR_{level}") or ViURLocalFormatter.DEFAULTS.get(level)
+        color = ViURLocalFormatter.COLORS.get(color.upper(), 1)
+        return f"\033[1;{color + 30}m{text}\033[0m"
 
     def format(self, record: logging.LogRecord) -> str:
         # truncate the pathname
@@ -83,14 +110,17 @@ class ViURLocalFormatter(logging.Formatter):
 
         record.pathname = pathname
 
-        msg = super().format(record)
+        # Select colorization mode
+        match (os.getenv(f"VIUR_LOGGING_COLORIZATION") or "FULL").upper():
+            case "DECENT":
+                # In "decent" mode, just colorize the record level name
+                record.levelname = ViURLocalFormatter.colorize(record.levelname, record.levelname)
 
-        # colorize entire message according to the levelname
-        if record.levelname in ViURLocalFormatter.LEVELS:
-            colorize = ViURLocalFormatter.COLOR_SEQ % (ViURLocalFormatter.LEVELS[record.levelname] + 30)
-            return colorize + msg + ViURLocalFormatter.RESET_SEQ
+            case _:
+                # Otherwise, colorize the entire debug output
+                return ViURLocalFormatter.colorize(record.levelname, super().format(record))
 
-        return msg
+        return super().format(record)
 
 
 # Logger config
