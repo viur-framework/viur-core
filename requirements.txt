@@ -1,4 +1,4 @@
-viur-datastore==1.3.5 --hash=sha256:55a2ff9bfe08a1f940be321531fd860108f7653ddfdb32453096d4d86ddc5d38
+viur-datastore==1.3.6 --hash=sha256:a5156903b6f52d4d402f686d35dd7715018e85c0773c03d1eedf4446ec4ad9d2
 
 google-auth==2.6.3 --hash=sha256:d65bb0e3701eaaa64fd2aa85e1325580524b0bddc6dc5db3ab89c481b6a20141
 
@@ -8,7 +8,6 @@ six==1.16.0 --hash=sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f
 pyasn1-modules==0.2.8 --hash=sha256:a50b808ffeb97cb3601dd25981f6b016cbb3d31fbf57a8b8a87428e6158d0c74
 rsa==4.8 --hash=sha256:5c6bd9dc7a543b7fe4304a631f8a8a3b674e2bbfc49c2ae96200cdbe55df6b17
 pyasn1==0.4.8 --hash=sha256:39c7e2ec30515947ff4e87fb6f456dfc6e84857d34be479c9d4a4ba4bf46aa5d
-
 google-cloud-datastore==2.5.1 --hash=sha256:d5fa56a2fb20eb4bb2006a6cf502974dda95e16a9938ec9e0c5c57f187e000c7
 
 # Dependencies for google-cloud-datastore
@@ -58,7 +57,7 @@ pyparsing==3.0.8 --hash=sha256:7bf433498c016c4314268d95df76c81b842a4cb2b276fa331
 idna==3.3 --hash=sha256:84d9dd047ffa80596e0f246e2eab0b391788b0503584e8945f2368256d2735ff \
   --hash=sha256:9d643ff0a55b762d5cdb124b8eaa99c66322e2157b69160bc32796e824360e6d
 
-certifi==2021.10.8 --hash=sha256:d62a0163eb4c2344ac042ab2bdf75399a71a2d8c7d47eac2e2ee91b9d6339569
+certifi==2022.12.7 --hash=sha256:35824b4c3a97115964b408844d64aa14db1cc518f6562e8d7261699d1350a9e3 --hash=sha256:4ad3232f5e926d6718ec31cfc1fcadfde020920e278684144551c91769c7bc18
 urllib3==1.26.9 --hash=sha256:aabaf16477806a5e1dd19aa41f8c2b7950dd3c746362d7e3223dbe6de6ac448e
 grpcio-status==1.44.0 --hash=sha256:ac613ab7a45380cbfa3e529022d0b37317d858f172ba6e65c188aa7355539398
 pytz-deprecation-shim==0.1.0.post0 --hash=sha256:8314c9692a636c8eb3bda879b9f119e350e93223ae83e70e80c31675a0fdc1a6
@@ -211,4 +210,4 @@ google-cloud-audit-log==0.2.0 --hash=sha256:ecc7f5f2168ad4014331d6397fcea3750b2d
 google-cloud-appengine-logging==1.1.1 --hash=sha256:361450ed7d7bfd8efd0ef253e21680aeb6f6df3cf057e5e8253f5851f8cbbca7
 
 # Custom requirements to build ViUR on GCP
-setuptools==62.0.0 --hash=sha256:7999cbd87f1b6e1f33bf47efa368b224bed5e27b5ef2c4d46580186cbcb1a86a
+setuptools==65.5.1 --hash=sha256:d0b9a8433464d5800cbe05094acf5c6d52a91bfac9b52bcfc4d41382be5d5d31 --hash=sha256:e197a19aa8ec9722928f2206f8de752def0e4c9fc6953527360d1c36d94ddb2f

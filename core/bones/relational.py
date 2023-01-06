@@ -153,15 +153,16 @@ class RelationalBone(BaseBone):
 
         self.using = using
         if isinstance(updateLevel, int):
-            logging.warning(f"parameter updateLevel = {updateLevel} in RelationalBone is deprecated."
-                            f"Please use the RelationalUpdateLevel enum instead")
-            warnings.warn(
-                f"parameter updateLevel = {updateLevel} in RelationalBone is deprecated.", DeprecationWarning
-            )
+            msg = f"parameter updateLevel={updateLevel} in RelationalBone is deprecated. " \
+                  f"Please use the RelationalUpdateLevel enum instead"
+            logging.warning(msg, stacklevel=3)
+            warnings.warn(msg, DeprecationWarning, stacklevel=3)
+
             assert 0 <= updateLevel < 3
             for n in RelationalUpdateLevel:
                 if updateLevel == n.value:
                     updateLevel = n
+
         self.updateLevel = updateLevel
         self.consistency = consistency
 
