@@ -2,6 +2,14 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
+## [3.3.2]
+
+- Bump requirement certifi==2021.10.8 (#588)
+- Bump setuptools from 62.0.0 to 65.5.1 (#602)
+- Bump viur-datastore from 1.3.5 to 1.3.6 (#603)
+- Fix stacklevel parameter for more precise deprecation messages (#596)
+- Export RelationalUpdateLevel with viur.core.bones (#599)
+
 ## [3.3.1]
 
 - Fixed user module renderer calls from password recovery (#597)
