@@ -61,37 +61,37 @@ def jsonDecodeObjectHook(obj):
     return obj
 
 
-_gaeApp = os.environ.get("GAE_APPLICATION")
+_gae_app = os.environ.get("GAE_APPLICATION")
 
-queueRegion = None
-if _gaeApp:
+queue_region = None
+if _gae_app:
 
     try:
         headers = {"Metadata-Flavor": "Google"}
         r = requests.get("http://metadata.google.internal/computeMetadata/v1/instance/region", headers=headers)
         # r.text should be look like this "projects/(project-number)/region/(region)"
         # like so "projects/1234567890/region/europe-west3"
-        queueRegion = r.text.split("/")[-1]
+        queue_region = r.text.split("/")[-1]
     except Exception as e:  # Something went wrong with the Google Metadata Sever we use the old way
-        logging.warning(f"Can't obtain queueRegion from Google MetaData Server due exception {e=}")
-        regionPrefix = _gaeApp.split("~")[0]
-        regionMap = {
+        logging.warning(f"Can't obtain queue_region from Google MetaData Server due exception {e=}")
+        region_prefix = _gae_app.split("~")[0]
+        region_map = {
             "h": "europe-west3",
             "e": "europe-west1"
         }
-        queueRegion = regionMap.get(regionPrefix)
+        queue_region = region_map.get(region_prefix)
 
-if not queueRegion and conf["viur.instance.is_dev_server"] and os.getenv("TASKS_EMULATOR") is None:
+if not queue_region and conf["viur.instance.is_dev_server"] and os.getenv("TASKS_EMULATOR") is None:
     # Probably local development server
     logging.warning("Taskqueue disabled, tasks will run inline!")
 
 if not conf["viur.instance.is_dev_server"] or os.getenv("TASKS_EMULATOR") is None:
-    taskClient = tasks_v2.CloudTasksClient()
+    task_client = tasks_v2.CloudTasksClient()
 else:
-    taskClient = tasks_v2.CloudTasksClient(
+    task_client = tasks_v2.CloudTasksClient(
         transport=CloudTasksGrpcTransport(channel=grpc.insecure_channel(os.getenv("TASKS_EMULATOR")))
     )
-    queueRegion = "local"
+    queue_region = "local"
 
 _periodicTasks: Dict[str, Dict[Callable, int]] = {}
 _callableTasks = {}
@@ -422,7 +422,7 @@ def CallDeferred(func):
         except:  # This will fail for warmup requests
             req = None
 
-        if not queueRegion:
+        if not queue_region:
             # Run tasks inline
             logging.debug(f"{func=} will be executed inline")
             @wraps(func)
@@ -514,9 +514,9 @@ def CallDeferred(func):
                 task["schedule_time"] = timestamp
 
             # Use the client to build and send the task.
-            parent = taskClient.queue_path(conf["viur.instance.project_id"], queueRegion, queue)
+            parent = task_client.queue_path(conf["viur.instance.project_id"], queue_region, queue)
             logging.debug(f"{parent=}, {task=}")
-            taskClient.create_task(parent=parent, task=task)
+            task_client.create_task(parent=parent, task=task)
 
             logging.info(f"Created task {func.__name__}.{func.__module__} with {args=} {kwargs=} {env=}")
 
@@ -657,15 +657,15 @@ class QueryIter(object, metaclass=MetaQueryIter):
             Internal use only. Pushes a new step defined in qryDict to either the taskqueue or append it to
             the current request    if we are on the local development server.
         """
-        if not queueRegion:  # Run tasks inline - hopefully development server
+        if not queue_region:  # Run tasks inline - hopefully development server
             req = currentRequest.get()
             task = lambda *args, **kwargs: cls._qryStep(qryDict)
             if req:
                 req.pendingTasks.append(task)  # < This property will be only exist on development server!
                 return
         project = conf["viur.instance.project_id"]
-        location = queueRegion
-        parent = taskClient.queue_path(project, location, cls.queueName)
+        location = queue_region
+        parent = task_client.queue_path(project, location, cls.queueName)
         task = {
             'app_engine_http_request': {  # Specify the type of request.
                 'http_method': 'POST',
@@ -673,7 +673,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
             }
         }
         task['app_engine_http_request']['body'] = json.dumps(preprocessJsonObject(qryDict)).encode("UTF-8")
-        taskClient.create_task(parent=parent, task=task)
+        task_client.create_task(parent=parent, task=task)
 
     @classmethod
     def _qryStep(cls, qryDict: Dict[str, Any]) -> None:
