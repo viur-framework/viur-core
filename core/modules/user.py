@@ -58,7 +58,7 @@ class UserSkel(skeleton.Skeleton):
         values=lambda: {
 
             right: i18n.translate("server.modules.user.accessright.%s" % right, defaultText=right)
-                for right in sorted(conf["viur.accessRights"])
+            for right in sorted(conf["viur.accessRights"])
         },
         multiple=True,
     )
@@ -273,7 +273,7 @@ class UserPassword:
                 return self.pwrecover()
             # We're in the second step - the code has been send and is waiting for confirmation from the user
             if utils.utcNow() - session["user.auth_userpassword.pwrecover"]["creationdate"] \
-                    > datetime.timedelta(minutes=15):
+                > datetime.timedelta(minutes=15):
                 # This recovery-process is expired; reset the session and start over
                 session["user.auth_userpassword.pwrecover"] = None
                 return self.userModule.render.view(
@@ -660,7 +660,7 @@ class AuthenticatorOTP:
     def generate_otp_secret(cls):
         """
             Generate a new OTP Token if there is no one and write it in the user entry.
-            :return a otp uri like otpauth://totp/Example:alice@google.com?secret=ABCDEFGH1234&issuer=Example
+            :return an otp uri like otpauth://totp/Example:alice@google.com?secret=ABCDEFGH1234&issuer=Example
         """
         cuser = utils.getCurrentUser()
         if not cuser:
@@ -675,12 +675,17 @@ class AuthenticatorOTP:
             otp_secret = pyotp.random_base32()
 
         time_otp = pyotp.TOTP(otp_secret)
-        uri = time_otp.provisioning_uri(name=cuser["name"], issuer_name=conf["viur.instance.project_id"])
-        # TODO find better name for issuer_name
+        issuer = conf["viur.otp.issuer"]
+        if issuer is None:
+            logging.warning(
+                f"""conf["viur.otp.issuer"] is None we replace the issuer by conf["viur.instance.project_id"]""")
+            issuer = conf["viur.instance.project_id"]
+
+        uri = time_otp.provisioning_uri(name=cuser["name"], issuer_name=issuer)
 
         user["otp_secret"] = otp_secret
         db.Put(user)
-        currentSession.get().markChanged()
+        utils.currentSession.get().markChanged()
         return uri
 
     def startProcessing(self, userKey):
@@ -692,7 +697,7 @@ class AuthenticatorOTP:
         """
             We verify the otp here with the secret we stored before.
         """
-        user_key = db.Key("user", currentSession.get()["_mayBeUserKey"])
+        user_key = db.Key("user", utils.currentSession.get()["_mayBeUserKey"])
         if otp is None:  # We must render the input
             raise errors.PreconditionFailed()
         if not securitykey.validate(skey, useSessionKey=True):

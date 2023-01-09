@@ -211,5 +211,8 @@ google-cloud-appengine-logging==1.1.1 --hash=sha256:361450ed7d7bfd8efd0ef253e216
 
 # Custom requirements to build ViUR on GCP
 setuptools==65.5.1 --hash=sha256:d0b9a8433464d5800cbe05094acf5c6d52a91bfac9b52bcfc4d41382be5d5d31 --hash=sha256:e197a19aa8ec9722928f2206f8de752def0e4c9fc6953527360d1c36d94ddb2f
+
 pyotp==2.7.0 --hash=sha256:2e746de4f15685878df6d022c5691627af9941eec18e0d513f05497f5fa7711f \
 	--hash=sha256:ce989faba0df77dc032b45e51c6cca42bcf20896c8d3d1e7cd759a53dc7d6cb5
+
+qrcode==7.3.1 --hash=sha256:375a6ff240ca9bd41adc070428b5dfc1dcfbb0f2507f1ac848f6cded38956578
