@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="d_6a1caf0f28899424_securitykey_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io">coverage.py v7.0.4</a>,
-            created at 2023-01-10 17:34 +0000
+            created at 2023-01-10 17:36 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"/>
@@ -226,7 +226,7 @@
     <p class="mis show_mis"><span class="n"><a id="t142" href="#t142">142</a></span><span class="t">    <span class="key">assert</span> <span class="nam">additionalRules</span> <span class="key">or</span> <span class="nam">overrideRules</span><span class="op">,</span> <span class="str">"Either additionalRules or overrideRules must be given!"</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t143" href="#t143">143</a></span><span class="t">    <span class="nam">tmpDict</span> <span class="op">=</span> <span class="op">{</span><span class="op">}</span>  <span class="com"># Copy the project-wide config in</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t144" href="#t144">144</a></span><span class="t">    <span class="key">if</span> <span class="nam">conf</span><span class="op">[</span><span class="str">"viur.security.contentSecurityPolicy"</span><span class="op">]</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">"enforce"</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t145" href="#t145">145</a></span><span class="t">        <span class="nam">tmpDict</span><span class="op">.</span><span class="nam">update</span><span class="op">(</span><span class="nam">conf</span><span class="op">[</span><span class="str">"viur.security.contentSecurityPolicy"</span><span class="op">]</span><span class="op">[</span><span class="str">"enforce"</span><span class="op">]</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t145" href="#t145">145</a></span><span class="t">        <span class="nam">tmpDict</span><span class="op">.</span><span class="nam">update</span><span class="op">(</span><span class="op">{</span><span class="nam">k</span><span class="op">:</span> <span class="nam">v</span><span class="op">[</span><span class="op">:</span><span class="op">]</span> <span class="key">for</span> <span class="nam">k</span><span class="op">,</span> <span class="nam">v</span> <span class="key">in</span> <span class="nam">conf</span><span class="op">[</span><span class="str">"viur.security.contentSecurityPolicy"</span><span class="op">]</span><span class="op">[</span><span class="str">"enforce"</span><span class="op">]</span><span class="op">.</span><span class="nam">items</span><span class="op">(</span><span class="op">)</span><span class="op">}</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t146" href="#t146">146</a></span><span class="t">    <span class="key">if</span> <span class="nam">overrideRules</span><span class="op">:</span>  <span class="com"># Merge overrideRules</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t147" href="#t147">147</a></span><span class="t">        <span class="key">for</span> <span class="nam">k</span><span class="op">,</span> <span class="nam">v</span> <span class="key">in</span> <span class="nam">overrideRules</span><span class="op">.</span><span class="nam">items</span><span class="op">(</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t148" href="#t148">148</a></span><span class="t">            <span class="key">if</span> <span class="nam">v</span> <span class="key">is</span> <span class="key">None</span> <span class="key">and</span> <span class="nam">k</span> <span class="key">in</span> <span class="nam">tmpDict</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -380,7 +380,7 @@
             <a id="nextFileLink" class="nav" href="d_6a1caf0f28899424_securitykey_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io">coverage.py v7.0.4</a>,
-            created at 2023-01-10 17:34 +0000
+            created at 2023-01-10 17:36 +0000
         </p>
     </div>
 </footer>
