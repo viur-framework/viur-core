@@ -689,7 +689,7 @@ class AuthenticatorOTP:
         return uri
 
     def startProcessing(self, userKey):
-        return self.userModule.render.edit(RelSkel(), action="authenticatorOTP", tpl=self.otp_template)
+        return self.userModule.render.edit(skeleton.RelSkel(), action="authenticatorOTP", tpl=self.otp_template)
 
     @exposed
     @forceSSL
@@ -710,7 +710,9 @@ class AuthenticatorOTP:
         if totp.verify(otp):
             return self.userModule.secondFactorSucceeded(self, user_key)
         else:
-            return self.userModule.render.edit(RelSkel(), action="authenticatorOTP", tpl=self.otp_template)
+            skel = skeleton.RelSkel()
+            skel.errors=[ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token")]
+            return self.userModule.render.edit(skel, action="authenticatorOTP", tpl=self.otp_template)
 
 
 class User(List):
