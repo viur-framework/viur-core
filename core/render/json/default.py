@@ -60,6 +60,11 @@ class DefaultRender(object):
             "emptyValue": bone.getEmptyValue(),
             "indexed": bone.indexed
         }
+
+        # Provide a defaultvalue, if it's not a function.
+        if not callable(bone.defaultValue) and bone.defaultValue is not None:
+            ret["defaultvalue"] = bone.defaultValue
+
         if bone.multiple and isinstance(bone.multiple, bones.MultipleConstraints):
             ret["multiple"] = {
                 "minAmount": bone.multiple.minAmount,
