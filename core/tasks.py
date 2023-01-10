@@ -68,10 +68,10 @@ if _gaeApp:
 
     try:
         headers = {"Metadata-Flavor": "Google"}
-        r = requests.get("http://metadata.google.internal/computeMetadata/v1/instance/zone", headers=headers)
-        # r.text should be look like this "projects/(project-number)/zones/(zone)-1"
-        # like so "projects/1234567890/zones/europe-west3-1"
-        queueRegion = r.text.split("/")[-1].rsplit("-", 1)[0]
+        r = requests.get("http://metadata.google.internal/computeMetadata/v1/instance/region", headers=headers)
+        # r.text should be look like this "projects/(project-number)/region/(region)"
+        # like so "projects/1234567890/region/europe-west3"
+        queueRegion = r.text.split("/")[-1]
     except Exception as e:  # Something went wrong with the Google Metadata Sever we use the old way
         logging.warning(f"Can't obtain queueRegion from Google MetaData Server due exception {e=}")
         regionPrefix = _gaeApp.split("~")[0]
