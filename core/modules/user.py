@@ -55,6 +55,7 @@ class UserSkel(skeleton.Skeleton):
     access = SelectBone(
         descr="Access rights",
         values=lambda: {
+
             right: i18n.translate("server.modules.user.accessright.%s" % right, defaultText=right)
                 for right in sorted(conf["viur.accessRights"])
         },
@@ -441,10 +442,13 @@ class GoogleAccount:
                 # We have to allow popups here
                 utils.currentRequest.get().response.headers["cross-origin-opener-policy"] = "same-origin-allow-popups"
             # Fixme: Render with Jinja2?
-            tplStr = open(os.path.join(utils.coreBasePath,"viur/core/template/vi_user_google_login.html"), "r").read()
+            with (conf["viur.instance.core_base_path"]
+                  .joinpath("viur/core/template/vi_user_google_login.html")
+                  .open() as tpl_file):
+                tplStr = tpl_file.read()
             tplStr = tplStr.replace("{{ clientID }}", conf["viur.user.google.clientID"])
-            extendCsp({"script-src":["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
-                       "style-src":["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]})
+            extendCsp({"script-src": ["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
+                       "style-src": ["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]})
             return tplStr
         if not securitykey.validate(skey, useSessionKey=True):
             raise errors.PreconditionFailed()
