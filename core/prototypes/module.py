@@ -1,12 +1,14 @@
 from viur.core import conf
 from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
 from typing import Dict, List, Any, Type, Union, Callable
+import logging, warnings
 
 
-class BasicApplication(object):
+class Module:
     """
-        BasicApplication is a generic class serving as the base for the four BasicApplications.
+        This is the root module prototype used by any other VIUR module prototype.
     """
+    handler: str = None  # the root prototype has no handler.
 
     kindName: str = None
     """
@@ -146,3 +148,44 @@ class BasicApplication(object):
         By default, baseSkel is used by :func:`~viewSkel`, :func:`~addSkel`, and :func:`~editSkel`.
         """
         return self._resolveSkelCls(*args, **kwargs)()
+
+    def describe(self) -> Dict:
+        """
+        Meta description of this module.
+        """
+
+        # Retrieve handler
+        handler = self.handler
+        assert handler, f"Cannot describe a Module prototype ({self!r})"
+        if callable(handler):
+            handler = handler()
+
+        # Default description
+        ret = {
+            "name": self.__class__.__name__,
+            "handler": ".".join((handler, self.__class__.__name__.lower())),
+            "indexes": getattr(self, "indexes", [])
+        }
+
+        # Merge adminInfo if present
+        if admin_info := self.adminInfo:
+            if callable(admin_info):
+                 admin_info = admin_info()
+
+            if admin_info:  # can be None when called
+                assert isinstance(admin_info, dict), \
+                    f"adminInfo can either be a dict or a callable returning a dict, but got {type(admin_info)}"
+                ret |= admin_info
+
+        return ret
+
+
+# DEPRECATED ATTRIBUTES HANDLING
+def __getattr__(attr):
+    if attr == "BasicApplication":
+        msg = f"Use of `prototypes.BasicApplication` is deprecated; Use `prototypes.Module` instead!"
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+        logging.warning(msg, stacklevel=2)
+        return Module
+
+    return super(__import__(__name__).__class__).__getattr__(attr)

@@ -3,29 +3,19 @@ from typing import Any, Optional
 
 from viur.core import db, errors, exposed, forcePost, forceSSL, securitykey, utils
 from viur.core.cache import flushCache
-from viur.core.prototypes import BasicApplication
+from viur.core.prototypes.module import Module
 from viur.core.skeleton import SkeletonInstance
 from viur.core.utils import currentRequest
 
 
-class List(BasicApplication):
+class List(Module):
     """
         The list prototype will only handle a single kind and arrange it's entities in a flat list.
         This list can be filtered and/or sorted but there is no hierarchy/relationship between the items
         in that list.
     """
-
+    handler = "list"
     accessRights = ["add", "edit", "view", "delete"]  #: Possible access rights for this app
-
-    def adminInfo(self):
-        return {
-            "name": self.__class__.__name__,  # Module name as shown in the admin tools
-            "handler": "list",  # Which handler to invoke
-            "icon": "icon-list"  # Icon for this module
-        }
-
-    def __init__(self, moduleName, modulePath, *args, **kwargs):
-        super(List, self).__init__(moduleName, modulePath, *args, **kwargs)
 
     def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -164,7 +154,7 @@ class List(BasicApplication):
 
             All supplied parameters are interpreted as filters for the elements displayed.
 
-            Unlike other ViUR BasicApplications, the access control in this function is performed
+            Unlike other modules in ViUR, the access control in this function is performed
             by calling the function :func:`listFilter`, which updates the query-filter to match only
             elements which the user is allowed to see.
 

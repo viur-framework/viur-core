@@ -163,9 +163,9 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
                     if "__" not in subkey:
                         renderers[key][subkey] = render
         del renderRootModule
-    from viur.core.prototypes import BasicApplication  # avoid circular import
+    from viur.core.prototypes import Module  # avoid circular import
     if hasattr(modules, "index"):
-        if issubclass(modules.index, BasicApplication):
+        if issubclass(modules.index, Module):
             root = modules.index("index", "")
         else:
             root = modules.index()  # old style for backward compatibility
@@ -179,7 +179,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     for moduleName, moduleClass in vars(modules).items():  # iterate over all modules
         if moduleName == "index":
             mapModule(root, "index", resolverDict)
-            if isinstance(root, BasicApplication):
+            if isinstance(root, Module):
                 root.render = renderers[default]["default"](parent=root)
             continue
         for renderName, render in renderers.items():  # look, if a particular render should be built

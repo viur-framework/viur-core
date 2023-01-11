@@ -189,7 +189,6 @@ conf = Conf({
 
     # Describing the internal ModuleConfig-module
     "viur.moduleconf.admin_info": {
-        "name": "Module Configuration",
         "icon": "icon-settings",
         "display": "hidden",
     },

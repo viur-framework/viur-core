@@ -6,7 +6,7 @@ from viur.core.tasks import StartupTask
 from viur.core import conf, db
 from viur.core.i18n import translate
 from viur.core.skeleton import Skeleton, SkeletonInstance
-from viur.core.prototypes import List, BasicApplication
+from viur.core.prototypes import List, Module
 
 
 class ModuleConfSkel(Skeleton):
@@ -47,7 +47,7 @@ class ModuleConf(List):
     accessRights = ["edit"]
 
     def adminInfo(self):
-        return super().adminInfo() | conf.get("viur.moduleconf.admin_info") or {}
+        return conf.get("viur.moduleconf.admin_info") or {}
 
     def canAdd(self):
         return False
@@ -69,15 +69,15 @@ class ModuleConf(List):
 @StartupTask
 def read_all_modules():
     db_module_names = [m["name"] for m in db.Query("viur-module-conf").run(999)]
-    app_module_names = dir(conf["viur.mainApp"].vi)
+    module_names = dir(conf["viur.mainApp"].vi)
 
-    for app_module_name in app_module_names:
-        app = getattr(conf["viur.mainApp"].vi, app_module_name)
-        if isinstance(app, BasicApplication):
-            if app_module_name not in db_module_names:
+    for module_name in module_names:
+        module = getattr(conf["viur.mainApp"].vi, module_name)
+        if isinstance(module, Module):
+            if module_name not in db_module_names:
                 skel = conf["viur.mainApp"]._moduleconf.addSkel()
-                skel["key"] = db.Key("viur-module-conf", app_module_name)
-                skel["name"] = app_module_name
+                skel["key"] = db.Key("viur-module-conf", module_name)
+                skel["name"] = module_name
                 skel.toDB()
 
 

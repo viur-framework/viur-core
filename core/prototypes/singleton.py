@@ -3,13 +3,13 @@ from typing import Any, Optional
 
 from viur.core import db, errors, exposed, forceSSL, securitykey, utils
 from viur.core.cache import flushCache
-from viur.core.prototypes import BasicApplication
+from viur.core.prototypes.module import Module
 from viur.core.skeleton import SkeletonInstance
 
 
-class Singleton(BasicApplication):
+class Singleton(Module):
     """
-    Singleton is a ViUR BasicApplication.
+    Singleton is a ViUR module prototype.
 
     It is used to store one single data entity, and needs to be sub-classed for individual modules.
 
@@ -21,18 +21,8 @@ class Singleton(BasicApplication):
     :ivar adminInfo: todo short info on how to use adminInfo.
     :vartype adminInfo: dict | callable
     """
-
+    handler = "singleton"
     accessRights = ["edit", "view"]  # Possible access rights for this app
-
-    def adminInfo(self):
-        return {
-            "name": self.__class__.__name__,  # Module name as shown in the admin tools
-            "handler": "singleton",  # Which handler to invoke
-            "icon": "icon-component",  # Icon for this module
-        }
-
-    def __init__(self, moduleName, modulePath, *args, **kwargs):
-        super(Singleton, self).__init__(moduleName, modulePath, *args, **kwargs)
 
     def getKey(self) -> str:
         """
