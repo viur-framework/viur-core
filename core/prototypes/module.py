@@ -1,6 +1,6 @@
 from viur.core import conf
 from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
-from typing import Dict, List, Any, Type, Union, Callable
+from typing import Dict, Tuple, Any, Type, Union, Callable
 import logging, warnings
 
 
@@ -8,26 +8,33 @@ class Module:
     """
         This is the root module prototype used by any other VIUR module prototype.
     """
-    handler: str = None  # the root prototype has no handler.
+    handler: Union[str, Callable] = None
+    """
+    This is the module's handler, respectively its type.
+    It can be provided as a callable() which determines the handler at runtime.
+    A module without a handler setting is invalid.
+    """
 
     kindName: str = None
     """
-        Name of the datastore kind that's going to be handled by this application.
+        Name of the datastore kind that is handled by this module.
+
         This information is used to bind a specific :class:`viur.core.skeleton.Skeleton`-class to this
-        application. For more information, refer to the function :func:`~_resolveSkelCls`.
+        prototype. By default, it is automatically determined from the module's class name, so a module named
+        `Animal` refers to a Skeleton named `AnimalSkel` and its kindName is `animal`.
+
+        For more information, refer to the function :func:`~_resolveSkelCls`.
     """
 
     adminInfo: Union[Dict[str, Any], Callable] = None
     """
-        A ``dict`` holding the information necessary for the Vi/Admin to handle this module. If set to
-        ``None``, this module will be ignored by the frontend. The currently supported values are:
+        This is a ``dict`` holding the information necessary for the Vi/Admin to handle this module.
 
             name: ``str``
                 Human-readable module name that will be shown in Vi/Admin
 
             handler: ``str`` (``list``, ``tree`` or ``singleton``):
-                Which (proto-)type is used, to the frontend can
-                initialize it handler correctly.
+                Allows to override the handler provided by the module. Set this only when *really* necessary.
 
             icon: ``str``
                 (Optional) The name (eg "icon-add") or a path relative the the project
@@ -101,7 +108,7 @@ class Module:
             can be used to customize the appearance of the Vi/Admin to individual users.
     """
 
-    accessRights: List[str] = None
+    accessRights: Tuple[str] = None
     """
         If set, a list of access rights (like add, edit, delete) that this module may support.
         These will be prefixed on instance startup with the actual module name (becomming file-add, file-edit etc)
@@ -110,11 +117,13 @@ class Module:
     """
 
     def __init__(self, moduleName, modulePath, *args, **kwargs):
+        self.render = None  # will be set to the appropriate render instance at runtime
+        self._cached_description = None  # used by describe()
+
         self.moduleName = moduleName  #: Name of this module (usually it's class name, eg "file")
         self.modulePath = modulePath  #: Path to this module in our URL-Routing (eg. json/file")
-        self.render = None  #: will be set to the appropriate render instance at runtime
 
-        if self.adminInfo and self.accessRights:
+        if self.describe() and self.accessRights:
             for r in self.accessRights:
                 rightName = "%s-%s" % (moduleName, r)
 
@@ -153,10 +162,14 @@ class Module:
         """
         Meta description of this module.
         """
+        # Use cached description?
+        if isinstance(self._cached_description, dict):
+            return self._cached_description
 
         # Retrieve handler
-        handler = self.handler
-        assert handler, f"Cannot describe a Module prototype ({self!r})"
+        if not (handler := self.handler):
+            return None
+
         if callable(handler):
             handler = handler()
 
@@ -176,6 +189,10 @@ class Module:
                 assert isinstance(admin_info, dict), \
                     f"adminInfo can either be a dict or a callable returning a dict, but got {type(admin_info)}"
                 ret |= admin_info
+
+        # Cache description?
+        if self._cached_description is None:
+            self._cached_description = ret
 
         return ret
 

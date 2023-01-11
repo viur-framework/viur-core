@@ -10,12 +10,15 @@ from viur.core.utils import currentRequest
 
 class List(Module):
     """
-        The list prototype will only handle a single kind and arrange it's entities in a flat list.
-        This list can be filtered and/or sorted but there is no hierarchy/relationship between the items
-        in that list.
+        List module prototype.
+
+        The list module prototype handles datasets in a flat list. It can be extended to filters and views to provide
+        various use-cases.
+
+        Definitely, it is the mostly-used prototype in any ViUR project.
     """
     handler = "list"
-    accessRights = ["add", "edit", "view", "delete"]  #: Possible access rights for this app
+    accessRights = ("add", "edit", "view", "delete")
 
     def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
         """

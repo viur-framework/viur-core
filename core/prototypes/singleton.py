@@ -9,20 +9,12 @@ from viur.core.skeleton import SkeletonInstance
 
 class Singleton(Module):
     """
-    Singleton is a ViUR module prototype.
+    Singleton module prototype.
 
     It is used to store one single data entity, and needs to be sub-classed for individual modules.
-
-    :ivar kindName: Name of the kind of data entities that are managed by the application. \
-    This information is used to bind a specific :class:`viur.core.skeleton.Skeleton`-class to the \
-    application. For more information, refer to the function :func:`~baseSkel`.
-    :vartype kindName: str
-
-    :ivar adminInfo: todo short info on how to use adminInfo.
-    :vartype adminInfo: dict | callable
     """
     handler = "singleton"
-    accessRights = ["edit", "view"]  # Possible access rights for this app
+    accessRights = ("edit", "view")
 
     def getKey(self) -> str:
         """

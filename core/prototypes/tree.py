@@ -38,11 +38,11 @@ class TreeSkel(Skeleton):
 
 class Tree(Module):
     """
-    Tree is a ViUR module prototype.
+    Tree module prototype.
 
     It is used for hierarchical structures, either as a tree with nodes and leafs, or as a hierarchy with nodes only.
     """
-    accessRights = ["add", "edit", "view", "delete"]  # Possible access rights for this app
+    accessRights = ("add", "edit", "view", "delete")
 
     nodeSkelCls = None
     leafSkelCls = None
