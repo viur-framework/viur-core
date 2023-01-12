@@ -1,7 +1,8 @@
 from viur.core import conf
 from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
 from typing import Dict, Tuple, Any, Type, Union, Callable
-import logging, warnings
+import logging
+import warnings
 
 
 class Module:
@@ -183,7 +184,7 @@ class Module:
         # Merge adminInfo if present
         if admin_info := self.adminInfo:
             if callable(admin_info):
-                 admin_info = admin_info()
+                admin_info = admin_info()
 
             if admin_info:  # can be None when called
                 assert isinstance(admin_info, dict), \

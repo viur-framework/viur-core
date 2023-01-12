@@ -15,7 +15,8 @@ def __getattr__(attr):
                 ret = Module
 
         if ret:
-            import warnings, logging
+            import warnings
+            import logging
             warnings.warn(msg, DeprecationWarning, stacklevel=3)
             logging.warning(msg, stacklevel=3)
             return ret

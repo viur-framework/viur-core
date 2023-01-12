@@ -5,7 +5,8 @@ from viur.core import conf, exposed, securitykey, utils, errors
 from viur.core.utils import currentRequest, currentLanguage
 from viur.core.skeleton import SkeletonInstance
 from viur.core.prototypes import Module
-import datetime, json
+import datetime
+import json
 
 
 class default(DefaultRender):
@@ -71,6 +72,7 @@ def setLanguage(lang, skey):
         return
     if lang in conf["viur.availableLanguages"]:
         currentLanguage.set(lang)
+
 
 @exposed
 def dumpConfig():

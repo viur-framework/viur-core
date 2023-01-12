@@ -5,14 +5,17 @@ import datetime
 
 __all__ = [default]
 
+
 @exposed
 def genSkey(*args, **kwargs):
     return "<securityKey>%s</securityKey>" % securitykey.create()
+
 
 @exposed
 def timestamp(*args, **kwargs):
     d = datetime.datetime.now()
     return serializeXML(d.strftime("%Y-%m-%dT%H-%M-%S"))
+
 
 @exposed
 def dumpConfig(adminTree):
