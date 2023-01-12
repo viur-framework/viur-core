@@ -2,6 +2,13 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
+## [3.3.3]
+
+- Fix growing instance's Request header (#609)
+- Provide `defaultvalue` in bone structure (#608)
+- Refactoring `render.vi.getStructure` (#607)
+- Change metaserver zone-request into region-request (#606)
+
 ## [3.3.2]
 
 - Bump requirement certifi==2021.10.8 (#588)

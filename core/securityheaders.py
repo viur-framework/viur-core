@@ -142,7 +142,7 @@ def extendCsp(additionalRules: dict = None, overrideRules: dict = None) -> None:
     assert additionalRules or overrideRules, "Either additionalRules or overrideRules must be given!"
     tmpDict = {}  # Copy the project-wide config in
     if conf["viur.security.contentSecurityPolicy"].get("enforce"):
-        tmpDict.update(conf["viur.security.contentSecurityPolicy"]["enforce"])
+        tmpDict.update({k: v[:] for k, v in conf["viur.security.contentSecurityPolicy"]["enforce"].items()})
     if overrideRules:  # Merge overrideRules
         for k, v in overrideRules.items():
             if v is None and k in tmpDict:
