@@ -308,15 +308,13 @@ class BrowseHandler():  # webapp.RequestHandler
                         "error_descr": e.descr,
                     })
                 else:
-                    with (conf["viur.instance.core_base_path"]
-                              .joinpath(conf["viur.errorTemplate"])
-                              .open() as tpl_file):
+                    with (conf["viur.instance.core_base_path"].joinpath(conf["viur.errorTemplate"]).open() as tpl_file):
                         tpl = Template(tpl_file.read())
-                    res = tpl.safe_substitute({
-                        "error_code": e.status,
-                        "error_name": translate(e.name),
-                        "error_descr": e.descr,
-                    })
+                        res = tpl.safe_substitute({
+                            "error_code": e.status,
+                            "error_name": translate(e.name),
+                            "error_descr": e.descr,
+                        })
                     extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
             self.response.write(res.encode("UTF-8"))
 
