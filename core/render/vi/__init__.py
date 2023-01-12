@@ -20,6 +20,7 @@ __all__ = [default]
 def genSkey(*args, **kwargs):
     return json.dumps(securitykey.create())
 
+
 @exposed
 def timestamp(*args, **kwargs):
     d = datetime.datetime.now()
