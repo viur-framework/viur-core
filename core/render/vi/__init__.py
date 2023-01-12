@@ -33,7 +33,7 @@ def getStructure(module):
     Returns all available skeleton structures for a given module.
     """
     moduleObj = getattr(conf["viur.mainApp"].vi, module, None)
-    if not isinstance(moduleObj, Module):
+    if not isinstance(moduleObj, Module) or not moduleObj.describe():
         return json.dumps(None)
 
     res = {}

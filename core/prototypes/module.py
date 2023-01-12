@@ -124,7 +124,7 @@ class Module:
         self.moduleName = moduleName  #: Name of this module (usually it's class name, eg "file")
         self.modulePath = modulePath  #: Path to this module in our URL-Routing (eg. json/file")
 
-        if self.describe() and self.accessRights:
+        if self.handler and self.accessRights:
             for r in self.accessRights:
                 rightName = "%s-%s" % (moduleName, r)
 
@@ -178,8 +178,11 @@ class Module:
         ret = {
             "name": self.__class__.__name__,
             "handler": ".".join((handler, self.__class__.__name__.lower())),
-            "indexes": getattr(self, "indexes", [])
         }
+
+        # Extend indexes, if available
+        if indexes := getattr(self, "indexes", None):
+            ret["indexes"] = indexes
 
         # Merge adminInfo if present
         if admin_info := self.adminInfo:
