@@ -102,7 +102,7 @@ def getVersion(*args, **kwargs):
     Returns viur-core version number
     """
     if conf["viur.instance.is_dev_server"]:
-        json.dumps(conf["viur.version"])
+        return json.dumps(conf["viur.version"])
 
     # Hide patchlevel
     return json.dumps((conf["viur.version"][0], conf["viur.version"][1], 0))
