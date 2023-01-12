@@ -66,8 +66,8 @@
             <a id="indexLink" class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a id="nextFileLink" class="nav" href="d_6a1caf0f28899424_ratelimit_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io">coverage.py v7.0.4</a>,
-            created at 2023-01-10 17:47 +0000
+            <a class="nav" href="https://coverage.readthedocs.io">coverage.py v7.0.5</a>,
+            created at 2023-01-12 12:26 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"/>
@@ -500,7 +500,7 @@
     <p class="mis show_mis"><span class="n"><a id="t416" href="#t416">416</a></span><span class="t">        <span class="key">if</span> <span class="key">not</span> <span class="op">(</span><span class="nam">skelType</span> <span class="op">:=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">_checkSkelType</span><span class="op">(</span><span class="nam">skelType</span><span class="op">)</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t417" href="#t417">417</a></span><span class="t">            <span class="key">raise</span> <span class="nam">errors</span><span class="op">.</span><span class="nam">NotAcceptable</span><span class="op">(</span><span class="str">f"Invalid skelType provided."</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t418" href="#t418">418</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t419" href="#t419">419</a></span><span class="t">        <span class="nam">skel</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">addSkel</span><span class="op">(</span><span class="nam">skelType</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t419" href="#t419">419</a></span><span class="t">        <span class="nam">skel</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">editSkel</span><span class="op">(</span><span class="nam">skelType</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t420" href="#t420">420</a></span><span class="t">        <span class="key">if</span> <span class="key">not</span> <span class="nam">skel</span><span class="op">.</span><span class="nam">fromDB</span><span class="op">(</span><span class="nam">key</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t421" href="#t421">421</a></span><span class="t">            <span class="key">raise</span> <span class="nam">errors</span><span class="op">.</span><span class="nam">NotFound</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t422" href="#t422">422</a></span><span class="t">        <span class="key">if</span> <span class="key">not</span> <span class="nam">self</span><span class="op">.</span><span class="nam">canEdit</span><span class="op">(</span><span class="nam">skelType</span><span class="op">,</span> <span class="nam">skel</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -541,7 +541,7 @@
     <p class="mis show_mis"><span class="n"><a id="t457" href="#t457">457</a></span><span class="t">        <span class="nam">skey</span> <span class="op">=</span> <span class="nam">kwargs</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">"skey"</span><span class="op">,</span> <span class="str">""</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t458" href="#t458">458</a></span><span class="t">        <span class="key">if</span> <span class="key">not</span> <span class="op">(</span><span class="nam">skelType</span> <span class="op">:=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">_checkSkelType</span><span class="op">(</span><span class="nam">skelType</span><span class="op">)</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t459" href="#t459">459</a></span><span class="t">            <span class="key">raise</span> <span class="nam">errors</span><span class="op">.</span><span class="nam">NotAcceptable</span><span class="op">(</span><span class="str">f"Invalid skelType provided."</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t460" href="#t460">460</a></span><span class="t">        <span class="nam">skel</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">addSkel</span><span class="op">(</span><span class="nam">skelType</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t460" href="#t460">460</a></span><span class="t">        <span class="nam">skel</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">editSkel</span><span class="op">(</span><span class="nam">skelType</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t461" href="#t461">461</a></span><span class="t">        <span class="key">if</span> <span class="key">not</span> <span class="nam">skel</span><span class="op">.</span><span class="nam">fromDB</span><span class="op">(</span><span class="nam">key</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t462" href="#t462">462</a></span><span class="t">            <span class="key">raise</span> <span class="nam">errors</span><span class="op">.</span><span class="nam">NotFound</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t463" href="#t463">463</a></span><span class="t">        <span class="key">if</span> <span class="key">not</span> <span class="nam">self</span><span class="op">.</span><span class="nam">canDelete</span><span class="op">(</span><span class="nam">skelType</span><span class="op">,</span> <span class="nam">skel</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -941,8 +941,8 @@
             <a id="indexLink" class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a id="nextFileLink" class="nav" href="d_6a1caf0f28899424_ratelimit_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io">coverage.py v7.0.4</a>,
-            created at 2023-01-10 17:47 +0000
+            <a class="nav" href="https://coverage.readthedocs.io">coverage.py v7.0.5</a>,
+            created at 2023-01-12 12:26 +0000
         </p>
     </div>
 </footer>
