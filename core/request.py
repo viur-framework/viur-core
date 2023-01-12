@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import traceback
@@ -298,13 +299,22 @@ class BrowseHandler():  # webapp.RequestHandler
                     logging.exception(newE)
                     res = None
             if not res:
-                tpl = Template(open(os.path.join(utils.coreBasePath, conf["viur.errorTemplate"]), "r").read())
-                res = tpl.safe_substitute({
-                    "error_code": e.status,
-                    "error_name": translate(e.name),
-                    "error_descr": e.descr,
-                })
-                extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
+                if (len(self.pathlist) > 0 and any(x in self.pathlist[0] for x in ["vi", "json"])) or \
+                        utils.currentRequest.get().response.headers["Content-Type"] == "application/json":
+                    utils.currentRequest.get().response.headers["Content-Type"] = "application/json"
+                    res = json.dumps({
+                        "error_code": e.status,
+                        "error_name": str(translate(e.name)),
+                        "error_descr": e.descr,
+                    })
+                else:
+                    tpl = Template(open(os.path.join(utils.coreBasePath, conf["viur.errorTemplate"]), "r").read())
+                    res = tpl.safe_substitute({
+                        "error_code": e.status,
+                        "error_name": translate(e.name),
+                        "error_descr": e.descr,
+                    })
+                    extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
             self.response.write(res.encode("UTF-8"))
 
         except Exception as e:  # Something got really wrong
@@ -558,10 +568,10 @@ class BrowseHandler():  # webapp.RequestHandler
                 raise (errors.MethodNotAllowed())
         # Check for forceSSL flag
         if not self.internalRequest \
-                and "forceSSL" in dir(caller) \
-                and caller.forceSSL \
-                and not self.request.host_url.lower().startswith("https://") \
-                and not conf["viur.instance.is_dev_server"]:
+            and "forceSSL" in dir(caller) \
+            and caller.forceSSL \
+            and not self.request.host_url.lower().startswith("https://") \
+            and not conf["viur.instance.is_dev_server"]:
             raise (errors.PreconditionFailed("You must use SSL to access this ressource!"))
         # Check for forcePost flag
         if "forcePost" in dir(caller) and caller.forcePost and not self.isPostRequest:
