@@ -2,7 +2,7 @@ import logging
 from typing import Any, Dict, List, Literal, Optional, Type, Union
 from viur.core import utils, errors, conf, securitykey, db
 from viur.core import forcePost, forceSSL, exposed, internalExposed
-from viur.core.bones import KeyBone, SortIndexBone
+from viur.core.bones import KeyBone, SortIndexBone, NumericBone
 from viur.core.cache import flushCache
 from viur.core.prototypes import BasicApplication
 from viur.core.skeleton import Skeleton, SkeletonInstance
@@ -26,6 +26,11 @@ class TreeSkel(Skeleton):
     sortindex = SortIndexBone(
         visible=False,
         readOnly=True,
+    )
+    childcount = NumericBone(
+        visible=False,
+        readOnly=True,
+        defaultValue=-1
     )
 
     @classmethod
@@ -388,6 +393,10 @@ class Tree(BasicApplication):
         self.onAdd(skelType, skel)
         skel.toDB()
         self.onAdded(skelType, skel)
+        if parentNodeSkel["childcount"] == -1:
+            parentNodeSkel["childcount"] = 0
+        parentNodeSkel["childcount"] += 1
+        parentNodeSkel.toDB()
         return self.render.addSuccess(skel)
 
     @exposed
@@ -421,6 +430,23 @@ class Tree(BasicApplication):
             raise errors.NotFound()
         if not self.canEdit(skelType, skel):
             raise errors.Unauthorized()
+        print()
+        if "parententry" in kwargs:
+            if skel["parententry"] != kwargs["parententry"] :
+                parent_node_skel = self.baseSkel("node")
+                old_parent_node_skel = self.baseSkel("node")
+                if not parent_node_skel.fromDB(kwargs["parententry"]):
+                    raise errors.NotAcceptable("Parentnode not found")
+                if not old_parent_node_skel.fromDB(skel["parententry"]):
+                    raise errors.NotAcceptable("Old Parentnode not found")
+                if parent_node_skel["childcount"] == -1:
+                    parent_node_skel["childcount"] = 0
+                parent_node_skel["childcount"] += 1
+                parent_node_skel.toDB()
+                if old_parent_node_skel["childcount"] > 0:
+                    old_parent_node_skel["childcount"] -= 1
+                    old_parent_node_skel.toDB()
+
         if (len(kwargs) == 0  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or not currentRequest.get().isPostRequest
@@ -559,6 +585,7 @@ class Tree(BasicApplication):
             raise errors.PreconditionFailed()
 
         currentParentRepo = skel["parentrepo"]
+        old_parent_entry_key = skel["parententry"]
         skel["parententry"] = parentNodeSkel["key"]
         skel["parentrepo"] = parentNodeSkel["parentrepo"]  # Fixme: Need to recursive fixing to parentrepo?
         if "sortindex" in kwargs:
@@ -570,6 +597,19 @@ class Tree(BasicApplication):
         self.onEdit(skelType, skel)
         skel.toDB()
         self.onEdited(skelType, skel)
+        #Update the current childcount
+        if parentNodeSkel["childcount"] == -1:
+            parentNodeSkel["childcount"] = 0
+        parentNodeSkel["childcount"] += 1
+        parentNodeSkel.toDB()
+
+        old_parent_node_skel = self.baseSkel("node")  # destSkel - the node it should be moved out
+        if not old_parent_node_skel.fromDB(old_parent_entry_key):
+            raise errors.NotFound("Cannot old parenentry key entity")
+        if old_parent_node_skel["childcount"] > 0:
+            old_parent_node_skel["childcount"] -= 1
+            old_parent_node_skel.toDB()
+
 
         # Ensure a changed parentRepo get's proagated
         if currentParentRepo != parentNodeSkel["parentrepo"]:
