@@ -3,18 +3,19 @@ import hashlib
 import hmac
 import json
 import logging
-import os
 import time
 import warnings
-from viur.core.prototypes.list import List
-from viur.core.bones import *
-from viur.core import conf, db, email, errors, i18n, securitykey, session, skeleton, tasks, utils, exposed, forceSSL
-from viur.core.bones.password import pbkdf2
-from viur.core.securityheaders import extendCsp
-from viur.core.ratelimit import RateLimit
-from google.oauth2 import id_token
-from google.auth.transport import requests
 from typing import Optional
+
+from google.auth.transport import requests
+from google.oauth2 import id_token
+
+from viur.core import conf, db, email, errors, exposed, forceSSL, i18n, securitykey, session, skeleton, tasks, utils
+from viur.core.bones import *
+from viur.core.bones.password import pbkdf2
+from viur.core.prototypes.list import List
+from viur.core.ratelimit import RateLimit
+from viur.core.securityheaders import extendCsp
 
 
 class UserSkel(skeleton.Skeleton):
@@ -478,10 +479,7 @@ class GoogleAccount:
             isAdd = True
         else:
             isAdd = False
-        now = utils.utcNow()
-        if isAdd or (now - userSkel["lastlogin"]) > datetime.timedelta(minutes=30):
-            # Conserve DB-Writes: Update the user max once in 30 Minutes
-            userSkel["lastlogin"] = now
+        if isAdd:
             # if users.is_current_user_admin():
             #    if not userSkel["access"]:
             #        userSkel["access"] = []
@@ -761,8 +759,8 @@ class User(List):
             :param userKey: The (DB-)Key of the user we shall authenticate
         """
         currSess = utils.currentSession.get()
-        res = db.Get(userKey)
-        assert res, "Unable to authenticate unknown user %s" % userKey
+        if (user := db.Get(userKey)) is None:
+            raise ValueError(f"Unable to authenticate unknown user {userKey}")
         oldSession = {k: v for k, v in currSess.items()}  # Store all items in the current session
         currSess.reset()
         # Copy the persistent fields over
@@ -770,7 +768,16 @@ class User(List):
             if k in oldSession:
                 currSess[k] = oldSession[k]
         del oldSession
-        currSess["user"] = res
+        now = utils.utcNow()
+        # Update the lastlogin timestamp
+        if not user.get("lastlogin") or (now - user["lastlogin"]) > datetime.timedelta(minutes=30):
+            # Conserve DB-Writes: Update the user max once in 30 Minutes
+            user_skel = skeleton.skeletonByKind(self.addSkel().kindName)()  # Ensure we have the full skeleton
+            user_skel.setEntity(user)
+            user_skel["lastlogin"] = now
+            user_skel.toDB()
+            user = user_skel.dbEntity  # use the new entity instance from toDB with the updated lastlogin
+        currSess["user"] = user
         currSess.markChanged()
         utils.currentRequest.get().response.headers["Sec-X-ViUR-StaticSKey"] = currSess.staticSecurityKey
         self.onLogin()
