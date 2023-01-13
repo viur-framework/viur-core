@@ -20,7 +20,6 @@ class JsonBone(RawBone):
     def serialize(self, skel, name, parentIndexed):
         if name in skel.accessedValues:
             skel.dbEntity[name] = json.dumps(skel.accessedValues[name])
-            skel.dbEntity[name] = json.dumps(value)
 
             # Ensure this bone is NOT indexed!
             skel.dbEntity.exclude_from_indexes.add(name)
