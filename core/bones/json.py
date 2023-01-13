@@ -3,7 +3,6 @@ import json
 from typing import Union
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.bones.raw import RawBone
-from viur.core.skeleton import SkeletonInstance
 
 
 class JsonBone(RawBone):
@@ -30,7 +29,7 @@ class JsonBone(RawBone):
 
         return False
 
-    def unserialize(self, skel: 'SkeletonInstance', name: str) -> bool:
+    def unserialize(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> bool:
         if data := skel.dbEntity.get(name):
             skel.accessedValues[name] = json.loads(data)
             return True
