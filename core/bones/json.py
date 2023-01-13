@@ -1,7 +1,9 @@
 import ast
 import json
+from typing import Union
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.bones.raw import RawBone
+from viur.core.skeleton import SkeletonInstance
 
 
 class JsonBone(RawBone):
@@ -11,13 +13,13 @@ class JsonBone(RawBone):
 
     type = "raw.json"
 
-    def __init__(self, indexed=False, multiple=False, languages=None, *args, **kwargs):
+    def __init__(self, indexed: bool = False, multiple: bool = False, languages: bool = None, *args, **kwargs):
         assert not multiple
         assert not languages
         assert not indexed
         super().__init__(*args, **kwargs)
 
-    def serialize(self, skel, name, parentIndexed):
+    def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
         if name in skel.accessedValues:
             skel.dbEntity[name] = json.dumps(skel.accessedValues[name])
 
@@ -28,14 +30,14 @@ class JsonBone(RawBone):
 
         return False
 
-    def unserialize(self, skel, name):
+    def unserialize(self, skel: 'SkeletonInstance', name: str) -> bool:
         if data := skel.dbEntity.get(name):
             skel.accessedValues[name] = json.loads(data)
             return True
 
         return False
 
-    def singleValueFromClient(self, value, *args, **kwargs):
+    def singleValueFromClient(self, value: Union[str, list, dict], *args, **kwargs):
         if value:
             if not isinstance(value, (list, dict)):
                 value = str(value)
