@@ -303,9 +303,10 @@ class BrowseHandler():  # webapp.RequestHandler
                         utils.currentRequest.get().response.headers["Content-Type"] == "application/json":
                     utils.currentRequest.get().response.headers["Content-Type"] = "application/json"
                     res = json.dumps({
-                        "error_code": e.status,
-                        "error_name": str(translate(e.name)),
-                        "error_descr": e.descr,
+                        "status": e.status,
+                        "reason": e.name,
+                        "descr": str(translate(e.name)),
+                        "hint": e.descr
                     })
                 else:
                     with (conf["viur.instance.core_base_path"].joinpath(conf["viur.errorTemplate"]).open() as tpl_file):
