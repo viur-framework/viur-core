@@ -495,6 +495,12 @@ class Tree(BasicApplication):
         self.onDelete(skelType, skel)
         skel.delete()
         self.onDeleted(skelType, skel)
+        parent_node_skel = self.baseSkel("node")
+        if not parent_node_skel.fromDB(skel["parententry"]):
+            raise errors.NotAcceptable("Parentnode not found")
+        if parent_node_skel["childcount"] > 0:
+            parent_node_skel["childcount"] -= 1
+        parent_node_skel.toDB()
         return self.render.deleteSuccess(skel, skelType=skelType)
 
     @CallDeferred
