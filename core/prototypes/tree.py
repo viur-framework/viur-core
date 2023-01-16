@@ -430,9 +430,9 @@ class Tree(BasicApplication):
             raise errors.NotFound()
         if not self.canEdit(skelType, skel):
             raise errors.Unauthorized()
-        print()
+
         if "parententry" in kwargs:
-            if skel["parententry"] != kwargs["parententry"] :
+            if skel["parententry"] != kwargs["parententry"]:
                 parent_node_skel = self.baseSkel("node")
                 old_parent_node_skel = self.baseSkel("node")
                 if not parent_node_skel.fromDB(kwargs["parententry"]):
@@ -597,7 +597,7 @@ class Tree(BasicApplication):
         self.onEdit(skelType, skel)
         skel.toDB()
         self.onEdited(skelType, skel)
-        #Update the current childcount
+        # Update the current childcount
         if parentNodeSkel["childcount"] == -1:
             parentNodeSkel["childcount"] = 0
         parentNodeSkel["childcount"] += 1
