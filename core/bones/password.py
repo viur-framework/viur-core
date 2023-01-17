@@ -82,6 +82,9 @@ class PasswordBone(StringBone):
         self.contain_number = contain_number
         self.contain_special_char = contain_special_char
 
+        assert test_threshold <= sum([contain_uppercase, contain_lowercase, contain_number,
+                                     contain_special_char]), "The Threshold is greater than the Number of Tests"
+
     def isInvalid(self, value):
         if not value:
             return False
