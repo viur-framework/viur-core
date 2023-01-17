@@ -289,6 +289,7 @@ class BrowseHandler():  # webapp.RequestHandler
             # Set machine-readable x-viur-error response header in case there is an exception description.
             if e.descr:
                 self.response.headers["x-viur-error"] = e.descr.replace("\n", "")
+
             res = None
             if conf["viur.errorHandler"]:
                 try:
