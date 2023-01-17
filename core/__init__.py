@@ -33,7 +33,8 @@ from viur.core import session, errors, i18n, request, utils
 from viur.core.config import conf
 from viur.core.tasks import TaskHandler, runStartupTasks
 from viur.core.base.module import Module
-from viur.core import logging as viurLogging  # Initialize request logging
+# noinspection PyUnresolvedReferences
+from viur.core import logging as viurLogging  # unused import, must exist, initializes request logging
 import logging  # this import has to stay here, see #571
 
 
@@ -44,7 +45,7 @@ def load_indexes_from_file() -> Dict[str, List]:
     """
     indexes_dict = {}
     try:
-        with open(os.path.join(utils.projectBasePath, "index.yaml"), "r") as file:
+        with open(os.path.join(conf["viur.instance.project_base_path"], "index.yaml"), "r") as file:
             indexes = yaml.safe_load(file)
             indexes = indexes.get("indexes", [])
             for index in indexes:
