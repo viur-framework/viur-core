@@ -84,7 +84,7 @@ class PasswordBone(StringBone):
             :param contain_number: Specifies whether the password is checked for digits
             :param contain_special_char: Indicates whether the password is checked for special characters
         """
-        super(PasswordBone, self).__init__()
+        super().__init__()
         self.min_password_length = min_password_length
         self.test_threshold = test_threshold
 
