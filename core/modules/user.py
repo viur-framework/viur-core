@@ -710,15 +710,16 @@ class User(List):
     def secondFactorProviderByClass(self, cls):
         return getattr(self, "f2_%s" % cls.__name__.lower())
 
-    def getCurrentUser(self, *args, **kwargs):
-        session = utils.currentSession.get()
-        if not session:  # May be a deferred task
+    def getCurrentUser(self):
+        # May be a deferred task
+        if not (session := utils.currentSession.get()):
             return None
-        userData = session.get("user")
-        if userData:
-            skel = self.viewSkel()
-            skel.setEntity(userData)
+
+        if user := session.get("user"):
+            skel = self.baseSkel()
+            skel.setEntity(user)
             return skel
+
         return None
 
     def continueAuthenticationFlow(self, caller, userKey):
@@ -749,37 +750,41 @@ class User(List):
             raise errors.RequestTimeout()
         return self.authenticateUser(userKey)
 
-    def authenticateUser(self, userKey: db.Key, **kwargs):
+    def authenticateUser(self, key: db.Key, **kwargs):
         """
-            Performs Log-In for the current session and the given userKey.
+            Performs Log-In for the current session and the given user key.
 
             This resets the current session: All fields not explicitly marked as persistent
             by conf["viur.session.persistentFieldsOnLogin"] are gone afterwards.
 
-            :param userKey: The (DB-)Key of the user we shall authenticate
+            :param key: The (DB-)Key of the user we shall authenticate
         """
-        currSess = utils.currentSession.get()
-        if (user := db.Get(userKey)) is None:
-            raise ValueError(f"Unable to authenticate unknown user {userKey}")
-        oldSession = {k: v for k, v in currSess.items()}  # Store all items in the current session
-        currSess.reset()
-        # Copy the persistent fields over
-        for k in conf["viur.session.persistentFieldsOnLogin"]:
-            if k in oldSession:
-                currSess[k] = oldSession[k]
-        del oldSession
-        now = utils.utcNow()
-        # Update the lastlogin timestamp
-        if not user.get("lastlogin") or (now - user["lastlogin"]) > datetime.timedelta(minutes=30):
-            # Conserve DB-Writes: Update the user max once in 30 Minutes
-            user_skel = skeleton.skeletonByKind(self.addSkel().kindName)()  # Ensure we have the full skeleton
-            user_skel.setEntity(user)
-            user_skel["lastlogin"] = now
-            user_skel.toDB()
-            user = user_skel.dbEntity  # use the new entity instance from toDB with the updated lastlogin
-        currSess["user"] = user
-        currSess.markChanged()
-        utils.currentRequest.get().response.headers["Sec-X-ViUR-StaticSKey"] = currSess.staticSecurityKey
+        skel = self.baseSkel()
+        if not skel.fromDB(key):
+            raise ValueError(f"Unable to authenticate unknown user {key}")
+
+        # Update the lastlogin timestamp (if available!)
+        if "lastlogin" in skel:
+            now = utils.utcNow()
+
+            # Conserve DB-Writes: Update the user max once in 30 Minutes (why??)
+            if not skel["lastlogin"] or ((now - skel["lastlogin"]) > datetime.timedelta(minutes=30)):
+                skel["lastlogin"] = now
+                skel.toDB()
+
+        # Update session for user
+        session = utils.currentSession.get()
+        # Remember persistent fields...
+        take_over = {k: v for k, v in session.items() if k in conf["viur.session.persistentFieldsOnLogin"]}
+        session.reset()
+        # and copy them over to the new session
+        session |= take_over
+
+        session["user"] = skel.dbEntity
+        session.markChanged()
+
+        utils.currentRequest.get().response.headers["Sec-X-ViUR-StaticSKey"] = session.staticSecurityKey
+
         self.onLogin()
         return self.render.loginSucceeded(**kwargs)
 
@@ -789,20 +794,18 @@ class User(List):
             Implements the logout action. It also terminates the current session (all keys not listed
             in viur.session.persistentFieldsOnLogout will be lost).
         """
-        currSess = utils.currentSession.get()
-        user = currSess.get("user")
-        if not user:
+        if not (user := utils.getCurrentUser()):
             raise errors.Unauthorized()
         if not securitykey.validate(skey, useSessionKey=True):
             raise errors.PreconditionFailed()
+
         self.onLogout(user)
-        oldSession = {k: v for k, v in currSess.items()}  # Store all items in the current session
-        currSess.reset()
-        # Copy the persistent fields over
-        for k in conf["viur.session.persistentFieldsOnLogout"]:
-            if k in oldSession:
-                currSess[k] = oldSession[k]
-        del oldSession
+
+        session = utils.currentSession.get()
+        take_over = {k: v for k, v in session.items() if k in conf["viur.session.persistentFieldsOnLogout"]}
+        session.reset()
+        session |= take_over
+
         return self.render.logoutSuccess()
 
     @exposed
@@ -832,12 +835,12 @@ class User(List):
         """
         if key == "self":
             user = self.getCurrentUser()
-            if user:
-                return super(User, self).view(str(user["key"].id_or_name), *args, **kwargs)
-            else:
+            if not user:
                 raise errors.Unauthorized()
 
-        return super(User, self).view(key, *args, **kwargs)
+            return super().view(str(user["key"].id_or_name), *args, **kwargs)
+
+        return super().view(key, *args, **kwargs)
 
     def canView(self, skel) -> bool:
         user = self.getCurrentUser()
