@@ -1,5 +1,4 @@
 from .list import List
-from .module import Module
 from .singleton import Singleton
 from .tree import Tree, TreeSkel
 
@@ -11,8 +10,9 @@ def __getattr__(attr):
 
         match attr:
             case "BasicApplication":
-                msg = f"Use of `prototypes.BasicApplication` is deprecated; Use `prototypes.Module` instead!"
-                ret = Module
+                msg = f"Use of `prototypes.BasicApplication` is deprecated; Use `base.SkelModule` instead!"
+                from viur.core.base.skelmodule import SkelModule
+                ret = SkelModule
 
         if ret:
             import warnings

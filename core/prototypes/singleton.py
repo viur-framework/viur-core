@@ -1,13 +1,12 @@
 import logging
 from typing import Any, Optional
-
 from viur.core import db, errors, exposed, forceSSL, securitykey, utils
 from viur.core.cache import flushCache
-from viur.core.prototypes.module import Module
+from viur.core.base.skelmodule import SkelModule
 from viur.core.skeleton import SkeletonInstance
 
 
-class Singleton(Module):
+class Singleton(SkelModule):
     """
     Singleton module prototype.
 

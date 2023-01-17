@@ -4,7 +4,7 @@ from viur.core.render.json.default import DefaultRender, CustomJsonEncoder
 from viur.core import conf, exposed, securitykey, utils, errors
 from viur.core.utils import currentRequest, currentLanguage
 from viur.core.skeleton import SkeletonInstance
-from viur.core.prototypes import Module
+from viur.core.base.module import Module
 import datetime
 import json
 

@@ -1,30 +1,15 @@
-from viur.core import conf
-from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
-from typing import Dict, Tuple, Any, Type, Union, Callable
-import logging
-import warnings
+from typing import Dict, Any, Union, Callable
 
 
 class Module:
     """
-        This is the root module prototype used by any other VIUR module prototype.
+        This is the root module prototype that serves a minimal module in the ViUR system without any other bindings.
     """
     handler: Union[str, Callable] = None
     """
     This is the module's handler, respectively its type.
     It can be provided as a callable() which determines the handler at runtime.
     A module without a handler setting is invalid.
-    """
-
-    kindName: str = None
-    """
-        Name of the datastore kind that is handled by this module.
-
-        This information is used to bind a specific :class:`viur.core.skeleton.Skeleton`-class to this
-        prototype. By default, it is automatically determined from the module's class name, so a module named
-        `Animal` refers to a Skeleton named `AnimalSkel` and its kindName is `animal`.
-
-        For more information, refer to the function :func:`~_resolveSkelCls`.
     """
 
     adminInfo: Union[Dict[str, Any], Callable] = None
@@ -109,55 +94,12 @@ class Module:
             can be used to customize the appearance of the Vi/Admin to individual users.
     """
 
-    accessRights: Tuple[str] = None
-    """
-        If set, a list of access rights (like add, edit, delete) that this module may support.
-        These will be prefixed on instance startup with the actual module name (becomming file-add, file-edit etc)
-        and registered in ``viur.core.config.conf["viur.accessRights"]`` so these will be available on the
-        access bone in user/add or user/edit.
-    """
-
     def __init__(self, moduleName, modulePath, *args, **kwargs):
         self.render = None  # will be set to the appropriate render instance at runtime
         self._cached_description = None  # used by describe()
 
         self.moduleName = moduleName  #: Name of this module (usually it's class name, eg "file")
         self.modulePath = modulePath  #: Path to this module in our URL-Routing (eg. json/file")
-
-        if self.handler and self.accessRights:
-            for r in self.accessRights:
-                rightName = "%s-%s" % (moduleName, r)
-
-                if not rightName in conf["viur.accessRights"]:
-                    conf["viur.accessRights"].append(rightName)
-
-    def _resolveSkelCls(self, *args, **kwargs) -> Type[Skeleton]:
-        """
-        Retrieve the generally associated :class:`viur.core.skeleton.Skeleton` that is used by
-        the application.
-
-        This is either be defined by the member variable *kindName* or by a Skeleton named like the
-        application class in lower-case order.
-
-        If this behavior is not wanted, it can be definitely overridden by defining module-specific
-        :func:`~viewSkel`, :func:`~addSkel`, or :func:`~editSkel` functions, or by overriding this
-        function in general.
-
-        :return: Returns a Skeleton class that matches the application.
-        """
-
-        return skeletonByKind(self.kindName if self.kindName else str(type(self).__name__).lower())
-
-    def baseSkel(self, *args, **kwargs) -> SkeletonInstance:
-        """
-        Returns an instance of an unmodified base skeleton for this module.
-
-        This function should only be used in cases where a full, unmodified skeleton of the module is required, e.g.
-        for administrative or maintenance purposes.
-
-        By default, baseSkel is used by :func:`~viewSkel`, :func:`~addSkel`, and :func:`~editSkel`.
-        """
-        return self._resolveSkelCls(*args, **kwargs)()
 
     def describe(self) -> Dict:
         """
@@ -198,14 +140,3 @@ class Module:
         self._cached_description = ret
 
         return ret
-
-
-# DEPRECATED ATTRIBUTES HANDLING
-def __getattr__(attr):
-    if attr == "BasicApplication":
-        msg = f"Use of `prototypes.BasicApplication` is deprecated; Use `prototypes.Module` instead!"
-        warnings.warn(msg, DeprecationWarning, stacklevel=2)
-        logging.warning(msg, stacklevel=2)
-        return Module
-
-    return super(__import__(__name__).__class__).__getattr__(attr)

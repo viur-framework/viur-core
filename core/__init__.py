@@ -32,6 +32,7 @@ from typing import Callable, Dict, Union, List
 from viur.core import session, errors, i18n, request, utils
 from viur.core.config import conf
 from viur.core.tasks import TaskHandler, runStartupTasks
+from viur.core.base.module import Module
 from viur.core import logging as viurLogging  # Initialize request logging
 import logging  # this import has to stay here, see #571
 
@@ -163,7 +164,6 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
                     if "__" not in subkey:
                         renderers[key][subkey] = render
         del renderRootModule
-    from viur.core.prototypes import Module  # avoid circular import
     if hasattr(modules, "index"):
         if issubclass(modules.index, Module):
             root = modules.index("index", "")
