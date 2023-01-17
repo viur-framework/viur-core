@@ -770,7 +770,7 @@ class User(List):
             # Conserve DB-Writes: Update the user max once in 30 Minutes (why??)
             if not skel["lastlogin"] or ((now - skel["lastlogin"]) > datetime.timedelta(minutes=30)):
                 skel["lastlogin"] = now
-                skel.toDB()
+                skel.toDB(clearUpdateTag=True)
 
         # Update session for user
         session = utils.currentSession.get()
@@ -785,7 +785,7 @@ class User(List):
 
         utils.currentRequest.get().response.headers["Sec-X-ViUR-StaticSKey"] = session.staticSecurityKey
 
-        self.onLogin()
+        self.onLogin(skel)
         return self.render.loginSucceeded(**kwargs)
 
     @exposed
@@ -814,12 +814,17 @@ class User(List):
                        for x, y in self.validAuthenticationMethods]
         return self.render.loginChoices(authMethods)
 
-    def onLogin(self):
-        usr = self.getCurrentUser()
-        logging.info("User logged in: %s" % usr["name"])
+    def onLogin(self, skel: skeleton.SkeletonInstance):
+        """
+        Hook to be called on user login.
+        """
+        logging.info(f"""User {skel["name"]} logged in""")
 
-    def onLogout(self, usr):
-        logging.info("User logged out: %s" % usr["name"])
+    def onLogout(self, skel: skeleton.SkeletonInstance):
+        """
+        Hook to be called on user logout.
+        """
+        logging.info(f"""User {skel["name"]} logged out""")
 
     @exposed
     def edit(self, *args, **kwargs):
