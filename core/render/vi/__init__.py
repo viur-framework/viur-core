@@ -18,12 +18,14 @@ __all__ = [default]
 
 @exposed
 def genSkey(*args, **kwargs):
+    currentRequest.get().response.headers["Content-Type"] = "application/json"
     return json.dumps(securitykey.create())
 
 
 @exposed
 def timestamp(*args, **kwargs):
     d = datetime.datetime.now()
+    currentRequest.get().response.headers["Content-Type"] = "application/json"
     return json.dumps(d.strftime("%Y-%m-%dT%H-%M-%S"))
 
 
@@ -101,6 +103,7 @@ def getVersion(*args, **kwargs):
     """
     Returns viur-core version number
     """
+    currentRequest.get().response.headers["Content-Type"] = "application/json"
     if conf["viur.instance.is_dev_server"]:
         return json.dumps(conf["viur.version"])
 

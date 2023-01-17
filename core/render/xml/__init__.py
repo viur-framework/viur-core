@@ -18,7 +18,7 @@ def timestamp(*args, **kwargs):
 
 
 @exposed
-def dumpConfig(adminTree):
+def dumpConfig():
     res = {}
     for key in dir(conf["viur.mainApp"].xml):
         app = getattr(adminTree, key)

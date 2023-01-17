@@ -195,8 +195,7 @@ class Module:
                 ret |= admin_info
 
         # Cache description?
-        if self._cached_description is None:
-            self._cached_description = ret
+        self._cached_description = ret
 
         return ret
 
