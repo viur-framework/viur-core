@@ -5,6 +5,7 @@ class Module:
     """
         This is the root module prototype that serves a minimal module in the ViUR system without any other bindings.
     """
+
     handler: Union[str, Callable] = None
     """
     This is the module's handler, respectively its type.
@@ -94,14 +95,13 @@ class Module:
             can be used to customize the appearance of the Vi/Admin to individual users.
     """
 
-    def __init__(self, moduleName, modulePath, *args, **kwargs):
+    def __init__(self, moduleName: str, modulePath: str, *args, **kwargs):
         self.render = None  # will be set to the appropriate render instance at runtime
-        self._cached_description = None  # used by describe()
+        self._cached_description = None  # caching used by describe()
+        self.moduleName = moduleName  # Name of this module (usually it's class name, e.g. "file")
+        self.modulePath = modulePath  # Path to this module in URL-routing (e.g. "json/file")
 
-        self.moduleName = moduleName  #: Name of this module (usually it's class name, eg "file")
-        self.modulePath = modulePath  #: Path to this module in our URL-Routing (eg. json/file")
-
-    def describe(self) -> Dict:
+    def describe(self) -> Union[Dict, None]:
         """
         Meta description of this module.
         """
@@ -110,11 +110,8 @@ class Module:
             return self._cached_description
 
         # Retrieve handler
-        if not (handler := self.handler):
+        if not (handler := self.handler() if callable(self.handler) else self.handler):
             return None
-
-        if callable(handler):
-            handler = handler()
 
         # Default description
         ret = {
@@ -127,16 +124,12 @@ class Module:
             ret["indexes"] = indexes
 
         # Merge adminInfo if present
-        if admin_info := self.adminInfo:
-            if callable(admin_info):
-                admin_info = admin_info()
+        if admin_info := self.adminInfo() if callable(self.adminInfo) else self.adminInfo:
+            assert isinstance(admin_info, dict), \
+                f"adminInfo can either be a dict or a callable returning a dict, but got {type(admin_info)}"
+            ret |= admin_info
 
-            if admin_info:  # can be None when called
-                assert isinstance(admin_info, dict), \
-                    f"adminInfo can either be a dict or a callable returning a dict, but got {type(admin_info)}"
-                ret |= admin_info
-
-        # Cache description?
+        # Cache description for later re-use.
         self._cached_description = ret
 
         return ret
