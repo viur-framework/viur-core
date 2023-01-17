@@ -154,7 +154,23 @@ class NumericBone(BaseBone):
         a bone from StringBone to a NumericBone.
         """
         super().refresh(skel, boneName)
-        if skel[boneName] == "":
-            skel[boneName] = None
-        elif not isinstance(skel[boneName], (int, float, type(None))):
-            skel[boneName] = self._convert_to_numeric(skel[boneName])
+
+        def refresh_single_value(value: Any) -> float | int:
+            if value == "":
+                return self.getEmptyValue()
+            elif not isinstance(value, (int, float, type(None))):
+                return self._convert_to_numeric(value)
+
+        new_value = {}
+        for _, lang, value in self.iter_bone_value(skel, boneName):
+            new_value.setdefault(lang, []).append(refresh_single_value(value))
+
+        if not self.multiple:
+            # take the first one
+            new_value = {lang: values[0] for lang, values in new_value.items() if values}
+
+        if self.languages:
+            skel[boneName] = new_value
+        elif not self.languages:
+            # just the value(s) with None language
+            skel[boneName] = new_value.get(None, [] if self.multiple else self.getEmptyValue())
