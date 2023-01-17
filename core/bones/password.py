@@ -73,6 +73,17 @@ class PasswordBone(StringBone):
         contain_special_char: bool = True,
         **kwargs
     ):
+        """
+            Initializes a new Password Bone.
+
+            :param min_password_length: The minimum length of the password all passwords with a length that is
+                    smaller this will be invalid.
+            :param test_threshold: The minimum number of tests the password must pass.
+            :param contain_uppercase: Specifies whether the password is checked for uppercase letters
+            :param contain_lowercase: Specifies whether the password is checked for lowercase letters
+            :param contain_number: Specifies whether the password is checked for digits
+            :param contain_special_char: Indicates whether the password is checked for special characters
+        """
         super(PasswordBone, self).__init__()
         self.min_password_length = min_password_length
         self.test_threshold = test_threshold
