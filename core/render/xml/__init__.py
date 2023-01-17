@@ -1,6 +1,7 @@
 from .default import DefaultRender as default, serializeXML
 from .user import UserRender as user
 from viur.core import conf, securitykey, exposed
+from viur.core.base.module import Module
 import datetime
 
 __all__ = [default]
@@ -21,9 +22,18 @@ def timestamp(*args, **kwargs):
 def dumpConfig():
     res = {}
     for key in dir(conf["viur.mainApp"].xml):
-        app = getattr(adminTree, key)
-        if "adminInfo" in dir(app) and app.adminInfo:
-            res[key] = app.adminInfo
+        module = getattr(conf["viur.mainApp"].xml, key)
+        if not isinstance(module, Module):
+            continue
+        if admin_info := module.describe():
+            res[key] = admin_info
+
+    res = {
+        "modules": res,
+        "configuration": {
+            k.removeprefix("admin."): v for k, v in conf.items() if k.lower().startswith("admin.")
+        }
+    }
     return res
 
 

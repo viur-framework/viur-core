@@ -72,7 +72,8 @@ def getStructure(module):
 @exposed
 def setLanguage(lang, skey):
     if not securitykey.validate(skey):
-        return
+        raise errors.PreconditionFailed()
+
     if lang in conf["viur.availableLanguages"]:
         currentLanguage.set(lang)
 
@@ -91,7 +92,9 @@ def dumpConfig():
 
     res = {
         "modules": res,
-        "configuration": {k.removeprefix("admin."): v for k, v in conf.items() if k.lower().startswith("admin.")}
+        "configuration": {
+            k.removeprefix("admin."): v for k, v in conf.items() if k.lower().startswith("admin.")
+        }
     }
 
     currentRequest.get().response.headers["Content-Type"] = "application/json"
