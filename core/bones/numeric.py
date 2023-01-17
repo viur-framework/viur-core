@@ -75,13 +75,8 @@ class NumericBone(BaseBone):
         if isinstance(rawValue, str) and not rawValue:
             return True
         try:
-            if self.precision:
-                if isinstance(rawValue, str):
-                    rawValue = rawValue.replace(",", ".", 1)
-                rawValue = float(rawValue)
-            else:
-                rawValue = int(rawValue)
-        except:
+            rawValue = self._convert_to_numeric(rawValue)
+        except (ValueError, TypeError):
             return True
         return rawValue == self.getEmptyValue()
 
@@ -139,3 +134,27 @@ class NumericBone(BaseBone):
                 continue
             result.add(str(value))
         return result
+
+    def _convert_to_numeric(self, value: Any) -> int | float:
+        """Convert a value to an int or float considering the precision.
+
+        If the value is not convertable an exception will be raised."""
+        if isinstance(value, str):
+            value = value.replace(",", ".", 1)
+        if self.precision:
+            return float(value)
+        else:
+            # First convert to float then to int to support "42.5" (str)
+            return int(float(value))
+
+    def refresh(self, skel: 'viur.core.skeleton.SkeletonInstance', boneName: str) -> None:
+        """Ensure the value is numeric or None.
+
+        This ensures numeric values, for example after changing
+        a bone from StringBone to a NumericBone.
+        """
+        super().refresh(skel, boneName)
+        if skel[boneName] == "":
+            skel[boneName] = None
+        elif not isinstance(skel[boneName], (int, float, type(None))):
+            skel[boneName] = self._convert_to_numeric(skel[boneName])
