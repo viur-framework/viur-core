@@ -37,7 +37,7 @@ class SkelModule(Module):
             for r in self.accessRights:
                 rightName = "%s-%s" % (self.moduleName, r)
 
-                if not rightName in conf["viur.accessRights"]:
+                if rightName not in conf["viur.accessRights"]:
                     conf["viur.accessRights"].append(rightName)
 
     def _resolveSkelCls(self, *args, **kwargs) -> Type[Skeleton]:
