@@ -126,6 +126,16 @@ class DefaultRender(object):
                 "boundsLng": bone.boundsLng
             })
 
+        elif bone.type == "password":
+            ret.update({
+                "min_password_length": bone.min_password_length,
+                "test_threshold": bone.test_threshold,
+                "contain_uppercase": bone.contain_uppercase,
+                "contain_lowercase": bone.contain_lowercase,
+                "contain_number": bone.contain_number,
+                "contain_special_char": bone.contain_special_char,
+            })
+
         return ret
 
     def renderSkelStructure(self, skel: SkeletonInstance) -> Optional[List[Tuple[str, Dict[str, Any]]]]:

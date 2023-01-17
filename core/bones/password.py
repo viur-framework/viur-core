@@ -52,15 +52,7 @@ class PasswordBone(StringBone):
     """
     type = "password"
     saltLength = 13
-    minPasswordLength = 8
-    passwordTests = [
-        lambda val: val.lower() != val,  # Do we have upper-case characters?
-        lambda val: val.upper() != val,  # Do we have lower-case characters?
-        lambda val: any([x in val for x in "0123456789"]),  # Do we have any digits?
-        lambda val: any([x not in (string.ascii_lowercase + string.ascii_uppercase + string.digits) for x in val]),
-        # Special characters?
-    ]
-    passwordTestThreshold = 3
+
     tooShortMessage = translate(
         "core.bones.password.tooShortMessage",
         defaultText="The entered password is to short - it requires at least {{length}} characters."
@@ -70,19 +62,50 @@ class PasswordBone(StringBone):
         defaultText="The entered password is too weak."
     )
 
+    def __init__(
+        self,
+        *,
+        min_password_length: int = 8,
+        test_threshold: int = 3,
+        contain_uppercase: bool = True,
+        contain_lowercase: bool = True,
+        contain_number: bool = True,
+        contain_special_char: bool = True,
+        **kwargs
+    ):
+        super(PasswordBone, self).__init__()
+        self.min_password_length = min_password_length
+        self.test_threshold = test_threshold
+
+        self.contain_uppercase = contain_uppercase
+        self.contain_lowercase = contain_lowercase
+        self.contain_number = contain_number
+        self.contain_special_char = contain_special_char
+
     def isInvalid(self, value):
         if not value:
             return False
 
-        if len(value) < self.minPasswordLength:
-            return self.tooShortMessage.translate(length=self.minPasswordLength)
+        if len(value) < self.min_password_length:
+            return self.tooShortMessage.translate(length=self.min_password_length)
 
         # Run our password test suite
-        testResults = []
-        for test in self.passwordTests:
-            testResults.append(test(value))
+        tests_passed = 0
+        if self.contain_uppercase:
+            if value.lower() != value:  # Do we have upper-case characters?
+                tests_passed += 1
+        if self.contain_lowercase:
+            if value.upper() != value:  # Do we have lower-case characters?
+                tests_passed += 1
+        if self.contain_number:
+            if any([x in value for x in "0123456789"]):  # Do we have any digits?
+                tests_passed += 1
+        if self.contain_special_char:
+            if any([x not in (string.ascii_lowercase + string.ascii_uppercase + string.digits) for x in
+                    value]):  # Do we have any special characters?
+                tests_passed += 1
 
-        if sum(testResults) < self.passwordTestThreshold:
+        if tests_passed < self.test_threshold:
             return str(self.tooWeakMessage)
 
         return False
