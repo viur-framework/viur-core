@@ -41,7 +41,6 @@ class LambdaBone(BaseBone):
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
         if name in skel.accessedValues:
-            skel.dbEntity[name] = skel.accessedValues[name]
 
             # Ensure this bone is NOT indexed!
             skel.dbEntity.exclude_from_indexes.add(name)
