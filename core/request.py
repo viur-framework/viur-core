@@ -302,12 +302,19 @@ class BrowseHandler():  # webapp.RequestHandler
                 if (len(self.pathlist) > 0 and any(x in self.pathlist[0] for x in ["vi", "json"])) or \
                         utils.currentRequest.get().response.headers["Content-Type"] == "application/json":
                     utils.currentRequest.get().response.headers["Content-Type"] = "application/json"
-                    res = json.dumps({
+                    res={
                         "status": e.status,
                         "reason": e.name,
                         "descr": str(translate(e.name)),
-                        "hint": e.descr
-                    })
+                        "hint": e.descr,
+                    }
+
+                    if conf["viur.instance.is_dev_server"]:
+                        strIO = StringIO()
+                        traceback.print_exc(file=strIO)
+                        res["traceback"] = strIO.getvalue()
+
+                    res = json.dumps(res)
                 else:
                     with (conf["viur.instance.core_base_path"].joinpath(conf["viur.errorTemplate"]).open() as tpl_file):
                         tpl = Template(tpl_file.read())
