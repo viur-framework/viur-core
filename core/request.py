@@ -302,7 +302,7 @@ class BrowseHandler():  # webapp.RequestHandler
                 if (len(self.pathlist) > 0 and any(x in self.pathlist[0] for x in ["vi", "json"])) or \
                         utils.currentRequest.get().response.headers["Content-Type"] == "application/json":
                     utils.currentRequest.get().response.headers["Content-Type"] = "application/json"
-                    res={
+                    res = {
                         "status": e.status,
                         "reason": e.name,
                         "descr": str(translate(e.name)),
