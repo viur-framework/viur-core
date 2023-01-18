@@ -763,15 +763,6 @@ class User(List):
         if not skel.fromDB(key):
             raise ValueError(f"Unable to authenticate unknown user {key}")
 
-        # Update the lastlogin timestamp (if available!)
-        if "lastlogin" in skel:
-            now = utils.utcNow()
-
-            # Conserve DB-Writes: Update the user max once in 30 Minutes (why??)
-            if not skel["lastlogin"] or ((now - skel["lastlogin"]) > datetime.timedelta(minutes=30)):
-                skel["lastlogin"] = now
-                skel.toDB(clearUpdateTag=True)
-
         # Update session for user
         session = utils.currentSession.get()
         # Remember persistent fields...
@@ -818,6 +809,15 @@ class User(List):
         """
         Hook to be called on user login.
         """
+        # Update the lastlogin timestamp (if available!)
+        if "lastlogin" in skel:
+            now = utils.utcNow()
+
+            # Conserve DB-Writes: Update the user max once in 30 Minutes (why??)
+            if not skel["lastlogin"] or ((now - skel["lastlogin"]) > datetime.timedelta(minutes=30)):
+                skel["lastlogin"] = now
+                skel.toDB(clearUpdateTag=True)
+
         logging.info(f"""User {skel["name"]} logged in""")
 
     def onLogout(self, skel: skeleton.SkeletonInstance):
