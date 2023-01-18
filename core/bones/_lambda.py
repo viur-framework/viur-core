@@ -33,7 +33,8 @@ class LambdaBone(BaseBone):
         assert not multiple
         assert not languages
         assert not indexed
-        assert readonly  # Can we trust our User
+        assert readonly, "Cannot set readonly to LambdaBone"
+        assert callable(evaluate), "'evaluate' must be a callable.
         super().__init__(*args, **kwargs)
         self.evaluate = evaluate
         self.threshold = threshold
