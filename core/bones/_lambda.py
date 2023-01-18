@@ -77,7 +77,7 @@ class LambdaBone(BaseBone):
 
     def refresh(self, skel: 'viur.core.skeleton.SkeletonInstance', boneName: str) -> None:
         """
-            Refresh the output of the self.evaluate fuction
+            Refresh the output of the self.evaluate function
         """
         skel[boneName] = {"value": self.evaluate_function(skel, boneName),
                           "valid_until": utils.utcNow() + timedelta(seconds=self.threshold)}
