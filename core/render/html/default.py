@@ -544,7 +544,7 @@ class Render(object):
 
         elif isinstance(skel, list):
             for x in skel:
-                if isinstance(x,SkeletonInstance):
+                if isinstance(x, SkeletonInstance):
                     x.renderPreparation = self.renderBoneValue
         if file is not None:
             try:
