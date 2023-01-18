@@ -82,7 +82,6 @@ for __cls_name, __cls in locals().copy().items():
 
             return __init__
 
-
         locals()[__old_cls_name] = type(__old_cls_name, (__cls,), {
             "__init__": __generate_deprecation_constructor(__cls, __cls_name, __old_cls_name)
         })
