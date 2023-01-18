@@ -50,25 +50,18 @@ class LambdaBone(BaseBone):
         return False
 
     def unserialize(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> bool:
-        res = {}
         if data := skel.dbEntity.get(name):
             if data["valid_until"] > utils.utcNow():
-                res = data
-            else:
-                if callable(self.evaluate):
-                    res["value"] = self.evaluate_function(skel, name)
-                    res["valid_until"] = utils.utcNow() + timedelta(minutes=self.threshold)
-
-            skel.accessedValues[name] = res
-
-            return True
-        else:
-            if callable(self.evaluate):
-                res["value"] = self.evaluate_function(skel, name)
-                res["valid_until"] = utils.utcNow() + timedelta(seconds=self.threshold)
-                skel.accessedValues[name] = res
+                # value is still valid
+                skel.accessedValues[name] = res["value"]  # save only the value
                 return True
-        return False
+
+        skel.dbEntity[name] = {
+            "value": (skel.accessedValues[name] := self._evaluate(skel, name)),
+            "valid_until": utils.utcNow() + timedelta(seconds=self.threshold)
+        }
+
+        return True
 
     def evaluate_function(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
         tmp_skel = skel.clone()
