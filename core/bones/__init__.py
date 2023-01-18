@@ -1,5 +1,10 @@
 import importlib
-from .base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity, UniqueValue, UniqueLockMethod, \
+from .base import \
+    BaseBone, \
+    ReadFromClientError, \
+    ReadFromClientErrorSeverity, \
+    UniqueValue, \
+    UniqueLockMethod, \
     MultipleConstraints
 from .boolean import BooleanBone
 from .captcha import CaptchaBone
