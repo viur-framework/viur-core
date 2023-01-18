@@ -15,7 +15,7 @@ from .email import EmailBone
 from .file import FileBone
 from .json import JsonBone
 from .key import KeyBone
-from ._lambda import LambdaBone
+from .lambda_ import LambdaBone
 from .numeric import NumericBone
 from .password import PasswordBone
 from .randomslice import RandomSliceBone
