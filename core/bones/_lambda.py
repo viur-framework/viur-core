@@ -64,9 +64,12 @@ class LambdaBone(BaseBone):
         return True
 
     def evaluate_function(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
-        tmp_skel = skel.clone()
-        tmp_skel[name] = None  # we must remove our bone because of recursion
-        return self.evaluate(__skel__=tmp_skel)
+        if not self._accept_skel_arg:
+            return self.evaluate()  # call without any arguments
+            
+        skel = skel.clone()
+        skel[name] = None  # we must remove our bone because of recursion
+        return self.evaluate(skel=skel)
 
     def refresh(self, skel: 'viur.core.skeleton.SkeletonInstance', boneName: str) -> None:
         """
