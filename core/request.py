@@ -310,9 +310,7 @@ class BrowseHandler():  # webapp.RequestHandler
                     }
 
                     if conf["viur.instance.is_dev_server"]:
-                        strIO = StringIO()
-                        traceback.print_exc(file=strIO)
-                        res["traceback"] = strIO.getvalue()
+                        res["traceback"] = traceback.format_exc()
 
                     res = json.dumps(res)
                 else:
