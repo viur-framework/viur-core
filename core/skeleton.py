@@ -58,34 +58,39 @@ class MetaBaseSkel(type):
     __allowed_chars = string.ascii_letters + string.digits + "_"
 
     def __init__(cls, name, bases, dct):
-        boneMap = {}
-
-        def fill_bonemap_recursive(cls):
-            for base_cls in cls.__bases__:
-                if "__viurBaseSkeletonMarker__" in dir(base_cls):
-                    fill_bonemap_recursive(base_cls)
-
-            for key in cls.__dict__:
-                prop = getattr(cls, key)
-
-                if isinstance(prop, BaseBone):
-                    if not all([c in MetaBaseSkel.__allowed_chars for c in key]):
-                        raise AttributeError(f"Invalid bone name: {key!r} contains invalid characters")
-                    elif key in MetaBaseSkel.__reserved_keywords:
-                        raise AttributeError(f"Invalid bone name: {key!r} is reserved and cannot be used")
-
-                    boneMap[key] = prop
-
-                elif prop is None and key in boneMap:  # Allow removing a bone in a subclass by setting it to None
-                    del boneMap[key]
-
-        fill_bonemap_recursive(cls)
-        cls.__boneMap__ = boneMap
+        cls.__boneMap__ = MetaBaseSkel.generate_bonemap(cls)
 
         if not getSystemInitialized():
             MetaBaseSkel._allSkelClasses.add(cls)
 
         super(MetaBaseSkel, cls).__init__(name, bases, dct)
+
+    @staticmethod
+    def generate_bonemap(cls):
+        """
+        Recursively constructs a dict of bones from
+        """
+        map = {}
+
+        for base in cls.__bases__:
+            if "__viurBaseSkeletonMarker__" in dir(base):
+                map |= MetaBaseSkel.generate_bonemap(base)
+
+        for key in cls.__dict__:
+            prop = getattr(cls, key)
+
+            if isinstance(prop, BaseBone):
+                if not all([c in MetaBaseSkel.__allowed_chars for c in key]):
+                    raise AttributeError(f"Invalid bone name: {key!r} contains invalid characters")
+                elif key in MetaBaseSkel.__reserved_keywords:
+                    raise AttributeError(f"Invalid bone name: {key!r} is reserved and cannot be used")
+
+                map[key] = prop
+
+            elif prop is None and key in map:  # Allow removing a bone in a subclass by setting it to None
+                del map[key]
+
+        return map
 
 
 def skeletonByKind(kindName: str) -> Type[Skeleton]:
