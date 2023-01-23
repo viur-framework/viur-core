@@ -3,7 +3,7 @@ from viur.core.bones.string import StringBone
 from viur.core.i18n import translate
 from viur.core import utils, conf
 from hashlib import sha256
-import hmac, codecs, string, random
+import hmac, codecs, string,re
 from struct import Struct
 from operator import xor
 from itertools import starmap
@@ -67,10 +67,10 @@ class PasswordBone(StringBone):
         *,
         min_password_length: int = 8,
         test_threshold: int = 3,
-        contain_uppercase: bool = True,
-        contain_lowercase: bool = True,
-        contain_number: bool = True,
-        contain_special_char: bool = True,
+        contain_uppercase: str = "(?=.*[A-Z])",
+        contain_lowercase: str = "(?=.*[a-z])",
+        contain_number: str = "(?=.*\d)",
+        contain_special_char: str = "(?=.*\W)",
         **kwargs
     ):
         """
@@ -79,10 +79,10 @@ class PasswordBone(StringBone):
             :param min_password_length: The minimum length of the password all passwords with a length that is
                     smaller this will be invalid.
             :param test_threshold: The minimum number of tests the password must pass.
-            :param contain_uppercase: Specifies whether the password is checked for uppercase letters
-            :param contain_lowercase: Specifies whether the password is checked for lowercase letters
-            :param contain_number: Specifies whether the password is checked for digits
-            :param contain_special_char: Indicates whether the password is checked for special characters
+            :param contain_uppercase: Specifies how the password is checked for uppercase letters
+            :param contain_lowercase: Specifies how the password is checked for lowercase letters
+            :param contain_number: Specifies how the password is checked for digits
+            :param contain_special_char: Indicates how the password is checked for special characters
         """
         super().__init__()
         self.min_password_length = min_password_length
@@ -93,8 +93,6 @@ class PasswordBone(StringBone):
         self.contain_number = contain_number
         self.contain_special_char = contain_special_char
 
-        assert test_threshold <= sum([contain_uppercase, contain_lowercase, contain_number,
-                                     contain_special_char]), "The Threshold is greater than the Number of Tests"
 
     def isInvalid(self, value):
         if not value:
@@ -105,19 +103,14 @@ class PasswordBone(StringBone):
 
         # Run our password test suite
         tests_passed = 0
-        if self.contain_uppercase:
-            if value.lower() != value:  # Do we have upper-case characters?
-                tests_passed += 1
-        if self.contain_lowercase:
-            if value.upper() != value:  # Do we have lower-case characters?
-                tests_passed += 1
-        if self.contain_number:
-            if any([x in value for x in "0123456789"]):  # Do we have any digits?
-                tests_passed += 1
-        if self.contain_special_char:
-            if any([x not in (string.ascii_lowercase + string.ascii_uppercase + string.digits) for x in
-                    value]):  # Do we have any special characters?
-                tests_passed += 1
+        if re.search(self.contain_uppercase, value):  # Do we have upper-case characters?
+            tests_passed += 1
+        if re.search(self.contain_lowercase, value):  # Do we have lower-case characters?
+            tests_passed += 1
+        if re.search(self.contain_number, value):  # Do we have digits?
+            tests_passed += 1
+        if re.search(self.contain_special_char, value):  # Do we have special characters?
+            tests_passed += 1
 
         if tests_passed < self.test_threshold:
             return str(self.tooWeakMessage)
