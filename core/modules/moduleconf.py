@@ -1,4 +1,3 @@
-import copy
 import logging
 
 from viur.core.bones import StringBone, TextBone
