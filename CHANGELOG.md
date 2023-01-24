@@ -2,6 +2,13 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
+## [3.3.4]
+
+- Bump viur-datastore from 1.3.6 to 1.3.7 (#627)
+- Fix: Reset renderPreparation in renderEmail (#625)
+- Fix: `flushCache` used ViUR2-call to decode str-encoded key (#624)
+- Fix: Use editSkel() in Tree edit/delete (#610)
+
 ## [3.3.3]
 
 - Fix growing instance's Request header (#609)

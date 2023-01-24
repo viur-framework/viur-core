@@ -1,4 +1,4 @@
-viur-datastore==1.3.6 --hash=sha256:a5156903b6f52d4d402f686d35dd7715018e85c0773c03d1eedf4446ec4ad9d2
+viur-datastore==1.3.7 --hash=sha256:8e7a268334c243ea77ffeadacb3b5c72652be53df8a4c56fe2a1718f90c4209b
 
 google-auth==2.6.3 --hash=sha256:d65bb0e3701eaaa64fd2aa85e1325580524b0bddc6dc5db3ab89c481b6a20141
 
