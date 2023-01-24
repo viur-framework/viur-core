@@ -3,11 +3,11 @@ from viur.core.bones.string import StringBone
 from viur.core.i18n import translate
 from viur.core import utils, conf
 from hashlib import sha256
-import hmac, codecs, string,re
+import hmac, codecs, string, re
 from struct import Struct
 from operator import xor
 from itertools import starmap
-from typing import List, Union
+from typing import List, Tuple, Union
 
 
 def pbkdf2(password, salt, iterations=1001, keylen=42):
@@ -61,16 +61,24 @@ class PasswordBone(StringBone):
         "core.bones.password.tooWeakMessage",
         defaultText="The entered password is too weak."
     )
+    _password_tests: List[Tuple] = [
+        (r"(?=.*[A-Z])", translate("core.bones.password.no_capital_letters",
+                                   defaultText="The password entered has no capital letters.")),
+        (r"(?=.*[a-z])", translate("core.bones.password.no_lowercase_letters",
+                                   defaultText="The password entered has no lowercase letters.")),
+        (r"(?=.*\d)", translate("core.bones.password.no_digits",
+                                defaultText="The password entered has no digits.")),
+        (r"(?=.*\W)", translate("core.bones.password.no_special_characters",
+                                defaultText="The password entered has no special characters.")),
+
+    ]
 
     def __init__(
         self,
         *,
         min_password_length: int = 8,
         test_threshold: int = 3,
-        contain_uppercase: str = "(?=.*[A-Z])",
-        contain_lowercase: str = "(?=.*[a-z])",
-        contain_number: str = "(?=.*\d)",
-        contain_special_char: str = "(?=.*\W)",
+        password_tests: List[Tuple] = None,
         **kwargs
     ):
         """
@@ -78,21 +86,14 @@ class PasswordBone(StringBone):
 
             :param min_password_length: The minimum length of the password all passwords with a length that is
                     smaller this will be invalid.
+
             :param test_threshold: The minimum number of tests the password must pass.
-            :param contain_uppercase: Specifies how the password is checked for uppercase letters
-            :param contain_lowercase: Specifies how the password is checked for lowercase letters
-            :param contain_number: Specifies how the password is checked for digits
-            :param contain_special_char: Indicates how the password is checked for special characters
+            :param password_tests: A list of tuple.The tuple  contains the tests and an error message if the test fails
         """
         super().__init__()
         self.min_password_length = min_password_length
         self.test_threshold = test_threshold
-
-        self.contain_uppercase = contain_uppercase
-        self.contain_lowercase = contain_lowercase
-        self.contain_number = contain_number
-        self.contain_special_char = contain_special_char
-
+        self.password_tests = self._password_tests if password_tests is None else password_tests
 
     def isInvalid(self, value):
         if not value:
@@ -102,18 +103,16 @@ class PasswordBone(StringBone):
             return self.tooShortMessage.translate(length=self.min_password_length)
 
         # Run our password test suite
+        tests_errors = []
         tests_passed = 0
-        if re.search(self.contain_uppercase, value):  # Do we have upper-case characters?
-            tests_passed += 1
-        if re.search(self.contain_lowercase, value):  # Do we have lower-case characters?
-            tests_passed += 1
-        if re.search(self.contain_number, value):  # Do we have digits?
-            tests_passed += 1
-        if re.search(self.contain_special_char, value):  # Do we have special characters?
-            tests_passed += 1
+        for test in self.password_tests:
+            if re.search(test[0], value):
+                tests_passed += 1
+            else:
+                tests_errors.append(str(test[1]))  # we may need to convert a "translate" object
 
         if tests_passed < self.test_threshold:
-            return str(self.tooWeakMessage)
+            return tests_errors
 
         return False
 
