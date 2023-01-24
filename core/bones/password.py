@@ -86,8 +86,8 @@ class PasswordBone(StringBone):
         """
             Initializes a new Password Bone.
 
-            :param min_password_length: The minimum length of the password all passwords with a length that is
-                    smaller this will be invalid.
+            :param min_password_length: The minimum length of a password.
+                Passwords with a shorter length will be invalid.
 
             :param test_threshold: The minimum number of tests the password must pass.
             :param password_tests: A list of tuples. The tuple contains the test and a reason for the user if the test
