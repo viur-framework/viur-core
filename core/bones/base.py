@@ -882,3 +882,36 @@ class BaseBone(object):
                     yield idx, None, val
             else:
                 yield None, None, value
+
+    def structure(self) -> dict:
+        """
+        Describes the bone and its settings as an JSON-serializable dict.
+        This function has to be implemented for subsequent, specialized bone types.
+        """
+        ret = {
+            "descr": str(self.descr),  # need to turn possible translate-object into string
+            "type": self.type,
+            "required": self.required,
+            "params": self.params,
+            "visible": self.visible,
+            "readonly": self.readOnly,  # fixme: in HTML, this is "readOnly", in JSON/XML it is "readonly"
+            "unique": self.unique.method.value if self.unique else False,
+            "languages": self.languages,
+            "emptyValue": self.getEmptyValue(),  # fixme: rename this into "emptyvalue", same as "defaultvalue"
+            "indexed": self.indexed
+        }
+
+        # Provide a defaultvalue, if it's not a function.
+        if not callable(self.defaultValue) and self.defaultValue is not None:
+            ret["defaultvalue"] = self.defaultValue
+
+        # Provide a multiple setting
+        if self.multiple and isinstance(self.multiple, MultipleConstraints):
+            ret["multiple"] = {
+                "minAmount": self.multiple.minAmount,
+                "maxAmount": self.multiple.maxAmount,
+                "preventDuplicates": self.multiple.preventDuplicates,
+            }
+        else:
+            ret["multiple"] = self.multiple
+        return ret

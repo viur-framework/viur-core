@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 import string
+from collections import OrderedDict
 from functools import partial
 from itertools import chain
 from time import time
@@ -250,10 +251,18 @@ class SkeletonInstance:
         self.accessedValues = {}
         self.renderAccessedValues = {}
 
+    def structure(self):
+        res = OrderedDict()
+        for key, bone in self.items():
+            res[key] = bone.structure()
+        return [(key, val) for key, val in res.items()]
+
     def __deepcopy__(self, memodict):
         res = self.clone()
         memodict[id(self)] = res
         return res
+
+
 
 
 class BaseSkeleton(object, metaclass=MetaBaseSkel):

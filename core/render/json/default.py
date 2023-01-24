@@ -216,11 +216,11 @@ class DefaultRender(object):
     def renderEntry(self, skel: SkeletonInstance, actionName, params=None):
         if isinstance(skel, list):
             vals = [self.renderSkelValues(x) for x in skel]
-            struct = self.renderSkelStructure(skel[0])
+            struct = skel[0].structure()
             errors = None
         elif isinstance(skel, SkeletonInstance):
             vals = self.renderSkelValues(skel)
-            struct = self.renderSkelStructure(skel)
+            struct = skel.structure()
             errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage,
                        "invalidatedFields": x.invalidatedFields} for x in skel.errors]
         else:  # Hopefully we can pass it directly...
