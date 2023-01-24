@@ -80,7 +80,7 @@ class PasswordBone(StringBone):
         *,
         min_password_length: int = 8,
         test_threshold: int = 3,
-        password_tests: List[Tuple] = None,
+        password_tests: List[Tuple] = password_tests,
         **kwargs
     ):
         """
@@ -90,13 +90,13 @@ class PasswordBone(StringBone):
                     smaller this will be invalid.
 
             :param test_threshold: The minimum number of tests the password must pass.
-            :param password_tests: A list of tuple.The tuple  contains the tests and an error message if the test fails
+            :param password_tests: A list of tuples. The tuple contains the test and a reason for the user if the test
+                    fails.
         """
         super().__init__()
         self.min_password_length = min_password_length
         self.test_threshold = test_threshold
-        if if password_tests is not None:
-            self.password_tests = password_tests
+        self.password_tests = password_tests
 
     def isInvalid(self, value):
         if not value:
@@ -109,7 +109,7 @@ class PasswordBone(StringBone):
         tests_errors = []
         tests_passed = 0
         for test, hint in self.password_tests:
-            if re.search(test, value):
+            if re.match(test, value):
                 tests_passed += 1
             else:
                 tests_errors.append(str(hint))  # we may need to convert a "translate" object
