@@ -3,7 +3,9 @@ from viur.core.bones.string import StringBone
 from viur.core.i18n import translate
 from viur.core import utils, conf
 from hashlib import sha256
-import hmac, codecs, string, re
+import hmac
+import codecs
+import re
 from struct import Struct
 from operator import xor
 from itertools import starmap
