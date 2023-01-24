@@ -542,9 +542,11 @@ class Render(object):
         """
         if isinstance(skel, SkeletonInstance):
             skel.renderPreparation = self.renderBoneValue
-        elif isinstance(skel, list) and all([isinstance(x, SkeletonInstance) for x in skel]):
+
+        elif isinstance(skel, list):
             for x in skel:
-                x.renderPreparation = self.renderBoneValue
+                if isinstance(x, SkeletonInstance):
+                    x.renderPreparation = self.renderBoneValue
         if file is not None:
             try:
                 tpl = self.getEnv().from_string(codecs.open("emails/" + file + ".email", "r", "utf-8").read())
@@ -556,6 +558,15 @@ class Render(object):
         content = tpl.render(skel=skel, dests=dests, **kwargs).lstrip().splitlines()
         if len(content) == 1:
             content.insert(0, "")  # add empty subject
+
+        if isinstance(skel, SkeletonInstance):
+            skel.renderPreparation = None
+
+        elif isinstance(skel, list):
+            for x in skel:
+                if isinstance(x, SkeletonInstance):
+                    x.renderPreparation = None
+
         return content[0], os.linesep.join(content[1:]).lstrip()
 
     def getEnv(self) -> Environment:
