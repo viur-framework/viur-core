@@ -15,7 +15,7 @@ class ModuleConfSkel(Skeleton):
 
     _valid_tags = ['b', 'a', 'i', 'u', 'span', 'div', 'p', 'ol', 'ul', 'li', 'abbr', 'sub', 'sup', 'h1', 'h2', 'h3',
                    'h4', 'h5', 'h6', 'br', 'hr', 'strong', 'blockquote', 'em']
-    _valid_html = copy.deepcopy(_defaultTags)
+    _valid_html = _defaultTags.copy()
     _valid_html["validTags"] = _valid_tags
 
     name = StringBone(
