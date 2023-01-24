@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
+## [3.3.5]
+
+- Fix: Copy TextBone `_defaultTags` in `ModuleConfSkel` (#628)
+
 ## [3.3.4]
 
 - Bump viur-datastore from 1.3.6 to 1.3.7 (#627)
