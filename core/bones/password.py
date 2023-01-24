@@ -95,7 +95,8 @@ class PasswordBone(StringBone):
         super().__init__()
         self.min_password_length = min_password_length
         self.test_threshold = test_threshold
-        self.password_tests = self._password_tests if password_tests is None else password_tests
+        if if password_tests is not None:
+            self.password_tests = password_tests
 
     def isInvalid(self, value):
         if not value:
