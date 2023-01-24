@@ -107,11 +107,11 @@ class PasswordBone(StringBone):
         # Run our password test suite
         tests_errors = []
         tests_passed = 0
-        for test in self.password_tests:
-            if re.search(test[0], value):
+        for test, hint in self.password_tests:
+            if re.search(test, value):
                 tests_passed += 1
             else:
-                tests_errors.append(str(test[1]))  # we may need to convert a "translate" object
+                tests_errors.append(str(hint))  # we may need to convert a "translate" object
 
         if tests_passed < self.test_threshold:
             return tests_errors
