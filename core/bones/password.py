@@ -64,13 +64,13 @@ class PasswordBone(StringBone):
         defaultText="The entered password is too weak."
     )
     password_tests: List[Tuple] = [
-        (r"(?=.*[A-Z])", translate("core.bones.password.no_capital_letters",
+        (r"^.*[A-Z].*$", translate("core.bones.password.no_capital_letters",
                                    defaultText="The password entered has no capital letters.")),
-        (r"(?=.*[a-z])", translate("core.bones.password.no_lowercase_letters",
+        (r"^.*[a-z].*$", translate("core.bones.password.no_lowercase_letters",
                                    defaultText="The password entered has no lowercase letters.")),
-        (r"(?=.*\d)", translate("core.bones.password.no_digits",
+        (r"^.*\d.*$", translate("core.bones.password.no_digits",
                                 defaultText="The password entered has no digits.")),
-        (r"(?=.*\W)", translate("core.bones.password.no_special_characters",
+        (r"^.*\W.*$", translate("core.bones.password.no_special_characters",
                                 defaultText="The password entered has no special characters.")),
 
     ]
