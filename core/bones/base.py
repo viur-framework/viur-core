@@ -59,6 +59,20 @@ class MultipleConstraints:  # Used to define constraints on multiple bones
     preventDuplicates: bool = False  # Prevent the same value of being used twice
 
 
+class ThresholdMethods(Enum):
+    Always = 0
+    OnAdd = 1
+    OnEdit = 2
+    OnAdd_Edit = 3
+    Until = 4
+
+
+@dataclass
+class ThresholdValue:
+    method: ThresholdMethods
+    seconds: int = 0
+
+
 class BaseBone(object):
     type = "hidden"
     isClonedInstance = False
@@ -80,6 +94,8 @@ class BaseBone(object):
         unique: Union[None, UniqueValue] = None,
         vfunc: callable = None,  # fixme: Rename this, see below.
         visible: bool = True,
+        computed: callable = None,
+        threshold: ThresholdValue = None
     ):
         """
             Initializes a new Bone.
@@ -166,6 +182,21 @@ class BaseBone(object):
 
         if getEmptyValueFunc:
             self.getEmptyValue = getEmptyValueFunc
+
+        if computed:
+            if not callable(computed):
+                raise ValueError("computed must be a callable")
+            if not isinstance(threshold, ThresholdValue):
+                raise ValueError("threshold must be from type ThresholdValue")
+            if multiple:
+                raise ValueError("'computed' is the only valid on non-multiple bones")
+            if not readOnly:
+                raise ValueError("'computed' is the only valid on readonly bones")
+            if languages:
+                raise ValueError("'computed' is the only valid on bones without languages")
+            self.computed = computed
+            self.threshold = threshold
+
 
     def setSystemInitialized(self):
         """
