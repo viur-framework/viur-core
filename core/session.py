@@ -4,7 +4,7 @@ import time
 from viur.core.request import BrowseHandler
 from viur.core.config import conf  # this import has to stay alone due partial import
 from viur.core import db, utils, tasks
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 """
     Provides the session implementation for the Google AppEngine™ based on the datastore.
@@ -252,7 +252,7 @@ class Session:
 
 
 @tasks.CallDeferred
-def killSessionByUser(user: Optional[str | db.Key] = None):
+def killSessionByUser(user: Optional[Union[str, db.Key]] = None):
     """
         Invalidates all active sessions for the given *user*.
 
