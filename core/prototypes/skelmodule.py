@@ -1,4 +1,4 @@
-from viur.core.base.module import Module
+from viur.core import Module
 from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
 from viur.core import conf
 from typing import Tuple, Type

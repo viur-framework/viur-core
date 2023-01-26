@@ -1,7 +1,6 @@
 from .default import DefaultRender as default, serializeXML
 from .user import UserRender as user
-from viur.core import conf, securitykey, exposed
-from viur.core.base.module import Module
+from viur.core import Module, conf, securitykey, exposed
 import datetime
 
 __all__ = [default]

@@ -4,9 +4,9 @@ from viur.core import utils, errors, conf, securitykey, db
 from viur.core import forcePost, forceSSL, exposed, internalExposed
 from viur.core.bones import KeyBone, SortIndexBone
 from viur.core.cache import flushCache
-from viur.core.base.skelmodule import SkelModule
 from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.tasks import CallDeferred
+from .skelmodule import SkelModule
 
 SkelType = Literal["node", "leaf"]
 

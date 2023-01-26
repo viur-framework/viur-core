@@ -2,10 +2,9 @@ import logging
 from viur.core.bones import StringBone, TextBone
 from viur.core.bones.text import _defaultTags
 from viur.core.tasks import StartupTask
-from viur.core import conf, db
+from viur.core import Module, conf, db
 from viur.core.i18n import translate
 from viur.core.skeleton import Skeleton, SkeletonInstance
-from viur.core.base.module import Module
 from viur.core.prototypes import List
 
 

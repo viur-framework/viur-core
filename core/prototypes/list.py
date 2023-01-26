@@ -2,8 +2,8 @@ import logging
 from typing import Any, Optional
 from viur.core import db, errors, exposed, forcePost, forceSSL, securitykey, utils
 from viur.core.cache import flushCache
-from viur.core.base.skelmodule import SkelModule
 from viur.core.skeleton import SkeletonInstance
+from .skelmodule import SkelModule
 
 
 class List(SkelModule):

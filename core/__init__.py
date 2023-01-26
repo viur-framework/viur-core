@@ -32,7 +32,7 @@ from typing import Callable, Dict, Union, List
 from viur.core import session, errors, i18n, request, utils
 from viur.core.config import conf
 from viur.core.tasks import TaskHandler, runStartupTasks
-from viur.core.base.module import Module
+from viur.core.module import Module
 # noinspection PyUnresolvedReferences
 from viur.core import logging as viurLogging  # unused import, must exist, initializes request logging
 import logging  # this import has to stay here, see #571
