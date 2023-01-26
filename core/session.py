@@ -48,7 +48,8 @@ class Session:
     kindName = "viur-session"
     sameSite = "lax"  # Either None (don't issue sameSite header), "none", "lax" or "strict"
     sessionCookie = True  # If True, issue the cookie without a lifeTime (will disappear on browser close)
-    cookieName = f'viur_cookie_{conf["viur.instance.project_id"]}'
+    cookieName = f"""viur_cookie_{conf["viur.instance.project_id"]}"""
+    GUEST_USER = "__guest__"
 
     def __init__(self):
         super().__init__()
@@ -89,46 +90,47 @@ class Session:
 
     def save(self, req: BrowseHandler):
         """
-            Writes the session to the datastore.
+            Writes the session into the database.
 
-            Does nothing, if the session hasn't been changed in the current request.
+            Does nothing, in case the session hasn't been changed in the current request.
         """
+        if not (self.changed or self.isInitial):
+            return
+
+        # We will not issue sessions over http anymore
+        if not (req.isSSLConnection or conf["viur.instance.is_dev_server"]):
+            return
+
+        # Get the current user's key
         try:
-            if self.changed or self.isInitial:
-                # We will not issue sessions over http anymore
-                if not (req.isSSLConnection or conf["viur.instance.is_dev_server"]):
-                    return False
+            # Check for our custom user-api
+            user_key = conf["viur.mainApp"].user.getCurrentUser()["key"]
+        except:
+            user_key = Session.GUEST_USER  # this is a guest
 
-                # Get the current user id
-                try:
-                    # Check for our custom user-api
-                    userid = conf["viur.mainApp"].user.getCurrentUser()["key"]
-                except:
-                    userid = None
+        dbSession = db.Entity(db.Key(self.kindName, self.cookieKey))
 
-                try:
-                    dbSession = db.Entity(db.Key(self.kindName, self.cookieKey))
-                    dbSession["data"] = db.fixUnindexableProperties(self.session)
-                    dbSession["staticSecurityKey"] = self.staticSecurityKey
-                    dbSession["securityKey"] = self.securityKey
-                    dbSession["lastseen"] = time.time()
-                    dbSession["user"] = str(userid) if userid else None  # to allow filtering for specific users
-                    dbSession["guest"] = userid is None  # to allow filtering guest sessions
-                    dbSession.exclude_from_indexes = ["data"]
-                    db.Put(dbSession)
-                except Exception as e:
-                    logging.exception(e)
-                    raise  # FIXME???
+        dbSession["data"] = db.fixUnindexableProperties(self.session)
+        dbSession["staticSecurityKey"] = self.staticSecurityKey
+        dbSession["securityKey"] = self.securityKey
+        dbSession["lastseen"] = time.time()
+        dbSession["user"] = str(user_key)  # allow filtering for users
+        dbSession.exclude_from_indexes = ["data"]
 
-                sameSite = "; SameSite=%s" % self.sameSite if self.sameSite else ""
-                secure = "; Secure" if not conf["viur.instance.is_dev_server"] else ""
-                maxAge = "; Max-Age=%s" % conf["viur.session.lifeTime"] if not self.sessionCookie else ""
-                req.response.headerlist.append(("Set-Cookie", "%s=%s; Path=/; HttpOnly%s%s%s" % (
-                    self.cookieName, self.cookieKey, sameSite, secure, maxAge)))
+        db.Put(dbSession)
 
-        except Exception as e:
-            logging.exception(e)
-            raise  # FIXME???
+        # Provide Set-Cookie header entry with configured settings
+        flags = (
+            "Path=/",
+            "HttpOnly",
+            f"SameSite={self.sameSite}" if self.sameSite else None,
+            "Secure" if not conf["viur.instance.is_dev_server"] else None,
+            f"Max-Age={conf['viur.session.lifeTime']}" if not self.sessionCookie else None,
+        )
+
+        req.response.headerlist.append(
+            ("Set-Cookie", f"{self.cookieName}={self.cookieKey};{';'.join([f for f in flags if f])}")
+        )
 
     def __contains__(self, key: str) -> bool:
         """
@@ -243,21 +245,20 @@ class Session:
 
 
 @tasks.CallDeferred
-def killSessionByUser(user: Optional[str] = None):
+def killSessionByUser(user: Optional[str | db.Key] = None):
     """
         Invalidates all active sessions for the given *user*.
 
         This means that this user is instantly logged out.
         If no user is given, it tries to invalidate **all** active sessions.
 
-        Use "guest" as to kill all sessions not associated with an user.
+        Use "__guest__" to kill all sessions not associated with a user.
 
-        :param user: UserID, "guest" or None.
+        :param user: UserID, "__guest__" or None.
     """
-    logging.error("Invalidating all sessions for %s" % user)
-    query = db.Query(Session.kindName)
-    if user is not None:
-        query.filter("user =", str(user))
+    logging.info(f"Invalidating all sessions for {user=}")
+
+    query = db.Query(Session.kindName).filter("user =", str(user))
     for obj in query.iter():
         db.Delete(obj.key)
 
