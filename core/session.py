@@ -105,7 +105,7 @@ class Session:
         try:
             # Check for our custom user-api
             user_key = conf["viur.mainApp"].user.getCurrentUser()["key"]
-        except:
+        except Exception:
             user_key = Session.GUEST_USER  # this is a guest
 
         dbSession = db.Entity(db.Key(self.kindName, self.cookieKey))
