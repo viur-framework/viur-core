@@ -70,7 +70,7 @@ class Session:
         """
         if self.cookieName in req.request.cookies:
             cookie = str(req.request.cookies[self.cookieName])
-            if data := db.Get(db.Key(self.kindName, cookie)):  # Loaded successfully from Memcache
+            if data := db.Get(db.Key(self.kindName, cookie)):  # Loaded successfully
                 if data["lastseen"] < time.time() - conf["viur.session.lifeTime"]:
                     # This session is too old
                     self.reset()
@@ -155,6 +155,13 @@ class Session:
         """
         return self.session[key]
 
+    def __ior__(self, other: dict):
+        """
+        Merges the contents of a dict into the session.
+        """
+        self.session |= other
+        return self
+
     def get(self, key: str, default: Any = None) -> Any:
         """
             Returns the value stored under the given key.
@@ -177,7 +184,7 @@ class Session:
     def markChanged(self) -> None:
         """
             Explicitly mark the current session as changed.
-            This will force save() to write into the memcache / datastore,
+            This will force save() to write into the datastore,
             even if it believes that this session hasn't changed.
         """
         self.changed = True
@@ -189,7 +196,7 @@ class Session:
             This function is especially useful at login, where
             we might need to create an SSL-capable session.
 
-            :warning: Everything (except the current language) is flushed.
+            :warning: Everything is flushed.
         """
         if self.cookieKey:
             db.Delete(db.Key(self.kindName, self.cookieKey))

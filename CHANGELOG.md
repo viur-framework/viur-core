@@ -2,6 +2,37 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
+## [3.3.5]
+
+- Fix: Copy TextBone `_defaultTags` in `ModuleConfSkel` (#628)
+
+## [3.3.4]
+
+- Bump viur-datastore from 1.3.6 to 1.3.7 (#627)
+- Fix: Reset renderPreparation in renderEmail (#625)
+- Fix: `flushCache` used ViUR2-call to decode str-encoded key (#624)
+- Fix: Use editSkel() in Tree edit/delete (#610)
+
+## [3.3.3]
+
+- Fix growing instance's Request header (#609)
+- Provide `defaultvalue` in bone structure (#608)
+- Refactoring `render.vi.getStructure` (#607)
+- Change metaserver zone-request into region-request (#606)
+
+## [3.3.2]
+
+- Bump requirement certifi==2021.10.8 (#588)
+- Bump setuptools from 62.0.0 to 65.5.1 (#602)
+- Bump viur-datastore from 1.3.5 to 1.3.6 (#603)
+- Fix stacklevel parameter for more precise deprecation messages (#596)
+- Export RelationalUpdateLevel with viur.core.bones (#599)
+
+## [3.3.1]
+
+- Fixed user module renderer calls from password recovery (#597)
+- Fixed path of index.yaml in packaged version (#590)
+
 ## [3.3.0]
 
 - Fixed `import logging` must stay behind other imports in `__init__.py` (#573)

@@ -37,7 +37,7 @@ See our [contribution guidelines](CONTRIBUTING.md) for details.
 
 ## License
 
-Copyright © 2022 by Mausbrand Informationssysteme GmbH.<br>
+Copyright © 2023 by Mausbrand Informationssysteme GmbH.<br>
 Mausbrand and ViUR are registered trademarks of Mausbrand Informationssysteme GmbH.
 
 You may use, modify and distribute this software under the terms and conditions of the GNU Lesser General Public License (LGPL). See the file LICENSE provided within this package for more information.

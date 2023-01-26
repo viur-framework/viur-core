@@ -13,6 +13,7 @@ from viur.core.bones import *
 from viur.core.i18n import LanguageWrapper, TranslationExtension
 from viur.core.skeleton import SkelList, SkeletonInstance
 from viur.core.utils import currentLanguage, currentRequest
+from viur.core import conf
 from . import utils as jinjaUtils
 
 KeyValueWrapper = namedtuple("KeyValueWrapper", ["key", "descr"])
@@ -101,13 +102,13 @@ class Render(object):
                       template + ".html"]
         for fn in fnames:  # check subfolders
             prefix = template.split("_")[0]
-            if os.path.isfile(os.path.join(utils.projectBasePath, htmlpath, prefix, fn)):
+            if conf["viur.instance.project_base_path"].joinpath(htmlpath, prefix, fn).is_file():
                 return "%s/%s" % (prefix, fn)
         for fn in fnames:  # Check the templatefolder of the application
-            if os.path.isfile(os.path.join(utils.projectBasePath, htmlpath, fn)):
+            if conf["viur.instance.project_base_path"].joinpath(htmlpath, fn).is_file():
                 return fn
         for fn in fnames:  # Check the fallback
-            if os.path.isfile(os.path.join(utils.projectBasePath, "viur", "core", "template", fn)):
+            if conf["viur.instance.core_base_path"].joinpath("template", fn).is_file():
                 return fn
         raise errors.NotFound("Template %s not found." % template)
 
@@ -541,9 +542,11 @@ class Render(object):
         """
         if isinstance(skel, SkeletonInstance):
             skel.renderPreparation = self.renderBoneValue
-        elif isinstance(skel, list) and all([isinstance(x, SkeletonInstance) for x in skel]):
+
+        elif isinstance(skel, list):
             for x in skel:
-                x.renderPreparation = self.renderBoneValue
+                if isinstance(x, SkeletonInstance):
+                    x.renderPreparation = self.renderBoneValue
         if file is not None:
             try:
                 tpl = self.getEnv().from_string(codecs.open("emails/" + file + ".email", "r", "utf-8").read())
@@ -555,6 +558,15 @@ class Render(object):
         content = tpl.render(skel=skel, dests=dests, **kwargs).lstrip().splitlines()
         if len(content) == 1:
             content.insert(0, "")  # add empty subject
+
+        if isinstance(skel, SkeletonInstance):
+            skel.renderPreparation = None
+
+        elif isinstance(skel, list):
+            for x in skel:
+                if isinstance(x, SkeletonInstance):
+                    x.renderPreparation = None
+
         return content[0], os.linesep.join(content[1:]).lstrip()
 
     def getEnv(self) -> Environment:

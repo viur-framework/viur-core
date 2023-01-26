@@ -33,43 +33,48 @@ timestamp.exposed = True
 
 
 def getStructure(adminTree, module):
+    """
+    Returns all available skeleton structures for a given module.
+    """
     if not module in dir(adminTree) \
         or not "adminInfo" in dir(getattr(adminTree, module)) \
         or not getattr(adminTree, module).adminInfo:
         # Module not known or no adminInfo for that module
         return json.dumps(None)
+
     res = {}
     try:
         moduleObj = getattr(adminTree, module)
     except:
-        return None
-    for stype in ["viewSkel", "editSkel", "addSkel", "viewLeafSkel", "viewNodeSkel", "editNodeSkel", "editLeafSkel",
-                  "addNodeSkel", "addLeafSkel"]:  # Unknown skel type
-        if stype in dir(moduleObj):
-            try:
-                skel = getattr(moduleObj, stype)()
-            except (TypeError, ValueError):
-                continue
-            if isinstance(skel, SkeletonInstance):
-                res[stype] = default().renderSkelStructure(skel)
-    if not res and "nodeSkelCls" in dir(moduleObj):
+        return json.dumps(None)
+
+    # check for tree prototype
+    if "nodeSkelCls" in dir(moduleObj):
         # Try Node/Leaf
-        for stype in ["viewSkel", "editSkel", "addSkel"]:
-            for treeType in ["node", "leaf"]:
+        for stype in ("viewSkel", "editSkel", "addSkel"):
+            for treeType in ("node", "leaf"):
                 if stype in dir(moduleObj):
                     try:
                         skel = getattr(moduleObj, stype)(treeType)
                     except (TypeError, ValueError):
                         continue
+
                     if isinstance(skel, SkeletonInstance):
                         storeType = stype.replace("Skel", "") + ("LeafSkel" if treeType == "leaf" else "NodeSkel")
                         res[storeType] = default().renderSkelStructure(skel)
+    else:
+        # every other prototype
+        for stype in ("viewSkel", "editSkel", "addSkel"):  # Unknown skel type
+            if stype in dir(moduleObj):
+                try:
+                    skel = getattr(moduleObj, stype)()
+                except (TypeError, ValueError):
+                    continue
+                if isinstance(skel, SkeletonInstance):
+                    res[stype] = default().renderSkelStructure(skel)
 
     currentRequest.get().response.headers["Content-Type"] = "application/json"
-    if res:
-        return json.dumps(res, cls=CustomJsonEncoder)
-    else:
-        return json.dumps(None)
+    return json.dumps(res or None, cls=CustomJsonEncoder)
 
 
 def setLanguage(lang, skey):

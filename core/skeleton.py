@@ -1,76 +1,96 @@
 from __future__ import annotations
-
 import copy
 import inspect
 import logging
 import os
 import sys
+import string
 from functools import partial
 from itertools import chain
 from time import time
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
-
 from viur.core import conf, db, email, errors, utils
-from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, SelectBone, StringBone
+from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, RelationalUpdateLevel, SelectBone, StringBone
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 from viur.core.tasks import CallableTask, CallableTaskBase, QueryIter, CallDeferred
-from viur.core.bones.relational import RelationalUpdateLevel
-
-try:
-    import pytz
-except:
-    pytz = None
 
 __undefindedC__ = object()
 
 
 class MetaBaseSkel(type):
     """
-        This is the meta class for Skeletons.
+        This is the metaclass for Skeletons.
         It is used to enforce several restrictions on bone names, etc.
     """
     _skelCache = {}  # Mapping kindName -> SkelCls
     _allSkelClasses = set()  # list of all known skeleton classes (including Ref and Mail-Skels)
 
+    # List of reserved keywords and function names
     __reserved_keywords = {
+        "all",
         "bounce",
+        "clone",
         "cursor",
+        "delete",
+        "fromClient",
+        "fromDB",
+        "get",
+        "getCurrentSEOKeys",
         "items",
         "keys",
         "limit",
         "orderby",
         "orderdir",
+        "postDeletedHandler",
+        "postSavedHandler",
+        "preProcessBlobLocks",
+        "preProcessSerializedData",
+        "refresh",
         "self",
+        "serialize",
+        "setBoneValue",
         "style",
+        "toDB",
+        "unserialize",
         "values",
     }
 
+    __allowed_chars = string.ascii_letters + string.digits + "_"
+
     def __init__(cls, name, bases, dct):
-        boneMap = {}
+        cls.__boneMap__ = MetaBaseSkel.generate_bonemap(cls)
 
-        def fillBoneMapRecursive(inCls):
-            for baseCls in inCls.__bases__:
-                if "__viurBaseSkeletonMarker__" in dir(baseCls):
-                    fillBoneMapRecursive(baseCls)
-            for key in inCls.__dict__:
-                prop = getattr(inCls, key)
-                if isinstance(prop, BaseBone):
-                    if "." in key:
-                        raise AttributeError(f"Invalid bone {key!r}: Bone keys may not contain a dot (.)")
-                    if key in MetaBaseSkel.__reserved_keywords:
-                        raise AttributeError(
-                            f"Invalid bone {key!r}: Bone cannot have any of the following names: "
-                            f"{MetaBaseSkel.__reserved_keywords!r}"
-                        )
-                    boneMap[key] = prop
-                elif prop is None and key in boneMap:  # Allow removing a bone in a subclass by setting it to None
-                    del boneMap[key]
-
-        fillBoneMapRecursive(cls)
-        cls.__boneMap__ = boneMap
         if not getSystemInitialized():
             MetaBaseSkel._allSkelClasses.add(cls)
+
         super(MetaBaseSkel, cls).__init__(name, bases, dct)
+
+    @staticmethod
+    def generate_bonemap(cls):
+        """
+        Recursively constructs a dict of bones from
+        """
+        map = {}
+
+        for base in cls.__bases__:
+            if "__viurBaseSkeletonMarker__" in dir(base):
+                map |= MetaBaseSkel.generate_bonemap(base)
+
+        for key in cls.__dict__:
+            prop = getattr(cls, key)
+
+            if isinstance(prop, BaseBone):
+                if not all([c in MetaBaseSkel.__allowed_chars for c in key]):
+                    raise AttributeError(f"Invalid bone name: {key!r} contains invalid characters")
+                elif key in MetaBaseSkel.__reserved_keywords:
+                    raise AttributeError(f"Invalid bone name: {key!r} is reserved and cannot be used")
+
+                map[key] = prop
+
+            elif prop is None and key in map:  # Allow removing a bone in a subclass by setting it to None
+                del map[key]
+
+        return map
 
 
 def skeletonByKind(kindName: str) -> Type[Skeleton]:
@@ -204,6 +224,9 @@ class SkeletonInstance:
     def __setattr__(self, key, value):
         if key in self.boneMap or isinstance(value, BaseBone):
             self.boneMap[key] = value
+        elif key == "renderPreparation":
+            super().__setattr__(key, value)
+            self.renderAccessedValues.clear()
         else:
             super().__setattr__(key, value)
 
@@ -390,7 +413,9 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 class MetaSkel(MetaBaseSkel):
     def __init__(cls, name, bases, dct):
         super(MetaSkel, cls).__init__(name, bases, dct)
-        relNewFileName = inspect.getfile(cls).replace(utils.projectBasePath, "").replace(utils.coreBasePath, "")
+        relNewFileName = inspect.getfile(cls) \
+            .replace(str(conf["viur.instance.project_base_path"]), "") \
+            .replace(str(conf["viur.instance.core_base_path"]), "")
 
         # Check if we have an abstract skeleton
         if cls.__name__.endswith("AbstractSkel"):
@@ -409,8 +434,9 @@ class MetaSkel(MetaBaseSkel):
                 cls.kindName = cls.__name__.lower()
         # Try to determine which skeleton definition takes precedence
         if cls.kindName and cls.kindName is not __undefindedC__ and cls.kindName in MetaBaseSkel._skelCache:
-            relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName])\
-                .replace(utils.projectBasePath, "").replace(utils.coreBasePath,"")
+            relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]) \
+                .replace(str(conf["viur.instance.project_base_path"]), "") \
+                .replace(str(conf["viur.instance.core_base_path"]), "")
             idxOld = min(
                 [x for (x, y) in enumerate(conf["viur.skeleton.searchPath"]) if relOldFileName.startswith(y)] + [999])
             idxNew = min(
@@ -610,16 +636,22 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     key = KeyBone(descr="key", readOnly=True, visible=False)
 
     # The date (including time) when this entry has been created
-    creationdate = DateBone(descr="created at",
-                            readOnly=True, visible=False,
-                            creationMagic=True, indexed=True,
-                            localize=bool(pytz))
+    creationdate = DateBone(
+        descr="created at",
+        readOnly=True,
+        visible=False,
+        creationMagic=True,
+        indexed=True,
+    )
 
     # The last date (including time) when this entry has been updated
-    changedate = DateBone(descr="updated at",
-                          readOnly=True, visible=False,
-                          updateMagic=True, indexed=True,
-                          localize=bool(pytz))
+    changedate = DateBone(
+        descr="updated at",
+        readOnly=True,
+        visible=False,
+        updateMagic=True,
+        indexed=True,
+    )
 
     viurCurrentSeoKeys = seoKeyBone(descr="Seo-Keys",
                                     readOnly=True,

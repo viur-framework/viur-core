@@ -416,7 +416,7 @@ class Tree(BasicApplication):
         if not (skelType := self._checkSkelType(skelType)):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
 
-        skel = self.addSkel(skelType)
+        skel = self.editSkel(skelType)
         if not skel.fromDB(key):
             raise errors.NotFound()
         if not self.canEdit(skelType, skel):
@@ -457,7 +457,7 @@ class Tree(BasicApplication):
         skey = kwargs.get("skey", "")
         if not (skelType := self._checkSkelType(skelType)):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
-        skel = self.addSkel(skelType)
+        skel = self.editSkel(skelType)
         if not skel.fromDB(key):
             raise errors.NotFound()
         if not self.canDelete(skelType, skel):
