@@ -3,17 +3,15 @@ from . import admin
 from . import xml
 from . import json
 from . import vi
-from os import path
+from viur.core import conf
 
 
 def isViAvailable():
-    from viur.core.utils import projectBasePath
-    return path.exists(path.join(projectBasePath, "vi", "main.html"))
+    return conf["viur.instance.project_base_path"].joinpath("vi", "main.html").exists()
 
 
 def isAdminAvailable():
-    from viur.core.utils import projectBasePath
-    return path.exists(path.join(projectBasePath, "admin", "admin.html"))
+    return conf["viur.instance.project_base_path"].joinpath("admin", "admin.html").exists()
 
 
 __all__ = ["html", "admin", "xml", "json", "vi", "isViAvailable", "isAdminAvailable"]

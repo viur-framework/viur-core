@@ -153,6 +153,13 @@ class Session:
         """
         return self.session[key]
 
+    def __ior__(self, other: dict):
+        """
+        Merges the contents of a dict into the session.
+        """
+        self.session |= other
+        return self
+
     def get(self, key: str, default: Any = None) -> Any:
         """
             Returns the value stored under the given key.

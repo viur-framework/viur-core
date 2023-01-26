@@ -4,6 +4,7 @@ import hashlib
 import logging
 import warnings
 import google.auth
+from pathlib import Path
 from viur.core.version import __version__
 
 
@@ -17,8 +18,8 @@ class Conf(dict):
         match key:
             case "viur.downloadUrlFor.expiration":
                 msg = f"{key!r} was substituted by `viur.render.html.downloadUrlExpiration`"
-                warnings.warn(msg, DeprecationWarning)
-                logging.warning(msg)
+                warnings.warn(msg, DeprecationWarning, stacklevel=3)
+                logging.warning(msg, stacklevel=3)
 
                 key = "viur.render.html.downloadUrlExpiration"
 
@@ -33,8 +34,8 @@ class Conf(dict):
         # Avoid to set conf values to something which is already the default
         if key in self and self[key] == value:
             msg = f"Setting conf[\"{key}\"] to {value!r} has no effect, as this value has already been set"
-            warnings.warn(msg)
-            logging.warning(msg)
+            warnings.warn(msg, stacklevel=3)
+            logging.warning(msg, stacklevel=3)
             return
 
         super().__setitem__(key, value)
@@ -43,6 +44,11 @@ class Conf(dict):
 # Some values used more than once below
 __project_id = google.auth.default()[1]
 __version = os.getenv("GAE_VERSION")
+
+# Determine our basePath (as os.getCWD is broken on appengine)
+__project_base_path = Path().absolute()
+
+__core_base_path = Path(__file__).parent.parent.parent
 
 # Conf is a static, local dictionary.
 # Changes here apply locally to the current instance only.
@@ -136,14 +142,20 @@ conf = Conf({
     # Call-Map for file pre-processors
     "viur.file.derivers": {},
 
+    # Name of this version as deployed to the appengine
+    "viur.instance.app_version": __version,
+
+    # The base path of the core, can be used to find file in the core folder
+    "viur.instance.core_base_path": __core_base_path,
+
     # Determine whether instance is running on a local development server
     "viur.instance.is_dev_server": os.getenv("GAE_ENV") == "localdev",
 
+    # The base path of the project, can be used to find file in the project folder
+    "viur.instance.project_base_path": __project_base_path,
+
     # The instance's project ID
     "viur.instance.project_id": __project_id,
-
-    # Name of this version as deployed to the appengine
-    "viur.instance.app_version": __version,
 
     # Version hash that does not reveal the actual version name, can be used for cache-busting static resources
     "viur.instance.version_hash": hashlib.sha256((__version + __project_id).encode("UTF-8")).hexdigest()[:10],

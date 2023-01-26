@@ -6,13 +6,14 @@ from .credential import CredentialBone
 from .date import DateBone
 from .email import EmailBone
 from .file import FileBone
+from .json import JsonBone
 from .key import KeyBone
 from .numeric import NumericBone
 from .password import PasswordBone
 from .randomslice import RandomSliceBone
 from .raw import RawBone
 from .record import RecordBone
-from .relational import RelationalBone, RelationalConsistency
+from .relational import RelationalBone, RelationalConsistency, RelationalUpdateLevel
 from .selectcountry import SelectCountryBone
 from .select import SelectBone
 from .sortindex import SortIndexBone
@@ -33,6 +34,7 @@ __all = [
     "DateBone",
     "EmailBone",
     "FileBone",
+    "JsonBone",
     "KeyBone",
     "MultipleConstraints",
     "NumericBone",
