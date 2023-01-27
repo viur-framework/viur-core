@@ -1,11 +1,13 @@
 import copy
 import hashlib
+import inspect
 import logging
 from dataclasses import dataclass, field
+from datetime import timedelta
 from enum import Enum
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 
-from viur.core import db
+from viur.core import db, utils
 from viur.core.config import conf
 
 __systemIsIntitialized_ = False
@@ -61,10 +63,11 @@ class MultipleConstraints:  # Used to define constraints on multiple bones
 
 class ThresholdMethods(Enum):
     Always = 0
-    OnAdd = 1
-    OnEdit = 2
-    OnAdd_Edit = 3
-    Until = 4
+    Until = 1
+    #OnAdd = 2 maybe later ?
+    #OnEdit = 3 maybe later ?
+    #OnAdd_Edit = 4 maybe later ?
+
 
 
 @dataclass
@@ -94,7 +97,7 @@ class BaseBone(object):
         unique: Union[None, UniqueValue] = None,
         vfunc: callable = None,  # fixme: Rename this, see below.
         visible: bool = True,
-        computed: callable = None,
+        compute: callable = None,
         threshold: ThresholdValue = None
     ):
         """
@@ -183,20 +186,21 @@ class BaseBone(object):
         if getEmptyValueFunc:
             self.getEmptyValue = getEmptyValueFunc
 
-        if computed:
-            if not callable(computed):
-                raise ValueError("computed must be a callable")
+        if compute:
+            if not callable(compute):
+                raise ValueError("compute must be a callable")
             if not isinstance(threshold, ThresholdValue):
                 raise ValueError("threshold must be from type ThresholdValue")
             if multiple:
-                raise ValueError("'computed' is the only valid on non-multiple bones")
+                raise ValueError("'compute' is the only valid on non-multiple bones")
             if not readOnly:
-                raise ValueError("'computed' is the only valid on readonly bones")
+                raise ValueError("'compute' is the only valid on readonly bones")
             if languages:
-                raise ValueError("'computed' is the only valid on bones without languages")
-            self.computed = computed
+                raise ValueError("'compute' is the only valid on bones without languages")
+            self.compute = compute
             self.threshold = threshold
-
+        else:
+            self.compute = None
 
     def setSystemInitialized(self):
         """
@@ -471,6 +475,9 @@ class BaseBone(object):
         """
         if name in skel.accessedValues:
             newVal = skel.accessedValues[name]
+            if self.compute:  # handle this in the first place
+                # the bone is readonly anyway
+                return True
             if self.languages and self.multiple:
                 res = db.Entity()
                 res["_viurLanguageWrapper_"] = True
@@ -524,13 +531,41 @@ class BaseBone(object):
         """
         if name in skel.dbEntity:
             loadVal = skel.dbEntity[name]
+            if self.compute:  # handle this in the first place
+                if self.threshold.method == ThresholdMethods.Until:  # we maybe must compute the value new
+                    # if we have no value we set it to now and compute new
+                    valid_until = skel.dbEntity.get(f"{name}__vaild_until", utils.utcNow())
+                    if valid_until > utils.utcNow():
+                        skel.accessedValues[name] = loadVal
+                        return True
+                    if data := self._compute(skel, name):
+                        skel.accessedValues[name] = data
+                        skel.dbEntity[name] = data
+                        skel.dbEntity[f"{name}__vaild_until"] = utils.utcNow() + timedelta(
+                            seconds=self.threshold.seconds)
+                        return True
+
+                elif self.threshold.method == ThresholdMethods.Always:  # we must compute the value new
+                    if data := self._compute(skel, name):
+                        skel.accessedValues[name] = data
+                        return True
+
+
         elif conf.get("viur.viur2import.blobsource") and any(
             [x.startswith("%s." % name) for x in skel.dbEntity.keys()]):
             # We're importing from an old ViUR2 instance - there may only be keys prefixed with our name
             loadVal = None
         else:
+            if self.compute:  # handle this in the first place
+                if data := self._compute(skel, name):
+                    skel.accessedValues[name] = data
+                    skel.dbEntity[name] = data
+                    skel.dbEntity[f"{name}__vaild_until"] = utils.utcNow() + timedelta(seconds=self.threshold.seconds)
+                    return True
+
             skel.accessedValues[name] = self.getDefaultValue(skel)
             return False
+
         if self.languages and self.multiple:
             res = {}
             if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
@@ -913,3 +948,12 @@ class BaseBone(object):
                     yield idx, None, val
             else:
                 yield None, None, value
+
+    def _compute(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+
+        if not "skel" in inspect.signature(self.compute).parameters:
+            return self.compute()  # call without any arguments
+
+        skel = skel.clone()
+        skel[name] = None  # we must remove our bone because of recursion
+        return self.compute(skel=skel)
