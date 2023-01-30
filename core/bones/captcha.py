@@ -42,7 +42,7 @@ class CaptchaBone(BaseBone):
         """
         if conf["viur.instance.is_dev_server"]:  # We dont enforce captchas on dev server
             return None
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if user and "root" in user["access"]:
             return None  # Don't bother trusted users with this (not supported by admin/vi anyways)
         if not "g-recaptcha-response" in data:

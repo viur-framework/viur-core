@@ -129,7 +129,7 @@ getVersion.exposed = True
 
 
 def canAccess(*args, **kwargs) -> bool:
-    user = utils.getCurrentUser()
+    user = current.user.get()
     if user and ("root" in user["access"] or "admin" in user["access"]):
         return True
     pathList = current.request.get().pathlist

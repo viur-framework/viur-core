@@ -590,7 +590,7 @@ class Tree(BasicApplication):
 
         :returns: The altered filter, or None if access is not granted.
         """
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if user and ("%s-view" % self.moduleName in user["access"] or "root" in user["access"]):
             return query
         return None
@@ -632,7 +632,7 @@ class Tree(BasicApplication):
 
         :returns: True, if adding entries is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if not user:
             return False
         # root user is always allowed.
@@ -663,7 +663,7 @@ class Tree(BasicApplication):
 
         :returns: True, if editing entries is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if not user:
             return False
         if user["access"] and "root" in user["access"]:
@@ -693,7 +693,7 @@ class Tree(BasicApplication):
 
         :returns: True, if deleting entries is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if not user:
             return False
         if user["access"] and "root" in user["access"]:
@@ -724,7 +724,7 @@ class Tree(BasicApplication):
 
         :returns: True, if deleting entries is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if not user:
             return False
         if user["access"] and "root" in user["access"]:
@@ -762,7 +762,7 @@ class Tree(BasicApplication):
         """
         logging.info("Entry of kind %r added: %s", skelType, skel["key"])
         flushCache(kind=skel.kindName)
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if user:
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
@@ -793,7 +793,7 @@ class Tree(BasicApplication):
         """
         logging.info("Entry of kind %r changed: %s", skelType, skel["key"])
         flushCache(key=skel["key"])
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if user:
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
@@ -841,7 +841,7 @@ class Tree(BasicApplication):
         """
         logging.info("Entry deleted: %s (%s)" % (skel["key"], type(skel)))
         flushCache(key=skel["key"])
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if user:
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
 

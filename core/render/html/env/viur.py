@@ -115,7 +115,7 @@ def getCurrentUser(render: Render) -> Optional[SkeletonInstance]:
 
     :return: A dict containing user data. Returns None if no user data is available.
     """
-    currentUser = utils.getCurrentUser()
+    currentUser = current.user.get()
     if currentUser:
         currentUser.renderPreparation = render.renderBoneValue
     return currentUser

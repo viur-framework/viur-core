@@ -37,10 +37,11 @@ def getCurrentUser() -> Optional["SkeletonInstance"]:
         :returns: A SkeletonInstance containing information about the logged-in
             user, None if no user is logged in.
     """
-    user = None
-    if "user" in dir(conf["viur.mainApp"]):  # Check for our custom user-api
-        user = conf["viur.mainApp"].user.getCurrentUser()
-    return user
+    import warnings
+    msg = f"Use of `utils.getCurrentUser()` is deprecated; Use `current.user.get()` instead!"
+    warnings.warn(msg, DeprecationWarning, stacklevel=3)
+    logging.warning(msg, stacklevel=3)
+    return current.user.get()
 
 
 def markFileForDeletion(dlkey: str) -> None:

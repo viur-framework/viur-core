@@ -210,7 +210,7 @@ class Singleton(BasicApplication):
 
         :returns: True, if previewing entries is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
+        user = current.user.get()
 
         if not user:
             return False
@@ -240,7 +240,7 @@ class Singleton(BasicApplication):
 
         :returns: True, if editing is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
+        user = current.user.get()
 
         if not user:
             return False
@@ -270,7 +270,7 @@ class Singleton(BasicApplication):
 
         :returns: True, if viewing is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if not user:
             return False
         if user["access"] and "root" in user["access"]:
@@ -304,7 +304,7 @@ class Singleton(BasicApplication):
         """
         logging.info("Entry changed: %s" % skel["key"])
         flushCache(key=skel["key"])
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if user:
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
 

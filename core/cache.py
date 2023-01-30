@@ -71,7 +71,7 @@ def keyFromArgs(f: Callable, userSensitive: int, languageSensitive: bool, evalua
                 raise AssertionError("Got dupplicate arguments for %s" % k)
             res[k] = v
     if userSensitive:
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if userSensitive == 1 and user:  # We dont cache requests for each user separately
             return None
         elif userSensitive == 2:

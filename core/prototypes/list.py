@@ -343,7 +343,7 @@ class List(BasicApplication):
 
             :returns: The altered filter, or None if access is not granted.
         """
-        user = utils.getCurrentUser()
+        user = current.user.get()
 
         if user and ("%s-view" % self.moduleName in user["access"] or "root" in user["access"]):
             return query
@@ -389,7 +389,7 @@ class List(BasicApplication):
 
             :returns: True, if adding entries is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if not user:
             return False
 
@@ -421,7 +421,7 @@ class List(BasicApplication):
 
             :returns: True, if previewing entries is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if not user:
             return False
 
@@ -454,7 +454,7 @@ class List(BasicApplication):
 
             :returns: True, if editing entries is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if not user:
             return False
 
@@ -486,7 +486,7 @@ class List(BasicApplication):
 
             :returns: True, if deleting entries is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
+        user = current.user.get()
 
         if not user:
             return False
@@ -526,7 +526,7 @@ class List(BasicApplication):
         """
         logging.info("Entry added: %s" % skel["key"])
         flushCache(kind=skel.kindName)
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if user:
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
@@ -555,7 +555,7 @@ class List(BasicApplication):
         """
         logging.info("Entry changed: %s" % skel["key"])
         flushCache(key=skel["key"])
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if user:
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
@@ -597,7 +597,7 @@ class List(BasicApplication):
         """
         logging.info("Entry deleted: %s" % skel["key"])
         flushCache(key=skel["key"])
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if user:
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
 

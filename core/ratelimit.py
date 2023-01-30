@@ -41,7 +41,7 @@ class RateLimit(object):
         :return: the key associated with the current endpoint (it's IP or the key of the current user)
         """
         if self.useUser:
-            user = utils.getCurrentUser()
+            user = current.user.get()
             assert user, "Cannot decrement usage from guest!"
             return user["key"]
         else:

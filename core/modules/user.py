@@ -169,7 +169,7 @@ class UserPassword:
     @exposed
     @forceSSL
     def login(self, name=None, password=None, skey="", *args, **kwargs):
-        if self.userModule.getCurrentUser():  # Were already logged in
+        if current.user.get():  # Were already logged in
             return self.userModule.render.loginSucceeded()
 
         if not name or not password or not securitykey.validate(skey, useSessionKey=True):
@@ -669,7 +669,7 @@ class User(List):
 
     def addSkel(self):
         skel = super(User, self).addSkel().clone()
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if not (user and user["access"] and ("%s-add" % self.moduleName in user["access"] or "root" in user["access"])):
             skel.status.readOnly = True
             skel["status"] = 0
@@ -699,7 +699,7 @@ class User(List):
         if "password" in skel:
             skel.password.required = False
 
-        user = utils.getCurrentUser()
+        user = current.user.get()
 
         lockFields = not (user and "root" in user["access"])  # If we aren't root, make certain fields read-only
         skel.name.readOnly = lockFields
@@ -786,7 +786,7 @@ class User(List):
             Implements the logout action. It also terminates the current session (all keys not listed
             in viur.session.persistentFieldsOnLogout will be lost).
         """
-        if not (user := utils.getCurrentUser()):
+        if not (user := current.user.get()):
             raise errors.Unauthorized()
         if not securitykey.validate(skey, useSessionKey=True):
             raise errors.PreconditionFailed()

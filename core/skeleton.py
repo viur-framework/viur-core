@@ -1391,7 +1391,7 @@ class TaskUpdateSearchIndex(CallableTaskBase):
 
     def canCall(self) -> bool:
         """Checks wherever the current user can execute this task"""
-        user = utils.getCurrentUser()
+        user = current.user.get()
         return user is not None and "root" in user["access"]
 
     def dataSkel(self):
@@ -1401,7 +1401,7 @@ class TaskUpdateSearchIndex(CallableTaskBase):
         return skel
 
     def execute(self, module, *args, **kwargs):
-        usr = utils.getCurrentUser()
+        usr = current.user.get()
         if not usr:
             logging.warning("Don't know who to inform after rebuilding finished")
             notify = None
@@ -1459,7 +1459,7 @@ class TaskVacuumRelations(CallableTaskBase):
         Checks wherever the current user can execute this task
         :returns: bool
         """
-        user = utils.getCurrentUser()
+        user = current.user.get()
         return user is not None and "root" in user["access"]
 
     def dataSkel(self):
@@ -1468,7 +1468,7 @@ class TaskVacuumRelations(CallableTaskBase):
         return skel
 
     def execute(self, module, *args, **kwargs):
-        usr = utils.getCurrentUser()
+        usr = current.user.get()
         if not usr:
             logging.warning("Don't know who to inform after rebuilding finished")
             notify = None
