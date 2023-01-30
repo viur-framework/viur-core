@@ -304,6 +304,7 @@ def app(environ: dict, start_response: Callable):
     current.request_data.set(None)
     current.session.set(None)
     current.request.set(None)
+    current.user.set(None)
 
     return resp(environ, start_response)
 

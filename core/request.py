@@ -264,7 +264,7 @@ class BrowseHandler():  # webapp.RequestHandler
         try:
             current.session.get().load(self)
             if "user" in dir(conf["viur.mainApp"]):  # Check for our custom user-api
-                current.user.set(conf["viur.mainApp"].user.getCurrentUser()) #load user in context var
+                current.user.set(conf["viur.mainApp"].user.getCurrentUser())  # load user in context var
             path = self.selectLanguage(path)[1:]
             if conf["viur.requestPreprocessor"]:
                 path = conf["viur.requestPreprocessor"](path)
