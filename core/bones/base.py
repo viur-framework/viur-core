@@ -905,7 +905,6 @@ class BaseBone(object):
         else:
             ret["readonly"] = self.readOnly
 
-
         # Provide a defaultvalue, if it's not a function.
         if not callable(self.defaultValue) and self.defaultValue is not None:
             ret["defaultvalue"] = self.defaultValue
