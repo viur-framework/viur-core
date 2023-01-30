@@ -98,6 +98,10 @@ class UserSkel(skeleton.Skeleton):
         defaultValue=0,
     )
 
+    admin_config = JsonBone(
+        descr="Config for the User"
+    )
+
 
 class UserPassword:
     registrationEnabled = False
