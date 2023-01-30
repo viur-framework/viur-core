@@ -108,7 +108,8 @@ class DefaultRender(object):
     def renderEntry(self, skel: SkeletonInstance, actionName, params=None):
         if isinstance(skel, list):
             vals = [self.renderSkelValues(x) for x in skel]
-            struct = skel[0].structure(render_type="json")
+            if isinstance(skel[0], SkeletonInstance):
+                struct = skel[0].structure(render_type="json")
             errors = None
         elif isinstance(skel, SkeletonInstance):
             vals = self.renderSkelValues(skel)
@@ -140,7 +141,8 @@ class DefaultRender(object):
                 skels.append(self.renderSkelValues(skel))
 
             res["cursor"] = skellist.getCursor()
-            res["structure"] = skellist[0].structure(render_type="json")
+            if isinstance(skellist[0], SkeletonInstance):
+                res["structure"] = skellist[0].structure(render_type="json")
         else:
             res["structure"] = None
             res["cursor"] = None
