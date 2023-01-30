@@ -9,15 +9,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Union, Optional
 from urllib.parse import quote
 from viur.core.config import conf
-from viur.core import db
-
-
-# Proxy to context depended variables
-currentRequest = ContextVar("Request", default=None)
-currentRequestData = ContextVar("Request-Data", default=None)
-currentSession = ContextVar("Session", default=None)
-currentLanguage = ContextVar("Language", default=None)
-
+from viur.core import current, db
 
 def utcNow() -> datetime:
     return datetime.now(timezone.utc)
@@ -205,7 +197,7 @@ def seoUrlToEntry(module: str,
     from viur.core import conf
     pathComponents = [""]
     if language is None:
-        language = currentLanguage.get()
+        language = current.language.get()
     if conf["viur.languageMethod"] == "url":
         pathComponents.append(language)
     if module in conf["viur.languageModuleMap"] and language in conf["viur.languageModuleMap"][module]:
@@ -235,7 +227,7 @@ def seoUrlToEntry(module: str,
 
 def seoUrlToFunction(module: str, function: str, render: Optional[str] = None) -> str:
     from viur.core import conf
-    lang = currentLanguage.get()
+    lang = current.language.get()
     if module in conf["viur.languageModuleMap"] and lang in conf["viur.languageModuleMap"][module]:
         module = conf["viur.languageModuleMap"][module][lang]
     if conf["viur.languageMethod"] == "url":
@@ -282,6 +274,12 @@ __utils_conf_replacement = {
     "projectBasePath": "viur.instance.project_base_path",
     "coreBasePath": "viur.instance.core_base_path"
 }
+__utils_current_replacement = {
+    "currentRequest": "request",
+    "currentRequestData": "request_data",
+    "currentSession": "session",
+    "currentLanguage": "language"
+}
 
 
 def __getattr__(attr):
@@ -292,4 +290,12 @@ def __getattr__(attr):
         logging.warning(msg, stacklevel=3)
         return conf[__utils_conf_replacement[attr]]
 
+    if attr in __utils_current_replacement:
+        import warnings
+        msg = f"Use of `utils.{attr}` is deprecated; Use `current.{__utils_current_replacement[attr]}` instead!"
+        warnings.warn(msg, DeprecationWarning, stacklevel=3)
+        logging.warning(msg, stacklevel=3)
+        return getattr(current, __utils_current_replacement[attr])
+
     return super(__import__(__name__).__class__).__getattr__(attr)
+

@@ -4,9 +4,8 @@ from viur.core.render.vi.user import UserRender as user
 from viur.core import conf, exposed
 from viur.core import securitykey
 from viur.core import utils
-from viur.core import errors
+from viur.core import errors, current
 import datetime, json
-from viur.core.utils import currentRequest, currentLanguage
 from viur.core.skeleton import SkeletonInstance
 
 
@@ -73,7 +72,7 @@ def getStructure(adminTree, module):
                 if isinstance(skel, SkeletonInstance):
                     res[stype] = default().renderSkelStructure(skel)
 
-    currentRequest.get().response.headers["Content-Type"] = "application/json"
+    current.request.get().response.headers["Content-Type"] = "application/json"
     return json.dumps(res or None, cls=CustomJsonEncoder)
 
 
@@ -81,7 +80,7 @@ def setLanguage(lang, skey):
     if not securitykey.validate(skey):
         return
     if lang in conf["viur.availableLanguages"]:
-        currentLanguage.set(lang)
+        current.language.set(lang)
 
 
 setLanguage.exposed = True
@@ -117,7 +116,7 @@ def dumpConfig(adminTree):
         if k.lower().startswith("admin."):
             res["configuration"][k[6:]] = v
 
-    currentRequest.get().response.headers["Content-Type"] = "application/json"
+    current.request.get().response.headers["Content-Type"] = "application/json"
     return json.dumps(res)
 
 
@@ -133,7 +132,7 @@ def canAccess(*args, **kwargs) -> bool:
     user = utils.getCurrentUser()
     if user and ("root" in user["access"] or "admin" in user["access"]):
         return True
-    pathList = currentRequest.get().pathlist
+    pathList = current.request.get().pathlist
     if len(pathList) >= 2 and pathList[1] in ["skey", "getVersion", "settings"]:
         # Give the user the chance to login :)
         return True
@@ -161,10 +160,10 @@ def index(*args, **kwargs):
             # The Vi is not available, the admin however is, so redirect there
             raise errors.Redirect("/admin")
         raise errors.NotFound()
-    if conf["viur.instance.is_dev_server"] or currentRequest.get().isSSLConnection:
+    if conf["viur.instance.is_dev_server"] or current.request.get().isSSLConnection:
         raise errors.Redirect("/vi/s/main.html")
     else:
-        appVersion = currentRequest.get().request.host
+        appVersion = current.request.get().request.host
         raise errors.Redirect("https://%s/vi/s/main.html" % appVersion)
 
 
@@ -178,7 +177,7 @@ def get_settings():
 
     fields["admin.user.google.clientID"] = conf.get("viur.user.google.clientID", "")
 
-    currentRequest.get().response.headers["Content-Type"] = "application/json"
+    current.request.get().response.headers["Content-Type"] = "application/json"
     return json.dumps(fields)
 
 

@@ -29,7 +29,7 @@ import webob
 import yaml
 from types import ModuleType
 from typing import Callable, Dict, Union, List
-from viur.core import session, errors, i18n, request, utils
+from viur.core import session, errors, i18n, request, utils, current
 from viur.core.config import conf
 from viur.core.tasks import TaskHandler, runStartupTasks
 # noinspection PyUnresolvedReferences
@@ -292,19 +292,18 @@ def app(environ: dict, start_response: Callable):
     handler = request.BrowseHandler(req, resp)
 
     # Set context variables
-    utils.currentLanguage.set(conf["viur.defaultLanguage"])
-    utils.currentRequest.set(handler)
-    utils.currentSession.set(session.GaeSession())
-    utils.currentRequestData.set({})
-
+    current.language.set(conf["viur.defaultLanguage"])
+    current.request.set(handler)
+    current.session.set(session.GaeSession())
+    current.request_data.set({})
     # Handle request
     handler.processRequest()
 
     # Unset context variables
-    utils.currentLanguage.set(None)
-    utils.currentRequestData.set(None)
-    utils.currentSession.set(None)
-    utils.currentRequest.set(None)
+    current.language.set(None)
+    current.request_data.set(None)
+    current.session.set(None)
+    current.request.set(None)
 
     return resp(environ, start_response)
 

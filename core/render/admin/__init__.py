@@ -1,8 +1,7 @@
 from viur.core.render.json.default import DefaultRender, CustomJsonEncoder
 from viur.core.render.json.user import UserRender as user
-from viur.core.utils import currentRequest, currentLanguage, currentSession
 from viur.core.skeleton import SkeletonInstance
-from viur.core import conf
+from viur.core import conf, current
 from viur.core import securitykey
 from viur.core import utils, errors
 import datetime, json
@@ -72,7 +71,7 @@ def setLanguage(lang, skey):
     if not securitykey.validate(skey):
         return
     if lang in conf["viur.availableLanguages"]:
-        currentLanguage.set(lang)
+        current.language.set(lang)
 
 
 setLanguage.exposed = True
@@ -126,7 +125,7 @@ def canAccess(*args, **kwargs) -> bool:
     if user and ("root" in user["access"] or "admin" in user["access"]):
         return True
 
-    pathList = currentRequest.get().pathlist
+    pathList = current.request.get().pathlist
 
     if len(pathList) >= 2 and pathList[1] in ["skey", "getVersion"]:
         # Give the user the chance to login :)
@@ -158,10 +157,10 @@ def index(*args, **kwargs):
             # The admin is not available, the Vi however is, so redirect there
             raise errors.Redirect("/vi")
         raise errors.NotFound()
-    if conf["viur.instance.is_dev_server"] or currentRequest.get().isSSLConnection:
+    if conf["viur.instance.is_dev_server"] or current.request.get().isSSLConnection:
         raise errors.Redirect("/admin/s/admin.html")
     else:
-        appVersion = currentRequest.get().request.host
+        appVersion = current.request.get().request.host
         raise errors.Redirect("https://%s/admin/s/admin.html" % appVersion)
 
 

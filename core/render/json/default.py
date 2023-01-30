@@ -2,9 +2,8 @@ import json
 from collections import OrderedDict
 from enum import Enum
 
-from viur.core import bones, utils, config, db
+from viur.core import bones, utils, config, db, current
 from viur.core.skeleton import SkeletonInstance
-from viur.core.utils import currentRequest
 from viur.core.i18n import translate
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -234,7 +233,7 @@ class DefaultRender(object):
             "action": actionName,
             "params": params
         }
-        currentRequest.get().response.headers["Content-Type"] = "application/json"
+        current.request.get().response.headers["Content-Type"] = "application/json"
         return json.dumps(res, cls=CustomJsonEncoder)
 
     def view(self, skel: SkeletonInstance, action: str = "view", params=None, **kwargs):
@@ -259,7 +258,7 @@ class DefaultRender(object):
         res["orders"] = skellist.get_orders()
 
 
-        currentRequest.get().response.headers["Content-Type"] = "application/json"
+        current.request.get().response.headers["Content-Type"] = "application/json"
         return json.dumps(res, cls=CustomJsonEncoder)
 
     def add(self, skel: SkeletonInstance, action: str = "add", params=None, **kwargs):

@@ -16,7 +16,7 @@ from io import BytesIO
 from quopri import decodestring
 from typing import Any, List, Tuple, Union
 from urllib.request import urlopen
-from viur.core import db, conf, errors, exposed, forcePost, forceSSL, securitykey, utils
+from viur.core import db, conf, errors, exposed, forcePost, forceSSL, securitykey, utils, current
 from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import skeletonByKind
@@ -219,7 +219,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         "name": fileSkel["name"],
         "params": params,
         "minetype": fileSkel["mimetype"],
-        "baseUrl": utils.currentRequest.get().request.host_url.lower(),
+        "baseUrl": current.request.get().request.host_url.lower(),
         "targetKey": fileSkel["dlkey"],
         "nameOnly": True
     }
@@ -558,7 +558,7 @@ class File(Tree):
         }
         if authData and authSig:
             # In this case, we'd have to store the key in the users session so he can call add() later on
-            session = utils.currentSession.get()
+            session = current.session.get()
             if not "pendingFileUploadKeys" in session:
                 session["pendingFileUploadKeys"] = []
             session["pendingFileUploadKeys"].append(targetKey)
@@ -616,7 +616,7 @@ class File(Tree):
             signedUrl = blob.generate_signed_url(expiresAt, response_disposition=contentDisposition, version="v4")
             raise errors.Redirect(signedUrl)
         elif conf["viur.instance.is_dev_server"]:  # No Service-Account to sign with - Serve everything directly
-            response = utils.currentRequest.get().response
+            response = current.request.get().response
             response.headers["Content-Type"] = blob.content_type
             if contentDisposition:
                 response.headers["Content-Disposition"] = contentDisposition
@@ -624,7 +624,7 @@ class File(Tree):
         else:  # We are inside the appengine
             if validUntil == "0":  # Its an indefinitely valid URL
                 if blob.size < 5 * 1024 * 1024:  # Less than 5 MB - Serve directly and push it into the ede caches
-                    response = utils.currentRequest.get().response
+                    response = current.request.get().response
                     response.headers["Content-Type"] = blob.content_type
                     response.headers["Cache-Control"] = "public, max-age=604800"  # 7 Days
                     if contentDisposition:
@@ -666,7 +666,7 @@ class File(Tree):
                 rootNode = None
             if not self.canAdd("leaf", rootNode):
                 # Check for a marker in this session (created if using a signed upload URL)
-                session = utils.currentSession.get()
+                session = current.session.get()
                 if targetKey not in (session.get("pendingFileUploadKeys") or []):
                     raise errors.Forbidden()
                 session["pendingFileUploadKeys"].remove(targetKey)

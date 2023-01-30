@@ -11,14 +11,14 @@ from viur.core.config import conf
 
 """
     Provides the session implementation for the Google AppEngine™ based on the datastore.
-    To access the current session,  and call currentSession.get()
+    To access the current session,  and call current.session.get()
 
     Example:
 
     .. code-block:: python
 
-        from viur.core.utils import currentSession
-        sessionData = currentSession.get()
+        from viur.core import current
+        sessionData = current.session.get()
         sessionData["your_key"] = "your_data"
         data = sessionData["your_key"]
 

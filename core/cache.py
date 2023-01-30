@@ -4,9 +4,8 @@ from functools import wraps
 from hashlib import sha512
 from typing import List, Union, Callable, Tuple, Dict
 
-from viur.core import tasks, utils, db
+from viur.core import tasks, utils, db, current
 from viur.core.config import conf
-from viur.core.utils import currentLanguage, currentRequest
 
 """
     This module implements a cache that can be used to serve entire requests or cache the output of any function
@@ -86,7 +85,7 @@ def keyFromArgs(f: Callable, userSensitive: int, languageSensitive: bool, evalua
             else:
                 res["__user"] = None
     if languageSensitive:
-        res["__lang"] = currentLanguage.get()
+        res["__lang"] = current.language.get()
     if conf["viur.cacheEnvironmentKey"]:
         try:
             res["_cacheEnvironment"] = conf["viur.cacheEnvironmentKey"]()
@@ -119,7 +118,7 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
 
     @wraps(f)
     def wrapF(self, *args, **kwargs) -> Union[str, bytes]:
-        currReq = currentRequest.get()
+        currReq = current.request.get()
         if conf["viur.disableCache"] or currReq.disableCache:
             # Caching disabled
             if conf["viur.disableCache"]:

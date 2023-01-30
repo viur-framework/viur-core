@@ -10,12 +10,11 @@ from hashlib import sha512
 from typing import Any, Dict, List, NoReturn, Optional, Union
 
 import viur.core.render.html.default
-from viur.core import db, errors, prototypes, securitykey, utils
+from viur.core import db, current, errors, prototypes, securitykey, utils
 from viur.core.config import conf
 from viur.core.i18n import translate as translationClass
 from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
 from viur.core.skeleton import RelSkel, SkeletonInstance
-from viur.core.utils import currentLanguage, currentRequest
 from ..default import Render
 
 
@@ -41,7 +40,7 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
     :returns: Whatever the requested resource returns. This is *not* limited to strings!
     """
     cachetime = kwargs.pop("cachetime", 0)
-    if conf["viur.disableCache"] or currentRequest.get().disableCache:  # Caching disabled by config
+    if conf["viur.disableCache"] or current.request.get().disableCache:  # Caching disabled by config
         cachetime = 0
     cacheEnvKey = None
     if conf["viur.cacheEnvironmentKey"]:
@@ -58,7 +57,7 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
         if cacheEnvKey is not None:
             tmpList.append(cacheEnvKey)
         try:
-            appVersion = currentRequest.get().request.environ["CURRENT_VERSION_ID"].split('.')[0]
+            appVersion = current.request.get().request.environ["CURRENT_VERSION_ID"].split('.')[0]
         except:
             appVersion = ""
             logging.error("Could not determine the current application id! Caching might produce unexpected results!")
@@ -70,7 +69,7 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
         res = None  # memcache.get(cacheKey)
         if res:
             return res
-    currReq = currentRequest.get()
+    currReq = current.request.get()
     tmp_params = currReq.kwargs.copy()
     currReq.kwargs = {"__args": args, "__outer": tmp_params}
     currReq.kwargs.update(kwargs)
@@ -202,7 +201,7 @@ def getHostUrl(render: Render, forceSSL=False, *args, **kwargs):
     :returns: Returns the hostname, including the currently used protocol, e.g: http://www.example.com
     :rtype: str
     """
-    url = currentRequest.get().request.url
+    url = current.request.get().request.url
     url = url[:url.find("/", url.find("://") + 5)]
     if forceSSL and url.startswith("http://"):
         url = "https://" + url[7:]
@@ -249,7 +248,7 @@ def getLanguage(render: Render, resolveAlias: bool = False) -> str:
     :param resolveAlias: If True, the function tries to resolve the current language
         using conf["viur.languageAliasMap"].
     """
-    lang = currentLanguage.get()
+    lang = current.language.get()
     if resolveAlias and lang in conf["viur.languageAliasMap"]:
         lang = conf["viur.languageAliasMap"][lang]
     return lang
@@ -369,7 +368,7 @@ def requestParams(render: Render) -> Dict[str, str]:
     :returns: dict of parameter and values.
     """
     res = {}
-    for k, v in currentRequest.get().kwargs.items():
+    for k, v in current.request.get().kwargs.items():
         res[utils.escapeString(k)] = utils.escapeString(v)
     return res
 
@@ -384,7 +383,7 @@ def updateURL(render: Render, **kwargs) -> str:
     :returns: Returns a well-formed URL.
     """
     tmpparams = {}
-    tmpparams.update(currentRequest.get().kwargs)
+    tmpparams.update(current.request.get().kwargs)
 
     for key in list(tmpparams.keys()):
         if not key or key[0] == "_":

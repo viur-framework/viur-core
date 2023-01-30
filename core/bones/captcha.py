@@ -2,9 +2,8 @@ import json
 import urllib.parse
 import urllib.request
 from typing import List, Union
-from viur.core import utils, conf
+from viur.core import utils, conf, current
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core.utils import currentRequest
 
 
 class CaptchaBone(BaseBone):
@@ -50,7 +49,7 @@ class CaptchaBone(BaseBone):
             return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "No Captcha given!")]
         data = {
             "secret": self.privateKey,
-            "remoteip": currentRequest.get().request.remote_addr,
+            "remoteip": current.request.get().request.remote_addr,
             "response": data["g-recaptcha-response"]
         }
         req = urllib.request.Request(url="https://www.google.com/recaptcha/api/siteverify",

@@ -1,13 +1,12 @@
 import logging
 from typing import Any, Dict, List, Literal, Optional, Type, Union
-from viur.core import utils, errors, conf, securitykey, db
+from viur.core import utils, errors, conf, securitykey, db, current
 from viur.core import forcePost, forceSSL, exposed, internalExposed
 from viur.core.bones import KeyBone, SortIndexBone
 from viur.core.cache import flushCache
 from viur.core.prototypes import BasicApplication
 from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.tasks import CallDeferred
-from viur.core.utils import currentRequest
 
 SkelType = Literal["node", "leaf"]
 
@@ -378,7 +377,7 @@ class Tree(BasicApplication):
 
         if (len(kwargs) == 0  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or not currentRequest.get().isPostRequest
+            or not current.Request.get().isPostRequest
             or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
         ):
             return self.render.add(skel)
@@ -423,7 +422,7 @@ class Tree(BasicApplication):
             raise errors.Unauthorized()
         if (len(kwargs) == 0  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or not currentRequest.get().isPostRequest
+            or not current.request.get().isPostRequest
             or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
         ):
             return self.render.edit(skel)

@@ -2,7 +2,7 @@ import datetime
 import jinja2.ext as jinja2
 from typing import List, Tuple, Union
 from viur.core.config import conf
-from viur.core import db, utils, languages
+from viur.core import db, utils, languages, current
 
 systemTranslations = {}
 
@@ -33,7 +33,7 @@ class LanguageWrapper(dict):
 
             :returns: A item stored inside this instance or the empty string.
         """
-        lang = utils.currentLanguage.get()
+        lang = current.language.get()
         if not lang:
             lang = self.languages[0]
         else:
@@ -87,7 +87,7 @@ class translate:
             self.translationCache = systemTranslations.get(self.key, {})
 
         try:
-            lang = utils.currentLanguage.get()
+            lang = current.language.get()
         except:
             return self.defaultText
 
@@ -157,7 +157,7 @@ class TranslationExtension(jinja2.Extension):
 
     def _translate(self, key, defaultText, hint, kwargs, trDict, caller) -> str:
         # Perform the actual translation during render
-        lng = utils.currentLanguage.get()
+        lng = current.language.get()
         if lng in trDict:
             return trDict[lng].format(kwargs)
         return str(defaultText).format(kwargs)

@@ -1,11 +1,11 @@
 import logging
 from typing import Any, Optional
 
-from viur.core import db, errors, exposed, forcePost, forceSSL, securitykey, utils
+from viur.core import current, db, errors, exposed, forcePost, forceSSL, securitykey, utils
 from viur.core.cache import flushCache
 from viur.core.prototypes import BasicApplication
 from viur.core.skeleton import SkeletonInstance
-from viur.core.utils import currentRequest
+
 
 
 class List(BasicApplication):
@@ -213,7 +213,7 @@ class List(BasicApplication):
         if not self.canEdit(skel):
             raise errors.Unauthorized()
         if (len(kwargs) == 0  # no data supplied
-            or not currentRequest.get().isPostRequest  # failure if not using POST-method
+            or not current.request.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before changing
         ):
@@ -249,7 +249,7 @@ class List(BasicApplication):
             raise errors.Unauthorized()
         skel = self.addSkel()
         if (len(kwargs) == 0  # no data supplied
-            or not currentRequest.get().isPostRequest  # failure if not using POST-method
+            or not current.request.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
         ):
@@ -317,7 +317,7 @@ class List(BasicApplication):
                     raise errors.Forbidden()
                 seoUrl = utils.seoUrlToEntry(self.moduleName, skel)
                 # Check whether this is the current seo-key, otherwise redirect to it
-                if currentRequest.get().request.path != seoUrl:
+                if current.request.get().request.path != seoUrl:
                     raise errors.Redirect(seoUrl, status=301)
                 self.onView(skel)
                 return self.render.view(skel)
