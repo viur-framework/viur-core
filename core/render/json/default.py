@@ -257,7 +257,6 @@ class DefaultRender(object):
         res["params"] = params
         res["orders"] = skellist.get_orders()
 
-
         current.request.get().response.headers["Content-Type"] = "application/json"
         return json.dumps(res, cls=CustomJsonEncoder)
 

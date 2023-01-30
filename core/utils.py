@@ -298,4 +298,3 @@ def __getattr__(attr):
         return getattr(current, __utils_current_replacement[attr])
 
     return super(__import__(__name__).__class__).__getattr__(attr)
-
