@@ -1,14 +1,14 @@
 from viur.core.skeleton import RelSkel
 from viur.core import errors, utils, securitykey, exposed, email
 from viur.core.bones import BaseBone
-from viur.core.prototypes.basic import BasicApplication
+from viur.core.base.module import Module
 
 
 class MailSkel(RelSkel):
     changedate = None  # Changedates won't apply here
 
 
-class Formmailer(BasicApplication):
+class Formmailer(Module):
     mailTemplate = None
 
     @exposed

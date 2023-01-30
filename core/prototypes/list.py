@@ -1,31 +1,22 @@
 import logging
 from typing import Any, Optional
-
 from viur.core import db, errors, exposed, forcePost, forceSSL, securitykey, utils
 from viur.core.cache import flushCache
-from viur.core.prototypes import BasicApplication
 from viur.core.skeleton import SkeletonInstance
-from viur.core.utils import currentRequest
+from .skelmodule import SkelModule
 
 
-class List(BasicApplication):
+class List(SkelModule):
     """
-        The list prototype will only handle a single kind and arrange it's entities in a flat list.
-        This list can be filtered and/or sorted but there is no hierarchy/relationship between the items
-        in that list.
+        List module prototype.
+
+        The list module prototype handles datasets in a flat list. It can be extended to filters and views to provide
+        various use-cases.
+
+        Definitely, it is the mostly-used prototype in any ViUR project.
     """
-
-    accessRights = ["add", "edit", "view", "delete"]  #: Possible access rights for this app
-
-    def adminInfo(self):
-        return {
-            "name": self.__class__.__name__,  # Module name as shown in the admin tools
-            "handler": "list",  # Which handler to invoke
-            "icon": "icon-list"  # Icon for this module
-        }
-
-    def __init__(self, moduleName, modulePath, *args, **kwargs):
-        super(List, self).__init__(moduleName, modulePath, *args, **kwargs)
+    handler = "list"
+    accessRights = ("add", "edit", "view", "delete")
 
     def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -164,7 +155,7 @@ class List(BasicApplication):
 
             All supplied parameters are interpreted as filters for the elements displayed.
 
-            Unlike other ViUR BasicApplications, the access control in this function is performed
+            Unlike other modules in ViUR, the access control in this function is performed
             by calling the function :func:`listFilter`, which updates the query-filter to match only
             elements which the user is allowed to see.
 
@@ -213,7 +204,7 @@ class List(BasicApplication):
         if not self.canEdit(skel):
             raise errors.Unauthorized()
         if (len(kwargs) == 0  # no data supplied
-            or not currentRequest.get().isPostRequest  # failure if not using POST-method
+            or not utils.currentRequest.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before changing
         ):
@@ -249,7 +240,7 @@ class List(BasicApplication):
             raise errors.Unauthorized()
         skel = self.addSkel()
         if (len(kwargs) == 0  # no data supplied
-            or not currentRequest.get().isPostRequest  # failure if not using POST-method
+            or not utils.currentRequest.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
         ):
@@ -317,7 +308,7 @@ class List(BasicApplication):
                     raise errors.Forbidden()
                 seoUrl = utils.seoUrlToEntry(self.moduleName, skel)
                 # Check whether this is the current seo-key, otherwise redirect to it
-                if currentRequest.get().request.path != seoUrl:
+                if utils.currentRequest.get().request.path != seoUrl:
                     raise errors.Redirect(seoUrl, status=301)
                 self.onView(skel)
                 return self.render.view(skel)

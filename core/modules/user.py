@@ -637,8 +637,6 @@ class User(List):
     secondFactorTimeWindow = datetime.timedelta(minutes=10)
 
     adminInfo = {
-        "name": "User",
-        "handler": "list",
         "icon": "icon-users"
     }
 
