@@ -294,7 +294,7 @@ def app(environ: dict, start_response: Callable):
     # Set context variables
     utils.currentLanguage.set(conf["viur.defaultLanguage"])
     utils.currentRequest.set(handler)
-    utils.currentSession.set(session.GaeSession())
+    utils.currentSession.set(session.Session())
     utils.currentRequestData.set({})
 
     # Handle request
