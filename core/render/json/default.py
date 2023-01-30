@@ -108,11 +108,11 @@ class DefaultRender(object):
     def renderEntry(self, skel: SkeletonInstance, actionName, params=None):
         if isinstance(skel, list):
             vals = [self.renderSkelValues(x) for x in skel]
-            struct = skel[0].structure()
+            struct = skel[0].structure(render_type="json")
             errors = None
         elif isinstance(skel, SkeletonInstance):
             vals = self.renderSkelValues(skel)
-            struct = skel.structure()
+            struct = skel.structure(render_type="json")
             errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage,
                        "invalidatedFields": x.invalidatedFields} for x in skel.errors]
         else:  # Hopefully we can pass it directly...
@@ -140,7 +140,7 @@ class DefaultRender(object):
                 skels.append(self.renderSkelValues(skel))
 
             res["cursor"] = skellist.getCursor()
-            res["structure"] = self.renderSkelStructure(skellist.baseSkel)
+            res["structure"] = skellist[0].structure(render_type="json")
         else:
             res["structure"] = None
             res["cursor"] = None

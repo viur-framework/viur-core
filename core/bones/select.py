@@ -59,7 +59,7 @@ class SelectBone(BaseBone):
         return self.getEmptyValue(), [
             ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value selected")]
 
-    def structure(self) -> dict:
-        return super().structure() | {
+    def structure(self, render_type=None) -> dict:
+        return super().structure(render_type=render_type) | {
             "values": [(k, str(v)) for k, v in self.values.items()],
         }
