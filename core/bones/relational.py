@@ -990,7 +990,7 @@ class RelationalBone(BaseBone):
             "type": f"{self.type}.{self.kind}",
             "module": self.module,
             "format": self.format,
-            "using": self.using().structure() if self.using else None,  # todo
-            "relskel": self._refSkelCache().structure(),  # todo
+            "using": self.using().structure(render_type=render_type) if self.using else None,  # todo
+            "relskel": self._refSkelCache().structure(render_type=render_type),  # todo
             "format": self.format,
         }

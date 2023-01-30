@@ -126,4 +126,4 @@ class RecordBone(BaseBone):
     def structure(self, render_type=None) -> dict:
         return super().structure(render_type=render_type) | {
             "format": self.format,
-            "using": self.using().structure()}
+            "using": self.using().structure(render_type=render_type)}
