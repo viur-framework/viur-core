@@ -1,5 +1,4 @@
 import json
-from collections import OrderedDict
 from enum import Enum
 
 from viur.core import bones, utils, config, db
