@@ -49,7 +49,7 @@ def getStructure(adminTree, module):
             except (TypeError, ValueError):
                 continue
             if isinstance(skel, SkeletonInstance):
-                res[stype] = default().renderSkelStructure(skel)
+                res[stype] = skel.structure(render_type="json")
     if not res and "nodeSkelCls" in dir(moduleObj):
         # Try Node/Leaf
         for stype in ["viewSkel", "editSkel", "addSkel"]:
@@ -61,7 +61,7 @@ def getStructure(adminTree, module):
                         continue
                     if isinstance(skel, SkeletonInstance):
                         storeType = stype.replace("Skel", "") + ("LeafSkel" if treeType == "leaf" else "NodeSkel")
-                        res[storeType] = default().renderSkelStructure(skel)
+                        res[storeType] = skel.structure(render_type="json")
     if res:
         return json.dumps(res, cls=CustomJsonEncoder)
     else:
