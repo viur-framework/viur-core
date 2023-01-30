@@ -952,8 +952,8 @@ class BaseBone(object):
     def _compute(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
 
         if "skel" not in inspect.signature(self.compute).parameters:
-            return self.compute()  # call without any arguments
+            return self.singleValueUnserialize(self.compute())  # call without any arguments
 
         skel = skel.clone()
         skel[name] = None  # we must remove our bone because of recursion
-        return self.compute(skel=skel)
+        return self.singleValueUnserialize(self.compute(skel=skel))

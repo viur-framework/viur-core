@@ -99,6 +99,19 @@ class NumericBone(BaseBone):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
         return value, None
 
+    def singleValueUnserialize(self, val):
+        try:
+            rawValue = str(val).replace(",", ".", 1)
+        except:
+            return val
+        if self.precision and (str(rawValue).replace(".", "", 1).replace("-", "", 1).isdigit()) and float(
+            rawValue) >= self.min and float(rawValue) <= self.max:
+            val = round(float(rawValue), self.precision)
+        elif not self.precision and (str(rawValue).replace("-", "", 1).replace(".", "", 1).isdigit()) and int(float(
+            rawValue)) >= self.min and int(float(rawValue)) <= self.max:
+            val = int(float(rawValue))
+
+        return val
     def buildDBFilter(
         self,
         name: str,
