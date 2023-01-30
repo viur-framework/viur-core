@@ -5,7 +5,6 @@ import logging
 import os
 import sys
 import string
-from collections import OrderedDict
 from functools import partial
 from itertools import chain
 from time import time
