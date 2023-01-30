@@ -64,9 +64,9 @@ class MultipleConstraints:  # Used to define constraints on multiple bones
 class ThresholdMethods(Enum):
     Always = 0
     Until = 1
-    #OnAdd = 2 maybe later ?
-    #OnEdit = 3 maybe later ?
-    #OnAdd_Edit = 4 maybe later ?
+    # OnAdd = 2 maybe later ?
+    # OnEdit = 3 maybe later ?
+    # OnAdd_Edit = 4 maybe later ?
 
 
 
@@ -951,7 +951,7 @@ class BaseBone(object):
 
     def _compute(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
 
-        if not "skel" in inspect.signature(self.compute).parameters:
+        if "skel" not in inspect.signature(self.compute).parameters:
             return self.compute()  # call without any arguments
 
         skel = skel.clone()
