@@ -2,7 +2,7 @@
 from viur.core.render.vi.user import UserRender as user  # this import must exist!
 from viur.core.render.json.default import DefaultRender, CustomJsonEncoder
 from viur.core.render.vi.user import UserRender as user
-from viur.core import Module, conf,current, exposed, securitykey, errors
+from viur.core import Module, conf, current, exposed, securitykey, errors
 from viur.core.skeleton import SkeletonInstance
 import datetime
 import json
