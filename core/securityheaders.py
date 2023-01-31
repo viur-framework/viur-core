@@ -38,7 +38,7 @@
 
 
     ViUR also protects it's cookies by default (setting httponly, secure and samesite=lax). This can be changed by
-    setting the corresponding class-level variables on class:`GaeSession<viur.core.session.GaeSession>`.
+    setting the corresponding class-level variables on class:`Session<viur.core.session.Session>`.
 """
 
 from viur.core.config import conf

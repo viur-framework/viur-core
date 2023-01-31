@@ -386,9 +386,8 @@ class File(Tree):
     maxuploadsize = None
     uploadHandler = []
 
+    handler = "tree.simple.file"
     adminInfo = {
-        "name": "File",
-        "handler": "tree.simple.file",
         "icon": "icon-file-system"
     }
 

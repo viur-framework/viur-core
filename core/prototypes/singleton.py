@@ -1,38 +1,19 @@
 import logging
 from typing import Any, Optional
-
 from viur.core import db, errors, exposed, forceSSL, securitykey, utils
 from viur.core.cache import flushCache
-from viur.core.prototypes import BasicApplication
 from viur.core.skeleton import SkeletonInstance
+from .skelmodule import SkelModule
 
 
-class Singleton(BasicApplication):
+class Singleton(SkelModule):
     """
-    Singleton is a ViUR BasicApplication.
+    Singleton module prototype.
 
     It is used to store one single data entity, and needs to be sub-classed for individual modules.
-
-    :ivar kindName: Name of the kind of data entities that are managed by the application. \
-    This information is used to bind a specific :class:`viur.core.skeleton.Skeleton`-class to the \
-    application. For more information, refer to the function :func:`~baseSkel`.
-    :vartype kindName: str
-
-    :ivar adminInfo: todo short info on how to use adminInfo.
-    :vartype adminInfo: dict | callable
     """
-
-    accessRights = ["edit", "view"]  # Possible access rights for this app
-
-    def adminInfo(self):
-        return {
-            "name": self.__class__.__name__,  # Module name as shown in the admin tools
-            "handler": "singleton",  # Which handler to invoke
-            "icon": "icon-component",  # Icon for this module
-        }
-
-    def __init__(self, moduleName, modulePath, *args, **kwargs):
-        super(Singleton, self).__init__(moduleName, modulePath, *args, **kwargs)
+    handler = "singleton"
+    accessRights = ("edit", "view")
 
     def getKey(self) -> str:
         """
