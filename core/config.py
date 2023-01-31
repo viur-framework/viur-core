@@ -189,7 +189,6 @@ conf = Conf({
 
     # Describing the internal ModuleConfig-module
     "viur.moduleconf.admin_info": {
-        "name": "Module Configuration",
         "icon": "icon-settings",
         "display": "hidden",
     },
@@ -278,10 +277,10 @@ conf = Conf({
     "viur.session.lifeTime": 60 * 60,
 
     # If set, these Fields will survive the session.reset() called on user/login
-    "viur.session.persistentFieldsOnLogin": [],
+    "viur.session.persistentFieldsOnLogin": ["language"],
 
     # If set, these Fields will survive the session.reset() called on user/logout
-    "viur.session.persistentFieldsOnLogout": [],
+    "viur.session.persistentFieldsOnLogout": ["language"],
 
     # Priority, in which skeletons are loaded
     "viur.skeleton.searchPath": ["/skeletons/", "/viur/core/"],  # Priority, in which skeletons are loaded
