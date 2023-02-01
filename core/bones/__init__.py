@@ -1,5 +1,5 @@
 from .base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity, UniqueValue, UniqueLockMethod, \
-    MultipleConstraints, ThresholdMethods, ThresholdValue
+    MultipleConstraints, ThresholdMethods, ThresholdValue, Compute
 from .boolean import BooleanBone
 from .captcha import CaptchaBone
 from .color import ColorBone
