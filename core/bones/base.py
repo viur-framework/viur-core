@@ -547,6 +547,10 @@ class BaseBone(object):
                         skel.accessedValues[name] = data
                         return True
 
+                elif self.compute.threshold.method == ThresholdMethods.Once:
+                    # we must compute new only if we have no value
+                    skel.accessedValues[name] = loadVal
+                    return True
 
         elif conf.get("viur.viur2import.blobsource") and any(
             [x.startswith("%s." % name) for x in skel.dbEntity.keys()]):
@@ -557,7 +561,9 @@ class BaseBone(object):
                 if data := self._compute(skel, name):
                     skel.accessedValues[name] = data
                     skel.dbEntity[name] = data
-                    skel.dbEntity[f"{name}__vaild_until"] = utils.utcNow() + timedelta(seconds=self.threshold.seconds)
+                    if self.compute.threshold.method == ThresholdMethods.Until:
+                        skel.dbEntity[f"{name}__vaild_until"] = utils.utcNow() + timedelta(
+                            seconds=self.threshold.seconds)
                     return True
 
             skel.accessedValues[name] = self.getDefaultValue(skel)
