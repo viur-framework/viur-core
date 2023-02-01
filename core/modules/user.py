@@ -685,7 +685,6 @@ class AuthenticatorOTP:
     def set_otp_secret(cls, otp_secret=None):
         """
              Write a new OTP Token in the user entry.
-            :return an otp uri like otpauth://totp/Example:alice@google.com?secret=ABCDEFGH1234&issuer=Example
         """
         if otp_secret is None:
             logging.error("No 'otp_secret' is provided")
@@ -745,7 +744,7 @@ class AuthenticatorOTP:
         if not user:
             raise errors.NotFound()
 
-        if AuthenticatorOTP.verify_otp(otp=otp,secret=user["otp_secret"]):
+        if AuthenticatorOTP.verify_otp(otp=otp, secret=user["otp_secret"]):
             return self.userModule.secondFactorSucceeded(self, user_key)
         else:
             skel = skeleton.RelSkel()
