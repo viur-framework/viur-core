@@ -272,8 +272,8 @@ class UserPassword:
                 session["user.auth_userpassword.pwrecover"] = None
                 return self.pwrecover()
             # We're in the second step - the code has been send and is waiting for confirmation from the user
-            if utils.utcNow() - session["user.auth_userpassword.pwrecover"]["creationdate"] \
-                > datetime.timedelta(minutes=15):
+            if utils.utcNow() - session["user.auth_userpassword.pwrecover"]["creationdate"] > datetime.timedelta(
+                    minutes=15):
                 # This recovery-process is expired; reset the session and start over
                 session["user.auth_userpassword.pwrecover"] = None
                 return self.userModule.render.view(
@@ -711,7 +711,7 @@ class AuthenticatorOTP:
             return self.userModule.secondFactorSucceeded(self, user_key)
         else:
             skel = skeleton.RelSkel()
-            skel.errors=[ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token")]
+            skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token")]
             return self.userModule.render.edit(skel, action="authenticatorOTP", tpl=self.otp_template)
 
 
