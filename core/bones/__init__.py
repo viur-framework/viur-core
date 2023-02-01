@@ -31,6 +31,7 @@ __all = [
     "BooleanBone",
     "CaptchaBone",
     "ColorBone",
+    "Compute",
     "CredentialBone",
     "DateBone",
     "EmailBone",
@@ -68,7 +69,6 @@ for __cls_name, __cls in locals().copy().items():
         __old_cls_name = __cls_name[0].lower() + __cls_name[1:]
 
         __all += [__old_cls_name]
-
 
         # Dynamically create a class providing a deprecation logging message for every lower-case bone name
         def __generate_deprecation_constructor(cls, cls_name, old_cls_name):
