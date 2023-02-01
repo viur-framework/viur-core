@@ -69,14 +69,14 @@ class ThresholdMethods(Enum):
 
 @dataclass
 class ThresholdValue:
-    method: ThresholdMethods
+    method: ThresholdMethods = ThresholdMethods.Always
     seconds: int = 0
 
 
 @dataclass
 class Compute:
     fn: callable  # the callable computing the value
-    threshold: ThresholdValue = ThresholdValue(method=ThresholdMethods.Always)   # the value caching interval
+    threshold: ThresholdValue   # the value caching interval
     raw: bool = True  # defines whether the value is used as is, or is passed to bone.fromClient
 
 
