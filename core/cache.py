@@ -238,7 +238,7 @@ def flushCache(prefix: str = None, key: Union[db.Key, None] = None, kind: Union[
             logging.info("Deleted cache entry %s", item["path"])
             db.Delete(item.key)
         if not isinstance(key, db.Key):
-            key = db.Key(encoded=key)
+            key = db.Key.from_legacy_urlsafe(key)  # hopefully is a string
         items = db.Query(viurCacheName).filter("accessedEntries =", key.kind).iter()
         for item in items:
             logging.info("Deleted cache entry %s", item["path"])

@@ -15,7 +15,7 @@
    I N F O R M A T I O N    S Y S T E M
 
  ViUR core
- Copyright 2022 by Mausbrand Informationssysteme GmbH
+ Copyright (C) 2012-2023 by Mausbrand Informationssysteme GmbH
 
  ViUR is a free software development framework for the Google App Engine™.
  More about ViUR can be found at https://www.viur.dev.
@@ -32,7 +32,9 @@ from typing import Callable, Dict, Union, List
 from viur.core import session, errors, i18n, request, utils
 from viur.core.config import conf
 from viur.core.tasks import TaskHandler, runStartupTasks
-from viur.core import logging as viurLogging  # Initialize request logging
+from viur.core.module import Module
+# noinspection PyUnresolvedReferences
+from viur.core import logging as viurLogging  # unused import, must exist, initializes request logging
 import logging  # this import has to stay here, see #571
 
 
@@ -43,7 +45,7 @@ def load_indexes_from_file() -> Dict[str, List]:
     """
     indexes_dict = {}
     try:
-        with open(os.path.join(utils.projectBasePath, "index.yaml"), "r") as file:
+        with open(os.path.join(conf["viur.instance.project_base_path"], "index.yaml"), "r") as file:
             indexes = yaml.safe_load(file)
             indexes = indexes.get("indexes", [])
             for index in indexes:
@@ -163,9 +165,8 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
                     if "__" not in subkey:
                         renderers[key][subkey] = render
         del renderRootModule
-    from viur.core.prototypes import BasicApplication  # avoid circular import
     if hasattr(modules, "index"):
-        if issubclass(modules.index, BasicApplication):
+        if issubclass(modules.index, Module):
             root = modules.index("index", "")
         else:
             root = modules.index()  # old style for backward compatibility
@@ -179,7 +180,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     for moduleName, moduleClass in vars(modules).items():  # iterate over all modules
         if moduleName == "index":
             mapModule(root, "index", resolverDict)
-            if isinstance(root, BasicApplication):
+            if isinstance(root, Module):
                 root.render = renderers[default]["default"](parent=root)
             continue
         for renderName, render in renderers.items():  # look, if a particular render should be built
@@ -293,7 +294,7 @@ def app(environ: dict, start_response: Callable):
     # Set context variables
     utils.currentLanguage.set(conf["viur.defaultLanguage"])
     utils.currentRequest.set(handler)
-    utils.currentSession.set(session.GaeSession())
+    utils.currentSession.set(session.Session())
     utils.currentRequestData.set({})
 
     # Handle request

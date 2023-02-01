@@ -3,19 +3,20 @@ import hashlib
 import hmac
 import json
 import logging
-import os
 import time
 import warnings
-from viur.core.prototypes.list import List
-from viur.core.bones import *
-from viur.core import conf, db, email, errors, i18n, securitykey, session, skeleton, tasks, utils, exposed, forceSSL
-from viur.core.bones.password import pbkdf2
-from viur.core.securityheaders import extendCsp
-from viur.core.ratelimit import RateLimit
-from google.oauth2 import id_token
-from google.auth.transport import requests
 from typing import Optional
 import pyotp
+
+from google.auth.transport import requests
+from google.oauth2 import id_token
+
+from viur.core import conf, db, email, errors, exposed, forceSSL, i18n, securitykey, session, skeleton, tasks, utils
+from viur.core.bones import *
+from viur.core.bones.password import pbkdf2
+from viur.core.prototypes.list import List
+from viur.core.ratelimit import RateLimit
+from viur.core.securityheaders import extendCsp
 
 
 class UserSkel(skeleton.Skeleton):
@@ -449,7 +450,10 @@ class GoogleAccount:
                 # We have to allow popups here
                 utils.currentRequest.get().response.headers["cross-origin-opener-policy"] = "same-origin-allow-popups"
             # Fixme: Render with Jinja2?
-            tplStr = open(os.path.join(utils.coreBasePath, "viur/core/template/vi_user_google_login.html"), "r").read()
+            with (conf["viur.instance.core_base_path"]
+                  .joinpath("viur/core/template/vi_user_google_login.html")
+                  .open() as tpl_file):
+                tplStr = tpl_file.read()
             tplStr = tplStr.replace("{{ clientID }}", conf["viur.user.google.clientID"])
             extendCsp({"script-src": ["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
                        "style-src": ["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]})
@@ -482,10 +486,7 @@ class GoogleAccount:
             isAdd = True
         else:
             isAdd = False
-        now = utils.utcNow()
-        if isAdd or (now - userSkel["lastlogin"]) > datetime.timedelta(minutes=30):
-            # Conserve DB-Writes: Update the user max once in 30 Minutes
-            userSkel["lastlogin"] = now
+        if isAdd:
             # if users.is_current_user_admin():
             #    if not userSkel["access"]:
             #        userSkel["access"] = []
@@ -731,8 +732,6 @@ class User(List):
     secondFactorTimeWindow = datetime.timedelta(minutes=10)
 
     adminInfo = {
-        "name": "User",
-        "handler": "list",
         "icon": "icon-users"
     }
 
@@ -804,15 +803,16 @@ class User(List):
     def secondFactorProviderByClass(self, cls):
         return getattr(self, "f2_%s" % cls.__name__.lower())
 
-    def getCurrentUser(self, *args, **kwargs):
-        session = utils.currentSession.get()
-        if not session:  # May be a deferred task
+    def getCurrentUser(self):
+        # May be a deferred task
+        if not (session := utils.currentSession.get()):
             return None
-        userData = session.get("user")
-        if userData:
-            skel = self.viewSkel()
-            skel.setEntity(userData)
+
+        if user := session.get("user"):
+            skel = self.baseSkel()
+            skel.setEntity(user)
             return skel
+
         return None
 
     def continueAuthenticationFlow(self, caller, userKey):
@@ -843,29 +843,33 @@ class User(List):
             raise errors.RequestTimeout()
         return self.authenticateUser(userKey)
 
-    def authenticateUser(self, userKey: db.Key, **kwargs):
+    def authenticateUser(self, key: db.Key, **kwargs):
         """
-            Performs Log-In for the current session and the given userKey.
+            Performs Log-In for the current session and the given user key.
 
             This resets the current session: All fields not explicitly marked as persistent
             by conf["viur.session.persistentFieldsOnLogin"] are gone afterwards.
 
-            :param userKey: The (DB-)Key of the user we shall authenticate
+            :param key: The (DB-)Key of the user we shall authenticate
         """
-        currSess = utils.currentSession.get()
-        res = db.Get(userKey)
-        assert res, "Unable to authenticate unknown user %s" % userKey
-        oldSession = {k: v for k, v in currSess.items()}  # Store all items in the current session
-        currSess.reset()
-        # Copy the persistent fields over
-        for k in conf["viur.session.persistentFieldsOnLogin"]:
-            if k in oldSession:
-                currSess[k] = oldSession[k]
-        del oldSession
-        currSess["user"] = res
-        currSess.markChanged()
-        utils.currentRequest.get().response.headers["Sec-X-ViUR-StaticSKey"] = currSess.staticSecurityKey
-        self.onLogin()
+        skel = self.baseSkel()
+        if not skel.fromDB(key):
+            raise ValueError(f"Unable to authenticate unknown user {key}")
+
+        # Update session for user
+        session = utils.currentSession.get()
+        # Remember persistent fields...
+        take_over = {k: v for k, v in session.items() if k in conf["viur.session.persistentFieldsOnLogin"]}
+        session.reset()
+        # and copy them over to the new session
+        session |= take_over
+
+        session["user"] = skel.dbEntity
+        session.markChanged()
+
+        utils.currentRequest.get().response.headers["Sec-X-ViUR-StaticSKey"] = session.staticSecurityKey
+
+        self.onLogin(skel)
         return self.render.loginSucceeded(**kwargs)
 
     @exposed
@@ -874,20 +878,18 @@ class User(List):
             Implements the logout action. It also terminates the current session (all keys not listed
             in viur.session.persistentFieldsOnLogout will be lost).
         """
-        currSess = utils.currentSession.get()
-        user = currSess.get("user")
-        if not user:
+        if not (user := utils.getCurrentUser()):
             raise errors.Unauthorized()
         if not securitykey.validate(skey, useSessionKey=True):
             raise errors.PreconditionFailed()
+
         self.onLogout(user)
-        oldSession = {k: v for k, v in currSess.items()}  # Store all items in the current session
-        currSess.reset()
-        # Copy the persistent fields over
-        for k in conf["viur.session.persistentFieldsOnLogout"]:
-            if k in oldSession:
-                currSess[k] = oldSession[k]
-        del oldSession
+
+        session = utils.currentSession.get()
+        take_over = {k: v for k, v in session.items() if k in conf["viur.session.persistentFieldsOnLogout"]}
+        session.reset()
+        session |= take_over
+
         return self.render.logoutSuccess()
 
     @exposed
@@ -896,12 +898,26 @@ class User(List):
                        for x, y in self.validAuthenticationMethods]
         return self.render.loginChoices(authMethods)
 
-    def onLogin(self):
-        usr = self.getCurrentUser()
-        logging.info("User logged in: %s" % usr["name"])
+    def onLogin(self, skel: skeleton.SkeletonInstance):
+        """
+        Hook to be called on user login.
+        """
+        # Update the lastlogin timestamp (if available!)
+        if "lastlogin" in skel:
+            now = utils.utcNow()
 
-    def onLogout(self, usr):
-        logging.info("User logged out: %s" % usr["name"])
+            # Conserve DB-Writes: Update the user max once in 30 Minutes (why??)
+            if not skel["lastlogin"] or ((now - skel["lastlogin"]) > datetime.timedelta(minutes=30)):
+                skel["lastlogin"] = now
+                skel.toDB(clearUpdateTag=True)
+
+        logging.info(f"""User {skel["name"]} logged in""")
+
+    def onLogout(self, skel: skeleton.SkeletonInstance):
+        """
+        Hook to be called on user logout.
+        """
+        logging.info(f"""User {skel["name"]} logged out""")
 
     @exposed
     def edit(self, *args, **kwargs):
@@ -917,12 +933,12 @@ class User(List):
         """
         if key == "self":
             user = self.getCurrentUser()
-            if user:
-                return super(User, self).view(str(user["key"].id_or_name), *args, **kwargs)
-            else:
+            if not user:
                 raise errors.Unauthorized()
 
-        return super(User, self).view(key, *args, **kwargs)
+            return super().view(str(user["key"].id_or_name), *args, **kwargs)
+
+        return super().view(key, *args, **kwargs)
 
     def canView(self, skel) -> bool:
         user = self.getCurrentUser()

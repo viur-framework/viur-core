@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import traceback
@@ -298,13 +299,29 @@ class BrowseHandler():  # webapp.RequestHandler
                     logging.exception(newE)
                     res = None
             if not res:
-                tpl = Template(open(os.path.join(utils.coreBasePath, conf["viur.errorTemplate"]), "r").read())
-                res = tpl.safe_substitute({
-                    "error_code": e.status,
-                    "error_name": translate(e.name),
-                    "error_descr": e.descr,
-                })
-                extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
+                if (len(self.pathlist) > 0 and any(x in self.pathlist[0] for x in ["vi", "json"])) or \
+                        utils.currentRequest.get().response.headers["Content-Type"] == "application/json":
+                    utils.currentRequest.get().response.headers["Content-Type"] = "application/json"
+                    res = {
+                        "status": e.status,
+                        "reason": e.name,
+                        "descr": str(translate(e.name)),
+                        "hint": e.descr,
+                    }
+
+                    if conf["viur.instance.is_dev_server"]:
+                        res["traceback"] = traceback.format_exc()
+
+                    res = json.dumps(res)
+                else:
+                    with (conf["viur.instance.core_base_path"].joinpath(conf["viur.errorTemplate"]).open() as tpl_file):
+                        tpl = Template(tpl_file.read())
+                        res = tpl.safe_substitute({
+                            "error_code": e.status,
+                            "error_name": translate(e.name),
+                            "error_descr": e.descr,
+                        })
+                    extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
             self.response.write(res.encode("UTF-8"))
 
         except Exception as e:  # Something got really wrong
@@ -321,7 +338,10 @@ class BrowseHandler():  # webapp.RequestHandler
                     logging.exception(newE)
                     res = None
             if not res:
-                tpl = Template(open(os.path.join(utils.coreBasePath, conf["viur.errorTemplate"]), "r").read())
+                with (conf["viur.instance.core_base_path"]
+                      .joinpath(conf["viur.errorTemplate"])
+                      .open() as tpl_file):
+                    tpl = Template(tpl_file.read())
                 descr = "The server encountered an unexpected error and is unable to process your request."
                 if conf["viur.instance.is_dev_server"]:  # Were running on development Server
                     strIO = StringIO()
