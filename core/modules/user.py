@@ -633,7 +633,6 @@ class AuthenticatorOTP:
         This class handles the second factor for apps like authy and so on
     """
     otp_template = "user_login_secondfactor"
-    otp_add_template = "user_secondfactor_add"
 
     def __init__(self, userModule, modulePath):
         self.userModule = userModule
@@ -641,8 +640,33 @@ class AuthenticatorOTP:
 
     @exposed
     @forceSSL
-    def add(self):
-        return self.userModule.render.secound_factor_add(otp_uri=AuthenticatorOTP.generate_otp_secret())
+    def add(self, otp=None, skey=None):
+        """
+            We try to read the otp_secret form the current session. When this fails we generate a new one and store it
+            in the session.
+
+            If an otp and a skey are provided we are validate the skey and the otp and if both is successfully we store
+            the otp_secret from the session in the user entry.
+
+        """
+        current_session = utils.currentSession.get()
+
+        if not (otp_secret := current_session.get("_maybe_otp_secret")):
+            otp_secret = AuthenticatorOTP.generate_otp_secret()
+            current_session["_maybe_otp_secret"] = otp_secret
+            current_session.markChanged()
+
+        if otp is None or skey is None:
+            return self.userModule.render.secound_factor_add(
+                    otp_uri=AuthenticatorOTP.generate_otp_secret_uri(otp_secret))
+        else:
+            if not securitykey.validate(skey, useSessionKey=True):
+                raise errors.PreconditionFailed()
+            if not AuthenticatorOTP.verify_otp(otp, otp_secret):
+                return self.userModule.render.secound_factor_add(
+                    otp_uri=AuthenticatorOTP.generate_otp_secret_uri(otp_secret))  # to add errors
+            AuthenticatorOTP.set_otp_secret(otp_secret)
+            return self.userModule.render.secound_factor_add_success()
 
     def canHandle(self, userKey) -> bool:
         """
@@ -658,11 +682,13 @@ class AuthenticatorOTP:
         return "X-VIUR-2FACTOR-AuthenticatorOTP"
 
     @classmethod
-    def generate_otp_secret(cls):
+    def set_otp_secret(cls, otp_secret=None):
         """
-            Generate a new OTP Token if there is no one and write it in the user entry.
+             Write a new OTP Token in the user entry.
             :return an otp uri like otpauth://totp/Example:alice@google.com?secret=ABCDEFGH1234&issuer=Example
         """
+        if otp_secret is None:
+            logging.error("No 'otp_secret' is provided")
         cuser = utils.getCurrentUser()
         if not cuser:
             raise errors.Unauthorized()
@@ -670,24 +696,35 @@ class AuthenticatorOTP:
         if not user:
             raise errors.NotFound()
 
-        otp_secret = user.get("otp_secret", "")
+        user["otp_secret"] = otp_secret
+        db.Put(user)
+        utils.currentSession.get().markChanged()
 
-        if otp_secret == "" or otp_secret is None:
-            otp_secret = pyotp.random_base32()
-
-        time_otp = pyotp.TOTP(otp_secret)
+    @classmethod
+    def generate_otp_secret_uri(cls, otp_secret):
+        """
+            :return an otp uri like otpauth://totp/Example:alice@google.com?secret=ABCDEFGH1234&issuer=Example
+        """
+        cuser = utils.getCurrentUser()
         issuer = conf["viur.otp.issuer"]
         if issuer is None:
             logging.warning(
                 f"""conf["viur.otp.issuer"] is None we replace the issuer by conf["viur.instance.project_id"]""")
             issuer = conf["viur.instance.project_id"]
 
-        uri = time_otp.provisioning_uri(name=cuser["name"], issuer_name=issuer)
+        return pyotp.TOTP(otp_secret).provisioning_uri(name=cuser["name"], issuer_name=issuer)
 
-        user["otp_secret"] = otp_secret
-        db.Put(user)
-        utils.currentSession.get().markChanged()
-        return uri
+    @classmethod
+    def generate_otp_secret(cls):
+        """
+            Generate a new OTP Secret
+            :return an otp
+        """
+        return pyotp.random_base32()
+
+    @classmethod
+    def verify_otp(cls, otp, secret):
+        return pyotp.TOTP(secret).verify(otp)
 
     def startProcessing(self, userKey):
         return self.userModule.render.edit(skeleton.RelSkel(), action="authenticatorOTP", tpl=self.otp_template)
@@ -707,8 +744,8 @@ class AuthenticatorOTP:
         user = db.Get(user_key)
         if not user:
             raise errors.NotFound()
-        totp = pyotp.TOTP(user["otp_secret"])
-        if totp.verify(otp):
+
+        if AuthenticatorOTP.verify_otp(otp=otp,secret=user["otp_secret"]):
             return self.userModule.secondFactorSucceeded(self, user_key)
         else:
             skel = skeleton.RelSkel()

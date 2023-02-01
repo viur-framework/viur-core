@@ -13,6 +13,7 @@ class Render(DefaultRender):  # Render user-data to xml
     verifyFailedTemplate = "user_verify_failed"
     passwdRecoverInfoTemplate = "user_passwdrecover_info"
     otp_add_template = "user_secondfactor_add"
+    otp_add_success_template = "user_secondfactor_add_success"
 
     def login_disabled(self, authMethods, tpl=None, **kwargs):
         if "loginTemplate" in dir(self.parent):
@@ -90,3 +91,10 @@ class Render(DefaultRender):  # Render user-data to xml
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))
 
         return template.render(otp_uri=otp_uri)
+
+    def secound_factor_add_success(self, tpl=None):
+        if tpl is None:
+            tpl = self.secound_factor_add_success
+        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
+
+        return template.render()
