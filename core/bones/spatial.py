@@ -339,6 +339,6 @@ class SpatialBone(BaseBone):
 
     def structure(self, render_type=None) -> dict:
         return super().structure(render_type=render_type) | {
-            "boundsLat": self.boundsLat,
-            "boundsLng": self.boundsLng,
+            "boundslat": self.boundsLat,
+            "boundslng": self.boundsLng,
         }

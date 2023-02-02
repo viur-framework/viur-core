@@ -362,7 +362,7 @@ class TextBone(BaseBone):
 
         return super().getUniquePropertyIndexValues(valuesCache, name)
 
-    def describe(self) -> dict:
+    def structure(self) -> dict:
         return super().structure() | {
             "validHtml": self.validHtml,
         }

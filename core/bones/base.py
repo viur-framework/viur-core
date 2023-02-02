@@ -897,13 +897,10 @@ class BaseBone(object):
 
             "unique": self.unique.method.value if self.unique else False,
             "languages": self.languages,
-            "emptyValue": self.getEmptyValue(),  # fixme: rename this into "emptyvalue", same as "defaultvalue"
+            "emptyvalue": self.getEmptyValue(),  # fixme: rename this into "emptyvalue", same as "defaultvalue"
             "indexed": self.indexed
         }
-        if render_type == "html":  # fixme: in HTML, this is "readOnly", in JSON/XML it is "readonly"
-            ret["readOnly"] = self.readOnly
-        else:
-            ret["readonly"] = self.readOnly
+        ret["readonly"] = self.readOnly
 
         # Provide a defaultvalue, if it's not a function.
         if not callable(self.defaultValue) and self.defaultValue is not None:
@@ -912,9 +909,9 @@ class BaseBone(object):
         # Provide a multiple setting
         if self.multiple and isinstance(self.multiple, MultipleConstraints):
             ret["multiple"] = {
-                "minAmount": self.multiple.minAmount,
-                "maxAmount": self.multiple.maxAmount,
-                "preventDuplicates": self.multiple.preventDuplicates,
+                "minamount": self.multiple.minAmount,
+                "maxamount": self.multiple.maxAmount,
+                "preventduplicates": self.multiple.preventDuplicates,
             }
         else:
             ret["multiple"] = self.multiple
