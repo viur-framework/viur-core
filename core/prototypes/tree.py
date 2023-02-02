@@ -362,7 +362,7 @@ class Tree(SkelModule):
 
         if (len(kwargs) == 0  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or not current.Request.get().isPostRequest
+            or not current.request.get().isPostRequest
             or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
         ):
             return self.render.add(skel)
