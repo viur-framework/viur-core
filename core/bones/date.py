@@ -255,7 +255,7 @@ class DateBone(BaseBone):
         if (self.creationMagic and isAdd) or self.updateMagic:
             valuesCache[name] = utcNow().replace(microsecond=0).astimezone(self.guessTimeZone())
 
-    def structure(self, ) -> dict:
+    def structure(self) -> dict:
         return super().structure() | {
             "date": self.date,
             "time": self.time

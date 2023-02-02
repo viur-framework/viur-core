@@ -123,7 +123,7 @@ class RecordBone(BaseBone):
         """
         raise NotImplementedError
 
-    def structure(self, ) -> dict:
+    def structure(self) -> dict:
         return super().structure() | {
             "format": self.format,
             "using": self.using().structure()}

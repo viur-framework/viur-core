@@ -174,7 +174,7 @@ class StringBone(BaseBone):
 
         return super().getUniquePropertyIndexValues(skel, name)
 
-    def structure(self, ) -> dict:
+    def structure(self) -> dict:
         ret = super().structure() | {
             "maxlength": self.maxLength
         }

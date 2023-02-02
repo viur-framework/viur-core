@@ -337,7 +337,7 @@ class SpatialBone(BaseBone):
         assert isinstance(value, tuple) and len(value) == 2, "Value must be a tuple of (lat, lng)"
         skel[boneName] = value
 
-    def structure(self, ) -> dict:
+    def structure(self) -> dict:
         return super().structure() | {
             "boundslat": self.boundsLat,
             "boundslng": self.boundsLng,

@@ -897,7 +897,7 @@ class BaseBone(object):
             "readonly": self.readOnly,
             "unique": self.unique.method.value if self.unique else False,
             "languages": self.languages,
-            "emptyvalue": self.getEmptyValue(),  # fixme: rename this into "emptyvalue", same as "defaultvalue"
+            "emptyvalue": self.getEmptyValue(),
             "indexed": self.indexed
         }
 
@@ -908,8 +908,8 @@ class BaseBone(object):
         # Provide a multiple setting
         if self.multiple and isinstance(self.multiple, MultipleConstraints):
             ret["multiple"] = {
-                "minamount": self.multiple.minAmount,
-                "maxamount": self.multiple.maxAmount,
+                "min": self.multiple.minAmount,
+                "max": self.multiple.maxAmount,
                 "preventduplicates": self.multiple.preventDuplicates,
             }
         else:

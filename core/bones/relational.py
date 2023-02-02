@@ -985,7 +985,7 @@ class RelationalBone(BaseBone):
         elif isinstance(value, list):
             return self._hashValueForUniquePropertyIndex([x["dest"]["key"] for x in value])
 
-    def structure(self, ) -> dict:
+    def structure(self) -> dict:
         return super().structure() | {
             "type": f"{self.type}.{self.kind}",
             "module": self.module,
