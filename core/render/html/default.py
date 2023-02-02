@@ -262,7 +262,7 @@ class Render(object):
 
         return template.render(
             skel={
-                "structure": skel.structure(render_type="html"),
+                "structure": skel.structure(),
                 "errors": skel.errors,
                 "value": skel
             },

@@ -253,8 +253,8 @@ class SkeletonInstance:
         self.accessedValues = {}
         self.renderAccessedValues = {}
 
-    def structure(self, render_type=None):
-        return [(key, bone.structure(render_type=render_type)) for key, bone in self.items()]
+    def structure(self, ):
+        return [(key, bone.structure()) for key, bone in self.items()]
 
     def __deepcopy__(self, memodict):
         res = self.clone()

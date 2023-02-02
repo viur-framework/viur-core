@@ -355,7 +355,7 @@ def getStructure(render: Render,
                     logging.exception(e)
                     return False
 
-            return skel.structure(render_type="html")
+            return skel.structure()
 
     return False
 

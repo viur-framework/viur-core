@@ -883,7 +883,7 @@ class BaseBone(object):
             else:
                 yield None, None, value
 
-    def structure(self, render_type=None) -> dict:
+    def structure(self) -> dict:
         """
         Describes the bone and its settings as an JSON-serializable dict.
         This function has to be implemented for subsequent, specialized bone types.
@@ -894,13 +894,13 @@ class BaseBone(object):
             "required": self.required,
             "params": self.params,
             "visible": self.visible,
-
+            "readonly": self.readOnly,
             "unique": self.unique.method.value if self.unique else False,
             "languages": self.languages,
             "emptyvalue": self.getEmptyValue(),  # fixme: rename this into "emptyvalue", same as "defaultvalue"
             "indexed": self.indexed
         }
-        ret["readonly"] = self.readOnly
+
 
         # Provide a defaultvalue, if it's not a function.
         if not callable(self.defaultValue) and self.defaultValue is not None:

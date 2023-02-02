@@ -65,7 +65,7 @@ class DefaultRender(object):
         e = ext()
         return ({"name": e.name,
                  "descr": str(e.descr),
-                 "skel": e.dataSkel().structure(render_type="xml")})
+                 "skel": e.dataSkel().structure()})
 
     def renderBoneValue(self, bone, skel, key):
         boneVal = skel[key]
@@ -150,7 +150,7 @@ class DefaultRender(object):
             "action": action,
             "params": params,
             "values": self.renderSkelValues(skel),
-            "structure": skel.structure(render_type="xml"),
+            "structure": skel.structure(),
             "errors": [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage,
                         "invalidatedFields": x.invalidatedFields} for x in skel.errors]
         }
@@ -176,7 +176,7 @@ class DefaultRender(object):
         res["skellist"] = skels
 
         if (len(skellist) > 0):
-            res["structure"] = skellist[0].structure(render_type="xml")
+            res["structure"] = skellist[0].structure()
         else:
             res["structure"] = None
 
