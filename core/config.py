@@ -104,7 +104,7 @@ conf = Conf({
     "viur.defaultLanguage": "en",
 
     # If disabled the local logging will not send with requestLogger to the cloud
-    "viur.dev_server_cloud_logging": True,
+    "viur.dev_server_cloud_logging": False,
 
     # If set to true, the decorator @enableCache from viur.core.cache has no effect
     "viur.disableCache": False,
