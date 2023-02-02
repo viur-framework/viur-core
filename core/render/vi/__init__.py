@@ -113,8 +113,7 @@ def getVersion(*args, **kwargs):
 
 
 def canAccess(*args, **kwargs) -> bool:
-    user = current.user.get()
-    if user and ("root" in user["access"] or "admin" in user["access"]):
+    if (user := current.user.get()) and ("root" in user["access"] or "admin" in user["access"]):
         return True
     pathList = current.request.get().pathlist
     if len(pathList) >= 2 and pathList[1] in ["skey", "getVersion", "settings"]:

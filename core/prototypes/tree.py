@@ -575,8 +575,7 @@ class Tree(SkelModule):
 
         :returns: The altered filter, or None if access is not granted.
         """
-        user = current.user.get()
-        if user and ("%s-view" % self.moduleName in user["access"] or "root" in user["access"]):
+        if (user := current.user.get()) and ("%s-view" % self.moduleName in user["access"] or "root" in user["access"]):
             return query
         return None
 
@@ -617,8 +616,8 @@ class Tree(SkelModule):
 
         :returns: True, if adding entries is allowed, False otherwise.
         """
-        user = current.user.get()
-        if not user:
+
+        if not (user := current.user.get()):
             return False
         # root user is always allowed.
         if user["access"] and "root" in user["access"]:
@@ -648,8 +647,7 @@ class Tree(SkelModule):
 
         :returns: True, if editing entries is allowed, False otherwise.
         """
-        user = current.user.get()
-        if not user:
+        if not (user := current.user.get()):
             return False
         if user["access"] and "root" in user["access"]:
             return True
@@ -678,8 +676,7 @@ class Tree(SkelModule):
 
         :returns: True, if deleting entries is allowed, False otherwise.
         """
-        user = current.user.get()
-        if not user:
+        if not (user := current.user.get()):
             return False
         if user["access"] and "root" in user["access"]:
             return True
@@ -709,8 +706,7 @@ class Tree(SkelModule):
 
         :returns: True, if deleting entries is allowed, False otherwise.
         """
-        user = current.user.get()
-        if not user:
+        if not (user := current.user.get()):
             return False
         if user["access"] and "root" in user["access"]:
             return True
@@ -747,8 +743,7 @@ class Tree(SkelModule):
         """
         logging.info("Entry of kind %r added: %s", skelType, skel["key"])
         flushCache(kind=skel.kindName)
-        user = current.user.get()
-        if user:
+        if user := current.user.get():
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
     def onEdit(self, skelType: SkelType, skel: SkeletonInstance):
@@ -778,8 +773,7 @@ class Tree(SkelModule):
         """
         logging.info("Entry of kind %r changed: %s", skelType, skel["key"])
         flushCache(key=skel["key"])
-        user = current.user.get()
-        if user:
+        if user := current.user.get():
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
     def onView(self, skelType: SkelType, skel: SkeletonInstance):
@@ -826,8 +820,7 @@ class Tree(SkelModule):
         """
         logging.info("Entry deleted: %s (%s)" % (skel["key"], type(skel)))
         flushCache(key=skel["key"])
-        user = current.user.get()
-        if user:
+        if user := current.user.get():
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
 

@@ -838,8 +838,7 @@ class User(List):
             Allow a special key "self" to reference always the current user
         """
         if key == "self":
-            user = self.getCurrentUser()
-            if not user:
+            if not (user := current.user.get()):
                 raise errors.Unauthorized()
 
             return super().view(str(user["key"].id_or_name), *args, **kwargs)
@@ -847,8 +846,7 @@ class User(List):
         return super().view(key, *args, **kwargs)
 
     def canView(self, skel) -> bool:
-        user = self.getCurrentUser()
-        if user:
+        if user := current.user.get():
             if skel["key"] == user["key"]:
                 return True
 

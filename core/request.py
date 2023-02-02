@@ -593,8 +593,7 @@ class BrowseHandler():  # webapp.RequestHandler
         if self.request.headers.get("X-Viur-Disable-Cache"):
             from viur.core import utils
             # No cache requested, check if the current user is allowed to do so
-            user = current.user.get()
-            if user and "root" in user["access"]:
+            if (user := current.user.get()) and "root" in user["access"]:
                 logging.debug("Caching disabled by X-Viur-Disable-Cache header")
                 self.disableCache = True
         try:
