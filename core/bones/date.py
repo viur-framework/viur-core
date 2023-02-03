@@ -17,6 +17,7 @@ class DateBone(BaseBone):
         date: bool = True,
         localize: bool = False,
         time: bool = True,
+        tzNaive: bool = False,
         updateMagic: bool = False,
         **kwargs
     ):
@@ -28,8 +29,10 @@ class DateBone(BaseBone):
             :param updateMagic: Use the current time whenever this entity is saved.
             :param date: Should this bone contain a date-information?
             :param time: Should this bone contain time information?
+            :param tzNaive: Should this bone be time zone naive? Use this for fixed times which will be rendered
+                                always with the same value independent of local time zone.
             :param localize: Assume users timezone for in and output? Only valid if this bone
-                                contains date and time-information! Per default, UTC time is used.
+                                contains date and time-information and tzNaive is false! Per default, UTC time is used.
         """
         super().__init__(**kwargs)
 
@@ -45,11 +48,15 @@ class DateBone(BaseBone):
         if localize and not (date and time):
             raise ValueError("Localization is only possible with date and time!")
 
+        if localize and tzNaive:
+            raise ValueError("Localization is not possible with tzNaive!")
+
         if self.multiple and (creationMagic or updateMagic):
             raise ValueError("Cannot be multiple and have a creation/update-magic set!")
 
         self.date = date
         self.time = time
+        self.tzNaive = tzNaive
         self.localize = localize
 
     def singleValueFromClient(self, value: str, skel: 'viur.core.skeleton.SkeletonInstance', name: str, origData):
@@ -89,6 +96,9 @@ class DateBone(BaseBone):
             :param value: *User-supplied* request-data, has to be of valid format
             :returns: tuple[datetime or None, [Errors] or None]
         """
+        # Even if tzNaive==true, we need to set tz=UTC,
+        # or else e.g. POSIX timestamp will be converted to the platform’s local date and time.
+        # => Bones with tzNaive==true are internally tz aware; they are just rendered differently.
         if self.date and self.time and self.localize:
             time_zone = self.guessTimeZone()
         else:

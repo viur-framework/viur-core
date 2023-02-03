@@ -169,6 +169,9 @@ class DefaultRender(object):
             return self.renderSkelValues(value)
         elif isinstance(bone, bones.PasswordBone):
             return ""
+        elif isinstance(bone, bones.DateBone):
+            # remove tz-info from isoformat for tzNaive DateBones.
+            return value.isoformat().split("+", 1)[0] if bone.tzNaive and isinstance(value, datetime) else value
         else:
             return value
         return None
