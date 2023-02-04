@@ -89,10 +89,7 @@ class DateBone(BaseBone):
             :param value: *User-supplied* request-data, has to be of valid format
             :returns: tuple[datetime or None, [Errors] or None]
         """
-        if self.date and self.time and self.localize:
-            time_zone = self.guessTimeZone()
-        else:
-            time_zone = pytz.utc
+        time_zone = self.guessTimeZone()
         rawValue = value
         if str(rawValue).replace("-", "", 1).replace(".", "", 1).isdigit():
             if int(rawValue) < -1 * (2 ** 30) or int(rawValue) > (2 ** 31) - 2:
@@ -177,12 +174,15 @@ class DateBone(BaseBone):
     def guessTimeZone(self):
         """
         Guess the timezone the user is supposed to be in.
+        If not both date and time are set and the localize flag is set, then UTC is used.
         If it cant be guessed, a safe default (UTC) is used
         """
-        timeZone = pytz.utc  # Default fallback
-        currReqData = currentRequestData.get()
+        if not (self.date and self.time and self.localize):
+            return pytz.utc
         if conf["viur.instance.is_dev_server"]:
             return tzlocal.get_localzone()
+        timeZone = pytz.utc  # Default fallback
+        currReqData = currentRequestData.get()
         try:
             # Check the local cache first
             if "timeZone" in currReqData:
@@ -224,10 +224,7 @@ class DateBone(BaseBone):
         if isinstance(value, datetime):
             # Serialized value is timezone aware.
             # If local timezone is needed, set here, else force UTC.
-            if self.date and self.time and self.localize:
-                time_zone = self.guessTimeZone()
-            else:
-                time_zone = pytz.utc
+            time_zone = self.guessTimeZone()
             return value.astimezone(time_zone)
         else:
             # We got garbage from the datastore
