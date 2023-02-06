@@ -364,5 +364,5 @@ class TextBone(BaseBone):
 
     def structure(self) -> dict:
         return super().structure() | {
-            "validHtml": self.validHtml,
+            "valid_html": self.validHtml,
         }
