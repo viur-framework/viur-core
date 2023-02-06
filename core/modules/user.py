@@ -776,6 +776,8 @@ class User(List):
         current.request.get().response.headers["Sec-X-ViUR-StaticSKey"] = session.staticSecurityKey
 
         self.onLogin(skel)
+        if "user" in dir(conf["viur.mainApp"]):  # Check for our custom user-api
+            current.user.set(conf["viur.mainApp"].user.getCurrentUser())  # load user in context var
         return self.render.loginSucceeded(**kwargs)
 
     @exposed
@@ -795,7 +797,7 @@ class User(List):
         take_over = {k: v for k, v in session.items() if k in conf["viur.session.persistentFieldsOnLogout"]}
         session.reset()
         session |= take_over
-
+        current.user.set(None)  # set user to none in context var
         return self.render.logoutSuccess()
 
     @exposed
