@@ -1,17 +1,14 @@
 from .default import DefaultRender as default
 from .user import UserRender as user
-from .file import FileRender as file
-from viur.core import securitykey
+from viur.core import securitykey, exposed
 import json
 
 __all__ = [default]
 
 
+@exposed
 def genSkey(*args, **kwargs) -> str:
     return json.dumps(securitykey.create())
-
-
-genSkey.exposed = True
 
 
 def _postProcessAppObj(obj):  # Register our SKey function

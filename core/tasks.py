@@ -5,6 +5,7 @@ import logging
 import os
 import pytz
 import sys
+import requests
 from datetime import datetime, timedelta
 from functools import wraps
 from google.cloud import tasks_v2
@@ -61,20 +62,30 @@ def jsonDecodeObjectHook(obj):
 
 
 _gaeApp = os.environ.get("GAE_APPLICATION")
-regionMap = {  # FIXME! Can we even determine the region like this?
-    "h": "europe-west3",
-    "e": "europe-west1"
-}
+
 queueRegion = None
 if _gaeApp:
-    regionPrefix = _gaeApp.split("~")[0]
-    queueRegion = regionMap.get(regionPrefix)
 
-if not queueRegion and utils.isLocalDevelopmentServer and os.getenv("TASKS_EMULATOR") is None:
+    try:
+        headers = {"Metadata-Flavor": "Google"}
+        r = requests.get("http://metadata.google.internal/computeMetadata/v1/instance/region", headers=headers)
+        # r.text should be look like this "projects/(project-number)/region/(region)"
+        # like so "projects/1234567890/region/europe-west3"
+        queueRegion = r.text.split("/")[-1]
+    except Exception as e:  # Something went wrong with the Google Metadata Sever we use the old way
+        logging.warning(f"Can't obtain queueRegion from Google MetaData Server due exception {e=}")
+        regionPrefix = _gaeApp.split("~")[0]
+        regionMap = {
+            "h": "europe-west3",
+            "e": "europe-west1"
+        }
+        queueRegion = regionMap.get(regionPrefix)
+
+if not queueRegion and conf["viur.instance.is_dev_server"] and os.getenv("TASKS_EMULATOR") is None:
     # Probably local development server
     logging.warning("Taskqueue disabled, tasks will run inline!")
 
-if not utils.isLocalDevelopmentServer or os.getenv("TASKS_EMULATOR") is None:
+if not conf["viur.instance.is_dev_server"] or os.getenv("TASKS_EMULATOR") is None:
     taskClient = tasks_v2.CloudTasksClient()
 else:
     taskClient = tasks_v2.CloudTasksClient(
@@ -84,7 +95,7 @@ else:
 
 _periodicTasks: Dict[str, Dict[Callable, int]] = {}
 _callableTasks = {}
-_deferedTasks = {}
+_deferred_tasks = {}
 _startupTasks = []
 _appengineServiceIPs = {"10.0.0.1", "0.1.0.1", "0.1.0.2"}
 
@@ -180,7 +191,7 @@ class TaskHandler:
         """
             This processes one chunk of a queryIter (see below).
         """
-        global _deferedTasks, _appengineServiceIPs
+        global _deferred_tasks, _appengineServiceIPs
         req = currentRequest.get().request
         if 'X-AppEngine-TaskName' not in req.headers:
             logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
@@ -199,15 +210,14 @@ class TaskHandler:
         """
             This catches one deferred call and routes it to its destination
         """
-        global _deferedTasks, _appengineServiceIPs
-
+        global _deferred_tasks, _appengineServiceIPs
         req = currentRequest.get().request
         if 'X-AppEngine-TaskName' not in req.headers:
             logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
             raise errors.Forbidden()
-        if req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs \
-            and (not utils.isLocalDevelopmentServer or os.getenv("TASKS_EMULATOR") is None):
-            logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
+        if req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs:
+            if not conf["viur.instance.is_dev_server"] or os.getenv("TASKS_EMULATOR") is None:
+                logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
             raise errors.Forbidden()
         # Check if the retry count exceeds our warning threshold
         retryCount = req.headers.get("X-Appengine-Taskretrycount", None)
@@ -220,6 +230,8 @@ class TaskHandler:
                                             retryCount))
         cmd, data = json.loads(req.body, object_hook=jsonDecodeObjectHook)
         funcPath, args, kwargs, env = data
+        logging.debug(f"Call task {funcPath} with {cmd=} {args=} {kwargs=} {env=}")
+
         if env:
             if "user" in env and env["user"]:
                 currentSession.get()["user"] = env["user"]
@@ -251,20 +263,21 @@ class TaskHandler:
             try:
                 caller(*args, **kwargs)
             except PermanentTaskFailure:
-                pass
+                logging.error("PermanentTaskFailure")
             except Exception as e:
                 logging.exception(e)
                 raise errors.RequestTimeout()  # Task-API should retry
         elif cmd == "unb":
-            if not funcPath in _deferedTasks:
+            if not funcPath in _deferred_tasks:
                 logging.error("ViUR missed a deferred task! %s(%s,%s)", funcPath, args, kwargs)
             # We call the deferred function *directly* (without walking through the mkDeferred lambda), so ensure
             # that any hit to another deferred function will defer again
-            req.DEFERED_TASK_CALLED = True
+
+            currentRequest.get().DEFERRED_TASK_CALLED = True
             try:
-                _deferedTasks[funcPath](*args, **kwargs)
+                _deferred_tasks[funcPath](*args, **kwargs)
             except PermanentTaskFailure:
-                pass
+                logging.error("PermanentTaskFailure")
             except Exception as e:
                 logging.exception(e)
                 raise errors.RequestTimeout()  # Task-API should retry
@@ -274,7 +287,7 @@ class TaskHandler:
     def cron(self, cronName="default", *args, **kwargs):
         global _callableTasks, _periodicTasks, _appengineServiceIPs
         req = currentRequest.get()
-        if not req.isDevServer:
+        if not conf["viur.instance.is_dev_server"]:
             if 'X-Appengine-Cron' not in req.request.headers:
                 logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Cron" was not set.')
                 raise errors.Forbidden()
@@ -285,7 +298,7 @@ class TaskHandler:
             logging.warning("Got Cron request '%s' which doesn't have any tasks" % cronName)
         # We must defer from cron, as tasks will interpret it as a call originating from task-queue - causing deferred
         # functions to be called directly, wich causes calls with _countdown etc set to fail.
-        req.DEFERED_TASK_CALLED = True
+        req.DEFERRED_TASK_CALLED = True
         for task, interval in _periodicTasks[cronName].items():  # Call all periodic tasks bound to that queue
             periodicTaskName = task.periodicTaskName.lower()
             if interval:  # Ensure this task doesn't get called to often
@@ -356,8 +369,7 @@ class TaskHandler:
             raise errors.Unauthorized()
         skel = task.dataSkel()
         skey = kwargs.get("skey", "")
-        if len(kwargs) == 0 or skey == "" or not skel.fromClient(kwargs) or (
-            "bounce" in kwargs and kwargs["bounce"] == "1"):
+        if len(kwargs) == 0 or not skel.fromClient(kwargs) or kwargs.get("bounce") == "1":
             return self.render.add(skel)
         if not securitykey.validate(skey, useSessionKey=True):
             raise errors.PreconditionFailed()
@@ -388,85 +400,95 @@ def noRetry(f):
     return wrappedFunc
 
 
-def callDeferred(func):
+def CallDeferred(func):
     """
         This is a decorator, which always calls the function deferred.
         Unlike Googles implementation, this one works (with bound functions)
     """
     if "viur_doc_build" in dir(sys):
         return func
+
     __undefinedFlag_ = object()
 
-    def mkDefered(func, self=__undefinedFlag_, *args, **kwargs):
+    def make_deferred(func, self=__undefinedFlag_, *args, **kwargs):
+        # Extract possibly provided task flags from kwargs
+        queue = kwargs.pop("_queue", "default")
+        taskargs = {k: kwargs.pop(f"_{k}", None) for k in ("countdown", "eta", "name", "target", "retry_options")}
+
+        logging.debug(f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, {queue=}, {taskargs=}")
+
+        try:
+            req = currentRequest.get()
+        except:  # This will fail for warmup requests
+            req = None
+
         if not queueRegion:
             # Run tasks inline
-            logging.info("Running inline: %s" % func)
-            if "_countdown" in kwargs:
-                del kwargs["_countdown"]
-            if "_queue" in kwargs:
-                del kwargs["_queue"]
-            if self is __undefinedFlag_:
-                task = lambda: func(*args, **kwargs)
-            else:
-                task = lambda: func(self, *args, **kwargs)
-            req = currentRequest.get()
+            logging.debug(f"{func=} will be executed inline")
+            @wraps(func)
+            def task():
+                if self is __undefinedFlag_:
+                    return func(*args, **kwargs)
+                else:
+                    return func(self, *args, **kwargs)
+
             if req:
-                req.pendingTasks.append(task)  # < This property will be only exist on development server!
+                req.pendingTasks.append(task)  # This property only exists on development server!
             else:
                 # Warmup request or something - we have to call it now as we can't defer it :/
                 task()
 
             return  # Ensure no result gets passed back
 
-        try:
-            req = currentRequest.get()
-        except:  # This will fail for warmup requests
-            req = None
-        if req is not None and req.request.headers.get("X-Appengine-Taskretrycount") \
-            and "DEFERED_TASK_CALLED" not in dir(req):
-            # This is the deferred call
-            req.DEFERED_TASK_CALLED = True  # Defer recursive calls to an deferred function again.
+        if req and req.request.headers.get("X-Appengine-Taskretrycount") and "DEFERRED_TASK_CALLED" not in dir(req):
             if self is __undefinedFlag_:
                 return func(*args, **kwargs)
-            else:
-                return func(self, *args, **kwargs)
+
+            req.DEFERRED_TASK_CALLED = True
+            return func(self, *args, **kwargs)
+
         else:
-            if req:
-                req.DEFERED_TASK_CALLED = True  # Defer recursive calls to an deferred function again.
             try:
                 if self.__class__.__name__ == "index":
                     funcPath = func.__name__
                 else:
                     funcPath = "%s/%s" % (self.modulePath, func.__name__)
+
                 command = "rel"
+
             except:
                 funcPath = "%s.%s" % (func.__name__, func.__module__)
-                if self != __undefinedFlag_:
-                    args = (self,) + args  # Reappend self to args, as this function is (hopefully) unbound
+
+                if self is not __undefinedFlag_:
+                    args = (self,) + args  # Re-append self to args, as this function is (hopefully) unbound
+
                 command = "unb"
-            taskargs = dict(
-                (x, kwargs.pop(("_%s" % x), None)) for x in ("countdown", "eta", "name", "target", "retry_options"))
+
             taskargs["url"] = "/_tasks/deferred"
-            transactional = kwargs.pop("_transactional", False)
             taskargs["headers"] = {"Content-Type": "application/octet-stream"}
-            queue = kwargs.pop("_queue", "default")
+
             # Try to preserve the important data from the current environment
             try:  # We might get called inside a warmup request without session
                 usr = currentSession.get().get("user")
                 if "password" in usr:
                     del usr["password"]
+
             except:
                 usr = None
+
             env = {"user": usr}
+
             try:
                 env["lang"] = currentLanguage.get()
             except AttributeError:  # This isn't originating from a normal request
                 pass
+
             if db.IsInTransaction():
                 # We have to ensure transaction guarantees for that task also
                 env["transactionMarker"] = db.acquireTransactionSuccessMarker()
                 # We move that task at least 90 seconds into the future so the transaction has time to settle
-                taskargs["countdown"] = max(90, (taskargs.get("countdown") or 0))  # Countdown can be set to None
+                taskargs["countdown"] = max(90, taskargs.get("countdown") or 0)  # Countdown can be set to None
+
             if conf["viur.tasks.customEnvironmentHandler"]:
                 # Check if this project relies on additional environmental variables and serialize them too
                 assert isinstance(conf["viur.tasks.customEnvironmentHandler"], tuple) \
@@ -474,31 +496,51 @@ def callDeferred(func):
                        and callable(conf["viur.tasks.customEnvironmentHandler"][0]), \
                     "Your customEnvironmentHandler must be a tuple of two callable if set!"
                 env["custom"] = conf["viur.tasks.customEnvironmentHandler"][0]()
-            pickled = json.dumps(preprocessJsonObject((command, (funcPath, args, kwargs, env)))).encode("UTF-8")
-            project = utils.projectID
-            location = queueRegion
-            parent = taskClient.queue_path(project, location, queue)
+
+            # Create task description
             task = {
-                'app_engine_http_request': {  # Specify the type of request.
-                    'http_method': tasks_v2.HttpMethod.POST,
-                    'relative_uri': '/_tasks/deferred'
+                "app_engine_http_request": {  # Specify the type of request.
+                    "body": json.dumps(preprocessJsonObject((command, (funcPath, args, kwargs, env)))).encode("UTF-8"),
+                    "http_method": tasks_v2.HttpMethod.POST,
+                    "relative_uri": taskargs["url"]
                 }
             }
-            if taskargs.get("countdown"):
+
+            # Set a schedule time in case countdown was set.
+            if seconds := taskargs.get("countdown"):
                 # We must send a Timestamp Protobuf instead of a date-string
                 timestamp = timestamp_pb2.Timestamp()
-                timestamp.FromDatetime(utils.utcNow() + timedelta(seconds=taskargs["countdown"]))
-                task['schedule_time'] = timestamp
-            task['app_engine_http_request']['body'] = pickled
+                timestamp.FromDatetime(utils.utcNow() + timedelta(seconds=seconds))
+                task["schedule_time"] = timestamp
 
             # Use the client to build and send the task.
-            response = taskClient.create_task(parent=parent, task=task)
+            parent = taskClient.queue_path(conf["viur.instance.project_id"], queueRegion, queue)
+            logging.debug(f"{parent=}, {task=}")
+            taskClient.create_task(parent=parent, task=task)
 
-            print('Created task {}'.format(response.name))
+            logging.info(f"Created task {func.__name__}.{func.__module__} with {args=} {kwargs=} {env=}")
 
-    global _deferedTasks
-    _deferedTasks["%s.%s" % (func.__name__, func.__module__)] = func
-    return lambda *args, **kwargs: mkDefered(func, *args, **kwargs)
+    global _deferred_tasks
+    _deferred_tasks["%s.%s" % (func.__name__, func.__module__)] = func
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        return make_deferred(func, *args, **kwargs)
+
+    return wrapper
+
+
+def callDeferred(func):
+    """
+    Deprecated version of CallDeferred
+    """
+    import logging, warnings
+
+    msg = f"Use of @callDeferred is deprecated, use @CallDeferred instead."
+    logging.warning(msg, stacklevel=3)
+    warnings.warn(msg, stacklevel=3)
+
+    return CallDeferred(func)
 
 
 def PeriodicTask(interval: int = 0, cronName: str = "default") -> Callable:
@@ -546,7 +588,7 @@ def StartupTask(fn: Callable) -> Callable:
     return fn
 
 
-@callDeferred
+@CallDeferred
 def runStartupTasks():
     """
         Runs all queued startupTasks.
@@ -621,7 +663,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
             if req:
                 req.pendingTasks.append(task)  # < This property will be only exist on development server!
                 return
-        project = utils.projectID
+        project = conf["viur.instance.project_id"]
         location = queueRegion
         parent = taskClient.queue_path(project, location, cls.queueName)
         task = {

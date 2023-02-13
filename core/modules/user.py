@@ -5,7 +5,7 @@ from viur.core import utils, email
 from viur.core.bones.base import ReadFromClientErrorSeverity, UniqueValue, UniqueLockMethod
 from viur.core.bones.password import pbkdf2
 from viur.core import errors, conf, securitykey
-from viur.core.tasks import StartupTask, callDeferred
+from viur.core.tasks import StartupTask, CallDeferred
 from viur.core.securityheaders import extendCsp
 from viur.core.ratelimit import RateLimit
 from time import time
@@ -253,7 +253,7 @@ class UserPassword(object):
             # This is the first step, where we ask for the username of the account we'll going to reset the password on
             skel = self.lostPasswordStep1Skel()
             if not request.isPostRequest or not skel.fromClient(kwargs):
-                return self.userModule.render.edit(skel, self.passwordRecoveryStep1Template)
+                return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
             if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
                 raise errors.PreconditionFailed()
             self.passwordRecoveryRateLimit.decrementQuota()
@@ -283,7 +283,7 @@ class UserPassword(object):
                     reason=self.passwordRecoveryKeyExpired)
             skel = self.lostPasswordStep2Skel()
             if not skel.fromClient(kwargs) or not request.isPostRequest:
-                return self.userModule.render.edit(skel, self.passwordRecoveryStep2Template)
+                return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep2Template)
             if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
                 raise errors.PreconditionFailed()
             self.passwordRecoveryRateLimit.decrementQuota()
@@ -296,7 +296,7 @@ class UserPassword(object):
                         skel=None,
                         tpl=self.passwordRecoveryFailedTemplate,
                         reason=self.passwordRecoveryKeyInvalid)
-                return self.userModule.render.edit(skel, self.passwordRecoveryStep2Template)  # Let's try again
+                return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep2Template)  # Let's try again
             # If we made it here, the key was correct, so we'd hopefully have a valid user for this
             uSkel = userSkel().all().filter("name.idx =", session["user.auth_userpassword.pwrecover"]["name"]).getSkel()
             if not uSkel:  # This *should* never happen - if we don't have a matching account we'll not send the key.
@@ -315,9 +315,9 @@ class UserPassword(object):
             uSkel["password"] = skel["password"]
             uSkel.toDB()
             session["user.auth_userpassword.pwrecover"] = None
-            return self.userModule.render.view(None, self.passwordRecoverySuccessTemplate)
+            return self.userModule.render.view(None, tpl=self.passwordRecoverySuccessTemplate)
 
-    @callDeferred
+    @CallDeferred
     def sendUserPasswordRecoveryCode(self, userName: str, recoveryKey: str) -> None:
         """
             Sends the given recovery code to the user given in userName. This function runs deferred
@@ -347,13 +347,13 @@ class UserPassword(object):
         skel = self.userModule.editSkel()
         if not data or not isinstance(data, dict) or "userKey" not in data or not skel.fromDB(
             data["userKey"].id_or_name):
-            return self.userModule.render.view(None, self.verifyFailedTemplate)
+            return self.userModule.render.view(None, tpl=self.verifyFailedTemplate)
         if self.registrationAdminVerificationRequired:
             skel["status"] = 2
         else:
             skel["status"] = 10
         skel.toDB()
-        return self.userModule.render.view(skel, self.verifySuccessTemplate)
+        return self.userModule.render.view(skel, tpl=self.verifySuccessTemplate)
 
     def canAdd(self) -> bool:
         return self.registrationEnabled
@@ -395,7 +395,6 @@ class UserPassword(object):
             raise errors.Unauthorized()
         skel = self.addSkel()
         if (len(kwargs) == 0  # no data supplied
-            or skey == ""  # no skey supplied
             or not currentRequest.get().isPostRequest  # bail out if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or ("bounce" in kwargs and kwargs["bounce"] == "1")):  # review before adding
@@ -535,19 +534,19 @@ class TimeBasedOTP(object):
             # Maybe uneven length
             if len(hexStr) % 2 == 1:
                 hexStr = "0" + hexStr
-            return ("00" * (8 - (len(hexStr) / 2)) + hexStr).decode("hex")
+            return bytes.fromhex("00" * int(8 - (len(hexStr) / 2)) + hexStr)
 
         idx = int(time() / 60.0)  # Current time index
         idx += int(timeDrift)
         res = []
         for slot in range(idx - self.windowSize, idx + self.windowSize):
-            currHash = hmac.new(secret.decode("HEX"), asBytes(slot), hashlib.sha1).digest()
+            currHash = hmac.new(bytes.fromhex(secret), asBytes(slot), hashlib.sha1).digest()
             # Magic code from https://tools.ietf.org/html/rfc4226 :)
-            offset = ord(currHash[19]) & 0xf
-            code = ((ord(currHash[offset]) & 0x7f) << 24 |
-                    (ord(currHash[offset + 1]) & 0xff) << 16 |
-                    (ord(currHash[offset + 2]) & 0xff) << 8 |
-                    (ord(currHash[offset + 3]) & 0xff))
+            offset = currHash[19] & 0xf
+            code = ((currHash[offset] & 0x7f) << 24 |
+                    (currHash[offset + 1] & 0xff) << 16 |
+                    (currHash[offset + 2] & 0xff) << 8 |
+                    (currHash[offset + 3] & 0xff))
             res.append(int(str(code)[-6:]))  # We use only the last 6 digits
         return res
 
@@ -861,7 +860,7 @@ def createNewUserIfNotExists():
                  userMod.validAuthenticationMethods])):  # It uses UserPassword login
         if not db.Query(userMod.addSkel().kindName).getEntry():  # There's currently no user in the database
             addSkel = skeletonByKind(userMod.addSkel().kindName)()  # Ensure we have the full skeleton
-            uname = "admin@%s.appspot.com" % utils.projectID
+            uname = f"""admin@{conf["viur.instance.project_id"]}.appspot.com"""
             pw = utils.generateRandomString(13)
             addSkel["name"] = uname
             addSkel["status"] = 10  # Ensure its enabled right away

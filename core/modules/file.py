@@ -4,6 +4,7 @@ import google.auth
 import json
 import logging
 import string
+import html
 from PIL import Image, ImageCms
 from base64 import urlsafe_b64decode
 from datetime import datetime, timedelta
@@ -19,12 +20,12 @@ from viur.core import db, conf, errors, exposed, forcePost, forceSSL, securityke
 from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import skeletonByKind
-from viur.core.tasks import PeriodicTask, callDeferred
-from viur.core.utils import projectID, sanitizeFileName
+from viur.core.tasks import PeriodicTask, CallDeferred
+from viur.core.utils import sanitizeFileName
 
 credentials, project = google.auth.default()
 client = storage.Client(project, credentials)
-bucket = client.lookup_bucket("%s.appspot.com" % projectID)
+bucket = client.lookup_bucket(f"""{conf["viur.instance.project_id"]}.appspot.com""")
 iamClient = iam_credentials_v1.IAMCredentialsClient()
 
 
@@ -53,7 +54,8 @@ def importBlobFromViur2(dlKey, fileName):
             return False
         importData = json.loads(importDataReq.read())
         oldBlobName = conf["viur.viur2import.blobsource"]["gsdir"] + "/" + importData["key"]
-        srcBlob = storage.Blob(bucket=bucket, name=conf["viur.viur2import.blobsource"]["gsdir"] + "/" + importData["key"])
+        srcBlob = storage.Blob(bucket=bucket,
+                               name=conf["viur.viur2import.blobsource"]["gsdir"] + "/" + importData["key"])
     else:
         oldBlobName = conf["viur.viur2import.blobsource"]["gsdir"] + "/" + dlKey
         srcBlob = storage.Blob(bucket=bucket, name=conf["viur.viur2import.blobsource"]["gsdir"] + "/" + dlKey)
@@ -78,15 +80,18 @@ class InjectStoreURLBone(BaseBone):
 
     def unserialize(self, skel, name):
         if "dlkey" in skel.dbEntity and "name" in skel.dbEntity:
-            skel.accessedValues[name] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False)
+            skel.accessedValues[name] = utils.downloadUrlFor(
+                skel["dlkey"], skel["name"], derived=False, expires=conf["viur.render.json.downloadUrlExpiration"]
+            )
             return True
         return False
 
 
 def thumbnailer(fileSkel, existingFiles, params):
-    blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"], fileSkel["name"]))
+    file_name = html.unescape(fileSkel["name"])
+    blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"], file_name))
     if not blob:
-        logging.warning("Blob %s is missing from Cloudstore!" % fileSkel["dlkey"])
+        logging.warning("Blob %s/source/%s is missing from cloud storage!" % (fileSkel["dlkey"], file_name))
         return
     fileData = BytesIO()
     blob.download_to_file(fileData)
@@ -127,6 +132,125 @@ def thumbnailer(fileSkel, existingFiles, params):
         resList.append((targetName, outSize, mimeType, {"mimetype": mimeType, "width": width, "height": height}))
     return resList
 
+
+def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
+    """External Thumbnailer for images.
+
+       The corresponding cloudfunction can be found here .
+       https://github.com/viur-framework/viur-cloudfunctions/tree/main/thumbnailer
+
+       You can use it like so:
+       main.py:
+
+       from viur.core.modules.file import cloudfunction_thumbnailer
+
+       conf["viur.file.thumbnailerURL"]="https://xxxxx.cloudfunctions.net/imagerenderer"
+       conf["viur.file.derivers"] = {"thumbnail": cloudfunction_thumbnailer}
+
+       conf["derives_pdf"] = {
+       "thumbnail": [{"width": 1920,"sites":"1,2"}]
+       }
+       skeletons/xxx.py:
+
+       test = FileBone(derive=conf["derives_pdf"])
+       """
+
+    if not conf.get("viur.file.thumbnailerURL", False):
+        raise ValueError("viur.file.thumbnailerURL is not set")
+
+    def getsignedurl():
+        if conf["viur.instance.is_dev_server"]:
+            signedUrl = utils.downloadUrlFor(fileSkel["dlkey"], fileSkel["name"])
+        else:
+            path = f"""{fileSkel["dlkey"]}/source/{file_name}"""
+            if not (blob := bucket.get_blob(path)):
+                logging.warning(f"Blob {path} is missing from cloud storage!")
+                return None
+            authRequest = requests.Request()
+            expiresAt = datetime.now() + timedelta(seconds=60)
+            signing_credentials = compute_engine.IDTokenCredentials(authRequest, "")
+            contentDisposition = "filename=%s" % fileSkel["name"]
+            signedUrl = blob.generate_signed_url(
+                expiresAt,
+                credentials=signing_credentials,
+                response_disposition=contentDisposition,
+                version="v4")
+        return signedUrl
+
+    def make_request():
+        import requests as _requests
+        headers = {"Content-Type": "application/json"}
+        data_str = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
+        sig = utils.hmacSign(data_str)
+        datadump = json.dumps({"dataStr": data_str.decode('ASCII'), "sign": sig})
+        resp = _requests.post(conf["viur.file.thumbnailerURL"], data=datadump, headers=headers, allow_redirects=False)
+        if resp.status_code != 200:  # Error Handling
+            match resp.status_code:
+                case 302:
+                    # The problem is Google resposen 302 to an auth Site when the cloudfunction was not found
+                    # https://cloud.google.com/functions/docs/troubleshooting#login
+                    logging.error("Cloudfunction not found")
+                case 404:
+                    logging.error("Cloudfunction not found")
+                case 403:
+                    logging.error("No permission for the Cloudfunction")
+                case _:
+                    logging.error(
+                        f"cloudfunction_thumbnailer failed with code: {resp.status_code} and data: {resp.content}")
+            return
+
+        try:
+            response_data = resp.json()
+        except Exception as e:
+            logging.error(f"response could not be converted in json failed with: {e=}")
+            return
+        if "error" in response_data:
+            logging.error(f"cloudfunction_thumbnailer failed with: {response_data.get('error')}")
+            return
+
+        return response_data
+
+    file_name = html.unescape(fileSkel["name"])
+
+    if not (url := getsignedurl()):
+        return
+    dataDict = {
+        "url": url,
+        "name": fileSkel["name"],
+        "params": params,
+        "minetype": fileSkel["mimetype"],
+        "baseUrl": utils.currentRequest.get().request.host_url.lower(),
+        "targetKey": fileSkel["dlkey"],
+        "nameOnly": True
+    }
+    if not (derivedData := make_request()):
+        return
+
+    uploadUrls = {}
+    for data in derivedData["values"]:
+        fileName = sanitizeFileName(data["name"])
+        blob = bucket.blob("%s/derived/%s" % (fileSkel["dlkey"], fileName))
+        uploadUrls[fileSkel["dlkey"] + fileName] = blob.create_resumable_upload_session(timeout=60,
+                                                                                        content_type=data["mimeType"])
+
+    if not (url := getsignedurl()):
+        return
+
+    dataDict["url"] = url
+    dataDict["nameOnly"] = False
+    dataDict["uploadUrls"] = uploadUrls
+
+    if not (derivedData := make_request()):
+        return
+    reslist = []
+    try:
+        for derived in derivedData["values"]:
+            for key, value in derived.items():
+                reslist.append((key, value["size"], value["mimetype"], value["customData"]))
+
+    except Exception as e:
+        logging.error(f"cloudfunction_thumbnailer failed with: {e=}")
+    return reslist
 
 
 class fileBaseSkel(TreeSkel):
@@ -270,7 +394,8 @@ class File(Tree):
 
     blobCacheTime = 60 * 60 * 24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
 
-    def write(self, filename: str, content: Any, mimetype: str = "text/plain", width: int = None, height: int = None) -> db.Key:
+    def write(self, filename: str, content: Any, mimetype: str = "text/plain", width: int = None,
+              height: int = None) -> db.Key:
         """
         Write a file from any buffer into the file module.
 
@@ -298,7 +423,7 @@ class File(Tree):
 
         return skel.toDB()
 
-    @callDeferred
+    @CallDeferred
     def deleteRecursive(self, parentKey):
         files = db.Query(self.leafSkelCls().kindName).filter("parentdir =", parentKey).iter()
         for fileEntry in files:
@@ -357,6 +482,7 @@ class File(Tree):
         """
         global bucket
         fileName = sanitizeFileName(fileName)
+
         targetKey = utils.generateRandomString()
         blob = bucket.blob("%s/source/%s" % (targetKey, fileName))
         uploadUrl = blob.create_resumable_upload_session(content_type=mimeType, size=size, timeout=60)
@@ -423,7 +549,9 @@ class File(Tree):
 
         if not securitykey.validate(skey, useSessionKey=True):
             raise errors.PreconditionFailed()
+
         targetKey, uploadUrl = self.initializeUpload(fileName, mimeType.lower(), node, size)
+
         resDict = {
             "uploadUrl": uploadUrl,
             "uploadKey": targetKey,
@@ -487,7 +615,7 @@ class File(Tree):
             expiresAt = datetime.now() + timedelta(seconds=60)
             signedUrl = blob.generate_signed_url(expiresAt, response_disposition=contentDisposition, version="v4")
             raise errors.Redirect(signedUrl)
-        elif utils.isLocalDevelopmentServer:  # No Service-Account to sign with - Serve everything directly
+        elif conf["viur.instance.is_dev_server"]:  # No Service-Account to sign with - Serve everything directly
             response = utils.currentRequest.get().response
             response.headers["Content-Type"] = blob.content_type
             if contentDisposition:
@@ -578,7 +706,7 @@ def startCheckForUnreferencedBlobs():
     doCheckForUnreferencedBlobs()
 
 
-@callDeferred
+@CallDeferred
 def doCheckForUnreferencedBlobs(cursor=None):
     def getOldBlobKeysTxn(dbKey):
         obj = db.Get(dbKey)
@@ -623,7 +751,7 @@ def startCleanupDeletedFiles():
     doCleanupDeletedFiles()
 
 
-@callDeferred
+@CallDeferred
 def doCleanupDeletedFiles(cursor=None):
     maxIterCount = 2  # How often a file will be checked for deletion
     query = db.Query("viur-deleted-files")

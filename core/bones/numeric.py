@@ -1,9 +1,14 @@
 import logging
+import sys
 import warnings
-from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+from typing import Any, Dict, Optional, Set, Union
+
 from viur.core import db
-from math import pow
-from typing import Any, Dict, Optional, Union
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+
+# Constants for Mne (MIN/MAX-never-exceed)
+MIN = -(sys.maxsize - 1)
+MAX = sys.maxsize
 
 
 class NumericBone(BaseBone):
@@ -17,8 +22,8 @@ class NumericBone(BaseBone):
     def __init__(
         self,
         *,
-        max: Union[int, float] = int(pow(2, 30)),
-        min: Union[int, float] = -int(pow(2, 30)),
+        max: Union[int, float] = MAX,
+        min: Union[int, float] = MIN,
         mode=None,  # deprecated!
         precision: int = 0,
         **kwargs
@@ -48,6 +53,13 @@ class NumericBone(BaseBone):
         self.precision = precision
         self.min = min
         self.max = max
+
+    def __setattr__(self, key, value):
+        if key in ("min", "max"):
+            if value < MIN or value > MAX:
+                raise ValueError(f"{key} can only be set to something between {MIN} and {MAX}")
+
+        return super().__setattr__(key, value)
 
     def isInvalid(self, value):
         if value != value:  # NaN
@@ -120,25 +132,10 @@ class NumericBone(BaseBone):
 
         return super().buildDBFilter(name, skel, dbFilter, updatedFilter, prefix)
 
-    def getSearchTags(self, valuesCache, name):
-        res = set()
-        value = valuesCache[name]
-        if not value:
-            return res
-        if self.languages and isinstance(value, dict):
-            if self.multiple:
-                for lang in value.values():
-                    if not lang:
-                        continue
-                    for val in lang:
-                        res.add(str(val))
-            else:
-                for lang in value.values():
-                    res.add(str(lang))
-        else:
-            if self.multiple:
-                for val in value:
-                    res.add(str(val))
-            else:
-                res.add(str(value))
-        return res
+    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+        result = set()
+        for idx, lang, value in self.iter_bone_value(skel, name):
+            if value is None:
+                continue
+            result.add(str(value))
+        return result

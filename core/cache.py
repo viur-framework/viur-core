@@ -201,7 +201,7 @@ def enableCache(urls: List[str], userSensitive: int = 0, languageSensitive: bool
     return lambda f: wrapCallable(f, urls, userSensitive, languageSensitive, evaluatedArgs, maxCacheTime)
 
 
-@tasks.callDeferred
+@tasks.CallDeferred
 def flushCache(prefix: str = None, key: Union[db.Key, None] = None, kind: Union[str, None] = None):
     """
         Flushes the cache. Its possible the flush only a part of the cache by specifying
@@ -238,7 +238,7 @@ def flushCache(prefix: str = None, key: Union[db.Key, None] = None, kind: Union[
             logging.info("Deleted cache entry %s", item["path"])
             db.Delete(item.key)
         if not isinstance(key, db.Key):
-            key = db.Key(encoded=key)
+            key = db.Key.from_legacy_urlsafe(key)  # hopefully is a string
         items = db.Query(viurCacheName).filter("accessedEntries =", key.kind).iter()
         for item in items:
             logging.info("Deleted cache entry %s", item["path"])

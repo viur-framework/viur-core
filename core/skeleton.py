@@ -13,7 +13,8 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Ty
 from viur.core import conf, db, email, errors, utils
 from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, SelectBone, StringBone
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
-from viur.core.tasks import CallableTask, CallableTaskBase, QueryIter, callDeferred
+from viur.core.tasks import CallableTask, CallableTaskBase, QueryIter, CallDeferred
+from viur.core.bones.relational import RelationalUpdateLevel
 
 try:
     import pytz
@@ -31,8 +32,18 @@ class MetaBaseSkel(type):
     _skelCache = {}  # Mapping kindName -> SkelCls
     _allSkelClasses = set()  # list of all known skeleton classes (including Ref and Mail-Skels)
 
-    __reservedKeywords_ = {"self", "cursor", "orderby", "orderdir", "limit"
-                           "style", "items", "keys", "values"}
+    __reserved_keywords = {
+        "bounce",
+        "cursor",
+        "items",
+        "keys",
+        "limit",
+        "orderby",
+        "orderdir",
+        "self",
+        "style",
+        "values",
+    }
 
     def __init__(cls, name, bases, dct):
         boneMap = {}
@@ -45,10 +56,12 @@ class MetaBaseSkel(type):
                 prop = getattr(inCls, key)
                 if isinstance(prop, BaseBone):
                     if "." in key:
-                        raise AttributeError("Invalid bone '%s': Bone keys may not contain a dot (.)" % key)
-                    if key in MetaBaseSkel.__reservedKeywords_:
-                        raise AttributeError("Invalid bone '%s': Bone cannot have any of the following names: %s" %
-                                             (key, str(MetaBaseSkel.__reservedKeywords_)))
+                        raise AttributeError(f"Invalid bone {key!r}: Bone keys may not contain a dot (.)")
+                    if key in MetaBaseSkel.__reserved_keywords:
+                        raise AttributeError(
+                            f"Invalid bone {key!r}: Bone cannot have any of the following names: "
+                            f"{MetaBaseSkel.__reserved_keywords!r}"
+                        )
                     boneMap[key] = prop
                 elif prop is None and key in boneMap:  # Allow removing a bone in a subclass by setting it to None
                     del boneMap[key]
@@ -191,6 +204,9 @@ class SkeletonInstance:
     def __setattr__(self, key, value):
         if key in self.boneMap or isinstance(value, BaseBone):
             self.boneMap[key] = value
+        elif key == "renderPreparation":
+            super().__setattr__(key, value)
+            self.renderAccessedValues.clear()
         else:
             super().__setattr__(key, value)
 
@@ -199,6 +215,9 @@ class SkeletonInstance:
 
     def __str__(self) -> str:
         return str(dict(self))
+
+    def __len__(self) -> int:
+        return len(self.boneMap)
 
     def clone(self):
         res = SkeletonInstance(self.skeletonCls, clonedBoneMap=copy.deepcopy(self.boneMap))
@@ -327,8 +346,13 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                     err.fieldPath.insert(0, str(key))
                 skelValues.errors.extend(errors)
                 for error in errors:
-                    if (error.severity == ReadFromClientErrorSeverity.Empty and _bone.required and
-                        error.fieldPath == [key]) or error.severity == ReadFromClientErrorSeverity.Invalid or \
+                    is_empty = error.severity == ReadFromClientErrorSeverity.Empty and bool(_bone.required)
+                    if _bone.languages and isinstance(_bone.required, (list, tuple)):
+                        is_empty &= any([key, lang] == error.fieldPath
+                                        for lang in _bone.required)
+                    else:
+                        is_empty &= error.fieldPath == [key]
+                    if is_empty or error.severity == ReadFromClientErrorSeverity.Invalid or \
                         (error.severity == ReadFromClientErrorSeverity.NotSet and _bone.required and
                          _bone.isEmpty(skelValues["key"])):
                         # We'll consider empty required bones only as an error, if they're on the top-level (and not
@@ -346,19 +370,21 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
         return complete
 
     @classmethod
-    def refresh(cls, skelValues):
+    def refresh(cls, skel: SkeletonInstance):
         """
             Refresh the bones current content.
 
             This function causes a refresh of all relational bones and their associated
             information.
         """
-        for key, bone in skelValues.items():
+        logging.debug(f"""Refreshing {skel["key"]=}""")
+
+        for key, bone in skel.items():
             if not isinstance(bone, BaseBone):
                 continue
-            skelValues[key]  # Ensure value gets loaded
-            if "refresh" in dir(bone):
-                bone.refresh(skelValues, key)
+
+            _ = skel[key]  # Ensure value gets loaded
+            bone.refresh(skel, key)
 
     def __new__(cls, *args, **kwargs) -> SkeletonInstance:
         return SkeletonInstance(cls, *args, **kwargs)
@@ -718,8 +744,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         assert skelValues.renderPreparation is None, "Cannot modify values while rendering"
 
         def txnUpdate(dbKey, mergeFrom, clearUpdateTag):
+            skel = mergeFrom.skeletonCls()
+
             blobList = set()
-            skel = skeletonByKind(mergeFrom.kindName)()
             changeList = []
 
             # Load the current values from Datastore or create a new, empty db.Entity
@@ -1240,7 +1267,7 @@ class SkelList(list):
 
 ### Tasks ###
 
-@callDeferred
+@CallDeferred
 def processRemovedRelations(removedKey, cursor=None):
     updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", removedKey) \
         .filter("viur_relational_consistency >", 2)
@@ -1270,7 +1297,7 @@ def processRemovedRelations(removedKey, cursor=None):
         processRemovedRelations(removedKey, updateListQuery.getCursor())
 
 
-@callDeferred
+@CallDeferred
 def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: Optional[str], cursor: Optional[str] = None):
     """
         This function updates Entities, which may have a copy of values from another entity which has been recently
@@ -1292,7 +1319,8 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: Optional[s
     logging.debug("Starting updateRelations for %s ; minChangeTime %s, changedBone: %s, cursor: %s",
                   destKey, minChangeTime, changedBone, cursor)
     updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", destKey) \
-        .filter("viur_delayed_update_tag <", minChangeTime).filter("viur_relational_updateLevel =", 0)
+        .filter("viur_delayed_update_tag <", minChangeTime).filter("viur_relational_updateLevel =",
+                                                                   RelationalUpdateLevel.Always.value)
     if changedBone:
         updateListQuery.filter("viur_foreign_keys =", changedBone)
     if cursor:
@@ -1301,10 +1329,10 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: Optional[s
 
     def updateTxn(skel, key, srcRelKey):
         if not skel.fromDB(key):
-            logging.warning("Cannot update stale reference to %s (referenced from %s)" % (key, srcRelKey))
+            logging.warning(f"Cannot update stale reference to {key=} (referenced from {srcRelKey=})")
             return
-        for key, _bone in skel.items():
-            _bone.refresh(skel, key)
+
+        skel.refresh()
         skel.toDB(clearUpdateTag=True)
 
     for srcRel in updateList:
@@ -1420,7 +1448,7 @@ class TaskVacuumRelations(CallableTaskBase):
         processVacuumRelationsChunk(module.strip(), None, notify=notify)
 
 
-@callDeferred
+@CallDeferred
 def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, notify=None):
     """
         Processes 100 Entries and calls the next batch

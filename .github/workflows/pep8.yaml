@@ -1,0 +1,42 @@
+name: PEP8 linter
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  linter:
+    strategy:
+      matrix:
+        python: [ "3.10" ]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: "0"
+
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          python -m pip install -U pycodestyle
+
+      - name: run pep8check @pull_request
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          git diff -U0 origin/${GITHUB_BASE_REF}..${GITHUB_SHA} | pycodestyle --diff
+
+      - name: run pep8check @push
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          git show -U0 ${GITHUB_SHA} | pycodestyle --diff

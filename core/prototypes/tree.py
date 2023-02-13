@@ -6,7 +6,7 @@ from viur.core.bones import KeyBone, SortIndexBone
 from viur.core.cache import flushCache
 from viur.core.prototypes import BasicApplication
 from viur.core.skeleton import Skeleton, SkeletonInstance
-from viur.core.tasks import callDeferred
+from viur.core.tasks import CallDeferred
 from viur.core.utils import currentRequest
 
 SkelType = Literal["node", "leaf"]
@@ -189,7 +189,7 @@ class Tree(BasicApplication):
         rootNodeSkel.fromDB(repo.key)
         return rootNodeSkel
 
-    @callDeferred
+    @CallDeferred
     def updateParentRepo(self, parentNode: str, newRepoKey: str, depth: int = 0):
         """
         Recursively fixes the parentrepo key after a move operation.
@@ -377,7 +377,6 @@ class Tree(BasicApplication):
         skel["parentrepo"] = parentNodeSkel["parentrepo"] or parentNodeSkel["key"]
 
         if (len(kwargs) == 0  # no data supplied
-            or skey == ""  # no security key
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or not currentRequest.get().isPostRequest
             or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
@@ -417,13 +416,12 @@ class Tree(BasicApplication):
         if not (skelType := self._checkSkelType(skelType)):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
 
-        skel = self.addSkel(skelType)
+        skel = self.editSkel(skelType)
         if not skel.fromDB(key):
             raise errors.NotFound()
         if not self.canEdit(skelType, skel):
             raise errors.Unauthorized()
         if (len(kwargs) == 0  # no data supplied
-            or skey == ""  # no security key
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or not currentRequest.get().isPostRequest
             or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
@@ -459,7 +457,7 @@ class Tree(BasicApplication):
         skey = kwargs.get("skey", "")
         if not (skelType := self._checkSkelType(skelType)):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
-        skel = self.addSkel(skelType)
+        skel = self.editSkel(skelType)
         if not skel.fromDB(key):
             raise errors.NotFound()
         if not self.canDelete(skelType, skel):
@@ -473,7 +471,7 @@ class Tree(BasicApplication):
         self.onDeleted(skelType, skel)
         return self.render.deleteSuccess(skel, skelType=skelType)
 
-    @callDeferred
+    @CallDeferred
     def deleteRecursive(self, parentKey: str):
         """
         Recursively processes a delete request.

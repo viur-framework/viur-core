@@ -213,7 +213,6 @@ class List(BasicApplication):
         if not self.canEdit(skel):
             raise errors.Unauthorized()
         if (len(kwargs) == 0  # no data supplied
-            or skey == ""  # no security key
             or not currentRequest.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before changing
@@ -250,7 +249,6 @@ class List(BasicApplication):
             raise errors.Unauthorized()
         skel = self.addSkel()
         if (len(kwargs) == 0  # no data supplied
-            or skey == ""  # no skey supplied
             or not currentRequest.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding

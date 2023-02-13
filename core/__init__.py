@@ -15,7 +15,7 @@
    I N F O R M A T I O N    S Y S T E M
 
  ViUR core
- Copyright 2022 by Mausbrand Informationssysteme GmbH
+ Copyright (C) 2012-2023 by Mausbrand Informationssysteme GmbH
 
  ViUR is a free software development framework for the Google App Engine™.
  More about ViUR can be found at https://www.viur.dev.
@@ -24,21 +24,37 @@
  See file LICENSE for more information.
 """
 
-from types import ModuleType
-from typing import Dict, Union, Callable
-from viur.core.config import conf
-from viur.core import request
-from viur.core import languages as servertrans
-from viur.core.i18n import initializeTranslations
-from viur.core import logging as viurLogging  # Initialize request logging
-from viur.core.utils import currentRequest, currentSession, currentLanguage, currentRequestData, projectID
-from viur.core.session import GaeSession
-from viur.core.version import __version__
-import logging
+import os
 import webob
+import yaml
+from types import ModuleType
+from typing import Callable, Dict, Union, List
+from viur.core import session, errors, i18n, request, utils
+from viur.core.config import conf
+from viur.core.tasks import TaskHandler, runStartupTasks
+from viur.core import logging as viurLogging  # Initialize request logging
+import logging  # this import has to stay here, see #571
 
-# Copy our Version into the config so that our renders can access it
-conf["viur.version"] = tuple(__version__.split(".", 3))
+
+def load_indexes_from_file() -> Dict[str, List]:
+    """
+        Loads all indexes from the index.yaml and stores it in a dictionary  sorted by the module(kind)
+        :return A dictionary of indexes per module
+    """
+    indexes_dict = {}
+    try:
+        with open(os.path.join(utils.projectBasePath, "index.yaml"), "r") as file:
+            indexes = yaml.safe_load(file)
+            indexes = indexes.get("indexes", [])
+            for index in indexes:
+                index["properties"] = [_property["name"] for _property in index["properties"]]
+                indexes_dict.setdefault(index["kind"], []).append(index)
+
+    except FileNotFoundError:
+        logging.warning("index.yaml not found")
+        return {}
+
+    return indexes_dict
 
 
 def setDefaultLanguage(lang: str):
@@ -61,13 +77,6 @@ def setDefaultDomainLanguage(domain: str, lang: str):
     if host.startswith("www."):
         host = host[4:]
     conf["viur.domainLanguageMapping"][host] = lang.lower()
-
-
-### Multi-Language Part: END
-
-from viur.core import session, errors
-from viur.core.tasks import TaskHandler, runStartupTasks
-from viur.core import i18n
 
 
 def mapModule(moduleObj: object, moduleName: str, targetResolverRender: dict):
@@ -163,7 +172,10 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     else:
         root = ExtendableObject()
     modules._tasks = TaskHandler
+    from viur.core.modules.moduleconf import ModuleConf  # noqa: E402 # import works only here because circular imports
+    modules._moduleconf = ModuleConf
     resolverDict = {}
+    indexes = load_indexes_from_file()
     for moduleName, moduleClass in vars(modules).items():  # iterate over all modules
         if moduleName == "index":
             mapModule(root, "index", resolverDict)
@@ -176,6 +188,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
                 moduleInstance = moduleClass(moduleName, modulePath)
                 # Attach the module-specific or the default render
                 moduleInstance.render = render.get(moduleName, render["default"])(parent=moduleInstance)
+                moduleInstance.indexes = indexes.get(moduleName, [])
                 if renderName == default:  # default or render (sub)namespace?
                     setattr(root, moduleName, moduleInstance)
                     targetResolverRender = resolverDict
@@ -223,8 +236,9 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     # noinspection PyUnresolvedReferences
     import skeletons  # This import is not used here but _must_ remain to ensure that the
     # application's data models are explicitly imported at some place!
-    assert projectID in conf["viur.validApplicationIDs"], \
-        "Refusing to start, applicationID %s is not in conf['viur.validApplicationIDs']" % projectID
+    if conf["viur.instance.project_id"] not in conf["viur.validApplicationIDs"]:
+        raise RuntimeError(
+            f"""Refusing to start, {conf["viur.instance.project_id"]=} is not in {conf["viur.validApplicationIDs"]=}""")
     if not render:
         import viur.core.render
         render = viur.core.render
@@ -254,8 +268,20 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
         if mode == "allow-from":
             assert uri is not None and (uri.lower().startswith("https://") or uri.lower().startswith("http://"))
     runStartupTasks()  # Add a deferred call to run all queued startup tasks
-    initializeTranslations()
-    assert conf["viur.file.hmacKey"], "You must set a secret and unique Application-Key to viur.file.hmacKey"
+    i18n.initializeTranslations()
+    if conf["viur.file.hmacKey"] is None:
+        from viur.core import db
+        key = db.Key("viur-conf", "viur-conf")
+        if not (obj := db.Get(key)):  # create a new "viur-conf"?
+            logging.info("Creating new viur-conf")
+            obj = db.Entity(key)
+
+        if "hmacKey" not in obj:  # create a new hmacKey
+            logging.info("Creating new hmacKey")
+            obj["hmacKey"] = utils.generateRandomString(length=20)
+            db.Put(obj)
+
+        conf["viur.file.hmacKey"] = bytes(obj["hmacKey"], "utf-8")
     return app
 
 
@@ -263,13 +289,22 @@ def app(environ: dict, start_response: Callable):
     req = webob.Request(environ)
     resp = webob.Response()
     handler = request.BrowseHandler(req, resp)
-    currentRequest.set(handler)
-    currentSession.set(GaeSession())
-    currentRequestData.set({})
+
+    # Set context variables
+    utils.currentLanguage.set(conf["viur.defaultLanguage"])
+    utils.currentRequest.set(handler)
+    utils.currentSession.set(session.GaeSession())
+    utils.currentRequestData.set({})
+
+    # Handle request
     handler.processRequest()
-    currentRequestData.set(None)
-    currentSession.set(None)
-    currentRequest.set(None)
+
+    # Unset context variables
+    utils.currentLanguage.set(None)
+    utils.currentRequestData.set(None)
+    utils.currentSession.set(None)
+    utils.currentRequest.set(None)
+
     return resp(environ, start_response)
 
 

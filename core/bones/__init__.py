@@ -12,7 +12,7 @@ from .password import PasswordBone
 from .randomslice import RandomSliceBone
 from .raw import RawBone
 from .record import RecordBone
-from .relational import RelationalBone, RelationalConsistency
+from .relational import RelationalBone, RelationalConsistency, RelationalUpdateLevel
 from .selectcountry import SelectCountryBone
 from .select import SelectBone
 from .sortindex import SortIndexBone
@@ -25,12 +25,36 @@ from .user import UserBone
 
 # Expose only specific names
 __all = [
+    "BaseBone",
+    "BooleanBone",
+    "CaptchaBone",
+    "ColorBone",
+    "CredentialBone",
+    "DateBone",
+    "EmailBone",
+    "FileBone",
+    "KeyBone",
+    "MultipleConstraints",
+    "NumericBone",
+    "PasswordBone",
+    "RandomSliceBone",
+    "RawBone",
     "ReadFromClientError",
     "ReadFromClientErrorSeverity",
-    "UniqueValue",
+    "RecordBone",
+    "RelationalBone",
+    "RelationalConsistency",
+    "SelectBone",
+    "SelectCountryBone",
+    "SortIndexBone",
+    "SpatialBone",
+    "StringBone",
+    "TextBone",
+    "TreeLeafBone",
+    "TreeNodeBone",
     "UniqueLockMethod",
-    "MultipleConstraints",
-    "RelationalConsistency"
+    "UniqueValue",
+    "UserBone",
 ]
 
 for __cls_name, __cls in locals().copy().items():
@@ -40,7 +64,7 @@ for __cls_name, __cls in locals().copy().items():
     if __cls_name.endswith("Bone"):
         __old_cls_name = __cls_name[0].lower() + __cls_name[1:]
 
-        __all += [__cls_name, __old_cls_name]
+        __all += [__old_cls_name]
 
         # Dynamically create a class providing a deprecation logging message for every lower-case bone name
         def __generate_deprecation_constructor(cls, cls_name, old_cls_name):

@@ -1,12 +1,10 @@
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import db
-from typing import Dict, List, Optional, Union, Any
-import logging
+from viur.core import db, conf
+from typing import Dict, Optional, Any
 
 
 class BooleanBone(BaseBone):
     type = "bool"
-    trueStrs = [str(True), "1", "yes"]
 
     def __init__(
         self,
@@ -20,10 +18,7 @@ class BooleanBone(BaseBone):
         super().__init__(defaultValue=defaultValue, **kwargs)
 
     def singleValueFromClient(self, value, skel: 'viur.core.skeleton.SkeletonInstance', name: str, origData):
-        if str(value) in self.trueStrs:
-            return True, None
-        else:
-            return False, None
+        return str(value).strip().lower() in conf["viur.bone.boolean.str2true"], None
 
     def getEmptyValue(self):
         return False
@@ -42,11 +37,7 @@ class BooleanBone(BaseBone):
             :param name: The property-name this bone has in its Skeleton (not the description!)
         """
         if not isinstance(skel[boneName], bool):
-            val = skel[boneName]
-            if str(val) in self.trueStrs:
-                skel[boneName] = True
-            else:
-                skel[boneName] = False
+            skel[boneName] = str(skel[boneName]).strip().lower() in conf["viur.bone.boolean.str2true"]
 
     def buildDBFilter(
         self,
@@ -57,12 +48,7 @@ class BooleanBone(BaseBone):
         prefix: Optional[str] = None
     ) -> db.Query:
         if name in rawFilter:
-            val = rawFilter[name]
-            if str(val) in self.trueStrs:
-                val = True
-            else:
-                val = False
-
+            val = str(rawFilter[name]).strip().lower() in conf["viur.bone.boolean.str2true"]
             return super().buildDBFilter(name, skel, dbFilter, {name: val}, prefix=prefix)
 
         return dbFilter

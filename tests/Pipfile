@@ -17,7 +17,7 @@ coverage = "*"
 coverage-badge = "*"
 
 [requires]
-python_version = "3.9"
+python_version = "3.10"
 
 [scripts]
 coverage = "./do_coverage.sh"

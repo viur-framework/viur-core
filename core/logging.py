@@ -1,18 +1,19 @@
 import logging
-
 import google.cloud.logging
 from google.cloud.logging import Resource
 from google.cloud.logging.handlers import CloudLoggingHandler
 from google.cloud.logging_v2.handlers.handlers import EXCLUDED_LOGGER_DEFAULTS
 
-from viur.core.utils import currentRequest, projectID, appVersion, isLocalDevelopmentServer
+from viur.core.utils import currentRequest
+from viur.core.config import conf
 
 client = google.cloud.logging.Client()
 requestLoggingRessource = Resource(type="gae_app",
                                    labels={
-                                       "project_id": projectID,
+                                       "project_id": conf["viur.instance.project_id"],
                                        "module_id": "default",
-                                       "version_id": appVersion if not isLocalDevelopmentServer else "dev_appserver",
+                                       "version_id": conf["viur.instance.app_version"] if not conf[
+                                           "viur.instance.is_dev_server"] else "dev_appserver",
                                    })
 
 requestLogger = client.logger("ViUR")
@@ -35,9 +36,12 @@ class ViURDefaultLogger(CloudLoggingHandler):
             message,
             resource=self.resource,
             labels={
-                "project_id": projectID,
+                "project_id": conf["viur.instance.project_id"],
                 "module_id": "default",
-                "version_id": appVersion if not isLocalDevelopmentServer else "dev_appserver",
+                "version_id":
+                    conf["viur.instance.app_version"]
+                    if not conf["viur.instance.is_dev_server"]
+                    else "dev_appserver",
             },
             trace=TRACE,
             operation={
@@ -57,6 +61,9 @@ logger.setLevel(logging.DEBUG)
 
 for loggerName, level in oldLevels.items():
     logging.getLogger(loggerName).setLevel(level)
+
+for handler in logger.handlers[:]:
+    logger.removeHandler(handler)
 
 handler = ViURDefaultLogger(client, name="ViUR-Messages", resource=Resource(type="gae_app", labels={}))
 logger.addHandler(handler)
