@@ -240,7 +240,6 @@ class Session:
             if not newSkey:
                 return False
             self.securityKey = newSkey
-            self.changed = True
             return True
         return False
 
