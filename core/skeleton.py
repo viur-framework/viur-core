@@ -253,15 +253,13 @@ class SkeletonInstance:
         self.accessedValues = {}
         self.renderAccessedValues = {}
 
-    def structure(self):
-        return [(key, bone.structure()) for key, bone in self.items()]
+    def structure(self) -> dict:
+        return {key: bone.structure() for key, bone in self.items()}
 
     def __deepcopy__(self, memodict):
         res = self.clone()
         memodict[id(self)] = res
         return res
-
-
 
 
 class BaseSkeleton(object, metaclass=MetaBaseSkel):
