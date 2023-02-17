@@ -63,20 +63,20 @@ class MultipleConstraints:  # Used to define constraints on multiple bones
 
 class ThresholdMethods(Enum):
     Always = 0
-    Until = 1
+    Lifetime = 1
     Once = 2
 
 
 @dataclass
 class ThresholdValue:
     method: ThresholdMethods = ThresholdMethods.Always
-    seconds: int = 0
+    lifetime: timedelta = None
 
 
 @dataclass
 class Compute:
     fn: callable  # the callable computing the value
-    threshold: ThresholdValue   # the value caching interval
+    threshold: ThresholdValue = ThresholdValue()   # the value caching interval
     raw: bool = True  # defines whether the value is used as is, or is passed to bone.fromClient
 
 
@@ -529,17 +529,16 @@ class BaseBone(object):
         if name in skel.dbEntity:
             loadVal = skel.dbEntity[name]
             if self.compute:  # handle this in the first place
-                if self.compute.threshold.method == ThresholdMethods.Until:  # we maybe must compute the value new
+                if self.compute.threshold.method == ThresholdMethods.Lifetime:  # we maybe must compute the value new
                     # if we have no value we set it to now and compute new
-                    valid_until = skel.dbEntity.get(f"{name}__vaild_until", utils.utcNow())
-                    if valid_until > utils.utcNow():
+                    last_updated = skel.dbEntity.get(f"{name}__last_updated", utils.utcNow())
+                    if last_updated+self.compute.threshold.lifetime > utils.utcNow():
                         skel.accessedValues[name] = loadVal
                         return True
                     if data := self._compute(skel, name):
                         skel.accessedValues[name] = data
                         skel.dbEntity[name] = data
-                        skel.dbEntity[f"{name}__vaild_until"] = utils.utcNow() + timedelta(
-                            seconds=self.threshold.seconds)
+                        skel.dbEntity[f"{name}__last_updated"] = utils.utcNow()
                         return True
 
                 elif self.compute.threshold.method == ThresholdMethods.Always:  # we must compute the value new
@@ -561,9 +560,8 @@ class BaseBone(object):
                 if data := self._compute(skel, name):
                     skel.accessedValues[name] = data
                     skel.dbEntity[name] = data
-                    if self.compute.threshold.method == ThresholdMethods.Until:
-                        skel.dbEntity[f"{name}__vaild_until"] = utils.utcNow() + timedelta(
-                            seconds=self.threshold.seconds)
+                    if self.compute.threshold.method == ThresholdMethods.Lifetime:
+                        skel.dbEntity[f"{name}__last_updated"] = utils.utcNow()
                     return True
 
             skel.accessedValues[name] = self.getDefaultValue(skel)
