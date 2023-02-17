@@ -85,6 +85,12 @@ conf = Conf({
     # the computed cache-key
     "viur.cacheEnvironmentKey": None,
 
+    # Backward compatibility flags; Remove to enforce new layout.
+    "viur.compatibility": [
+        "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
+        "json.bone.structure.keytuples",  # use classic structure notation: `"structure": [["key", {...}], ...]` (#649)
+    ],
+
     # If set, viur will emit a CSP http-header with each request. Use the csp module to set this property
     "viur.contentSecurityPolicy": None,
 

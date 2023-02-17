@@ -1,10 +1,11 @@
 import json
 from enum import Enum
 
-from viur.core import bones, utils, config, db
+from viur.core import bones, utils, db
 from viur.core.skeleton import SkeletonInstance
 from viur.core.utils import currentRequest
 from viur.core.i18n import translate
+from viur.core.config import conf
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -32,6 +33,35 @@ class DefaultRender(object):
     def __init__(self, parent=None, *args, **kwargs):
         super(DefaultRender, self).__init__(*args, **kwargs)
         self.parent = parent
+
+    def __rewrite_structure(self, structure: dict):
+        """
+        Performs structure rewrite according to compatibility flags.
+        """
+        # fixme: Remove in VIUR4
+        if "json.bone.structure.camelcasenames" in conf["viur.compatibility"]:
+            for struct in structure.values():
+                # Replace new-key by a copy of the value under the old-key
+                for find, replace in {
+                    "boundslat": "boundsLat",
+                    "boundslng": "boundsLng",
+                    "emptyvalue": "emptyValue",
+                    "max": "maxAmount",
+                    "maxlength": "maxLength",
+                    "min": "minAmount",
+                    "preventduplicates": "preventDuplicates",
+                    "readonly": "readOnly",
+                    "valid_html": "validHtml",
+                    "valid_mime_types": "validMimeTypes",
+                }.items():
+                    if find in struct:
+                        struct[replace] = struct[find]
+
+        # fixme: Remove in VIUR4
+        if "json.bone.structure.keytuples" in conf["viur.compatibility"]:
+            return [(key, struct) for key, struct in structure.items()]
+
+        return structure
 
 
     def renderSingleBoneValue(self, value: Any,
@@ -101,24 +131,27 @@ class DefaultRender(object):
             res[key] = self.renderBoneValue(bone, skel, key)
         if injectDownloadURL and "dlkey" in skel and "name" in skel:
             res["downloadUrl"] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False,
-                                                      expires=config.conf["viur.render.json.downloadUrlExpiration"])
+                                                      expires=conf["viur.render.json.downloadUrlExpiration"])
         return res
 
     def renderEntry(self, skel: SkeletonInstance, actionName, params=None):
         if isinstance(skel, list):
             vals = [self.renderSkelValues(x) for x in skel]
             if isinstance(skel[0], SkeletonInstance):
-                struct = skel[0].structure()
+                struct = self.__rewrite_structure(skel[0].structure())
             errors = None
+
         elif isinstance(skel, SkeletonInstance):
             vals = self.renderSkelValues(skel)
-            struct = skel.structure()
+            struct = self.__rewrite_structure(skel.structure())
             errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage,
                        "invalidatedFields": x.invalidatedFields} for x in skel.errors]
+
         else:  # Hopefully we can pass it directly...
             vals = skel
             struct = None
             errors = None
+
         res = {
             "values": vals,
             "structure": struct,
@@ -126,6 +159,7 @@ class DefaultRender(object):
             "action": actionName,
             "params": params
         }
+
         currentRequest.get().response.headers["Content-Type"] = "application/json"
         return json.dumps(res, cls=CustomJsonEncoder)
 
@@ -135,13 +169,14 @@ class DefaultRender(object):
     def list(self, skellist, action: str = "list", params=None, **kwargs):
         res = {}
         skels = []
+
         if skellist:
             for skel in skellist:
                 skels.append(self.renderSkelValues(skel))
 
             res["cursor"] = skellist.getCursor()
             if isinstance(skellist[0], SkeletonInstance):
-                res["structure"] = skellist[0].structure()
+                res["structure"] = self.__rewrite_structure(skellist[0].structure())
         else:
             res["structure"] = None
             res["cursor"] = None
@@ -150,7 +185,6 @@ class DefaultRender(object):
         res["action"] = action
         res["params"] = params
         res["orders"] = skellist.get_orders()
-
 
         currentRequest.get().response.headers["Content-Type"] = "application/json"
         return json.dumps(res, cls=CustomJsonEncoder)
