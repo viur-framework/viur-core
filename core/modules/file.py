@@ -578,8 +578,7 @@ class File(Tree):
         if not sig:
             # Check if the current user has the right to download *any* blob present in this application.
             # blobKey is then the path inside cloudstore - not a base64 encoded tuple
-            usr = current.user.get()
-            if not usr:
+            if not (usr := current.user.get()):
                 raise errors.Unauthorized()
             if "root" not in usr["access"] and "file-view" not in usr["access"]:
                 raise errors.Forbidden()

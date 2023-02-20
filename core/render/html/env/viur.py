@@ -39,8 +39,9 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
 
     :returns: Whatever the requested resource returns. This is *not* limited to strings!
     """
+    request = current.request.get()
     cachetime = kwargs.pop("cachetime", 0)
-    if conf["viur.disableCache"] or current.request.get().disableCache:  # Caching disabled by config
+    if conf["viur.disableCache"] or request.disableCache:  # Caching disabled by config
         cachetime = 0
     cacheEnvKey = None
     if conf["viur.cacheEnvironmentKey"]:
@@ -57,7 +58,7 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
         if cacheEnvKey is not None:
             tmpList.append(cacheEnvKey)
         try:
-            appVersion = current.request.get().request.environ["CURRENT_VERSION_ID"].split('.')[0]
+            appVersion = request.request.environ["CURRENT_VERSION_ID"].split('.')[0]
         except:
             appVersion = ""
             logging.error("Could not determine the current application id! Caching might produce unexpected results!")
@@ -69,12 +70,11 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
         res = None  # memcache.get(cacheKey)
         if res:
             return res
-    currReq = current.request.get()
-    tmp_params = currReq.kwargs.copy()
-    currReq.kwargs = {"__args": args, "__outer": tmp_params}
-    currReq.kwargs.update(kwargs)
-    lastRequestState = currReq.internalRequest
-    currReq.internalRequest = True
+    tmp_params = request.kwargs.copy()
+    request.kwargs = {"__args": args, "__outer": tmp_params}
+    request.kwargs.update(kwargs)
+    lastRequestState = request.internalRequest
+    request.internalRequest = True
     caller = conf["viur.mainApp"]
     pathlist = path.split("/")
     for currpath in pathlist:
@@ -83,16 +83,16 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
         elif "index" in dir(caller) and hasattr(getattr(caller, "index"), '__call__'):
             caller = getattr(caller, "index")
         else:
-            currReq.kwargs = tmp_params  # Reset RequestParams
-            currReq.internalRequest = lastRequestState
+            request.kwargs = tmp_params  # Reset RequestParams
+            request.internalRequest = lastRequestState
             return u"Path not found %s (failed Part was %s)" % (path, currpath)
     if (not hasattr(caller, '__call__')
         or ((not "exposed" in dir(caller)
              or not caller.exposed))
         and (not "internalExposed" in dir(caller)
              or not caller.internalExposed)):
-        currReq.kwargs = tmp_params  # Reset RequestParams
-        currReq.internalRequest = lastRequestState
+        request.kwargs = tmp_params  # Reset RequestParams
+        request.internalRequest = lastRequestState
         return u"%s not callable or not exposed" % str(caller)
     try:
         resstr = caller(*args, **kwargs)
@@ -100,8 +100,8 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
         logging.error("Caught execption in execRequest while calling %s" % path)
         logging.exception(e)
         raise
-    currReq.kwargs = tmp_params
-    currReq.internalRequest = lastRequestState
+    request.kwargs = tmp_params
+    request.internalRequest = lastRequestState
     if cachetime:
         pass
     # memcache.set(cacheKey, resstr, cachetime)

@@ -63,11 +63,13 @@ def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
             dictionary or True if the dict is empty (or :param:useSessionKey was true).
     """
     if useSessionKey:
+        session = current.session.get()
         if key == "staticSessionKey":
-            skeyHeaderValue = current.request.get().request.headers.get("Sec-X-ViUR-StaticSKey")
-            if skeyHeaderValue and current.session.get().validateStaticSecurityKey(skeyHeaderValue):
+            request = current.request.get()
+            skeyHeaderValue = request.request.headers.get("Sec-X-ViUR-StaticSKey")
+            if skeyHeaderValue and session.validateStaticSecurityKey(skeyHeaderValue):
                 return True
-        elif current.session.get().validateSecurityKey(key):
+        elif session.validateSecurityKey(key):
             return True
         return False
     if not key:

@@ -9,7 +9,7 @@ from functools import partial
 from itertools import chain
 from time import time
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
-from viur.core import conf, db, email, errors, utils
+from viur.core import conf, db, email, errors, utils, current
 from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, RelationalUpdateLevel, SelectBone, StringBone
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 from viur.core.tasks import CallableTask, CallableTaskBase, QueryIter, CallDeferred
