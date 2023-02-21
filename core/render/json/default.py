@@ -34,7 +34,8 @@ class DefaultRender(object):
         super(DefaultRender, self).__init__(*args, **kwargs)
         self.parent = parent
 
-    def __rewrite_structure(self, structure: dict):
+    @staticmethod
+    def render_structure(structure: dict):
         """
         Performs structure rewrite according to compatibility flags.
         """
@@ -138,12 +139,12 @@ class DefaultRender(object):
         if isinstance(skel, list):
             vals = [self.renderSkelValues(x) for x in skel]
             if isinstance(skel[0], SkeletonInstance):
-                struct = self.__rewrite_structure(skel[0].structure())
+                struct = DefaultRender.render_structure(skel[0].structure())
             errors = None
 
         elif isinstance(skel, SkeletonInstance):
             vals = self.renderSkelValues(skel)
-            struct = self.__rewrite_structure(skel.structure())
+            struct = DefaultRender.render_structure(skel.structure())
             errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage,
                        "invalidatedFields": x.invalidatedFields} for x in skel.errors]
 
@@ -176,7 +177,7 @@ class DefaultRender(object):
 
             res["cursor"] = skellist.getCursor()
             if isinstance(skellist[0], SkeletonInstance):
-                res["structure"] = self.__rewrite_structure(skellist[0].structure())
+                res["structure"] = DefaultRender.render_structure(skellist[0].structure())
         else:
             res["structure"] = None
             res["cursor"] = None
