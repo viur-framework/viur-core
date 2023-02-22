@@ -570,8 +570,8 @@ class TimeBasedOTP:
     @exposed
     @forceSSL
     def otp(self, otptoken=None, skey=None, *args, **kwargs):
-        currSess = current.session.get()
-        token = currSess.get("_otp_user")
+        session = current.session.get()
+        token = session.get("_otp_user")
         if not token:
             raise errors.Forbidden()
         if otptoken is None:
@@ -590,10 +590,10 @@ class TimeBasedOTP:
             self.userModule.render.edit(self.otpSkel(), tpl=self.otpTemplate)
 
         if otptoken in validTokens:
-            userKey = currSess["_otp_user"]["uid"]
+            userKey = session["_otp_user"]["uid"]
 
-            del currSess["_otp_user"]
-            currSess.markChanged()
+            del session["_otp_user"]
+            session.markChanged()
 
             idx = validTokens.index(int(otptoken))
 
@@ -605,8 +605,8 @@ class TimeBasedOTP:
             return self.userModule.secondFactorSucceeded(self, userKey)
         else:
             token["failures"] += 1
-            currSess["_otp_user"] = token
-            currSess.markChanged()
+            session["_otp_user"] = token
+            session.markChanged()
             return self.userModule.render.edit(self.otpSkel(), loginFailed=True, tpl=self.otpTemplate)
 
     def updateTimeDrift(self, userKey, idx):
@@ -729,10 +729,11 @@ class User(List):
         return None
 
     def continueAuthenticationFlow(self, caller, userKey):
-        currSess = current.session.get()
-        currSess["_mayBeUserKey"] = userKey.id_or_name
-        currSess["_secondFactorStart"] = utils.utcNow()
-        currSess.markChanged()
+        session = current.session.get()
+        session["_mayBeUserKey"] = userKey.id_or_name
+        session["_secondFactorStart"] = utils.utcNow()
+        session.markChanged()
+
         for authProvider, secondFactor in self.validAuthenticationMethods:
             if isinstance(caller, authProvider):
                 if secondFactor is None:
@@ -747,12 +748,12 @@ class User(List):
         raise errors.NotAcceptable("There are no more authentication methods to try")  # Sorry...
 
     def secondFactorSucceeded(self, secondFactor, userKey):
-        currSess = current.session.get()
+        session = current.session.get()
         logging.debug("Got SecondFactorSucceeded call from %s." % secondFactor)
-        if currSess["_mayBeUserKey"] != userKey.id_or_name:
+        if session["_mayBeUserKey"] != userKey.id_or_name:
             raise errors.Forbidden()
         # Assert that the second factor verification finished in time
-        if utils.utcNow() - currSess["_secondFactorStart"] > self.secondFactorTimeWindow:
+        if utils.utcNow() - session["_secondFactorStart"] > self.secondFactorTimeWindow:
             raise errors.RequestTimeout()
         return self.authenticateUser(userKey)
 
@@ -836,9 +837,9 @@ class User(List):
 
     @exposed
     def edit(self, *args, **kwargs):
-        currSess = current.session.get()
-        if len(args) == 0 and not "key" in kwargs and currSess.get("user"):
-            kwargs["key"] = currSess.get("user")["key"]
+        session = current.session.get()
+        if len(args) == 0 and not "key" in kwargs and session.get("user"):
+            kwargs["key"] = session.get("user")["key"]
         return super(User, self).edit(*args, **kwargs)
 
     @exposed
