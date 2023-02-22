@@ -174,7 +174,7 @@ class UserPassword:
     @exposed
     @forceSSL
     def login(self, name=None, password=None, skey="", *args, **kwargs):
-        if current.user.get():  # Were already logged in
+        if current.user.get():  # User is already logged in, nothing to do.
             return self.userModule.render.loginSucceeded()
 
         if not name or not password or not securitykey.validate(skey, useSessionKey=True):
@@ -776,14 +776,14 @@ class User(List):
         # and copy them over to the new session
         session |= take_over
 
+        # Update session, user and request
         session["user"] = skel.dbEntity
         session.markChanged()
-
         current.request.get().response.headers["Sec-X-ViUR-StaticSKey"] = session.staticSecurityKey
+        current.user.set(self.getCurrentUser())
 
         self.onLogin(skel)
-        if "user" in dir(conf["viur.mainApp"]):  # Check for our custom user-api
-            current.user.set(conf["viur.mainApp"].user.getCurrentUser())  # load user in context var
+
         return self.render.loginSucceeded(**kwargs)
 
     @exposed
