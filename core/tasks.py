@@ -1,18 +1,20 @@
 import base64
-import grpc
 import json
 import logging
 import os
-import pytz
 import sys
-import requests
+import traceback
 from datetime import datetime, timedelta
 from functools import wraps
+from time import sleep
+from typing import Any, Callable, Dict, Optional, Tuple
+
+import grpc
+import pytz
+import requests
 from google.cloud import tasks_v2
 from google.cloud.tasks_v2.services.cloud_tasks.transports import CloudTasksGrpcTransport
 from google.protobuf import timestamp_pb2
-from time import sleep
-from typing import Any, Callable, Dict, Optional, Tuple
 
 from viur.core import db, errors, utils
 from viur.core.config import conf
@@ -386,18 +388,53 @@ TaskHandler.html = True
 
 ## Decorators ##
 
+def retry_n_times(retries: int, email_recipients: None | str | list[str] = None):
+    """Wrapper for deferred tasks to limit the amount of retries"""
+
+    def outer_wrapper(func):
+        @wraps(func)
+        def inner_wrapper(*args, **kwargs):
+            retry_count = int(currentRequest.get().request.headers.get("X-Appengine-Taskretrycount", -1))
+            try:
+                func(*args, **kwargs)
+            except Exception as exc:
+                logging.exception(f"Task {func.__qualname__} failed.")
+                logging.info("This was retry #%d. %d retries remaining. (total = %d)",
+                             retry_count, retries - retry_count, retries)
+                if retry_count < retries:
+                    # Raise the exception to mark this task as failed, so the Task Queue can retry it.
+                    raise exc
+                else:
+                    if email_recipients:
+                        try:
+                            from viur.core import email
+                            email.sendEMail(
+                                dests=email_recipients,
+                                # language=Jinja2
+                                stringTemplate="""Subject: Task {{func_name}} failed {{retries}} times\n
+								This was the last attempt.<br>\n
+								<pre>{{func_module|escape}}.{{func_name|escape}}({{args|map("escape")|join(", ")}}, {{kwargs.items()|map("join", "=")|join(", ")|escape}})</pre>
+								<pre>{{traceback|escape}}</pre>""",
+                                func_name=func.__name__,
+                                func_module=func.__module__,
+                                retries=retries,
+                                args=args,
+                                kwargs=kwargs,
+                                traceback=traceback.format_exc()
+                            )
+                        except Exception:
+                            logging.exception("Failed to send email to %r", email_recipients)
+                    # Mark as permanently failed (could return nothing too)
+                    raise PermanentTaskFailure()
+
+        return inner_wrapper
+
+    return outer_wrapper
+
+
 def noRetry(f):
     """Prevents a deferred Function from being called a second time"""
-
-    @wraps(f)
-    def wrappedFunc(*args, **kwargs):
-        try:
-            f(*args, **kwargs)
-        except Exception as e:
-            logging.exception(e)
-            raise PermanentTaskFailure()
-
-    return wrappedFunc
+    return retry_n_times(0)(f)
 
 
 def CallDeferred(func):
@@ -425,6 +462,7 @@ def CallDeferred(func):
         if not queueRegion:
             # Run tasks inline
             logging.debug(f"{func=} will be executed inline")
+
             @wraps(func)
             def task():
                 if self is __undefinedFlag_:
