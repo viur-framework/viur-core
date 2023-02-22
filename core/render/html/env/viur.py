@@ -350,11 +350,12 @@ def getStructure(render: Render,
             if subSkel is not None:
                 try:
                     skel = skel.subSkel(subSkel)
+
                 except Exception as e:
                     logging.exception(e)
                     return False
 
-            return render.renderSkelStructure(skel)
+            return skel.structure()
 
     return False
 

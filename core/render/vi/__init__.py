@@ -52,7 +52,7 @@ def getStructure(module):
 
                     if isinstance(skel, SkeletonInstance):
                         storeType = stype.replace("Skel", "") + ("LeafSkel" if treeType == "leaf" else "NodeSkel")
-                        res[storeType] = default().renderSkelStructure(skel)
+                        res[storeType] = DefaultRender.render_structure(skel.structure())
     else:
         # every other prototype
         for stype in ("viewSkel", "editSkel", "addSkel"):  # Unknown skel type
@@ -62,7 +62,7 @@ def getStructure(module):
                 except (TypeError, ValueError):
                     continue
                 if isinstance(skel, SkeletonInstance):
-                    res[stype] = default().renderSkelStructure(skel)
+                    res[stype] = DefaultRender.render_structure(skel.structure())
 
     currentRequest.get().response.headers["Content-Type"] = "application/json"
     return json.dumps(res or None, cls=CustomJsonEncoder)

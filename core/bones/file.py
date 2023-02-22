@@ -189,3 +189,8 @@ class FileBone(TreeLeafBone):
                     return
                 importBlobFromViur2(val["dest"]["dlkey"], val["dest"]["name"])
                 recreateFileEntryIfNeeded(val["dest"])
+
+    def structure(self) -> dict:
+        return super().structure() | {
+            "valid_mime_types": self.validMimeTypes
+        }
