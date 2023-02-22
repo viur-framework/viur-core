@@ -1,5 +1,5 @@
 from viur.core.bones.relational import RelationalBone
-from viur.core.config import conf
+from viur.core import current
 
 
 class UserBone(RelationalBone):
@@ -24,8 +24,7 @@ class UserBone(RelationalBone):
 
     def performMagic(self, skel, key, isAdd, *args, **kwargs):
         if self.updateMagic or (self.creationMagic and isAdd):
-            user = conf["viur.mainApp"].user.getCurrentUser()
-            if user:
+            if user := current.user.get():
                 return self.setBoneValue(skel, key, user["key"], False)
             skel[key] = None
             return True

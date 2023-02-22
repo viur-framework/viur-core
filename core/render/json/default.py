@@ -1,9 +1,8 @@
 import json
 from enum import Enum
 
-from viur.core import bones, utils, db
+from viur.core import bones, utils, db, current
 from viur.core.skeleton import SkeletonInstance
-from viur.core.utils import currentRequest
 from viur.core.i18n import translate
 from viur.core.config import conf
 from datetime import datetime
@@ -161,7 +160,7 @@ class DefaultRender(object):
             "params": params
         }
 
-        currentRequest.get().response.headers["Content-Type"] = "application/json"
+        current.request.get().response.headers["Content-Type"] = "application/json"
         return json.dumps(res, cls=CustomJsonEncoder)
 
     def view(self, skel: SkeletonInstance, action: str = "view", params=None, **kwargs):
@@ -187,7 +186,7 @@ class DefaultRender(object):
         res["params"] = params
         res["orders"] = skellist.get_orders()
 
-        currentRequest.get().response.headers["Content-Type"] = "application/json"
+        current.request.get().response.headers["Content-Type"] = "application/json"
         return json.dumps(res, cls=CustomJsonEncoder)
 
     def add(self, skel: SkeletonInstance, action: str = "add", params=None, **kwargs):
