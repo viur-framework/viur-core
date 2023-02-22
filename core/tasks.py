@@ -412,9 +412,9 @@ def retry_n_times(retries: int, email_recipients: None | str | list[str] = None)
                                 dests=email_recipients,
                                 # language=Jinja2
                                 stringTemplate="""Subject: Task {{func_name}} failed {{retries}} times\n
-								This was the last attempt.<br>\n
-								<pre>{{func_module|escape}}.{{func_name|escape}}({{args|map("escape")|join(", ")}}, {{kwargs.items()|map("join", "=")|join(", ")|escape}})</pre>
-								<pre>{{traceback|escape}}</pre>""",
+                                This was the last attempt.<br>\n
+                                <pre>{{func_module|escape}}.{{func_name|escape}}({{args|map("escape")|join(", ")}}, {{kwargs.items()|map("join", "=")|join(", ")|escape}})</pre>
+                                <pre>{{traceback|escape}}</pre>""",
                                 func_name=func.__name__,
                                 func_module=func.__module__,
                                 retries=retries,
