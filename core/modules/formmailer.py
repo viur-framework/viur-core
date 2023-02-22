@@ -1,7 +1,7 @@
 from viur.core.skeleton import RelSkel
 from viur.core import errors, utils, securitykey, exposed, email
 from viur.core.bones import BaseBone
-from viur.core.base.module import Module
+from viur.core.module import Module
 
 
 class MailSkel(RelSkel):

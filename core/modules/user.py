@@ -99,6 +99,11 @@ class UserSkel(skeleton.Skeleton):
         defaultValue=0,
     )
 
+    admin_config = JsonBone(  # This bone stores settings from the vi
+        descr="Config for the User",
+        visible=False
+    )
+
 
 class UserPassword:
     registrationEnabled = False

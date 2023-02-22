@@ -357,7 +357,7 @@ class BrowseHandler():  # webapp.RequestHandler
 
         finally:
             self.saveSession()
-            if conf["viur.instance.is_dev_server"]:
+            if conf["viur.instance.is_dev_server"] and conf["viur.dev_server_cloud_logging"]:
                 # Emit the outer log only on dev_appserver (we'll use the existing request log when live)
                 SEVERITY = "DEBUG"
                 if self.maxLogLevel >= 50:
