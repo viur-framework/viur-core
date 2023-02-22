@@ -837,10 +837,14 @@ class User(List):
 
     @exposed
     def edit(self, *args, **kwargs):
-        session = current.session.get()
-        if len(args) == 0 and not "key" in kwargs and session.get("user"):
-            kwargs["key"] = session.get("user")["key"]
-        return super(User, self).edit(*args, **kwargs)
+        user = current.user.get()
+
+        # fixme: This assumes that the user can edit itself when no parameters are provided...
+        if len(args) == 0 and "key" not in kwargs and user:
+            # it is not a security issue as super().edit() checks the access rights.
+            kwargs["key"] = user["key"]
+
+        return super().edit(*args, **kwargs)
 
     @exposed
     def view(self, key, *args, **kwargs):
