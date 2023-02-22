@@ -521,7 +521,8 @@ class TimeBasedOTP:
         user = db.Get(userKey)
         if all([(x in user and user[x]) for x in ["otpid", "otpkey"]]):
             logging.info("OTP wanted for user")
-            current.session.get()["_otp_user"] = {
+            session = current.session.get()
+            session["_otp_user"] = {
                 "uid": str(userKey),
                 "otpid": user["otpid"],
                 "otpkey": user["otpkey"],
@@ -529,7 +530,7 @@ class TimeBasedOTP:
                 "timestamp": time.time(),
                 "failures": 0
             }
-            current.session.get().markChanged()
+            session.markChanged()
             return self.userModule.render.loginSucceeded(msg="X-VIUR-2FACTOR-TimeBasedOTP")
 
         return None
@@ -778,7 +779,7 @@ class User(List):
 
         # Update session, user and request
         session["user"] = skel.dbEntity
-        session.markChanged()
+
         current.request.get().response.headers["Sec-X-ViUR-StaticSKey"] = session.staticSecurityKey
         current.user.set(self.getCurrentUser())
 
