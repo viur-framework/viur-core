@@ -30,7 +30,7 @@ from viur.core import utils, current, db, tasks
 from datetime import datetime, timedelta
 from typing import Union
 
-SECURITYKEY_KIND_NAME = "viur-securitykeys"
+SECURITYKEY_KINDNAME = "viur-securitykeys"
 
 
 def create(duration: Union[None, int] = None, **kwargs) -> str:
@@ -49,7 +49,7 @@ def create(duration: Union[None, int] = None, **kwargs) -> str:
     key = utils.generateRandomString()
     duration = int(duration)
 
-    entity = db.Entity(db.Key(SECURITYKEY_KIND_NAME, key))
+    entity = db.Entity(db.Key(SECURITYKEY_KINDNAME, key))
 
     for k, v in kwargs.items():
         entity[k] = v
@@ -86,7 +86,7 @@ def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
 
         return False
 
-    if not key or not (entity := db.Get(db.Key(SECURITYKEY_KIND_NAME, key))):
+    if not key or not (entity := db.Get(db.Key(SECURITYKEY_KINDNAME, key))):
         return False
 
     db.Delete(entity)
@@ -110,7 +110,7 @@ def start_clear_skeys():
 
 @tasks.CallDeferred
 def do_clear_skeys(until: datetime):
-    query = db.Query(SECURITYKEY_KIND_NAME).filter("until <", until)
+    query = db.Query(SECURITYKEY_KINDNAME).filter("until <", until)
 
     for oldKey in query.run(100):
         db.Delete(oldKey)
