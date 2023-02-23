@@ -38,11 +38,11 @@
 
 
     ViUR also protects it's cookies by default (setting httponly, secure and samesite=lax). This can be changed by
-    setting the corresponding class-level variables on class:`GaeSession<viur.core.session.GaeSession>`.
+    setting the corresponding class-level variables on class:`Session<viur.core.session.Session>`.
 """
 
 from viur.core.config import conf
-from viur.core.utils import currentRequest
+from viur.core import current
 import logging
 from typing import Literal, Optional, List
 
@@ -165,7 +165,7 @@ def extendCsp(additionalRules: dict = None, overrideRules: dict = None) -> None:
             else:
                 resStr += value
         resStr += "; "
-    currentRequest.get().response.headers["Content-Security-Policy"] = resStr
+    current.request.get().response.headers["Content-Security-Policy"] = resStr
 
 
 def enableStrictTransportSecurity(maxAge: int = 365 * 24 * 60 * 60,

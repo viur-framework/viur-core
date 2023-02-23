@@ -22,8 +22,7 @@
 """
 from datetime import datetime, timedelta
 from viur.core.utils import generateRandomString
-from viur.core.utils import currentSession, currentRequest
-from viur.core import db
+from viur.core import current, db
 from viur.core.tasks import PeriodicTask, CallDeferred
 from typing import Union
 from viur.core.utils import utcNow
@@ -42,7 +41,7 @@ def create(duration: Union[None, int] = None, **kwargs) -> str:
     """
     if not duration:
         assert not kwargs, "kwargs are not allowed when session security key is wanted"
-        return currentSession.get().getSecurityKey()
+        return current.session.get().getSecurityKey()
     key = generateRandomString()
     duration = int(duration)
     dbObj = db.Entity(db.Key(securityKeyKindName, key))
@@ -51,7 +50,6 @@ def create(duration: Union[None, int] = None, **kwargs) -> str:
     dbObj["until"] = utcNow() + timedelta(seconds=duration)
     db.Put(dbObj)
     return key
-
 
 def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
     """
@@ -65,11 +63,13 @@ def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
             dictionary or True if the dict is empty (or :param:useSessionKey was true).
     """
     if useSessionKey:
+        session = current.session.get()
         if key == "staticSessionKey":
-            skeyHeaderValue = currentRequest.get().request.headers.get("Sec-X-ViUR-StaticSKey")
-            if skeyHeaderValue and currentSession.get().validateStaticSecurityKey(skeyHeaderValue):
+            request = current.request.get()
+            skeyHeaderValue = request.request.headers.get("Sec-X-ViUR-StaticSKey")
+            if skeyHeaderValue and session.validateStaticSecurityKey(skeyHeaderValue):
                 return True
-        elif currentSession.get().validateSecurityKey(key):
+        elif session.validateSecurityKey(key):
             return True
         return False
     if not key:

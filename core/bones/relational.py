@@ -984,3 +984,12 @@ class RelationalBone(BaseBone):
             return self._hashValueForUniquePropertyIndex(value["dest"]["key"])
         elif isinstance(value, list):
             return self._hashValueForUniquePropertyIndex([x["dest"]["key"] for x in value])
+
+    def structure(self) -> dict:
+        return super().structure() | {
+            "type": f"{self.type}.{self.kind}",
+            "module": self.module,
+            "format": self.format,
+            "using": self.using().structure() if self.using else None,
+            "relskel": self._refSkelCache().structure(),
+        }

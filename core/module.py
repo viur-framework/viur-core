@@ -1,31 +1,27 @@
-from viur.core import conf
-from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
-from typing import Dict, List, Any, Type, Tuple, Union, Callable
+from typing import Dict, Any, Union, Callable
 
 
-class BasicApplication(object):
+class Module:
     """
-        BasicApplication is a generic class serving as the base for the four BasicApplications.
+        This is the root module prototype that serves a minimal module in the ViUR system without any other bindings.
     """
 
-    kindName: str = None
+    handler: Union[str, Callable] = None
     """
-        Name of the datastore kind that's going to be handled by this application.
-        This information is used to bind a specific :class:`viur.core.skeleton.Skeleton`-class to this
-        application. For more information, refer to the function :func:`~_resolveSkelCls`.
+    This is the module's handler, respectively its type.
+    It can be provided as a callable() which determines the handler at runtime.
+    A module without a handler setting is invalid.
     """
 
     adminInfo: Union[Dict[str, Any], Callable] = None
     """
-        A ``dict`` holding the information necessary for the Vi/Admin to handle this module. If set to
-        ``None``, this module will be ignored by the frontend. The currently supported values are:
+        This is a ``dict`` holding the information necessary for the Vi/Admin to handle this module.
 
             name: ``str``
                 Human-readable module name that will be shown in Vi/Admin
 
             handler: ``str`` (``list``, ``tree`` or ``singleton``):
-                Which (proto-)type is used, to the frontend can
-                initialize it handler correctly.
+                Allows to override the handler provided by the module. Set this only when *really* necessary.
 
             icon: ``str``
                 (Optional) The name (eg "icon-add") or a path relative the the project
@@ -99,71 +95,41 @@ class BasicApplication(object):
             can be used to customize the appearance of the Vi/Admin to individual users.
     """
 
-    accessRights: List[str] = None
-    """
-        If set, a list of access rights (like add, edit, delete) that this module may support.
-        These will be prefixed on instance startup with the actual module name (becomming file-add, file-edit etc)
-        and registered in ``viur.core.config.conf["viur.accessRights"]`` so these will be available on the
-        access bone in user/add or user/edit.
-    """
+    def __init__(self, moduleName: str, modulePath: str, *args, **kwargs):
+        self.render = None  # will be set to the appropriate render instance at runtime
+        self._cached_description = None  # caching used by describe()
+        self.moduleName = moduleName  # Name of this module (usually it's class name, e.g. "file")
+        self.modulePath = modulePath  # Path to this module in URL-routing (e.g. "json/file")
 
-    roles: Dict[str: Union[Tuple, str]] = {
-        "viewer": "view",
-        "editor": ("view", "edit"),
-        "admin": "*",
-    }
-    """
-        If set, a list of roles and the access rights for each role in this module can be configured.
+    def describe(self) -> Union[Dict, None]:
+        """
+        Meta description of this module.
+        """
+        # Use cached description?
+        if isinstance(self._cached_description, dict):
+            return self._cached_description
 
-        The roles are defined on the role-bone in the user module.
-        The placeholder "*" can be used for either any role or any right, depending where it's specified.
+        # Retrieve handler
+        if not (handler := self.handler() if callable(self.handler) else self.handler):
+            return None
 
-        Example configuration:
-        ```
-        roles = {
-            "*": "view",  # any role can view
-            "editor": ("view", "add", "edit",)  # editors can view, add, edit but not delete
-            "admin": "*"  # admins have all rights provided by this module
+        # Default description
+        ret = {
+            "name": self.__class__.__name__,
+            "handler": ".".join((handler, self.__class__.__name__.lower())),
         }
-        ```
-    """
 
-    def __init__(self, moduleName, modulePath, *args, **kwargs):
-        self.moduleName = moduleName  #: Name of this module (usually it's class name, eg "file")
-        self.modulePath = modulePath  #: Path to this module in our URL-Routing (eg. json/file")
-        self.render = None  #: will be set to the appropriate render instance at runtime
+        # Extend indexes, if available
+        if indexes := getattr(self, "indexes", None):
+            ret["indexes"] = indexes
 
-        if self.adminInfo and self.accessRights:
-            for r in self.accessRights:
-                rightName = "%s-%s" % (moduleName, r)
+        # Merge adminInfo if present
+        if admin_info := self.adminInfo() if callable(self.adminInfo) else self.adminInfo:
+            assert isinstance(admin_info, dict), \
+                f"adminInfo can either be a dict or a callable returning a dict, but got {type(admin_info)}"
+            ret |= admin_info
 
-                if not rightName in conf["viur.accessRights"]:
-                    conf["viur.accessRights"].append(rightName)
+        # Cache description for later re-use.
+        self._cached_description = ret
 
-    def _resolveSkelCls(self, *args, **kwargs) -> Type[Skeleton]:
-        """
-        Retrieve the generally associated :class:`viur.core.skeleton.Skeleton` that is used by
-        the application.
-
-        This is either be defined by the member variable *kindName* or by a Skeleton named like the
-        application class in lower-case order.
-
-        If this behavior is not wanted, it can be definitely overridden by defining module-specific
-        :func:`~viewSkel`, :func:`~addSkel`, or :func:`~editSkel` functions, or by overriding this
-        function in general.
-
-        :return: Returns a Skeleton class that matches the application.
-        """
-
-        return skeletonByKind(self.kindName if self.kindName else str(type(self).__name__).lower())
-
-    def baseSkel(self, *args, **kwargs) -> SkeletonInstance:
-        """
-        Returns an instance of an unmodified base skeleton for this module.
-
-        This function should only be used in cases where a full, unmodified skeleton of the module is required, e.g.
-        for administrative or maintenance purposes.
-
-        By default, baseSkel is used by :func:`~viewSkel`, :func:`~addSkel`, and :func:`~editSkel`.
-        """
-        return self._resolveSkelCls(*args, **kwargs)()
+        return ret

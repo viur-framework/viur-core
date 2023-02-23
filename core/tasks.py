@@ -14,9 +14,8 @@ from google.protobuf import timestamp_pb2
 from time import sleep
 from typing import Any, Callable, Dict, Optional, Tuple
 
-from viur.core import db, errors, utils
+from viur.core import current, db, errors, utils
 from viur.core.config import conf
-from viur.core.utils import currentLanguage, currentRequest, currentSession
 
 
 # class JsonKeyEncoder(json.JSONEncoder):
@@ -192,7 +191,7 @@ class TaskHandler:
             This processes one chunk of a queryIter (see below).
         """
         global _deferred_tasks, _appengineServiceIPs
-        req = currentRequest.get().request
+        req = current.request.get().request
         if 'X-AppEngine-TaskName' not in req.headers:
             logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
             raise errors.Forbidden()
@@ -211,7 +210,7 @@ class TaskHandler:
             This catches one deferred call and routes it to its destination
         """
         global _deferred_tasks, _appengineServiceIPs
-        req = currentRequest.get().request
+        req = current.request.get().request
         if 'X-AppEngine-TaskName' not in req.headers:
             logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
             raise errors.Forbidden()
@@ -234,9 +233,9 @@ class TaskHandler:
 
         if env:
             if "user" in env and env["user"]:
-                currentSession.get()["user"] = env["user"]
+                current.session.get()["user"] = env["user"]
             if "lang" in env and env["lang"]:
-                currentLanguage.set(env["lang"])
+                current.language.set(env["lang"])
             if "transactionMarker" in env:
                 marker = db.Get(db.Key("viur-transactionmarker", env["transactionMarker"]))
                 if not marker:
@@ -273,7 +272,7 @@ class TaskHandler:
             # We call the deferred function *directly* (without walking through the mkDeferred lambda), so ensure
             # that any hit to another deferred function will defer again
 
-            currentRequest.get().DEFERRED_TASK_CALLED = True
+            current.request.get().DEFERRED_TASK_CALLED = True
             try:
                 _deferred_tasks[funcPath](*args, **kwargs)
             except PermanentTaskFailure:
@@ -286,7 +285,7 @@ class TaskHandler:
 
     def cron(self, cronName="default", *args, **kwargs):
         global _callableTasks, _periodicTasks, _appengineServiceIPs
-        req = currentRequest.get()
+        req = current.request.get()
         if not conf["viur.instance.is_dev_server"]:
             if 'X-Appengine-Cron' not in req.request.headers:
                 logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Cron" was not set.')
@@ -418,7 +417,7 @@ def CallDeferred(func):
         logging.debug(f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, {queue=}, {taskargs=}")
 
         try:
-            req = currentRequest.get()
+            req = current.request.get()
         except:  # This will fail for warmup requests
             req = None
 
@@ -469,7 +468,7 @@ def CallDeferred(func):
 
             # Try to preserve the important data from the current environment
             try:  # We might get called inside a warmup request without session
-                usr = currentSession.get().get("user")
+                usr = current.session.get().get("user")
                 if "password" in usr:
                     del usr["password"]
 
@@ -479,7 +478,7 @@ def CallDeferred(func):
             env = {"user": usr}
 
             try:
-                env["lang"] = currentLanguage.get()
+                env["lang"] = current.language.get()
             except AttributeError:  # This isn't originating from a normal request
                 pass
 
@@ -658,7 +657,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
             the current request    if we are on the local development server.
         """
         if not queueRegion:  # Run tasks inline - hopefully development server
-            req = currentRequest.get()
+            req = current.request.get()
             task = lambda *args, **kwargs: cls._qryStep(qryDict)
             if req:
                 req.pendingTasks.append(task)  # < This property will be only exist on development server!
