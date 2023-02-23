@@ -61,12 +61,8 @@ class JsonBone(RawBone):
                         return self.getEmptyValue(), [
                             ReadFromClientError(ReadFromClientErrorSeverity.Invalid, f"Invalid JSON supplied: {e!s}")
                         ]
-                logging.error("herer")
                 if self.schema:
                     try:
-                        logging.error("validate json ?")
-                        logging.error(value)
-                        logging.error(self.schema)
                         jsonschema.validate(value, self.schema)
                     except (jsonschema.exceptions.ValidationError, jsonschema.exceptions.SchemaError) as e:
                         return self.getEmptyValue(), [
