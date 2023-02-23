@@ -318,15 +318,28 @@ class BrowseHandler():  # webapp.RequestHandler
                         res["traceback"] = traceback.format_exc()
 
                     res = json.dumps(res)
-                else:
-                    with (conf["viur.instance.core_base_path"].joinpath(conf["viur.errorTemplate"]).open() as tpl_file):
-                        tpl = Template(tpl_file.read())
-                        res = tpl.safe_substitute({
+                else:  # We render the error in html
+                    # first we try to get the template from hmt/error/
+                    template_file = conf["viur.instance.project_base_path"].joinpath(f"html/error/{e.status}.html")
+                    if template_file.is_file():
+                        template = conf["viur.mainApp"].render.getEnv().get_template(
+                            conf["viur.mainApp"].render.getTemplateFileName(f"error/{e.status}"))
+
+                        res = template.render({
                             "error_code": e.status,
                             "error_name": translate(e.name),
                             "error_descr": e.descr,
                         })
-                    extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
+                    else:
+                        with (conf["viur.instance.core_base_path"].joinpath(
+                                conf["viur.errorTemplate"]).open() as tpl_file):
+                            tpl = Template(tpl_file.read())
+                            res = tpl.safe_substitute({
+                                "error_code": e.status,
+                                "error_name": translate(e.name),
+                                "error_descr": e.descr,
+                            })
+                        extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
             self.response.write(res.encode("UTF-8"))
 
         except Exception as e:  # Something got really wrong
