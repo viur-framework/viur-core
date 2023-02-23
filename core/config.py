@@ -17,8 +17,8 @@ class Conf(dict):
         match key:
             case "viur.downloadUrlFor.expiration":
                 msg = f"{key!r} was substituted by `viur.render.html.downloadUrlExpiration`"
-                warnings.warn(msg, DeprecationWarning)
-                logging.warning(msg)
+                warnings.warn(msg, DeprecationWarning, stacklevel=3)
+                logging.warning(msg, stacklevel=3)
 
                 key = "viur.render.html.downloadUrlExpiration"
 
@@ -33,8 +33,8 @@ class Conf(dict):
         # Avoid to set conf values to something which is already the default
         if key in self and self[key] == value:
             msg = f"Setting conf[\"{key}\"] to {value!r} has no effect, as this value has already been set"
-            warnings.warn(msg)
-            logging.warning(msg)
+            warnings.warn(msg, stacklevel=3)
+            logging.warning(msg, stacklevel=3)
             return
 
         super().__setitem__(key, value)
