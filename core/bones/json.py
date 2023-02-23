@@ -1,7 +1,5 @@
 import ast
 import json
-import logging
-
 import jsonschema
 from typing import Union
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
