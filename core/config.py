@@ -85,6 +85,12 @@ conf = Conf({
     # the computed cache-key
     "viur.cacheEnvironmentKey": None,
 
+    # Backward compatibility flags; Remove to enforce new layout.
+    "viur.compatibility": [
+        "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
+        "json.bone.structure.keytuples",  # use classic structure notation: `"structure": [["key", {...}], ...]` (#649)
+    ],
+
     # If set, viur will emit a CSP http-header with each request. Use the csp module to set this property
     "viur.contentSecurityPolicy": None,
 
@@ -102,6 +108,9 @@ conf = Conf({
 
     # Unless overridden by the Project: Use english as default language
     "viur.defaultLanguage": "en",
+
+    # If disabled the local logging will not send with requestLogger to the cloud
+    "viur.dev_server_cloud_logging": False,
 
     # If set to true, the decorator @enableCache from viur.core.cache has no effect
     "viur.disableCache": False,
@@ -189,7 +198,6 @@ conf = Conf({
 
     # Describing the internal ModuleConfig-module
     "viur.moduleconf.admin_info": {
-        "name": "Module Configuration",
         "icon": "icon-settings",
         "display": "hidden",
     },
@@ -278,10 +286,10 @@ conf = Conf({
     "viur.session.lifeTime": 60 * 60,
 
     # If set, these Fields will survive the session.reset() called on user/login
-    "viur.session.persistentFieldsOnLogin": [],
+    "viur.session.persistentFieldsOnLogin": ["language"],
 
     # If set, these Fields will survive the session.reset() called on user/logout
-    "viur.session.persistentFieldsOnLogout": [],
+    "viur.session.persistentFieldsOnLogout": ["language"],
 
     # Priority, in which skeletons are loaded
     "viur.skeleton.searchPath": ["/skeletons/", "/viur/core/"],  # Priority, in which skeletons are loaded

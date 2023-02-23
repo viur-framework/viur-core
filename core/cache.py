@@ -4,9 +4,8 @@ from functools import wraps
 from hashlib import sha512
 from typing import List, Union, Callable, Tuple, Dict
 
-from viur.core import tasks, utils, db
+from viur.core import tasks, utils, db, current
 from viur.core.config import conf
-from viur.core.utils import currentLanguage, currentRequest
 
 """
     This module implements a cache that can be used to serve entire requests or cache the output of any function
@@ -72,7 +71,7 @@ def keyFromArgs(f: Callable, userSensitive: int, languageSensitive: bool, evalua
                 raise AssertionError("Got dupplicate arguments for %s" % k)
             res[k] = v
     if userSensitive:
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if userSensitive == 1 and user:  # We dont cache requests for each user separately
             return None
         elif userSensitive == 2:
@@ -86,7 +85,7 @@ def keyFromArgs(f: Callable, userSensitive: int, languageSensitive: bool, evalua
             else:
                 res["__user"] = None
     if languageSensitive:
-        res["__lang"] = currentLanguage.get()
+        res["__lang"] = current.language.get()
     if conf["viur.cacheEnvironmentKey"]:
         try:
             res["_cacheEnvironment"] = conf["viur.cacheEnvironmentKey"]()
@@ -119,7 +118,7 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
 
     @wraps(f)
     def wrapF(self, *args, **kwargs) -> Union[str, bytes]:
-        currReq = currentRequest.get()
+        currReq = current.request.get()
         if conf["viur.disableCache"] or currReq.disableCache:
             # Caching disabled
             if conf["viur.disableCache"]:
@@ -238,7 +237,7 @@ def flushCache(prefix: str = None, key: Union[db.Key, None] = None, kind: Union[
             logging.info("Deleted cache entry %s", item["path"])
             db.Delete(item.key)
         if not isinstance(key, db.Key):
-            key = db.Key(encoded=key)
+            key = db.Key.from_legacy_urlsafe(key)  # hopefully is a string
         items = db.Query(viurCacheName).filter("accessedEntries =", key.kind).iter()
         for item in items:
             logging.info("Deleted cache entry %s", item["path"])
