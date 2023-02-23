@@ -35,12 +35,13 @@ SECURITYKEY_KINDNAME = "viur-securitykeys"
 
 def create(duration: Union[None, int] = None, **custom_data) -> str:
     """
-        Creates a new onetime Securitykey or returns the current sessions csrf-token.
-        The custom data (given as keyword arguments) that can be stored with the key if :param:duration is set must
-        be serializable by the datastore.
+        Creates a new one-time security key or returns the current sessions CSRF-token.
 
-        :param duration: Make this key valid for a fixed timeframe (and independent of the current session)
-        :returns: The new onetime key
+        The custom data (given as **custom_data) that can be stored with the key.
+        Any data provided must be serializable by the datastore.
+
+        :param duration: Make this key valid for a fixed timeframe of seconds (and independent of the current session)
+        :returns: The new one-time key, which is a randomized string.
     """
     if not duration:
         if custom_data:
@@ -68,6 +69,7 @@ def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
 
         If useSessionKey is True, the key is expected to be the session's current security key
         or its static security key.
+
         Otherwise, it must be a key created with a duration, so that it is session independent.
 
         :param key: The key to be validated
