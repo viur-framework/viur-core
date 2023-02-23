@@ -1,5 +1,8 @@
 import ast
 import json
+import logging
+
+import jsonschema
 from typing import Union
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.bones.raw import RawBone
@@ -12,10 +15,13 @@ class JsonBone(RawBone):
 
     type = "raw.json"
 
-    def __init__(self, indexed: bool = False, multiple: bool = False, languages: bool = None, *args, **kwargs):
+    def __init__(self, indexed: bool = False, multiple: bool = False, languages: bool = None, schema: object = None,
+                 *args,
+                 **kwargs):
         assert not multiple
         assert not languages
         assert not indexed
+        self.schema = schema
         super().__init__(*args, **kwargs)
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
@@ -55,5 +61,22 @@ class JsonBone(RawBone):
                         return self.getEmptyValue(), [
                             ReadFromClientError(ReadFromClientErrorSeverity.Invalid, f"Invalid JSON supplied: {e!s}")
                         ]
+                logging.error("herer")
+                if self.schema:
+                    try:
+                        logging.error("validate json ?")
+                        logging.error(value)
+                        logging.error(self.schema)
+                        jsonschema.validate(value, self.schema)
+                    except (jsonschema.exceptions.ValidationError, jsonschema.exceptions.SchemaError) as e:
+                        return self.getEmptyValue(), [
+                            ReadFromClientError(ReadFromClientErrorSeverity.Invalid,
+                                                f"Invalid JSON for schema supplied: {e!s}")
+                        ]
 
         return super().singleValueFromClient(value, *args, **kwargs)
+
+    def structure(self) -> dict:
+        return super().structure() | {
+            "schema": self.schema
+        }
