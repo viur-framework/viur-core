@@ -33,7 +33,7 @@ from typing import Union
 SECURITYKEY_KINDNAME = "viur-securitykeys"
 
 
-def create(duration: Union[None, int] = None, **kwargs) -> str:
+def create(duration: Union[None, int] = None, **custom_data) -> str:
     """
         Creates a new onetime Securitykey or returns the current sessions csrf-token.
         The custom data (given as keyword arguments) that can be stored with the key if :param:duration is set must
@@ -43,16 +43,16 @@ def create(duration: Union[None, int] = None, **kwargs) -> str:
         :returns: The new onetime key
     """
     if not duration:
-        assert not kwargs, "kwargs are not allowed when session security key is wanted"
+        if custom_data:
+            raise ValueError("kwargs are not allowed when session security key is wanted")
+
         return current.session.get().getSecurityKey()
 
     key = utils.generateRandomString()
     duration = int(duration)
 
     entity = db.Entity(db.Key(SECURITYKEY_KINDNAME, key))
-
-    for k, v in kwargs.items():
-        entity[k] = v
+    entity |= custom_data
 
     entity["until"] = utils.utcNow() + timedelta(seconds=duration)
     db.Put(entity)
@@ -77,8 +77,8 @@ def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
         session = current.session.get()
         if key == "staticSessionKey":
             request = current.request.get()
-            skeyHeaderValue = request.request.headers.get("Sec-X-ViUR-StaticSKey")
-            if skeyHeaderValue and session.validateStaticSecurityKey(skeyHeaderValue):
+            skey_header_value = request.request.headers.get("Sec-X-ViUR-StaticSKey")
+            if skey_header_value and session.validateStaticSecurityKey(skey_header_value):
                 return True
 
         elif session.validateSecurityKey(key):
