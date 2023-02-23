@@ -964,6 +964,6 @@ class BaseBone(object):
             if errors is None:
                 return skel[name]
             else:
-                logging.error(f"Parse Data failed with {errors} \nWe return the raw data.")
+                logging.error(f"Parse Data failed with {errors}. We return the raw data.")
 
         return data
