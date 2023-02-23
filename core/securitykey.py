@@ -44,17 +44,19 @@ def create(duration: Union[None, int] = None, **custom_data) -> str:
     """
     if not duration:
         if custom_data:
-            raise ValueError("kwargs are not allowed when session security key is wanted")
+            raise ValueError("Providing any custom_data is not allowed when session security key is wanted")
 
         return current.session.get().getSecurityKey()
 
+    elif "until" in custom_data:
+        raise ValueError("The 'until' property is reserved and cannot be used in the custom_data")
+
     key = utils.generateRandomString()
-    duration = int(duration)
 
     entity = db.Entity(db.Key(SECURITYKEY_KINDNAME, key))
     entity |= custom_data
 
-    entity["until"] = utils.utcNow() + timedelta(seconds=duration)
+    entity["until"] = utils.utcNow() + timedelta(seconds=int(duration))
     db.Put(entity)
 
     return key
@@ -76,8 +78,7 @@ def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
     if useSessionKey:
         session = current.session.get()
         if key == "staticSessionKey":
-            request = current.request.get()
-            skey_header_value = request.request.headers.get("Sec-X-ViUR-StaticSKey")
+            skey_header_value = current.request.get().request.headers.get("Sec-X-ViUR-StaticSKey")
             if skey_header_value and session.validateStaticSecurityKey(skey_header_value):
                 return True
 
