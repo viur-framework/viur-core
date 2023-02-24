@@ -708,7 +708,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
                     http_method=tasks_v2.HttpMethod.POST,
                     relative_uri="/_tasks/queryIter",
                     app_engine_routing=tasks_v2.AppEngineRouting(
-                        version=os.getenv("GAE_VERSION"),
+                        version=conf["viur.instance.app_version"],
                     ),
                 )
             ),
