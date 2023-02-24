@@ -533,7 +533,7 @@ def CallDeferred(func: Callable) -> Callable:
                     http_method=tasks_v2.HttpMethod.POST,
                     relative_uri=taskargs["url"],
                     app_engine_routing=tasks_v2.AppEngineRouting(
-                        version=taskargs.get("target_version") or os.getenv("GAE_VERSION"),
+                        version=taskargs.get("target_version", conf["viur.instance.app_version"]),
                     ),
                 ),
             )
