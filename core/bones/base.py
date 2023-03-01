@@ -197,6 +197,10 @@ class BaseBone(object):
             if not readOnly:
                 logging.error("'compute' is the only valid on readonly bones")
                 self.readOnly = False
+            if compute.threshold.method == ThresholdMethods.Lifetime:
+                if compute.threshold.lifetime is None:
+                    logging.error("'compute' is in 'lifetime' mode but no lifetime is set")
+                    compute.threshold.lifetime = timedelta()  # Set lifetime to 0 to use this anyway
             self.compute = compute
         else:
             self.compute = None
@@ -1013,7 +1017,7 @@ class BaseBone(object):
         else:
             ret["multiple"] = self.multiple
         if self.compute:
-            ret["compute"] = {"method":self.compute.threshold.method.value}
+            ret["compute"] = {"method": self.compute.threshold.method.name}
             if self.compute.threshold.lifetime:
                 ret["compute"]["lifetime"] = str(self.compute.threshold.lifetime)
                 ret["compute"]["last_updated"] = self.compute.last_updated.strftime("%Y-%m-%dT%H-%M-%S")
