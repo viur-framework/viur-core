@@ -1,19 +1,7 @@
 from . import html
-from . import admin
-from . import xml
 from . import json
 from . import vi
-from os import path
+from . import vi as admin  # VIUR3 deprecation... vi and admin are the same now.
+from . import xml
 
-
-def isViAvailable():
-    from viur.core.utils import projectBasePath
-    return path.exists(path.join(projectBasePath, "vi", "main.html"))
-
-
-def isAdminAvailable():
-    from viur.core.utils import projectBasePath
-    return path.exists(path.join(projectBasePath, "admin", "admin.html"))
-
-
-__all__ = ["html", "admin", "xml", "json", "vi", "isViAvailable", "isAdminAvailable"]
+__all__ = ["admin", "html", "json", "vi", "xml"]

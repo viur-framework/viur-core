@@ -1,9 +1,9 @@
 import logging
 from typing import Dict, List, Optional, Set
 
-from viur.core import db, utils
+from viur.core import db, utils, current
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core.utils import currentLanguage
+
 
 
 class StringBone(BaseBone):
@@ -73,7 +73,7 @@ class StringBone(BaseBone):
                         lang = langStr
                         break
             if not lang:
-                lang = currentLanguage.get()  # currentSession.getLanguage()
+                lang = current.language.get()  # currentSession.getLanguage()
                 if not lang or not lang in self.languages:
                     lang = self.languages[0]
             namefilter = "%s.%s" % (name, lang)
@@ -124,7 +124,7 @@ class StringBone(BaseBone):
                     if lng in self.languages:
                         lang = lng
                 if lang is None:
-                    lang = currentLanguage.get()  # currentSession.getLanguage()
+                    lang = current.language.get()  # currentSession.getLanguage()
                     if not lang or not lang in self.languages:
                         lang = self.languages[0]
                 if self.caseSensitive:
@@ -174,3 +174,8 @@ class StringBone(BaseBone):
 
         return super().getUniquePropertyIndexValues(skel, name)
 
+    def structure(self) -> dict:
+        ret = super().structure() | {
+            "maxlength": self.maxLength
+        }
+        return ret

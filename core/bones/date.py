@@ -1,9 +1,8 @@
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import db, request, conf
-from viur.core.i18n import translate
-from viur.core.utils import currentRequest, currentRequestData, utcNow
+from viur.core import db, request, conf, current
+from viur.core.utils import utcNow
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Union
+from typing import Dict, Optional
 import pytz, tzlocal
 
 
@@ -15,7 +14,7 @@ class DateBone(BaseBone):
         *,
         creationMagic: bool = False,
         date: bool = True,
-        localize: bool = False,
+        localize: bool = None,
         time: bool = True,
         updateMagic: bool = False,
         **kwargs
@@ -33,21 +32,26 @@ class DateBone(BaseBone):
         """
         super().__init__(**kwargs)
 
+        # Either date or time must be set
+        if not (date or time):
+            raise ValueError("Attempt to create an empty DateBone! Set date or time to True!")
+
+        # Localize-flag only possible with date and time
+        if localize and not (date and time):
+            raise ValueError("Localization is only possible with date and time!")
+        # Default localize all DateBones, if not explicitly defined
+        elif localize is None:
+            localize = date and time
+
+        # Magic is only possible in non-multiple bones and why ever only on readonly bones...
         if creationMagic or updateMagic:
-            self.readonly = True
+            if self.multiple:
+                raise ValueError("Cannot be multiple and have a creation/update-magic set!")
+
+            self.readonly = True  # todo: why???
 
         self.creationMagic = creationMagic
         self.updateMagic = updateMagic
-
-        if not (date or time):
-            raise ValueError("Attempt to create an empty datebone! Set date or time to True!")
-
-        if localize and not (date and time):
-            raise ValueError("Localization is only possible with date and time!")
-
-        if self.multiple and (creationMagic or updateMagic):
-            raise ValueError("Cannot be multiple and have a creation/update-magic set!")
-
         self.date = date
         self.time = time
         self.localize = localize
@@ -179,15 +183,20 @@ class DateBone(BaseBone):
         """
         if not (self.date and self.time and self.localize):
             return pytz.utc
+        
         if conf["viur.instance.is_dev_server"]:
             return tzlocal.get_localzone()
+        
+        timeZone = pytz.utc  # Default fallback
+        currReqData = current.request_data.get()
+
         timeZone = pytz.utc  # Default fallback
         currReqData = currentRequestData.get()
         try:
             # Check the local cache first
             if "timeZone" in currReqData:
                 return currReqData["timeZone"]
-            headers = currentRequest.get().request.headers
+            headers = current.request.get().request.headers
             if "X-Appengine-Country" in headers:
                 country = headers["X-Appengine-Country"]
             else:  # Maybe local development Server - no way to guess it here
@@ -247,3 +256,9 @@ class DateBone(BaseBone):
     def performMagic(self, valuesCache, name, isAdd):
         if (self.creationMagic and isAdd) or self.updateMagic:
             valuesCache[name] = utcNow().replace(microsecond=0).astimezone(self.guessTimeZone())
+
+    def structure(self) -> dict:
+        return super().structure() | {
+            "date": self.date,
+            "time": self.time
+        }

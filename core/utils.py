@@ -8,21 +8,8 @@ from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from typing import Any, Union, Optional
 from urllib.parse import quote
-from pathlib import Path
 from viur.core.config import conf
-from viur.core import db
-
-
-# Proxy to context depended variables
-currentRequest = ContextVar("Request", default=None)
-currentRequestData = ContextVar("Request-Data", default=None)
-currentSession = ContextVar("Session", default=None)
-currentLanguage = ContextVar("Language", default=None)
-
-# Determine our basePath (as os.getCWD is broken on appengine)
-projectBasePath = str(Path().absolute())
-coreBasePath = globals()["__file__"].replace("/viur/core/utils.py","")
-
+from viur.core import current, db
 
 def utcNow() -> datetime:
     return datetime.now(timezone.utc)
@@ -50,10 +37,11 @@ def getCurrentUser() -> Optional["SkeletonInstance"]:
         :returns: A SkeletonInstance containing information about the logged-in
             user, None if no user is logged in.
     """
-    user = None
-    if "user" in dir(conf["viur.mainApp"]):  # Check for our custom user-api
-        user = conf["viur.mainApp"].user.getCurrentUser()
-    return user
+    import warnings
+    msg = f"Use of `utils.getCurrentUser()` is deprecated; Use `current.user.get()` instead!"
+    warnings.warn(msg, DeprecationWarning, stacklevel=3)
+    logging.warning(msg, stacklevel=3)
+    return current.user.get()
 
 
 def markFileForDeletion(dlkey: str) -> None:
@@ -210,7 +198,7 @@ def seoUrlToEntry(module: str,
     from viur.core import conf
     pathComponents = [""]
     if language is None:
-        language = currentLanguage.get()
+        language = current.language.get()
     if conf["viur.languageMethod"] == "url":
         pathComponents.append(language)
     if module in conf["viur.languageModuleMap"] and language in conf["viur.languageModuleMap"][module]:
@@ -240,7 +228,7 @@ def seoUrlToEntry(module: str,
 
 def seoUrlToFunction(module: str, function: str, render: Optional[str] = None) -> str:
     from viur.core import conf
-    lang = currentLanguage.get()
+    lang = current.language.get()
     if module in conf["viur.languageModuleMap"] and lang in conf["viur.languageModuleMap"][module]:
         module = conf["viur.languageModuleMap"][module][lang]
     if conf["viur.languageMethod"] == "url":
@@ -282,9 +270,17 @@ def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
 
 # DEPRECATED ATTRIBUTES HANDLING
 __utils_conf_replacement = {
-        "projectID": "viur.instance.project_id",
-        "isLocalDevelopmentServer": "viur.instance.is_dev_server",
-    }
+    "projectID": "viur.instance.project_id",
+    "isLocalDevelopmentServer": "viur.instance.is_dev_server",
+    "projectBasePath": "viur.instance.project_base_path",
+    "coreBasePath": "viur.instance.core_base_path"
+}
+__utils_current_replacement = {
+    "currentRequest": "request",
+    "currentRequestData": "request_data",
+    "currentSession": "session",
+    "currentLanguage": "language"
+}
 
 
 def __getattr__(attr):
@@ -294,5 +290,12 @@ def __getattr__(attr):
         warnings.warn(msg, DeprecationWarning, stacklevel=3)
         logging.warning(msg, stacklevel=3)
         return conf[__utils_conf_replacement[attr]]
+
+    if attr in __utils_current_replacement:
+        import warnings
+        msg = f"Use of `utils.{attr}` is deprecated; Use `current.{__utils_current_replacement[attr]}` instead!"
+        warnings.warn(msg, DeprecationWarning, stacklevel=3)
+        logging.warning(msg, stacklevel=3)
+        return getattr(current, __utils_current_replacement[attr])
 
     return super(__import__(__name__).__class__).__getattr__(attr)
