@@ -1,6 +1,6 @@
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import db, request, conf
-from viur.core.utils import currentRequest, currentRequestData, utcNow
+from viur.core import db, request, conf, current
+from viur.core.utils import utcNow
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 import pytz, tzlocal
@@ -184,14 +184,14 @@ class DateBone(BaseBone):
         If it cant be guessed, a safe default (UTC) is used
         """
         timeZone = pytz.utc  # Default fallback
-        currReqData = currentRequestData.get()
+        currReqData = current.request_data.get()
         if conf["viur.instance.is_dev_server"]:
             return tzlocal.get_localzone()
         try:
             # Check the local cache first
             if "timeZone" in currReqData:
                 return currReqData["timeZone"]
-            headers = currentRequest.get().request.headers
+            headers = current.request.get().request.headers
             if "X-Appengine-Country" in headers:
                 country = headers["X-Appengine-Country"]
             else:  # Maybe local development Server - no way to guess it here
@@ -254,3 +254,9 @@ class DateBone(BaseBone):
     def performMagic(self, valuesCache, name, isAdd):
         if (self.creationMagic and isAdd) or self.updateMagic:
             valuesCache[name] = utcNow().replace(microsecond=0).astimezone(self.guessTimeZone())
+
+    def structure(self) -> dict:
+        return super().structure() | {
+            "date": self.date,
+            "time": self.time
+        }

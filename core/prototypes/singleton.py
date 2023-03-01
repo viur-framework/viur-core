@@ -1,6 +1,6 @@
 import logging
 from typing import Any, Optional
-from viur.core import db, errors, exposed, forceSSL, securitykey, utils
+from viur.core import db, current, errors, exposed, forceSSL, securitykey
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
 from .skelmodule import SkelModule
@@ -191,9 +191,7 @@ class Singleton(SkelModule):
 
         :returns: True, if previewing entries is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
-
-        if not user:
+        if not (user := current.user.get()):
             return False
 
         if user["access"] and "root" in user["access"]:
@@ -221,9 +219,7 @@ class Singleton(SkelModule):
 
         :returns: True, if editing is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
-
-        if not user:
+        if not (user := current.user.get()):
             return False
 
         if user["access"] and "root" in user["access"]:
@@ -251,8 +247,7 @@ class Singleton(SkelModule):
 
         :returns: True, if viewing is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
-        if not user:
+        if not (user := current.user.get()):
             return False
         if user["access"] and "root" in user["access"]:
             return True
@@ -285,8 +280,7 @@ class Singleton(SkelModule):
         """
         logging.info("Entry changed: %s" % skel["key"])
         flushCache(key=skel["key"])
-        user = utils.getCurrentUser()
-        if user:
+        if user := current.user.get():
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
     def onView(self, skel: SkeletonInstance):

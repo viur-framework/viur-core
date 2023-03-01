@@ -1,9 +1,10 @@
 import logging
 from typing import Any, Optional
-from viur.core import db, errors, exposed, forcePost, forceSSL, securitykey, utils
+from viur.core import current, db, errors, exposed, forcePost, forceSSL, securitykey, utils
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
 from .skelmodule import SkelModule
+
 
 
 class List(SkelModule):
@@ -204,7 +205,7 @@ class List(SkelModule):
         if not self.canEdit(skel):
             raise errors.Unauthorized()
         if (len(kwargs) == 0  # no data supplied
-            or not utils.currentRequest.get().isPostRequest  # failure if not using POST-method
+            or not current.request.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before changing
         ):
@@ -240,7 +241,7 @@ class List(SkelModule):
             raise errors.Unauthorized()
         skel = self.addSkel()
         if (len(kwargs) == 0  # no data supplied
-            or not utils.currentRequest.get().isPostRequest  # failure if not using POST-method
+            or not current.request.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
         ):
@@ -308,7 +309,8 @@ class List(SkelModule):
                     raise errors.Forbidden()
                 seoUrl = utils.seoUrlToEntry(self.moduleName, skel)
                 # Check whether this is the current seo-key, otherwise redirect to it
-                if utils.currentRequest.get().request.path != seoUrl:
+
+                if current.request.get().request.path != seoUrl:
                     raise errors.Redirect(seoUrl, status=301)
                 self.onView(skel)
                 return self.render.view(skel)
@@ -334,9 +336,8 @@ class List(SkelModule):
 
             :returns: The altered filter, or None if access is not granted.
         """
-        user = utils.getCurrentUser()
 
-        if user and ("%s-view" % self.moduleName in user["access"] or "root" in user["access"]):
+        if (user := current.user.get()) and ("%s-view" % self.moduleName in user["access"] or "root" in user["access"]):
             return query
 
         return None
@@ -380,8 +381,7 @@ class List(SkelModule):
 
             :returns: True, if adding entries is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
-        if not user:
+        if not (user := current.user.get()):
             return False
 
         # root user is always allowed.
@@ -412,8 +412,7 @@ class List(SkelModule):
 
             :returns: True, if previewing entries is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
-        if not user:
+        if not (user := current.user.get()):
             return False
 
         if user["access"] and "root" in user["access"]:
@@ -445,8 +444,7 @@ class List(SkelModule):
 
             :returns: True, if editing entries is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
-        if not user:
+        if not (user := current.user.get()):
             return False
 
         if user["access"] and "root" in user["access"]:
@@ -477,9 +475,7 @@ class List(SkelModule):
 
             :returns: True, if deleting entries is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
-
-        if not user:
+        if not (user := current.user.get()):
             return False
 
         if user["access"] and "root" in user["access"]:
@@ -517,8 +513,7 @@ class List(SkelModule):
         """
         logging.info("Entry added: %s" % skel["key"])
         flushCache(kind=skel.kindName)
-        user = utils.getCurrentUser()
-        if user:
+        if user := current.user.get():
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
     def onEdit(self, skel: SkeletonInstance):
@@ -546,8 +541,7 @@ class List(SkelModule):
         """
         logging.info("Entry changed: %s" % skel["key"])
         flushCache(key=skel["key"])
-        user = utils.getCurrentUser()
-        if user:
+        if user := current.user.get():
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
     def onView(self, skel: SkeletonInstance):
@@ -588,8 +582,7 @@ class List(SkelModule):
         """
         logging.info("Entry deleted: %s" % skel["key"])
         flushCache(key=skel["key"])
-        user = utils.getCurrentUser()
-        if user:
+        if user := current.user.get():
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
 

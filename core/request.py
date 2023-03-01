@@ -13,11 +13,10 @@ import unicodedata
 import webob
 from time import time
 
-from viur.core import db, errors, utils
+from viur.core import current, db, errors, utils
 from viur.core.config import conf
 from viur.core.logging import client as loggingClient, requestLogger, requestLoggingRessource
 from viur.core.securityheaders import extendCsp
-from viur.core.utils import currentLanguage, currentSession
 from viur.core.tasks import _appengineServiceIPs
 
 """
@@ -125,7 +124,7 @@ class BrowseHandler():  # webapp.RequestHandler
             conf["viur.languageMethod"], we'll either try to load it from the session, determine it by the domain
             or extract it from the URL.
         """
-        sessionReference = currentSession.get()
+        sessionReference = current.session.get()
         if not conf["viur.availableLanguages"]:
             # This project doesn't use the multi-language feature, nothing to do here
             return path
@@ -136,35 +135,35 @@ class BrowseHandler():  # webapp.RequestHandler
                     lng = self.request.headers["X-Appengine-Country"].lower()
                     if lng in conf["viur.availableLanguages"] + list(conf["viur.languageAliasMap"].keys()):
                         sessionReference["lang"] = lng
-                        currentLanguage.set(lng)
+                        current.language.set(lng)
                     else:
                         sessionReference["lang"] = conf["viur.defaultLanguage"]
             else:
-                currentLanguage.set(sessionReference["lang"])
+                current.language.set(sessionReference["lang"])
         elif conf["viur.languageMethod"] == "domain":
             host = self.request.host_url.lower()
             host = host[host.find("://") + 3:].strip(" /")  # strip http(s)://
             if host.startswith("www."):
                 host = host[4:]
             if host in conf["viur.domainLanguageMapping"]:
-                currentLanguage.set(conf["viur.domainLanguageMapping"][host])
+                current.language.set(conf["viur.domainLanguageMapping"][host])
             else:  # We have no language configured for this domain, try to read it from session
                 if "lang" in sessionReference:
-                    currentLanguage.set(sessionReference["lang"])
+                    current.language.set(sessionReference["lang"])
         elif conf["viur.languageMethod"] == "url":
             tmppath = urlparse(path).path
             tmppath = [unquote(x) for x in tmppath.lower().strip("/").split("/")]
             if len(tmppath) > 0 and tmppath[0] in conf["viur.availableLanguages"] + list(
                 conf["viur.languageAliasMap"].keys()):
-                currentLanguage.set(tmppath[0])
+                current.language.set(tmppath[0])
                 return path[len(tmppath[0]) + 1:]  # Return the path stripped by its language segment
             else:  # This URL doesnt contain an language prefix, try to read it from session
                 if "lang" in sessionReference:
-                    currentLanguage.set(sessionReference["lang"])
+                    current.language.set(sessionReference["lang"])
                 elif "X-Appengine-Country" in self.request.headers.keys():
                     lng = self.request.headers["X-Appengine-Country"].lower()
                     if lng in conf["viur.availableLanguages"] or lng in conf["viur.languageAliasMap"]:
-                        currentLanguage.set(lng)
+                        current.language.set(lng)
         return path
 
     def processRequest(self) -> None:
@@ -186,7 +185,7 @@ class BrowseHandler():  # webapp.RequestHandler
                 self.is_deferred = True
             elif os.getenv("TASKS_EMULATOR") is not None:
                 self.is_deferred = True
-        currentLanguage.set(conf["viur.defaultLanguage"])
+        current.language.set(conf["viur.defaultLanguage"])
         self.disableCache = False  # Shall this request bypass the caches?
         self.args = []
         self.kwargs = {}
@@ -263,10 +262,16 @@ class BrowseHandler():  # webapp.RequestHandler
             return
 
         try:
-            currentSession.get().load(self)
+            current.session.get().load(self)
+
+            # Load current user into context variable if user module is there.
+            if user_mod := getattr(conf["viur.mainApp"], "user", None):
+                current.user.set(user_mod.getCurrentUser())
+
             path = self.selectLanguage(path)[1:]
             if conf["viur.requestPreprocessor"]:
                 path = conf["viur.requestPreprocessor"](path)
+
             self.findAndCall(path)
 
         except errors.Redirect as e:
@@ -300,8 +305,8 @@ class BrowseHandler():  # webapp.RequestHandler
                     res = None
             if not res:
                 if (len(self.pathlist) > 0 and any(x in self.pathlist[0] for x in ["vi", "json"])) or \
-                        utils.currentRequest.get().response.headers["Content-Type"] == "application/json":
-                    utils.currentRequest.get().response.headers["Content-Type"] = "application/json"
+                        current.request.get().response.headers["Content-Type"] == "application/json":
+                    current.request.get().response.headers["Content-Type"] = "application/json"
                     res = {
                         "status": e.status,
                         "reason": e.name,
@@ -356,7 +361,7 @@ class BrowseHandler():  # webapp.RequestHandler
 
         finally:
             self.saveSession()
-            if conf["viur.instance.is_dev_server"]:
+            if conf["viur.instance.is_dev_server"] and conf["viur.dev_server_cloud_logging"]:
                 # Emit the outer log only on dev_appserver (we'll use the existing request log when live)
                 SEVERITY = "DEBUG"
                 if self.maxLogLevel >= 50:
@@ -592,8 +597,7 @@ class BrowseHandler():  # webapp.RequestHandler
         if self.request.headers.get("X-Viur-Disable-Cache"):
             from viur.core import utils
             # No cache requested, check if the current user is allowed to do so
-            user = utils.getCurrentUser()
-            if user and "root" in user["access"]:
+            if (user := current.user.get()) and "root" in user["access"]:
                 logging.debug("Caching disabled by X-Viur-Disable-Cache header")
                 self.disableCache = True
         try:
@@ -641,7 +645,7 @@ class BrowseHandler():  # webapp.RequestHandler
             raise
 
     def saveSession(self) -> None:
-        currentSession.get().save(self)
+        current.session.get().save(self)
 
 
 from .i18n import translate  # noqa: E402

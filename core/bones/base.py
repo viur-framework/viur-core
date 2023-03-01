@@ -950,6 +950,7 @@ class BaseBone(object):
             else:
                 yield None, None, value
 
+
     def _compute(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
 
         if "skel" not in inspect.signature(self.compute.fn).parameters:
@@ -967,3 +968,36 @@ class BaseBone(object):
                 logging.error(f"Parse Data failed with {errors}. We return the raw data.")
 
         return data
+
+    def structure(self) -> dict:
+        """
+        Describes the bone and its settings as an JSON-serializable dict.
+        This function has to be implemented for subsequent, specialized bone types.
+        """
+        ret = {
+            "descr": str(self.descr),  # need to turn possible translate-object into string
+            "type": self.type,
+            "required": self.required,
+            "params": self.params,
+            "visible": self.visible,
+            "readonly": self.readOnly,
+            "unique": self.unique.method.value if self.unique else False,
+            "languages": self.languages,
+            "emptyvalue": self.getEmptyValue(),
+            "indexed": self.indexed
+        }
+
+        # Provide a defaultvalue, if it's not a function.
+        if not callable(self.defaultValue) and self.defaultValue is not None:
+            ret["defaultvalue"] = self.defaultValue
+
+        # Provide a multiple setting
+        if self.multiple and isinstance(self.multiple, MultipleConstraints):
+            ret["multiple"] = {
+                "min": self.multiple.minAmount,
+                "max": self.multiple.maxAmount,
+                "preventduplicates": self.multiple.preventDuplicates,
+            }
+        else:
+            ret["multiple"] = self.multiple
+        return ret

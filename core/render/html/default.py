@@ -8,11 +8,10 @@ import os
 from jinja2 import ChoiceLoader, Environment, FileSystemLoader, Template
 from typing import Any, Dict, List, Literal, Tuple, Union
 
-from viur.core import db, errors, securitykey, utils
+from viur.core import current, db, errors, securitykey
 from viur.core.bones import *
 from viur.core.i18n import LanguageWrapper, TranslationExtension
 from viur.core.skeleton import SkelList, SkeletonInstance
-from viur.core.utils import currentLanguage, currentRequest
 from viur.core import conf
 from . import utils as jinjaUtils
 
@@ -86,14 +85,14 @@ class Render(object):
             htmlpath = self.htmlpath
         else:
             htmlpath = "html"
-        currReq = currentRequest.get()
+        currReq = current.request.get()
         if not ignoreStyle \
             and "style" in currReq.kwargs \
             and all([x in validChars for x in currReq.kwargs["style"].lower()]):
             stylePostfix = "_" + currReq.kwargs["style"]
         else:
             stylePostfix = ""
-        lang = currentLanguage.get()  # session.current.getLanguage()
+        lang = current.language.get()  # session.current.getLanguage()
         fnames = [template + stylePostfix + ".html", template + ".html"]
         if lang:
             fnames = [os.path.join(lang, template + stylePostfix + ".html"),
@@ -125,112 +124,6 @@ class Render(object):
             htmlpath = "html/"
 
         return ChoiceLoader([FileSystemLoader(htmlpath), FileSystemLoader("viur/core/template/")])
-
-    def renderBoneStructure(self, bone: BaseBone) -> Dict[str, Any]:
-        """
-        Renders the structure of a bone.
-
-        This function is used by :func:`renderSkelStructure`.
-        can be overridden and super-called from a custom renderer.
-
-        :param bone: The bone which structure should be rendered.
-        :type bone: Any bone that inherits from :class:`server.bones.BaseBone`.
-
-        :return: A dict containing the rendered attributes.
-        """
-
-        # Base bone contents.
-        ret = {
-            "descr": str(bone.descr),
-            "type": bone.type,
-            "required": bone.required,
-            "multiple": bone.multiple,
-            "params": bone.params,
-            "visible": bone.visible,
-            "readOnly": bone.readOnly,
-            "indexed": bone.indexed
-        }
-
-        if bone.type == "relational" or bone.type.startswith("relational."):
-            ret.update({
-                "module": bone.module,
-                "format": bone.format,
-                "using": self.renderSkelStructure(bone.using()) if bone.using else None,
-                "relskel": self.renderSkelStructure(bone._refSkelCache())
-            })
-            if bone.type.startswith("relational.tree.leaf.file"):
-                ret.update({"validMimeTypes":bone.validMimeTypes})
-
-        elif bone.type == "record" or bone.type.startswith("record."):
-            ret.update({
-                "format": bone.format,
-                "using": self.renderSkelStructure(bone.using())
-            })
-
-        elif bone.type == "select" or bone.type.startswith("select."):
-            ret.update({
-                "values": {k: str(v) for (k, v) in bone.values.items()},
-                "multiple": bone.multiple
-            })
-
-        elif bone.type == "date" or bone.type.startswith("date."):
-            ret.update({
-                "date": bone.date,
-                "time": bone.time
-            })
-
-        elif bone.type == "numeric" or bone.type.startswith("numeric."):
-            ret.update({
-                "precision": bone.precision,
-                "min": bone.min,
-                "max": bone.max
-            })
-
-        elif bone.type == "text" or bone.type.startswith("text."):
-            ret.update({
-                "validHtml": bone.validHtml,
-                "maxLength": bone.maxLength
-            })
-
-        elif bone.type == "str" or bone.type.startswith("str."):
-            ret.update({
-                "maxLength": bone.maxLength
-            })
-
-        elif bone.type == "captcha" or bone.type.startswith("captcha."):
-            ret.update({
-                "publicKey": bone.publicKey,
-            })
-
-        elif bone.type == "spatial":
-            ret.update({
-                "boundsLat": bone.boundsLat,
-                "boundsLng": bone.boundsLng
-            })
-
-        return ret
-
-    def renderSkelStructure(self, skel: SkeletonInstance) -> Dict:
-        """
-            Dumps the structure of a :class:`viur.core.skeleton.Skeleton`.
-
-            :param skel: Skeleton which structure will be processed.
-            :returns: The rendered structure.
-        """
-        res = OrderedDict()
-
-        for key, bone in skel.items():
-            if "__" in key or not isinstance(bone, BaseBone):
-                continue
-
-            res[key] = self.renderBoneStructure(bone)
-
-            if key in skel.errors:
-                res[key]["error"] = skel.errors[key]
-            else:
-                res[key]["error"] = None
-
-        return res
 
     def renderBoneValue(self,
                         bone: BaseBone,
@@ -360,7 +253,7 @@ class Render(object):
         skel["skey"] = securitykey.create()
 
         # fixme: Is this still be used?
-        if currentRequest.get().kwargs.get("nomissing") == "1":
+        if current.request.get().kwargs.get("nomissing") == "1":
             if isinstance(skel, SkeletonInstance):
                 super(SkeletonInstance, skel).__setattr__("errors", [])
 
@@ -368,7 +261,7 @@ class Render(object):
 
         return template.render(
             skel={
-                "structure": self.renderSkelStructure(skel),
+                "structure": skel.structure(),
                 "errors": skel.errors,
                 "value": skel
             },

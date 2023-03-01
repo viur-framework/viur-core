@@ -9,7 +9,7 @@ from functools import partial
 from itertools import chain
 from time import time
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
-from viur.core import conf, db, email, errors, utils
+from viur.core import conf, db, email, errors, utils, current
 from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, RelationalUpdateLevel, SelectBone, StringBone
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 from viur.core.tasks import CallableTask, CallableTaskBase, QueryIter, CallDeferred
@@ -252,6 +252,9 @@ class SkeletonInstance:
         self.dbEntity = entity
         self.accessedValues = {}
         self.renderAccessedValues = {}
+
+    def structure(self) -> dict:
+        return {key: bone.structure() for key, bone in self.items()}
 
     def __deepcopy__(self, memodict):
         res = self.clone()
@@ -1391,7 +1394,7 @@ class TaskUpdateSearchIndex(CallableTaskBase):
 
     def canCall(self) -> bool:
         """Checks wherever the current user can execute this task"""
-        user = utils.getCurrentUser()
+        user = current.user.get()
         return user is not None and "root" in user["access"]
 
     def dataSkel(self):
@@ -1401,7 +1404,7 @@ class TaskUpdateSearchIndex(CallableTaskBase):
         return skel
 
     def execute(self, module, *args, **kwargs):
-        usr = utils.getCurrentUser()
+        usr = current.user.get()
         if not usr:
             logging.warning("Don't know who to inform after rebuilding finished")
             notify = None
@@ -1459,7 +1462,7 @@ class TaskVacuumRelations(CallableTaskBase):
         Checks wherever the current user can execute this task
         :returns: bool
         """
-        user = utils.getCurrentUser()
+        user = current.user.get()
         return user is not None and "root" in user["access"]
 
     def dataSkel(self):
@@ -1468,7 +1471,7 @@ class TaskVacuumRelations(CallableTaskBase):
         return skel
 
     def execute(self, module, *args, **kwargs):
-        usr = utils.getCurrentUser()
+        usr = current.user.get()
         if not usr:
             logging.warning("Don't know who to inform after rebuilding finished")
             notify = None

@@ -1,4 +1,4 @@
-from viur.core import db, errors, utils
+from viur.core import current, db, errors, utils
 from viur.core.tasks import PeriodicTask, DeleteEntitiesIter
 from typing import Literal, Union
 from datetime import timedelta
@@ -41,11 +41,11 @@ class RateLimit(object):
         :return: the key associated with the current endpoint (it's IP or the key of the current user)
         """
         if self.useUser:
-            user = utils.getCurrentUser()
+            user = current.user.get()
             assert user, "Cannot decrement usage from guest!"
             return user["key"]
         else:
-            remoteAddr = utils.currentRequest.get().request.remote_addr
+            remoteAddr = current.request.get().request.remote_addr
             if "::" in remoteAddr:  # IPv6 in shorted form
                 remoteAddr = remoteAddr.split(":")
                 blankIndex = remoteAddr.index("")
@@ -118,7 +118,7 @@ class RateLimit(object):
         if self.isQuotaAvailable():
             return True
         if setRetryAfterHeader:
-            utils.currentRequest.get().response.headers["Retry-After"] = str(self.maxRate * 60)
+            current.request.get().response.headers["Retry-After"] = str(self.maxRate * 60)
 
         raise errors.TooManyRequests(
             f"{self.steps} requests allowed per {self.maxRate} minute(s). Try again later."

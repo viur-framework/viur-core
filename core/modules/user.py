@@ -10,7 +10,8 @@ from typing import Optional
 from google.auth.transport import requests
 from google.oauth2 import id_token
 
-from viur.core import conf, db, email, errors, exposed, forceSSL, i18n, securitykey, session, skeleton, tasks, utils
+from viur.core import conf, db, email, errors, exposed, forceSSL, i18n, securitykey, session, skeleton, tasks, utils, \
+    current
 from viur.core.bones import *
 from viur.core.bones.password import pbkdf2
 from viur.core.prototypes.list import List
@@ -98,6 +99,11 @@ class UserSkel(skeleton.Skeleton):
         defaultValue=0,
     )
 
+    admin_config = JsonBone(  # This bone stores settings from the vi
+        descr="Config for the User",
+        visible=False
+    )
+
 
 class UserPassword:
     registrationEnabled = False
@@ -168,7 +174,7 @@ class UserPassword:
     @exposed
     @forceSSL
     def login(self, name=None, password=None, skey="", *args, **kwargs):
-        if self.userModule.getCurrentUser():  # Were already logged in
+        if current.user.get():  # User is already logged in, nothing to do.
             return self.userModule.render.loginSucceeded()
 
         if not name or not password or not securitykey.validate(skey, useSessionKey=True):
@@ -238,8 +244,8 @@ class UserPassword:
             to 10 actions per 15 minutes. (One complete recovery process consists of two calls).
         """
         self.passwordRecoveryRateLimit.assertQuotaIsAvailable()
-        session = utils.currentSession.get()
-        request = utils.currentRequest.get()
+        session = current.session.get()
+        request = current.request.get()
         recoverStep = session.get("user.auth_userpassword.pwrecover")
         if not recoverStep:
             # This is the first step, where we ask for the username of the account we'll going to reset the password on
@@ -400,7 +406,7 @@ class UserPassword:
             raise errors.Unauthorized()
         skel = self.addSkel()
         if (len(kwargs) == 0  # no data supplied
-            or not utils.currentRequest.get().isPostRequest  # bail out if not using POST-method
+            or not current.request.get().isPostRequest  # bail out if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or ("bounce" in kwargs and kwargs["bounce"] == "1")):  # review before adding
             # render the skeleton in the version it could as far as it could be read.
@@ -438,10 +444,11 @@ class GoogleAccount:
         if not conf.get("viur.user.google.clientID"):
             raise errors.PreconditionFailed("Please configure 'viur.user.google.clientID' in your conf!")
         if not skey or not token:
-            utils.currentRequest.get().response.headers["Content-Type"] = "text/html"
-            if utils.currentRequest.get().response.headers.get("cross-origin-opener-policy") == "same-origin":
+            request = current.request.get()
+            request.response.headers["Content-Type"] = "text/html"
+            if request.response.headers.get("cross-origin-opener-policy") == "same-origin":
                 # We have to allow popups here
-                utils.currentRequest.get().response.headers["cross-origin-opener-policy"] = "same-origin-allow-popups"
+                request.response.headers["cross-origin-opener-policy"] = "same-origin-allow-popups"
             # Fixme: Render with Jinja2?
             with (conf["viur.instance.core_base_path"]
                   .joinpath("viur/core/template/vi_user_google_login.html")
@@ -514,7 +521,8 @@ class TimeBasedOTP:
         user = db.Get(userKey)
         if all([(x in user and user[x]) for x in ["otpid", "otpkey"]]):
             logging.info("OTP wanted for user")
-            utils.currentSession.get()["_otp_user"] = {
+            session = current.session.get()
+            session["_otp_user"] = {
                 "uid": str(userKey),
                 "otpid": user["otpid"],
                 "otpkey": user["otpkey"],
@@ -522,7 +530,7 @@ class TimeBasedOTP:
                 "timestamp": time.time(),
                 "failures": 0
             }
-            utils.currentSession.get().markChanged()
+            session.markChanged()
             return self.userModule.render.loginSucceeded(msg="X-VIUR-2FACTOR-TimeBasedOTP")
 
         return None
@@ -562,8 +570,8 @@ class TimeBasedOTP:
     @exposed
     @forceSSL
     def otp(self, otptoken=None, skey=None, *args, **kwargs):
-        currSess = utils.currentSession.get()
-        token = currSess.get("_otp_user")
+        session = current.session.get()
+        token = session.get("_otp_user")
         if not token:
             raise errors.Forbidden()
         if otptoken is None:
@@ -582,10 +590,10 @@ class TimeBasedOTP:
             self.userModule.render.edit(self.otpSkel(), tpl=self.otpTemplate)
 
         if otptoken in validTokens:
-            userKey = currSess["_otp_user"]["uid"]
+            userKey = session["_otp_user"]["uid"]
 
-            del currSess["_otp_user"]
-            currSess.markChanged()
+            del session["_otp_user"]
+            session.markChanged()
 
             idx = validTokens.index(int(otptoken))
 
@@ -597,8 +605,8 @@ class TimeBasedOTP:
             return self.userModule.secondFactorSucceeded(self, userKey)
         else:
             token["failures"] += 1
-            currSess["_otp_user"] = token
-            currSess.markChanged()
+            session["_otp_user"] = token
+            session.markChanged()
             return self.userModule.render.edit(self.otpSkel(), loginFailed=True, tpl=self.otpTemplate)
 
     def updateTimeDrift(self, userKey, idx):
@@ -666,7 +674,7 @@ class User(List):
 
     def addSkel(self):
         skel = super(User, self).addSkel().clone()
-        user = utils.getCurrentUser()
+        user = current.user.get()
         if not (user and user["access"] and ("%s-add" % self.moduleName in user["access"] or "root" in user["access"])):
             skel.status.readOnly = True
             skel["status"] = 0
@@ -696,7 +704,7 @@ class User(List):
         if "password" in skel:
             skel.password.required = False
 
-        user = utils.getCurrentUser()
+        user = current.user.get()
 
         lockFields = not (user and "root" in user["access"])  # If we aren't root, make certain fields read-only
         skel.name.readOnly = lockFields
@@ -710,7 +718,7 @@ class User(List):
 
     def getCurrentUser(self):
         # May be a deferred task
-        if not (session := utils.currentSession.get()):
+        if not (session := current.session.get()):
             return None
 
         if user := session.get("user"):
@@ -721,10 +729,11 @@ class User(List):
         return None
 
     def continueAuthenticationFlow(self, caller, userKey):
-        currSess = utils.currentSession.get()
-        currSess["_mayBeUserKey"] = userKey.id_or_name
-        currSess["_secondFactorStart"] = utils.utcNow()
-        currSess.markChanged()
+        session = current.session.get()
+        session["_mayBeUserKey"] = userKey.id_or_name
+        session["_secondFactorStart"] = utils.utcNow()
+        session.markChanged()
+
         for authProvider, secondFactor in self.validAuthenticationMethods:
             if isinstance(caller, authProvider):
                 if secondFactor is None:
@@ -739,12 +748,12 @@ class User(List):
         raise errors.NotAcceptable("There are no more authentication methods to try")  # Sorry...
 
     def secondFactorSucceeded(self, secondFactor, userKey):
-        currSess = utils.currentSession.get()
+        session = current.session.get()
         logging.debug("Got SecondFactorSucceeded call from %s." % secondFactor)
-        if currSess["_mayBeUserKey"] != userKey.id_or_name:
+        if session["_mayBeUserKey"] != userKey.id_or_name:
             raise errors.Forbidden()
         # Assert that the second factor verification finished in time
-        if utils.utcNow() - currSess["_secondFactorStart"] > self.secondFactorTimeWindow:
+        if utils.utcNow() - session["_secondFactorStart"] > self.secondFactorTimeWindow:
             raise errors.RequestTimeout()
         return self.authenticateUser(userKey)
 
@@ -762,19 +771,21 @@ class User(List):
             raise ValueError(f"Unable to authenticate unknown user {key}")
 
         # Update session for user
-        session = utils.currentSession.get()
+        session = current.session.get()
         # Remember persistent fields...
         take_over = {k: v for k, v in session.items() if k in conf["viur.session.persistentFieldsOnLogin"]}
         session.reset()
         # and copy them over to the new session
         session |= take_over
 
+        # Update session, user and request
         session["user"] = skel.dbEntity
-        session.markChanged()
 
-        utils.currentRequest.get().response.headers["Sec-X-ViUR-StaticSKey"] = session.staticSecurityKey
+        current.request.get().response.headers["Sec-X-ViUR-StaticSKey"] = session.staticSecurityKey
+        current.user.set(self.getCurrentUser())
 
         self.onLogin(skel)
+
         return self.render.loginSucceeded(**kwargs)
 
     @exposed
@@ -783,18 +794,18 @@ class User(List):
             Implements the logout action. It also terminates the current session (all keys not listed
             in viur.session.persistentFieldsOnLogout will be lost).
         """
-        if not (user := utils.getCurrentUser()):
+        if not (user := current.user.get()):
             raise errors.Unauthorized()
         if not securitykey.validate(skey, useSessionKey=True):
             raise errors.PreconditionFailed()
 
         self.onLogout(user)
 
-        session = utils.currentSession.get()
+        session = current.session.get()
         take_over = {k: v for k, v in session.items() if k in conf["viur.session.persistentFieldsOnLogout"]}
         session.reset()
         session |= take_over
-
+        current.user.set(None)  # set user to none in context var
         return self.render.logoutSuccess()
 
     @exposed
@@ -826,10 +837,14 @@ class User(List):
 
     @exposed
     def edit(self, *args, **kwargs):
-        currSess = utils.currentSession.get()
-        if len(args) == 0 and not "key" in kwargs and currSess.get("user"):
-            kwargs["key"] = currSess.get("user")["key"]
-        return super(User, self).edit(*args, **kwargs)
+        user = current.user.get()
+
+        # fixme: This assumes that the user can edit itself when no parameters are provided...
+        if len(args) == 0 and "key" not in kwargs and user:
+            # it is not a security issue as super().edit() checks the access rights.
+            kwargs["key"] = user["key"]
+
+        return super().edit(*args, **kwargs)
 
     @exposed
     def view(self, key, *args, **kwargs):
@@ -837,8 +852,7 @@ class User(List):
             Allow a special key "self" to reference always the current user
         """
         if key == "self":
-            user = self.getCurrentUser()
-            if not user:
+            if not (user := current.user.get()):
                 raise errors.Unauthorized()
 
             return super().view(str(user["key"].id_or_name), *args, **kwargs)
@@ -846,8 +860,7 @@ class User(List):
         return super().view(key, *args, **kwargs)
 
     def canView(self, skel) -> bool:
-        user = self.getCurrentUser()
-        if user:
+        if user := current.user.get():
             if skel["key"] == user["key"]:
                 return True
 

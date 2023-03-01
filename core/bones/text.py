@@ -361,3 +361,8 @@ class TextBone(BaseBone):
             raise NotImplementedError()
 
         return super().getUniquePropertyIndexValues(valuesCache, name)
+
+    def structure(self) -> dict:
+        return super().structure() | {
+            "valid_html": self.validHtml,
+        }
