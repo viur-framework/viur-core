@@ -319,7 +319,7 @@ class BrowseHandler():  # webapp.RequestHandler
 
                     res = json.dumps(res)
                 else:  # We render the error in html
-                    # first we try to get the template from hmt/error/
+                    # Try to get the template from html/error/
                     template_file = conf["viur.instance.project_base_path"].joinpath(f"html/error/{e.status}.html")
                     if template_file.is_file():
                         template = conf["viur.mainApp"].render.getEnv().get_template(
