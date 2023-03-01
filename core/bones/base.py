@@ -3,7 +3,7 @@ import hashlib
 import inspect
 import logging
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 
@@ -78,7 +78,7 @@ class Compute:
     fn: callable  # the callable computing the value
     threshold: ThresholdValue = ThresholdValue()   # the value caching interval
     raw: bool = True  # defines whether the value is used as is, or is passed to bone.fromClient
-
+    last_updated: datetime = None # defines when the value was last updated (readonly)
 
 class BaseBone(object):
     type = "hidden"
@@ -531,14 +531,15 @@ class BaseBone(object):
             if self.compute:  # handle this in the first place
                 if self.compute.threshold.method == ThresholdMethods.Lifetime:  # we maybe must compute the value new
                     # if we have no value we set it to now and compute new
-                    last_updated = skel.dbEntity.get(f"{name}__last_updated", utils.utcNow())
-                    if last_updated+self.compute.threshold.lifetime > utils.utcNow():
+                    self.compute.last_updated = skel.dbEntity.get(f"{name}__last_updated", utils.utcNow())
+                    if self.compute.last_updated+self.compute.threshold.lifetime > utils.utcNow():
                         skel.accessedValues[name] = loadVal
                         return True
                     if data := self._compute(skel, name):
                         skel.accessedValues[name] = data
                         skel.dbEntity[name] = data
                         skel.dbEntity[f"{name}__last_updated"] = utils.utcNow()
+                        self.compute.last_updated = skel.dbEntity[f"{name}__last_updated"]  # Refresh last update
                         return True
 
                 elif self.compute.threshold.method == ThresholdMethods.Always:  # we must compute the value new
@@ -562,6 +563,7 @@ class BaseBone(object):
                     skel.dbEntity[name] = data
                     if self.compute.threshold.method == ThresholdMethods.Lifetime:
                         skel.dbEntity[f"{name}__last_updated"] = utils.utcNow()
+                        self.compute.last_updated = skel.dbEntity[f"{name}__last_updated"]
                     return True
 
             skel.accessedValues[name] = self.getDefaultValue(skel)
@@ -950,7 +952,6 @@ class BaseBone(object):
             else:
                 yield None, None, value
 
-
     def _compute(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
 
         if "skel" not in inspect.signature(self.compute.fn).parameters:
@@ -1000,4 +1001,9 @@ class BaseBone(object):
             }
         else:
             ret["multiple"] = self.multiple
+        if self.compute:
+            ret["compute"] = {"method":self.compute.threshold.method.value}
+            if self.compute.threshold.lifetime:
+                ret["compute"]["lifetime"] = str(self.compute.threshold.lifetime)
+                ret["compute"]["last_updated"] = self.compute.last_updated.strftime("%Y-%m-%dT%H-%M-%S")
         return ret
