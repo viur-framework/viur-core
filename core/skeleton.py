@@ -820,7 +820,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                         oldUniqueValues = dbObj["viur"]["%s_uniqueIndexValue" % key]
 
                 # Merge the values from mergeFrom in
-                if key in skel.accessedValues:
+                if key in skel.accessedValues or bone.compute:  # We can have a computed value on store
                     # bone.mergeFrom(skel.valuesCache, key, mergeFrom)
                     bone.serialize(skel, key, True)
                 elif key not in skel.dbEntity:  # It has not been written and is not in the database

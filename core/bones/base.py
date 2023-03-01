@@ -65,6 +65,7 @@ class ThresholdMethods(Enum):
     Always = 0
     Lifetime = 1
     Once = 2
+    OnStore = 3
 
 
 @dataclass
@@ -78,7 +79,8 @@ class Compute:
     fn: callable  # the callable computing the value
     threshold: ThresholdValue = ThresholdValue()   # the value caching interval
     raw: bool = True  # defines whether the value is used as is, or is passed to bone.fromClient
-    last_updated: datetime = None # defines when the value was last updated (readonly)
+    last_updated: datetime = None  # defines when the value was last updated (readonly)
+
 
 class BaseBone(object):
     type = "hidden"
@@ -470,11 +472,20 @@ class BaseBone(object):
 
             :param name: The property-name this bone has in its Skeleton (not the description!)
         """
+        logging.error("here")
+        logging.error(self.compute)
+        logging.error(name)
+        if self.compute:  # handle this in the first place
+            if self.compute.threshold.method == ThresholdMethods.OnStore:
+                logging.error("calcnew")
+                skel.dbEntity[name] = self._compute(skel, name)
+                skel.dbEntity.exclude_from_indexes.add(name)
+                return True
+            else:
+                return name in skel.accessedValues
+
         if name in skel.accessedValues:
             newVal = skel.accessedValues[name]
-            if self.compute:  # handle this in the first place
-                # the bone is readonly anyway
-                return True
             if self.languages and self.multiple:
                 res = db.Entity()
                 res["_viurLanguageWrapper_"] = True
