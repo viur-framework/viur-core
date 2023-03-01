@@ -74,6 +74,7 @@ class ThresholdValue:
     lifetime: timedelta = None
     last_updated: datetime = None  # defines when the value was last updated (readonly)
 
+
 @dataclass
 class Compute:
     fn: callable  # the callable computing the value
