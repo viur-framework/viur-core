@@ -72,14 +72,13 @@ class ThresholdMethods(Enum):
 class ThresholdValue:
     method: ThresholdMethods = ThresholdMethods.Always
     lifetime: timedelta = None
-
+    last_updated: datetime = None  # defines when the value was last updated (readonly)
 
 @dataclass
 class Compute:
     fn: callable  # the callable computing the value
     threshold: ThresholdValue = ThresholdValue()   # the value caching interval
     raw: bool = True  # defines whether the value is used as is, or is passed to bone.fromClient
-    last_updated: datetime = None  # defines when the value was last updated (readonly)
 
 
 class BaseBone(object):
@@ -126,6 +125,7 @@ class BaseBone(object):
                 protect the value from beeing exposed in a template, nor from being transferred to the
                 client (ie to the admin or as hidden-value in html-forms)
                 Again: This is just a hint. It cannot be used as a security precaution.
+            :param compute: If set the bonevalue will be computed in the given method.
 
             .. NOTE::
                 The kwarg 'multiple' is not supported by all bones
@@ -546,15 +546,16 @@ class BaseBone(object):
             if self.compute:  # handle this in the first place
                 if self.compute.threshold.method == ThresholdMethods.Lifetime:  # we maybe must compute the value new
                     # if we have no value we set it to now and compute new
-                    self.compute.last_updated = skel.dbEntity.get(f"{name}__last_updated", utils.utcNow())
-                    if self.compute.last_updated+self.compute.threshold.lifetime > utils.utcNow():
+                    self.compute.threshold.last_updated = skel.dbEntity.get(f"{name}__last_updated", utils.utcNow())
+                    if self.compute.threshold.last_updated+self.compute.threshold.lifetime > utils.utcNow():
                         skel.accessedValues[name] = loadVal
                         return True
                     if data := self._compute(skel, name):
                         skel.accessedValues[name] = data
                         skel.dbEntity[name] = data
                         skel.dbEntity[f"{name}__last_updated"] = utils.utcNow()
-                        self.compute.last_updated = skel.dbEntity[f"{name}__last_updated"]  # Refresh last update
+                        # Refresh last updated time
+                        self.compute.threshold.last_updated = skel.dbEntity[f"{name}__last_updated"]
                         return True
 
                 elif self.compute.threshold.method == ThresholdMethods.Always:  # we must compute the value new
@@ -578,7 +579,7 @@ class BaseBone(object):
                     skel.dbEntity[name] = data
                     if self.compute.threshold.method == ThresholdMethods.Lifetime:
                         skel.dbEntity[f"{name}__last_updated"] = utils.utcNow()
-                        self.compute.last_updated = skel.dbEntity[f"{name}__last_updated"]
+                        self.compute.threshold.last_updated = skel.dbEntity[f"{name}__last_updated"]
                     return True
 
             skel.accessedValues[name] = self.getDefaultValue(skel)
@@ -1020,5 +1021,5 @@ class BaseBone(object):
             ret["compute"] = {"method": self.compute.threshold.method.name}
             if self.compute.threshold.lifetime:
                 ret["compute"]["lifetime"] = str(self.compute.threshold.lifetime)
-                ret["compute"]["last_updated"] = self.compute.last_updated.strftime("%Y-%m-%dT%H-%M-%S")
+                ret["compute"]["last_updated"] = self.compute.threshold.last_updated.strftime("%Y-%m-%dT%H-%M-%S")
         return ret
