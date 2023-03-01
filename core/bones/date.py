@@ -183,15 +183,13 @@ class DateBone(BaseBone):
         """
         if not (self.date and self.time and self.localize):
             return pytz.utc
-        
+
         if conf["viur.instance.is_dev_server"]:
             return tzlocal.get_localzone()
-        
+
         timeZone = pytz.utc  # Default fallback
         currReqData = current.request_data.get()
 
-        timeZone = pytz.utc  # Default fallback
-        currReqData = currentRequestData.get()
         try:
             # Check the local cache first
             if "timeZone" in currReqData:
