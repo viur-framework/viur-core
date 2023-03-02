@@ -10,7 +10,7 @@ DIRECTORY_PATTERN = re.compile(r'^[a-zA-Z0-9äöüÄÖÜ_-]*$')
 FILE_PATTERN = re.compile(r'^[a-zA-Z0-9äöüÄÖÜ_-]+?.py$')
 
 
-def utils_get_path(skel, data = None):
+def utils_get_path(skel, data=None):
     script: Tree = conf["viur.mainApp"].vi.script
 
     path = ""

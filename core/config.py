@@ -204,7 +204,7 @@ conf = Conf({
 
     "viur.script.admin_info": {
         "icon": "icon-hashtag",
-        #"display": "hidden",
+        "display": "hidden",
     },
 
     # List of URLs for which viur.forceSSL is ignored.
