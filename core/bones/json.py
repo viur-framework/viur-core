@@ -13,7 +13,7 @@ class JsonBone(RawBone):
 
     type = "raw.json"
 
-    def __init__(self, indexed: bool = False, multiple: bool = False, languages: bool = None, schema: object = None,
+    def __init__(self, indexed: bool = False, multiple: bool = False, languages: bool = None, schema: Mapping = None,
                  *args,
                  **kwargs):
         assert not multiple
