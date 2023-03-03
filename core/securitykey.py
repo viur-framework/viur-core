@@ -30,7 +30,7 @@ from viur.core import utils, current, db, tasks
 from datetime import datetime, timedelta
 from typing import Union
 
-SECURITYKEY_KINDNAME = "viur-securitykeys"
+SECURITYKEY_KINDNAME = "viur-securitykey"
 
 
 def create(duration: Union[None, int] = None, **custom_data) -> str:
