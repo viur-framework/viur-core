@@ -1,7 +1,7 @@
 import ast
 import json
 import jsonschema
-from typing import Union
+from typing import Union, Mapping
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.bones.raw import RawBone
 
