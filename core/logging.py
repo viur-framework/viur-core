@@ -171,3 +171,4 @@ else:
     sh = logging.StreamHandler()
     sh.setFormatter(formatter)
     logger.addHandler(sh)
+    sh.setLevel(logging.DEBUG)
