@@ -72,7 +72,8 @@ class PasswordBone(StringBone):
                                 defaultText="The password entered has no digits.")),
         (r"^.*\W.*$", translate("core.bones.password.no_special_characters",
                                 defaultText="The password entered has no special characters.")),
-
+        (r"^.{8,}$", translate("core.bones.password.too_short",
+                                defaultText="The password is too short. It requires for at least 8 characters.")),
     ]
 
     def __init__(
