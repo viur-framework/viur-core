@@ -55,31 +55,22 @@ class PasswordBone(StringBone):
     type = "password"
     saltLength = 13
 
-    tooShortMessage = translate(
-        "core.bones.password.tooShortMessage",
-        defaultText="The entered password is to short - it requires at least {{length}} characters."
-    )
-    tooWeakMessage = translate(
-        "core.bones.password.tooWeakMessage",
-        defaultText="The entered password is too weak."
-    )
-    password_tests: tuple[tuple[str, str]] = (
+    password_tests: tuple[tuple[str, str, bool]] = (
         (r"^.*[A-Z].*$", translate("core.bones.password.no_capital_letters",
-                                   defaultText="The password entered has no capital letters.")),
+                                   defaultText="The password entered has no capital letters."), False),
         (r"^.*[a-z].*$", translate("core.bones.password.no_lowercase_letters",
-                                   defaultText="The password entered has no lowercase letters.")),
+                                   defaultText="The password entered has no lowercase letters."), False),
         (r"^.*\d.*$", translate("core.bones.password.no_digits",
-                                defaultText="The password entered has no digits.")),
+                                defaultText="The password entered has no digits."), False),
         (r"^.*\W.*$", translate("core.bones.password.no_special_characters",
-                                defaultText="The password entered has no special characters.")),
+                                defaultText="The password entered has no special characters."), False),
         (r"^.{8,}$", translate("core.bones.password.too_short",
-                                defaultText="The password is too short. It requires for at least 8 characters.")),
-    ]
+                               defaultText="The password is too short. It requires for at least 8 characters."), True),
+    )
 
     def __init__(
         self,
         *,
-        min_password_length: int = 8,
         test_threshold: int = 3,
         password_tests: List[Tuple] = password_tests,
         **kwargs
@@ -87,15 +78,11 @@ class PasswordBone(StringBone):
         """
             Initializes a new Password Bone.
 
-            :param min_password_length: The minimum length of a password.
-                Passwords with a shorter length will be invalid.
-
             :param test_threshold: The minimum number of tests the password must pass.
             :param password_tests: A list of tuples. The tuple contains the test and a reason for the user if the test
                     fails.
         """
         super().__init__()
-        self.min_password_length = min_password_length
         self.test_threshold = test_threshold
         if password_tests is not None:
             self.password_tests = password_tests
@@ -104,18 +91,17 @@ class PasswordBone(StringBone):
         if not value:
             return False
 
-        if len(value) < self.min_password_length:
-            return self.tooShortMessage.translate(length=self.min_password_length)
-
         # Run our password test suite
         tests_errors = []
         tests_passed = 0
-        for test, hint in self.password_tests:
+        for test, hint, required in self.password_tests:
             if re.match(test, value):
                 tests_passed += 1
             else:
                 tests_errors.append(str(hint))  # we may need to convert a "translate" object
-
+                if required:  # we have a required test that failed make sure we abort
+                    tests_passed = 0
+                    break
         if tests_passed < self.test_threshold:
             return tests_errors
 
