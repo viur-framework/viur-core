@@ -13,7 +13,7 @@ class JsonBone(RawBone):
 
     type = "raw.json"
 
-    def __init__(self, indexed: bool = False, multiple: bool = False, languages: bool = None, schema: Mapping = None,
+    def __init__(self, indexed: bool = False, multiple: bool = False, languages: bool = None, schema: Mapping = {},
                  *args,
                  **kwargs):
         assert not multiple
@@ -61,15 +61,13 @@ class JsonBone(RawBone):
                         return self.getEmptyValue(), [
                             ReadFromClientError(ReadFromClientErrorSeverity.Invalid, f"Invalid JSON supplied: {e!s}")
                         ]
-                if self.schema:
-                    try:
-                        jsonschema.validate(value, self.schema)
-                    except (jsonschema.exceptions.ValidationError, jsonschema.exceptions.SchemaError) as e:
-                        return self.getEmptyValue(), [
-                            ReadFromClientError(ReadFromClientErrorSeverity.Invalid,
-                                                f"Invalid JSON for schema supplied: {e!s}")
-                        ]
 
+                try:
+                    jsonschema.validate(value, self.schema)
+                except (jsonschema.exceptions.ValidationError, jsonschema.exceptions.SchemaError) as e:
+                    return self.getEmptyValue(), [
+                        ReadFromClientError(ReadFromClientErrorSeverity.Invalid,
+                                            f"Invalid JSON for schema supplied: {e!s}")]
         return super().singleValueFromClient(value, *args, **kwargs)
 
     def structure(self) -> dict:
