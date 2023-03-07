@@ -703,6 +703,7 @@ class User(List):
 
         if "password" in skel:
             skel.password.required = False
+            skel.password.visible = True
 
         user = current.user.get()
 
