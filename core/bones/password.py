@@ -94,15 +94,15 @@ class PasswordBone(StringBone):
         # Run our password test suite
         tests_errors = []
         tests_passed = 0
+        required_test_failed = False
         for test, hint, required in self.password_tests:
             if re.match(test, value):
                 tests_passed += 1
             else:
                 tests_errors.append(str(hint))  # we may need to convert a "translate" object
                 if required:  # we have a required test that failed make sure we abort
-                    tests_passed = 0
-                    break
-        if tests_passed < self.test_threshold:
+                    required_test_failed = True
+        if tests_passed < self.test_threshold or required_test_failed:
             return tests_errors
 
         return False
@@ -144,3 +144,6 @@ class PasswordBone(StringBone):
 
     def unserialize(self, skeletonValues, name):
         return False
+
+    def structure(self) -> dict:
+        return super().structure() | {"password_tests": self.password_tests}
