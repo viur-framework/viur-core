@@ -596,7 +596,7 @@ def renderEditForm(render: Render,
             if hide and boneName in hide:
                 boneParams["visible"] = False
 
-            if not boneParams["readOnly"]:
+            if not boneParams["readonly"]:
                 allReadOnly = False
 
             if boneParams["visible"]:
