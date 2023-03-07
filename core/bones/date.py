@@ -166,7 +166,7 @@ class DateBone(BaseBone):
                             value = datetime.strptime(str(rawValue), "%d.%m.%Y")
                 except:
                     value = False  # its invalid
-            if value and self.naive:
+            if value and not self.naive:
                 value = time_zone.localize(value)
         if value is False:
             return self.getEmptyValue(), [
