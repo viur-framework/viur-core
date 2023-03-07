@@ -82,7 +82,7 @@ class PasswordBone(StringBone):
             :param password_tests: A list of tuples. The tuple contains the test and a reason for the user if the test
                     fails.
         """
-        super().__init__()
+        super().__init__(**kwargs)
         self.test_threshold = test_threshold
         if password_tests is not None:
             self.password_tests = password_tests
