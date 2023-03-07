@@ -55,7 +55,7 @@ class PasswordBone(StringBone):
     type = "password"
     saltLength = 13
 
-    password_tests: tuple[tuple[str, str, bool]] = (
+    tests: tuple[tuple[str, str, bool]] = (
         (r"^.*[A-Z].*$", translate("core.bones.password.no_capital_letters",
                                    defaultText="The password entered has no capital letters."), False),
         (r"^.*[a-z].*$", translate("core.bones.password.no_lowercase_letters",
@@ -72,7 +72,7 @@ class PasswordBone(StringBone):
         self,
         *,
         test_threshold: int = 3,
-        password_tests: List[Tuple] = password_tests,
+        tests: List[Tuple] = tests,
         **kwargs
     ):
         """
@@ -84,8 +84,8 @@ class PasswordBone(StringBone):
         """
         super().__init__(**kwargs)
         self.test_threshold = test_threshold
-        if password_tests is not None:
-            self.password_tests = password_tests
+        if tests is not None:
+            self.tests = tests
 
     def isInvalid(self, value):
         if not value:
@@ -95,7 +95,7 @@ class PasswordBone(StringBone):
         tests_errors = []
         tests_passed = 0
         required_test_failed = False
-        for test, hint, required in self.password_tests:
+        for test, hint, required in self.tests:
             if re.match(test, value):
                 tests_passed += 1
             else:
@@ -146,4 +146,4 @@ class PasswordBone(StringBone):
         return False
 
     def structure(self) -> dict:
-        return super().structure() | {"password_tests": self.password_tests}
+        return super().structure() | {"test": self.tests}
