@@ -146,4 +146,4 @@ class PasswordBone(StringBone):
         return False
 
     def structure(self) -> dict:
-        return super().structure() | {"test": self.tests}
+        return super().structure() | {"tests": self.tests}
