@@ -9,6 +9,15 @@ from viur.core.bones.raw import RawBone
 class JsonBone(RawBone):
     """
     This bone saves its content as a JSON-string, but unpacks its content to a dict or list when used.
+    :param schema If provided we can controll what data we accept.
+    Example:
+        >>>schema = {"type" : "object",
+        >>>     "properties" : {
+        >>>"price" : {"type" : "number"},
+        >>>"name" : {"type" : "string"},
+        >>>}}
+        We only accept the json if the price is a number and name is a string.
+
     """
 
     type = "raw.json"
