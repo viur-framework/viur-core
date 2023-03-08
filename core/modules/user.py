@@ -247,7 +247,7 @@ class UserPassword:
         session = current.session.get()
         request = current.request.get()
         recoverStep = session.get("user.auth_userpassword.pwrecover")
-        if not recoverStep:
+        if "recovery_key" not in kwargs:
             # This is the first step, where we ask for the username of the account we'll going to reset the password on
             skel = self.lostPasswordStep1Skel()
             if not request.isPostRequest or not skel.fromClient(kwargs):
@@ -255,48 +255,32 @@ class UserPassword:
             if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
                 raise errors.PreconditionFailed()
             self.passwordRecoveryRateLimit.decrementQuota()
-            recoveryKey = utils.generateRandomString(13)  # This is the key the user will have to Copy&Paste
-            self.sendUserPasswordRecoveryCode(skel["name"].lower(), recoveryKey)  # Send the code in the background
-            session["user.auth_userpassword.pwrecover"] = {
-                "name": skel["name"].lower(),
-                "recoveryKey": recoveryKey,
-                "creationdate": utils.utcNow(),
-                "errorCount": 0
-            }
-            del recoveryKey
+            recovery_key = utils.generateRandomString(42)  # This is the key the user will have to Copy&Paste
+            self.sendUserPasswordRecoveryCode(skel["name"].lower(), recovery_key)  # Send the code in the background
+            recovery_entity =  db.Entity(db.Key("viur-recovery",recovery_key))
+            recovery_entity["user"] = skel["name"].lower()
+            recovery_entity["valid_until"] = utils.utcNow()+datetime.timedelta(minutes=15)
+            db.Put(recovery_entity)
+            del recovery_key
             return self.pwrecover()  # Fall through to the second step as that key in the session is now set
         else:
-            if request.isPostRequest and kwargs.get("abort") == "1" \
-                and securitykey.validate(kwargs.get("skey"), useSessionKey=True):
-                # Allow a user to abort the process if a wrong email has been used
-                session["user.auth_userpassword.pwrecover"] = None
-                return self.pwrecover()
-            # We're in the second step - the code has been send and is waiting for confirmation from the user
-            if utils.utcNow() - session["user.auth_userpassword.pwrecover"]["creationdate"] \
-                    > datetime.timedelta(minutes=15):
-                # This recovery-process is expired; reset the session and start over
-                session["user.auth_userpassword.pwrecover"] = None
+            if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
+                raise errors.PreconditionFailed()
+            recovery_key = kwargs.get("recovery_key")
+            if recovery_entity:=db.Get(db.Key("viur-recovery",recovery_key)):
+                if recovery_entity["valid_until"] < utils.utcNow():
+                    skel = self.lostPasswordStep2Skel()
+                    if not skel.fromClient(kwargs) or not request.isPostRequest:
+                        return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep2Template)
+
+
                 return self.userModule.render.view(
                     skel=None,
                     tpl=self.passwordRecoveryFailedTemplate,
                     reason=self.passwordRecoveryKeyExpired)
-            skel = self.lostPasswordStep2Skel()
-            if not skel.fromClient(kwargs) or not request.isPostRequest:
-                return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep2Template)
-            if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
-                raise errors.PreconditionFailed()
-            self.passwordRecoveryRateLimit.decrementQuota()
-            if not hmac.compare_digest(session["user.auth_userpassword.pwrecover"]["recoveryKey"], skel["recoveryKey"]):
-                # The key was invalid, increase error-count or abort this recovery process altogether
-                session["user.auth_userpassword.pwrecover"]["errorCount"] += 1
-                if session["user.auth_userpassword.pwrecover"]["errorCount"] > 3:
-                    session["user.auth_userpassword.pwrecover"] = None
-                    return self.userModule.render.view(
-                        skel=None,
-                        tpl=self.passwordRecoveryFailedTemplate,
-                        reason=self.passwordRecoveryKeyInvalid)
 
-                return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep2Template)  # Let's try again
+
+            self.passwordRecoveryRateLimit.decrementQuota()
 
             # If we made it here, the key was correct, so we'd hopefully have a valid user for this
             skel = self.viewSkel().all().filter(
@@ -324,7 +308,7 @@ class UserPassword:
             return self.userModule.render.view(None, tpl=self.passwordRecoverySuccessTemplate)
 
     @tasks.CallDeferred
-    def sendUserPasswordRecoveryCode(self, userName: str, recoveryKey: str) -> None:
+    def sendUserPasswordRecoveryCode(self, userName: str, recovery_key: str) -> None:
         """
             Sends the given recovery code to the user given in userName. This function runs deferred
             so there's no timing sidechannel that leaks if this user exists. Per default, we'll send the
@@ -345,7 +329,7 @@ class UserPassword:
                 return
             # Update the changedate so no more than one email is send per 4 hours
             db.RunInTransaction(updateChangeDateTxn, user.key)
-            email.sendEMail(tpl=self.passwordRecoveryMail, skel={"recoveryKey": recoveryKey}, dests=[userName])
+            email.sendEMail(tpl=self.passwordRecoveryMail, skel={"recovery_key": recovery_key}, dests=[userName])
 
     @exposed
     def verify(self, skey, *args, **kwargs):
