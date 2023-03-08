@@ -46,6 +46,7 @@ __all = [
     "RecordBone",
     "RelationalBone",
     "RelationalConsistency",
+    "RelationalUpdateLevel",
     "SelectBone",
     "SelectCountryBone",
     "SortIndexBone",
