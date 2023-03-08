@@ -90,13 +90,13 @@ class Script(Tree):
 
     def onEdited(self, skelType, skel):
         if skelType == "node":
-            self.update_path_recursive("node", skel["key"])
-            self.update_path_recursive("leaf", skel["key"])
+            self.update_path_recursive("node", skel["path"], skel["key"])
+            self.update_path_recursive("leaf", skel["path"], skel["key"])
 
         super().onEdited(skelType, skel)
 
     @tasks.CallDeferred
-    def update_path_recursive(self, skel_type, parent_key, cursor=None):
+    def update_path_recursive(self, skel_type, path, parent_key, cursor=None):
         """
         Recursively updates all items under a given parent key.
         """
@@ -104,15 +104,15 @@ class Script(Tree):
         query.setCursor(cursor)
 
         for skel in query.fetch(99):
-            if skel_type == "node":
-                self.update_path_recursive("node", skel["key"])
-                self.update_path_recursive("leaf", skel["key"])
+            new_path = path + "/" + skel["name"]
 
-            self.onEdit(skel_type, skel)
-            skel.toDB()
+            if new_path != skel["path"]:
+                self.onEdit(skel_type, skel)
+                skel.toDB()
+                self.onEdited(skel_type, skel)  # triggers this recursion for nodes, again.
 
         if cursor := query.getCursor():
-            self.update_path_recursive(skel_type, parent_key, cursor)
+            self.update_path_recursive(skel_type, path, parent_key, cursor)
 
     def update_path(self, skel):
         """
