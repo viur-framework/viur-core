@@ -220,7 +220,8 @@ class UserPassword:
                 logging.info(f"Update password hash for user {name}.")
                 # re-hash the password with more iterations
                 skel = self.userModule.editSkel()
-                skel.fromDB(res.key)
+                skel.setEntity(res)
+                skel["key"] = res.key
                 skel["password"] = password  # will be hashed on serialize
                 skel.toDB(clearUpdateTag=True)
             return self.userModule.continueAuthenticationFlow(self, res.key)
