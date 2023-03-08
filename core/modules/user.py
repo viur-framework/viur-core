@@ -265,7 +265,7 @@ class UserPassword:
                 return self.pwrecover()
             # We're in the second step - the code has been send and is waiting for confirmation from the user
             if utils.utcNow() - session["user.auth_userpassword.pwrecover"]["creationdate"] \
-                > datetime.timedelta(minutes=15):
+                    > datetime.timedelta(minutes=15):
                 # This recovery-process is expired; reset the session and start over
                 session["user.auth_userpassword.pwrecover"] = None
                 return self.userModule.render.view(
@@ -444,8 +444,8 @@ class GoogleAccount:
                 request.response.headers["cross-origin-opener-policy"] = "same-origin-allow-popups"
             # Fixme: Render with Jinja2?
             with (conf["viur.instance.core_base_path"]
-                      .joinpath("viur/core/template/vi_user_google_login.html")
-                      .open() as tpl_file):
+                  .joinpath("viur/core/template/vi_user_google_login.html")
+                  .open() as tpl_file):
                 tplStr = tpl_file.read()
             tplStr = tplStr.replace("{{ clientID }}", conf["viur.user.google.clientID"])
             extendCsp({"script-src": ["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
