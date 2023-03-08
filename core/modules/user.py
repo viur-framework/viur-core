@@ -299,7 +299,7 @@ class UserPassword:
                 return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep2Template)  # Let's try again
 
             # If we made it here, the key was correct, so we'd hopefully have a valid user for this
-            skel = self.viewSkel().all().filter(
+            skel = self.userModule.viewSkel().all().filter(
                 "name.idx =", session["user.auth_userpassword.pwrecover"]["name"]).getSkel()
 
             if skel:  # This *should* never happen - if we don't have a matching account we'll not send the key.
