@@ -25,10 +25,7 @@ def generateRandomString(length: int = 13) -> str:
 
     :returns: A string with random characters of the given length.
     """
-    alphabet = string.ascii_letters + string.digits
-    if use_secrets:
-        return "".join(secrets.choice(alphabet) for _ in range(length))
-    return "".join(random.choices(alphabet, k=length))
+    return "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(length))
 
 
 def getCurrentUser() -> Optional["SkeletonInstance"]:
