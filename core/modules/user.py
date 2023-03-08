@@ -302,7 +302,8 @@ class UserPassword:
             user_skel = self.userModule.viewSkel().all().filter(
                 "name.idx =", session["user.auth_userpassword.pwrecover"]["name"]).getSkel()
 
-            if not user_skel:  # This *should* never happen - if we don't have a matching account we'll not send the key.
+            if not user_skel:
+                # This *should* never happen - if we don't have a matching account we'll not send the key.
                 session["user.auth_userpassword.pwrecover"] = None
                 return self.userModule.render.view(
                     skel=None,
