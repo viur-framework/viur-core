@@ -106,8 +106,9 @@ class Script(Tree):
         for skel in query.fetch(99):
             new_path = path + "/" + skel["name"]
 
+            # only update when path changed
             if new_path != skel["path"]:
-                self.onEdit(skel_type, skel)
+                skel["path"] = new_path  # self.onEdit() is NOT required, as it resolves the path again.
                 skel.toDB()
                 self.onEdited(skel_type, skel)  # triggers this recursion for nodes, again.
 
