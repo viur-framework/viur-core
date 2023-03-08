@@ -102,7 +102,6 @@ class PasswordBone(StringBone):
             return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
         # As we don't escape passwords and allow most special characters we'll hash it early on so we don't open
         # an XSS attack vector if a password is echoed back to the client (which should not happen)
-
         skel[name] = encode_password(value, utils.generateRandomString(self.saltLength, use_secrets=True))
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:

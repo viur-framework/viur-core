@@ -58,7 +58,6 @@ class UserSkel(skeleton.Skeleton):
     access = SelectBone(
         descr="Access rights",
         values=lambda: {
-
             right: i18n.translate("server.modules.user.accessright.%s" % right, defaultText=right)
             for right in sorted(conf["viur.accessRights"])
         },
