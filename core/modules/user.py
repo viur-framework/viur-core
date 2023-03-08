@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import json
 import logging
+import secrets
 import time
 import warnings
 from typing import Optional
@@ -10,10 +11,10 @@ from typing import Optional
 from google.auth.transport import requests
 from google.oauth2 import id_token
 
-from viur.core import conf, db, email, errors, exposed, forceSSL, i18n, securitykey, session, skeleton, tasks, utils, \
-    current
+from viur.core import conf, current, db, email, errors, exposed, forceSSL, i18n, \
+    securitykey, session, skeleton, tasks, utils
 from viur.core.bones import *
-from viur.core.bones.password import pbkdf2
+from viur.core.bones.password import encode_password
 from viur.core.prototypes.list import List
 from viur.core.ratelimit import RateLimit
 from viur.core.securityheaders import extendCsp
@@ -59,7 +60,7 @@ class UserSkel(skeleton.Skeleton):
         values=lambda: {
 
             right: i18n.translate("server.modules.user.accessright.%s" % right, defaultText=right)
-                for right in sorted(conf["viur.accessRights"])
+            for right in sorted(conf["viur.accessRights"])
         },
         multiple=True,
     )
@@ -187,30 +188,29 @@ class UserPassword:
         res = query.filter("name.idx >=", name).getEntry()
 
         if res is None:
-            res = {"password": {"pwhash": "-invalid-", "salt": "-invalid"}, "status": 0, "name": {}}
+            res = {"password": {"pwhash": "-invalid-", "salt": "-invalid-"}, "status": 0, "name": {}}
 
-        passwd = pbkdf2(password[:conf["viur.maxPasswordLength"]], (res.get("password", None) or {}).get("salt", ""))
+        password_data = res.get("password") or {}
+        # old password hashes used 1001 iterations
+        iterations = password_data.get("iterations", 1001)
+        # passwd = encode_password(password, password_data.get("salt", ""), iterations)
+        passwd = encode_password(password, password_data.get("salt", ""), iterations)["pwhash"]
         isOkay = True
+
+        logging.debug(f"{password_data = }")
+        logging.debug(f"{passwd = }")
+        logging.debug(f"{passwd.decode() = }")
+        logging.debug(f"{password = }")
 
         # We do this exactly that way to avoid timing attacks
 
         # Check if the username matches
         storedUserName = (res.get("name") or {}).get("idx", "")
-        if len(storedUserName) != len(name):
-            isOkay = False
-        else:
-            for x, y in zip(storedUserName, name):
-                if x != y:
-                    isOkay = False
+        isOkay &= secrets.compare_digest(storedUserName, name)
 
         # Check if the password matches
-        storedPasswordHash = (res.get("password", None) or {}).get("pwhash", "-invalid-")
-        if len(storedPasswordHash) != len(passwd):
-            isOkay = False
-        else:
-            for x, y in zip(storedPasswordHash, passwd):
-                if x != y:
-                    isOkay = False
+        storedPasswordHash = password_data.get("pwhash", "-invalid-")
+        isOkay &= secrets.compare_digest(storedPasswordHash, passwd)
 
         accountStatus: Optional[int] = None
         # Verify that this account isn't blocked
@@ -273,7 +273,7 @@ class UserPassword:
                 return self.pwrecover()
             # We're in the second step - the code has been send and is waiting for confirmation from the user
             if utils.utcNow() - session["user.auth_userpassword.pwrecover"]["creationdate"] \
-                    > datetime.timedelta(minutes=15):
+                > datetime.timedelta(minutes=15):
                 # This recovery-process is expired; reset the session and start over
                 session["user.auth_userpassword.pwrecover"] = None
                 return self.userModule.render.view(
@@ -451,8 +451,8 @@ class GoogleAccount:
                 request.response.headers["cross-origin-opener-policy"] = "same-origin-allow-popups"
             # Fixme: Render with Jinja2?
             with (conf["viur.instance.core_base_path"]
-                  .joinpath("viur/core/template/vi_user_google_login.html")
-                  .open() as tpl_file):
+                      .joinpath("viur/core/template/vi_user_google_login.html")
+                      .open() as tpl_file):
                 tplStr = tpl_file.read()
             tplStr = tplStr.replace("{{ clientID }}", conf["viur.user.google.clientID"])
             extendCsp({"script-src": ["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],

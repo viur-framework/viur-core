@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import random
 import logging
+import secrets
 import string
 from base64 import urlsafe_b64encode
 from contextvars import ContextVar
@@ -15,16 +16,21 @@ def utcNow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def generateRandomString(length: int = 13) -> str:
+def generateRandomString(length: int = 13, use_secrets: bool = False) -> str:
     """
     Return a string containing random characters of given *length*.
-    Its safe to use this string in URLs or HTML.
+    It's safe to use this string in URLs or HTML.
 
     :param length: The desired length of the generated string.
+    :param use_secrets: For security or cryptographic uses, enable this options.
+        The pseudo-random generators (default) should not be used for security purposes.
 
     :returns: A string with random characters of the given length.
     """
-    return "".join(random.choices(string.ascii_letters + string.digits, k=length))
+    alphabet = string.ascii_letters + string.digits
+    if use_secrets:
+        return "".join(secrets.choice(alphabet) for _ in range(length))
+    return "".join(random.choices(alphabet, k=length))
 
 
 def getCurrentUser() -> Optional["SkeletonInstance"]:
