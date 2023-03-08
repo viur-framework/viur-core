@@ -16,7 +16,7 @@ def utcNow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def generateRandomString(length: int = 13, use_secrets: bool = False) -> str:
+def generateRandomString(length: int = 13) -> str:
     """
     Return a string containing random characters of given *length*.
     It's safe to use this string in URLs or HTML.
