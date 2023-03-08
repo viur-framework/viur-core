@@ -1,24 +1,11 @@
-import binascii
 import hashlib
-import logging
-import string
-from typing import List, Union
-
-from viur.core import conf, utils
-from viur.core.bones.base import ReadFromClientError, \
-    ReadFromClientErrorSeverity
-from viur.core.bones.string import StringBone
-from viur.core.i18n import translate
-from viur.core import utils, conf
-from hashlib import sha256
-import hmac
-import codecs
 import re
-from struct import Struct
-from operator import xor
-from itertools import starmap
 from typing import List, Tuple, Union
 
+from viur.core import conf, utils
+from viur.core.bones.string import StringBone
+from viur.core.i18n import translate
+from .base import ReadFromClientError, ReadFromClientErrorSeverity
 
 
 def encode_password(password: str | bytes, salt: str | bytes,
