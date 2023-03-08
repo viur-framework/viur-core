@@ -1,16 +1,16 @@
 import hashlib
 import hmac
-import random
 import logging
 import secrets
 import string
 from base64 import urlsafe_b64encode
-from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from typing import Any, Union, Optional
 from urllib.parse import quote
-from viur.core.config import conf
+
 from viur.core import current, db
+from viur.core.config import conf
+
 
 def utcNow() -> datetime:
     return datetime.now(timezone.utc)
@@ -20,6 +20,7 @@ def generateRandomString(length: int = 13) -> str:
     """
     Return a string containing random characters of given *length*.
     It's safe to use this string in URLs or HTML.
+    Because we use the secrets module it could be used for security purposes as well
 
     :param length: The desired length of the generated string.
 
