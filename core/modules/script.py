@@ -1,6 +1,6 @@
 from viur.core.bones import *
 from viur.core.prototypes.tree import Tree, TreeSkel
-from viur.core import db, utils, conf, skeleton
+from viur.core import db, utils, conf, skeleton, tasks
 from viur.core.prototypes.tree import Tree
 import re
 
@@ -10,64 +10,34 @@ DIRECTORY_PATTERN = re.compile(r'^[a-zA-Z0-9äöüÄÖÜ_-]*$')
 FILE_PATTERN = re.compile(r'^[a-zA-Z0-9äöüÄÖÜ_-]+?.py$')
 
 
-def utils_get_path(skel, data=None):
-    script: Tree = conf["viur.mainApp"].vi.script
-
-    path = ""
-    if skel["parententry"] != skel["parentrepo"]:
-        _parents = script.path_to_key(skel["parententry"])
-
-        for parent in _parents:
-            if not parent["rootNode"]:
-                path += parent["name"] + "/"
-
-    if data:
-        if "name" in data:
-            path += data["name"]
-        else:
-            if skel and "name" in skel:
-                path += skel["name"]
-    elif skel:
-        if skel["name"]:
-            path += skel["name"]
-
-    return path
-
-
 class BaseScriptAbstractSkel(TreeSkel):
-    PATH_SUFFIX = ""
 
     path = StringBone(
         descr="Path",
-        required=True,
-        unique=UniqueValue(UniqueLockMethod.SameValue, True, "The entered file name already exists.")
+        readOnly=True,
+        unique=UniqueValue(UniqueLockMethod.SameValue, True, "This path name is already taken!")
     )
 
     @classmethod
-    def set_path(cls, skel, data):
-        skel["path"] = utils_get_path(skel, data) + cls.PATH_SUFFIX
-
-        if data:
-            data["path"] = skel["path"]
-
-    @classmethod
     def fromClient(cls, skel, data, *args, **kwargs):
-        cls.set_path(skel, data)
+        # Set script name when provided, so that the path can be regenerated
+        if name := data.get("name"):
+            skel["name"] = name
+            conf["viur.mainApp"].vi.script.update_path(skel)
 
         ret = super().fromClient(skel, data, *args, **kwargs)
 
         if not ret:
-            # in case the identifier failed because the unique value is already provided, rewrite the error for variable
+            # in case the path failed because the unique value is already taken, rewrite the error for name field
             for error in skel.errors:
                 if error.severity == skeleton.ReadFromClientErrorSeverity.Invalid and error.fieldPath == ["path"]:
-                    error.fieldPath = ["path"]
+                    error.fieldPath = ["name"]
                     break
 
         return ret
 
 
 class ScriptNodeSkel(BaseScriptAbstractSkel):
-    PATH_SUFFIX = "/"
     kindName = "viur-script-node"
 
     rootNode = BooleanBone(
@@ -115,40 +85,51 @@ class Script(Tree):
         return [{"name": "Scripts", "key": self.ensureOwnModuleRootNode().key}]
 
     def onEdit(self, skelType, skel):
-        path = utils_get_path(skel)
-        if skelType == "node":
-            path += ScriptNodeSkel.PATH_SUFFIX
-
-        skel["path"] = path
+        self.update_path(skel)
+        super().onEdit(skelType, skel)
 
     def onEdited(self, skelType, skel):
         if skelType == "node":
-            query = self.editSkel("node").all().filter("parententry =", skel["key"])
+            self.update_path_recursive("node", skel["key"])
+            self.update_path_recursive("leaf", skel["key"])
 
-            for entry in query.fetch(99):
-                self.onEdit("node", entry)
-                entry.toDB()
+        super().onEdited(skelType, skel)
 
-            query = self.editSkel("leaf").all().filter("parententry =", skel["key"])
-            for entry in query.fetch(99):
-                self.onEdit("leaf", entry)
-                entry.toDB()
-
-    def path_to_key(self, key: db.Key):
+    @tasks.CallDeferred
+    def update_path_recursive(self, skel_type, parent_key, cursor=None):
         """
-        Retrieve the path from a node to the root.
+        Recursively updates all items under a given parent key.
         """
-        parents = []
+        query = self.editSkel(skel_type).all().filter("parententry", parent_key)
+        query.setCursor(cursor)
 
+        for skel in query.fetch(99):
+            if skel_type == "node":
+                self.update_path_recursive("node", skel["key"])
+                self.update_path_recursive("leaf", skel["key"])
+
+            self.onEdit(skel_type, skel)
+            skel.toDB()
+
+        if cursor := query.getCursor():
+            self.update_path_recursive(skel_type, parent_key, cursor)
+
+    def update_path(self, skel):
+        """
+        Updates the path-value of a either a folder or a script file, by resolving the repository's root node.
+        """
+        path = [skel["name"]]
+
+        key = skel["parententry"]
         while key:
-            skel = self.viewSkel("node")
-            if not skel.fromDB(key) or skel["key"] == skel["parentrepo"]:  # We reached the top level
+            parent_skel = self.viewSkel("node")
+            if not parent_skel.fromDB(key) or parent_skel["key"] == skel["parentrepo"]:
                 break
 
-            parents.append(skel)
-            key = skel["parententry"]
+            path.insert(0, parent_skel["name"])
+            key = parent_skel["parententry"]
 
-        return parents.reverse()
+        skel["path"] = "/".join(path)
 
 
 Script.json = True
