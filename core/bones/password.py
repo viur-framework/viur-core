@@ -7,9 +7,12 @@ from viur.core.bones.string import StringBone
 from viur.core.i18n import translate
 from .base import ReadFromClientError, ReadFromClientErrorSeverity
 
+# https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2
+PBKDF2_DEFAULT_ITERATIONS = 600_000
+
 
 def encode_password(password: str | bytes, salt: str | bytes,
-                    iterations: int = 600_000, dklen: int = 42
+                    iterations: int = PBKDF2_DEFAULT_ITERATIONS, dklen: int = 42
                     ) -> dict[str, str | bytes]:
     """Decodes a pashword and return the hash and meta information as hash"""
     password = password[: conf["viur.maxPasswordLength"]]
@@ -102,7 +105,7 @@ class PasswordBone(StringBone):
             return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
         # As we don't escape passwords and allow most special characters we'll hash it early on so we don't open
         # an XSS attack vector if a password is echoed back to the client (which should not happen)
-        skel[name] = encode_password(value, utils.generateRandomString(self.saltLength, use_secrets=True))
+        skel[name] = encode_password(value, utils.generateRandomString(self.saltLength, True))
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
         if name in skel.accessedValues and skel.accessedValues[name]:
@@ -110,7 +113,7 @@ class PasswordBone(StringBone):
             if isinstance(value, dict):  # It is a pre-hashed value (probably fromClient)
                 skel.dbEntity[name] = value
             else:  # This has been set by skel["password"] = "secret", we'll still have to hash it
-                skel[name] = encode_password(value, utils.generateRandomString(self.saltLength, use_secrets=True))
+                skel.dbEntity[name] = encode_password(value, utils.generateRandomString(self.saltLength, True))
 
             # Ensure our indexed flag is up2date
             indexed = self.indexed and parentIndexed

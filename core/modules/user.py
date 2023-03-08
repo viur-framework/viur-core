@@ -14,7 +14,7 @@ from google.oauth2 import id_token
 from viur.core import conf, current, db, email, errors, exposed, forceSSL, i18n, \
     securitykey, session, skeleton, tasks, utils
 from viur.core.bones import *
-from viur.core.bones.password import encode_password
+from viur.core.bones.password import encode_password, PBKDF2_DEFAULT_ITERATIONS
 from viur.core.prototypes.list import List
 from viur.core.ratelimit import RateLimit
 from viur.core.securityheaders import extendCsp
@@ -192,32 +192,37 @@ class UserPassword:
         password_data = res.get("password") or {}
         # old password hashes used 1001 iterations
         iterations = password_data.get("iterations", 1001)
-        # passwd = encode_password(password, password_data.get("salt", ""), iterations)
         passwd = encode_password(password, password_data.get("salt", ""), iterations)["pwhash"]
 
         # Check if the username matches
-        storedUserName = (res.get("name") or {}).get("idx", "")
-        isOkay = secrets.compare_digest(storedUserName, name)
+        stored_user_name = (res.get("name") or {}).get("idx", "")
+        is_okay = secrets.compare_digest(stored_user_name, name)
 
         # Check if the password matches
-        storedPasswordHash = password_data.get("pwhash", "-invalid-")
-        isOkay &= secrets.compare_digest(storedPasswordHash, passwd)
+        stored_password_hash = password_data.get("pwhash", "-invalid-")
+        is_okay &= secrets.compare_digest(stored_password_hash, passwd)
 
         accountStatus: Optional[int] = None
         # Verify that this account isn't blocked
         if res["status"] < 10:
-            if isOkay:
+            if is_okay:
                 # The username and password is valid, in this case we can inform that user about his account status
                 # (ie account locked or email verification pending)
                 accountStatus = res["status"]
-            isOkay = False
+            is_okay = False
 
-        if not isOkay:
+        if not is_okay:
             self.loginRateLimit.decrementQuota()  # Only failed login attempts will count to the quota
             skel = self.loginSkel()
             return self.userModule.render.login(skel, loginFailed=True, accountStatus=accountStatus)
         else:
-            # TODO: if the password was right we could regenerate the pwhash with a higher iteration count
+            if iterations < PBKDF2_DEFAULT_ITERATIONS:
+                logging.info(f"Update password hash for user {name}.")
+                # re-hash the password with more iterations
+                skel = self.userModule.editSkel()
+                skel.fromDB(res.key)
+                skel["password"] = password  # will be hashed on serialize
+                skel.toDB(clearUpdateTag=True)
             return self.userModule.continueAuthenticationFlow(self, res.key)
 
     @exposed
