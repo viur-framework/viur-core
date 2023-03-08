@@ -275,7 +275,7 @@ class UserPassword:
                 return self.pwrecover()
             # We're in the second step - the code has been send and is waiting for confirmation from the user
             if utils.utcNow() - session["user.auth_userpassword.pwrecover"]["creationdate"] \
-                  > datetime.timedelta(minutes=15):
+                    > datetime.timedelta(minutes=15):
                 # This recovery-process is expired; reset the session and start over
                 session["user.auth_userpassword.pwrecover"] = None
                 return self.userModule.render.view(
