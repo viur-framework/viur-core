@@ -22,8 +22,6 @@ def generateRandomString(length: int = 13) -> str:
     It's safe to use this string in URLs or HTML.
 
     :param length: The desired length of the generated string.
-    :param use_secrets: For security or cryptographic uses, enable this options.
-        The pseudo-random generators (default) should not be used for security purposes.
 
     :returns: A string with random characters of the given length.
     """
