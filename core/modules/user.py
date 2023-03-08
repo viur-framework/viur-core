@@ -195,18 +195,10 @@ class UserPassword:
         iterations = password_data.get("iterations", 1001)
         # passwd = encode_password(password, password_data.get("salt", ""), iterations)
         passwd = encode_password(password, password_data.get("salt", ""), iterations)["pwhash"]
-        isOkay = True
-
-        logging.debug(f"{password_data = }")
-        logging.debug(f"{passwd = }")
-        logging.debug(f"{passwd.decode() = }")
-        logging.debug(f"{password = }")
-
-        # We do this exactly that way to avoid timing attacks
 
         # Check if the username matches
         storedUserName = (res.get("name") or {}).get("idx", "")
-        isOkay &= secrets.compare_digest(storedUserName, name)
+        isOkay = secrets.compare_digest(storedUserName, name)
 
         # Check if the password matches
         storedPasswordHash = password_data.get("pwhash", "-invalid-")
@@ -226,6 +218,7 @@ class UserPassword:
             skel = self.loginSkel()
             return self.userModule.render.login(skel, loginFailed=True, accountStatus=accountStatus)
         else:
+            # TODO: if the password was right we could regenerate the pwhash with a higher iteration count
             return self.userModule.continueAuthenticationFlow(self, res.key)
 
     @exposed

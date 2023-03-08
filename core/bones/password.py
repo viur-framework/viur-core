@@ -1,3 +1,4 @@
+import binascii
 import hashlib
 import logging
 import string
@@ -10,16 +11,18 @@ from viur.core.bones.string import StringBone
 from viur.core.i18n import translate
 
 
-def encode_password(password: str| bytes, salt: str | bytes, iterations: int = 600_000, dklen: int = 24) -> dict[str, str]:
+def encode_password(password: str | bytes, salt: str | bytes,
+                    iterations: int = 600_000, dklen: int = 42
+                    ) -> dict[str, str | bytes]:
+    """Decodes a pashword and return the hash and meta information as hash"""
     password = password[: conf["viur.maxPasswordLength"]]
     if isinstance(password, str):
         password = password.encode()
     if isinstance(salt, str):
         salt = salt.encode()
     pwhash = hashlib.pbkdf2_hmac("sha256", password, salt, iterations, dklen)
-    logging.debug(f"{pwhash = }")
     return {
-        "pwhash": pwhash,
+        "pwhash": pwhash.hex().encode(),
         "salt": salt,
         "iterations": iterations,
         "dklen": dklen,
@@ -85,7 +88,7 @@ class PasswordBone(StringBone):
         # As we don't escape passwords and allow most special characters we'll hash it early on so we don't open
         # an XSS attack vector if a password is echoed back to the client (which should not happen)
 
-        skel[name] = encode_password(value,     utils.generateRandomString(self.saltLength, use_secrets=True))
+        skel[name] = encode_password(value, utils.generateRandomString(self.saltLength, use_secrets=True))
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
         if name in skel.accessedValues and skel.accessedValues[name]:
