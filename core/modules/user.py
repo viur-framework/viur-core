@@ -31,6 +31,16 @@ class UserSkel(skeleton.Skeleton):
         unique=UniqueValue(UniqueLockMethod.SameValue, True, "Username already taken"),
     )
 
+    firstname = StringBone(
+        descr="Firstname",
+        searchable=True,
+    )
+
+    lastname = StringBone(
+        descr="Lastname",
+        searchable=True,
+    )
+
     # Properties required by custom auth
     password = PasswordBone(
         descr="Password",
