@@ -1,9 +1,11 @@
-from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core.i18n import translate
-
+import enum
+import logging
 from collections import OrderedDict
 from numbers import Number
 from typing import Callable, Dict, List, Tuple, Union
+
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.i18n import translate
 
 SelectBoneValue = Union[str, Number]
 SelectBoneMultiple = List[SelectBoneValue]
@@ -37,7 +39,10 @@ class SelectBone(BaseBone):
     def __getattribute__(self, item):
         if item == "values":
             values = self._values
-            if callable(values):
+            if isinstance(values, enum.EnumMeta):
+                logging.debug(values)
+                values = {value.value: translate(value.name) for value in values}
+            elif callable(values):
                 values = values()
 
                 # handle list/tuple as dicts
@@ -49,6 +54,18 @@ class SelectBone(BaseBone):
             return values
 
         return super().__getattribute__(item)
+
+    def singleValueUnserialize(self, val):
+        if isinstance(self._values, enum.EnumMeta):
+            for value in self._values:
+                if value.value == val:
+                    return value
+        return val
+
+    def singleValueSerialize(self, val, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+        if isinstance(self._values, enum.EnumMeta) and isinstance(val, self._values):
+            return val.value
+        return val
 
     def singleValueFromClient(self, value, skel, name, origData):
         if not str(value):
