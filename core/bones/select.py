@@ -40,7 +40,6 @@ class SelectBone(BaseBone):
         if item == "values":
             values = self._values
             if isinstance(values, enum.EnumMeta):
-                logging.debug(values)
                 values = {value.value: translate(value.name) for value in values}
             elif callable(values):
                 values = values()
