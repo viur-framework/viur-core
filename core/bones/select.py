@@ -18,7 +18,7 @@ class SelectBone(BaseBone):
         self,
         *,
         defaultValue: Union[None, Dict[str, Union[SelectBoneMultiple, SelectBoneValue]],
-        SelectBoneMultiple, enum.Enum] = None,
+                            SelectBoneMultiple, enum.Enum] = None,
         values: Union[Dict, List, Tuple, Callable, enum.EnumMeta] = (),
         **kwargs
     ):
