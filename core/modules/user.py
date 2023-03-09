@@ -167,7 +167,7 @@ class UserPassword:
         name = EmailBone(descr="Username", required=True)
 
     class lostPasswordStep2Skel(skeleton.RelSkel):
-        recovery_key = StringBone(descr="Recover Key",visible=False)
+        recovery_key = StringBone(descr="Recover Key", visible=False)
         password = PasswordBone(descr="New Password", required=True)
 
 
@@ -252,16 +252,18 @@ class UserPassword:
                 return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
             if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
                 raise errors.PreconditionFailed()
+            user_skel = self.userModule.viewSkel().all().filter(
+                "name.idx =", skel["name"]).getSkel()
             self.passwordRecoveryRateLimit.decrementQuota()
             recovery_key = utils.generateRandomString(42)  # This is the key the user will have to Copy&Paste
             user_agent = user_agents.parse(current.request.get().request.headers["User-Agent"])
-            self.sendUserPasswordRecoveryCode(skel["name"].lower(), recovery_key,user_agent)  # Send the code in the background
-            recovery_entity =  db.Entity(db.Key("viur-recovery",recovery_key))
+            self.sendUserPasswordRecoveryCode(user_skel, recovery_key, user_agent)  # Send the code in the background
+            recovery_entity = db.Entity(db.Key("viur-recovery", recovery_key))
             recovery_entity["user_name"] = skel["name"].lower()
-            recovery_entity["valid_until"] = utils.utcNow()+datetime.timedelta(minutes=15)
+            recovery_entity["valid_until"] = utils.utcNow() + datetime.timedelta(minutes=15)
             db.Put(recovery_entity)
             del recovery_key
-            return self.userModule.render.view(None,tpl=self.passwordRecoveryInstuctionsSendTemplate)  # Fall through to the second step as that key in the session is now set
+            return self.userModule.render.view(None, tpl=self.passwordRecoveryInstuctionsSendTemplate)
         else:
             skel = self.lostPasswordStep2Skel()
             recovery_key = kwargs.get("recovery_key")
@@ -271,7 +273,7 @@ class UserPassword:
 
             if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
                 raise errors.PreconditionFailed()
-            if not (recovery_entity:=db.Get(db.Key("viur-recovery",recovery_key))):
+            if not (recovery_entity := db.Get(db.Key("viur-recovery", recovery_key))):
                 return self.userModule.render.view(
                     skel=None,
                     tpl=self.passwordRecoveryFailedTemplate,
@@ -311,7 +313,7 @@ class UserPassword:
             return self.userModule.render.view(None, tpl=self.passwordRecoverySuccessTemplate)
 
     @tasks.CallDeferred
-    def sendUserPasswordRecoveryCode(self, user_name: str, recovery_key: str, user_agent: dict) -> None:
+    def sendUserPasswordRecoveryCode(self, user: UserSkel, recovery_key: str, user_agent: dict) -> None:
         """
             Sends the given recovery code to the user given in userName. This function runs deferred
             so there's no timing sidechannel that leaks if this user exists. Per default, we'll send the
@@ -320,8 +322,8 @@ class UserPassword:
             can be send to any given user in four hours.
         """
 
-        email.sendEMail(tpl=self.passwordRecoveryMail, skel={"recovery_key": recovery_key, "user_agent": user_agent},
-                        dests=[user_name])
+        email.sendEMail(tpl=self.passwordRecoveryMail, skel=user,
+                        dests=[user["name"]], recovery_key=recovery_key, user_agent=user_agent)
 
     @exposed
     def verify(self, skey, *args, **kwargs):
