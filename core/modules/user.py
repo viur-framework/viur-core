@@ -167,8 +167,14 @@ class UserPassword:
         name = EmailBone(descr="Username", required=True)
 
     class LostPasswordStep2Skel(skeleton.RelSkel):
-        recovery_key = StringBone(descr="Recover Key", visible=False)
-        password = PasswordBone(descr="New Password", required=True)
+        recovery_key = StringBone(
+            descr="Recovery Key",
+            visible=False,
+        )
+        password = PasswordBone(
+            descr="New Password",
+            required=True,
+        )
 
 
     @exposed
@@ -256,13 +262,12 @@ class UserPassword:
                 "name.idx =", skel["name"]).getSkel()
             self.passwordRecoveryRateLimit.decrementQuota()
             recovery_key = utils.generateRandomString(42)  # This is the key the user will have to Copy&Paste
-            user_agent = user_agents.parse(current.request.get().request.headers["User-Agent"])
+            user_agent = user_agents.parse(request.request.headers["User-Agent"])
             self.sendUserPasswordRecoveryCode(user_skel, recovery_key, user_agent)  # Send the code in the background
             recovery_entity = db.Entity(db.Key("viur-recovery", recovery_key))
             recovery_entity["user_name"] = skel["name"].lower()
             recovery_entity["valid_until"] = utils.utcNow() + datetime.timedelta(minutes=15)
             db.Put(recovery_entity)
-            del recovery_key
             return self.userModule.render.view(None, tpl=self.passwordRecoveryInstuctionsSendTemplate)
         else:
             skel = self.LostPasswordStep2Skel()
