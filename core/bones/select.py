@@ -17,8 +17,9 @@ class SelectBone(BaseBone):
     def __init__(
         self,
         *,
-        defaultValue: Union[None, Dict[str, Union[SelectBoneMultiple, SelectBoneValue]], SelectBoneMultiple] = None,
-        values: Union[Dict, List, Tuple, Callable] = (),
+        defaultValue: Union[None, Dict[str, Union[SelectBoneMultiple, SelectBoneValue]],
+        SelectBoneMultiple, enum.Enum] = None,
+        values: Union[Dict, List, Tuple, Callable, enum.EnumMeta] = (),
         **kwargs
     ):
         """
@@ -69,6 +70,12 @@ class SelectBone(BaseBone):
     def singleValueFromClient(self, value, skel, name, origData):
         if not str(value):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value selected")]
+        if isinstance(self._values, enum.EnumMeta):
+            try:
+                return self._values(value), None
+            except ValueError:
+                return self.getEmptyValue(), \
+                    [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value selected")]
         for key in self.values.keys():
             if str(key) == str(value):
                 return key, None

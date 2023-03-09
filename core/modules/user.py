@@ -216,7 +216,7 @@ class UserPassword:
 
         accountStatus: Optional[int] = None
         # Verify that this account isn't blocked
-        if res["status"] < 10:
+        if res["status"] < Status.ACTIVE.value:
             if isOkay:
                 # The username and password is valid, in this case we can inform that user about his account status
                 # (ie account locked or email verification pending)
@@ -312,7 +312,8 @@ class UserPassword:
                     tpl=self.passwordRecoveryFailedTemplate,
                     reason=self.passwordRecoveryUserNotFound)
 
-            if user_skel["status"] != 10:  # The account is locked or not yet validated. Abort the process.
+            if user_skel["status"] != Status.ACTIVE:
+                # The account is locked or not yet validated. Abort the process.
                 session["user.auth_userpassword.pwrecover"] = None
                 return self.userModule.render.view(
                     skel=None,
@@ -358,9 +359,9 @@ class UserPassword:
             data["userKey"].id_or_name):
             return self.userModule.render.view(None, tpl=self.verifyFailedTemplate)
         if self.registrationAdminVerificationRequired:
-            skel["status"] = 2
+            skel["status"] = Status.WAITING_FOR_ADMIN_VERIFICATION
         else:
-            skel["status"] = 10
+            skel["status"] = Status.ACTIVE
         skel.toDB()
         return self.userModule.render.view(skel, tpl=self.verifySuccessTemplate)
 
@@ -370,18 +371,18 @@ class UserPassword:
     def addSkel(self):
         """
             Prepare the add-Skel for rendering.
-            Currently only calls self.userModule.addSkel() and sets skel["status"].value depening on
+            Currently only calls self.userModule.addSkel() and sets skel["status"] depending on
             self.registrationEmailVerificationRequired and self.registrationAdminVerificationRequired
             :return: viur.core.skeleton.Skeleton
         """
         skel = self.userModule.addSkel()
 
         if self.registrationEmailVerificationRequired:
-            defaultStatusValue = 1
+            defaultStatusValue = Status.WAITING_FOR_EMAIL_VERIFICATION
         elif self.registrationAdminVerificationRequired:
-            defaultStatusValue = 2
+            defaultStatusValue = Status.WAITING_FOR_ADMIN_VERIFICATION
         else:  # No further verification required
-            defaultStatusValue = 10
+            defaultStatusValue = Status.ACTIVE
 
         skel.status.readOnly = True
         skel["status"] = defaultStatusValue
@@ -417,8 +418,8 @@ class UserPassword:
         if not securitykey.validate(skey, useSessionKey=True):
             raise errors.PreconditionFailed()
         skel.toDB()
-        if self.registrationEmailVerificationRequired and str(skel["status"]) == "1":
-            # The user will have to verify his email-address. Create an skey and send it to his address
+        if self.registrationEmailVerificationRequired and skel["status"] == Status.WAITING_FOR_EMAIL_VERIFICATION:
+            # The user will have to verify his email-address. Create a skey and send it to his address
             skey = securitykey.create(duration=60 * 60 * 24 * 7, userKey=utils.normalizeKey(skel["key"]),
                                       name=skel["name"])
             skel.skey = BaseBone(descr="Skey")
@@ -680,7 +681,7 @@ class User(List):
         user = current.user.get()
         if not (user and user["access"] and ("%s-add" % self.moduleName in user["access"] or "root" in user["access"])):
             skel.status.readOnly = True
-            skel["status"] = 0
+            skel["status"] = 0  # FIXME: What's 0?
             skel.status.visible = False
             skel.access.readOnly = True
             skel["access"] = []
@@ -909,7 +910,7 @@ def createNewUserIfNotExists():
             uname = f"""admin@{conf["viur.instance.project_id"]}.appspot.com"""
             pw = utils.generateRandomString(13)
             addSkel["name"] = uname
-            addSkel["status"] = 10  # Ensure its enabled right away
+            addSkel["status"] = Status.ACTIVE  # Ensure its enabled right away
             addSkel["access"] = ["root"]
             addSkel["password"] = pw
 
