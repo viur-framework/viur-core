@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 import string
+import warnings
 from functools import partial
 from itertools import chain
 from time import time
@@ -758,7 +759,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return True
 
     @classmethod
-    def toDB(cls, skelValues: SkeletonInstance, clearUpdateTag: bool = False) -> db.Key:
+    def toDB(cls, skelValues: SkeletonInstance, update_relations: bool = False, **kwargs) -> db.Key:
         """
             Store current Skeleton entity to data store.
 
@@ -774,8 +775,13 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             :returns: The datastore key of the entity.
         """
         assert skelValues.renderPreparation is None, "Cannot modify values while rendering"
+        if "clearUpdateTag" in kwargs:
+            msg = "clearUpdateTag was replaced by update_relations"
+            warnings.warn(msg, DeprecationWarning, stacklevel=3)
+            logging.warning(msg, stacklevel=3)
+            update_relations = not kwargs["clearUpdateTag"]
 
-        def txnUpdate(dbKey, mergeFrom, clearUpdateTag):
+        def txnUpdate(dbKey, mergeFrom):
             skel = mergeFrom.skeletonCls()
 
             blobList = set()
@@ -937,10 +943,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             # Store lastRequestedKeys so further updates can run more efficient
             dbObj["viur"]["viurLastRequestedSeoKeys"] = currentSeoKeys
 
-            if clearUpdateTag:
+            if update_relations:
                 # Mark this entity as Up-to-date.
                 dbObj["viur"]["delayedUpdateTag"] = 0
             else:
+                # Mark this entity as dirty, so the background-task will catch it up and update its references.
                 # Mark this entity as dirty, so the background-task will catch it up and update its references.
                 dbObj["viur"]["delayedUpdateTag"] = time()
             dbObj = skel.preProcessSerializedData(dbObj)
@@ -1006,10 +1013,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         key = skelValues["key"] or None
         isAdd = key is None
-        if not isinstance(clearUpdateTag, bool):
-            raise ValueError(
-                "Got an unsupported type %s for clearUpdateTag. toDB doesn't accept a key argument any more!" % str(
-                    type(clearUpdateTag)))
 
         # Allow bones to perform outstanding "magic" operations before saving to db
         for bkey, _bone in skelValues.items():
@@ -1017,9 +1020,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         # Run our SaveTxn
         if db.IsInTransaction():
-            key, dbObj, skel, changeList = txnUpdate(key, skelValues, clearUpdateTag)
+            key, dbObj, skel, changeList = txnUpdate(key, skelValues)
         else:
-            key, dbObj, skel, changeList = db.RunInTransaction(txnUpdate, key, skelValues, clearUpdateTag)
+            key, dbObj, skel, changeList = db.RunInTransaction(txnUpdate, key, skelValues, update_relations)
 
         # Perform post-save operations (postProcessSerializedData Hook, Searchindex, ..)
         skelValues["key"] = key
@@ -1029,7 +1032,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         skel.postSavedHandler(key, dbObj)
 
-        if not clearUpdateTag and not isAdd:
+        if not update_relations and not isAdd:
             if changeList and len(changeList) < 5:  # Only a few bones have changed, process these individually
                 for idx, changedBone in enumerate(changeList):
                     updateRelations(key, time() + 1, changedBone, _countdown=10 * idx)
@@ -1320,7 +1323,7 @@ def processRemovedRelations(removedKey, cursor=None):
                         skel[key] = [x for x in relVal if x["dest"]["key"] != removedKey]
                     else:
                         print("Type? %s" % type(relVal))
-            skel.toDB(clearUpdateTag=True)
+            skel.toDB(update_relations=True)
         else:
             logging.critical("Cascading Delete to %s/%s" % (skel.kindName, skel["key"]))
             skel.delete()
@@ -1365,7 +1368,7 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: Optional[s
             return
 
         skel.refresh()
-        skel.toDB(clearUpdateTag=True)
+        skel.toDB(update_relations=True)
 
     for srcRel in updateList:
         try:
@@ -1431,7 +1434,7 @@ class RebuildSearchIndex(QueryIter):
     @classmethod
     def handleEntry(cls, skel: SkeletonInstance, customData: Dict[str, str]):
         skel.refresh()
-        skel.toDB(clearUpdateTag=True)
+        skel.toDB(update_relations=True)
 
     @classmethod
     def handleFinish(cls, totalCount: int, customData: Dict[str, str]):
