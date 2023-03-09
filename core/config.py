@@ -203,8 +203,10 @@ conf = Conf({
     },
 
     "viur.script.admin_info": {
+        "name": "Script",
         "icon": "icon-hashtag",
-        "display": "hidden",
+        "previewurls": {"Web": "/scriptor/index.html#/home?key={{key}}"}
+        #"display": "hidden",
     },
 
     # List of URLs for which viur.forceSSL is ignored.
