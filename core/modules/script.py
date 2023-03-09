@@ -3,12 +3,14 @@ from viur.core.bones import *
 from viur.core.prototypes.tree import Tree, TreeSkel
 from viur.core import db, utils, conf, skeleton, tasks, i18n
 from viur.core.prototypes.tree import Tree
-import re, os
+import re
+import os
 
 
 # pre-compile patterns for vfuncs
 DIRECTORY_PATTERN = re.compile(r'^[a-zA-Z0-9äöüÄÖÜ_-]*$')
 FILE_PATTERN = re.compile(r'^[a-zA-Z0-9äöüÄÖÜ_-]+?.py$')
+
 
 def _get_modules():
     res = {}
@@ -23,9 +25,10 @@ def _get_modules():
 
     return res
 
+
 def _get_modules_or_handlers():
     modules = _get_modules()
-    
+
     ret = {}
     for name, mod in modules.items():
         handler = mod["handler"].split(".", 1)[0]
@@ -43,7 +46,6 @@ def _get_modules_or_handlers():
 
     return {k: v for k, v in sorted(ret.items(), key=lambda item: item[0])}
 
-    
 
 class BaseScriptAbstractSkel(TreeSkel):
 
@@ -86,6 +88,7 @@ class ScriptNodeSkel(BaseScriptAbstractSkel):
         vfunc=lambda value: not DIRECTORY_PATTERN.match(value)
     )
 
+
 class ButtonbarSkel(skeleton.RelSkel):
     module = SelectBone(
         descr="Modul",
@@ -94,14 +97,14 @@ class ButtonbarSkel(skeleton.RelSkel):
     capable = SelectBone(
         descr="Capable to handle",
         values={
-            "no_keys":"Running without selecting anything",
-            "one_key":"Script may use one database key in params",
-            "several_keys":"Script may use several database keys in params"
+            "no_keys": "Running without selecting anything",
+            "one_key": "Script may use one database key in params",
+            "several_keys": "Script may use several database keys in params"
         }
     )
     thismoduleaccess = SelectBone(
         descr="Required access rights of specific modules",
-        values=["view","add","edit","delete"],
+        values=["view", "add", "edit", "delete"],
         multiple=True,
     )
 
@@ -117,10 +120,10 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
     globalid = StringBone(
         descr="Global identifyer",
         vfunc=lambda value: not FILE_PATTERN.match(value),
-        #unique=True,
+        # unique=True,
         params={
-			"tooltip": "If the script got copied from an other scriptreository, you may want to set an unique identifyer so you may match it for updates."
-		}
+                        "tooltip": "If the script got copied from an other scriptreository, you may want to set an unique identifyer so you may match it for updates."
+                }
     )
 
     label = StringBone(
@@ -134,20 +137,20 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
         )
 
     icon = SelectBone(
-		descr="Icon",
-		values=[icon.removesuffix(".svg") for icon in sorted(os.listdir("static/svg"))],
-		params={
-			"tooltip": "Icon which is used by /vi to display in the Buttonbar."
-		}
-	)
-    
+                descr="Icon",
+                values=[icon.removesuffix(".svg") for icon in sorted(os.listdir("static/svg"))],
+                params={
+                        "tooltip": "Icon which is used by /vi to display in the Buttonbar."
+                }
+        )
+
     buttonbar = RecordBone(
-		descr="Visible in Buttonbar",
-		multiple=True,
-		using=ButtonbarSkel,
-		required=False,
+                descr="Visible in Buttonbar",
+                multiple=True,
+                using=ButtonbarSkel,
+                required=False,
         format="$(module)"
-	)    
+        )
 
     userdescr = TextBone(descr="Description for user")
     devdescr = TextBone(descr="Description for developers ")
@@ -157,12 +160,10 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
         values=lambda: {
 
             right: i18n.translate("server.modules.user.accessright.%s" % right, defaultText=right)
-                for right in sorted(conf["viur.accessRights"])
+            for right in sorted(conf["viur.accessRights"])
         },
         multiple=True,
     )
-
-  
 
     script = RawBone(
         descr="Code",
@@ -174,11 +175,11 @@ class Script(Tree):
     leafSkelCls = ScriptLeafSkel
     nodeSkelCls = ScriptNodeSkel
 
-    accessRights = ("add", "edit", "view", "delete","run")
+    accessRights = ("add", "edit", "view", "delete", "run")
 
     def adminInfo(self):
         return conf.get("viur.script.admin_info") or {}
-              
+
     def getAvailableRootNodes(self):
         if not utils.getCurrentUser():
             return []

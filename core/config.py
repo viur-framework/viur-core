@@ -206,7 +206,7 @@ conf = Conf({
         "name": "Script",
         "icon": "icon-hashtag",
         "previewurls": {"Web": "/scriptor/index.html#/home?key={{key}}"}
-        #"display": "hidden",
+        # "display": "hidden",
     },
 
     # List of URLs for which viur.forceSSL is ignored.
