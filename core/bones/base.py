@@ -477,9 +477,6 @@ class BaseBone(object):
 
             :param name: The property-name this bone has in its Skeleton (not the description!)
         """
-        logging.error("here")
-        logging.error(self.compute)
-        logging.error(name)
         if self.compute:  # handle this in the first place
             if self.compute.threshold.method == ThresholdMethods.OnStore:
                 logging.error("calcnew")
