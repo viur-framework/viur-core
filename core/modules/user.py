@@ -166,7 +166,6 @@ class UserPassword:
     class LostPasswordStep1Skel(skeleton.RelSkel):
         name = EmailBone(descr="Username", required=True)
 
-
     class lostPasswordStep2Skel(skeleton.RelSkel):
         recovery_key = StringBone(descr="Recover Key", visible=False)
         password = PasswordBone(descr="New Password", required=True)
