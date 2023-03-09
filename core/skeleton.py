@@ -1022,7 +1022,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         if db.IsInTransaction():
             key, dbObj, skel, changeList = txnUpdate(key, skelValues)
         else:
-            key, dbObj, skel, changeList = db.RunInTransaction(txnUpdate, key, skelValues, update_relations)
+            key, dbObj, skel, changeList = db.RunInTransaction(txnUpdate, key, skelValues)
 
         # Perform post-save operations (postProcessSerializedData Hook, Searchindex, ..)
         skelValues["key"] = key
@@ -1032,7 +1032,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         skel.postSavedHandler(key, dbObj)
 
-        if not update_relations and not isAdd:
+        if update_relations and not isAdd:
             if changeList and len(changeList) < 5:  # Only a few bones have changed, process these individually
                 for idx, changedBone in enumerate(changeList):
                     updateRelations(key, time() + 1, changedBone, _countdown=10 * idx)
