@@ -38,7 +38,6 @@ class CredentialBone(StringBone):
     def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
                               bone_name: str, client_data: dict
                               ) -> tuple[Any, list[ReadFromClientError] | None]:
-        err = self.isInvalid(value)
-        if not err:
+        if not (err := self.isInvalid(value)):
             return utils.escapeString(value, 4 * 1024), None
         return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
