@@ -57,6 +57,16 @@ class UserSkel(skeleton.Skeleton):
         unique=UniqueValue(UniqueLockMethod.SameValue, False, "UID already in use"),
     )
 
+    synced = BooleanBone(
+        descr="Sync user data with OAuth-based services",
+        defaultValue=True,
+        params={
+            "tooltip":
+                "If set, user data like firstname and lastname is automatically kept synchronous with the information "
+                "stored at the OAuth service provider (e.g. Google Login)."
+        }
+    )
+
     gaeadmin = BooleanBone(
         descr="Is GAE Admin",
         defaultValue=False,
@@ -479,29 +489,42 @@ class GoogleAccount:
 
         # fixme: use self.userModule.baseSkel() for this later
         addSkel = skeleton.skeletonByKind(self.userModule.addSkel().kindName)  # Ensure that we have the full skeleton
-        userSkel = addSkel().all().filter("uid =", uid).getSkel()
-        changed = False
-        if not userSkel:
+
+        update = False
+        if not (userSkel := addSkel().all().filter("uid =", uid).getSkel()):
             # We'll try again - checking if there's already an user with that email
-            userSkel = addSkel().all().filter("name.idx =", email.lower()).getSkel()
-            if not userSkel:  # Still no luck - it's a completely new user
+            if not (userSkel := addSkel().all().filter("name.idx =", email.lower()).getSkel()):
+                # Still no luck - it's a completely new user
                 if not self.registrationEnabled:
                     if userInfo.get("hd") and userInfo["hd"] in conf["viur.user.google.gsuiteDomains"]:
                         print("User is from domain - adding account")
                     else:
                         logging.warning("Denying registration of %s", email)
                         raise errors.Forbidden("Registration for new users is disabled")
+
                 userSkel = addSkel()  # We'll add a new user
+
             userSkel["uid"] = uid
             userSkel["name"] = email
-            userSkel["firstname"] = userInfo.get("given_name")
-            userSkel["lastname"] = userInfo.get("family_name")
-            changed = True
-        elif userSkel["name"] != email:
-            # The email has been modified in the skel or google account
-            userSkel["name"] = email
-            changed = True
-        if changed:
+            update = True
+
+        # Take user information from Google, if wanted!
+        if userSkel["synced"]:
+            logging.debug(f"""{userSkel["synced"]=}""")
+
+            for target, source in {
+                "name": email,
+                "firstname": userInfo.get("given_name"),
+                "lastname": userInfo.get("family_name"),
+            }.items():
+                logging.debug(f"""{target=} {source=}""")
+
+                if userSkel[target] != source:
+                    userSkel[target] = source
+                    update = True
+
+        logging.debug(f"{update=}")
+        if update:
             # TODO: Get access from IAM or similar
             # if users.is_current_user_admin():
             #    if not userSkel["access"]:
@@ -512,6 +535,7 @@ class GoogleAccount:
             # else:
             #    userSkel["gaeadmin"] = False
             assert userSkel.toDB()
+
         return self.userModule.continueAuthenticationFlow(self, userSkel["key"])
 
 
