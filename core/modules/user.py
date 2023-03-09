@@ -480,6 +480,7 @@ class GoogleAccount:
         # fixme: use self.userModule.baseSkel() for this later
         addSkel = skeleton.skeletonByKind(self.userModule.addSkel().kindName)  # Ensure that we have the full skeleton
         userSkel = addSkel().all().filter("uid =", uid).getSkel()
+        changed = False
         if not userSkel:
             # We'll try again - checking if there's already an user with that email
             userSkel = addSkel().all().filter("name.idx =", email.lower()).getSkel()
@@ -493,10 +494,15 @@ class GoogleAccount:
                 userSkel = addSkel()  # We'll add a new user
             userSkel["uid"] = uid
             userSkel["name"] = email
-            isAdd = True
-        else:
-            isAdd = False
-        if isAdd:
+            userSkel["firstname"] = userInfo.get("given_name")
+            userSkel["lastname"] = userInfo.get("family_name")
+            changed = True
+        elif userSkel["name"] != email:
+            # The email has been modified in the skel or google account
+            userSkel["name"] = email
+            changed = True
+        if changed:
+            # TODO: Get access from IAM or similar
             # if users.is_current_user_admin():
             #    if not userSkel["access"]:
             #        userSkel["access"] = []
