@@ -343,20 +343,34 @@ class BrowseHandler():  # webapp.RequestHandler
                     logging.exception(newE)
                     res = None
             if not res:
-                with (conf["viur.instance.core_base_path"]
-                      .joinpath(conf["viur.errorTemplate"])
-                      .open() as tpl_file):
-                    tpl = Template(tpl_file.read())
                 descr = "The server encountered an unexpected error and is unable to process your request."
-                if conf["viur.instance.is_dev_server"]:  # Were running on development Server
-                    strIO = StringIO()
-                    traceback.print_exc(file=strIO)
-                    descr = strIO.getvalue()
-                    descr = descr.replace("<", "&lt;").replace(">", "&gt;").replace(" ", "&nbsp;").replace("\n",
-                                                                                                           "<br />")
-                res = tpl.safe_substitute(
-                    {"error_code": "500", "error_name": "Internal Server Error", "error_descr": descr})
-                extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
+                if (len(self.pathlist) > 0 and any(x in self.pathlist[0] for x in ["vi", "json"])) or \
+                    current.request.get().response.headers["Content-Type"] == "application/json":
+                    current.request.get().response.headers["Content-Type"] = "application/json"
+                    res = {
+                        "status": 500,
+                        "reason": "Internal Server Error",
+                        "descr": descr
+                    }
+
+                    if conf["viur.instance.is_dev_server"]:
+                        res["traceback"] = traceback.format_exc()
+
+                    res = json.dumps(res)
+                else:
+                    with (conf["viur.instance.core_base_path"]
+                          .joinpath(conf["viur.errorTemplate"])
+                          .open() as tpl_file):
+                        tpl = Template(tpl_file.read())
+                    if conf["viur.instance.is_dev_server"]:  # Were running on development Server
+                        strIO = StringIO()
+                        traceback.print_exc(file=strIO)
+                        descr = strIO.getvalue()
+                        descr = descr.replace("<", "&lt;").replace(">", "&gt;").replace(" ", "&nbsp;").replace("\n",
+                                                                                                               "<br />")
+                    res = tpl.safe_substitute(
+                        {"error_code": "500", "error_name": "Internal Server Error", "error_descr": descr})
+                    extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
             self.response.write(res.encode("UTF-8"))
 
         finally:
