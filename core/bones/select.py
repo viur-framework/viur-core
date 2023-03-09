@@ -1,9 +1,9 @@
-from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core.i18n import translate
-
 from collections import OrderedDict
 from numbers import Number
-from typing import Callable, Dict, List, Tuple, Union
+from typing import Callable, Dict, List, Tuple, Union, Any
+
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.i18n import translate
 
 SelectBoneValue = Union[str, Number]
 SelectBoneMultiple = List[SelectBoneValue]
@@ -50,7 +50,9 @@ class SelectBone(BaseBone):
 
         return super().__getattribute__(item)
 
-    def singleValueFromClient(self, value, skel, name, origData):
+    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
+                              bone_name: str, client_data: dict
+                              ) -> tuple[Any, list[ReadFromClientError] | None]:
         if not str(value):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value selected")]
         for key in self.values.keys():

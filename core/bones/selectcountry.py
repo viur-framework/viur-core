@@ -1,6 +1,6 @@
 from collections import OrderedDict
-from viur.core.bones.select import SelectBone
 
+from viur.core.bones.select import SelectBone
 
 ISO3CODES = {
     "abw": "Aruba",

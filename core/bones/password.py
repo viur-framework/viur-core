@@ -1,15 +1,16 @@
+import codecs
+import hmac
+import re
+from hashlib import sha256
+from itertools import starmap
+from operator import xor
+from struct import Struct
+from typing import List, Tuple, Union
+
+from viur.core import utils, conf
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.bones.string import StringBone
 from viur.core.i18n import translate
-from viur.core import utils, conf
-from hashlib import sha256
-import hmac
-import codecs
-import re
-from struct import Struct
-from operator import xor
-from itertools import starmap
-from typing import List, Tuple, Union
 
 
 def pbkdf2(password, salt, iterations=1001, keylen=42):

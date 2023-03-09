@@ -2,7 +2,8 @@ import json
 import urllib.parse
 import urllib.request
 from typing import List, Union
-from viur.core import utils, conf, current
+
+from viur.core import conf, current
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 

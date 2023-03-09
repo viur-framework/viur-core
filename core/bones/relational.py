@@ -443,8 +443,10 @@ class RelationalBone(BaseBone):
     def parseSubfieldsFromClient(self):
         return self.using is not None
 
-    def singleValueFromClient(self, value, skel, name, origData):
-        oldValues = skel[name]
+    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
+                              bone_name: str, client_data: dict
+                              ) -> tuple[Any, list[ReadFromClientError] | None]:
+        oldValues = skel[bone_name]
 
         def restoreSkels(key, usingData, index=None):
             refSkel, usingSkel = self._getSkels()
@@ -458,7 +460,7 @@ class RelationalBone(BaseBone):
                 assert entry
             except:  # Invalid key or something like that
                 logging.info("Invalid reference key >%s< detected on bone '%s'",
-                             key, name)
+                             key, bone_name)
                 if isinstance(oldValues, dict):
                     if oldValues["dest"]["key"] == dbKey:
                         entry = oldValues["dest"]
@@ -502,7 +504,7 @@ class RelationalBone(BaseBone):
             destKey = value
             usingData = None
         # if not destKey:  # Allow setting this bone back to empty
-        #    return None, [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value submitted")]
+        #    return None, [ReadFromClientError(ReadFromClientErrorSeverity.Empty, bone_name, "No value submitted")]
         assert isinstance(destKey, str)
         refSkel, usingSkel, errors = restoreSkels(destKey, usingData)
         if refSkel:

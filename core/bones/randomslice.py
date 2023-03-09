@@ -1,9 +1,10 @@
-from viur.core.bones.base import BaseBone
-from viur.core import db
-from typing import Dict, List, Optional
-from random import random, sample, shuffle
 from itertools import chain
 from math import ceil
+from random import random, sample, shuffle
+from typing import Dict, List, Optional
+
+from viur.core import db
+from viur.core.bones.base import BaseBone
 
 
 class RandomSliceBone(BaseBone):

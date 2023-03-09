@@ -1,6 +1,6 @@
+from typing import Any
+
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from typing import List, Union
-import logging
 
 
 class ColorBone(BaseBone):
@@ -11,13 +11,15 @@ class ColorBone(BaseBone):
         assert mode in {"rgb", "rgba"}
         self.mode = mode
 
-    def singleValueFromClient(self, value, skel: 'viur.core.skeleton.SkeletonInstance', name: str, origData):
+    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
+                              bone_name: str, client_data: dict
+                              ) -> tuple[Any, list[ReadFromClientError] | None]:
         value = value.lower()
         if value.count("#") > 1:
             return self.getEmptyValue(), [
                 ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
         for char in value:
-            if not char in "#0123456789abcdef":
+            if char not in "#0123456789abcdef":
                 return self.getEmptyValue(), [
                     ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
         if self.mode == "rgb":

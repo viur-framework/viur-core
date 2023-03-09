@@ -1,9 +1,12 @@
-from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import db, request, conf, current
-from viur.core.utils import utcNow
 from datetime import datetime, timedelta
-from typing import Dict, Optional
-import pytz, tzlocal
+from typing import Dict, Optional, Any
+
+import pytz
+import tzlocal
+
+from viur.core import db, conf, current
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.utils import utcNow
 
 
 class DateBone(BaseBone):
@@ -56,7 +59,9 @@ class DateBone(BaseBone):
         self.time = time
         self.localize = localize
 
-    def singleValueFromClient(self, value: str, skel: 'viur.core.skeleton.SkeletonInstance', name: str, origData):
+    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
+                              bone_name: str, client_data: dict
+                              ) -> tuple[Any, list[ReadFromClientError] | None]:
         """
             Reads a value from the client.
             If this value is valid for this bone,
@@ -89,7 +94,7 @@ class DateBone(BaseBone):
 
             The resulting year must be >= 1900.
 
-            :param name: Our name in the skeleton
+            :param bone_name: Our name in the skeleton
             :param value: *User-supplied* request-data, has to be of valid format
             :returns: tuple[datetime or None, [Errors] or None]
         """
@@ -236,7 +241,6 @@ class DateBone(BaseBone):
         else:
             # We got garbage from the datastore
             return None
-
 
     def buildDBFilter(self,
                       name: str,

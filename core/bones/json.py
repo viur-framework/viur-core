@@ -1,6 +1,7 @@
 import ast
 import json
-from typing import Union
+from typing import Union, Any
+
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.bones.raw import RawBone
 
@@ -36,7 +37,9 @@ class JsonBone(RawBone):
 
         return False
 
-    def singleValueFromClient(self, value: Union[str, list, dict], *args, **kwargs):
+    def singleValueFromClient(self, value: Union[str, list, dict], skel: 'SkeletonInstance',
+                              bone_name: str, client_data: dict
+                              ) -> tuple[Any, list[ReadFromClientError] | None]:
         if value:
             if not isinstance(value, (list, dict)):
                 value = str(value)
@@ -56,4 +59,4 @@ class JsonBone(RawBone):
                             ReadFromClientError(ReadFromClientErrorSeverity.Invalid, f"Invalid JSON supplied: {e!s}")
                         ]
 
-        return super().singleValueFromClient(value, *args, **kwargs)
+        return super().singleValueFromClient(value, skel, bone_name, client_data)

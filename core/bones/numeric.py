@@ -80,7 +80,9 @@ class NumericBone(BaseBone):
             return True
         return rawValue == self.getEmptyValue()
 
-    def singleValueFromClient(self, value, skel, name, origData):
+    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
+                              bone_name: str, client_data: dict
+                              ) -> tuple[Any, list[ReadFromClientError] | None]:
         try:
             rawValue = str(value).replace(",", ".", 1)
         except:

@@ -1,6 +1,7 @@
-from viur.core.bones.string import StringBone
-from encodings import idna
 import string
+from encodings import idna
+
+from viur.core.bones.string import StringBone
 
 
 class EmailBone(StringBone):

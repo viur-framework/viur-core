@@ -1,9 +1,8 @@
 import logging
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Any
 
 from viur.core import db, utils, current
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-
 
 
 class StringBone(BaseBone):
@@ -42,7 +41,9 @@ class StringBone(BaseBone):
 
         return not bool(str(value).strip())
 
-    def singleValueFromClient(self, value, skel, name, origData):
+    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
+                              bone_name: str, client_data: dict
+                              ) -> tuple[Any, list[ReadFromClientError] | None]:
         value = utils.escapeString(value, self.maxLength)
         err = self.isInvalid(value)
         if not err:

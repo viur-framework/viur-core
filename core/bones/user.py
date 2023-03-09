@@ -1,5 +1,5 @@
-from viur.core.bones.relational import RelationalBone
 from viur.core import current
+from viur.core.bones.relational import RelationalBone
 
 
 class UserBone(RelationalBone):

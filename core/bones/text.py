@@ -3,7 +3,7 @@ from base64 import urlsafe_b64decode
 from datetime import datetime
 from html import entities as htmlentitydefs
 from html.parser import HTMLParser
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union, Any
 
 from viur.core import db, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
@@ -283,7 +283,9 @@ class TextBone(BaseBone):
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
         return value
 
-    def singleValueFromClient(self, value, skel, name, origData):
+    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
+                              bone_name: str, client_data: dict
+                              ) -> tuple[Any, list[ReadFromClientError] | None]:
         err = self.isInvalid(value)  # Returns None on success, error-str otherwise
         if not err:
             return HtmlSerializer(self.validHtml, self.srcSet).sanitize(value), None

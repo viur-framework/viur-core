@@ -1,6 +1,7 @@
-from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import db, conf
 from typing import Dict, Optional, Any
+
+from viur.core import db, conf
+from viur.core.bones.base import BaseBone, ReadFromClientError
 
 
 class BooleanBone(BaseBone):
@@ -17,7 +18,9 @@ class BooleanBone(BaseBone):
 
         super().__init__(defaultValue=defaultValue, **kwargs)
 
-    def singleValueFromClient(self, value, skel: 'viur.core.skeleton.SkeletonInstance', name: str, origData):
+    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
+                              bone_name: str, client_data: dict
+                              ) -> tuple[Any, list[ReadFromClientError] | None]:
         return str(value).strip().lower() in conf["viur.bone.boolean.str2true"], None
 
     def getEmptyValue(self):

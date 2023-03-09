@@ -1,10 +1,11 @@
-from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import db
-import logging, math
-from math import pow, floor, ceil
+import logging
+import math
 from copy import deepcopy
 from math import floor
 from typing import Any, Dict, List, Optional, Tuple, Union
+
+from viur.core import db
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 
 def haversine(lat1, lng1, lat2, lng2):
@@ -45,7 +46,8 @@ class SpatialBone(BaseBone):
 
     type = "spatial"
 
-    def __init__(self, *, boundsLat: Tuple[float, float], boundsLng: Tuple[float, float], gridDimensions: Tuple[int, int], **kwargs):
+    def __init__(self, *, boundsLat: Tuple[float, float], boundsLng: Tuple[float, float],
+                 gridDimensions: Tuple[int, int], **kwargs):
         """
             Initializes a new SpatialBone.
 
@@ -150,7 +152,9 @@ class SpatialBone(BaseBone):
         """
         return 0.0, 0.0
 
-    def singleValueFromClient(self, value: Dict, skel: str, name: str, origData: Dict):
+    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
+                              bone_name: str, client_data: dict
+                              ) -> tuple[Any, list[ReadFromClientError] | None]:
         """
             Reads a value from the client.
             If this value is valid for this bone,
@@ -159,7 +163,7 @@ class SpatialBone(BaseBone):
             left unchanged and an error-message
             is returned.
 
-            :param name: Our name in the skeleton
+            :param bone_name: Our name in the skeleton
             :param value: *User-supplied* request-data
         """
         rawLat = value.get("lat", None)
@@ -182,7 +186,6 @@ class SpatialBone(BaseBone):
         if err:
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
         return (rawLat, rawLng), None
-
 
     def buildDBFilter(
         self,
@@ -252,7 +255,7 @@ class SpatialBone(BaseBone):
                                                                                                  **kwargs)
             dbFilter._calculateInternalMultiQueryLimit = self.calculateInternalMultiQueryLimit
 
-    # return super().buildDBFilter(name, skel, dbFilter, rawFilter)
+    # return super().buildDBFilter(bone_name, skel, dbFilter, rawFilter)
 
     def calculateInternalMultiQueryLimit(self, dbQuery: db.Query, targetAmount: int):
         """

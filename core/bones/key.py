@@ -1,7 +1,9 @@
-from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+import copy
+import logging
+from typing import Dict, Optional, Union, List, Any
+
 from viur.core import db, utils
-from typing import Dict, Optional, Union, List
-import logging, copy
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 
 class KeyBone(BaseBone):
@@ -21,7 +23,9 @@ class KeyBone(BaseBone):
         self.allowed_kinds = allowed_kinds
         self.check = check
 
-    def singleValueFromClient(self, value, skel, name, origData):
+    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
+                              bone_name: str, client_data: dict
+                              ) -> tuple[Any, list[ReadFromClientError] | None]:
         # check for correct key
         if isinstance(value, str):
             value = value.strip()
@@ -60,7 +64,7 @@ class KeyBone(BaseBone):
 
     def unserialize(self, skel: 'viur.core.skeleton.SkeletonValues', name: str) -> bool:
         """
-            Inverse of serialize. Evaluates whats
+            Inverse of serialize. Evaluates what's
             read from the datastore and populates
             this bone accordingly.
             :param name: The property-name this bone has in its Skeleton (not the description!)
@@ -116,14 +120,13 @@ class KeyBone(BaseBone):
             return True
         return False
 
-
     def buildDBFilter(
         self,
-          name: str,
-          skel: 'viur.core.skeleton.SkeletonInstance',
-          dbFilter: db.Query,
-          rawFilter: Dict,
-          prefix: Optional[str] = None
+        name: str,
+        skel: 'viur.core.skeleton.SkeletonInstance',
+        dbFilter: db.Query,
+        rawFilter: Dict,
+        prefix: Optional[str] = None
     ) -> db.Query:
         """
             Parses the searchfilter a client specified in his Request into

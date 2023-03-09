@@ -319,8 +319,22 @@ class BaseBone(object):
         """
         return False
 
-    def singleValueFromClient(self, value, skel, name, origData):
-        # The BaseBone will not read any data in fromClient. Use rawValueBone if needed.
+    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
+                              bone_name: str, client_data: dict
+                              ) -> tuple[Any, list[ReadFromClientError] | None]:
+        """Load a single value from a client
+
+        :param value: The single value which should be loaded.
+        :param skel: The SkeletonInstance where the value should be loaded into.
+        :param bone_name: The bone name of this bone in the SkeletonInstance.
+        :param client_data: The data we got from the client,
+            a dictionary with usually bone names as key
+        :return: A tuple. If the value is valid, the first element is
+            the parsed value and the second is None.
+            If the value is invalid or not parseable, the first element is a empty value
+            and the second a list of *ReadFromClientError*.
+        """
+        # The BaseBone will not read any client_data in fromClient. Use rawValueBone if needed.
         return self.getEmptyValue(), [
             ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Will not read a BaseBone fromClient!")]
 

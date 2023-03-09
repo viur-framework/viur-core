@@ -1,4 +1,4 @@
-from typing import List, Set
+from typing import List, Set, Any
 
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
@@ -60,7 +60,9 @@ class RecordBone(BaseBone):
         """
         return True
 
-    def singleValueFromClient(self, value, skel, name, origData):
+    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
+                              bone_name: str, client_data: dict
+                              ) -> tuple[Any, list[ReadFromClientError] | None]:
         usingSkel = self.using()
         if not usingSkel.fromClient(value, not (self.required or self.multiple)):
             usingSkel.errors.append(

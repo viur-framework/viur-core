@@ -1,13 +1,15 @@
+from typing import Any
+
+from viur.core import utils
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.bones.string import StringBone
-from viur.core import utils
 
 
 class CredentialBone(StringBone):
     """
         A bone for storing credentials.
         This is always empty if read from the database.
-        If its saved, its ignored if its values is still empty.
+        If it's saved, its ignored if its values is still empty.
         If its value is not empty, it will update the value in the database
     """
     type = "str.credential"
@@ -33,7 +35,9 @@ class CredentialBone(StringBone):
         """
         return {}
 
-    def singleValueFromClient(self, value, skel, name, origData):
+    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
+                              bone_name: str, client_data: dict
+                              ) -> tuple[Any, list[ReadFromClientError] | None]:
         err = self.isInvalid(value)
         if not err:
             return utils.escapeString(value, 4 * 1024), None
