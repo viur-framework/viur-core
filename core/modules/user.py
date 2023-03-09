@@ -166,7 +166,7 @@ class UserPassword:
     class LostPasswordStep1Skel(skeleton.RelSkel):
         name = EmailBone(descr="Username", required=True)
 
-    class lostPasswordStep2Skel(skeleton.RelSkel):
+    class LostPasswordStep2Skel(skeleton.RelSkel):
         recovery_key = StringBone(descr="Recover Key", visible=False)
         password = PasswordBone(descr="New Password", required=True)
 
@@ -265,7 +265,7 @@ class UserPassword:
             del recovery_key
             return self.userModule.render.view(None, tpl=self.passwordRecoveryInstuctionsSendTemplate)
         else:
-            skel = self.lostPasswordStep2Skel()
+            skel = self.LostPasswordStep2Skel()
             recovery_key = kwargs.get("recovery_key")
             if not skel.fromClient(kwargs) or not request.isPostRequest:
                 return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep2Template,
