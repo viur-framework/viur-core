@@ -12,7 +12,7 @@ class JsonBone(RawBone):
     :param schema If provided we can control and verify which data to accept.
     Example:
         >>> schema = {
-        >>>         "type" : "object",
+        >>>     "type" : "object",
         >>>     "properties" : {
         >>>         "price" : {"type" : "number"},
         >>>         "name" : {"type" : "string"},
