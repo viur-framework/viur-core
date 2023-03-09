@@ -45,7 +45,7 @@ class StringBone(BaseBone):
                               bone_name: str, client_data: dict
                               ) -> tuple[Any, list[ReadFromClientError] | None]:
         value = utils.escapeString(value, self.maxLength)
-        
+
         if not (err := self.isInvalid(value)):
             return utils.escapeString(value, self.maxLength), None
         return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
