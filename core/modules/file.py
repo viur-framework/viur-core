@@ -253,7 +253,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
     return reslist
 
 
-class fileBaseSkel(TreeSkel):
+class FileBaseSkel(TreeSkel):
     """
         Default file leaf skeleton.
     """
@@ -341,7 +341,7 @@ class fileBaseSkel(TreeSkel):
                 skelValues["pendingparententry"] = False
 
 
-class fileNodeSkel(TreeSkel):
+class FileNodeSkel(TreeSkel):
     """
         Default file node skeleton.
     """
@@ -380,8 +380,8 @@ def decodeFileName(name):
 
 
 class File(Tree):
-    leafSkelCls = fileBaseSkel
-    nodeSkelCls = fileNodeSkel
+    leafSkelCls = FileBaseSkel
+    nodeSkelCls = FileNodeSkel
 
     maxuploadsize = None
     uploadHandler = []

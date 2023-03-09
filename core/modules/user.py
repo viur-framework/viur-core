@@ -159,12 +159,13 @@ class UserPassword:
     def getAuthMethodName(*args, **kwargs):
         return "X-VIUR-AUTH-User-Password"
 
-    class loginSkel(skeleton.RelSkel):
+    class LoginSkel(skeleton.RelSkel):
         name = EmailBone(descr="E-Mail", required=True, caseSensitive=False, indexed=True)
         password = PasswordBone(descr="Password", indexed=True, params={"justinput": True}, required=True)
 
-    class lostPasswordStep1Skel(skeleton.RelSkel):
+    class LostPasswordStep1Skel(skeleton.RelSkel):
         name = EmailBone(descr="Username", required=True)
+
 
     class lostPasswordStep2Skel(skeleton.RelSkel):
         recovery_key = StringBone(descr="Recover Key", visible=False)
@@ -178,7 +179,7 @@ class UserPassword:
             return self.userModule.render.loginSucceeded()
 
         if not name or not password or not securitykey.validate(skey, useSessionKey=True):
-            return self.userModule.render.login(self.loginSkel())
+            return self.userModule.render.login(self.LoginSkel())
 
         self.loginRateLimit.assertQuotaIsAvailable()
 
@@ -223,7 +224,7 @@ class UserPassword:
 
         if not isOkay:
             self.loginRateLimit.decrementQuota()  # Only failed login attempts will count to the quota
-            skel = self.loginSkel()
+            skel = self.LoginSkel()
             return self.userModule.render.login(skel, loginFailed=True, accountStatus=accountStatus)
         else:
             return self.userModule.continueAuthenticationFlow(self, res.key)
@@ -247,7 +248,7 @@ class UserPassword:
         request = current.request.get()
         if "recovery_key" not in kwargs:
             # This is the first step, where we ask for the username of the account we'll going to reset the password on
-            skel = self.lostPasswordStep1Skel()
+            skel = self.LostPasswordStep1Skel()
             if not request.isPostRequest or not skel.fromClient(kwargs):
                 return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
             if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
@@ -513,7 +514,7 @@ class TimeBasedOTP:
 
         return None
 
-    class otpSkel(skeleton.RelSkel):
+    class OtpSkel(skeleton.RelSkel):
         otptoken = StringBone(descr="Token", required=True, caseSensitive=False, indexed=True)
 
     def generateOtps(self, secret, timeDrift):
@@ -553,7 +554,7 @@ class TimeBasedOTP:
         if not token:
             raise errors.Forbidden()
         if otptoken is None:
-            self.userModule.render.edit(self.otpSkel())
+            self.userModule.render.edit(self.OtpSkel())
         if not securitykey.validate(skey, useSessionKey=True):
             raise errors.PreconditionFailed()
         if token["failures"] > 3:
@@ -565,7 +566,7 @@ class TimeBasedOTP:
             otptoken = int(otptoken)
         except:
             # We got a non-numeric token - this can't be correct
-            self.userModule.render.edit(self.otpSkel(), tpl=self.otpTemplate)
+            self.userModule.render.edit(self.OtpSkel(), tpl=self.otpTemplate)
 
         if otptoken in validTokens:
             userKey = session["_otp_user"]["uid"]
@@ -585,7 +586,7 @@ class TimeBasedOTP:
             token["failures"] += 1
             session["_otp_user"] = token
             session.markChanged()
-            return self.userModule.render.edit(self.otpSkel(), loginFailed=True, tpl=self.otpTemplate)
+            return self.userModule.render.edit(self.OtpSkel(), loginFailed=True, tpl=self.otpTemplate)
 
     def updateTimeDrift(self, userKey, idx):
         """
