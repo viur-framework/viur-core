@@ -103,7 +103,7 @@ class BaseBone(object):
         unique: Union[None, UniqueValue] = None,
         vfunc: callable = None,  # fixme: Rename this, see below.
         visible: bool = True,
-        compute: callable = None,
+        compute: Compute = None,
     ):
         """
             Initializes a new Bone.
@@ -196,7 +196,7 @@ class BaseBone(object):
             if not isinstance(compute, Compute):
                 raise TypeError("compute must be an instanceof of Compute")
             if not readOnly:
-                logging.error("'compute' is the only valid on readonly bones")
+                logging.info("'compute' is the only valid on readonly bones")
                 self.readOnly = False
             if compute.threshold.method == ThresholdMethods.Lifetime:
                 if compute.threshold.lifetime is None:
@@ -479,7 +479,6 @@ class BaseBone(object):
         """
         if self.compute:  # handle this in the first place
             if self.compute.threshold.method == ThresholdMethods.OnStore:
-                logging.error("calcnew")
                 skel.dbEntity[name] = self._compute(skel, name)
                 skel.dbEntity.exclude_from_indexes.add(name)
                 return True
@@ -1019,5 +1018,5 @@ class BaseBone(object):
             ret["compute"] = {"method": self.compute.threshold.method.name}
             if self.compute.threshold.lifetime:
                 ret["compute"]["lifetime"] = str(self.compute.threshold.lifetime)
-                ret["compute"]["last_updated"] = self.compute.threshold.last_updated.strftime("%Y-%m-%dT%H-%M-%S")
+                ret["compute"]["last_updated"] = self.compute.threshold.last_updated.isoformat()
         return ret
