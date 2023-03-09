@@ -123,7 +123,7 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
         # unique=True,
         params={
             "tooltip": "If the script got copied from an other scriptreository, you may want to set an "
-                       "unique identifyer so you may match it for updates."
+            "unique identifyer so you may match it for updates."
                 }
     )
 
@@ -138,19 +138,19 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
         )
 
     icon = SelectBone(
-                descr="Icon",
-                values=[icon.removesuffix(".svg") for icon in sorted(os.listdir("static/svg"))],
-                params={
-                        "tooltip": "Icon which is used by /vi to display in the Buttonbar."
-                }
+        descr="Icon",
+        values=[icon.removesuffix(".svg") for icon in sorted(os.listdir("static/svg"))],
+        params={
+                "tooltip": "Icon which is used by /vi to display in the Buttonbar."
+            }
         )
 
     buttonbar = RecordBone(
-                descr="Visible in Buttonbar",
-                multiple=True,
-                using=ButtonbarSkel,
-                required=False,
-        format="$(module)"
+        descr="Visible in Buttonbar",
+        multiple=True,
+        using=ButtonbarSkel,
+        required=False,
+        format="$(module)",
         )
 
     userdescr = TextBone(descr="Description for user")
