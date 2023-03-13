@@ -310,7 +310,7 @@ class BrowseHandler():  # webapp.RequestHandler
             if not res:
                 descr = "The server encountered an unexpected error and is unable to process your request."
                 if (len(self.pathlist) > 0 and any(x in self.pathlist[0] for x in ["vi", "json"])) or \
-                    current.request.get().response.headers["Content-Type"] == "application/json":
+                        current.request.get().response.headers["Content-Type"] == "application/json":
                     current.request.get().response.headers["Content-Type"] = "application/json"
                     if isinstance(e, errors.HTTPException):
                         res = {
