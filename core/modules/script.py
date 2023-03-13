@@ -122,8 +122,9 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
         vfunc=lambda value: not FILE_PATTERN.match(value),
         # unique=True,
         params={
-            "tooltip": "If the script got copied from an other scriptreository, you may want to set an "
-            "unique identifyer so you may match it for updates."
+            "tooltip":
+                "If the script was copied from an other script repository, you may want to set an "
+                "unique identifier so you may match it for updates."
                 }
     )
 
