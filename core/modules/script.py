@@ -129,38 +129,41 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
     )
 
     label = StringBone(
-        descr="Button label",
+        descr="Label",
         defaultValue="Run script",
-        )
+    )
 
     tooltip = TextBone(
-        descr="Tooltip for button",
+        descr="Tooltip",
         validHtml=None,
-        )
+    )
 
     icon = SelectBone(
         descr="Icon",
         values=[icon.removesuffix(".svg") for icon in sorted(os.listdir("static/svg"))],
         params={
-                "tooltip": "Icon which is used by /vi to display in the Buttonbar."
-            }
-        )
+            "tooltip": "Icon which is used by /vi to display in the Buttonbar."
+        }
+    )
 
-    buttonbar = RecordBone(
-        descr="Visible in Buttonbar",
+    actions = RecordBone(
+        descr="Provides actions",
         multiple=True,
-        using=ButtonbarSkel,
+        using=ScriptLeafActionSkel,
         required=False,
         format="$(module)",
-        )
+    )
 
-    userdescr = TextBone(descr="Description for user")
-    devdescr = TextBone(descr="Description for developers ")
+    userdescr = TextBone(
+        descr="Description for user"
+    )
+    devdescr = TextBone(
+        descr="Description for developers "
+    )
 
     globalaccess = SelectBone(
         descr="Required access rights of specific modules",
         values=lambda: {
-
             right: i18n.translate("server.modules.user.accessright.%s" % right, defaultText=right)
             for right in sorted(conf["viur.accessRights"])
         },
