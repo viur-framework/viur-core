@@ -89,7 +89,7 @@ class ScriptNodeSkel(BaseScriptAbstractSkel):
     )
 
 
-class ButtonbarSkel(skeleton.RelSkel):
+class ScriptLeafActionSkel(skeleton.RelSkel):
     module = SelectBone(
         descr="Modul",
         values=_get_modules_or_handlers
