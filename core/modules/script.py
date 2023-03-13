@@ -44,7 +44,7 @@ def _get_modules_or_handlers():
             for t in ("node", "leaf"):
                 ret[f"{name}.{t}"] = f"""{mod["name"]} - {t}"""
 
-    return {k: v for k, v in sorted(ret.items(), key=lambda item: item[0])}
+    return dict(sorted(ret.items(), key=lambda item: item[0]))
 
 
 class BaseScriptAbstractSkel(TreeSkel):
