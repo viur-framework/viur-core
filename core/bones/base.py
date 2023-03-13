@@ -1018,5 +1018,5 @@ class BaseBone(object):
             ret["compute"] = {"method": self.compute.threshold.method.name}
             if self.compute.threshold.lifetime:
                 ret["compute"]["lifetime"] = str(self.compute.threshold.lifetime)
-                ret["compute"]["last_updated"] = self.compute.threshold.last_updated.isoformat()
+                ret["compute"]["last_updated"] = (lu := self.compute.threshold.last_updated) and lu.isoformat()
         return ret

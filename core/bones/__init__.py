@@ -32,6 +32,8 @@ __all = [
     "CaptchaBone",
     "ColorBone",
     "Compute",
+    "ThresholdMethods",
+    "ThresholdValue",
     "CredentialBone",
     "DateBone",
     "EmailBone",
