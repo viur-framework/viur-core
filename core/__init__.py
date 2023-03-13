@@ -300,7 +300,7 @@ def app(environ: dict, start_response: Callable):
     # Set context variables
     current.language.set(conf["viur.defaultLanguage"])
     current.request.set(handler)
-    current.session.set(session.Session())
+    current.session.set(session.Session(handler))
     current.request_data.set({})
     # Handle request
     handler.processRequest()

@@ -51,8 +51,9 @@ class Session:
     cookieName = f"""viur_cookie_{conf["viur.instance.project_id"]}"""
     GUEST_USER = "__guest__"
 
-    def __init__(self):
+    def __init__(self, req):
         super().__init__()
+        self.req = req
         self.changed = False
         self.isInitial = False
         self.cookieKey = None
@@ -60,16 +61,19 @@ class Session:
         self.staticSecurityKey = None
         self.securityKey = None
         self.session = {}
+        self.loaded = False
 
-    def load(self, req: BrowseHandler):
+    def load(self):
+        logging.debug("load session")
         """
             Initializes the Session.
 
             If the client supplied a valid Cookie, the session is read from the datastore, otherwise a new,
             empty session will be initialized.
         """
-        if self.cookieName in req.request.cookies:
-            cookie = str(req.request.cookies[self.cookieName])
+        self.loaded = True
+        if self.cookieName in self.req.request.cookies:
+            cookie = str(self.req.request.cookies[self.cookieName])
             if data := db.Get(db.Key(self.kindName, cookie)):  # Loaded successfully
                 if data["lastseen"] < time.time() - conf["viur.session.lifeTime"]:
                     # This session is too old
@@ -153,6 +157,8 @@ class Session:
 
             The key must exist.
         """
+        if not self.loaded:
+            self.load()
         return self.session[key]
 
     def __ior__(self, other: dict):
@@ -169,7 +175,10 @@ class Session:
             :param key: Key to retrieve from the session variables.
             :param default: Default value to return when key does not exist.
         """
+        if not self.loaded:
+            self.load()
         return self.session.get(key, default)
+
 
     def __setitem__(self, key: str, item: Any):
         """
@@ -178,6 +187,8 @@ class Session:
             If that key exists before, its value is
             overwritten.
         """
+        if not self.loaded:
+            self.load()
         self.session[key] = item
         self.changed = True
 

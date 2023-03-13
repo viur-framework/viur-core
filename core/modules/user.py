@@ -721,6 +721,7 @@ class User(List):
 
     def getCurrentUser(self):
         # May be a deferred task
+        logging.debug("get current urer")
         if not (session := current.session.get()):
             return None
 
@@ -892,6 +893,7 @@ class User(List):
 
 @tasks.StartupTask
 def createNewUserIfNotExists():
+    return
     """
         Create a new Admin user, if the userDB is empty
     """
