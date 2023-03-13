@@ -179,7 +179,7 @@ class Script(Tree):
     leafSkelCls = ScriptLeafSkel
     nodeSkelCls = ScriptNodeSkel
 
-    accessRights = ("add", "edit", "view", "delete", "run")
+    access_rights = ("add", "edit", "view", "delete", "run")
 
     def adminInfo(self):
         return conf.get("viur.script.admin_info") or {}
