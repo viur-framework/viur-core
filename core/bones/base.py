@@ -482,8 +482,19 @@ class BaseBone(object):
                 skel.dbEntity[name] = self._compute(skel, name)
                 skel.dbEntity.exclude_from_indexes.add(name)
                 return True
+            elif self.compute.threshold.method == ThresholdMethods.Lifetime:
+                if name not in skel.dbEntity:
+                    if data := self._compute(skel, name):
+                        skel.dbEntity[name] = data
+                        skel.dbEntity[f"{name}__last_updated"] = utils.utcNow()
+                        return True
+
+                    return False
             else:
-                return name in skel.accessedValues
+                if name in skel.accessedValues:
+                    skel.dbEntity[name] = skel.accessedValues[name]
+                    return True
+                return False
 
         if name in skel.accessedValues:
             newVal = skel.accessedValues[name]
