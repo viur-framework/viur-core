@@ -118,7 +118,7 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
     )
 
     globalid = StringBone(
-        descr="Global identifyer",
+        descr="Global identifier",
         vfunc=lambda value: not FILE_PATTERN.match(value),
         # unique=True,
         params={
