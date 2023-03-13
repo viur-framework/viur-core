@@ -97,9 +97,9 @@ class ScriptLeafActionSkel(skeleton.RelSkel):
     capable = SelectBone(
         descr="Capable to handle",
         values={
-            "no_keys": "Running without selecting anything",
-            "one_key": "Script may use one database key in params",
-            "several_keys": "Script may use several database keys in params"
+            "none": "Run action without further parameters.",
+            "single": "Script may use one entity key in parameters",
+            "multiple": "Script may use several entity keys in parameters"
         }
     )
     thismoduleaccess = SelectBone(
