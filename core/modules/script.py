@@ -150,7 +150,6 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
         descr="Provides actions",
         multiple=True,
         using=ScriptLeafActionSkel,
-        required=False,
         format="$(module)",
     )
 
