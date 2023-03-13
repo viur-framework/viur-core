@@ -91,7 +91,7 @@ class ScriptNodeSkel(BaseScriptAbstractSkel):
 
 class ScriptLeafActionSkel(skeleton.RelSkel):
     module = SelectBone(
-        descr="Modul",
+        descr="Module",
         values=_get_modules_or_handlers
     )
     capable = SelectBone(
