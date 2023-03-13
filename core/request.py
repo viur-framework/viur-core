@@ -363,9 +363,9 @@ class BrowseHandler():  # webapp.RequestHandler
                           .open() as tpl_file):
                         tpl = Template(tpl_file.read())
                     if conf["viur.instance.is_dev_server"]:  # Were running on development Server
-                        strIO = StringIO()
-                        traceback.print_exc(file=strIO)
-                        descr = strIO.getvalue()
+                        str_io = StringIO()
+                        traceback.print_exc(file=str_io)
+                        descr = str_io.getvalue()
                         descr = descr.replace("<", "&lt;").replace(">", "&gt;").replace(" ", "&nbsp;").replace("\n",
                                                                                                                "<br />")
                     res = tpl.safe_substitute(
