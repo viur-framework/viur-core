@@ -73,7 +73,7 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: Dict[str, Any], refreshKey: db
                 if not skel.fromDB(refreshKey):
                     return
                 skel.refresh()
-                skel.toDB(update_relations=False)
+                skel.toDB(clearUpdateTag=True)
 
             db.RunInTransaction(refreshTxn)
 

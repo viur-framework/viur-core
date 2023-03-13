@@ -2,41 +2,6 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.4.0-beta1]
-
-- feat: Implement `script` system-module for Scriptor tree (#664)
-- fix: Capitalize internal classes to be PEP8 compliant (#681)
-- fix: `viewSkel()`: It's a member of the user module, not the auth-provider (#674)
-- feat: Improve `PasswordBone` parametrization (#619)
-- fix: Add `RelationalUpdateLevel` to__all__ (#675)
-- Fix spelling of "readonly" in renderEditForm (#670)
-- fix: Add structure for numericBone (#672)
-- fix: Fallback to `SkelModule` as replacement for `BasicApplication` (#665)
-- refactor: `securitykey` module (#656)
-- feat: Improve Cloud Tasks creation in `CallDeferred` and `QueryIter` (#654)
-- refactor: DateBone: Refactored test if to use guessTimeZone into guessTimeZone itself (#644)
-- feat: `current`-module to handle ContextVars, new `current.user` ContextVar (#635)
-- feat: Move structure dict rendering from the renders into the bones (#637)
-- feat: Add `admin_config` to UserSkel (#636)
-- remove: session change in validateSecurityKey (#645)
-- feat: Add `conf["viur.dev_server_cloud_logging"]` (#638)
-- fix: module import in formmailer, introduced in #611 (#640)
-- refactor: Substitute `BaseApplication` by `Module` and `SkelModule` prototypes (#611)
-- refactor: Cleaning up the `session`-module (#544)
-- fix: Implement a refresh method in the `NumericBone` (#617)
-- feat: Render JSON-encoded error message on Exception raise in `/json` or `/vi` pathes (#614)
-- refactor: Improvements for User module (#620)
-- refactor: Make MetaBaseSkel.generate_bonemap available (#621)
-- feat: Add `JsonBone` (#558)
-- fix: Fixes a deprecation warning introduced by #582 (#613)
-- refactor: Move projectBasePath and coreBasePath (#582)
-- feat: Provide colorized local debug (#592)
-- fix: added back kindName for userSkel (#600)
-- fix: Improving MetaBaseSkel.fill_bonemap_recursive (#601)
-- fix: `DateBone(localize=True)` becomes default setting (#595)
-- refactor: Code clean-up for core user module (#591)
-- feat: Improve the linter workflow: Use error annotations (#581)
-
 ## [3.3.5]
 
 - Fix: Copy TextBone `_defaultTags` in `ModuleConfSkel` (#628)
