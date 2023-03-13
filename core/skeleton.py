@@ -775,6 +775,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             :returns: The datastore key of the entity.
         """
         assert skelValues.renderPreparation is None, "Cannot modify values while rendering"
+        # fixme: Remove in viur-core >= 4
         if "clearUpdateTag" in kwargs:
             msg = "clearUpdateTag was replaced by update_relations"
             warnings.warn(msg, DeprecationWarning, stacklevel=3)
@@ -943,13 +944,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             # Store lastRequestedKeys so further updates can run more efficient
             dbObj["viur"]["viurLastRequestedSeoKeys"] = currentSeoKeys
 
-            if update_relations:
-                # Mark this entity as dirty, so the background-task will catch it up and update its references.
-                dbObj["viur"]["delayedUpdateTag"] = time()
-            else:
-                # Mark this entity as Up-to-date.
-                dbObj["viur"]["delayedUpdateTag"] = 0
-
+            # mark entity as "dirty" when update_relations is set, to zero otherwise.
+            dbObj["viur"]["delayedUpdateTag"] = time() if update_relations else 0
             dbObj = skel.preProcessSerializedData(dbObj)
 
             # Allow the custom DB Adapter to apply last minute changes to the object
