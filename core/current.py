@@ -14,8 +14,6 @@ class CurrentUser:
             global user
             user = ContextVar("User", default=None)
             user.set(user_mod.getCurrentUser())
-            print("user")
-            print(type(user.get()))
             return user.get(default)
 
     def set(self, *args, **kwargs):
