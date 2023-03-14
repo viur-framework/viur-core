@@ -893,7 +893,6 @@ class User(List):
 
 @tasks.StartupTask
 def createNewUserIfNotExists():
-    return
     """
         Create a new Admin user, if the userDB is empty
     """
