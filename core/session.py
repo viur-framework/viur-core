@@ -226,12 +226,16 @@ class Session:
         return self.session.items()
 
     def getSecurityKey(self) -> Optional[str]:
+        if not self.loaded:
+            self.load()
         return self.securityKey
 
     def validateSecurityKey(self, key: str) -> bool:
         """
         Checks if key matches the current CSRF-Token of our session. On success, a new key is generated.
         """
+        if not self.loaded:
+            self.load()
         if hmac.compare_digest(self.securityKey, key):
             # It looks good so far, check if we can acquire that skey inside a transaction
             def exchangeSecurityKey():

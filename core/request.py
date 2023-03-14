@@ -266,6 +266,7 @@ class BrowseHandler():  # webapp.RequestHandler
             if conf["viur.requestPreprocessor"]:
                 path = conf["viur.requestPreprocessor"](path)
 
+            current.user = current.CurrentUser()
             self.findAndCall(path)
 
         except errors.Redirect as e:
