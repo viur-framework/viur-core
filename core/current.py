@@ -4,7 +4,6 @@ request = ContextVar("Request", default=None)
 request_data = ContextVar("Request-Data", default=None)
 session = ContextVar("Session", default=None)
 language = ContextVar("Language", default=None)
-user = None
 
 
 class CurrentUser:
@@ -18,3 +17,6 @@ class CurrentUser:
 
     def set(self, *args, **kwargs):
         pass
+
+
+user = CurrentUser()
