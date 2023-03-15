@@ -250,11 +250,11 @@ class UserPassword:
             to 10 actions per 15 minutes. (One complete recovery process consists of two calls).
         """
         self.passwordRecoveryRateLimit.assertQuotaIsAvailable()
-        request = current.request.get()
+        current_request = current.request.get()
         if "recovery_key" not in kwargs:
             # This is the first step, where we ask for the username of the account we'll going to reset the password on
             skel = self.LostPasswordStep1Skel()
-            if not request.isPostRequest or not skel.fromClient(kwargs):
+            if not current_request.isPostRequest or not skel.fromClient(kwargs):
                 return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
             if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
                 raise errors.PreconditionFailed()
@@ -262,60 +262,63 @@ class UserPassword:
                 "name.idx =", skel["name"]).getSkel()
             self.passwordRecoveryRateLimit.decrementQuota()
             recovery_key = utils.generateRandomString(42)  # This is the key the user will have to Copy&Paste
-            user_agent = user_agents.parse(request.request.headers["User-Agent"])
+            user_agent = user_agents.parse(current_request.request.headers["User-Agent"])
             self.sendUserPasswordRecoveryCode(user_skel, recovery_key, user_agent)  # Send the code in the background
             recovery_entity = db.Entity(db.Key("viur-recovery", recovery_key))
             recovery_entity["user_name"] = skel["name"].lower()
             recovery_entity["valid_until"] = utils.utcNow() + datetime.timedelta(minutes=15)
             db.Put(recovery_entity)
+
             return self.userModule.render.view(None, tpl=self.passwordRecoveryInstuctionsSendTemplate)
-        else:
-            skel = self.LostPasswordStep2Skel()
-            recovery_key = kwargs.get("recovery_key")
-            if not skel.fromClient(kwargs) or not request.isPostRequest:
-                return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep2Template,
-                                                   recovery_key=recovery_key)
+        # in step 2
+        skel = self.lostPasswordStep2Skel()
+        recovery_key = kwargs.get("recovery_key")
+        if not skel.fromClient(kwargs) or not current_request.isPostRequest:
+            return self.userModule.render.edit(skel=skel,
+                                               tpl=self.passwordRecoveryStep2Template,
+                                               recovery_key=recovery_key)
 
-            if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
-                raise errors.PreconditionFailed()
-            if not (recovery_entity := db.Get(db.Key("viur-recovery", recovery_key))):
-                return self.userModule.render.view(
-                    skel=None,
-                    tpl=self.passwordRecoveryFailedTemplate,
-                    reason=self.passwordRecoveryUserNotFound)
 
-            if recovery_entity["valid_until"] < utils.utcNow():
-                return self.userModule.render.view(
-                    skel=None,
-                    tpl=self.passwordRecoveryFailedTemplate,
-                    reason=self.passwordRecoveryKeyExpired)
+        if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
+            raise errors.PreconditionFailed()
+        if not (recovery_entity := db.Get(db.Key("viur-recovery", recovery_key))):
+            return self.userModule.render.view(
+                skel=None,
+                tpl=self.passwordRecoveryFailedTemplate,
+                reason=self.passwordRecoveryUserNotFound)
 
-            self.passwordRecoveryRateLimit.decrementQuota()
+        if recovery_entity["valid_until"] < utils.utcNow():
+            return self.userModule.render.view(
+                skel=None,
+                tpl=self.passwordRecoveryFailedTemplate,
+                reason=self.passwordRecoveryKeyExpired)
 
-            # If we made it here, the key was correct, so we'd hopefully have a valid user for this
-            user_skel = self.userModule.viewSkel().all().filter(
-                "name.idx =", recovery_entity["user_name"]).getSkel()
+        self.passwordRecoveryRateLimit.decrementQuota()
 
-            if not user_skel:
-                # This *should* never happen - if we don't have a matching account we'll not send the key.
-                db.Delete(recovery_entity)
-                return self.userModule.render.view(
-                    skel=None,
-                    tpl=self.passwordRecoveryFailedTemplate,
-                    reason=self.passwordRecoveryUserNotFound)
+        # If we made it here, the key was correct, so we'd hopefully have a valid user for this
+        user_skel = self.userModule.viewSkel().all().filter(
+            "name.idx =", recovery_entity["user_name"]).getSkel()
 
-            if user_skel["status"] != 10:  # The account is locked or not yet validated. Abort the process.
-                db.Delete(recovery_entity)
-                return self.userModule.render.view(
-                    skel=None,
-                    tpl=self.passwordRecoveryFailedTemplate,
-                    reason=self.passwordRecoveryAccountLocked)
+        if not user_skel:
+            # This *should* never happen - if we don't have a matching account we'll not send the key.
+            db.Delete(recovery_entity)
+            return self.userModule.render.view(
+                skel=None,
+                tpl=self.passwordRecoveryFailedTemplate,
+                reason=self.passwordRecoveryUserNotFound)
 
-            # Update the password, save the user, reset his session and show the success-template
-            user_skel["password"] = skel["password"]
-            user_skel.toDB()
+        if user_skel["status"] != 10:  # The account is locked or not yet validated. Abort the process.
+            db.Delete(recovery_entity)
+            return self.userModule.render.view(
+                skel=None,
+                tpl=self.passwordRecoveryFailedTemplate,
+                reason=self.passwordRecoveryAccountLocked)
 
-            return self.userModule.render.view(None, tpl=self.passwordRecoverySuccessTemplate)
+        # Update the password, save the user, reset his session and show the success-template
+        user_skel["password"] = skel["password"]
+        user_skel.toDB(clearUpdateTag=False)
+
+        return self.userModule.render.view(None, tpl=self.passwordRecoverySuccessTemplate)
 
     @tasks.CallDeferred
     def sendUserPasswordRecoveryCode(self, user: UserSkel, recovery_key: str, user_agent: dict) -> None:
