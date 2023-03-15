@@ -258,12 +258,11 @@ class UserPassword:
                 return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
             if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
                 raise errors.PreconditionFailed()
-            user_skel = self.userModule.viewSkel().all().filter(
-                "name.idx =", skel["name"]).getSkel()
+
             self.passwordRecoveryRateLimit.decrementQuota()
             recovery_key = utils.generateRandomString(42)  # This is the key the user will have to Copy&Paste
             user_agent = user_agents.parse(current_request.request.headers["User-Agent"])
-            self.sendUserPasswordRecoveryCode(user_skel, recovery_key, user_agent)  # Send the code in the background
+            self.sendUserPasswordRecoveryCode(skel["name"], recovery_key, user_agent)  # Send the code in the background
             recovery_entity = db.Entity(db.Key("viur-recovery", recovery_key))
             recovery_entity["user_name"] = skel["name"].lower()
             recovery_entity["valid_until"] = utils.utcNow() + datetime.timedelta(minutes=15)
@@ -321,7 +320,7 @@ class UserPassword:
         return self.userModule.render.view(None, tpl=self.passwordRecoverySuccessTemplate)
 
     @tasks.CallDeferred
-    def sendUserPasswordRecoveryCode(self, user: UserSkel, recovery_key: str, user_agent: dict) -> None:
+    def sendUserPasswordRecoveryCode(self, user_name : str, recovery_key: str, user_agent: dict) -> None:
         """
             Sends the given recovery code to the user given in userName. This function runs deferred
             so there's no timing sidechannel that leaks if this user exists. Per default, we'll send the
@@ -329,9 +328,11 @@ class UserPassword:
             by SMS or other means. We'll also update the changedate for this user, so no more than one code
             can be send to any given user in four hours.
         """
-
-        email.sendEMail(tpl=self.passwordRecoveryMail, skel=user,
-                        dests=[user["name"]], recovery_key=recovery_key, user_agent=user_agent)
+        user_skel = self.userModule.viewSkel().all().filter(
+            "name.idx =", user_name).getSkel()
+        if user_skel:
+            email.sendEMail(tpl=self.passwordRecoveryMail, skel=user_skel,
+                        dests=[user_name], recovery_key=recovery_key, user_agent=user_agent)
 
     @exposed
     def verify(self, skey, *args, **kwargs):
