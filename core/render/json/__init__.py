@@ -8,8 +8,6 @@ __all__ = [default]
 
 @exposed
 def genSkey(*args, **kwargs) -> str:
-    print("here")
-    print(securitykey.create())
     return json.dumps(securitykey.create())
 
 

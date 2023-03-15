@@ -51,7 +51,7 @@ class Session:
     cookieName = f"""viur_cookie_{conf["viur.instance.project_id"]}"""
     GUEST_USER = "__guest__"
 
-    def __init__(self, req):
+    def __init__(self, req: BrowseHandler):
         super().__init__()
         self.req = req
         self.changed = False
@@ -64,7 +64,6 @@ class Session:
         self.loaded = False
 
     def load(self):
-        logging.debug("load session")
         """
             Initializes the Session.
 
