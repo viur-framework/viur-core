@@ -57,7 +57,7 @@ class UserSkel(skeleton.Skeleton):
         unique=UniqueValue(UniqueLockMethod.SameValue, False, "UID already in use"),
     )
 
-    synced = BooleanBone(
+    sync = BooleanBone(
         descr="Sync user data with OAuth-based services",
         defaultValue=True,
         params={
@@ -509,21 +509,18 @@ class GoogleAccount:
             update = True
 
         # Take user information from Google, if wanted!
-        if userSkel["synced"]:
-            logging.debug(f"""{userSkel["synced"]=}""")
+        if userSkel["sync"]:
 
             for target, source in {
                 "name": email,
                 "firstname": userInfo.get("given_name"),
                 "lastname": userInfo.get("family_name"),
             }.items():
-                logging.debug(f"""{target=} {source=}""")
 
                 if userSkel[target] != source:
                     userSkel[target] = source
                     update = True
 
-        logging.debug(f"{update=}")
         if update:
             # TODO: Get access from IAM or similar
             # if users.is_current_user_admin():
