@@ -46,7 +46,7 @@ Please document your changes and provide info in any form you can. We have estab
 ## Versioning
 
 `viur-core` uses the semantic versioning scheme.<br>
-Any `major.minor.bugfix` release is being published to PyPI.
+Any `major.minor.bugfix` release is being published to [PyPI](https://pypi.org/project/viur-core).
 
 Furthermore, the following rules apply to hidden pre-releases which are also made to PyPI for open tests.
 
@@ -55,7 +55,7 @@ Furthermore, the following rules apply to hidden pre-releases which are also mad
 
 In both cases, `N` is a number counted upwards for every pre-release.
 
-# Release
+## Releasing
 
 In case you have appropriate permissions, a release can be done this way:
 
@@ -72,11 +72,11 @@ In case you have appropriate permissions, a release can be done this way:
   - Release the package
     - PyPI: `pipenv run release`
     - TestPyPI: `pipenv run develop`
-- When all went well, finally create a tag equally to the version number in `core/version.py` 
+- When all went well, finally create a tag equally to the version number in `core/version.py`
 
 ## Branches
 
-viur-core has two actively maintained branches:
+`viur-core` has two actively maintained branches:
 
 - **main** is the current stable version as released on PyPI.
 - **develop**  is the next minor version and may be released as release candidates to PyPI.
