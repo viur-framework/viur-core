@@ -309,48 +309,45 @@ class BrowseHandler():  # webapp.RequestHandler
                     res = None
             if not res:
                 descr = "The server encountered an unexpected error and is unable to process your request."
+                if isinstance(e, errors.HTTPException):
+                    error_info = {
+                        "status": e.status,
+                        "reason": e.name,
+                        "descr": str(translate(e.name)),
+                        "hint": e.descr,
+                    }
+                else:
+                    error_info = {
+                        "status": 500,
+                        "reason": "Internal Server Error",
+                        "descr": descr
+                    }
+
+                if conf["viur.instance.is_dev_server"]:
+                    error_info["traceback"] = traceback.format_exc()
+
                 if (len(self.pathlist) > 0 and any(x in self.pathlist[0] for x in ["vi", "json"])) or \
                         current.request.get().response.headers["Content-Type"] == "application/json":
                     current.request.get().response.headers["Content-Type"] = "application/json"
-                    if isinstance(e, errors.HTTPException):
-                        res = {
-                            "status": e.status,
-                            "reason": e.name,
-                            "descr": str(translate(e.name)),
-                            "hint": e.descr,
-                        }
-                    else:
-                        res = {
-                            "status": 500,
-                            "reason": "Internal Server Error",
-                            "descr": descr
-                        }
-
-                    if conf["viur.instance.is_dev_server"]:
-                        res["traceback"] = traceback.format_exc()
-
-                    res = json.dumps(res)
+                    res = json.dumps(error_info)
 
                 else:  # We render the error in html
                     # Try to get the template from html/error/
                     if isinstance(e, errors.HTTPException):
-                        template_file = conf["viur.instance.project_base_path"].joinpath(f"html/error/{e.status}.html")
-                        if template_file.is_file():
+                        if  conf["viur.instance.project_base_path"].joinpath(f"html/error/{e.status}.html").is_file():
                             template = conf["viur.mainApp"].render.getEnv().get_template(
                                 conf["viur.mainApp"].render.getTemplateFileName(f"error/{e.status}"))
-
-                            res = template.render({
-                                "error_code": e.status,
-                                "error_name": translate(e.name),
-                                "error_descr": e.descr,
-                            })
+                            res = template.render(error_info)
+                        elif conf["viur.instance.project_base_path"].joinpath("html/error/generic.html").is_file():
+                            template = conf["viur.mainApp"].render.getEnv().get_template(
+                                conf["viur.mainApp"].render.getTemplateFileName("error/generic.html"))
+                            res = template.render(error_info)
 
                         else:
-                            res = template_file.safe_substitute(
-                                {"error_code": "500",
-                                 "error_name": "Internal Server Error",
-                                 "error_descr": descr,
-                                 })
+                            with (conf["viur.instance.core_base_path"].joinpath(
+                                    conf["viur.errorTemplate"]).open() as tpl_file):
+                                template_file = Template(tpl_file.read())
+                                res = template_file.safe_substitute(error_info)
                     extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
 
             self.response.write(res.encode("UTF-8"))
