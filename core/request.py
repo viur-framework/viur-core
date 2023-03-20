@@ -334,7 +334,7 @@ class BrowseHandler():  # webapp.RequestHandler
                 else:  # We render the error in html
                     # Try to get the template from html/error/
                     if isinstance(e, errors.HTTPException):
-                        if  conf["viur.instance.project_base_path"].joinpath(f"html/error/{e.status}.html").is_file():
+                        if conf["viur.instance.project_base_path"].joinpath(f"html/error/{e.status}.html").is_file():
                             template = conf["viur.mainApp"].render.getEnv().get_template(
                                 conf["viur.mainApp"].render.getTemplateFileName(f"error/{e.status}"))
                             res = template.render(error_info)
