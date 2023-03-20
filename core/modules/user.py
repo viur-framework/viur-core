@@ -159,15 +159,15 @@ class UserPassword:
     def getAuthMethodName(*args, **kwargs):
         return "X-VIUR-AUTH-User-Password"
 
-    class loginSkel(skeleton.RelSkel):
+    class LoginSkel(skeleton.RelSkel):
         name = EmailBone(descr="E-Mail", required=True, caseSensitive=False, indexed=True)
         password = PasswordBone(descr="Password", indexed=True, params={"justinput": True}, required=True)
 
-    class lostPasswordStep1Skel(skeleton.RelSkel):
+    class LostPasswordStep1Skel(skeleton.RelSkel):
         name = EmailBone(descr="Username", required=True)
         captcha = CaptchaBone(descr="Captcha", required=True)
 
-    class lostPasswordStep2Skel(skeleton.RelSkel):
+    class LostPasswordStep2Skel(skeleton.RelSkel):
         recoveryKey = StringBone(descr="Verification Code", required=True)
         password = PasswordBone(descr="New Password", required=True)
 
@@ -178,7 +178,7 @@ class UserPassword:
             return self.userModule.render.loginSucceeded()
 
         if not name or not password or not securitykey.validate(skey, useSessionKey=True):
-            return self.userModule.render.login(self.loginSkel())
+            return self.userModule.render.login(self.LoginSkel())
 
         self.loginRateLimit.assertQuotaIsAvailable()
 
@@ -223,7 +223,7 @@ class UserPassword:
 
         if not isOkay:
             self.loginRateLimit.decrementQuota()  # Only failed login attempts will count to the quota
-            skel = self.loginSkel()
+            skel = self.LoginSkel()
             return self.userModule.render.login(skel, loginFailed=True, accountStatus=accountStatus)
         else:
             return self.userModule.continueAuthenticationFlow(self, res.key)
@@ -249,7 +249,7 @@ class UserPassword:
         recoverStep = session.get("user.auth_userpassword.pwrecover")
         if not recoverStep:
             # This is the first step, where we ask for the username of the account we'll going to reset the password on
-            skel = self.lostPasswordStep1Skel()
+            skel = self.LostPasswordStep1Skel()
             if not request.isPostRequest or not skel.fromClient(kwargs):
                 return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
             if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
@@ -280,7 +280,7 @@ class UserPassword:
                     skel=None,
                     tpl=self.passwordRecoveryFailedTemplate,
                     reason=self.passwordRecoveryKeyExpired)
-            skel = self.lostPasswordStep2Skel()
+            skel = self.LostPasswordStep2Skel()
             if not skel.fromClient(kwargs) or not request.isPostRequest:
                 return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep2Template)
             if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
@@ -299,17 +299,18 @@ class UserPassword:
                 return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep2Template)  # Let's try again
 
             # If we made it here, the key was correct, so we'd hopefully have a valid user for this
-            skel = self.viewSkel().all().filter(
+            user_skel = self.userModule.viewSkel().all().filter(
                 "name.idx =", session["user.auth_userpassword.pwrecover"]["name"]).getSkel()
 
-            if skel:  # This *should* never happen - if we don't have a matching account we'll not send the key.
+            if not user_skel:
+                # This *should* never happen - if we don't have a matching account we'll not send the key.
                 session["user.auth_userpassword.pwrecover"] = None
                 return self.userModule.render.view(
                     skel=None,
                     tpl=self.passwordRecoveryFailedTemplate,
                     reason=self.passwordRecoveryUserNotFound)
 
-            if skel["status"] != 10:  # The account is locked or not yet validated. Abort the process.
+            if user_skel["status"] != 10:  # The account is locked or not yet validated. Abort the process.
                 session["user.auth_userpassword.pwrecover"] = None
                 return self.userModule.render.view(
                     skel=None,
@@ -317,8 +318,8 @@ class UserPassword:
                     reason=self.passwordRecoveryAccountLocked)
 
             # Update the password, save the user, reset his session and show the success-template
-            skel["password"] = skel["password"]
-            skel.toDB()
+            user_skel["password"] = skel["password"]
+            user_skel.toDB()
             session["user.auth_userpassword.pwrecover"] = None
 
             return self.userModule.render.view(None, tpl=self.passwordRecoverySuccessTemplate)
@@ -535,7 +536,7 @@ class TimeBasedOTP:
 
         return None
 
-    class otpSkel(skeleton.RelSkel):
+    class OtpSkel(skeleton.RelSkel):
         otptoken = StringBone(descr="Token", required=True, caseSensitive=False, indexed=True)
 
     def generateOtps(self, secret, timeDrift):
@@ -575,7 +576,7 @@ class TimeBasedOTP:
         if not token:
             raise errors.Forbidden()
         if otptoken is None:
-            self.userModule.render.edit(self.otpSkel())
+            self.userModule.render.edit(self.OtpSkel())
         if not securitykey.validate(skey, useSessionKey=True):
             raise errors.PreconditionFailed()
         if token["failures"] > 3:
@@ -587,7 +588,7 @@ class TimeBasedOTP:
             otptoken = int(otptoken)
         except:
             # We got a non-numeric token - this can't be correct
-            self.userModule.render.edit(self.otpSkel(), tpl=self.otpTemplate)
+            self.userModule.render.edit(self.OtpSkel(), tpl=self.otpTemplate)
 
         if otptoken in validTokens:
             userKey = session["_otp_user"]["uid"]
@@ -607,7 +608,7 @@ class TimeBasedOTP:
             token["failures"] += 1
             session["_otp_user"] = token
             session.markChanged()
-            return self.userModule.render.edit(self.otpSkel(), loginFailed=True, tpl=self.otpTemplate)
+            return self.userModule.render.edit(self.OtpSkel(), loginFailed=True, tpl=self.otpTemplate)
 
     def updateTimeDrift(self, userKey, idx):
         """
@@ -703,6 +704,8 @@ class User(List):
 
         if "password" in skel:
             skel.password.required = False
+            skel.password.visible = True
+            skel.password.readOnly = False
 
         user = current.user.get()
 
@@ -825,7 +828,7 @@ class User(List):
             # Conserve DB-Writes: Update the user max once in 30 Minutes (why??)
             if not skel["lastlogin"] or ((now - skel["lastlogin"]) > datetime.timedelta(minutes=30)):
                 skel["lastlogin"] = now
-                skel.toDB(clearUpdateTag=True)
+                skel.toDB(update_relations=False)
 
         logging.info(f"""User {skel["name"]} logged in""")
 

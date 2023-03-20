@@ -284,16 +284,20 @@ class BrowseHandler():  # webapp.RequestHandler
                 url = str(urljoin(self.request.url, url))
             self.response.headers['Location'] = url
 
-        except errors.HTTPException as e:
+        except Exception as e:
             if conf["viur.debug.traceExceptions"]:
                 logging.warning("""conf["viur.debug.traceExceptions"] is set, won't handle this exception""")
                 raise
             self.response.body = b""
-            self.response.status = '%d %s' % (e.status, e.name)
-
-            # Set machine-readable x-viur-error response header in case there is an exception description.
-            if e.descr:
-                self.response.headers["x-viur-error"] = e.descr.replace("\n", "")
+            if isinstance(e, errors.HTTPException):
+                self.response.status = '%d %s' % (e.status, e.name)
+                # Set machine-readable x-viur-error response header in case there is an exception description.
+                if e.descr:
+                    self.response.headers["x-viur-error"] = e.descr.replace("\n", "")
+            else:
+                self.response.status = 500
+                logging.error("ViUR has caught an unhandled exception!")
+                logging.exception(e)
 
             res = None
             if conf["viur.errorHandler"]:
@@ -304,73 +308,53 @@ class BrowseHandler():  # webapp.RequestHandler
                     logging.exception(newE)
                     res = None
             if not res:
+                descr = "The server encountered an unexpected error and is unable to process your request."
                 if (len(self.pathlist) > 0 and any(x in self.pathlist[0] for x in ["vi", "json"])) or \
                         current.request.get().response.headers["Content-Type"] == "application/json":
                     current.request.get().response.headers["Content-Type"] = "application/json"
-                    res = {
-                        "status": e.status,
-                        "reason": e.name,
-                        "descr": str(translate(e.name)),
-                        "hint": e.descr,
-                    }
+                    if isinstance(e, errors.HTTPException):
+                        res = {
+                            "status": e.status,
+                            "reason": e.name,
+                            "descr": str(translate(e.name)),
+                            "hint": e.descr,
+                        }
+                    else:
+                        res = {
+                            "status": 500,
+                            "reason": "Internal Server Error",
+                            "descr": descr
+                        }
 
                     if conf["viur.instance.is_dev_server"]:
                         res["traceback"] = traceback.format_exc()
 
                     res = json.dumps(res)
+
                 else:  # We render the error in html
                     # Try to get the template from html/error/
-                    template_file = conf["viur.instance.project_base_path"].joinpath(f"html/error/{e.status}.html")
-                    if template_file.is_file():
-                        template = conf["viur.mainApp"].render.getEnv().get_template(
-                            conf["viur.mainApp"].render.getTemplateFileName(f"error/{e.status}"))
+                    if isinstance(e, errors.HTTPException):
+                        template_file = conf["viur.instance.project_base_path"].joinpath(f"html/error/{e.status}.html")
+                        if template_file.is_file():
+                            template = conf["viur.mainApp"].render.getEnv().get_template(
+                                conf["viur.mainApp"].render.getTemplateFileName(f"error/{e.status}"))
 
-                        res = template.render({
-                            "error_code": e.status,
-                            "error_name": translate(e.name),
-                            "error_descr": e.descr,
-                        })
-                    else:
-                        with (conf["viur.instance.core_base_path"].joinpath(
-                                conf["viur.errorTemplate"]).open() as tpl_file):
-                            tpl = Template(tpl_file.read())
-                            res = tpl.safe_substitute({
+                            res = template.render({
                                 "error_code": e.status,
                                 "error_name": translate(e.name),
                                 "error_descr": e.descr,
                             })
-                        extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
+
+                        else:
+                            res = template_file.safe_substitute(
+                                {"error_code": "500",
+                                 "error_name": "Internal Server Error",
+                                 "error_descr": descr,
+                                 })
+                    extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
+
             self.response.write(res.encode("UTF-8"))
 
-        except Exception as e:  # Something got really wrong
-            logging.error("ViUR has caught an unhandled exception!")
-            logging.exception(e)
-            self.response.body = b""
-            self.response.status = 500
-            res = None
-            if conf["viur.errorHandler"]:
-                try:
-                    res = conf["viur.errorHandler"](e)
-                except Exception as newE:
-                    logging.error("viur.errorHandler failed!")
-                    logging.exception(newE)
-                    res = None
-            if not res:
-                with (conf["viur.instance.core_base_path"]
-                      .joinpath(conf["viur.errorTemplate"])
-                      .open() as tpl_file):
-                    tpl = Template(tpl_file.read())
-                descr = "The server encountered an unexpected error and is unable to process your request."
-                if conf["viur.instance.is_dev_server"]:  # Were running on development Server
-                    strIO = StringIO()
-                    traceback.print_exc(file=strIO)
-                    descr = strIO.getvalue()
-                    descr = descr.replace("<", "&lt;").replace(">", "&gt;").replace(" ", "&nbsp;").replace("\n",
-                                                                                                           "<br />")
-                res = tpl.safe_substitute(
-                    {"error_code": "500", "error_name": "Internal Server Error", "error_descr": descr})
-                extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
-            self.response.write(res.encode("UTF-8"))
 
         finally:
             self.saveSession()
