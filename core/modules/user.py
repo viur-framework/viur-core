@@ -721,7 +721,6 @@ class User(List):
 
     def getCurrentUser(self):
         # May be a deferred task
-        logging.debug("get current urer")
         if not (session := current.session.get()):
             return None
 

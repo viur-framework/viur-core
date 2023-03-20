@@ -139,6 +139,8 @@ class Session:
         """
             Returns True if the given *key* is set in the current session.
         """
+        if not self.loaded:
+            self.load()
         return key in self.session
 
     def __delitem__(self, key: str) -> None:
@@ -147,6 +149,8 @@ class Session:
 
             This key must exist.
         """
+        if not self.loaded:
+            self.load()
         del self.session[key]
         self.changed = True
 
@@ -164,6 +168,8 @@ class Session:
         """
         Merges the contents of a dict into the session.
         """
+        if not self.loaded:
+            self.load()
         self.session |= other
         return self
 
@@ -177,7 +183,6 @@ class Session:
         if not self.loaded:
             self.load()
         return self.session.get(key, default)
-
 
     def __setitem__(self, key: str, item: Any):
         """
@@ -197,6 +202,8 @@ class Session:
             This will force save() to write into the datastore,
             even if it believes that this session hasn't changed.
         """
+        if not self.loaded:
+            self.load()
         self.changed = True
 
     def reset(self) -> None:
@@ -222,6 +229,8 @@ class Session:
         """
             Returns all items in the current session.
         """
+        if not self.loaded:
+            self.load()
         return self.session.items()
 
     def getSecurityKey(self) -> Optional[str]:
