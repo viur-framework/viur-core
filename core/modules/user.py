@@ -814,7 +814,7 @@ class User(List):
             # Conserve DB-Writes: Update the user max once in 30 Minutes (why??)
             if not skel["lastlogin"] or ((now - skel["lastlogin"]) > datetime.timedelta(minutes=30)):
                 skel["lastlogin"] = now
-                skel.toDB(clearUpdateTag=True)
+                skel.toDB(update_relations=False)
 
         logging.info(f"""User {skel["name"]} logged in""")
 

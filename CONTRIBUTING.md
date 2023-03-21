@@ -11,6 +11,17 @@ In case you encounter a bug, or you miss a feature, please [file an issue](https
 If you created a solution for a problem or added a feature, please make a pull request.
 This can also be done as a draft, in case you want to discuss a change or aren't finished.
 
+## Reviewing Pull Requests
+
+ViUR needs you! All developers are invited to review pull requests, so we can merge PRs as soon as possible and make changes according to our standards and that only works, if people help out.
+If you are not on the reviewers list, just add yourself or ask a maintainer to configure access for you.
+
+If there are documentation changes to review, there should be a 'doc-review' tag added to the issue or pull request
+
+## Documentation
+
+Please document your changes and provide info in any form you can. We have established a documentation taskforce that takes care of chasing information from core developers, organizing and building the docs with sphinx/readthedocs. If you implement a feature or change, you can dump your documentation in the pull request and tag it accordingly ('doc-review' tag), so you do not need to waste time learning restructured text for sphinx or even correct English. The documentation team will pick up your text, translate and polish it so you can concentrate on coding and explaining in your own words.
+
 ## Versioning
 
 viur-core uses the semantic versioning scheme.
