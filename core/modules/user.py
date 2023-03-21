@@ -260,7 +260,7 @@ class UserPassword:
                 raise errors.PreconditionFailed()
 
             self.passwordRecoveryRateLimit.decrementQuota()
-            recovery_key = utils.generateRandomString(42)  # This is the key the user will have to Copy&Paste
+            recovery_key = utils.generateRandomString(conf["viur.security.password_recovery_key_length"])
             user_agent = user_agents.parse(current_request.request.headers["User-Agent"])
             self.sendUserPasswordRecoveryCode(skel["name"], recovery_key, user_agent)  # Send the code in the background
             recovery_entity = db.Entity(db.Key("viur-recovery", recovery_key))
@@ -277,14 +277,13 @@ class UserPassword:
                                                tpl=self.passwordRecoveryStep2Template,
                                                recovery_key=recovery_key)
 
-
         if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
             raise errors.PreconditionFailed()
         if not (recovery_entity := db.Get(db.Key("viur-recovery", recovery_key))):
             return self.userModule.render.view(
                 skel=None,
                 tpl=self.passwordRecoveryFailedTemplate,
-                reason=self.passwordRecoveryUserNotFound)
+                reason=self.passwordRecoveryKeyExpired)
 
         if recovery_entity["valid_until"] < utils.utcNow():
             return self.userModule.render.view(
@@ -320,7 +319,7 @@ class UserPassword:
         return self.userModule.render.view(None, tpl=self.passwordRecoverySuccessTemplate)
 
     @tasks.CallDeferred
-    def sendUserPasswordRecoveryCode(self, user_name : str, recovery_key: str, user_agent: dict) -> None:
+    def sendUserPasswordRecoveryCode(self, user_name: str, recovery_key: str, user_agent: dict) -> None:
         """
             Sends the given recovery code to the user given in userName. This function runs deferred
             so there's no timing sidechannel that leaks if this user exists. Per default, we'll send the
@@ -332,7 +331,7 @@ class UserPassword:
             "name.idx =", user_name).getSkel()
         if user_skel:
             email.sendEMail(tpl=self.passwordRecoveryMail, skel=user_skel,
-                        dests=[user_name], recovery_key=recovery_key, user_agent=user_agent)
+                            dests=[user_name], recovery_key=recovery_key, user_agent=user_agent)
 
     @exposed
     def verify(self, skey, *args, **kwargs):
