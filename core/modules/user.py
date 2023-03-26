@@ -31,6 +31,16 @@ class UserSkel(skeleton.Skeleton):
         unique=UniqueValue(UniqueLockMethod.SameValue, True, "Username already taken"),
     )
 
+    firstname = StringBone(
+        descr="Firstname",
+        searchable=True,
+    )
+
+    lastname = StringBone(
+        descr="Lastname",
+        searchable=True,
+    )
+
     # Properties required by custom auth
     password = PasswordBone(
         descr="Password",
@@ -45,6 +55,16 @@ class UserSkel(skeleton.Skeleton):
         required=False,
         readOnly=True,
         unique=UniqueValue(UniqueLockMethod.SameValue, False, "UID already in use"),
+    )
+
+    sync = BooleanBone(
+        descr="Sync user data with OAuth-based services",
+        defaultValue=True,
+        params={
+            "tooltip":
+                "If set, user data like firstname and lastname is automatically kept synchronous with the information "
+                "stored at the OAuth service provider (e.g. Google Login)."
+        }
     )
 
     gaeadmin = BooleanBone(
@@ -470,24 +490,40 @@ class GoogleAccount:
 
         # fixme: use self.userModule.baseSkel() for this later
         addSkel = skeleton.skeletonByKind(self.userModule.addSkel().kindName)  # Ensure that we have the full skeleton
-        userSkel = addSkel().all().filter("uid =", uid).getSkel()
-        if not userSkel:
+
+        update = False
+        if not (userSkel := addSkel().all().filter("uid =", uid).getSkel()):
             # We'll try again - checking if there's already an user with that email
-            userSkel = addSkel().all().filter("name.idx =", email.lower()).getSkel()
-            if not userSkel:  # Still no luck - it's a completely new user
+            if not (userSkel := addSkel().all().filter("name.idx =", email.lower()).getSkel()):
+                # Still no luck - it's a completely new user
                 if not self.registrationEnabled:
                     if userInfo.get("hd") and userInfo["hd"] in conf["viur.user.google.gsuiteDomains"]:
                         print("User is from domain - adding account")
                     else:
                         logging.warning("Denying registration of %s", email)
                         raise errors.Forbidden("Registration for new users is disabled")
+
                 userSkel = addSkel()  # We'll add a new user
+
             userSkel["uid"] = uid
             userSkel["name"] = email
-            isAdd = True
-        else:
-            isAdd = False
-        if isAdd:
+            update = True
+
+        # Take user information from Google, if wanted!
+        if userSkel["sync"]:
+
+            for target, source in {
+                "name": email,
+                "firstname": userInfo.get("given_name"),
+                "lastname": userInfo.get("family_name"),
+            }.items():
+
+                if userSkel[target] != source:
+                    userSkel[target] = source
+                    update = True
+
+        if update:
+            # TODO: Get access from IAM or similar
             # if users.is_current_user_admin():
             #    if not userSkel["access"]:
             #        userSkel["access"] = []
@@ -497,6 +533,7 @@ class GoogleAccount:
             # else:
             #    userSkel["gaeadmin"] = False
             assert userSkel.toDB()
+
         return self.userModule.continueAuthenticationFlow(self, userSkel["key"])
 
 
