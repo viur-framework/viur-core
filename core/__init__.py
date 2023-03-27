@@ -302,6 +302,7 @@ def app(environ: dict, start_response: Callable):
     current.request.set(handler)
     current.session.set(session.Session(handler))
     current.request_data.set({})
+    current.user.set(current.CurrentUserWrapper())
     # Handle request
     handler.processRequest()
 
