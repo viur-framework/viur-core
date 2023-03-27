@@ -43,7 +43,7 @@ class Tree(SkelModule):
 
     It is used for hierarchical structures, either as a tree with nodes and leafs, or as a hierarchy with nodes only.
     """
-    accessRights = ("add", "edit", "view", "delete")
+    accessRights = ("add", "edit", "view", "delete", "manage")
 
     nodeSkelCls = None
     leafSkelCls = None
