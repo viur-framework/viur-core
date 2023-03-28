@@ -173,8 +173,14 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     else:
         root = ExtendableObject()
     modules._tasks = TaskHandler
+
+    # Default modules
     from viur.core.modules.moduleconf import ModuleConf  # noqa: E402 # import works only here because circular imports
     modules._moduleconf = ModuleConf
+
+    from viur.core.modules.script import Script  # noqa: E402 # import works only here because circular imports
+    modules.script = Script
+
     resolverDict = {}
     indexes = load_indexes_from_file()
     for moduleName, moduleClass in vars(modules).items():  # iterate over all modules
