@@ -110,7 +110,11 @@ def thumbnailer(fileSkel, existingFiles, params):
             f = BytesIO(iccProfile)
             src_profile = ImageCms.ImageCmsProfile(f)
             dst_profile = ImageCms.createProfile('sRGB')
-            img = ImageCms.profileToProfile(img, inputProfile=src_profile, outputProfile=dst_profile, outputMode="RGB")
+            try:
+                img = ImageCms.profileToProfile(img, inputProfile=src_profile, outputProfile=dst_profile, outputMode="RGB")
+            except Exception as e:
+                logging.exception(e)
+                continue
         fileExtension = sizeDict.get("fileExtension", "webp")
         if "width" in sizeDict and "height" in sizeDict:
             width = sizeDict["width"]
