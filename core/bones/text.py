@@ -36,7 +36,7 @@ def parseDownloadUrl(urlStr: str) -> Tuple[Optional[str], Optional[bool], Option
         blobKey, derived (yes/no) and filename. Will return None for each component if the url
         could not be parsed.
     """
-    if not urlStr.startswith("/file/download/"):
+    if not urlStr.startswith("/file/download/") or "?" not in urlStr:
         return None, None, None
     dataStr, sig = urlStr[15:].split("?")  # Strip /file/download/ and split on ?
     sig = sig[4:]  # Strip sig=
