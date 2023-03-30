@@ -38,10 +38,13 @@ class DefaultRender(object):
         """
         Performs structure rewrite according to compatibility flags.
         """
-        # fixme: Remove in VIUR4
-        if "json.bone.structure.camelcasenames" in conf["viur.compatibility"]:
-            for struct in structure.values():
-                # Replace new-key by a copy of the value under the old-key
+        for i, struct in enumerate(structure.values()):
+            # Inject sortindex as additional bone ordering indicator
+            struct["sortindex"] = i
+
+            # Optionally replace new-key by a copy of the value under the old-key
+            # fixme: Remove in VIUR4
+            if "json.bone.structure.camelcasenames" in conf["viur.compatibility"]:
                 for find, replace in {
                     "boundslat": "boundsLat",
                     "boundslng": "boundsLng",
@@ -57,6 +60,7 @@ class DefaultRender(object):
                     if find in struct:
                         struct[replace] = struct[find]
 
+        # Optionally return list of tuples instead of dict
         # fixme: Remove in VIUR4
         if "json.bone.structure.keytuples" in conf["viur.compatibility"]:
             return [(key, struct) for key, struct in structure.items()]
