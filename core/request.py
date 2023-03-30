@@ -313,13 +313,15 @@ class BrowseHandler():  # webapp.RequestHandler
                     error_info = {
                         "status": e.status,
                         "reason": e.name,
-                        "descr": str(translate(e.name)),
-                        "hint": e.descr,
+                        "title": str(translate(e.name)),
+                        "descr": e.descr,
                     }
                 else:
                     error_info = {
                         "status": 500,
                         "reason": "Internal Server Error",
+                        "title": str(translate("Internal Server Error")),
+                        
                         "descr": descr
                     }
 
