@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import json
 import logging
+import secrets
 import time
 import warnings
 from typing import Optional
@@ -10,10 +11,10 @@ from typing import Optional
 from google.auth.transport import requests
 from google.oauth2 import id_token
 
-from viur.core import conf, db, email, errors, exposed, forceSSL, i18n, securitykey, session, skeleton, tasks, utils, \
-    current
+from viur.core import conf, current, db, email, errors, exposed, forceSSL, i18n, \
+    securitykey, session, skeleton, tasks, utils
 from viur.core.bones import *
-from viur.core.bones.password import pbkdf2
+from viur.core.bones.password import encode_password, PBKDF2_DEFAULT_ITERATIONS
 from viur.core.prototypes.list import List
 from viur.core.ratelimit import RateLimit
 from viur.core.securityheaders import extendCsp
@@ -77,9 +78,8 @@ class UserSkel(skeleton.Skeleton):
     access = SelectBone(
         descr="Access rights",
         values=lambda: {
-
             right: i18n.translate("server.modules.user.accessright.%s" % right, defaultText=right)
-                for right in sorted(conf["viur.accessRights"])
+            for right in sorted(conf["viur.accessRights"])
         },
         multiple=True,
     )
@@ -207,45 +207,43 @@ class UserPassword:
         res = query.filter("name.idx >=", name).getEntry()
 
         if res is None:
-            res = {"password": {"pwhash": "-invalid-", "salt": "-invalid"}, "status": 0, "name": {}}
+            res = {"password": {"pwhash": "-invalid-", "salt": "-invalid-"}, "status": 0, "name": {}}
 
-        passwd = pbkdf2(password[:conf["viur.maxPasswordLength"]], (res.get("password", None) or {}).get("salt", ""))
-        isOkay = True
-
-        # We do this exactly that way to avoid timing attacks
+        password_data = res.get("password") or {}
+        # old password hashes used 1001 iterations
+        iterations = password_data.get("iterations", 1001)
+        passwd = encode_password(password, password_data.get("salt", ""), iterations)["pwhash"]
 
         # Check if the username matches
-        storedUserName = (res.get("name") or {}).get("idx", "")
-        if len(storedUserName) != len(name):
-            isOkay = False
-        else:
-            for x, y in zip(storedUserName, name):
-                if x != y:
-                    isOkay = False
+        stored_user_name = (res.get("name") or {}).get("idx", "")
+        is_okay = secrets.compare_digest(stored_user_name, name)
 
         # Check if the password matches
-        storedPasswordHash = (res.get("password", None) or {}).get("pwhash", "-invalid-")
-        if len(storedPasswordHash) != len(passwd):
-            isOkay = False
-        else:
-            for x, y in zip(storedPasswordHash, passwd):
-                if x != y:
-                    isOkay = False
+        stored_password_hash = password_data.get("pwhash", "-invalid-")
+        is_okay &= secrets.compare_digest(stored_password_hash, passwd)
 
         accountStatus: Optional[int] = None
         # Verify that this account isn't blocked
         if res["status"] < 10:
-            if isOkay:
+            if is_okay:
                 # The username and password is valid, in this case we can inform that user about his account status
                 # (ie account locked or email verification pending)
                 accountStatus = res["status"]
-            isOkay = False
+            is_okay = False
 
-        if not isOkay:
+        if not is_okay:
             self.loginRateLimit.decrementQuota()  # Only failed login attempts will count to the quota
             skel = self.LoginSkel()
             return self.userModule.render.login(skel, loginFailed=True, accountStatus=accountStatus)
         else:
+            if iterations < PBKDF2_DEFAULT_ITERATIONS:
+                logging.info(f"Update password hash for user {name}.")
+                # re-hash the password with more iterations
+                skel = self.userModule.editSkel()
+                skel.setEntity(res)
+                skel["key"] = res.key
+                skel["password"] = password  # will be hashed on serialize
+                skel.toDB(clearUpdateTag=True)
             return self.userModule.continueAuthenticationFlow(self, res.key)
 
     @exposed
