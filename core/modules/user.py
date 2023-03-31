@@ -928,7 +928,7 @@ def createNewUserIfNotExists():
             uname = f"""admin@{conf["viur.instance.project_id"]}.appspot.com"""
             pw = utils.generateRandomString(13)
             addSkel["name"] = uname
-            addSkel["status"] = Status.ACTIVE  # Ensure its enabled right away
+            addSkel["status"] = Status.ACTIVE  # Ensure it's enabled right away
             addSkel["access"] = ["root"]
             addSkel["password"] = pw
 
