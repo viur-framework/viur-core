@@ -1,5 +1,6 @@
 import datetime
 import enum
+import functools
 import hashlib
 import hmac
 import json
@@ -20,11 +21,24 @@ from viur.core.ratelimit import RateLimit
 from viur.core.securityheaders import extendCsp
 
 
+@functools.total_ordering
 class Status(enum.Enum):
+    """Status enum for a user
+
+    Has backwards compatibility to be comparable with non-enum values.
+    Will be removed with viur-core 4.0.0
+    """
+
     WAITING_FOR_EMAIL_VERIFICATION = 1  # Waiting for email verification
     WAITING_FOR_ADMIN_VERIFICATION = 2  # Waiting for verification through admin
     DISABLED = 5  # Account disabled
     ACTIVE = 10  # Active
+
+    def __eq__(self, other):
+        return self.value == other
+
+    def __lt__(self, other):
+        return self.value < other
 
 
 class UserSkel(skeleton.Skeleton):
