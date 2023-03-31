@@ -29,6 +29,7 @@ class Status(enum.Enum):
     Will be removed with viur-core 4.0.0
     """
 
+    UNSET = 0  # Status is unset
     WAITING_FOR_EMAIL_VERIFICATION = 1  # Waiting for email verification
     WAITING_FOR_ADMIN_VERIFICATION = 2  # Waiting for verification through admin
     DISABLED = 5  # Account disabled
@@ -699,7 +700,7 @@ class User(List):
         user = current.user.get()
         if not (user and user["access"] and ("%s-add" % self.moduleName in user["access"] or "root" in user["access"])):
             skel.status.readOnly = True
-            skel["status"] = 0  # FIXME: What's 0?
+            skel["status"] = Status.UNSET
             skel.status.visible = False
             skel.access.readOnly = True
             skel["access"] = []
