@@ -5,17 +5,20 @@ import hashlib
 import hmac
 import json
 import logging
-import time
+import secrets
 import warnings
 from typing import Optional
 
+import time
 from google.auth.transport import requests
 from google.oauth2 import id_token
 
-from viur.core import conf, db, email, errors, exposed, forceSSL, i18n, securitykey, session, skeleton, tasks, utils, \
-    current
+from viur.core import (
+    conf, current, db, email, errors, exposed, forceSSL, i18n,
+    securitykey, session, skeleton, tasks, utils
+)
 from viur.core.bones import *
-from viur.core.bones.password import pbkdf2
+from viur.core.bones.password import PBKDF2_DEFAULT_ITERATIONS, encode_password
 from viur.core.prototypes.list import List
 from viur.core.ratelimit import RateLimit
 from viur.core.securityheaders import extendCsp
@@ -58,6 +61,16 @@ class UserSkel(skeleton.Skeleton):
         unique=UniqueValue(UniqueLockMethod.SameValue, True, "Username already taken"),
     )
 
+    firstname = StringBone(
+        descr="Firstname",
+        searchable=True,
+    )
+
+    lastname = StringBone(
+        descr="Lastname",
+        searchable=True,
+    )
+
     # Properties required by custom auth
     password = PasswordBone(
         descr="Password",
@@ -72,6 +85,16 @@ class UserSkel(skeleton.Skeleton):
         required=False,
         readOnly=True,
         unique=UniqueValue(UniqueLockMethod.SameValue, False, "UID already in use"),
+    )
+
+    sync = BooleanBone(
+        descr="Sync user data with OAuth-based services",
+        defaultValue=True,
+        params={
+            "tooltip":
+                "If set, user data like firstname and lastname is automatically kept synchronous with the information "
+                "stored at the OAuth service provider (e.g. Google Login)."
+        }
     )
 
     gaeadmin = BooleanBone(
@@ -208,45 +231,43 @@ class UserPassword:
         res = query.filter("name.idx >=", name).getEntry()
 
         if res is None:
-            res = {"password": {"pwhash": "-invalid-", "salt": "-invalid"}, "status": 0, "name": {}}
+            res = {"password": {"pwhash": "-invalid-", "salt": "-invalid-"}, "status": 0, "name": {}}
 
-        passwd = pbkdf2(password[:conf["viur.maxPasswordLength"]], (res.get("password", None) or {}).get("salt", ""))
-        isOkay = True
-
-        # We do this exactly that way to avoid timing attacks
+        password_data = res.get("password") or {}
+        # old password hashes used 1001 iterations
+        iterations = password_data.get("iterations", 1001)
+        passwd = encode_password(password, password_data.get("salt", ""), iterations)["pwhash"]
 
         # Check if the username matches
-        storedUserName = (res.get("name") or {}).get("idx", "")
-        if len(storedUserName) != len(name):
-            isOkay = False
-        else:
-            for x, y in zip(storedUserName, name):
-                if x != y:
-                    isOkay = False
+        stored_user_name = (res.get("name") or {}).get("idx", "")
+        is_okay = secrets.compare_digest(stored_user_name, name)
 
         # Check if the password matches
-        storedPasswordHash = (res.get("password", None) or {}).get("pwhash", "-invalid-")
-        if len(storedPasswordHash) != len(passwd):
-            isOkay = False
-        else:
-            for x, y in zip(storedPasswordHash, passwd):
-                if x != y:
-                    isOkay = False
+        stored_password_hash = password_data.get("pwhash", "-invalid-")
+        is_okay &= secrets.compare_digest(stored_password_hash, passwd)
 
         accountStatus: Optional[int] = None
         # Verify that this account isn't blocked
         if res["status"] < Status.ACTIVE.value:
-            if isOkay:
+            if is_okay:
                 # The username and password is valid, in this case we can inform that user about his account status
                 # (ie account locked or email verification pending)
                 accountStatus = res["status"]
-            isOkay = False
+            is_okay = False
 
-        if not isOkay:
+        if not is_okay:
             self.loginRateLimit.decrementQuota()  # Only failed login attempts will count to the quota
             skel = self.LoginSkel()
             return self.userModule.render.login(skel, loginFailed=True, accountStatus=accountStatus)
         else:
+            if iterations < PBKDF2_DEFAULT_ITERATIONS:
+                logging.info(f"Update password hash for user {name}.")
+                # re-hash the password with more iterations
+                skel = self.userModule.editSkel()
+                skel.setEntity(res)
+                skel["key"] = res.key
+                skel["password"] = password  # will be hashed on serialize
+                skel.toDB(clearUpdateTag=True)
             return self.userModule.continueAuthenticationFlow(self, res.key)
 
     @exposed
@@ -474,8 +495,8 @@ class GoogleAccount:
                 request.response.headers["cross-origin-opener-policy"] = "same-origin-allow-popups"
             # Fixme: Render with Jinja2?
             with (conf["viur.instance.core_base_path"]
-                  .joinpath("viur/core/template/vi_user_google_login.html")
-                  .open() as tpl_file):
+                      .joinpath("viur/core/template/vi_user_google_login.html")
+                      .open() as tpl_file):
                 tplStr = tpl_file.read()
             tplStr = tplStr.replace("{{ clientID }}", conf["viur.user.google.clientID"])
             extendCsp({"script-src": ["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
@@ -492,24 +513,40 @@ class GoogleAccount:
 
         # fixme: use self.userModule.baseSkel() for this later
         addSkel = skeleton.skeletonByKind(self.userModule.addSkel().kindName)  # Ensure that we have the full skeleton
-        userSkel = addSkel().all().filter("uid =", uid).getSkel()
-        if not userSkel:
+
+        update = False
+        if not (userSkel := addSkel().all().filter("uid =", uid).getSkel()):
             # We'll try again - checking if there's already an user with that email
-            userSkel = addSkel().all().filter("name.idx =", email.lower()).getSkel()
-            if not userSkel:  # Still no luck - it's a completely new user
+            if not (userSkel := addSkel().all().filter("name.idx =", email.lower()).getSkel()):
+                # Still no luck - it's a completely new user
                 if not self.registrationEnabled:
                     if userInfo.get("hd") and userInfo["hd"] in conf["viur.user.google.gsuiteDomains"]:
                         print("User is from domain - adding account")
                     else:
                         logging.warning("Denying registration of %s", email)
                         raise errors.Forbidden("Registration for new users is disabled")
+
                 userSkel = addSkel()  # We'll add a new user
+
             userSkel["uid"] = uid
             userSkel["name"] = email
-            isAdd = True
-        else:
-            isAdd = False
-        if isAdd:
+            update = True
+
+        # Take user information from Google, if wanted!
+        if userSkel["sync"]:
+
+            for target, source in {
+                "name": email,
+                "firstname": userInfo.get("given_name"),
+                "lastname": userInfo.get("family_name"),
+            }.items():
+
+                if userSkel[target] != source:
+                    userSkel[target] = source
+                    update = True
+
+        if update:
+            # TODO: Get access from IAM or similar
             # if users.is_current_user_admin():
             #    if not userSkel["access"]:
             #        userSkel["access"] = []
@@ -519,6 +556,7 @@ class GoogleAccount:
             # else:
             #    userSkel["gaeadmin"] = False
             assert userSkel.toDB()
+
         return self.userModule.continueAuthenticationFlow(self, userSkel["key"])
 
 
@@ -850,7 +888,7 @@ class User(List):
             # Conserve DB-Writes: Update the user max once in 30 Minutes (why??)
             if not skel["lastlogin"] or ((now - skel["lastlogin"]) > datetime.timedelta(minutes=30)):
                 skel["lastlogin"] = now
-                skel.toDB(clearUpdateTag=True)
+                skel.toDB(update_relations=False)
 
         logging.info(f"""User {skel["name"]} logged in""")
 
