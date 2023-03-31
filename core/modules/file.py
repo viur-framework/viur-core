@@ -689,13 +689,12 @@ class File(Tree):
         return super(File, self).add(skelType, node, *args, **kwargs)
 
     def onEdit(self, skelType: SkelType, skel: SkeletonInstance):
+        super().onEdit(skelType, skel)
         old_skel = self.editSkel(skelType)
-        if not old_skel.fromDB(skel["key"]):
-            raise errors.NotFound()
+        old_skel.setEntity(skel.dbEntity)
 
         if old_skel["name"] == skel["name"]:  # name not changed we can return
             return
-        global bucket
         # Move Blob to new name
         # https://cloud.google.com/storage/docs/copying-renaming-moving-objects
         old_path = f"{skel['dlkey']}/source/{html.unescape(old_skel['name'])}"
