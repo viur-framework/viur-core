@@ -35,9 +35,13 @@ class Status(enum.Enum):
     ACTIVE = 10  # Active
 
     def __eq__(self, other):
+        if isinstance(other, Status):
+            return super().__eq__(other)
         return self.value == other
 
     def __lt__(self, other):
+        if isinstance(other, Status):
+            return super().__lt__(other)
         return self.value < other
 
 
