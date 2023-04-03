@@ -61,25 +61,25 @@ class MultipleConstraints:  # Used to define constraints on multiple bones
     preventDuplicates: bool = False  # Prevent the same value of being used twice
 
 
-class ThresholdMethods(Enum):
-    Always = 0
-    Lifetime = 1
-    Once = 2
-    OnStore = 3
+class ComputeMethod(Enum):
+    Always = 0  # Always compute on deserialization
+    Lifetime = 1  # Update only when given lifetime is outrun
+    Once = 2  # Compute only once
+    OnWrite = 3  # Compute before written
 
 
 @dataclass
-class ThresholdValue:
-    method: ThresholdMethods = ThresholdMethods.Always
-    lifetime: timedelta = None
-    last_updated: datetime = None  # defines when the value was last updated (readonly)
+class ComputeInterval:
+    method: ComputeMethod = ComputeMethod.Always
+    lifetime: timedelta = None  # defines a timedelta until which the value stays valid (`ComputeMethod.Lifetime`)
 
 
 @dataclass
 class Compute:
     fn: callable  # the callable computing the value
-    threshold: ThresholdValue = ThresholdValue()   # the value caching interval
-    raw: bool = True  # defines whether the value is used as is, or is passed to bone.fromClient
+    interval: ComputeInterval = ComputeInterval()   # the value caching interval
+    raw: bool = True  # defines whether the value returned by fn is used as is,
+                      # or should be passed through bone.fromClient
 
 
 class BaseBone(object):
@@ -89,6 +89,7 @@ class BaseBone(object):
     def __init__(
         self,
         *,
+        compute: Compute = None,
         defaultValue: Any = None,
         descr: str = "",
         getEmptyValueFunc: callable = None,
@@ -97,13 +98,12 @@ class BaseBone(object):
         languages: Union[None, List[str]] = None,
         multiple: Union[bool, MultipleConstraints] = False,
         params: Dict = None,
-        readOnly: bool = False,
+        readOnly: bool = None,  # fixme: Rename into readonly (all lowercase!) soon.
         required: Union[bool, List[str], Tuple[str]] = False,
         searchable: bool = False,
         unique: Union[None, UniqueValue] = None,
         vfunc: callable = None,  # fixme: Rename this, see below.
         visible: bool = True,
-        compute: Compute = None,
     ):
         """
             Initializes a new Bone.
@@ -138,7 +138,7 @@ class BaseBone(object):
         self.params = params or {}
         self.multiple = multiple
         self.required = required
-        self.readOnly = readOnly
+        self.readOnly = bool(readOnly)
         self.searchable = searchable
         self.visible = visible
         self.indexed = indexed
@@ -195,16 +195,21 @@ class BaseBone(object):
         if compute:
             if not isinstance(compute, Compute):
                 raise TypeError("compute must be an instanceof of Compute")
-            if not readOnly:
-                logging.info("'compute' is the only valid on readonly bones")
-                self.readOnly = False
-            if compute.threshold.method == ThresholdMethods.Lifetime:
-                if compute.threshold.lifetime is None:
-                    logging.error("'compute' is in 'lifetime' mode but no lifetime is set")
-                    compute.threshold.lifetime = timedelta()  # Set lifetime to 0 to use this anyway
-            self.compute = compute
-        else:
-            self.compute = None
+
+            # When readOnly is None, handle flag automatically
+            if readOnly is None:
+                self.readOnly = True
+            if not self.readOnly:
+                raise ValueError("'compute' can only be used with bones configured as `readOnly=True`")
+
+            if (compute.interval.method == ComputeMethod.Lifetime
+                and not isinstance(compute.interval.lifetime, timedelta)
+            ):
+                raise ValueError(
+                    f"'compute' is configured as ComputeMethod.Lifetime, but {compute.interval.lifetime=} was specified"
+                )
+
+        self.compute = compute
 
     def setSystemInitialized(self):
         """
@@ -477,24 +482,27 @@ class BaseBone(object):
 
             :param name: The property-name this bone has in its Skeleton (not the description!)
         """
-        if self.compute:  # handle this in the first place
-            if self.compute.threshold.method == ThresholdMethods.OnStore:
-                skel.dbEntity[name] = self._compute(skel, name)
-                skel.dbEntity.exclude_from_indexes.add(name)
-                return True
-            elif self.compute.threshold.method == ThresholdMethods.Lifetime:
-                if name not in skel.dbEntity:
-                    if data := self._compute(skel, name):
-                        skel.dbEntity[name] = data
-                        skel.dbEntity[f"{name}__last_updated"] = utils.utcNow()
-                        return True
+        # Handle compute on write
+        if self.compute:
+            match self.compute.interval.method:
+                case ComputeMethod.OnWrite:
+                    skel.accessedValues[name] = self._compute(skel, name)
 
-                    return False
-            else:
-                if name in skel.accessedValues:
-                    skel.dbEntity[name] = skel.accessedValues[name]
-                    return True
-                return False
+                case ComputeMethod.Lifetime:
+                    now = utils.utcNow()
+                    last_updated = \
+                        skel.accessedValues.get(f"{name}__last_updated") or skel.dbEntity.get(f"{name}__last_updated")
+                    logging.debug(f"{last_updated=}")
+                    if not last_updated or last_updated + self.compute.interval.lifetime < now:
+                        skel.accessedValues[name] = self._compute(skel, name)
+                        skel.dbEntity[f"{name}__last_updated"] = now
+
+                case ComputeMethod.Once:
+                    if name not in skel.dbEntity:
+                        skel.accessedValues[name] = self._compute(skel, name)
+
+            # logging.debug(f"WRITE {name=} {skel.accessedValues=}")
+            # logging.debug(f"WRITE {name=} {skel.dbEntity=}")
 
         if name in skel.accessedValues:
             newVal = skel.accessedValues[name]
@@ -551,48 +559,50 @@ class BaseBone(object):
         """
         if name in skel.dbEntity:
             loadVal = skel.dbEntity[name]
-            if self.compute:  # handle this in the first place
-                if self.compute.threshold.method == ThresholdMethods.Lifetime:  # we maybe must compute the value new
-                    # if we have no value we set it to now and compute new
-                    self.compute.threshold.last_updated = skel.dbEntity.get(f"{name}__last_updated", utils.utcNow())
-                    if self.compute.threshold.last_updated+self.compute.threshold.lifetime > utils.utcNow():
-                        skel.accessedValues[name] = loadVal
-                        return True
-                    if data := self._compute(skel, name):
-                        skel.accessedValues[name] = data
-                        skel.dbEntity[name] = data
-                        skel.dbEntity[f"{name}__last_updated"] = utils.utcNow()
-                        # Refresh last updated time
-                        self.compute.threshold.last_updated = skel.dbEntity[f"{name}__last_updated"]
-                        return True
-
-                elif self.compute.threshold.method == ThresholdMethods.Always:  # we must compute the value new
-                    if data := self._compute(skel, name):
-                        skel.accessedValues[name] = data
-                        return True
-
-                elif self.compute.threshold.method == ThresholdMethods.Once:
-                    # we must compute new only if we have no value
-                    skel.accessedValues[name] = loadVal
-                    return True
-
-        elif conf.get("viur.viur2import.blobsource") and any(
-            [x.startswith("%s." % name) for x in skel.dbEntity.keys()]):
+        elif (
+            # fixme: Remove this piece of sh*t at least with VIUR4
             # We're importing from an old ViUR2 instance - there may only be keys prefixed with our name
+            conf.get("viur.viur2import.blobsource") and any([x.startswith("%s." % name) for x in skel.dbEntity])
+            # ... or computed
+            or self.compute
+        ):
             loadVal = None
         else:
-            if self.compute:  # handle this in the first place
-                if data := self._compute(skel, name):
-                    skel.accessedValues[name] = data
-                    skel.dbEntity[name] = data
-                    if self.compute.threshold.method == ThresholdMethods.Lifetime:
-                        skel.dbEntity[f"{name}__last_updated"] = utils.utcNow()
-                        self.compute.threshold.last_updated = skel.dbEntity[f"{name}__last_updated"]
-                    return True
-
             skel.accessedValues[name] = self.getDefaultValue(skel)
             return False
 
+        # Is this value computed?
+        # In this case, check for configured compute method and if recomputation is required.
+        # Otherwise, the value from the DB is used as is.
+        if self.compute:
+            match self.compute.interval.method:
+                # Computation is bound to a lifetime?
+                case ComputeMethod.Lifetime:
+                    now = utils.utcNow()
+                    # check if lifetime exceeded
+                    last_updated = skel.dbEntity.get(f"{name}__last_updated")
+                    skel.accessedValues[f"{name}__last_updated"] = last_updated or now
+
+                    # logging.debug(f"READ {name=} {skel.dbEntity=}")
+                    # logging.debug(f"READ {name=} {skel.accessedValues=}")
+
+                    if not last_updated or last_updated + self.compute.interval.lifetime <= now:
+                        # if so, recompute and refresh updated value
+                        skel.accessedValues[name] = self._compute(skel, name)
+                        return True
+
+                # Compute on every deserialization
+                case ComputeMethod.Always:
+                    skel.accessedValues[name] = self._compute(skel, name)
+                    return True
+
+                # Only compute once when loaded value is empty
+                case ComputeMethod.Once:
+                    if loadVal is None:
+                        skel.accessedValues[name] = self._compute(skel, name)
+                        return True
+
+        # unserialize value to given config
         if self.languages and self.multiple:
             res = {}
             if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
@@ -664,6 +674,7 @@ class BaseBone(object):
                 loadVal = loadVal[0]
             if loadVal is not None:
                 res = self.singleValueUnserialize(loadVal)
+
         skel.accessedValues[name] = res
         return True
 
@@ -977,22 +988,24 @@ class BaseBone(object):
                 yield None, None, value
 
     def _compute(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+        """Performs the evaluation of a bone configured as compute"""
 
         if "skel" not in inspect.signature(self.compute.fn).parameters:
-            data = self.singleValueUnserialize(self.compute.fn())  # call without any arguments
+            # call without any arguments
+            ret = self.compute.fn()
         else:
+            # otherwise, call with a clone of the skeleton
             skel = skel.clone()
-            skel[name] = None  # we must remove our bone because of recursion
-            data = self.singleValueUnserialize(self.compute.fn(skel=skel))
+            skel[name] = None  # remove bone to avoid endless recursion
+            ret = self.singleValueUnserialize(self.compute.fn(skel=skel))
 
         if not self.compute.raw:
-            errors = self.fromClient(skel, name, {name: data})
-            if errors is None:
-                return skel[name]
-            else:
-                logging.error(f"Parse Data failed with {errors}. We return the raw data.")
+            if errors := self.fromClient(skel, name, {name: ret}):
+                raise ValueError(f"Computed value fromClient failed with {errors!r}")
 
-        return data
+            return skel[name]
+
+        return ret
 
     def structure(self) -> dict:
         """
@@ -1026,8 +1039,11 @@ class BaseBone(object):
         else:
             ret["multiple"] = self.multiple
         if self.compute:
-            ret["compute"] = {"method": self.compute.threshold.method.name}
-            if self.compute.threshold.lifetime:
-                ret["compute"]["lifetime"] = str(self.compute.threshold.lifetime)
-                ret["compute"]["last_updated"] = (lu := self.compute.threshold.last_updated) and lu.isoformat()
+            ret["compute"] = {
+                "method": self.compute.interval.method.name
+            }
+
+            if self.compute.interval.lifetime:
+                ret["compute"]["lifetime"] = str(self.compute.interval.lifetime)
+
         return ret

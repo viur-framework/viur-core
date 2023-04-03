@@ -1,5 +1,14 @@
-from .base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity, UniqueValue, UniqueLockMethod, \
-    MultipleConstraints, ThresholdMethods, ThresholdValue, Compute
+from .base import (
+    BaseBone,
+    Compute,
+    ComputeInterval,
+    ComputeMethod,
+    MultipleConstraints,
+    ReadFromClientError,
+    ReadFromClientErrorSeverity,
+    UniqueLockMethod,
+    UniqueValue,
+)
 from .boolean import BooleanBone
 from .captcha import CaptchaBone
 from .color import ColorBone
@@ -32,8 +41,8 @@ __all = [
     "CaptchaBone",
     "ColorBone",
     "Compute",
-    "ThresholdMethods",
-    "ThresholdValue",
+    "ComputeInterval",
+    "ComputeMethod",
     "CredentialBone",
     "DateBone",
     "EmailBone",
