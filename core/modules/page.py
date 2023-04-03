@@ -2,7 +2,7 @@ from viur.core.prototypes.tree import Tree, TreeSkel
 from viur.core.bones import *
 
 
-class pageSkel(TreeSkel):
+class PageSkel(TreeSkel):
     kindName = "page"
     searchindex = "page"
     name = StringBone(descr=u"Name", indexed=True, searchable=True, required=True)

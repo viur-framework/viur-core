@@ -345,4 +345,11 @@ de = {
     "module helptext": "Modul Hilfetext",
     "add helptext": "Hinzufügen Hilfetext",
     "edit helptext": "Editieren Hilfetext",
+
+    # Bones
+    "core.bones.password.no_capital_letters": "Das eingegebene Passwort enthält keine Großbuchstaben.",
+    "core.bones.password.no_lowercase_letters": "Das eingegebene Passwort enthält keine Kleinbuchstaben.",
+    "core.bones.password.no_digits": "Das eingegebene Passwort enthält keine Ziffern.",
+    "core.bones.password.no_special_characters": "Das eingegebene Passwort enthält keine Sonderzeichen.",
+
 }

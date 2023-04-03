@@ -202,6 +202,11 @@ conf = Conf({
         "display": "hidden",
     },
 
+    "viur.script.admin_info": {
+        "icon": "icon-hashtag",
+        "display": "hidden",
+    },
+
     # List of URLs for which viur.forceSSL is ignored.
     # Add an asterisk to mark that entry as a prefix (exact match otherwise)
     "viur.noSSLCheckUrls": ["/_tasks*", "/ah/*"],

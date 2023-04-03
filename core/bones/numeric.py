@@ -174,3 +174,10 @@ class NumericBone(BaseBone):
         elif not self.languages:
             # just the value(s) with None language
             skel[boneName] = new_value.get(None, [] if self.multiple else self.getEmptyValue())
+
+    def structure(self) -> dict:
+        return super().structure() | {
+            "min": self.min,
+            "max": self.max,
+            "precision": self.precision,
+        }
