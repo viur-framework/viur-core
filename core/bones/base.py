@@ -201,8 +201,10 @@ class BaseBone(object):
             if not self.readOnly:
                 raise ValueError("'compute' can only be used with bones configured as `readOnly=True`")
 
-            if compute.interval.method == ComputeMethod.Lifetime \
-                and not isinstance(compute.interval.lifetime, timedelta):
+            if (
+                compute.interval.method == ComputeMethod.Lifetime
+                and not isinstance(compute.interval.lifetime, timedelta)
+            ):
                 raise ValueError(
                     f"'compute' is configured as ComputeMethod.Lifetime, but {compute.interval.lifetime=} was specified"
                 )
