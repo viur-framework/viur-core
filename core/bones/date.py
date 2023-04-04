@@ -112,7 +112,7 @@ class DateBone(BaseBone):
         elif not self.date and self.time:
             try:
                 value = datetime.fromisoformat(value)
-                if self.naive:
+                if not self.naive:
                     value = time_zone.localize(value)
             except:
                 try:
