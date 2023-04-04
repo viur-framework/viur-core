@@ -490,12 +490,14 @@ class BaseBone(object):
 
                 case ComputeMethod.Lifetime:
                     now = utils.utcNow()
-                    last_updated = \
-                        skel.accessedValues.get(f"{name}__last_updated") or skel.dbEntity.get(f"{name}__last_updated")
-                    logging.debug(f"{last_updated=}")
-                    if not last_updated or last_updated + self.compute.interval.lifetime < now:
+
+                    last_update = \
+                        skel.accessedValues.get(f"_viur_compute_{name}_") \
+                        or skel.dbEntity.get(f"_viur_compute_{name}_")
+
+                    if not last_update or last_update + self.compute.interval.lifetime < now:
                         skel.accessedValues[name] = self._compute(skel, name)
-                        skel.dbEntity[f"{name}__last_updated"] = now
+                        skel.dbEntity[f"_viur_compute_{name}_"] = now
 
                 case ComputeMethod.Once:
                     if name not in skel.dbEntity:
@@ -579,14 +581,15 @@ class BaseBone(object):
                 # Computation is bound to a lifetime?
                 case ComputeMethod.Lifetime:
                     now = utils.utcNow()
+
                     # check if lifetime exceeded
-                    last_updated = skel.dbEntity.get(f"{name}__last_updated")
-                    skel.accessedValues[f"{name}__last_updated"] = last_updated or now
+                    last_update = skel.dbEntity.get(f"_viur_compute_{name}_")
+                    skel.accessedValues[f"_viur_compute_{name}_"] = last_update or now
 
                     # logging.debug(f"READ {name=} {skel.dbEntity=}")
                     # logging.debug(f"READ {name=} {skel.accessedValues=}")
 
-                    if not last_updated or last_updated + self.compute.interval.lifetime <= now:
+                    if not last_update or last_update + self.compute.interval.lifetime <= now:
                         # if so, recompute and refresh updated value
                         skel.accessedValues[name] = self._compute(skel, name)
                         return True
@@ -995,17 +998,17 @@ class BaseBone(object):
             ret = self.compute.fn()
         else:
             # otherwise, call with a clone of the skeleton
-            skel = skel.clone()
-            skel[name] = None  # remove bone to avoid endless recursion
-            ret = self.singleValueUnserialize(self.compute.fn(skel=skel))
+            cloned_skel = skel.clone()
+            cloned_skel[name] = None  # remove bone to avoid endless recursion
+            ret = self.compute.fn(skel=cloned_skel)
 
-        if not self.compute.raw:
-            if errors := self.fromClient(skel, name, {name: ret}):
-                raise ValueError(f"Computed value fromClient failed with {errors!r}")
+        if self.compute.raw:
+            return self.singleValueUnserialize(ret)
 
-            return skel[name]
+        if errors := self.fromClient(skel, name, {name: ret}):
+            raise ValueError(f"Computed value fromClient failed with {errors!r}")
 
-        return ret
+        return skel[name]
 
     def structure(self) -> dict:
         """
