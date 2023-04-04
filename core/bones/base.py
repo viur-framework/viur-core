@@ -78,8 +78,7 @@ class ComputeInterval:
 class Compute:
     fn: callable  # the callable computing the value
     interval: ComputeInterval = ComputeInterval()   # the value caching interval
-    raw: bool = True  # defines whether the value returned by fn is used as is,
-                      # or should be passed through bone.fromClient
+    raw: bool = True  # defines whether the value returned by fn is used as is, or is passed through bone.fromClient
 
 
 class BaseBone(object):
@@ -202,9 +201,8 @@ class BaseBone(object):
             if not self.readOnly:
                 raise ValueError("'compute' can only be used with bones configured as `readOnly=True`")
 
-            if (compute.interval.method == ComputeMethod.Lifetime
-                and not isinstance(compute.interval.lifetime, timedelta)
-            ):
+            if compute.interval.method == ComputeMethod.Lifetime \
+                and not isinstance(compute.interval.lifetime, timedelta):
                 raise ValueError(
                     f"'compute' is configured as ComputeMethod.Lifetime, but {compute.interval.lifetime=} was specified"
                 )
