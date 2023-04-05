@@ -1,6 +1,5 @@
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.bones.string import StringBone
-from viur.core import utils
 
 
 class CredentialBone(StringBone):
@@ -34,7 +33,6 @@ class CredentialBone(StringBone):
         return {}
 
     def singleValueFromClient(self, value, skel, name, origData):
-        err = self.isInvalid(value)
-        if not err:
-            return utils.escapeString(value, 4 * 1024), None
+        if not (err := self.isInvalid(value)):
+            return value, None
         return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
