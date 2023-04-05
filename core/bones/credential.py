@@ -14,10 +14,10 @@ class CredentialBone(StringBone):
     def __init__(
         self,
         *,
-        maxLength: int = 100*1024,  # Limit the Bone length on 100KB
+        maxLength: int = 100 * 1024,  # Limit the Bone length on 100KB
         **kwargs
     ):
-        super().__init__(maxLength=maxLength,**kwargs)
+        super().__init__(maxLength=maxLength, **kwargs)
         if self.multiple or self.languages:
             raise ValueError("Credential-Bones cannot be multiple or translated!")
 
