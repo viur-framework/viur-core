@@ -366,8 +366,7 @@ class Tree(SkelModule):
             or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
         ):
             return self.render.add(skel)
-        if not securitykey.validate(skey, useSessionKey=True):
-            raise errors.PreconditionFailed()
+        securitykey.validate(skey, pre_condition=True)
 
         self.onAdd(skelType, skel)
         skel.toDB()
@@ -411,8 +410,7 @@ class Tree(SkelModule):
             or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
         ):
             return self.render.edit(skel)
-        if not securitykey.validate(skey, useSessionKey=True):
-            raise errors.PreconditionFailed()
+        securitykey.validate(skey, pre_condition=True)
         self.onEdit(skelType, skel)
         skel.toDB()
         self.onEdited(skelType, skel)
@@ -446,10 +444,10 @@ class Tree(SkelModule):
             raise errors.NotFound()
         if not self.canDelete(skelType, skel):
             raise errors.Unauthorized()
-        if not securitykey.validate(skey, useSessionKey=True):
-            raise errors.PreconditionFailed()
+        securitykey.validate(skey, pre_condition=True)
         if skelType == "node":
             self.deleteRecursive(skel["key"])
+
         self.onDelete(skelType, skel)
         skel.delete()
         self.onDeleted(skelType, skel)
@@ -481,7 +479,7 @@ class Tree(SkelModule):
     @exposed
     @forceSSL
     @forcePost
-    def move(self, skelType: SkelType, key: str, parentNode: str, *args, **kwargs) -> str:
+    def move(self, skelType: SkelType, key: str, parentNode: str, skey: str = None, *args, **kwargs) -> str:
         """
         Move a node (including its contents) or a leaf to another node.
 
@@ -539,8 +537,7 @@ class Tree(SkelModule):
         if "rootNode" in tmp and tmp["rootNode"] == 1:
             raise errors.NotAcceptable("Can't move a rootNode to somewhere else")
 
-        if not securitykey.validate(kwargs.get("skey", ""), useSessionKey=True):
-            raise errors.PreconditionFailed()
+        securitykey.validate(skey, pre_condition=True)
 
         currentParentRepo = skel["parentrepo"]
         skel["parententry"] = parentNodeSkel["key"]

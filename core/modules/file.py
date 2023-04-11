@@ -553,8 +553,7 @@ class File(Tree):
         else:
             size = None
 
-        if not securitykey.validate(skey, useSessionKey=True):
-            raise errors.PreconditionFailed()
+        securitykey.validate(skey, pre_condition=True)
 
         targetKey, uploadUrl = self.initializeUpload(fileName, mimeType.lower(), node, size)
 
@@ -656,7 +655,7 @@ class File(Tree):
         if skelType == "leaf":  # We need to handle leafs separately here
             skey = kwargs.get("skey")
             targetKey = kwargs.get("key")
-            if not skey or not securitykey.validate(skey, useSessionKey=True) or not targetKey:
+            if not securitykey.validate(skey) or not targetKey:
                 raise errors.PreconditionFailed()
             skel = self.addSkel("leaf")
             if not skel.fromDB(targetKey):

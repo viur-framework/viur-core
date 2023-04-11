@@ -221,7 +221,7 @@ class UserPassword:
         if current.user.get():  # User is already logged in, nothing to do.
             return self.userModule.render.loginSucceeded()
 
-        if not name or not password or not securitykey.validate(skey, useSessionKey=True):
+        if not name or not password or not securitykey.validate(skey):
             return self.userModule.render.login(self.LoginSkel())
 
         self.loginRateLimit.assertQuotaIsAvailable()
@@ -271,7 +271,7 @@ class UserPassword:
             return self.userModule.continueAuthenticationFlow(self, res.key)
 
     @exposed
-    def pwrecover(self, *args, **kwargs):
+    def pwrecover(self, skey=None, *args, **kwargs):
         """
             This implements the password recovery process which let them set a new password for their account
             after validating a code send to them by email. The process is as following:
@@ -294,8 +294,7 @@ class UserPassword:
             skel = self.LostPasswordStep1Skel()
             if not request.isPostRequest or not skel.fromClient(kwargs):
                 return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
-            if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
-                raise errors.PreconditionFailed()
+            securitykey.validate(skey, pre_condition=True)
             self.passwordRecoveryRateLimit.decrementQuota()
             recoveryKey = utils.generateRandomString(13)  # This is the key the user will have to Copy&Paste
             self.sendUserPasswordRecoveryCode(skel["name"].lower(), recoveryKey)  # Send the code in the background
@@ -308,8 +307,7 @@ class UserPassword:
             del recoveryKey
             return self.pwrecover()  # Fall through to the second step as that key in the session is now set
         else:
-            if request.isPostRequest and kwargs.get("abort") == "1" \
-                and securitykey.validate(kwargs.get("skey"), useSessionKey=True):
+            if request.isPostRequest and kwargs.get("abort") == "1" and securitykey.validate(skey):
                 # Allow a user to abort the process if a wrong email has been used
                 session["user.auth_userpassword.pwrecover"] = None
                 return self.pwrecover()
@@ -325,8 +323,7 @@ class UserPassword:
             skel = self.LostPasswordStep2Skel()
             if not skel.fromClient(kwargs) or not request.isPostRequest:
                 return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep2Template)
-            if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
-                raise errors.PreconditionFailed()
+            securitykey.validate(skey, pre_condition=True)
             self.passwordRecoveryRateLimit.decrementQuota()
             if not hmac.compare_digest(session["user.auth_userpassword.pwrecover"]["recoveryKey"], skel["recoveryKey"]):
                 # The key was invalid, increase error-count or abort this recovery process altogether
@@ -455,8 +452,7 @@ class UserPassword:
             or ("bounce" in kwargs and kwargs["bounce"] == "1")):  # review before adding
             # render the skeleton in the version it could as far as it could be read.
             return self.userModule.render.add(skel)
-        if not securitykey.validate(skey, useSessionKey=True):
-            raise errors.PreconditionFailed()
+        securitykey.validate(skey, pre_condition=True)
         skel.toDB()
         if self.registrationEmailVerificationRequired and skel["status"] == Status.WAITING_FOR_EMAIL_VERIFICATION:
             # The user will have to verify his email-address. Create a skey and send it to his address
@@ -502,8 +498,7 @@ class GoogleAccount:
             extendCsp({"script-src": ["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
                        "style-src": ["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]})
             return tplStr
-        if not securitykey.validate(skey, useSessionKey=True):
-            raise errors.PreconditionFailed()
+        securitykey.validate(skey, pre_condition=True)
         userInfo = id_token.verify_oauth2_token(token, requests.Request(), conf["viur.user.google.clientID"])
         if userInfo['iss'] not in {'accounts.google.com', 'https://accounts.google.com'}:
             raise ValueError('Wrong issuer.')
@@ -637,8 +632,7 @@ class TimeBasedOTP:
             raise errors.Forbidden()
         if otptoken is None:
             self.userModule.render.edit(self.OtpSkel())
-        if not securitykey.validate(skey, useSessionKey=True):
-            raise errors.PreconditionFailed()
+        securitykey.validate(skey, pre_condition=True)
         if token["failures"] > 3:
             raise errors.Forbidden("Maximum amount of authentication retries exceeded")
         if len(token["otpkey"]) % 2 == 1:
@@ -859,8 +853,7 @@ class User(List):
         """
         if not (user := current.user.get()):
             raise errors.Unauthorized()
-        if not securitykey.validate(skey, useSessionKey=True):
-            raise errors.PreconditionFailed()
+        securitykey.validate(skey, pre_condition=True)
 
         self.onLogout(user)
 

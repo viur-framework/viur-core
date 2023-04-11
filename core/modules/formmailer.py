@@ -12,7 +12,7 @@ class Formmailer(Module):
     mailTemplate = None
 
     @exposed
-    def index(self, *args, **kwargs):
+    def index(self, skey=None, *args, **kwargs):
         if not self.canUse():
             raise errors.Forbidden()  # Unauthorized
 
@@ -21,11 +21,10 @@ class Formmailer(Module):
         if len(kwargs) == 0:
             return self.render.add(skel=skel, failed=False)
 
-        if not skel.fromClient(kwargs) or not "skey" in kwargs:
+        if not skel.fromClient(kwargs) or not skey:
             return self.render.add(skel=skel, failed=True)
 
-        if not securitykey.validate(kwargs["skey"], useSessionKey=True):
-            raise errors.PreconditionFailed()
+        securitykey.validate(skey, pre_condition=True)
 
         # Allow bones to perform outstanding "magic" operations before sending the mail
         for key, _bone in skel.items():

@@ -26,15 +26,14 @@
 
         Therefor that header is prefixed with "Sec-" - so it cannot be read or set using JavaScript.
 """
-from viur.core import utils, current, db, tasks
+from viur.core import utils, current, db, tasks, errors
 from viur.core.tasks import DeleteEntitiesIter
 from datetime import datetime, timedelta
-from typing import Union
 
 SECURITYKEY_KINDNAME = "viur-securitykey"
 
 
-def create(duration: Union[None, int] = None, **custom_data) -> str:
+def create(duration: None | int = None, **custom_data) -> str:
     """
         Creates a new one-time security key or returns the current sessions CSRF-token.
 
@@ -64,7 +63,7 @@ def create(duration: Union[None, int] = None, **custom_data) -> str:
     return key
 
 
-def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
+def validate(key: str, useSessionKey: bool = True, pre_condition: bool | str = False) -> bool | db.Entity:
     """
         Validates a security key.
 
@@ -75,6 +74,7 @@ def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
 
         :param key: The key to be validated
         :param useSessionKey: If True, validate against the session's skey, otherwise lookup an unbound key
+        :param pre_condition: If True, raises a PreconditionFailed() error. If str, the description is provided.
         :returns: False if the key was not valid for whatever reasons, the data (given during createSecurityKey) as
             dictionary or True if the dict is empty (or useSessionKey was True).
     """
@@ -88,20 +88,21 @@ def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
         elif session.validateSecurityKey(key):
             return True
 
-        return False
+    elif key and (entity := db.Get(db.Key(SECURITYKEY_KINDNAME, key))):
+        db.Delete(entity)
 
-    if not key or not (entity := db.Get(db.Key(SECURITYKEY_KINDNAME, key))):
-        return False
+        # Key still valid?
+        if entity["until"] >= utils.utcNow():
+            del entity["until"]
+            return entity or True
 
-    db.Delete(entity)
+    if pre_condition:
+        if isinstance(pre_condition, str):
+            raise errors.PreconditionFailed(pre_condition)
 
-    # Key has expired?
-    if entity["until"] < utils.utcNow():
-        return False
+        raise errors.PreconditionFailed()
 
-    del entity["until"]
-
-    return entity or True
+    return False
 
 
 @tasks.PeriodicTask(60 * 4)

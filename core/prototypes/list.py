@@ -91,8 +91,7 @@ class List(SkelModule):
         if not self.canPreview():
             raise errors.Unauthorized()
 
-        if not securitykey.validate(skey, useSessionKey=True):
-            raise errors.PreconditionFailed()
+        securitykey.validate(skey, pre_condition=True)
 
         skel = self.viewSkel()
         skel.fromClient(kwargs)
@@ -211,8 +210,7 @@ class List(SkelModule):
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self.render.edit(skel)
-        if not securitykey.validate(skey, useSessionKey=True):
-            raise errors.PreconditionFailed()
+        securitykey.validate(skey, pre_condition=True)
 
         self.onEdit(skel)
         skel.toDB()  # write it!
@@ -247,8 +245,7 @@ class List(SkelModule):
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self.render.add(skel)
-        if not securitykey.validate(skey, useSessionKey=True):
-            raise errors.PreconditionFailed()
+        securitykey.validate(skey, pre_condition=True)
 
         self.onAdd(skel)
         skel.toDB()
@@ -281,8 +278,7 @@ class List(SkelModule):
         if not self.canDelete(skel):
             raise errors.Unauthorized()
 
-        if not securitykey.validate(skey, useSessionKey=True):
-            raise errors.PreconditionFailed()
+        securitykey.validate(skey, pre_condition=True)
 
         self.onDelete(skel)
         skel.delete()

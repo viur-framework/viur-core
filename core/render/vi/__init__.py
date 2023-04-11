@@ -70,8 +70,7 @@ def getStructure(module):
 
 @exposed
 def setLanguage(lang, skey):
-    if not securitykey.validate(skey):
-        raise errors.PreconditionFailed()
+    securitykey.validate(skey, pre_condition=True)
 
     if lang in conf["viur.availableLanguages"]:
         current.language.set(lang)
