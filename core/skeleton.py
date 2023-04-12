@@ -255,7 +255,10 @@ class SkeletonInstance:
         self.renderAccessedValues = {}
 
     def structure(self) -> dict:
-        return {key: bone.structure() for key, bone in self.items()}
+        return {
+            key: bone.structure() | {"sortindex": i}
+            for i, (key, bone) in enumerate(self.items())
+        }
 
     def __deepcopy__(self, memodict):
         res = self.clone()
