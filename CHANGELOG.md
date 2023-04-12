@@ -2,8 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.4.0-beta2]
+## [3.4.0-beta3]
 
+- fix: Run render_structure recursively on "using" and "relskel" (#705)
+- feat: Implement naive mode for `DateBone` (#667)
+- fix: SkelList.get_orders must be in the `__slots__` (#703)
 - chore: Bump viur-datastore to 1.3.8 (#700)
 - feat: Allow `Enum` for `SelectBone`-values and implement `User`s status as `Enum`  (#683)
 - fix: Keep filename synchronous in both skeleton and blob (#699)
