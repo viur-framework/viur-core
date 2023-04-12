@@ -306,5 +306,5 @@ conf = Conf({
     "viur.validApplicationIDs": [],
 
     # Semantic version number of viur-core as a tuple of 3 (major, minor, patch-level)
-    "viur.version": tuple(__version__.split(".", 3)),
+    "viur.version": tuple(int(i) if i.isdigit() else i for i in __version__.split(".", 3)),
 })
