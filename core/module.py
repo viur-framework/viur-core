@@ -1,4 +1,4 @@
-from typing import Dict, Any, Union, Callable
+from typing import Dict, Any, Union, Tuple, Callable
 
 
 class Module:
@@ -11,6 +11,15 @@ class Module:
     This is the module's handler, respectively its type.
     It can be provided as a callable() which determines the handler at runtime.
     A module without a handler setting is invalid.
+    """
+
+    accessRights: Tuple[str] = None
+    """
+        If set, a tuple of access rights (like add, edit, delete) that this module supports.
+
+        These will be prefixed on instance startup with the actual module name (becoming file-add, file-edit etc)
+        and registered in ``conf["viur.accessRights"]`` so these will be available on the access bone in user/add
+        or user/edit.
     """
 
     adminInfo: Union[Dict[str, Any], Callable] = None

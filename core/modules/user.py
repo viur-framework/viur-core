@@ -15,7 +15,7 @@ from google.oauth2 import id_token
 
 from viur.core import (
     conf, current, db, email, errors, exposed, forceSSL, i18n,
-    securitykey, session, skeleton, tasks, utils
+    securitykey, session, skeleton, tasks, utils, Module
 )
 from viur.core.bones import *
 from viur.core.bones.password import PBKDF2_DEFAULT_ITERATIONS, encode_password
@@ -170,6 +170,9 @@ class UserSkel(skeleton.Skeleton):
                     continue
 
                 module = getattr(conf["viur.mainApp"].vi, name)
+                if not isinstance(module, Module):
+                    continue
+
                 roles = getattr(module, "roles", {})
                 role = roles.get(skel["role"], roles.get("*", ()))
 
@@ -308,7 +311,7 @@ class UserPassword:
                 skel.setEntity(res)
                 skel["key"] = res.key
                 skel["password"] = password  # will be hashed on serialize
-                skel.toDB(clearUpdateTag=True)
+                skel.toDB(update_relations=False)
             return self.userModule.continueAuthenticationFlow(self, res.key)
 
     @exposed

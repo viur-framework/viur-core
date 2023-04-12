@@ -21,15 +21,6 @@ class SkelModule(Module):
         For more information, refer to the function :func:`~_resolveSkelCls`.
     """
 
-    accessRights: Tuple[str] = None
-    """
-        If set, a tuple of access rights (like add, edit, delete) that this module supports.
-
-        These will be prefixed on instance startup with the actual module name (becoming file-add, file-edit etc)
-        and registered in ``conf["viur.accessRights"]`` so these will be available on the access bone in user/add
-        or user/edit.
-    """
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
