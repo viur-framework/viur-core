@@ -13,7 +13,7 @@ class Singleton(SkelModule):
     It is used to store one single data entity, and needs to be sub-classed for individual modules.
     """
     handler = "singleton"
-    accessRights = ("edit", "view")
+    accessRights = ("edit", "view", "manage")
 
     def getKey(self) -> str:
         """

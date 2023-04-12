@@ -17,7 +17,7 @@ class List(SkelModule):
         Definitely, it is the mostly-used prototype in any ViUR project.
     """
     handler = "list"
-    accessRights = ("add", "edit", "view", "delete")
+    accessRights = ("add", "edit", "view", "delete", "manage")
 
     def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
         """

@@ -19,7 +19,7 @@ from urllib.request import urlopen
 from viur.core import db, conf, errors, exposed, forcePost, forceSSL, securitykey, utils, current
 from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
-from viur.core.skeleton import skeletonByKind
+from viur.core.skeleton import SkeletonInstance, skeletonByKind
 from viur.core.tasks import PeriodicTask, CallDeferred
 from viur.core.utils import sanitizeFileName
 
@@ -110,7 +110,14 @@ def thumbnailer(fileSkel, existingFiles, params):
             f = BytesIO(iccProfile)
             src_profile = ImageCms.ImageCmsProfile(f)
             dst_profile = ImageCms.createProfile('sRGB')
-            img = ImageCms.profileToProfile(img, inputProfile=src_profile, outputProfile=dst_profile, outputMode="RGB")
+            try:
+                img = ImageCms.profileToProfile(img,
+                                                inputProfile=src_profile,
+                                                outputProfile=dst_profile,
+                                                outputMode="RGB")
+            except Exception as e:
+                logging.exception(e)
+                continue
         fileExtension = sizeDict.get("fileExtension", "webp")
         if "width" in sizeDict and "height" in sizeDict:
             width = sizeDict["width"]
@@ -253,7 +260,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
     return reslist
 
 
-class fileBaseSkel(TreeSkel):
+class FileBaseSkel(TreeSkel):
     """
         Default file leaf skeleton.
     """
@@ -341,7 +348,7 @@ class fileBaseSkel(TreeSkel):
                 skelValues["pendingparententry"] = False
 
 
-class fileNodeSkel(TreeSkel):
+class FileNodeSkel(TreeSkel):
     """
         Default file node skeleton.
     """
@@ -380,8 +387,8 @@ def decodeFileName(name):
 
 
 class File(Tree):
-    leafSkelCls = fileBaseSkel
-    nodeSkelCls = fileNodeSkel
+    leafSkelCls = FileBaseSkel
+    nodeSkelCls = FileNodeSkel
 
     maxuploadsize = None
     uploadHandler = []
@@ -687,6 +694,23 @@ class File(Tree):
             skel["downloadUrl"] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False)
             return self.render.addSuccess(skel)
         return super(File, self).add(skelType, node, *args, **kwargs)
+
+    def onEdit(self, skelType: SkelType, skel: SkeletonInstance):
+        super().onEdit(skelType, skel)
+        old_skel = self.editSkel(skelType)
+        old_skel.setEntity(skel.dbEntity)
+
+        if old_skel["name"] == skel["name"]:  # name not changed we can return
+            return
+        # Move Blob to new name
+        # https://cloud.google.com/storage/docs/copying-renaming-moving-objects
+        old_path = f"{skel['dlkey']}/source/{html.unescape(old_skel['name'])}"
+        new_path = f"{skel['dlkey']}/source/{html.unescape(skel['name'])}"
+        old_blob = bucket.get_blob(old_path)
+        if not old_blob:
+            raise errors.Gone()
+        bucket.copy_blob(old_blob, bucket, new_path, if_generation_match=0)
+        bucket.delete_blob(old_path)
 
     def onItemUploaded(self, skel):
         pass
