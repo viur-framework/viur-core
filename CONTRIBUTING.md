@@ -48,10 +48,10 @@ Please document your changes and provide info in any form you can. We have estab
 `viur-core` uses the semantic versioning scheme.<br>
 Any `major.minor.bugfix` release is being published to [PyPI](https://pypi.org/project/viur-core).
 
-Furthermore, the following rules apply to hidden pre-releases which are also made to PyPI for open tests.
+Furthermore, the following rules apply to pre-releases which are also made available to PyPI for open tests.
 
-- Release candidates which are almost feature-complete is given a suffix named `-rcN`.
-- Beta versions with incomplete features is given a suffix named `-betaN`.
+- Release candidates which are almost feature-complete is given a suffix named `.rcN`.
+- Beta versions with incomplete features is given a suffix named `.betaN`.
 
 In both cases, `N` is a number counted upwards for every pre-release.
 
@@ -61,7 +61,6 @@ In case you have appropriate permissions, a release can be done this way:
 
 - Make sure all hotfixes from `main` are in `develop` as well (`git merge main`)
 - Bump version number in `core/version.py`
-  - For a release-candidate, add `-rcN` to the version number, and count N up.
 - Update `CHANGELOG.md` and also check version number there
   - To quickly generate a changelog, run `git log --pretty="- %s" main..develop`
   - todo: Changelog shall be generated automatically later.
