@@ -27,6 +27,7 @@
         Therefor that header is prefixed with "Sec-" - so it cannot be read or set using JavaScript.
 """
 from viur.core import utils, current, db, tasks
+from viur.core.tasks import DeleteEntitiesIter
 from datetime import datetime, timedelta
 from typing import Union
 
@@ -108,15 +109,5 @@ def start_clear_skeys():
     """
         Removes old (expired) skeys
     """
-    do_clear_skeys(datetime.now() - timedelta(seconds=300))
-
-
-@tasks.CallDeferred
-def do_clear_skeys(until: datetime):
-    query = db.Query(SECURITYKEY_KINDNAME).filter("until <", until)
-
-    for oldKey in query.run(100):
-        db.Delete(oldKey)
-
-    if query.getCursor():
-        do_clear_skeys(until)
+    query = db.Query(SECURITYKEY_KINDNAME).filter("until <", datetime.now() - timedelta(seconds=300))
+    DeleteEntitiesIter.startIterOnQuery(query)

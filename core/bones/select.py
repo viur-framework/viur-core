@@ -1,6 +1,7 @@
+import enum
 from collections import OrderedDict
 from numbers import Number
-from typing import Callable, Dict, List, Tuple, Union, Any
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.i18n import translate
@@ -15,8 +16,9 @@ class SelectBone(BaseBone):
     def __init__(
         self,
         *,
-        defaultValue: Union[None, Dict[str, Union[SelectBoneMultiple, SelectBoneValue]], SelectBoneMultiple] = None,
-        values: Union[Dict, List, Tuple, Callable] = (),
+        defaultValue: Union[None, Dict[str, Union[SelectBoneMultiple, SelectBoneValue]],
+                            SelectBoneMultiple, enum.Enum] = None,
+        values: Union[Dict, List, Tuple, Callable, enum.EnumMeta] = (),
         **kwargs
     ):
         """
@@ -37,7 +39,9 @@ class SelectBone(BaseBone):
     def __getattribute__(self, item):
         if item == "values":
             values = self._values
-            if callable(values):
+            if isinstance(values, enum.EnumMeta):
+                values = {value.value: translate(value.name) for value in values}
+            elif callable(values):
                 values = values()
 
                 # handle list/tuple as dicts
@@ -50,11 +54,29 @@ class SelectBone(BaseBone):
 
         return super().__getattribute__(item)
 
+    def singleValueUnserialize(self, val):
+        if isinstance(self._values, enum.EnumMeta):
+            for value in self._values:
+                if value.value == val:
+                    return value
+        return val
+
+    def singleValueSerialize(self, val, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+        if isinstance(self._values, enum.EnumMeta) and isinstance(val, self._values):
+            return val.value
+        return val
+
     def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
                               bone_name: str, client_data: dict
                               ) -> tuple[Any, list[ReadFromClientError] | None]:
         if not str(value):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value selected")]
+        if isinstance(self._values, enum.EnumMeta):
+            try:
+                return self._values(value), None
+            except ValueError:
+                return self.getEmptyValue(), \
+                    [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value selected")]
         for key in self.values.keys():
             if str(key) == str(value):
                 return key, None
