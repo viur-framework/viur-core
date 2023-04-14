@@ -833,6 +833,10 @@ class User(List):
         if not skel.fromDB(key):
             raise ValueError(f"Unable to authenticate unknown user {key}")
 
+        # Verify that this user account is active
+        if skel["status"] < Status.ACTIVE.value:
+            raise errors.Forbidden("The user is disabled and cannot be authenticated.")
+
         # Update session for user
         session = current.session.get()
         # Remember persistent fields...
