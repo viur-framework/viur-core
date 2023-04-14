@@ -706,7 +706,53 @@ class User(List):
     secondFactorTimeWindow = datetime.timedelta(minutes=10)
 
     adminInfo = {
-        "icon": "icon-users"
+        "icon": "icon-users",
+        "actions": [
+            "trigger_kick",
+            "trigger_takeover",
+        ],
+        "customActions": {
+            "trigger_kick": {
+                "name": i18n.translate(
+                    key="viur.modules.user.customActions.kick",
+                    defaultText="Kick user",
+                    hint="Title of the kick user function"
+                ),
+                "icon": "icon-delete",
+                "access": ["root"],
+                "action": "fetch",
+                "url": "/vi/{{module}}/trigger/kick/{{key}}",
+                "confirm": i18n.translate(
+                    key="viur.modules.user.customActions.kick.confirm",
+                    defaultText="Do you really want to drop all sessions of the selected user from the system?",
+                ),
+                "success": i18n.translate(
+                    key="viur.modules.user.customActions.kick.success",
+                    defaultText="Sessions of the user are being invalidated.",
+                ),
+            },
+            "trigger_takeover": {
+                "name": i18n.translate(
+                    key="viur.modules.user.customActions.takeover",
+                    defaultText="Take-over user",
+                    hint="Title of the take user over function"
+                ),
+                "icon": "icon-interface",
+                "access": ["root"],
+                "action": "fetch",
+                "url": "/vi/{{module}}/trigger/takeover/{{key}}",
+                "confirm": i18n.translate(
+                    key="viur.modules.user.customActions.takeover.confirm",
+                    defaultText="Do you really want to replace your current user session by a "
+                                "user session of the selected user?",
+                ),
+                "success": i18n.translate(
+                    key="viur.modules.user.customActions.takeover.success",
+                    defaultText="You're now know as the selected user!",
+                ),
+                "then": "reload-vi",
+            },
+        },
     }
 
     def __init__(self, moduleName, modulePath, *args, **kwargs):
@@ -941,6 +987,45 @@ class User(List):
             res.append([auth.getAuthMethodName(), secondFactor.get2FactorMethodName() if secondFactor else None])
 
         return json.dumps(res)
+
+    @exposed
+    def trigger_kick(self, key, skey):
+        if not ((cuser := current.user.get()) and "root" in cuser["access"]):
+            raise errors.Unauthorized()
+
+        if not securitykey.validate(skey, useSessionKey=True):
+            raise errors.PreconditionFailed()
+
+        skel = self.viewSkel()
+        if not skel.fromDB(key):
+            raise errors.NotFound()
+
+        session.killSessionByUser(skel["key"])
+        return json.dumps("OKAY")
+
+    @exposed
+    def trigger(self, action, key, skey):
+        if not ((cuser := current.user.get()) and "root" in cuser["access"]):
+            raise errors.Unauthorized()
+
+        if not securitykey.validate(skey, useSessionKey=True):
+            raise errors.PreconditionFailed()
+
+        skel = self.baseSkel()
+        if not skel.fromDB(key):
+            raise errors.NotFound()
+
+        match action:
+            case "takeover":
+                self.authenticateUser(skel["key"])
+
+            case "kick":
+                session.killSessionByUser(skel["key"])
+
+            case _:
+                raise errors.NotAcceptable(f"Action {action!r} not implemented")
+
+        return json.dumps("OKAY")
 
     def onDeleted(self, skel):
         """
