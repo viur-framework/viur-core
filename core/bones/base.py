@@ -63,7 +63,7 @@ class MultipleConstraints:  # Used to define constraints on multiple bones
 
 class ComputeMethod(Enum):
     Always = 0  # Always compute on deserialization
-    Lifetime = 1  # Update only when given lifetime is outrun
+    Lifetime = 1  # Update only when given lifetime is outrun; value is only being stored when the skeleton is written
     Once = 2  # Compute only once
     OnWrite = 3  # Compute before written
 
