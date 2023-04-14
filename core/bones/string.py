@@ -131,8 +131,9 @@ class StringBone(BaseBone):
         dbFilter: db.Query,
         rawFilter: Dict
     ) -> Optional[db.Query]:
-        if (orderby := rawFilter.get("orderby")) \
-            and (orderby == name or (isinstance(orderby, str) and orderby.startswith(f"{name}.") and self.languages)):
+        if ((orderby := rawFilter.get("orderby"))
+            and (orderby == name
+                 or (isinstance(orderby, str) and orderby.startswith(f"{name}.") and self.languages))):
             if self.languages:
                 lang = None
                 if orderby.startswith(f"{name}."):
