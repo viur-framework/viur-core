@@ -51,9 +51,7 @@ Where to find more information?
 
 This manual is intended to be the official documentation and reference manual for ViUR, and should be a place to start with. But don't be afraid to talk to us and our community if you have questions or encounter problems.
 
-For individual questions or help, please visit our community landing page on `viur.dev/community`_. There you can find links to our Twitter account, IRC-channel or the Google Community page. We also refer to the `ViUR server wiki <https://github.com/viur-framework/server/wiki>`_ located at `GitHub <https://github.com/viur-framework>`_ for problem-oriented help.
-
-Bugs or feature requests can be submitted to the different ViUR components and their maintainers. Links and contacts can be found on `viur.dev/development`_.
+Bugs or feature requests can be submitted to the different ViUR components and their maintainers on `GitHub <https://github.com/viur-framework>`_.
 
 .. _viur.dev/community: https://www.viur.dev/community
 .. _viur.dev/development: https://www.viur.dev/development

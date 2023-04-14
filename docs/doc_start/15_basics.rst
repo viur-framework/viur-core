@@ -138,7 +138,7 @@ The skeleton shown in the graphic above is defined in a file ``person.py`` which
 
 That's it. When this Skeleton is connected to a module later on, ViUR's admin tools like the Vi automatically provide an auto-generated input mask on it.
 
-A Skeleton does automatically provide the bone ``key`` also, which is an instance of the class :class:`baseBone<core.bones.bone.baseBone>`. This bone holds the value of the unique entity key, that is required to uniquely identify an entity within the database. The pre-defined bones ``creationdate`` and ``changedate`` of each skeleton store the date and time when the entity was created or changed. In terms of ViUR, an entity is a document or dataset in the datastore, that stores information.
+A Skeleton does automatically provide the bone ``key`` also, which is an instance of the class :class:`keyBone<core.bones.bone.keyBone>`. This bone holds the value of the unique entity key, that is required to uniquely identify an entity within the database. The pre-defined bones ``creationdate`` and ``changedate`` of each skeleton store the date and time when the entity was created or changed. In terms of ViUR, an entity is a document or dataset in the datastore, that stores information.
 
 By default, ViUR provides the following base classes of bones that can be used immediately:
 
@@ -158,17 +158,13 @@ Please refer the :mod:`bones API reference <core.bones>` for all provided classe
 Prototypes and modules
 ======================
 
-Modules are the controllers of a ViUR application, and implement the application logic. To implement modules, ViUR provides four basic prototypes. These are :class:`List<core.prototypes.list.List>`, :class:`Singleton<core.prototypes.singleton.Singleton>`, :class:`Hierarchy<core.prototypes.hierarchy.Hierarchy>` and :class:`Tree<core.prototypes.tree.Tree>`.
+Modules are the controllers of a ViUR application, and implement the application logic. To implement modules, ViUR provides three basic prototypes. These are :class:`List<core.prototypes.list.List>`, :class:`Singleton<core.prototypes.singleton.Singleton>` and :class:`Tree<core.prototypes.tree.Tree>`.
 
 .. |icon_list| image:: /images/list.svg
    :width: 45px
    :height: 45px
 
 .. |icon_singleton| image:: /images/singleton.svg
-   :width: 45px
-   :height: 45px
-
-.. |icon_hierarchy| image:: /images/hierarchy.svg
    :width: 45px
    :height: 45px
 
@@ -182,8 +178,6 @@ Modules are the controllers of a ViUR application, and implement the application
 
 |icon_singleton|    :class:`Singleton<core.prototypes.singleton.Singleton>` is a prototype for implementing modules that hold only one single dataset entry. It can be used for modules that implement application-global settings or a per-user configuration.
 
-|icon_hierarchy|    :class:`<Hierarchycore.prototypes.hierarchy.Hierarchy>` is a prototype for a module that stores its data in a hierarchical structure, where every dataset can be a child of another dataset or can have its own children.
-
 |icon_tree|         :class:`Tree<core.prototypes.tree.Tree>` is used for implementing modules that store their data in a hierarchy, but differ between nodes and children. The most common usage is the :class:`core.modules.file.File` module, where nodes (Folders) and leafs (Files) are distinguished.
 ==================  ===============================================================================
 
@@ -194,6 +188,7 @@ ViUR comes with some build-in modules for different application cases:
 - :class:`User<core.modules.user.User>` implements a user login, authentication and management module,
 - :class:`Cart<core.modules.cart.Cart>` and :class:`Order<core.modules.order.Order>` implement modules for submitting and managing orders in a web-shop,
 - :class:`Page<core.modules.page.Page>` implements a simple content management module.
+.. hier müssen noch die anderen modules eingepflegt werden.
 
 By subclassing these modules, custom modifications and extensions can be implemented for any use-case. In most cases, applications make use of custom modules which base on one of the prototypes as described above.
 
