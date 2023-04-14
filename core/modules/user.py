@@ -989,21 +989,6 @@ class User(List):
         return json.dumps(res)
 
     @exposed
-    def trigger_kick(self, key, skey):
-        if not ((cuser := current.user.get()) and "root" in cuser["access"]):
-            raise errors.Unauthorized()
-
-        if not securitykey.validate(skey, useSessionKey=True):
-            raise errors.PreconditionFailed()
-
-        skel = self.viewSkel()
-        if not skel.fromDB(key):
-            raise errors.NotFound()
-
-        session.killSessionByUser(skel["key"])
-        return json.dumps("OKAY")
-
-    @exposed
     def trigger(self, action, key, skey):
         if not ((cuser := current.user.get()) and "root" in cuser["access"]):
             raise errors.Unauthorized()
