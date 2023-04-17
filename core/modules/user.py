@@ -989,7 +989,7 @@ class User(List):
         return json.dumps(res)
 
     @exposed
-    def trigger(self, action, key, skey):
+    def trigger(self, action : str, key : str | db.Key, skey : str):
         if not ((cuser := current.user.get()) and "root" in cuser["access"]):
             raise errors.Unauthorized()
 
@@ -1008,8 +1008,8 @@ class User(List):
                 session.killSessionByUser(skel["key"])
 
             case _:
-                raise errors.NotAcceptable(f"Action {action!r} not implemented")
-
+                raise errors.NotImplemented(f"Action {action!r} not implemented")
+current.request.get().response.headers["Content-Type"] = "application/json"
         return json.dumps("OKAY")
 
     def onDeleted(self, skel):
