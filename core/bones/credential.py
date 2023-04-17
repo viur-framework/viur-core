@@ -14,7 +14,7 @@ class CredentialBone(StringBone):
     def __init__(
         self,
         *,
-        maxLength: int = None, # Unlimited length
+        maxLength: int = None,  # Unlimited length
         **kwargs
     ):
         super().__init__(maxLength=maxLength, **kwargs)
