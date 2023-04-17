@@ -990,6 +990,7 @@ class User(List):
 
     @exposed
     def trigger(self, action : str, key : str | db.Key, skey : str):
+        current.request.get().response.headers["Content-Type"] = "application/json"
         if not ((cuser := current.user.get()) and "root" in cuser["access"]):
             raise errors.Unauthorized()
 
@@ -1009,7 +1010,6 @@ class User(List):
 
             case _:
                 raise errors.NotImplemented(f"Action {action!r} not implemented")
-current.request.get().response.headers["Content-Type"] = "application/json"
         return json.dumps("OKAY")
 
     def onDeleted(self, skel):
