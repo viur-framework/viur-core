@@ -14,7 +14,7 @@ class CredentialBone(StringBone):
     def __init__(
         self,
         *,
-        maxLength: int = 100 * 1024,  # Limit the Bone length on 100KB
+        maxLength: int = None, # Unlimited length
         **kwargs
     ):
         super().__init__(maxLength=maxLength, **kwargs)
@@ -28,7 +28,7 @@ class CredentialBone(StringBone):
         """
         if value is None:
             return False
-        if len(value) > self.maxLength:
+        if self.maxLength is not None and len(value) > self.maxLength:
             return "Maximum length exceeded"
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
