@@ -1,3 +1,4 @@
+"""A bone for storing numeric values, either integers or floats."""
 import logging
 import sys
 import warnings
@@ -8,14 +9,19 @@ from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientEr
 
 # Constants for Mne (MIN/MAX-never-exceed)
 MIN = -(sys.maxsize - 1)
+""" Constant for the minimum """
 MAX = sys.maxsize
+""" Constant for the maximum """
 
 
 class NumericBone(BaseBone):
     """
-        Holds numeric values.
-        Can be used for ints and floats.
+        A bone for storing numeric values, either integers or floats.
         For floats, the precision can be specified in decimal-places.
+
+        :param precision: How may decimal places should be saved. Zero casts the value to int instead of float.
+        :param min: Minimum accepted value (including).
+        :param max: Maximum accepted value (including).
     """
     type = "numeric"
 
@@ -30,10 +36,6 @@ class NumericBone(BaseBone):
     ):
         """
             Initializes a new NumericBone.
-
-            :param precision: How may decimal places should be saved. Zero casts the value to int instead of float.
-            :param min: Minimum accepted value (including).
-            :param max: Maximum accepted value (including).
         """
         super().__init__(**kwargs)
 
@@ -55,6 +57,17 @@ class NumericBone(BaseBone):
         self.max = max
 
     def __setattr__(self, key, value):
+        """
+        Sets the attribute with the specified key to the given value.
+
+        This method is overridden in the NumericBone class to handle the special case of setting
+        the 'multiple' attribute to True while the bone is of type float. In this case, an
+        AssertionError is raised to prevent creating a multiple float bone.
+
+        :param key: The name of the attribute to be set.
+        :param value: The value to set the attribute to.
+        :raises AssertionError: If the 'multiple' attribute is set to True for a float bone.
+        """
         if key in ("min", "max"):
             if value < MIN or value > MAX:
                 raise ValueError(f"{key} can only be set to something between {MIN} and {MAX}")
@@ -62,16 +75,35 @@ class NumericBone(BaseBone):
         return super().__setattr__(key, value)
 
     def isInvalid(self, value):
+        """
+        This method checks if a given value is invalid (e.g., NaN) for the NumericBone instance.
+
+        :param value: The value to be checked for validity.
+        :return: Returns a string "NaN not allowed" if the value is invalid (NaN), otherwise None.
+        """
         if value != value:  # NaN
             return "NaN not allowed"
 
     def getEmptyValue(self):
+        """
+        This method returns an empty value depending on the precision attribute of the NumericBone instance.
+
+        :return: Returns 0 for integers (when precision is 0) or 0.0 for floating-point numbers (when precision is non-zero).
+        """
         if self.precision:
             return 0.0
         else:
             return 0
 
     def isEmpty(self, rawValue: Any):
+        """
+        This method checks if a given raw value is considered empty for the NumericBone instance.
+        It attempts to convert the raw value into a valid numeric value (integer or floating-point number),
+        depending on the precision attribute of the NumericBone instance.
+
+        :param rawValue: The raw value to be checked for emptiness.
+        :return: Returns True if the raw value is considered empty, otherwise False.
+        """
         if isinstance(rawValue, str) and not rawValue:
             return True
         try:
@@ -86,6 +118,20 @@ class NumericBone(BaseBone):
         return rawValue == self.getEmptyValue()
 
     def singleValueFromClient(self, value, skel, name, origData):
+        """
+        This method converts the value received from the client into a valid numeric value
+        (integer or floating-point number) and checks if the value is within the minimum
+        and maximum limits defined for the NumericBone instance. If the value is valid,
+        it returns the converted value and None for errors. If the value is invalid, it
+        returns the empty value and a list containing a ReadFromClientError instance with
+        the error details.
+
+        :param value: The value received from the client.
+        :param skel: The skeleton instance containing the bone.
+        :param name: The name of the bone.
+        :param origData: The original data dictionary containing all values.
+        :return: A tuple containing the converted value and a list of errors (or None if no errors).
+        """
         try:
             rawValue = str(value).replace(",", ".", 1)
         except:
@@ -112,6 +158,19 @@ class NumericBone(BaseBone):
         rawFilter: Dict,
         prefix: Optional[str] = None
     ) -> db.Query:
+        """
+        This method updates the database filter by converting the raw filter values into valid numeric
+        values (integer or floating-point numbers) for the NumericBone instance. It also ensures that
+        the filter values are not garbage, otherwise a RuntimeError is raised.
+
+        :param name: The name of the bone.
+        :param skel: The skeleton instance containing the bone.
+        :param dbFilter: The database query filter to be updated.
+        :param rawFilter: The raw filter dictionary containing the filter values.
+        :param prefix: An optional prefix for the filter parameters.
+        :return: Returns the updated database query filter.
+        :raises RuntimeError: If the filter value provided is not valid for the NumericBone.
+        """
         updatedFilter = {}
 
         for parmKey, paramValue in rawFilter.items():
@@ -133,6 +192,14 @@ class NumericBone(BaseBone):
         return super().buildDBFilter(name, skel, dbFilter, updatedFilter, prefix)
 
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+        """
+        This method generates a set of search tags based on the numeric values stored in the NumericBone instance.
+        It iterates through the bone values and adds the string representation of each value to the result set.
+
+        :param skel: The skeleton instance containing the bone.
+        :param name: The name of the bone.
+        :return: Returns a set of search tags as strings.
+        """
         result = set()
         for idx, lang, value in self.iter_bone_value(skel, name):
             if value is None:
