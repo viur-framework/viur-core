@@ -321,7 +321,6 @@ class BrowseHandler():  # webapp.RequestHandler
                         "status": 500,
                         "reason": "Internal Server Error",
                         "title": str(translate("Internal Server Error")),
-                        
                         "descr": descr
                     }
 
@@ -337,19 +336,13 @@ class BrowseHandler():  # webapp.RequestHandler
                     # Try to get the template from html/error/
                     if isinstance(e, errors.HTTPException):
                         if conf["viur.instance.project_base_path"].joinpath(f"html/error/{e.status}.html").is_file():
-                            template = conf["viur.mainApp"].render.getEnv().get_template(
-                                conf["viur.mainApp"].render.getTemplateFileName(f"error/{e.status}"))
-                            res = template.render(error_info)
-                        elif conf["viur.instance.project_base_path"].joinpath("html/error/generic.html").is_file():
-                            template = conf["viur.mainApp"].render.getEnv().get_template(
-                                conf["viur.mainApp"].render.getTemplateFileName("error/generic.html"))
-                            res = template.render(error_info)
-
+                            file_name = f"html/error/{e.status}.html"
                         else:
-                            with (conf["viur.instance.core_base_path"].joinpath(
-                                    conf["viur.errorTemplate"]).open() as tpl_file):
-                                template_file = Template(tpl_file.read())
-                                res = template_file.safe_substitute(error_info)
+                            file_name = "error/generic.html"
+
+                        template = conf["viur.mainApp"].render.getEnv().get_template(
+                            conf["viur.mainApp"].render.getTemplateFileName(file_name))
+                        res = template.render(error_info)
                     extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
 
             self.response.write(res.encode("UTF-8"))
