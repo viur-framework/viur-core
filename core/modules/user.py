@@ -989,7 +989,7 @@ class User(List):
         return json.dumps(res)
 
     @exposed
-    def trigger(self, action : str, key : str | db.Key, skey : str):
+    def trigger(self, action: str, key: str | db.Key, skey: str):
         current.request.get().response.headers["Content-Type"] = "application/json"
         if not ((cuser := current.user.get()) and "root" in cuser["access"]):
             raise errors.Unauthorized()
