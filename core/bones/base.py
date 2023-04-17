@@ -1047,6 +1047,6 @@ class BaseBone(object):
             }
 
             if self.compute.interval.lifetime:
-                ret["compute"]["lifetime"] = str(self.compute.interval.lifetime)
+                ret["compute"]["lifetime"] = self.compute.interval.lifetime.total_seconds()
 
         return ret
