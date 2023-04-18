@@ -81,13 +81,15 @@ class Render(object):
 
             :param template: The basename of the template to use. This can optionally be also a sequence of names.
             :param ignoreStyle: Ignore any maybe given style hints.
+            :param raise_exception: Defaults to raise an exception when not found, otherwise returns None.
 
             :returns: Filename of the template
         """
         validChars = "abcdefghijklmnopqrstuvwxyz1234567890-"
         htmlpath = getattr(self, "htmlpath", "html")
 
-        if (not ignoreStyle
+        if (
+            not ignoreStyle
             and (style := current.request.get().kwargs.get("style"))
             and all([x in validChars for x in style.lower()])
         ):
@@ -121,12 +123,8 @@ class Render(object):
                         if conf["viur.instance.project_base_path"].joinpath(htmlpath, dirname, filename).is_file():
                             return os.path.join(dirname, filename)
 
-                print(conf["viur.instance.project_base_path"].joinpath(htmlpath, filename))
-
                 if conf["viur.instance.project_base_path"].joinpath(htmlpath, filename).is_file():
                     return filename
-
-                print(conf["viur.instance.core_base_path"].joinpath("template", filename))
 
                 if conf["viur.instance.core_base_path"].joinpath("viur", "core", "template", filename).is_file():
                     return filename
