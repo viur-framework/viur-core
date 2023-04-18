@@ -32,7 +32,9 @@ class ColorBone(BaseBone):
         :param name: The name of the bone.
         :param origData: The original data for the bone.
 
-        :return tuple: A tuple containing the processed value if valid, or the empty value if invalid, and a list of ReadFromClientError instances if there were errors, or None if no errors occurred.
+        :return tuple: A tuple containing the processed value if valid,
+            or the empty value if invalid, and a list of ReadFromClientError instances
+            if there were errors, or None if no errors occurred.
         """
         value = value.lower()
         if value.count("#") > 1:
