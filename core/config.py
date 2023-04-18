@@ -47,8 +47,7 @@ __version = os.getenv("GAE_VERSION")
 
 # Determine our basePath (as os.getCWD is broken on appengine)
 __project_base_path = Path().absolute()
-
-__core_base_path = Path(__file__).parent.parent.parent
+__core_base_path = Path(__file__).parent.parent.parent  # fixme: this points to site-packages!!!
 
 # Conf is a static, local dictionary.
 # Changes here apply locally to the current instance only.
@@ -135,9 +134,6 @@ conf = Conf({
 
     # If set, ViUR calls this function instead of rendering the viur.errorTemplate if an exception occurs
     "viur.errorHandler": None,
-
-    # Path to the template to render if an unhandled error occurs. This is a Python String-template, *not* Jinja
-    "viur.errorTemplate": "viur/core/template/error.html",
 
     # Path to the static SVGs folder. Will be used by the jinja-renderer-method: embedSvg
     "viur.static.embedSvg.path": "/static/svgs/",

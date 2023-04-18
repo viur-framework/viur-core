@@ -331,22 +331,20 @@ class BrowseHandler():  # webapp.RequestHandler
                         current.request.get().response.headers["Content-Type"] == "application/json":
                     current.request.get().response.headers["Content-Type"] = "application/json"
                     res = json.dumps(error_info)
-
                 else:  # We render the error in html
                     # Try to get the template from html/error/
                     if isinstance(e, errors.HTTPException):
-                        if conf["viur.instance.project_base_path"].joinpath(f"html/error/{e.status}.html").is_file():
-                            file_name = f"html/error/{e.status}.html"
-                        else:
-                            file_name = "error/generic.html"
+                        if filename := conf["viur.mainApp"].render.getTemplateFileName((f"{e.status}", "error"),
+                                                                                       raise_exception=False):
+                            template = conf["viur.mainApp"].render.getEnv().get_template(filename)
+                            res = template.render(error_info)
 
-                        template = conf["viur.mainApp"].render.getEnv().get_template(
-                            conf["viur.mainApp"].render.getTemplateFileName(file_name))
-                        res = template.render(error_info)
-                    extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
+                            # fixme: this might be the viur/core/template/error.html ...
+                            extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
+                        else:
+                            res = f"""<html><h1>{error_info["status"]} - {error_info["reason"]}"""
 
             self.response.write(res.encode("UTF-8"))
-
 
         finally:
             self.saveSession()
