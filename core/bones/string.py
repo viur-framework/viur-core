@@ -61,8 +61,7 @@ class StringBone(BaseBone):
 
     def singleValueFromClient(self, value, skel, name, origData):
         value = utils.escapeString(value, self.maxLength)
-        err = self.isInvalid(value)
-        if not err:
+        if not (err := self.isInvalid(value)):
             return value, None
         return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
