@@ -1,3 +1,7 @@
+"""
+The CaptchaBone is used to ensure that a user is not a bot. The Captcha bone uses the Google reCAPTCHA API to perform the Captcha validation and is derived from the BaseBone.
+"""
+
 import json
 import urllib.parse
 import urllib.request
@@ -8,6 +12,14 @@ from viur.core.utils import currentRequest
 
 
 class CaptchaBone(BaseBone):
+    """
+    The CaptchaBone uses the Google reCAPTCHA API to perform the Captcha validation.
+
+    Args:
+        publicKey (str): The public key for the Captcha validation.
+        privateKey (str): The private key for the Captcha validation.
+        **kwargs: Additional arguments to pass to the base class constructor.
+    """
     type = "captcha"
 
     def __init__(self, *, publicKey=None, privateKey=None, **kwargs):
@@ -22,9 +34,22 @@ class CaptchaBone(BaseBone):
         self.required = True
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
+        """
+        Serializing the Captcha bone is not possible so it return False
+        """
         return False
 
     def unserialize(self, skel, name) -> bool:
+        """
+        Unserialize the Captcha bone.
+
+        Args:
+        skel (SkeletonInstance): The skeleton instance containing the Captcha bone.
+        name (str): The name of the Captcha bone.
+
+        Returns:
+        bool: True, as the Captcha bone is always unserialized successfully.
+        """
         skel.accessedValues[name] = self.publicKey
         return True
 
