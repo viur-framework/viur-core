@@ -2,8 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.4.0-beta3]
+## [3.4.0.rc1]
 
+- chore: Conventional commits and clarifications (#692)
+- fix: Improvements and clarifications on version string (#706)
+- security: Ensure active status in authenticateUser (#710)
+- fix: bump viur-datastore to 1.3.9 (#708)
 - fix: Run render_structure recursively on "using" and "relskel" (#705)
 - feat: Implement naive mode for `DateBone` (#667)
 - fix: SkelList.get_orders must be in the `__slots__` (#703)
