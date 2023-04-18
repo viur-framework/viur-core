@@ -55,9 +55,9 @@
             </div>
         </aside>
         <h2>
-            <span class="text">535 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">184<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">351<span class="text"> missing</span></button>
+            <span class="text">543 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">185<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">358<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
             <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">30<span class="text"> partial</span></button>
         </h2>
@@ -66,8 +66,8 @@
             <a id="indexLink" class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a id="nextFileLink" class="nav" href="d_6b0da3f663d51593_boolean_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.2.1">coverage.py v7.2.1</a>,
-            created at 2023-03-09 11:10 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.2.3">coverage.py v7.2.3</a>,
+            created at 2023-04-18 16:01 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"/>
@@ -966,6 +966,39 @@
     <p class="mis show_mis"><span class="n"><a id="t882" href="#t882">882</a></span><span class="t">                    <span class="key">yield</span> <span class="nam">idx</span><span class="op">,</span> <span class="key">None</span><span class="op">,</span> <span class="nam">val</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t883" href="#t883">883</a></span><span class="t">            <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t884" href="#t884">884</a></span><span class="t">                <span class="key">yield</span> <span class="key">None</span><span class="op">,</span> <span class="key">None</span><span class="op">,</span> <span class="nam">value</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t885" href="#t885">885</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t886" href="#t886">886</a></span><span class="t">    <span class="key">def</span> <span class="nam">structure</span><span class="op">(</span><span class="nam">self</span><span class="op">)</span> <span class="op">-></span> <span class="nam">dict</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t887" href="#t887">887</a></span><span class="t">        <span class="str">"""</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t888" href="#t888">888</a></span><span class="t"><span class="str">        Describes the bone and its settings as an JSON-serializable dict.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t889" href="#t889">889</a></span><span class="t"><span class="str">        This function has to be implemented for subsequent, specialized bone types.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t890" href="#t890">890</a></span><span class="t"><span class="str">        """</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t891" href="#t891">891</a></span><span class="t">        <span class="nam">ret</span> <span class="op">=</span> <span class="op">{</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t892" href="#t892">892</a></span><span class="t">            <span class="str">"descr"</span><span class="op">:</span> <span class="nam">str</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">descr</span><span class="op">)</span><span class="op">,</span>  <span class="com"># need to turn possible translate-object into string</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t893" href="#t893">893</a></span><span class="t">            <span class="str">"type"</span><span class="op">:</span> <span class="nam">self</span><span class="op">.</span><span class="nam">type</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t894" href="#t894">894</a></span><span class="t">            <span class="str">"required"</span><span class="op">:</span> <span class="nam">self</span><span class="op">.</span><span class="nam">required</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t895" href="#t895">895</a></span><span class="t">            <span class="str">"params"</span><span class="op">:</span> <span class="nam">self</span><span class="op">.</span><span class="nam">params</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t896" href="#t896">896</a></span><span class="t">            <span class="str">"visible"</span><span class="op">:</span> <span class="nam">self</span><span class="op">.</span><span class="nam">visible</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t897" href="#t897">897</a></span><span class="t">            <span class="str">"readonly"</span><span class="op">:</span> <span class="nam">self</span><span class="op">.</span><span class="nam">readOnly</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t898" href="#t898">898</a></span><span class="t">            <span class="str">"unique"</span><span class="op">:</span> <span class="nam">self</span><span class="op">.</span><span class="nam">unique</span><span class="op">.</span><span class="nam">method</span><span class="op">.</span><span class="nam">value</span> <span class="key">if</span> <span class="nam">self</span><span class="op">.</span><span class="nam">unique</span> <span class="key">else</span> <span class="key">False</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t899" href="#t899">899</a></span><span class="t">            <span class="str">"languages"</span><span class="op">:</span> <span class="nam">self</span><span class="op">.</span><span class="nam">languages</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t900" href="#t900">900</a></span><span class="t">            <span class="str">"emptyvalue"</span><span class="op">:</span> <span class="nam">self</span><span class="op">.</span><span class="nam">getEmptyValue</span><span class="op">(</span><span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t901" href="#t901">901</a></span><span class="t">            <span class="str">"indexed"</span><span class="op">:</span> <span class="nam">self</span><span class="op">.</span><span class="nam">indexed</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t902" href="#t902">902</a></span><span class="t">        <span class="op">}</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t903" href="#t903">903</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t904" href="#t904">904</a></span><span class="t">        <span class="com"># Provide a defaultvalue, if it's not a function.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t905" href="#t905">905</a></span><span class="t">        <span class="key">if</span> <span class="key">not</span> <span class="nam">callable</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">defaultValue</span><span class="op">)</span> <span class="key">and</span> <span class="nam">self</span><span class="op">.</span><span class="nam">defaultValue</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t906" href="#t906">906</a></span><span class="t">            <span class="nam">ret</span><span class="op">[</span><span class="str">"defaultvalue"</span><span class="op">]</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">defaultValue</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t907" href="#t907">907</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t908" href="#t908">908</a></span><span class="t">        <span class="com"># Provide a multiple setting</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t909" href="#t909">909</a></span><span class="t">        <span class="key">if</span> <span class="nam">self</span><span class="op">.</span><span class="nam">multiple</span> <span class="key">and</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">multiple</span><span class="op">,</span> <span class="nam">MultipleConstraints</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t910" href="#t910">910</a></span><span class="t">            <span class="nam">ret</span><span class="op">[</span><span class="str">"multiple"</span><span class="op">]</span> <span class="op">=</span> <span class="op">{</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t911" href="#t911">911</a></span><span class="t">                <span class="str">"min"</span><span class="op">:</span> <span class="nam">self</span><span class="op">.</span><span class="nam">multiple</span><span class="op">.</span><span class="nam">minAmount</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t912" href="#t912">912</a></span><span class="t">                <span class="str">"max"</span><span class="op">:</span> <span class="nam">self</span><span class="op">.</span><span class="nam">multiple</span><span class="op">.</span><span class="nam">maxAmount</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t913" href="#t913">913</a></span><span class="t">                <span class="str">"preventduplicates"</span><span class="op">:</span> <span class="nam">self</span><span class="op">.</span><span class="nam">multiple</span><span class="op">.</span><span class="nam">preventDuplicates</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t914" href="#t914">914</a></span><span class="t">            <span class="op">}</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t915" href="#t915">915</a></span><span class="t">        <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t916" href="#t916">916</a></span><span class="t">            <span class="nam">ret</span><span class="op">[</span><span class="str">"multiple"</span><span class="op">]</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">multiple</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t917" href="#t917">917</a></span><span class="t">        <span class="key">return</span> <span class="nam">ret</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -974,8 +1007,8 @@
             <a id="indexLink" class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a id="nextFileLink" class="nav" href="d_6b0da3f663d51593_boolean_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.2.1">coverage.py v7.2.1</a>,
-            created at 2023-03-09 11:10 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.2.3">coverage.py v7.2.3</a>,
+            created at 2023-04-18 16:01 +0000
         </p>
     </div>
 </footer>
