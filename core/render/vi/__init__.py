@@ -105,7 +105,7 @@ def getVersion(*args, **kwargs):
     Returns viur-core version number
     """
     current.request.get().response.headers["Content-Type"] = "application/json"
-    if conf["viur.instance.is_dev_server"]:
+    if conf["viur.instance.is_dev_server"] or current.user.get():
         return json.dumps(conf["viur.version"])
 
     # Hide patchlevel
