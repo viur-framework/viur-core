@@ -26,7 +26,7 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - fix: `viewSkel()`: It's a member of the user module, not the auth-provider (#674)
 - feat: Improve `PasswordBone` parametrization (#619)
 - fix: Add `RelationalUpdateLevel` to__all__ (#675)
-- Fix spelling of "readonly" in renderEditForm (#670)
+- fix: spelling of "readonly" in renderEditForm (#670)
 - fix: Add structure for numericBone (#672)
 - fix: Fallback to `SkelModule` as replacement for `BasicApplication` (#665)
 - refactor: `securitykey` module (#656)
