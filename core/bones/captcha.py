@@ -1,5 +1,6 @@
 """
-The CaptchaBone is used to ensure that a user is not a bot. The Captcha bone uses the Google reCAPTCHA API to perform the Captcha validation and is derived from the BaseBone.
+The CaptchaBone is used to ensure that a user is not a bot. The Captcha bone uses the Google reCAPTCHA API
+to perform the Captcha validation and is derived from the BaseBone.
 """
 
 import json
@@ -15,10 +16,9 @@ class CaptchaBone(BaseBone):
     """
     The CaptchaBone uses the Google reCAPTCHA API to perform the Captcha validation.
 
-    Args:
-        publicKey (str): The public key for the Captcha validation.
-        privateKey (str): The private key for the Captcha validation.
-        **kwargs: Additional arguments to pass to the base class constructor.
+    :param publicKey: The public key for the Captcha validation.
+    :param privateKey: The private key for the Captcha validation.
+    :param **kwargs: Additional arguments to pass to the base class constructor.
     """
     type = "captcha"
 
@@ -43,12 +43,10 @@ class CaptchaBone(BaseBone):
         """
         Unserialize the Captcha bone.
 
-        Args:
-        skel (SkeletonInstance): The skeleton instance containing the Captcha bone.
-        name (str): The name of the Captcha bone.
+        :param skel: The SkeletonInstance containing the Captcha bone.
+        :param name: The name of the Captcha bone.
 
-        Returns:
-        bool: True, as the Captcha bone is always unserialized successfully.
+        :returns: boolean, that is true, as the Captcha bone is always unserialized successfully.
         """
         skel.accessedValues[name] = self.publicKey
         return True
