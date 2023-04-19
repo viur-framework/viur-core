@@ -993,8 +993,10 @@ class User(List):
         return json.dumps(res)
 
     @exposed
-    def trigger(self, action: str, key: str | db.Key, skey: str):
+    def trigger(self, action: str, key: str, skey: str):
         current.request.get().response.headers["Content-Type"] = "application/json"
+
+        # only "root" users are allowed to trigger maintenance functions!
         if not ((cuser := current.user.get()) and "root" in cuser["access"]):
             raise errors.Unauthorized()
 
@@ -1014,6 +1016,7 @@ class User(List):
 
             case _:
                 raise errors.NotImplemented(f"Action {action!r} not implemented")
+
         return json.dumps("OKAY")
 
     def onEdited(self, skel):
