@@ -19,7 +19,8 @@ class NumericBone(BaseBone):
         A bone for storing numeric values, either integers or floats.
         For floats, the precision can be specified in decimal-places.
 
-        :param precision: How may decimal places should be saved. Zero casts the value to int instead of float.
+        :param precision: How may decimal places should be saved. Zero casts the value to int instead of
+            float.
         :param min: Minimum accepted value (including).
         :param max: Maximum accepted value (including).
     """
@@ -86,9 +87,11 @@ class NumericBone(BaseBone):
 
     def getEmptyValue(self):
         """
-        This method returns an empty value depending on the precision attribute of the NumericBone instance.
+        This method returns an empty value depending on the precision attribute of the NumericBone
+        instance.
 
-        :return: Returns 0 for integers (when precision is 0) or 0.0 for floating-point numbers (when precision is non-zero).
+        :return: Returns 0 for integers (when precision is 0) or 0.0 for floating-point numbers (when
+            precision is non-zero).
         """
         if self.precision:
             return 0.0
@@ -98,8 +101,8 @@ class NumericBone(BaseBone):
     def isEmpty(self, rawValue: Any):
         """
         This method checks if a given raw value is considered empty for the NumericBone instance.
-        It attempts to convert the raw value into a valid numeric value (integer or floating-point number),
-        depending on the precision attribute of the NumericBone instance.
+        It attempts to convert the raw value into a valid numeric value (integer or floating-point
+        number), depending on the precision attribute of the NumericBone instance.
 
         :param rawValue: The raw value to be checked for emptiness.
         :return: Returns True if the raw value is considered empty, otherwise False.
@@ -138,10 +141,10 @@ class NumericBone(BaseBone):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid Value")]
         else:
             if self.precision and (str(rawValue).replace(".", "", 1).replace("-", "", 1).isdigit()) and float(
-                rawValue) >= self.min and float(rawValue) <= self.max:
+                    rawValue) >= self.min and float(rawValue) <= self.max:
                 value = round(float(rawValue), self.precision)
             elif not self.precision and (str(rawValue).replace("-", "", 1).isdigit()) and int(
-                rawValue) >= self.min and int(rawValue) <= self.max:
+                    rawValue) >= self.min and int(rawValue) <= self.max:
                 value = int(rawValue)
             else:
                 return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid Value")]
@@ -193,8 +196,9 @@ class NumericBone(BaseBone):
 
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
         """
-        This method generates a set of search tags based on the numeric values stored in the NumericBone instance.
-        It iterates through the bone values and adds the string representation of each value to the result set.
+        This method generates a set of search tags based on the numeric values stored in the NumericBone
+        instance. It iterates through the bone values and adds the string representation of each value
+        to the result set.
 
         :param skel: The skeleton instance containing the bone.
         :param name: The name of the bone.
