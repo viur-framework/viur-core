@@ -14,7 +14,7 @@ from viur.core.utils import currentLanguage
 
 class StringBone(BaseBone):
     """
-    Initializes a new instance of the StringBone class.
+    The "StringBone" represents a data field that contains text values.
 
     :param caseSensitive: A boolean value indicating whether the text values in this field are
         case-sensitive or not.
