@@ -1,7 +1,9 @@
 """
 A bone for storing credentials.
 
-This bone is designed to store sensitive information like passwords, API keys, or other secret strings. It ensures that the stored value is always empty when read from the database. When saved, the value is only updated in the database if it is non-empty.
+This bone is designed to store sensitive information like passwords, API keys, or other secret
+strings. It ensures that the stored value is always empty when read from the database. When saved,
+the value is only updated in the database if it is non-empty.
 """
 
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
@@ -51,7 +53,8 @@ class CredentialBone(StringBone):
         """
         Unserializes the bone's value from storage.
 
-        This method always returns an empty dictionary as the CredentialBone's value is always empty when read from the database.
+        This method always returns an empty dictionary as the CredentialBone's value is always empty when read from
+        the database.
 
         :param dict valuesCache: A dictionary containing the serialized values from the datastore.
         :param str name: The name of the bone attribute.
@@ -71,7 +74,8 @@ class CredentialBone(StringBone):
         :type skel: SkeletonInstance
         :param str name: The name of the bone attribute.
         :param origData: The original data received from the client.
-        :return: A tuple containing the escaped value and None if the value is valid, or the empty value and a ReadFromClientError if the value is invalid.
+        :return: A tuple containing the escaped value and None if the value is valid, or the empty value and a
+            ReadFromClientError if the value is invalid.
         :rtype: tuple
         """
         err = self.isInvalid(value)
