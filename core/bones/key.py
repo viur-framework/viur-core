@@ -1,5 +1,6 @@
 """
-The KeyBone is used for managing keys in the database. It provides various methods for validating, converting, and storing key values, as well as querying the database.
+The KeyBone is used for managing keys in the database. It provides various methods for validating,
+converting, and storing key values, as well as querying the database.
 Key management is crucial for maintaining relationships between entities in the database, and the
 KeyBone class helps ensure that keys are handled correctly and efficiently throughout the system.
 """
@@ -116,8 +117,7 @@ class KeyBone(BaseBone):
         if (name == "key"
             and isinstance(skel.dbEntity, db.Entity)
             and skel.dbEntity.key
-            and not skel.dbEntity.key.is_partial
-            ):
+                and not skel.dbEntity.key.is_partial):
             skel.accessedValues[name] = skel.dbEntity.key
             return True
         elif name in skel.dbEntity:
