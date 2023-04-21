@@ -1,10 +1,25 @@
+"""
+The KeyBone is used for managing keys in the database. It provides various methods for validating, converting, and storing key values, as well as querying the database.
+Key management is crucial for maintaining relationships between entities in the database, and the
+KeyBone class helps ensure that keys are handled correctly and efficiently throughout the system.
+"""
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core import db, utils
 from typing import Dict, Optional, Union, List
-import logging, copy
+import logging
+import copy
 
 
 class KeyBone(BaseBone):
+    """
+    The KeyBone is used for managing keys in the database. It's based on the BoneBone
+
+    :param str descr: The description of the KeyBone.
+    :param bool readOnly: Whether the KeyBone is read-only.
+    :param bool visible: Whether the KeyBone is visible.
+    :param Union[None, List[str]] allowed_kinds: The allowed entity kinds for the KeyBone.
+    :param bool check: Whether to check for entity existence.
+    """
     type = "key"
 
     def __init__(
@@ -22,6 +37,20 @@ class KeyBone(BaseBone):
         self.check = check
 
     def singleValueFromClient(self, value, skel, name, origData):
+        """
+        This method validates and converts a key value received from the client. It checks if the
+        value is a valid key and, if necessary, converts it into an appropriate format for further
+        processing.
+
+        :param value: The key value received from the client.
+        :param skel: The Skeleton instance this bone is a part of.
+        :param name: The property name of this bone in the Skeleton (not the description).
+        :param origData: The original data received from the client.
+
+        :return: A tuple containing the validated and converted key, or an empty value if the key
+            is not valid. If there are any errors during validation, the second element of the tuple
+            will contain a list of :class:ReadFromClientError instances with error details.
+        """
         # check for correct key
         if isinstance(value, str):
             value = value.strip()
@@ -60,12 +89,20 @@ class KeyBone(BaseBone):
 
     def unserialize(self, skel: 'viur.core.skeleton.SkeletonValues', name: str) -> bool:
         """
-            Inverse of serialize. Evaluates whats
-            read from the datastore and populates
-            this bone accordingly.
-            :param name: The property-name this bone has in its Skeleton (not the description!)
-        """
+        This method is the inverse of :meth:serialize. It reads the key value from the datastore
+        and populates the corresponding KeyBone in the Skeleton. The method converts the value from
+        the datastore into an appropriate format for further use in the program.
 
+        :param skel: The SkeletonValues instance this bone is a part of.
+        :param name: The property name of this bone in the Skeleton (not the description).
+
+        :return: A boolean value indicating whether the operation was successful. Returns True if
+            the key value was successfully unserialized and added to the accessedValues of the
+            Skeleton, and False otherwise.
+
+        .. note:: The method contains an inner function, fixVals(val), which normalizes and
+            validates the key values before populating the bone.
+        """
         def fixVals(val):
             if isinstance(val, str):
                 try:
@@ -80,7 +117,7 @@ class KeyBone(BaseBone):
             and isinstance(skel.dbEntity, db.Entity)
             and skel.dbEntity.key
             and not skel.dbEntity.key.is_partial
-        ):
+            ):
             skel.accessedValues[name] = skel.dbEntity.key
             return True
         elif name in skel.dbEntity:
@@ -102,10 +139,20 @@ class KeyBone(BaseBone):
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
         """
-            Serializes this bone into something we
-            can write into the datastore.
+        This method serializes the KeyBone into a format that can be written to the datastore. It
+        converts the key value from the Skeleton object into a format suitable for storage in the
+        datastore.
 
-            :param name: The property-name this bone has in its Skeleton (not the description!)
+        :param skel: The SkeletonInstance this bone is a part of.
+        :param name: The property name of this bone in the Skeleton (not the description).
+        :param parentIndexed: A boolean value indicating whether the parent entity is indexed or not.
+
+        :return: A boolean value indicating whether the operation was successful. Returns True if
+            the key value was successfully serialized and added to the datastore entity, and False
+            otherwise.
+
+        .. note:: Key values are always indexed, so the method discards any exclusion from indexing
+            for key values.
         """
         if name in skel.accessedValues:
             if name == "key":
@@ -116,29 +163,35 @@ class KeyBone(BaseBone):
             return True
         return False
 
-
     def buildDBFilter(
         self,
-          name: str,
-          skel: 'viur.core.skeleton.SkeletonInstance',
-          dbFilter: db.Query,
-          rawFilter: Dict,
-          prefix: Optional[str] = None
+        name: str,
+        skel: 'viur.core.skeleton.SkeletonInstance',
+        dbFilter: db.Query,
+        rawFilter: Dict,
+        prefix: Optional[str] = None
     ) -> db.Query:
         """
-            Parses the searchfilter a client specified in his Request into
-            something understood by the datastore.
-            This function must:
+        This method parses the search filter specified by the client in their request and converts
+        it into a format that can be understood by the datastore. It takes care of ignoring filters
+        that do not target this bone and safely handles malformed data in the raw filter.
 
-                * Ignore all filters not targeting this bone
-                * Safely handle malformed data in rawFilter
-                    (this parameter is directly controlled by the client)
+        :param name: The property name of this bone in the Skeleton (not the description).
+        :param skel: The :class:viur.core.skeleton.SkeletonInstance this bone is a part of.
+        :param dbFilter: The current :class:viur.core.db.Query instance the filters should be
+            applied to.
+        :param rawFilter: The dictionary of filters the client wants to have applied.
+        :param prefix: An optional string to prepend to the filter key. Defaults to None.
 
-            :param name: The property-name this bone has in its Skeleton (not the description!)
-            :param skel: The :class:`viur.core.db.Query` this bone is part of
-            :param dbFilter: The current :class:`viur.core.db.Query` instance the filters should be applied to
-            :param rawFilter: The dictionary of filters the client wants to have applied
-            :returns: The modified :class:`viur.core.db.Query`
+        :return: The modified :class:viur.core.db.Query.
+
+        The method takes the following steps:
+
+        #. Decodes the provided key(s) from the raw filter.
+        #. If the filter contains a list of keys, it iterates through the list, creating a new
+            filter for each key and appending it to the list of queries.
+        #. If the filter contains a single key, it applies the filter directly to the query.
+        #. In case of any invalid key or other issues, it raises a RuntimeError.
         """
 
         def _decodeKey(key):
