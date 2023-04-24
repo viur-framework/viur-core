@@ -53,5 +53,3 @@ This manual is intended to be the official documentation and reference manual fo
 
 Bugs or feature requests can be submitted to the different ViUR components and their maintainers on `GitHub <https://github.com/viur-framework>`_.
 
-.. _viur.dev/community: https://www.viur.dev/community
-.. _viur.dev/development: https://www.viur.dev/development
