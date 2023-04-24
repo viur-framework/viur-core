@@ -186,7 +186,6 @@ ViUR comes with some build-in modules for different application cases:
 
 - :class:`File<core.modules.file.File>` implements a file management module,
 - :class:`User<core.modules.user.User>` implements a user login, authentication and management module,
-- :class:`Cart<core.modules.cart.Cart>` and :class:`Order<core.modules.order.Order>` implement modules for submitting and managing orders in a web-shop,
 - :class:`Page<core.modules.page.Page>` implements a simple content management module.
 .. hier müssen noch die anderen modules eingepflegt werden.
 
