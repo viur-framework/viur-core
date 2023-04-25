@@ -1,5 +1,4 @@
 import enum
-import logging
 from collections import OrderedDict
 from numbers import Number
 from typing import Callable, Dict, List, Tuple, Union
@@ -17,8 +16,12 @@ class SelectBone(BaseBone):
     def __init__(
         self,
         *,
-        defaultValue: Union[None, Dict[str, Union[SelectBoneMultiple, SelectBoneValue]],
-                            SelectBoneMultiple, enum.Enum] = None,
+        defaultValue: Union[
+            SelectBoneValue,
+            Dict[str, Union[SelectBoneMultiple, SelectBoneValue]],
+            SelectBoneMultiple,
+            enum.Enum
+        ] = None,
         values: Union[Dict, List, Tuple, Callable, enum.EnumMeta] = (),
         **kwargs
     ):
