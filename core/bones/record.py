@@ -121,7 +121,7 @@ class RecordBone(BaseBone):
             being using (ie. which Fields to include and how).
 
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def structure(self) -> dict:
         return super().structure() | {
