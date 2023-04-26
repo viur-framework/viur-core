@@ -283,9 +283,7 @@ class TextBone(BaseBone):
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
         return value
 
-    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
-                              bone_name: str, client_data: dict
-                              ) -> tuple[Any, list[ReadFromClientError] | None]:
+    def singleValueFromClient(self, value, skel, bone_name, client_data):
         if not (err := self.isInvalid(value)):  # Returns None on success, error-str otherwise
             return HtmlSerializer(self.validHtml, self.srcSet).sanitize(value), None
         else:

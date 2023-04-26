@@ -23,9 +23,7 @@ class KeyBone(BaseBone):
         self.allowed_kinds = allowed_kinds
         self.check = check
 
-    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
-                              bone_name: str, client_data: dict
-                              ) -> tuple[Any, list[ReadFromClientError] | None]:
+    def singleValueFromClient(self, value, skel, bone_name, client_data):
         # check for correct key
         if isinstance(value, str):
             value = value.strip()

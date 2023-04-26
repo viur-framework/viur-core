@@ -152,9 +152,7 @@ class SpatialBone(BaseBone):
         """
         return 0.0, 0.0
 
-    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
-                              bone_name: str, client_data: dict
-                              ) -> tuple[Any, list[ReadFromClientError] | None]:
+    def singleValueFromClient(self, value, skel, bone_name, client_data):
         """
             Reads a value from the client.
             If this value is valid for this bone,

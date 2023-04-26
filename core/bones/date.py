@@ -65,9 +65,7 @@ class DateBone(BaseBone):
         self.localize = localize
         self.naive = naive
 
-    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
-                              bone_name: str, client_data: dict
-                              ) -> tuple[Any, list[ReadFromClientError] | None]:
+    def singleValueFromClient(self, value, skel, bone_name, client_data):
         """
             Reads a value from the client.
             If this value is valid for this bone,
@@ -101,7 +99,7 @@ class DateBone(BaseBone):
             The resulting year must be >= 1900.
 
             :param bone_name: Our name in the skeleton
-            :param value: *User-supplied* request-data, has to be of valid format
+            :param client_data: *User-supplied* request-data, has to be of valid format
             :returns: tuple[datetime or None, [Errors] or None]
         """
         time_zone = self.guessTimeZone()

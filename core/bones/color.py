@@ -11,9 +11,7 @@ class ColorBone(BaseBone):
         assert mode in {"rgb", "rgba"}
         self.mode = mode
 
-    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
-                              bone_name: str, client_data: dict
-                              ) -> tuple[Any, list[ReadFromClientError] | None]:
+    def singleValueFromClient(self, value, skel, bone_name, client_data):
         value = value.lower()
         if value.count("#") > 1:
             return self.getEmptyValue(), [

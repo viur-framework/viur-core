@@ -18,9 +18,7 @@ class BooleanBone(BaseBone):
 
         super().__init__(defaultValue=defaultValue, **kwargs)
 
-    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
-                              bone_name: str, client_data: dict
-                              ) -> tuple[Any, list[ReadFromClientError] | None]:
+    def singleValueFromClient(self, value, skel, bone_name, client_data):
         return str(value).strip().lower() in conf["viur.bone.boolean.str2true"], None
 
     def getEmptyValue(self):

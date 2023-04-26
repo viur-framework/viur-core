@@ -60,9 +60,7 @@ class RecordBone(BaseBone):
         """
         return True
 
-    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
-                              bone_name: str, client_data: dict
-                              ) -> tuple[Any, list[ReadFromClientError] | None]:
+    def singleValueFromClient(self, value, skel, bone_name, client_data):
         usingSkel = self.using()
         if not usingSkel.fromClient(value, not (self.required or self.multiple)):
             usingSkel.errors.append(

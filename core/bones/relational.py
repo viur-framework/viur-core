@@ -443,9 +443,7 @@ class RelationalBone(BaseBone):
     def parseSubfieldsFromClient(self):
         return self.using is not None
 
-    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
-                              bone_name: str, client_data: dict
-                              ) -> tuple[Any, list[ReadFromClientError] | None]:
+    def singleValueFromClient(self, value, skel, bone_name, client_data):
         oldValues = skel[bone_name]
 
         def restoreSkels(key, usingData, index=None):

@@ -41,9 +41,7 @@ class StringBone(BaseBone):
 
         return not bool(str(value).strip())
 
-    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
-                              bone_name: str, client_data: dict
-                              ) -> tuple[Any, list[ReadFromClientError] | None]:
+    def singleValueFromClient(self, value, skel, bone_name, client_data):
         value = utils.escapeString(value, self.maxLength)
 
         if not (err := self.isInvalid(value)):
