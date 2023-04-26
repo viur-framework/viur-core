@@ -23,7 +23,8 @@ def haversine(lat1, lng1, lat2, lng2):
     The haversine formula is particularly useful for small distances on the Earth's surface,
     as it provides accurate results with good performance.
 
-    For more details on the haversine formula, see `Haversine formula <https://en.wikipedia.org/wiki/Haversine_formula>`_.
+    For more details on the haversine formula, see
+    `Haversine formula <https://en.wikipedia.org/wiki/Haversine_formula>`_.
 
     :param float lat1: Latitude of the first point in decimal degrees.
     :param float lng1: Longitude of the first point in decimal degrees.
