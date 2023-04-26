@@ -36,12 +36,12 @@ class DefaultRender(object):
     @staticmethod
     def render_structure(structure: dict):
         """
-        Performs structure rewrite according to compatibility flags.
+        Performs structure rewriting according to VIUR2/3 compatibility flags.
+        # fixme: Remove this entire function with VIUR4
         """
-        # fixme: Remove in VIUR4
-        if "json.bone.structure.camelcasenames" in conf["viur.compatibility"]:
-            for struct in structure.values():
-                # Replace new-key by a copy of the value under the old-key
+        for struct in structure.values():
+            # Optionally replace new-key by a copy of the value under the old-key
+            if "json.bone.structure.camelcasenames" in conf["viur.compatibility"]:
                 for find, replace in {
                     "boundslat": "boundsLat",
                     "boundslng": "boundsLng",
@@ -57,7 +57,12 @@ class DefaultRender(object):
                     if find in struct:
                         struct[replace] = struct[find]
 
-        # fixme: Remove in VIUR4
+            # Call render_structure() recursively on "using" and "relskel" members.
+            for substruct in ("using", "relskel"):
+                if substruct in struct and struct[substruct]:
+                    struct[substruct] = DefaultRender.render_structure(struct[substruct])
+
+        # Optionally return list of tuples instead of dict
         if "json.bone.structure.keytuples" in conf["viur.compatibility"]:
             return [(key, struct) for key, struct in structure.items()]
 

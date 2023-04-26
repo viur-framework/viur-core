@@ -2,14 +2,35 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.4.0-beta1]
+## [3.4.0.rc1]
 
+- chore: Conventional commits and clarifications (#692)
+- fix: Improvements and clarifications on version string (#706)
+- security: Ensure active status in authenticateUser (#710)
+- fix: bump viur-datastore to 1.3.9 (#708)
+- fix: Run render_structure recursively on "using" and "relskel" (#705)
+- feat: Implement naive mode for `DateBone` (#667)
+- fix: SkelList.get_orders must be in the `__slots__` (#703)
+- chore: Bump viur-datastore to 1.3.8 (#700)
+- feat: Allow `Enum` for `SelectBone`-values and implement `User`s status as `Enum`  (#683)
+- fix: Keep filename synchronous in both skeleton and blob (#699)
+- refactor: Re-implement password encoding using Python's `hashlib` and `secrets` module (#680)
+- fix: continue thumbnailing when image is broken (#697)
+- feat: Inject "sortindex" attribute to bone structure (#698)
+- fix: ignore downloadUrls without signature (#696)
+- refactor: Replace `doClear*` by `DeleteEntitiesIter` (#694)
+- fix: Update URL to viur.dev in error.html (#695)
+- feat: Add `manage` access right (#693)
+- feat: UserSkel improvements (`firstname`, `lastname`, `sync`) and Google Auth user information synchronization (#677)
+- fix: Return JSON-encoded response for internal server errors too (#690)
+- refactor: rename `Skeleton.toDB()`s `clearUpdateTag` into `update_relations` (#688)
+- feat: Support JSON Schema validation for `JsonBone` (#657)
 - feat: Implement `script` system-module for Scriptor tree (#664)
 - fix: Capitalize internal classes to be PEP8 compliant (#681)
 - fix: `viewSkel()`: It's a member of the user module, not the auth-provider (#674)
 - feat: Improve `PasswordBone` parametrization (#619)
 - fix: Add `RelationalUpdateLevel` to__all__ (#675)
-- Fix spelling of "readonly" in renderEditForm (#670)
+- fix: spelling of "readonly" in renderEditForm (#670)
 - fix: Add structure for numericBone (#672)
 - fix: Fallback to `SkelModule` as replacement for `BasicApplication` (#665)
 - refactor: `securitykey` module (#656)

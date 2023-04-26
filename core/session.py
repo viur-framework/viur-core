@@ -1,6 +1,7 @@
 import hmac
 import logging
 import time
+from viur.core.tasks import DeleteEntitiesIter
 from viur.core.request import BrowseHandler
 from viur.core.config import conf  # this import has to stay alone due partial import
 from viur.core import db, utils, tasks
@@ -270,17 +271,9 @@ def killSessionByUser(user: Optional[Union[str, db.Key]] = None):
 
 
 @tasks.PeriodicTask(60 * 4)
-def startClearSessions():
+def start_clear_sessions():
     """
         Removes old (expired) Sessions
     """
-    doClearSessions(time.time() - (conf["viur.session.lifeTime"] + 300))
-
-
-@tasks.CallDeferred
-def doClearSessions(timeStamp: str) -> None:
-    query = db.Query(Session.kindName).filter("lastseen <", timeStamp)
-    for oldKey in query.run(100):
-        db.Delete(oldKey)
-    if query.getCursor():
-        doClearSessions(timeStamp)
+    query = db.Query(Session.kindName).filter("lastseen <", time.time() - (conf["viur.session.lifeTime"] + 300))
+    DeleteEntitiesIter.startIterOnQuery(query)
