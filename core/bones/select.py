@@ -70,14 +70,10 @@ class SelectBone(BaseBone):
     def singleValueFromClient(self, value, skel, name, origData):
         if not str(value):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value selected")]
-        if isinstance(self._values, enum.EnumMeta):
-            try:
-                return self._values(value), None
-            except ValueError:
-                return self.getEmptyValue(), \
-                    [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value selected")]
         for key in self.values.keys():
             if str(key) == str(value):
+                if isinstance(self._values, enum.EnumMeta):
+                    return self._values(key), None
                 return key, None
         return self.getEmptyValue(), [
             ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value selected")]
