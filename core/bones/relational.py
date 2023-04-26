@@ -1183,7 +1183,8 @@ class RelationalBone(BaseBone):
         :param value: The value to be assigned. The type depends on the bone type.
         :param bool append: If true, the given value is appended to the values of the bone instead of replacing it.
                    Only supported on bones with multiple=True.
-        :param Union[None, str] language: Set/append for a specific language (optional). Required if the bone supports languages.
+        :param Union[None, str] language: Set/append for a specific language (optional). Required if the bone
+            supports languages.
 
         :return: True if the operation succeeded, False otherwise.
         :rtype: bool
