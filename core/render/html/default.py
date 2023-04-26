@@ -1,18 +1,17 @@
-from collections import OrderedDict, namedtuple
-
 import codecs
+import enum
 import functools
 import logging
 import os
-
-from jinja2 import ChoiceLoader, Environment, FileSystemLoader, Template
+from collections import namedtuple
 from typing import Any, Dict, List, Literal, Tuple, Union
 
-from viur.core import current, db, errors, securitykey
+from jinja2 import ChoiceLoader, Environment, FileSystemLoader, Template
+
+from viur.core import conf, current, db, errors, securitykey
 from viur.core.bones import *
 from viur.core.i18n import LanguageWrapper, TranslationExtension
 from viur.core.skeleton import SkelList, SkeletonInstance
-from viur.core import conf
 from . import utils as jinjaUtils
 
 KeyValueWrapper = namedtuple("KeyValueWrapper", ["key", "descr"])
@@ -154,10 +153,15 @@ class Render(object):
                         res[language] = self.renderBoneValue(bone, skel, key, boneValue[language], True)
             return res
         elif bone.type == "select" or bone.type.startswith("select."):
-            if isinstance(boneValue, list):
-                return {val: bone.values.get(val, val) for val in boneValue}
+            def get_label(value) -> str:
+                if isinstance(value, enum.Enum):
+                    return bone.values.get(value.value, value.name)
+                return bone.values.get(value, str(value))
 
-            return KeyValueWrapper(boneValue, bone.values.get(boneValue, str(boneValue)))
+            if isinstance(boneValue, list):
+                return {val: get_label(val) for val in boneValue}
+
+            return KeyValueWrapper(boneValue, get_label(boneValue))
 
         elif bone.type == "relational" or bone.type.startswith("relational."):
             if isinstance(boneValue, list):
