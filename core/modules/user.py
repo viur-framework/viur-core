@@ -346,7 +346,7 @@ class UserPassword:
                 tpl=self.passwordRecoveryFailedTemplate,
                 reason=self.passwordRecoveryUserNotFound)
 
-        if user_skel["status"] != 10:  # The account is locked or not yet validated. Abort the process.
+        if user_skel["status"] != Status.ACTIVE:  # The account is locked or not yet validated. Abort the process.
             db.Delete(recovery_entity)
             return self.userModule.render.view(
                 skel=None,
