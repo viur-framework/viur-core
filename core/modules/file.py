@@ -395,7 +395,8 @@ class File(Tree):
 
     handler = "tree.simple.file"
     adminInfo = {
-        "icon": "icon-file-system"
+        "icon": "icon-file-system",
+        "handler": handler,  # fixme: Use static handler; Remove with VIUR4!
     }
 
     blobCacheTime = 60 * 60 * 24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
