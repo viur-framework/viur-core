@@ -48,14 +48,7 @@ class StringBone(BaseBone):
             return utils.escapeString(value, self.maxLength), None
         return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
-    def buildDBFilter(
-        self,
-        name: str,
-        skel: 'viur.core.skeleton.SkeletonInstance',
-        dbFilter: db.Query,
-        rawFilter: Dict,
-        prefix: Optional[str] = None
-    ) -> db.Query:
+    def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
         if name not in rawFilter and not any(
             [(x.startswith(name + "$") or x.startswith(name + ".")) for x in rawFilter.keys()]
         ):

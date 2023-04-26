@@ -561,14 +561,7 @@ class RelationalBone(BaseBone):
             dbFilter.order(*orderList)
         return name, skel, dbFilter, rawFilter
 
-    def buildDBFilter(
-        self,
-        name: str,
-        skel: 'viur.core.skeleton.SkeletonInstance',
-        dbFilter: db.Query,
-        rawFilter: Dict,
-        prefix: Optional[str] = None
-    ) -> db.Query:
+    def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
         relSkel, _usingSkelCache = self._getSkels()
         origQueries = dbFilter.queries
 

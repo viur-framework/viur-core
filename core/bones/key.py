@@ -118,29 +118,7 @@ class KeyBone(BaseBone):
             return True
         return False
 
-    def buildDBFilter(
-        self,
-        name: str,
-        skel: 'viur.core.skeleton.SkeletonInstance',
-        dbFilter: db.Query,
-        rawFilter: Dict,
-        prefix: Optional[str] = None
-    ) -> db.Query:
-        """
-            Parses the searchfilter a client specified in his Request into
-            something understood by the datastore.
-            This function must:
-
-                * Ignore all filters not targeting this bone
-                * Safely handle malformed data in rawFilter
-                    (this parameter is directly controlled by the client)
-
-            :param name: The property-name this bone has in its Skeleton (not the description!)
-            :param skel: The :class:`viur.core.db.Query` this bone is part of
-            :param dbFilter: The current :class:`viur.core.db.Query` instance the filters should be applied to
-            :param rawFilter: The dictionary of filters the client wants to have applied
-            :returns: The modified :class:`viur.core.db.Query`
-        """
+    def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
 
         def _decodeKey(key):
             if isinstance(key, db.Key):

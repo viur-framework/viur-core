@@ -185,14 +185,7 @@ class SpatialBone(BaseBone):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
         return (rawLat, rawLng), None
 
-    def buildDBFilter(
-        self,
-        name: str,
-        skel: 'viur.core.skeleton.SkeletonInstance',
-        dbFilter: db.Query,
-        rawFilter: Dict,
-        prefix: Optional[str] = None
-    ) -> db.Query:
+    def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
         """
             Parses the searchfilter a client specified in his Request into
             something understood by the datastore.

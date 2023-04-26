@@ -258,12 +258,7 @@ class DateBone(BaseBone):
             # We got garbage from the datastore
             return None
 
-    def buildDBFilter(self,
-                      name: str,
-                      skel: 'viur.core.skeleton.SkeletonInstance',
-                      dbFilter: db.Query,
-                      rawFilter: Dict,
-                      prefix: Optional[str] = None) -> db.Query:
+    def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
         for key in [x for x in rawFilter.keys() if x.startswith(name)]:
             resDict = {}
             if not self.fromClient(resDict, key, rawFilter):  # Parsing succeeded

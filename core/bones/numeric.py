@@ -99,14 +99,7 @@ class NumericBone(BaseBone):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
         return value, None
 
-    def buildDBFilter(
-        self,
-        name: str,
-        skel: 'viur.core.skeleton.SkeletonInstance',
-        dbFilter: db.Query,
-        rawFilter: Dict,
-        prefix: Optional[str] = None
-    ) -> db.Query:
+    def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
         updatedFilter = {}
 
         for parmKey, paramValue in rawFilter.items():

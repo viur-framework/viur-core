@@ -40,14 +40,7 @@ class BooleanBone(BaseBone):
         if not isinstance(skel[boneName], bool):
             skel[boneName] = str(skel[boneName]).strip().lower() in conf["viur.bone.boolean.str2true"]
 
-    def buildDBFilter(
-        self,
-        name: str,
-        skel: 'viur.core.skeleton.SkeletonInstance',
-        dbFilter: db.Query,
-        rawFilter: Dict,
-        prefix: Optional[str] = None
-    ) -> db.Query:
+    def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
         if name in rawFilter:
             val = str(rawFilter[name]).strip().lower() in conf["viur.bone.boolean.str2true"]
             return super().buildDBFilter(name, skel, dbFilter, {name: val}, prefix=prefix)
