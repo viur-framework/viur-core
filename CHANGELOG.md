@@ -2,8 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.4.0.rc1]
+## [3.4.0.rc2]
 
+- fix: comparison in `SelectBone.singleValueFromClient` (#726)
+- fix: Jinja rendering for SelectBones using Enums (#720)
+- fix: Use static handler "tree.simple.file" in File (#717)
+- fix: Check for "status" in `User.onEdited` (#722)
 - chore: Conventional commits and clarifications (#692)
 - fix: Improvements and clarifications on version string (#706)
 - security: Ensure active status in authenticateUser (#710)
