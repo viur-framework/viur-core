@@ -48,6 +48,9 @@ class Status(enum.Enum):
             return super().__lt__(other)
         return self.value < other
 
+    def __hash__(self):
+        return hash(self.name)
+
 
 class UserSkel(skeleton.Skeleton):
     kindName = "user"

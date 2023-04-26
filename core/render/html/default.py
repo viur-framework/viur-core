@@ -154,14 +154,10 @@ class Render(object):
                         res[language] = self.renderBoneValue(bone, skel, key, boneValue[language], True)
             return res
         elif bone.type == "select" or bone.type.startswith("select."):
-            skelValue = boneValue
-            if isinstance(skelValue, list):
-                return {
-                    val: bone.values.get(val, val) for val in boneValue
-                }
-            elif skelValue in bone.values:
-                return KeyValueWrapper(skelValue, bone.values[skelValue])
-            return KeyValueWrapper(skelValue, str(skelValue))
+            if isinstance(boneValue, list):
+                return {val: bone.values.get(val, val) for val in boneValue}
+
+            return KeyValueWrapper(boneValue, bone.values.get(boneValue, str(boneValue)))
 
         elif bone.type == "relational" or bone.type.startswith("relational."):
             if isinstance(boneValue, list):
