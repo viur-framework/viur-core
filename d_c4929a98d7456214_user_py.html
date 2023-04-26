@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="d_6a1caf0f28899424_pagination_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.2.3">coverage.py v7.2.3</a>,
-            created at 2023-04-18 16:01 +0000
+            created at 2023-04-26 14:50 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"/>
@@ -1033,7 +1033,7 @@
     <p class="mis show_mis"><span class="n"><a id="t949" href="#t949">949</a></span><span class="t">    <span class="key">def</span> <span class="nam">onEdited</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">skel</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t950" href="#t950">950</a></span><span class="t">        <span class="nam">super</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">onEdited</span><span class="op">(</span><span class="nam">skel</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t951" href="#t951">951</a></span><span class="t">        <span class="com"># In case the user is set to inactive, kill all sessions</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t952" href="#t952">952</a></span><span class="t">        <span class="key">if</span> <span class="nam">skel</span><span class="op">[</span><span class="str">"status"</span><span class="op">]</span> <span class="op">&lt;</span> <span class="nam">Status</span><span class="op">.</span><span class="nam">ACTIVE</span><span class="op">.</span><span class="nam">value</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t952" href="#t952">952</a></span><span class="t">        <span class="key">if</span> <span class="str">"status"</span> <span class="key">in</span> <span class="nam">skel</span> <span class="key">and</span> <span class="nam">skel</span><span class="op">[</span><span class="str">"status"</span><span class="op">]</span> <span class="op">&lt;</span> <span class="nam">Status</span><span class="op">.</span><span class="nam">ACTIVE</span><span class="op">.</span><span class="nam">value</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t953" href="#t953">953</a></span><span class="t">            <span class="nam">session</span><span class="op">.</span><span class="nam">killSessionByUser</span><span class="op">(</span><span class="nam">skel</span><span class="op">[</span><span class="str">"key"</span><span class="op">]</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t954" href="#t954">954</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t955" href="#t955">955</a></span><span class="t">    <span class="key">def</span> <span class="nam">onDeleted</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">skel</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -1094,7 +1094,7 @@
             <a id="nextFileLink" class="nav" href="d_6a1caf0f28899424_pagination_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.2.3">coverage.py v7.2.3</a>,
-            created at 2023-04-18 16:01 +0000
+            created at 2023-04-26 14:50 +0000
         </p>
     </div>
 </footer>
