@@ -6,7 +6,7 @@ from typing import Callable, Dict, List, Tuple, Union
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.i18n import translate
 
-SelectBoneValue = Union[str, Number]
+SelectBoneValue = Union[str, Number, enum.Enum]
 SelectBoneMultiple = List[SelectBoneValue]
 
 
@@ -18,9 +18,8 @@ class SelectBone(BaseBone):
         *,
         defaultValue: Union[
             SelectBoneValue,
-            Dict[str, Union[SelectBoneMultiple, SelectBoneValue]],
             SelectBoneMultiple,
-            enum.Enum
+            Dict[str, Union[SelectBoneMultiple, SelectBoneValue]],
         ] = None,
         values: Union[Dict, List, Tuple, Callable, enum.EnumMeta] = (),
         **kwargs
