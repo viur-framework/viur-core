@@ -1,6 +1,6 @@
 import ast
 import json
-from typing import Any, Mapping, Union
+from typing import Mapping, Union
 
 import jsonschema
 
@@ -55,9 +55,7 @@ class JsonBone(RawBone):
 
         return False
 
-    def singleValueFromClient(self, value: Union[str, list, dict], skel: 'SkeletonInstance',
-                              bone_name: str, client_data: dict
-                              ) -> tuple[Any, list[ReadFromClientError] | None]:
+    def singleValueFromClient(self, value: Union[str, list, dict], skel, bone_name, client_data):
         if value:
             if not isinstance(value, (list, dict)):
                 value = str(value)
