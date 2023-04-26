@@ -949,7 +949,7 @@ class User(List):
     def onEdited(self, skel):
         super().onEdited(skel)
         # In case the user is set to inactive, kill all sessions
-        if skel["status"] < Status.ACTIVE.value:
+        if "status" in skel and skel["status"] < Status.ACTIVE.value:
             session.killSessionByUser(skel["key"])
 
     def onDeleted(self, skel):
