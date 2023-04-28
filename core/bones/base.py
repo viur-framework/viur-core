@@ -1,9 +1,9 @@
-'''
+"""
 This module contains the base classes for the bones in ViUR. Bones are the fundamental building blocks of
 ViUR's data structures, representing the fields and their properties in the entities managed by the
 framework. The base classes defined in this module are the foundation upon which specific bone types are
 built, such as string, numeric, and date/time bones.
-'''
+"""
 
 import copy
 import hashlib
