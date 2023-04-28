@@ -4,6 +4,7 @@ import hashlib
 import logging
 import warnings
 import google.auth
+from pathlib import Path
 from viur.core.version import __version__
 
 
@@ -42,7 +43,12 @@ class Conf(dict):
 
 # Some values used more than once below
 __project_id = google.auth.default()[1]
-__version = os.getenv("GAE_VERSION")
+__app_version = os.getenv("GAE_VERSION")
+
+# Determine our basePath (as os.getCWD is broken on appengine)
+__project_base_path = Path().absolute()
+
+__core_base_path = Path(__file__).parent.parent.parent
 
 # Conf is a static, local dictionary.
 # Changes here apply locally to the current instance only.
@@ -79,6 +85,12 @@ conf = Conf({
     # the computed cache-key
     "viur.cacheEnvironmentKey": None,
 
+    # Backward compatibility flags; Remove to enforce new layout.
+    "viur.compatibility": [
+        "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
+        "json.bone.structure.keytuples",  # use classic structure notation: `"structure": [["key", {...}], ...]` (#649)
+    ],
+
     # If set, viur will emit a CSP http-header with each request. Use the csp module to set this property
     "viur.contentSecurityPolicy": None,
 
@@ -96,6 +108,9 @@ conf = Conf({
 
     # Unless overridden by the Project: Use english as default language
     "viur.defaultLanguage": "en",
+
+    # If disabled the local logging will not send with requestLogger to the cloud
+    "viur.dev_server_cloud_logging": False,
 
     # If set to true, the decorator @enableCache from viur.core.cache has no effect
     "viur.disableCache": False,
@@ -136,17 +151,23 @@ conf = Conf({
     # Call-Map for file pre-processors
     "viur.file.derivers": {},
 
+    # Name of this version as deployed to the appengine
+    "viur.instance.app_version": __app_version,
+
+    # The base path of the core, can be used to find file in the core folder
+    "viur.instance.core_base_path": __core_base_path,
+
     # Determine whether instance is running on a local development server
     "viur.instance.is_dev_server": os.getenv("GAE_ENV") == "localdev",
+
+    # The base path of the project, can be used to find file in the project folder
+    "viur.instance.project_base_path": __project_base_path,
 
     # The instance's project ID
     "viur.instance.project_id": __project_id,
 
-    # Name of this version as deployed to the appengine
-    "viur.instance.app_version": __version,
-
     # Version hash that does not reveal the actual version name, can be used for cache-busting static resources
-    "viur.instance.version_hash": hashlib.sha256((__version + __project_id).encode("UTF-8")).hexdigest()[:10],
+    "viur.instance.version_hash": hashlib.sha256((__app_version + __project_id).encode("UTF-8")).hexdigest()[:10],
 
     # Allows mapping of certain languages to one translation (ie. us->en)
     "viur.languageAliasMap": {},
@@ -177,8 +198,12 @@ conf = Conf({
 
     # Describing the internal ModuleConfig-module
     "viur.moduleconf.admin_info": {
-        "name": "Module Configuration",
         "icon": "icon-settings",
+        "display": "hidden",
+    },
+
+    "viur.script.admin_info": {
+        "icon": "icon-hashtag",
         "display": "hidden",
     },
 
@@ -266,10 +291,10 @@ conf = Conf({
     "viur.session.lifeTime": 60 * 60,
 
     # If set, these Fields will survive the session.reset() called on user/login
-    "viur.session.persistentFieldsOnLogin": [],
+    "viur.session.persistentFieldsOnLogin": ["language"],
 
     # If set, these Fields will survive the session.reset() called on user/logout
-    "viur.session.persistentFieldsOnLogout": [],
+    "viur.session.persistentFieldsOnLogout": ["language"],
 
     # Priority, in which skeletons are loaded
     "viur.skeleton.searchPath": ["/skeletons/", "/viur/core/"],  # Priority, in which skeletons are loaded
@@ -281,5 +306,5 @@ conf = Conf({
     "viur.validApplicationIDs": [],
 
     # Semantic version number of viur-core as a tuple of 3 (major, minor, patch-level)
-    "viur.version": tuple(__version__.split(".", 3)),
+    "viur.version": tuple(int(part) if part.isdigit() else part for part in __version__.split(".", 3)),
 })

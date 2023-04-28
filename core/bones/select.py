@@ -2,12 +2,16 @@
     A SelectBone represents a dropdown list or selection menu allowing users to choose one or multiple options.
     Inherits from the BaseBone class.
 """
-from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core.i18n import translate
+
+import enum
+import logging
 
 from collections import OrderedDict
 from numbers import Number
 from typing import Callable, Dict, List, Tuple, Union
+
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core.i18n import translate
 
 SelectBoneValue = Union[str, Number]
 """
@@ -31,8 +35,9 @@ class SelectBone(BaseBone):
     def __init__(
         self,
         *,
-        defaultValue: Union[None, Dict[str, Union[SelectBoneMultiple, SelectBoneValue]], SelectBoneMultiple] = None,
-        values: Union[Dict, List, Tuple, Callable] = (),
+        defaultValue: Union[None, Dict[str, Union[SelectBoneMultiple, SelectBoneValue]],
+                            SelectBoneMultiple, enum.Enum] = None,
+        values: Union[Dict, List, Tuple, Callable, enum.EnumMeta] = (),
         **kwargs
     ):
 
@@ -57,7 +62,9 @@ class SelectBone(BaseBone):
         """
         if item == "values":
             values = self._values
-            if callable(values):
+            if isinstance(values, enum.EnumMeta):
+                values = {value.value: translate(value.name) for value in values}
+            elif callable(values):
                 values = values()
 
                 # handle list/tuple as dicts
@@ -69,6 +76,18 @@ class SelectBone(BaseBone):
             return values
 
         return super().__getattribute__(item)
+
+    def singleValueUnserialize(self, val):
+        if isinstance(self._values, enum.EnumMeta):
+            for value in self._values:
+                if value.value == val:
+                    return value
+        return val
+
+    def singleValueSerialize(self, val, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+        if isinstance(self._values, enum.EnumMeta) and isinstance(val, self._values):
+            return val.value
+        return val
 
     def singleValueFromClient(self, value, skel, name, origData):
         """
@@ -90,6 +109,13 @@ class SelectBone(BaseBone):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value selected")]
         for key in self.values.keys():
             if str(key) == str(value):
+                if isinstance(self._values, enum.EnumMeta):
+                    return self._values(key), None
                 return key, None
         return self.getEmptyValue(), [
             ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value selected")]
+
+    def structure(self) -> dict:
+        return super().structure() | {
+            "values": [(k, str(v)) for k, v in self.values.items()],
+        }

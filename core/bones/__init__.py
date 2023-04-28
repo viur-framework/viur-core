@@ -6,6 +6,7 @@ from .credential import CredentialBone
 from .date import DateBone
 from .email import EmailBone
 from .file import FileBone
+from .json import JsonBone
 from .key import KeyBone
 from .numeric import NumericBone
 from .password import PasswordBone
@@ -33,6 +34,7 @@ __all = [
     "DateBone",
     "EmailBone",
     "FileBone",
+    "JsonBone",
     "KeyBone",
     "MultipleConstraints",
     "NumericBone",
@@ -44,6 +46,7 @@ __all = [
     "RecordBone",
     "RelationalBone",
     "RelationalConsistency",
+    "RelationalUpdateLevel",
     "SelectBone",
     "SelectCountryBone",
     "SortIndexBone",

@@ -3,7 +3,7 @@ A specialized relational bone for handling user references. Extends the function
 :class:`viur.core.bones.relational.RelationalBone` to include support for creation and update magic.
 """
 from viur.core.bones.relational import RelationalBone
-from viur.core.config import conf
+from viur.core import current
 
 
 class UserBone(RelationalBone):
@@ -53,8 +53,7 @@ class UserBone(RelationalBone):
         :rtype: bool
         """
         if self.updateMagic or (self.creationMagic and isAdd):
-            user = conf["viur.mainApp"].user.getCurrentUser()
-            if user:
+            if user := current.user.get():
                 return self.setBoneValue(skel, key, user["key"], False)
             skel[key] = None
             return True

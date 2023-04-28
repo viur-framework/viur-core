@@ -50,7 +50,7 @@ such a function are catched, its parameters serialized, and a task is created to
 These calls are executed in a deferred task which can run up to 10 minutes. As these tasks run deferred, they run outside
 of the current context where they had been created. ViUR however will preserve the following two values:
 
- - The currently logged in user (if any). If the task was created in the context of a known user, calls to utils.getCurrentUser()
+ - The currently logged in user (if any). If the task was created in the context of a known user, calls to current.user.get()
    will return the same values as it would have returned when the task had been created.
  - The language used for the request. Within the deferred task any calls to i18N functions provided by ViUR will yield
    results in the language of the original request.

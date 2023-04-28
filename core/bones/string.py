@@ -7,9 +7,8 @@ for text fields.
 import logging
 from typing import Dict, List, Optional, Set
 
-from viur.core import db, utils
+from viur.core import current, db, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core.utils import currentLanguage
 
 
 class StringBone(BaseBone):
@@ -26,10 +25,19 @@ class StringBone(BaseBone):
         self,
         *,
         caseSensitive: bool = True,
-        maxLength: int = 254,
+        maxLength: int | None = 254,
         **kwargs
     ):
+        """
+        Initializes a new StringBone.
+
+        :param caseSensitive: When filtering for values in this bone, should it be case-sensitive?
+        :param maxLength: The maximum length allowed for values of this bone. Set to None for no limitation.
+        :param kwargs: Inherited arguments from the BaseBone.
+        """
         super().__init__(**kwargs)
+        if maxLength is not None and maxLength <= 0:
+            raise ValueError("maxLength must be a positive integer or None")
         self.caseSensitive = caseSensitive
         self.maxLength = maxLength
 
@@ -82,6 +90,15 @@ class StringBone(BaseBone):
 
         return not bool(str(value).strip())
 
+    def isInvalid(self, value):
+        """
+        Returns None if the value would be valid for
+        this bone, an error-message otherwise.
+        """
+        if self.maxLength is not None and len(value) > self.maxLength:
+            return "Maximum length exceeded"
+        return None
+
     def singleValueFromClient(self, value, skel, name, origData):
         """
         Converts a value for this data field from a client-provided representation to an internal
@@ -94,9 +111,8 @@ class StringBone(BaseBone):
         :return: A tuple containing the converted value and a list of any validation errors encountered.
         """
         value = utils.escapeString(value, self.maxLength)
-        err = self.isInvalid(value)
-        if not err:
-            return utils.escapeString(value, self.maxLength), None
+        if not (err := self.isInvalid(value)):
+            return value, None
         return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
     def buildDBFilter(
@@ -133,7 +149,7 @@ class StringBone(BaseBone):
                         lang = langStr
                         break
             if not lang:
-                lang = currentLanguage.get()  # currentSession.getLanguage()
+                lang = current.language.get()  # currentSession.getLanguage()
                 if not lang or not lang in self.languages:
                     lang = self.languages[0]
             namefilter = "%s.%s" % (name, lang)
@@ -184,18 +200,18 @@ class StringBone(BaseBone):
         :return: The Query object with the specified sort applied.
         :rtype: Optional[google.cloud.ndb.query.Query]
         """
-        if "orderby" in rawFilter and (rawFilter["orderby"] == name or (
-            isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
-                "%s." % name) and self.languages)):
+        if ((orderby := rawFilter.get("orderby"))
+            and (orderby == name
+                 or (isinstance(orderby, str) and orderby.startswith(f"{name}.") and self.languages))):
             if self.languages:
                 lang = None
-                if rawFilter["orderby"].startswith("%s." % name):
-                    lng = rawFilter["orderby"].replace("%s." % name, "")
+                if orderby.startswith(f"{name}."):
+                    lng = orderby.replace(f"{name}.", "")
                     if lng in self.languages:
                         lang = lng
                 if lang is None:
-                    lang = currentLanguage.get()  # currentSession.getLanguage()
-                    if not lang or not lang in self.languages:
+                    lang = current.language.get()  # currentSession.getLanguage()
+                    if not lang or lang not in self.languages:
                         lang = self.languages[0]
                 if self.caseSensitive:
                     prop = "%s.%s" % (name, lang)
@@ -262,3 +278,9 @@ class StringBone(BaseBone):
             raise NotImplementedError()
 
         return super().getUniquePropertyIndexValues(skel, name)
+
+    def structure(self) -> dict:
+        ret = super().structure() | {
+            "maxlength": self.maxLength
+        }
+        return ret
