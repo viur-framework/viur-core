@@ -15,7 +15,7 @@ from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, Relatio
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 from viur.core.tasks import CallableTask, CallableTaskBase, QueryIter, CallDeferred
 
-__undefined__ = object()
+__undefined = object()
 
 
 class MetaBaseSkel(type):
@@ -427,12 +427,12 @@ class MetaSkel(MetaBaseSkel):
         # Check if we have an abstract skeleton
         if cls.__name__.endswith("AbstractSkel"):
             # Ensure that it doesn't have a kindName
-            assert cls.kindName is __undefined__ or cls.kindName is None, "Abstract Skeletons can't have a kindName"
+            assert cls.kindName is __undefined or cls.kindName is None, "Abstract Skeletons can't have a kindName"
             # Prevent any further processing by this class; it has to be sub-classed before it can be used
             return
 
         # Automatic determination of the kindName, if the class is not part of viur.core.
-        if (cls.kindName is __undefined__
+        if (cls.kindName is __undefined
             and not relNewFileName.strip(os.path.sep).startswith("viur")
             and not "viur_doc_build" in dir(sys)):
             if cls.__name__.endswith("Skel"):
@@ -440,7 +440,7 @@ class MetaSkel(MetaBaseSkel):
             else:
                 cls.kindName = cls.__name__.lower()
         # Try to determine which skeleton definition takes precedence
-        if cls.kindName and cls.kindName is not __undefined__ and cls.kindName in MetaBaseSkel._skelCache:
+        if cls.kindName and cls.kindName is not __undefined and cls.kindName in MetaBaseSkel._skelCache:
             relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]) \
                 .replace(str(conf["viur.instance.project_base_path"]), "") \
                 .replace(str(conf["viur.instance.core_base_path"]), "")
@@ -466,10 +466,10 @@ class MetaSkel(MetaBaseSkel):
             and not "viur_doc_build" in dir(sys)):  # Do not check while documentation build
             raise NotImplementedError(
                 "Skeletons must be defined in a folder listed in conf[\"viur.skeleton.searchPath\"]")
-        if cls.kindName and cls.kindName is not __undefined__:
+        if cls.kindName and cls.kindName is not __undefined:
             MetaBaseSkel._skelCache[cls.kindName] = cls
         # Auto-Add ViUR Search Tags Adapter if the skeleton has no adapter attached
-        if cls.customDatabaseAdapter is __undefined__:
+        if cls.customDatabaseAdapter is __undefined:
             cls.customDatabaseAdapter = ViurTagsSearchAdapter()
 
 
@@ -631,8 +631,8 @@ class seoKeyBone(StringBone):
         return True
 
 class Skeleton(BaseSkeleton, metaclass=MetaSkel):
-    kindName: str = __undefined__  # To which kind we save our data to
-    customDatabaseAdapter: Union[CustomDatabaseAdapter, None] = __undefined__
+    kindName: str = __undefined  # To which kind we save our data to
+    customDatabaseAdapter: Union[CustomDatabaseAdapter, None] = __undefined
     subSkels = {}  # List of pre-defined sub-skeletons of this type
     interBoneValidations: List[
         Callable[[Skeleton], List[ReadFromClientError]]] = []  # List of functions checking inter-bone dependencies
@@ -673,7 +673,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
     def __init__(self, *args, **kwargs):
         super(Skeleton, self).__init__(*args, **kwargs)
-        assert self.kindName and self.kindName is not __undefined__, "You must set kindName on this skeleton!"
+        assert self.kindName and self.kindName is not __undefined, "You must set kindName on this skeleton!"
 
     @classmethod
     def all(cls, skelValues, **kwargs) -> db.Query:
