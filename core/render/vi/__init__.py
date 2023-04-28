@@ -105,11 +105,19 @@ def getVersion(*args, **kwargs):
     Returns viur-core version number
     """
     current.request.get().response.headers["Content-Type"] = "application/json"
-    if conf["viur.instance.is_dev_server"] or current.user.get():
-        return json.dumps(conf["viur.version"])
 
-    # Hide patchlevel
-    return json.dumps((conf["viur.version"][0], conf["viur.version"][1], 0))
+    version = conf["viur.version"]
+
+    # always fill up to 4 parts
+    while len(version) < 4:
+        version += (None,)
+
+    if conf["viur.instance.is_dev_server"] \
+        or ((cuser := current.user.get()) and ("root" in cuser["access"] or "admin" in cuser["access"])):
+        return json.dumps(version[:4])
+
+    # Hide patch level + appendix to non-authorized users
+    return json.dumps((version[0], version[1], None, None))
 
 
 def canAccess(*args, **kwargs) -> bool:
