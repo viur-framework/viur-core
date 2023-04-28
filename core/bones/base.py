@@ -265,7 +265,7 @@ class BaseBone(object):
         """
         return False
 
-    def isEmpty(self, rawValue: Any) -> bool:
+    def isEmpty(self, value: Any) -> bool:
         """
             Check if the given single value represents the "empty" value.
             This usually is the empty string, 0 or False.
@@ -274,10 +274,10 @@ class BaseBone(object):
                 valid - unless the bone is required.
                 But even then the empty value will be reflected back to the client.
 
-            .. warning:: rawValue might be the string/object received from the user (untrusted
+            .. warning:: value might be the string/object received from the user (untrusted
                 input!) or the value returned by get
         """
-        return not bool(rawValue)
+        return not bool(value)
 
     def getDefaultValue(self, skeletonInstance):
         """
@@ -444,7 +444,7 @@ class BaseBone(object):
     def singleValueFromClient(self, value, skel, name, origData):
         """
         Prevents the BaseBone from reading data using the fromClient method.
-        If needed, use the rawValueBone instead.
+        If needed, use the RawBone instead.
         Derived bones should overwrite this method for proper data processing.
 
         :param value: The value to be processed.

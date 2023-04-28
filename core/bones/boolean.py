@@ -51,18 +51,18 @@ class BooleanBone(BaseBone):
         """
         return False
 
-    def isEmpty(self, rawValue: Any):
+    def isEmpty(self, value: Any):
         """
         Checks if the given boolean value is empty.
 
-        :param rawValue: The boolean value to be checked.
+        :param value: The boolean value to be checked.
         :return: `True` if the boolean value is empty (i.e., equal to the empty value of the `BooleanBone` class), \
             `False` otherwise.
         :rtype: bool
         """
-        if rawValue is self.getEmptyValue():
+        if value is self.getEmptyValue():
             return True
-        return not bool(rawValue)
+        return not bool(value)
 
     def refresh(self, skel: 'viur.core.skeleton.SkeletonInstance', boneName: str) -> None:
         """
