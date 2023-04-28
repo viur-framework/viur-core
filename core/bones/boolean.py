@@ -1,5 +1,6 @@
 """
-    The BooleanBone class represents a boolean data type, which can have two possible values: True or False. It is a subclass of the BaseBone class and is used in the context of the ViUR web application framework.
+    The BooleanBone class represents a boolean data type, which can have two possible values: True or False.
+    It is a subclass of the BaseBone class and is used in the context of the ViUR web application framework.
 """
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core import db, conf
@@ -55,7 +56,8 @@ class BooleanBone(BaseBone):
         Checks if the given boolean value is empty.
 
         :param rawValue: The boolean value to be checked.
-        :return: `True` if the boolean value is empty (i.e., equal to the empty value of the `BooleanBone` class), `False` otherwise.
+        :return: `True` if the boolean value is empty (i.e., equal to the empty value of the `BooleanBone` class), \
+            `False` otherwise.
         :rtype: bool
         """
         if rawValue is self.getEmptyValue():

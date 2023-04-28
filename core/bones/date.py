@@ -228,7 +228,7 @@ class DateBone(BaseBone):
         return super().isInvalid(value)
 
     def guessTimeZone(self):
-        """        
+        """
         Tries to guess the user's time zone based on request headers. If the time zone cannot be guessed, it
         falls back to using the UTC time zone. The guessed time zone is then cached for future use during the
         current request.
