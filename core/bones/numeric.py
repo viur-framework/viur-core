@@ -98,22 +98,22 @@ class NumericBone(BaseBone):
         else:
             return 0
 
-    def isEmpty(self, rawValue: Any):
+    def isEmpty(self, value: Any):
         """
         This method checks if a given raw value is considered empty for the NumericBone instance.
         It attempts to convert the raw value into a valid numeric value (integer or floating-point
         number), depending on the precision attribute of the NumericBone instance.
 
-        :param rawValue: The raw value to be checked for emptiness.
+        :param value: The raw value to be checked for emptiness.
         :return: Returns True if the raw value is considered empty, otherwise False.
         """
-        if isinstance(rawValue, str) and not rawValue:
+        if isinstance(value, str) and not value:
             return True
         try:
-            rawValue = self._convert_to_numeric(rawValue)
+            value = self._convert_to_numeric(value)
         except (ValueError, TypeError):
             return True
-        return rawValue == self.getEmptyValue()
+        return value == self.getEmptyValue()
 
     def singleValueFromClient(self, value, skel, name, origData):
         """
@@ -131,16 +131,16 @@ class NumericBone(BaseBone):
         :return: A tuple containing the converted value and a list of errors (or None if no errors).
         """
         try:
-            rawValue = str(value).replace(",", ".", 1)
+            value = str(value).replace(",", ".", 1)
         except:
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid Value")]
         else:
-            if self.precision and (str(rawValue).replace(".", "", 1).replace("-", "", 1).isdigit()) and float(
-                    rawValue) >= self.min and float(rawValue) <= self.max:
-                value = round(float(rawValue), self.precision)
-            elif not self.precision and (str(rawValue).replace("-", "", 1).isdigit()) and int(
-                    rawValue) >= self.min and int(rawValue) <= self.max:
-                value = int(rawValue)
+            if self.precision and (str(value).replace(".", "", 1).replace("-", "", 1).isdigit()) and float(
+                    value) >= self.min and float(value) <= self.max:
+                value = round(float(value), self.precision)
+            elif not self.precision and (str(value).replace("-", "", 1).isdigit()) and int(
+                    value) >= self.min and int(value) <= self.max:
+                value = int(value)
             else:
                 return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid Value")]
         err = self.isInvalid(value)

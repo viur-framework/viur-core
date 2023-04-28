@@ -179,24 +179,24 @@ class SpatialBone(BaseBone):
         """
         return True  # We'll always get .lat and .lng
 
-    def isEmpty(self, rawValue: Any):
+    def isEmpty(self, value: Any):
         """
         Check if the given raw value is considered empty (either not present or equal to the empty value).
 
-        :param rawValue: The raw value to be checked
+        :param value: The raw value to be checked
         :return: True if the raw value is considered empty, False otherwise
         :rtype: bool
         """
-        if not rawValue:
+        if not value:
             return True
-        if isinstance(rawValue, dict):
+        if isinstance(value, dict):
             try:
-                rawLat = float(rawValue["lat"])
-                rawLng = float(rawValue["lng"])
+                rawLat = float(value["lat"])
+                rawLng = float(value["lng"])
                 return (rawLat, rawLng) == self.getEmptyValue()
             except:
                 return True
-        return rawValue == self.getEmptyValue()
+        return value == self.getEmptyValue()
 
     def getEmptyValue(self) -> Tuple[float, float]:
         """
