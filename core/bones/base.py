@@ -240,7 +240,7 @@ class BaseBone(object):
 
         self.unique = unique
 
-        # Override some validations and value functions by parameter instead of subclassing
+        # Overwrite some validations and value functions by parameter instead of subclassing
         # todo: This can be done better and more straightforward.
         if vfunc:
             self.isInvalid = vfunc  # fixme: why is this called just vfunc, and not isInvalidValue/isInvalidValueFunc?
@@ -284,7 +284,7 @@ class BaseBone(object):
         Retrieves the default value for the bone.
 
         This method is called by the framework to obtain the default value of a bone when no value
-        is provided. Derived bone classes can override this method to implement their own logic for
+        is provided. Derived bone classes can overwrite this method to implement their own logic for
         providing a default value.
 
         :return: The default value of the bone, which can be of any data type.
@@ -310,7 +310,7 @@ class BaseBone(object):
         Custom attribute setter for the BaseBone class.
 
         This method is used to ensure that certain bone attributes, such as 'multiple', are only
-        set once during the bone's lifetime. Derived bone classes should not need to override this
+        set once during the bone's lifetime. Derived bone classes should not need to overwrite this
         method unless they have additional attributes with similar constraints.
 
         :param key: A string representing the attribute name.
@@ -328,8 +328,8 @@ class BaseBone(object):
         """
         Collects raw client data for the bone and returns it in a dictionary.
 
-        This method is called by the framework to gather raw data from the client, such as form data or data from a request.
-        Derived bone classes should override this method to implement their own logic for collecting raw data.
+        This method is called by the framework to gather raw data from the client, such as form data or data from a
+        request. Derived bone classes should overwrite this method to implement their own logic for collecting raw data.
 
         :param name: A string representing the bone's name.
         :param data: A dictionary containing the raw data from the client.
@@ -445,7 +445,7 @@ class BaseBone(object):
         """
         Prevents the BaseBone from reading data using the fromClient method.
         If needed, use the rawValueBone instead.
-        Derived bones should override this method for proper data processing.
+        Derived bones should overwrite this method for proper data processing.
 
         :param value: The value to be processed.
         :param skel: The skeleton containing the bone.
@@ -567,7 +567,8 @@ class BaseBone(object):
         """
             Serializes a single value of the bone for storage in the database.
 
-            Derived bone classes should override this method to implement their own logic for serializing single values.
+            Derived bone classes should overwrite this method to implement their own logic for serializing single
+            values.
             The serialized value should be suitable for storage in the database.
         """
         return value
@@ -627,7 +628,7 @@ class BaseBone(object):
         """
             Unserializes a single value of the bone from the stored database value.
 
-            Derived bone classes should override this method to implement their own logic for unserializing
+            Derived bone classes should overwrite this method to implement their own logic for unserializing
             single values. The unserialized value should be suitable for use in the application logic.
         """
         return val
@@ -842,7 +843,7 @@ class BaseBone(object):
         Generates a hash of the given value for creating unique property indexes.
 
         This method is called by the framework to create a consistent hash representation of a value
-        for constructing unique property indexes. Derived bone classes should override this method to
+        for constructing unique property indexes. Derived bone classes should overwrite this method to
         implement their own logic for hashing values.
 
         :param value: The value to be hashed, which can be a string, integer, or a float.
@@ -948,12 +949,14 @@ class BaseBone(object):
         Merges the values from another skeleton instance into the current instance, given that the bone types match.
 
         :param valuesCache: A dictionary containing the cached values for each bone in the skeleton.
-        :param boneName: The property-name of the bone in the skeleton whose values are to be merged (not the description!).
-        :param otherSkel: A SkeletonInstance object representing the other skeleton from which the values are to be merged.
+        :param boneName: The property-name of the bone in the skeleton whose values are to be merged.
+        :param otherSkel: A SkeletonInstance object representing the other skeleton from which the values \
+            are to be merged.
 
-        This function clones the values from the specified bone in the other skeleton instance into the current instance,
-        provided that the bone types match. If the bone types do not match, a warning is logged, and the merge is ignored.
-        If the bone in the other skeleton has no value, the function returns without performing any merge operation.
+        This function clones the values from the specified bone in the other skeleton instance into the current
+        instance, provided that the bone types match. If the bone types do not match, a warning is logged, and the merge
+        is ignored. If the bone in the other skeleton has no value, the function returns without performing any merge
+        operation.
         """
         if getattr(otherSkel, boneName) is None:
             return
@@ -970,20 +973,22 @@ class BaseBone(object):
                      append: bool,
                      language: Union[None, str] = None) -> bool:
         """
-        Sets the value of a bone in a skeleton instance, with optional support for appending and language-specific values.
-        Santy-Checks are performed;
+        Sets the value of a bone in a skeleton instance, with optional support for appending and language-specific
+        values. Sanity checks are being performed.
 
         :param skel: The SkeletonInstance object representing the skeleton to which the bone belongs.
-        :param boneName: The property-name of the bone in the skeleton whose value should be set or modified (not the description!).
+        :param boneName: The property-name of the bone in the skeleton whose value should be set or modified.
         :param value: The value to be assigned. Its type depends on the type of the bone.
-        :param append: If True, the given value is appended to the bone's values instead of replacing it. Only supported for bones with multiple=True.
-        :param language: The language code for which the value should be set or appended, if the bone supports languages.
+        :param append: If True, the given value is appended to the bone's values instead of replacing it. \
+            Only supported for bones with multiple=True.
+        :param language: The language code for which the value should be set or appended, \
+            if the bone supports languages.
 
         :return: A boolean indicating whether the operation was successful or not.
 
-        This function sets or modifies the value of a bone in a skeleton instance, performing sanity checks to ensure the value is valid.
-        If the value is invalid, no modification occurs. The function supports appending values to bones with multiple=True and setting or
-        appending language-specific values for bones that support languages.
+        This function sets or modifies the value of a bone in a skeleton instance, performing sanity checks to ensure
+        the value is valid. If the value is invalid, no modification occurs. The function supports appending values to
+        bones with multiple=True and setting or appending language-specific values for bones that support languages.
         """
         assert not (bool(self.languages) ^ bool(language)), "Language is required or not supported"
         assert not append or self.multiple, "Can't append - bone is not multiple"
