@@ -444,7 +444,7 @@ class BaseBone(object):
     def singleValueFromClient(self, value, skel, name, origData):
         """
         Prevents the BaseBone from reading data using the fromClient method.
-        If needed, use the RawValueBone instead.
+        If needed, use the RawBone instead.
         Derived bones should overwrite this method for proper data processing.
 
         :param value: The value to be processed.
