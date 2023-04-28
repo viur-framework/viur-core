@@ -16,25 +16,25 @@ from viur.core import db
 from viur.core.config import conf
 
 
-__system_initialized_ = False
+__system_initialized = False
 """
-Initializes the global variable __system_initialized_
+Initializes the global variable __system_initialized
 """
 
 
 def setSystemInitialized():
     """
-    Sets the global __system_initialized_ variable to True, indicating that the system is
+    Sets the global __system_initialized variable to True, indicating that the system is
     initialized and ready for use. This function should be called once all necessary setup
     tasks have been completed. It also iterates over all skeleton classes and calls their
     setSystemInitialized() method.
 
     Global variables:
-        __system_initialized_: A boolean flag indicating if the system is initialized.
+        __system_initialized: A boolean flag indicating if the system is initialized.
     """
-    global __system_initialized_
+    global __system_initialized
     from viur.core.skeleton import iterAllSkelClasses
-    __system_initialized_ = True
+    __system_initialized = True
     for skelCls in iterAllSkelClasses():
         skelCls.setSystemInitialized()
 
@@ -42,10 +42,10 @@ def setSystemInitialized():
 def getSystemInitialized():
     """
     Retrieves the current state of the system initialization by returning the value of the
-    global variable __system_initialized_.
+    global variable __system_initialized.
     """
-    global __system_initialized_
-    return __system_initialized_
+    global __system_initialized
+    return __system_initialized
 
 
 class ReadFromClientErrorSeverity(Enum):
