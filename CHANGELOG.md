@@ -2,8 +2,9 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.4.0.rc2]
+## [3.4.0]
 
+- fix: SelectBone `defaultValue` type annotation (#719)
 - fix: comparison in `SelectBone.singleValueFromClient` (#726)
 - fix: Jinja rendering for SelectBones using Enums (#720)
 - fix: Use static handler "tree.simple.file" in File (#717)
