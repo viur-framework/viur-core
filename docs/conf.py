@@ -35,6 +35,8 @@ autodoc_default_options = {
     'ignore-module-all': True
 }
 
+autoapi_python_class_content = 'both'
+
 autoapi_dirs = ['../core']
 
 # Add any paths that contain templates here, relative to this directory.
