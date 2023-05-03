@@ -96,7 +96,7 @@ def dumpConfig():
         }
     }
     current.request.get().response.headers["Content-Type"] = "application/json"
-    return json.dumps(res)
+    return json.dumps(res, cls=CustomJsonEncoder)
 
 
 @exposed
