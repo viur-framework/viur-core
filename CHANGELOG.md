@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
+## [3.4.1]
+
+- fix: enable to serialize complex custom config structures (#735)
+
 ## [3.4.0]
 
 - fix: SelectBone `defaultValue` type annotation (#719)
