@@ -1447,7 +1447,7 @@ class RebuildSearchIndex(QueryIter):
         QueryIter.handleFinish(totalCount, customData)
         try:
             if customData["notify"]:
-                txt = f"Subject: Rebuild search index finished for {customData['module']}\n\n" \
+                txt = f"Rebuild search index finished for {customData['module']}\n\n" \
                       f"ViUR finished to rebuild the search index for module {customData['module']}.\n" \
                       f"{totalCount} records updated in total on this kind."
                 email.sendEMail(dests=customData["notify"], stringTemplate=txt, skel=None)
@@ -1534,7 +1534,7 @@ def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, noti
     else:
         try:
             if notify:
-                txt = ("Subject: Vaccum Relations finished for %s\n\n" +
+                txt = ("Vaccum Relations finished for %s\n\n" +
                        "ViUR finished to vaccum viur-relations.\n" +
                        "%d records processed, %d entries removed") % (module, newTotalCount, newRemovedCount)
                 email.sendEMail(dests=[notify], stringTemplate=txt, skel=None)
