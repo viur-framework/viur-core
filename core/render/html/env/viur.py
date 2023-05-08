@@ -1,19 +1,19 @@
-from collections import OrderedDict
-
+import json
 import logging
 import os
 import string
 import urllib
 import urllib.parse
+from collections import OrderedDict
 from datetime import timedelta
 from hashlib import sha512
 from typing import Any, Dict, List, NoReturn, Optional, Union
 
-import viur.core.render.html.default
-from viur.core import db, current, errors, prototypes, securitykey, utils
+from viur.core import current, db, errors, prototypes, securitykey, utils
 from viur.core.config import conf
 from viur.core.i18n import translate as translationClass
 from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
+from viur.core.render.json.default import CustomJsonEncoder
 from viur.core.skeleton import RelSkel, SkeletonInstance
 from ..default import Render
 
@@ -545,8 +545,8 @@ def renderEditBone(render: Render, skel, boneName, boneErrors=None, prefix=None)
 @jinjaGlobalFunction
 def renderEditForm(render: Render,
                    skel: Dict,
-                   ignore:List[str]=None,
-                   hide:List[str]=None,
+                   ignore: List[str] = None,
+                   hide: List[str] = None,
                    prefix=None) -> str:
     """Render an edit-form based on a skeleton.
 
@@ -713,3 +713,8 @@ def seoUrlForEntry(render: Render, *args, **kwargs):
 @jinjaGlobalFunction
 def seoUrlToFunction(render: Render, *args, **kwargs):
     return utils.seoUrlToFunction(*args, **kwargs)
+
+
+@jinjaGlobalFunction
+def to_json(render: Render, obj: dict | list, *args, **kwargs):
+    return json.dumps(obj, cls=CustomJsonEncoder)
