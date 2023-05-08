@@ -20,7 +20,7 @@ class StringBone(BaseBone):
     :param maxLength: The maximum length of the text values in this field.
     :param kwargs: Additional keyword arguments to pass to the base class constructor.
     """
-
+    type = "str"
     def __init__(
         self,
         *,
