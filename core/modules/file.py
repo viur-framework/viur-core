@@ -512,21 +512,29 @@ class File(Tree):
         return db.encodeKey(fileSkel["key"]), uploadUrl
 
     @exposed
-    def getUploadURL(self, fileName, mimeType, size=None, skey=None, *args, **kwargs):
+    def getUploadURL(self, fileName: str, mimeType: str, size: int = None, skey: str = None, *args, **kwargs):
         node = kwargs.get("node")
         authData = kwargs.get("authData")
         authSig = kwargs.get("authSig")
-        # Validate the the contentType from the client seems legit
+
+        # Validate the contentType from the client seems legit
         mimeType = mimeType.lower()
-        assert len(mimeType.split("/")) == 2, "Invalid Mime-Type"
-        assert all([x in string.ascii_letters + string.digits + "/-.+" for x in mimeType]), "Invalid Mime-Type"
+        if not (
+            len(mimeType.split("/")) == 2
+            and all([ch in string.ascii_letters + string.digits + "/-.+" for ch in mimeType])
+        ):
+            raise errors.NotAcceptable("Invalid mimeType provided")
+
         if authData and authSig:
-            # First, validate the signature, otherwise we don't need to proceed any further
+            # First, validate the signature, otherwise we don't need to proceed further
             if not utils.hmacVerify(authData.encode("ASCII"), authSig):
-                raise errors.Forbidden()
+                raise errors.Unauthorized()
+
             authData = json.loads(base64.b64decode(authData.encode("ASCII")).decode("UTF-8"))
+
             if datetime.strptime(authData["validUntil"], "%Y%m%d%H%M") < datetime.now():
                 raise errors.Gone()
+
             if authData["validMimeTypes"]:
                 for validMimeType in authData["validMimeTypes"]:
                     if validMimeType == mimeType or (
@@ -534,8 +542,10 @@ class File(Tree):
                         break
                 else:
                     raise errors.NotAcceptable()
+
             node = authData["node"]
             maxSize = authData["maxSize"]
+
         else:
             if node:
                 rootNode = self.getRootNode(node)
@@ -544,25 +554,25 @@ class File(Tree):
             else:
                 if not self.canAdd("leaf", None):
                     raise errors.Forbidden()
+
             maxSize = None  # The user has some file/add permissions, don't restrict fileSize
+
         if maxSize:
-            try:
-                size = int(size)
-                assert size <= maxSize
-            except:  # We have a size-limit set - but no size supplied
-                raise errors.PreconditionFailed()
+            if size > maxSize:
+                raise errors.Forbidden("Size limit exceeds maximum size")
         else:
             size = None
 
         if not securitykey.validate(skey, useSessionKey=True):
             raise errors.PreconditionFailed()
 
-        targetKey, uploadUrl = self.initializeUpload(fileName, mimeType.lower(), node, size)
+        targetKey, uploadUrl = self.initializeUpload(fileName, mimeType, node, size)
 
         resDict = {
             "uploadUrl": uploadUrl,
             "uploadKey": targetKey,
         }
+
         if authData and authSig:
             # In this case, we'd have to store the key in the users session so he can call add() later on
             session = current.session.get()
@@ -572,6 +582,7 @@ class File(Tree):
             # Clamp to the latest 50 pending uploads
             session["pendingFileUploadKeys"] = session["pendingFileUploadKeys"][-50:]
             session.markChanged()
+
         return self.render.view(resDict)
 
     @exposed
