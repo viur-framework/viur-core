@@ -520,7 +520,8 @@ class File(Tree):
         # Validate the contentType from the client seems legit
         mimeType = mimeType.lower()
         if not (
-            len(mimeType.split("/")) == 2
+            mimeType
+            and mimeType.count("/") == 1
             and all([ch in string.ascii_letters + string.digits + "/-.+" for ch in mimeType])
         ):
             raise errors.NotAcceptable("Invalid mimeType provided")
