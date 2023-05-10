@@ -518,7 +518,7 @@ class File(Tree):
         authSig = kwargs.get("authSig")
 
         # Validate the contentType from the client seems legit
-        mimeType = mimeType.lower()
+        mimeType = mimeType.strip().lower()
         if not (
             mimeType
             and mimeType.count("/") == 1
