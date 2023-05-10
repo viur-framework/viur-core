@@ -522,9 +522,9 @@ class File(Tree):
         if not (
             mimeType
             and mimeType.count("/") == 1
-            and all([ch in string.ascii_letters + string.digits + "/-.+" for ch in mimeType])
+            and all(ch in string.ascii_letters + string.digits + "/-.+" for ch in mimeType)
         ):
-            raise errors.NotAcceptable("Invalid mimeType provided")
+            raise errors.NotAcceptable(f"Invalid mimeType {mimeType} provided")
 
         if authData and authSig:
             # First, validate the signature, otherwise we don't need to proceed further
