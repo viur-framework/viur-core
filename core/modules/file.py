@@ -810,7 +810,7 @@ def doCleanupDeletedFiles(cursor=None):
 @PeriodicTask(60 * 4)
 def start_delete_pending_files():
     """
-    Start deletion of pending FileSkels that are older than 90 days.
+    Start deletion of pending FileSkels that are older than 7 days.
     """
     DeleteEntitiesIter.startIterOnQuery(
         FileBaseSkel().all()
