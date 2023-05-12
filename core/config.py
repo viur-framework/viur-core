@@ -43,7 +43,7 @@ class Conf(dict):
 
 # Some values used more than once below
 __project_id = google.auth.default()[1]
-__version = os.getenv("GAE_VERSION")
+__app_version = os.getenv("GAE_VERSION")
 
 # Determine our basePath (as os.getCWD is broken on appengine)
 __project_base_path = Path().absolute()
@@ -148,7 +148,7 @@ conf = Conf({
     "viur.file.derivers": {},
 
     # Name of this version as deployed to the appengine
-    "viur.instance.app_version": __version,
+    "viur.instance.app_version": __app_version,
 
     # The base path of the core, can be used to find file in the core folder
     "viur.instance.core_base_path": __core_base_path,
@@ -163,7 +163,7 @@ conf = Conf({
     "viur.instance.project_id": __project_id,
 
     # Version hash that does not reveal the actual version name, can be used for cache-busting static resources
-    "viur.instance.version_hash": hashlib.sha256((__version + __project_id).encode("UTF-8")).hexdigest()[:10],
+    "viur.instance.version_hash": hashlib.sha256((__app_version + __project_id).encode("UTF-8")).hexdigest()[:10],
 
     # Allows mapping of certain languages to one translation (ie. us->en)
     "viur.languageAliasMap": {},
@@ -302,5 +302,5 @@ conf = Conf({
     "viur.validApplicationIDs": [],
 
     # Semantic version number of viur-core as a tuple of 3 (major, minor, patch-level)
-    "viur.version": tuple(__version__.split(".", 3)),
+    "viur.version": tuple(int(part) if part.isdigit() else part for part in __version__.split(".", 3)),
 })

@@ -1,17 +1,17 @@
 import codecs
 import collections
+import enum
 import functools
 import logging
 import os
-
-from jinja2 import ChoiceLoader, Environment, FileSystemLoader, Template
 from typing import Any, Dict, List, Literal, Tuple, Union
 
-from viur.core import current, db, errors, securitykey
+from jinja2 import ChoiceLoader, Environment, FileSystemLoader, Template
+
+from viur.core import conf, current, db, errors, securitykey
 from viur.core.bones import *
 from viur.core.i18n import LanguageWrapper, TranslationExtension
 from viur.core.skeleton import SkelList, SkeletonInstance
-from viur.core import conf
 from . import utils as jinjaUtils
 
 KeyValueWrapper = collections.namedtuple("KeyValueWrapper", ["key", "descr"])
@@ -100,7 +100,7 @@ class Render(object):
         lang = current.language.get()
 
         if not isinstance(template, (tuple, list)):
-            template = (template, )
+            template = (template,)
 
         for tpl in template:
             filenames = [
@@ -178,14 +178,15 @@ class Render(object):
                         res[language] = self.renderBoneValue(bone, skel, key, boneValue[language], True)
             return res
         elif bone.type == "select" or bone.type.startswith("select."):
-            skelValue = boneValue
-            if isinstance(skelValue, list):
-                return {
-                    val: bone.values.get(val, val) for val in boneValue
-                }
-            elif skelValue in bone.values:
-                return KeyValueWrapper(skelValue, bone.values[skelValue])
-            return KeyValueWrapper(skelValue, str(skelValue))
+            def get_label(value) -> str:
+                if isinstance(value, enum.Enum):
+                    return bone.values.get(value.value, value.name)
+                return bone.values.get(value, str(value))
+
+            if isinstance(boneValue, list):
+                return {val: get_label(val) for val in boneValue}
+
+            return KeyValueWrapper(boneValue, get_label(boneValue))
 
         elif bone.type == "relational" or bone.type.startswith("relational."):
             if isinstance(boneValue, list):
