@@ -815,5 +815,5 @@ def start_delete_pending_files():
     DeleteEntitiesIter.startIterOnQuery(
         FileBaseSkel().all()
         .filter("pending =", True)
-        .filter("creationdate <", datetime.now() - timedelta(days=90))
+        .filter("creationdate <", datetime.now() - timedelta(days=7))
     )
