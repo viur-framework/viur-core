@@ -228,10 +228,7 @@ class UserPassword:
 
         name = name.lower().strip()
         query = db.Query(self.userModule.viewSkel().kindName)
-        res = query.filter("name.idx >=", name).getEntry()
-
-        if res is None:
-            res = {"password": {}, "status": 0, "name": {}}
+        res = query.filter("name.idx >=", name).getEntry() or {}  # might find another user; always keep a dict
 
         password_data = res.get("password") or {}
         # old password hashes used 1001 iterations
@@ -239,36 +236,38 @@ class UserPassword:
         passwd = encode_password(password, password_data.get("salt", "-invalid-"), iterations)["pwhash"]
 
         # Check if the username matches
-        stored_user_name = (res.get("name") or {}).get("idx", "")
+        stored_user_name = (res.get("name") or {}).get("idx") or ""
         is_okay = secrets.compare_digest(stored_user_name, name)
 
         # Check if the password matches
         stored_password_hash = password_data.get("pwhash", b"-invalid-")
         is_okay &= secrets.compare_digest(stored_password_hash, passwd)
 
-        accountStatus: Optional[int] = None
+        status: Optional[int] = None
         # Verify that this account isn't blocked
-        if res["status"] < Status.ACTIVE.value:
+        if (res.get("status") or 0) < Status.ACTIVE.value:
             if is_okay:
                 # The username and password is valid, in this case we can inform that user about his account status
                 # (ie account locked or email verification pending)
-                accountStatus = res["status"]
+                status = res["status"]
+
             is_okay = False
 
         if not is_okay:
             self.loginRateLimit.decrementQuota()  # Only failed login attempts will count to the quota
             skel = self.LoginSkel()
-            return self.userModule.render.login(skel, loginFailed=True, accountStatus=accountStatus)
-        else:
-            if iterations < PBKDF2_DEFAULT_ITERATIONS:
-                logging.info(f"Update password hash for user {name}.")
-                # re-hash the password with more iterations
-                skel = self.userModule.editSkel()
-                skel.setEntity(res)
-                skel["key"] = res.key
-                skel["password"] = password  # will be hashed on serialize
-                skel.toDB(clearUpdateTag=True)
-            return self.userModule.continueAuthenticationFlow(self, res.key)
+            return self.userModule.render.login(skel, loginFailed=True, accountStatus=status)
+
+        if iterations < PBKDF2_DEFAULT_ITERATIONS:
+            logging.info(f"Update password hash for user {name}.")
+            # re-hash the password with more iterations
+            skel = self.userModule.editSkel()
+            skel.setEntity(res)
+            skel["key"] = res.key
+            skel["password"] = password  # will be hashed on serialize
+            skel.toDB(clearUpdateTag=True)
+
+        return self.userModule.continueAuthenticationFlow(self, res.key)
 
     @exposed
     def pwrecover(self, *args, **kwargs):
