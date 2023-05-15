@@ -108,6 +108,7 @@ class BrowseHandler():  # webapp.RequestHandler
         self.maxLogLevel = logging.DEBUG
         self._traceID = request.headers.get('X-Cloud-Trace-Context', "").split("/")[0] or utils.generateRandomString()
         self.is_deferred = False
+        self.path_list = []
         db.currentDbAccessLog.set(set())
 
     @property
@@ -309,7 +310,7 @@ class BrowseHandler():  # webapp.RequestHandler
                     res = None
             if not res:
                 descr = "The server encountered an unexpected error and is unable to process your request."
-                if (len(self.pathlist) > 0 and any(x in self.pathlist[0] for x in ["vi", "json"])) or \
+                if (len(self.path_list) > 0 and any(x in self.path_list[0] for x in ["vi", "json"])) or \
                         current.request.get().response.headers["Content-Type"] == "application/json":
                     current.request.get().response.headers["Content-Type"] = "application/json"
                     if isinstance(e, errors.HTTPException):
@@ -495,6 +496,11 @@ class BrowseHandler():  # webapp.RequestHandler
             Does the actual work of sanitizing the parameter, determine which @exposed (or @internalExposed) function
             to call (and with witch parameters)
         """
+        # Parse the URL
+        path = parse.urlparse(path).path
+        if path:
+            self.path_list = [unicodedata.normalize("NFC", parse.unquote(x)) for x in path.strip("/").split("/")]
+
         # Prevent Hash-collision attacks
         kwargs = {}
 
@@ -527,15 +533,10 @@ class BrowseHandler():  # webapp.RequestHandler
         if "self" in kwargs or "return" in kwargs:  # self or return is reserved for bound methods
             raise errors.BadRequest()
 
-        # Parse the URL
-        path = parse.urlparse(path).path
-        if path:
-            self.pathlist = [unicodedata.normalize("NFC", parse.unquote(x)) for x in path.strip("/").split("/")]
-        else:
-            self.pathlist = []
+
         caller = conf["viur.mainResolver"]
         idx = 0  # Count how may items from *args we'd have consumed (so the rest can go into *args of the called func
-        for currpath in self.pathlist:
+        for currpath in self.path_list:
             if "canAccess" in caller and not caller["canAccess"]():
                 # We have a canAccess function guarding that object,
                 # and it returns False...
@@ -546,22 +547,22 @@ class BrowseHandler():  # webapp.RequestHandler
                 caller = caller[currpath]
                 if (("exposed" in dir(caller) and caller.exposed) or ("internalExposed" in dir(
                     caller) and caller.internalExposed and self.internalRequest)) and hasattr(caller, '__call__'):
-                    args = self.pathlist[idx:] + [x for x in args]  # Prepend the rest of Path to args
+                    args = self.path_list[idx:] + [x for x in args]  # Prepend the rest of Path to args
                     break
             elif "index" in caller:
                 caller = caller["index"]
                 if (("exposed" in dir(caller) and caller.exposed) or ("internalExposed" in dir(
                     caller) and caller.internalExposed and self.internalRequest)) and hasattr(caller, '__call__'):
-                    args = self.pathlist[idx - 1:] + [x for x in args]
+                    args = self.path_list[idx - 1:] + [x for x in args]
                     break
                 else:
                     raise (errors.NotFound("The path %s could not be found" % "/".join(
                         [("".join([y for y in x if y.lower() in "0123456789abcdefghijklmnopqrstuvwxyz"])) for x in
-                         self.pathlist[: idx]])))
+                         self.path_list[: idx]])))
             else:
                 raise (errors.NotFound("The path %s could not be found" % "/".join(
                     [("".join([y for y in x if y.lower() in "0123456789abcdefghijklmnopqrstuvwxyz"])) for x in
-                     self.pathlist[: idx]])))
+                     self.path_list[: idx]])))
         if (not callable(caller) or ((not "exposed" in dir(caller) or not caller.exposed)) and (
             not "internalExposed" in dir(caller) or not caller.internalExposed or not self.internalRequest)):
             if "index" in caller \
