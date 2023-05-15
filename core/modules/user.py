@@ -231,19 +231,19 @@ class UserPassword:
         res = query.filter("name.idx >=", name).getEntry()
 
         if res is None:
-            res = {"password": {"pwhash": "-invalid-", "salt": "-invalid-"}, "status": 0, "name": {}}
+            res = {"password": {}, "status": 0, "name": {}}
 
         password_data = res.get("password") or {}
         # old password hashes used 1001 iterations
         iterations = password_data.get("iterations", 1001)
-        passwd = encode_password(password, password_data.get("salt", ""), iterations)["pwhash"]
+        passwd = encode_password(password, password_data.get("salt", "-invalid-"), iterations)["pwhash"]
 
         # Check if the username matches
         stored_user_name = (res.get("name") or {}).get("idx", "")
         is_okay = secrets.compare_digest(stored_user_name, name)
 
         # Check if the password matches
-        stored_password_hash = password_data.get("pwhash", "-invalid-")
+        stored_password_hash = password_data.get("pwhash", b"-invalid-")
         is_okay &= secrets.compare_digest(stored_password_hash, passwd)
 
         accountStatus: Optional[int] = None
