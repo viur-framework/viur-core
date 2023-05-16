@@ -497,9 +497,8 @@ class BrowseHandler():  # webapp.RequestHandler
             to call (and with witch parameters)
         """
         # Parse the URL
-        path = parse.urlparse(path).path
-        if path:
-            self.path_list = [unicodedata.normalize("NFC", parse.unquote(x)) for x in path.strip("/").split("/")]
+        if path := parse.urlparse(path).path:
+            self.path_list = (unicodedata.normalize("NFC", parse.unquote(part)) for part in path.strip("/").split("/"))
 
         # Prevent Hash-collision attacks
         kwargs = {}
@@ -547,13 +546,13 @@ class BrowseHandler():  # webapp.RequestHandler
                 caller = caller[currpath]
                 if (("exposed" in dir(caller) and caller.exposed) or ("internalExposed" in dir(
                     caller) and caller.internalExposed and self.internalRequest)) and hasattr(caller, '__call__'):
-                    args = self.path_list[idx:] + [x for x in args]  # Prepend the rest of Path to args
+                    args = self.path_list[idx:] + args  # Prepend the rest of Path to args
                     break
             elif "index" in caller:
                 caller = caller["index"]
                 if (("exposed" in dir(caller) and caller.exposed) or ("internalExposed" in dir(
                     caller) and caller.internalExposed and self.internalRequest)) and hasattr(caller, '__call__'):
-                    args = self.path_list[idx - 1:] + [x for x in args]
+                    args = self.path_list[idx - 1:] + args
                     break
                 else:
                     raise (errors.NotFound("The path %s could not be found" % "/".join(
