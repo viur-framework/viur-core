@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import string
 import traceback
 import typing
 from abc import ABC, abstractmethod
@@ -498,7 +499,7 @@ class BrowseHandler():  # webapp.RequestHandler
         """
         # Parse the URL
         if path := parse.urlparse(path).path:
-            self.path_list = (unicodedata.normalize("NFC", parse.unquote(part)) for part in path.strip("/").split("/"))
+            self.path_list = [unicodedata.normalize("NFC", parse.unquote(part)) for part in path.strip("/").split("/")]
 
         # Prevent Hash-collision attacks
         kwargs = {}
@@ -532,36 +533,42 @@ class BrowseHandler():  # webapp.RequestHandler
         if "self" in kwargs or "return" in kwargs:  # self or return is reserved for bound methods
             raise errors.BadRequest()
 
-
         caller = conf["viur.mainResolver"]
         idx = 0  # Count how may items from *args we'd have consumed (so the rest can go into *args of the called func
-        for currpath in self.path_list:
+        path_found = True
+        for part in self.path_list:
             if "canAccess" in caller and not caller["canAccess"]():
                 # We have a canAccess function guarding that object,
                 # and it returns False...
                 raise (errors.Unauthorized())
             idx += 1
-            currpath = currpath.replace("-", "_").replace(".", "_")
-            if currpath in caller:
-                caller = caller[currpath]
-                if (("exposed" in dir(caller) and caller.exposed) or ("internalExposed" in dir(
-                    caller) and caller.internalExposed and self.internalRequest)) and hasattr(caller, '__call__'):
-                    args = self.path_list[idx:] + args  # Prepend the rest of Path to args
+            part = part.replace("-", "_").replace(".", "_")
+            if part not in caller:
+                part = "index"
+
+            if part in caller:
+                caller = caller[part]
+                if (("exposed" in dir(caller) and caller.exposed) or
+                        ("internalExposed" in dir(caller) and caller.internalExposed and self.internalRequest)) and\
+                        hasattr(caller, '__call__'):
+                    if part == "index":
+                        idx -= 1
+                    args = self.path_list[idx:] + list(args)  # Prepend the rest of Path to args
                     break
-            elif "index" in caller:
-                caller = caller["index"]
-                if (("exposed" in dir(caller) and caller.exposed) or ("internalExposed" in dir(
-                    caller) and caller.internalExposed and self.internalRequest)) and hasattr(caller, '__call__'):
-                    args = self.path_list[idx - 1:] + args
+
+                elif part == "index":
+                    path_found = False
                     break
-                else:
-                    raise (errors.NotFound("The path %s could not be found" % "/".join(
-                        [("".join([y for y in x if y.lower() in "0123456789abcdefghijklmnopqrstuvwxyz"])) for x in
-                         self.path_list[: idx]])))
+
             else:
-                raise (errors.NotFound("The path %s could not be found" % "/".join(
-                    [("".join([y for y in x if y.lower() in "0123456789abcdefghijklmnopqrstuvwxyz"])) for x in
-                     self.path_list[: idx]])))
+                path_found = False
+                break
+
+        if not path_found:
+            raise errors.NotFound("The path %s could not be found" % "/".join(
+                    [("".join([char for char in part if char.lower() in string.ascii_lowercase+string.digits]))
+                     for part in self.path_list[: idx]]))
+
         if (not callable(caller) or ((not "exposed" in dir(caller) or not caller.exposed)) and (
             not "internalExposed" in dir(caller) or not caller.internalExposed or not self.internalRequest)):
             if "index" in caller \
