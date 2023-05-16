@@ -165,11 +165,12 @@ class DateBone(BaseBone):
                 except:
                     value = False  # its invalid
 
-        if value is False:
+        if not value:
             return self.getEmptyValue(), [
-                ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
+                ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")
+            ]
 
-        if value and not value.tzinfo and not self.naive:
+        if not value.tzinfo and not self.naive:
             value = time_zone.localize(value)
 
         value = value.replace(microsecond=0)
