@@ -112,8 +112,6 @@ class DateBone(BaseBone):
         elif not self.date and self.time:
             try:
                 value = datetime.fromisoformat(value)
-                if not self.naive:
-                    value = time_zone.localize(value)
             except:
                 try:
                     if str(rawValue).count(":") > 1:
