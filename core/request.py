@@ -109,7 +109,7 @@ class BrowseHandler():  # webapp.RequestHandler
         self.maxLogLevel = logging.DEBUG
         self._traceID = request.headers.get('X-Cloud-Trace-Context', "").split("/")[0] or utils.generateRandomString()
         self.is_deferred = False
-        self.path_list = []
+        self.path_list = ()
         db.currentDbAccessLog.set(set())
 
     @property
@@ -499,7 +499,8 @@ class BrowseHandler():  # webapp.RequestHandler
         """
         # Parse the URL
         if path := parse.urlparse(path).path:
-            self.path_list = [unicodedata.normalize("NFC", parse.unquote(part)) for part in path.strip("/").split("/")]
+            self.path_list = tuple((unicodedata.normalize("NFC", parse.unquote(part))
+                                    for part in path.strip("/").split("/")))
 
         # Prevent Hash-collision attacks
         kwargs = {}
@@ -553,7 +554,7 @@ class BrowseHandler():  # webapp.RequestHandler
                         hasattr(caller, '__call__'):
                     if part == "index":
                         idx -= 1
-                    args = self.path_list[idx:] + list(args)  # Prepend the rest of Path to args
+                    args = self.path_list[idx:] + args  # Prepend the rest of Path to args
                     break
 
                 elif part == "index":
