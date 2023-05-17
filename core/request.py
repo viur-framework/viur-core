@@ -566,7 +566,8 @@ class BrowseHandler():  # webapp.RequestHandler
 
         if not path_found:
             from viur.core import utils
-            raise errors.NotFound(f"""The path {utils.escapeString("/".join(self.path_list[:idx]))} could not be found""")
+            raise errors.NotFound(
+                f"""The path {utils.escapeString("/".join(self.path_list[:idx]))} could not be found""")
 
         if (not callable(caller) or ((not "exposed" in dir(caller) or not caller.exposed)) and (
             not "internalExposed" in dir(caller) or not caller.internalExposed or not self.internalRequest)):
