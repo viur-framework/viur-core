@@ -746,7 +746,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
                         logging.exception(e)
                         doCont = False
                     if not doCont:
-                        logging.error("Exiting queryIter on cursor %s" % qry.getCursor())
+                        logging.error(f"Exiting queryIter on cursor {qry.getCursor()!r}")
                         return
             qryDict["totalCount"] += 1
         cursor = qry.getCursor()
