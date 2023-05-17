@@ -18,6 +18,8 @@ def skey(duration: typing.Optional[int] = None, *args, **kwargs) -> str:
 
     See module securitykey for details.
     """
+    current.request.get().response.headers["Content-Type"] = "application/json"
+
     if duration is not None:
         if not current.user.get():
             raise errors.Unauthorized("Durations can only be used by authenticated users")
