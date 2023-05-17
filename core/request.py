@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import string
 import traceback
 import typing
 import unicodedata
@@ -496,10 +495,12 @@ class BrowseHandler():  # webapp.RequestHandler
             Does the actual work of sanitizing the parameter, determine which @exposed (or @internalExposed) function
             to call (and with witch parameters)
         """
+
         # Parse the URL
         if path := parse.urlparse(path).path:
-            self.path_list = tuple((unicodedata.normalize("NFC", parse.unquote(part))
-                                    for part in path.strip("/").split("/")))
+            self.path_list = tuple(unicodedata.normalize("NFC", parse.unquote(part))
+                                    for part in path.strip("/").split("/"))
+
 
         # Prevent Hash-collision attacks
         kwargs = {}
@@ -565,9 +566,8 @@ class BrowseHandler():  # webapp.RequestHandler
                 break
 
         if not path_found:
-            raise errors.NotFound("The path %s could not be found" % "/".join(
-                [("".join([char for char in part if char.lower() in string.ascii_lowercase + string.digits]))
-                 for part in self.path_list[: idx]]))
+            from viur.core import utils
+            raise errors.NotFound(f"""The path {utils.escapeString("/".join(self.path_list[:idx]))} could not be found""")
 
         if (not callable(caller) or ((not "exposed" in dir(caller) or not caller.exposed)) and (
             not "internalExposed" in dir(caller) or not caller.internalExposed or not self.internalRequest)):
@@ -578,7 +578,7 @@ class BrowseHandler():  # webapp.RequestHandler
                     caller["index"]) and caller["index"].internalExposed and self.internalRequest)):
                 caller = caller["index"]
             else:
-                raise (errors.MethodNotAllowed())
+                raise errors.MethodNotAllowed()
         # Check for forceSSL flag
         if not self.internalRequest \
                 and "forceSSL" in dir(caller) \
