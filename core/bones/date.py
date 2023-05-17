@@ -169,7 +169,10 @@ class DateBone(BaseBone):
             return self.getEmptyValue(), [
                 ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")
             ]
-
+        if value.tzinfo and self.naive:
+            return self.getEmptyValue(), [
+                ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Datetime must be naive")
+            ]
         if not value.tzinfo and not self.naive:
             value = time_zone.localize(value)
 
