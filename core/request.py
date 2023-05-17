@@ -1,17 +1,17 @@
 import json
 import logging
 import os
+import string
 import traceback
 import typing
+import unicodedata
 from abc import ABC, abstractmethod
-from io import StringIO
 from string import Template
+from time import time
 from urllib import parse
 from urllib.parse import unquote, urljoin, urlparse
 
-import unicodedata
 import webob
-from time import time
 
 from viur.core import current, db, errors, utils
 from viur.core.config import conf
@@ -549,7 +549,7 @@ class BrowseHandler():  # webapp.RequestHandler
             if part in caller:
                 caller = caller[part]
                 if (("exposed" in dir(caller) and caller.exposed) or
-                        ("internalExposed" in dir(caller) and caller.internalExposed and self.internalRequest)) and\
+                        ("internalExposed" in dir(caller) and caller.internalExposed and self.internalRequest)) and \
                         hasattr(caller, '__call__'):
                     if part == "index":
                         idx -= 1
@@ -565,7 +565,9 @@ class BrowseHandler():  # webapp.RequestHandler
                 break
 
         if not path_found:
-            raise errors.NotFound(f"""The path {"/".join(self.path_list[:idx]!a} could not be found""")
+            raise errors.NotFound("The path %s could not be found" % "/".join(
+                [("".join([char for char in part if char.lower() in string.ascii_lowercase + string.digits]))
+                 for part in self.path_list[: idx]]))
 
         if (not callable(caller) or ((not "exposed" in dir(caller) or not caller.exposed)) and (
             not "internalExposed" in dir(caller) or not caller.internalExposed or not self.internalRequest)):
