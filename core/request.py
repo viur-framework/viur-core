@@ -499,8 +499,7 @@ class BrowseHandler():  # webapp.RequestHandler
         # Parse the URL
         if path := parse.urlparse(path).path:
             self.path_list = tuple(unicodedata.normalize("NFC", parse.unquote(part))
-                                    for part in path.strip("/").split("/"))
-
+                                   for part in path.strip("/").split("/"))
 
         # Prevent Hash-collision attacks
         kwargs = {}
