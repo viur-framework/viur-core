@@ -8,7 +8,7 @@ __all__ = [default]
 
 
 @exposed
-def genSkey(duration: typing.Optional[int] = None, *args, **kwargs) -> str:
+def skey(duration: typing.Optional[int] = None, *args, **kwargs) -> str:
     """
     Creates or returns a valid skey.
 
@@ -29,5 +29,5 @@ def genSkey(duration: typing.Optional[int] = None, *args, **kwargs) -> str:
 
 
 def _postProcessAppObj(obj):  # Register our SKey function
-    obj["skey"] = genSkey
+    obj["skey"] = skey
     return obj
