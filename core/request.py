@@ -3,6 +3,7 @@ import logging
 import os
 import traceback
 import typing
+import inspect
 from abc import ABC, abstractmethod
 from io import StringIO
 from string import Template
@@ -431,7 +432,6 @@ class BrowseHandler():  # webapp.RequestHandler
         if typeOrigin is typing.Union:
             typeArgs = typeHint.__args__  # Was: typing.get_args(typeHint) (not supported in python 3.7)
             if len(typeArgs) == 2 and isinstance(None, typeArgs[1]):  # is None:
-                # This is typing.Optional
                 return self.processTypeHint(typeArgs[0], inValue, parsingOnly)
         elif typeOrigin is list:
             if parsingOnly:
@@ -596,7 +596,13 @@ class BrowseHandler():  # webapp.RequestHandler
             if annotations and not self.internalRequest:
                 newKwargs = {}  # The dict of new **kwargs we'll pass to the caller
                 newArgs = []  # List of new *args we'll pass to the caller
-                argsOrder = list(caller.__code__.co_varnames)[1: caller.__code__.co_argcount]
+
+                # FIXME: Use inspect.signature() for all this stuff...
+                argsOrder = caller.__code__.co_varnames[:caller.__code__.co_argcount]
+                # In case of a method, ignore the 'self' parameter
+                if inspect.ismethod(caller):
+                    argsOrder = argsOrder[1:]
+
                 # Map args in
                 for idx in range(0, min(len(self.args), len(argsOrder))):
                     paramKey = argsOrder[idx]
