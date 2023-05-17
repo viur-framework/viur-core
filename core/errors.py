@@ -125,9 +125,16 @@ class RequestTimeout(HTTPException):
 
 class Gone(HTTPException):
     """
-        Gone
+    Gone
 
-        Not used inside viur.core
+    The 410 (Gone) status code indicates that access to the target
+    resource is no longer available at the origin server and that this
+    condition is likely to be permanent.  If the origin server does not
+    know, or has no facility to determine, whether or not the condition
+    is permanent, the status code 404 (Not Found) ought to be used
+    instead.
+
+    See https://datatracker.ietf.org/doc/html/rfc7231#section-6.5.9
     """
 
     def __init__(self, descr: str = "Gone"):
@@ -177,6 +184,27 @@ class TooManyRequests(HTTPException):
 
     def __init__(self, descr: str = "Too Many Requests"):
         super(TooManyRequests, self).__init__(status=429, name="Too Many Requests", descr=descr)
+
+
+class UnprocessableEntity(HTTPException):
+    """
+    Unprocessable Entity
+
+    The 422 (Unprocessable Entity) status code means the server
+    understands the content type of the request entity (hence a
+    415 (Unsupported Media Type) status code is inappropriate), and the
+    syntax of the request entity is correct (thus a 400 (Bad Request)
+    status code is inappropriate) but was unable to process the contained
+    instructions.
+    For example, this error condition may occur if an XML
+    request body contains well-formed (i.e., syntactically correct), but
+    semantically erroneous, XML instructions
+
+    See https://www.rfc-editor.org/rfc/rfc4918#section-11.2
+    """
+
+    def __init__(self, descr: str = "Unprocessable Entity"):
+        super().__init__(status=422, name="Unprocessable Entity", descr=descr)
 
 
 class Censored(HTTPException):

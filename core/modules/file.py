@@ -522,9 +522,9 @@ class File(Tree):
         if not (
             mimeType
             and mimeType.count("/") == 1
-            and all([ch in string.ascii_letters + string.digits + "/-.+" for ch in mimeType])
+            and all(ch in string.ascii_letters + string.digits + "/-.+" for ch in mimeType)
         ):
-            raise errors.NotAcceptable("Invalid mimeType provided")
+            raise errors.UnprocessableEntity(f"Invalid mimeType {mimeType} provided")
 
         if authData and authSig:
             # First, validate the signature, otherwise we don't need to proceed further
@@ -534,7 +534,7 @@ class File(Tree):
             authData = json.loads(base64.b64decode(authData.encode("ASCII")).decode("UTF-8"))
 
             if datetime.strptime(authData["validUntil"], "%Y%m%d%H%M") < datetime.now():
-                raise errors.Gone()
+                raise errors.Gone("The upload URL has expired")
 
             if authData["validMimeTypes"]:
                 for validMimeType in authData["validMimeTypes"]:
@@ -542,7 +542,7 @@ class File(Tree):
                         validMimeType.endswith("*") and mimeType.startswith(validMimeType[:-1])):
                         break
                 else:
-                    raise errors.NotAcceptable()
+                    raise errors.UnprocessableEntity(f"Invalid mimeType {mimeType} provided")
 
             node = authData["node"]
             maxSize = authData["maxSize"]
@@ -560,7 +560,7 @@ class File(Tree):
 
         if maxSize:
             if size > maxSize:
-                raise errors.Forbidden("Size limit exceeds maximum size")
+                raise errors.UnprocessableEntity(f"Size {size} exceeds maximum size {maxSize}")
         else:
             size = None
 
