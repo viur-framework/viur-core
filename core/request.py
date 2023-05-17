@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import string
 import traceback
 import typing
 from abc import ABC, abstractmethod
@@ -311,7 +310,7 @@ class BrowseHandler():  # webapp.RequestHandler
                     res = None
             if not res:
                 descr = "The server encountered an unexpected error and is unable to process your request."
-                if (len(self.path_list) > 0 and any(x in self.path_list[0] for x in ["vi", "json"])) or \
+                if (len(self.path_list) > 0 and self.path_list[0] in ("vi", "json")) or \
                         current.request.get().response.headers["Content-Type"] == "application/json":
                     current.request.get().response.headers["Content-Type"] = "application/json"
                     if isinstance(e, errors.HTTPException):
@@ -541,7 +540,7 @@ class BrowseHandler():  # webapp.RequestHandler
             if "canAccess" in caller and not caller["canAccess"]():
                 # We have a canAccess function guarding that object,
                 # and it returns False...
-                raise (errors.Unauthorized())
+                raise errors.Unauthorized()
             idx += 1
             part = part.replace("-", "_").replace(".", "_")
             if part not in caller:
@@ -566,9 +565,7 @@ class BrowseHandler():  # webapp.RequestHandler
                 break
 
         if not path_found:
-            raise errors.NotFound("The path %s could not be found" % "/".join(
-                    [("".join([char for char in part if char.lower() in string.ascii_lowercase+string.digits]))
-                     for part in self.path_list[: idx]]))
+            raise errors.NotFound(f"""The path {"/".join(self.path_list[:idx]!a} could not be found""")
 
         if (not callable(caller) or ((not "exposed" in dir(caller) or not caller.exposed)) and (
             not "internalExposed" in dir(caller) or not caller.internalExposed or not self.internalRequest)):
