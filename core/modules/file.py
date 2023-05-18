@@ -524,7 +524,7 @@ class File(Tree):
             and mimeType.count("/") == 1
             and all(ch in string.ascii_letters + string.digits + "/-.+" for ch in mimeType)
         ):
-            raise errors.UnprocessableEntity(f"Invalid mimeType {mimeType} provided")
+            raise errors.UnprocessableEntity(f"Invalid mime-type {mimeType} provided")
 
         if authData and authSig:
             # First, validate the signature, otherwise we don't need to proceed further
@@ -542,7 +542,7 @@ class File(Tree):
                         validMimeType.endswith("*") and mimeType.startswith(validMimeType[:-1])):
                         break
                 else:
-                    raise errors.UnprocessableEntity(f"Invalid mimeType {mimeType} provided")
+                    raise errors.UnprocessableEntity(f"Invalid mime-type {mimeType} provided")
 
             node = authData["node"]
             maxSize = authData["maxSize"]
