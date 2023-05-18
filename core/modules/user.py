@@ -265,7 +265,7 @@ class UserPassword:
             skel.setEntity(user_entry)
             skel["key"] = user_entry.key
             skel["password"] = password  # will be hashed on serialize
-            skel.toDB(clearUpdateTag=True)
+            skel.toDB(update_relations=False)
 
         return self.userModule.continueAuthenticationFlow(self, user_entry.key)
 
