@@ -228,15 +228,15 @@ class UserPassword:
 
         name = name.lower().strip()
         query = db.Query(self.userModule.viewSkel().kindName)
-        res = query.filter("name.idx >=", name).getEntry() or {}  # might find another user; always keep a dict
+        user_entry = query.filter("name.idx >=", name).getEntry() or {}  # might find another user; always keep a dict
 
-        password_data = res.get("password") or {}
+        password_data = user_entry.get("password") or {}
         # old password hashes used 1001 iterations
         iterations = password_data.get("iterations", 1001)
         passwd = encode_password(password, password_data.get("salt", "-invalid-"), iterations)["pwhash"]
 
         # Check if the username matches
-        stored_user_name = (res.get("name") or {}).get("idx") or ""
+        stored_user_name = (user_entry.get("name") or {}).get("idx") or ""
         is_okay = secrets.compare_digest(stored_user_name, name)
 
         # Check if the password matches
@@ -245,11 +245,11 @@ class UserPassword:
 
         status: Optional[int] = None
         # Verify that this account isn't blocked
-        if (res.get("status") or 0) < Status.ACTIVE.value:
+        if (user_entry.get("status") or 0) < Status.ACTIVE.value:
             if is_okay:
                 # The username and password is valid, in this case we can inform that user about his account status
                 # (ie account locked or email verification pending)
-                status = res["status"]
+                status = user_entry["status"]
 
             is_okay = False
 
@@ -262,12 +262,12 @@ class UserPassword:
             logging.info(f"Update password hash for user {name}.")
             # re-hash the password with more iterations
             skel = self.userModule.editSkel()
-            skel.setEntity(res)
-            skel["key"] = res.key
+            skel.setEntity(user_entry)
+            skel["key"] = user_entry.key
             skel["password"] = password  # will be hashed on serialize
             skel.toDB(clearUpdateTag=True)
 
-        return self.userModule.continueAuthenticationFlow(self, res.key)
+        return self.userModule.continueAuthenticationFlow(self, user_entry.key)
 
     @exposed
     def pwrecover(self, *args, **kwargs):
