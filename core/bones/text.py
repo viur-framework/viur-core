@@ -1,3 +1,7 @@
+"""
+The TextBone is specifically designed to handle text input fields. TextBone is a subclass of the BaseBone class,
+inheriting its core functionality and extending it to support text-specific data manipulation.
+"""
 import string
 from base64 import urlsafe_b64decode
 from datetime import datetime
@@ -28,13 +32,31 @@ _defaultTags = {
     "validClasses": ["vitxt-*", "viur-txt-*"],  # List of valid class-names that are valid
     "singleTags": ["br", "img", "hr"]  # List of tags, which don't have a corresponding end tag
 }
+"""
+A dictionary containing default configurations for handling HTML content in TextBone instances.
+
+- validTags (list[str]):
+    A list of valid HTML tags allowed in TextBone instances.
+- validAttrs (dict[str, list[str]]):
+    A dictionary mapping valid attributes for each tag. If a tag is not listed, no attributes are allowed for that tag.
+- validStyles (list[str]):
+   A list of allowed CSS directives for the TextBone instances.
+- validClasses (list[str]):
+    A list of valid CSS class names allowed in TextBone instances.
+- singleTags (list[str]):
+   A list of self-closing HTML tags that don't have corresponding end tags.
+"""
 
 
 def parseDownloadUrl(urlStr: str) -> Tuple[Optional[str], Optional[bool], Optional[str]]:
     """
-        Parses a file download-url (/file/download/xxxx?sig=yyyy) into it's components
-        blobKey, derived (yes/no) and filename. Will return None for each component if the url
-        could not be parsed.
+    Parses a file download URL in the format `/file/download/xxxx?sig=yyyy` into its components: blobKey, derived,
+    and filename. If the URL cannot be parsed, the function returns None for each component.
+
+    :param str urlStr: The file download URL to be parsed.
+    :return: A tuple containing the parsed components: (blobKey, derived, filename).
+            Each component will be None if the URL could not be parsed.
+    :rtype: Tuple[Optional[str], Optional[bool], Optional[str]]
     """
     if not urlStr.startswith("/file/download/") or "?" not in urlStr:
         return None, None, None
@@ -57,11 +79,23 @@ def parseDownloadUrl(urlStr: str) -> Tuple[Optional[str], Optional[bool], Option
 
 
 class CollectBlobKeys(HTMLParser):
+    """
+    A custom HTML parser that extends the HTMLParser class to collect blob keys found in the "src" attribute
+    of <a> and <img> tags.
+    """
+
     def __init__(self):
         super(CollectBlobKeys, self).__init__()
         self.blobs = set()
 
     def handle_starttag(self, tag, attrs):
+        """
+        Handles the start tag in the HTML content being parsed. If the tag is an <a> or <img> element, the method
+        extracts the blob key from the "src" attribute and adds it to the "blobs" set.
+
+        :param str tag: The current start tag encountered by the parser.
+        :param List[Tuple[str, str]] attrs: A list of tuples containing the attribute name and value of the current tag.
+        """
         if tag in ["a", "img"]:
             for k, v in attrs:
                 if k == "src":
@@ -71,6 +105,14 @@ class CollectBlobKeys(HTMLParser):
 
 
 class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
+    """
+    A custom HTML parser that extends the HTMLParser class to sanitize and serialize HTML content
+    by removing invalid tags and attributes while retaining the valid ones.
+
+    :param dict validHtml: A dictionary containing valid HTML tags, attributes, styles, and classes.
+    :param dict srcSet: A dictionary containing width and height for srcset attribute processing.
+    """
+
     def __init__(self, validHtml=None, srcSet=None):
         global _defaultTags
         super(HtmlSerializer, self).__init__()
@@ -81,6 +123,12 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
         self.srcSet = srcSet
 
     def handle_data(self, data):
+        """
+        Handles the data encountered in the HTML content being parsed. Escapes special characters
+        and appends the data to the result if it is not only whitespace characters.
+
+        :param str data: The data encountered by the parser.
+        """
         data = str(data) \
             .replace("<", "&lt;") \
             .replace(">", "&gt;") \
@@ -92,17 +140,28 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
             self.result += data
 
     def handle_charref(self, name):
+        """
+        Handles character references in the HTML content being parsed and appends the character reference to the
+        result.
+
+        :param str name: The name of the character reference.
+        """
         self.flushCache()
         self.result += "&#%s;" % (name)
 
     def handle_entityref(self, name):  # FIXME
+        """
+        Handles entity references in the HTML content being parsed and appends the entity reference to the result.
+
+        :param str name: The name of the entity reference.
+        """
         if name in htmlentitydefs.entitydefs.keys():
             self.flushCache()
             self.result += "&%s;" % (name)
 
     def flushCache(self):
         """
-            Flush pending tags into the result and push their corresponding end-tags onto the stack
+        Flush pending tags into the result and push their corresponding end-tags onto the stack
         """
         for start, end in self.tagCache:
             self.result += start
@@ -110,7 +169,13 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
         self.tagCache = []
 
     def handle_starttag(self, tag, attrs):
-        """ Delete all tags except for legal ones """
+        """
+        Handles start tags in the HTML content being parsed. Filters out invalid tags and attributes and
+        processes valid ones.
+
+        :param str tag: The current start tag encountered by the parser.
+        :param List[Tuple[str, str]] attrs: A list of tuples containing the attribute name and value of the current tag.
+        """
         filterChars = "\"'\\\0\r\n@()"
         if self.validHtml and tag in self.validHtml["validTags"]:
             cacheTagStart = '<' + tag
@@ -163,14 +228,14 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                     style = s[: s.find(":")].strip()
                     value = s[s.find(":") + 1:].strip()
                     if any([c in style for c in filterChars]) or any(
-                        [c in value for c in filterChars]):
+                            [c in value for c in filterChars]):
                         # Either the key or the value contains a character that's not supposed to be there
                         continue
                     if value.lower().startswith("expression") or value.lower().startswith("import"):
                         # IE evaluates JS inside styles if the keyword expression is present
                         continue
                     if style in self.validHtml["validStyles"] and not any(
-                        [(x in value) for x in ["\"", ":", ";"]]):
+                            [(x in value) for x in ["\"", ":", ";"]]):
                         syleRes[style] = value
                 if len(syleRes.keys()):
                     cacheTagStart += " style=\"%s\"" % "; ".join(
@@ -213,6 +278,11 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
             self.result += " "
 
     def handle_endtag(self, tag):
+        """
+        Handles end tags in the HTML content being parsed. Closes open tags and discards invalid ones.
+
+        :param str tag: The current end tag encountered by the parser.
+        """
         if self.validHtml:
             if self.tagCache:
                 # Check if that element is still on the cache
@@ -232,13 +302,20 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                         break
 
     def cleanup(self):  # FIXME: vertauschte tags
-        """ Append missing closing tags """
+        """ Append missing closing tags to the result."""
         self.flushCache()
         for tag in self.openTagsList:
             endTag = '</%s>' % tag
             self.result += endTag
 
     def sanitize(self, instr):
+        """
+        Sanitizes the input HTML string by removing invalid tags and attributes while retaining valid ones.
+
+        :param str instr: The input HTML string to be sanitized.
+        :return: The sanitized HTML string.
+        :rtype: str
+        """
         self.result = ""
         self.openTagsList = []
         self.feed(instr)
@@ -248,6 +325,20 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
 
 
 class TextBone(BaseBone):
+    """
+    A bone for storing and validating HTML or plain text content. Can be configured to allow
+    only specific HTML tags and attributes, and enforce a maximum length. Supports the use of
+    srcset for embedded images.
+
+    :param Union[None, Dict] validHtml: A dictionary containing allowed HTML tags and their attributes. Defaults
+        to _defaultTags. Must be a structured like :prop:_defaultTags
+    :param int maxLength: The maximum allowed length for the content. Defaults to 200000.
+    :param languages: If set, this bone can store a different content for each language
+    :param Dict[str, List] srcSet: An optional dictionary containing width and height for srcset generation.
+        Must be a dict of "width": [List of Ints], "height": [List of Ints], eg {"height": [720, 1080]}
+    :param bool indexed: Whether the content should be indexed for searching. Defaults to False.
+    :param kwargs: Additional keyword arguments to be passed to the base class constructor.
+    """
     class __undefinedC__:
         pass
 
@@ -281,9 +372,29 @@ class TextBone(BaseBone):
         self.srcSet = srcSet
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+        """
+        Serializes a single value of the TextBone instance for storage.
+
+        This method takes the value as-is without any additional processing, since it's already stored in a format
+        suitable for serialization.
+        """
         return value
 
     def singleValueFromClient(self, value, skel, name, origData):
+        """
+        Processes a single value received from the client for the TextBone instance.
+
+        Validates the value and sanitizes it using the HtmlSerializer if it's valid. If the value is invalid,
+        an error message is returned along with an empty value.
+
+        :param value: The value received from the client.
+        :param SkeletonInstance skel: The skeleton instance that will contain the value.
+        :param str name: The name of the bone containing the value.
+        :param origData: The original data received from the client.
+        :return: A tuple containing the sanitized value and an error message (if any).
+             If there's no error, the second element of the tuple is None.
+        :rtype: Tuple[Any, Optional[List[ReadFromClientError]]]
+        """
         err = self.isInvalid(value)  # Returns None on success, error-str otherwise
         if not err:
             return HtmlSerializer(self.validHtml, self.srcSet).sanitize(value), None
@@ -291,13 +402,28 @@ class TextBone(BaseBone):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
     def getEmptyValue(self):
+        """
+        Returns an empty value for the TextBone instance.
+
+        This method is used to represent an empty or unset value for the TextBone.
+
+        return: An empty string.
+        :rtype: str
+        """
         return ""
 
     def isInvalid(self, value):
         """
-            Returns None if the value would be valid for
-            this bone, an error-message otherwise.
+        Checks if the given value is valid for this TextBone instance.
+
+        This method checks whether the given value is valid according to the TextBone's constraints (e.g., not
+        None and within the maximum length).
+
+        :param value: The value to be checked for validity.
+        :return: Returns None if the value is valid, or an error message string otherwise.
+        :rtype: Optional[str]
         """
+
         if value == None:
             return "No value entered"
         if len(value) > self.maxLength:
@@ -305,10 +431,18 @@ class TextBone(BaseBone):
 
     def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
         """
-            Parse our html for embedded img or hrefs pointing to files. These will be locked,
-            so even if they are deleted from the file browser, we'll still keep that blob alive
-            so we don't have broken links/images in this bone.
+        Extracts and returns the blob keys of referenced files in the HTML content of the TextBone instance.
+
+        This method parses the HTML content of the TextBone to identify embedded images or file hrefs,
+        collects their blob keys, and ensures that they are not deleted even if removed from the file browser,
+        preventing broken links or images in the TextBone content.
+
+        :param SkeletonInstance skel: A SkeletonInstance object containing the data of an entry.
+        :param str name: The name of the TextBone for which to find referenced blobs.
+        :return: A set containing the blob keys of the referenced files in the TextBone's HTML content.
+        :rtype: Set[str]
         """
+
         collector = CollectBlobKeys()
 
         for idx, lang, value in self.iter_bone_value(skel, name):
@@ -336,7 +470,14 @@ class TextBone(BaseBone):
 
     def refresh(self, skel, boneName) -> None:
         """
-            Re-parse our text. This will cause our src-set to rebuild.
+        Re-parses the text content of the TextBone instance to rebuild the src-set if necessary.
+
+        This method is useful when the src-set configuration has changed and needs to be applied
+        to the existing HTML content. It re-parses the content and updates the src-set attributes
+        accordingly.
+
+        :param SkeletonInstance skel: A SkeletonInstance object containing the data of an entry.
+        :param str boneName: The name of the TextBone for which to refresh the src-set.
         """
         if self.srcSet:
             val = skel[boneName]
@@ -346,6 +487,17 @@ class TextBone(BaseBone):
                 skel[boneName] = self.singleValueFromClient(val, skel, boneName, None)[0]
 
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+        """
+        Extracts search tags from the text content of a TextBone.
+
+        This method iterates over the values of the TextBone in the given skeleton, and for each non-empty value,
+        it tokenizes the text by lines and words. Then, it adds the lowercase version of each word to a set of
+        search tags, which is returned at the end.
+
+        :param skel: A SkeletonInstance containing the TextBone.
+        :param name: The name of the TextBone in the skeleton.
+        :return: A set of unique search tags (lowercase words) extracted from the text content of the TextBone.
+        """
         result = set()
         for idx, lang, value in self.iter_bone_value(skel, name):
             if value is None:
@@ -356,6 +508,18 @@ class TextBone(BaseBone):
         return result
 
     def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
+        """
+        Retrieves the unique property index values for the TextBone.
+
+        If the TextBone supports multiple languages, this method raises a NotImplementedError, as it's unclear
+        whether each language should be kept distinct or not. Otherwise, it calls the superclass's
+        getUniquePropertyIndexValues method to retrieve the unique property index values.
+
+        :param valuesCache: A dictionary containing the cached values for the TextBone.
+        :param name: The name of the TextBone.
+        :return: A list of unique property index values for the TextBone.
+        :raises NotImplementedError: If the TextBone supports multiple languages.
+        """
         if self.languages:
             # Not yet implemented as it's unclear if we should keep each language distinct or not
             raise NotImplementedError()

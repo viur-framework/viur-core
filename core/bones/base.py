@@ -1,3 +1,10 @@
+"""
+This module contains the base classes for the bones in ViUR. Bones are the fundamental building blocks of
+ViUR's data structures, representing the fields and their properties in the entities managed by the
+framework. The base classes defined in this module are the foundation upon which specific bone types are
+built, such as string, numeric, and date/time bones.
+"""
+
 import copy
 import hashlib
 import inspect
@@ -10,55 +17,126 @@ from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 from viur.core import db, utils
 from viur.core.config import conf
 
-__systemIsIntitialized_ = False
+
+__system_initialized = False
+"""
+Initializes the global variable __system_initialized
+"""
 
 
 def setSystemInitialized():
-    global __systemIsIntitialized_
+    """
+    Sets the global __system_initialized variable to True, indicating that the system is
+    initialized and ready for use. This function should be called once all necessary setup
+    tasks have been completed. It also iterates over all skeleton classes and calls their
+    setSystemInitialized() method.
+
+    Global variables:
+        __system_initialized: A boolean flag indicating if the system is initialized.
+    """
+    global __system_initialized
     from viur.core.skeleton import iterAllSkelClasses
-    __systemIsIntitialized_ = True
+    __system_initialized = True
     for skelCls in iterAllSkelClasses():
         skelCls.setSystemInitialized()
 
 
 def getSystemInitialized():
-    global __systemIsIntitialized_
-    return __systemIsIntitialized_
+    """
+    Retrieves the current state of the system initialization by returning the value of the
+    global variable __system_initialized.
+    """
+    global __system_initialized
+    return __system_initialized
 
 
 class ReadFromClientErrorSeverity(Enum):
+    """
+    ReadFromClientErrorSeverity is an enumeration that represents the severity levels of errors
+    that can occur while reading data from the client.
+    """
     NotSet = 0
+    """No error occurred"""
     InvalidatesOther = 1
+    # TODO: what is this error about?
+    """The data is valid, for this bone, but in relation to other invalid"""
     Empty = 2
+    """The data is empty, but the bone requires a value"""
     Invalid = 3
+    """The data is invalid, but the bone requires a value"""
 
 
 @dataclass
 class ReadFromClientError:
+    """
+    The ReadFromClientError class represents an error that occurs while reading data from the client.
+    This class is used to store information about the error, including its severity, an error message,
+    the field path where the error occurred, and a list of invalidated fields.
+    """
     severity: ReadFromClientErrorSeverity
+    """A ReadFromClientErrorSeverity enumeration value representing the severity of the error."""
     errorMessage: str
+    """A string containing a human-readable error message describing the issue."""
     fieldPath: List[str] = field(default_factory=list)
+    """A list of strings representing the path to the field where the error occurred."""
     invalidatedFields: List[str] = None
+    """A list of strings containing the names of invalidated fields, if any."""
 
 
 class UniqueLockMethod(Enum):
-    SameValue = 1  # Lock this value we have just one entry, or lock each value individually if bone is multiple
+    """
+    UniqueLockMethod is an enumeration that represents different locking methods for unique constraints
+    on bones. This is used to specify how the uniqueness of a value or a set of values should be
+    enforced.
+    """
+    SameValue = 1  # Lock this value for just one entry or each value individually if bone is multiple
+    """
+    Lock this value so that there is only one entry, or lock each value individually if the bone
+    is multiple.
+    """
     SameSet = 2  # Same Set of entries (including duplicates), any order
+    """Lock the same set of entries (including duplicates) regardless of their order."""
     SameList = 3  # Same Set of entries (including duplicates), in this specific order
+    """Lock the same set of entries (including duplicates) in a specific order."""
 
 
 @dataclass
 class UniqueValue:  # Mark a bone as unique (it must have a different value for each entry)
+    """
+    The UniqueValue class represents a unique constraint on a bone, ensuring that it must have a
+    different value for each entry. This class is used to store information about the unique
+    constraint, such as the locking method, whether to lock empty values, and an error message to
+    display to the user if the requested value is already taken.
+    """
     method: UniqueLockMethod  # How to handle multiple values (for bones with multiple=True)
-    lockEmpty: bool  # If False, empty values ("", 0) are not locked - needed if a field is unique but not required
+    """
+    A UniqueLockMethod enumeration value specifying how to handle multiple values for bones with
+    multiple=True.
+    """
+    lockEmpty: bool  # If False, empty values ("", 0) are not locked - needed if unique but not required
+    """
+    A boolean value indicating if empty values ("", 0) should be locked. If False, empty values are not
+    locked, which is needed if a field is unique but not required.
+    """
     message: str  # Error-Message displayed to the user if the requested value is already taken
+    """
+    A string containing an error message displayed to the user if the requested value is already
+    taken.
+    """
 
 
 @dataclass
 class MultipleConstraints:  # Used to define constraints on multiple bones
+    """
+    The MultipleConstraints class is used to define constraints on multiple bones, such as the minimum
+    and maximum number of entries allowed and whether duplicate values are allowed.
+    """
     minAmount: int = 0  # Lower bound of how many entries can be submitted
+    """An integer representing the lower bound of how many entries can be submitted (default: 0)."""
     maxAmount: int = 0  # Upper bound of how many entries can be submitted
+    """An integer representing the upper bound of how many entries can be submitted (default: 0)."""
     preventDuplicates: bool = False  # Prevent the same value of being used twice
+    """A boolean value indicating if the same value can be used twice (default: False)."""
 
 
 class ComputeMethod(Enum):
@@ -82,6 +160,32 @@ class Compute:
 
 
 class BaseBone(object):
+    """
+    The BaseBone class serves as the base class for all bone types in the ViUR framework.
+    It defines the core functionality and properties that all bones should implement.
+
+    :param descr: Textual, human-readable description of that bone. Will be translated.
+    :param defaultValue: If set, this bone will be preinitialized with this value
+    :param required: If True, the user must enter a valid value for this bone (the viur.core refuses
+        to save the skeleton otherwise). If a list/tuple of languages (strings) is provided, these
+        language must be entered.
+    :param multiple: If True, multiple values can be given. (ie. n:m relations instead of n:1)
+    :param searchable: If True, this bone will be included in the fulltext search. Can be used
+        without the need of also been indexed.
+    :param vfunc: If given, a callable validating the user-supplied value for this bone.
+        This callable must return None if the value is valid, a String containing an meaningful
+        error-message for the user otherwise.
+    :param readOnly: If True, the user is unable to change the value of this bone. If a value for this
+        bone is given along the POST-Request during Add/Edit, this value will be ignored. Its still
+        possible for the developer to modify this value by assigning skel.bone.value.
+    :param visible: If False, the value of this bone should be hidden from the user. This does
+        *not* protect the value from being exposed in a template, nor from being transferred
+        to the client (ie to the admin or as hidden-value in html-form)
+    :param compute: If set, the bone's value will be computed in the given method.
+
+        .. NOTE::
+            The kwarg 'multiple' is not supported by all bones
+    """
     type = "hidden"
     isClonedInstance = False
 
@@ -105,30 +209,7 @@ class BaseBone(object):
         visible: bool = True,
     ):
         """
-            Initializes a new Bone.
-
-            :param descr: Textual, human-readable description of that bone. Will be translated.
-            :param defaultValue: If set, this bone will be preinitialized with this value
-            :param required: If True, the user must enter a valid value for this bone (the viur.core refuses to save the
-                skeleton otherwise).
-                If a list/tuple of languages (strings) is provided, these language must be entered.
-            :param multiple: If True, multiple values can be given. (ie. n:m relations instead of n:1)
-            :param searchable: If True, this bone will be included in the fulltext search. Can be used
-                without the need of also been indexed.
-            :param vfunc: If given, a callable validating the user-supplied value for this bone. This
-                callable must return None if the value is valid, a String containing an meaningful
-                error-message for the user otherwise.
-            :param readOnly: If True, the user is unable to change the value of this bone. If a value for
-                this bone is given along the POST-Request during Add/Edit, this value will be ignored.
-                Its still possible for the developer to modify this value by assigning skel.bone.value.
-            :param visible: If False, the value of this bone should be hidden from the user. This does *not*
-                protect the value from beeing exposed in a template, nor from being transferred to the
-                client (ie to the admin or as hidden-value in html-forms)
-                Again: This is just a hint. It cannot be used as a security precaution.
-            :param compute: If set the bonevalue will be computed in the given method.
-
-            .. NOTE::
-                The kwarg 'multiple' is not supported by all bones
+        Initializes a new Bone.
         """
         self.isClonedInstance = getSystemInitialized()
 
@@ -163,7 +244,8 @@ class BaseBone(object):
         self.languages = languages
 
         # Default value
-        # Convert a None default-value to the empty container that's expected if the bone is multiple or has languages
+        # Convert a None default-value to the empty container that's expected if the bone is
+        # multiple or has languages
         if defaultValue is None and self.languages:
             self.defaultValue = {}
         elif defaultValue is None and self.multiple:
@@ -180,7 +262,7 @@ class BaseBone(object):
 
         self.unique = unique
 
-        # Override some validations and value functions by parameter instead of subclassing
+        # Overwrite some validations and value functions by parameter instead of subclassing
         # todo: This can be done better and more straightforward.
         if vfunc:
             self.isInvalid = vfunc  # fixme: why is this called just vfunc, and not isInvalidValue/isInvalidValueFunc?
@@ -213,31 +295,42 @@ class BaseBone(object):
 
     def setSystemInitialized(self):
         """
-            Can be overridden to initialize properties that depend on the Skeleton system being initialized
+            Can be overridden to initialize properties that depend on the Skeleton system
+            being initialized
         """
         pass
 
     def isInvalid(self, value):
         """
-            Returns None if the value would be valid for
-            this bone, an error-message otherwise.
+            Checks if the current value of the bone in the given skeleton is invalid.
+            Returns None if the value would be valid for this bone, an error-message otherwise.
         """
         return False
 
-    def isEmpty(self, rawValue: Any) -> bool:
+    def isEmpty(self, value: Any) -> bool:
         """
             Check if the given single value represents the "empty" value.
             This usually is the empty string, 0 or False.
 
-            Warning: isEmpty takes precedence over isInvalid! The empty value is always valid - unless the bone
-                is required. But even then the empty value will be reflected back to the client.
+            .. warning:: isEmpty takes precedence over isInvalid! The empty value is always
+                valid - unless the bone is required.
+                But even then the empty value will be reflected back to the client.
 
-            Warning: rawValue might be the string/object received from the user (untrusted input!) or the value
-                returned by get
+            .. warning:: value might be the string/object received from the user (untrusted
+                input!) or the value returned by get
         """
-        return not bool(rawValue)
+        return not bool(value)
 
     def getDefaultValue(self, skeletonInstance):
+        """
+        Retrieves the default value for the bone.
+
+        This method is called by the framework to obtain the default value of a bone when no value
+        is provided. Derived bone classes can overwrite this method to implement their own logic for
+        providing a default value.
+
+        :return: The default value of the bone, which can be of any data type.
+    """
         if callable(self.defaultValue):
             return self.defaultValue(skeletonInstance, self)
         elif isinstance(self.defaultValue, list):
@@ -255,12 +348,39 @@ class BaseBone(object):
         return None
 
     def __setattr__(self, key, value):
+        """
+        Custom attribute setter for the BaseBone class.
+
+        This method is used to ensure that certain bone attributes, such as 'multiple', are only
+        set once during the bone's lifetime. Derived bone classes should not need to overwrite this
+        method unless they have additional attributes with similar constraints.
+
+        :param key: A string representing the attribute name.
+        :param value: The value to be assigned to the attribute.
+
+        :raises AttributeError: If a protected attribute is attempted to be modified after its initial
+            assignment.
+        """
         if not self.isClonedInstance and getSystemInitialized() and key != "isClonedInstance" and not key.startswith(
-            "_"):
+                "_"):
             raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
         super().__setattr__(key, value)
 
     def collectRawClientData(self, name, data, multiple, languages, collectSubfields):
+        """
+        Collects raw client data for the bone and returns it in a dictionary.
+
+        This method is called by the framework to gather raw data from the client, such as form data or data from a
+        request. Derived bone classes should overwrite this method to implement their own logic for collecting raw data.
+
+        :param name: A string representing the bone's name.
+        :param data: A dictionary containing the raw data from the client.
+        :param multiple: A boolean indicating whether the bone supports multiple values.
+        :param languages: An optional list of strings representing the supported languages (default: None).
+        :param collectSubfields: A boolean indicating whether to collect data for subfields (default: False).
+
+        :return: A dictionary containing the collected raw client data.
+        """
         fieldSubmitted = False
         if languages:
             res = {}
@@ -311,7 +431,7 @@ class BaseBone(object):
             return res, fieldSubmitted
         else:  # No multi-lang
             if not collectSubfields:
-                if name not in data:  ## Empty!
+                if name not in data:  # Empty!
                     return None, False
                 val = data[name]
                 if multiple and not isinstance(val, list):
@@ -358,30 +478,39 @@ class BaseBone(object):
 
     def parseSubfieldsFromClient(self) -> bool:
         """
-            Whenever this request should try to parse subfields submitted from the client.
-            Set only to true if you expect a list of dicts to be transmitted
+            Determines whether the function should parse subfields submitted by the client.
+            Set to True only when expecting a list of dictionaries to be transmitted.
         """
         return False
 
     def singleValueFromClient(self, value, skel, name, origData):
-        # The BaseBone will not read any data in fromClient. Use rawValueBone if needed.
+        """
+        Prevents the BaseBone from reading data using the fromClient method.
+        If needed, use the RawBone instead.
+        Derived bones should overwrite this method for proper data processing.
+
+        :param value: The value to be processed.
+        :param skel: The skeleton containing the bone.
+        :param name: The name of the bone.
+        :param origData: The original data from the client.
+
+        :return: A tuple containing the empty value and a list with a ReadFromClientError.
+        """
         return self.getEmptyValue(), [
             ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Will not read a BaseBone fromClient!")]
 
     def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
         """
-            Reads a value from the client.
+        Reads a value from the client and stores it in the skeleton instance if it is valid for the bone.
 
-            If this value is valid for this bone,
-            store this value and return None.
-            Otherwise our previous value is
-            left unchanged and an error-message
-            is returned.
+        This function reads a value from the client and processes it according to the bone's configuration.
+        If the value is valid for the bone, it stores the value in the skeleton instance and returns None.
+        Otherwise, the previous value remains unchanged, and a list of ReadFromClientError objects is returned.
 
-            :param skel: The skeleton instance where the values should be loaded.
-            :param name: Our name in the skeleton
-            :param data: User-supplied request-data
-            :returns: None or a list of errors
+        :param skel: A SkeletonInstance object where the values should be loaded.
+        :param name: A string representing the bone's name.
+        :param data: A dictionary containing the raw data from the client.
+        :return: None if no errors occurred, otherwise a list of ReadFromClientError objects.
         """
         subFields = self.parseSubfieldsFromClient()
         parsedData, fieldSubmitted = self.collectRawClientData(name, data, self.multiple, self.languages, subFields)
@@ -457,8 +586,12 @@ class BaseBone(object):
 
     def validateMultipleConstraints(self, skel: 'SkeletonInstance', name: str) -> List[ReadFromClientError]:
         """
-            Validates our value against our multiple constrains.
-            Returns a ReadFromClientError for each violation (eg. too many items and duplicates)
+        Validates the value of a bone against its multiple constraints and returns a list of ReadFromClientError
+        objects for each violation, such as too many items or duplicates.
+
+        :param skel: A SkeletonInstance object where the values should be validated.
+        :param name: A string representing the bone's name.
+        :return: A list of ReadFromClientError objects for each constraint violation.
         """
         res = []
         value = skel[name]
@@ -473,14 +606,23 @@ class BaseBone(object):
         return res
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+        """
+            Serializes a single value of the bone for storage in the database.
+
+            Derived bone classes should overwrite this method to implement their own logic for serializing single
+            values.
+            The serialized value should be suitable for storage in the database.
+        """
         return value
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
         """
-            Serializes this bone into something we
-            can write into the datastore.
+        Serializes this bone into a format that can be written into the datastore.
 
-            :param name: The property-name this bone has in its Skeleton (not the description!)
+        :param skel: A SkeletonInstance object containing the values to be serialized.
+        :param name: A string representing the property name of the bone in its Skeleton (not the description).
+        :param parentIndexed: A boolean indicating whether the parent bone is indexed.
+        :return: A boolean indicating whether the serialization was successful.
         """
         # Handle compute on write
         if self.compute:
@@ -549,22 +691,31 @@ class BaseBone(object):
         return False
 
     def singleValueUnserialize(self, val):
+        """
+            Unserializes a single value of the bone from the stored database value.
+
+            Derived bone classes should overwrite this method to implement their own logic for unserializing
+            single values. The unserialized value should be suitable for use in the application logic.
+        """
         return val
 
     def unserialize(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> bool:
         """
-            Inverse of serialize. Evaluates whats
-            read from the datastore and populates
-            this bone accordingly.
+        Deserialize bone data from the datastore and populate the bone with the deserialized values.
 
-            :param name: The property-name this bone has in its Skeleton (not the description!)
+        This function is the inverse of the serialize function. It converts data from the datastore
+        into a format that can be used by the bones in the skeleton.
+
+        :param skel: A SkeletonInstance object containing the values to be deserialized.
+        :param name: The property name of the bone in its Skeleton (not the description).
+        :returns: True if deserialization is successful, False otherwise.
         """
         if name in skel.dbEntity:
             loadVal = skel.dbEntity[name]
         elif (
             # fixme: Remove this piece of sh*t at least with VIUR4
             # We're importing from an old ViUR2 instance - there may only be keys prefixed with our name
-            conf.get("viur.viur2import.blobsource") and any([x.startswith("%s." % name) for x in skel.dbEntity])
+            conf.get("viur.viur2import.blobsource") and any(n.startswith(name + ".") for n in skel.dbEntity)
             # ... or computed
             or self.compute
         ):
@@ -698,9 +849,8 @@ class BaseBone(object):
             something understood by the datastore.
             This function must:
 
-                * Ignore all filters not targeting this bone
-                * Safely handle malformed data in rawFilter
-                    (this parameter is directly controlled by the client)
+                * - Ignore all filters not targeting this bone
+                * - Safely handle malformed data in rawFilter (this parameter is directly controlled by the client)
 
             :param name: The property-name this bone has in its Skeleton (not the description!)
             :param skel: The :class:`viur.core.db.Query` this bone is part of
@@ -748,12 +898,13 @@ class BaseBone(object):
         """
             Same as buildDBFilter, but this time its not about filtering
             the results, but by sorting them.
-            Again: rawFilter is controlled by the client, so you *must* expect and safely hande
+            Again: rawFilter is controlled by the client, so you *must* expect and safely handle
             malformed data!
 
             :param name: The property-name this bone has in its Skeleton (not the description!)
             :param skel: The :class:`viur.core.skeleton.Skeleton` instance this bone is part of
-            :param dbFilter: The current :class:`viur.core.db.Query` instance the filters should be applied to
+            :param dbFilter: The current :class:`viur.core.db.Query` instance the filters should
+                be applied to
             :param rawFilter: The dictionary of filters the client wants to have applied
             :returns: The modified :class:`viur.core.db.Query`,
                 None if the query is unsatisfiable.
@@ -793,6 +944,18 @@ class BaseBone(object):
         return dbFilter
 
     def _hashValueForUniquePropertyIndex(self, value: Union[str, int]) -> List[str]:
+        """
+        Generates a hash of the given value for creating unique property indexes.
+
+        This method is called by the framework to create a consistent hash representation of a value
+        for constructing unique property indexes. Derived bone classes should overwrite this method to
+        implement their own logic for hashing values.
+
+        :param value: The value to be hashed, which can be a string, integer, or a float.
+
+        :return: A list containing a string representation of the hashed value. If the bone is multiple,
+                the list may contain more than one hashed value.
+        """
         def hashValue(value: Union[str, int]) -> str:
             h = hashlib.sha256()
             h.update(str(value).encode("UTF-8"))
@@ -831,7 +994,15 @@ class BaseBone(object):
 
     def getUniquePropertyIndexValues(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> List[str]:
         """
-            Returns a list of hashes for our current value(s), used to store in the uniquePropertyValue index.
+        Returns a list of hashes for the current value(s) of a bone in the skeleton, used for storing in the
+        unique property value index.
+
+        :param skel: A SkeletonInstance object representing the current skeleton.
+        :param name: The property-name of the bone in the skeleton for which the unique property index values
+                    are required (not the description!).
+
+        :return: A list of strings representing the hashed values for the current bone value(s) in the skeleton.
+                If the bone has no value, an empty list is returned.
         """
         val = skel[name]
         if val is None:
@@ -846,8 +1017,9 @@ class BaseBone(object):
 
     def performMagic(self, valuesCache: Dict, name: str, isAdd: bool):
         """
-            This function applies "magically" functionality which f.e. inserts the current Date or the current user.
-            :param isAdd: Signals whereever this is an add or edit operation.
+            This function applies "magically" functionality which f.e. inserts the current Date
+            or the current user.
+            :param isAdd: Signals wherever this is an add or edit operation.
         """
         pass  # We do nothing by default
 
@@ -879,7 +1051,17 @@ class BaseBone(object):
 
     def mergeFrom(self, valuesCache: Dict, boneName: str, otherSkel: 'viur.core.skeleton.SkeletonInstance'):
         """
-            Clones the values from other into this instance
+        Merges the values from another skeleton instance into the current instance, given that the bone types match.
+
+        :param valuesCache: A dictionary containing the cached values for each bone in the skeleton.
+        :param boneName: The property-name of the bone in the skeleton whose values are to be merged.
+        :param otherSkel: A SkeletonInstance object representing the other skeleton from which the values \
+            are to be merged.
+
+        This function clones the values from the specified bone in the other skeleton instance into the current
+        instance, provided that the bone types match. If the bone types do not match, a warning is logged, and the merge
+        is ignored. If the bone in the other skeleton has no value, the function returns without performing any merge
+        operation.
         """
         if getattr(otherSkel, boneName) is None:
             return
@@ -896,17 +1078,22 @@ class BaseBone(object):
                      append: bool,
                      language: Union[None, str] = None) -> bool:
         """
-            Set our value to 'value'.
-            Santy-Checks are performed; if the value is invalid, no modification will happen.
+        Sets the value of a bone in a skeleton instance, with optional support for appending and language-specific
+        values. Sanity checks are being performed.
 
-            :param skel: Dictionary with the current values from the skeleton we belong to
-            :param boneName: The Bone which should be modified
-            :param value: The value that should be assigned. It's type depends on the type of that bone
-            :param append: If true, the given value is appended to the values of that bone instead of
-                replacing it. Only supported on bones with multiple=True
-            :param language: Set/append which language
-            :return: Wherever that operation succeeded or not.
+        :param skel: The SkeletonInstance object representing the skeleton to which the bone belongs.
+        :param boneName: The property-name of the bone in the skeleton whose value should be set or modified.
+        :param value: The value to be assigned. Its type depends on the type of the bone.
+        :param append: If True, the given value is appended to the bone's values instead of replacing it. \
+            Only supported for bones with multiple=True.
+        :param language: The language code for which the value should be set or appended, \
+            if the bone supports languages.
 
+        :return: A boolean indicating whether the operation was successful or not.
+
+        This function sets or modifies the value of a bone in a skeleton instance, performing sanity checks to ensure
+        the value is valid. If the value is invalid, no modification occurs. The function supports appending values to
+        bones with multiple=True and setting or appending language-specific values for bones that support languages.
         """
         assert not (bool(self.languages) ^ bool(language)), "Language is required or not supported"
         assert not append or self.multiple, "Can't append - bone is not multiple"
@@ -944,31 +1131,46 @@ class BaseBone(object):
         return True
 
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
-        """Returns a set of strings as search index for this bone.
+        """
+        Returns a set of strings as search index for this bone.
 
-        :param skel: The skeleton instance where the values should be loaded from.
-        :param name: The name of the bone.
-        :return: A list of strings, extracted from the bone value
+        This function extracts a set of search tags from the given bone's value in the skeleton
+        instance. The resulting set can be used for indexing or searching purposes.
+
+        :param skel: The skeleton instance where the values should be loaded from. This is an instance
+            of a class derived from `viur.core.skeleton.SkeletonInstance`.
+        :param name: The name of the bone, which is a string representing the key for the bone in
+            the skeleton. This should correspond to an existing bone in the skeleton instance.
+        :return: A set of strings, extracted from the bone value. If the bone value doesn't have
+            any searchable content, an empty set is returned.
         """
         return set()
 
     def iter_bone_value(
         self, skel: 'viur.core.skeleton.SkeletonInstance', name: str
     ) -> Iterator[Tuple[Optional[int], Optional[str], Any]]:
-        """Yield all values from the Skeleton related to this bone instance.
+        """
+        Yield all values from the Skeleton related to this bone instance.
 
-        This method handles the multiple/languages cases, which could save
-        a lot of if/elifs.
-        It yields always a triplet: index, language, value
+        This method handles multiple/languages cases, which could save a lot of if/elifs.
+        It always yields a triplet: index, language, value.
         Where index is the index (int) of a value inside a multiple bone,
-        language the language (str) of a multi-language-bone
-        and value the value inside this container.
+        language is the language (str) of a multi-language-bone,
+        and value is the value inside this container.
         index or language is None if the bone is single or not multi-lang.
 
-        :param skel: The skeleton instance where the values should be loaded from.
-        :param name: The name of the bone.
+        This function can be used to conveniently iterate through all the values of a specific bone
+        in a skeleton instance, taking into account multiple and multi-language bones.
 
-        :return: A generator which yields triplets.
+        :param skel: The skeleton instance where the values should be loaded from. This is an instance
+            of a class derived from `viur.core.skeleton.SkeletonInstance`.
+        :param name: The name of the bone, which is a string representing the key for the bone in
+            the skeleton. This should correspond to an existing bone in the skeleton instance.
+
+        :return: A generator which yields triplets (index, language, value), where index is the index
+            of a value inside a multiple bone, language is the language of a multi-language bone,
+            and value is the value inside this container. index or language is None if the bone is
+            single or not multi-lang.
         """
         value = skel[name]
         if not value:

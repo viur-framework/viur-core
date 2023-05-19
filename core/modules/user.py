@@ -833,6 +833,10 @@ class User(List):
         if not skel.fromDB(key):
             raise ValueError(f"Unable to authenticate unknown user {key}")
 
+        # Verify that this user account is active
+        if skel["status"] < Status.ACTIVE.value:
+            raise errors.Forbidden("The user is disabled and cannot be authenticated.")
+
         # Update session for user
         session = current.session.get()
         # Remember persistent fields...
@@ -942,12 +946,16 @@ class User(List):
 
         return json.dumps(res)
 
+    def onEdited(self, skel):
+        super().onEdited(skel)
+        # In case the user is set to inactive, kill all sessions
+        if "status" in skel and skel["status"] < Status.ACTIVE.value:
+            session.killSessionByUser(skel["key"])
+
     def onDeleted(self, skel):
-        """
-            Invalidate all sessions of that user
-        """
-        super(User, self).onDeleted(skel)
-        session.killSessionByUser(str(skel["key"]))
+        super().onDeleted(skel)
+        # Invalidate all sessions of that user
+        session.killSessionByUser(skel["key"])
 
 
 @tasks.StartupTask

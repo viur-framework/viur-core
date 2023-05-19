@@ -2,8 +2,24 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.4.0-beta2]
+## [3.4.1]
 
+- fix: enable to serialize complex custom config structures (#735)
+
+## [3.4.0]
+
+- fix: SelectBone `defaultValue` type annotation (#719)
+- fix: comparison in `SelectBone.singleValueFromClient` (#726)
+- fix: Jinja rendering for SelectBones using Enums (#720)
+- fix: Use static handler "tree.simple.file" in File (#717)
+- fix: Check for "status" in `User.onEdited` (#722)
+- chore: Conventional commits and clarifications (#692)
+- fix: Improvements and clarifications on version string (#706)
+- security: Ensure active status in authenticateUser (#710)
+- fix: bump viur-datastore to 1.3.9 (#708)
+- fix: Run render_structure recursively on "using" and "relskel" (#705)
+- feat: Implement naive mode for `DateBone` (#667)
+- fix: SkelList.get_orders must be in the `__slots__` (#703)
 - chore: Bump viur-datastore to 1.3.8 (#700)
 - feat: Allow `Enum` for `SelectBone`-values and implement `User`s status as `Enum`  (#683)
 - fix: Keep filename synchronous in both skeleton and blob (#699)
@@ -23,7 +39,7 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - fix: `viewSkel()`: It's a member of the user module, not the auth-provider (#674)
 - feat: Improve `PasswordBone` parametrization (#619)
 - fix: Add `RelationalUpdateLevel` to__all__ (#675)
-- Fix spelling of "readonly" in renderEditForm (#670)
+- fix: spelling of "readonly" in renderEditForm (#670)
 - fix: Add structure for numericBone (#672)
 - fix: Fallback to `SkelModule` as replacement for `BasicApplication` (#665)
 - refactor: `securitykey` module (#656)
