@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
+## [3.4.3]
+
+- fix: #747 broke vi-renderer
+
 ## [3.4.2]
 
 - fix: Fixes TypeError when password is unset (#748)
