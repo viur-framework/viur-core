@@ -1,6 +1,5 @@
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.bones.string import StringBone
-from viur.core import utils
 
 
 class CredentialBone(StringBone):
@@ -12,10 +11,25 @@ class CredentialBone(StringBone):
     """
     type = "str.credential"
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(
+        self,
+        *,
+        maxLength: int = None,  # Unlimited length
+        **kwargs
+    ):
+        super().__init__(maxLength=maxLength, **kwargs)
         if self.multiple or self.languages:
             raise ValueError("Credential-Bones cannot be multiple or translated!")
+
+    def isInvalid(self, value):
+        """
+            Returns None if the value would be valid for
+            this bone, an error-message otherwise.
+        """
+        if value is None:
+            return False
+        if self.maxLength is not None and len(value) > self.maxLength:
+            return "Maximum length exceeded"
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
         """
@@ -34,7 +48,6 @@ class CredentialBone(StringBone):
         return {}
 
     def singleValueFromClient(self, value, skel, name, origData):
-        err = self.isInvalid(value)
-        if not err:
-            return utils.escapeString(value, 4 * 1024), None
+        if not (err := self.isInvalid(value)):
+            return value, None
         return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
