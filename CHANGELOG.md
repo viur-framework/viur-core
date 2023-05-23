@@ -2,6 +2,14 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
+## [3.4.2]
+
+- fix: Fixes TypeError when password is unset (#748)
+- fix: `DateBone.fromClient()` should regard tzinfo (#749)
+- feat/fix: Allow `duration` argument for skey (#751)
+- fix: `CredentialBone` without escaping (#702) (#750)
+- fix: Add path_list to the __init__ of BrowseHandler (#747)
+
 ## [3.4.1]
 
 - fix: enable to serialize complex custom config structures (#735)
