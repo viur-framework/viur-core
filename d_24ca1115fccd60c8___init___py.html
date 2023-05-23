@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="d_24ca1115fccd60c8_user_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.2.5">coverage.py v7.2.5</a>,
-            created at 2023-05-23 08:12 +0000
+            created at 2023-05-23 08:25 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"/>
@@ -202,7 +202,7 @@
     <p class="mis show_mis"><span class="n"><a id="t118" href="#t118">118</a></span><span class="t"><span class="key">def</span> <span class="nam">canAccess</span><span class="op">(</span><span class="op">*</span><span class="nam">args</span><span class="op">,</span> <span class="op">**</span><span class="nam">kwargs</span><span class="op">)</span> <span class="op">-></span> <span class="nam">bool</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t119" href="#t119">119</a></span><span class="t">    <span class="key">if</span> <span class="op">(</span><span class="nam">user</span> <span class="op">:=</span> <span class="nam">current</span><span class="op">.</span><span class="nam">user</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="op">)</span><span class="op">)</span> <span class="key">and</span> <span class="op">(</span><span class="str">"root"</span> <span class="key">in</span> <span class="nam">user</span><span class="op">[</span><span class="str">"access"</span><span class="op">]</span> <span class="key">or</span> <span class="str">"admin"</span> <span class="key">in</span> <span class="nam">user</span><span class="op">[</span><span class="str">"access"</span><span class="op">]</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t120" href="#t120">120</a></span><span class="t">        <span class="key">return</span> <span class="key">True</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t121" href="#t121">121</a></span><span class="t">    <span class="nam">pathList</span> <span class="op">=</span> <span class="nam">current</span><span class="op">.</span><span class="nam">request</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">pathlist</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t121" href="#t121">121</a></span><span class="t">    <span class="nam">pathList</span> <span class="op">=</span> <span class="nam">current</span><span class="op">.</span><span class="nam">request</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">path_list</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t122" href="#t122">122</a></span><span class="t">    <span class="key">if</span> <span class="nam">len</span><span class="op">(</span><span class="nam">pathList</span><span class="op">)</span> <span class="op">>=</span> <span class="num">2</span> <span class="key">and</span> <span class="nam">pathList</span><span class="op">[</span><span class="num">1</span><span class="op">]</span> <span class="key">in</span> <span class="op">[</span><span class="str">"skey"</span><span class="op">,</span> <span class="str">"getVersion"</span><span class="op">,</span> <span class="str">"settings"</span><span class="op">]</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t123" href="#t123">123</a></span><span class="t">        <span class="com"># Give the user the chance to login :)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t124" href="#t124">124</a></span><span class="t">        <span class="key">return</span> <span class="key">True</span>&nbsp;</span><span class="r"></span></p>
@@ -265,7 +265,7 @@
             <a id="nextFileLink" class="nav" href="d_24ca1115fccd60c8_user_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.2.5">coverage.py v7.2.5</a>,
-            created at 2023-05-23 08:12 +0000
+            created at 2023-05-23 08:25 +0000
         </p>
     </div>
 </footer>
