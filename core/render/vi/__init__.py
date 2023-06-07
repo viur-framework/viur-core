@@ -1,5 +1,6 @@
 # noinspection PyUnresolvedReferences
 from viur.core.render.vi.user import UserRender as user  # this import must exist!
+from viur.core.render.json import skey
 from viur.core.render.json.default import DefaultRender, CustomJsonEncoder
 from viur.core.render.vi.user import UserRender as user
 from viur.core import Module, conf, current, exposed, securitykey, errors
@@ -13,12 +14,6 @@ class default(DefaultRender):
 
 
 __all__ = [default]
-
-
-@exposed
-def genSkey(*args, **kwargs):
-    current.request.get().response.headers["Content-Type"] = "application/json"
-    return json.dumps(securitykey.create())
 
 
 @exposed
@@ -123,7 +118,7 @@ def getVersion(*args, **kwargs):
 def canAccess(*args, **kwargs) -> bool:
     if (user := current.user.get()) and ("root" in user["access"] or "admin" in user["access"]):
         return True
-    pathList = current.request.get().pathlist
+    pathList = current.request.get().path_list
     if len(pathList) >= 2 and pathList[1] in ["skey", "getVersion", "settings"]:
         # Give the user the chance to login :)
         return True
@@ -167,7 +162,7 @@ def get_settings():
 
 
 def _postProcessAppObj(obj):
-    obj["skey"] = genSkey
+    obj["skey"] = skey
     obj["timestamp"] = timestamp
     obj["config"] = dumpConfig
     obj["settings"] = get_settings
