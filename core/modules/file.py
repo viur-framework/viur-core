@@ -1,26 +1,28 @@
 import base64
 import email.header
-import google.auth
+import html
 import json
 import logging
 import string
-import html
-from PIL import Image, ImageCms
 from base64 import urlsafe_b64decode
 from datetime import datetime, timedelta
-from google.auth import compute_engine
-from google.auth.transport import requests
-from google.cloud import iam_credentials_v1, storage
-from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from io import BytesIO
 from quopri import decodestring
 from typing import Any, List, Tuple, Union
 from urllib.request import urlopen
-from viur.core import db, conf, errors, exposed, forcePost, forceSSL, securitykey, utils, current
+
+import google.auth
+from PIL import Image, ImageCms
+from google.auth import compute_engine
+from google.auth.transport import requests
+from google.cloud import iam_credentials_v1, storage
+from google.oauth2.service_account import Credentials as ServiceAccountCredentials
+
+from viur.core import conf, current, db, errors, exposed, forcePost, forceSSL, securitykey, utils
 from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import SkeletonInstance, skeletonByKind
-from viur.core.tasks import PeriodicTask, CallDeferred
+from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
 from viur.core.utils import sanitizeFileName
 
 credentials, project = google.auth.default()
@@ -815,3 +817,15 @@ def doCleanupDeletedFiles(cursor=None):
     newCursor = query.getCursor()
     if newCursor:
         doCleanupDeletedFiles(newCursor)
+
+
+@PeriodicTask(60 * 4)
+def start_delete_pending_files():
+    """
+    Start deletion of pending FileSkels that are older than 7 days.
+    """
+    DeleteEntitiesIter.startIterOnQuery(
+        FileBaseSkel().all()
+        .filter("pending =", True)
+        .filter("creationdate <", utils.utcNow() - timedelta(days=7))
+    )
