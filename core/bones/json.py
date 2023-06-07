@@ -27,13 +27,13 @@ class JsonBone(RawBone):
     def __init__(self, indexed: bool = False, multiple: bool = False, languages: bool = None, schema: Mapping = {},
                  *args,
                  **kwargs):
+        super().__init__(*args, **kwargs)
         assert not multiple
         assert not languages
         assert not indexed
         # Validate the schema, if it's invalid a SchemaError will be raised
         jsonschema.validators.validator_for(False).check_schema(schema)
         self.schema = schema
-        super().__init__(*args, **kwargs)
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
         if name in skel.accessedValues:
