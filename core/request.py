@@ -1,13 +1,12 @@
 import json
 import logging
 import os
+import time
 import traceback
 import typing
 import inspect
 import unicodedata
 from abc import ABC, abstractmethod
-from string import Template
-from time import time
 from urllib import parse
 from urllib.parse import unquote, urljoin, urlparse
 
@@ -102,7 +101,7 @@ class BrowseHandler():  # webapp.RequestHandler
 
     def __init__(self, request: webob.Request, response: webob.Response):
         super()
-        self.startTime = time()
+        self.startTime = time.time()
         self.request = request
         self.response = response
         self.maxLogLevel = logging.DEBUG
@@ -310,46 +309,42 @@ class BrowseHandler():  # webapp.RequestHandler
                     res = None
             if not res:
                 descr = "The server encountered an unexpected error and is unable to process your request."
+
+                if isinstance(e, errors.HTTPException):
+                    error_info = {
+                        "status": e.status,
+                        "reason": e.name,
+                        "title": str(translate(e.name)),
+                        "descr": e.descr,
+                    }
+                else:
+                    error_info = {
+                        "status": 500,
+                        "reason": "Internal Server Error",
+                        "title": str(translate("Internal Server Error")),
+                        "descr": descr
+                    }
+
+                if conf["viur.instance.is_dev_server"]:
+                    error_info["traceback"] = traceback.format_exc()
+
                 if (len(self.path_list) > 0 and self.path_list[0] in ("vi", "json")) or \
                         current.request.get().response.headers["Content-Type"] == "application/json":
                     current.request.get().response.headers["Content-Type"] = "application/json"
-                    if isinstance(e, errors.HTTPException):
-                        res = {
-                            "status": e.status,
-                            "reason": e.name,
-                            "descr": str(translate(e.name)),
-                            "hint": e.descr,
-                        }
+                    res = json.dumps(error_info)
+                else:  # We render the error in html
+                    # Try to get the template from html/error/
+                    if filename := conf["viur.mainApp"].render.getTemplateFileName((f"{error_info['status']}", "error"),
+                                                                                   raise_exception=False):
+                        template = conf["viur.mainApp"].render.getEnv().get_template(filename)
+                        res = template.render(error_info)
+
+                        # fixme: this might be the viur/core/template/error.html ...
+                        extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
                     else:
-                        res = {
-                            "status": 500,
-                            "reason": "Internal Server Error",
-                            "descr": descr
-                        }
+                        res = f"""<html><h1>{error_info["status"]} - {error_info["reason"]}"""
 
-                    if conf["viur.instance.is_dev_server"]:
-                        res["traceback"] = traceback.format_exc()
-
-                    res = json.dumps(res)
-
-                else:
-                    with (conf["viur.instance.core_base_path"].joinpath(conf["viur.errorTemplate"]).open() as tpl_file):
-                        tpl = Template(tpl_file.read())
-                        if isinstance(e, errors.HTTPException):
-                            res = tpl.safe_substitute({
-                                "error_code": e.status,
-                                "error_name": translate(e.name),
-                                "error_descr": e.descr,
-                            })
-                        else:
-                            res = tpl.safe_substitute(
-                                {"error_code": "500",
-                                 "error_name": "Internal Server Error",
-                                 "error_descr": descr,
-                                 })
-                    extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
             self.response.write(res.encode("UTF-8"))
-
 
         finally:
             self.saveSession()
@@ -373,7 +368,7 @@ class BrowseHandler():  # webapp.RequestHandler
                     'status': self.response.status_code,
                     'userAgent': self.request.headers.get('USER-AGENT'),
                     'responseSize': self.response.content_length,
-                    'latency': "%0.3fs" % (time() - self.startTime),
+                    'latency': "%0.3fs" % (time.time() - self.startTime),
                     'remoteIp': self.request.environ.get("HTTP_X_APPENGINE_USER_IP")
                 }
                 requestLogger.log_text(
