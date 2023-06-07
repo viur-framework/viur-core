@@ -141,8 +141,6 @@ class DateBone(BaseBone):
         elif not self.date and self.time:
             try:
                 value = datetime.fromisoformat(value)
-                if not self.naive:
-                    value = time_zone.localize(value)
             except:
                 try:
                     if str(rawValue).count(":") > 1:
@@ -195,15 +193,23 @@ class DateBone(BaseBone):
                             value = datetime.strptime(str(rawValue), "%d.%m.%Y")
                 except:
                     value = False  # its invalid
-            if value and not self.naive:
-                value = time_zone.localize(value)
-        if value is False:
+
+        if not value:
             return self.getEmptyValue(), [
-                ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
+                ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")
+            ]
+        if value.tzinfo and self.naive:
+            return self.getEmptyValue(), [
+                ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Datetime must be naive")
+            ]
+        if not value.tzinfo and not self.naive:
+            value = time_zone.localize(value)
+
         value = value.replace(microsecond=0)
-        err = self.isInvalid(value)
-        if err:
+
+        if err := self.isInvalid(value):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
+
         return value, None
 
     def isInvalid(self, value):

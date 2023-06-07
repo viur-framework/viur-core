@@ -1,15 +1,16 @@
 import json
 import logging
 import os
+import time
 import traceback
 import typing
+import inspect
+import unicodedata
 from abc import ABC, abstractmethod
 from urllib import parse
 from urllib.parse import unquote, urljoin, urlparse
 
-import unicodedata
 import webob
-from time import time
 
 from viur.core import current, db, errors, utils
 from viur.core.config import conf
@@ -100,12 +101,13 @@ class BrowseHandler():  # webapp.RequestHandler
 
     def __init__(self, request: webob.Request, response: webob.Response):
         super()
-        self.startTime = time()
+        self.startTime = time.time()
         self.request = request
         self.response = response
         self.maxLogLevel = logging.DEBUG
         self._traceID = request.headers.get('X-Cloud-Trace-Context', "").split("/")[0] or utils.generateRandomString()
         self.is_deferred = False
+        self.path_list = ()
         db.currentDbAccessLog.set(set())
 
     @property
@@ -307,6 +309,7 @@ class BrowseHandler():  # webapp.RequestHandler
                     res = None
             if not res:
                 descr = "The server encountered an unexpected error and is unable to process your request."
+
                 if isinstance(e, errors.HTTPException):
                     error_info = {
                         "status": e.status,
@@ -325,7 +328,7 @@ class BrowseHandler():  # webapp.RequestHandler
                 if conf["viur.instance.is_dev_server"]:
                     error_info["traceback"] = traceback.format_exc()
 
-                if (len(self.pathlist) > 0 and any(x in self.pathlist[0] for x in ["vi", "json"])) or \
+                if (len(self.path_list) > 0 and self.path_list[0] in ("vi", "json")) or \
                         current.request.get().response.headers["Content-Type"] == "application/json":
                     current.request.get().response.headers["Content-Type"] = "application/json"
                     res = json.dumps(error_info)
@@ -365,7 +368,7 @@ class BrowseHandler():  # webapp.RequestHandler
                     'status': self.response.status_code,
                     'userAgent': self.request.headers.get('USER-AGENT'),
                     'responseSize': self.response.content_length,
-                    'latency': "%0.3fs" % (time() - self.startTime),
+                    'latency': "%0.3fs" % (time.time() - self.startTime),
                     'remoteIp': self.request.environ.get("HTTP_X_APPENGINE_USER_IP")
                 }
                 requestLogger.log_text(
@@ -424,7 +427,6 @@ class BrowseHandler():  # webapp.RequestHandler
         if typeOrigin is typing.Union:
             typeArgs = typeHint.__args__  # Was: typing.get_args(typeHint) (not supported in python 3.7)
             if len(typeArgs) == 2 and isinstance(None, typeArgs[1]):  # is None:
-                # This is typing.Optional
                 return self.processTypeHint(typeArgs[0], inValue, parsingOnly)
         elif typeOrigin is list:
             if parsingOnly:
@@ -488,6 +490,12 @@ class BrowseHandler():  # webapp.RequestHandler
             Does the actual work of sanitizing the parameter, determine which @exposed (or @internalExposed) function
             to call (and with witch parameters)
         """
+
+        # Parse the URL
+        if path := parse.urlparse(path).path:
+            self.path_list = tuple(unicodedata.normalize("NFC", parse.unquote(part))
+                                   for part in path.strip("/").split("/"))
+
         # Prevent Hash-collision attacks
         kwargs = {}
 
@@ -520,41 +528,42 @@ class BrowseHandler():  # webapp.RequestHandler
         if "self" in kwargs or "return" in kwargs:  # self or return is reserved for bound methods
             raise errors.BadRequest()
 
-        # Parse the URL
-        path = parse.urlparse(path).path
-        if path:
-            self.pathlist = [unicodedata.normalize("NFC", parse.unquote(x)) for x in path.strip("/").split("/")]
-        else:
-            self.pathlist = []
         caller = conf["viur.mainResolver"]
         idx = 0  # Count how may items from *args we'd have consumed (so the rest can go into *args of the called func
-        for currpath in self.pathlist:
+        path_found = True
+        for part in self.path_list:
             if "canAccess" in caller and not caller["canAccess"]():
                 # We have a canAccess function guarding that object,
                 # and it returns False...
-                raise (errors.Unauthorized())
+                raise errors.Unauthorized()
             idx += 1
-            currpath = currpath.replace("-", "_").replace(".", "_")
-            if currpath in caller:
-                caller = caller[currpath]
-                if (("exposed" in dir(caller) and caller.exposed) or ("internalExposed" in dir(
-                    caller) and caller.internalExposed and self.internalRequest)) and hasattr(caller, '__call__'):
-                    args = self.pathlist[idx:] + [x for x in args]  # Prepend the rest of Path to args
+            part = part.replace("-", "_").replace(".", "_")
+            if part not in caller:
+                part = "index"
+
+            if part in caller:
+                caller = caller[part]
+                if (("exposed" in dir(caller) and caller.exposed) or
+                        ("internalExposed" in dir(caller) and caller.internalExposed and self.internalRequest)) and \
+                        hasattr(caller, '__call__'):
+                    if part == "index":
+                        idx -= 1
+                    args = self.path_list[idx:] + args  # Prepend the rest of Path to args
                     break
-            elif "index" in caller:
-                caller = caller["index"]
-                if (("exposed" in dir(caller) and caller.exposed) or ("internalExposed" in dir(
-                    caller) and caller.internalExposed and self.internalRequest)) and hasattr(caller, '__call__'):
-                    args = self.pathlist[idx - 1:] + [x for x in args]
+
+                elif part == "index":
+                    path_found = False
                     break
-                else:
-                    raise (errors.NotFound("The path %s could not be found" % "/".join(
-                        [("".join([y for y in x if y.lower() in "0123456789abcdefghijklmnopqrstuvwxyz"])) for x in
-                         self.pathlist[: idx]])))
+
             else:
-                raise (errors.NotFound("The path %s could not be found" % "/".join(
-                    [("".join([y for y in x if y.lower() in "0123456789abcdefghijklmnopqrstuvwxyz"])) for x in
-                     self.pathlist[: idx]])))
+                path_found = False
+                break
+
+        if not path_found:
+            from viur.core import utils
+            raise errors.NotFound(
+                f"""The path {utils.escapeString("/".join(self.path_list[:idx]))} could not be found""")
+
         if (not callable(caller) or ((not "exposed" in dir(caller) or not caller.exposed)) and (
             not "internalExposed" in dir(caller) or not caller.internalExposed or not self.internalRequest)):
             if "index" in caller \
@@ -564,7 +573,7 @@ class BrowseHandler():  # webapp.RequestHandler
                     caller["index"]) and caller["index"].internalExposed and self.internalRequest)):
                 caller = caller["index"]
             else:
-                raise (errors.MethodNotAllowed())
+                raise errors.MethodNotAllowed()
         # Check for forceSSL flag
         if not self.internalRequest \
                 and "forceSSL" in dir(caller) \
@@ -589,7 +598,13 @@ class BrowseHandler():  # webapp.RequestHandler
             if annotations and not self.internalRequest:
                 newKwargs = {}  # The dict of new **kwargs we'll pass to the caller
                 newArgs = []  # List of new *args we'll pass to the caller
-                argsOrder = list(caller.__code__.co_varnames)[1: caller.__code__.co_argcount]
+
+                # FIXME: Use inspect.signature() for all this stuff...
+                argsOrder = caller.__code__.co_varnames[:caller.__code__.co_argcount]
+                # In case of a method, ignore the 'self' parameter
+                if inspect.ismethod(caller):
+                    argsOrder = argsOrder[1:]
+
                 # Map args in
                 for idx in range(0, min(len(self.args), len(argsOrder))):
                     paramKey = argsOrder[idx]

@@ -13,6 +13,7 @@ from viur.core.bones import *
 from viur.core.i18n import LanguageWrapper, TranslationExtension
 from viur.core.skeleton import SkelList, SkeletonInstance
 from . import utils as jinjaUtils
+from ..json.default import CustomJsonEncoder
 
 KeyValueWrapper = collections.namedtuple("KeyValueWrapper", ["key", "descr"])
 
@@ -501,6 +502,7 @@ class Render(object):
             self.env = Environment(loader=loaders,
                                    extensions=["jinja2.ext.do", "jinja2.ext.loopcontrols", TranslationExtension])
             self.env.trCache = {}
+            self.env.policies["json.dumps_kwargs"]["cls"] = CustomJsonEncoder
 
             # Import functions.
             for name, func in jinjaUtils.getGlobalFunctions().items():
