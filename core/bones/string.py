@@ -5,7 +5,7 @@ for text fields.
 """
 
 import logging
-from typing import Dict, List, Optional, Set
+from typing import Callable, Dict, List, Optional, Set
 
 from viur.core import current, db, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
@@ -26,6 +26,7 @@ class StringBone(BaseBone):
         *,
         caseSensitive: bool = True,
         maxLength: int | None = 254,
+        natural_sorting: bool|Callable=False,
         **kwargs
     ):
         """
@@ -40,6 +41,15 @@ class StringBone(BaseBone):
             raise ValueError("maxLength must be a positive integer or None")
         self.caseSensitive = caseSensitive
         self.maxLength = maxLength
+        logging.debug(f"{natural_sorting = }")
+        if callable(natural_sorting):
+            self.natural_sorting = natural_sorting
+        elif not isinstance(natural_sorting, bool):
+            raise TypeError("natural_sorting must be a callable or boolean!")
+        elif not natural_sorting:
+            self.natural_sorting = None
+        # else:
+        #     self.natural_sorting = self.default_natural_sorting
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
         """
@@ -52,8 +62,13 @@ class StringBone(BaseBone):
             this data field or not.
         :return: The serialized value.
         """
-        if not self.caseSensitive and parentIndexed:
-            return {"val": value, "idx": value.lower() if isinstance(value, str) else None}
+        if (not self.caseSensitive or self.natural_sorting) and parentIndexed:
+            serialized = {"val": value}
+            if not self.caseSensitive:
+                serialized["idx"]= value.lower() if isinstance(value, str) else None
+            if self.natural_sorting:
+                serialized["sort_idx"] = self.natural_sorting(value)
+            return serialized
         return value
 
     def singleValueUnserialize(self, value):
@@ -210,15 +225,19 @@ class StringBone(BaseBone):
                     if lng in self.languages:
                         lang = lng
                 if lang is None:
-                    lang = current.language.get()  # currentSession.getLanguage()
+                    lang = current.language.get()
                     if not lang or lang not in self.languages:
                         lang = self.languages[0]
-                if self.caseSensitive:
+                if self.natural_sorting:
+                    prop = f"{name}.{lang}.sort_idx" #FIXME: test
+                elif self.caseSensitive:
                     prop = "%s.%s" % (name, lang)
                 else:
                     prop = "%s.%s.idx" % (name, lang)
             else:
-                if self.caseSensitive:
+                if self.natural_sorting:
+                    prop = f"{name}.sort_idx"
+                elif self.caseSensitive:
                     prop = name
                 else:
                     prop = name + ".idx"
@@ -242,6 +261,69 @@ class StringBone(BaseBone):
             else:
                 dbFilter.order(order)
         return dbFilter
+
+    def natural_sorting(self, value:str|None) -> str|None:
+        if value is None:
+            return None
+        assert isinstance(value, str)
+        if not self.caseSensitive:
+            value = value.lower()
+
+
+        mapping = {
+            # "a": "aa",
+            # "A": "AA",
+            "ö": "oOo",
+            "Ö": "ooo",
+            "ü": "uUu",
+            "Ü": "uuu",
+            "ä": "aAa",
+            "Ä": "aaa",
+            "ẞ": "sss",
+        }
+
+        n = []
+        for char in value:
+            if char in mapping:
+                n.append(mapping[char])
+            else:
+                # ascii sorting is uppercase first, then lowercase
+                # same base letter + lower-case first + umlauts last
+                n.append(char.lower() + char.swapcase() + char.upper())
+        return "".join(n)
+
+
+        mapping = {
+            # "a": "aa",
+            # "A": "AA",
+            "ö": "oE",
+            "Ö": "OE",
+            "ü": "uE",
+            "Ü": "UE",
+            "ä": "aE",
+            "Ä": "AE",
+            "ẞ": "SS",
+        }
+
+        n = []
+        for char in value:
+            if char in mapping:
+                n.append(mapping[char])
+            else:
+                n.append(char + char.lower())
+        return "".join(n)
+
+        return value.translate(str.maketrans({
+            "a": "aa",
+            "A": "AA",
+            "ö": "oe",
+            "Ö": "Oe",
+            "ü": "ue",
+            "Ü": "Ue",
+            "ä": "ae",
+            "Ä": "Ae",
+            "ẞ": "SS",
+        }))
 
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
         """
