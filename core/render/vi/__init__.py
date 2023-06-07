@@ -1,5 +1,6 @@
 # noinspection PyUnresolvedReferences
 from viur.core.render.vi.user import UserRender as user  # this import must exist!
+from viur.core.render.json import skey
 from viur.core.render.json.default import DefaultRender, CustomJsonEncoder
 from viur.core.render.vi.user import UserRender as user
 from viur.core import Module, conf, current, exposed, securitykey, errors
@@ -13,12 +14,6 @@ class default(DefaultRender):
 
 
 __all__ = [default]
-
-
-@exposed
-def genSkey(*args, **kwargs):
-    current.request.get().response.headers["Content-Type"] = "application/json"
-    return json.dumps(securitykey.create())
 
 
 @exposed
@@ -96,7 +91,7 @@ def dumpConfig():
         }
     }
     current.request.get().response.headers["Content-Type"] = "application/json"
-    return json.dumps(res)
+    return json.dumps(res, cls=CustomJsonEncoder)
 
 
 @exposed
@@ -105,17 +100,25 @@ def getVersion(*args, **kwargs):
     Returns viur-core version number
     """
     current.request.get().response.headers["Content-Type"] = "application/json"
-    if conf["viur.instance.is_dev_server"] or current.user.get():
-        return json.dumps(conf["viur.version"])
 
-    # Hide patchlevel
-    return json.dumps((conf["viur.version"][0], conf["viur.version"][1], 0))
+    version = conf["viur.version"]
+
+    # always fill up to 4 parts
+    while len(version) < 4:
+        version += (None,)
+
+    if conf["viur.instance.is_dev_server"] \
+            or ((cuser := current.user.get()) and ("root" in cuser["access"] or "admin" in cuser["access"])):
+        return json.dumps(version[:4])
+
+    # Hide patch level + appendix to non-authorized users
+    return json.dumps((version[0], version[1], None, None))
 
 
 def canAccess(*args, **kwargs) -> bool:
     if (user := current.user.get()) and ("root" in user["access"] or "admin" in user["access"]):
         return True
-    pathList = current.request.get().pathlist
+    pathList = current.request.get().path_list
     if len(pathList) >= 2 and pathList[1] in ["skey", "getVersion", "settings"]:
         # Give the user the chance to login :)
         return True
@@ -159,7 +162,7 @@ def get_settings():
 
 
 def _postProcessAppObj(obj):
-    obj["skey"] = genSkey
+    obj["skey"] = skey
     obj["timestamp"] = timestamp
     obj["config"] = dumpConfig
     obj["settings"] = get_settings

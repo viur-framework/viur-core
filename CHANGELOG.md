@@ -2,8 +2,29 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.4.0.rc1]
+## [3.4.3]
 
+- fix: #747 broke vi-renderer
+
+## [3.4.2]
+
+- fix: Fixes TypeError when password is unset (#748)
+- fix: `DateBone.fromClient()` should regard tzinfo (#749)
+- feat/fix: Allow `duration` argument for skey (#751)
+- fix: `CredentialBone` without escaping (#702) (#750)
+- fix: Add path_list to the __init__ of BrowseHandler (#747)
+
+## [3.4.1]
+
+- fix: enable to serialize complex custom config structures (#735)
+
+## [3.4.0]
+
+- fix: SelectBone `defaultValue` type annotation (#719)
+- fix: comparison in `SelectBone.singleValueFromClient` (#726)
+- fix: Jinja rendering for SelectBones using Enums (#720)
+- fix: Use static handler "tree.simple.file" in File (#717)
+- fix: Check for "status" in `User.onEdited` (#722)
 - chore: Conventional commits and clarifications (#692)
 - fix: Improvements and clarifications on version string (#706)
 - security: Ensure active status in authenticateUser (#710)

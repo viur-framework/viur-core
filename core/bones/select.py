@@ -4,8 +4,6 @@
 """
 
 import enum
-import logging
-
 from collections import OrderedDict
 from numbers import Number
 from typing import Callable, Dict, List, Tuple, Union
@@ -13,10 +11,11 @@ from typing import Callable, Dict, List, Tuple, Union
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.i18n import translate
 
-SelectBoneValue = Union[str, Number]
+SelectBoneValue = Union[str, Number, enum.Enum]
 """
 Type alias of possible values in a SelectBone. SelectBoneValue can be either a string (str) or a number (Number)
 """
+
 SelectBoneMultiple = List[SelectBoneValue]
 """ SelectBoneMultiple is a list of SelectBoneValue elements."""
 
@@ -35,8 +34,11 @@ class SelectBone(BaseBone):
     def __init__(
         self,
         *,
-        defaultValue: Union[None, Dict[str, Union[SelectBoneMultiple, SelectBoneValue]],
-                            SelectBoneMultiple, enum.Enum] = None,
+        defaultValue: Union[
+            SelectBoneValue,
+            SelectBoneMultiple,
+            Dict[str, Union[SelectBoneMultiple, SelectBoneValue]],
+        ] = None,
         values: Union[Dict, List, Tuple, Callable, enum.EnumMeta] = (),
         **kwargs
     ):
