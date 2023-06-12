@@ -30,13 +30,13 @@ class Session:
         Store Sessions inside the datastore.
         The behaviour of this module can be customized in the following ways:
 
-        - :prop:sameSite can be set to None, "none", "lax" or "strict" to influence the same-site tag on the cookies
+        - :prop:same_site can be set to None, "none", "lax" or "strict" to influence the same-site tag on the cookies
             we set
-        - :prop:sessionCookie is set to True by default, causing the cookie to be treated as a session cookie (it will
-            be deleted on browser close). If set to False, it will be emitted with the life-time in
+        - :prop:is_session_cookie is set to True by default, causing the cookie to be treated as a session cookie
+            (it will be deleted on browser close). If set to False, it will be emitted with the life-time in
             conf["viur.session.lifeTime"].
         - The config variable conf["viur.session.lifeTime"]: Determines, how ling (in Minutes) a session stays valid.
-            Even if :prop:sessionCookie is set to True, we'll void a session server-side after no request has been made
+            Even if :prop:is_session_cookie is set to True, we'll void a session server-side after no request has been made
             within said lifeTime.
         - The config variables conf["viur.session.persistentFieldsOnLogin"] and
             conf["viur.session.persistentFieldsOnLogout"] lists fields, that may survive a login/logout action.
@@ -47,20 +47,17 @@ class Session:
 
     """
     kindName = "viur-session"
-    sameSite = "lax"  # Either None (don't issue sameSite header), "none", "lax" or "strict"
-    sessionCookie = True  # If True, issue the cookie without a lifeTime (will disappear on browser close)
-    cookieName = f"""viur_cookie_{conf["viur.instance.project_id"]}"""
+    same_site = "lax"  # Either None (don't issue same_site header), "none", "lax" or "strict"
+    is_session_cookie = True  # If True, issue the cookie without a lifeTime (will disappear on browser close)
+    cookie_name = f"""viur_cookie_{conf["viur.instance.project_id"]}"""
     GUEST_USER = "__guest__"
 
     def __init__(self):
         super().__init__()
         self.changed = False
-        self.isInitial = False
-        self.cookieKey = None
-        self.sslKey = None
-        self.staticSecurityKey = None
-        self.securityKey = None
-        self.session = {}
+        self.cookie_key = None
+        self.static_security_key = None
+        self.session = db.Entity()
 
     def load(self, req: BrowseHandler):
         """
@@ -69,8 +66,8 @@ class Session:
             If the client supplied a valid Cookie, the session is read from the datastore, otherwise a new,
             empty session will be initialized.
         """
-        if self.cookieName in req.request.cookies:
-            cookie = str(req.request.cookies[self.cookieName])
+        if self.cookie_name in req.request.cookies:
+            cookie = str(req.request.cookies[self.cookie_name])
             if data := db.Get(db.Key(self.kindName, cookie)):  # Loaded successfully
                 if data["lastseen"] < time.time() - conf["viur.session.lifeTime"]:
                     # This session is too old
@@ -78,9 +75,8 @@ class Session:
                     return False
 
                 self.session = data["data"]
-                self.staticSecurityKey = data["staticSecurityKey"]
-                self.securityKey = data["securityKey"]
-                self.cookieKey = cookie
+                self.static_security_key = data["static_security_key"]
+                self.cookie_key = cookie
 
                 if data["lastseen"] < time.time() - 5 * 60:  # Refresh every 5 Minutes
                     self.changed = True
@@ -95,7 +91,7 @@ class Session:
 
             Does nothing, in case the session hasn't been changed in the current request.
         """
-        if not (self.changed or self.isInitial):
+        if not self.changed:
             return
 
         # We will not issue sessions over http anymore
@@ -109,28 +105,27 @@ class Session:
         except Exception:
             user_key = Session.GUEST_USER  # this is a guest
 
-        dbSession = db.Entity(db.Key(self.kindName, self.cookieKey))
+        dbSession = db.Entity(db.Key(self.kindName, self.cookie_key))
 
         dbSession["data"] = db.fixUnindexableProperties(self.session)
-        dbSession["staticSecurityKey"] = self.staticSecurityKey
-        dbSession["securityKey"] = self.securityKey
+        dbSession["static_security_key"] = self.static_security_key
         dbSession["lastseen"] = time.time()
         dbSession["user"] = str(user_key)  # allow filtering for users
         dbSession.exclude_from_indexes = ["data"]
 
         db.Put(dbSession)
 
-        # Provide Set-Cookie header entry with configured settings
+        # Provide Set-Cookie header entry with configured properties
         flags = (
             "Path=/",
             "HttpOnly",
-            f"SameSite={self.sameSite}" if self.sameSite else None,
+            f"SameSite={self.same_site}" if self.same_site else None,
             "Secure" if not conf["viur.instance.is_dev_server"] else None,
-            f"Max-Age={conf['viur.session.lifeTime']}" if not self.sessionCookie else None,
+            f"Max-Age={conf['viur.session.lifeTime']}" if not self.is_session_cookie else None,
         )
 
         req.response.headerlist.append(
-            ("Set-Cookie", f"{self.cookieName}={self.cookieKey};{';'.join([f for f in flags if f])}")
+            ("Set-Cookie", f"{self.cookie_name}={self.cookie_key};{';'.join([f for f in flags if f])}")
         )
 
     def __contains__(self, key: str) -> bool:
@@ -199,15 +194,15 @@ class Session:
 
             :warning: Everything is flushed.
         """
-        if self.cookieKey:
-            db.Delete(db.Key(self.kindName, self.cookieKey))
+        if self.cookie_key:
+            db.Delete(db.Key(self.kindName, self.cookie_key))
+            from viur.core import securitykey
+            securitykey.clear_session_skeys(self.cookie_key)
 
-        self.cookieKey = utils.generateRandomString(42)
-        self.staticSecurityKey = utils.generateRandomString(13)
-        self.securityKey = utils.generateRandomString(13)
+        self.cookie_key = utils.generateRandomString(42)
+        self.static_security_key = utils.generateRandomString(13)
+        self.session.clear()
         self.changed = True
-        self.isInitial = True
-        self.session = db.Entity()
 
     def items(self) -> 'dict_items':
         """
@@ -215,40 +210,11 @@ class Session:
         """
         return self.session.items()
 
-    def getSecurityKey(self) -> Optional[str]:
-        return self.securityKey
-
-    def validateSecurityKey(self, key: str) -> bool:
-        """
-        Checks if key matches the current CSRF-Token of our session. On success, a new key is generated.
-        """
-        if hmac.compare_digest(self.securityKey, key):
-            # It looks good so far, check if we can acquire that skey inside a transaction
-            def exchangeSecurityKey():
-                dbSession = db.Get(db.Key(self.kindName, self.cookieKey))
-                if not dbSession:  # Should not happen (except if session.reset has been called in the same request)
-                    return False
-                if dbSession["securityKey"] != key:  # Race-Condidtion: That skey has been used in another instance
-                    return False
-                dbSession["securityKey"] = utils.generateRandomString(13)
-                db.Put(dbSession)
-                return dbSession["securityKey"]
-
-            try:
-                newSkey = db.RunInTransaction(exchangeSecurityKey)
-            except:  # This should be transaction collision
-                return False
-            if not newSkey:
-                return False
-            self.securityKey = newSkey
-            return True
-        return False
-
     def validateStaticSecurityKey(self, key: str) -> bool:
         """
         Checks if key matches the current *static* CSRF-Token of our session.
         """
-        return hmac.compare_digest(self.staticSecurityKey, key)
+        return hmac.compare_digest(self.static_security_key, key)
 
 
 @tasks.CallDeferred

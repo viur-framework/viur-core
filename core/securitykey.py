@@ -26,66 +26,58 @@
 
         Therefor that header is prefixed with "Sec-" - so it cannot be read or set using JavaScript.
 """
-from viur.core import utils, current, db, tasks
+import typing
+import datetime
+from viur.core import conf, utils, current, db, tasks
 from viur.core.tasks import DeleteEntitiesIter
-from datetime import datetime, timedelta
-from typing import Union
 
 SECURITYKEY_KINDNAME = "viur-securitykey"
+SECURITYKEY_DURATION = 24 * 60 * 60  # one day
 
 
-def create(duration: Union[None, int] = None, **custom_data) -> str:
+def create(duration: typing.Union[None, int] = None, session: bool = True, **custom_data) -> str:
     """
-        Creates a new one-time security key or returns the current sessions CSRF-token.
+        Creates a new one-time security key or returns a valid CSRF-token for the current session.
 
         The custom data (given as **custom_data) that can be stored with the key.
         Any data provided must be serializable by the datastore.
 
-        :param duration: Make this key valid for a fixed timeframe of seconds (and independent of the current session)
+        :param duration: Make this key valid for a fixed timeframe of seconds
+        :param session: Bind this key to the current session
+        :param custom_data: Any other data is stored behind the skey.
+
         :returns: The new one-time key, which is a randomized string.
     """
+    if any(k.startswith("viur_") for k in custom_data):
+        raise ValueError("custom_data keys with a 'viur_'-prefix are reserved.")
+
     if not duration:
-        if custom_data:
-            raise ValueError("Providing any custom_data is not allowed when session security key is wanted")
-
-        return current.session.get().getSecurityKey()
-
-    elif "until" in custom_data:
-        raise ValueError("The 'until' property is reserved and cannot be used in the custom_data")
+        duration = conf["viur.session.lifeTime"] if session else SECURITYKEY_DURATION
 
     key = utils.generateRandomString()
 
     entity = db.Entity(db.Key(SECURITYKEY_KINDNAME, key))
     entity |= custom_data
 
-    entity["until"] = utils.utcNow() + timedelta(seconds=int(duration))
+    entity["viur_session"] = current.session.get().cookie_key if session else None
+    entity["viur_until"] = utils.utcNow() + datetime.timedelta(seconds=int(duration))
     db.Put(entity)
 
     return key
 
 
-def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
+def validate(key: str, session: bool = True) -> typing.Union[bool, db.Entity]:
     """
         Validates a security key.
 
-        If useSessionKey is True, the key is expected to be the session's current security key
-        or its static security key.
-
-        Otherwise, it must be a key created with a duration, so that it is session independent.
-
-        :param key: The key to be validated
-        :param useSessionKey: If True, validate against the session's skey, otherwise lookup an unbound key
+        :param key: The key to be validated.
+        :param session: If True, validate against a session's skey, otherwise lookup an unbound key
         :returns: False if the key was not valid for whatever reasons, the data (given during createSecurityKey) as
-            dictionary or True if the dict is empty (or useSessionKey was True).
+            dictionary or True if the dict is empty (or session was True).
     """
-    if useSessionKey:
-        session = current.session.get()
-        if key == "staticSessionKey":
-            skey_header_value = current.request.get().request.headers.get("Sec-X-ViUR-StaticSKey")
-            if skey_header_value and session.validateStaticSecurityKey(skey_header_value):
-                return True
-
-        elif session.validateSecurityKey(key):
+    if session and key == "staticSessionKey":
+        skey_header_value = current.request.get().request.headers.get("Sec-X-ViUR-StaticSKey")
+        if skey_header_value and current.session.get().validateStaticSecurityKey(skey_header_value):
             return True
 
         return False
@@ -93,21 +85,39 @@ def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
     if not key or not (entity := db.Get(db.Key(SECURITYKEY_KINDNAME, key))):
         return False
 
+    # First of all, delete the entity, validation is done afterward.
     db.Delete(entity)
 
     # Key has expired?
-    if entity["until"] < utils.utcNow():
+    if entity["viur_until"] < utils.utcNow():
         return False
 
-    del entity["until"]
+    del entity["viur_until"]
+
+    # Key is session bound?
+    if session:
+        if entity["viur_session"] != current.session.get().cookie_key:
+            return False
+    elif entity["viur_session"]:
+        return False
+
+    del entity["viur_session"]
 
     return entity or True
 
 
 @tasks.PeriodicTask(60 * 4)
-def start_clear_skeys():
+def periodic_clear_skeys():
     """
         Removes old (expired) skeys
     """
-    query = db.Query(SECURITYKEY_KINDNAME).filter("until <", datetime.now() - timedelta(seconds=300))
+    query = db.Query(SECURITYKEY_KINDNAME).filter("viur_until <", utils.utcNow() - datetime.timedelta(seconds=300))
+    DeleteEntitiesIter.startIterOnQuery(query)
+
+@tasks.CallDeferred
+def clear_session_skeys(session_key):
+    """
+        Removes any skeys bound to a specific session.
+    """
+    query = db.Query(SECURITYKEY_KINDNAME).filter("viur_session", session_key)
     DeleteEntitiesIter.startIterOnQuery(query)

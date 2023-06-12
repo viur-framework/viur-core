@@ -2,13 +2,12 @@ from .default import DefaultRender as default
 from .user import UserRender as user
 from viur.core import securitykey, current, errors, exposed
 import json
-import typing
 
 __all__ = [default]
 
 
 @exposed
-def skey(duration: typing.Optional[int] = None, *args, **kwargs) -> str:
+def skey(duration: int = 60, *args, **kwargs) -> str:
     """
     Creates or returns a valid skey.
 
@@ -20,12 +19,8 @@ def skey(duration: typing.Optional[int] = None, *args, **kwargs) -> str:
     """
     current.request.get().response.headers["Content-Type"] = "application/json"
 
-    if duration is not None:
-        if not current.user.get():
-            raise errors.Unauthorized("Durations can only be used by authenticated users")
-
-        if not 0 < duration <= 60:
-            raise errors.Forbidden("Invalid duration provided")
+    if not 0 < duration <= 60:
+        raise errors.Forbidden("Invalid duration provided")
 
     return json.dumps(securitykey.create(duration=duration))
 

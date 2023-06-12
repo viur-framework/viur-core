@@ -221,7 +221,7 @@ class UserPassword:
         if current.user.get():  # User is already logged in, nothing to do.
             return self.userModule.render.loginSucceeded()
 
-        if not name or not password or not securitykey.validate(skey, useSessionKey=True):
+        if not name or not password or not securitykey.validate(skey):
             return self.userModule.render.login(self.LoginSkel())
 
         self.loginRateLimit.assertQuotaIsAvailable()
@@ -293,7 +293,7 @@ class UserPassword:
             skel = self.LostPasswordStep1Skel()
             if not request.isPostRequest or not skel.fromClient(kwargs):
                 return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
-            if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
+            if not securitykey.validate(kwargs.get("skey")):
                 raise errors.PreconditionFailed()
             self.passwordRecoveryRateLimit.decrementQuota()
             recoveryKey = utils.generateRandomString(13)  # This is the key the user will have to Copy&Paste
@@ -308,7 +308,7 @@ class UserPassword:
             return self.pwrecover()  # Fall through to the second step as that key in the session is now set
         else:
             if request.isPostRequest and kwargs.get("abort") == "1" \
-                and securitykey.validate(kwargs.get("skey"), useSessionKey=True):
+                and securitykey.validate(kwargs.get("skey")):
                 # Allow a user to abort the process if a wrong email has been used
                 session["user.auth_userpassword.pwrecover"] = None
                 return self.pwrecover()
@@ -324,7 +324,7 @@ class UserPassword:
             skel = self.LostPasswordStep2Skel()
             if not skel.fromClient(kwargs) or not request.isPostRequest:
                 return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep2Template)
-            if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
+            if not securitykey.validate(kwargs.get("skey")):
                 raise errors.PreconditionFailed()
             self.passwordRecoveryRateLimit.decrementQuota()
             if not hmac.compare_digest(session["user.auth_userpassword.pwrecover"]["recoveryKey"], skel["recoveryKey"]):
@@ -392,7 +392,7 @@ class UserPassword:
 
     @exposed
     def verify(self, skey, *args, **kwargs):
-        data = securitykey.validate(skey, useSessionKey=False)
+        data = securitykey.validate(skey, session=False)
         skel = self.userModule.editSkel()
         if not data or not isinstance(data, dict) or "userKey" not in data or not skel.fromDB(
             data["userKey"].id_or_name):
@@ -454,7 +454,7 @@ class UserPassword:
             or ("bounce" in kwargs and kwargs["bounce"] == "1")):  # review before adding
             # render the skeleton in the version it could as far as it could be read.
             return self.userModule.render.add(skel)
-        if not securitykey.validate(skey, useSessionKey=True):
+        if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
         skel.toDB()
         if self.registrationEmailVerificationRequired and skel["status"] == Status.WAITING_FOR_EMAIL_VERIFICATION:
@@ -501,7 +501,7 @@ class GoogleAccount:
             extendCsp({"script-src": ["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
                        "style-src": ["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]})
             return tplStr
-        if not securitykey.validate(skey, useSessionKey=True):
+        if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
         userInfo = id_token.verify_oauth2_token(token, requests.Request(), conf["viur.user.google.clientID"])
         if userInfo['iss'] not in {'accounts.google.com', 'https://accounts.google.com'}:
@@ -636,7 +636,7 @@ class TimeBasedOTP:
             raise errors.Forbidden()
         if otptoken is None:
             self.userModule.render.edit(self.OtpSkel())
-        if not securitykey.validate(skey, useSessionKey=True):
+        if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
         if token["failures"] > 3:
             raise errors.Forbidden("Maximum amount of authentication retries exceeded")
@@ -847,7 +847,7 @@ class User(List):
         # Update session, user and request
         session["user"] = skel.dbEntity
 
-        current.request.get().response.headers["Sec-X-ViUR-StaticSKey"] = session.staticSecurityKey
+        current.request.get().response.headers["Sec-X-ViUR-StaticSKey"] = session.static_security_key
         current.user.set(self.getCurrentUser())
 
         self.onLogin(skel)
@@ -862,7 +862,7 @@ class User(List):
         """
         if not (user := current.user.get()):
             raise errors.Unauthorized()
-        if not securitykey.validate(skey, useSessionKey=True):
+        if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
 
         self.onLogout(user)

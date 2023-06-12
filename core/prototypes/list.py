@@ -86,12 +86,12 @@ class List(SkelModule):
 
             The function uses the viewTemplate of the application.
 
-            :returns: The rendered representation of the the supplied data.
+            :returns: The rendered representation of the supplied data.
         """
         if not self.canPreview():
             raise errors.Unauthorized()
 
-        if not securitykey.validate(skey, useSessionKey=True):
+        if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
 
         skel = self.viewSkel()
@@ -211,7 +211,7 @@ class List(SkelModule):
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self.render.edit(skel)
-        if not securitykey.validate(skey, useSessionKey=True):
+        if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
 
         self.onEdit(skel)
@@ -247,7 +247,7 @@ class List(SkelModule):
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self.render.add(skel)
-        if not securitykey.validate(skey, useSessionKey=True):
+        if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
 
         self.onAdd(skel)
@@ -281,7 +281,7 @@ class List(SkelModule):
         if not self.canDelete(skel):
             raise errors.Unauthorized()
 
-        if not securitykey.validate(skey, useSessionKey=True):
+        if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
 
         self.onDelete(skel)
