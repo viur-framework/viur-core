@@ -307,8 +307,7 @@ class UserPassword:
             del recoveryKey
             return self.pwrecover()  # Fall through to the second step as that key in the session is now set
         else:
-            if request.isPostRequest and kwargs.get("abort") == "1" \
-                and securitykey.validate(kwargs.get("skey")):
+            if request.isPostRequest and kwargs.get("abort") == "1" and securitykey.validate(kwargs.get("skey")):
                 # Allow a user to abort the process if a wrong email has been used
                 session["user.auth_userpassword.pwrecover"] = None
                 return self.pwrecover()

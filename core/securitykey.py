@@ -114,6 +114,7 @@ def periodic_clear_skeys():
     query = db.Query(SECURITYKEY_KINDNAME).filter("viur_until <", utils.utcNow() - datetime.timedelta(seconds=300))
     DeleteEntitiesIter.startIterOnQuery(query)
 
+
 @tasks.CallDeferred
 def clear_session_skeys(session_key):
     """
