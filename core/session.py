@@ -36,15 +36,14 @@ class Session:
             (it will be deleted on browser close). If set to False, it will be emitted with the life-time in
             conf["viur.session.lifeTime"].
         - The config variable conf["viur.session.lifeTime"]: Determines, how ling (in Minutes) a session stays valid.
-            Even if :prop:is_session_cookie is set to True, we'll void a session server-side after no request has been made
-            within said lifeTime.
+            Even if :prop:is_session_cookie is set to True, we'll void a session server-side after no request has been
+            made within said lifeTime.
         - The config variables conf["viur.session.persistentFieldsOnLogin"] and
             conf["viur.session.persistentFieldsOnLogout"] lists fields, that may survive a login/logout action.
             For security reasons, we completely destroy a session on login/logout (it will be deleted, a new empty
             database object will be created and a new cookie with a different key is sent to the browser). This causes
             all data currently stored to be lost. Only keys listed in these variables will be copied into the new
             session.
-
     """
     kindName = "viur-session"
     same_site = "lax"  # Either None (don't issue same_site header), "none", "lax" or "strict"
