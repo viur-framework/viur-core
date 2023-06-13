@@ -65,13 +65,14 @@ class Session:
             If the client supplied a valid Cookie, the session is read from the datastore, otherwise a new,
             empty session will be initialized.
         """
-        if self.cookie_key := str(req.request.cookies.get(self.cookie_name)):
-            if data := db.Get(db.Key(self.kindName, self.cookie_key)):  # Loaded successfully
+        if cookie_key := str(req.request.cookies.get(self.cookie_name)):
+            if data := db.Get(db.Key(self.kindName, cookie_key)):  # Loaded successfully
                 if data["lastseen"] < time.time() - conf["viur.session.lifeTime"]:
                     # This session is too old
                     self.reset()
                     return False
 
+                self.cookie_key = cookie_key
                 self.session = data["data"]
                 self.static_security_key = data["static_security_key"]
 
