@@ -72,7 +72,7 @@ def validate(key: str, session: bool = True) -> typing.Union[bool, db.Entity]:
 
         :param key: The key to be validated.
         :param session: If True, validate against a session's skey, otherwise lookup an unbound key
-        :returns: False if the key was not valid for whatever reasons, the data (given during createSecurityKey) as
+        :returns: False if the key was not valid for whatever reasons, the data (given during :meth:`create`) as
             dictionary or True if the dict is empty (or session was True).
     """
     if session and key == "staticSessionKey":
