@@ -208,12 +208,6 @@ class Session:
         """
         return self.session.items()
 
-    def validateStaticSecurityKey(self, key: str) -> bool:
-        """
-        Checks if key matches the current *static* CSRF-Token of our session.
-        """
-        return hmac.compare_digest(self.static_security_key, key)
-
 
 @tasks.CallDeferred
 def killSessionByUser(user: Optional[Union[str, db.Key]] = None):

@@ -18,21 +18,23 @@
     ..note:
         There's also a hidden 3rd type of security-key: The sessions static security key.
 
-        This key is only revealed once (during login, as the protected header Sec-X-ViUR-StaticSKey).
+        This key is only revealed once (during login, as the protected header SECURITYKEY_STATIC).
 
         This can be used instead of the one-time sessions security key by sending it back as the same protected HTTP
-        header and setting the skey value to "staticSessionKey". This is only intended for non-web-browser,
+        header and setting the skey value to SECURITYKEY_STATIC. This is only intended for non-web-browser,
         programmatic access (admin tools, import tools etc.) where CSRF attacks are not applicable.
 
         Therefor that header is prefixed with "Sec-" - so it cannot be read or set using JavaScript.
 """
 import typing
 import datetime
+import hmac
 from viur.core import conf, utils, current, db, tasks
 from viur.core.tasks import DeleteEntitiesIter
 
 SECURITYKEY_KINDNAME = "viur-securitykey"
 SECURITYKEY_DURATION = 24 * 60 * 60  # one day
+SECURITYKEY_STATIC = "Sec-X-ViUR-StaticSessionKey"
 
 
 def create(duration: typing.Union[None, int] = None, session: bool = True, **custom_data) -> str:
@@ -75,10 +77,9 @@ def validate(key: str, session: bool = True) -> typing.Union[bool, db.Entity]:
         :returns: False if the key was not valid for whatever reasons, the data (given during createSecurityKey) as
             dictionary or True if the dict is empty (or session was True).
     """
-    if session and key == "staticSessionKey":
-        skey_header_value = current.request.get().request.headers.get("Sec-X-ViUR-StaticSKey")
-        if skey_header_value and current.session.get().validateStaticSecurityKey(skey_header_value):
-            return True
+    if session and key == SECURITYKEY_STATIC:
+        if skey_header_value := current.request.get().request.headers.get(SECURITYKEY_STATIC):
+            return hmac.compare_digest(current.session.get().static_security_key, skey_header_value)
 
         return False
 
