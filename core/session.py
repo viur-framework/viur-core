@@ -32,11 +32,11 @@ class Session:
 
         - :prop:same_site can be set to None, "none", "lax" or "strict" to influence the same-site tag on the cookies
             we set
-        - :prop:is_session_cookie is set to True by default, causing the cookie to be treated as a session cookie
+        - :prop:use_session_cookie is set to True by default, causing the cookie to be treated as a session cookie
             (it will be deleted on browser close). If set to False, it will be emitted with the life-time in
             conf["viur.session.lifeTime"].
         - The config variable conf["viur.session.lifeTime"]: Determines, how ling (in Minutes) a session stays valid.
-            Even if :prop:is_session_cookie is set to True, we'll void a session server-side after no request has been
+            Even if :prop:use_session_cookie is set to True, we'll void a session server-side after no request has been
             made within said lifeTime.
         - The config variables conf["viur.session.persistentFieldsOnLogin"] and
             conf["viur.session.persistentFieldsOnLogout"] lists fields, that may survive a login/logout action.
@@ -47,7 +47,7 @@ class Session:
     """
     kindName = "viur-session"
     same_site = "lax"  # Either None (don't issue same_site header), "none", "lax" or "strict"
-    is_session_cookie = True  # If True, issue the cookie without a lifeTime (will disappear on browser close)
+    use_session_cookie = True  # If True, issue the cookie without a lifeTime (will disappear on browser close)
     cookie_name = f"""viur_cookie_{conf["viur.instance.project_id"]}"""
     GUEST_USER = "__guest__"
 
@@ -119,7 +119,7 @@ class Session:
             "HttpOnly",
             f"SameSite={self.same_site}" if self.same_site else None,
             "Secure" if not conf["viur.instance.is_dev_server"] else None,
-            f"Max-Age={conf['viur.session.lifeTime']}" if not self.is_session_cookie else None,
+            f"Max-Age={conf['viur.session.lifeTime']}" if not self.use_session_cookie else None,
         )
 
         req.response.headerlist.append(
