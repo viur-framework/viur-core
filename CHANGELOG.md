@@ -2,6 +2,83 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
+## [3.4.3]
+
+- fix: #747 broke vi-renderer
+
+## [3.4.2]
+
+- fix: Fixes TypeError when password is unset (#748)
+- fix: `DateBone.fromClient()` should regard tzinfo (#749)
+- feat/fix: Allow `duration` argument for skey (#751)
+- fix: `CredentialBone` without escaping (#702) (#750)
+- fix: Add path_list to the __init__ of BrowseHandler (#747)
+
+## [3.4.1]
+
+- fix: enable to serialize complex custom config structures (#735)
+
+## [3.4.0]
+
+- fix: SelectBone `defaultValue` type annotation (#719)
+- fix: comparison in `SelectBone.singleValueFromClient` (#726)
+- fix: Jinja rendering for SelectBones using Enums (#720)
+- fix: Use static handler "tree.simple.file" in File (#717)
+- fix: Check for "status" in `User.onEdited` (#722)
+- chore: Conventional commits and clarifications (#692)
+- fix: Improvements and clarifications on version string (#706)
+- security: Ensure active status in authenticateUser (#710)
+- fix: bump viur-datastore to 1.3.9 (#708)
+- fix: Run render_structure recursively on "using" and "relskel" (#705)
+- feat: Implement naive mode for `DateBone` (#667)
+- fix: SkelList.get_orders must be in the `__slots__` (#703)
+- chore: Bump viur-datastore to 1.3.8 (#700)
+- feat: Allow `Enum` for `SelectBone`-values and implement `User`s status as `Enum`  (#683)
+- fix: Keep filename synchronous in both skeleton and blob (#699)
+- refactor: Re-implement password encoding using Python's `hashlib` and `secrets` module (#680)
+- fix: continue thumbnailing when image is broken (#697)
+- feat: Inject "sortindex" attribute to bone structure (#698)
+- fix: ignore downloadUrls without signature (#696)
+- refactor: Replace `doClear*` by `DeleteEntitiesIter` (#694)
+- fix: Update URL to viur.dev in error.html (#695)
+- feat: Add `manage` access right (#693)
+- feat: UserSkel improvements (`firstname`, `lastname`, `sync`) and Google Auth user information synchronization (#677)
+- fix: Return JSON-encoded response for internal server errors too (#690)
+- refactor: rename `Skeleton.toDB()`s `clearUpdateTag` into `update_relations` (#688)
+- feat: Support JSON Schema validation for `JsonBone` (#657)
+- feat: Implement `script` system-module for Scriptor tree (#664)
+- fix: Capitalize internal classes to be PEP8 compliant (#681)
+- fix: `viewSkel()`: It's a member of the user module, not the auth-provider (#674)
+- feat: Improve `PasswordBone` parametrization (#619)
+- fix: Add `RelationalUpdateLevel` to__all__ (#675)
+- fix: spelling of "readonly" in renderEditForm (#670)
+- fix: Add structure for numericBone (#672)
+- fix: Fallback to `SkelModule` as replacement for `BasicApplication` (#665)
+- refactor: `securitykey` module (#656)
+- feat: Improve Cloud Tasks creation in `CallDeferred` and `QueryIter` (#654)
+- refactor: DateBone: Refactored test if to use guessTimeZone into guessTimeZone itself (#644)
+- feat: `current`-module to handle ContextVars, new `current.user` ContextVar (#635)
+- feat: Move structure dict rendering from the renders into the bones (#637)
+- feat: Add `admin_config` to UserSkel (#636)
+- remove: session change in validateSecurityKey (#645)
+- feat: Add `conf["viur.dev_server_cloud_logging"]` (#638)
+- fix: module import in formmailer, introduced in #611 (#640)
+- refactor: Substitute `BaseApplication` by `Module` and `SkelModule` prototypes (#611)
+- refactor: Cleaning up the `session`-module (#544)
+- fix: Implement a refresh method in the `NumericBone` (#617)
+- feat: Render JSON-encoded error message on Exception raise in `/json` or `/vi` pathes (#614)
+- refactor: Improvements for User module (#620)
+- refactor: Make MetaBaseSkel.generate_bonemap available (#621)
+- feat: Add `JsonBone` (#558)
+- fix: Fixes a deprecation warning introduced by #582 (#613)
+- refactor: Move projectBasePath and coreBasePath (#582)
+- feat: Provide colorized local debug (#592)
+- fix: added back kindName for userSkel (#600)
+- fix: Improving MetaBaseSkel.fill_bonemap_recursive (#601)
+- fix: `DateBone(localize=True)` becomes default setting (#595)
+- refactor: Code clean-up for core user module (#591)
+- feat: Improve the linter workflow: Use error annotations (#581)
+
 ## [3.3.5]
 
 - Fix: Copy TextBone `_defaultTags` in `ModuleConfSkel` (#628)

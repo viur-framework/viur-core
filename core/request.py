@@ -1,22 +1,22 @@
+import json
 import logging
 import os
 import traceback
 import typing
+import inspect
+import unicodedata
 from abc import ABC, abstractmethod
-from io import StringIO
 from string import Template
+from time import time
 from urllib import parse
 from urllib.parse import unquote, urljoin, urlparse
 
-import unicodedata
 import webob
-from time import time
 
-from viur.core import db, errors, utils
+from viur.core import current, db, errors, utils
 from viur.core.config import conf
 from viur.core.logging import client as loggingClient, requestLogger, requestLoggingRessource
 from viur.core.securityheaders import extendCsp
-from viur.core.utils import currentLanguage, currentSession
 from viur.core.tasks import _appengineServiceIPs
 
 """
@@ -108,6 +108,7 @@ class BrowseHandler():  # webapp.RequestHandler
         self.maxLogLevel = logging.DEBUG
         self._traceID = request.headers.get('X-Cloud-Trace-Context', "").split("/")[0] or utils.generateRandomString()
         self.is_deferred = False
+        self.path_list = ()
         db.currentDbAccessLog.set(set())
 
     @property
@@ -124,7 +125,7 @@ class BrowseHandler():  # webapp.RequestHandler
             conf["viur.languageMethod"], we'll either try to load it from the session, determine it by the domain
             or extract it from the URL.
         """
-        sessionReference = currentSession.get()
+        sessionReference = current.session.get()
         if not conf["viur.availableLanguages"]:
             # This project doesn't use the multi-language feature, nothing to do here
             return path
@@ -135,35 +136,35 @@ class BrowseHandler():  # webapp.RequestHandler
                     lng = self.request.headers["X-Appengine-Country"].lower()
                     if lng in conf["viur.availableLanguages"] + list(conf["viur.languageAliasMap"].keys()):
                         sessionReference["lang"] = lng
-                        currentLanguage.set(lng)
+                        current.language.set(lng)
                     else:
                         sessionReference["lang"] = conf["viur.defaultLanguage"]
             else:
-                currentLanguage.set(sessionReference["lang"])
+                current.language.set(sessionReference["lang"])
         elif conf["viur.languageMethod"] == "domain":
             host = self.request.host_url.lower()
             host = host[host.find("://") + 3:].strip(" /")  # strip http(s)://
             if host.startswith("www."):
                 host = host[4:]
             if host in conf["viur.domainLanguageMapping"]:
-                currentLanguage.set(conf["viur.domainLanguageMapping"][host])
+                current.language.set(conf["viur.domainLanguageMapping"][host])
             else:  # We have no language configured for this domain, try to read it from session
                 if "lang" in sessionReference:
-                    currentLanguage.set(sessionReference["lang"])
+                    current.language.set(sessionReference["lang"])
         elif conf["viur.languageMethod"] == "url":
             tmppath = urlparse(path).path
             tmppath = [unquote(x) for x in tmppath.lower().strip("/").split("/")]
             if len(tmppath) > 0 and tmppath[0] in conf["viur.availableLanguages"] + list(
                 conf["viur.languageAliasMap"].keys()):
-                currentLanguage.set(tmppath[0])
+                current.language.set(tmppath[0])
                 return path[len(tmppath[0]) + 1:]  # Return the path stripped by its language segment
             else:  # This URL doesnt contain an language prefix, try to read it from session
                 if "lang" in sessionReference:
-                    currentLanguage.set(sessionReference["lang"])
+                    current.language.set(sessionReference["lang"])
                 elif "X-Appengine-Country" in self.request.headers.keys():
                     lng = self.request.headers["X-Appengine-Country"].lower()
                     if lng in conf["viur.availableLanguages"] or lng in conf["viur.languageAliasMap"]:
-                        currentLanguage.set(lng)
+                        current.language.set(lng)
         return path
 
     def processRequest(self) -> None:
@@ -185,7 +186,7 @@ class BrowseHandler():  # webapp.RequestHandler
                 self.is_deferred = True
             elif os.getenv("TASKS_EMULATOR") is not None:
                 self.is_deferred = True
-        currentLanguage.set(conf["viur.defaultLanguage"])
+        current.language.set(conf["viur.defaultLanguage"])
         self.disableCache = False  # Shall this request bypass the caches?
         self.args = []
         self.kwargs = {}
@@ -262,10 +263,16 @@ class BrowseHandler():  # webapp.RequestHandler
             return
 
         try:
-            currentSession.get().load(self)
+            current.session.get().load(self)
+
+            # Load current user into context variable if user module is there.
+            if user_mod := getattr(conf["viur.mainApp"], "user", None):
+                current.user.set(user_mod.getCurrentUser())
+
             path = self.selectLanguage(path)[1:]
             if conf["viur.requestPreprocessor"]:
                 path = conf["viur.requestPreprocessor"](path)
+
             self.findAndCall(path)
 
         except errors.Redirect as e:
@@ -278,16 +285,20 @@ class BrowseHandler():  # webapp.RequestHandler
                 url = str(urljoin(self.request.url, url))
             self.response.headers['Location'] = url
 
-        except errors.HTTPException as e:
+        except Exception as e:
             if conf["viur.debug.traceExceptions"]:
                 logging.warning("""conf["viur.debug.traceExceptions"] is set, won't handle this exception""")
                 raise
             self.response.body = b""
-            self.response.status = '%d %s' % (e.status, e.name)
-
-            # Set machine-readable x-viur-error response header in case there is an exception description.
-            if e.descr:
-                self.response.headers["x-viur-error"] = e.descr.replace("\n", "")
+            if isinstance(e, errors.HTTPException):
+                self.response.status = '%d %s' % (e.status, e.name)
+                # Set machine-readable x-viur-error response header in case there is an exception description.
+                if e.descr:
+                    self.response.headers["x-viur-error"] = e.descr.replace("\n", "")
+            else:
+                self.response.status = 500
+                logging.error("ViUR has caught an unhandled exception!")
+                logging.exception(e)
 
             res = None
             if conf["viur.errorHandler"]:
@@ -298,45 +309,51 @@ class BrowseHandler():  # webapp.RequestHandler
                     logging.exception(newE)
                     res = None
             if not res:
-                tpl = Template(open(os.path.join(utils.coreBasePath, conf["viur.errorTemplate"]), "r").read())
-                res = tpl.safe_substitute({
-                    "error_code": e.status,
-                    "error_name": translate(e.name),
-                    "error_descr": e.descr,
-                })
-                extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
-            self.response.write(res.encode("UTF-8"))
-
-        except Exception as e:  # Something got really wrong
-            logging.error("ViUR has caught an unhandled exception!")
-            logging.exception(e)
-            self.response.body = b""
-            self.response.status = 500
-            res = None
-            if conf["viur.errorHandler"]:
-                try:
-                    res = conf["viur.errorHandler"](e)
-                except Exception as newE:
-                    logging.error("viur.errorHandler failed!")
-                    logging.exception(newE)
-                    res = None
-            if not res:
-                tpl = Template(open(os.path.join(utils.coreBasePath, conf["viur.errorTemplate"]), "r").read())
                 descr = "The server encountered an unexpected error and is unable to process your request."
-                if conf["viur.instance.is_dev_server"]:  # Were running on development Server
-                    strIO = StringIO()
-                    traceback.print_exc(file=strIO)
-                    descr = strIO.getvalue()
-                    descr = descr.replace("<", "&lt;").replace(">", "&gt;").replace(" ", "&nbsp;").replace("\n",
-                                                                                                           "<br />")
-                res = tpl.safe_substitute(
-                    {"error_code": "500", "error_name": "Internal Server Error", "error_descr": descr})
-                extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
+                if (len(self.path_list) > 0 and self.path_list[0] in ("vi", "json")) or \
+                        current.request.get().response.headers["Content-Type"] == "application/json":
+                    current.request.get().response.headers["Content-Type"] = "application/json"
+                    if isinstance(e, errors.HTTPException):
+                        res = {
+                            "status": e.status,
+                            "reason": e.name,
+                            "descr": str(translate(e.name)),
+                            "hint": e.descr,
+                        }
+                    else:
+                        res = {
+                            "status": 500,
+                            "reason": "Internal Server Error",
+                            "descr": descr
+                        }
+
+                    if conf["viur.instance.is_dev_server"]:
+                        res["traceback"] = traceback.format_exc()
+
+                    res = json.dumps(res)
+
+                else:
+                    with (conf["viur.instance.core_base_path"].joinpath(conf["viur.errorTemplate"]).open() as tpl_file):
+                        tpl = Template(tpl_file.read())
+                        if isinstance(e, errors.HTTPException):
+                            res = tpl.safe_substitute({
+                                "error_code": e.status,
+                                "error_name": translate(e.name),
+                                "error_descr": e.descr,
+                            })
+                        else:
+                            res = tpl.safe_substitute(
+                                {"error_code": "500",
+                                 "error_name": "Internal Server Error",
+                                 "error_descr": descr,
+                                 })
+                    extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
             self.response.write(res.encode("UTF-8"))
+
 
         finally:
             self.saveSession()
-            if conf["viur.instance.is_dev_server"]:
+            if conf["viur.instance.is_dev_server"] and conf["viur.dev_server_cloud_logging"]:
                 # Emit the outer log only on dev_appserver (we'll use the existing request log when live)
                 SEVERITY = "DEBUG"
                 if self.maxLogLevel >= 50:
@@ -415,7 +432,6 @@ class BrowseHandler():  # webapp.RequestHandler
         if typeOrigin is typing.Union:
             typeArgs = typeHint.__args__  # Was: typing.get_args(typeHint) (not supported in python 3.7)
             if len(typeArgs) == 2 and isinstance(None, typeArgs[1]):  # is None:
-                # This is typing.Optional
                 return self.processTypeHint(typeArgs[0], inValue, parsingOnly)
         elif typeOrigin is list:
             if parsingOnly:
@@ -479,6 +495,12 @@ class BrowseHandler():  # webapp.RequestHandler
             Does the actual work of sanitizing the parameter, determine which @exposed (or @internalExposed) function
             to call (and with witch parameters)
         """
+
+        # Parse the URL
+        if path := parse.urlparse(path).path:
+            self.path_list = tuple(unicodedata.normalize("NFC", parse.unquote(part))
+                                   for part in path.strip("/").split("/"))
+
         # Prevent Hash-collision attacks
         kwargs = {}
 
@@ -511,41 +533,42 @@ class BrowseHandler():  # webapp.RequestHandler
         if "self" in kwargs or "return" in kwargs:  # self or return is reserved for bound methods
             raise errors.BadRequest()
 
-        # Parse the URL
-        path = parse.urlparse(path).path
-        if path:
-            self.pathlist = [unicodedata.normalize("NFC", parse.unquote(x)) for x in path.strip("/").split("/")]
-        else:
-            self.pathlist = []
         caller = conf["viur.mainResolver"]
         idx = 0  # Count how may items from *args we'd have consumed (so the rest can go into *args of the called func
-        for currpath in self.pathlist:
+        path_found = True
+        for part in self.path_list:
             if "canAccess" in caller and not caller["canAccess"]():
                 # We have a canAccess function guarding that object,
                 # and it returns False...
-                raise (errors.Unauthorized())
+                raise errors.Unauthorized()
             idx += 1
-            currpath = currpath.replace("-", "_").replace(".", "_")
-            if currpath in caller:
-                caller = caller[currpath]
-                if (("exposed" in dir(caller) and caller.exposed) or ("internalExposed" in dir(
-                    caller) and caller.internalExposed and self.internalRequest)) and hasattr(caller, '__call__'):
-                    args = self.pathlist[idx:] + [x for x in args]  # Prepend the rest of Path to args
+            part = part.replace("-", "_").replace(".", "_")
+            if part not in caller:
+                part = "index"
+
+            if part in caller:
+                caller = caller[part]
+                if (("exposed" in dir(caller) and caller.exposed) or
+                        ("internalExposed" in dir(caller) and caller.internalExposed and self.internalRequest)) and \
+                        hasattr(caller, '__call__'):
+                    if part == "index":
+                        idx -= 1
+                    args = self.path_list[idx:] + args  # Prepend the rest of Path to args
                     break
-            elif "index" in caller:
-                caller = caller["index"]
-                if (("exposed" in dir(caller) and caller.exposed) or ("internalExposed" in dir(
-                    caller) and caller.internalExposed and self.internalRequest)) and hasattr(caller, '__call__'):
-                    args = self.pathlist[idx - 1:] + [x for x in args]
+
+                elif part == "index":
+                    path_found = False
                     break
-                else:
-                    raise (errors.NotFound("The path %s could not be found" % "/".join(
-                        [("".join([y for y in x if y.lower() in "0123456789abcdefghijklmnopqrstuvwxyz"])) for x in
-                         self.pathlist[: idx]])))
+
             else:
-                raise (errors.NotFound("The path %s could not be found" % "/".join(
-                    [("".join([y for y in x if y.lower() in "0123456789abcdefghijklmnopqrstuvwxyz"])) for x in
-                     self.pathlist[: idx]])))
+                path_found = False
+                break
+
+        if not path_found:
+            from viur.core import utils
+            raise errors.NotFound(
+                f"""The path {utils.escapeString("/".join(self.path_list[:idx]))} could not be found""")
+
         if (not callable(caller) or ((not "exposed" in dir(caller) or not caller.exposed)) and (
             not "internalExposed" in dir(caller) or not caller.internalExposed or not self.internalRequest)):
             if "index" in caller \
@@ -555,7 +578,7 @@ class BrowseHandler():  # webapp.RequestHandler
                     caller["index"]) and caller["index"].internalExposed and self.internalRequest)):
                 caller = caller["index"]
             else:
-                raise (errors.MethodNotAllowed())
+                raise errors.MethodNotAllowed()
         # Check for forceSSL flag
         if not self.internalRequest \
                 and "forceSSL" in dir(caller) \
@@ -572,8 +595,7 @@ class BrowseHandler():  # webapp.RequestHandler
         if self.request.headers.get("X-Viur-Disable-Cache"):
             from viur.core import utils
             # No cache requested, check if the current user is allowed to do so
-            user = utils.getCurrentUser()
-            if user and "root" in user["access"]:
+            if (user := current.user.get()) and "root" in user["access"]:
                 logging.debug("Caching disabled by X-Viur-Disable-Cache header")
                 self.disableCache = True
         try:
@@ -581,7 +603,13 @@ class BrowseHandler():  # webapp.RequestHandler
             if annotations and not self.internalRequest:
                 newKwargs = {}  # The dict of new **kwargs we'll pass to the caller
                 newArgs = []  # List of new *args we'll pass to the caller
-                argsOrder = list(caller.__code__.co_varnames)[1: caller.__code__.co_argcount]
+
+                # FIXME: Use inspect.signature() for all this stuff...
+                argsOrder = caller.__code__.co_varnames[:caller.__code__.co_argcount]
+                # In case of a method, ignore the 'self' parameter
+                if inspect.ismethod(caller):
+                    argsOrder = argsOrder[1:]
+
                 # Map args in
                 for idx in range(0, min(len(self.args), len(argsOrder))):
                     paramKey = argsOrder[idx]
@@ -621,7 +649,7 @@ class BrowseHandler():  # webapp.RequestHandler
             raise
 
     def saveSession(self) -> None:
-        currentSession.get().save(self)
+        current.session.get().save(self)
 
 
 from .i18n import translate  # noqa: E402

@@ -1,45 +1,32 @@
-from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
+import hashlib
+import re
+from typing import List, Tuple, Union
+
+from viur.core import conf, utils
 from viur.core.bones.string import StringBone
 from viur.core.i18n import translate
-from viur.core import utils, conf
-from hashlib import sha256
-import hmac, codecs, string, random
-from struct import Struct
-from operator import xor
-from itertools import starmap
-from typing import List, Union
+from .base import ReadFromClientError, ReadFromClientErrorSeverity
+
+# https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2
+PBKDF2_DEFAULT_ITERATIONS = 600_000
 
 
-def pbkdf2(password, salt, iterations=1001, keylen=42):
-    """
-        An implementation of PBKDF2 (http://wikipedia.org/wiki/PBKDF2)
-
-        Mostly based on the implementation of
-        https://github.com/mitsuhiko/python-pbkdf2/blob/master/pbkdf2.py
-
-        :copyright: (c) Copyright 2011 by Armin Ronacher.
-        :license: BSD, see LICENSE for more details.
-    """
-    _pack_int = Struct('>I').pack
+def encode_password(password: str | bytes, salt: str | bytes,
+                    iterations: int = PBKDF2_DEFAULT_ITERATIONS, dklen: int = 42
+                    ) -> dict[str, str | bytes]:
+    """Decodes a pashword and return the hash and meta information as hash"""
+    password = password[: conf["viur.maxPasswordLength"]]
     if isinstance(password, str):
-        password = password.encode("UTF-8")
+        password = password.encode()
     if isinstance(salt, str):
-        salt = salt.encode("UTF-8")
-    mac = hmac.new(password, None, sha256)
-
-    def _pseudorandom(x, mac=mac):
-        h = mac.copy()
-        h.update(x)
-        return h.digest()
-
-    buf = []
-    for block in range(1, -(-keylen // mac.digest_size) + 1):
-        rv = u = _pseudorandom(salt + _pack_int(block))
-        for i in range(iterations - 1):
-            u = _pseudorandom((''.join(map(chr, u))).encode("LATIN-1"))
-            rv = starmap(xor, zip(rv, u))
-        buf.extend(rv)
-    return codecs.encode(''.join(map(chr, buf))[:keylen].encode("LATIN-1"), 'hex_codec')
+        salt = salt.encode()
+    pwhash = hashlib.pbkdf2_hmac("sha256", password, salt, iterations, dklen)
+    return {
+        "pwhash": pwhash.hex().encode(),
+        "salt": salt,
+        "iterations": iterations,
+        "dklen": dklen,
+    }
 
 
 class PasswordBone(StringBone):
@@ -52,38 +39,56 @@ class PasswordBone(StringBone):
     """
     type = "password"
     saltLength = 13
-    minPasswordLength = 8
-    passwordTests = [
-        lambda val: val.lower() != val,  # Do we have upper-case characters?
-        lambda val: val.upper() != val,  # Do we have lower-case characters?
-        lambda val: any([x in val for x in "0123456789"]),  # Do we have any digits?
-        lambda val: any([x not in (string.ascii_lowercase + string.ascii_uppercase + string.digits) for x in val]),
-        # Special characters?
-    ]
-    passwordTestThreshold = 3
-    tooShortMessage = translate(
-        "core.bones.password.tooShortMessage",
-        defaultText="The entered password is to short - it requires at least {{length}} characters."
+
+    tests: tuple[tuple[str, str, bool]] = (
+        (r"^.*[A-Z].*$", translate("core.bones.password.no_capital_letters",
+                                   defaultText="The password entered has no capital letters."), False),
+        (r"^.*[a-z].*$", translate("core.bones.password.no_lowercase_letters",
+                                   defaultText="The password entered has no lowercase letters."), False),
+        (r"^.*\d.*$", translate("core.bones.password.no_digits",
+                                defaultText="The password entered has no digits."), False),
+        (r"^.*\W.*$", translate("core.bones.password.no_special_characters",
+                                defaultText="The password entered has no special characters."), False),
+        (r"^.{8,}$", translate("core.bones.password.too_short",
+                               defaultText="The password is too short. It requires for at least 8 characters."), True),
     )
-    tooWeakMessage = translate(
-        "core.bones.password.tooWeakMessage",
-        defaultText="The entered password is too weak."
-    )
+
+    def __init__(
+        self,
+        *,
+        test_threshold: int = 3,
+        tests: List[Tuple] = tests,
+        **kwargs
+    ):
+        """
+            Initializes a new Password Bone.
+
+            :param test_threshold: The minimum number of tests the password must pass.
+            :param password_tests: A list of tuples. The tuple contains the test and a reason for the user if the test
+                    fails.
+        """
+        super().__init__(**kwargs)
+        self.test_threshold = test_threshold
+        if tests is not None:
+            self.tests = tests
 
     def isInvalid(self, value):
         if not value:
             return False
 
-        if len(value) < self.minPasswordLength:
-            return self.tooShortMessage.translate(length=self.minPasswordLength)
-
         # Run our password test suite
-        testResults = []
-        for test in self.passwordTests:
-            testResults.append(test(value))
-
-        if sum(testResults) < self.passwordTestThreshold:
-            return str(self.tooWeakMessage)
+        tests_errors = []
+        tests_passed = 0
+        required_test_failed = False
+        for test, hint, required in self.tests:
+            if re.match(test, value):
+                tests_passed += 1
+            else:
+                tests_errors.append(str(hint))  # we may need to convert a "translate" object
+                if required:  # we have a required test that failed make sure we abort
+                    required_test_failed = True
+        if tests_passed < self.test_threshold or required_test_failed:
+            return tests_errors
 
         return False
 
@@ -100,9 +105,7 @@ class PasswordBone(StringBone):
             return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
         # As we don't escape passwords and allow most special characters we'll hash it early on so we don't open
         # an XSS attack vector if a password is echoed back to the client (which should not happen)
-        salt = utils.generateRandomString(self.saltLength)
-        passwd = pbkdf2(value[: conf["viur.maxPasswordLength"]], salt)
-        skel[name] = {"pwhash": passwd, "salt": salt}
+        skel[name] = encode_password(value, utils.generateRandomString(self.saltLength))
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
         if name in skel.accessedValues and skel.accessedValues[name]:
@@ -110,9 +113,8 @@ class PasswordBone(StringBone):
             if isinstance(value, dict):  # It is a pre-hashed value (probably fromClient)
                 skel.dbEntity[name] = value
             else:  # This has been set by skel["password"] = "secret", we'll still have to hash it
-                salt = utils.generateRandomString(self.saltLength)
-                passwd = pbkdf2(value[: conf["viur.maxPasswordLength"]], salt)
-                skel.dbEntity[name] = {"pwhash": passwd, "salt": salt}
+                skel.dbEntity[name] = encode_password(value, utils.generateRandomString(self.saltLength))
+
             # Ensure our indexed flag is up2date
             indexed = self.indexed and parentIndexed
             if indexed and name in skel.dbEntity.exclude_from_indexes:
@@ -124,3 +126,6 @@ class PasswordBone(StringBone):
 
     def unserialize(self, skeletonValues, name):
         return False
+
+    def structure(self) -> dict:
+        return super().structure() | {"tests": self.tests}

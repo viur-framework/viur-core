@@ -29,10 +29,12 @@ import webob
 import yaml
 from types import ModuleType
 from typing import Callable, Dict, Union, List
-from viur.core import session, errors, i18n, request, utils
+from viur.core import session, errors, i18n, request, utils, current
 from viur.core.config import conf
 from viur.core.tasks import TaskHandler, runStartupTasks
-from viur.core import logging as viurLogging  # Initialize request logging
+from viur.core.module import Module
+# noinspection PyUnresolvedReferences
+from viur.core import logging as viurLogging  # unused import, must exist, initializes request logging
 import logging  # this import has to stay here, see #571
 
 
@@ -43,7 +45,7 @@ def load_indexes_from_file() -> Dict[str, List]:
     """
     indexes_dict = {}
     try:
-        with open(os.path.join(utils.projectBasePath, "index.yaml"), "r") as file:
+        with open(os.path.join(conf["viur.instance.project_base_path"], "index.yaml"), "r") as file:
             indexes = yaml.safe_load(file)
             indexes = indexes.get("indexes", [])
             for index in indexes:
@@ -163,23 +165,28 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
                     if "__" not in subkey:
                         renderers[key][subkey] = render
         del renderRootModule
-    from viur.core.prototypes import BasicApplication  # avoid circular import
     if hasattr(modules, "index"):
-        if issubclass(modules.index, BasicApplication):
+        if issubclass(modules.index, Module):
             root = modules.index("index", "")
         else:
             root = modules.index()  # old style for backward compatibility
     else:
         root = ExtendableObject()
     modules._tasks = TaskHandler
+
+    # Default modules
     from viur.core.modules.moduleconf import ModuleConf  # noqa: E402 # import works only here because circular imports
     modules._moduleconf = ModuleConf
+
+    from viur.core.modules.script import Script  # noqa: E402 # import works only here because circular imports
+    modules.script = Script
+
     resolverDict = {}
     indexes = load_indexes_from_file()
     for moduleName, moduleClass in vars(modules).items():  # iterate over all modules
         if moduleName == "index":
             mapModule(root, "index", resolverDict)
-            if isinstance(root, BasicApplication):
+            if isinstance(root, Module):
                 root.render = renderers[default]["default"](parent=root)
             continue
         for renderName, render in renderers.items():  # look, if a particular render should be built
@@ -291,19 +298,19 @@ def app(environ: dict, start_response: Callable):
     handler = request.BrowseHandler(req, resp)
 
     # Set context variables
-    utils.currentLanguage.set(conf["viur.defaultLanguage"])
-    utils.currentRequest.set(handler)
-    utils.currentSession.set(session.GaeSession())
-    utils.currentRequestData.set({})
-
+    current.language.set(conf["viur.defaultLanguage"])
+    current.request.set(handler)
+    current.session.set(session.Session())
+    current.request_data.set({})
     # Handle request
     handler.processRequest()
 
     # Unset context variables
-    utils.currentLanguage.set(None)
-    utils.currentRequestData.set(None)
-    utils.currentSession.set(None)
-    utils.currentRequest.set(None)
+    current.language.set(None)
+    current.request_data.set(None)
+    current.session.set(None)
+    current.request.set(None)
+    current.user.set(None)
 
     return resp(environ, start_response)
 

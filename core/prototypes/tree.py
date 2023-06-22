@@ -1,13 +1,14 @@
 import logging
-from typing import Any, Dict, List, Literal, Optional, Type, Union
-from viur.core import utils, errors, conf, securitykey, db
+
+from typing import Any, Dict, List, Literal, Optional, Type
+from viur.core import utils, errors, securitykey, db, current
 from viur.core import forcePost, forceSSL, exposed, internalExposed
 from viur.core.bones import KeyBone, SortIndexBone
 from viur.core.cache import flushCache
-from viur.core.prototypes import BasicApplication
 from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.tasks import CallDeferred
-from viur.core.utils import currentRequest
+from .skelmodule import SkelModule
+
 
 SkelType = Literal["node", "leaf"]
 
@@ -36,40 +37,23 @@ class TreeSkel(Skeleton):
                 db.Key.from_legacy_urlsafe(skelValues.dbEntity["parentdir"]))
 
 
-class Tree(BasicApplication):
+class Tree(SkelModule):
     """
-    Tree is a ViUR BasicApplication.
+    Tree module prototype.
 
-    In this application, entries are hold in directories, which can be nested. Data in a Tree application
-    always consists of nodes (=directories) and leafs (=files).
-
-    :ivar kindName: Name of the kind of data entities that are managed by the application. \
-    This information is used to bind a specific :class:`viur.core.skeleton.Skeleton`-class to the \
-    application. For more information, refer to the function :func:`_resolveSkel`.\
-    \
-    In difference to the other ViUR BasicApplication, the kindName in Trees evolve into the kindNames\
-    *kindName + "node"* and *kindName + "leaf"*, because information can be stored in different kinds.
-    :vartype kindName: str
-
-    :ivar adminInfo: todo short info on how to use adminInfo.
-    :vartype adminInfo: dict | callable
+    It is used for hierarchical structures, either as a tree with nodes and leafs, or as a hierarchy with nodes only.
     """
-
-    accessRights = ["add", "edit", "view", "delete"]  # Possible access rights for this app
+    accessRights = ("add", "edit", "view", "delete", "manage")
 
     nodeSkelCls = None
     leafSkelCls = None
 
-    def adminInfo(self):
-        return {
-            "name": self.__class__.__name__,  # Module name as shown in the admin tools
-            "handler": "tree",  # Which handler to invoke
-            "icon": "icon-hierarchy"  # Icon for this module
-        }
-
     def __init__(self, moduleName, modulePath, *args, **kwargs):
-        assert self.nodeSkelCls, "You have to specify at least nodeSkelCls for %r" % self.__class__.__name__
+        assert self.nodeSkelCls, f"Need to specify at least nodeSkelCls for {self.__class__.__name__!r}"
         super(Tree, self).__init__(moduleName, modulePath, *args, **kwargs)
+
+    def handler(self):
+        return "tree" if self.leafSkelCls else "tree.node"  # either a tree or a tree with nodes only (former hierarchy)
 
     def _checkSkelType(self, skelType: Any) -> Optional[SkelType]:
         """
@@ -269,7 +253,7 @@ class Tree(BasicApplication):
 
         All supplied parameters are interpreted as filters for the elements displayed.
 
-        Unlike other ViUR BasicApplications, the access control in this function is performed
+        Unlike other module prototypes in ViUR, the access control in this function is performed
         by calling the function :func:`listFilter`, which updates the query-filter to match only
         elements which the user is allowed to see.
 
@@ -378,7 +362,7 @@ class Tree(BasicApplication):
 
         if (len(kwargs) == 0  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or not currentRequest.get().isPostRequest
+            or not current.request.get().isPostRequest
             or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
         ):
             return self.render.add(skel)
@@ -423,7 +407,7 @@ class Tree(BasicApplication):
             raise errors.Unauthorized()
         if (len(kwargs) == 0  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or not currentRequest.get().isPostRequest
+            or not current.request.get().isPostRequest
             or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
         ):
             return self.render.edit(skel)
@@ -591,8 +575,7 @@ class Tree(BasicApplication):
 
         :returns: The altered filter, or None if access is not granted.
         """
-        user = utils.getCurrentUser()
-        if user and ("%s-view" % self.moduleName in user["access"] or "root" in user["access"]):
+        if (user := current.user.get()) and ("%s-view" % self.moduleName in user["access"] or "root" in user["access"]):
             return query
         return None
 
@@ -633,8 +616,8 @@ class Tree(BasicApplication):
 
         :returns: True, if adding entries is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
-        if not user:
+
+        if not (user := current.user.get()):
             return False
         # root user is always allowed.
         if user["access"] and "root" in user["access"]:
@@ -664,8 +647,7 @@ class Tree(BasicApplication):
 
         :returns: True, if editing entries is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
-        if not user:
+        if not (user := current.user.get()):
             return False
         if user["access"] and "root" in user["access"]:
             return True
@@ -694,8 +676,7 @@ class Tree(BasicApplication):
 
         :returns: True, if deleting entries is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
-        if not user:
+        if not (user := current.user.get()):
             return False
         if user["access"] and "root" in user["access"]:
             return True
@@ -725,8 +706,7 @@ class Tree(BasicApplication):
 
         :returns: True, if deleting entries is allowed, False otherwise.
         """
-        user = utils.getCurrentUser()
-        if not user:
+        if not (user := current.user.get()):
             return False
         if user["access"] and "root" in user["access"]:
             return True
@@ -763,8 +743,7 @@ class Tree(BasicApplication):
         """
         logging.info("Entry of kind %r added: %s", skelType, skel["key"])
         flushCache(kind=skel.kindName)
-        user = utils.getCurrentUser()
-        if user:
+        if user := current.user.get():
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
     def onEdit(self, skelType: SkelType, skel: SkeletonInstance):
@@ -794,8 +773,7 @@ class Tree(BasicApplication):
         """
         logging.info("Entry of kind %r changed: %s", skelType, skel["key"])
         flushCache(key=skel["key"])
-        user = utils.getCurrentUser()
-        if user:
+        if user := current.user.get():
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
     def onView(self, skelType: SkelType, skel: SkeletonInstance):
@@ -842,8 +820,7 @@ class Tree(BasicApplication):
         """
         logging.info("Entry deleted: %s (%s)" % (skel["key"], type(skel)))
         flushCache(key=skel["key"])
-        user = utils.getCurrentUser()
-        if user:
+        if user := current.user.get():
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
 

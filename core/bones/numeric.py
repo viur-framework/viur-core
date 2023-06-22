@@ -75,13 +75,8 @@ class NumericBone(BaseBone):
         if isinstance(rawValue, str) and not rawValue:
             return True
         try:
-            if self.precision:
-                if isinstance(rawValue, str):
-                    rawValue = rawValue.replace(",", ".", 1)
-                rawValue = float(rawValue)
-            else:
-                rawValue = int(rawValue)
-        except:
+            rawValue = self._convert_to_numeric(rawValue)
+        except (ValueError, TypeError):
             return True
         return rawValue == self.getEmptyValue()
 
@@ -139,3 +134,50 @@ class NumericBone(BaseBone):
                 continue
             result.add(str(value))
         return result
+
+    def _convert_to_numeric(self, value: Any) -> int | float:
+        """Convert a value to an int or float considering the precision.
+
+        If the value is not convertable an exception will be raised."""
+        if isinstance(value, str):
+            value = value.replace(",", ".", 1)
+        if self.precision:
+            return float(value)
+        else:
+            # First convert to float then to int to support "42.5" (str)
+            return int(float(value))
+
+    def refresh(self, skel: 'viur.core.skeleton.SkeletonInstance', boneName: str) -> None:
+        """Ensure the value is numeric or None.
+
+        This ensures numeric values, for example after changing
+        a bone from StringBone to a NumericBone.
+        """
+        super().refresh(skel, boneName)
+
+        def refresh_single_value(value: Any) -> float | int:
+            if value == "":
+                return self.getEmptyValue()
+            elif not isinstance(value, (int, float, type(None))):
+                return self._convert_to_numeric(value)
+
+        new_value = {}
+        for _, lang, value in self.iter_bone_value(skel, boneName):
+            new_value.setdefault(lang, []).append(refresh_single_value(value))
+
+        if not self.multiple:
+            # take the first one
+            new_value = {lang: values[0] for lang, values in new_value.items() if values}
+
+        if self.languages:
+            skel[boneName] = new_value
+        elif not self.languages:
+            # just the value(s) with None language
+            skel[boneName] = new_value.get(None, [] if self.multiple else self.getEmptyValue())
+
+    def structure(self) -> dict:
+        return super().structure() | {
+            "min": self.min,
+            "max": self.max,
+            "precision": self.precision,
+        }

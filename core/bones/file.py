@@ -73,7 +73,7 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: Dict[str, Any], refreshKey: db
                 if not skel.fromDB(refreshKey):
                     return
                 skel.refresh()
-                skel.toDB(clearUpdateTag=True)
+                skel.toDB(update_relations=False)
 
             db.RunInTransaction(refreshTxn)
 
@@ -189,3 +189,8 @@ class FileBone(TreeLeafBone):
                     return
                 importBlobFromViur2(val["dest"]["dlkey"], val["dest"]["name"])
                 recreateFileEntryIfNeeded(val["dest"])
+
+    def structure(self) -> dict:
+        return super().structure() | {
+            "valid_mime_types": self.validMimeTypes
+        }

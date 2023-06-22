@@ -1,7 +1,7 @@
 from typing import Dict
 
 from viur.core.render.html.utils import jinjaGlobalFunction
-from viur.core.utils import currentSession
+from viur.core import current
 from ..default import Render
 
 
@@ -14,7 +14,7 @@ def getSession(render: Render) -> Dict:
 
     :returns: A dictionary of session variables.
     """
-    currSess = currentSession.get()
+    currSess = current.session.get()
     if not currSess.get("JinjaSpace"):
         currSess["JinjaSpace"] = {}
     return currSess.get("JinjaSpace")
@@ -33,6 +33,6 @@ def setSession(render: Render, name: str, value: str) -> None:
     """
     sessionData = getSession(render)
     sessionData[name] = value
-    currSess = currentSession.get()
+    currSess = current.session.get()
     currSess["JinjaSpace"] = sessionData
     currSess.markChanged()
