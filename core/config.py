@@ -293,7 +293,7 @@ conf = Conf({
     "viur.session.persistentFieldsOnLogout": ["language"],
 
     # Priority, in which skeletons are loaded
-    "viur.skeleton.searchPath": ["/skeletons/", "/viur/core/"],  # Priority, in which skeletons are loaded
+    "viur.skeleton.searchPath": ["/skeletons/", "/viur/core/", "/viur-core/core/"],
 
     # If set, must be a tuple of two functions serializing/restoring additional environmental data in deferred requests
     "viur.tasks.customEnvironmentHandler": None,

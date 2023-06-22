@@ -18,7 +18,11 @@ gunicorn="20"
 jinja2="3"
 jsonschema="4"
 pillow="9"
+pytz = "2023"
 requests="2"
+tzlocal = "5"
+viur-datastore = "1"
+webob = "1"
 
 [dev-packages]
 build="*"

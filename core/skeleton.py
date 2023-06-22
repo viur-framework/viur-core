@@ -465,7 +465,7 @@ class MetaSkel(MetaBaseSkel):
         if (not any([relNewFileName.startswith(x) for x in conf["viur.skeleton.searchPath"]])
             and not "viur_doc_build" in dir(sys)):  # Do not check while documentation build
             raise NotImplementedError(
-                "Skeletons must be defined in a folder listed in conf[\"viur.skeleton.searchPath\"]")
+                f"""{relNewFileName} must be defined in a folder listed in {conf["viur.skeleton.searchPath"]}""")
         if cls.kindName and cls.kindName is not _undefined:
             MetaBaseSkel._skelCache[cls.kindName] = cls
         # Auto-Add ViUR Search Tags Adapter if the skeleton has no adapter attached
