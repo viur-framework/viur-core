@@ -1,3 +1,7 @@
+"""
+DateBone is a bone that can handle date and/or time information and is derived from the BaseBone class. It can
+store date and time information separately, as well as localize the time based on user's timezone.
+"""
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
@@ -10,6 +14,18 @@ from viur.core.utils import utcNow
 
 
 class DateBone(BaseBone):
+    """
+    DateBone is a bone that can handle date and/or time information. It can store date and time information
+    separately, as well as localize the time based on the user's timezone.
+
+    :param bool creationMagic: Use the current time as value when creating an entity; ignoring this bone if the
+        entity gets updated.
+    :param bool updateMagic: Use the current time whenever this entity is saved.
+    :param bool date: If True, the bone will contain date information.
+    :param time: If True, the bone will contain time information.
+    :param localize: If True, the user's timezone is assumed for input and output. This is only valid if both 'date'
+          and 'time' are set to True. By default, UTC time is used.
+    """
     type = "date"
 
     def __init__(
@@ -67,40 +83,53 @@ class DateBone(BaseBone):
 
     def singleValueFromClient(self, value: str, skel: 'viur.core.skeleton.SkeletonInstance', name: str, origData):
         """
-            Reads a value from the client.
-            If this value is valid for this bone,
-            store this value and return None.
-            Otherwise our previous value is
-            left unchanged and an error-message
-            is returned.
+        Reads a value from the client. If the value is valid for this bone, it stores the value and returns None.
+        Otherwise, the previous value is left unchanged, and an error message is returned.
 
-            Value is assumed to be in local time zone only if both self.date and self.time are set to True
-            and self.localize is True.
+        The value is assumed to be in the local time zone only if both self.date and self.time are set to True and
+        self.localize is True.
 
-            Value is valid if, when converted into String, it complies following formats:\n
-            - is digit (may include one '-') and valid POSIX timestamp: converted from timestamp; assumes UTC timezone\n
-            - is digit (may include one '-') and NOT valid POSIX timestamp and not date and time: interpreted as seconds after epoch\n
-            - 'now': current time\n
-            - 'nowX', where X converted into String is added as seconds to current time\n
-            - '%H:%M:%S' if not date and time\n
-            - '%M:%S' if not date and time\n
-            - '%S' if not date and time\n
-            - '%Y-%m-%d %H:%M:%S' (ISO date format)\n
-            - '%Y-%m-%d %H:%M' (ISO date format)\n
-            - '%Y-%m-%d' (ISO date format)\n
-            - '%m/%d/%Y %H:%M:%S' (US date-format)\n
-            - '%m/%d/%Y %H:%M' (US date-format)\n
-            - '%m/%d/%Y' (US date-format)\n
-            - '%d.%m.%Y %H:%M:%S' (EU date-format)\n
-            - '%d.%m.%Y %H:%M' (EU date-format)\n
-            - '%d.%m.%Y' (EU date-format)\n
-            -  \n
+            **Value is valid if, when converted into String, it complies following formats:**
+                is digit (may include one '-') and valid POSIX timestamp: converted from timestamp;
+                assumes UTC timezone
 
-            The resulting year must be >= 1900.
+                is digit (may include one '-') and NOT valid POSIX timestamp and not date and time: interpreted as
+                seconds after epoch
 
-            :param name: Our name in the skeleton
-            :param value: *User-supplied* request-data, has to be of valid format
-            :returns: tuple[datetime or None, [Errors] or None]
+                'now': current time
+
+                'nowX', where X converted into String is added as seconds to current time
+
+                '%H:%M:%S' if not date and time
+
+                '%M:%S' if not date and time
+
+                '%S' if not date and time
+
+                '%Y-%m-%d %H:%M:%S' (ISO date format)
+
+                '%Y-%m-%d %H:%M' (ISO date format)
+
+                '%Y-%m-%d' (ISO date format)
+
+                '%m/%d/%Y %H:%M:%S' (US date-format)
+
+                '%m/%d/%Y %H:%M' (US date-format)
+
+                '%m/%d/%Y' (US date-format)
+
+                '%d.%m.%Y %H:%M:%S' (EU date-format)
+
+                '%d.%m.%Y %H:%M' (EU date-format)
+
+                '%d.%m.%Y' (EU date-format)
+
+
+        The resulting year must be >= 1900.
+
+        :param str name: Our name in the skeleton
+        :param str value: *User-supplied* request-data, has to be of valid format
+        :returns: tuple[datetime or None, [Errors] or None]
         """
         time_zone = self.guessTimeZone()
         rawValue = value
@@ -112,8 +141,6 @@ class DateBone(BaseBone):
         elif not self.date and self.time:
             try:
                 value = datetime.fromisoformat(value)
-                if not self.naive:
-                    value = time_zone.localize(value)
             except:
                 try:
                     if str(rawValue).count(":") > 1:
@@ -166,21 +193,39 @@ class DateBone(BaseBone):
                             value = datetime.strptime(str(rawValue), "%d.%m.%Y")
                 except:
                     value = False  # its invalid
-            if value and not self.naive:
-                value = time_zone.localize(value)
-        if value is False:
+
+        if not value:
             return self.getEmptyValue(), [
-                ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
+                ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")
+            ]
+        if value.tzinfo and self.naive:
+            return self.getEmptyValue(), [
+                ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Datetime must be naive")
+            ]
+        if not value.tzinfo and not self.naive:
+            value = time_zone.localize(value)
+
         value = value.replace(microsecond=0)
-        err = self.isInvalid(value)
-        if err:
+
+        if err := self.isInvalid(value):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
+
         return value, None
 
     def isInvalid(self, value):
         """
-            Ensure that year is >= 1900
-            Otherwise strftime will break later on.
+        Validates the input value to ensure that the year is greater than or equal to 1900. If the year is less
+        than 1900, it returns an error message. Otherwise, it calls the superclass's isInvalid method to perform
+        any additional validations.
+
+        This check is important because the strftime function, which is used to format dates in Python, will
+        break if the year is less than 1900.
+
+        :param datetime value: The input value to be validated, expected to be a datetime object.
+
+        :returns: An error message if the year is less than 1900, otherwise the result of calling
+            the superclass's isInvalid method.
+        :rtype: str or None
         """
         if isinstance(value, datetime):
             if value.year < 1900:
@@ -190,9 +235,12 @@ class DateBone(BaseBone):
 
     def guessTimeZone(self):
         """
-        Guess the timezone the user is supposed to be in.
-        If not both date and time are set and the localize flag is set, then UTC is used.
-        If it cant be guessed, a safe default (UTC) is used
+        Tries to guess the user's time zone based on request headers. If the time zone cannot be guessed, it
+        falls back to using the UTC time zone. The guessed time zone is then cached for future use during the
+        current request.
+
+        :returns: The guessed time zone for the user or a default time zone (UTC) if the time zone cannot be guessed.
+        :rtype: pytz timezone object
         """
         if self.naive:
             return None
@@ -231,6 +279,18 @@ class DateBone(BaseBone):
         return timeZone
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+        """
+        Prepares a single value for storage by removing any unwanted parts of the datetime object, such as
+        microseconds or adjusting the date and time components depending on the configuration of the dateBone.
+        The method also ensures that the datetime object is timezone aware.
+
+        :param datetime value: The input datetime value to be serialized.
+        :param SkeletonInstance skel: The instance of the skeleton that contains this bone.
+        :param str name: The name of the bone in the skeleton.
+        :param bool parentIndexed: A boolean indicating if the parent bone is indexed.
+        :returns: The serialized datetime value with unwanted parts removed and timezone-aware.
+        :rtype: datetime
+        """
         if value:
             # Crop unwanted values to zero
             value = value.replace(microsecond=0)
@@ -245,6 +305,15 @@ class DateBone(BaseBone):
         return value
 
     def singleValueUnserialize(self, value):
+        """
+        Converts the serialized datetime value back to its original form. If the datetime object is timezone aware,
+        it adjusts the timezone based on the configuration of the dateBone.
+
+        :param datetime value: The input serialized datetime value to be unserialized.
+        :returns: The unserialized datetime value with the appropriate timezone applied or None if the input
+            value is not a valid datetime object.
+        :rtype: datetime or None
+        """
         if isinstance(value, datetime):
             # Serialized value is timezone aware.
             if self.naive:
@@ -264,6 +333,18 @@ class DateBone(BaseBone):
                       dbFilter: db.Query,
                       rawFilter: Dict,
                       prefix: Optional[str] = None) -> db.Query:
+        """
+        Constructs a datastore filter for date and/or time values based on the given raw filter. It parses the
+        raw filter and, if successful, applies it to the datastore query.
+
+        :param str name: The name of the dateBone in the skeleton.
+        :param SkeletonInstance skel: The skeleton instance containing the dateBone.
+        :param db.Query dbFilter: The datastore query to which the filter will be applied.
+        :param Dict rawFilter: The raw filter dictionary containing the filter values.
+        :param Optional[str] prefix: An optional prefix to use for the filter key, defaults to None.
+        :returns: The datastore query with the constructed filter applied.
+        :rtype: db.Query
+        """
         for key in [x for x in rawFilter.keys() if x.startswith(name)]:
             resDict = {}
             if not self.fromClient(resDict, key, rawFilter):  # Parsing succeeded
@@ -272,6 +353,15 @@ class DateBone(BaseBone):
         return dbFilter
 
     def performMagic(self, valuesCache, name, isAdd):
+        """
+        Automatically sets the current date and/or time for a dateBone when a new entry is created or an
+        existing entry is updated, depending on the configuration of creationMagic and updateMagic.
+
+        :param dict valuesCache: The cache of values to be stored in the datastore.
+        :param str name: The name of the dateBone in the skeleton.
+        :param bool isAdd: A flag indicating whether the operation is adding a new entry (True) or updating an
+            existing one (False).
+        """
         if (self.creationMagic and isAdd) or self.updateMagic:
             if self.naive:
                 valuesCache[name] = utcNow().replace(microsecond=0, tzinfo=None)

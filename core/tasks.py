@@ -2,18 +2,18 @@ import base64
 import json
 import logging
 import os
-import sys
 from datetime import datetime, timedelta
 from functools import wraps
-from time import sleep
 from typing import Any, Callable, Dict, Optional, Tuple
 
 import grpc
 import pytz
 import requests
+import sys
 from google.cloud import tasks_v2
 from google.cloud.tasks_v2.services.cloud_tasks.transports import CloudTasksGrpcTransport
 from google.protobuf import timestamp_pb2
+from time import sleep
 
 from viur.core import current, db, errors, utils
 from viur.core.config import conf
@@ -746,7 +746,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
                         logging.exception(e)
                         doCont = False
                     if not doCont:
-                        logging.error("Exiting queryItor on cursor %s" % qry.getCursor())
+                        logging.error(f"Exiting queryIter on cursor {qry.getCursor()!r}")
                         return
             qryDict["totalCount"] += 1
         cursor = qry.getCursor()
@@ -787,12 +787,18 @@ class QueryIter(object, metaclass=MetaQueryIter):
 
 class DeleteEntitiesIter(QueryIter):
     """
-        Simple Query-Iter to delete all entities encountered.
+    Simple Query-Iter to delete all entities encountered.
 
-        ..Warning: Do not use this iter on skeletons. It only works on the low-level db API and would not clear
-            relations, locks etc.
+    ..Warning: When iterating over skeletons, make sure that the
+        query was created using `Skeleton().all()`.
+        This way the `Skeleton.delete()` method can be used and
+        the appropriate post-processing can be done.
     """
 
     @classmethod
     def handleEntry(cls, entry, customData):
-        db.Delete(entry.key)
+        from viur.core.skeleton import SkeletonInstance
+        if isinstance(entry, SkeletonInstance):
+            entry.delete()
+        else:
+            db.Delete(entry.key)
