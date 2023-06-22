@@ -90,7 +90,7 @@ You can read more about python-is-python3 here:
 https://packages.ubuntu.com/focal/python-is-python3
 
 Step 4: Install the Python3 Virtual Environment
-______________________________________________
+_______________________________________________
 For Viur3 to run you will need a Python Virtual Environment.
 
 To install the Virtual Environment use the following command:
