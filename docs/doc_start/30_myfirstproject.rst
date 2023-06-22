@@ -2,13 +2,18 @@
 My first ViUR Project
 #####################
 
-After completing the first Steps in the Google Cloud Console (Verlinkung!!) you can start programming your first ViUR Application.
+After completing the first Steps in the Google Cloud Console you can start programming your first ViUR Application.
 To start, you will need to set up you ViUR System localy.
 
-On the `Awesome ViUR <https://awesome.viur.de>`_ website you will find a collection of Resources related to the ViUR Ecosystem.
+.. warning::
+    Before performing the following Steps, please make sure to visit `Awesome ViUR <https://awesome.viur.dev>`_
+    and perform the ViUR-Setup steps for your Operating System
 
-ViUR on Linux
-#############
+
+
+Start with ViUR
+###############
+
 1. Install the ViUR CLI Tool in your standard python environment:
 
 .. code-block:: bash
@@ -143,9 +148,12 @@ Optional:
 
 ViUR on Mac x86
 ###############
+tbd.
 
 ViUR on Mac ARM
 ###############
+tbd.
 
 ViUR on Windows
 ###############
+tbd.
