@@ -2,6 +2,13 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
+## [3.4.4]
+
+- chore: Update dependencies (#762)
+- fix: Missing german translation for "password too short" message (#763)
+- fix: ensure the correct default defaultValue of a multiple/multi-lang `BooleanBone` (#759)
+- fix: Move super-call in `JsonBone.__init__()` to the begin (#758)
+
 ## [3.4.3]
 
 - fix: #747 broke vi-renderer
