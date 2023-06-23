@@ -55,6 +55,16 @@ Furthermore, the following rules apply to pre-releases which are also made avail
 
 In both cases, `N` is a number counted upwards for every pre-release.
 
+## Dependency management
+
+`viur-core` has several dependencies, which are maintained by the `Pipfile`.
+
+- For local development and dependency management, run `pipenv install --dev`
+- Update dependencies with `pipenv update`
+- Regenerate requirements.txt from locked pipenv using `pipenv requirements --hash >requirements.txt`
+
+Try to keep external dependencies low.
+
 ## Releasing
 
 In case you have appropriate permissions, a release can be done this way:
@@ -64,8 +74,7 @@ In case you have appropriate permissions, a release can be done this way:
 - Update `CHANGELOG.md` and also check version number there
   - To quickly generate a changelog, run `git log --pretty="- %s" main..develop`
   - todo: Changelog shall be generated automatically later.
-- Build and publish the package
-  - Run `pipenv install` once
+- Build and publish the package (ensure `pipenv install --dev` was run before and is up-to-date)
   - Ensure any old files are deleted by running `pipenv run clean`
   - Build the wheel using `pipenv run build`
   - Release the package
