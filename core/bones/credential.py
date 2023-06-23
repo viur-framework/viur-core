@@ -19,7 +19,7 @@ class CredentialBone(StringBone):
     ):
         super().__init__(maxLength=maxLength, **kwargs)
         if self.multiple or self.languages:
-            raise ValueError("Credential-Bones cannot be multiple or translated!")
+            raise ValueError("CredentialBone cannot be multiple or translated")
 
     def isInvalid(self, value):
         """

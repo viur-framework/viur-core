@@ -4,6 +4,15 @@ from typing import Dict, List, Optional, Any, Union
 
 
 class BooleanBone(BaseBone):
+    """
+    Represents a boolean data type, which can have two possible values: `True` or `False`.
+
+    BooleanBones cannot be defined as `multiple=True`.
+
+    :param defaultValue: The default value of the `BooleanBone` instance. Defaults to `False`.
+    :type defaultValue: bool
+    :raises ValueError: If the `defaultValue` is not a boolean value (`True` or `False`).
+    """
     type = "bool"
 
     def __init__(
@@ -30,6 +39,10 @@ class BooleanBone(BaseBone):
             # TODO: missing validation for complex types, but in other bones too
 
         super().__init__(defaultValue=defaultValue, **kwargs)
+
+        # Disallow creation of BooleanBone(multiple=True)
+        if self.multiple:
+            raise ValueError("BooleanBone cannot be multiple")
 
     def singleValueFromClient(self, value, skel: 'viur.core.skeleton.SkeletonInstance', name: str, origData):
         return str(value).strip().lower() in conf["viur.bone.boolean.str2true"], None
