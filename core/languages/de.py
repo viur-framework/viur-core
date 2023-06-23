@@ -354,5 +354,5 @@ de = {
     "core.bones.password.no_lowercase_letters": "Das eingegebene Passwort enthält keine Kleinbuchstaben.",
     "core.bones.password.no_digits": "Das eingegebene Passwort enthält keine Ziffern.",
     "core.bones.password.no_special_characters": "Das eingegebene Passwort enthält keine Sonderzeichen.",
-
+    "core.bones.password.too_short": "Das eingegebene Passwort ist zu kurz. Es benötigt mindestens 8 Zeichen.",
 }
