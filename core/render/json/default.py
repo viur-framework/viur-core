@@ -140,29 +140,29 @@ class DefaultRender(object):
         return res
 
     def renderEntry(self, skel: SkeletonInstance, actionName, params=None):
+        structure = None
+        errors = None
+
         if isinstance(skel, list):
             vals = [self.renderSkelValues(x) for x in skel]
             if isinstance(skel[0], SkeletonInstance):
-                struct = DefaultRender.render_structure(skel[0].structure())
-            errors = None
+                structure = DefaultRender.render_structure(skel[0].structure())
 
         elif isinstance(skel, SkeletonInstance):
             vals = self.renderSkelValues(skel)
-            struct = DefaultRender.render_structure(skel.structure())
+            structure = DefaultRender.render_structure(skel.structure())
             errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage,
                        "invalidatedFields": x.invalidatedFields} for x in skel.errors]
 
         else:  # Hopefully we can pass it directly...
             vals = skel
-            struct = None
-            errors = None
 
         res = {
-            "values": vals,
-            "structure": struct,
-            "errors": errors,
             "action": actionName,
-            "params": params
+            "errors": errors,
+            "params": params,
+            "structure": structure,
+            "values": vals,
         }
 
         current.request.get().response.headers["Content-Type"] = "application/json"
@@ -172,24 +172,35 @@ class DefaultRender(object):
         return self.renderEntry(skel, action, params)
 
     def list(self, skellist, action: str = "list", params=None, **kwargs):
-        res = {}
-        skels = []
+        # Rendering the structure in lists is flagged as deprecated
+        structure = None
+        cursor = None
+        orders = None
 
         if skellist:
-            for skel in skellist:
-                skels.append(self.renderSkelValues(skel))
-
-            res["cursor"] = skellist.getCursor()
             if isinstance(skellist[0], SkeletonInstance):
-                res["structure"] = DefaultRender.render_structure(skellist[0].structure())
-        else:
-            res["structure"] = None
-            res["cursor"] = None
+                if "json.bone.structure.inlists" in conf["viur.compatibility"]:
+                    structure = DefaultRender.render_structure(skellist[0].structure())
 
-        res["skellist"] = skels
-        res["action"] = action
-        res["params"] = params
-        res["orders"] = skellist.get_orders()
+                cursor = skellist.getCursor()
+                orders = skellist.get_orders()
+
+            skellist = [self.renderSkelValues(skel) for skel in skellist]
+        else:
+            skellist = []
+
+        # VIUR4 ;-)
+        #loc = locals()
+        #res = {k: loc[k] for k in ("action", "cursor", "params", "skellist", "structure", "orders") if loc[k]}
+
+        res = {
+            "action": action,
+            "cursor": cursor,
+            "params": params,
+            "skellist": skellist,
+            "structure": structure,
+            "orders": orders
+        }
 
         current.request.get().response.headers["Content-Type"] = "application/json"
         return json.dumps(res, cls=CustomJsonEncoder)

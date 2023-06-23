@@ -88,6 +88,7 @@ conf = Conf({
     "viur.compatibility": [
         "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
         "json.bone.structure.keytuples",  # use classic structure notation: `"structure": [["key", {...}], ...]` (#649)
+        "json.bone.structure.inlists",  # dump skeleton structure with every JSON list response (#774 for details)
     ],
 
     # If set, viur will emit a CSP http-header with each request. Use the csp module to set this property
