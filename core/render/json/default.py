@@ -190,8 +190,8 @@ class DefaultRender(object):
             skellist = []
 
         # VIUR4 ;-)
-        #loc = locals()
-        #res = {k: loc[k] for k in ("action", "cursor", "params", "skellist", "structure", "orders") if loc[k]}
+        # loc = locals()
+        # res = {k: loc[k] for k in ("action", "cursor", "params", "skellist", "structure", "orders") if loc[k]}
 
         res = {
             "action": action,
