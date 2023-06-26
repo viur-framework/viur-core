@@ -300,10 +300,11 @@ conf = Conf({
 
     # User roles available on this project
     "viur.user.roles": {
+        "custom": "Custom",
+        "user": "User",
         "viewer": "Viewer",
         "editor": "Editor",
         "admin": "Administrator",
-        "user": "User-defined"
     },
 
     # Which application-ids we're supposed to run on

@@ -21,16 +21,6 @@ class SkelModule(Module):
         For more information, refer to the function :func:`~_resolveSkelCls`.
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        if self.handler and self.accessRights:
-            for r in self.accessRights:
-                rightName = "%s-%s" % (self.moduleName, r)
-
-                if rightName not in conf["viur.accessRights"]:
-                    conf["viur.accessRights"].append(rightName)
-
     def _resolveSkelCls(self, *args, **kwargs) -> Type[Skeleton]:
         """
         Retrieve the generally associated :class:`viur.core.skeleton.Skeleton` that is used by

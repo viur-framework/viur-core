@@ -120,7 +120,7 @@ class UserSkel(skeleton.Skeleton):
         },
         multiple=True,
         params={
-            "readonlyIf": "role and role != 'user'"  # if role is not "user", access is being managed by the role system
+            "readonlyIf": "role and role != 'custom'"  # if role is not "custom", access is managed by the role system
         }
     )
 
@@ -162,9 +162,11 @@ class UserSkel(skeleton.Skeleton):
     @classmethod
     def toDB(cls, skel, *args, **kwargs):
         # Roles
-        if skel["role"] and skel["role"] != "user":
+        if skel["role"] and skel["role"] != "custom":
+            # Get default access for this user
             access = conf["viur.mainApp"].vi.user.get_role_defaults(skel["role"])
 
+            # Go through all modules and evaluate available role-settings
             for name in dir(conf["viur.mainApp"].vi):
                 if name.startswith("_"):
                     continue
@@ -173,7 +175,7 @@ class UserSkel(skeleton.Skeleton):
                 if not isinstance(module, Module):
                     continue
 
-                roles = getattr(module, "roles", {})
+                roles = getattr(module, "roles", None) or {}
                 role = roles.get(skel["role"], roles.get("*", ()))
 
                 # Convert role into tuple if it's not
@@ -752,6 +754,10 @@ class User(List):
         "icon": "icon-users"
     }
 
+    roles = {
+        "admin": "*",
+    }
+
     def __init__(self, moduleName, modulePath, *args, **kwargs):
         super().__init__(moduleName, modulePath, *args, **kwargs)
 
@@ -777,7 +783,13 @@ class User(List):
             self._viurMapSubmodules.append("f2_%s" % pInstance.__class__.__name__.lower())
 
     def get_role_defaults(self, role: str) -> set[str]:
-        return {"admin"}  # every role has admin access
+        """
+        Returns a set of default access rights for a given role.
+        """
+        if role in ("viewer", "editor", "admin"):
+            return {"admin"}
+
+        return set()
 
     def addSkel(self):
         skel = super(User, self).addSkel().clone()
