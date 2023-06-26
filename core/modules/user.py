@@ -391,7 +391,7 @@ class UserPassword:
 
     @exposed
     def verify(self, skey, *args, **kwargs):
-        data = securitykey.validate(skey, session=False)
+        data = securitykey.validate(skey, session_bound=False)
         skel = self.userModule.editSkel()
         if not data or not isinstance(data, dict) or "userKey" not in data or not skel.fromDB(
             data["userKey"].id_or_name):
