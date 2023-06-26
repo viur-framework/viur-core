@@ -35,9 +35,9 @@ class Session:
         - :prop:use_session_cookie is set to True by default, causing the cookie to be treated as a session cookie
             (it will be deleted on browser close). If set to False, it will be emitted with the life-time in
             conf["viur.session.lifeTime"].
-        - The config variable conf["viur.session.lifeTime"]: Determines, how ling (in Minutes) a session stays valid.
-            Even if :prop:use_session_cookie is set to True, we'll void a session server-side after no request has been
-            made within said lifeTime.
+        - The config variable conf["viur.session.lifeTime"]: Determines, how long (in seconds) a session is valid.
+            Even if :prop:use_session_cookie is set to True, the session is voided server-side after no request has been
+            made within the configured lifetime.
         - The config variables conf["viur.session.persistentFieldsOnLogin"] and
             conf["viur.session.persistentFieldsOnLogout"] lists fields, that may survive a login/logout action.
             For security reasons, we completely destroy a session on login/logout (it will be deleted, a new empty
