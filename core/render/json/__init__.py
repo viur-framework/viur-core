@@ -25,7 +25,7 @@ def skey(amount: int = 1, *args, **kwargs) -> str:
         return json.dumps(securitykey.create())
 
     if not 0 < amount <= 100:
-        raise errors.Forbidden("Invalid duration provided")
+        raise errors.Forbidden("Invalid amount provided")
 
     if not current.user.get():
         raise errors.Forbidden("Batch securitykey creation is only available to authenticated users")
