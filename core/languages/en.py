@@ -40,7 +40,4 @@ en = {
     "const_datetimeformat": "%a %b %d %H:%M:%S %Y ",  # Format: Date with Time
     "const_timeformat": "%H:%M:%S",  # Format: Time  only
     "const_dateformat": "%m/%d/%Y",  # Format: Date  only
-
-    "user.bone.role": "Role",
-    "user.bone.access": "Access rights",
 }

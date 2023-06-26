@@ -105,22 +105,29 @@ class UserSkel(skeleton.Skeleton):
 
     # Generic properties
 
-    role = SelectBone(
-        descr="user.bone.role",
+    roles = SelectBone(
+        descr=i18n.translate("viur.user.bone.roles", defaultText="Roles"),
         values=conf["viur.user.roles"],
         required=True,
-        defaultValue=list(conf["viur.user.roles"].keys())[0],
+        multiple=True,
+        # fixme: This is generally broken in VIUR! See #776 for details.
+        # vfunc=lambda values:
+        #     i18n.translate(
+        #         "user.bone.roles.invalid",
+        #         defaultText="Invalid role setting: 'custom' can only be set alone.")
+        #     if "custom" in values and len(values) > 1 else None,
+        defaultValue=list(conf["viur.user.roles"].keys())[:1],
     )
 
     access = SelectBone(
-        descr="user.bone.access",
+        descr=i18n.translate("viur.user.bone.access", defaultText="Access rights"),
         values=lambda: {
             right: i18n.translate("server.modules.user.accessright.%s" % right, defaultText=right)
             for right in sorted(conf["viur.accessRights"])
         },
         multiple=True,
         params={
-            "readonlyIf": "role and role != 'custom'"  # if role is not "custom", access is managed by the role system
+            "readonlyIf": "'custom' not in role"  # if role is not "custom", access is managed by the role system
         }
     )
 
@@ -162,33 +169,37 @@ class UserSkel(skeleton.Skeleton):
     @classmethod
     def toDB(cls, skel, *args, **kwargs):
         # Roles
-        if skel["role"] and skel["role"] != "custom":
-            # Get default access for this user
-            access = conf["viur.mainApp"].vi.user.get_role_defaults(skel["role"])
+        if skel["roles"] and "custom" not in skel["roles"]:
+            # Collect access rights through rules
+            access = set()
 
-            # Go through all modules and evaluate available role-settings
-            for name in dir(conf["viur.mainApp"].vi):
-                if name.startswith("_"):
-                    continue
+            for role in skel["roles"]:
+                # Get default access for this role
+                access |= conf["viur.mainApp"].vi.user.get_role_defaults(role)
 
-                module = getattr(conf["viur.mainApp"].vi, name)
-                if not isinstance(module, Module):
-                    continue
+                # Go through all modules and evaluate available role-settings
+                for name in dir(conf["viur.mainApp"].vi):
+                    if name.startswith("_"):
+                        continue
 
-                roles = getattr(module, "roles", None) or {}
-                role = roles.get(skel["role"], roles.get("*", ()))
+                    module = getattr(conf["viur.mainApp"].vi, name)
+                    if not isinstance(module, Module):
+                        continue
 
-                # Convert role into tuple if it's not
-                if not isinstance(role, (tuple, list)):
-                    role = (role, )
+                    roles = getattr(module, "roles", None) or {}
+                    rights = roles.get(role, roles.get("*", ()))
 
-                if "*" in role:
-                    for right in module.accessRights:
-                        access.add(f"{name}-{right}")
-                else:
-                    for right in role:
-                        if right in module.accessRights:
+                    # Convert role into tuple if it's not
+                    if not isinstance(rights, (tuple, list)):
+                        rights = (rights, )
+
+                    if "*" in rights:
+                        for right in module.accessRights:
                             access.add(f"{name}-{right}")
+                    else:
+                        for right in rights:
+                            if right in module.accessRights:
+                                access.add(f"{name}-{right}")
 
             skel["access"] = list(access)
 
