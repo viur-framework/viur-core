@@ -1,113 +1,117 @@
 """
-    This module provides one-time keys.
+    Implementation of one-time CSRF-security-keys.
 
-    There are two types of security keys:
-
-    1. If :meth:create is called without arguments, it returns the current session CSRF token. Repeated calls to
-        :meth:create will return the same CSRF token (for the same session) until that token has been redeemed.
-        This security key will be valid as long the session is active, and it's not possible to store data along with
-        that key. These are usually used as a CSRF token.
-        This has been changed from ViUR2 - where it was possible to create a arbitrary number of security keys per
-        session.
-    2. If :meth:create is called with a duration (and optional kwargs values), it will create a security key
-        that is *not* bound to the current session, but it's possible to store custom data (provided by kwargs).
-        As these are not bound to the session, each call to :meth:create will yield a new token.
-        These are used if it's expected that the token may be redeemed on a different device (e.g. when sending an
-        email address confirmation)
+    CSRF-security-keys (Cross-Site Request Forgery) are used mostly to make requests unique and non-reproducible.
+    Doing the same request again requires to obtain a fresh security key first.
+    Furthermore, security keys can be used to implemented credential-reset mechanisms or similar features, where a
+    URL is only valid for one call.
 
     ..note:
-        There's also a hidden 3rd type of security-key: The sessions static security key.
+        There's also a hidden 3rd type of security-key: The session's static security key.
 
-        This key is only revealed once (during login, as the protected header Sec-X-ViUR-StaticSKey).
+        This key is only revealed once during login, as the protected header "Sec-X-ViUR-StaticSessionKey".
 
         This can be used instead of the one-time sessions security key by sending it back as the same protected HTTP
-        header and setting the skey value to "staticSessionKey". This is only intended for non-web-browser,
+        header and setting the skey value to "Sec-X-ViUR-StaticSessionKey". This is only intended for non-web-browser,
         programmatic access (admin tools, import tools etc.) where CSRF attacks are not applicable.
 
         Therefor that header is prefixed with "Sec-" - so it cannot be read or set using JavaScript.
 """
-from viur.core import utils, current, db, tasks
+import typing
+import datetime
+import hmac
+from viur.core import conf, utils, current, db, tasks
 from viur.core.tasks import DeleteEntitiesIter
-from datetime import datetime, timedelta
-from typing import Union
 
 SECURITYKEY_KINDNAME = "viur-securitykey"
+SECURITYKEY_DURATION = 24 * 60 * 60  # one day
+SECURITYKEY_STATIC = "Sec-X-ViUR-StaticSessionKey"
 
 
-def create(duration: Union[None, int] = None, **custom_data) -> str:
+def create(duration: typing.Union[None, int] = None, session_bound: bool = True, **custom_data) -> str:
     """
-        Creates a new one-time security key or returns the current sessions CSRF-token.
+        Creates a new one-time CSRF-security-key.
 
         The custom data (given as **custom_data) that can be stored with the key.
         Any data provided must be serializable by the datastore.
 
-        :param duration: Make this key valid for a fixed timeframe of seconds (and independent of the current session)
+        :param duration: Make this CSRF-token valid for a fixed timeframe of seconds.
+        :param session_bound: Bind this CSRF-token to the current session.
+        :param custom_data: Any other data is stored with the CSRF-token, for later re-use.
+
         :returns: The new one-time key, which is a randomized string.
     """
+    if any(k.startswith("viur_") for k in custom_data):
+        raise ValueError("custom_data keys with a 'viur_'-prefix are reserved.")
+
     if not duration:
-        if custom_data:
-            raise ValueError("Providing any custom_data is not allowed when session security key is wanted")
-
-        return current.session.get().getSecurityKey()
-
-    elif "until" in custom_data:
-        raise ValueError("The 'until' property is reserved and cannot be used in the custom_data")
+        duration = conf["viur.session.lifeTime"] if session_bound else SECURITYKEY_DURATION
 
     key = utils.generateRandomString()
 
     entity = db.Entity(db.Key(SECURITYKEY_KINDNAME, key))
     entity |= custom_data
 
-    entity["until"] = utils.utcNow() + timedelta(seconds=int(duration))
+    entity["viur_session"] = current.session.get().cookie_key if session_bound else None
+    entity["viur_until"] = utils.utcNow() + datetime.timedelta(seconds=int(duration))
     db.Put(entity)
 
     return key
 
 
-def validate(key: str, useSessionKey: bool) -> Union[bool, db.Entity]:
+def validate(key: str, session_bound: bool = True) -> typing.Union[bool, db.Entity]:
     """
-        Validates a security key.
+        Validates a CSRF-security-key.
 
-        If useSessionKey is True, the key is expected to be the session's current security key
-        or its static security key.
-
-        Otherwise, it must be a key created with a duration, so that it is session independent.
-
-        :param key: The key to be validated
-        :param useSessionKey: If True, validate against the session's skey, otherwise lookup an unbound key
-        :returns: False if the key was not valid for whatever reasons, the data (given during createSecurityKey) as
-            dictionary or True if the dict is empty (or useSessionKey was True).
+        :param key: The CSRF-token to be validated.
+        :param session_bound: If True, make sure the CSRF-token is created inside the current session.
+        :returns: False if the key was not valid for whatever reasons, the data (given during :meth:`create`) as
+            dictionary or True if the dict is empty (or session was True).
     """
-    if useSessionKey:
-        session = current.session.get()
-        if key == "staticSessionKey":
-            skey_header_value = current.request.get().request.headers.get("Sec-X-ViUR-StaticSKey")
-            if skey_header_value and session.validateStaticSecurityKey(skey_header_value):
-                return True
-
-        elif session.validateSecurityKey(key):
-            return True
+    if session_bound and key == SECURITYKEY_STATIC:
+        if skey_header_value := current.request.get().request.headers.get(SECURITYKEY_STATIC):
+            return hmac.compare_digest(current.session.get().static_security_key, skey_header_value)
 
         return False
 
     if not key or not (entity := db.Get(db.Key(SECURITYKEY_KINDNAME, key))):
         return False
 
+    # First of all, delete the entity, validation is done afterward.
     db.Delete(entity)
 
     # Key has expired?
-    if entity["until"] < utils.utcNow():
+    if entity["viur_until"] < utils.utcNow():
         return False
 
-    del entity["until"]
+    del entity["viur_until"]
+
+    # Key is session bound?
+    if session_bound:
+        if entity["viur_session"] != current.session.get().cookie_key:
+            return False
+    elif entity["viur_session"]:
+        return False
+
+    del entity["viur_session"]
 
     return entity or True
 
 
 @tasks.PeriodicTask(60 * 4)
-def start_clear_skeys():
+def periodic_clear_skeys():
     """
-        Removes old (expired) skeys
+        Removes expired CSRF-security-keys periodically.
     """
-    query = db.Query(SECURITYKEY_KINDNAME).filter("until <", datetime.now() - timedelta(seconds=300))
+    query = db.Query(SECURITYKEY_KINDNAME).filter("viur_until <", utils.utcNow() - datetime.timedelta(seconds=300))
+    DeleteEntitiesIter.startIterOnQuery(query)
+
+
+@tasks.CallDeferred
+def clear_session_skeys(session_key):
+    """
+        Removes any CSRF-security-keys bound to a specific session.
+        This function is called by the Session-module based on reset-actions.
+    """
+    query = db.Query(SECURITYKEY_KINDNAME).filter("viur_session", session_key)
     DeleteEntitiesIter.startIterOnQuery(query)

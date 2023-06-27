@@ -2,32 +2,35 @@ from .default import DefaultRender as default
 from .user import UserRender as user
 from viur.core import securitykey, current, errors, exposed
 import json
-import typing
 
 __all__ = [default]
 
 
 @exposed
-def skey(duration: typing.Optional[int] = None, *args, **kwargs) -> str:
+def skey(amount: int = 1, *args, **kwargs) -> str:
     """
-    Creates or returns a valid skey.
+    Creates CSRF-security-keys for transactions.
 
-    When a user is authenticated, a duration can be provided,
-    which returns a fresh, session-agnostic skey.
-    Otherwise, a session-based skey is returned.
+    All returned keys are associated with the session, therefore they cannot be used across sessions.
+    The keys get a maximum lifetime of the session lifetime, afterward they become invalid.
+
+    :param amount: Optional amount of securitykeys to create in a batch.
+        `amount > 1` can only be used by authenticated users, for a maximum of 100 keys.
 
     See module securitykey for details.
     """
     current.request.get().response.headers["Content-Type"] = "application/json"
 
-    if duration is not None:
-        if not current.user.get():
-            raise errors.Unauthorized("Durations can only be used by authenticated users")
+    if amount == 1:
+        return json.dumps(securitykey.create())
 
-        if not 0 < duration <= 60:
-            raise errors.Forbidden("Invalid duration provided")
+    if not 0 < amount <= 100:
+        raise errors.Forbidden("Invalid amount provided")
 
-    return json.dumps(securitykey.create(duration=duration))
+    if not current.user.get():
+        raise errors.Forbidden("Batch securitykey creation is only available to authenticated users")
+
+    return json.dumps([securitykey.create() for _ in range(amount)])
 
 
 def _postProcessAppObj(obj):  # Register our SKey function
