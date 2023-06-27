@@ -62,10 +62,15 @@ de = {
     "created at": "Erstellt am",
     "updated at": "Aktualisiert am",
 
+    # User module
     "waiting for email verification": "wartet auf Bestätigung der E-Mailadresse",
     "waiting for verification through admin": "warte auf Freischaltung durch Administrator",
     "account disabled": "deaktiviert",
     "active": "aktiv",
+
+    "viur.user.bone.roles": "Rollen",
+    "viur.user.bone.roles.invalid": "Die Rolle 'Benutzerdefiniert' kann nur einzeln gesetzt werden!",
+    "viur.user.bone.access": "Zugriffsrechte",
 
     # Titles
     "mr.": "Herr",

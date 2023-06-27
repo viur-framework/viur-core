@@ -15,7 +15,7 @@ from google.oauth2 import id_token
 
 from viur.core import (
     conf, current, db, email, errors, exposed, forceSSL, i18n,
-    securitykey, session, skeleton, tasks, utils
+    securitykey, session, skeleton, tasks, utils, Module
 )
 from viur.core.bones import *
 from viur.core.bones.password import PBKDF2_DEFAULT_ITERATIONS, encode_password
@@ -104,13 +104,31 @@ class UserSkel(skeleton.Skeleton):
     )
 
     # Generic properties
+
+    roles = SelectBone(
+        descr=i18n.translate("viur.user.bone.roles", defaultText="Roles"),
+        values=conf["viur.user.roles"],
+        required=True,
+        multiple=True,
+        # fixme: This is generally broken in VIUR! See #776 for details.
+        # vfunc=lambda values:
+        #     i18n.translate(
+        #         "user.bone.roles.invalid",
+        #         defaultText="Invalid role setting: 'custom' can only be set alone.")
+        #     if "custom" in values and len(values) > 1 else None,
+        defaultValue=list(conf["viur.user.roles"].keys())[:1],
+    )
+
     access = SelectBone(
-        descr="Access rights",
+        descr=i18n.translate("viur.user.bone.access", defaultText="Access rights"),
         values=lambda: {
             right: i18n.translate("server.modules.user.accessright.%s" % right, defaultText=right)
             for right in sorted(conf["viur.accessRights"])
         },
         multiple=True,
+        params={
+            "readonlyIf": "'custom' not in role"  # if role is not "custom", access is managed by the role system
+        }
     )
 
     status = SelectBone(
@@ -147,6 +165,45 @@ class UserSkel(skeleton.Skeleton):
         descr="Config for the User",
         visible=False
     )
+
+    @classmethod
+    def toDB(cls, skel, *args, **kwargs):
+        # Roles
+        if skel["roles"] and "custom" not in skel["roles"]:
+            # Collect access rights through rules
+            access = set()
+
+            for role in skel["roles"]:
+                # Get default access for this role
+                access |= conf["viur.mainApp"].vi.user.get_role_defaults(role)
+
+                # Go through all modules and evaluate available role-settings
+                for name in dir(conf["viur.mainApp"].vi):
+                    if name.startswith("_"):
+                        continue
+
+                    module = getattr(conf["viur.mainApp"].vi, name)
+                    if not isinstance(module, Module):
+                        continue
+
+                    roles = getattr(module, "roles", None) or {}
+                    rights = roles.get(role, roles.get("*", ()))
+
+                    # Convert role into tuple if it's not
+                    if not isinstance(rights, (tuple, list)):
+                        rights = (rights, )
+
+                    if "*" in rights:
+                        for right in module.accessRights:
+                            access.add(f"{name}-{right}")
+                    else:
+                        for right in rights:
+                            if right in module.accessRights:
+                                access.add(f"{name}-{right}")
+
+            skel["access"] = list(access)
+
+        return super().toDB(skel, *args, **kwargs)
 
 
 class UserPassword:
@@ -707,6 +764,10 @@ class User(List):
         "icon": "icon-users"
     }
 
+    roles = {
+        "admin": "*",
+    }
+
     def __init__(self, moduleName, modulePath, *args, **kwargs):
         super().__init__(moduleName, modulePath, *args, **kwargs)
 
@@ -730,6 +791,15 @@ class User(List):
             # Also put it as an object into self, so that any exposed function is reachable
             setattr(self, "f2_%s" % pInstance.__class__.__name__.lower(), pInstance)
             self._viurMapSubmodules.append("f2_%s" % pInstance.__class__.__name__.lower())
+
+    def get_role_defaults(self, role: str) -> set[str]:
+        """
+        Returns a set of default access rights for a given role.
+        """
+        if role in ("viewer", "editor", "admin"):
+            return {"admin"}
+
+        return set()
 
     def addSkel(self):
         skel = super(User, self).addSkel().clone()

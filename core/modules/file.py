@@ -401,6 +401,12 @@ class File(Tree):
         "handler": handler,  # fixme: Use static handler; Remove with VIUR4!
     }
 
+    roles = {
+        "*": "view",
+        "editor": ("add", "edit"),
+        "admin": "*",
+    }
+
     blobCacheTime = 60 * 60 * 24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
 
     def write(self, filename: str, content: Any, mimetype: str = "text/plain", width: int = None,

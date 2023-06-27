@@ -75,6 +75,10 @@ class Script(Tree):
     leafSkelCls = ScriptLeafSkel
     nodeSkelCls = ScriptNodeSkel
 
+    roles = {
+        "admin": "*",
+    }
+
     def adminInfo(self):
         return conf.get("viur.script.admin_info") or {}
 

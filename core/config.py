@@ -303,6 +303,15 @@ conf = Conf({
     # If set, must be a tuple of two functions serializing/restoring additional environmental data in deferred requests
     "viur.tasks.customEnvironmentHandler": None,
 
+    # User roles available on this project
+    "viur.user.roles": {
+        "custom": "Custom",
+        "user": "User",
+        "viewer": "Viewer",
+        "editor": "Editor",
+        "admin": "Administrator",
+    },
+
     # Which application-ids we're supposed to run on
     "viur.validApplicationIDs": [],
 

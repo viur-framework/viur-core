@@ -1,4 +1,5 @@
-from typing import Dict, Any, Union, Callable
+from typing import Dict, Any, Union, Tuple, Callable
+from viur.core.config import conf
 
 
 class Module:
@@ -11,6 +12,30 @@ class Module:
     This is the module's handler, respectively its type.
     It can be provided as a callable() which determines the handler at runtime.
     A module without a handler setting is invalid.
+    """
+
+    accessRights: Tuple[str] = None
+    """
+    If set, a tuple of access rights (like add, edit, delete) that this module supports.
+
+    These will be prefixed on instance startup with the actual module name (becoming file-add, file-edit etc)
+    and registered in ``conf["viur.accessRights"]`` so these will be available on the access bone in user/add
+    or user/edit.
+    """
+
+    roles: Dict = {}
+    """
+    Allows to specify role settings for a module.
+    Defaults to no role definition, which ignores the module entirely.
+    A "*" can either be used as key or as value to allow for "all roles", or "all rights".
+
+    Example:
+
+        >>> roles = {
+        >>>     "*": "view",                # Any role may only "view"
+        >>>     "editor": ("add", "edit"),  # Role "editor" may "add" or "edit", but not "delete"
+        >>>     "admin": "*",               # Role "admin" can do everything
+        >>> }
     """
 
     adminInfo: Union[Dict[str, Any], Callable] = None
@@ -100,6 +125,14 @@ class Module:
         self._cached_description = None  # caching used by describe()
         self.moduleName = moduleName  # Name of this module (usually it's class name, e.g. "file")
         self.modulePath = modulePath  # Path to this module in URL-routing (e.g. "json/file")
+
+        if self.handler and self.accessRights:
+            for right in self.accessRights:
+                right = f"{self.moduleName}-{right}"
+
+                # fixme: Turn conf["viur.accessRights"] into a set.
+                if right not in conf["viur.accessRights"]:
+                    conf["viur.accessRights"].append(right)
 
     def describe(self) -> Union[Dict, None]:
         """
