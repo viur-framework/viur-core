@@ -1,17 +1,36 @@
+# pipenv install --dev
+# pipenv requirements --hash >requirements.txt
+
 [[source]]
 url = "https://pypi.org/simple"
 verify_ssl = true
 name = "pypi"
 
 [packages]
-build="*"
-twine="*"
+google-auth = "2"
+google-cloud-datastore = "2"
+google-cloud-iam = "2"
+google-cloud-logging = "3"
+google-cloud-storage = "2"
+google-cloud-tasks = "2"
+google-resumable-media = "2"
+gunicorn = "20"
+jinja2 = "3"
+jsonschema = "4"
+pillow = "9"
+pytz = "2023"
+requests = "2"
+tzlocal = "5"
+viur-datastore = "1"
+webob = "1"
 
 [dev-packages]
+build="*"
 pycodestyle = "*"
+twine="*"
 
 [requires]
-python_version = "3.10"
+python_version = "3.11"
 
 [scripts]
 clean = "rm -rf dist build viur_core.egg-info"

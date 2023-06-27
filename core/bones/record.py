@@ -190,7 +190,7 @@ class RecordBone(BaseBone):
         a key from the related skeleton being used (i.e., which fields to include and how).
 
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def structure(self) -> dict:
         return super().structure() | {
