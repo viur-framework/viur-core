@@ -57,7 +57,7 @@ In both cases, `N` is a number counted upwards for every pre-release.
 
 ## Dependency management
 
-`viur-core` has several dependencies, which are maintained by the `Pipfile`.
+`viur-core` has several dependencies, which are maintained by the [`Pipfile`](/Pipfile).
 
 - For local development and dependency management, run `pipenv install --dev`
 - Update dependencies with `pipenv update`
@@ -71,7 +71,7 @@ In case you have appropriate permissions, a release can be done this way:
 
 - Make sure all hotfixes from `main` are in `develop` as well (`git merge main`)
 - Bump version number in `core/version.py`
-- Update `CHANGELOG.md` and also check version number there
+- Update [`CHANGELOG.md`](/CHANGELOG.md) and also check version number there
   - To quickly generate a changelog, run `git log --pretty="- %s" main..develop`
   - todo: Changelog shall be generated automatically later.
 - Build and publish the package (ensure `pipenv install --dev` was run before and is up-to-date)
