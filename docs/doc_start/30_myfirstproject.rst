@@ -6,7 +6,8 @@ After completing the first steps in the Google Cloud Console you can start progr
 To start, you will need to set up you ViUR system localy.
 
 .. warning::
-    Before performing the following Steps, please make sure to visit `Awesome ViUR <https://awesome.viur.dev>`_
+    Before performing the following steps, please make sure to visit `Awesome ViUR <https://awesome.viur.dev>`_
+
     and perform the ViUR setup steps for your operating system.
 
 Start with ViUR
