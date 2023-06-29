@@ -113,7 +113,8 @@ Start with ViUR
  .. warning::
 
     | On the first start of your development server your console will show you an admin E-Mail and a generated admin password.
-    | You can log into the Vi and change the password by hand afterwards.
+    | You can log into the Vi and change both the username and password by hand afterwards.
+
     | It will look similar to this:
 
  .. code-block:: bash
@@ -131,7 +132,8 @@ Start with ViUR
   (a) Cloud Datastore User
   (b) Storage Object Admin
 
-Reset my Admin User:
+Reset my admin user:
+
 ____________________
 In case you have locked yourself out of your own system. There is a possible way back in, but you will need to sacrifice
 all your user data and log ins.

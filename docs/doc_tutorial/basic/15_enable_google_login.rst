@@ -1,7 +1,8 @@
 ViUR and Google Auth
 ####################
 
-This changes took effect on ViUR 3.3.5 if you are usig a prior version, you need to handle it otherwise.
+This changes took effect on ViUR >=3.3. In case you're using a prior version, you need to handle it differently.
+
 
 1. Open the Google Cloud Console website as an admin user
 2. Open the `API & Services OAuth conset screen <https://console.cloud.google.com/apis/credentials/consent>`_ menu
@@ -13,7 +14,8 @@ This changes took effect on ViUR 3.3.5 if you are usig a prior version, you need
     (c) *openid*
 
 .. Note::
-    Those Scopes are the generall Scopes to get user information
+    Those scopes are the general scopes to get user information
+
 
 6. Save and Continue
 7. Navigate to `API & Services Credentials <https://console.cloud.google.com/apis/credentials>`_
