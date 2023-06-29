@@ -22,7 +22,8 @@ The following steps are to be performed on the `Google Cloud Console <https://co
 3. `Create a new Google Cloud Project <https://developers.google.com/workspace/guides/create-project>`_
 
 .. Note::
-  Please be aware of juristical restrictions in your Area, Country and Continent,
+  Please be aware of juristical restrictions in your area, country and continent,
+
   such as GDPR  and configure your project accordingly.
 
 4. Your project creation will trigger a task from Google, so please be patient while the task runs.
