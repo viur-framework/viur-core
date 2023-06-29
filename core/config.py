@@ -88,6 +88,7 @@ conf = Conf({
     "viur.compatibility": [
         "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
         "json.bone.structure.keytuples",  # use classic structure notation: `"structure": [["key", {...}], ...]` (#649)
+        "json.bone.structure.inlists",  # dump skeleton structure with every JSON list response (#774 for details)
     ],
 
     # If set, viur will emit a CSP http-header with each request. Use the csp module to set this property
@@ -293,10 +294,23 @@ conf = Conf({
     "viur.session.persistentFieldsOnLogout": ["language"],
 
     # Priority, in which skeletons are loaded
-    "viur.skeleton.searchPath": ["/skeletons/", "/viur/core/"],  # Priority, in which skeletons are loaded
+    "viur.skeleton.searchPath": [
+        "/skeletons/",  # skeletons of the project
+        "/viur/core/",  # system-defined skeletons of viur-core
+        "/viur-core/core/"  # system-defined skeletons of viur-core, only used by editable installation
+    ],
 
     # If set, must be a tuple of two functions serializing/restoring additional environmental data in deferred requests
     "viur.tasks.customEnvironmentHandler": None,
+
+    # User roles available on this project
+    "viur.user.roles": {
+        "custom": "Custom",
+        "user": "User",
+        "viewer": "Viewer",
+        "editor": "Editor",
+        "admin": "Administrator",
+    },
 
     # Which application-ids we're supposed to run on
     "viur.validApplicationIDs": [],

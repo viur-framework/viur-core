@@ -401,6 +401,12 @@ class File(Tree):
         "handler": handler,  # fixme: Use static handler; Remove with VIUR4!
     }
 
+    roles = {
+        "*": "view",
+        "editor": ("add", "edit"),
+        "admin": "*",
+    }
+
     blobCacheTime = 60 * 60 * 24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
 
     def write(self, filename: str, content: Any, mimetype: str = "text/plain", width: int = None,
@@ -566,7 +572,7 @@ class File(Tree):
         else:
             size = None
 
-        if not securitykey.validate(skey, useSessionKey=True):
+        if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
 
         targetKey, uploadUrl = self.initializeUpload(fileName, mimeType, node, size)
@@ -671,7 +677,7 @@ class File(Tree):
         if skelType == "leaf":  # We need to handle leafs separately here
             skey = kwargs.get("skey")
             targetKey = kwargs.get("key")
-            if not skey or not securitykey.validate(skey, useSessionKey=True) or not targetKey:
+            if not skey or not securitykey.validate(skey) or not targetKey:
                 raise errors.PreconditionFailed()
             skel = self.addSkel("leaf")
             if not skel.fromDB(targetKey):

@@ -4,12 +4,13 @@
 """
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core import db, conf
-from typing import Dict, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 
 
 class BooleanBone(BaseBone):
     """
     Represents a boolean data type, which can have two possible values: `True` or `False`.
+    BooleanBones cannot be defined as `multiple=True`.
 
     :param defaultValue: The default value of the `BooleanBone` instance. Defaults to `False`.
     :type defaultValue: bool
@@ -20,13 +21,31 @@ class BooleanBone(BaseBone):
     def __init__(
         self,
         *,
-        defaultValue: bool = False,
+        defaultValue: Union[
+            bool,
+            List[bool],
+            Dict[str, Union[List[bool], bool]],
+        ] = None,
         **kwargs
     ):
-        if defaultValue not in (True, False):
-            raise ValueError("Only 'True' or 'False' can be provided as BooleanBone defaultValue")
+        if defaultValue is None:
+            if kwargs.get("multiple") or kwargs.get("languages"):
+                # BaseBone's __init__ will choose an empty container for this
+                defaultValue = None
+            else:
+                # We have a single bone which is False
+                defaultValue = False
+        else:
+            # We have given an explicit defaultValue and maybe a complex structure
+            if not (kwargs.get("multiple") or kwargs.get("languages")) and not isinstance(defaultValue, bool):
+                raise TypeError("Only 'True' or 'False' can be provided as BooleanBone defaultValue")
+            # TODO: missing validation for complex types, but in other bones too
 
         super().__init__(defaultValue=defaultValue, **kwargs)
+
+        # Disallow creation of BooleanBone(multiple=True)
+        if self.multiple:
+            raise ValueError("BooleanBone cannot be multiple")
 
     def singleValueFromClient(self, value, skel: 'viur.core.skeleton.SkeletonInstance', name: str, origData):
         """
