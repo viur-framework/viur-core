@@ -3,7 +3,8 @@ ViUR and the Google Cloud Console
 #################################
 
 At the time of writing every ViUR system is written on top of the Google App Engine.
-To be able to develop Software with a ViUR system you need to follow some basic
+To be able to develop software with a ViUR system you need to follow some basic
+
 steps in the Google Cloud Console.
 
 .. Note::
