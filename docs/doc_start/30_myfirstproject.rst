@@ -112,7 +112,8 @@ Start with ViUR
 
  .. warning::
 
-    | On the first start of your development server your console will show you an admin E-Mail and a generated admin password.
+    | On the first start of your development server, the debug output will show you username and password credentials for an automatically generated admin user.
+
     | You can log into the Vi and change both the username and password by hand afterwards.
 
     | It will look similar to this:
