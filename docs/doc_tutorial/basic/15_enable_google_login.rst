@@ -14,7 +14,8 @@ This changes took effect on ViUR >=3.3. In case you're using a prior version, yo
     (c) *openid*
 
 .. Note::
-    Those Scopes are the generall Scopes to get user information
+    Those scopes are the general scopes to get user information
+
 
 6. Save and Continue
 7. Navigate to `API & Services Credentials <https://console.cloud.google.com/apis/credentials>`_
