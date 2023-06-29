@@ -27,7 +27,8 @@ The following steps are to be performed on the `Google Cloud Console <https://co
   such as GDPR  and configure your project accordingly.
 
 4. Your project creation will trigger a task from Google, so please be patient while the task runs.
-   This may take a while, Grab a Coffee or Tea
+   This may take a while, grab a coffee, tea or beer meanwhile.
+
 5. Visit your `Organisation Policy <https://cloud.google.com/resource-manager/docs/organization-policy/overview>`_ and enable Service Account creation.
    (You can find more information about that topic `here <https://cloud.google.com/iam/docs/service-accounts-create>`_)
 
