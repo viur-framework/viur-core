@@ -9,7 +9,8 @@ steps in the Google Cloud Console.
 
 .. Note::
   Please be aware that the Google products can produce costs to your Google Billing Account.
-  Even if the **Development** of software on the Google Cloud Platform mostly stays within the free contingent,
+  Even if the **development** of software on the Google Cloud Platform mostly stays within the free contingent,
+
   you should get an overview of the `Google Cloud Billing <https://cloud.google.com/billing/docs>`_ documentation.
 
 Google Cloud Console configuration:
