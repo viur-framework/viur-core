@@ -49,9 +49,7 @@ Start with ViUR
 
   3.2. Choose if you want to add ViUR Vi as a git submodule
 
-  3.3. Choose if u want to add additional flare application
-
-  3.4. Choose if you want to configure your project as a new gcloud project
+  3.3. Choose if you want to configure your project as a new gcloud project
 
 4. Install your development dependencies
   Since we want to have the flexibility to work on different versions of our software, we use virtual environments.
@@ -65,7 +63,7 @@ Start with ViUR
 
   .. code-block:: bash
 
-    nano Pipfile
+    $EDITOR Pipfile
 
 
   Your output should look like this.
@@ -78,12 +76,12 @@ Start with ViUR
     name = "pypi"
 
     [packages]
-    viur-core = "==3.3.5"
+    viur-core = "*"
 
     [dev-packages]
-    viur-cli = "==0.7.7"
-    pycodestyle = "==2.10.0"
-    watchdog = "==2.2.1"
+    viur-cli = "*"
+    pycodestyle = "*"
+    watchdog = "*"
 
     [requires]
     python_version = "3.11"
