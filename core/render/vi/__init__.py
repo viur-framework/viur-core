@@ -3,7 +3,7 @@ from viur.core.render.vi.user import UserRender as user  # this import must exis
 from viur.core.render.json import skey
 from viur.core.render.json.default import DefaultRender, CustomJsonEncoder
 from viur.core.render.vi.user import UserRender as user
-from viur.core import Module, conf, current, exposed, securitykey, errors
+from viur.core import Module, conf, current, exposed, securitykey, errors, require_skey
 from viur.core.skeleton import SkeletonInstance
 import datetime
 import json
@@ -64,10 +64,8 @@ def getStructure(module):
 
 
 @exposed
+@require_skey()
 def setLanguage(lang, skey):
-    if not securitykey.validate(skey):
-        raise errors.PreconditionFailed()
-
     if lang in conf["viur.availableLanguages"]:
         current.language.set(lang)
 

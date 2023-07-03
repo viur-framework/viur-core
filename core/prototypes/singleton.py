@@ -1,6 +1,6 @@
 import logging
 from typing import Any, Optional
-from viur.core import db, current, errors, exposed, forceSSL, securitykey
+from viur.core import db, current, errors, exposed, force_ssl, securitykey, require_skey
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
 from .skelmodule import SkelModule
@@ -55,6 +55,7 @@ class Singleton(SkelModule):
     ## External exposed functions
 
     @exposed
+    @require_skey()
     def preview(self, skey: str, *args, **kwargs) -> Any:
         """
         Renders data for the entry, without reading it from the database.
@@ -68,9 +69,6 @@ class Singleton(SkelModule):
         """
         if not self.canPreview():
             raise errors.Unauthorized()
-
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
 
         skel = self.viewSkel()
         skel.fromClient(kwargs)
@@ -118,7 +116,8 @@ class Singleton(SkelModule):
         return self.render.view(skel)
 
     @exposed
-    @forceSSL
+    @force_ssl
+    @require_skey()
     def edit(self, *args, **kwargs) -> Any:
         """
         Modify the existing entry, and render the entry, eventually with error notes on incorrect data.
@@ -150,9 +149,6 @@ class Singleton(SkelModule):
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or ("bounce" in kwargs and kwargs["bounce"] == "1")):  # review before changing
             return self.render.edit(skel)
-
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
 
         self.onEdit(skel)
         skel.toDB()

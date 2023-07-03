@@ -90,7 +90,8 @@ def mapModule(moduleObj: object, moduleName: str, targetResolverRender: dict):
     moduleFunctions = {}
     for key in [x for x in dir(moduleObj) if x[0] != "_"]:
         prop = getattr(moduleObj, key)
-        if key == "canAccess" or getattr(prop, "exposed", None):
+        viur_flags = getattr(prop, "viur_flags", {})
+        if key == "canAccess" or viur_flags.get("exposed", False):
             moduleFunctions[key] = prop
     for lang in conf["viur.availableLanguages"] or [conf["viur.defaultLanguage"]]:
         # Map the module under each translation
@@ -316,51 +317,9 @@ def app(environ: dict, start_response: Callable):
 
 
 ## Decorators ##
-def forceSSL(f: Callable) -> Callable:
-    """
-        Decorator, which forces usage of an encrypted Channel for a given resource.
-        Has no effect on development-servers.
-    """
-    f.forceSSL = True
-    return f
+from .decorators import force_post, force_ssl, exposed, internal_exposed, get_attr, require_skey
+
+__getattr__ = get_attr
 
 
-def forcePost(f: Callable) -> Callable:
-    """
-        Decorator, which forces usage of an http post request.
-    """
-    f.forcePost = True
-    return f
 
-
-def exposed(f: Union[Callable, dict]) -> Callable:
-    """
-        Decorator, which marks an function as exposed.
-
-        Only exposed functions are callable by http-requests.
-        Can optionally receive a dict of language->translated name to make that function
-        available under different names
-    """
-    if isinstance(f, dict):
-        # We received said dictionary:
-        def exposeWithTranslations(g):
-            g.exposed = True
-            g.seoLanguageMap = f
-            return g
-
-        return exposeWithTranslations
-    else:
-        f.exposed = True
-        f.seoLanguageMap = None
-        return f
-
-
-def internalExposed(f: Callable) -> Callable:
-    """
-        Decorator, marks an function as internal exposed.
-
-        Internal exposed functions are not callable by external http-requests,
-        but can be called by templates using ``execRequest()``.
-    """
-    f.internalExposed = True
-    return f

@@ -543,8 +543,9 @@ class BrowseHandler():  # webapp.RequestHandler
 
             if part in caller:
                 caller = caller[part]
-                if (("exposed" in dir(caller) and caller.exposed) or
-                        ("internalExposed" in dir(caller) and caller.internalExposed and self.internalRequest)) and \
+                viur_flags = getattr(caller, "viur_flags", {})
+                if (viur_flags.get("exposed", False) or
+                        (viur_flags.get("internal_exposed", False) and self.internalRequest)) and \
                         hasattr(caller, '__call__'):
                     if part == "index":
                         idx -= 1
@@ -564,25 +565,28 @@ class BrowseHandler():  # webapp.RequestHandler
             raise errors.NotFound(
                 f"""The path {utils.escapeString("/".join(self.path_list[:idx]))} could not be found""")
 
-        if (not callable(caller) or ((not "exposed" in dir(caller) or not caller.exposed)) and (
-            not "internalExposed" in dir(caller) or not caller.internalExposed or not self.internalRequest)):
-            if "index" in caller \
-                and (callable(caller["index"]) \
-                     and ("exposed" in dir(caller["index"]) and caller["index"].exposed) \
-                     or ("internalExposed" in dir(
-                    caller["index"]) and caller["index"].internalExposed and self.internalRequest)):
-                caller = caller["index"]
+        viur_flags = getattr(caller, "viur_flags", {})
+        if not (callable(caller) and\
+            (viur_flags.get("exposed", False)) or\
+            (viur_flags.get("internal_exposed", False) and self.internalRequest)):
+
+            if "index" in caller:
+                viur_flags = getattr(caller["index"], "viur_flags", {})
+                if callable(caller["index"]) \
+                     and (viur_flags.get("exposed", False)) \
+                     or (viur_flags.get("internal_exposed") and self.internalRequest):
+                    caller = caller["index"]
             else:
                 raise errors.MethodNotAllowed()
         # Check for forceSSL flag
         if not self.internalRequest \
-                and "forceSSL" in dir(caller) \
-                and caller.forceSSL \
+                and "viur_flags" in dir(caller) \
+                and caller.viur_flags.get("ssl", False) \
                 and not self.request.host_url.lower().startswith("https://") \
                 and not conf["viur.instance.is_dev_server"]:
             raise (errors.PreconditionFailed("You must use SSL to access this ressource!"))
         # Check for forcePost flag
-        if "forcePost" in dir(caller) and caller.forcePost and not self.isPostRequest:
+        if "viur_flags" in dir(caller) and caller.viur_flags.get("method", []) == ["POST"] and not self.isPostRequest:
             raise (errors.MethodNotAllowed("You must use POST to access this ressource!"))
         self.args = args
         self.kwargs = kwargs
@@ -628,6 +632,25 @@ class BrowseHandler():  # webapp.RequestHandler
             if (conf["viur.debug.traceExternalCallRouting"] and not self.internalRequest) or conf[
                 "viur.debug.traceInternalCallRouting"]:
                 logging.debug("Calling %s with args=%s and kwargs=%s" % (str(caller), str(newArgs), str(newKwargs)))
+            viur_flags = getattr(caller, "viur_flags", {})
+
+            skey_flags = viur_flags.get("skey", {})
+            if skey_flags.get("status", False):
+                #if not skey_flags.get("flags", {}).get("empty", False):
+                #    from viur.core import securitykey
+                from viur.core import securitykey
+                check = False
+                if not skey_flags.get("flags", {}).get("empty", False):
+                    if not kwargs:
+                        check = True
+                else:
+                    if kwargs:
+                        check = True
+
+                if check:
+                     if not securitykey.validate(newKwargs.get("skey", "")):
+                        raise errors.PreconditionFailed("Missing or invalid skey")
+
             res = caller(*newArgs, **newKwargs)
             res = str(res).encode("UTF-8") if not isinstance(res, bytes) else res
             self.response.write(res)

@@ -14,7 +14,7 @@ from google.auth.transport import requests
 from google.oauth2 import id_token
 
 from viur.core import (
-    conf, current, db, email, errors, exposed, forceSSL, i18n,
+    conf, current, db, email, errors, exposed, force_ssl, i18n, require_skey,
     securitykey, session, skeleton, tasks, utils, Module
 )
 from viur.core.bones import *
@@ -273,12 +273,13 @@ class UserPassword:
         password = PasswordBone(descr="New Password", required=True)
 
     @exposed
-    @forceSSL
-    def login(self, name=None, password=None, skey="", *args, **kwargs):
+    @force_ssl
+    @require_skey(allow_empty=True)
+    def login(self, name=None, password=None, *args, **kwargs):
         if current.user.get():  # User is already logged in, nothing to do.
             return self.userModule.render.loginSucceeded()
 
-        if not name or not password or not securitykey.validate(skey):
+        if not name or not password:
             return self.userModule.render.login(self.LoginSkel())
 
         self.loginRateLimit.assertQuotaIsAvailable()
@@ -327,6 +328,7 @@ class UserPassword:
         return self.userModule.continueAuthenticationFlow(self, user_entry.key)
 
     @exposed
+    @require_skey(allow_empty=True)
     def pwrecover(self, *args, **kwargs):
         """
             This implements the password recovery process which let them set a new password for their account
@@ -364,7 +366,7 @@ class UserPassword:
             del recoveryKey
             return self.pwrecover()  # Fall through to the second step as that key in the session is now set
         else:
-            if request.isPostRequest and kwargs.get("abort") == "1" and securitykey.validate(kwargs.get("skey")):
+            if request.isPostRequest and kwargs.get("abort") == "1":
                 # Allow a user to abort the process if a wrong email has been used
                 session["user.auth_userpassword.pwrecover"] = None
                 return self.pwrecover()
@@ -447,6 +449,7 @@ class UserPassword:
             email.sendEMail(tpl=self.passwordRecoveryMail, skel={"recoveryKey": recoveryKey}, dests=[userName])
 
     @exposed
+    @require_skey(allow_empty=True)
     def verify(self, skey, *args, **kwargs):
         data = securitykey.validate(skey, session_bound=False)
         skel = self.userModule.editSkel()
@@ -487,8 +490,9 @@ class UserPassword:
 
         return skel
 
-    @forceSSL
+    @force_ssl
     @exposed
+    @require_skey(allow_empty=True)
     def add(self, *args, **kwargs):
         """
             Allows guests to register a new account if self.registrationEnabled is set to true
@@ -510,8 +514,6 @@ class UserPassword:
             or ("bounce" in kwargs and kwargs["bounce"] == "1")):  # review before adding
             # render the skeleton in the version it could as far as it could be read.
             return self.userModule.render.add(skel)
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
         skel.toDB()
         if self.registrationEmailVerificationRequired and skel["status"] == Status.WAITING_FOR_EMAIL_VERIFICATION:
             # The user will have to verify his email-address. Create a skey and send it to his address
@@ -537,12 +539,13 @@ class GoogleAccount:
         return "X-VIUR-AUTH-Google-Account"
 
     @exposed
-    @forceSSL
-    def login(self, skey="", token="", *args, **kwargs):
+    @force_ssl
+    @require_skey(allow_empty=True)
+    def login(self, token="", *args, **kwargs):
         # FIXME: Check if already logged in
         if not conf.get("viur.user.google.clientID"):
             raise errors.PreconditionFailed("Please configure 'viur.user.google.clientID' in your conf!")
-        if not skey or not token:
+        if not token:
             request = current.request.get()
             request.response.headers["Content-Type"] = "text/html"
             if request.response.headers.get("cross-origin-opener-policy") == "same-origin":
@@ -557,8 +560,6 @@ class GoogleAccount:
             extendCsp({"script-src": ["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
                        "style-src": ["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]})
             return tplStr
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
         userInfo = id_token.verify_oauth2_token(token, requests.Request(), conf["viur.user.google.clientID"])
         if userInfo['iss'] not in {'accounts.google.com', 'https://accounts.google.com'}:
             raise ValueError('Wrong issuer.')
@@ -684,16 +685,15 @@ class TimeBasedOTP:
         return res
 
     @exposed
-    @forceSSL
-    def otp(self, otptoken=None, skey=None, *args, **kwargs):
+    @force_ssl
+    @require_skey(allow_empty=True)
+    def otp(self, otptoken=None, *args, **kwargs):
         session = current.session.get()
         token = session.get("_otp_user")
         if not token:
             raise errors.Forbidden()
         if otptoken is None:
             self.userModule.render.edit(self.OtpSkel())
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
         if token["failures"] > 3:
             raise errors.Forbidden("Maximum amount of authentication retries exceeded")
         if len(token["otpkey"]) % 2 == 1:
@@ -924,15 +924,14 @@ class User(List):
         return self.render.loginSucceeded(**kwargs)
 
     @exposed
-    def logout(self, skey="", *args, **kwargs):
+    @require_skey()
+    def logout(self, *args, **kwargs):
         """
             Implements the logout action. It also terminates the current session (all keys not listed
             in viur.session.persistentFieldsOnLogout will be lost).
         """
         if not (user := current.user.get()):
             raise errors.Unauthorized()
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
 
         self.onLogout(user)
 

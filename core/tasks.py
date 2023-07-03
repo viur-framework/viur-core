@@ -204,7 +204,12 @@ class TaskHandler:
             logging.error("Could not continue queryIter - %s not known on this instance" % data["classID"])
         MetaQueryIter._classCache[data["classID"]]._qryStep(data)
 
-    queryIter.exposed = True
+    try:
+        queryIter.viur_flags
+    except AttributeError:
+        queryIter.viur_flags = {}
+    finally:
+        queryIter.viur_flags["exposed"] = True
 
     def deferred(self, *args, **kwargs):
         """
@@ -281,8 +286,12 @@ class TaskHandler:
             except Exception as e:
                 logging.exception(e)
                 raise errors.RequestTimeout()  # Task-API should retry
-
-    deferred.exposed = True
+    try:
+        deferred.viur_flags
+    except AttributeError:
+        deferred.viur_flags = {}
+    finally:
+        deferred.viur_flags["exposed"] = True
 
     def cron(self, cronName="default", *args, **kwargs):
         global _callableTasks, _periodicTasks, _appengineServiceIPs
@@ -339,7 +348,11 @@ class TaskHandler:
                     logging.exception(e)
         logging.debug("Scheduled tasks complete")
 
-    cron.exposed = True
+    try:
+        cron.viur_flags = {}
+    finally:
+        cron.viur_flags["exposed"] = True
+    #cron.viur_flags["exposed"] = True
 
     def list(self, *args, **kwargs):
         """Lists all user-callable tasks which are callable by this user"""
@@ -355,7 +368,14 @@ class TaskHandler:
 
         return self.render.list(tasks)
 
-    list.exposed = True
+    try:
+        list.viur_flags
+    except AttributeError:
+        list.viur_flags = {}
+    finally:
+        list.viur_flags["exposed"] = True
+
+    #list.viur_flags["exposed"] = True
 
     def execute(self, taskID, *args, **kwargs):
         """Queues a specific task for the next maintenance run"""
@@ -371,12 +391,18 @@ class TaskHandler:
         skey = kwargs.get("skey", "")
         if len(kwargs) == 0 or not skel.fromClient(kwargs) or kwargs.get("bounce") == "1":
             return self.render.add(skel)
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
         task.execute(**skel.accessedValues)
         return self.render.addSuccess(skel)
 
-    execute.exposed = True
+    try:
+        execute.viur_flags
+    except AttributeError:
+        execute.viur_flags = {}
+    finally:
+        execute.viur_flags["exposed"] = True
+        execute.viur_flags["skey"] = True
+
+    #execute.viur_flags["exposed"] = True
 
 
 TaskHandler.admin = True
@@ -783,7 +809,6 @@ class QueryIter(object, metaclass=MetaQueryIter):
         logging.debug("handleError called on %s with %s." % (cls, entry))
         logging.exception(exception)
         return True
-
 
 class DeleteEntitiesIter(QueryIter):
     """
