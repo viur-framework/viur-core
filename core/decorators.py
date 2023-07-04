@@ -14,17 +14,17 @@ def ensure_viur_flags(f: Callable) -> None:
         f.viur_flags = {}
 
 
-def access(*access: str|list[str]):
+def access(*access: str|list[str]) -> Callable:
     """Decorator, which performs the authentication and authorization check.
 
     To expose a method only to logged in users with the access
     "root" or ("admin" and "file-edit") or "maintainer"
     use this decorator like this:
 
-    >>> from viur.core.decorators import access
-    >>> @access("root", ["admin", "file-edit"], ["maintainer"])
-    >>> def yourMethod(self):
-    >>>		return "You're allowed!"
+    from viur.core.decorators import access
+    @access("root", ["admin", "file-edit"], ["maintainer"])
+    def yourMethod(self):
+        return "You're allowed!"
     """
 
     def outer_wrapper(f):
@@ -71,7 +71,6 @@ def require_skey(func=None, *, allow_empty: bool = False, forward_argument: str 
     """
     if func is None:
         return lambda f: require_skey(f, allow_empty=allow_empty, forward_argument=forward_argument, **extra_kwargs)
-
 
     def decorator(func: Callable) -> Callable:
         ensure_viur_flags(func)

@@ -566,15 +566,23 @@ class BrowseHandler():  # webapp.RequestHandler
                 f"""The path {utils.escapeString("/".join(self.path_list[:idx]))} could not be found""")
 
         viur_flags = getattr(caller, "viur_flags", {})
-        if not (callable(caller) and
-            (viur_flags.get("exposed", False)) or
-            (viur_flags.get("internal_exposed", False) and self.internalRequest)):
-
+        if not (
+            callable(caller)
+            and viur_flags.get("exposed", False) 
+            or (
+                viur_flags.get("internal_exposed", False) 
+                and self.internalRequest)
+            ):
             if "index" in caller:
                 viur_flags = getattr(caller["index"], "viur_flags", {})
-                if callable(caller["index"]) \
-                     and (viur_flags.get("exposed", False)) \
-                     or (viur_flags.get("internal_exposed") and self.internalRequest):
+                if (
+                    callable(caller["index"]) 
+                    or viur_flags.get("exposed", False)
+                    or (
+                        viur_flags.get("internal_exposed") 
+                        and self.internalRequest
+                    )
+                ):
                     caller = caller["index"]
             else:
                 raise errors.MethodNotAllowed()
@@ -636,8 +644,6 @@ class BrowseHandler():  # webapp.RequestHandler
 
             skey_data = viur_flags.get("skey", {})
             if skey_data.get("status", False):
-                #if not skey_flags.get("flags", {}).get("empty", False):
-                #    from viur.core import securitykey
                 from viur.core import securitykey
 
                 # Here we will check the skey always before processing the request, because it cannot be empty.

@@ -86,7 +86,7 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
             request.kwargs = tmp_params  # Reset RequestParams
             request.internalRequest = lastRequestState
             return u"Path not found %s (failed Part was %s)" % (path, currpath)
-    
+
     viur_flags = getattr(caller, "viur_flags", {})
     if not (hasattr(caller, '__call__') and (
         ("exposed" in viur_flags and viur_flags["exposed"]) or 
