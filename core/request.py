@@ -566,8 +566,8 @@ class BrowseHandler():  # webapp.RequestHandler
                 f"""The path {utils.escapeString("/".join(self.path_list[:idx]))} could not be found""")
 
         viur_flags = getattr(caller, "viur_flags", {})
-        if not (callable(caller) and\
-            (viur_flags.get("exposed", False)) or\
+        if not (callable(caller) and
+            (viur_flags.get("exposed", False)) or
             (viur_flags.get("internal_exposed", False) and self.internalRequest)):
 
             if "index" in caller:

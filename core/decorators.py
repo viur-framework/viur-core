@@ -54,6 +54,7 @@ def access(*access: str|list[str]):
     assert access, "No rules set"
     return outer_wrapper
 
+
 def force_ssl(f: Callable) -> Callable:
     """
         Decorator, which forces usage of an encrypted Channel for a given resource.
@@ -185,10 +186,9 @@ def get_attr(attr: str) -> object:
 
     return None
 
+
 def __getattr__(attr: str) -> object:
     if attribute := get_attr(attr):
         return attribute
 
     return super(__import__(__name__).__class__).__getattr__(attr)
-
-
