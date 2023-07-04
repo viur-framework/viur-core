@@ -568,11 +568,12 @@ class BrowseHandler():  # webapp.RequestHandler
         viur_flags = getattr(caller, "viur_flags", {})
         if not (
             callable(caller)
-            and viur_flags.get("exposed", False) 
+            and viur_flags.get("exposed", False)
             or (
                 viur_flags.get("internal_exposed", False) 
-                and self.internalRequest)
-            ):
+                and self.internalRequest
+            )
+        ):
             if "index" in caller:
                 viur_flags = getattr(caller["index"], "viur_flags", {})
                 if (
@@ -645,7 +646,6 @@ class BrowseHandler():  # webapp.RequestHandler
             skey_data = viur_flags.get("skey", {})
             if skey_data.get("status", False):
                 from viur.core import securitykey
-
                 # Here we will check the skey always before processing the request, because it cannot be empty.
                 skey_check = True
                 flags = skey_data.get("flags", {})

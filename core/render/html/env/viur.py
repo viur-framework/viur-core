@@ -89,7 +89,7 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
 
     viur_flags = getattr(caller, "viur_flags", {})
     if not (hasattr(caller, '__call__') and (
-        ("exposed" in viur_flags and viur_flags["exposed"]) or 
+        ("exposed" in viur_flags and viur_flags["exposed"]) or
         ("internal_exposed" in viur_flags and viur_flags["internal_exposed"])
     )):
         request.kwargs = tmp_params  # Reset RequestParams

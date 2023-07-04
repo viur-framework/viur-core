@@ -14,7 +14,7 @@ def ensure_viur_flags(f: Callable) -> None:
         f.viur_flags = {}
 
 
-def access(*access: str|list[str]) -> Callable:
+def access(*access: str | list[str]) -> Callable:
     """Decorator, which performs the authentication and authorization check.
 
     To expose a method only to logged in users with the access
@@ -31,6 +31,7 @@ def access(*access: str|list[str]) -> Callable:
         ensure_viur_flags(f)
 
         f.viur_flags["access"] = access
+
         @functools.wraps(f)
         def wrapper(*args, **kwargs):
             user = current.user.get()
