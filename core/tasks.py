@@ -352,7 +352,6 @@ class TaskHandler:
         cron.viur_flags = {}
     finally:
         cron.viur_flags["exposed"] = True
-    #cron.viur_flags["exposed"] = True
 
     def list(self, *args, **kwargs):
         """Lists all user-callable tasks which are callable by this user"""
@@ -375,7 +374,6 @@ class TaskHandler:
     finally:
         list.viur_flags["exposed"] = True
 
-    #list.viur_flags["exposed"] = True
 
     def execute(self, taskID, *args, **kwargs):
         """Queues a specific task for the next maintenance run"""
@@ -401,8 +399,6 @@ class TaskHandler:
     finally:
         execute.viur_flags["exposed"] = True
         execute.viur_flags["skey"] = True
-
-    #execute.viur_flags["exposed"] = True
 
 
 TaskHandler.admin = True

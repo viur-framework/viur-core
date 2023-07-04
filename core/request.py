@@ -570,17 +570,17 @@ class BrowseHandler():  # webapp.RequestHandler
             callable(caller)
             and viur_flags.get("exposed", False)
             or (
-                viur_flags.get("internal_exposed", False) 
+                viur_flags.get("internal_exposed", False)
                 and self.internalRequest
             )
         ):
             if "index" in caller:
                 viur_flags = getattr(caller["index"], "viur_flags", {})
                 if (
-                    callable(caller["index"]) 
+                    callable(caller["index"])
                     or viur_flags.get("exposed", False)
                     or (
-                        viur_flags.get("internal_exposed") 
+                        viur_flags.get("internal_exposed")
                         and self.internalRequest
                     )
                 ):
