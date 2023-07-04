@@ -69,8 +69,7 @@ def require_skey(func=None, *, allow_empty: bool = False, forward_argument: str 
     Decorator, which marks the function requires a skey.
     """
     if func is None:
-        func = lambda func: require_skey(func, allow_empty=allow_empty, forward_argument=forward_argument, **extra_kwargs)
-        return func
+        return lambda f: require_skey(f, allow_empty=allow_empty, forward_argument=forward_argument, **extra_kwargs)
 
 
     def decorator(func: Callable) -> Callable:

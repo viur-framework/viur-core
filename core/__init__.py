@@ -35,7 +35,9 @@ from viur.core.tasks import TaskHandler, runStartupTasks
 from viur.core.module import Module
 # noinspection PyUnresolvedReferences
 from viur.core import logging as viurLogging  # unused import, must exist, initializes request logging
-from viur.core.decorators import force_post, force_ssl, exposed, internal_exposed, get_attr as get_attr_decorators, require_skey
+from viur.core.decorators import force_post, force_ssl, exposed, internal_exposed, require_skey
+from viur.core.decorators import get_attr as get_attr_decorators
+
 import logging  # this import has to stay here, see #571
 
 
