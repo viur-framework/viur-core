@@ -134,7 +134,6 @@ Start with ViUR
   (b) Storage Object Admin
 
 Reset my admin user:
-
 ____________________
 In case you have locked yourself out of your own system. There is a possible way back in, but you will need to sacrifice
 all your user data and log ins.
