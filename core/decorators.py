@@ -69,7 +69,9 @@ def require_skey(func=None, *, allow_empty: bool = False, forward_argument: str 
     Decorator, which marks the function requires a skey.
     """
     if func is None:
-        return lambda func: require_skey(func, allow_empty=allow_empty, forward_argument=forward_argument, **extra_kwargs)
+        func = lambda func: require_skey(func, allow_empty=allow_empty, forward_argument=forward_argument, **extra_kwargs)
+        return func
+
 
     def decorator(func: Callable) -> Callable:
         ensure_viur_flags(func)
@@ -90,7 +92,7 @@ def require_skey(func=None, *, allow_empty: bool = False, forward_argument: str 
             if not allow_empty and 'skey' not in kwargs:
                 raise ValueError("skey is required")
             return func(*args, **kwargs)
-        
+
         return wrapper
 
     return decorator(func)
@@ -161,6 +163,7 @@ def internal_exposed(f: Callable) -> Callable:
     f.viur_flags["internal_exposed"] = True
     return f
 
+
 def get_attr(attr: str) -> object:
     if attr in ("forcePost", "forceSSL", "internalExposed"):
         ret = None
@@ -186,7 +189,7 @@ def get_attr(attr: str) -> object:
 def __getattr__(attr: str) -> object:
     if attribute := get_attr(attr):
         return attribute
-    
+
     return super(__import__(__name__).__class__).__getattr__(attr)
 
 

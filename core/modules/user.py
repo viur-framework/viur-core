@@ -352,8 +352,7 @@ class UserPassword:
             skel = self.LostPasswordStep1Skel()
             if not request.isPostRequest or not skel.fromClient(kwargs):
                 return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
-            #if not securitykey.validate(kwargs.get("skey")):
-            #    raise errors.PreconditionFailed()
+
             self.passwordRecoveryRateLimit.decrementQuota()
             recoveryKey = utils.generateRandomString(13)  # This is the key the user will have to Copy&Paste
             self.sendUserPasswordRecoveryCode(skel["name"].lower(), recoveryKey)  # Send the code in the background
@@ -382,8 +381,7 @@ class UserPassword:
             skel = self.LostPasswordStep2Skel()
             if not skel.fromClient(kwargs) or not request.isPostRequest:
                 return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep2Template)
-            #if not securitykey.validate(kwargs.get("skey")):
-            #    raise errors.PreconditionFailed()
+
             self.passwordRecoveryRateLimit.decrementQuota()
             if not hmac.compare_digest(session["user.auth_userpassword.pwrecover"]["recoveryKey"], skel["recoveryKey"]):
                 # The key was invalid, increase error-count or abort this recovery process altogether
