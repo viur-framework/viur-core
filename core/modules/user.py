@@ -352,8 +352,8 @@ class UserPassword:
             skel = self.LostPasswordStep1Skel()
             if not request.isPostRequest or not skel.fromClient(kwargs):
                 return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
-            if not securitykey.validate(kwargs.get("skey")):
-                raise errors.PreconditionFailed()
+            #if not securitykey.validate(kwargs.get("skey")):
+            #    raise errors.PreconditionFailed()
             self.passwordRecoveryRateLimit.decrementQuota()
             recoveryKey = utils.generateRandomString(13)  # This is the key the user will have to Copy&Paste
             self.sendUserPasswordRecoveryCode(skel["name"].lower(), recoveryKey)  # Send the code in the background
@@ -382,8 +382,8 @@ class UserPassword:
             skel = self.LostPasswordStep2Skel()
             if not skel.fromClient(kwargs) or not request.isPostRequest:
                 return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep2Template)
-            if not securitykey.validate(kwargs.get("skey")):
-                raise errors.PreconditionFailed()
+            #if not securitykey.validate(kwargs.get("skey")):
+            #    raise errors.PreconditionFailed()
             self.passwordRecoveryRateLimit.decrementQuota()
             if not hmac.compare_digest(session["user.auth_userpassword.pwrecover"]["recoveryKey"], skel["recoveryKey"]):
                 # The key was invalid, increase error-count or abort this recovery process altogether
@@ -449,9 +449,9 @@ class UserPassword:
             email.sendEMail(tpl=self.passwordRecoveryMail, skel={"recoveryKey": recoveryKey}, dests=[userName])
 
     @exposed
-    @require_skey(allow_empty=True)
-    def verify(self, skey, *args, **kwargs):
-        data = securitykey.validate(skey, session_bound=False)
+    @require_skey(allow_empty=True, forward_argument="skey", session_bound=False)
+    def verify(self, *args, **kwargs):
+        data = skey
         skel = self.userModule.editSkel()
         if not data or not isinstance(data, dict) or "userKey" not in data or not skel.fromDB(
             data["userKey"].id_or_name):
@@ -924,7 +924,7 @@ class User(List):
         return self.render.loginSucceeded(**kwargs)
 
     @exposed
-    @require_skey()
+    @require_skey
     def logout(self, *args, **kwargs):
         """
             Implements the logout action. It also terminates the current session (all keys not listed

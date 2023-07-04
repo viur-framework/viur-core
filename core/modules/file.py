@@ -520,7 +520,7 @@ class File(Tree):
         return db.encodeKey(fileSkel["key"]), uploadUrl
 
     @exposed
-    @require_skey()
+    @require_skey
     def getUploadURL(self, fileName: str, mimeType: str, size: int = None, *args, **kwargs):
         node = kwargs.get("node")
         authData = kwargs.get("authData")
@@ -668,7 +668,7 @@ class File(Tree):
     @exposed
     @force_ssl
     @force_post
-    @require_skey()
+    @require_skey
     def add(self, skelType: SkelType, node=None, *args, **kwargs):
         ## We can't add files directly (they need to be uploaded
         # if skelType != "node":

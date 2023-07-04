@@ -95,15 +95,17 @@ def mapModule(moduleObj: object, moduleName: str, targetResolverRender: dict):
             moduleFunctions[key] = prop
     for lang in conf["viur.availableLanguages"] or [conf["viur.defaultLanguage"]]:
         # Map the module under each translation
-        if "seoLanguageMap" in dir(moduleObj) and lang in moduleObj.seoLanguageMap:
-            translatedModuleName = moduleObj.seoLanguageMap[lang]
+        attr_viur_flags = getattr(moduleObj, "viur_flags", {})
+        if seoLanguageMap := attr_viur_flags.get("seoLanguageMap", {}) and lang in seoLanguageMap:
+            translatedModuleName = seoLanguageMap[lang]
             if translatedModuleName not in targetResolverRender:
                 targetResolverRender[translatedModuleName] = {}
             for fname, fcall in moduleFunctions.items():
                 targetResolverRender[translatedModuleName][fname] = fcall
                 # Map translated function names
-                if getattr(fcall, "seoLanguageMap", None) and lang in fcall.seoLanguageMap:
-                    targetResolverRender[translatedModuleName][fcall.seoLanguageMap[lang]] = fcall
+                fcall_viur_flags = getattr(fcall, "viur_flags", {})
+                if seoLanguageMapSub := viur_flags.get("seoLanguageMap", {}) and lang in seoLanguageMapSub:
+                    targetResolverRender[translatedModuleName][seoLanguageMapSub[lang]] = fcall
             if "_viurMapSubmodules" in dir(moduleObj):
                 # Map any Functions on deeper nested function
                 subModules = moduleObj._viurMapSubmodules
@@ -121,8 +123,10 @@ def mapModule(moduleObj: object, moduleName: str, targetResolverRender: dict):
     for fname, fcall in moduleFunctions.items():
         targetFunctionLevel[fname] = fcall
         # Map translated function names
-        if getattr(fcall, "seoLanguageMap", None):
-            for translatedFunctionName in fcall.seoLanguageMap.values():
+        viur_flags = getattr(fcall, "viur_flags", {})
+
+        if seoLanguageMap := viur_flags.get("seoLanguageMap", {}):
+            for translatedFunctionName in seoLanguageMap.values():
                 targetFunctionLevel[translatedFunctionName] = fcall
     if "_viurMapSubmodules" in dir(moduleObj):
         # Map any Functions on deeper nested function
@@ -211,8 +215,9 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
                 # Apply Renderers postProcess Filters
                 if "_postProcessAppObj" in render:
                     render["_postProcessAppObj"](targetResolverRender)
-        if hasattr(moduleClass, "seoLanguageMap"):
-            conf["viur.languageModuleMap"][moduleName] = moduleClass.seoLanguageMap
+        viur_flags = getattr(moduleClass, "viur_flags", {})
+        if seoLanguageMap := viur_flags.get("seoLanguageMap", {}):
+            conf["viur.languageModuleMap"][moduleName] = seoLanguageMap
     conf["viur.mainResolver"] = resolverDict
 
     if conf["viur.debug.traceExternalCallRouting"] or conf["viur.debug.traceInternalCallRouting"]:
@@ -317,9 +322,13 @@ def app(environ: dict, start_response: Callable):
 
 
 ## Decorators ##
-from .decorators import force_post, force_ssl, exposed, internal_exposed, get_attr, require_skey
+from .decorators import force_post, force_ssl, exposed, internal_exposed, get_attr as get_attr_decorators, require_skey
 
-__getattr__ = get_attr
+def __getattr__(attr: str) -> object:
+    if attribute := get_attr_decorators(attr):
+        return attribute
+    
+    return super(__import__(__name__).__class__).__getattr__(attr)
 
 
 

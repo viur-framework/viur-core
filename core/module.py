@@ -1,6 +1,6 @@
-from typing import Dict, Any, Union, Tuple, Callable
+from typing import Dict, Any, Union, Tuple, Callable, get_type_hints
 from viur.core.config import conf
-
+import inspect
 
 class Module:
     """
@@ -134,7 +134,7 @@ class Module:
                 if right not in conf["viur.accessRights"]:
                     conf["viur.accessRights"].append(right)
 
-    def describe(self) -> Union[Dict, None]:
+    def describe(self) -> dict | None:
         """
         Meta description of this module.
         """
@@ -151,6 +151,54 @@ class Module:
             "name": self.__class__.__name__,
             "handler": ".".join((handler, self.__class__.__name__.lower())),
         }
+
+        func = inspect.getmembers(self, predicate=inspect.ismethod)
+        filtered_funcs = []
+        for fn in func:
+            if not fn:
+                continue
+            f = fn[1]
+
+            viur_flags = getattr(f, "viur_flags", {})
+            methods = viur_flags.get("method", [])
+
+            attributes = {
+                "exposed": viur_flags.get("exposed", False),
+                "method": "POST" if ["POST"] == methods else "GET",
+                "skey": viur_flags.get("skey", {}).get("status", False)
+            }
+
+            if attributes["exposed"]:
+                _params = {}
+                signature = inspect.signature(f)
+
+                annotations = get_type_hints(f)
+
+                for parameter in signature.parameters.values():
+                    _params[parameter.name] = {
+                        "type": "-",
+                        "default": None,
+                    }
+
+                    if parameter.annotation is not inspect.Parameter.empty:
+                        _params[parameter.name]['type'] = str(parameter.annotation)
+
+                    if parameter.default is not inspect.Parameter.empty:
+                        _params[parameter.name]["default"] = str(parameter.default)
+
+                return_hint = annotations.get("return")
+                attributes |= {
+                    "name": f.__name__,
+                    "docs": f.__doc__,
+                    "args": _params,
+                    "return": "-" if return_hint is None else str(return_hint)
+                }
+
+                attributes.pop("exposed")
+
+                filtered_funcs.append(attributes)
+
+        ret["functions"] = filtered_funcs
 
         # Extend indexes, if available
         if indexes := getattr(self, "indexes", None):

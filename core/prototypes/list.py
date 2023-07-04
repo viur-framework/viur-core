@@ -77,7 +77,7 @@ class List(SkelModule):
 
     @exposed
     @force_post
-    @require_skey()
+    @require_skey
     def preview(self, skey: str, *args, **kwargs) -> Any:
         """
             Renders data for an entry, without reading from the database.
@@ -253,7 +253,7 @@ class List(SkelModule):
     @force_ssl
     @force_post
     @exposed
-    @require_skey()
+    @require_skey
     def delete(self, key: str, *args, **kwargs) -> Any:
         """
             Delete an entry.

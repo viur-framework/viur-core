@@ -634,22 +634,33 @@ class BrowseHandler():  # webapp.RequestHandler
                 logging.debug("Calling %s with args=%s and kwargs=%s" % (str(caller), str(newArgs), str(newKwargs)))
             viur_flags = getattr(caller, "viur_flags", {})
 
-            skey_flags = viur_flags.get("skey", {})
-            if skey_flags.get("status", False):
+            skey_data = viur_flags.get("skey", {})
+            if skey_data.get("status", False):
                 #if not skey_flags.get("flags", {}).get("empty", False):
                 #    from viur.core import securitykey
                 from viur.core import securitykey
-                check = False
-                if not skey_flags.get("flags", {}).get("empty", False):
-                    if not kwargs:
-                        check = True
-                else:
-                    if kwargs:
-                        check = True
 
-                if check:
-                     if not securitykey.validate(newKwargs.get("skey", "")):
+                # Here we will check the skey always before processing the request, because it cannot be empty.
+                skey_check = True
+                flags = skey_data.get("flags", {})
+                # If the skey data can allow empty kwargs..
+                if flags.get("empty", False):
+                    # Only check the skey, if the kwargs is not empty
+                    skey_check = True if kwargs else False
+
+                if not skey_check:
+                    logging.info(f"Function: {caller.__name__} skipping skey check!")
+
+                if skey_check:
+                    logging.info(f"Function: {caller.__name__} skey check!")
+
+                    data = securitykey.validate(newKwargs.get("skey", ""), **flags.get("kwargs", {}))
+
+                    if not data:
                         raise errors.PreconditionFailed("Missing or invalid skey")
+
+                    if arg_name := flags.get("forward_argument", ""):
+                        newKwargs |= {arg_name: data}
 
             res = caller(*newArgs, **newKwargs)
             res = str(res).encode("UTF-8") if not isinstance(res, bytes) else res

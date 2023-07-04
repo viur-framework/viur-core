@@ -417,7 +417,7 @@ class Tree(SkelModule):
     @exposed
     @force_ssl
     @force_post
-    @require_skey()
+    @require_skey
     def delete(self, skelType: SkelType, key: str, *args, **kwargs) -> Any:
         """
         Deletes an entry or an directory (including its contents).
@@ -476,7 +476,7 @@ class Tree(SkelModule):
     @exposed
     @force_ssl
     @force_post
-    @require_skey()
+    @require_skey
     def move(self, skelType: SkelType, key: str, parentNode: str, *args, **kwargs) -> str:
         """
         Move a node (including its contents) or a leaf to another node.

@@ -7,7 +7,14 @@ import types
 import warnings
 
 
-def access(*access):
+def ensure_viur_flags(f: Callable) -> None:
+    try:
+        f.viur_flags
+    except AttributeError:
+        f.viur_flags = {}
+
+
+def access(*access: str|list[str]):
     """Decorator, which performs the authentication and authorization check.
 
     To expose a method only to logged in users with the access
@@ -21,10 +28,7 @@ def access(*access):
     """
 
     def outer_wrapper(f):
-        try:
-            f.viur_flags
-        except AttributeError:
-            f.viur_flags = {}
+        ensure_viur_flags(f)
 
         f.viur_flags["access"] = access
         @functools.wraps(f)
@@ -55,28 +59,25 @@ def force_ssl(f: Callable) -> Callable:
         Decorator, which forces usage of an encrypted Channel for a given resource.
         Has no effect on development-servers.
     """
-    try:
-        f.viur_flags
-    except AttributeError:
-        f.viur_flags = {}
-
+    ensure_viur_flags(f)
     f.viur_flags["ssl"] = True
     return f
 
 
-def require_skey(allow_empty=False):
+def require_skey(func=None, *, allow_empty: bool = False, forward_argument: str = "", **extra_kwargs: dict) -> Callable:
     """
-        Decorator, which marks the function requires a skey.
-        Important: this decorator dont check the skey in the params, it only marks it.  
+    Decorator, which marks the function requires a skey.
     """
+    if func is None:
+        return lambda func: require_skey(func, allow_empty=allow_empty, forward_argument=forward_argument, **extra_kwargs)
+
     def decorator(func: Callable) -> Callable:
-        try:
-            func.viur_flags
-        except AttributeError:
-            func.viur_flags = {}
+        ensure_viur_flags(func)
 
         flags = {
-            "empty": allow_empty
+            "empty": allow_empty,
+            "forward_argument": forward_argument,
+            "kwargs": extra_kwargs
         }
 
         func.viur_flags["skey"] = {
@@ -84,13 +85,15 @@ def require_skey(allow_empty=False):
             "flags": flags,
         }
 
+        @functools.wraps(func)
         def wrapper(*args, **kwargs):
             if not allow_empty and 'skey' not in kwargs:
                 raise ValueError("skey is required")
             return func(*args, **kwargs)
+        
         return wrapper
 
-    return decorator
+    return decorator(func)
 
 
 def force_post(f: Callable) -> Callable:
@@ -98,10 +101,7 @@ def force_post(f: Callable) -> Callable:
         Decorator, which forces usage of an http post request.
     """
 
-    try:
-        f.viur_flags
-    except AttributeError:
-        f.viur_flags = {}
+    ensure_viur_flags(f)
 
     if "method" in f.viur_flags:
         if "GET" in f.viur_flags["method"]:
@@ -120,34 +120,29 @@ def exposed(f: Union[Callable, dict]) -> Callable:
         Can optionally receive a dict of language->translated name to make that function
         available under different names
     """
+    ensure_viur_flags(f)
+
     if isinstance(f, dict):
         # We received said dictionary:
-        def exposeWithTranslations(g):
-            g.exposed = True
-            try:
-                g.viur_flags
-            except AttributeError:
-                g.viur_flags = {}
+        def expose_with_translations(func: Callable) -> Callable:
+            ensure_viur_flags(func)
 
-            g.viur_flags["exposed"] = True
-            if not ("method" in f.viur_flags):
-                g.viur_flags["method"] = ["GET", "POST"]
-            g.seoLanguageMap = f
+            func.viur_flags["exposed"] = True
+            if not ("method" in func.viur_flags):
+                func.viur_flags["method"] = ["GET", "POST"]
+            func.viur_flags["seoLanguageMap"] = f
             return g
 
-        return exposeWithTranslations
+        return expose_with_translations
 
-    try:
-        f.viur_flags
-    except AttributeError:
-        f.viur_flags = {}
+    ensure_viur_flags(f)
 
     f.viur_flags["exposed"] = True
     if not ("method" in f.viur_flags):
         f.viur_flags["method"] = ["GET", "POST"]
 
-    #f.exposed = True
-    #f.seoLanguageMap = None
+    f.viur_flags["seoLanguageMap"] = None
+
     return f
 
 
@@ -166,7 +161,7 @@ def internal_exposed(f: Callable) -> Callable:
     f.viur_flags["internal_exposed"] = True
     return f
 
-def get_attr(attr):
+def get_attr(attr: str) -> object:
     if attr in ("forcePost", "forceSSL", "internalExposed"):
         ret = None
         msg = ""
@@ -186,7 +181,12 @@ def get_attr(attr):
             logging.warning(msg, stacklevel=3)
             return ret
 
+    return None
+
+def __getattr__(attr: str) -> object:
+    if attribute := get_attr(attr):
+        return attribute
+    
     return super(__import__(__name__).__class__).__getattr__(attr)
 
-__getattr__ = get_attr
 

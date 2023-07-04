@@ -55,7 +55,7 @@ class Singleton(SkelModule):
     ## External exposed functions
 
     @exposed
-    @require_skey()
+    @require_skey
     def preview(self, skey: str, *args, **kwargs) -> Any:
         """
         Renders data for the entry, without reading it from the database.
@@ -117,7 +117,7 @@ class Singleton(SkelModule):
 
     @exposed
     @force_ssl
-    @require_skey()
+    @require_skey
     def edit(self, *args, **kwargs) -> Any:
         """
         Modify the existing entry, and render the entry, eventually with error notes on incorrect data.
