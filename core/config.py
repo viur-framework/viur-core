@@ -47,8 +47,7 @@ __app_version = os.getenv("GAE_VERSION")
 
 # Determine our basePath (as os.getCWD is broken on appengine)
 __project_base_path = Path().absolute()
-
-__core_base_path = Path(__file__).parent.parent.parent
+__core_base_path = Path(__file__).parent.parent.parent  # fixme: this points to site-packages!!!
 
 # Conf is a static, local dictionary.
 # Changes here apply locally to the current instance only.
@@ -89,6 +88,7 @@ conf = Conf({
     "viur.compatibility": [
         "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
         "json.bone.structure.keytuples",  # use classic structure notation: `"structure": [["key", {...}], ...]` (#649)
+        "json.bone.structure.inlists",  # dump skeleton structure with every JSON list response (#774 for details)
     ],
 
     # If set, viur will emit a CSP http-header with each request. Use the csp module to set this property
@@ -135,9 +135,6 @@ conf = Conf({
 
     # If set, ViUR calls this function instead of rendering the viur.errorTemplate if an exception occurs
     "viur.errorHandler": None,
-
-    # Path to the template to render if an unhandled error occurs. This is a Python String-template, *not* Jinja
-    "viur.errorTemplate": "viur/core/template/error.html",
 
     # Path to the static SVGs folder. Will be used by the jinja-renderer-method: embedSvg
     "viur.static.embedSvg.path": "/static/svgs/",
@@ -297,10 +294,23 @@ conf = Conf({
     "viur.session.persistentFieldsOnLogout": ["language"],
 
     # Priority, in which skeletons are loaded
-    "viur.skeleton.searchPath": ["/skeletons/", "/viur/core/"],  # Priority, in which skeletons are loaded
+    "viur.skeleton.searchPath": [
+        "/skeletons/",  # skeletons of the project
+        "/viur/core/",  # system-defined skeletons of viur-core
+        "/viur-core/core/"  # system-defined skeletons of viur-core, only used by editable installation
+    ],
 
     # If set, must be a tuple of two functions serializing/restoring additional environmental data in deferred requests
     "viur.tasks.customEnvironmentHandler": None,
+
+    # User roles available on this project
+    "viur.user.roles": {
+        "custom": "Custom",
+        "user": "User",
+        "viewer": "Viewer",
+        "editor": "Editor",
+        "admin": "Administrator",
+    },
 
     # Which application-ids we're supposed to run on
     "viur.validApplicationIDs": [],

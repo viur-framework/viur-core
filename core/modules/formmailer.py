@@ -24,7 +24,7 @@ class Formmailer(Module):
         if not skel.fromClient(kwargs) or not "skey" in kwargs:
             return self.render.add(skel=skel, failed=True)
 
-        if not securitykey.validate(kwargs["skey"], useSessionKey=True):
+        if not securitykey.validate(kwargs["skey"]):
             raise errors.PreconditionFailed()
 
         # Allow bones to perform outstanding "magic" operations before sending the mail

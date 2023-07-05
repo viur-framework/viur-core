@@ -69,7 +69,7 @@ class Singleton(SkelModule):
         if not self.canPreview():
             raise errors.Unauthorized()
 
-        if not securitykey.validate(skey, useSessionKey=True):
+        if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
 
         skel = self.viewSkel()
@@ -151,7 +151,7 @@ class Singleton(SkelModule):
             or ("bounce" in kwargs and kwargs["bounce"] == "1")):  # review before changing
             return self.render.edit(skel)
 
-        if not securitykey.validate(skey, useSessionKey=True):
+        if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
 
         self.onEdit(skel)
