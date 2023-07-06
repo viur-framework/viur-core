@@ -7,13 +7,13 @@ import logging
 
 
 class ColorBone(BaseBone):
-    """
+    r"""
     ColorBone is a custom bone class for storing color values in the ViUR framework.
     It inherits from the BaseBone class in the viur.core.bones.base module.
 
     :param type: A string representing the bone type, set to "color".
     :param mode: A string specifying the color mode, either "rgb" or "rgba". Default is "rgb".
-    :param **kwargs: Additional keyword arguments passed to the BaseBone constructor.
+    :param \**kwargs: Additional keyword arguments passed to the BaseBone constructor.
     """
     type = "color"
 

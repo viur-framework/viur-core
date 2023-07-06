@@ -141,14 +141,16 @@ class Tree(SkelModule):
         overridden by a custom functionality. The default stub for this function
         returns an empty list.
         An example implementation could be the following:
+
         .. code-block:: python
 
-                    def getAvailableRootNodes(self, *args, **kwargs):
-                        q = db.Query(self.rootKindName)
-                            ret = [{"key": str(e.key()),
-                                "name": e.get("name", str(e.key().id_or_name()))} #FIXME
-                                for e in q.run(limit=25)]
-                            return ret
+            # Example
+            def getAvailableRootNodes(self, *args, **kwargs):
+                q = db.Query(self.rootKindName)
+                ret = [{"key": str(e.key()),
+                    "name": e.get("name", str(e.key().id_or_name()))} #FIXME
+                    for e in q.run(limit=25)]
+                return ret
 
         :param args: Can be used in custom implementations.
         :param kwargs: Can be used in custom implementations.

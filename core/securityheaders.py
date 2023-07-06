@@ -52,10 +52,11 @@ def addCspRule(objectType: str, srcOrDirective: str, enforceMode: str = "monitor
         This function helps configuring and reporting of content security policy rules and violations.
         To enable CSP, call addCspRule() from your projects main file before calling server.setup().
 
-        Example usage::
+        ..  code-block:: python
+
+            # Example Usage
 
             security.addCspRule("default-src","self","enforce") #Enable CSP for all types and made us the only allowed source
-
             security.addCspRule("style-src","self","enforce") # Start a new set of rules for stylesheets whitelist us
             security.addCspRule("style-src","unsafe-inline","enforce") # This is currently needed for TextBones!
 

@@ -30,7 +30,7 @@ Start with ViUR
 3. Create a new local ViUR project for the appengine project you have already created
 
   .. note::
-    If you don't know about this, please revisit `ViUR and the Google Cloud Console`_
+    If you don't know about this, please revisit "ViUR and the Google Cloud Console"
 
 
   .. code-block:: bash

@@ -32,12 +32,15 @@ extensions = [
 ]
 
 autodoc_default_options = {
-    'ignore-module-all': True
+    'ignore-module-all': True,
+    'special-members': True
 }
 
+autoapi_dirs = ['../core']
+# Debug flag for keeping the index.rst Documents of each python file
+autoapi_keep_files = True
 autoapi_python_class_content = 'both'
 
-autoapi_dirs = ['../core']
 
 # Add any paths that contain templates here, relative to this directory.
 # templates_path = ['_templates']

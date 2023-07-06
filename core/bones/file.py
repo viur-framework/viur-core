@@ -5,19 +5,19 @@ managing file derivatives, handling file size and mime type restrictions, and re
 metadata.
 """
 
-import logging
 from hashlib import sha256
 from time import time
 from typing import Any, Dict, List, Set, Union
-
 from viur.core import conf, db
 from viur.core.bones.treeleaf import TreeLeafBone
 from viur.core.tasks import CallDeferred
 
+import logging
+
 
 @CallDeferred
 def ensureDerived(key: db.Key, srcKey, deriveMap: Dict[str, Any], refreshKey: db.Key = None):
-    """
+    r"""
     The function is a deferred function that ensures all pending thumbnails or other derived files
     are built. It takes the following parameters:
 
@@ -97,29 +97,32 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: Dict[str, Any], refreshKey: db
 
 
 class FileBone(TreeLeafBone):
-    """
+    r"""
     A FileBone is a custom bone class that inherits from the TreeLeafBone class, and is used to store and manage
     file references in a ViUR application.
 
     :param format: Hint for the UI how to display a file entry (defaults to it's filename)
+    :param maxFileSize: The maximum filesize accepted by this bone in bytes. None means no limit. This will always be checked against the original file uploaded - not any of it's
+        derivatives.
+
     :param derive: A set of functions used to derive other files from the referenced ones. Used fe.
         to create thumbnails / images for srcmaps from hires uploads. If set, must be a dictionary from string
         (a key from conf["viur.file.derivers"]) to the parameters passed to that function. The parameters can be
         any type (including None) that can be json-serialized.
 
-            Example:
-                >>> derive = {"thumbnail": [{"width": 111},
-                    {"width": 555, "height": 666}]}
+        ..  code-block:: python
 
-    :param validMimeTypes: A list of Mimetypes that can be selected in this bone (or None for any).
-        Wildcards ("image/*") are supported.
+            # Example
+            derive = { "thumbnail": [{"width": 111}, {"width": 555, "height": 666}]}
 
-            Example:
-                >>> validMimeTypes=["application/pdf", "image/*"]
-    :param maxFileSize: The maximum filesize accepted by this bone in bytes. None means no limit.
-        This will always be checked against the original file uploaded - not any of it's
-        derivatives.
-"""
+    :param validMimeTypes: A list of Mimetypes that can be selected in this bone (or None for any) Wildcards ("image\/*") are supported.
+
+        ..  code-block:: python
+
+            # Example
+            validMimeTypes=["application/pdf", "image/*"]
+
+    """
 
     kind = "file"
     """The kind of this bone is 'file'"""
@@ -131,31 +134,30 @@ class FileBone(TreeLeafBone):
     "height", and "derived".
     """
 
-    def __init__(
-        self,
-        *,
-        derive: Union[None, Dict[str, Any]] = None,
-        maxFileSize: Union[None, int] = None,
-        validMimeTypes: Union[None, List[str]] = None,
-        **kwargs
-    ):
-        """
+    def __init__( self, *, derive: Union[None, Dict[str, Any]] = None, maxFileSize: Union[None, int] = None,
+        validMimeTypes: Union[None, List[str]] = None, **kwargs):
+        r"""
         Initializes a new Filebone. All properties inherited by RelationalBone are supported.
         :param format: Hint for the UI how to display a file entry (defaults to it's filename)
-        :param derive: A set of functions used to derive other files from the referenced ones. Used fe. to create
-            thumbnails / images for srcmaps from hires uploads. If set, must be a dictionary from string (a key from
-            conf["viur.file.derivers"]) to the parameters passed to that function. The parameters can be any type
-            (including None) that can be json-serialized.
+        :param maxFileSize: The maximum filesize accepted by this bone in bytes. None means no limit.
+        This will always be checked against the original file uploaded - not any of it's derivatives.
+        :param derive: A set of functions used to derive other files from the referenced ones.
+        Used to create thumbnails and images for srcmaps from hires uploads.
+        If set, must be a dictionary from string (a key from)conf["viur.file.derivers"]) to the parameters passed to that function.
+        The parameters can be any type (including None) that can be json-serialized.
 
-            Example:
-                >>> derive = {"thumbnail": [{"width": 111}, {"width": 555, "height": 666}]}
-        :param validMimeTypes: A list of Mimetypes that can be selected in this bone (or None for any).
-            Wildcards ("image/*") are supported.
+            ..  code-block:: python
 
-            Example:
-                >>> validMimeTypes=["application/pdf", "image/*"]
-        :param maxFileSize: The maximum filesize accepted by this bone in bytes. None means no limit. This will always
-            be checked against the original file uploaded - not any of it's derivatives.
+                # Example
+                derive = {"thumbnail": [{"width": 111}, {"width": 555, "height": 666}]}
+
+        :param validMimeTypes: A list of Mimetypes that can be selected in this bone (or None for any). Wildcards `('image\*')` are supported.
+
+            ..  code-block:: python
+
+                #Example
+                validMimeTypes=["application/pdf", "image/*"]
+
         """
         super().__init__(**kwargs)
 
@@ -219,7 +221,7 @@ class FileBone(TreeLeafBone):
                 handleDerives(values)
 
     def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
-        """
+        r"""
         Retrieves the referenced blobs in the FileBone.
 
         :param SkeletonInstance skel: The skeleton instance this bone belongs to.
@@ -239,7 +241,7 @@ class FileBone(TreeLeafBone):
         return result
 
     def refresh(self, skel, boneName):
-        """
+        r"""
         Refreshes the FileBone by recreating file entries if needed and importing blobs from ViUR 2.
 
         :param SkeletonInstance skel: The skeleton instance this bone belongs to.
