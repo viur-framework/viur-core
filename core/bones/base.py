@@ -853,7 +853,6 @@ class BaseBone(object):
         :return: A list containing a string representation of the hashed value. If the bone is multiple,
                 the list may contain more than one hashed value.
         """
-
         def hashValue(value: Union[str, int]) -> str:
             h = hashlib.sha256()
             h.update(str(value).encode("UTF-8"))
