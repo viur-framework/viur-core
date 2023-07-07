@@ -1,4 +1,4 @@
-from typing import List, Set, Any
+from typing import List, Set
 
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
@@ -10,6 +10,19 @@ except ImportError:
 
 
 class RecordBone(BaseBone):
+    """
+    The RecordBone class is a specialized bone type used to store structured data. It inherits from
+    the BaseBone class. The RecordBone class is designed to store complex data structures, such as
+    nested dictionaries or objects, by using a related skeleton class (the using parameter) to manage
+    the internal structure of the data.
+
+    :param format: Optional string parameter to specify the format of the record bone.
+    :param indexed: Optional boolean parameter to indicate if the record bone is indexed.
+        Defaults to False.
+    :param using: A class that inherits from 'viur.core.skeleton.RelSkel' to be used with the
+        RecordBone.
+    :param kwargs: Additional keyword arguments to be passed to the BaseBone constructor.
+    """
     type = "record"
 
     def __init__(
@@ -31,6 +44,14 @@ class RecordBone(BaseBone):
             raise NotImplementedError("A RecordBone must not be indexed and must have a format set")
 
     def singleValueUnserialize(self, val):
+        """
+        Unserializes a single value, creating an instance of the 'using' class and unserializing
+        the value into it.
+
+        :param val: The value to unserialize.
+        :return: An instance of the 'using' class with the unserialized data.
+        :raises AssertionError: If the unserialized value is not a dictionary.
+        """
         if isinstance(val, str):
             try:
                 value = extjson.loads(val)
@@ -48,6 +69,15 @@ class RecordBone(BaseBone):
         return usingSkel
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+        """
+        Serializes a single value by calling the serialize method of the 'using' skeleton instance.
+
+        :param value: The value to be serialized, which should be an instance of the 'using' skeleton.
+        :param skel: The parent skeleton instance.
+        :param name: The name of the bone.
+        :param parentIndexed: A boolean indicating if the parent bone is indexed.
+        :return: The serialized value.
+        """
         if not value:
             return value
 
@@ -55,8 +85,8 @@ class RecordBone(BaseBone):
 
     def parseSubfieldsFromClient(self) -> bool:
         """
-        Whenever this request should try to parse subfields submitted from the client.
-        Set only to true if you expect a list of dicts to be transmitted
+        Determines if the current request should attempt to parse subfields received from the client.
+        This should only be set to True if a list of dictionaries is expected to be transmitted.
         """
         return True
 
@@ -69,6 +99,13 @@ class RecordBone(BaseBone):
         return usingSkel, usingSkel.errors
 
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+        """
+        Collects search tags from the 'using' skeleton instance for the given bone.
+
+        :param skel: The parent skeleton instance.
+        :param name: The name of the bone.
+        :return: A set of search tags generated from the 'using' skeleton instance.
+        """
         result = set()
 
         using_skel_cache = self.using()
@@ -84,6 +121,16 @@ class RecordBone(BaseBone):
         return result
 
     def getSearchDocumentFields(self, valuesCache, name, prefix=""):
+        """
+        Generates a list of search document fields for the given values cache, name, and optional prefix.
+
+        :param dict valuesCache: A dictionary containing the cached values.
+        :param str name: The name of the bone to process.
+        :param str prefix: An optional prefix to use for the search document fields, defaults to an empty string.
+        :return: A list of search document fields.
+        :rtype: list
+        """
+
         def getValues(res, skel, valuesCache, searchPrefix):
             for key, bone in skel.items():
                 if bone.searchable:
@@ -101,6 +148,14 @@ class RecordBone(BaseBone):
         return res
 
     def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+        """
+        Retrieves a set of referenced blobs for the given skeleton instance and name.
+
+        :param SkeletonInstance skel: The skeleton instance to process.
+        :param str name: The name of the bone to process.
+        :return: A set of referenced blobs.
+        :rtype: set[str]
+        """
         result = set()
 
         using_skel_cache = self.using()
@@ -117,11 +172,11 @@ class RecordBone(BaseBone):
 
     def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
         """
-            This is intentionally not defined as we don't now how to derive a key from the relskel
-            being using (ie. which Fields to include and how).
+        This method is intentionally not implemented as it's not possible to determine how to derive
+        a key from the related skeleton being used (i.e., which fields to include and how).
 
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def structure(self) -> dict:
         return super().structure() | {

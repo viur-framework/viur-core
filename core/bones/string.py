@@ -1,11 +1,19 @@
 import logging
-from typing import Dict, List, Optional, Set, Any
+from typing import Dict, List, Optional, Set
 
 from viur.core import current, db, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 
 class StringBone(BaseBone):
+    """
+    The "StringBone" represents a data field that contains text values.
+
+    :param caseSensitive: A boolean value indicating whether the text values in this field are
+        case-sensitive or not.
+    :param maxLength: The maximum length of the text values in this field.
+    :param kwargs: Additional keyword arguments to pass to the base class constructor.
+    """
     type = "str"
 
     def __init__(
@@ -29,11 +37,27 @@ class StringBone(BaseBone):
         self.maxLength = maxLength
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+        """
+        Serializes a single value of this data field for storage in the database.
+
+        :param value: The value to serialize.
+        :param skel: The skeleton instance that this data field belongs to.
+        :param name: The name of this data field.
+        :param parentIndexed: A boolean value indicating whether the parent object has an index on
+            this data field or not.
+        :return: The serialized value.
+        """
         if not self.caseSensitive and parentIndexed:
             return {"val": value, "idx": value.lower() if isinstance(value, str) else None}
         return value
 
     def singleValueUnserialize(self, value):
+        """
+        Unserializes a single value of this data field from the database.
+
+        :param value: The serialized value to unserialize.
+        :return: The unserialized value.
+        """
         if isinstance(value, dict) and "val" in value:
             return value["val"]
         elif value:
@@ -42,9 +66,20 @@ class StringBone(BaseBone):
             return ""
 
     def getEmptyValue(self):
+        """
+        Returns the empty value for this data field.
+
+        :return: An empty string.
+        """
         return ""
 
     def isEmpty(self, value):
+        """
+        Determines whether a value for this data field is empty or not.
+
+        :param value: The value to check for emptiness.
+        :return: A boolean value indicating whether the value is empty or not.
+        """
         if not value:
             return True
 
@@ -67,6 +102,16 @@ class StringBone(BaseBone):
         return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
     def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
+        """
+        Builds and returns a database filter for this data field based on the provided raw filter data.
+
+        :param name: The name of this data field.
+        :param skel: The skeleton instance that this data field belongs to.
+        :param dbFilter: The database filter to add query clauses to.
+        :param rawFilter: A dictionary containing the raw filter data for this data field.
+        :param prefix: An optional prefix to add to the query clause.
+        :return: The database filter with the added query clauses.
+        """
         if name not in rawFilter and not any(
             [(x.startswith(name + "$") or x.startswith(name + ".")) for x in rawFilter.keys()]
         ):
@@ -124,6 +169,16 @@ class StringBone(BaseBone):
         dbFilter: db.Query,
         rawFilter: Dict
     ) -> Optional[db.Query]:
+        """
+        Build a DB sort based on the specified name and a raw filter.
+
+        :param name: The name of the attribute to sort by.
+        :param skel: A SkeletonInstance object.
+        :param dbFilter: A Query object representing the current DB filter.
+        :param rawFilter: A dictionary containing the raw filter.
+        :return: The Query object with the specified sort applied.
+        :rtype: Optional[google.cloud.ndb.query.Query]
+        """
         if ((orderby := rawFilter.get("orderby"))
             and (orderby == name
                  or (isinstance(orderby, str) and orderby.startswith(f"{name}.") and self.languages))):
@@ -168,6 +223,15 @@ class StringBone(BaseBone):
         return dbFilter
 
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+        """
+        Returns a set of lowercased words that represent searchable tags for the given bone.
+
+        :param skel: The skeleton instance being searched.
+        :param name: The name of the bone to generate tags for.
+
+        :return: A set of lowercased words representing searchable tags.
+        :rtype: set
+        """
         result = set()
         for idx, lang, value in self.iter_bone_value(skel, name):
             if value is None:
@@ -178,6 +242,16 @@ class StringBone(BaseBone):
         return result
 
     def getUniquePropertyIndexValues(self, skel, name: str) -> List[str]:
+        """
+        Returns a list of unique index values for a given property name.
+
+        :param skel: The skeleton instance.
+        :param name: The name of the property.
+        :return: A list of unique index values for the property.
+        :rtype: List[str]
+        :raises NotImplementedError: If the StringBone has languages and the implementation
+            for this case is not yet defined.
+        """
         if self.languages:
             # Not yet implemented as it's unclear if we should keep each language distinct or not
             raise NotImplementedError()

@@ -5,9 +5,32 @@ from viur.core.bones.string import StringBone
 
 
 class EmailBone(StringBone):
+    """
+    This Bone is responsible for validating email addresses. It' a subclass of the StringBone class.
+    """
     type = "str.email"
+    """
+    A string representing the type of the bone, in this case "str.email".
+    """
 
     def isInvalid(self, value):
+        """
+        Checks if the provided email address is valid or not.
+
+        :param str value: The email address to be validated.
+        :returns: An error message if the email address is invalid or None if it is valid.
+        :rtype: str, None
+
+        The method checks if the provided email address is valid according to the following criteria:
+
+        1. The email address must not be empty.
+        2. The email address must be shorter than 256 characters.
+        3. The local part (account) must be shorter than or equal to 64 characters.
+        4. The email address must contain an "@" symbol, separating the local part (account) and the domain part.
+        5. The domain part must be a valid IDNA-encoded string and should not contain any spaces.
+        6. The local part (account) should only contain valid characters.
+        7. The local part (account) can also contain Unicode characters within the range of U+0080 to U+10FFFF.
+        """
         if not value:
             return "No value entered"
         try:

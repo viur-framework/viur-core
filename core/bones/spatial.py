@@ -1,8 +1,15 @@
+"""
+`spatial` contains
+- The `SpatialBone` to handle coordinates
+- and `haversine`  to calculate the distance between two points on earth using their latitude and longitude.
+"""
+
 import logging
-import math
 from copy import deepcopy
+from typing import Any, List, Tuple, Union
+
+import math
 from math import floor
-from typing import Any, Dict, List, Optional, Tuple, Union
 
 from viur.core import db
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
@@ -10,10 +17,22 @@ from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientEr
 
 def haversine(lat1, lng1, lat2, lng2):
     """
-        Calculates the distance between two points on Earth given by (lat1,lng1) and (lat2, lng2) in Meter.
-        See https://en.wikipedia.org/wiki/Haversine_formula
+    Calculate the distance between two points on Earth's surface in meters.
 
-        :return: Distance in Meter
+    This function uses the haversine formula to compute the great-circle distance between
+    two points on Earth's surface, specified by their latitude and longitude coordinates.
+    The haversine formula is particularly useful for small distances on the Earth's surface,
+    as it provides accurate results with good performance.
+
+    For more details on the haversine formula, see
+    `Haversine formula <https://en.wikipedia.org/wiki/Haversine_formula>`_.
+
+    :param float lat1: Latitude of the first point in decimal degrees.
+    :param float lng1: Longitude of the first point in decimal degrees.
+    :param float lat2: Latitude of the second point in decimal degrees.
+    :param float lng2: Longitude of the second point in decimal degrees.
+    :return: Distance between the two points in meters.
+    :rtype: float
     """
     lat1 = math.radians(lat1)
     lng1 = math.radians(lng1)
@@ -27,21 +46,27 @@ def haversine(lat1, lng1, lat2, lng2):
 
 class SpatialBone(BaseBone):
     """
-        Allows to query by Elements close to a given position.
-        Prior to use, you must specify for which region of the map the index should be build.
-        This region should be as small as possible for best accuracy. You cannot use the whole world, as
-        no boundary wraps are been performed.
-        GridDimensions specifies into how many sub-regions the map will be split. Results further away than the
-        size of these sub-regions won't be considered within a search by this algorithm.
+    The "SpatialBone" is a specific type of data structure designed to handle spatial data, such as geographical
+    coordinates or geometries. This bone would typically be used for representing and storing location-based data,
+    like the coordinates of a point of interest on a map or the boundaries of a geographic region.
 
-        Example:
-            If you use this bone to query your data for the nearest pubs, you might want to this algorithm
-            to consider results up to 100km distance, but not results that are 500km away.
-            Setting the size of these sub-regions to roughly 100km width/height allows this algorithm
-            to exclude results further than 200km away on database-query-level, therefore drastically
-            improving performance and reducing costs per query.
+    This feature allows querying elements near a specific location. Before using, designate the map region for
+    which the index should be constructed. To ensure the best accuracy, minimize the region size; using the entire
+    world is not feasible since boundary wraps are not executed. GridDimensions indicates the number of sub-regions
+    the map will be partitioned into. Results beyond the size of these sub-regions will not be considered during
+    searches by this algorithm.
+
+    .. note:: Example:
+        When using this feature to find the nearest pubs, the algorithm could be set to consider
+        results within 100km but not those 500km away. Setting the sub-region size to roughly
+        100km in width and height allows the algorithm to exclude results further than 200km away
+        at the database-query-level, significantly enhancing performance and reducing query costs.
 
         Example region: Germany: boundsLat=(46.988, 55.022), boundsLng=(4.997, 15.148)
+
+    :param Tuple[float, float] boundsLat: The outer bounds (Latitude) of the region we will search in
+    :param Tuple[float, float] boundsLng: The outer bounds (Longitude) of the region we will search in
+    :param gridDimensions: (Tuple[int, int]) The number of sub-regions the map will be divided in
     """
 
     type = "spatial"
@@ -52,7 +77,7 @@ class SpatialBone(BaseBone):
             Initializes a new SpatialBone.
 
             :param boundsLat: Outer bounds (Latitude) of the region we will search in.
-            :param boundsLng: Outer bounds (Latitude) of the region we will search in.
+            :param boundsLng: Outer bounds (Longitude) of the region we will search in.
             :param gridDimensions: Number of sub-regions the map will be divided in
         """
         super().__init__(**kwargs)
@@ -77,8 +102,10 @@ class SpatialBone(BaseBone):
 
     def getGridSize(self):
         """
-            :return: the size of our sub-regions in (fractions-of-latitude, fractions-of-longitude)
-            :rtype: (float, float)
+        Calculate and return the size of the sub-regions in terms of fractions of latitude and longitude.
+
+        :return: A tuple containing the size of the sub-regions as (fractions-of-latitude, fractions-of-longitude)
+        :rtype: (float, float)
         """
         latDelta = float(self.boundsLat[1] - self.boundsLat[0])
         lngDelta = float(self.boundsLng[1] - self.boundsLng[0])
@@ -86,11 +113,12 @@ class SpatialBone(BaseBone):
 
     def isInvalid(self, value: Tuple[float, float]) -> Union[str, bool]:
         """
-            Tests, if the point given by 'value' is inside our boundaries.
-            We'll reject all values outside that region.
-            :param value: (latitude, longitude) of the location of this entry.
-            :return: An error-description or False if the value is valid
-            :rtype: str | False
+        Validate if the given point (latitude, longitude) falls within the specified boundaries.
+        Rejects all values outside the defined region.
+
+        :param value: A tuple containing the location of the entry as (latitude, longitude)
+        :return: An error description if the value is invalid or False if the value is valid
+        :rtype: str | bool
         """
         try:
             lat, lng = value
@@ -104,6 +132,17 @@ class SpatialBone(BaseBone):
             return False
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+        """
+        Serialize a single value (latitude, longitude) for storage. If the bone is indexed, calculate
+        and add tile information for efficient querying.
+
+        :param value: A tuple containing the location of the entry as (latitude, longitude)
+        :param SkeletonInstance skel: The instance of the Skeleton this bone is attached to
+        :param str name: The name of this bone
+        :param bool parentIndexed: A boolean indicating if the parent bone is indexed
+        :return: A dictionary containing the serialized data, including coordinates and tile information (if indexed)
+        :rtype: dict | None
+        """
         if not value:
             return None
         lat, lng = value
@@ -125,45 +164,58 @@ class SpatialBone(BaseBone):
         return res
 
     def singleValueUnserialize(self, val):
+        """
+        Deserialize a single value (latitude, longitude) from the stored data.
+
+        :param val: A dictionary containing the serialized data, including coordinates
+        :return: A tuple containing the location of the entry as (latitude, longitude)
+        :rtype: Tuple[float, float] | None
+        """
         if not val:
             return None
         return val["coordinates"]["lat"], val["coordinates"]["lng"]
 
     def parseSubfieldsFromClient(self):
+        """
+        Determines if subfields (latitude and longitude) should be parsed from the client.
+
+        :return: Always returns True, as latitude and longitude are required
+        :rtype: bool
+        """
         return True  # We'll always get .lat and .lng
 
-    def isEmpty(self, rawValue: Any):
-        if not rawValue:
+    def isEmpty(self, value: Any):
+        """
+        Check if the given raw value is considered empty (either not present or equal to the empty value).
+
+        :param value: The raw value to be checked
+        :return: True if the raw value is considered empty, False otherwise
+        :rtype: bool
+        """
+        if not value:
             return True
-        if isinstance(rawValue, dict):
+        if isinstance(value, dict):
             try:
-                rawLat = float(rawValue["lat"])
-                rawLng = float(rawValue["lng"])
+                rawLat = float(value["lat"])
+                rawLng = float(value["lng"])
                 return (rawLat, rawLng) == self.getEmptyValue()
             except:
                 return True
-        return rawValue == self.getEmptyValue()
+        return value == self.getEmptyValue()
 
     def getEmptyValue(self) -> Tuple[float, float]:
         """
-            If you need a special marker for empty, use 91.0, 181.0.
-            These are both out of range for Latitude (-90, +90) and Longitude (-180, 180) but will be accepted
-            by Vi and Admin
+        Returns an empty value for the bone, which represents an invalid position. Use 91.0, 181.0 as a special
+        marker for empty, as they are both out of range for Latitude (-90, +90) and Longitude (-180, 180), but will
+        be accepted by Vi and Admin.
+
+        :return: A tuple representing an empty value for this bone (91.0, 181.0)
+        :rtype: Tuple[float, float]
         """
         return 0.0, 0.0
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
-        """
-            Reads a value from the client.
-            If this value is valid for this bone,
-            store this value and return None.
-            Otherwise our previous value is
-            left unchanged and an error-message
-            is returned.
 
-            :param bone_name: Our name in the skeleton
-            :param value: *User-supplied* request-data
-        """
         rawLat = value.get("lat", None)
         rawLng = value.get("lng", None)
         if rawLat is None and rawLng is None:
@@ -187,21 +239,20 @@ class SpatialBone(BaseBone):
 
     def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
         """
-            Parses the searchfilter a client specified in his Request into
-            something understood by the datastore.
-            This function must:
+        Parses the client's search filter specified in their request and converts it into a format
+        understood by the datastore. This function should:
+            - Ignore filters that do not target this bone.
+            - Safely handle malformed data in rawFilter (this parameter is directly controlled by the client).
 
-                * Ignore all filters not targeting this bone
-                * Safely handle malformed data in rawFilter
-                    (this parameter is directly controlled by the client)
+        For detailed information on how this geo-spatial search works, see the ViUR documentation.
 
-            For detailed information, how this geo-spatial search works, see the ViUR documentation.
-
-            :param name: The property-name this bone has in its Skeleton (not the description!)
-            :param skel: The :class:`viur.core.db.Query` this bone is part of
-            :param dbFilter: The current :class:`viur.core.db.Query` instance the filters should be applied to
-            :param rawFilter: The dictionary of filters the client wants to have applied
-            :returns: The modified :class:`viur.core.db.Query`
+        :param str name: The property name this bone has in its Skeleton (not the description!)
+        :param SkeletonInstance skel: The skeleton this bone is part of
+        :param db.Query dbFilter: The current `viur.core.db.Query` instance to which the filters should be applied
+        :param dict rawFilter: The dictionary of filters the client wants to have applied
+        :param prefix: Optional string, specifying a prefix for the bone's name (default is None)
+        :return: The modified `viur.core.db.Query` instance
+        :rtype: db.Query
         """
         assert prefix is None, "You cannot use spatial data in a relation for now"
         if name + ".lat" in rawFilter and name + ".lng" in rawFilter:
@@ -250,10 +301,12 @@ class SpatialBone(BaseBone):
 
     def calculateInternalMultiQueryLimit(self, dbQuery: db.Query, targetAmount: int):
         """
-            Tells :class:`viur.core.db.Query` How much entries should be fetched in each subquery.
+        Provides guidance to viur.core.db.Query on the number of entries that should be fetched in each subquery.
 
-            :param targetAmount: How many entries shall be returned from db.Query
-            :returns: The amount of elements db.Query should fetch on each subquery
+        :param dbQuery: The `viur.core.db.Query` instance
+        :param targetAmount: The desired number of entries to be returned from the db.Query
+        :return: The number of elements db.Query should fetch for each subquery
+        :rtype: int
         """
         return targetAmount * 2
 
@@ -261,15 +314,16 @@ class SpatialBone(BaseBone):
                               result: List[db.Entity], targetAmount: int
                               ) -> List[db.Entity]:
         """
-            Randomly returns 'targetAmount' elements from 'result'
+        Randomly returns 'targetAmount' elements from 'result'.
 
-            :param name:
-            :param lat:
-            :param lng:
-            :param dbFilter: The db.Query calling this function
-            :param result: The list of results for each subquery we've run
-            :param targetAmount: How many results should be returned from db.Query
-            :return: List of elements which should be returned from db.Query
+        :param str name: The property-name this bone has in its Skeleton (not the description!)
+        :param lat: Latitude of the reference point
+        :param lng: Longitude of the reference point
+        :param dbFilter: The db.Query instance calling this function
+        :param result: The list of results for each subquery that was executed
+        :param int targetAmount: The desired number of results to be returned from db.Query
+        :return: List of elements to be returned from db.Query
+        :rtype: List[db.Entity]
         """
         assert len(result) == 4  # There should be exactly one result for each direction
         result = [list(x) for x in result]  # Remove the iterators
@@ -315,16 +369,18 @@ class SpatialBone(BaseBone):
         language: Union[None, str] = None
     ) -> bool:
         """
-            Set our value to 'value'.
-            Santy-Checks are performed; if the value is invalid, we flip our value back to its original
-            (default) value and return false.
+        Sets the value of the bone to the provided 'value'.
+        Sanity checks are performed; if the value is invalid, the bone value will revert to its original
+        (default) value and the function will return False.
 
-            :param skel: Dictionary with the current values from the skeleton we belong to
-            :param boneName: The Bone which should be modified
-            :param value: The value that should be assigned. It's type depends on the type of that bone
-            :param append: If true, the given value is appended to the values of that bone instead of
-                replacing it. Only supported on bones with multiple=True
-            :return: Wherever that operation succeeded or not.
+        :param skel: Dictionary with the current values from the skeleton the bone belongs to
+        :param boneName: The name of the bone that should be modified
+        :param value: The value that should be assigned. Its type depends on the type of the bone
+        :param append: If True, the given value will be appended to the existing bone values instead of
+            replacing them. Only supported on bones with multiple=True
+        :param language: Optional, the language of the value if the bone is language-aware
+        :return: A boolean indicating whether the operation succeeded or not
+        :rtype: bool
         """
         if append:
             raise ValueError("append is not possible on %s bones" % self.type)

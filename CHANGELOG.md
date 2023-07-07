@@ -2,8 +2,60 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.4.0.rc1]
+## [3.5.0.beta1]
 
+- feat: Extend User module to built-in role system (#736)
+- feat: Rewrite of session-based securitykeys (#764)
+- chore: Support for Python 3.11 (#767)
+- perf: Avoid structure rendering in JSON render list (#774)
+- feat: Delete old pending `FileSkeletons` (#739)
+- feat: Add search for error template in `html/error` (#658)
+- fix: `File.getUploadURL` with HttpExceptions (#743)
+- feat: Set `cls` to `CustomJsonEncoder` in Jinja's `json.dumps_kwargs` (#744)
+- fix: __undefined to _undefined (#737)
+- fix: Remove leading `Subject: ` from task notify emails (#740)
+- fix: readd StringBone type (#738)
+- chore: Rename `__systemIsIntitialized_` into `__system_initialized` (#730)
+- chore: Rename `__undefindedC__` into `__undefined` (#731)
+- chore: Rename all `rawValue`-parameters to just `value` (#732)
+- doc: Documentation for entire `bones`-module (#723)
+- doc: Add more selectors to theme.css to list styling from latest rdt theme (#729)
+- doc: Watch the normal python code path in the doc build watcher too (#728)
+- doc: Set language in readthedocs config and add jQuery (#721)
+- doc: removed hierarchyBone, changed to Python 3.10+ and removed wiki and community landing page (#707)
+- fix: `CredentialBone` without escaping (#702)
+- chore: Improve `StringBone` (#714)
+
+## [3.4.4]
+
+- chore: Update dependencies (#762)
+- fix: Missing german translation for "password too short" message (#763)
+- fix: ensure the correct default defaultValue of a multiple/multi-lang `BooleanBone` (#759)
+- fix: Move super-call in `JsonBone.__init__()` to the begin (#758)
+
+## [3.4.3]
+
+- fix: #747 broke vi-renderer
+
+## [3.4.2]
+
+- fix: Fixes TypeError when password is unset (#748)
+- fix: `DateBone.fromClient()` should regard tzinfo (#749)
+- feat/fix: Allow `duration` argument for skey (#751)
+- fix: `CredentialBone` without escaping (#702) (#750)
+- fix: Add path_list to the __init__ of BrowseHandler (#747)
+
+## [3.4.1]
+
+- fix: enable to serialize complex custom config structures (#735)
+
+## [3.4.0]
+
+- fix: SelectBone `defaultValue` type annotation (#719)
+- fix: comparison in `SelectBone.singleValueFromClient` (#726)
+- fix: Jinja rendering for SelectBones using Enums (#720)
+- fix: Use static handler "tree.simple.file" in File (#717)
+- fix: Check for "status" in `User.onEdited` (#722)
 - chore: Conventional commits and clarifications (#692)
 - fix: Improvements and clarifications on version string (#706)
 - security: Ensure active status in authenticateUser (#710)

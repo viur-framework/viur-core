@@ -1,7 +1,15 @@
+"""
+The FileBone is a subclass of the TreeLeafBone class, which is a relational bone that can reference
+another entity's fields. FileBone provides additional file-specific properties and methods, such as
+managing file derivatives, handling file size and mime type restrictions, and refreshing file
+metadata.
+"""
+
 import logging
 from hashlib import sha256
-from time import time
 from typing import Any, Dict, List, Set, Union
+
+from time import time
 
 from viur.core import conf, db
 from viur.core.bones.treeleaf import TreeLeafBone
@@ -11,11 +19,22 @@ from viur.core.tasks import CallDeferred
 @CallDeferred
 def ensureDerived(key: db.Key, srcKey, deriveMap: Dict[str, Any], refreshKey: db.Key = None):
     """
-    Ensure that pending thumbnails or other derived Files are build
-    :param key: DB-Key of the file-object on which we should update the derivemap
-    :param srcKey: Prefix for a (hopefully) stable key to prevent rebuilding derives over and over again
-    :param deriveMap: List of DeriveDicts we should build/update
-    :param refreshKey: If set, we'll fetch and refresh the skeleton after building new derives
+    The function is a deferred function that ensures all pending thumbnails or other derived files
+    are built. It takes the following parameters:
+
+    :param db.key key: The database key of the file-object that needs to have its derivation map
+        updated.
+    :param str srcKey: A prefix for a stable key to prevent rebuilding derived files repeatedly.
+    :param Dict[str,Any] deriveMap: A list of DeriveDicts that need to be built or updated.
+    :param db.Key refreshKey: If set, the function fetches and refreshes the skeleton after
+        building new derived files.
+
+    The function works by fetching the skeleton of the file-object, checking if it has any derived
+    files, and updating the derivation map accordingly. It iterates through the deriveMap items and
+    calls the appropriate deriver function. If the deriver function returns a result, the function
+    creates a new or updated resultDict and merges it into the file-object's metadata. Finally,
+    the updated results are written back to the database and the updateRelations function is called
+    to ensure proper relations are maintained.
     """
     from viur.core.skeleton import skeletonByKind, updateRelations
     deriveFuncMap = conf["viur.file.derivers"]
@@ -79,9 +98,39 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: Dict[str, Any], refreshKey: db
 
 
 class FileBone(TreeLeafBone):
+    """
+    A FileBone is a custom bone class that inherits from the TreeLeafBone class, and is used to store and manage
+    file references in a ViUR application.
+
+    :param format: Hint for the UI how to display a file entry (defaults to it's filename)
+    :param derive: A set of functions used to derive other files from the referenced ones. Used fe.
+        to create thumbnails / images for srcmaps from hires uploads. If set, must be a dictionary from string
+        (a key from conf["viur.file.derivers"]) to the parameters passed to that function. The parameters can be
+        any type (including None) that can be json-serialized.
+
+            Example:
+                >>> derive = {"thumbnail": [{"width": 111},
+                    {"width": 555, "height": 666}]}
+
+    :param validMimeTypes: A list of Mimetypes that can be selected in this bone (or None for any).
+        Wildcards ("image/*") are supported.
+
+            Example:
+                >>> validMimeTypes=["application/pdf", "image/*"]
+    :param maxFileSize: The maximum filesize accepted by this bone in bytes. None means no limit.
+        This will always be checked against the original file uploaded - not any of it's
+        derivatives.
+"""
+
     kind = "file"
+    """The kind of this bone is 'file'"""
     type = "relational.tree.leaf.file"
+    """The type of this bone is 'relational.tree.leaf.file'."""
     refKeys = ["name", "key", "mimetype", "dlkey", "size", "width", "height", "derived"]
+    """
+    The list of reference keys for this bone includes "name", "key", "mimetype", "dlkey", "size", "width",
+    "height", and "derived".
+    """
 
     def __init__(
         self,
@@ -119,6 +168,12 @@ class FileBone(TreeLeafBone):
         self.maxFileSize = maxFileSize
 
     def isInvalid(self, value):
+        """
+        Checks if the provided value is invalid for this bone based on its MIME type and file size.
+
+        :param dict value: The value to check for validity.
+        :returns: None if the value is valid, or an error message if it is invalid.
+        """
         if self.validMimeTypes:
             mimeType = value["dest"]["mimetype"]
             for checkMT in self.validMimeTypes:
@@ -133,6 +188,21 @@ class FileBone(TreeLeafBone):
         return None
 
     def postSavedHandler(self, skel, boneName, key):
+        """
+        Handles post-save processing for the FileBone, including ensuring derived files are built.
+
+        :param SkeletonInstance skel: The skeleton instance this bone belongs to.
+        :param str boneName: The name of the bone.
+        :param db.Key key: The datastore key of the skeleton.
+
+        This method first calls the postSavedHandler of its superclass. Then, it checks if the
+        derive attribute is set and if there are any values in the skeleton for the given bone. If
+        so, it handles the creation of derived files based on the provided configuration.
+
+        If the values are stored as a dictionary without a "dest" key, it assumes a multi-language
+        setup and iterates over each language to handle the derived files. Otherwise, it handles
+        the derived files directly.
+        """
         super().postSavedHandler(skel, boneName, key)
 
         def handleDerives(values):
@@ -150,6 +220,18 @@ class FileBone(TreeLeafBone):
                 handleDerives(values)
 
     def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+        """
+        Retrieves the referenced blobs in the FileBone.
+
+        :param SkeletonInstance skel: The skeleton instance this bone belongs to.
+        :param str name: The name of the bone.
+        :return: A set of download keys for the referenced blobs.
+        :rtype: Set[str]
+
+        This method iterates over the bone values for the given skeleton and bone name. It skips
+        values that are None. For each non-None value, it adds the download key of the referenced
+        blob to a set. Finally, it returns the set of unique download keys for the referenced blobs.
+        """
         result = set()
         for idx, lang, value in self.iter_bone_value(skel, name):
             if value is None:
@@ -158,7 +240,25 @@ class FileBone(TreeLeafBone):
         return result
 
     def refresh(self, skel, boneName):
+        """
+        Refreshes the FileBone by recreating file entries if needed and importing blobs from ViUR 2.
+
+        :param SkeletonInstance skel: The skeleton instance this bone belongs to.
+        :param str boneName: The name of the bone.
+
+        This method defines an inner function, recreateFileEntryIfNeeded(val), which is responsible
+        for recreating the weak file entry referenced by the relation in val if it doesn't exist
+        (e.g., if it was deleted by ViUR 2). It initializes a new skeleton for the "file" kind and
+        checks if the file object already exists. If not, it recreates the file entry with the
+        appropriate properties and saves it to the database.
+
+        The main part of the refresh method calls the superclass's refresh method and checks if the
+        configuration contains a ViUR 2 import blob source. If it does, it iterates through the file
+        references in the bone value, imports the blobs from ViUR 2, and recreates the file entries if
+        needed using the inner function.
+        """
         from viur.core.skeleton import skeletonByKind
+
         def recreateFileEntryIfNeeded(val):
             # Recreate the (weak) filenetry referenced by the relation *val*. (ViUR2 might have deleted them)
             skel = skeletonByKind("file")()

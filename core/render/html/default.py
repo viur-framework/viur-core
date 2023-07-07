@@ -1,21 +1,21 @@
-from collections import OrderedDict, namedtuple
-
 import codecs
+import collections
+import enum
 import functools
 import logging
 import os
-
-from jinja2 import ChoiceLoader, Environment, FileSystemLoader, Template
 from typing import Any, Dict, List, Literal, Tuple, Union
 
-from viur.core import current, db, errors, securitykey
+from jinja2 import ChoiceLoader, Environment, FileSystemLoader, Template
+
+from viur.core import conf, current, db, errors, securitykey
 from viur.core.bones import *
 from viur.core.i18n import LanguageWrapper, TranslationExtension
 from viur.core.skeleton import SkelList, SkeletonInstance
-from viur.core import conf
 from . import utils as jinjaUtils
+from ..json.default import CustomJsonEncoder
 
-KeyValueWrapper = namedtuple("KeyValueWrapper", ["key", "descr"])
+KeyValueWrapper = collections.namedtuple("KeyValueWrapper", ["key", "descr"])
 
 
 class Render(object):
@@ -64,7 +64,12 @@ class Render(object):
             Render.__haveEnvImported_ = True
         self.parent = parent
 
-    def getTemplateFileName(self, template: str, ignoreStyle: bool = False) -> str:
+    def getTemplateFileName(
+        self,
+        template: str | List[str] | Tuple[str],
+        ignoreStyle: bool = False,
+        raise_exception: bool = True,
+    ) -> str | None:
         """
             Returns the filename of the template.
 
@@ -75,41 +80,62 @@ class Render(object):
             It is advised to override this function in case that
             :func:`viur.core.render.jinja2.default.Render.getLoaders` is redefined.
 
-            :param template: The basename of the template to use.
+            :param template: The basename of the template to use. This can optionally be also a sequence of names.
             :param ignoreStyle: Ignore any maybe given style hints.
+            :param raise_exception: Defaults to raise an exception when not found, otherwise returns None.
 
             :returns: Filename of the template
         """
         validChars = "abcdefghijklmnopqrstuvwxyz1234567890-"
-        if "htmlpath" in dir(self):
-            htmlpath = self.htmlpath
+        htmlpath = getattr(self, "htmlpath", "html")
+
+        if (
+            not ignoreStyle
+            and (style := current.request.get().kwargs.get("style"))
+            and all([x in validChars for x in style.lower()])
+        ):
+            style_postfix = f"_{style}"
         else:
-            htmlpath = "html"
-        currReq = current.request.get()
-        if not ignoreStyle \
-            and "style" in currReq.kwargs \
-            and all([x in validChars for x in currReq.kwargs["style"].lower()]):
-            stylePostfix = "_" + currReq.kwargs["style"]
-        else:
-            stylePostfix = ""
-        lang = current.language.get()  # session.current.getLanguage()
-        fnames = [template + stylePostfix + ".html", template + ".html"]
-        if lang:
-            fnames = [os.path.join(lang, template + stylePostfix + ".html"),
-                      template + stylePostfix + ".html",
-                      os.path.join(lang, template + ".html"),
-                      template + ".html"]
-        for fn in fnames:  # check subfolders
-            prefix = template.split("_")[0]
-            if conf["viur.instance.project_base_path"].joinpath(htmlpath, prefix, fn).is_file():
-                return "%s/%s" % (prefix, fn)
-        for fn in fnames:  # Check the templatefolder of the application
-            if conf["viur.instance.project_base_path"].joinpath(htmlpath, fn).is_file():
-                return fn
-        for fn in fnames:  # Check the fallback
-            if conf["viur.instance.core_base_path"].joinpath("template", fn).is_file():
-                return fn
-        raise errors.NotFound("Template %s not found." % template)
+            style_postfix = ""
+
+        lang = current.language.get()
+
+        if not isinstance(template, (tuple, list)):
+            template = (template,)
+
+        for tpl in template:
+            filenames = [
+                tpl,
+                tpl + style_postfix,
+            ]
+
+            if lang:
+                filenames += [
+                    os.path.join(lang, tpl + style_postfix),
+                    os.path.join(lang, tpl),
+                ]
+
+            for filename in set(reversed(filenames)):
+                filename += ".html"
+
+                if "_" in filename:
+                    dirname, tail = filename.split("_", 1)
+                    if tail:
+                        if conf["viur.instance.project_base_path"].joinpath(htmlpath, dirname, filename).is_file():
+                            return os.path.join(dirname, filename)
+
+                if conf["viur.instance.project_base_path"].joinpath(htmlpath, filename).is_file():
+                    return filename
+
+                if conf["viur.instance.core_base_path"].joinpath("viur", "core", "template", filename).is_file():
+                    return filename
+
+        msg = f"""Template {" or ".join((repr(tpl) for tpl in template))} not found."""
+        if raise_exception:
+            raise errors.NotFound(msg)
+
+        logging.error(msg)
+        return None
 
     def getLoaders(self) -> ChoiceLoader:
         """
@@ -118,12 +144,11 @@ class Render(object):
             May be overridden to provide an alternative loader
             (e.g. for fetching templates from the datastore).
         """
-        if "htmlpath" in dir(self):
-            htmlpath = self.htmlpath
-        else:
-            htmlpath = "html/"
-
-        return ChoiceLoader([FileSystemLoader(htmlpath), FileSystemLoader("viur/core/template/")])
+        # fixme: Why not use ChoiceLoader directly for template loading?
+        return ChoiceLoader((
+            FileSystemLoader(getattr(self, "htmlpath", "html")),
+            FileSystemLoader(conf["viur.instance.core_base_path"] / "viur" / "core" / "template"),
+        ))
 
     def renderBoneValue(self,
                         bone: BaseBone,
@@ -154,14 +179,15 @@ class Render(object):
                         res[language] = self.renderBoneValue(bone, skel, key, boneValue[language], True)
             return res
         elif bone.type == "select" or bone.type.startswith("select."):
-            skelValue = boneValue
-            if isinstance(skelValue, list):
-                return {
-                    val: bone.values.get(val, val) for val in boneValue
-                }
-            elif skelValue in bone.values:
-                return KeyValueWrapper(skelValue, bone.values[skelValue])
-            return KeyValueWrapper(skelValue, str(skelValue))
+            def get_label(value) -> str:
+                if isinstance(value, enum.Enum):
+                    return bone.values.get(value.value, value.name)
+                return bone.values.get(value, str(value))
+
+            if isinstance(boneValue, list):
+                return {val: get_label(val) for val in boneValue}
+
+            return KeyValueWrapper(boneValue, get_label(boneValue))
 
         elif bone.type == "relational" or bone.type.startswith("relational."):
             if isinstance(boneValue, list):
@@ -476,6 +502,7 @@ class Render(object):
             self.env = Environment(loader=loaders,
                                    extensions=["jinja2.ext.do", "jinja2.ext.loopcontrols", TranslationExtension])
             self.env.trCache = {}
+            self.env.policies["json.dumps_kwargs"]["cls"] = CustomJsonEncoder
 
             # Import functions.
             for name, func in jinjaUtils.getGlobalFunctions().items():

@@ -366,7 +366,7 @@ class Tree(SkelModule):
             or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
         ):
             return self.render.add(skel)
-        if not securitykey.validate(skey, useSessionKey=True):
+        if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
 
         self.onAdd(skelType, skel)
@@ -411,7 +411,7 @@ class Tree(SkelModule):
             or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
         ):
             return self.render.edit(skel)
-        if not securitykey.validate(skey, useSessionKey=True):
+        if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
         self.onEdit(skelType, skel)
         skel.toDB()
@@ -446,7 +446,7 @@ class Tree(SkelModule):
             raise errors.NotFound()
         if not self.canDelete(skelType, skel):
             raise errors.Unauthorized()
-        if not securitykey.validate(skey, useSessionKey=True):
+        if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
         if skelType == "node":
             self.deleteRecursive(skel["key"])
@@ -481,7 +481,7 @@ class Tree(SkelModule):
     @exposed
     @forceSSL
     @forcePost
-    def move(self, skelType: SkelType, key: str, parentNode: str, *args, **kwargs) -> str:
+    def move(self, skelType: SkelType, key: str, parentNode: str, skey: str, *args, **kwargs) -> str:
         """
         Move a node (including its contents) or a leaf to another node.
 
@@ -490,6 +490,7 @@ class Tree(SkelModule):
         :param skelType: Defines the type of the entry that should be moved and may either be "node" or "leaf".
         :param key: URL-safe key of the item to be moved.
         :param parentNode: URL-safe key of the destination node, which must be a node.
+        :param skey: The CSRF security key.
 
         :returns: The rendered, edited object of the entry.
 
@@ -539,7 +540,7 @@ class Tree(SkelModule):
         if "rootNode" in tmp and tmp["rootNode"] == 1:
             raise errors.NotAcceptable("Can't move a rootNode to somewhere else")
 
-        if not securitykey.validate(kwargs.get("skey", ""), useSessionKey=True):
+        if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
 
         currentParentRepo = skel["parentrepo"]
