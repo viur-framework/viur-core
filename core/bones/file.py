@@ -7,9 +7,8 @@ metadata.
 
 import logging
 from hashlib import sha256
-from typing import Any, Dict, List, Set, Union
-
 from time import time
+from typing import Any, Dict, List, Set, Union
 
 from viur.core import conf, db
 from viur.core.bones.treeleaf import TreeLeafBone

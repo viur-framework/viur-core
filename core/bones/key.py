@@ -102,7 +102,7 @@ class KeyBone(BaseBone):
         if (name == "key"
             and isinstance(skel.dbEntity, db.Entity)
             and skel.dbEntity.key
-            and not skel.dbEntity.key.is_partial):
+                and not skel.dbEntity.key.is_partial):
             skel.accessedValues[name] = skel.dbEntity.key
             return True
         elif name in skel.dbEntity:

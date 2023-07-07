@@ -319,7 +319,7 @@ class BaseBone(object):
             assignment.
         """
         if not self.isClonedInstance and getSystemInitialized() and key != "isClonedInstance" and not key.startswith(
-            "_"):
+                "_"):
             raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
         super().__setattr__(key, value)
 
@@ -649,7 +649,7 @@ class BaseBone(object):
         if name in skel.dbEntity:
             loadVal = skel.dbEntity[name]
         elif conf.get("viur.viur2import.blobsource") and any(
-            [x.startswith("%s." % name) for x in skel.dbEntity.keys()]):
+                [x.startswith("%s." % name) for x in skel.dbEntity.keys()]):
             # We're importing from an old ViUR2 instance - there may only be keys prefixed with our name
             loadVal = None
         else:

@@ -101,7 +101,14 @@ class StringBone(BaseBone):
             return value, None
         return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
-    def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
+    def buildDBFilter(
+        self,
+        name: str,
+        skel: 'viur.core.skeleton.SkeletonInstance',
+        dbFilter: db.Query,
+        rawFilter: Dict,
+        prefix: Optional[str] = None
+    ) -> db.Query:
         """
         Builds and returns a database filter for this data field based on the provided raw filter data.
 

@@ -6,7 +6,7 @@
 
 import logging
 from copy import deepcopy
-from typing import Any, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import math
 from math import floor
@@ -215,7 +215,6 @@ class SpatialBone(BaseBone):
         return 0.0, 0.0
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
-
         rawLat = value.get("lat", None)
         rawLng = value.get("lng", None)
         if rawLat is None and rawLng is None:
@@ -237,7 +236,14 @@ class SpatialBone(BaseBone):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
         return (rawLat, rawLng), None
 
-    def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
+    def buildDBFilter(
+        self,
+        name: str,
+        skel: 'viur.core.skeleton.SkeletonInstance',
+        dbFilter: db.Query,
+        rawFilter: Dict,
+        prefix: Optional[str] = None
+    ) -> db.Query:
         """
         Parses the client's search filter specified in their request and converts it into a format
         understood by the datastore. This function should:
@@ -296,8 +302,6 @@ class SpatialBone(BaseBone):
             dbFilter._customMultiQueryMerge = lambda *args, **kwargs: self.customMultiQueryMerge(name, lat, lng, *args,
                                                                                                  **kwargs)
             dbFilter._calculateInternalMultiQueryLimit = self.calculateInternalMultiQueryLimit
-
-    # return super().buildDBFilter(bone_name, skel, dbFilter, rawFilter)
 
     def calculateInternalMultiQueryLimit(self, dbQuery: db.Query, targetAmount: int):
         """

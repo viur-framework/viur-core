@@ -6,8 +6,8 @@ countries. It inherits from the BaseBone class and extends it to support country
 such as displaying country names and handling country codes (e.g., ISO 3166-1 alpha-2 or alpha-3).
 """
 from collections import OrderedDict
-
 from viur.core.bones.select import SelectBone
+
 
 ISO3CODES = {
     "abw": "Aruba",

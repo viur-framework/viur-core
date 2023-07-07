@@ -1,9 +1,10 @@
 import logging
 import warnings
-from typing import Any, Set, Union
+from typing import Any, Dict, Optional, Set, Union
 
 import sys
 
+from viur.core import db
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 # Constants for Mne (MIN/MAX-never-exceed)
@@ -115,30 +116,16 @@ class NumericBone(BaseBone):
         return value == self.getEmptyValue()
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
-        """
-        This method converts the value received from the client into a valid numeric value
-        (integer or floating-point number) and checks if the value is within the minimum
-        and maximum limits defined for the NumericBone instance. If the value is valid,
-        it returns the converted value and None for errors. If the value is invalid, it
-        returns the empty value and a list containing a ReadFromClientError instance with
-        the error details.
-
-        :param value: The value received from the client.
-        :param skel: The skeleton instance containing the bone.
-        :param name: The name of the bone.
-        :param origData: The original data dictionary containing all values.
-        :return: A tuple containing the converted value and a list of errors (or None if no errors).
-        """
         try:
             value = str(value).replace(",", ".", 1)
         except:
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid Value")]
         else:
             if self.precision and (str(value).replace(".", "", 1).replace("-", "", 1).isdigit()) and float(
-                value) >= self.min and float(value) <= self.max:
+                    value) >= self.min and float(value) <= self.max:
                 value = round(float(value), self.precision)
             elif not self.precision and (str(value).replace("-", "", 1).isdigit()) and int(
-                value) >= self.min and int(value) <= self.max:
+                    value) >= self.min and int(value) <= self.max:
                 value = int(value)
             else:
                 return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid Value")]
@@ -147,20 +134,14 @@ class NumericBone(BaseBone):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
         return value, None
 
-    def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
-        """
-        This method updates the database filter by converting the raw filter values into valid numeric
-        values (integer or floating-point numbers) for the NumericBone instance. It also ensures that
-        the filter values are not garbage, otherwise a RuntimeError is raised.
-
-        :param name: The name of the bone.
-        :param skel: The skeleton instance containing the bone.
-        :param dbFilter: The database query filter to be updated.
-        :param rawFilter: The raw filter dictionary containing the filter values.
-        :param prefix: An optional prefix for the filter parameters.
-        :return: Returns the updated database query filter.
-        :raises RuntimeError: If the filter value provided is not valid for the NumericBone.
-        """
+    def buildDBFilter(
+        self,
+        name: str,
+        skel: 'viur.core.skeleton.SkeletonInstance',
+        dbFilter: db.Query,
+        rawFilter: Dict,
+        prefix: Optional[str] = None
+    ) -> db.Query:
         updatedFilter = {}
 
         for parmKey, paramValue in rawFilter.items():

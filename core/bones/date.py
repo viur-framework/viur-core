@@ -80,34 +80,29 @@ class DateBone(BaseBone):
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
         """
-        Reads a value from the client.
-        If this value is valid for this bone,
-        store this value and return None.
-        Otherwise our previous value is
-        left unchanged and an error-message
-        is returned.
-
-        Value is assumed to be in local time zone only if both self.date and self.time are set to True
-        and self.localize is True.
-
-        Value is valid if, when converted into String, it complies following formats:\n
-        - is digit (may include one '-') and valid POSIX timestamp: converted from timestamp; assumes UTC timezone\n
-        - is digit (may include one '-') and NOT valid POSIX timestamp and not date and time: interpreted as seconds after epoch\n
-        - 'now': current time\n
-        - 'nowX', where X converted into String is added as seconds to current time\n
-        - '%H:%M:%S' if not date and time\n
-        - '%M:%S' if not date and time\n
-        - '%S' if not date and time\n
-        - '%Y-%m-%d %H:%M:%S' (ISO date format)\n
-        - '%Y-%m-%d %H:%M' (ISO date format)\n
-        - '%Y-%m-%d' (ISO date format)\n
-        - '%m/%d/%Y %H:%M:%S' (US date-format)\n
-        - '%m/%d/%Y %H:%M' (US date-format)\n
-        - '%m/%d/%Y' (US date-format)\n
-        - '%d.%m.%Y %H:%M:%S' (EU date-format)\n
-        - '%d.%m.%Y %H:%M' (EU date-format)\n
-        - '%d.%m.%Y' (EU date-format)\n
-        -  \n
+        Reads a value from the client. If the value is valid for this bone, it stores the value and returns None.
+        Otherwise, the previous value is left unchanged, and an error message is returned.
+        The value is assumed to be in the local time zone only if both self.date and self.time are set to True and
+        self.localize is True.
+            **Value is valid if, when converted into String, it complies following formats:**
+                is digit (may include one '-') and valid POSIX timestamp: converted from timestamp;
+                assumes UTC timezone
+                is digit (may include one '-') and NOT valid POSIX timestamp and not date and time: interpreted as
+                seconds after epoch
+                'now': current time
+                'nowX', where X converted into String is added as seconds to current time
+                '%H:%M:%S' if not date and time
+                '%M:%S' if not date and time
+                '%S' if not date and time
+                '%Y-%m-%d %H:%M:%S' (ISO date format)
+                '%Y-%m-%d %H:%M' (ISO date format)
+                '%Y-%m-%d' (ISO date format)
+                '%m/%d/%Y %H:%M:%S' (US date-format)
+                '%m/%d/%Y %H:%M' (US date-format)
+                '%m/%d/%Y' (US date-format)
+                '%d.%m.%Y %H:%M:%S' (EU date-format)
+                '%d.%m.%Y %H:%M' (EU date-format)
+                '%d.%m.%Y' (EU date-format)
 
         The resulting year must be >= 1900.
 
@@ -311,7 +306,12 @@ class DateBone(BaseBone):
             # We got garbage from the datastore
             return None
 
-    def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
+    def buildDBFilter(self,
+                      name: str,
+                      skel: 'viur.core.skeleton.SkeletonInstance',
+                      dbFilter: db.Query,
+                      rawFilter: Dict,
+                      prefix: Optional[str] = None) -> db.Query:
         """
         Constructs a datastore filter for date and/or time values based on the given raw filter. It parses the
         raw filter and, if successful, applies it to the datastore query.

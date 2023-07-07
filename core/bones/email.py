@@ -6,7 +6,10 @@ from viur.core.bones.string import StringBone
 
 class EmailBone(StringBone):
     """
-    This Bone is responsible for validating email addresses. It' a subclass of the StringBone class.
+    The EmailBone class is a designed to store syntactically validated email addresses.
+
+    This class provides an email validation method, ensuring that the given email address conforms to the
+    required format and structure.
     """
     type = "str.email"
     """

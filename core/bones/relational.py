@@ -624,22 +624,6 @@ class RelationalBone(BaseBone):
         return self.using is not None
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
-        """
-        Deserialize a single value from the client and validate its integrity.
-
-        This method takes a value submitted from the client and attempts to deserialize and validate it. The value
-        is expected to be a key pointing to a referenced entry in the datastore.
-
-        :param value: The value submitted from the client.
-        :type value: str or dict
-        :param SkeletonInstance skel: The skeleton instance the bone is a part of.
-        :param str name: The name of the bone.
-        :param dict origData: The original data submitted from the client.
-
-        :return: A tuple containing the deserialized and validated value, and a list of errors if any.
-             Errors are instances of `ReadFromClientError`.
-        :rtype: Tuple[Union[dict, None], List[viur.core.bones.ReadFromClientError]]
-        """
         oldValues = skel[bone_name]
 
         def restoreSkels(key, usingData, index=None):
@@ -697,8 +681,6 @@ class RelationalBone(BaseBone):
         else:
             destKey = value
             usingData = None
-        # if not destKey:  # Allow setting this bone back to empty
-        #    return None, [ReadFromClientError(ReadFromClientErrorSeverity.Empty, bone_name, "No value submitted")]
         assert isinstance(destKey, str)
         refSkel, usingSkel, errors = restoreSkels(destKey, usingData)
         if refSkel:
@@ -771,7 +753,14 @@ class RelationalBone(BaseBone):
             dbFilter.order(*orderList)
         return name, skel, dbFilter, rawFilter
 
-    def buildDBFilter(self, name, skel, dbFilter, rawFilter, prefix=None):
+    def buildDBFilter(
+        self,
+        name: str,
+        skel: 'viur.core.skeleton.SkeletonInstance',
+        dbFilter: db.Query,
+        rawFilter: Dict,
+        prefix: Optional[str] = None
+    ) -> db.Query:
         """
         Builds a datastore query by modifying the given filter based on the RelationalBone's properties.
 
@@ -898,7 +887,7 @@ class RelationalBone(BaseBone):
         if origFilter is None or not "orderby" in rawFilter:  # This query is unsatisfiable or not sorted
             return dbFilter
         if "orderby" in rawFilter and isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
-            "%s." % name):
+               "%s." % name):
             if not dbFilter.getKind() == "viur-relations" and self.multiple:  # This query has not been rewritten (yet)
                 name, skel, dbFilter, rawFilter = self._rewriteQuery(name, skel, dbFilter, rawFilter)
             key = rawFilter["orderby"]
@@ -1194,12 +1183,12 @@ class RelationalBone(BaseBone):
         elif not self.multiple and self.using:
             if not isinstance(value, tuple) or len(value) != 2 or \
                 not (isinstance(value[0], str) or isinstance(value[0], db.Key)) or \
-                not isinstance(value[1], self._skeletonInstanceClassRef):
+                    not isinstance(value[1], self._skeletonInstanceClassRef):
                 raise ValueError("You must supply a tuple of (Database-Key, relSkel) to %s" % boneName)
             realValue = value
         elif self.multiple and not self.using:
             if not (isinstance(value, str) or isinstance(value, db.Key)) and not (isinstance(value, list)) \
-                and all([isinstance(x, str) or isinstance(x, db.Key) for x in value]):
+                    and all([isinstance(x, str) or isinstance(x, db.Key) for x in value]):
                 raise ValueError("You must supply a Database-Key or a list hereof to %s" % boneName)
             if isinstance(value, list):
                 realValue = [(x, None) for x in value]
