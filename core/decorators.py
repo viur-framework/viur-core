@@ -116,7 +116,7 @@ def exposed(func: Union[Callable, dict]) -> Callable:
 
     if isinstance(func, dict):
         translation_map = func
-        
+
         # We received said dictionary:
         def expose_with_translations(func: Callable) -> Callable:
             ensure_viur_flags(func)
