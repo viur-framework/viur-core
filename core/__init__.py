@@ -99,7 +99,7 @@ def mapModule(moduleObj: object, moduleName: str, targetResolverRender: dict):
     for lang in conf["viur.availableLanguages"] or [conf["viur.defaultLanguage"]]:
         # Map the module under each translation
         attr_viur_flags = getattr(moduleObj, "viur_flags", {})
-        seoLanguageMap = attr_viur_flags.get("seoLanguageMap", {}) 
+        seoLanguageMap = attr_viur_flags.get("seoLanguageMap", {})
         if not seoLanguageMap:
             seoLanguageMap = getattr(moduleObj, "seoLanguageMap", {})
             if seoLanguageMap:
