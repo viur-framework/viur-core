@@ -644,13 +644,12 @@ class BrowseHandler():  # webapp.RequestHandler
             viur_flags = getattr(caller, "viur_flags", {})
 
             skey_data = viur_flags.get("skey", {})
-            if skey_data.get("status", False):
+            if skey_data:
                 from viur.core import securitykey
                 # Here we will check the skey always before processing the request, because it cannot be empty.
                 skey_check = True
-                flags = skey_data.get("flags", {})
                 # If the skey data can allow empty kwargs..
-                if flags.get("empty", False):
+                if skey_data.get("allow_empty", False):
                     # Only check the skey, if the kwargs is not empty
                     skey_check = True if kwargs else False
 
@@ -660,12 +659,12 @@ class BrowseHandler():  # webapp.RequestHandler
                 if skey_check:
                     logging.info(f"Function: {caller.__name__} skey check!")
 
-                    data = securitykey.validate(newKwargs.get("skey", ""), **flags.get("kwargs", {}))
+                    data = securitykey.validate(newKwargs.get("skey", ""), **skey_data.get("kwargs", {}))
 
                     if not data:
                         raise errors.PreconditionFailed("Missing or invalid skey")
 
-                    if arg_name := flags.get("forward_argument", ""):
+                    if arg_name := skey_data.get("forward_argument", ""):
                         newKwargs |= {arg_name: data}
 
             res = caller(*newArgs, **newKwargs)

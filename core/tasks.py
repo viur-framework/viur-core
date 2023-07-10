@@ -18,6 +18,8 @@ from time import sleep
 from viur.core import current, db, errors, utils
 from viur.core.config import conf
 
+from viur.core.decorators import ensure_viur_flags
+
 
 # class JsonKeyEncoder(json.JSONEncoder):
 def preprocessJsonObject(o):
@@ -204,12 +206,8 @@ class TaskHandler:
             logging.error("Could not continue queryIter - %s not known on this instance" % data["classID"])
         MetaQueryIter._classCache[data["classID"]]._qryStep(data)
 
-    try:
-        queryIter.viur_flags
-    except AttributeError:
-        queryIter.viur_flags = {}
-    finally:
-        queryIter.viur_flags["exposed"] = True
+    ensure_viur_flags(queryIter)
+    queryIter.viur_flags["exposed"] = True
 
     def deferred(self, *args, **kwargs):
         """
@@ -286,12 +284,9 @@ class TaskHandler:
             except Exception as e:
                 logging.exception(e)
                 raise errors.RequestTimeout()  # Task-API should retry
-    try:
-        deferred.viur_flags
-    except AttributeError:
-        deferred.viur_flags = {}
-    finally:
-        deferred.viur_flags["exposed"] = True
+
+    ensure_viur_flags(deferred)
+    deferred.viur_flags["exposed"] = True
 
     def cron(self, cronName="default", *args, **kwargs):
         global _callableTasks, _periodicTasks, _appengineServiceIPs
@@ -348,10 +343,8 @@ class TaskHandler:
                     logging.exception(e)
         logging.debug("Scheduled tasks complete")
 
-    try:
-        cron.viur_flags = {}
-    finally:
-        cron.viur_flags["exposed"] = True
+    ensure_viur_flags(cron)
+    cron.viur_flags["exposed"] = True
 
     def list(self, *args, **kwargs):
         """Lists all user-callable tasks which are callable by this user"""
@@ -367,12 +360,8 @@ class TaskHandler:
 
         return self.render.list(tasks)
 
-    try:
-        list.viur_flags
-    except AttributeError:
-        list.viur_flags = {}
-    finally:
-        list.viur_flags["exposed"] = True
+    ensure_viur_flags(list)
+    list.viur_flags["exposed"] = True
 
 
     def execute(self, taskID, *args, **kwargs):
@@ -392,13 +381,9 @@ class TaskHandler:
         task.execute(**skel.accessedValues)
         return self.render.addSuccess(skel)
 
-    try:
-        execute.viur_flags
-    except AttributeError:
-        execute.viur_flags = {}
-    finally:
-        execute.viur_flags["exposed"] = True
-        execute.viur_flags["skey"] = True
+    ensure_viur_flags(execute)
+    execute.viur_flags["exposed"] = True
+    execute.viur_flags["skey"] = True
 
 
 TaskHandler.admin = True

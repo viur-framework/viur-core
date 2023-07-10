@@ -99,7 +99,12 @@ def mapModule(moduleObj: object, moduleName: str, targetResolverRender: dict):
     for lang in conf["viur.availableLanguages"] or [conf["viur.defaultLanguage"]]:
         # Map the module under each translation
         attr_viur_flags = getattr(moduleObj, "viur_flags", {})
-        if seoLanguageMap := attr_viur_flags.get("seoLanguageMap", {}) and lang in seoLanguageMap:
+        seoLanguageMap = attr_viur_flags.get("seoLanguageMap", {}) 
+        if not seoLanguageMap:
+            seoLanguageMap = getattr(moduleObj, "seoLanguageMap", {})
+            if seoLanguageMap:
+                logging.warning("seoLanguageMap got replaced by viur_flags['seoLanguageMap']")
+        if seoLanguageMap and lang in seoLanguageMap:
             translatedModuleName = seoLanguageMap[lang]
             if translatedModuleName not in targetResolverRender:
                 targetResolverRender[translatedModuleName] = {}
@@ -107,8 +112,10 @@ def mapModule(moduleObj: object, moduleName: str, targetResolverRender: dict):
                 targetResolverRender[translatedModuleName][fname] = fcall
                 # Map translated function names
                 fcall_viur_flags = getattr(fcall, "viur_flags", {})
-                if seoLanguageMapSub := viur_flags.get("seoLanguageMap", {}) and lang in seoLanguageMapSub:
+                seoLanguageMapSub = fcall_viur_flags.get("seoLanguageMap", {})
+                if seoLanguageMapSub and lang in seoLanguageMapSub:
                     targetResolverRender[translatedModuleName][seoLanguageMapSub[lang]] = fcall
+
             if "_viurMapSubmodules" in dir(moduleObj):
                 # Map any Functions on deeper nested function
                 subModules = moduleObj._viurMapSubmodules
@@ -219,7 +226,13 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
                 if "_postProcessAppObj" in render:
                     render["_postProcessAppObj"](targetResolverRender)
         viur_flags = getattr(moduleClass, "viur_flags", {})
-        if seoLanguageMap := viur_flags.get("seoLanguageMap", {}):
+        seoLanguageMap = viur_flags.get("seoLanguageMap", {})
+        if not seoLanguageMap:
+            seoLanguageMap = getattr(moduleClass, "seoLanguageMap", {})
+            if seoLanguageMap:
+                msg = "seoLanguageMap was replaced by viur_flags['seoLanguageMap']"
+                logging.warning(msg, stacklevel=3)
+        if seoLanguageMap:
             conf["viur.languageModuleMap"][moduleName] = seoLanguageMap
     conf["viur.mainResolver"] = resolverDict
 

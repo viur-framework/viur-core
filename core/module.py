@@ -160,12 +160,11 @@ class Module:
             f = fn[1]
 
             viur_flags = getattr(f, "viur_flags", {})
-            methods = viur_flags.get("method", [])
 
             attributes = {
                 "exposed": viur_flags.get("exposed", False),
-                "method": "POST" if ["POST"] == methods else "GET",
-                "skey": viur_flags.get("skey", {}).get("status", False)
+                "method": viur_flags.get("method", []),
+                "skey": "skey" in viur_flags
             }
 
             if attributes["exposed"]:
@@ -181,7 +180,7 @@ class Module:
                     }
 
                     if parameter.annotation is not inspect.Parameter.empty:
-                        _params[parameter.name]['type'] = str(parameter.annotation)
+                        _params[parameter.name]["type"] = str(parameter.annotation)
 
                     if parameter.default is not inspect.Parameter.empty:
                         _params[parameter.name]["default"] = str(parameter.default)
