@@ -1,4 +1,14 @@
-from .base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity, UniqueValue, UniqueLockMethod, MultipleConstraints
+from .base import (
+    BaseBone,
+    Compute,
+    ComputeInterval,
+    ComputeMethod,
+    MultipleConstraints,
+    ReadFromClientError,
+    ReadFromClientErrorSeverity,
+    UniqueLockMethod,
+    UniqueValue,
+)
 from .boolean import BooleanBone
 from .captcha import CaptchaBone
 from .color import ColorBone
@@ -30,6 +40,9 @@ __all = [
     "BooleanBone",
     "CaptchaBone",
     "ColorBone",
+    "Compute",
+    "ComputeInterval",
+    "ComputeMethod",
     "CredentialBone",
     "DateBone",
     "EmailBone",
@@ -79,10 +92,10 @@ for __cls_name, __cls in locals().copy().items():
 
             return __init__
 
-        locals()[__old_cls_name] = type(__old_cls_name, (__cls, ), {
+        locals()[__old_cls_name] = type(__old_cls_name, (__cls,), {
             "__init__": __generate_deprecation_constructor(__cls, __cls_name, __old_cls_name)
         })
 
-        #print(__old_cls_name, "installed as ", locals()[__old_cls_name], issubclass(locals()[__old_cls_name], __cls))
+        # print(__old_cls_name, "installed as ", locals()[__old_cls_name], issubclass(locals()[__old_cls_name], __cls))
 
 __all__ = __all

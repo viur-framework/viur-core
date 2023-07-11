@@ -28,7 +28,8 @@ sys.path.insert(0, os.path.abspath('..'))
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
-    'autoapi.extension'
+    'autoapi.extension',
+    'sphinx_autodoc_typehints',
 ]
 
 autodoc_default_options = {
@@ -40,7 +41,7 @@ autoapi_dirs = ['../core']
 # Debug flag for keeping the index.rst Documents of each python file
 # autoapi_keep_files = True
 autoapi_python_class_content = 'both'
-
+autodoc_typehints = "description"
 
 # Add any paths that contain templates here, relative to this directory.
 # templates_path = ['_templates']
@@ -105,6 +106,8 @@ todo_include_todos = False
 # a list of builtin themes.
 # html_theme = 'default'
 html_theme = 'rtdtemplate'
+# html_theme = "furo"
+
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

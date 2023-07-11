@@ -7,12 +7,14 @@ built, such as string, numeric, and date/time bones.
 
 import copy
 import hashlib
+import inspect
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 
-from viur.core import db
+from viur.core import db, utils
 from viur.core.config import conf
 
 
@@ -137,6 +139,26 @@ class MultipleConstraints:  # Used to define constraints on multiple bones
     """A boolean value indicating if the same value can be used twice (default: False)."""
 
 
+class ComputeMethod(Enum):
+    Always = 0  # Always compute on deserialization
+    Lifetime = 1  # Update only when given lifetime is outrun; value is only being stored when the skeleton is written
+    Once = 2  # Compute only once
+    OnWrite = 3  # Compute before written
+
+
+@dataclass
+class ComputeInterval:
+    method: ComputeMethod = ComputeMethod.Always
+    lifetime: timedelta = None  # defines a timedelta until which the value stays valid (`ComputeMethod.Lifetime`)
+
+
+@dataclass
+class Compute:
+    fn: callable  # the callable computing the value
+    interval: ComputeInterval = ComputeInterval()   # the value caching interval
+    raw: bool = True  # defines whether the value returned by fn is used as is, or is passed through bone.fromClient
+
+
 class BaseBone(object):
     """
     The BaseBone class serves as the base class for all bone types in the ViUR framework.
@@ -158,9 +180,8 @@ class BaseBone(object):
         possible for the developer to modify this value by assigning skel.bone.value.
     :param visible: If False, the value of this bone should be hidden from the user. This does
         *not* protect the value from being exposed in a template, nor from being transferred
-        to the client (ie to the admin or as hidden-value in html-forms)
-
-        Again: This is just a hint. It cannot be used as a security precaution.
+        to the client (ie to the admin or as hidden-value in html-form)
+    :param compute: If set, the bone's value will be computed in the given method.
 
         .. NOTE::
             The kwarg 'multiple' is not supported by all bones
@@ -171,6 +192,7 @@ class BaseBone(object):
     def __init__(
         self,
         *,
+        compute: Compute = None,
         defaultValue: Any = None,
         descr: str = "",
         getEmptyValueFunc: callable = None,
@@ -179,7 +201,7 @@ class BaseBone(object):
         languages: Union[None, List[str]] = None,
         multiple: Union[bool, MultipleConstraints] = False,
         params: Dict = None,
-        readOnly: bool = False,
+        readOnly: bool = None,  # fixme: Rename into readonly (all lowercase!) soon.
         required: Union[bool, List[str], Tuple[str]] = False,
         searchable: bool = False,
         unique: Union[None, UniqueValue] = None,
@@ -196,7 +218,7 @@ class BaseBone(object):
         self.params = params or {}
         self.multiple = multiple
         self.required = required
-        self.readOnly = readOnly
+        self.readOnly = bool(readOnly)
         self.searchable = searchable
         self.visible = visible
         self.indexed = indexed
@@ -250,6 +272,26 @@ class BaseBone(object):
 
         if getEmptyValueFunc:
             self.getEmptyValue = getEmptyValueFunc
+
+        if compute:
+            if not isinstance(compute, Compute):
+                raise TypeError("compute must be an instanceof of Compute")
+
+            # When readOnly is None, handle flag automatically
+            if readOnly is None:
+                self.readOnly = True
+            if not self.readOnly:
+                raise ValueError("'compute' can only be used with bones configured as `readOnly=True`")
+
+            if (
+                compute.interval.method == ComputeMethod.Lifetime
+                and not isinstance(compute.interval.lifetime, timedelta)
+            ):
+                raise ValueError(
+                    f"'compute' is configured as ComputeMethod.Lifetime, but {compute.interval.lifetime=} was specified"
+                )
+
+        self.compute = compute
 
     def setSystemInitialized(self):
         """
@@ -582,6 +624,30 @@ class BaseBone(object):
         :param parentIndexed: A boolean indicating whether the parent bone is indexed.
         :return: A boolean indicating whether the serialization was successful.
         """
+        # Handle compute on write
+        if self.compute:
+            match self.compute.interval.method:
+                case ComputeMethod.OnWrite:
+                    skel.accessedValues[name] = self._compute(skel, name)
+
+                case ComputeMethod.Lifetime:
+                    now = utils.utcNow()
+
+                    last_update = \
+                        skel.accessedValues.get(f"_viur_compute_{name}_") \
+                        or skel.dbEntity.get(f"_viur_compute_{name}_")
+
+                    if not last_update or last_update + self.compute.interval.lifetime < now:
+                        skel.accessedValues[name] = self._compute(skel, name)
+                        skel.dbEntity[f"_viur_compute_{name}_"] = now
+
+                case ComputeMethod.Once:
+                    if name not in skel.dbEntity:
+                        skel.accessedValues[name] = self._compute(skel, name)
+
+            # logging.debug(f"WRITE {name=} {skel.accessedValues=}")
+            # logging.debug(f"WRITE {name=} {skel.dbEntity=}")
+
         if name in skel.accessedValues:
             newVal = skel.accessedValues[name]
             if self.languages and self.multiple:
@@ -646,13 +712,51 @@ class BaseBone(object):
         """
         if name in skel.dbEntity:
             loadVal = skel.dbEntity[name]
-        elif conf.get("viur.viur2import.blobsource") and any(
-                [x.startswith("%s." % name) for x in skel.dbEntity.keys()]):
+        elif (
+            # fixme: Remove this piece of sh*t at least with VIUR4
             # We're importing from an old ViUR2 instance - there may only be keys prefixed with our name
+            conf.get("viur.viur2import.blobsource") and any(n.startswith(name + ".") for n in skel.dbEntity)
+            # ... or computed
+            or self.compute
+        ):
             loadVal = None
         else:
             skel.accessedValues[name] = self.getDefaultValue(skel)
             return False
+
+        # Is this value computed?
+        # In this case, check for configured compute method and if recomputation is required.
+        # Otherwise, the value from the DB is used as is.
+        if self.compute:
+            match self.compute.interval.method:
+                # Computation is bound to a lifetime?
+                case ComputeMethod.Lifetime:
+                    now = utils.utcNow()
+
+                    # check if lifetime exceeded
+                    last_update = skel.dbEntity.get(f"_viur_compute_{name}_")
+                    skel.accessedValues[f"_viur_compute_{name}_"] = last_update or now
+
+                    # logging.debug(f"READ {name=} {skel.dbEntity=}")
+                    # logging.debug(f"READ {name=} {skel.accessedValues=}")
+
+                    if not last_update or last_update + self.compute.interval.lifetime <= now:
+                        # if so, recompute and refresh updated value
+                        skel.accessedValues[name] = self._compute(skel, name)
+                        return True
+
+                # Compute on every deserialization
+                case ComputeMethod.Always:
+                    skel.accessedValues[name] = self._compute(skel, name)
+                    return True
+
+                # Only compute once when loaded value is empty
+                case ComputeMethod.Once:
+                    if loadVal is None:
+                        skel.accessedValues[name] = self._compute(skel, name)
+                        return True
+
+        # unserialize value to given config
         if self.languages and self.multiple:
             res = {}
             if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
@@ -724,6 +828,7 @@ class BaseBone(object):
                 loadVal = loadVal[0]
             if loadVal is not None:
                 res = self.singleValueUnserialize(loadVal)
+
         skel.accessedValues[name] = res
         return True
 
@@ -1087,6 +1192,26 @@ class BaseBone(object):
             else:
                 yield None, None, value
 
+    def _compute(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+        """Performs the evaluation of a bone configured as compute"""
+
+        if "skel" not in inspect.signature(self.compute.fn).parameters:
+            # call without any arguments
+            ret = self.compute.fn()
+        else:
+            # otherwise, call with a clone of the skeleton
+            cloned_skel = skel.clone()
+            cloned_skel[name] = None  # remove bone to avoid endless recursion
+            ret = self.compute.fn(skel=cloned_skel)
+
+        if self.compute.raw:
+            return self.singleValueUnserialize(ret)
+
+        if errors := self.fromClient(skel, name, {name: ret}):
+            raise ValueError(f"Computed value fromClient failed with {errors!r}")
+
+        return skel[name]
+
     def structure(self) -> dict:
         """
         Describes the bone and its settings as an JSON-serializable dict.
@@ -1118,4 +1243,12 @@ class BaseBone(object):
             }
         else:
             ret["multiple"] = self.multiple
+        if self.compute:
+            ret["compute"] = {
+                "method": self.compute.interval.method.name
+            }
+
+            if self.compute.interval.lifetime:
+                ret["compute"]["lifetime"] = self.compute.interval.lifetime.total_seconds()
+
         return ret
