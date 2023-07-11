@@ -102,8 +102,9 @@ class FileBone(TreeLeafBone):
     file references in a ViUR application.
 
     :param format: Hint for the UI how to display a file entry (defaults to it's filename)
-    :param maxFileSize: The maximum filesize accepted by this bone in bytes. None means no limit. This will always be checked against the original file uploaded - not any of it's
-        derivatives.
+    :param maxFileSize:
+        The maximum filesize accepted by this bone in bytes. None means no limit.
+        This will always be checked against the original file uploaded - not any of it's derivatives.
 
     :param derive: A set of functions used to derive other files from the referenced ones. Used fe.
         to create thumbnails / images for srcmaps from hires uploads. If set, must be a dictionary from string
@@ -115,7 +116,8 @@ class FileBone(TreeLeafBone):
             # Example
             derive = { "thumbnail": [{"width": 111}, {"width": 555, "height": 666}]}
 
-    :param validMimeTypes: A list of Mimetypes that can be selected in this bone (or None for any) Wildcards ("image\/*") are supported.
+    :param validMimeTypes:
+        A list of Mimetypes that can be selected in this bone (or None for any) Wildcards ("image\/*") are supported.
 
         ..  code-block:: python
 
@@ -134,24 +136,27 @@ class FileBone(TreeLeafBone):
     "height", and "derived".
     """
 
-    def __init__( self, *, derive: Union[None, Dict[str, Any]] = None, maxFileSize: Union[None, int] = None,
-        validMimeTypes: Union[None, List[str]] = None, **kwargs):
+    def __init__(self, *, derive: Union[None, Dict[str, Any]] = None, maxFileSize: Union[None, int] = None,
+                 validMimeTypes: Union[None, List[str]] = None, **kwargs):
         r"""
         Initializes a new Filebone. All properties inherited by RelationalBone are supported.
+
         :param format: Hint for the UI how to display a file entry (defaults to it's filename)
         :param maxFileSize: The maximum filesize accepted by this bone in bytes. None means no limit.
         This will always be checked against the original file uploaded - not any of it's derivatives.
         :param derive: A set of functions used to derive other files from the referenced ones.
         Used to create thumbnails and images for srcmaps from hires uploads.
-        If set, must be a dictionary from string (a key from)conf["viur.file.derivers"]) to the parameters passed to that function.
-        The parameters can be any type (including None) that can be json-serialized.
+        If set, must be a dictionary from string (a key from)conf["viur.file.derivers"]) to the parameters passed to
+        that function. The parameters can be any type (including None) that can be json-serialized.
 
             ..  code-block:: python
 
                 # Example
                 derive = {"thumbnail": [{"width": 111}, {"width": 555, "height": 666}]}
 
-        :param validMimeTypes: A list of Mimetypes that can be selected in this bone (or None for any). Wildcards `('image\*')` are supported.
+        :param validMimeTypes:
+            A list of Mimetypes that can be selected in this bone (or None for any).
+            Wildcards `('image\*')` are supported.
 
             ..  code-block:: python
 

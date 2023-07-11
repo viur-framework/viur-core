@@ -231,15 +231,15 @@ class RelationalBone(BaseBone):
                     :param RelationalConsistency.Ignore:
                         If the referenced entity gets deleted, this bone will not change. It
                         will still reflect the old values. This will be even be preserved over edits, however if that
-                        referenced value is once deleted by the user (assigning a different value to this bone or removing
-                        that value of the list of relations if we are multiple) there's no way of restoring it
+                        referenced value is once deleted by the user (assigning a different value to this bone or
+                        removing that value of the list of relations if we are multiple) there's no way of restoring it
 
                     :param RelationalConsistency.PreventDeletion:
                         Will prevent deleting the referenced entity as long as it's
                         selected in this bone (calling skel.delete() on the referenced entity will raise errors.Locked).
-                        It's still (technically) possible to remove the underlying datastore entity using db.Delete manually,
-                        but this *must not* be used on a skeleton object as it will leave a whole bunch of references in a
-                        stale state.
+                        It's still (technically) possible to remove the underlying datastore entity using db.Delete
+                        manually, but this *must not* be used on a skeleton object as it will leave a whole bunch of
+                        references in a stale state.
 
                     :param RelationalConsistency.SetNull:
                         Will set this bone to None (or remove the relation from the list in
@@ -248,8 +248,8 @@ class RelationalBone(BaseBone):
                     :param RelationalConsistency.CascadeDeletion:
                         (Dangerous!) Will delete this entity when the referenced entity
                         is deleted. Warning: Unlike relational updates this will cascade. If Entity A references B with
-                        CascadeDeletion set, and B references C also with CascadeDeletion; if C gets deleted, both B and A
-                        will be deleted as well.
+                        CascadeDeletion set, and B references C also with CascadeDeletion; if C gets deleted, both B and
+                        A will be deleted as well.
         """
         super().__init__(**kwargs)
         self.format = format
