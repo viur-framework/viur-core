@@ -11,18 +11,12 @@ class JsonBone(RawBone):
     This bone saves its content as a JSON-string, but unpacks its content to a dict or list when used.
     :param schema If provided we can control and verify which data to accept.
 
-        ..code-block:: python
+    ..  code-block:: python
 
-            # Example:
+        # Example
+        schema= {"type": "object", "properties" :{"price": {"type": "number"},"name": {"type": "string"}}
+        # This will only accept the provided JSON when price is a number and name is a string.
 
-            schema = {
-                "type" : "object",
-                "properties" : {
-                    "price" : {"type" : "number"},
-                    "name" : {"type" : "string"},
-                }
-            }
-            # This will only accept the provided JSON when price is a number and name is a string.
     """
 
     type = "raw.json"

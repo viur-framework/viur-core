@@ -38,7 +38,7 @@ autodoc_default_options = {
 
 autoapi_dirs = ['../core']
 # Debug flag for keeping the index.rst Documents of each python file
-autoapi_keep_files = True
+# autoapi_keep_files = True
 autoapi_python_class_content = 'both'
 
 

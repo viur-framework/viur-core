@@ -31,12 +31,12 @@ class Module:
 
         .. code-block:: python
 
-        # Example
-        roles = {
-            "*": "view",                # Any role may only "view"
-            "editor": ("add", "edit"),  # Role "editor" may "add" or "edit", but not "delete"
-            "admin": "*",               # Role "admin" can do everything
-        }
+            # Example
+            roles = {
+                "*": "view",                # Any role may only "view"
+                "editor": ("add", "edit"),  # Role "editor" may "add" or "edit", but not "delete"
+                "admin": "*",               # Role "admin" can do everything
+            }
 
     """
 

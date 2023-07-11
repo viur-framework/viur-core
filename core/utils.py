@@ -32,12 +32,10 @@ def generateRandomString(length: int = 13) -> str:
 def getCurrentUser() -> Optional["SkeletonInstance"]:
     """
         Retrieve current user, if logged in.
-
         If a user is logged in, this function returns a dict containing user data.
         If no user is logged in, the function returns None.
 
-        :returns: A SkeletonInstance containing information about the logged-in
-            user, None if no user is logged in.
+        :returns: A SkeletonInstance containing information about the logged-in user, None if no user is logged in.
     """
     import warnings
     msg = f"Use of `utils.getCurrentUser()` is deprecated; Use `current.user.get()` instead!"
@@ -124,8 +122,9 @@ def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
         :param folder: The GCS-Folder (= the download-key) for that file
         :param fileName: The name of that file. Either the original filename as uploaded or the name of a dervived file
         :param derived: True, if it points to a derived file, False if it points to the original uploaded file
-        :param expires: None if the file is supposed to be public (which causes it to be cached on the google ede
-            caches), otherwise a timedelta of how long that link should be valid
+        :param expires:
+            None if the file is supposed to be public (which causes it to be cached on the google ede caches),
+            otherwise a timedelta of how long that link should be valid
         :param downloadFileName: If set, we'll force to browser to download this blob with the given filename
         :return: THe signed download-url relative to the current domain (eg /download/...)
     """
@@ -151,13 +150,12 @@ def srcSetFor(fileObj: dict, expires: Optional[int], width: Optional[int] = None
         Generates a string suitable for use as the srcset tag in html. This functionality provides the browser
         with a list of images in different sizes and allows it to choose the smallest file that will fill it's viewport
         without upscaling.
+
         :param fileObj: The file-bone (or if multiple=True a single value from it) to generate the srcset for
-        :param expires: None if the file is supposed to be public (which causes it to be cached on the google ede
-            caches), otherwise it's lifetime in seconds
-        :param width: A list of widths that should be included in the srcset. If a given width is not available, it will
-            be skipped.
+        :param expires: None if the file is supposed to be public (which causes it to be cached on the google edecaches), otherwise it's lifetime in seconds
+        :param width: A list of widths that should be included in the srcset. If a given width is not available, it will be skipped.
         :param height: A list of heights that should be included in the srcset. If a given height is not available,
-            it will    be skipped.
+            it will be skipped.
         :return: The srctag generated or an empty string if a invalid file object was supplied
     """
     if not width and not height:

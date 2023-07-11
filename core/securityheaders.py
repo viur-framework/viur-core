@@ -1,44 +1,42 @@
 """
-    This module provides configuration for most of the http security headers.
-    The features currently supported are
-        - Content security policy (https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP)
-        - Strict transport security (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security)
-        - X-Frame-Options (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options)
-        - X-XSS-Protection (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-XSS-Protection)
-        - X-Content-Type-Options (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options)
-        - X-Permitted-Cross-Domain-Policies (https://www.adobe.com/devnet-docs/acrobatetk/tools/AppSec/xdomain.html)
-        - Referrer-Policy (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referrer-Policy)
-        - Permissions-Policy (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Feature-Policy)
-        - Cross origin isolation (https://web.dev/coop-coep)
+This module provides configuration for most of the http security headers. The features currently supported are:
+    - Content security policy (https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP)
+    - Strict transport security (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security)
+    - X-Frame-Options (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options)
+    - X-XSS-Protection (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-XSS-Protection)
+    - X-Content-Type-Options (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options)
+    - X-Permitted-Cross-Domain-Policies (https://www.adobe.com/devnet-docs/acrobatetk/tools/AppSec/xdomain.html)
+    - Referrer-Policy (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referrer-Policy)
+    - Permissions-Policy (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Feature-Policy)
+    - Cross origin isolation (https://web.dev/coop-coep)
 
-    If a feature is not yet supported, you could always set the header directly (e.g. by attaching a request
-    preprocessor). ViUR contains a default configuration for most of these headers where possible, however manual
-    review is mandatory for each project.
+If a feature is not yet supported, you could always set the header directly (e.g. by attaching a request
+preprocessor). ViUR contains a default configuration for most of these headers where possible, however manual
+review is mandatory for each project.
 
-    The content security policy will prevent inline css and javascript by default, but is configured to allow embedding
-    images from cloud-storage and sign-in with google.
+The content security policy will prevent inline css and javascript by default, but is configured to allow embedding
+images from cloud-storage and sign-in with google.
 
-    Strict transport security is enabled by default (with a TTL of one year), but without preload or include-subdomains.
+Strict transport security is enabled by default (with a TTL of one year), but without preload or include-subdomains.
 
-    X-Frame-Options is limited to the same origin, preventing urls from this project from being embedded in iframes that
-    don't originate from the same origin.
+X-Frame-Options is limited to the same origin, preventing urls from this project from being embedded in iframes that
+don't originate from the same origin.
 
-    X-XSS-Protection is enabled.
+X-XSS-Protection is enabled.
 
-    X-Content-Type-Options is set to nosniff
+X-Content-Type-Options is set to nosniff
 
-    X-Permitted-Cross-Domain-Policies is set to "none", denying embedding resources in pdf files and the like
+X-Permitted-Cross-Domain-Policies is set to "none", denying embedding resources in pdf files and the like
 
-    Referrer-Policy is set to strict-origin, preventing leakage of URLs to 3rd-partys.
+Referrer-Policy is set to strict-origin, preventing leakage of URLs to 3rd-partys.
 
-    The Permissions-Policy will only allow auto-play by default (thus access to the camera-api etc. is disabled)
+The Permissions-Policy will only allow auto-play by default (thus access to the camera-api etc. is disabled)
 
-    Cross origin isolation is currently disabled by default (as it's incompatible with many popular services like
-    embedding a map or sign-in with google).
+Cross origin isolation is currently disabled by default (as it's incompatible with many popular services like
+embedding a map or sign-in with google).
 
-
-    ViUR also protects it's cookies by default (setting httponly, secure and samesite=lax). This can be changed by
-    setting the corresponding class-level variables on class:`Session<viur.core.session.Session>`.
+ViUR also protects it's cookies by default (setting httponly, secure and samesite=lax). This can be changed by
+setting the corresponding class-level variables on class:`Session<viur.core.session.Session>`.
 """
 
 from viur.core.config import conf
@@ -264,11 +262,12 @@ def _rebuildPermissionHeaderCache() -> None:
 
 def setPermissionPolicyDirective(directive: str, allowList: Optional[List[str]]) -> None:
     """
-        Set the permission policy :param: directive the list of allowed origins in :param: allowList.
-        :param directive: The directive to set. Must be one of
-            https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Feature-Policy#directives
-        :param allowList: The list of allowed origins. Use "self" to allow the current domain. Empty list means the feature
-            will be disabled by the browser (it's not accessible by javascript)
+        Set the permission policy.
+            :param directive: The directive to set.
+                Must be one of https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Feature-Policy#directives
+            :param allowList:
+                The list of allowed origins. Use "self" to allow the current domain.
+                Empty list means the feature will be disabled by the browser (it's not accessible by javascript)
     """
     conf["viur.security.permissionsPolicy"][directive] = allowList
 
@@ -277,11 +276,17 @@ def setCrossOriginIsolation(coep: bool, coop: str, corp: str) -> None:
     """
         Configures the cross origin isolation header that ViUR may emit. This is necessary to enable features like
         SharedArrayBuffer. See https://web.dev/coop-coep for more information.
-        :param coep: If set True, we'll emit Cross-Origin-Embedder-Policy: require-corp
-        :param coop: The value for the Cross-Origin-Opener-Policy header. Valid values are
-            same-origin | same-origin-allow-popups | unsafe-none
-        :param corp: The value for the Cross-Origin-Resource-Policy header. Valid values are
-            same-site | same-origin | cross-origin
+
+            :param coep: If set True, we'll emit Cross-Origin-Embedder-Policy:
+                - require-corp
+            :param coop: The value for the Cross-Origin-Opener-Policy header. Valid values are
+                - same-origin
+                - same-origin-allow-popups
+                - unsafe-none
+            :param corp: The value for the Cross-Origin-Resource-Policy header. Valid values are
+                - same-site
+                - same-origin
+                - cross-origin
     """
     assert coop in ["same-origin", "same-origin-allow-popups", "unsafe-none"], "Invalid value for the COOP Header"
     assert corp in ["same-site", "same-origin", "cross-origin"], "Invalid value for the CORP Header"
