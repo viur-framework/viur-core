@@ -639,7 +639,7 @@ class BrowseHandler():  # webapp.RequestHandler
                 caller_kwargs = self.kwargs
 
             if (conf["viur.debug.traceExternalCallRouting"] and not self.internalRequest
-                or conf["viur.debug.traceInternalCallRouting"]):
+                    or conf["viur.debug.traceInternalCallRouting"]):
                 logging.debug(f"Calling {caller=} with {args=}, {kwargs=}")
 
             if skey_config := caller.viur_flags.get("skey", {}):
