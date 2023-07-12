@@ -448,7 +448,7 @@ class BaseBone(object):
         :param value: The single value which should be loaded.
         :param skel: The SkeletonInstance where the value should be loaded into.
         :param bone_name: The bone name of this bone in the SkeletonInstance.
-        :param client_data: The data we got from the client,
+        :param client_data: The data taken from the client,
             a dictionary with usually bone names as key
         :return: A tuple. If the value is valid, the first element is
             the parsed value and the second is None.
