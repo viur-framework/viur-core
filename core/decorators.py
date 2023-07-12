@@ -59,15 +59,15 @@ def access(*access: str | list[str]) -> Callable:
 
 def force_ssl(func: Callable) -> Callable:
     """
-        Decorator, which forces usage of an encrypted Channel for a given resource.
-        Has no effect on development-servers.
+Decorator, which forces usage of an encrypted Channel for a given resource.
+Has no effect on development-servers.
     """
     ensure_viur_flags(func)
     func.viur_flags["ssl"] = True
     return func
 
 
-def require_skey(func=None, *, allow_empty: bool = False, forward_argument: str = "", **extra_kwargs: dict) -> Callable:
+def require_skey(func: Callable = None, *, allow_empty: bool = False, forward_argument: str = "", **extra_kwargs: dict) -> Callable:
     """
     Decorator, which marks the function requires a skey.
     """
@@ -84,7 +84,7 @@ def require_skey(func=None, *, allow_empty: bool = False, forward_argument: str 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             if not allow_empty and 'skey' not in kwargs:
-                raise errors.PreconditionFailed()
+                raise errors.PreconditionFailed("skey is missing")
             return func(*args, **kwargs)
 
         return wrapper
@@ -97,7 +97,7 @@ def require_skey(func=None, *, allow_empty: bool = False, forward_argument: str 
 
 def force_post(func: Callable) -> Callable:
     """
-        Decorator, which forces usage of an http post request.
+Decorator, which forces usage of an http post request.
     """
 
     ensure_viur_flags(func)
@@ -122,7 +122,7 @@ def exposed(func: Union[Callable, dict]) -> Callable:
             ensure_viur_flags(func)
 
             func.viur_flags["exposed"] = True
-            if not ("method" in func.viur_flags):
+            if "method" not in func.viur_flags:
                 func.viur_flags["method"] = ["GET", "POST", "HEAD"]
             func.viur_flags["seoLanguageMap"] = translation_map
             return func
