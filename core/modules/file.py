@@ -668,7 +668,7 @@ class File(Tree):
     @exposed
     @force_ssl
     @force_post
-    @require_skey
+    @require_skey(allow_empty=True)
     def add(self, skelType: SkelType, node=None, *args, **kwargs):
         ## We can't add files directly (they need to be uploaded
         # if skelType != "node":

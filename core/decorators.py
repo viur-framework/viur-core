@@ -162,9 +162,9 @@ def get_attr(attr: str) -> object:
 
     if entry := mapping.get(attr, None):
         func = entry[1]
-        msg = f"{attr} was replaced by {entry[0]}"
-        warnings.warn(msg, DeprecationWarning, stacklevel=3)
-        logging.warning(msg, stacklevel=3)
+        msg = f"@{attr} was replaced by @{entry[0]}"
+        warnings.warn(msg, DeprecationWarning, stacklevel=4)
+        logging.warning(msg, stacklevel=4)
         return func
 
     return None

@@ -488,7 +488,7 @@ class BrowseHandler():  # webapp.RequestHandler
     def findAndCall(self, path: str, *args, **kwargs) -> None:
         """
             Does the actual work of sanitizing the parameter, determine which @exposed (or @internalExposed) function
-            to call (and with witch parameters)
+            to call (and with which parameters)
         """
 
         # Parse the URL
@@ -531,24 +531,35 @@ class BrowseHandler():  # webapp.RequestHandler
         caller = conf["viur.mainResolver"]
         idx = 0  # Count how may items from *args we'd have consumed (so the rest can go into *args of the called func
         path_found = True
+
+        def is_callable(caller: typing.Any) -> bool:
+            """Utility function to check if a member is callable within the request."""
+            viur_flags = getattr(caller, "viur_flags", {})
+
+            return (
+                callable(caller)
+                and (
+                    viur_flags.get("exposed", False)
+                    or (self.internalRequest and viur_flags.get("internal_exposed", False))
+                )
+            )
+
         for part in self.path_list:
             if "canAccess" in caller and not caller["canAccess"]():
                 # We have a canAccess function guarding that object,
                 # and it returns False...
                 raise errors.Unauthorized()
+
             idx += 1
             part = part.replace("-", "_").replace(".", "_")
             if part not in caller:
                 part = "index"
 
-            if part in caller:
-                caller = caller[part]
-                viur_flags = getattr(caller, "viur_flags", {})
-                if (viur_flags.get("exposed", False) or
-                        (viur_flags.get("internal_exposed", False) and self.internalRequest)) and \
-                        hasattr(caller, '__call__'):
+            if caller := caller.get(part):
+                if is_callable(caller):
                     if part == "index":
                         idx -= 1
+
                     args = self.path_list[idx:] + args  # Prepend the rest of Path to args
                     break
 
@@ -565,40 +576,27 @@ class BrowseHandler():  # webapp.RequestHandler
             raise errors.NotFound(
                 f"""The path {utils.escapeString("/".join(self.path_list[:idx]))} could not be found""")
 
-        viur_flags = getattr(caller, "viur_flags", {})
-        if not (
-            callable(caller)
-            and viur_flags.get("exposed", False)
-            or (
-                viur_flags.get("internal_exposed", False)
-                and self.internalRequest
-            )
-        ):
-            if "index" in caller:
-                viur_flags = getattr(caller["index"], "viur_flags", {})
-                if (
-                    callable(caller["index"])
-                    or viur_flags.get("exposed", False)
-                    or (
-                        viur_flags.get("internal_exposed")
-                        and self.internalRequest
-                    )
-                ):
-                    caller = caller["index"]
+        if not is_callable(caller):
+            # try to find "index" function
+            if (index := caller.get("index")) and is_callable(index):
+                caller = index
             else:
                 raise errors.MethodNotAllowed()
-        # Check for forceSSL flag
+
+        # Check for @force_ssl flag
         if not self.internalRequest \
-                and "viur_flags" in dir(caller) \
                 and caller.viur_flags.get("ssl", False) \
                 and not self.request.host_url.lower().startswith("https://") \
                 and not conf["viur.instance.is_dev_server"]:
-            raise (errors.PreconditionFailed("You must use SSL to access this ressource!"))
-        # Check for forcePost flag
-        if "viur_flags" in dir(caller) and caller.viur_flags.get("method", []) == ["POST"] and not self.isPostRequest:
-            raise (errors.MethodNotAllowed("You must use POST to access this ressource!"))
+            raise errors.PreconditionFailed("You must use SSL to access this resource!")
+
+        # Check for @force_post flag
+        if not self.isPostRequest and caller.viur_flags.get("method", []) == ["POST"]:
+            raise errors.MethodNotAllowed("You must use POST to access this resource!")
+
         self.args = args
         self.kwargs = kwargs
+
         # Check if this request should bypass the caches
         if self.request.headers.get("X-Viur-Disable-Cache"):
             from viur.core import utils
@@ -606,11 +604,12 @@ class BrowseHandler():  # webapp.RequestHandler
             if (user := current.user.get()) and "root" in user["access"]:
                 logging.debug("Caching disabled by X-Viur-Disable-Cache header")
                 self.disableCache = True
+
         try:
             annotations = typing.get_type_hints(caller)
             if annotations and not self.internalRequest:
-                newKwargs = {}  # The dict of new **kwargs we'll pass to the caller
-                newArgs = []  # List of new *args we'll pass to the caller
+                caller_kwargs = {}  # The dict of new **kwargs we'll pass to the caller
+                caller_args = []  # List of new *args we'll pass to the caller
 
                 # FIXME: Use inspect.signature() for all this stuff...
                 argsOrder = caller.__code__.co_varnames[:caller.__code__.co_argcount]
@@ -623,53 +622,52 @@ class BrowseHandler():  # webapp.RequestHandler
                     paramKey = argsOrder[idx]
                     if paramKey in annotations:  # We have to enforce a type-annotation for this *args parameter
                         _, newTypeValue = self.processTypeHint(annotations[paramKey], self.args[idx], True)
-                        newArgs.append(newTypeValue)
+                        caller_args.append(newTypeValue)
                     else:
-                        newArgs.append(self.args[idx])
-                newArgs.extend(self.args[min(len(self.args), len(argsOrder)):])
+                        caller_args.append(self.args[idx])
+                caller_args.extend(self.args[min(len(self.args), len(argsOrder)):])
                 # Last, we map the kwargs in
                 for k, v in kwargs.items():
                     if k in annotations:
                         newStrValue, newTypeValue = self.processTypeHint(annotations[k], v, False)
                         self.kwargs[k] = newStrValue
-                        newKwargs[k] = newTypeValue
+                        caller_kwargs[k] = newTypeValue
                     else:
-                        newKwargs[k] = v
+                        caller_kwargs[k] = v
             else:
-                newArgs = self.args
-                newKwargs = self.kwargs
-            if (conf["viur.debug.traceExternalCallRouting"] and not self.internalRequest) or conf[
-                "viur.debug.traceInternalCallRouting"]:
-                logging.debug("Calling %s with args=%s and kwargs=%s" % (str(caller), str(newArgs), str(newKwargs)))
-            viur_flags = getattr(caller, "viur_flags", {})
+                caller_args = self.args
+                caller_kwargs = self.kwargs
 
-            skey_data = viur_flags.get("skey", {})
-            if skey_data:
+            if (conf["viur.debug.traceExternalCallRouting"] and not self.internalRequest
+                or conf["viur.debug.traceInternalCallRouting"]):
+                logging.debug(f"Calling {caller=} with {args=}, {kwargs=}")
+
+            if skey_config := caller.viur_flags.get("skey", {}):
                 from viur.core import securitykey
+
                 # Here we will check the skey always before processing the request, because it cannot be empty.
                 skey_check = True
-                # If the skey data can allow empty kwargs..
-                if skey_data.get("allow_empty", False):
-                    # Only check the skey, if the kwargs is not empty
-                    skey_check = True if kwargs else False
 
-                if not skey_check:
-                    logging.info(f"Function: {caller.__name__} skipping skey check!")
+                # If the skey data can allow empty kwargs..
+                if skey_config.get("allow_empty", False):
+                    # Only check the skey, if the kwargs is not empty
+                    skey_check = bool(kwargs)
 
                 if skey_check:
-                    logging.info(f"Function: {caller.__name__} skey check!")
-
-                    data = securitykey.validate(newKwargs.get("skey", ""), **skey_data.get("kwargs", {}))
+                    data = securitykey.validate(caller_kwargs.get("skey", ""), **skey_config.get("kwargs", {}))
 
                     if not data:
                         raise errors.PreconditionFailed("Missing or invalid skey")
 
-                    if arg_name := skey_data.get("forward_argument", ""):
-                        newKwargs |= {arg_name: data}
+                    if arg_name := skey_config.get("forward_argument"):
+                        caller_kwargs |= {arg_name: data}
 
-            res = caller(*newArgs, **newKwargs)
-            res = str(res).encode("UTF-8") if not isinstance(res, bytes) else res
+            res = caller(*caller_args, **caller_kwargs)
+            if not isinstance(res, bytes):  # Convert into str if not bytes!
+                res = str(res).encode("UTF-8")
+
             self.response.write(res)
+
         except TypeError as e:
             if self.internalRequest:  # We provide that "service" only for requests originating from outside
                 raise
