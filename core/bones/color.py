@@ -1,3 +1,4 @@
+import string
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 
@@ -23,7 +24,7 @@ class ColorBone(BaseBone):
             return self.getEmptyValue(), [
                 ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
         for char in value:
-            if char not in "#0123456789abcdef":
+            if char not in string.hexdigits + "#":
                 return self.getEmptyValue(), [
                     ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
         if self.mode == "rgb":
