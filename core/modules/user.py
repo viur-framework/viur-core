@@ -164,7 +164,7 @@ class UserSkel(skeleton.Skeleton):
     # Authenticator OTP
     otp_secret = CredentialBone(
         descr=u"OTP Secret key",
-        readOnly=True
+        readOnly=False
 
     )
 
@@ -773,7 +773,7 @@ class AuthenticatorOTP:
             the otp_secret from the session in the user entry.
 
         """
-        current_session = utils.currentSession.get()
+        current_session = current.session.get()
 
         if not (otp_secret := current_session.get("_maybe_otp_secret")):
             otp_secret = AuthenticatorOTP.generate_otp_secret()
@@ -784,7 +784,7 @@ class AuthenticatorOTP:
             return self.userModule.render.secound_factor_add(
                     otp_uri=AuthenticatorOTP.generate_otp_secret_uri(otp_secret))
         else:
-            if not securitykey.validate(skey, useSessionKey=True):
+            if not securitykey.validate(skey):
                 raise errors.PreconditionFailed()
             if not AuthenticatorOTP.verify_otp(otp, otp_secret):
                 return self.userModule.render.secound_factor_add(
@@ -794,12 +794,13 @@ class AuthenticatorOTP:
 
     def canHandle(self, userKey) -> bool:
         """
-            We can only handle the second factor if we have sorted an otp_secret before.
+            We can only handle the second factor if we have stored an otp_secret before.
         """
-        user = db.Get(userKey)
-        if not user:
+
+        if not (user := db.Get(userKey)):
             return False
-        return "otp_secret" in user and user["otp_secret"] is not None and len(str(user["otp_secret"])) > 0
+        logging.debug(f"""can handle {len(str(user.get("otp_secret", "")))} {str(user.get("otp_secret", ""))}""")
+        return len(str(user.get("otp_secret", ""))) > 0
 
     @classmethod
     def get2FactorMethodName(*args, **kwargs):
@@ -812,8 +813,8 @@ class AuthenticatorOTP:
         """
         if otp_secret is None:
             logging.error("No 'otp_secret' is provided")
-        cuser = utils.getCurrentUser()
-        if not cuser:
+
+        if not (cuser := current.user.get()):
             raise errors.Unauthorized()
         user = db.Get(cuser["key"])
         if not user:
@@ -821,16 +822,14 @@ class AuthenticatorOTP:
 
         user["otp_secret"] = otp_secret
         db.Put(user)
-        utils.currentSession.get().markChanged()
 
     @classmethod
     def generate_otp_secret_uri(cls, otp_secret):
         """
             :return an otp uri like otpauth://totp/Example:alice@google.com?secret=ABCDEFGH1234&issuer=Example
         """
-        cuser = utils.getCurrentUser()
-        issuer = conf["viur.otp.issuer"]
-        if issuer is None:
+        cuser = current.user.get()
+        if not(issuer :=  conf["viur.otp.issuer"]):
             logging.warning(
                 f"""conf["viur.otp.issuer"] is None we replace the issuer by conf["viur.instance.project_id"]""")
             issuer = conf["viur.instance.project_id"]
@@ -858,14 +857,14 @@ class AuthenticatorOTP:
         """
             We verify the otp here with the secret we stored before.
         """
-        user_key = db.Key("user", utils.currentSession.get()["_mayBeUserKey"])
+
         if otp is None:  # We must render the input
             raise errors.PreconditionFailed()
         if not securitykey.validate(skey, useSessionKey=True):
             raise errors.PreconditionFailed()
+        user_key = db.Key("user", current.session.get()["_mayBeUserKey"])
 
-        user = db.Get(user_key)
-        if not user:
+        if not (user := db.Get(user_key)):
             raise errors.NotFound()
 
         if AuthenticatorOTP.verify_otp(otp=otp, secret=user["otp_secret"]):

@@ -94,7 +94,7 @@ class Render(DefaultRender):  # Render user-data to xml
 
     def secound_factor_add_success(self, tpl=None):
         if tpl is None:
-            tpl = self.secound_factor_add_success
+            tpl = self.otp_add_success_template
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))
 
         return template.render()
