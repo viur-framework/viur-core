@@ -151,9 +151,13 @@ def srcSetFor(fileObj: dict, expires: Optional[int], width: Optional[int] = None
         with a list of images in different sizes and allows it to choose the smallest file that will fill it's viewport
         without upscaling.
 
-        :param fileObj: The file-bone (or if multiple=True a single value from it) to generate the srcset for
-        :param expires: None if the file is supposed to be public (which causes it to be cached on the google edecaches), otherwise it's lifetime in seconds
-        :param width: A list of widths that should be included in the srcset. If a given width is not available, it will be skipped.
+        :param fileObj: The file-bone (or if multiple=True a single value from it) to generate the srcset.
+        :param expires:
+            None if the file is supposed to be public (which causes it to be cached on the google edecaches), otherwise
+            it's lifetime in seconds
+        :param width:
+            A list of widths that should be included in the srcset.
+            If a given width is not available, it will be skipped.
         :param height: A list of heights that should be included in the srcset. If a given height is not available,
             it will be skipped.
         :return: The srctag generated or an empty string if a invalid file object was supplied

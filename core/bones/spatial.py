@@ -252,9 +252,10 @@ class SpatialBone(BaseBone):
         prefix: Optional[str] = None
     ) -> db.Query:
         """
-        Parses the client's search filter specified in their request and converts it into a format understood by the datastore.
-        - Ignore filters that do not target this bone.
-        - Safely handle malformed data in rawFilter (this parameter is directly controlled by the client).
+        Parses the client's search filter specified in their request and converts it into a format understood by the
+        datastore.
+            - Ignore filters that do not target this bone.
+            - Safely handle malformed data in rawFilter (this parameter is directly controlled by the client).
 
         For detailed information on how this geo-spatial search works, see the ViUR documentation.
 

@@ -692,13 +692,19 @@ def srcSetFor(render: Render, fileObj: dict, expires: Optional[int],
               width: Optional[int] = None, height: Optional[int] = None) -> str:
     """
     Generates a string suitable for use as the srcset tag in html. This functionality provides the browser with a list
-    of images in different sizes and allows it to choose the smallest fil that will fill it's viewport without upscaling.
+    of images in different sizes and allows it to choose the smallest file that will fill it's viewport without
+    upscaling.
 
-        :param render: The render instance that's calling this function.
-        :param fileObj: The file-bone (or if multiple=True a single value from it) to generate the srcset for.
-        :param expires: None if the file is supposed to be public (which causes it to be cached on the google ede caches), otherwise it's lifetime in seconds.
-        :param width: A list of widths that should be included in the srcset. If a given width is not available, it will be skipped.
-        :param height: A list of heights that should be included in the srcset. If a given height is not available, it will be skipped.
+        :param render:
+            The render instance that's calling this function.
+        :param fileObj:
+            The file-bone (or if multiple=True a single value from it) to generate the srcset for.
+        :param expires: None if the file is supposed to be public
+            (which causes it to be cached on the google ede caches), otherwise it's lifetime in seconds.
+        :param width: A list of widths that should be included in the srcset.
+            If a given width is not available, it will be skipped.
+        :param height: A list of heights that should be included in the srcset.
+            If a given height is not available, it will be skipped.
 
     :return: The srctag generated or an empty string if a invalid file object was supplied
     """

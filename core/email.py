@@ -161,8 +161,9 @@ def sendEMail(*,
         List of files to be sent within the mail as attachments. Each attachment must be a dictionary with these keys:
             - filename (string): Name of the file that's attached. Always required
             - content (bytes): Content of the attachment as bytes. Required for the send in blue API.
-            - mimetype (string): Mimetype of the file. Suggested parameter for other implementations (not used by SIB)#
-            - gcsfile (string): Link to a GCS-File to include instead of content. Not supported by the current SIB implementation
+            - mimetype (string): Mimetype of the file. Suggested parameter for other implementations (not used by SIB)
+            - gcsfile (string): Link to a GCS-File to include instead of content.
+            Not supported by the current SIB implementation
 
     :param context: Arbitrary data that can be stored along the queue entry to be evaluated in
         transportSuccessfulCallback (useful for tracking delivery / opening events etc).

@@ -54,9 +54,14 @@ def addCspRule(objectType: str, srcOrDirective: str, enforceMode: str = "monitor
 
             # Example Usage
 
-            security.addCspRule("default-src","self","enforce") #Enable CSP for all types and made us the only allowed source
-            security.addCspRule("style-src","self","enforce") # Start a new set of rules for stylesheets whitelist us
-            security.addCspRule("style-src","unsafe-inline","enforce") # This is currently needed for TextBones!
+            # Enable CSP for all types and made us the only allowed source
+            security.addCspRule("default-src","self","enforce")
+
+            # Start a new set of rules for stylesheets whitelist us
+            security.addCspRule("style-src","self","enforce")
+
+            # This is currently needed for TextBones!
+            security.addCspRule("style-src","unsafe-inline","enforce")
 
         If you don't want these rules to be enforced and just getting a report of violations replace "enforce" with
         "monitor". To add a report-url use something like::
