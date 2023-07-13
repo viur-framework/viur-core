@@ -829,7 +829,7 @@ class AuthenticatorOTP:
             :return an otp uri like otpauth://totp/Example:alice@google.com?secret=ABCDEFGH1234&issuer=Example
         """
         cuser = current.user.get()
-        if not(issuer :=  conf["viur.otp.issuer"]):
+        if not (issuer := conf["viur.otp.issuer"]):
             logging.warning(
                 f"""conf["viur.otp.issuer"] is None we replace the issuer by conf["viur.instance.project_id"]""")
             issuer = conf["viur.instance.project_id"]
