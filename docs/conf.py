@@ -28,12 +28,17 @@ sys.path.insert(0, os.path.abspath('..'))
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
-    'autoapi.extension'
+    'autoapi.extension',
+    'sphinx_autodoc_typehints',
 ]
 
 autodoc_default_options = {
     'ignore-module-all': True
 }
+
+autoapi_python_class_content = 'both'
+
+autodoc_typehints = "description"
 
 autoapi_dirs = ['../core']
 
@@ -71,7 +76,7 @@ release = _version_module.__version__
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -100,6 +105,8 @@ todo_include_todos = False
 # a list of builtin themes.
 # html_theme = 'default'
 html_theme = 'rtdtemplate'
+# html_theme = "furo"
+
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

@@ -1,7 +1,10 @@
-
 -----------------
 Viur3 on Windows
 -----------------
+
+.. Warning::
+    |This way of installation will work, but the documentation is deprecated.
+
 Although Viur3 is made to run on Linux and Apple OS, there is a workaround for it to function on Windows operating systems.
 
 We can only assure the following steps to work on devices using the Windows 10 operating system and Ubuntu as a subsystem.
@@ -90,7 +93,7 @@ You can read more about python-is-python3 here:
 https://packages.ubuntu.com/focal/python-is-python3
 
 Step 4: Install the Python3 Virtual Environment
-______________________________________________
+_______________________________________________
 For Viur3 to run you will need a Python Virtual Environment.
 
 To install the Virtual Environment use the following command:

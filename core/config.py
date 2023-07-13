@@ -43,12 +43,11 @@ class Conf(dict):
 
 # Some values used more than once below
 __project_id = google.auth.default()[1]
-__version = os.getenv("GAE_VERSION")
+__app_version = os.getenv("GAE_VERSION")
 
 # Determine our basePath (as os.getCWD is broken on appengine)
 __project_base_path = Path().absolute()
-
-__core_base_path = Path(__file__).parent.parent.parent
+__core_base_path = Path(__file__).parent.parent.parent  # fixme: this points to site-packages!!!
 
 # Conf is a static, local dictionary.
 # Changes here apply locally to the current instance only.
@@ -85,6 +84,13 @@ conf = Conf({
     # the computed cache-key
     "viur.cacheEnvironmentKey": None,
 
+    # Backward compatibility flags; Remove to enforce new layout.
+    "viur.compatibility": [
+        "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
+        "json.bone.structure.keytuples",  # use classic structure notation: `"structure": [["key", {...}], ...]` (#649)
+        "json.bone.structure.inlists",  # dump skeleton structure with every JSON list response (#774 for details)
+    ],
+
     # If set, viur will emit a CSP http-header with each request. Use the csp module to set this property
     "viur.contentSecurityPolicy": None,
 
@@ -102,6 +108,9 @@ conf = Conf({
 
     # Unless overridden by the Project: Use english as default language
     "viur.defaultLanguage": "en",
+
+    # If disabled the local logging will not send with requestLogger to the cloud
+    "viur.dev_server_cloud_logging": False,
 
     # If set to true, the decorator @enableCache from viur.core.cache has no effect
     "viur.disableCache": False,
@@ -127,9 +136,6 @@ conf = Conf({
     # If set, ViUR calls this function instead of rendering the viur.errorTemplate if an exception occurs
     "viur.errorHandler": None,
 
-    # Path to the template to render if an unhandled error occurs. This is a Python String-template, *not* Jinja
-    "viur.errorTemplate": "viur/core/template/error.html",
-
     # Path to the static SVGs folder. Will be used by the jinja-renderer-method: embedSvg
     "viur.static.embedSvg.path": "/static/svgs/",
 
@@ -143,7 +149,7 @@ conf = Conf({
     "viur.file.derivers": {},
 
     # Name of this version as deployed to the appengine
-    "viur.instance.app_version": __version,
+    "viur.instance.app_version": __app_version,
 
     # The base path of the core, can be used to find file in the core folder
     "viur.instance.core_base_path": __core_base_path,
@@ -158,7 +164,7 @@ conf = Conf({
     "viur.instance.project_id": __project_id,
 
     # Version hash that does not reveal the actual version name, can be used for cache-busting static resources
-    "viur.instance.version_hash": hashlib.sha256((__version + __project_id).encode("UTF-8")).hexdigest()[:10],
+    "viur.instance.version_hash": hashlib.sha256((__app_version + __project_id).encode("UTF-8")).hexdigest()[:10],
 
     # Allows mapping of certain languages to one translation (ie. us->en)
     "viur.languageAliasMap": {},
@@ -190,6 +196,11 @@ conf = Conf({
     # Describing the internal ModuleConfig-module
     "viur.moduleconf.admin_info": {
         "icon": "icon-settings",
+        "display": "hidden",
+    },
+
+    "viur.script.admin_info": {
+        "icon": "icon-hashtag",
         "display": "hidden",
     },
 
@@ -286,14 +297,27 @@ conf = Conf({
     "viur.session.persistentFieldsOnLogout": ["language"],
 
     # Priority, in which skeletons are loaded
-    "viur.skeleton.searchPath": ["/skeletons/", "/viur/core/"],  # Priority, in which skeletons are loaded
+    "viur.skeleton.searchPath": [
+        "/skeletons/",  # skeletons of the project
+        "/viur/core/",  # system-defined skeletons of viur-core
+        "/viur-core/core/"  # system-defined skeletons of viur-core, only used by editable installation
+    ],
 
     # If set, must be a tuple of two functions serializing/restoring additional environmental data in deferred requests
     "viur.tasks.customEnvironmentHandler": None,
+
+    # User roles available on this project
+    "viur.user.roles": {
+        "custom": "Custom",
+        "user": "User",
+        "viewer": "Viewer",
+        "editor": "Editor",
+        "admin": "Administrator",
+    },
 
     # Which application-ids we're supposed to run on
     "viur.validApplicationIDs": [],
 
     # Semantic version number of viur-core as a tuple of 3 (major, minor, patch-level)
-    "viur.version": tuple(__version__.split(".", 3)),
+    "viur.version": tuple(int(part) if part.isdigit() else part for part in __version__.split(".", 3)),
 })

@@ -1,13 +1,24 @@
+"""
+The CaptchaBone is used to ensure that a user is not a bot. The Captcha bone uses the Google reCAPTCHA API
+to perform the Captcha validation and is derived from the BaseBone.
+"""
+
 import json
 import urllib.parse
 import urllib.request
 from typing import List, Union
-from viur.core import utils, conf
+from viur.core import utils, conf, current
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core.utils import currentRequest
 
 
 class CaptchaBone(BaseBone):
+    """
+    The CaptchaBone uses the Google reCAPTCHA API to perform the Captcha validation.
+
+    :param publicKey: The public key for the Captcha validation.
+    :param privateKey: The private key for the Captcha validation.
+    :param **kwargs: Additional arguments to pass to the base class constructor.
+    """
     type = "captcha"
 
     def __init__(self, *, publicKey=None, privateKey=None, **kwargs):
@@ -22,9 +33,20 @@ class CaptchaBone(BaseBone):
         self.required = True
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
+        """
+        Serializing the Captcha bone is not possible so it return False
+        """
         return False
 
     def unserialize(self, skel, name) -> bool:
+        """
+        Unserialize the Captcha bone.
+
+        :param skel: The SkeletonInstance containing the Captcha bone.
+        :param name: The name of the Captcha bone.
+
+        :returns: boolean, that is true, as the Captcha bone is always unserialized successfully.
+        """
         skel.accessedValues[name] = self.publicKey
         return True
 
@@ -43,14 +65,13 @@ class CaptchaBone(BaseBone):
         """
         if conf["viur.instance.is_dev_server"]:  # We dont enforce captchas on dev server
             return None
-        user = utils.getCurrentUser()
-        if user and "root" in user["access"]:
+        if (user := current.user.get()) and "root" in user["access"]:
             return None  # Don't bother trusted users with this (not supported by admin/vi anyways)
         if not "g-recaptcha-response" in data:
             return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "No Captcha given!")]
         data = {
             "secret": self.privateKey,
-            "remoteip": currentRequest.get().request.remote_addr,
+            "remoteip": current.request.get().request.remote_addr,
             "response": data["g-recaptcha-response"]
         }
         req = urllib.request.Request(url="https://www.google.com/recaptcha/api/siteverify",

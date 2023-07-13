@@ -10,12 +10,11 @@ from hashlib import sha512
 from typing import Any, Dict, List, NoReturn, Optional, Union
 
 import viur.core.render.html.default
-from viur.core import db, errors, prototypes, securitykey, utils
+from viur.core import db, current, errors, prototypes, securitykey, utils
 from viur.core.config import conf
 from viur.core.i18n import translate as translationClass
 from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
 from viur.core.skeleton import RelSkel, SkeletonInstance
-from viur.core.utils import currentLanguage, currentRequest
 from ..default import Render
 
 import qrcode
@@ -43,8 +42,9 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
 
     :returns: Whatever the requested resource returns. This is *not* limited to strings!
     """
+    request = current.request.get()
     cachetime = kwargs.pop("cachetime", 0)
-    if conf["viur.disableCache"] or currentRequest.get().disableCache:  # Caching disabled by config
+    if conf["viur.disableCache"] or request.disableCache:  # Caching disabled by config
         cachetime = 0
     cacheEnvKey = None
     if conf["viur.cacheEnvironmentKey"]:
@@ -61,7 +61,7 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
         if cacheEnvKey is not None:
             tmpList.append(cacheEnvKey)
         try:
-            appVersion = currentRequest.get().request.environ["CURRENT_VERSION_ID"].split('.')[0]
+            appVersion = request.request.environ["CURRENT_VERSION_ID"].split('.')[0]
         except:
             appVersion = ""
             logging.error("Could not determine the current application id! Caching might produce unexpected results!")
@@ -73,12 +73,11 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
         res = None  # memcache.get(cacheKey)
         if res:
             return res
-    currReq = currentRequest.get()
-    tmp_params = currReq.kwargs.copy()
-    currReq.kwargs = {"__args": args, "__outer": tmp_params}
-    currReq.kwargs.update(kwargs)
-    lastRequestState = currReq.internalRequest
-    currReq.internalRequest = True
+    tmp_params = request.kwargs.copy()
+    request.kwargs = {"__args": args, "__outer": tmp_params}
+    request.kwargs.update(kwargs)
+    lastRequestState = request.internalRequest
+    request.internalRequest = True
     caller = conf["viur.mainApp"]
     pathlist = path.split("/")
     for currpath in pathlist:
@@ -87,16 +86,16 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
         elif "index" in dir(caller) and hasattr(getattr(caller, "index"), '__call__'):
             caller = getattr(caller, "index")
         else:
-            currReq.kwargs = tmp_params  # Reset RequestParams
-            currReq.internalRequest = lastRequestState
+            request.kwargs = tmp_params  # Reset RequestParams
+            request.internalRequest = lastRequestState
             return u"Path not found %s (failed Part was %s)" % (path, currpath)
     if (not hasattr(caller, '__call__')
         or ((not "exposed" in dir(caller)
              or not caller.exposed))
         and (not "internalExposed" in dir(caller)
              or not caller.internalExposed)):
-        currReq.kwargs = tmp_params  # Reset RequestParams
-        currReq.internalRequest = lastRequestState
+        request.kwargs = tmp_params  # Reset RequestParams
+        request.internalRequest = lastRequestState
         return u"%s not callable or not exposed" % str(caller)
     try:
         resstr = caller(*args, **kwargs)
@@ -104,8 +103,8 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
         logging.error("Caught execption in execRequest while calling %s" % path)
         logging.exception(e)
         raise
-    currReq.kwargs = tmp_params
-    currReq.internalRequest = lastRequestState
+    request.kwargs = tmp_params
+    request.internalRequest = lastRequestState
     if cachetime:
         pass
     # memcache.set(cacheKey, resstr, cachetime)
@@ -119,7 +118,7 @@ def getCurrentUser(render: Render) -> Optional[SkeletonInstance]:
 
     :return: A dict containing user data. Returns None if no user data is available.
     """
-    currentUser = utils.getCurrentUser()
+    currentUser = current.user.get()
     if currentUser:
         currentUser.renderPreparation = render.renderBoneValue
     return currentUser
@@ -205,7 +204,7 @@ def getHostUrl(render: Render, forceSSL=False, *args, **kwargs):
     :returns: Returns the hostname, including the currently used protocol, e.g: http://www.example.com
     :rtype: str
     """
-    url = currentRequest.get().request.url
+    url = current.request.get().request.url
     url = url[:url.find("/", url.find("://") + 5)]
     if forceSSL and url.startswith("http://"):
         url = "https://" + url[7:]
@@ -252,7 +251,7 @@ def getLanguage(render: Render, resolveAlias: bool = False) -> str:
     :param resolveAlias: If True, the function tries to resolve the current language
         using conf["viur.languageAliasMap"].
     """
-    lang = currentLanguage.get()
+    lang = current.language.get()
     if resolveAlias and lang in conf["viur.languageAliasMap"]:
         lang = conf["viur.languageAliasMap"][lang]
     return lang
@@ -353,11 +352,12 @@ def getStructure(render: Render,
             if subSkel is not None:
                 try:
                     skel = skel.subSkel(subSkel)
+
                 except Exception as e:
                     logging.exception(e)
                     return False
 
-            return render.renderSkelStructure(skel)
+            return skel.structure()
 
     return False
 
@@ -372,7 +372,7 @@ def requestParams(render: Render) -> Dict[str, str]:
     :returns: dict of parameter and values.
     """
     res = {}
-    for k, v in currentRequest.get().kwargs.items():
+    for k, v in current.request.get().kwargs.items():
         res[utils.escapeString(k)] = utils.escapeString(v)
     return res
 
@@ -387,7 +387,7 @@ def updateURL(render: Render, **kwargs) -> str:
     :returns: Returns a well-formed URL.
     """
     tmpparams = {}
-    tmpparams.update(currentRequest.get().kwargs)
+    tmpparams.update(current.request.get().kwargs)
 
     for key in list(tmpparams.keys()):
         if not key or key[0] == "_":
@@ -599,7 +599,7 @@ def renderEditForm(render: Render,
             if hide and boneName in hide:
                 boneParams["visible"] = False
 
-            if not boneParams["readOnly"]:
+            if not boneParams["readonly"]:
                 allReadOnly = False
 
             if boneParams["visible"]:

@@ -1,26 +1,28 @@
 import base64
 import email.header
-import google.auth
+import html
 import json
 import logging
 import string
-import html
-from PIL import Image, ImageCms
 from base64 import urlsafe_b64decode
 from datetime import datetime, timedelta
-from google.auth import compute_engine
-from google.auth.transport import requests
-from google.cloud import iam_credentials_v1, storage
-from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from io import BytesIO
 from quopri import decodestring
 from typing import Any, List, Tuple, Union
 from urllib.request import urlopen
-from viur.core import db, conf, errors, exposed, forcePost, forceSSL, securitykey, utils
+
+import google.auth
+from PIL import Image, ImageCms
+from google.auth import compute_engine
+from google.auth.transport import requests
+from google.cloud import iam_credentials_v1, storage
+from google.oauth2.service_account import Credentials as ServiceAccountCredentials
+
+from viur.core import conf, current, db, errors, exposed, forcePost, forceSSL, securitykey, utils
 from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
-from viur.core.skeleton import skeletonByKind
-from viur.core.tasks import PeriodicTask, CallDeferred
+from viur.core.skeleton import SkeletonInstance, skeletonByKind
+from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
 from viur.core.utils import sanitizeFileName
 
 credentials, project = google.auth.default()
@@ -110,7 +112,14 @@ def thumbnailer(fileSkel, existingFiles, params):
             f = BytesIO(iccProfile)
             src_profile = ImageCms.ImageCmsProfile(f)
             dst_profile = ImageCms.createProfile('sRGB')
-            img = ImageCms.profileToProfile(img, inputProfile=src_profile, outputProfile=dst_profile, outputMode="RGB")
+            try:
+                img = ImageCms.profileToProfile(img,
+                                                inputProfile=src_profile,
+                                                outputProfile=dst_profile,
+                                                outputMode="RGB")
+            except Exception as e:
+                logging.exception(e)
+                continue
         fileExtension = sizeDict.get("fileExtension", "webp")
         if "width" in sizeDict and "height" in sizeDict:
             width = sizeDict["width"]
@@ -219,7 +228,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         "name": fileSkel["name"],
         "params": params,
         "minetype": fileSkel["mimetype"],
-        "baseUrl": utils.currentRequest.get().request.host_url.lower(),
+        "baseUrl": current.request.get().request.host_url.lower(),
         "targetKey": fileSkel["dlkey"],
         "nameOnly": True
     }
@@ -253,7 +262,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
     return reslist
 
 
-class fileBaseSkel(TreeSkel):
+class FileBaseSkel(TreeSkel):
     """
         Default file leaf skeleton.
     """
@@ -341,7 +350,7 @@ class fileBaseSkel(TreeSkel):
                 skelValues["pendingparententry"] = False
 
 
-class fileNodeSkel(TreeSkel):
+class FileNodeSkel(TreeSkel):
     """
         Default file node skeleton.
     """
@@ -380,15 +389,22 @@ def decodeFileName(name):
 
 
 class File(Tree):
-    leafSkelCls = fileBaseSkel
-    nodeSkelCls = fileNodeSkel
+    leafSkelCls = FileBaseSkel
+    nodeSkelCls = FileNodeSkel
 
     maxuploadsize = None
     uploadHandler = []
 
     handler = "tree.simple.file"
     adminInfo = {
-        "icon": "icon-file-system"
+        "icon": "icon-file-system",
+        "handler": handler,  # fixme: Use static handler; Remove with VIUR4!
+    }
+
+    roles = {
+        "*": "view",
+        "editor": ("add", "edit"),
+        "admin": "*",
     }
 
     blobCacheTime = 60 * 60 * 24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
@@ -504,30 +520,41 @@ class File(Tree):
         return db.encodeKey(fileSkel["key"]), uploadUrl
 
     @exposed
-    def getUploadURL(self, fileName, mimeType, size=None, skey=None, *args, **kwargs):
+    def getUploadURL(self, fileName: str, mimeType: str, size: int = None, skey: str = None, *args, **kwargs):
         node = kwargs.get("node")
         authData = kwargs.get("authData")
         authSig = kwargs.get("authSig")
-        # Validate the the contentType from the client seems legit
-        mimeType = mimeType.lower()
-        assert len(mimeType.split("/")) == 2, "Invalid Mime-Type"
-        assert all([x in string.ascii_letters + string.digits + "/-.+" for x in mimeType]), "Invalid Mime-Type"
+
+        # Validate the contentType from the client seems legit
+        mimeType = mimeType.strip().lower()
+        if not (
+            mimeType
+            and mimeType.count("/") == 1
+            and all(ch in string.ascii_letters + string.digits + "/-.+" for ch in mimeType)
+        ):
+            raise errors.UnprocessableEntity(f"Invalid mime-type {mimeType} provided")
+
         if authData and authSig:
-            # First, validate the signature, otherwise we don't need to proceed any further
+            # First, validate the signature, otherwise we don't need to proceed further
             if not utils.hmacVerify(authData.encode("ASCII"), authSig):
-                raise errors.Forbidden()
+                raise errors.Unauthorized()
+
             authData = json.loads(base64.b64decode(authData.encode("ASCII")).decode("UTF-8"))
+
             if datetime.strptime(authData["validUntil"], "%Y%m%d%H%M") < datetime.now():
-                raise errors.Gone()
+                raise errors.Gone("The upload URL has expired")
+
             if authData["validMimeTypes"]:
                 for validMimeType in authData["validMimeTypes"]:
                     if validMimeType == mimeType or (
                         validMimeType.endswith("*") and mimeType.startswith(validMimeType[:-1])):
                         break
                 else:
-                    raise errors.NotAcceptable()
+                    raise errors.UnprocessableEntity(f"Invalid mime-type {mimeType} provided")
+
             node = authData["node"]
             maxSize = authData["maxSize"]
+
         else:
             if node:
                 rootNode = self.getRootNode(node)
@@ -536,34 +563,35 @@ class File(Tree):
             else:
                 if not self.canAdd("leaf", None):
                     raise errors.Forbidden()
+
             maxSize = None  # The user has some file/add permissions, don't restrict fileSize
+
         if maxSize:
-            try:
-                size = int(size)
-                assert size <= maxSize
-            except:  # We have a size-limit set - but no size supplied
-                raise errors.PreconditionFailed()
+            if size > maxSize:
+                raise errors.UnprocessableEntity(f"Size {size} exceeds maximum size {maxSize}")
         else:
             size = None
 
-        if not securitykey.validate(skey, useSessionKey=True):
+        if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
 
-        targetKey, uploadUrl = self.initializeUpload(fileName, mimeType.lower(), node, size)
+        targetKey, uploadUrl = self.initializeUpload(fileName, mimeType, node, size)
 
         resDict = {
             "uploadUrl": uploadUrl,
             "uploadKey": targetKey,
         }
+
         if authData and authSig:
             # In this case, we'd have to store the key in the users session so he can call add() later on
-            session = utils.currentSession.get()
+            session = current.session.get()
             if not "pendingFileUploadKeys" in session:
                 session["pendingFileUploadKeys"] = []
             session["pendingFileUploadKeys"].append(targetKey)
             # Clamp to the latest 50 pending uploads
             session["pendingFileUploadKeys"] = session["pendingFileUploadKeys"][-50:]
             session.markChanged()
+
         return self.render.view(resDict)
 
     @exposed
@@ -578,8 +606,7 @@ class File(Tree):
         if not sig:
             # Check if the current user has the right to download *any* blob present in this application.
             # blobKey is then the path inside cloudstore - not a base64 encoded tuple
-            usr = utils.getCurrentUser()
-            if not usr:
+            if not (usr := current.user.get()):
                 raise errors.Unauthorized()
             if "root" not in usr["access"] and "file-view" not in usr["access"]:
                 raise errors.Forbidden()
@@ -615,7 +642,7 @@ class File(Tree):
             signedUrl = blob.generate_signed_url(expiresAt, response_disposition=contentDisposition, version="v4")
             raise errors.Redirect(signedUrl)
         elif conf["viur.instance.is_dev_server"]:  # No Service-Account to sign with - Serve everything directly
-            response = utils.currentRequest.get().response
+            response = current.request.get().response
             response.headers["Content-Type"] = blob.content_type
             if contentDisposition:
                 response.headers["Content-Disposition"] = contentDisposition
@@ -623,7 +650,7 @@ class File(Tree):
         else:  # We are inside the appengine
             if validUntil == "0":  # Its an indefinitely valid URL
                 if blob.size < 5 * 1024 * 1024:  # Less than 5 MB - Serve directly and push it into the ede caches
-                    response = utils.currentRequest.get().response
+                    response = current.request.get().response
                     response.headers["Content-Type"] = blob.content_type
                     response.headers["Cache-Control"] = "public, max-age=604800"  # 7 Days
                     if contentDisposition:
@@ -650,7 +677,7 @@ class File(Tree):
         if skelType == "leaf":  # We need to handle leafs separately here
             skey = kwargs.get("skey")
             targetKey = kwargs.get("key")
-            if not skey or not securitykey.validate(skey, useSessionKey=True) or not targetKey:
+            if not skey or not securitykey.validate(skey) or not targetKey:
                 raise errors.PreconditionFailed()
             skel = self.addSkel("leaf")
             if not skel.fromDB(targetKey):
@@ -665,7 +692,7 @@ class File(Tree):
                 rootNode = None
             if not self.canAdd("leaf", rootNode):
                 # Check for a marker in this session (created if using a signed upload URL)
-                session = utils.currentSession.get()
+                session = current.session.get()
                 if targetKey not in (session.get("pendingFileUploadKeys") or []):
                     raise errors.Forbidden()
                 session["pendingFileUploadKeys"].remove(targetKey)
@@ -688,6 +715,23 @@ class File(Tree):
             skel["downloadUrl"] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False)
             return self.render.addSuccess(skel)
         return super(File, self).add(skelType, node, *args, **kwargs)
+
+    def onEdit(self, skelType: SkelType, skel: SkeletonInstance):
+        super().onEdit(skelType, skel)
+        old_skel = self.editSkel(skelType)
+        old_skel.setEntity(skel.dbEntity)
+
+        if old_skel["name"] == skel["name"]:  # name not changed we can return
+            return
+        # Move Blob to new name
+        # https://cloud.google.com/storage/docs/copying-renaming-moving-objects
+        old_path = f"{skel['dlkey']}/source/{html.unescape(old_skel['name'])}"
+        new_path = f"{skel['dlkey']}/source/{html.unescape(skel['name'])}"
+        old_blob = bucket.get_blob(old_path)
+        if not old_blob:
+            raise errors.Gone()
+        bucket.copy_blob(old_blob, bucket, new_path, if_generation_match=0)
+        bucket.delete_blob(old_path)
 
     def onItemUploaded(self, skel):
         pass
@@ -779,3 +823,15 @@ def doCleanupDeletedFiles(cursor=None):
     newCursor = query.getCursor()
     if newCursor:
         doCleanupDeletedFiles(newCursor)
+
+
+@PeriodicTask(60 * 4)
+def start_delete_pending_files():
+    """
+    Start deletion of pending FileSkels that are older than 7 days.
+    """
+    DeleteEntitiesIter.startIterOnQuery(
+        FileBaseSkel().all()
+        .filter("pending =", True)
+        .filter("creationdate <", utils.utcNow() - timedelta(days=7))
+    )

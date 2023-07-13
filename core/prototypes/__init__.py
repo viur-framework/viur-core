@@ -10,9 +10,10 @@ def __getattr__(attr):
 
         match attr:
             case "BasicApplication":
-                msg = f"Use of `prototypes.BasicApplication` is deprecated; Use `viur.core.Module` instead!"
-                from viur.core.module import Module
-                ret = Module
+                msg = f"The use of `prototypes.BasicApplication` is deprecated; " \
+                      f"Please use `viur.core.prototypes.skelmodule.SkelModule` instead!"
+                from viur.core.prototypes.skelmodule import SkelModule
+                ret = SkelModule
 
         if ret:
             import warnings

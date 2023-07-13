@@ -1,22 +1,22 @@
 import base64
-import grpc
 import json
 import logging
 import os
-import pytz
-import sys
-import requests
 from datetime import datetime, timedelta
 from functools import wraps
+from typing import Any, Callable, Dict, Optional, Tuple
+
+import grpc
+import pytz
+import requests
+import sys
 from google.cloud import tasks_v2
 from google.cloud.tasks_v2.services.cloud_tasks.transports import CloudTasksGrpcTransport
 from google.protobuf import timestamp_pb2
 from time import sleep
-from typing import Any, Callable, Dict, Optional, Tuple
 
-from viur.core import db, errors, utils
+from viur.core import current, db, errors, utils
 from viur.core.config import conf
-from viur.core.utils import currentLanguage, currentRequest, currentSession
 
 
 # class JsonKeyEncoder(json.JSONEncoder):
@@ -151,7 +151,7 @@ class CallableTaskBase:
 class TaskHandler:
     """
         Task Handler.
-        Handles calling of Tasks (queued and periodic), and performs updatececks
+        Handles calling of Tasks (queued and periodic), and performs updatechecks
         Do not Modify. Do not Subclass.
     """
     adminInfo = None
@@ -192,7 +192,7 @@ class TaskHandler:
             This processes one chunk of a queryIter (see below).
         """
         global _deferred_tasks, _appengineServiceIPs
-        req = currentRequest.get().request
+        req = current.request.get().request
         if 'X-AppEngine-TaskName' not in req.headers:
             logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
             raise errors.Forbidden()
@@ -211,7 +211,7 @@ class TaskHandler:
             This catches one deferred call and routes it to its destination
         """
         global _deferred_tasks, _appengineServiceIPs
-        req = currentRequest.get().request
+        req = current.request.get().request
         if 'X-AppEngine-TaskName' not in req.headers:
             logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
             raise errors.Forbidden()
@@ -234,9 +234,9 @@ class TaskHandler:
 
         if env:
             if "user" in env and env["user"]:
-                currentSession.get()["user"] = env["user"]
+                current.session.get()["user"] = env["user"]
             if "lang" in env and env["lang"]:
-                currentLanguage.set(env["lang"])
+                current.language.set(env["lang"])
             if "transactionMarker" in env:
                 marker = db.Get(db.Key("viur-transactionmarker", env["transactionMarker"]))
                 if not marker:
@@ -273,7 +273,7 @@ class TaskHandler:
             # We call the deferred function *directly* (without walking through the mkDeferred lambda), so ensure
             # that any hit to another deferred function will defer again
 
-            currentRequest.get().DEFERRED_TASK_CALLED = True
+            current.request.get().DEFERRED_TASK_CALLED = True
             try:
                 _deferred_tasks[funcPath](*args, **kwargs)
             except PermanentTaskFailure:
@@ -286,7 +286,7 @@ class TaskHandler:
 
     def cron(self, cronName="default", *args, **kwargs):
         global _callableTasks, _periodicTasks, _appengineServiceIPs
-        req = currentRequest.get()
+        req = current.request.get()
         if not conf["viur.instance.is_dev_server"]:
             if 'X-Appengine-Cron' not in req.request.headers:
                 logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Cron" was not set.')
@@ -371,7 +371,7 @@ class TaskHandler:
         skey = kwargs.get("skey", "")
         if len(kwargs) == 0 or not skel.fromClient(kwargs) or kwargs.get("bounce") == "1":
             return self.render.add(skel)
-        if not securitykey.validate(skey, useSessionKey=True):
+        if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
         task.execute(**skel.accessedValues)
         return self.render.addSuccess(skel)
@@ -400,10 +400,35 @@ def noRetry(f):
     return wrappedFunc
 
 
-def CallDeferred(func):
+def CallDeferred(func: Callable) -> Callable:
     """
-        This is a decorator, which always calls the function deferred.
-        Unlike Googles implementation, this one works (with bound functions)
+    This is a decorator, which always calls the wrapped method deferred.
+
+    The call will be packed and queued into a Cloud Tasks queue.
+    The Task Queue calls the TaskHandler which executed the wrapped function
+    with the originally arguments in a different request.
+
+
+    In addition to the arguments for the wrapped methods you can set these:
+
+    _queue: Specify the queue in which the task should be pushed.
+        "default" is the default value. The queue must exist (use the queue.yaml).
+
+    _countdown: Specify a time in seconds after which the task should be called.
+        This time is relative to the moment where the wrapped method has been called.
+
+    _eta: Instead of a relative _countdown value you can specify a `datetime`
+         when the task is scheduled to be attempted or retried.
+
+    _name: Specify a custom name for the cloud task. Must be unique and can
+        contain only letters ([A-Za-z]), numbers ([0-9]), hyphens (-), colons (:), or periods (.).
+
+    _target_version: Specify a version on which to run this task.
+        By default, a task will be run on the same version where the wrapped method has been called.
+
+    See also:
+        https://cloud.google.com/python/docs/reference/cloudtasks/latest/google.cloud.tasks_v2.types.Task
+        https://cloud.google.com/python/docs/reference/cloudtasks/latest/google.cloud.tasks_v2.types.CreateTaskRequest
     """
     if "viur_doc_build" in dir(sys):
         return func
@@ -413,18 +438,21 @@ def CallDeferred(func):
     def make_deferred(func, self=__undefinedFlag_, *args, **kwargs):
         # Extract possibly provided task flags from kwargs
         queue = kwargs.pop("_queue", "default")
-        taskargs = {k: kwargs.pop(f"_{k}", None) for k in ("countdown", "eta", "name", "target", "retry_options")}
+        if "eta" in kwargs and "countdown" in kwargs:
+            raise ValueError("You cannot set the countdown and eta argument together!")
+        taskargs = {k: kwargs.pop(f"_{k}", None) for k in ("countdown", "eta", "name", "target_version")}
 
         logging.debug(f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, {queue=}, {taskargs=}")
 
         try:
-            req = currentRequest.get()
+            req = current.request.get()
         except:  # This will fail for warmup requests
             req = None
 
         if not queueRegion:
             # Run tasks inline
             logging.debug(f"{func=} will be executed inline")
+
             @wraps(func)
             def task():
                 if self is __undefinedFlag_:
@@ -469,7 +497,7 @@ def CallDeferred(func):
 
             # Try to preserve the important data from the current environment
             try:  # We might get called inside a warmup request without session
-                usr = currentSession.get().get("user")
+                usr = current.session.get().get("user")
                 if "password" in usr:
                     del usr["password"]
 
@@ -479,7 +507,7 @@ def CallDeferred(func):
             env = {"user": usr}
 
             try:
-                env["lang"] = currentLanguage.get()
+                env["lang"] = current.language.get()
             except AttributeError:  # This isn't originating from a normal request
                 pass
 
@@ -498,25 +526,33 @@ def CallDeferred(func):
                 env["custom"] = conf["viur.tasks.customEnvironmentHandler"][0]()
 
             # Create task description
-            task = {
-                "app_engine_http_request": {  # Specify the type of request.
-                    "body": json.dumps(preprocessJsonObject((command, (funcPath, args, kwargs, env)))).encode("UTF-8"),
-                    "http_method": tasks_v2.HttpMethod.POST,
-                    "relative_uri": taskargs["url"]
-                }
-            }
+            task = tasks_v2.Task(
+                app_engine_http_request=tasks_v2.AppEngineHttpRequest(
+                    body=json.dumps(preprocessJsonObject((command, (funcPath, args, kwargs, env)))).encode("UTF-8"),
+                    http_method=tasks_v2.HttpMethod.POST,
+                    relative_uri=taskargs["url"],
+                    app_engine_routing=tasks_v2.AppEngineRouting(
+                        version=taskargs.get("target_version", conf["viur.instance.app_version"]),
+                    ),
+                ),
+            )
+            if taskargs.get("name"):
+                task.name = taskClient.task_path(conf["viur.instance.project_id"], queueRegion, queue, taskargs["name"])
 
-            # Set a schedule time in case countdown was set.
+            # Set a schedule time in case eta (absolut) or countdown (relative) was set.
+            eta = taskargs.get("eta")
             if seconds := taskargs.get("countdown"):
+                eta = utils.utcNow() + timedelta(seconds=seconds)
+            if eta:
                 # We must send a Timestamp Protobuf instead of a date-string
                 timestamp = timestamp_pb2.Timestamp()
-                timestamp.FromDatetime(utils.utcNow() + timedelta(seconds=seconds))
-                task["schedule_time"] = timestamp
+                timestamp.FromDatetime(eta)
+                task.schedule_time = timestamp
 
             # Use the client to build and send the task.
             parent = taskClient.queue_path(conf["viur.instance.project_id"], queueRegion, queue)
             logging.debug(f"{parent=}, {task=}")
-            taskClient.create_task(parent=parent, task=task)
+            taskClient.create_task(tasks_v2.CreateTaskRequest(parent=parent, task=task))
 
             logging.info(f"Created task {func.__name__}.{func.__module__} with {args=} {kwargs=} {env=}")
 
@@ -658,22 +694,24 @@ class QueryIter(object, metaclass=MetaQueryIter):
             the current request    if we are on the local development server.
         """
         if not queueRegion:  # Run tasks inline - hopefully development server
-            req = currentRequest.get()
+            req = current.request.get()
             task = lambda *args, **kwargs: cls._qryStep(qryDict)
             if req:
                 req.pendingTasks.append(task)  # < This property will be only exist on development server!
                 return
-        project = conf["viur.instance.project_id"]
-        location = queueRegion
-        parent = taskClient.queue_path(project, location, cls.queueName)
-        task = {
-            'app_engine_http_request': {  # Specify the type of request.
-                'http_method': 'POST',
-                'relative_uri': '/_tasks/queryIter'
-            }
-        }
-        task['app_engine_http_request']['body'] = json.dumps(preprocessJsonObject(qryDict)).encode("UTF-8")
-        taskClient.create_task(parent=parent, task=task)
+        taskClient.create_task(tasks_v2.CreateTaskRequest(
+            parent=taskClient.queue_path(conf["viur.instance.project_id"], queueRegion, cls.queueName),
+            task=tasks_v2.Task(
+                app_engine_http_request=tasks_v2.AppEngineHttpRequest(
+                    body=json.dumps(preprocessJsonObject(qryDict)).encode("UTF-8"),
+                    http_method=tasks_v2.HttpMethod.POST,
+                    relative_uri="/_tasks/queryIter",
+                    app_engine_routing=tasks_v2.AppEngineRouting(
+                        version=conf["viur.instance.app_version"],
+                    ),
+                )
+            ),
+        ))
 
     @classmethod
     def _qryStep(cls, qryDict: Dict[str, Any]) -> None:
@@ -708,7 +746,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
                         logging.exception(e)
                         doCont = False
                     if not doCont:
-                        logging.error("Exiting queryItor on cursor %s" % qry.getCursor())
+                        logging.error(f"Exiting queryIter on cursor {qry.getCursor()!r}")
                         return
             qryDict["totalCount"] += 1
         cursor = qry.getCursor()
@@ -749,12 +787,18 @@ class QueryIter(object, metaclass=MetaQueryIter):
 
 class DeleteEntitiesIter(QueryIter):
     """
-        Simple Query-Iter to delete all entities encountered.
+    Simple Query-Iter to delete all entities encountered.
 
-        ..Warning: Do not use this iter on skeletons. It only works on the low-level db API and would not clear
-            relations, locks etc.
+    ..Warning: When iterating over skeletons, make sure that the
+        query was created using `Skeleton().all()`.
+        This way the `Skeleton.delete()` method can be used and
+        the appropriate post-processing can be done.
     """
 
     @classmethod
     def handleEntry(cls, entry, customData):
-        db.Delete(entry.key)
+        from viur.core.skeleton import SkeletonInstance
+        if isinstance(entry, SkeletonInstance):
+            entry.delete()
+        else:
+            db.Delete(entry.key)

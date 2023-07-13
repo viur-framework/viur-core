@@ -1,6 +1,7 @@
 import hmac
 import logging
 import time
+from viur.core.tasks import DeleteEntitiesIter
 from viur.core.request import BrowseHandler
 from viur.core.config import conf  # this import has to stay alone due partial import
 from viur.core import db, utils, tasks
@@ -8,14 +9,14 @@ from typing import Any, Optional, Union
 
 """
     Provides the session implementation for the Google AppEngine™ based on the datastore.
-    To access the current session, use `utils.currentSession.get()`.
+    To access the current session,  and call current.session.get()
 
     Example:
 
     .. code-block:: python
 
-        from viur.core.utils import currentSession
-        sessionData = currentSession.get()
+        from viur.core import current
+        sessionData = current.session.get()
         sessionData["your_key"] = "your_data"
         data = sessionData["your_key"]
 
@@ -29,37 +30,33 @@ class Session:
         Store Sessions inside the datastore.
         The behaviour of this module can be customized in the following ways:
 
-        - :prop:sameSite can be set to None, "none", "lax" or "strict" to influence the same-site tag on the cookies
+        - :prop:same_site can be set to None, "none", "lax" or "strict" to influence the same-site tag on the cookies
             we set
-        - :prop:sessionCookie is set to True by default, causing the cookie to be treated as a session cookie (it will
-            be deleted on browser close). If set to False, it will be emitted with the life-time in
+        - :prop:use_session_cookie is set to True by default, causing the cookie to be treated as a session cookie
+            (it will be deleted on browser close). If set to False, it will be emitted with the life-time in
             conf["viur.session.lifeTime"].
-        - The config variable conf["viur.session.lifeTime"]: Determines, how ling (in Minutes) a session stays valid.
-            Even if :prop:sessionCookie is set to True, we'll void a session server-side after no request has been made
-            within said lifeTime.
+        - The config variable conf["viur.session.lifeTime"]: Determines, how long (in seconds) a session is valid.
+            Even if :prop:use_session_cookie is set to True, the session is voided server-side after no request has been
+            made within the configured lifetime.
         - The config variables conf["viur.session.persistentFieldsOnLogin"] and
             conf["viur.session.persistentFieldsOnLogout"] lists fields, that may survive a login/logout action.
             For security reasons, we completely destroy a session on login/logout (it will be deleted, a new empty
             database object will be created and a new cookie with a different key is sent to the browser). This causes
             all data currently stored to be lost. Only keys listed in these variables will be copied into the new
             session.
-
     """
     kindName = "viur-session"
-    sameSite = "lax"  # Either None (don't issue sameSite header), "none", "lax" or "strict"
-    sessionCookie = True  # If True, issue the cookie without a lifeTime (will disappear on browser close)
-    cookieName = f"""viur_cookie_{conf["viur.instance.project_id"]}"""
+    same_site = "lax"  # Either None (don't issue same_site header), "none", "lax" or "strict"
+    use_session_cookie = True  # If True, issue the cookie without a lifeTime (will disappear on browser close)
+    cookie_name = f"""viur_cookie_{conf["viur.instance.project_id"]}"""
     GUEST_USER = "__guest__"
 
     def __init__(self):
         super().__init__()
         self.changed = False
-        self.isInitial = False
-        self.cookieKey = None
-        self.sslKey = None
-        self.staticSecurityKey = None
-        self.securityKey = None
-        self.session = {}
+        self.cookie_key = None
+        self.static_security_key = None
+        self.session = db.Entity()
 
     def load(self, req: BrowseHandler):
         """
@@ -68,18 +65,16 @@ class Session:
             If the client supplied a valid Cookie, the session is read from the datastore, otherwise a new,
             empty session will be initialized.
         """
-        if self.cookieName in req.request.cookies:
-            cookie = str(req.request.cookies[self.cookieName])
-            if data := db.Get(db.Key(self.kindName, cookie)):  # Loaded successfully
+        if cookie_key := str(req.request.cookies.get(self.cookie_name)):
+            if data := db.Get(db.Key(self.kindName, cookie_key)):  # Loaded successfully
                 if data["lastseen"] < time.time() - conf["viur.session.lifeTime"]:
                     # This session is too old
                     self.reset()
                     return False
 
+                self.cookie_key = cookie_key
                 self.session = data["data"]
-                self.staticSecurityKey = data["staticSecurityKey"]
-                self.securityKey = data["securityKey"]
-                self.cookieKey = cookie
+                self.static_security_key = data["static_security_key"]
 
                 if data["lastseen"] < time.time() - 5 * 60:  # Refresh every 5 Minutes
                     self.changed = True
@@ -94,7 +89,7 @@ class Session:
 
             Does nothing, in case the session hasn't been changed in the current request.
         """
-        if not (self.changed or self.isInitial):
+        if not self.changed:
             return
 
         # We will not issue sessions over http anymore
@@ -108,28 +103,27 @@ class Session:
         except Exception:
             user_key = Session.GUEST_USER  # this is a guest
 
-        dbSession = db.Entity(db.Key(self.kindName, self.cookieKey))
+        dbSession = db.Entity(db.Key(self.kindName, self.cookie_key))
 
         dbSession["data"] = db.fixUnindexableProperties(self.session)
-        dbSession["staticSecurityKey"] = self.staticSecurityKey
-        dbSession["securityKey"] = self.securityKey
+        dbSession["static_security_key"] = self.static_security_key
         dbSession["lastseen"] = time.time()
         dbSession["user"] = str(user_key)  # allow filtering for users
         dbSession.exclude_from_indexes = ["data"]
 
         db.Put(dbSession)
 
-        # Provide Set-Cookie header entry with configured settings
+        # Provide Set-Cookie header entry with configured properties
         flags = (
             "Path=/",
             "HttpOnly",
-            f"SameSite={self.sameSite}" if self.sameSite else None,
+            f"SameSite={self.same_site}" if self.same_site else None,
             "Secure" if not conf["viur.instance.is_dev_server"] else None,
-            f"Max-Age={conf['viur.session.lifeTime']}" if not self.sessionCookie else None,
+            f"Max-Age={conf['viur.session.lifeTime']}" if not self.use_session_cookie else None,
         )
 
         req.response.headerlist.append(
-            ("Set-Cookie", f"{self.cookieName}={self.cookieKey};{';'.join([f for f in flags if f])}")
+            ("Set-Cookie", f"{self.cookie_name}={self.cookie_key};{';'.join([f for f in flags if f])}")
         )
 
     def __contains__(self, key: str) -> bool:
@@ -198,57 +192,21 @@ class Session:
 
             :warning: Everything is flushed.
         """
-        if self.cookieKey:
-            db.Delete(db.Key(self.kindName, self.cookieKey))
+        if self.cookie_key:
+            db.Delete(db.Key(self.kindName, self.cookie_key))
+            from viur.core import securitykey
+            securitykey.clear_session_skeys(self.cookie_key)
 
-        self.cookieKey = utils.generateRandomString(42)
-        self.staticSecurityKey = utils.generateRandomString(13)
-        self.securityKey = utils.generateRandomString(13)
+        self.cookie_key = utils.generateRandomString(42)
+        self.static_security_key = utils.generateRandomString(13)
+        self.session.clear()
         self.changed = True
-        self.isInitial = True
-        self.session = db.Entity()
 
     def items(self) -> 'dict_items':
         """
             Returns all items in the current session.
         """
         return self.session.items()
-
-    def getSecurityKey(self) -> Optional[str]:
-        return self.securityKey
-
-    def validateSecurityKey(self, key: str) -> bool:
-        """
-        Checks if key matches the current CSRF-Token of our session. On success, a new key is generated.
-        """
-        if hmac.compare_digest(self.securityKey, key):
-            # It looks good so far, check if we can acquire that skey inside a transaction
-            def exchangeSecurityKey():
-                dbSession = db.Get(db.Key(self.kindName, self.cookieKey))
-                if not dbSession:  # Should not happen (except if session.reset has been called in the same request)
-                    return False
-                if dbSession["securityKey"] != key:  # Race-Condidtion: That skey has been used in another instance
-                    return False
-                dbSession["securityKey"] = utils.generateRandomString(13)
-                db.Put(dbSession)
-                return dbSession["securityKey"]
-
-            try:
-                newSkey = db.RunInTransaction(exchangeSecurityKey)
-            except:  # This should be transaction collision
-                return False
-            if not newSkey:
-                return False
-            self.securityKey = newSkey
-            self.changed = True
-            return True
-        return False
-
-    def validateStaticSecurityKey(self, key: str) -> bool:
-        """
-        Checks if key matches the current *static* CSRF-Token of our session.
-        """
-        return hmac.compare_digest(self.staticSecurityKey, key)
 
 
 @tasks.CallDeferred
@@ -271,17 +229,9 @@ def killSessionByUser(user: Optional[Union[str, db.Key]] = None):
 
 
 @tasks.PeriodicTask(60 * 4)
-def startClearSessions():
+def start_clear_sessions():
     """
         Removes old (expired) Sessions
     """
-    doClearSessions(time.time() - (conf["viur.session.lifeTime"] + 300))
-
-
-@tasks.CallDeferred
-def doClearSessions(timeStamp: str) -> None:
-    query = db.Query(Session.kindName).filter("lastseen <", timeStamp)
-    for oldKey in query.run(100):
-        db.Delete(oldKey)
-    if query.getCursor():
-        doClearSessions(timeStamp)
+    query = db.Query(Session.kindName).filter("lastseen <", time.time() - (conf["viur.session.lifeTime"] + 300))
+    DeleteEntitiesIter.startIterOnQuery(query)

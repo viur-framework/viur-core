@@ -1,31 +1,68 @@
+"""
+The "StringBone" class is a subclass of the "BaseBone" class and represents a data field that
+contains text values. It overrides some of the base class methods to provide specific functionality
+for text fields.
+"""
+
 import logging
 from typing import Dict, List, Optional, Set
 
-from viur.core import db, utils
+from viur.core import current, db, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core.utils import currentLanguage
 
 
 class StringBone(BaseBone):
-    type = "str"
+    """
+    The "StringBone" represents a data field that contains text values.
 
+    :param caseSensitive: A boolean value indicating whether the text values in this field are
+        case-sensitive or not.
+    :param maxLength: The maximum length of the text values in this field.
+    :param kwargs: Additional keyword arguments to pass to the base class constructor.
+    """
+    type = "str"
     def __init__(
         self,
         *,
         caseSensitive: bool = True,
-        maxLength: int = 254,
+        maxLength: int | None = 254,
         **kwargs
     ):
+        """
+        Initializes a new StringBone.
+
+        :param caseSensitive: When filtering for values in this bone, should it be case-sensitive?
+        :param maxLength: The maximum length allowed for values of this bone. Set to None for no limitation.
+        :param kwargs: Inherited arguments from the BaseBone.
+        """
         super().__init__(**kwargs)
+        if maxLength is not None and maxLength <= 0:
+            raise ValueError("maxLength must be a positive integer or None")
         self.caseSensitive = caseSensitive
         self.maxLength = maxLength
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+        """
+        Serializes a single value of this data field for storage in the database.
+
+        :param value: The value to serialize.
+        :param skel: The skeleton instance that this data field belongs to.
+        :param name: The name of this data field.
+        :param parentIndexed: A boolean value indicating whether the parent object has an index on
+            this data field or not.
+        :return: The serialized value.
+        """
         if not self.caseSensitive and parentIndexed:
             return {"val": value, "idx": value.lower() if isinstance(value, str) else None}
         return value
 
     def singleValueUnserialize(self, value):
+        """
+        Unserializes a single value of this data field from the database.
+
+        :param value: The serialized value to unserialize.
+        :return: The unserialized value.
+        """
         if isinstance(value, dict) and "val" in value:
             return value["val"]
         elif value:
@@ -34,19 +71,48 @@ class StringBone(BaseBone):
             return ""
 
     def getEmptyValue(self):
+        """
+        Returns the empty value for this data field.
+
+        :return: An empty string.
+        """
         return ""
 
     def isEmpty(self, value):
+        """
+        Determines whether a value for this data field is empty or not.
+
+        :param value: The value to check for emptiness.
+        :return: A boolean value indicating whether the value is empty or not.
+        """
         if not value:
             return True
 
         return not bool(str(value).strip())
 
+    def isInvalid(self, value):
+        """
+        Returns None if the value would be valid for
+        this bone, an error-message otherwise.
+        """
+        if self.maxLength is not None and len(value) > self.maxLength:
+            return "Maximum length exceeded"
+        return None
+
     def singleValueFromClient(self, value, skel, name, origData):
+        """
+        Converts a value for this data field from a client-provided representation to an internal
+        representation.
+
+        :param value: The value to convert from the client-provided representation.
+        :param skel: The skeleton instance that this data field belongs to.
+        :param name: The name of this data field.
+        :param origData: The original data of the skeleton instance.
+        :return: A tuple containing the converted value and a list of any validation errors encountered.
+        """
         value = utils.escapeString(value, self.maxLength)
-        err = self.isInvalid(value)
-        if not err:
-            return utils.escapeString(value, self.maxLength), None
+        if not (err := self.isInvalid(value)):
+            return value, None
         return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
     def buildDBFilter(
@@ -57,6 +123,16 @@ class StringBone(BaseBone):
         rawFilter: Dict,
         prefix: Optional[str] = None
     ) -> db.Query:
+        """
+        Builds and returns a database filter for this data field based on the provided raw filter data.
+
+        :param name: The name of this data field.
+        :param skel: The skeleton instance that this data field belongs to.
+        :param dbFilter: The database filter to add query clauses to.
+        :param rawFilter: A dictionary containing the raw filter data for this data field.
+        :param prefix: An optional prefix to add to the query clause.
+        :return: The database filter with the added query clauses.
+        """
         if name not in rawFilter and not any(
             [(x.startswith(name + "$") or x.startswith(name + ".")) for x in rawFilter.keys()]
         ):
@@ -73,7 +149,7 @@ class StringBone(BaseBone):
                         lang = langStr
                         break
             if not lang:
-                lang = currentLanguage.get()  # currentSession.getLanguage()
+                lang = current.language.get()  # currentSession.getLanguage()
                 if not lang or not lang in self.languages:
                     lang = self.languages[0]
             namefilter = "%s.%s" % (name, lang)
@@ -114,18 +190,28 @@ class StringBone(BaseBone):
         dbFilter: db.Query,
         rawFilter: Dict
     ) -> Optional[db.Query]:
-        if "orderby" in rawFilter and (rawFilter["orderby"] == name or (
-            isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
-            "%s." % name) and self.languages)):
+        """
+        Build a DB sort based on the specified name and a raw filter.
+
+        :param name: The name of the attribute to sort by.
+        :param skel: A SkeletonInstance object.
+        :param dbFilter: A Query object representing the current DB filter.
+        :param rawFilter: A dictionary containing the raw filter.
+        :return: The Query object with the specified sort applied.
+        :rtype: Optional[google.cloud.ndb.query.Query]
+        """
+        if ((orderby := rawFilter.get("orderby"))
+            and (orderby == name
+                 or (isinstance(orderby, str) and orderby.startswith(f"{name}.") and self.languages))):
             if self.languages:
                 lang = None
-                if rawFilter["orderby"].startswith("%s." % name):
-                    lng = rawFilter["orderby"].replace("%s." % name, "")
+                if orderby.startswith(f"{name}."):
+                    lng = orderby.replace(f"{name}.", "")
                     if lng in self.languages:
                         lang = lng
                 if lang is None:
-                    lang = currentLanguage.get()  # currentSession.getLanguage()
-                    if not lang or not lang in self.languages:
+                    lang = current.language.get()  # currentSession.getLanguage()
+                    if not lang or lang not in self.languages:
                         lang = self.languages[0]
                 if self.caseSensitive:
                     prop = "%s.%s" % (name, lang)
@@ -158,6 +244,15 @@ class StringBone(BaseBone):
         return dbFilter
 
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+        """
+        Returns a set of lowercased words that represent searchable tags for the given bone.
+
+        :param skel: The skeleton instance being searched.
+        :param name: The name of the bone to generate tags for.
+
+        :return: A set of lowercased words representing searchable tags.
+        :rtype: set
+        """
         result = set()
         for idx, lang, value in self.iter_bone_value(skel, name):
             if value is None:
@@ -168,9 +263,24 @@ class StringBone(BaseBone):
         return result
 
     def getUniquePropertyIndexValues(self, skel, name: str) -> List[str]:
+        """
+        Returns a list of unique index values for a given property name.
+
+        :param skel: The skeleton instance.
+        :param name: The name of the property.
+        :return: A list of unique index values for the property.
+        :rtype: List[str]
+        :raises NotImplementedError: If the StringBone has languages and the implementation
+            for this case is not yet defined.
+        """
         if self.languages:
             # Not yet implemented as it's unclear if we should keep each language distinct or not
             raise NotImplementedError()
 
         return super().getUniquePropertyIndexValues(skel, name)
 
+    def structure(self) -> dict:
+        ret = super().structure() | {
+            "maxlength": self.maxLength
+        }
+        return ret

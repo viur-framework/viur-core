@@ -2,7 +2,7 @@
 <html>
 <head>
 	<meta charset="UTF-8">
-    <title>$error_code - $error_name</title>
+    <title>{{status}} - {{reason}}</title>
 
     <style>
         html, body, div, span, applet, object, iframe,
@@ -216,15 +216,15 @@
         <div id="error">
             <div id="content">
 
-                <h1>$error_code</h1>
+                <h1>{{ status }}</h1>
 
-                <a class="logo" href="https://www.viur.is">&nbsp;</a>
+                <a class="logo" href="https://www.viur.dev">&nbsp;</a>
 
                 <div class="clear">&nbsp;</div>
 
-                <h2>$error_name</h2>
+                <h2>{{ title }}</h2>
 
-                <p>$error_descr</p>
+                <p>{{ descr }}</p>
 
 				<div class="wrapper-buttons">
                     <a href="/" class="button-red shadow">Home</a>

@@ -60,97 +60,12 @@ class DefaultRender(object):
     def __init__(self, parent=None, *args, **kwargs):
         super(DefaultRender, self).__init__(*args, **kwargs)
 
-    def renderBoneStructure(self, bone: baseBone) -> Dict:
-        """
-        Renders the structure of a bone.
-
-        This function is used by :func:`renderSkelStructure`.
-        can be overridden and super-called from a custom renderer.
-
-        :param bone: The bone which structure should be rendered.
-        :type bone: Any bone that inherits from :class:`server.bones.BaseBone`.
-
-        :return: A dict containing the rendered attributes.
-        """
-
-        # Base bone contents.
-        ret = {
-            "descr": str(bone.descr),
-            "type": bone.type,
-            "required": bone.required,
-            "params": bone.params,
-            "visible": bone.visible,
-            "readOnly": bone.readOnly
-        }
-
-        if bone.type == "relational" or bone.type.startswith("relational."):
-            ret.update({
-                "type": "%s.%s" % (bone.type, bone.kind),
-                "module": bone.module,
-                "format": bone.format,
-                "using": self.renderSkelStructure(bone.using()) if bone.using else None,
-                "relskel": self.renderSkelStructure(bone._refSkelCache())
-            })
-            if bone.type.startswith("relational.tree.leaf.file"):
-                ret.update({"validMimeTypes":bone.validMimeTypes})
-
-        elif isinstance(bone, SelectBone):
-            ret.update({
-                "values": bone.values,
-                "multiple": bone.multiple
-            })
-
-        elif isinstance(bone, DateBone):
-            ret.update({
-                "date": bone.date,
-                "time": bone.time
-            })
-
-        elif isinstance(bone, NumericBone):
-            ret.update({
-                "precision": bone.precision,
-                "min": bone.min,
-                "max": bone.max
-            })
-
-        elif isinstance(bone, TextBone):
-            ret.update({
-                "validHtml": bone.validHtml,
-                "maxLength": bone.maxLength
-            })
-
-        elif isinstance(bone, StringBone):
-            ret.update({
-                "maxLength": bone.maxLength
-            })
-
-        elif isinstance(bone, SpatialBone):
-            ret.update({
-                "boundsLat": bone.boundsLat,
-                "boundsLng": bone.boundsLng
-            })
-        return ret
-
-    def renderSkelStructure(self, skel: SkeletonInstance) -> Dict:
-        """
-        Dumps the structure of a :class:`viur.core.skeleton.Skeleton`.
-
-        :param skel: Skeleton which structure will be processed.
-
-        :returns: The rendered dictionary.
-        """
-        if isinstance(skel, dict):
-            return None
-        res = {}
-        for key, bone in skel.items():
-            res[key] = self.renderBoneStructure(bone)
-        return res
 
     def renderTextExtension(self, ext):
         e = ext()
         return ({"name": e.name,
                  "descr": str(e.descr),
-                 "skel": self.renderSkelStructure(e.dataSkel())})
+                 "skel": e.dataSkel().structure()})
 
     def renderBoneValue(self, bone, skel, key):
         boneVal = skel[key]
@@ -235,7 +150,7 @@ class DefaultRender(object):
             "action": action,
             "params": params,
             "values": self.renderSkelValues(skel),
-            "structure": self.renderSkelStructure(skel),
+            "structure": skel.structure(),
             "errors": [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage,
                         "invalidatedFields": x.invalidatedFields} for x in skel.errors]
         }
@@ -261,7 +176,7 @@ class DefaultRender(object):
         res["skellist"] = skels
 
         if (len(skellist) > 0):
-            res["structure"] = self.renderSkelStructure(skellist[0])
+            res["structure"] = skellist[0].structure()
         else:
             res["structure"] = None
 

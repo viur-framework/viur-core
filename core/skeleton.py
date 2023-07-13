@@ -5,16 +5,17 @@ import logging
 import os
 import sys
 import string
+import warnings
 from functools import partial
 from itertools import chain
 from time import time
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
-from viur.core import conf, db, email, errors, utils
+from viur.core import conf, db, email, errors, utils, current
 from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, RelationalUpdateLevel, SelectBone, StringBone
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 from viur.core.tasks import CallableTask, CallableTaskBase, QueryIter, CallDeferred
 
-__undefindedC__ = object()
+_undefined = object()
 
 
 class MetaBaseSkel(type):
@@ -253,6 +254,12 @@ class SkeletonInstance:
         self.accessedValues = {}
         self.renderAccessedValues = {}
 
+    def structure(self) -> dict:
+        return {
+            key: bone.structure() | {"sortindex": i}
+            for i, (key, bone) in enumerate(self.items())
+        }
+
     def __deepcopy__(self, memodict):
         res = self.clone()
         memodict[id(self)] = res
@@ -420,12 +427,12 @@ class MetaSkel(MetaBaseSkel):
         # Check if we have an abstract skeleton
         if cls.__name__.endswith("AbstractSkel"):
             # Ensure that it doesn't have a kindName
-            assert cls.kindName is __undefindedC__ or cls.kindName is None, "Abstract Skeletons can't have a kindName"
+            assert cls.kindName is _undefined or cls.kindName is None, "Abstract Skeletons can't have a kindName"
             # Prevent any further processing by this class; it has to be sub-classed before it can be used
             return
 
         # Automatic determination of the kindName, if the class is not part of viur.core.
-        if (cls.kindName is __undefindedC__
+        if (cls.kindName is _undefined
             and not relNewFileName.strip(os.path.sep).startswith("viur")
             and not "viur_doc_build" in dir(sys)):
             if cls.__name__.endswith("Skel"):
@@ -433,7 +440,7 @@ class MetaSkel(MetaBaseSkel):
             else:
                 cls.kindName = cls.__name__.lower()
         # Try to determine which skeleton definition takes precedence
-        if cls.kindName and cls.kindName is not __undefindedC__ and cls.kindName in MetaBaseSkel._skelCache:
+        if cls.kindName and cls.kindName is not _undefined and cls.kindName in MetaBaseSkel._skelCache:
             relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]) \
                 .replace(str(conf["viur.instance.project_base_path"]), "") \
                 .replace(str(conf["viur.instance.core_base_path"]), "")
@@ -458,11 +465,11 @@ class MetaSkel(MetaBaseSkel):
         if (not any([relNewFileName.startswith(x) for x in conf["viur.skeleton.searchPath"]])
             and not "viur_doc_build" in dir(sys)):  # Do not check while documentation build
             raise NotImplementedError(
-                "Skeletons must be defined in a folder listed in conf[\"viur.skeleton.searchPath\"]")
-        if cls.kindName and cls.kindName is not __undefindedC__:
+                f"""{relNewFileName} must be defined in a folder listed in {conf["viur.skeleton.searchPath"]}""")
+        if cls.kindName and cls.kindName is not _undefined:
             MetaBaseSkel._skelCache[cls.kindName] = cls
         # Auto-Add ViUR Search Tags Adapter if the skeleton has no adapter attached
-        if cls.customDatabaseAdapter is __undefindedC__:
+        if cls.customDatabaseAdapter is _undefined:
             cls.customDatabaseAdapter = ViurTagsSearchAdapter()
 
 
@@ -624,8 +631,8 @@ class seoKeyBone(StringBone):
         return True
 
 class Skeleton(BaseSkeleton, metaclass=MetaSkel):
-    kindName: str = __undefindedC__  # To which kind we save our data to
-    customDatabaseAdapter: Union[CustomDatabaseAdapter, None] = __undefindedC__
+    kindName: str = _undefined  # To which kind we save our data to
+    customDatabaseAdapter: Union[CustomDatabaseAdapter, None] = _undefined
     subSkels = {}  # List of pre-defined sub-skeletons of this type
     interBoneValidations: List[
         Callable[[Skeleton], List[ReadFromClientError]]] = []  # List of functions checking inter-bone dependencies
@@ -666,7 +673,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
     def __init__(self, *args, **kwargs):
         super(Skeleton, self).__init__(*args, **kwargs)
-        assert self.kindName and self.kindName is not __undefindedC__, "You must set kindName on this skeleton!"
+        assert self.kindName and self.kindName is not _undefined, "You must set kindName on this skeleton!"
 
     @classmethod
     def all(cls, skelValues, **kwargs) -> db.Query:
@@ -755,7 +762,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return True
 
     @classmethod
-    def toDB(cls, skelValues: SkeletonInstance, clearUpdateTag: bool = False) -> db.Key:
+    def toDB(cls, skelValues: SkeletonInstance, update_relations: bool = True, **kwargs) -> db.Key:
         """
             Store current Skeleton entity to data store.
 
@@ -765,14 +772,20 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             To read a Skeleton object from the data store, see :func:`~viur.core.skeleton.Skeleton.fromDB`.
 
-            :param clearUpdateTag: If True, this entity won't be marked dirty;
+            :param update_relations: If False, this entity won't be marked dirty;
                 This avoids from being fetched by the background task updating relations.
 
             :returns: The datastore key of the entity.
         """
         assert skelValues.renderPreparation is None, "Cannot modify values while rendering"
+        # fixme: Remove in viur-core >= 4
+        if "clearUpdateTag" in kwargs:
+            msg = "clearUpdateTag was replaced by update_relations"
+            warnings.warn(msg, DeprecationWarning, stacklevel=3)
+            logging.warning(msg, stacklevel=3)
+            update_relations = not kwargs["clearUpdateTag"]
 
-        def txnUpdate(dbKey, mergeFrom, clearUpdateTag):
+        def txnUpdate(dbKey, mergeFrom):
             skel = mergeFrom.skeletonCls()
 
             blobList = set()
@@ -817,7 +830,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                         oldUniqueValues = dbObj["viur"]["%s_uniqueIndexValue" % key]
 
                 # Merge the values from mergeFrom in
-                if key in skel.accessedValues:
+                if key in skel.accessedValues or bone.compute:  # We can have a computed value on store
                     # bone.mergeFrom(skel.valuesCache, key, mergeFrom)
                     bone.serialize(skel, key, True)
                 elif key not in skel.dbEntity:  # It has not been written and is not in the database
@@ -934,12 +947,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             # Store lastRequestedKeys so further updates can run more efficient
             dbObj["viur"]["viurLastRequestedSeoKeys"] = currentSeoKeys
 
-            if clearUpdateTag:
-                # Mark this entity as Up-to-date.
-                dbObj["viur"]["delayedUpdateTag"] = 0
-            else:
-                # Mark this entity as dirty, so the background-task will catch it up and update its references.
-                dbObj["viur"]["delayedUpdateTag"] = time()
+            # mark entity as "dirty" when update_relations is set, to zero otherwise.
+            dbObj["viur"]["delayedUpdateTag"] = time() if update_relations else 0
             dbObj = skel.preProcessSerializedData(dbObj)
 
             # Allow the custom DB Adapter to apply last minute changes to the object
@@ -1003,10 +1012,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         key = skelValues["key"] or None
         isAdd = key is None
-        if not isinstance(clearUpdateTag, bool):
-            raise ValueError(
-                "Got an unsupported type %s for clearUpdateTag. toDB doesn't accept a key argument any more!" % str(
-                    type(clearUpdateTag)))
 
         # Allow bones to perform outstanding "magic" operations before saving to db
         for bkey, _bone in skelValues.items():
@@ -1014,9 +1019,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         # Run our SaveTxn
         if db.IsInTransaction():
-            key, dbObj, skel, changeList = txnUpdate(key, skelValues, clearUpdateTag)
+            key, dbObj, skel, changeList = txnUpdate(key, skelValues)
         else:
-            key, dbObj, skel, changeList = db.RunInTransaction(txnUpdate, key, skelValues, clearUpdateTag)
+            key, dbObj, skel, changeList = db.RunInTransaction(txnUpdate, key, skelValues)
 
         # Perform post-save operations (postProcessSerializedData Hook, Searchindex, ..)
         skelValues["key"] = key
@@ -1026,7 +1031,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         skel.postSavedHandler(key, dbObj)
 
-        if not clearUpdateTag and not isAdd:
+        if update_relations and not isAdd:
             if changeList and len(changeList) < 5:  # Only a few bones have changed, process these individually
                 for idx, changedBone in enumerate(changeList):
                     updateRelations(key, time() + 1, changedBone, _countdown=10 * idx)
@@ -1281,7 +1286,13 @@ class SkelList(list):
         :vartype cursor: str
     """
 
-    __slots__ = ["baseSkel", "getCursor", "customQueryInfo", "renderPreparation"]
+    __slots__ = (
+        "baseSkel",
+        "customQueryInfo",
+        "getCursor",
+        "get_orders",
+        "renderPreparation",
+    )
 
     def __init__(self, baseSkel=None):
         """
@@ -1290,6 +1301,7 @@ class SkelList(list):
         super(SkelList, self).__init__()
         self.baseSkel = baseSkel or {}
         self.getCursor = lambda: None
+        self.get_orders = lambda: None
         self.renderPreparation = None
         self.customQueryInfo = {}
 
@@ -1317,7 +1329,7 @@ def processRemovedRelations(removedKey, cursor=None):
                         skel[key] = [x for x in relVal if x["dest"]["key"] != removedKey]
                     else:
                         print("Type? %s" % type(relVal))
-            skel.toDB(clearUpdateTag=True)
+            skel.toDB(update_relations=False)
         else:
             logging.critical("Cascading Delete to %s/%s" % (skel.kindName, skel["key"]))
             skel.delete()
@@ -1362,7 +1374,7 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: Optional[s
             return
 
         skel.refresh()
-        skel.toDB(clearUpdateTag=True)
+        skel.toDB(update_relations=False)
 
     for srcRel in updateList:
         try:
@@ -1391,7 +1403,7 @@ class TaskUpdateSearchIndex(CallableTaskBase):
 
     def canCall(self) -> bool:
         """Checks wherever the current user can execute this task"""
-        user = utils.getCurrentUser()
+        user = current.user.get()
         return user is not None and "root" in user["access"]
 
     def dataSkel(self):
@@ -1401,7 +1413,7 @@ class TaskUpdateSearchIndex(CallableTaskBase):
         return skel
 
     def execute(self, module, *args, **kwargs):
-        usr = utils.getCurrentUser()
+        usr = current.user.get()
         if not usr:
             logging.warning("Don't know who to inform after rebuilding finished")
             notify = None
@@ -1428,14 +1440,14 @@ class RebuildSearchIndex(QueryIter):
     @classmethod
     def handleEntry(cls, skel: SkeletonInstance, customData: Dict[str, str]):
         skel.refresh()
-        skel.toDB(clearUpdateTag=True)
+        skel.toDB(update_relations=False)
 
     @classmethod
     def handleFinish(cls, totalCount: int, customData: Dict[str, str]):
         QueryIter.handleFinish(totalCount, customData)
         try:
             if customData["notify"]:
-                txt = f"Subject: Rebuild search index finished for {customData['module']}\n\n" \
+                txt = f"Rebuild search index finished for {customData['module']}\n\n" \
                       f"ViUR finished to rebuild the search index for module {customData['module']}.\n" \
                       f"{totalCount} records updated in total on this kind."
                 email.sendEMail(dests=customData["notify"], stringTemplate=txt, skel=None)
@@ -1459,7 +1471,7 @@ class TaskVacuumRelations(CallableTaskBase):
         Checks wherever the current user can execute this task
         :returns: bool
         """
-        user = utils.getCurrentUser()
+        user = current.user.get()
         return user is not None and "root" in user["access"]
 
     def dataSkel(self):
@@ -1468,7 +1480,7 @@ class TaskVacuumRelations(CallableTaskBase):
         return skel
 
     def execute(self, module, *args, **kwargs):
-        usr = utils.getCurrentUser()
+        usr = current.user.get()
         if not usr:
             logging.warning("Don't know who to inform after rebuilding finished")
             notify = None
@@ -1522,7 +1534,7 @@ def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, noti
     else:
         try:
             if notify:
-                txt = ("Subject: Vaccum Relations finished for %s\n\n" +
+                txt = ("Vaccum Relations finished for %s\n\n" +
                        "ViUR finished to vaccum viur-relations.\n" +
                        "%d records processed, %d entries removed") % (module, newTotalCount, newRemovedCount)
                 email.sendEMail(dests=[notify], stringTemplate=txt, skel=None)

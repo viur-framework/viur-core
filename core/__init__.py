@@ -29,7 +29,7 @@ import webob
 import yaml
 from types import ModuleType
 from typing import Callable, Dict, Union, List
-from viur.core import session, errors, i18n, request, utils
+from viur.core import session, errors, i18n, request, utils, current
 from viur.core.config import conf
 from viur.core.tasks import TaskHandler, runStartupTasks
 from viur.core.module import Module
@@ -173,8 +173,14 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     else:
         root = ExtendableObject()
     modules._tasks = TaskHandler
+
+    # Default modules
     from viur.core.modules.moduleconf import ModuleConf  # noqa: E402 # import works only here because circular imports
     modules._moduleconf = ModuleConf
+
+    from viur.core.modules.script import Script  # noqa: E402 # import works only here because circular imports
+    modules.script = Script
+
     resolverDict = {}
     indexes = load_indexes_from_file()
     for moduleName, moduleClass in vars(modules).items():  # iterate over all modules
@@ -292,19 +298,19 @@ def app(environ: dict, start_response: Callable):
     handler = request.BrowseHandler(req, resp)
 
     # Set context variables
-    utils.currentLanguage.set(conf["viur.defaultLanguage"])
-    utils.currentRequest.set(handler)
-    utils.currentSession.set(session.Session())
-    utils.currentRequestData.set({})
-
+    current.language.set(conf["viur.defaultLanguage"])
+    current.request.set(handler)
+    current.session.set(session.Session())
+    current.request_data.set({})
     # Handle request
     handler.processRequest()
 
     # Unset context variables
-    utils.currentLanguage.set(None)
-    utils.currentRequestData.set(None)
-    utils.currentSession.set(None)
-    utils.currentRequest.set(None)
+    current.language.set(None)
+    current.request_data.set(None)
+    current.session.set(None)
+    current.request.set(None)
+    current.user.set(None)
 
     return resp(environ, start_response)
 

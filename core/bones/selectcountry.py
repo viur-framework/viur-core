@@ -1,3 +1,10 @@
+"""
+A bone representing a country selection input field in a web application or form.
+
+The SelectCountryBone is designed to provide a user-friendly way to select a country from a predefined list of
+countries. It inherits from the BaseBone class and extends it to support country-specific functionalities,
+such as displaying country names and handling country codes (e.g., ISO 3166-1 alpha-2 or alpha-3).
+"""
 from collections import OrderedDict
 from viur.core.bones.select import SelectBone
 
@@ -243,6 +250,10 @@ ISO3CODES = {
     "zmb": "Zambia",
     "zwe": "Zimbabwe"
 }
+"""
+ISO 3166-1 alpha-3 (commonly referred to as ISO3) is a part of the ISO 3166 standard, which defines three-letter
+codes to represent countries.
+"""
 
 ISO2CODES = {
     "aw": "Aruba",
@@ -485,7 +496,10 @@ ISO2CODES = {
     "zm": "Zambia",
     "zw": "Zimbabwe"
 }
-
+"""
+The ISO 2 country code (also known as ISO 3166-1 alpha-2) is an international standard consisting of two-letter
+codes used to identify countries.
+"""
 ISO3TOISO2 = {  # Convert iso3 to iso2 codes
     'yem': 'ye',
     'bvt': 'bv',
@@ -727,11 +741,22 @@ ISO3TOISO2 = {  # Convert iso3 to iso2 codes
     'ury': 'uy',
     'tha': 'th'
 }
+"""A Map of ISO3 to ISO2 country codes"""
 
 ISO2TOISO3 = {v: k for k, v in ISO3TOISO2.items()}  # Build the invert map
+"""A built Map of ISO2 to ISO3 country codes"""
 
 
 class SelectCountryBone(SelectBone):
+    """
+    A bone representing a country selection input field in a web application or form.
+
+    The SelectCountryBone is designed to provide a user-friendly way to select a country from a predefined list of
+    countries. It inherits from the BaseBone class and extends it to support country-specific functionalities,
+    such as displaying country names and handling country codes (e.g., ISO 3166-1 alpha-2 or alpha-3).
+
+    :params List[str] countries: A list of countries supported by the bone, typically represented by their codes.
+    """
     type = "select.country"
     ISO2 = 2
     ISO3 = 3
@@ -749,6 +774,18 @@ class SelectCountryBone(SelectBone):
         self.codes = codes
 
     def singleValueUnserialize(self, val):
+        """
+        Unserializes a single value, converting ISO country codes between ISO 3166-1 alpha-2 and alpha-3 if necessary.
+
+        This method takes a country code string (either ISO 3166-1 alpha-2 or alpha-3) and checks if a conversion is
+        needed based on the `self.codes` attribute. If a conversion is required, it attempts to perform the conversion
+        using the `ISO3TOISO2` or `ISO2TOISO3` dictionaries. If the conversion is successful, the converted code is
+        returned; otherwise, the original value is returned.
+
+        :params val: The value to be unserialized, typically a string representing an ISO country code.
+
+        :returns: The unserialized value, either the original or converted ISO country code.
+        """
         if isinstance(val, str) and len(val) == 3 and self.codes == self.ISO2:
             # We got an ISO3 code from the db, but are using ISO2
             try:

@@ -4,7 +4,7 @@ import google.cloud.logging
 from google.cloud.logging import Resource
 from google.cloud.logging.handlers import CloudLoggingHandler
 from google.cloud.logging_v2.handlers.handlers import EXCLUDED_LOGGER_DEFAULTS
-from viur.core.utils import currentRequest
+from viur.core import current
 from viur.core.config import conf
 
 
@@ -18,7 +18,7 @@ class ViURDefaultLogger(CloudLoggingHandler):
     def emit(self, record: logging.LogRecord):
         message = super(ViURDefaultLogger, self).format(record)
         try:
-            currentReq = currentRequest.get()
+            currentReq = current.request.get()
             TRACE = "projects/{}/traces/{}".format(client.project, currentReq._traceID)
             currentReq.maxLogLevel = max(currentReq.maxLogLevel, record.levelno)
             logID = currentReq.request.environ.get("HTTP_X_APPENGINE_REQUEST_LOG_ID")

@@ -1,8 +1,9 @@
 # noinspection PyUnresolvedReferences
 from viur.core.render.vi.user import UserRender as user  # this import must exist!
+from viur.core.render.json import skey
 from viur.core.render.json.default import DefaultRender, CustomJsonEncoder
-from viur.core import Module, conf, exposed, securitykey, utils, errors
-from viur.core.utils import currentRequest, currentLanguage
+from viur.core.render.vi.user import UserRender as user
+from viur.core import Module, conf, current, exposed, securitykey, errors
 from viur.core.skeleton import SkeletonInstance
 import datetime
 import json
@@ -16,15 +17,9 @@ __all__ = [default]
 
 
 @exposed
-def genSkey(*args, **kwargs):
-    currentRequest.get().response.headers["Content-Type"] = "application/json"
-    return json.dumps(securitykey.create())
-
-
-@exposed
 def timestamp(*args, **kwargs):
     d = datetime.datetime.now()
-    currentRequest.get().response.headers["Content-Type"] = "application/json"
+    current.request.get().response.headers["Content-Type"] = "application/json"
     return json.dumps(d.strftime("%Y-%m-%dT%H-%M-%S"))
 
 
@@ -52,7 +47,7 @@ def getStructure(module):
 
                     if isinstance(skel, SkeletonInstance):
                         storeType = stype.replace("Skel", "") + ("LeafSkel" if treeType == "leaf" else "NodeSkel")
-                        res[storeType] = default().renderSkelStructure(skel)
+                        res[storeType] = DefaultRender.render_structure(skel.structure())
     else:
         # every other prototype
         for stype in ("viewSkel", "editSkel", "addSkel"):  # Unknown skel type
@@ -62,9 +57,9 @@ def getStructure(module):
                 except (TypeError, ValueError):
                     continue
                 if isinstance(skel, SkeletonInstance):
-                    res[stype] = default().renderSkelStructure(skel)
+                    res[stype] = DefaultRender.render_structure(skel.structure())
 
-    currentRequest.get().response.headers["Content-Type"] = "application/json"
+    current.request.get().response.headers["Content-Type"] = "application/json"
     return json.dumps(res or None, cls=CustomJsonEncoder)
 
 
@@ -74,7 +69,7 @@ def setLanguage(lang, skey):
         raise errors.PreconditionFailed()
 
     if lang in conf["viur.availableLanguages"]:
-        currentLanguage.set(lang)
+        current.language.set(lang)
 
 
 @exposed
@@ -95,9 +90,8 @@ def dumpConfig():
             k.removeprefix("admin."): v for k, v in conf.items() if k.lower().startswith("admin.")
         }
     }
-
-    currentRequest.get().response.headers["Content-Type"] = "application/json"
-    return json.dumps(res)
+    current.request.get().response.headers["Content-Type"] = "application/json"
+    return json.dumps(res, cls=CustomJsonEncoder)
 
 
 @exposed
@@ -105,19 +99,26 @@ def getVersion(*args, **kwargs):
     """
     Returns viur-core version number
     """
-    currentRequest.get().response.headers["Content-Type"] = "application/json"
-    if conf["viur.instance.is_dev_server"]:
-        return json.dumps(conf["viur.version"])
+    current.request.get().response.headers["Content-Type"] = "application/json"
 
-    # Hide patchlevel
-    return json.dumps((conf["viur.version"][0], conf["viur.version"][1], 0))
+    version = conf["viur.version"]
+
+    # always fill up to 4 parts
+    while len(version) < 4:
+        version += (None,)
+
+    if conf["viur.instance.is_dev_server"] \
+            or ((cuser := current.user.get()) and ("root" in cuser["access"] or "admin" in cuser["access"])):
+        return json.dumps(version[:4])
+
+    # Hide patch level + appendix to non-authorized users
+    return json.dumps((version[0], version[1], None, None))
 
 
 def canAccess(*args, **kwargs) -> bool:
-    user = utils.getCurrentUser()
-    if user and ("root" in user["access"] or "admin" in user["access"]):
+    if (user := current.user.get()) and ("root" in user["access"] or "admin" in user["access"]):
         return True
-    pathList = currentRequest.get().pathlist
+    pathList = current.request.get().path_list
     if len(pathList) >= 2 and pathList[1] in ["skey", "getVersion", "settings"]:
         # Give the user the chance to login :)
         return True
@@ -142,12 +143,10 @@ def canAccess(*args, **kwargs) -> bool:
 def index(*args, **kwargs):
     if not conf["viur.instance.project_base_path"].joinpath("vi", "main.html").exists():
         raise errors.NotFound()
-
-    if conf["viur.instance.is_dev_server"] or currentRequest.get().isSSLConnection:
+    if conf["viur.instance.is_dev_server"] or current.request.get().isSSLConnection:
         raise errors.Redirect("/vi/s/main.html")
-
     else:
-        appVersion = currentRequest.get().request.host
+        appVersion = current.request.get().request.host
         raise errors.Redirect("https://%s/vi/s/main.html" % appVersion)
 
 
@@ -158,12 +157,12 @@ def get_settings():
 
     fields["admin.user.google.clientID"] = conf.get("viur.user.google.clientID", "")
 
-    currentRequest.get().response.headers["Content-Type"] = "application/json"
+    current.request.get().response.headers["Content-Type"] = "application/json"
     return json.dumps(fields)
 
 
 def _postProcessAppObj(obj):
-    obj["skey"] = genSkey
+    obj["skey"] = skey
     obj["timestamp"] = timestamp
     obj["config"] = dumpConfig
     obj["settings"] = get_settings
