@@ -792,14 +792,14 @@ class AuthenticatorOTP:
             AuthenticatorOTP.set_otp_secret(otp_secret)
             return self.userModule.render.secound_factor_add_success()
 
-    def canHandle(self, userKey) -> bool:
+    def canHandle(self, user_key) -> bool:
         """
             We can only handle the second factor if we have stored an otp_secret before.
         """
 
-        if not (user := db.Get(userKey)):
+        if not (user := db.Get(user_key)):
             return False
-        logging.debug(f"""can handle {len(str(user.get("otp_secret", "")))} {str(user.get("otp_secret", ""))}""")
+
         return len(str(user.get("otp_secret", ""))) > 0
 
     @classmethod
@@ -816,8 +816,8 @@ class AuthenticatorOTP:
 
         if not (cuser := current.user.get()):
             raise errors.Unauthorized()
-        user = db.Get(cuser["key"])
-        if not user:
+
+        if not (user := db.Get(cuser["key"])):
             raise errors.NotFound()
 
         user["otp_secret"] = otp_secret
