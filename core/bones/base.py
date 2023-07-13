@@ -1192,25 +1192,39 @@ class BaseBone(object):
             else:
                 yield None, None, value
 
-    def _compute(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
+    def _compute(self, skel: 'viur.core.skeleton.SkeletonInstance', bone_name: str):
         """Performs the evaluation of a bone configured as compute"""
 
-        if "skel" not in inspect.signature(self.compute.fn).parameters:
+        compute_fn_parameters = inspect.signature(self.compute.fn).parameters
+        compute_fn_args = {}
+        parameter_found = False
+        if "skel" in compute_fn_parameters:
+            parameter_found = True
+            cloned_skel = skel.clone()
+            cloned_skel[bone_name] = None  # remove value form accessedValues to avoid endless recursion
+            compute_fn_args["skel"] = cloned_skel
+
+        if "bone" in compute_fn_parameters:
+            parameter_found = True
+            compute_fn_args["bone"] = getattr(skel, bone_name)
+
+        if "bone_name" in compute_fn_parameters:
+            parameter_found = True
+            compute_fn_args["bone_name"] = bone_name
+
+        if parameter_found:
+            ret = self.compute.fn(**compute_fn_args)
+        else:
             # call without any arguments
             ret = self.compute.fn()
-        else:
-            # otherwise, call with a clone of the skeleton
-            cloned_skel = skel.clone()
-            cloned_skel[name] = None  # remove bone to avoid endless recursion
-            ret = self.compute.fn(skel=cloned_skel)
 
         if self.compute.raw:
             return self.singleValueUnserialize(ret)
 
-        if errors := self.fromClient(skel, name, {name: ret}):
+        if errors := self.fromClient(skel, bone_name, {bone_name: ret}):
             raise ValueError(f"Computed value fromClient failed with {errors!r}")
 
-        return skel[name]
+        return skel[bone_name]
 
     def structure(self) -> dict:
         """
