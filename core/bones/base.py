@@ -1203,7 +1203,6 @@ class BaseBone(object):
             compute_fn_args["skel"] = cloned_skel
 
         if "bone" in compute_fn_parameters:
-            parameter_found = True
             compute_fn_args["bone"] = getattr(skel, bone_name)
 
         if "bone_name" in compute_fn_parameters:
