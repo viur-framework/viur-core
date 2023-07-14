@@ -1209,11 +1209,7 @@ class BaseBone(object):
         if "bone_name" in compute_fn_parameters:
             compute_fn_args["bone_name"] = bone_name
 
-        if compute_fn_args:
-            ret = self.compute.fn(**compute_fn_args)
-        else:
-            # call without any arguments
-            ret = self.compute.fn()
+        ret = self.compute.fn(**compute_fn_args)
 
         if self.compute.raw:
             return self.singleValueUnserialize(ret)
