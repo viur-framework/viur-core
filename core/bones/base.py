@@ -1197,9 +1197,7 @@ class BaseBone(object):
 
         compute_fn_parameters = inspect.signature(self.compute.fn).parameters
         compute_fn_args = {}
-        parameter_found = False
         if "skel" in compute_fn_parameters:
-            parameter_found = True
             cloned_skel = skel.clone()
             cloned_skel[bone_name] = None  # remove value form accessedValues to avoid endless recursion
             compute_fn_args["skel"] = cloned_skel
@@ -1209,10 +1207,9 @@ class BaseBone(object):
             compute_fn_args["bone"] = getattr(skel, bone_name)
 
         if "bone_name" in compute_fn_parameters:
-            parameter_found = True
             compute_fn_args["bone_name"] = bone_name
 
-        if parameter_found:
+        if compute_fn_args:
             ret = self.compute.fn(**compute_fn_args)
         else:
             # call without any arguments
