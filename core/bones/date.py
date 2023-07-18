@@ -167,7 +167,7 @@ class DateBone(BaseBone):
                 try:
                     now += timedelta(seconds=int(value[3:]))
                 except ValueError:
-                    pass
+                    now = None
 
             value = now
 
