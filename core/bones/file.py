@@ -136,8 +136,14 @@ class FileBone(TreeLeafBone):
     "height", and "derived".
     """
 
-    def __init__(self, *, derive: Union[None, Dict[str, Any]] = None, maxFileSize: Union[None, int] = None,
-                 validMimeTypes: Union[None, List[str]] = None, **kwargs):
+    def __init__(
+        self,
+        *,
+        derive: Union[None, Dict[str, Any]] = None,
+        maxFileSize: Union[None, int] = None,
+        validMimeTypes: Union[None, List[str]] = None,
+        **kwargs
+    ):
         r"""
         Initializes a new Filebone. All properties inherited by RelationalBone are supported.
 
