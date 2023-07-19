@@ -160,6 +160,7 @@ class NumericBone(BaseBone):
                 return self.getEmptyValue()
             elif not isinstance(value, (int, float, type(None))):
                 return self._convert_to_numeric(value)
+            return value
 
         new_value = {}
         for _, lang, value in self.iter_bone_value(skel, boneName):
