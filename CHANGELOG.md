@@ -26,6 +26,13 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - fix: `CredentialBone` without escaping (#702)
 - chore: Improve `StringBone` (#714)
 
+## [3.4.5]
+
+- fix: Add missing fallback for `NumericBone.refresh()` destroying valid data (#793)
+- fix: `getCurrentUser()` should clone `current.user` for use with Jinja (#791)
+- fix: Extend MetaBaseSkel reserved keywords to "structure" (#788)
+- chore: Reject pointless `BooleanBone(multiple=True)` (#773)
+
 ## [3.4.4]
 
 - chore: Update dependencies (#762)
