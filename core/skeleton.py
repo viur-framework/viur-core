@@ -122,10 +122,6 @@ def iterAllSkelClasses() -> Iterable["Skeleton"]:
         yield cls
 
 
-def get_current_time():
-    return utils.utcNow().replace(microsecond=0)
-
-
 class SkeletonInstance:
     """
         The actual wrapper around a Skeleton-Class. An object of this class is what's actually returned when you
@@ -654,7 +650,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         readOnly=True,
         visible=False,
         indexed=True,
-        compute=Compute(fn=get_current_time, interval=ComputeInterval(ComputeMethod.Once)),
+        compute=Compute(fn=utils.utcNow, interval=ComputeInterval(ComputeMethod.Once)),
     )
 
     # The last date (including time) when this entry has been updated
@@ -664,7 +660,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         readOnly=True,
         visible=False,
         indexed=True,
-        compute=Compute(fn=get_current_time, interval=ComputeInterval(ComputeMethod.OnWrite)),
+        compute=Compute(fn=utils.utcNow, interval=ComputeInterval(ComputeMethod.OnWrite)),
     )
 
     viurCurrentSeoKeys = seoKeyBone(descr="Seo-Keys",
