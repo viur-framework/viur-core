@@ -120,6 +120,7 @@ def getCurrentUser(render: Render) -> Optional[SkeletonInstance]:
     """
     currentUser = current.user.get()
     if currentUser:
+        currentUser = currentUser.clone()  # need to clone, as renderPreparation is changed
         currentUser.renderPreparation = render.renderBoneValue
     return currentUser
 
