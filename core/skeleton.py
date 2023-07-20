@@ -52,6 +52,7 @@ class MetaBaseSkel(type):
         "serialize",
         "setBoneValue",
         "style",
+        "structure",
         "toDB",
         "unserialize",
         "values",
