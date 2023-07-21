@@ -1,9 +1,5 @@
-"""
-The class ColorBone is used to store color values. It inherits from the BaseBone class.
-"""
+import string
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from typing import List, Union
-import logging
 
 
 class ColorBone(BaseBone):
@@ -22,26 +18,13 @@ class ColorBone(BaseBone):
         assert mode in {"rgb", "rgba"}
         self.mode = mode
 
-    def singleValueFromClient(self, value, skel: 'viur.core.skeleton.SkeletonInstance', name: str, origData):
-        """
-        Processes a single value from the client, ensuring it is a valid color value,
-        and returns a tuple containing the processed value and any errors that occurred.
-
-        :param value: The value to be processed.
-        :param skel: The skeleton instance associated with the value.
-        :param name: The name of the bone.
-        :param origData: The original data for the bone.
-
-        :return tuple: A tuple containing the processed value if valid,
-            or the empty value if invalid, and a list of ReadFromClientError instances
-            if there were errors, or None if no errors occurred.
-        """
+    def singleValueFromClient(self, value, skel, bone_name, client_data):
         value = value.lower()
         if value.count("#") > 1:
             return self.getEmptyValue(), [
                 ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
         for char in value:
-            if not char in "#0123456789abcdef":
+            if char not in string.hexdigits + "#":
                 return self.getEmptyValue(), [
                     ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
         if self.mode == "rgb":

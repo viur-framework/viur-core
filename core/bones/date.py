@@ -1,7 +1,3 @@
-"""
-DateBone is a bone that can handle date and/or time information and is derived from the BaseBone class. It can
-store date and time information separately, as well as localize the time based on user's timezone.
-"""
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
@@ -26,6 +22,7 @@ class DateBone(BaseBone):
     :param localize: If True, the user's timezone is assumed for input and output. This is only valid if both 'date'
           and 'time' are set to True. By default, UTC time is used.
     """
+    # FIXME: the class has no parameters; merge with __init__
     type = "date"
 
     def __init__(
@@ -81,54 +78,36 @@ class DateBone(BaseBone):
         self.localize = localize
         self.naive = naive
 
-    def singleValueFromClient(self, value: str, skel: 'viur.core.skeleton.SkeletonInstance', name: str, origData):
+    def singleValueFromClient(self, value, skel, bone_name, client_data):
         """
         Reads a value from the client. If the value is valid for this bone, it stores the value and returns None.
         Otherwise, the previous value is left unchanged, and an error message is returned.
-
         The value is assumed to be in the local time zone only if both self.date and self.time are set to True and
         self.localize is True.
-
             **Value is valid if, when converted into String, it complies following formats:**
                 is digit (may include one '-') and valid POSIX timestamp: converted from timestamp;
                 assumes UTC timezone
-
                 is digit (may include one '-') and NOT valid POSIX timestamp and not date and time: interpreted as
                 seconds after epoch
-
                 'now': current time
-
                 'nowX', where X converted into String is added as seconds to current time
-
                 '%H:%M:%S' if not date and time
-
                 '%M:%S' if not date and time
-
                 '%S' if not date and time
-
                 '%Y-%m-%d %H:%M:%S' (ISO date format)
-
                 '%Y-%m-%d %H:%M' (ISO date format)
-
                 '%Y-%m-%d' (ISO date format)
-
                 '%m/%d/%Y %H:%M:%S' (US date-format)
-
                 '%m/%d/%Y %H:%M' (US date-format)
-
                 '%m/%d/%Y' (US date-format)
-
                 '%d.%m.%Y %H:%M:%S' (EU date-format)
-
                 '%d.%m.%Y %H:%M' (EU date-format)
-
                 '%d.%m.%Y' (EU date-format)
-
 
         The resulting year must be >= 1900.
 
-        :param str name: Our name in the skeleton
-        :param str value: *User-supplied* request-data, has to be of valid format
+        :param bone_name: Our name in the skeleton
+        :param client_data: *User-supplied* request-data, has to be of valid format
         :returns: tuple[datetime or None, [Errors] or None]
         """
         time_zone = self.guessTimeZone()

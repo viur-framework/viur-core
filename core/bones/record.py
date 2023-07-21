@@ -1,9 +1,3 @@
-"""
-The RecordBone class is a specialized bone type used to store structured data. It inherits from the
-BaseBone class. The RecordBone class is designed to store complex data structures, such as nested
-dictionaries or objects, by using a related skeleton class (the using parameter) to manage the
-internal structure of the data.
-"""
 from typing import List, Set
 
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
@@ -96,16 +90,7 @@ class RecordBone(BaseBone):
         """
         return True
 
-    def singleValueFromClient(self, value, skel, name, origData):
-        """
-        Serializes a single value by calling the serialize method of the 'using' skeleton instance.
-
-        :param value: The value to be serialized, which should be an instance of the 'using' skeleton.
-        :param skel: The parent skeleton instance.
-        :param name: The name of the bone.
-        :param parentIndexed: A boolean indicating if the parent bone is indexed.
-        :return: The serialized value.
-        """
+    def singleValueFromClient(self, value, skel, bone_name, client_data):
         usingSkel = self.using()
         if not usingSkel.fromClient(value, not (self.required or self.multiple)):
             usingSkel.errors.append(
@@ -145,6 +130,7 @@ class RecordBone(BaseBone):
         :return: A list of search document fields.
         :rtype: list
         """
+
         def getValues(res, skel, valuesCache, searchPrefix):
             for key, bone in skel.items():
                 if bone.searchable:

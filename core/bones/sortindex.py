@@ -1,10 +1,8 @@
-"""
-The SortIndexBone class is specifically designed to handle sorting indexes for data elements, which are numeric
-values that determine the order of these elements. It inherits from the NumericBone.
-"""
-from viur.core.bones.numeric import NumericBone
-import time
 import typing
+
+import time
+
+from viur.core.bones.numeric import NumericBone
 
 
 class SortIndexBone(NumericBone):

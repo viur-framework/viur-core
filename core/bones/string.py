@@ -1,9 +1,3 @@
-"""
-The "StringBone" class is a subclass of the "BaseBone" class and represents a data field that
-contains text values. It overrides some of the base class methods to provide specific functionality
-for text fields.
-"""
-
 import logging
 from typing import Dict, List, Optional, Set
 
@@ -21,6 +15,7 @@ class StringBone(BaseBone):
     :param kwargs: Additional keyword arguments to pass to the base class constructor.
     """
     type = "str"
+
     def __init__(
         self,
         *,
@@ -99,18 +94,9 @@ class StringBone(BaseBone):
             return "Maximum length exceeded"
         return None
 
-    def singleValueFromClient(self, value, skel, name, origData):
-        """
-        Converts a value for this data field from a client-provided representation to an internal
-        representation.
-
-        :param value: The value to convert from the client-provided representation.
-        :param skel: The skeleton instance that this data field belongs to.
-        :param name: The name of this data field.
-        :param origData: The original data of the skeleton instance.
-        :return: A tuple containing the converted value and a list of any validation errors encountered.
-        """
+    def singleValueFromClient(self, value, skel, bone_name, client_data):
         value = utils.escapeString(value, self.maxLength)
+
         if not (err := self.isInvalid(value)):
             return value, None
         return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]

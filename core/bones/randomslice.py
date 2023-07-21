@@ -1,16 +1,11 @@
-"""
-The RandomSliceBone is particularly useful when you want to retrieve a random sample of elements from a
-larger dataset without needing to fetch all the data from the database. By performing multiple
-subqueries and processing the results, RandomSliceBone provides an efficient way to get a
-randomized selection of elements from the database query.
-Simulates the orderby=random from SQL.
-"""
-from viur.core.bones.base import BaseBone
-from viur.core import db
-from typing import Dict, List, Optional
 from random import random, sample, shuffle
+from typing import Dict, List, Optional
+
 from itertools import chain
 from math import ceil
+
+from viur.core import db
+from viur.core.bones.base import BaseBone
 
 
 class RandomSliceBone(BaseBone):

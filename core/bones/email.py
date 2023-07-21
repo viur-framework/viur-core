@@ -1,20 +1,19 @@
-"""
-The EmailBone class is a subclass of the StringBone class, designed for validating email addresses in the ViUR
-framework. This class provides an email validation method, ensuring that the given email address conforms to the
-required format and structure.
-"""
-from viur.core.bones.string import StringBone
-from encodings import idna
 import string
+from encodings import idna
+
+from viur.core.bones.string import StringBone
 
 
 class EmailBone(StringBone):
     """
-    This Bone is responsible for validating email addresses. It' a subclass of the StringBone class.
+    The EmailBone class is a designed to store syntactically validated email addresses.
+
+    This class provides an email validation method, ensuring that the given email address conforms to the
+    required format and structure.
     """
     type = "str.email"
     """
-      A string representing the type of the bone, in this case "str.email".
+    A string representing the type of the bone, in this case "str.email".
     """
 
     def isInvalid(self, value):

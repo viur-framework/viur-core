@@ -1,7 +1,9 @@
 import ast
 import json
+from typing import Mapping, Union
+
 import jsonschema
-from typing import Union, Mapping
+
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.bones.raw import RawBone
 
@@ -50,7 +52,7 @@ class JsonBone(RawBone):
 
         return False
 
-    def singleValueFromClient(self, value: Union[str, list, dict], *args, **kwargs):
+    def singleValueFromClient(self, value: Union[str, list, dict], skel, bone_name, client_data):
         if value:
             if not isinstance(value, (list, dict)):
                 value = str(value)
@@ -76,7 +78,7 @@ class JsonBone(RawBone):
                     return self.getEmptyValue(), [
                         ReadFromClientError(ReadFromClientErrorSeverity.Invalid,
                                             f"Invalid JSON for schema supplied: {e!s}")]
-        return super().singleValueFromClient(value, *args, **kwargs)
+        return super().singleValueFromClient(value, skel, bone_name, client_data)
 
     def structure(self) -> dict:
         return super().structure() | {

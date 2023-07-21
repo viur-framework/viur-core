@@ -1,8 +1,3 @@
-"""
-    A SelectBone represents a dropdown list or selection menu allowing users to choose one or multiple options.
-    Inherits from the BaseBone class.
-"""
-
 import enum
 from collections import OrderedDict
 from numbers import Number
@@ -22,10 +17,10 @@ SelectBoneMultiple = List[SelectBoneValue]
 
 class SelectBone(BaseBone):
     """
-    A SelectBone represents a dropdown list or selection menu allowing users to choose one or multiple options.
+    A SelectBone is a bone which can take a value from a certain list of values..
     Inherits from the BaseBone class. The `type` attribute is set to "select".
 
-    :param defaultValue: key(s) which will be checked by default
+    :param defaultValue: key(s) of the values which will be checked by default.
     :param values: dict of key->value pairs from which the user can choose from.
     :param kwargs: Additional keyword arguments that will be passed to the superclass' __init__ method.
     """
@@ -91,22 +86,7 @@ class SelectBone(BaseBone):
             return val.value
         return val
 
-    def singleValueFromClient(self, value, skel, name, origData):
-        """
-        Processes the value received from the client and checks its validity. Returns the value if valid,
-        otherwise generates an error.
-
-        :param Union[str, Number] value: The value received from the client.
-        :param SkeletonInstance skel: A skeleton object that represents the data structure. Not utilized in this
-            implementation.
-        :param str name: The name of the bone. Not utilized in this implementation.
-        :param Dict[str, Any] origData: The original data dictionary containing all the data sent by the client.
-            Not utilized in this implementation.
-        :return: A tuple containing the processed value (if valid) or the empty value (if invalid), and a list of
-            ReadFromClientError objects (either empty if the value is valid or containing an error if the value is
-            invalid).
-        :rtype: Tuple[Union[str, Number, None], List[ReadFromClientError]]
-        """
+    def singleValueFromClient(self, value, skel, bone_name, client_data):
         if not str(value):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value selected")]
         for key in self.values.keys():

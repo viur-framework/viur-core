@@ -1,6 +1,6 @@
 """
-The TextBone is specifically designed to handle text input fields. TextBone is a subclass of the BaseBone class,
-inheriting its core functionality and extending it to support text-specific data manipulation.
+The `text` module contains the `Textbone` and a custom HTML-Parser
+to validate and extract client data for the `TextBone`.
 """
 import string
 from base64 import urlsafe_b64decode
@@ -228,14 +228,14 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                     style = s[: s.find(":")].strip()
                     value = s[s.find(":") + 1:].strip()
                     if any([c in style for c in filterChars]) or any(
-                            [c in value for c in filterChars]):
+                           [c in value for c in filterChars]):
                         # Either the key or the value contains a character that's not supposed to be there
                         continue
                     if value.lower().startswith("expression") or value.lower().startswith("import"):
                         # IE evaluates JS inside styles if the keyword expression is present
                         continue
                     if style in self.validHtml["validStyles"] and not any(
-                            [(x in value) for x in ["\"", ":", ";"]]):
+                           [(x in value) for x in ["\"", ":", ";"]]):
                         syleRes[style] = value
                 if len(syleRes.keys()):
                     cacheTagStart += " style=\"%s\"" % "; ".join(
@@ -339,6 +339,7 @@ class TextBone(BaseBone):
     :param bool indexed: Whether the content should be indexed for searching. Defaults to False.
     :param kwargs: Additional keyword arguments to be passed to the base class constructor.
     """
+
     class __undefinedC__:
         pass
 
@@ -380,23 +381,8 @@ class TextBone(BaseBone):
         """
         return value
 
-    def singleValueFromClient(self, value, skel, name, origData):
-        """
-        Processes a single value received from the client for the TextBone instance.
-
-        Validates the value and sanitizes it using the HtmlSerializer if it's valid. If the value is invalid,
-        an error message is returned along with an empty value.
-
-        :param value: The value received from the client.
-        :param SkeletonInstance skel: The skeleton instance that will contain the value.
-        :param str name: The name of the bone containing the value.
-        :param origData: The original data received from the client.
-        :return: A tuple containing the sanitized value and an error message (if any).
-             If there's no error, the second element of the tuple is None.
-        :rtype: Tuple[Any, Optional[List[ReadFromClientError]]]
-        """
-        err = self.isInvalid(value)  # Returns None on success, error-str otherwise
-        if not err:
+    def singleValueFromClient(self, value, skel, bone_name, client_data):
+        if not (err := self.isInvalid(value)):  # Returns None on success, error-str otherwise
             return HtmlSerializer(self.validHtml, self.srcSet).sanitize(value), None
         else:
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]

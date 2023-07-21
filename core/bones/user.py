@@ -1,9 +1,5 @@
-"""
-A specialized relational bone for handling user references. Extends the functionality of
-:class:`viur.core.bones.relational.RelationalBone` to include support for creation and update magic.
-"""
-from viur.core.bones.relational import RelationalBone
 from viur.core import current
+from viur.core.bones.relational import RelationalBone
 
 
 class UserBone(RelationalBone):

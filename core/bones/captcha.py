@@ -1,19 +1,18 @@
-"""
-The CaptchaBone is used to ensure that a user is not a bot. The Captcha bone uses the Google reCAPTCHA API
-to perform the Captcha validation and is derived from the BaseBone.
-"""
-
 import json
 import urllib.parse
 import urllib.request
 from typing import List, Union
-from viur.core import utils, conf, current
+
+from viur.core import conf, current
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 
 class CaptchaBone(BaseBone):
     r"""
-    The CaptchaBone uses the Google reCAPTCHA API to perform the Captcha validation.
+    The CaptchaBone is used to ensure that a user is not a bot.
+
+    The Captcha bone uses the Google reCAPTCHA API to perform the Captcha
+    validation and is derived from the BaseBone.
 
     :param publicKey: The public key for the Captcha validation.
     :param privateKey: The private key for the Captcha validation.

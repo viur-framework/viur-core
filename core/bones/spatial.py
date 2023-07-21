@@ -1,17 +1,18 @@
 """
-The "SpatialBone" is a specific type of data structure designed to handle spatial data, such as geographical
-coordinates or geometries. This bone would typically be used for representing and storing location-based data,
-like the coordinates of a point of interest on a map or the boundaries of a geographic region.
+`spatial` contains
+- The `SpatialBone` to handle coordinates
+- and `haversine`  to calculate the distance between two points on earth using their latitude and longitude.
 """
 
-from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import db
 import logging
-import math
-from math import pow, floor, ceil
 from copy import deepcopy
-from math import floor
 from typing import Any, Dict, List, Optional, Tuple, Union
+
+import math
+from math import floor
+
+from viur.core import db
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 
 def haversine(lat1, lng1, lat2, lng2):
@@ -45,6 +46,9 @@ def haversine(lat1, lng1, lat2, lng2):
 
 class SpatialBone(BaseBone):
     r"""
+    The "SpatialBone" is a specific type of data structure designed to handle spatial data, such as geographical
+    coordinates or geometries. This bone would typically be used for representing and storing location-based data,
+    like the coordinates of a point of interest on a map or the boundaries of a geographic region.
     This feature allows querying elements near a specific location. Before using, designate the map region for
     which the index should be constructed. To ensure the best accuracy, minimize the region size; using the entire
     world is not feasible since boundary wraps are not executed. GridDimensions indicates the number of sub-regions
@@ -209,19 +213,7 @@ class SpatialBone(BaseBone):
         """
         return 0.0, 0.0
 
-    def singleValueFromClient(self, value: Dict, skel: str, name: str, origData: Dict):
-        """
-        Processes a value received from the client. If the value is valid for this bone, it is stored,
-        and None is returned. If the value is not valid, the previous value remains unchanged, and an
-        error message is returned.
-
-        :param dict value: User-supplied request data
-        :param skel: The skeleton instance
-        :param str name: The name of the bone in the skeleton
-        :param dict origData: The original data from the client request
-        :return: A tuple containing the processed value and a list of errors, if any
-        :rtype: Tuple[Union[Tuple[float, float], None], List[ReadFromClientError]]
-        """
+    def singleValueFromClient(self, value, skel, bone_name, client_data):
         rawLat = value.get("lat", None)
         rawLng = value.get("lng", None)
         if rawLat is None and rawLng is None:
@@ -309,8 +301,6 @@ class SpatialBone(BaseBone):
             dbFilter._customMultiQueryMerge = lambda *args, **kwargs: self.customMultiQueryMerge(name, lat, lng, *args,
                                                                                                  **kwargs)
             dbFilter._calculateInternalMultiQueryLimit = self.calculateInternalMultiQueryLimit
-
-    # return super().buildDBFilter(name, skel, dbFilter, rawFilter)
 
     def calculateInternalMultiQueryLimit(self, dbQuery: db.Query, targetAmount: int):
         """

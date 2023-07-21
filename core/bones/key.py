@@ -1,19 +1,17 @@
-"""
-The KeyBone is used for managing keys in the database. It provides various methods for validating,
-converting, and storing key values, as well as querying the database.
-Key management is crucial for maintaining relationships between entities in the database, and the
-KeyBone class helps ensure that keys are handled correctly and efficiently throughout the system.
-"""
-from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import db, utils
-from typing import Dict, Optional, Union, List
-import logging
 import copy
+import logging
+from typing import Dict, List, Optional, Union
+
+from viur.core import db, utils
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 
 class KeyBone(BaseBone):
     """
-    The KeyBone is used for managing keys in the database. It's based on the BoneBone
+    The KeyBone is used for managing keys in the database. It provides various methods for validating,
+    converting, and storing key values, as well as querying the database.
+    Key management is crucial for maintaining relationships between entities in the database, and the
+    KeyBone class helps ensure that keys are handled correctly and efficiently throughout the system.
 
     :param str descr: The description of the KeyBone.
     :param bool readOnly: Whether the KeyBone is read-only.
@@ -37,21 +35,7 @@ class KeyBone(BaseBone):
         self.allowed_kinds = allowed_kinds
         self.check = check
 
-    def singleValueFromClient(self, value, skel, name, origData):
-        """
-        This method validates and converts a key value received from the client. It checks if the
-        value is a valid key and, if necessary, converts it into an appropriate format for further
-        processing.
-
-        :param value: The key value received from the client.
-        :param skel: The Skeleton instance this bone is a part of.
-        :param name: The property name of this bone in the Skeleton (not the description).
-        :param origData: The original data received from the client.
-
-        :return: A tuple containing the validated and converted key, or an empty value if the key
-            is not valid. If there are any errors during validation, the second element of the tuple
-            will contain a list of :class:ReadFromClientError instances with error details.
-        """
+    def singleValueFromClient(self, value, skel, bone_name, client_data):
         # check for correct key
         if isinstance(value, str):
             value = value.strip()
@@ -104,6 +88,7 @@ class KeyBone(BaseBone):
         .. note:: The method contains an inner function, fixVals(val), which normalizes and
             validates the key values before populating the bone.
         """
+
         def fixVals(val):
             if isinstance(val, str):
                 try:

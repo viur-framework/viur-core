@@ -1,14 +1,14 @@
 """
-RelationalBone is used to create and manage relationships between database entities. This class provides basic
-functionality and attributes that can be extended by other specialized relational bone classes, such as N1Relation,
-N2NRelation, and Hierarchy.
+This module contains the RelationalBone to create and manage relationships between skeletons
+and enums to parameterize it.
 """
 import logging
 import warnings
 from enum import Enum
+from typing import Any, Dict, List, Optional, Set, Union
+
 from itertools import chain
 from time import time
-from typing import Any, Dict, List, Optional, Set, Union
 
 from viur.core import db, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
@@ -661,24 +661,8 @@ class RelationalBone(BaseBone):
         """
         return self.using is not None
 
-    def singleValueFromClient(self, value, skel, name, origData):
-        """
-        Deserialize a single value from the client and validate its integrity.
-
-        This method takes a value submitted from the client and attempts to deserialize and validate it. The value
-        is expected to be a key pointing to a referenced entry in the datastore.
-
-        :param value: The value submitted from the client.
-        :type value: str or dict
-        :param SkeletonInstance skel: The skeleton instance the bone is a part of.
-        :param str name: The name of the bone.
-        :param dict origData: The original data submitted from the client.
-
-        :return: A tuple containing the deserialized and validated value, and a list of errors if any.
-             Errors are instances of `ReadFromClientError`.
-        :rtype: Tuple[Union[dict, None], List[viur.core.bones.ReadFromClientError]]
-        """
-        oldValues = skel[name]
+    def singleValueFromClient(self, value, skel, bone_name, client_data):
+        oldValues = skel[bone_name]
 
         def restoreSkels(key, usingData, index=None):
             refSkel, usingSkel = self._getSkels()
@@ -692,7 +676,7 @@ class RelationalBone(BaseBone):
                 assert entry
             except:  # Invalid key or something like that
                 logging.info("Invalid reference key >%s< detected on bone '%s'",
-                             key, name)
+                             key, bone_name)
                 if isinstance(oldValues, dict):
                     if oldValues["dest"]["key"] == dbKey:
                         entry = oldValues["dest"]
@@ -735,8 +719,6 @@ class RelationalBone(BaseBone):
         else:
             destKey = value
             usingData = None
-        # if not destKey:  # Allow setting this bone back to empty
-        #    return None, [ReadFromClientError(ReadFromClientErrorSeverity.Empty, name, "No value submitted")]
         assert isinstance(destKey, str)
         refSkel, usingSkel, errors = restoreSkels(destKey, usingData)
         if refSkel:
@@ -943,7 +925,7 @@ class RelationalBone(BaseBone):
         if origFilter is None or not "orderby" in rawFilter:  # This query is unsatisfiable or not sorted
             return dbFilter
         if "orderby" in rawFilter and isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
-                "%s." % name):
+               "%s." % name):
             if not dbFilter.getKind() == "viur-relations" and self.multiple:  # This query has not been rewritten (yet)
                 name, skel, dbFilter, rawFilter = self._rewriteQuery(name, skel, dbFilter, rawFilter)
             key = rawFilter["orderby"]
@@ -1106,6 +1088,7 @@ class RelationalBone(BaseBone):
         :param SkeletonInstance skel: The skeleton containing the bone to be refreshed.
         :param str boneName: The name of the bone to be refreshed.
         """
+
         def updateInplace(relDict):
             """
                 Fetches the entity referenced by valDict["dest.key"] and updates all dest.* keys
@@ -1237,7 +1220,7 @@ class RelationalBone(BaseBone):
             realValue = (value, None)
         elif not self.multiple and self.using:
             if not isinstance(value, tuple) or len(value) != 2 or \
-                    not (isinstance(value[0], str) or isinstance(value[0], db.Key)) or \
+                not (isinstance(value[0], str) or isinstance(value[0], db.Key)) or \
                     not isinstance(value[1], self._skeletonInstanceClassRef):
                 raise ValueError("You must supply a tuple of (Database-Key, relSkel) to %s" % boneName)
             realValue = value

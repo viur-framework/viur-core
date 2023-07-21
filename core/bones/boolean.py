@@ -1,10 +1,7 @@
-"""
-    The BooleanBone class represents a boolean data type, which can have two possible values: True or False.
-    It is a subclass of the BaseBone class and is used in the context of the ViUR web application framework.
-"""
-from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import db, conf
-from typing import Dict, List, Optional, Any, Union
+from typing import Any, Dict, List, Optional, Union
+
+from viur.core import conf, db
+from viur.core.bones.base import BaseBone
 
 
 class BooleanBone(BaseBone):
@@ -47,18 +44,7 @@ class BooleanBone(BaseBone):
         if self.multiple:
             raise ValueError("BooleanBone cannot be multiple")
 
-    def singleValueFromClient(self, value, skel: 'viur.core.skeleton.SkeletonInstance', name: str, origData):
-        """
-        Converts a value received from a client into a boolean value.
-
-        :param value: The value received from the client.
-        :param skel: The `SkeletonInstance` object representing the data of the current entity.
-        :param name: The name of the `BooleanBone` instance.
-        :param origData: The original data received from the client.
-
-        :return: A tuple containing the boolean value and `None`.
-        :rtype: Tuple[bool, None]
-        """
+    def singleValueFromClient(self, value, skel, bone_name, client_data):
         return str(value).strip().lower() in conf["viur.bone.boolean.str2true"], None
 
     def getEmptyValue(self):

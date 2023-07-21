@@ -1,11 +1,3 @@
-"""
-A bone for storing credentials.
-
-This bone is designed to store sensitive information like passwords, API keys, or other secret
-strings. It ensures that the stored value is always empty when read from the database. When saved,
-the value is only updated in the database if it is non-empty.
-"""
-
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.bones.string import StringBone
 
@@ -15,11 +7,10 @@ class CredentialBone(StringBone):
         A bone for storing credentials. This bone is designed to store sensitive information like
         passwords, API keys, or other secret strings.
         This is always empty if read from the database.
-        If its saved, its ignored if its values is still empty.
+        If it's saved, its ignored if its values is still empty.
         If its value is not empty, it will update the value in the database
 
         :ivar str type: The type identifier of the bone, set to "str.credential".
-
     """
     type = "str.credential"
 
@@ -45,9 +36,9 @@ class CredentialBone(StringBone):
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
         """
-        Serializes the bone's value for storage.
+        Serializes the bone's value for the database.
 
-        Updates the value in the database only if a new value is supplied. Ensures the value is
+        Updates the value in the entity only if a new value is supplied. Ensures the value is
         never indexed.
 
         :param skel: The skeleton instance that the bone is part of.
@@ -65,7 +56,7 @@ class CredentialBone(StringBone):
 
     def unserialize(self, valuesCache, name):
         """
-        Unserializes the bone's value from storage.
+        Unserializes the bone's value from the database.
 
         This method always returns an empty dictionary as the CredentialBone's value is always empty when read from
         the database.
@@ -77,21 +68,7 @@ class CredentialBone(StringBone):
         """
         return {}
 
-    def singleValueFromClient(self, value, skel, name, origData):
-        """
-        Processes the value received from the client.
-
-        Returns the escaped value if it is valid, or the empty value and an error if the value is invalid.
-
-        :param value: The value received from the client.
-        :param skel: The skeleton instance that the bone is part of.
-        :type skel: SkeletonInstance
-        :param str name: The name of the bone attribute.
-        :param origData: The original data received from the client.
-        :return: A tuple containing the escaped value and None if the value is valid, or the empty value and a
-            ReadFromClientError if the value is invalid.
-        :rtype: tuple
-        """
+    def singleValueFromClient(self, value, skel, bone_name, client_data):
         if not (err := self.isInvalid(value)):
             return value, None
 
