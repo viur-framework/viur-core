@@ -89,4 +89,3 @@ class TestDateBone_setBoneValue(unittest.TestCase):
             self.assertTrue(bone.setBoneValue(skel, self.bone_name, value.strftime(fmt), False, None))
             self.assertIn(self.bone_name, skel)
             self.assertEquals(skel[self.bone_name], value)
-
