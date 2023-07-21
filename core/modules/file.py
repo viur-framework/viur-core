@@ -460,15 +460,18 @@ class File(Tree):
         Internal helper that will create a signed upload-url that can be used to retrieve an uploadURL from
         getUploadURL for guests / users without having file/add permissions. This URL is valid for an hour and can
         be used to upload multiple files.
-        :param mimeTypes: A list of valid mimetypes that can be uploaded (wildcards like "image/*" are supported) or
-            None (no restriction on filetypes)
+        :param mimeTypes:
+        A list of valid mimetypes that can be uploaded (wildcards like "image/*" are supported) or
+        None (no restriction on filetypes)
         :param maxSize: The maximum filesize in bytes or None for no limit
         :param node: The (string encoded) key of a file-leaf (=directory) where this file will be uploaded into or
-            None (the file will then not show up in the filebrowser).
-            .. Warning::
-                If node is set it's the callers responsibility to ensure node is a valid key and that the user has
-                the permission to upload into that directory. ViUR does *not* enforce any canAccess restrictions for
-                keys passed to this function!
+        None (the file will then not show up in the filebrowser).
+
+        .. warning::
+            If node is set it's the callers responsibility to ensure node is a valid key and that the user has
+            the permission to upload into that directory. ViUR does *not* enforce any canAccess restrictions for
+            keys passed to this function!
+
         :return: authData and authSig for the getUploadURL function below
         """
         dataDict = {

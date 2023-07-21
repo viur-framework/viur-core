@@ -28,9 +28,7 @@ from viur.core.tasks import CallDeferred, QueryIter, PeriodicTask, DeleteEntitie
 
 @PeriodicTask(interval=60 * 24)
 def cleanOldEmailsFromLog(*args, **kwargs):
-    """
-        Start the QueryIter DeleteOldEmailsFromLog to remove old, successfully send emails from the queue
-    """
+    """Start the QueryIter DeleteOldEmailsFromLog to remove old, successfully send emails from the queue"""
     qry = db.Query("viur-emails").filter("isSend =", True) \
         .filter("creationDate <", utils.utcNow() - conf["viur.email.logRetention"])
     DeleteEntitiesIter.startIterOnQuery(qry)
@@ -159,18 +157,20 @@ def sendEMail(*,
     :param cc: Carbon-copy recipients. A bare string will be treated as a list with 1 address.
     :param bcc: Blind carbon-copy recipients. A bare string will be treated as a list with 1 address.
     :param headers: Specify headers for this email.
-    :param attachments: List of files to be sent within the mail as attachments. Each attachment must be a dictionary
-        with these keys:
-            filename (string): Name of the file that's attached. Always required
-            content (bytes): Content of the attachment as bytes. Required for the send in blue API.
-            mimetype (string): Mimetype of the file. Suggested parameter for other implementations (not used by SIB)
-            gcsfile (string): Link to a GCS-File to include instead of content. Not supported by the current
-                SIB implementation
+    :param attachments:
+        List of files to be sent within the mail as attachments. Each attachment must be a dictionary with these keys:
+            - filename (string): Name of the file that's attached. Always required
+            - content (bytes): Content of the attachment as bytes. Required for the send in blue API.
+            - mimetype (string): Mimetype of the file. Suggested parameter for other implementations (not used by SIB)
+            - gcsfile (string): Link to a GCS-File to include instead of content.
+            Not supported by the current SIB implementation
+
     :param context: Arbitrary data that can be stored along the queue entry to be evaluated in
         transportSuccessfulCallback (useful for tracking delivery / opening events etc).
 
-    .. Warning:  As emails will be queued (and not send directly) you cannot exceed 1MB in total
-                (for all text and attachments combined)!
+    .. warning::
+        As emails will be queued (and not send directly) you cannot exceed 1MB in total
+        (for all text and attachments combined)!
     """
     # First, ensure we're able to send email at all
     transportClass = conf["viur.email.transportClass"]  # First, ensure we're able to send email at all

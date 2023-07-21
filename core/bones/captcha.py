@@ -12,12 +12,12 @@ from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientEr
 
 
 class CaptchaBone(BaseBone):
-    """
+    r"""
     The CaptchaBone uses the Google reCAPTCHA API to perform the Captcha validation.
 
     :param publicKey: The public key for the Captcha validation.
     :param privateKey: The private key for the Captcha validation.
-    :param **kwargs: Additional arguments to pass to the base class constructor.
+    :param \**kwargs: Additional arguments to pass to the base class constructor.
     """
     type = "captcha"
 

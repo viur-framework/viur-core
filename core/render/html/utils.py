@@ -46,13 +46,17 @@ def jinjaGlobalTest(func_or_alias: Union[Callable, str]) -> Callable:
     with an alias as first argument.
     Otherwise, the test will be registered under the function name.
 
-    Example:
-        >>> from viur.core.render.html import jinjaGlobalTest
-        >>> # @jinjaGlobalTest  # available under "positive_number"
-        >>> @jinjaGlobalTest("positive")  # available under "positive"
-        >>> def positive_number(render, value):
-        >>>     return isinstance(value, int) and value > 0
+        ..  code-block:: python
+
+            # Example:
+            from viur.core.render.html import jinjaGlobalTest
+            # @jinjaGlobalTest  # available under "positive_number"
+
+            @jinjaGlobalTest("positive")  # available under "positive"
+            def positive_number(render, value):
+                return isinstance(value, int) and value > 0
     """
+
     if callable(func_or_alias):  # is func
         __jinjaTests_[func_or_alias.__name__] = func_or_alias
         return func_or_alias
