@@ -45,11 +45,10 @@ def haversine(lat1, lng1, lat2, lng2):
 
 
 class SpatialBone(BaseBone):
-    """
+    r"""
     The "SpatialBone" is a specific type of data structure designed to handle spatial data, such as geographical
     coordinates or geometries. This bone would typically be used for representing and storing location-based data,
     like the coordinates of a point of interest on a map or the boundaries of a geographic region.
-
     This feature allows querying elements near a specific location. Before using, designate the map region for
     which the index should be constructed. To ensure the best accuracy, minimize the region size; using the entire
     world is not feasible since boundary wraps are not executed. GridDimensions indicates the number of sub-regions
@@ -62,7 +61,7 @@ class SpatialBone(BaseBone):
         100km in width and height allows the algorithm to exclude results further than 200km away
         at the database-query-level, significantly enhancing performance and reducing query costs.
 
-        Example region: Germany: boundsLat=(46.988, 55.022), boundsLng=(4.997, 15.148)
+        Example region: Germany: ```boundsLat=(46.988, 55.022), boundsLng=(4.997, 15.148)```
 
     :param Tuple[float, float] boundsLat: The outer bounds (Latitude) of the region we will search in
     :param Tuple[float, float] boundsLng: The outer bounds (Longitude) of the region we will search in
@@ -245,8 +244,8 @@ class SpatialBone(BaseBone):
         prefix: Optional[str] = None
     ) -> db.Query:
         """
-        Parses the client's search filter specified in their request and converts it into a format
-        understood by the datastore. This function should:
+        Parses the client's search filter specified in their request and converts it into a format understood by the
+        datastore.
             - Ignore filters that do not target this bone.
             - Safely handle malformed data in rawFilter (this parameter is directly controlled by the client).
 

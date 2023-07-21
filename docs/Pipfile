@@ -7,6 +7,7 @@ name = "pypi"
 sphinx = "==6.2.1"
 sphinx-autoapi = "*"
 sphinx-autobuild = "*"
+sphinx-autodoc-typehints = "*"
 
 [dev-packages]
 

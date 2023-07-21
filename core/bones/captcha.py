@@ -8,7 +8,7 @@ from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientEr
 
 
 class CaptchaBone(BaseBone):
-    """
+    r"""
     The CaptchaBone is used to ensure that a user is not a bot.
 
     The Captcha bone uses the Google reCAPTCHA API to perform the Captcha
@@ -16,7 +16,7 @@ class CaptchaBone(BaseBone):
 
     :param publicKey: The public key for the Captcha validation.
     :param privateKey: The private key for the Captcha validation.
-    :param **kwargs: Additional arguments to pass to the base class constructor.
+    :param \**kwargs: Additional arguments to pass to the base class constructor.
     """
     type = "captcha"
 

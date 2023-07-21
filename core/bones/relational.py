@@ -52,13 +52,9 @@ class RelationalUpdateLevel(Enum):
 class RelationalBone(BaseBone):
     """
     The base class for all relational bones in the ViUR framework.
-
     RelationalBone is used to create and manage relationships between database entities. This class provides
     basic functionality and attributes that can be extended by other specialized relational bone classes,
     such as N1Relation, N2NRelation, and Hierarchy.
-
-    This is our magic class implementing relations.
-
     This implementation prioritizes read efficiency and is suitable for situations where data is read more
     frequently than written. However, it comes with increased write operations when writing an entity to the
     database. The additional write operations depend on the type of relationship: multiple=True RelationalBones
@@ -89,49 +85,67 @@ class RelationalBone(BaseBone):
     :param multiple: If True, allow referencing multiple Elements of the given class. (Eg. n:n-relation).
         Otherwise its n:1, (you can only select exactly one). It's possible to use a unique constraint on this
         bone, allowing for at-most-1:1 or at-most-1:n relations. Instead of true, it's also possible to use
-        a :class:MultipleConstraints instead.
-    :param format: Hint for the frontend how to display such an relation. This is now a python expression
+        a ```class MultipleConstraints``` instead.
+
+    :param format:
+        Hint for the frontend how to display such an relation. This is now a python expression
         evaluated by safeeval on the client side. The following values will be passed to the expression:
-            - value: dict:
+
+            - value
                 The value to display. This will be always a dict (= a single value) - even if the relation is
                 multiple (in which case the expression is evaluated once per referenced entity)
-            - structure: dict:
+
+            - structure
                 The structure of the skeleton this bone is part of as a dictionary as it's transferred to the
                 fronted by the admin/vi-render.
-            - language: str:
+
+            - language
                 The current language used by the frontend in ISO2 code (eg. "de"). This will be always set, even if
                 the project did not enable the multi-language feature.
-    :param updateLevel: Indicates how ViUR should keep the values copied from the referenced entity into our
+
+    :param updateLevel:
+        Indicates how ViUR should keep the values copied from the referenced entity into our
         entity up to date. If this bone is indexed, it's recommended to leave this set to
         RelationalUpdateLevel.Always, as filtering/sorting by this bone will produce stale results.
-        Possible values are:
-            - RelationalUpdateLevel.Always:
+
+            :param RelationalUpdateLevel.Always:
+
                 always update refkeys (old behavior). If the referenced entity is edited, ViUR will update this
                 entity also (after a small delay, as these updates happen deferred)
-            - RelationalUpdateLevel.OnRebuildSearchIndex:
+
+            :param RelationalUpdateLevel.OnRebuildSearchIndex:
+
                 update refKeys only on rebuildSearchIndex. If the referenced entity changes, this entity will
                 remain unchanged (this RelationalBone will still have the old values), but it can be updated
                 by either by editing this entity or running a rebuildSearchIndex over our kind.
-            - RelationalUpdateLevel.OnValueAssignment:
+
+            :param RelationalUpdateLevel.OnValueAssignment:
+
                 update only if explicitly set. A rebuildSearchIndex will not trigger an update, this bone has to be
                 explicitly modified (in an edit) to have it's values updated
-    :param consistency: Can be used to implement SQL-like constrains on this relation. Possible values are:
-        - RelationalConsistency.Ignore:
-            If the referenced entity gets deleted, this bone will not change. It will still reflect the old
-            values. This will be even be preserved over edits, however if that referenced value is once
-            deleted by the user (assigning a different value to this bone or removing that value of the list
-            of relations if we are multiple) there's no way of restoring it
-        - RelationalConsistency.PreventDeletion:
-            Will prevent deleting the referenced entity as long as it's selected in this bone (calling
-            skel.delete() on the referenced entity will raise errors.Locked). It's still (technically)
-            possible to remove the underlying datastore entity using db.Delete manually, but this *must not*
-            be used on a skeleton object as it will leave a whole bunch of references in a stale state.
-        - RelationalConsistency.SetNull: Will set this bone to None (or remove the relation from the list in
-            case we are multiple) when the referenced entity is deleted.
-        - RelationalConsistency.CascadeDeletion:
-            (Dangerous!) Will delete this entity when the referenced entity is deleted. Warning: Unlike
-            relational updates this will cascade. If Entity A references B with CascadeDeletion set, and
-            B references C also with CascadeDeletion; if C gets deleted, both B and A will be deleted as well.
+
+    :param consistency:
+        Can be used to implement SQL-like constrains on this relation. Possible values are:
+            - RelationalConsistency.Ignore
+                If the referenced entity gets deleted, this bone will not change. It will still reflect the old
+                values. This will be even be preserved over edits, however if that referenced value is once
+                deleted by the user (assigning a different value to this bone or removing that value of the list
+                of relations if we are multiple) there's no way of restoring it
+
+            - RelationalConsistency.PreventDeletion
+                Will prevent deleting the referenced entity as long as it's selected in this bone (calling
+                skel.delete() on the referenced entity will raise errors.Locked). It's still (technically)
+                possible to remove the underlying datastore entity using db.Delete manually, but this *must not*
+                be used on a skeleton object as it will leave a whole bunch of references in a stale state.
+
+            - RelationalConsistency.SetNull
+                Will set this bone to None (or remove the relation from the list in
+                case we are multiple) when the referenced entity is deleted.
+
+            - RelationalConsistency.CascadeDeletion:
+                (Dangerous!) Will delete this entity when the referenced entity is deleted. Warning: Unlike
+                relational updates this will cascade. If Entity A references B with CascadeDeletion set, and
+                B references C also with CascadeDeletion; if C gets deleted, both B and A will be deleted as well.
 
     """
     refKeys = ["key", "name"]  # todo: turn into a tuple, as it should not be mutable.
@@ -163,55 +177,79 @@ class RelationalBone(BaseBone):
         """
             Initialize a new RelationalBone.
 
-            :param kind: KindName of the referenced property.
-            :param module: Name of the module which should be used to select entities of kind "type". If not set,
+            :param kind:
+                KindName of the referenced property.
+            :param module:
+                Name of the module which should be used to select entities of kind "type". If not set,
                 the value of "type" will be used (the kindName must match the moduleName)
-            :param refKeys: A list of properties to include from the referenced property. These properties will be
+            :param refKeys:
+                A list of properties to include from the referenced property. These properties will be
                 available in the template without having to fetch the referenced property. Filtering is also only possible
                 by properties named here!
-            :param parentKeys: A list of properties from the current skeleton to include. If mixing filtering by
+            :param parentKeys:
+                A list of properties from the current skeleton to include. If mixing filtering by
                 relational properties and properties of the class itself, these must be named here.
-            :param multiple: If True, allow referencing multiple Elements of the given class. (Eg. n:n-relation).
+            :param multiple:
+                If True, allow referencing multiple Elements of the given class. (Eg. n:n-relation).
                 Otherwise its n:1, (you can only select exactly one). It's possible to use a unique constraint on this
                 bone, allowing for at-most-1:1 or at-most-1:n relations. Instead of true, it's also possible to use
                 a :class:MultipleConstraints instead.
+
             :param format: Hint for the frontend how to display such an relation. This is now a python expression
-                evaluated by safeeval on the client side. The following values will be passed to the expression:
-                    - value: dict: The value to display. This will be always a dict (= a single value) - even if the
-                        relation is multiple (in which case the expression is evaluated once per referenced entity)
-                    - structure: dict: The structure of the skeleton this bone is part of as a dictionary as it's
-                        transferred to the fronted by the admin/vi-render.
-                    - language: str: The current language used by the frontend in ISO2 code (eg. "de"). This will be
-                        always set, even if the project did not enable the multi-language feature.
-            :param updateLevel: Indicates how ViUR should keep the values copied from the referenced entity into our
+                evaluated by safeeval on the client side. The following values will be passed to the expression
+
+                :param value:
+                    The value to display. This will be always a dict (= a single value) - even if the
+                    relation is multiple (in which case the expression is evaluated once per referenced entity)
+                :param structure:
+                    The structure of the skeleton this bone is part of as a dictionary as it's
+                    transferred to the fronted by the admin/vi-render.
+                :param language:
+                    The current language used by the frontend in ISO2 code (eg. "de"). This will be
+                    always set, even if the project did not enable the multi-language feature.
+
+            :param updateLevel:
+                Indicates how ViUR should keep the values copied from the referenced entity into our
                 entity up to date. If this bone is indexed, it's recommended to leave this set to
                 RelationalUpdateLevel.Always, as filtering/sorting by this bone will produce stale results.
-                Possible values are:
-                    - RelationalUpdateLevel.Always: always update refkeys (old behavior). If the referenced entity is
-                        edited, ViUR will update this
+
+                    :param RelationalUpdateLevel.Always:
+                        always update refkeys (old behavior). If the referenced entity is edited, ViUR will update this
                         entity also (after a small delay, as these updates happen deferred)
-                    - RelationalUpdateLevel.OnRebuildSearchIndex: update refKeys only on    rebuildSearchIndex. If the
+                    :param RelationalUpdateLevel.OnRebuildSearchIndex:
+                        update refKeys only on rebuildSearchIndex. If the
                         referenced entity changes, this entity will remain unchanged
                         (this RelationalBone will still have the old values), but it can be updated
                         by either by editing this entity or running a rebuildSearchIndex over our kind.
-                    - RelationalUpdateLevel.OnValueAssignment: update only if explicitly set. A rebuildSearchIndex will not trigger
+                    :param RelationalUpdateLevel.OnValueAssignment:
+                        update only if explicitly set. A rebuildSearchIndex will not trigger
                         an update, this bone has to be explicitly modified (in an edit) to have it's values updated
-            :param consistency: Can be used to implement SQL-like constrains on this relation. Possible values are:
-                - RelationalConsistency.Ignore: If the referenced entity gets deleted, this bone will not change. It
-                    will still reflect the old values. This will be even be preserved over edits, however if that
-                    referenced value is once deleted by the user (assigning a different value to this bone or removing
-                    that value of the list of relations if we are multiple) there's no way of restoring it
-                - RelationalConsistency.PreventDeletion: Will prevent deleting the referenced entity as long as it's
-                    selected in this bone (calling skel.delete() on the referenced entity will raise errors.Locked).
-                    It's still (technically) possible to remove the underlying datastore entity using db.Delete manually,
-                    but this *must not* be used on a skeleton object as it will leave a whole bunch of references in a
-                    stale state.
-                - RelationalConsistency.SetNull: Will set this bone to None (or remove the relation from the list in
-                    case we are multiple) when the referenced entity is deleted.
-                - RelationalConsistency.CascadeDeletion: (Dangerous!) Will delete this entity when the referenced entity
-                    is deleted. Warning: Unlike relational updates this will cascade. If Entity A references B with
-                    CascadeDeletion set, and B references C also with CascadeDeletion; if C gets deleted, both B and A
-                    will be deleted as well.
+
+            :param consistency:
+                Can be used to implement SQL-like constrains on this relation.
+
+                    :param RelationalConsistency.Ignore:
+                        If the referenced entity gets deleted, this bone will not change. It
+                        will still reflect the old values. This will be even be preserved over edits, however if that
+                        referenced value is once deleted by the user (assigning a different value to this bone or
+                        removing that value of the list of relations if we are multiple) there's no way of restoring it
+
+                    :param RelationalConsistency.PreventDeletion:
+                        Will prevent deleting the referenced entity as long as it's
+                        selected in this bone (calling skel.delete() on the referenced entity will raise errors.Locked).
+                        It's still (technically) possible to remove the underlying datastore entity using db.Delete
+                        manually, but this *must not* be used on a skeleton object as it will leave a whole bunch of
+                        references in a stale state.
+
+                    :param RelationalConsistency.SetNull:
+                        Will set this bone to None (or remove the relation from the list in
+                        case we are multiple) when the referenced entity is deleted.
+
+                    :param RelationalConsistency.CascadeDeletion:
+                        (Dangerous!) Will delete this entity when the referenced entity
+                        is deleted. Warning: Unlike relational updates this will cascade. If Entity A references B with
+                        CascadeDeletion set, and B references C also with CascadeDeletion; if C gets deleted, both B and
+                        A will be deleted as well.
         """
         super().__init__(**kwargs)
         self.format = format

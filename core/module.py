@@ -24,18 +24,20 @@ class Module:
     """
 
     roles: Dict = {}
-    """
+    r"""
     Allows to specify role settings for a module.
     Defaults to no role definition, which ignores the module entirely.
     A "*" can either be used as key or as value to allow for "all roles", or "all rights".
 
-    Example:
+        .. code-block:: python
 
-        >>> roles = {
-        >>>     "*": "view",                # Any role may only "view"
-        >>>     "editor": ("add", "edit"),  # Role "editor" may "add" or "edit", but not "delete"
-        >>>     "admin": "*",               # Role "admin" can do everything
-        >>> }
+            # Example
+            roles = {
+                "*": "view",                # Any role may only "view"
+                "editor": ("add", "edit"),  # Role "editor" may "add" or "edit", but not "delete"
+                "admin": "*",               # Role "admin" can do everything
+            }
+
     """
 
     adminInfo: Union[Dict[str, Any], Callable] = None

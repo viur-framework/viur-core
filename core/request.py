@@ -407,13 +407,17 @@ class BrowseHandler():  # webapp.RequestHandler
                 When using a typeHint List[T], that parameter can only be submitted as a keyword argument. Trying to
                 fill that parameter using a *args parameter will raise TypeError.
 
-            .. Example: Giving the following function, it's possible to fill *a* either by /test/aaa or by /test?a=aaa
-                >>> @exposed
-                >>> def test(a: str)
-                In case of
-                >>> @exposed
-                >>> def test(a: List[str])
-                only /test?a=aaa is valid. Invocations like /test/aaa will be rejected
+            ..  code-block:: python
+
+                # Example:
+                # Giving the following function, it's possible to fill *a* either by /test/aaa or by /test?a=aaa
+                @exposed
+                def test(a: str)
+
+                # In case of
+                @exposed
+                def test(a: List[str])
+                # only /test?a=aaa is valid. Invocations like /test/aaa will be rejected
 
             :param typeHint: Type to which inValue should be converted to
             :param inValue: The value that should be converted to the given type

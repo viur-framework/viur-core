@@ -117,6 +117,7 @@ def getCurrentUser(render: Render) -> Optional[SkeletonInstance]:
     """
     currentUser = current.user.get()
     if currentUser:
+        currentUser = currentUser.clone()  # need to clone, as renderPreparation is changed
         currentUser.renderPreparation = render.renderBoneValue
     return currentUser
 
@@ -657,15 +658,17 @@ def downloadUrlFor(render: Render,
                    derived: Optional[str] = None,
                    downloadFileName: Optional[str] = None) -> Optional[str]:
     """
-        Constructs a signed download-url for the given file-bone. Mostly a wrapper around
+    Constructs a signed download-url for the given file-bone. Mostly a wrapper around
         :meth:`viur.core.utils.downloadUrlFor`.
 
         :param render: The jinja renderer instance
         :param fileObj: The file-bone (eg. skel["file"])
-        :param expires: None if the file is supposed to be public (which causes it to be cached on the google ede
-            caches), otherwise it's lifetime in seconds
-        :param derived: Optional the filename of a derived file, otherwise the download-link will point to the
-            originally uploaded file.
+        :param expires:
+            None if the file is supposed to be public
+            (which causes it to be cached on the google ede caches), otherwise it's lifetime in seconds.
+        :param derived:
+            Optional the filename of a derived file,
+            otherwise the download-link will point to the originally uploaded file.
         :param downloadFileName: The filename to use when saving the response payload locally.
         :return: THe signed download-url relative to the current domain (eg /download/...)
     """
@@ -689,18 +692,22 @@ def downloadUrlFor(render: Render,
 def srcSetFor(render: Render, fileObj: dict, expires: Optional[int],
               width: Optional[int] = None, height: Optional[int] = None) -> str:
     """
-        Generates a string suitable for use as the srcset tag in html. This functionality provides the browser
-        with a list of images in different sizes and allows it to choose the smallest file that will fill it's viewport
-        without upscaling.
-        :param render: The render instance that's calling this function
-        :param fileObj: The file-bone (or if multiple=True a single value from it) to generate the srcset for
-        :param expires: None if the file is supposed to be public (which causes it to be cached on the google ede
-            caches), otherwise it's lifetime in seconds
-        :param width: A list of widths that should be included in the srcset. If a given width is not available, it will
-            be skipped.
-        :param height: A list of heights that should be included in the srcset. If a given height is not available,
-            it will    be skipped.
-        :return: The srctag generated or an empty string if a invalid file object was supplied
+    Generates a string suitable for use as the srcset tag in html. This functionality provides the browser with a list
+    of images in different sizes and allows it to choose the smallest file that will fill it's viewport without
+    upscaling.
+
+        :param render:
+            The render instance that's calling this function.
+        :param fileObj:
+            The file-bone (or if multiple=True a single value from it) to generate the srcset for.
+        :param expires: None if the file is supposed to be public
+            (which causes it to be cached on the google ede caches), otherwise it's lifetime in seconds.
+        :param width: A list of widths that should be included in the srcset.
+            If a given width is not available, it will be skipped.
+        :param height: A list of heights that should be included in the srcset.
+            If a given height is not available, it will be skipped.
+
+    :return: The srctag generated or an empty string if a invalid file object was supplied
     """
     return utils.srcSetFor(fileObj, expires, width, height)
 
