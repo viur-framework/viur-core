@@ -78,7 +78,7 @@ class List(SkelModule):
     @exposed
     @force_post
     @require_skey
-    def preview(self, skey: str, *args, **kwargs) -> Any:
+    def preview(self, *args, **kwargs) -> Any:
         """
             Renders data for an entry, without reading from the database.
             This function allows to preview an entry without writing it to the database.

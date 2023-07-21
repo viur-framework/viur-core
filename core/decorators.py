@@ -14,7 +14,7 @@ def ensure_viur_flags(func: Callable) -> None:
         func.viur_flags = {}
 
 
-def access(*access: str | list[str]) -> Callable:
+def access(*access: str | list[str], *, offer_login: bool | str = False) -> Callable:
     """Decorator, which performs the authentication and authorization check.
 
     To expose a method only to logged in users with the access
@@ -24,7 +24,7 @@ def access(*access: str | list[str]) -> Callable:
     .. code-block:: python
         from viur.core.decorators import access
         @access("root", ["admin", "file-edit"], ["maintainer"])
-        def yourMethod(self):
+        def your_method(self):
             return "You're allowed!"
     """
 
@@ -37,6 +37,9 @@ def access(*access: str | list[str]) -> Callable:
         def wrapper(*args, **kwargs):
             user = current.user.get()
             if not user:
+                if offer_login:
+                    raise errors.Redirect(offer_login if isinstance(offer_login, str) else "/user/login")
+
                 raise errors.Unauthorized()
 
             for acc in access:
@@ -67,7 +70,13 @@ Has no effect on development-servers.
     return func
 
 
-def require_skey(func: Callable = None, *, allow_empty: bool = False, forward_argument: str = "", **extra_kwargs: dict) -> Callable:
+def require_skey(
+    func: Callable = None,
+    *,
+    allow_empty: bool = False,
+    forward_argument: str = "",
+    **extra_kwargs: dict,
+) -> Callable:
     """
     Decorator, which marks the function requires a skey.
     """

@@ -17,7 +17,6 @@ from time import sleep
 
 from viur.core import current, db, errors, utils
 from viur.core.config import conf
-
 from viur.core.decorators import ensure_viur_flags
 
 
