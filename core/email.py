@@ -2,7 +2,7 @@ import logging, os
 import json, base64
 from urllib import request
 from abc import ABC, abstractmethod
-from typing import Any, Union, List, Dict
+from typing import Any, Callable, Union, List, Dict
 from viur.core.config import conf
 from viur.core import utils, db
 from viur.core.tasks import CallDeferred, QueryIter, PeriodicTask, DeleteEntitiesIter
@@ -119,10 +119,14 @@ def sendEmailDeferred(emailKey: db.Key):
         logging.exception(e)
 
 
-def normalizeToList(value: Union[None, Any, List[Any]]) -> List[Any]:
+def normalize_to_list(value: Union[None, Any, List[Any], Callable[[], List]]) -> List[Any]:
     """
-        Convert the given value to a list.
+    Convert the given value to a list.
+
+    If the value parameter is callable, it will be called first to get the actual value.
     """
+    if callable(value):
+        value = value()
     if value is None:
         return []
     if isinstance(value, list):
@@ -141,7 +145,7 @@ def sendEMail(*,
               headers: Dict[str, str] = None,
               attachments: List[Dict[str, Any]] = None,
               context: Union[db.DATASTORE_BASE_TYPES, List[db.DATASTORE_BASE_TYPES], db.Entity] = None,
-              **kwargs) -> Any:
+              **kwargs) -> bool:
     """
     General purpose function for sending e-mail.
     This function allows for sending e-mails, also with generated content using the Jinja2 template engine.
@@ -176,14 +180,14 @@ def sendEMail(*,
     transportClass = conf["viur.email.transportClass"]  # First, ensure we're able to send email at all
     assert issubclass(transportClass, EmailTransport), "No or invalid email transportclass specified!"
     # Ensure that all recipient parameters (dest, cc, bcc) are a list
-    dests = normalizeToList(dests)
-    cc = normalizeToList(cc)
-    bcc = normalizeToList(bcc)
+    dests = normalize_to_list(dests)
+    cc = normalize_to_list(cc)
+    bcc = normalize_to_list(bcc)
     assert dests or cc or bcc, "No destination address given"
     assert all([isinstance(x, str) and x for x in dests]), "Found non-string or empty destination address"
     assert all([isinstance(x, str) and x for x in cc]), "Found non-string or empty cc address"
     assert all([isinstance(x, str) and x for x in bcc]), "Found non-string or empty bcc address"
-    attachments = normalizeToList(attachments)
+    attachments = normalize_to_list(attachments)
     if not (bool(stringTemplate) ^ bool(tpl)):
         raise ValueError("You have to set the params 'tpl' xor a 'stringTemplate'.")
     if attachments:
@@ -202,7 +206,7 @@ def sendEMail(*,
     if conf["viur.email.recipientOverride"]:
         logging.warning("Overriding destination %s with %s", dests, conf["viur.email.recipientOverride"])
         oldDests = dests
-        newDests = normalizeToList(conf["viur.email.recipientOverride"])
+        newDests = normalize_to_list(conf["viur.email.recipientOverride"])
         dests = []
         for newDest in newDests:
             if newDest.startswith("@"):
@@ -246,29 +250,31 @@ def sendEMail(*,
     return True
 
 
-def sendEMailToAdmins(subject: str, body: str, *args, **kwargs):
+def sendEMailToAdmins(subject: str, body: str, *args, **kwargs) -> bool:
     """
-        Sends an e-mail to the root users of the current app.
+    Sends an e-mail to the root users of the current app.
 
-        :param subject: Defines the subject of the message.
-        :param body: Defines the message body.
+    If conf["viur.email.admin_recipients"] is set, these recipients
+    will be used instead of the root users.
+
+    :param subject: Defines the subject of the message.
+    :param body: Defines the message body.
     """
     success = False
     try:
-        if "user" in dir(conf["viur.mainApp"]):
-            users = []
-            for userSkel in conf["viur.mainApp"].user.viewSkel().all().filter("access =", "root").fetch():
-                users.append(userSkel["name"])
+        users = []
+        if conf["viur.email.admin_recipients"] is not None:
+            users = normalize_to_list(conf["viur.email.admin_recipients"])
+        elif "user" in dir(conf["viur.mainApp"]):
+            for user_skel in conf["viur.mainApp"].user.viewSkel().all().filter("access =", "root").fetch():
+                users.append(user_skel["name"])
 
-            if users:
-                ret = sendEMail(dests=users, stringTemplate=os.linesep.join((subject, body)), *args, **kwargs)
-                success = True
-                return ret
-            else:
-                logging.warning("There are no root-users.")
-
-    except Exception:
-        raise
+        if users:
+            ret = sendEMail(dests=users, stringTemplate=os.linesep.join((subject, body)), *args, **kwargs)
+            success = True
+            return ret
+        else:
+            logging.warning("There are no recipients for admin e-mails available.")
 
     finally:
         if not success:
