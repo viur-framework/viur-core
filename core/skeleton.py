@@ -13,6 +13,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Ty
 from viur.core import conf, db, email, errors, utils, current
 from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, RelationalUpdateLevel, SelectBone, StringBone
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
+from viur.core.bones.base import Compute, ComputeMethod, ComputeInterval
 from viur.core.tasks import CallableTask, CallableTaskBase, QueryIter, CallDeferred
 
 _undefined = object()
@@ -648,17 +649,18 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         descr="created at",
         readOnly=True,
         visible=False,
-        creationMagic=True,
         indexed=True,
+        compute=Compute(fn=utils.utcNow, interval=ComputeInterval(ComputeMethod.Once)),
     )
 
     # The last date (including time) when this entry has been updated
+
     changedate = DateBone(
         descr="updated at",
         readOnly=True,
         visible=False,
-        updateMagic=True,
         indexed=True,
+        compute=Compute(fn=utils.utcNow, interval=ComputeInterval(ComputeMethod.OnWrite)),
     )
 
     viurCurrentSeoKeys = seoKeyBone(descr="Seo-Keys",
