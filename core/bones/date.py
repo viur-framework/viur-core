@@ -111,79 +111,85 @@ class DateBone(BaseBone):
         :returns: tuple[datetime or None, [Errors] or None]
         """
         time_zone = self.guessTimeZone()
-        rawValue = value
-        if str(rawValue).replace("-", "", 1).replace(".", "", 1).isdigit():
-            if int(rawValue) < -1 * (2 ** 30) or int(rawValue) > (2 ** 31) - 2:
-                value = False  # its invalid
+        value = str(value)  # always enforce value to be a str
+
+        if value.replace("-", "", 1).replace(".", "", 1).isdigit():
+            if int(value) < -1 * (2 ** 30) or int(value) > (2 ** 31) - 2:
+                value = None
             else:
-                value = datetime.fromtimestamp(float(rawValue), tz=time_zone).replace(microsecond=0)
+                value = datetime.fromtimestamp(float(value), tz=time_zone).replace(microsecond=0)
+
         elif not self.date and self.time:
             try:
                 value = datetime.fromisoformat(value)
-            except:
+
+            except ValueError:
                 try:
-                    if str(rawValue).count(":") > 1:
-                        (hour, minute, second) = [int(x.strip()) for x in str(rawValue).split(":")]
+                    if value.count(":") > 1:
+                        (hour, minute, second) = [int(x.strip()) for x in value.split(":")]
                         value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute, second=second,
                                          tzinfo=time_zone)
-                    elif str(rawValue).count(":") > 0:
-                        (hour, minute) = [int(x.strip()) for x in str(rawValue).split(":")]
+                    elif value.count(":") > 0:
+                        (hour, minute) = [int(x.strip()) for x in value.split(":")]
                         value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute, tzinfo=time_zone)
-                    elif str(rawValue).replace("-", "", 1).isdigit():
-                        value = datetime(year=1970, month=1, day=1, second=int(rawValue), tzinfo=time_zone)
+                    elif value.replace("-", "", 1).isdigit():
+                        value = datetime(year=1970, month=1, day=1, second=int(value), tzinfo=time_zone)
                     else:
-                        value = False  # its invalid
-                except:
-                    value = False
-        elif str(rawValue).lower().startswith("now"):
-            tmpRes = datetime.now(time_zone)
-            if len(str(rawValue)) > 4:
+                        value = None
+
+                except ValueError:
+                    value = None
+
+        elif value.lower().startswith("now"):
+            now = datetime.now(time_zone)
+            if len(value) > 4:
                 try:
-                    tmpRes += timedelta(seconds=int(str(rawValue)[3:]))
-                except:
-                    pass
-            value = tmpRes
+                    now += timedelta(seconds=int(value[3:]))
+                except ValueError:
+                    now = None
+
+            value = now
+
         else:
+            # try to parse ISO-formatted date string
             try:
                 value = datetime.fromisoformat(value)
-            except:
-                try:
-                    if " " in rawValue:  # Date with time
-                        try:  # Times with seconds
-                            if "-" in rawValue:  # ISO Date
-                                value = datetime.strptime(str(rawValue), "%Y-%m-%d %H:%M:%S")
-                            elif "/" in rawValue:  # Ami Date
-                                value = datetime.strptime(str(rawValue), "%m/%d/%Y %H:%M:%S")
-                            else:  # European Date
-                                value = datetime.strptime(str(rawValue), "%d.%m.%Y %H:%M:%S")
-                        except:
-                            if "-" in rawValue:  # ISO Date
-                                value = datetime.strptime(str(rawValue), "%Y-%m-%d %H:%M")
-                            elif "/" in rawValue:  # Ami Date
-                                value = datetime.strptime(str(rawValue), "%m/%d/%Y %H:%M")
-                            else:  # European Date
-                                value = datetime.strptime(str(rawValue), "%d.%m.%Y %H:%M")
-                    else:
-                        if "-" in rawValue:  # ISO (Date only)
-                            value = datetime.strptime(str(rawValue), "%Y-%m-%d")
-                        elif "/" in rawValue:  # Ami (Date only)
-                            value = datetime.strptime(str(rawValue), "%m/%d/%Y")
-                        else:  # European (Date only)
-                            value = datetime.strptime(str(rawValue), "%d.%m.%Y")
-                except:
-                    value = False  # its invalid
+            except ValueError:
+                # otherwise, test against several format strings
+                for fmt in (
+                    "%Y-%m-%d %H:%M:%S",
+                    "%m/%d/%Y %H:%M:%S",
+                    "%d.%m.%Y %H:%M:%S",
+                    "%Y-%m-%d %H:%M",
+                    "%m/%d/%Y %H:%M",
+                    "%d.%m.%Y %H:%M",
+                    "%Y-%m-%d",
+                    "%m/%d/%Y",
+                    "%d.%m.%Y",
+                ):
+                    try:
+                        value = datetime.strptime(value, fmt)
+                        break
+                    except ValueError:
+                        continue
+                else:
+                    value = None
 
         if not value:
             return self.getEmptyValue(), [
                 ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")
             ]
+
         if value.tzinfo and self.naive:
             return self.getEmptyValue(), [
                 ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Datetime must be naive")
             ]
+
         if not value.tzinfo and not self.naive:
             value = time_zone.localize(value)
 
+        # remove microseconds
+        # TODO: might become configurable
         value = value.replace(microsecond=0)
 
         if err := self.isInvalid(value):
