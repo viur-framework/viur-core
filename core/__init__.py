@@ -346,6 +346,7 @@ __deprecated_decorators = {
     "internalExposed": ("internal_exposed", internal_exposed)
 }
 
+
 def __get_deprecated_decorator(attr: str) -> object:
     if entry := __deprecated_decorators.get(attr):
         func = entry[1]
