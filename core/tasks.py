@@ -2,22 +2,21 @@ import base64
 import json
 import logging
 import os
+import sys
 from datetime import datetime, timedelta
 from functools import wraps
+from time import sleep
 from typing import Any, Callable, Dict, Optional, Tuple
 
 import grpc
 import pytz
 import requests
-import sys
 from google.cloud import tasks_v2
 from google.cloud.tasks_v2.services.cloud_tasks.transports import CloudTasksGrpcTransport
 from google.protobuf import timestamp_pb2
-from time import sleep
-
 from viur.core import current, db, errors, utils
 from viur.core.config import conf
-from viur.core.decorators import ensure_viur_flags
+from viur.core.decorators import exposed, require_skey
 
 
 # class JsonKeyEncoder(json.JSONEncoder):
@@ -188,6 +187,7 @@ class TaskHandler:
                     return res
         return None
 
+    @exposed
     def queryIter(self, *args, **kwargs):
         """
             This processes one chunk of a queryIter (see below).
@@ -205,9 +205,7 @@ class TaskHandler:
             logging.error("Could not continue queryIter - %s not known on this instance" % data["classID"])
         MetaQueryIter._classCache[data["classID"]]._qryStep(data)
 
-    ensure_viur_flags(queryIter)
-    queryIter.viur_flags["exposed"] = True
-
+    @exposed
     def deferred(self, *args, **kwargs):
         """
             This catches one deferred call and routes it to its destination
@@ -284,9 +282,7 @@ class TaskHandler:
                 logging.exception(e)
                 raise errors.RequestTimeout()  # Task-API should retry
 
-    ensure_viur_flags(deferred)
-    deferred.viur_flags["exposed"] = True
-
+    @exposed
     def cron(self, cronName="default", *args, **kwargs):
         global _callableTasks, _periodicTasks, _appengineServiceIPs
         req = current.request.get()
@@ -342,9 +338,7 @@ class TaskHandler:
                     logging.exception(e)
         logging.debug("Scheduled tasks complete")
 
-    ensure_viur_flags(cron)
-    cron.viur_flags["exposed"] = True
-
+    @exposed
     def list(self, *args, **kwargs):
         """Lists all user-callable tasks which are callable by this user"""
         global _callableTasks
@@ -359,14 +353,11 @@ class TaskHandler:
 
         return self.render.list(tasks)
 
-    ensure_viur_flags(list)
-    list.viur_flags["exposed"] = True
-
-
+    @exposed
+    @require_skey
     def execute(self, taskID, *args, **kwargs):
         """Queues a specific task for the next maintenance run"""
         global _callableTasks
-        from viur.core import securitykey
         if taskID in _callableTasks:
             task = _callableTasks[taskID]()
         else:
@@ -379,10 +370,6 @@ class TaskHandler:
             return self.render.add(skel)
         task.execute(**skel.accessedValues)
         return self.render.addSuccess(skel)
-
-    ensure_viur_flags(execute)
-    execute.viur_flags["exposed"] = True
-    execute.viur_flags["skey"] = True
 
 
 TaskHandler.admin = True

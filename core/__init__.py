@@ -27,6 +27,7 @@
 import os
 import webob
 import yaml
+import warnings
 from types import ModuleType
 from typing import Callable, Dict, Union, List
 from viur.core import session, errors, i18n, request, utils, current
@@ -36,7 +37,6 @@ from viur.core.module import Module
 # noinspection PyUnresolvedReferences
 from viur.core import logging as viurLogging  # unused import, must exist, initializes request logging
 from viur.core.decorators import force_post, force_ssl, exposed, internal_exposed, require_skey
-from viur.core.decorators import get_attr as get_attr_decorators
 
 import logging  # this import has to stay here, see #571
 
@@ -337,8 +337,28 @@ def app(environ: dict, start_response: Callable):
     return resp(environ, start_response)
 
 
+# DEPRECATED ATTRIBUTES HANDLING
+
+__deprecated_decorators = {
+    # stuff prior viur-core < 3.5
+    "forcePost": ("force_post", force_post),
+    "forceSSL": ("force_ssl", force_ssl),
+    "internalExposed": ("internal_exposed", internal_exposed)
+}
+
+def __get_deprecated_decorator(attr: str) -> object:
+    if entry := __deprecated_decorators.get(attr):
+        func = entry[1]
+        msg = f"@{attr} was replaced by @{entry[0]}"
+        warnings.warn(msg, DeprecationWarning, stacklevel=4)
+        logging.warning(msg, stacklevel=4)
+        return func
+
+    return None
+
+
 def __getattr__(attr: str) -> object:
-    if attribute := get_attr_decorators(attr):
+    if attribute := __get_deprecated_decorator(attr):
         return attribute
 
     return super(__import__(__name__).__class__).__getattr__(attr)
