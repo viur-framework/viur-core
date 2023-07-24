@@ -248,7 +248,7 @@ class DateBone(BaseBone):
             return pytz.utc
 
         if conf["viur.instance.is_dev_server"]:
-            return pytz.timezone(tzlocal.get_localzone().key)
+            return pytz.timezone(tzlocal.get_localzone_name())
 
         timeZone = pytz.utc  # Default fallback
         currReqData = current.request_data.get()
