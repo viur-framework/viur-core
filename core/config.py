@@ -127,14 +127,11 @@ conf = Conf({
     # If set, we'll enable sending emails from the local development server. Otherwise, they'll just be logged.
     "viur.email.sendFromLocalDevelopmentServer": False,
 
-    # If set, all outgoing emails will be sent to this address (overriding the 'dests'-parameter in email.sendEmail)
+    # If set, all outgoing emails will be sent to this address (overriding the 'dests'-parameter in utils.sendEmail)
     "viur.email.recipientOverride": None,
 
     # If set, this sender will be used, regardless of what the templates advertise as sender
     "viur.email.senderOverride": None,
-
-    # Sets recipients for mails send with email.sendEMailToAdmins. If not set, all root users will be used.
-    "viur.email.admin_recipients": None,
 
     # If set, ViUR calls this function instead of rendering the viur.errorTemplate if an exception occurs
     "viur.errorHandler": None,
