@@ -29,6 +29,8 @@ webob = "1"
 build="*"
 pycodestyle = "*"
 twine="*"
+doc8 = "*"
+pydocstyle = "*"
 
 [requires]
 python_version = "3.11"
