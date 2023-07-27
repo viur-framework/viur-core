@@ -1,20 +1,133 @@
 import functools
+import copy
 import logging
 from typing import Callable
 from viur.core import errors, current
 
 
-def __ensure_viur_flags(func: Callable) -> dict:
-    try:
-        return func.viur_flags
-    except AttributeError:
-        func.viur_flags = {}
-        return func.viur_flags
+class Exposed:
+    """
+    Abstraction wrapper for exposed functions.
+    """
+
+    @classmethod
+    def ensure(cls, func):
+        """
+        Ensures the provided func is either an Exposed already, or turns it into an Exposed.
+        This is done to avoid stacking Exposed objects, which may create unwanted results.
+        """
+        if isinstance(func, Exposed):
+            return func
+
+        return cls(func)
+
+    def __init__(self, func: Callable):
+        self.internal = False
+        self.ssl = False
+        self.skey = None
+        self.methods = ("GET", "POST", "HEAD")
+        self.seo_language_map = None
+
+        self._func = func
+        self._instance = None
+
+    def __get__(self, obj, objtype):
+        """
+        This binds a method to an Exposed.
+        To do it, the Exposed instance is copied and equipped with the individual _instance member.
+        It took me some time to find this out, but it now seems to work!
+        """
+        if obj:
+            bound = copy.copy(self)
+            bound._instance = obj
+            return bound
+
+        return self
+
+    def __call__(self, *args, **kwargs):
+        if self.skey:
+            self.skey(*args, **kwargs)
+
+        # call with instance when provided
+        if self._instance:
+            return self._func(self._instance, *args, **kwargs)
+
+        return self._func(*args, **kwargs)
 
 
-def access(*access: str | list[str] | tuple[str] | set[str] | Callable, offer_login: bool | str = False) -> Callable:
+#def exposed(internal: bool = False) -> Callable:
+def exposed(func: Callable) -> Callable:
+    """
+    Decorator, which marks a function as exposed.
+
+    Only exposed functions are callable by http-requests.
+    Can optionally receive a dict of language->translated name to make that function
+    available under different names
+    """
+    '''
+    if isinstance(param, dict):
+        translation_map = param
+
+        # We received said dictionary:
+        def expose_with_translations(func: Callable) -> Callable:
+            flags = __ensure_viur_flags(func)
+            flags["exposed"] = True
+            if "method" not in flags:
+                flags["method"] = ["GET", "POST", "HEAD"]
+            flags["seoLanguageMap"] = translation_map
+
+            return func
+
+        return expose_with_translations
+
+    elif isinstance(param, bool):
+        def exposed_wrapper(func):
+    '''
+
+    func = Exposed.ensure(func)
+    return func
+
+
+def internal_exposed(func: Callable) -> Callable:
+    """
+    Decorator, which marks a function as internal exposed.
+    """
+    func = Exposed.ensure(func)
+    func.internal = True
+    return func
+
+
+def force_ssl(func: Callable) -> Callable:
+    """
+    Decorator, which enforces usage of an encrypted channel for a given resource.
+    Has no effect on development-servers.
+    """
+    func = Exposed.ensure(func)
+    func.ssl = True
+    return func
+
+
+def force_post(func: Callable) -> Callable:
+    """
+    Decorator, which enforces usage of a http post request.
+    """
+    exposed = Exposed.ensure(func)
+    exposed.methods = ("POST", )
+    return exposed
+
+
+def access(
+    *access: str | list[str] | tuple[str] | set[str] | Callable,
+    offer_login: bool | str = False,
+    message: str | None = None,
+) -> Callable:
     """Decorator, which performs an authentication and authorization check primarily based on the current user's access,
     which is defined via `UserSkel.access`.
+
+    :params access: Access configuration, either names of access rights or a callable for verification.
+    :params offer_login: Offers a way to login; Either set it to True, to automatically redirect to /user/login,
+        or set it to any other URL.
+    :params message: A custom message to be printed when access is denied or unauthorized.
 
     To check on authenticated users with the access "root" or ("admin" and "file-edit") or "maintainer" use the
     decorator like this:
@@ -22,16 +135,14 @@ def access(*access: str | list[str] | tuple[str] | set[str] | Callable, offer_lo
     .. code-block:: python
         from viur.core.decorators import access
         @access("root", ["admin", "file-edit"], ["maintainer"])
-        def your_method(self):
+        def my_method(self):
             return "You're allowed!"
 
     Furthermore, instead of a list/tuple/set/str, a callable can be provided which performs custom access checking,
     and directly is checked on True for access grant.
     """
 
-    def outer_wrapper(func: Callable):
-        __ensure_viur_flags(func)["access"] = access
-
+    def decorator(func: Callable):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             user = current.user.get()
@@ -39,7 +150,7 @@ def access(*access: str | list[str] | tuple[str] | set[str] | Callable, offer_lo
                 if offer_login:
                     raise errors.Redirect(offer_login if isinstance(offer_login, str) else "/user/login")
 
-                raise errors.Unauthorized()
+                raise errors.Unauthorized(message) if message else errors.Unauthorized()
 
             for acc in access:
                 # Callable directly tests access
@@ -59,28 +170,20 @@ def access(*access: str | list[str] | tuple[str] | set[str] | Callable, offer_lo
                     return func(*args, **kwargs)
 
             # logging.error("%s requires access %s", func.__name__, " OR ".join(map(repr, access)))
-            raise errors.Forbidden()
+            raise errors.Forbidden(message) if message else errors.Forbidden()
 
         return wrapper
 
     assert access, "No rules set"
-    return outer_wrapper
+    return decorator
 
 
-def force_ssl(func: Callable) -> Callable:
-    """
-    Decorator, which forces usage of an encrypted channel for a given resource.
-    Has no effect on development-servers.
-    """
-    __ensure_viur_flags(func)["ssl"] = True
-    return func
-
-
-def require_skey(
+def skey(
     func: Callable = None,
     *,
     allow_empty: bool = False,
-    forward_argument: str = "",
+    forward_payload: str | None = None,
+    message: str = "Missing or invalid skey",
     **extra_kwargs: dict,
 ) -> Callable:
     """
@@ -88,74 +191,30 @@ def require_skey(
     """
 
     def decorator(func: Callable) -> Callable:
-        __ensure_viur_flags(func)["skey"] = {
-            "allow_empty": allow_empty,
-            "forward_argument": forward_argument,
-            "kwargs": extra_kwargs,
-        }
+        def check(*args, **kwargs):
+            # Here we will check the skey always before processing the request, because it cannot be empty.
+            check = True
 
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            if not allow_empty and 'skey' not in kwargs:
-                raise errors.PreconditionFailed("skey is missing")
-            return func(*args, **kwargs)
+            # If the skey data can allow empty kwargs
+            if allow_empty:
+                # Only check the skey, if the kwargs is not empty
+                check = bool(kwargs)
 
-        return wrapper
+            if check:
+                from viur.core import securitykey
+                payload = securitykey.validate(kwargs.get("skey", ""), **extra_kwargs)
+
+                if not payload:
+                    raise errors.PreconditionFailed(message) if message else errors.PreconditionFailed()
+
+                if forward_payload:
+                    kwargs |= {forward_payload: payload}
+
+        func = Exposed.ensure(func)
+        func.skey = check
+        return func
 
     if func is None:
         return decorator
 
     return decorator(func)
-
-
-def force_post(func: Callable) -> Callable:
-    """
-    Decorator, which enforces usage of a http post request.
-    """
-
-    __ensure_viur_flags(func)["method"] = ["POST"]
-    return func
-
-
-def exposed(func: Callable | dict) -> Callable:
-    """
-    Decorator, which marks a function as exposed.
-
-    Only exposed functions are callable by http-requests.
-    Can optionally receive a dict of language->translated name to make that function
-    available under different names
-    """
-
-    if isinstance(func, dict):
-        translation_map = func
-
-        # We received said dictionary:
-        def expose_with_translations(func: Callable) -> Callable:
-            flags = __ensure_viur_flags(func)
-            flags["exposed"] = True
-            if "method" not in flags:
-                flags["method"] = ["GET", "POST", "HEAD"]
-            flags["seoLanguageMap"] = translation_map
-
-            return func
-
-        return expose_with_translations
-
-    flags = __ensure_viur_flags(func)
-    flags["exposed"] = True
-    if "method" not in flags:
-        flags["method"] = ["GET", "POST", "HEAD"]
-    flags["seoLanguageMap"] = None
-
-    return func
-
-
-def internal_exposed(func: Callable) -> Callable:
-    """
-    Decorator, marks a function as internal exposed.
-
-    Internal exposed functions are not callable by external http-requests,
-    but can be called by templates using ``execRequest()``.
-    """
-    __ensure_viur_flags(func)["internal_exposed"] = True
-    return func

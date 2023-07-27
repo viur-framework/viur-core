@@ -36,7 +36,7 @@ from viur.core.tasks import TaskHandler, runStartupTasks
 from viur.core.module import Module
 # noinspection PyUnresolvedReferences
 from viur.core import logging as viurLogging  # unused import, must exist, initializes request logging
-from viur.core.decorators import force_post, force_ssl, exposed, internal_exposed, require_skey
+from viur.core.decorators import Exposed, force_post, force_ssl, exposed, internal_exposed, skey
 
 import logging  # this import has to stay here, see #571
 
@@ -93,9 +93,9 @@ def mapModule(moduleObj: object, moduleName: str, targetResolverRender: dict):
     moduleFunctions = {}
     for key in [x for x in dir(moduleObj) if x[0] != "_"]:
         prop = getattr(moduleObj, key)
-        viur_flags = getattr(prop, "viur_flags", {})
-        if key == "canAccess" or viur_flags.get("exposed", False):
+        if isinstance(prop, Exposed) or key == "canAccess":
             moduleFunctions[key] = prop
+
     for lang in conf["viur.availableLanguages"] or [conf["viur.defaultLanguage"]]:
         # Map the module under each translation
         attr_viur_flags = getattr(moduleObj, "viur_flags", {})

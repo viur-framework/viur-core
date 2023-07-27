@@ -2,7 +2,7 @@ import logging
 
 from typing import Any, Dict, List, Literal, Optional, Type
 from viur.core import utils, errors, securitykey, db, current
-from viur.core import force_post, force_ssl, exposed, internal_exposed, require_skey
+from viur.core import force_post, force_ssl, exposed, internal_exposed, skey
 from viur.core.bones import KeyBone, SortIndexBone
 from viur.core.cache import flushCache
 from viur.core.skeleton import Skeleton, SkeletonInstance
@@ -325,7 +325,7 @@ class Tree(SkelModule):
 
     @exposed
     @force_ssl
-    @require_skey(allow_empty=True)
+    @skey(allow_empty=True)
     def add(self, skelType: SkelType, node: str, *args, **kwargs) -> Any:
         """
         Add a new entry with the given parent *node*, and render the entry, eventually with error notes
@@ -373,7 +373,7 @@ class Tree(SkelModule):
 
     @exposed
     @force_ssl
-    @require_skey(allow_empty=True)
+    @skey(allow_empty=True)
     def edit(self, skelType: SkelType, key: str, *args, **kwargs) -> Any:
         """
         Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
@@ -417,7 +417,7 @@ class Tree(SkelModule):
     @exposed
     @force_ssl
     @force_post
-    @require_skey
+    @skey
     def delete(self, skelType: SkelType, key: str, *args, **kwargs) -> Any:
         """
         Deletes an entry or an directory (including its contents).
@@ -476,7 +476,7 @@ class Tree(SkelModule):
     @exposed
     @force_ssl
     @force_post
-    @require_skey
+    @skey
     def move(self, skelType: SkelType, key: str, parentNode: str, *args, **kwargs) -> str:
         """
         Move a node (including its contents) or a leaf to another node.

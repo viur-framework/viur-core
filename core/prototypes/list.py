@@ -1,6 +1,6 @@
 import logging
 from typing import Any, Optional
-from viur.core import current, db, errors, exposed, force_post, force_ssl, securitykey, utils, require_skey
+from viur.core import current, db, errors, exposed, force_post, force_ssl, securitykey, utils, skey
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
 from .skelmodule import SkelModule
@@ -77,7 +77,7 @@ class List(SkelModule):
 
     @exposed
     @force_post
-    @require_skey
+    @skey
     def preview(self, *args, **kwargs) -> Any:
         """
             Renders data for an entry, without reading from the database.
@@ -172,7 +172,7 @@ class List(SkelModule):
 
     @force_ssl
     @exposed
-    @require_skey(allow_empty=True)
+    @skey(allow_empty=True)
     def edit(self, *args, **kwargs) -> Any:
         """
             Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
@@ -218,7 +218,7 @@ class List(SkelModule):
 
     @force_ssl
     @exposed
-    @require_skey(allow_empty=True)
+    @skey(allow_empty=True)
     def add(self, *args, **kwargs) -> Any:
         """
             Add a new entry, and render the entry, eventually with error notes on incorrect data.
@@ -253,7 +253,7 @@ class List(SkelModule):
     @force_ssl
     @force_post
     @exposed
-    @require_skey
+    @skey
     def delete(self, key: str, *args, **kwargs) -> Any:
         """
             Delete an entry.

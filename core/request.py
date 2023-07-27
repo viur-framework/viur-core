@@ -14,6 +14,7 @@ import webob
 
 from viur.core import current, db, errors, utils
 from viur.core.config import conf
+from viur.core.decorators import Exposed
 from viur.core.logging import client as loggingClient, requestLogger, requestLoggingRessource
 from viur.core.securityheaders import extendCsp
 from viur.core.tasks import _appengineServiceIPs
@@ -25,7 +26,6 @@ from viur.core.tasks import _appengineServiceIPs
     Additionally, this module defines the RequestValidator interface which provides a very early hook into the
     request processing (useful for global ratelimiting, DDoS prevention or access control).
 """
-
 
 class RequestValidator(ABC):
     """
@@ -487,8 +487,8 @@ class BrowseHandler():  # webapp.RequestHandler
 
     def findAndCall(self, path: str, *args, **kwargs) -> None:
         """
-            Does the actual work of sanitizing the parameter, determine which @exposed (or @internalExposed) function
-            to call (and with which parameters)
+            Does the actual work of sanitizing the parameter, determine which exposed-function to call
+            (and with which parameters)
         """
 
         # Parse the URL
@@ -532,18 +532,6 @@ class BrowseHandler():  # webapp.RequestHandler
         idx = 0  # Count how may items from *args we'd have consumed (so the rest can go into *args of the called func
         path_found = True
 
-        def is_callable(caller: typing.Any) -> bool:
-            """Utility function to check if a member is callable within the request."""
-            viur_flags = getattr(caller, "viur_flags", {})
-
-            return (
-                callable(caller)
-                and (
-                    viur_flags.get("exposed", False)
-                    or (self.internalRequest and viur_flags.get("internal_exposed", False))
-                )
-            )
-
         for part in self.path_list:
             if "canAccess" in caller and not caller["canAccess"]():
                 # We have a canAccess function guarding that object,
@@ -555,8 +543,10 @@ class BrowseHandler():  # webapp.RequestHandler
             if part not in caller:
                 part = "index"
 
+            print(part, caller.get(part))
+
             if caller := caller.get(part):
-                if is_callable(caller):
+                if isinstance(caller, Exposed):
                     if part == "index":
                         idx -= 1
 
@@ -576,22 +566,27 @@ class BrowseHandler():  # webapp.RequestHandler
             raise errors.NotFound(
                 f"""The path {utils.escapeString("/".join(self.path_list[:idx]))} could not be found""")
 
-        if not is_callable(caller):
+        if not isinstance(caller, Exposed):
             # try to find "index" function
-            if (index := caller.get("index")) and is_callable(index):
+            if (index := caller.get("index")) and isinstance(index, Exposed):
                 caller = index
             else:
                 raise errors.MethodNotAllowed()
 
+        # Check for internal exposed
+        if caller.internal and not self.internalRequest:
+            raise errors.NotFound()
+
         # Check for @force_ssl flag
-        if not self.internalRequest \
-                and caller.viur_flags.get("ssl", False) \
-                and not self.request.host_url.lower().startswith("https://") \
-                and not conf["viur.instance.is_dev_server"]:
+        if (not self.internalRequest
+            and caller.ssl
+            and not self.request.host_url.lower().startswith("https://")
+            and not conf["viur.instance.is_dev_server"]
+        ):
             raise errors.PreconditionFailed("You must use SSL to access this resource!")
 
         # Check for @force_post flag
-        if not self.isPostRequest and caller.viur_flags.get("method", []) == ["POST"]:
+        if not self.isPostRequest and caller.methods == ("POST", ):
             raise errors.MethodNotAllowed("You must use POST to access this resource!")
 
         self.args = args
@@ -606,15 +601,16 @@ class BrowseHandler():  # webapp.RequestHandler
                 self.disableCache = True
 
         try:
-            annotations = typing.get_type_hints(caller)
+            # fixme: this must be refactored and integrated into Exposed class!!
+            annotations = typing.get_type_hints(caller._func)
             if annotations and not self.internalRequest:
                 caller_kwargs = {}  # The dict of new **kwargs we'll pass to the caller
                 caller_args = []  # List of new *args we'll pass to the caller
 
                 # FIXME: Use inspect.signature() for all this stuff...
-                argsOrder = caller.__code__.co_varnames[:caller.__code__.co_argcount]
+                argsOrder = caller._func.__code__.co_varnames[:caller._func.__code__.co_argcount]
                 # In case of a method, ignore the 'self' parameter
-                if inspect.ismethod(caller):
+                if inspect.ismethod(caller._func):
                     argsOrder = argsOrder[1:]
 
                 # Map args in
@@ -642,28 +638,9 @@ class BrowseHandler():  # webapp.RequestHandler
                     or conf["viur.debug.traceInternalCallRouting"]):
                 logging.debug(f"Calling {caller=} with {args=}, {kwargs=}")
 
-            if skey_config := caller.viur_flags.get("skey", {}):
-                from viur.core import securitykey
-
-                # Here we will check the skey always before processing the request, because it cannot be empty.
-                skey_check = True
-
-                # If the skey data can allow empty kwargs..
-                if skey_config.get("allow_empty", False):
-                    # Only check the skey, if the kwargs is not empty
-                    skey_check = bool(kwargs)
-
-                if skey_check:
-                    data = securitykey.validate(caller_kwargs.get("skey", ""), **skey_config.get("kwargs", {}))
-
-                    if not data:
-                        raise errors.PreconditionFailed("Missing or invalid skey")
-
-                    if arg_name := skey_config.get("forward_argument"):
-                        caller_kwargs |= {arg_name: data}
-
             res = caller(*caller_args, **caller_kwargs)
-            if not isinstance(res, bytes):  # Convert into str if not bytes!
+
+            if not isinstance(res, bytes):  # Convert result into str if not bytes!
                 res = str(res).encode("UTF-8")
 
             self.response.write(res)

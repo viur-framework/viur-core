@@ -18,7 +18,7 @@ from google.auth.transport import requests
 from google.cloud import iam_credentials_v1, storage
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
-from viur.core import conf, current, db, errors, exposed, force_post, force_ssl, securitykey, utils, require_skey
+from viur.core import conf, current, db, errors, exposed, force_post, force_ssl, securitykey, utils, skey
 from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import SkeletonInstance, skeletonByKind
@@ -520,7 +520,7 @@ class File(Tree):
         return db.encodeKey(fileSkel["key"]), uploadUrl
 
     @exposed
-    @require_skey
+    @skey
     def getUploadURL(self, fileName: str, mimeType: str, size: int = None, *args, **kwargs):
         node = kwargs.get("node")
         authData = kwargs.get("authData")
@@ -668,7 +668,7 @@ class File(Tree):
     @exposed
     @force_ssl
     @force_post
-    @require_skey(allow_empty=True)
+    @skey(allow_empty=True)
     def add(self, skelType: SkelType, node=None, *args, **kwargs):
         ## We can't add files directly (they need to be uploaded
         # if skelType != "node":

@@ -16,7 +16,7 @@ from google.cloud.tasks_v2.services.cloud_tasks.transports import CloudTasksGrpc
 from google.protobuf import timestamp_pb2
 from viur.core import current, db, errors, utils
 from viur.core.config import conf
-from viur.core.decorators import exposed, require_skey
+from viur.core.decorators import exposed, skey
 
 
 # class JsonKeyEncoder(json.JSONEncoder):
@@ -354,7 +354,7 @@ class TaskHandler:
         return self.render.list(tasks)
 
     @exposed
-    @require_skey
+    @skey
     def execute(self, taskID, *args, **kwargs):
         """Queues a specific task for the next maintenance run"""
         global _callableTasks

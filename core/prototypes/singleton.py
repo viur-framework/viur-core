@@ -1,6 +1,6 @@
 import logging
 from typing import Any, Optional
-from viur.core import db, current, errors, exposed, force_ssl, securitykey, require_skey
+from viur.core import db, current, errors, exposed, force_ssl, securitykey, skey
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
 from .skelmodule import SkelModule
@@ -55,7 +55,7 @@ class Singleton(SkelModule):
     ## External exposed functions
 
     @exposed
-    @require_skey
+    @skey
     def preview(self, *args, **kwargs) -> Any:
         """
         Renders data for the entry, without reading it from the database.
@@ -117,7 +117,7 @@ class Singleton(SkelModule):
 
     @exposed
     @force_ssl
-    @require_skey(allow_empty=True)
+    @skey(allow_empty=True)
     def edit(self, *args, **kwargs) -> Any:
         """
         Modify the existing entry, and render the entry, eventually with error notes on incorrect data.

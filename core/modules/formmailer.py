@@ -1,5 +1,5 @@
 from viur.core.skeleton import RelSkel
-from viur.core import errors, utils, securitykey, exposed, email, require_skey
+from viur.core import errors, utils, securitykey, exposed, email, skey
 from viur.core.bones import BaseBone
 from viur.core.module import Module
 
@@ -12,7 +12,7 @@ class Formmailer(Module):
     mailTemplate = None
 
     @exposed
-    @require_skey(allow_empty=True)
+    @skey(allow_empty=True)
     def index(self, *args, **kwargs):
         if not self.canUse():
             raise errors.Forbidden()  # Unauthorized

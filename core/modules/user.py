@@ -14,7 +14,7 @@ from google.auth.transport import requests
 from google.oauth2 import id_token
 
 from viur.core import (
-    conf, current, db, email, errors, exposed, force_ssl, i18n, require_skey,
+    conf, current, db, email, errors, exposed, force_ssl, i18n, skey,
     securitykey, session, skeleton, tasks, utils, Module
 )
 from viur.core.bones import *
@@ -274,7 +274,7 @@ class UserPassword:
 
     @exposed
     @force_ssl
-    @require_skey(allow_empty=True)
+    @skey(allow_empty=True)
     def login(self, name=None, password=None, *args, **kwargs):
         if current.user.get():  # User is already logged in, nothing to do.
             return self.userModule.render.loginSucceeded()
@@ -328,7 +328,7 @@ class UserPassword:
         return self.userModule.continueAuthenticationFlow(self, user_entry.key)
 
     @exposed
-    @require_skey(allow_empty=True)
+    @skey(allow_empty=True)
     def pwrecover(self, *args, **kwargs):
         """
             This implements the password recovery process which let them set a new password for their account
@@ -447,7 +447,7 @@ class UserPassword:
             email.sendEMail(tpl=self.passwordRecoveryMail, skel={"recoveryKey": recoveryKey}, dests=[userName])
 
     @exposed
-    @require_skey(allow_empty=True, forward_argument="skey", session_bound=False)
+    @skey(allow_empty=True, forward_argument="skey", session_bound=False)
     def verify(self, *args, **kwargs):
         data = skey
         skel = self.userModule.editSkel()
@@ -490,7 +490,7 @@ class UserPassword:
 
     @force_ssl
     @exposed
-    @require_skey(allow_empty=True)
+    @skey(allow_empty=True)
     def add(self, *args, **kwargs):
         """
             Allows guests to register a new account if self.registrationEnabled is set to true
@@ -538,7 +538,7 @@ class GoogleAccount:
 
     @exposed
     @force_ssl
-    @require_skey(allow_empty=True)
+    @skey(allow_empty=True)
     def login(self, token="", *args, **kwargs):
         # FIXME: Check if already logged in
         if not conf.get("viur.user.google.clientID"):
@@ -684,7 +684,7 @@ class TimeBasedOTP:
 
     @exposed
     @force_ssl
-    @require_skey(allow_empty=True)
+    @skey(allow_empty=True)
     def otp(self, otptoken=None, *args, **kwargs):
         session = current.session.get()
         token = session.get("_otp_user")
@@ -922,7 +922,7 @@ class User(List):
         return self.render.loginSucceeded(**kwargs)
 
     @exposed
-    @require_skey
+    @skey
     def logout(self, *args, **kwargs):
         """
             Implements the logout action. It also terminates the current session (all keys not listed
