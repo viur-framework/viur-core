@@ -310,7 +310,7 @@ class List(SkelModule):
                 seoUrl = utils.seoUrlToEntry(self.moduleName, skel)
                 # Check whether this is the current seo-key, otherwise redirect to it
 
-                if current.request.get().request.path != seoUrl:
+                if current.request.get().request.path.lower() != seoUrl:
                     raise errors.Redirect(seoUrl, status=301)
                 self.onView(skel)
                 return self.render.view(skel)
