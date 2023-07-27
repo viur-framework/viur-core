@@ -2,8 +2,22 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.5.0.beta1]
+## [3.5.0.beta2]
 
+- fix: guessTimeZone() fails with Python 3.11 (#789)
+- feat: Make recipients for `sendEMailToAdmins` configurable (#798)
+- test: Update test-suite Pipfile and add tests for `DateBone` (#797)
+- refactor: Improving `DateBone.singleValueFromClient()` (#733)
+- refactor: `singleValueFromClient` with type hints and docstrings (#685)
+- docs: fixed all Auto-API build Errors (#783)
+- feat: Compute `creationdate` and `changedate` using the new `compute`-feature (#785)
+- fix: Add `Count` to db.__all__ (#792)
+- feat: Improve `BaseBone._compute` function (#786)
+- docs(build): set sphinx to an older version (as in the Pipfile) to get the build working again (#784)
+- feat: Add `compute`-feature to `BaseBone` (#639)
+- docs: Improve type hints in sphinx (#746)
+- docs: fixed toctree problems (#781)
+- docs: Tutorials for preliminaries and initial setup (#765)
 - feat: Extend User module to built-in role system (#736)
 - feat: Rewrite of session-based securitykeys (#764)
 - chore: Support for Python 3.11 (#767)
@@ -18,11 +32,11 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - chore: Rename `__systemIsIntitialized_` into `__system_initialized` (#730)
 - chore: Rename `__undefindedC__` into `__undefined` (#731)
 - chore: Rename all `rawValue`-parameters to just `value` (#732)
-- doc: Documentation for entire `bones`-module (#723)
-- doc: Add more selectors to theme.css to list styling from latest rdt theme (#729)
-- doc: Watch the normal python code path in the doc build watcher too (#728)
-- doc: Set language in readthedocs config and add jQuery (#721)
-- doc: removed hierarchyBone, changed to Python 3.10+ and removed wiki and community landing page (#707)
+- docs: Documentation for entire `bones`-module (#723)
+- docs: Add more selectors to theme.css to list styling from latest rdt theme (#729)
+- docs: Watch the normal python code path in the doc build watcher too (#728)
+- docs: Set language in readthedocs config and add jQuery (#721)
+- docs: removed hierarchyBone, changed to Python 3.10+ and removed wiki and community landing page (#707)
 - fix: `CredentialBone` without escaping (#702)
 - chore: Improve `StringBone` (#714)
 

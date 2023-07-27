@@ -154,7 +154,7 @@ class ComputeInterval:
 @dataclass
 class Compute:
     fn: callable  # the callable computing the value
-    interval: ComputeInterval = ComputeInterval()   # the value caching interval
+    interval: ComputeInterval = field(default_factory=ComputeInterval)  # the value caching interval
     raw: bool = True  # defines whether the value returned by fn is used as is, or is passed through bone.fromClient
 
 

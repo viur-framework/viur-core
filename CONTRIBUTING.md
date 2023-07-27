@@ -80,7 +80,7 @@ In case you have appropriate permissions, a release can be done this way:
   - Release the package
     - PyPI: `pipenv run release`
     - TestPyPI: `pipenv run develop`
-- When all went well, finally create a tag equally to the version number in `core/version.py`
+- When all went well, finally commit and create a tag equally to the version number in `core/version.py`
 
 ## Branches
 
