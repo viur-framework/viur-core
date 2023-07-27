@@ -796,7 +796,6 @@ class AuthenticatorOTP:
         """
             We can only handle the second factor if we have stored an otp_secret before.
         """
-
         if not (user := db.Get(user_key)):
             return False
 
@@ -828,7 +827,9 @@ class AuthenticatorOTP:
         """
             :return an otp uri like otpauth://totp/Example:alice@google.com?secret=ABCDEFGH1234&issuer=Example
         """
-        cuser = current.user.get()
+
+        if not (cuser := current.user.get()):
+            raise errors.Unauthorized()
         if not (issuer := conf["viur.otp.issuer"]):
             logging.warning(
                 f"""conf["viur.otp.issuer"] is None we replace the issuer by conf["viur.instance.project_id"]""")
