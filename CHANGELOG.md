@@ -40,6 +40,10 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - fix: `CredentialBone` without escaping (#702)
 - chore: Improve `StringBone` (#714)
 
+## [3.4.6]
+
+- fix(seo): Incoming url is compared wrong (#801)
+
 ## [3.4.5]
 
 - fix: Add missing fallback for `NumericBone.refresh()` destroying valid data (#793)
