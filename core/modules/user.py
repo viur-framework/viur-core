@@ -619,28 +619,34 @@ class TimeBasedOTP:
     windowSize = 5
     otpTemplate = "user_login_timebasedotp"
 
+    class OtpSkel(skeleton.RelSkel):
+        otptoken = NumericBone(
+            descr="Token",
+            required=True
+        )
+
     def __init__(self, userModule, modulePath):
         super().__init__()
         self.userModule = userModule
         self.modulePath = modulePath
 
     @classmethod
-    def get2FactorMethodName(*args, **kwargs):
+    def get2FactorMethodName(*args, **kwargs):  # fixme: What is the purpose of this function? Why not just a member?
         return "X-VIUR-2FACTOR-TimeBasedOTP"
 
-    def canHandle(self, userKey) -> bool:
-        user = db.Get(userKey)
+    def canHandle(self, user_key) -> bool:
+        user = db.Get(user_key)
         return all(bool(user.get(k)) for k in ("otpid", "otpkey"))
 
-    def startProcessing(self, userKey):
-        user = db.Get(userKey)
+    def startProcessing(self, user_key):
+        user = db.Get(user_key)
 
-        if not self.canHandle(userKey):
+        if not self.canHandle(user_key):
             return None
 
-        logging.info("OTP wanted for user")
+        logging.debug("OTP wanted for user")  # fixme: useless information
         otp_user_conf = {
-            "uid": str(userKey),
+            "uid": str(user_key),
             "otpid": user["otpid"],
             "otpkey": user["otpkey"],
             "otptimedrift": user["otptimedrift"],
@@ -654,12 +660,6 @@ class TimeBasedOTP:
         session.markChanged()
 
         return self.userModule.render.edit(self.OtpSkel(), action="otp", tpl=self.otpTemplate)
-
-    class OtpSkel(skeleton.RelSkel):
-        otptoken = NumericBone(
-            descr="Token",
-            required=True
-        )
 
     def generateOtps(self, secret, timeDrift):
         """
@@ -680,6 +680,7 @@ class TimeBasedOTP:
         idx = int(time.time() / 60.0)  # Current time index
         idx += int(timeDrift)
         res = []
+
         for slot in range(idx - self.windowSize, idx + self.windowSize):
             currHash = hmac.new(bytes.fromhex(secret), asBytes(slot), hashlib.sha1).digest()
             # Magic code from https://tools.ietf.org/html/rfc4226 :)
@@ -689,6 +690,7 @@ class TimeBasedOTP:
                     (currHash[offset + 2] & 0xff) << 8 |
                     (currHash[offset + 3] & 0xff))
             res.append(int(str(code)[-6:]))  # We use only the last 6 digits
+
         return res
 
     @exposed
@@ -717,7 +719,7 @@ class TimeBasedOTP:
         valid_tokens = self.generateOtps(otp_user_conf["otpkey"], otp_user_conf["otptimedrift"])
 
         # If token is not in generated token set, token is invalid
-        logging.debug(f"{skel['otptoken']=}, {valid_tokens=}")
+        # logging.debug(f"{skel['otptoken']=}, {valid_tokens=}")
         if skel["otptoken"] not in valid_tokens:
             otp_user_conf["failures"] += 1
             session.markChanged()
@@ -738,24 +740,24 @@ class TimeBasedOTP:
         # Continue with authentication
         return self.userModule.secondFactorSucceeded(self, user_key)
 
-    def updateTimeDrift(self, userKey, idx):
+    def updateTimeDrift(self, user_key, idx):
         """
             Updates the clock-drift value.
             The value is only changed in 1/10 steps, so that a late submit by an user doesn't skew
             it out of bounds. Maximum change per call is 0.3 minutes.
-            :param userKey: For which user should the update occour
+            :param user_key: For which user should the update occour
             :param idx: How many steps before/behind was that token
             :return:
         """
 
-        def updateTransaction(userKey, idx):
-            user = db.Get(userKey)
+        def transaction(user_key, idx):
+            user = db.Get(user_key)
             if not isinstance(user.get("otptimedrift"), float):
                 user["otptimedrift"] = 0.0
             user["otptimedrift"] += min(max(0.1 * idx, -0.3), 0.3)
             db.Put(user)
 
-        db.RunInTransaction(updateTransaction, userKey, idx)
+        db.RunInTransaction(transaction, user_key, idx)
 
 
 class User(List):
