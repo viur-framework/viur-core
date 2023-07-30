@@ -630,35 +630,43 @@ class TimeBasedOTP:
 
     def canHandle(self, userKey) -> bool:
         user = db.Get(userKey)
-        return all(
-            [(x in user and (x == "otptimedrift" or bool(user[x]))) for x in ["otpid", "otpkey", "otptimedrift"]])
+        return all(bool(user.get(k)) for k in ("otpid", "otpkey"))
 
     def startProcessing(self, userKey):
         user = db.Get(userKey)
-        if all([(x in user and user[x]) for x in ["otpid", "otpkey"]]):
-            logging.info("OTP wanted for user")
-            session = current.session.get()
-            session["_otp_user"] = {
-                "uid": str(userKey),
-                "otpid": user["otpid"],
-                "otpkey": user["otpkey"],
-                "otptimedrift": user["otptimedrift"],
-                "timestamp": time.time(),
-                "failures": 0
-            }
-            session.markChanged()
-            return self.userModule.render.loginSucceeded(msg="X-VIUR-2FACTOR-TimeBasedOTP")
 
-        return None
+        if not self.canHandle(userKey):
+            return None
+
+        logging.info("OTP wanted for user")
+        otp_user_conf = {
+            "uid": str(userKey),
+            "otpid": user["otpid"],
+            "otpkey": user["otpkey"],
+            "otptimedrift": user["otptimedrift"],
+            "algorithm": "sha1",
+            "timestamp": time.time(),
+            "failures": 0
+        }
+
+        session = current.session.get()
+        session["_otp_user"] = otp_user_conf
+        session.markChanged()
+
+        return self.userModule.render.edit(self.OtpSkel(), action="otp", tpl=self.otpTemplate)
 
     class OtpSkel(skeleton.RelSkel):
-        otptoken = StringBone(descr="Token", required=True, caseSensitive=False, indexed=True)
+        otptoken = NumericBone(
+            descr="Token",
+            required=True
+        )
 
     def generateOtps(self, secret, timeDrift):
         """
             Generates all valid tokens for the given secret
         """
 
+        # fixme: Use pyotp for this!
         def asBytes(valIn):
             """
                 Returns the integer in binary representation
@@ -685,45 +693,50 @@ class TimeBasedOTP:
 
     @exposed
     @forceSSL
-    def otp(self, otptoken=None, skey=None, *args, **kwargs):
-        session = current.session.get()
-        token = session.get("_otp_user")
-        if not token:
-            raise errors.Forbidden()
-        if otptoken is None:
-            self.userModule.render.edit(self.OtpSkel())
+    def otp(self, skey: str = None, *args, **kwargs):
+        """
+        Performs the second factor validation and interaction with the client.
+        """
         if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
-        if token["failures"] > 3:
-            raise errors.Forbidden("Maximum amount of authentication retries exceeded")
-        if len(token["otpkey"]) % 2 == 1:
-            raise errors.PreconditionFailed("The otp secret stored for this user is invalid (uneven length)")
-        validTokens = self.generateOtps(token["otpkey"], token["otptimedrift"])
-        try:
-            otptoken = int(otptoken)
-        except:
-            # We got a non-numeric token - this can't be correct
+
+        session = current.session.get()
+        if not (otp_user_conf := session.get("_otp_user")):
+            raise errors.PreconditionFailed()
+
+        skel = self.OtpSkel()
+        if not skel.fromClient(kwargs):
             self.userModule.render.edit(self.OtpSkel(), tpl=self.otpTemplate)
 
-        if otptoken in validTokens:
-            userKey = session["_otp_user"]["uid"]
+        if otp_user_conf["failures"] > 3:
+            raise errors.Forbidden("Maximum amount of authentication retries exceeded")
+        elif len(otp_user_conf["otpkey"]) % 2 == 1:
+            raise errors.PreconditionFailed("The otp secret stored for this user is invalid (uneven length)")
 
-            del session["_otp_user"]
+        # Generate a batch of tokens for given time window size
+        valid_tokens = self.generateOtps(otp_user_conf["otpkey"], otp_user_conf["otptimedrift"])
+
+        # If token is not in generated token set, token is invalid
+        logging.debug(f"{skel['otptoken']=}, {valid_tokens=}")
+        if skel["otptoken"] not in valid_tokens:
+            otp_user_conf["failures"] += 1
             session.markChanged()
+            return self.userModule.render.edit(self.OtpSkel(), action="otp", tpl=self.otpTemplate, loginFailed=True)
 
-            idx = validTokens.index(int(otptoken))
+        # Remove otp user config from session
+        user_key = db.keyHelper(otp_user_conf["uid"], self.userModule._resolveSkelCls().kindName)
+        del session["_otp_user"]
+        session.markChanged()
 
-            if abs(idx - self.windowSize) > 2:
-                # The time-drift accumulates to more than 2 minutes, update our
-                # clock-drift value accordingly
-                self.updateTimeDrift(userKey, idx - self.windowSize)
+        # Check if the OTP device has a time drift
+        idx = valid_tokens.index(skel["otptoken"])
 
-            return self.userModule.secondFactorSucceeded(self, userKey)
-        else:
-            token["failures"] += 1
-            session["_otp_user"] = token
-            session.markChanged()
-            return self.userModule.render.edit(self.OtpSkel(), loginFailed=True, tpl=self.otpTemplate)
+        if abs(idx - self.windowSize) > 2:
+            # The time-drift accumulates to more than 2 minutes, update clock-drift value accordingly
+            self.updateTimeDrift(user_key, idx - self.windowSize)
+
+        # Continue with authentication
+        return self.userModule.secondFactorSucceeded(self, user_key)
 
     def updateTimeDrift(self, userKey, idx):
         """
@@ -737,7 +750,7 @@ class TimeBasedOTP:
 
         def updateTransaction(userKey, idx):
             user = db.Get(userKey)
-            if not "otptimedrift" in user or not isinstance(user["otptimedrift"], float):
+            if not isinstance(user.get("otptimedrift"), float):
                 user["otptimedrift"] = 0.0
             user["otptimedrift"] += min(max(0.1 * idx, -0.3), 0.3)
             db.Put(user)
@@ -880,7 +893,6 @@ class User(List):
 
     def secondFactorSucceeded(self, secondFactor, userKey):
         session = current.session.get()
-        logging.debug("Got SecondFactorSucceeded call from %s." % secondFactor)
         if session["_mayBeUserKey"] != userKey.id_or_name:
             raise errors.Forbidden()
         # Assert that the second factor verification finished in time
