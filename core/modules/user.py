@@ -7,7 +7,9 @@ import json
 import logging
 import secrets
 import warnings
-from typing import Optional
+from typing import Optional, Union, Any
+import pyotp
+import base64
 
 import time
 from google.auth.transport import requests
@@ -661,38 +663,6 @@ class TimeBasedOTP:
 
         return self.userModule.render.edit(self.OtpSkel(), action="otp", tpl=self.otpTemplate)
 
-    def generateOtps(self, secret, timeDrift):
-        """
-            Generates all valid tokens for the given secret
-        """
-
-        # fixme: Use pyotp for this!
-        def asBytes(valIn):
-            """
-                Returns the integer in binary representation
-            """
-            hexStr = hex(valIn)[2:]
-            # Maybe uneven length
-            if len(hexStr) % 2 == 1:
-                hexStr = "0" + hexStr
-            return bytes.fromhex("00" * int(8 - (len(hexStr) / 2)) + hexStr)
-
-        idx = int(time.time() / 60.0)  # Current time index
-        idx += int(timeDrift)
-        res = []
-
-        for slot in range(idx - self.windowSize, idx + self.windowSize):
-            currHash = hmac.new(bytes.fromhex(secret), asBytes(slot), hashlib.sha1).digest()
-            # Magic code from https://tools.ietf.org/html/rfc4226 :)
-            offset = currHash[19] & 0xf
-            code = ((currHash[offset] & 0x7f) << 24 |
-                    (currHash[offset + 1] & 0xff) << 16 |
-                    (currHash[offset + 2] & 0xff) << 8 |
-                    (currHash[offset + 3] & 0xff))
-            res.append(int(str(code)[-6:]))  # We use only the last 6 digits
-
-        return res
-
     @exposed
     @forceSSL
     def otp(self, skey: str = None, *args, **kwargs):
@@ -715,12 +685,18 @@ class TimeBasedOTP:
         elif len(otp_user_conf["otpkey"]) % 2 == 1:
             raise errors.PreconditionFailed("The otp secret stored for this user is invalid (uneven length)")
 
-        # Generate a batch of tokens for given time window size
-        valid_tokens = self.generateOtps(otp_user_conf["otpkey"], otp_user_conf["otptimedrift"])
+        # Verify the otptoken. If valid, this returns the current timedrift index for this hardware OTP.
+        verifyIndex = self.verify(
+            otp=skel["otptoken"],
+            secret=otp_user_conf["otpkey"],
+            algorithm=otp_user_conf["algorithm"],
+            timedrift=otp_user_conf["otptimedrift"],
+            valid_window=self.windowSize
+            )
+        logging.debug(f"TimeBasedOTP:otp: {verifyIndex=}.")
 
-        # If token is not in generated token set, token is invalid
-        # logging.debug(f"{skel['otptoken']=}, {valid_tokens=}")
-        if skel["otptoken"] not in valid_tokens:
+        # Check if Token is invalid. Caution: 'if not verifyIndex' gets false positive for verifyIndex === 0!
+        if verifyIndex is False:
             otp_user_conf["failures"] += 1
             session.markChanged()
             return self.userModule.render.edit(self.OtpSkel(), action="otp", tpl=self.otpTemplate, loginFailed=True)
@@ -731,14 +707,68 @@ class TimeBasedOTP:
         session.markChanged()
 
         # Check if the OTP device has a time drift
-        idx = valid_tokens.index(skel["otptoken"])
 
-        if abs(idx - self.windowSize) > 2:
-            # The time-drift accumulates to more than 2 minutes, update clock-drift value accordingly
-            self.updateTimeDrift(user_key, idx - self.windowSize)
+        timedriftchange = float(verifyIndex) - otp_user_conf["otptimedrift"]
+        if abs(timedriftchange) > 2:
+            # The time-drift change accumulates to more than 2 minutes (for interval==60):
+            # update clock-drift value accordingly
+            self.updateTimeDrift(user_key, timedriftchange)
 
         # Continue with authentication
         return self.userModule.secondFactorSucceeded(self, user_key)
+
+    @staticmethod
+    def verify(
+        otp: str,
+        secret: str = "",
+        algorithm: Any = None,
+        interval: int = 60,
+        timedrift: float = 0,
+        for_time: Optional[datetime.datetime] = None,
+        valid_window: int = 0,
+        ) -> Union[int, bool]:
+        """
+        Verifies the OTP passed in against the current time OTP.
+
+        This is a fork of pyotp.verify. Rather than true/false, if valid_window > 0, it returns the index for which
+        the OTP value obtained by pyotp.at(for_time=time.time(), counter_offset=index) equals the current value shown
+        on the hardware token generator. This can be used to store the time drift of a given token generator.
+
+        :param otp: the OTP token to check against
+        :param secret: The OTP secret
+        :param algorithm: digest function to use in the HMAC (expected to be sha1 or sha256)
+        :param interval: the time interval in seconds for OTP. This defaults to 60 (old OTP c200 Generators). In
+        pyotp, default is 30!
+        :param timedrift: The known timedrift (old index) of the hardware OTP generator
+        :param for_time: Time to check OTP at (defaults to now)
+        :param valid_window: extends the validity to this many counter ticks before and after the current one
+        :returns: The index where verification succeeded, None otherwise
+        """
+
+        if for_time is None:
+            for_time = datetime.datetime.now()
+
+        # Timedrift is updated only in fractions in order to prevent problems, but we need an integer index
+        timedrift = round(timedrift)
+
+        secret = bytes.decode(base64.b32encode(bytes.fromhex(secret)))
+        digest = {
+            "sha1": hashlib.sha1,
+            "sha256": hashlib.sha256,
+            }[algorithm]
+        logging.debug(f"TimeBasedOTP:verify: {digest=}, {interval=}, {valid_window=}")
+
+        totp = pyotp.TOTP(secret, digest=digest, interval=interval)
+
+        if valid_window:
+            for i in range(timedrift - valid_window, timedrift + valid_window + 1):
+                token = str(totp.at(for_time, i))
+                logging.debug(f"TimeBasedOTP:verify: {i=}, {token=}")
+                if utils.strings_equal(str(otp), token):
+                    return i
+            return False
+
+        return utils.strings_equal(str(otp), str(totp.at(for_time, timedrift)))
 
     def updateTimeDrift(self, user_key, idx):
         """
