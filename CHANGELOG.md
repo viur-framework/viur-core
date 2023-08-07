@@ -2,8 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.5.0.beta2]
+## [3.5.0.beta3]
 
+- refactor: Changed package folder layout
+- fix: pillow replaces `Image.ANTIALIAS` by `Image.LANCZOS`
 - fix: guessTimeZone() fails with Python 3.11 (#789)
 - feat: Make recipients for `sendEMailToAdmins` configurable (#798)
 - test: Update test-suite Pipfile and add tests for `DateBone` (#797)
