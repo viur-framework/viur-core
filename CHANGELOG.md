@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
+## [3.4.7]
+
+- chore: Update viur-datastore to 1.3.10 (#805)
+
 ## [3.4.6]
 
 - fix(seo): Incoming url is compared wrong (#801)
