@@ -132,7 +132,7 @@ def thumbnailer(fileSkel, existingFiles, params):
         else:  # No default fallback - ignore
             continue
         mimeType = sizeDict.get("mimeType", "image/webp")
-        img = img.resize((width, height), Image.ANTIALIAS)
+        img = img.resize((width, height), Image.LANCZOS)
         img.save(outData, fileExtension)
         outSize = outData.tell()
         outData.seek(0)
