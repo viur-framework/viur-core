@@ -775,10 +775,10 @@
         },
         "viur-datastore": {
             "hashes": [
-                "sha256:a06355c8002e11be863d96040babc590c9200f474c553be96b855ab38454e694"
+                "sha256:325e58274377cf2f81b5511bb8579fca13948f2868aa980a60cdd0e0ffa58ea4"
             ],
             "index": "pypi",
-            "version": "==1.3.9"
+            "version": "==1.3.10"
         },
         "webob": {
             "hashes": [
