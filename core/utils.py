@@ -273,22 +273,6 @@ def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
     return db.Key(key.kind, key.id_or_name, parent=parent)
 
 
-def strings_equal(s1: str, s2: str) -> bool:
-    """
-    Timing-attack resistant string comparison.
-
-    Taken from pyotp.
-
-    Normal comparison using == will short-circuit on the first mismatching
-    character. This avoids that by scanning the whole string, though we
-    still reveal to a timing attack whether the strings are the same
-    length.
-    """
-    s1 = unicodedata.normalize("NFKC", s1)
-    s2 = unicodedata.normalize("NFKC", s2)
-    return hmac.compare_digest(s1.encode("utf-8"), s2.encode("utf-8"))
-
-
 # DEPRECATED ATTRIBUTES HANDLING
 __utils_conf_replacement = {
     "projectID": "viur.instance.project_id",

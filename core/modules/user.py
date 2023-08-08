@@ -622,6 +622,9 @@ class TimeBasedOTP:
     otpTemplate = "user_login_timebasedotp"
 
     class OtpSkel(skeleton.RelSkel):
+        """
+        This is the Skeleton used to ask for the OTP token.
+        """
         otptoken = NumericBone(
             descr="Token",
             required=True
@@ -646,13 +649,11 @@ class TimeBasedOTP:
         if not self.canHandle(user_key):
             return None
 
-        logging.debug("OTP wanted for user")  # fixme: useless information
         otp_user_conf = {
             "uid": str(user_key),
             "otpid": user["otpid"],
             "otpkey": user["otpkey"],
             "otptimedrift": user["otptimedrift"],
-            "algorithm": "sha1",
             "timestamp": time.time(),
             "failures": 0
         }
@@ -683,23 +684,25 @@ class TimeBasedOTP:
         if otp_user_conf["failures"] > 3:
             raise errors.Forbidden("Maximum amount of authentication retries exceeded")
         elif len(otp_user_conf["otpkey"]) % 2 == 1:
-            raise errors.PreconditionFailed("The otp secret stored for this user is invalid (uneven length)")
+            raise errors.NotAcceptable("The otp secret stored for this user is invalid (uneven length)")
 
         # Verify the otptoken. If valid, this returns the current timedrift index for this hardware OTP.
-        verifyIndex = self.verify(
+        res = self.verify(
             otp=skel["otptoken"],
             secret=otp_user_conf["otpkey"],
-            algorithm=otp_user_conf["algorithm"],
+            algorithm=otp_user_conf.get("algorithm") or "sha1",
+            interval=otp_user_conf.get("interval") or 60,
             timedrift=otp_user_conf["otptimedrift"],
             valid_window=self.windowSize
-            )
-        logging.debug(f"TimeBasedOTP:otp: {verifyIndex=}.")
+        )
 
         # Check if Token is invalid. Caution: 'if not verifyIndex' gets false positive for verifyIndex === 0!
-        if verifyIndex is False:
+        if res is None:
             otp_user_conf["failures"] += 1
             session.markChanged()
-            return self.userModule.render.edit(self.OtpSkel(), action="otp", tpl=self.otpTemplate, loginFailed=True)
+            return self.userModule.render.edit(
+                self.OtpSkel(), action="otp", tpl=self.otpTemplate, secondFactorFailed=True
+            )
 
         # Remove otp user config from session
         user_key = db.keyHelper(otp_user_conf["uid"], self.userModule._resolveSkelCls().kindName)
@@ -708,7 +711,7 @@ class TimeBasedOTP:
 
         # Check if the OTP device has a time drift
 
-        timedriftchange = float(verifyIndex) - otp_user_conf["otptimedrift"]
+        timedriftchange = float(res) - otp_user_conf["otptimedrift"]
         if abs(timedriftchange) > 2:
             # The time-drift change accumulates to more than 2 minutes (for interval==60):
             # update clock-drift value accordingly
@@ -719,14 +722,14 @@ class TimeBasedOTP:
 
     @staticmethod
     def verify(
-        otp: str,
-        secret: str = "",
-        algorithm: Any = None,
+        otp: str | int,
+        secret: str,
+        algorithm: str = "sha1",
         interval: int = 60,
-        timedrift: float = 0,
-        for_time: Optional[datetime.datetime] = None,
+        timedrift: float = 0.0,
+        for_time: datetime.datetime | None = None,
         valid_window: int = 0,
-    ) -> Union[int, bool]:
+    ) -> int | None:
         """
         Verifies the OTP passed in against the current time OTP.
 
@@ -744,32 +747,36 @@ class TimeBasedOTP:
         :param valid_window: extends the validity to this many counter ticks before and after the current one
         :returns: The index where verification succeeded, None otherwise
         """
+        # get the hashing digest
+        digest = {
+            "sha1": hashlib.sha1,
+            "sha256": hashlib.sha256,
+        }.get(algorithm)
+
+        if not digest:
+            raise errors.NotImplemented(f"{algorithm=} is not implemented")
 
         if for_time is None:
             for_time = datetime.datetime.now()
 
         # Timedrift is updated only in fractions in order to prevent problems, but we need an integer index
         timedrift = round(timedrift)
+        secret = bytes.decode(base64.b32encode(bytes.fromhex(secret)))  # decode secret
+        otp = str(otp).zfill(6)  # fill with zeros in front
 
-        secret = bytes.decode(base64.b32encode(bytes.fromhex(secret)))
-        digest = {
-            "sha1": hashlib.sha1,
-            "sha256": hashlib.sha256,
-            }[algorithm]
-        logging.debug(f"TimeBasedOTP:verify: {digest=}, {interval=}, {valid_window=}")
-
+        # logging.debug(f"TimeBasedOTP:verify: {digest=}, {interval=}, {valid_window=}")
         totp = pyotp.TOTP(secret, digest=digest, interval=interval)
 
         if valid_window:
             for i in range(timedrift - valid_window, timedrift + valid_window + 1):
                 token = str(totp.at(for_time, i))
-                logging.debug(f"TimeBasedOTP:verify: {i=}, {token=}")
-                if utils.strings_equal(str(otp), token):  # fixme: Can't we do just hmac.compare_digest here?
+                # logging.debug(f"TimeBasedOTP:verify: {i=}, {otp=}, {token=}")
+                if hmac.compare_digest(otp, token):
                     return i
 
-            return False
+            return None
 
-        return utils.strings_equal(str(otp), str(totp.at(for_time, timedrift)))  # fixme: hmac.compare_digest ?
+        return 0 if hmac.compare_digest(otp, str(totp.at(for_time, timedrift))) else None
 
     def updateTimeDrift(self, user_key, idx):
         """
