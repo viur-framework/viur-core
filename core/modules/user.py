@@ -7,9 +7,11 @@ import json
 import logging
 import secrets
 import warnings
-from typing import Optional, Union, Any
 import pyotp
 import base64
+import collections
+import dataclasses
+import typing
 
 import time
 from google.auth.transport import requests
@@ -302,7 +304,8 @@ class UserPassword:
         stored_password_hash = password_data.get("pwhash", b"-invalid-")
         is_okay &= secrets.compare_digest(stored_password_hash, passwd)
 
-        status: Optional[int] = None
+        status = None
+
         # Verify that this account isn't blocked
         if (user_entry.get("status") or 0) < Status.ACTIVE.value:
             if is_okay:
@@ -618,8 +621,17 @@ class GoogleAccount:
 
 
 class TimeBasedOTP:
-    windowSize = 5
+    WINDOW_SIZE = 5
+    MAX_RETRY = 3
     otpTemplate = "user_login_timebasedotp"
+
+    # OptConfig is used
+    @dataclasses.dataclass
+    class OtpConfig:
+        secret: str
+        timedrift: float = 0.0
+        algorithm: typing.Literal["sha1", "sha256"] = "sha1"
+        interval: int = 60
 
     class OtpSkel(skeleton.RelSkel):
         """
@@ -641,22 +653,35 @@ class TimeBasedOTP:
     def get2FactorMethodName(*args, **kwargs):  # fixme: What is the purpose of this function? Why not just a member?
         return "X-VIUR-2FACTOR-TimeBasedOTP"
 
-    def canHandle(self, user_key) -> bool:
+    def get_config(self, user_key) -> OtpConfig | None:
+        """
+        Returns an instance of self.OtpConfig with a provided token configuration,
+        or None when there is no appropriate configuration of this second factor handler available.
+        """
         user = db.Get(user_key)
-        return all(bool(user.get(k)) for k in ("otp_serial", "otp_secret"))
+        if user and all(bool(user.get(k)) for k in ("otp_serial", "otp_secret")):
+            return self.OtpConfig(secret=user["otp_secret"], timedrift=user.get("otp_timedrift") or 0)
+
+        return None
+
+    def canHandle(self, user_key) -> bool:
+        """
+        Specified whether the second factor authentication can be handled by the given user or not.
+        """
+        return bool(self.get_config(user_key))
 
     def startProcessing(self, user_key):
-        user = db.Get(user_key)
+        """
+        Configures OTP login for the current session.
 
-        if not self.canHandle(user_key):
+        A special otp_user_conf has to be specified as a dict, which is stored into the session.
+        """
+        if not (otp_user_conf := self.get_config(user_key)):
             return None
 
         otp_user_conf = {
             "key": str(user_key),
-            "serial": user["otp_serial"],
-            "secret": user["otp_secret"],
-            "timedrift": user["otp_timedrift"]
-        }
+        } | dataclasses.asdict(otp_user_conf)
 
         session = current.session.get()
         session["_otp_user"] = otp_user_conf
@@ -678,7 +703,7 @@ class TimeBasedOTP:
             raise errors.PreconditionFailed()
 
         # Check if maximum second factor verification attempts
-        if (attempts := otp_user_conf.get("attempts") or 0) > 3:
+        if (attempts := otp_user_conf.get("attempts") or 0) > self.MAX_RETRY:
             raise errors.Forbidden("Maximum amount of authentication retries exceeded")
 
         # Read the OTP token via the skeleton, to obtain a valid value
@@ -691,7 +716,7 @@ class TimeBasedOTP:
                 algorithm=otp_user_conf.get("algorithm") or "sha1",
                 interval=otp_user_conf.get("interval") or 60,
                 timedrift=otp_user_conf.get("timedrift") or 0.0,
-                valid_window=self.windowSize
+                valid_window=self.WINDOW_SIZE
             )
         else:
             res = None
