@@ -146,18 +146,18 @@ class UserSkel(skeleton.Skeleton):
     )
 
     # One-Time Password Verification
-    otpid = StringBone(
+    otp_serial = StringBone(
         descr="OTP serial",
         required=False,
         searchable=True,
     )
 
-    otpkey = CredentialBone(
-        descr="OTP hex key",
+    otp_secret = CredentialBone(
+        descr="OTP secret",
         required=False,
     )
 
-    otptimedrift = NumericBone(
+    otp_timedrift = NumericBone(
         descr="OTP time drift",
         readOnly=True,
         defaultValue=0,
@@ -627,7 +627,9 @@ class TimeBasedOTP:
         """
         otptoken = NumericBone(
             descr="Token",
-            required=True
+            required=True,
+            max=999999,
+            min=0,
         )
 
     def __init__(self, userModule, modulePath):
@@ -641,7 +643,7 @@ class TimeBasedOTP:
 
     def canHandle(self, user_key) -> bool:
         user = db.Get(user_key)
-        return all(bool(user.get(k)) for k in ("otpid", "otpkey"))
+        return all(bool(user.get(k)) for k in ("otp_serial", "otp_secret"))
 
     def startProcessing(self, user_key):
         user = db.Get(user_key)
@@ -650,12 +652,10 @@ class TimeBasedOTP:
             return None
 
         otp_user_conf = {
-            "uid": str(user_key),
-            "otpid": user["otpid"],
-            "otpkey": user["otpkey"],
-            "otptimedrift": user["otptimedrift"],
-            "timestamp": time.time(),
-            "failures": 0
+            "key": str(user_key),
+            "serial": user["otp_serial"],
+            "secret": user["otp_secret"],
+            "timedrift": user["otp_timedrift"]
         }
 
         session = current.session.get()
@@ -677,41 +677,42 @@ class TimeBasedOTP:
         if not (otp_user_conf := session.get("_otp_user")):
             raise errors.PreconditionFailed()
 
-        skel = self.OtpSkel()
-        if not skel.fromClient(kwargs):
-            self.userModule.render.edit(self.OtpSkel(), tpl=self.otpTemplate)
-
-        if otp_user_conf["failures"] > 3:
+        # Check if maximum second factor verification attempts
+        if (attempts := otp_user_conf.get("attempts") or 0) > 3:
             raise errors.Forbidden("Maximum amount of authentication retries exceeded")
-        elif len(otp_user_conf["otpkey"]) % 2 == 1:
-            raise errors.NotAcceptable("The otp secret stored for this user is invalid (uneven length)")
 
-        # Verify the otptoken. If valid, this returns the current timedrift index for this hardware OTP.
-        res = self.verify(
-            otp=skel["otptoken"],
-            secret=otp_user_conf["otpkey"],
-            algorithm=otp_user_conf.get("algorithm") or "sha1",
-            interval=otp_user_conf.get("interval") or 60,
-            timedrift=otp_user_conf["otptimedrift"],
-            valid_window=self.windowSize
-        )
+        # Read the OTP token via the skeleton, to obtain a valid value
+        skel = self.OtpSkel()
+        if skel.fromClient(kwargs):
+            # Verify the otptoken. If valid, this returns the current timedrift index for this hardware OTP.
+            res = self.verify(
+                otp=skel["otptoken"],
+                secret=otp_user_conf["secret"],
+                algorithm=otp_user_conf.get("algorithm") or "sha1",
+                interval=otp_user_conf.get("interval") or 60,
+                timedrift=otp_user_conf.get("timedrift") or 0.0,
+                valid_window=self.windowSize
+            )
+        else:
+            res = None
 
         # Check if Token is invalid. Caution: 'if not verifyIndex' gets false positive for verifyIndex === 0!
         if res is None:
-            otp_user_conf["failures"] += 1
+            otp_user_conf["attempts"] = attempts + 1
             session.markChanged()
+
             return self.userModule.render.edit(
                 self.OtpSkel(), action="otp", tpl=self.otpTemplate, secondFactorFailed=True
             )
 
         # Remove otp user config from session
-        user_key = db.keyHelper(otp_user_conf["uid"], self.userModule._resolveSkelCls().kindName)
+        user_key = db.keyHelper(otp_user_conf["key"], self.userModule._resolveSkelCls().kindName)
         del session["_otp_user"]
         session.markChanged()
 
         # Check if the OTP device has a time drift
 
-        timedriftchange = float(res) - otp_user_conf["otptimedrift"]
+        timedriftchange = float(res) - otp_user_conf["timedrift"]
         if abs(timedriftchange) > 2:
             # The time-drift change accumulates to more than 2 minutes (for interval==60):
             # update clock-drift value accordingly
@@ -790,9 +791,9 @@ class TimeBasedOTP:
 
         def transaction(user_key, idx):
             user = db.Get(user_key)
-            if not isinstance(user.get("otptimedrift"), float):
-                user["otptimedrift"] = 0.0
-            user["otptimedrift"] += min(max(0.1 * idx, -0.3), 0.3)
+            if not isinstance(user.get("otp_timedrift"), float):
+                user["otp_timedrift"] = 0.0
+            user["otp_timedrift"] += min(max(0.1 * idx, -0.3), 0.3)
             db.Put(user)
 
         db.RunInTransaction(transaction, user_key, idx)
