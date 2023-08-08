@@ -2,8 +2,9 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.5.0.beta2]
+## [3.5.0.beta3]
 
+- fix: pillow replaces `Image.ANTIALIAS` by `Image.LANCZOS`
 - fix: guessTimeZone() fails with Python 3.11 (#789)
 - feat: Make recipients for `sendEMailToAdmins` configurable (#798)
 - test: Update test-suite Pipfile and add tests for `DateBone` (#797)
@@ -39,6 +40,10 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - docs: removed hierarchyBone, changed to Python 3.10+ and removed wiki and community landing page (#707)
 - fix: `CredentialBone` without escaping (#702)
 - chore: Improve `StringBone` (#714)
+
+## [3.4.7]
+
+- chore: Update viur-datastore to 1.3.10 (#805)
 
 ## [3.4.6]
 
