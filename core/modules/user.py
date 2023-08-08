@@ -726,7 +726,7 @@ class TimeBasedOTP:
         timedrift: float = 0,
         for_time: Optional[datetime.datetime] = None,
         valid_window: int = 0,
-        ) -> Union[int, bool]:
+    ) -> Union[int, bool]:
         """
         Verifies the OTP passed in against the current time OTP.
 
@@ -764,11 +764,12 @@ class TimeBasedOTP:
             for i in range(timedrift - valid_window, timedrift + valid_window + 1):
                 token = str(totp.at(for_time, i))
                 logging.debug(f"TimeBasedOTP:verify: {i=}, {token=}")
-                if utils.strings_equal(str(otp), token):
+                if utils.strings_equal(str(otp), token):  # fixme: Can't we do just hmac.compare_digest here?
                     return i
+
             return False
 
-        return utils.strings_equal(str(otp), str(totp.at(for_time, timedrift)))
+        return utils.strings_equal(str(otp), str(totp.at(for_time, timedrift)))  # fixme: hmac.compare_digest ?
 
     def updateTimeDrift(self, user_key, idx):
         """
