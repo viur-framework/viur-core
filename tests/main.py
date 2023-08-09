@@ -81,8 +81,7 @@ def monkey_patch():
     sys.modules[m.__name__] = m
 
     # Import the ViUR-core into the viur package
-    spec = importlib.util.spec_from_file_location(
-        "viur.core", f"{tld}/core/__init__.py")
+    spec = importlib.util.spec_from_file_location("viur.core", f"{tld}/src/viur/core/__init__.py")
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)

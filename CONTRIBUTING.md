@@ -48,12 +48,14 @@ Please document your changes and provide info in any form you can. We have estab
 `viur-core` uses the semantic versioning scheme.<br>
 Any `major.minor.bugfix` release is being published to [PyPI](https://pypi.org/project/viur-core).
 
-Furthermore, the following rules apply to pre-releases which are also made available to PyPI for open tests.
+Furthermore, the following rules provided in [PEP-440](https://peps.python.org/pep-0440/#pre-releases) apply to pre-releases which are also made available to PyPI for open tests.
 
-- Release candidates which are almost feature-complete is given a suffix named `.rcN`.
-- Beta versions with incomplete features is given a suffix named `.betaN`.
+- `devN` for development and test releases (including release tests, may be broken)
+- `alphaN` for feature-incomplete alpha releases
+- `betaN` for feature-completed beta releases
+- `rcN` for release-candidates, where bugs may be fixed
 
-In both cases, `N` is a number counted upwards for every pre-release.
+In all cases, `N` is a number counted upwards for every pre-release kind.
 
 ## Dependency management
 
