@@ -6,11 +6,13 @@ name = "pypi"
 [packages]
 pytz = "==2022.1"
 tzlocal = "==4.2"
-googleapis-common-protos = {version = "==1.56.0", extras = ["grpc"]}
 requests = "==2.31.0"
-Jinja2 = "==3.1.1"
-WebOb = "==1.8.7"
 #viur-core = {editable = true, path = "./.."}
+jinja2 = "==3.1.1"
+webob = "==1.8.7"
+pyyaml = "==6.0"
+jsonschema = "==4.17.3"
+googleapis-common-protos = {version = "==1.56.0", extras = ["grpc"]}
 
 [dev-packages]
 coverage = "*"
