@@ -16,7 +16,7 @@ import os
 import sys
 import importlib.util
 
-sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath('../src'))
 
 # -- General configuration ------------------------------------------------
 
@@ -28,16 +28,22 @@ sys.path.insert(0, os.path.abspath('..'))
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
-    'autoapi.extension'
+    'autoapi.extension',
+    'sphinx_autodoc_typehints',
 ]
 
 autodoc_default_options = {
-    'ignore-module-all': True
+    'ignore-module-all': True,
+    'special-members': True
 }
 
+autoapi_type = 'python'
+autoapi_dirs = ['../src']
+autoapi_root = 'viur'
+# Debug flag for keeping the index.rst Documents of each python file
+# autoapi_keep_files = True
 autoapi_python_class_content = 'both'
-
-autoapi_dirs = ['../core']
+autodoc_typehints = "description"
 
 # Add any paths that contain templates here, relative to this directory.
 # templates_path = ['_templates']
@@ -60,7 +66,7 @@ author = 'Mausbrand Informationssysteme GmbH'
 # built documents.
 #
 _version_spec = importlib.util.spec_from_file_location(
-    "version", f"../core/version.py")
+    "version", f"../src/viur/core/version.py")
 _version_module = importlib.util.module_from_spec(_version_spec)
 _version_spec.loader.exec_module(_version_module)
 # The short X.Y version.
@@ -102,6 +108,8 @@ todo_include_todos = False
 # a list of builtin themes.
 # html_theme = 'default'
 html_theme = 'rtdtemplate'
+# html_theme = "furo"
+
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

@@ -5,7 +5,7 @@
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
 SOURCEDIR     = .
-AUTOAPI_DIR   = ../core/
+AUTOAPI_DIR   = ../src
 BUILDDIR      = build
 
 # Has to be explicit, otherwise we don't get "make" without targets right.
