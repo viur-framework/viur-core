@@ -623,9 +623,13 @@ class TimeBasedOTP:
     MAX_RETRY = 3
     otpTemplate = "user_login_timebasedotp"
 
-    # OptConfig is used
     @dataclasses.dataclass
     class OtpConfig:
+        """
+        This dataclass is used to provide an interface for a OTP token
+        algorithm description that is passed within the TimeBasedOTP
+        class for configuration.
+        """
         secret: str
         timedrift: float = 0.0
         algorithm: typing.Literal["sha1", "sha256"] = "sha1"
