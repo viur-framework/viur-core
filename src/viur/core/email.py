@@ -389,7 +389,8 @@ class EmailTransportSendInBlue(EmailTransport):
         This task does not have to be enabled.
         It automatically checks if the apiKey is configured.
 
-        There are three thresholds: 1000, 500, 100
+        There are three default thresholds: 1000, 500, 100
+        Others can be set via conf["viur.email.sendInBlue.thresholds"].
         An email will be sent for the lowest threshold that has been undercut.
         """
         if conf.get("viur.email.sendInBlue.apiKey") is None:
@@ -413,7 +414,8 @@ class EmailTransportSendInBlue(EmailTransport):
 
         logging.info(f"SIB E-Mail credits: {credits}")
 
-        for idx, limit in list(enumerate((1000, 500, 100), 1))[::-1]:
+        thresholds = conf.get("viur.email.sendInBlue.thresholds", (1000, 500, 100))
+        for idx, limit in list(enumerate(thresholds, 1))[::-1]:
             if credits < limit:
                 sendEMailToAdmins(
                     f"SendInBlue email budget for {conf['viur.instance.project_id']}: "
