@@ -702,7 +702,7 @@ class TimeBasedOTP:
 
         session = current.session.get()
         if not (otp_user_conf := session.get("_otp_user")):
-            raise errors.PreconditionFailed()
+            raise errors.PreconditionFailed("No OTP process started in this session")
 
         # Check if maximum second factor verification attempts
         if (attempts := otp_user_conf.get("attempts") or 0) > self.MAX_RETRY:
@@ -796,17 +796,17 @@ class TimeBasedOTP:
         totp = pyotp.TOTP(secret, digest=digest, interval=interval)
 
         if valid_window:
-            for i in range(timedrift - valid_window, timedrift + valid_window + 1):
-                token = str(totp.at(for_time, i))
-                # logging.debug(f"TimeBasedOTP:verify: {i=}, {otp=}, {token=}")
+            for offset in range(timedrift - valid_window, timedrift + valid_window + 1):
+                token = str(totp.at(for_time, offset))
+                # logging.debug(f"TimeBasedOTP:verify: {offset=}, {otp=}, {token=}")
                 if hmac.compare_digest(otp, token):
-                    return i
+                    return offset
 
             return None
 
         return 0 if hmac.compare_digest(otp, str(totp.at(for_time, timedrift))) else None
 
-    def updateTimeDrift(self, user_key, idx):
+    def updateTimeDrift(self, user_key: db.Key, idx: float) -> None:
         """
             Updates the clock-drift value.
             The value is only changed in 1/10 steps, so that a late submit by an user doesn't skew
