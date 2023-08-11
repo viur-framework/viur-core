@@ -3,7 +3,6 @@ import hmac
 import logging
 import secrets
 import string
-import unicodedata
 from base64 import urlsafe_b64encode
 from datetime import datetime, timedelta, timezone
 from typing import Any, Union, Optional
