@@ -411,16 +411,37 @@ class EmailTransportSendInBlue(EmailTransport):
                 break
         else:
             credits = -1
-
         logging.info(f"SIB E-Mail credits: {credits}")
+
+        # Keep track of the last credits and the limit for which a email has
+        # already been sent. This way, emails for the same limit will not be
+        # sent more than once and the remaining e-mail credits will not be wasted.
+        key = db.Key("viur-email-conf", "sib-credits")
+        if not (entity := db.Get(key)):
+            logging.debug(f"{entity = }")
+            entity = db.Entity(key)
+            logging.debug(f"{entity = }")
+        logging.debug(f"{entity = }")
+        entity.setdefault("latest_warning_for", None)
+        entity["credits"] = credits
+        entity["email"] = data["email"]
 
         thresholds = conf.get("viur.email.sendInBlue.thresholds", (1000, 500, 100))
         for idx, limit in list(enumerate(thresholds, 1))[::-1]:
             if credits < limit:
+                if entity["latest_warning_for"] == limit:
+                    logging.info(f"Already send an email for {limit = }.")
+                    break
                 sendEMailToAdmins(
                     f"SendInBlue email budget for {conf['viur.instance.project_id']}: "
                     f"{credits} ({idx}. warning)",
                     f"The SendInBlue email budget reached {credits} credits "
                     f"for {data['email']}. Please increase soon.",
                 )
+                entity["latest_warning_for"] = limit
                 break
+        else:
+            # Credits are above all limits
+            entity["latest_warning_for"] = None
+
+        db.Put(entity)
