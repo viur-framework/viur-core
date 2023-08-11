@@ -150,13 +150,11 @@ class UserSkel(skeleton.Skeleton):
     # One-Time Password Verification
     otp_serial = StringBone(
         descr="OTP serial",
-        required=False,
         searchable=True,
     )
 
     otp_secret = CredentialBone(
         descr="OTP secret",
-        required=False,
     )
 
     otp_timedrift = NumericBone(
