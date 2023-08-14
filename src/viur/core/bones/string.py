@@ -221,6 +221,7 @@ class StringBone(BaseBone):
             elif not self.caseSensitive:
                 prop += ".idx"
 
+            # fixme: VIUR4 replace theses stupid numbers defining a sort-order by a meaningful keys
             sorting = {
                 "1": db.SortOrder.Descending,
                 "2": db.SortOrder.InvertedAscending,
