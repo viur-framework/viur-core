@@ -574,6 +574,8 @@ def renderEditForm(render: Render,
     rowTpl = render.getEnv().get_template(render.getTemplateFileName("editform_row"))
     sections = OrderedDict()
 
+if both := set(ignore).intersection(bones):
+    raise ValueError(f"You have specified the same bones {', '.join(both)} in *ignore* AND *bones*!")
     for boneName, boneParams in skel["structure"].items():
         category = str("server.render.html.default_category")
         if "params" in boneParams and isinstance(boneParams["params"], dict):
