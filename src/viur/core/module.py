@@ -1,20 +1,88 @@
-from typing import Dict, Any, Union, Tuple, Callable, get_type_hints
-from viur.core.config import conf
+import copy
 import inspect
+from typing import Any, Callable, get_type_hints
+from viur.core.config import conf
+
+
+class Exposed:
+    """
+    Abstraction wrapper for any public available function.
+    """
+
+    @classmethod
+    def ensure(cls, func):
+        """
+        Ensures the provided func is either an Exposed already, or turns it into an Exposed.
+        This is done to avoid stacking Exposed objects, which may create unwanted results.
+        """
+        if isinstance(func, Exposed):
+            return func
+
+        return cls(func)
+
+    def __init__(self, func: Callable):
+        self.internal = False
+        self.ssl = False
+        self.skey = None
+        self.methods = ("GET", "POST", "HEAD")
+        self.seo_language_map = None
+
+        self._func = func
+        self._instance = None
+
+    def __get__(self, obj, objtype):
+        """
+        This binds a method to an Exposed.
+
+        To do it, the Exposed instance is copied and equipped with the individual _instance member.
+        It took me some time to find this out, but it now seems to work!
+        """
+        if obj:
+            bound = copy.copy(self)
+            bound._instance = obj
+            return bound
+
+        return self
+
+    def __call__(self, *args, **kwargs):
+        """
+        Wrapper to call the public function directly.
+        """
+        if self.skey:
+            self.skey(*args, **kwargs)
+
+        # call with instance when provided
+        if self._instance:
+            return self._func(self._instance, *args, **kwargs)
+
+        return self._func(*args, **kwargs)
+
+    def register(self, target: dict, name: str, lang: str | None = None):
+        """
+        Registers the public function under `name` and eventually some customized SEO-name for the provided lang(s).
+        """
+        target[name] = self
+
+        # reassign for SEO mapping as well
+        if self.seo_language_map:
+            for lang in tuple(self.seo_language_map.keys()) if not lang else (lang, ):
+                if translated_name := self.seo_language_map.get(lang):
+                    target[translated_name] = self
+
 
 class Module:
     """
-        This is the root module prototype that serves a minimal module in the ViUR system without any other bindings.
+    This is the root module prototype that serves a minimal module in the ViUR system without any other bindings.
     """
 
-    handler: Union[str, Callable] = None
+    handler: str | Callable = None
     """
     This is the module's handler, respectively its type.
     It can be provided as a callable() which determines the handler at runtime.
     A module without a handler setting is invalid.
     """
 
-    accessRights: Tuple[str] = None
+    accessRights: tuple[str] = None
     """
     If set, a tuple of access rights (like add, edit, delete) that this module supports.
 
@@ -23,11 +91,11 @@ class Module:
     or user/edit.
     """
 
-    roles: Dict = {}
+    roles: dict = {}
     r"""
     Allows to specify role settings for a module.
-    Defaults to no role definition, which ignores the module entirely.
-    A "*" can either be used as key or as value to allow for "all roles", or "all rights".
+    Defaults to no role definition, which ignores the module entirely in the role-system (access rights can still be set individually).
+    A "*" wildcard can either be used as key or as value to allow for "all roles", or "all rights".
 
         .. code-block:: python
 
@@ -40,7 +108,32 @@ class Module:
 
     """
 
-    adminInfo: Union[Dict[str, Any], Callable] = None
+    seo_language_map: dict[str: str] = {}
+    r"""
+    The module name is the first part of a URL.
+    SEO-identifiers have to be set as class-attribute ``seoLanguageMap`` of type ``dict[str, str]`` in the module.
+    It maps a *language* to the according *identifier*.
+
+    .. code-block:: python
+        :name: module seo-map
+        :caption: modules/myorders.py
+        :emphasize-lines: 4-7
+
+        from viur.core.prototypes import List
+
+        class MyOrders(List):
+            seo_language_map = {
+                "de": "bestellungen",
+                "en": "orders",
+            }
+
+    By default the module would be available under */myorders*, the lowercase module name.
+    With the defined :attr:`seoLanguageMap`, it will become available as */de/bestellungen* and */en/orders*.
+
+    Great, this part is now user and robot friendly :)
+    """
+
+    adminInfo: dict[str, Any] | Callable = None
     """
         This is a ``dict`` holding the information necessary for the Vi/Admin to handle this module.
 
@@ -154,6 +247,7 @@ class Module:
             "handler": ".".join((handler, self.__class__.__name__.lower())),
         }
 
+        '''
         func = inspect.getmembers(self, predicate=inspect.ismethod)
         filtered_funcs = []
         for fn in func:
@@ -200,6 +294,7 @@ class Module:
                 filtered_funcs.append(attributes)
 
         ret["functions"] = filtered_funcs
+        '''
 
         # Extend indexes, if available
         if indexes := getattr(self, "indexes", None):
@@ -215,3 +310,48 @@ class Module:
         self._cached_description = ret
 
         return ret
+
+    def register(self, target: dict, render: object):
+        """
+        Registers this module's public functions to a given resolver.
+        This function is executed on start-up, and can be sub-classed.
+        """
+        # connect instance to render
+        self.render = render
+
+        # todo: This should be held elsewhere, and not determined all the time...
+        functions = {}
+        modules = {}
+
+        for key in dir(self):
+            if key[0] == "_":
+                continue
+
+            prop = getattr(self, key)
+
+            if isinstance(prop, Exposed):
+                functions[key] = prop
+            elif isinstance(prop, Module):
+                modules[key] = prop
+
+        # Map module under SEO-mapped name, if available.
+        for lang in conf["viur.availableLanguages"] or [conf["viur.defaultLanguage"]]:
+            # Map the module under each translation
+            if translated_module_name := self.seo_language_map.get(lang):
+                translated_module = target.setdefault(translated_module_name, {})
+
+                # Map module functions to the previously determined target
+                for name, func in functions.items():
+                    func.register(translated_module, name, lang)
+
+        # Map the module also under it's original name
+        if self.moduleName != "index":
+            target = target.setdefault(self.moduleName, {})
+
+        # Map module functions to the previously determined target
+        for name, func in functions.items():
+            func.register(target, name)
+
+        # Register sub modules
+        for name, module in modules.items():
+            module.register(target, render)

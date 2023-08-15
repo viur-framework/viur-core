@@ -1,58 +1,8 @@
 import functools
-import copy
 import logging
 from typing import Callable
 from viur.core import errors, current
-
-
-class Exposed:
-    """
-    Abstraction wrapper for exposed functions.
-    """
-
-    @classmethod
-    def ensure(cls, func):
-        """
-        Ensures the provided func is either an Exposed already, or turns it into an Exposed.
-        This is done to avoid stacking Exposed objects, which may create unwanted results.
-        """
-        if isinstance(func, Exposed):
-            return func
-
-        return cls(func)
-
-    def __init__(self, func: Callable):
-        self.internal = False
-        self.ssl = False
-        self.skey = None
-        self.methods = ("GET", "POST", "HEAD")
-        self.seo_language_map = None
-
-        self._func = func
-        self._instance = None
-
-    def __get__(self, obj, objtype):
-        """
-        This binds a method to an Exposed.
-        To do it, the Exposed instance is copied and equipped with the individual _instance member.
-        It took me some time to find this out, but it now seems to work!
-        """
-        if obj:
-            bound = copy.copy(self)
-            bound._instance = obj
-            return bound
-
-        return self
-
-    def __call__(self, *args, **kwargs):
-        if self.skey:
-            self.skey(*args, **kwargs)
-
-        # call with instance when provided
-        if self._instance:
-            return self._func(self._instance, *args, **kwargs)
-
-        return self._func(*args, **kwargs)
+from viur.core.module import Exposed
 
 
 #def exposed(internal: bool = False) -> Callable:
