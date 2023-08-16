@@ -142,15 +142,18 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
             continue
 
         for render_name, render in renderers.items():  # look, if a particular renderer should be built
-            if not getattr(module_cls, render_name, False):  # todo: VIUR4 this is for legacy reasons, can be done better!
+            # Only continue when module_cls is configured for this render
+            # todo: VIUR4 this is for legacy reasons, can be done better!
+            if not getattr(module_cls, render_name, False):
                 continue
 
-            module_instance = module_cls(module_name, ("/" + render_name if render_name != default else "") + "/" + module_name)
-
-            # Attach the module-specific or the default render
-
+            # Create a new module instance
+            module_instance = module_cls(
+                module_name, ("/" + render_name if render_name != default else "") + "/" + module_name
+            )
             module_instance.indexes = indexes.get(module_name, [])  # todo: Fix this in Module!
 
+            # Attach the module-specific or the default render
             if render_name == default:  # default or render (sub)namespace?
                 setattr(root, module_name, module_instance)
                 target = resolver

@@ -5,7 +5,7 @@ from viur.core import errors, current
 from viur.core.module import Method
 
 
-#def exposed(internal: bool = False) -> Callable:
+# def exposed(internal: bool = False) -> Callable:
 def exposed(func: Callable) -> Callable:
     """
     Decorator, which marks a function as exposed.

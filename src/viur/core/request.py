@@ -582,11 +582,10 @@ class BrowseHandler():  # webapp.RequestHandler
             raise errors.NotFound()
 
         # Check for @force_ssl flag
-        if (not self.internalRequest
-            and caller.ssl
-            and not self.request.host_url.lower().startswith("https://")
-            and not conf["viur.instance.is_dev_server"]
-        ):
+        if not self.internalRequest \
+                and caller.ssl \
+                and not self.request.host_url.lower().startswith("https://") \
+                and not conf["viur.instance.is_dev_server"]:
             raise errors.PreconditionFailed("You must use SSL to access this resource!")
 
         # Check for @force_post flag

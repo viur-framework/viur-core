@@ -93,7 +93,10 @@ class Module:
     roles: dict = {}
     r"""
     Allows to specify role settings for a module.
-    Defaults to no role definition, which ignores the module entirely in the role-system (access rights can still be set individually).
+
+    Defaults to no role definition, which ignores the module entirely in the role-system.
+    In this case, access rights can still be set individually on the user's access bone.
+
     A "*" wildcard can either be used as key or as value to allow for "all roles", or "all rights".
 
         .. code-block:: python
