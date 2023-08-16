@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
+## [3.4.8]
+
+- chore: Update viur-datastore to 1.3.11 (#814)
+
 ## [3.4.7]
 
 - chore: Update viur-datastore to 1.3.10 (#805)
@@ -318,7 +322,7 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
 - Added validations to catch invalid recipient addresses early in sendEmail
 - 'connect-src': self and 'upgrade-insecure-requests' CSP directives by default
-- versionHash and appVersion variables to utils and jinja2 render 
+- versionHash and appVersion variables to utils and jinja2 render
 - The ability to import blobs that have been copied client-side from the old (non cloud-storage) blobstore
 - Support for custom colorprofiles in thumbnails
 - [Breaking] srcSetFor function in jinja2 now needs a list with or height instead of deriving from groups
@@ -347,6 +351,6 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - Support for translation-dictionaries shipped with the application has been removed. Use the viur-translation datastore kind instead
 - The cache (viur.core.cache) is now automatically evicted in most cases based on entities accessed / queries run.
 - Memcache support. Caching for the datastore is not supported anymore
-- Full support for the dev_appserver. Now a gcp project is required for datastore/cloud store access 
+- Full support for the dev_appserver. Now a gcp project is required for datastore/cloud store access
 
 [develop]: https://github.com/viur-framework/viur-core/compare/main...develop
