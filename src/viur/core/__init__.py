@@ -134,7 +134,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     resolver = {}
 
     for module_name, module_cls in vars(modules).items():  # iterate over all modules
-        if not inspect.isclass(module_cls) or not issubclass(module_cls, Module) or not module_cls.handler:
+        if not inspect.isclass(module_cls) or not issubclass(module_cls, Module):
             continue
 
         if module_name == "index":
@@ -167,7 +167,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
 
             # Apply Renderers postProcess Filters
             if "_postProcessAppObj" in render:  # todo: This is ugly!
-                render["_postProcessAppObj"](render)
+                render["_postProcessAppObj"](target)
 
         # todo: Do this in Module.register
         '''
@@ -198,6 +198,11 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
         conf["viur.emailRenderer"] = renderers[default]["default"]().renderEmail
     elif "html" in renderers:
         conf["viur.emailRenderer"] = renderers["html"]["default"]().renderEmail
+
+    print("---")
+    import pprint
+    pprint.pprint(resolver)
+    pprint.pprint(root)
 
     return root
 

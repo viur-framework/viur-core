@@ -207,9 +207,8 @@ class UserSkel(skeleton.Skeleton):
 
 
 class UserAuthentication(Module):
-    def __init__(self, userModule, modulePath):
-        self.moduleName = None
-        self.modulePath = modulePath
+    def __init__(self, moduleName, modulePath, userModule):
+        super().__init__(moduleName, modulePath)
         self._user_module = userModule
 
 
@@ -761,15 +760,15 @@ class User(List):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        for p in self.authenticationProviders:
-            assert issubclass(p, UserAuthentication)
-            pInstance = p(self, f"{self.modulePath}/auth_{p.__name__.lower()}")
-            setattr(self, f"auth_{pInstance.__class__.__name__.lower()}", pInstance)
+        for provider in self.authenticationProviders:
+            assert issubclass(provider, UserAuthentication)
+            name = f"auth_{provider.__name__.lower()}"
+            setattr(self, name, provider(name, f"{self.modulePath}/{name}", self))
 
-        for p in self.secondFactorProviders:
-            assert issubclass(p, UserAuthentication)
-            pInstance = p(self, f"{self.modulePath}/f2_{p.__name__.lower()}")
-            setattr(self, f"f2_{pInstance.__class__.__name__.lower()}", pInstance)
+        for provider in self.secondFactorProviders:
+            assert issubclass(provider, UserAuthentication)
+            name = f"f2_{provider.__name__.lower()}"
+            setattr(self, name, provider(name, f"{self.modulePath}/{name}", self))
 
 
     def get_role_defaults(self, role: str) -> set[str]:

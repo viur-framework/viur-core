@@ -354,4 +354,4 @@ class Module:
 
         # Register sub modules
         for name, module in modules.items():
-            module.register(target, render)
+            module.register(target, self.render)
