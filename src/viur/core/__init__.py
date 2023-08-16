@@ -34,10 +34,10 @@ from typing import Callable, Dict, Union, List
 from viur.core import session, errors, i18n, request, utils, current
 from viur.core.config import conf
 from viur.core.tasks import TaskHandler, runStartupTasks
-from viur.core.module import Module
+from viur.core.module import Module, Method
 # noinspection PyUnresolvedReferences
 from viur.core import logging as viurLogging  # unused import, must exist, initializes request logging
-from viur.core.decorators import Exposed, force_post, force_ssl, exposed, internal_exposed, skey
+from viur.core.decorators import force_post, force_ssl, exposed, internal_exposed, skey
 
 import logging  # this import has to stay here, see #571
 

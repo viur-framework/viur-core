@@ -4,18 +4,18 @@ from typing import Any, Callable, get_type_hints
 from viur.core.config import conf
 
 
-class Exposed:
+class Method:
     """
-    Abstraction wrapper for any public available function.
+    Abstraction wrapper for any public available method.
     """
 
     @classmethod
     def ensure(cls, func):
         """
-        Ensures the provided func is either an Exposed already, or turns it into an Exposed.
-        This is done to avoid stacking Exposed objects, which may create unwanted results.
+        Ensures the provided func is either a Method already, or turns it into a Method.
+        This is done to avoid stacking Method objects, which may create unwanted results.
         """
-        if isinstance(func, Exposed):
+        if isinstance(func, Method):
             return func
 
         return cls(func)
@@ -32,10 +32,9 @@ class Exposed:
 
     def __get__(self, obj, objtype):
         """
-        This binds a method to an Exposed.
+        This binds the Method to an object.
 
-        To do it, the Exposed instance is copied and equipped with the individual _instance member.
-        It took me some time to find this out, but it now seems to work!
+        To do it, the Method instance is copied and equipped with the individual _instance member.
         """
         if obj:
             bound = copy.copy(self)
@@ -46,7 +45,7 @@ class Exposed:
 
     def __call__(self, *args, **kwargs):
         """
-        Wrapper to call the public function directly.
+        Wrapper to call the Method directly.
         """
         if self.skey:
             self.skey(*args, **kwargs)
@@ -57,15 +56,15 @@ class Exposed:
 
         return self._func(*args, **kwargs)
 
-    def register(self, target: dict, name: str, lang: str | None = None):
+    def register(self, target: dict, name: str, language: str | None = None):
         """
-        Registers the public function under `name` and eventually some customized SEO-name for the provided lang(s).
+        Registers the Method under `name` and eventually some customized SEO-name for the provided language
         """
         target[name] = self
 
         # reassign for SEO mapping as well
         if self.seo_language_map:
-            for lang in tuple(self.seo_language_map.keys()) if not lang else (lang, ):
+            for lang in tuple(self.seo_language_map.keys()) if not language else (language, ):
                 if translated_name := self.seo_language_map.get(lang):
                     target[translated_name] = self
 
@@ -329,7 +328,7 @@ class Module:
 
             prop = getattr(self, key)
 
-            if isinstance(prop, Exposed):
+            if isinstance(prop, Method):
                 functions[key] = prop
             elif isinstance(prop, Module):
                 modules[key] = prop

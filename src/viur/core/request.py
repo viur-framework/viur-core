@@ -13,8 +13,8 @@ from urllib.parse import unquote, urljoin, urlparse
 import webob
 
 from viur.core import current, db, errors, utils
+from viur.core.module import Method
 from viur.core.config import conf
-from viur.core.decorators import Exposed
 from viur.core.logging import client as loggingClient, requestLogger, requestLoggingRessource
 from viur.core.securityheaders import extendCsp
 from viur.core.tasks import _appengineServiceIPs
@@ -547,10 +547,10 @@ class BrowseHandler():  # webapp.RequestHandler
             if part not in caller:
                 part = "index"
 
-            print(part, caller.get(part))
+            # print(part, caller.get(part))
 
             if caller := caller.get(part):
-                if isinstance(caller, Exposed):
+                if isinstance(caller, Method):
                     if part == "index":
                         idx -= 1
 
@@ -570,9 +570,9 @@ class BrowseHandler():  # webapp.RequestHandler
             raise errors.NotFound(
                 f"""The path {utils.escapeString("/".join(self.path_list[:idx]))} could not be found""")
 
-        if not isinstance(caller, Exposed):
+        if not isinstance(caller, Method):
             # try to find "index" function
-            if (index := caller.get("index")) and isinstance(index, Exposed):
+            if (index := caller.get("index")) and isinstance(index, Method):
                 caller = index
             else:
                 raise errors.MethodNotAllowed()
@@ -605,7 +605,7 @@ class BrowseHandler():  # webapp.RequestHandler
                 self.disableCache = True
 
         try:
-            # fixme: this must be refactored and integrated into Exposed class!!
+            # fixme: this must be refactored and integrated into Method class!!
             annotations = typing.get_type_hints(caller._func)
             if annotations and not self.internalRequest:
                 caller_kwargs = {}  # The dict of new **kwargs we'll pass to the caller

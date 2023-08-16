@@ -2,7 +2,7 @@ import functools
 import logging
 from typing import Callable
 from viur.core import errors, current
-from viur.core.module import Exposed
+from viur.core.module import Method
 
 
 #def exposed(internal: bool = False) -> Callable:
@@ -34,7 +34,7 @@ def exposed(func: Callable) -> Callable:
         def exposed_wrapper(func):
     '''
 
-    func = Exposed.ensure(func)
+    func = Method.ensure(func)
     return func
 
 
@@ -42,7 +42,7 @@ def internal_exposed(func: Callable) -> Callable:
     """
     Decorator, which marks a function as internal exposed.
     """
-    func = Exposed.ensure(func)
+    func = Method.ensure(func)
     func.internal = True
     return func
 
@@ -52,7 +52,7 @@ def force_ssl(func: Callable) -> Callable:
     Decorator, which enforces usage of an encrypted channel for a given resource.
     Has no effect on development-servers.
     """
-    func = Exposed.ensure(func)
+    func = Method.ensure(func)
     func.ssl = True
     return func
 
@@ -61,7 +61,7 @@ def force_post(func: Callable) -> Callable:
     """
     Decorator, which enforces usage of a http post request.
     """
-    exposed = Exposed.ensure(func)
+    exposed = Method.ensure(func)
     exposed.methods = ("POST", )
     return exposed
 
@@ -160,7 +160,7 @@ def skey(
                 if forward_payload:
                     kwargs |= {forward_payload: payload}
 
-        func = Exposed.ensure(func)
+        func = Method.ensure(func)
         func.skey = check
         return func
 
