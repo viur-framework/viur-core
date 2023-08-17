@@ -130,7 +130,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     modules.script = Script
 
     # create module mappings
-    indexes = load_indexes_from_file()
+    indexes = load_indexes_from_file()  # todo: datastore index retrieval should be done in SkelModule
     resolver = {}
 
     for module_name, module_cls in vars(modules).items():  # iterate over all modules
@@ -151,7 +151,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
             module_instance = module_cls(
                 module_name, ("/" + render_name if render_name != default else "") + "/" + module_name
             )
-            module_instance.indexes = indexes.get(module_name, [])  # todo: Fix this in Module!
+            module_instance.indexes = indexes.get(module_name, [])  # todo: Fix this in SkelModule (see above!)
 
             # Attach the module-specific or the default render
             if render_name == default:  # default or render (sub)namespace?
@@ -171,19 +171,6 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
             # Apply Renderers postProcess Filters
             if "_postProcessAppObj" in render:  # todo: This is ugly!
                 render["_postProcessAppObj"](target)
-
-        # todo: Do this in Module.register
-        '''
-        viur_flags = getattr(module_cls, "viur_flags", {})
-        seoLanguageMap = viur_flags.get("seoLanguageMap", {})
-        if not seoLanguageMap:
-            seoLanguageMap = getattr(module_cls, "seoLanguageMap", {})
-            if seoLanguageMap:
-                msg = "seoLanguageMap was replaced by viur_flags['seoLanguageMap']"
-                logging.warning(msg, stacklevel=3)
-        if seoLanguageMap:
-            conf["viur.languageModuleMap"][module_name] = seoLanguageMap
-        '''
 
     conf["viur.mainResolver"] = resolver
 

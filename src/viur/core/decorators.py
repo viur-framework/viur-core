@@ -6,7 +6,7 @@ from viur.core.module import Method
 
 
 # def exposed(internal: bool = False) -> Callable:
-def exposed(func: Callable) -> Callable:
+def exposed(func: Callable) -> Method:
     """
     Decorator, which marks a function as exposed.
 
@@ -14,31 +14,22 @@ def exposed(func: Callable) -> Callable:
     Can optionally receive a dict of language->translated name to make that function
     available under different names
     """
-    '''
-    if isinstance(param, dict):
-        translation_map = param
+    if isinstance(func, dict):
+        seo_language_map = func
 
         # We received said dictionary:
-        def expose_with_translations(func: Callable) -> Callable:
-            flags = __ensure_viur_flags(func)
-            flags["exposed"] = True
-            if "method" not in flags:
-                flags["method"] = ["GET", "POST", "HEAD"]
-            flags["seoLanguageMap"] = translation_map
-
+        def expose_with_translations(func: Callable) -> Method:
+            func = Method.ensure(func)
+            func.seo_language_map = seo_language_map
             return func
 
         return expose_with_translations
-
-    elif isinstance(param, bool):
-        def exposed_wrapper(func):
-    '''
 
     func = Method.ensure(func)
     return func
 
 
-def internal_exposed(func: Callable) -> Callable:
+def internal_exposed(func: Callable) -> Method:
     """
     Decorator, which marks a function as internal exposed.
     """
@@ -47,7 +38,7 @@ def internal_exposed(func: Callable) -> Callable:
     return func
 
 
-def force_ssl(func: Callable) -> Callable:
+def force_ssl(func: Callable) -> Method:
     """
     Decorator, which enforces usage of an encrypted channel for a given resource.
     Has no effect on development-servers.
@@ -57,7 +48,7 @@ def force_ssl(func: Callable) -> Callable:
     return func
 
 
-def force_post(func: Callable) -> Callable:
+def force_post(func: Callable) -> Method:
     """
     Decorator, which enforces usage of a http post request.
     """
@@ -135,14 +126,14 @@ def skey(
     forward_payload: str | None = None,
     message: str = "Missing or invalid skey",
     **extra_kwargs: dict,
-) -> Callable:
+) -> Method:
     """
     Decorator, which marks the function requires a skey.
     """
 
     def decorator(func: Callable) -> Callable:
         def check(*args, **kwargs):
-            # Here we will check the skey always before processing the request, because it cannot be empty.
+            # Check skey always before processing the request, because it cannot be empty.
             check = True
 
             # If the skey data can allow empty kwargs

@@ -321,7 +321,7 @@ class Module:
         # connect instance to render
         self.render = render
 
-        # todo: This should be held elsewhere, and not determined all the time...
+        # todo: The method/submodule retrieval should be held elsewhere, and not determined all the time...
         functions = {}
         modules = {}
 
@@ -337,14 +337,17 @@ class Module:
                 modules[key] = prop
 
         # Map module under SEO-mapped name, if available.
-        for lang in conf["viur.availableLanguages"] or [conf["viur.defaultLanguage"]]:
-            # Map the module under each translation
-            if translated_module_name := self.seo_language_map.get(lang):
-                translated_module = target.setdefault(translated_module_name, {})
+        if self.seo_language_map:
+            for lang in conf["viur.availableLanguages"] or [conf["viur.defaultLanguage"]]:
+                # Map the module under each translation
+                if translated_module_name := self.seo_language_map.get(lang):
+                    translated_module = target.setdefault(translated_module_name, {})
 
-                # Map module functions to the previously determined target
-                for name, func in functions.items():
-                    func.register(translated_module, name, lang)
+                    # Map module functions to the previously determined target
+                    for name, func in functions.items():
+                        func.register(translated_module, name, lang)
+
+            conf["viur.languageModuleMap"][module_name] = self.seo_language_map
 
         # Map the module also under it's original name
         if self.moduleName != "index":
