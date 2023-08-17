@@ -16,6 +16,7 @@ from google.cloud.tasks_v2.services.cloud_tasks.transports import CloudTasksGrpc
 from google.protobuf import timestamp_pb2
 from viur.core import current, db, errors, utils
 from viur.core.config import conf
+from viur.core.module import Module
 from viur.core.decorators import exposed, skey
 
 
@@ -148,7 +149,7 @@ class CallableTaskBase:
         raise NotImplemented()
 
 
-class TaskHandler:
+class TaskHandler(Module):
     """
         Task Handler.
         Handles calling of Tasks (queued and periodic), and performs updatechecks
@@ -156,9 +157,6 @@ class TaskHandler:
     """
     adminInfo = None
     retryCountWarningThreshold = 25
-
-    def __init__(self, moduleName, modulePath):
-        pass
 
     def findBoundTask(self, task: Callable, obj: object = None, depth: int = 0) -> Optional[Tuple[Callable, object]]:
         """
