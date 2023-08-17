@@ -3,7 +3,7 @@ Viur3 on Windows
 -----------------
 
 .. Warning::
-    |This way of installation will work, but the documentation is deprecated.
+    This way of installation will work, but the documentation is deprecated.
 
 Although Viur3 is made to run on Linux and Apple OS, there is a workaround for it to function on Windows operating systems.
 
