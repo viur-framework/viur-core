@@ -205,7 +205,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     print("---")
     import pprint
     pprint.pprint(resolver)
-    pprint.pprint(root)
+    print("---")
 
     return root
 
