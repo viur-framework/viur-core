@@ -757,19 +757,18 @@ class User(List):
         "admin": "*",
     }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
+    def __init__(self, moduleName, modulePath):
         for provider in self.authenticationProviders:
             assert issubclass(provider, UserAuthentication)
             name = f"auth_{provider.__name__.lower()}"
-            setattr(self, name, provider(name, f"{self.modulePath}/{name}", self))
+            setattr(self, name, provider(name, f"{modulePath}/{name}", self))
 
         for provider in self.secondFactorProviders:
             assert issubclass(provider, UserAuthentication)
             name = f"f2_{provider.__name__.lower()}"
-            setattr(self, name, provider(name, f"{self.modulePath}/{name}", self))
+            setattr(self, name, provider(name, f"{modulePath}/{name}", self))
 
+        super().__init__(moduleName, modulePath)
 
     def get_role_defaults(self, role: str) -> set[str]:
         """

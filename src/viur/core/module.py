@@ -1,6 +1,6 @@
 import copy
 import inspect
-from typing import Any, Callable, get_type_hints
+import typing
 from viur.core.config import conf
 
 
@@ -20,7 +20,7 @@ class Method:
 
         return cls(func)
 
-    def __init__(self, func: Callable):
+    def __init__(self, func: typing.Callable):
         self.internal = False
         self.ssl = False
         self.skey = None
@@ -56,6 +56,26 @@ class Method:
 
         return self._func(*args, **kwargs)
 
+    def describe(self) -> dict:
+        """
+        Describes the Method with a
+        """
+        ret = typing.get_type_hints(self._func).get("return")
+        return {
+            "args": {
+                param.name: {
+                    "type": str(param.annotation) if param.annotation is not inspect.Parameter.empty else None,
+                    "default": str(param.default) if param.default is not inspect.Parameter.empty else None,
+                }
+                for param in inspect.signature(self._func).parameters.values()
+            },
+            "return": str(ret) if ret else None,
+            "methods": self.methods,
+            "skey": bool(self.skey),
+            "docs": self._func.__doc__,
+            "aliases": tuple(self.seo_language_map.keys()) if self.seo_language_map else None,
+        }
+
     def register(self, target: dict, name: str, language: str | None = None):
         """
         Registers the Method under `name` and eventually some customized SEO-name for the provided language
@@ -74,7 +94,7 @@ class Module:
     This is the root module prototype that serves a minimal module in the ViUR system without any other bindings.
     """
 
-    handler: str | Callable = None
+    handler: str | typing.Callable = None
     """
     This is the module's handler, respectively its type.
     It can be provided as a callable() which determines the handler at runtime.
@@ -135,7 +155,7 @@ class Module:
     Great, this part is now user and robot friendly :)
     """
 
-    adminInfo: dict[str, Any] | Callable = None
+    adminInfo: dict[str, typing.Any] | typing.Callable = None
     """
         This is a ``dict`` holding the information necessary for the Vi/Admin to handle this module.
 
@@ -169,7 +189,7 @@ class Module:
                 replaced as needed. If more than one preview-url is needed, supply a dictionary where the key is
                 the URL and the value the description shown to the user.
 
-            views: ``List[Dict[str, Any]]``
+            views: ``List[Dict[str, typing.Any]]``
                 (Optional) List of nested adminInfo like dictionaries. Used to define
                 additional views on the module. Useful f.e. for an order module, where you want separate list of
                 "payed orders", "unpayed orders", "orders waiting for shipment", etc.  If such views are defined,
@@ -209,7 +229,7 @@ class Module:
             moduleGroup: ``str``
                 (Optional) If set, should be a key of a moduleGroup defined in .... .
 
-            editViews: ``Dict[str, Any]``
+            editViews: ``Dict[str, typing.Any]``
                 (Optional) If set, will embed another list-widget in the edit forms for
                 a given entity. See .... for more details.
 
@@ -231,6 +251,30 @@ class Module:
                 if right not in conf["viur.accessRights"]:
                     conf["viur.accessRights"].append(right)
 
+        # Collect methods and (sub)modules
+        self._methods = {}
+        self._modules = {}
+        self._update_methods()
+
+    def _update_methods(self):
+        """
+        Internal function to update methods and submodules.
+        This function should only be called when member attributes are dynamically modified by the module.
+        """
+        self._methods.clear()
+        self._modules.clear()
+
+        for key in dir(self):
+            if key[0] == "_":
+                continue
+
+            prop = getattr(self, key)
+
+            if isinstance(prop, Method):
+                self._methods[key] = prop
+            elif isinstance(prop, Module):
+                self._modules[key] = prop
+
     def describe(self) -> dict | None:
         """
         Meta description of this module.
@@ -247,58 +291,13 @@ class Module:
         ret = {
             "name": self.__class__.__name__,
             "handler": ".".join((handler, self.__class__.__name__.lower())),
+            "methods": {
+                name: method.describe() for name, method in self._methods.items()
+            },
         }
 
-        '''
-        func = inspect.getmembers(self, predicate=inspect.ismethod)
-        filtered_funcs = []
-        for fn in func:
-            if not fn:
-                continue
-            f = fn[1]
-
-            viur_flags = getattr(f, "viur_flags", {})
-
-            attributes = {
-                "exposed": viur_flags.get("exposed", False),
-                "method": viur_flags.get("method", []),
-                "skey": "skey" in viur_flags
-            }
-
-            if attributes["exposed"]:
-                _params = {}
-                signature = inspect.signature(f)
-
-                annotations = get_type_hints(f)
-
-                for parameter in signature.parameters.values():
-                    _params[parameter.name] = {
-                        "type": "-",
-                        "default": None,
-                    }
-
-                    if parameter.annotation is not inspect.Parameter.empty:
-                        _params[parameter.name]["type"] = str(parameter.annotation)
-
-                    if parameter.default is not inspect.Parameter.empty:
-                        _params[parameter.name]["default"] = str(parameter.default)
-
-                return_hint = annotations.get("return")
-                attributes |= {
-                    "name": f.__name__,
-                    "docs": f.__doc__,
-                    "args": _params,
-                    "return": "-" if return_hint is None else str(return_hint)
-                }
-
-                attributes.pop("exposed")
-
-                filtered_funcs.append(attributes)
-
-        ret["functions"] = filtered_funcs
-        '''
-
         # Extend indexes, if available
+        # todo: This must be handled by SkelModule
         if indexes := getattr(self, "indexes", None):
             ret["indexes"] = indexes
 
@@ -321,21 +320,6 @@ class Module:
         # connect instance to render
         self.render = render
 
-        # todo: The method/submodule retrieval should be held elsewhere, and not determined all the time...
-        functions = {}
-        modules = {}
-
-        for key in dir(self):
-            if key[0] == "_":
-                continue
-
-            prop = getattr(self, key)
-
-            if isinstance(prop, Method):
-                functions[key] = prop
-            elif isinstance(prop, Module):
-                modules[key] = prop
-
         # Map module under SEO-mapped name, if available.
         if self.seo_language_map:
             for lang in conf["viur.availableLanguages"] or [conf["viur.defaultLanguage"]]:
@@ -354,9 +338,9 @@ class Module:
             target = target.setdefault(self.moduleName, {})
 
         # Map module functions to the previously determined target
-        for name, func in functions.items():
-            func.register(target, name)
+        for name, method in self._methods.items():
+            method.register(target, name)
 
         # Register sub modules
-        for name, module in modules.items():
+        for name, module in self._modules.items():
             module.register(target, self.render)
