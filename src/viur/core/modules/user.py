@@ -1147,7 +1147,6 @@ class User(List):
 
         # Check for provided access right definition (equivalent to client-side check)
         access = self.adminInfo.get("customActions", {}).get(f"trigger_{action}", {}).get("access") or ("root", )  # "root" is fallback
-        print("xxx", access)
         if not ((cuser := current.user.get()) and any(role in cuser["access"] for role in access)):
             raise errors.Unauthorized()
 
