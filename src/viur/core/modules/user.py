@@ -1145,8 +1145,8 @@ class User(List):
     def trigger(self, action: str, key: str, skey: str):
         current.request.get().response.headers["Content-Type"] = "application/json"
 
-        # Check for provided access right definition (equivalent to client-side check)
-        access = self.adminInfo.get("customActions", {}).get(f"trigger_{action}", {}).get("access") or ("root", )  # "root" is fallback
+        # Check for provided access right definition (equivalent to client-side check), fallback to root!
+        access = self.adminInfo.get("customActions", {}).get(f"trigger_{action}", {}).get("access") or ("root", )
         if not ((cuser := current.user.get()) and any(role in cuser["access"] for role in access)):
             raise errors.Unauthorized()
 
