@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Optional, Set
+from typing import Callable, Dict, List, Optional, Set
 
 from viur.core import current, db, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
@@ -8,11 +8,6 @@ from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientEr
 class StringBone(BaseBone):
     """
     The "StringBone" represents a data field that contains text values.
-
-    :param caseSensitive: A boolean value indicating whether the text values in this field are
-        case-sensitive or not.
-    :param maxLength: The maximum length of the text values in this field.
-    :param kwargs: Additional keyword arguments to pass to the base class constructor.
     """
     type = "str"
 
@@ -21,6 +16,7 @@ class StringBone(BaseBone):
         *,
         caseSensitive: bool = True,
         maxLength: int | None = 254,
+        natural_sorting: bool | Callable = False,
         **kwargs
     ):
         """
@@ -28,6 +24,12 @@ class StringBone(BaseBone):
 
         :param caseSensitive: When filtering for values in this bone, should it be case-sensitive?
         :param maxLength: The maximum length allowed for values of this bone. Set to None for no limitation.
+        :param natural_sorting: Allows a more natural sorting
+            than the default sorting on the plain values.
+            This uses the .sort_idx property.
+            `True` enables sorting according to DIN 5007 Variant 2.
+            With passing a `callable`, a custom transformer method can be set
+            that creates the value for the index property.
         :param kwargs: Inherited arguments from the BaseBone.
         """
         super().__init__(**kwargs)
@@ -35,6 +37,13 @@ class StringBone(BaseBone):
             raise ValueError("maxLength must be a positive integer or None")
         self.caseSensitive = caseSensitive
         self.maxLength = maxLength
+        if callable(natural_sorting):
+            self.natural_sorting = natural_sorting
+        elif not isinstance(natural_sorting, bool):
+            raise TypeError("natural_sorting must be a callable or boolean!")
+        elif not natural_sorting:
+            self.natural_sorting = None
+        # else: keep self.natural_sorting as is
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
         """
@@ -47,8 +56,13 @@ class StringBone(BaseBone):
             this data field or not.
         :return: The serialized value.
         """
-        if not self.caseSensitive and parentIndexed:
-            return {"val": value, "idx": value.lower() if isinstance(value, str) else None}
+        if (not self.caseSensitive or self.natural_sorting) and parentIndexed:
+            serialized = {"val": value}
+            if not self.caseSensitive:
+                serialized["idx"] = value.lower() if isinstance(value, str) else None
+            if self.natural_sorting:
+                serialized["sort_idx"] = self.natural_sorting(value)
+            return serialized
         return value
 
     def singleValueUnserialize(self, value):
@@ -196,28 +210,26 @@ class StringBone(BaseBone):
                     if lng in self.languages:
                         lang = lng
                 if lang is None:
-                    lang = current.language.get()  # currentSession.getLanguage()
+                    lang = current.language.get()
                     if not lang or lang not in self.languages:
                         lang = self.languages[0]
-                if self.caseSensitive:
-                    prop = "%s.%s" % (name, lang)
-                else:
-                    prop = "%s.%s.idx" % (name, lang)
+                prop = f"{name}.{lang}"
             else:
-                if self.caseSensitive:
-                    prop = name
-                else:
-                    prop = name + ".idx"
-            if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
-                order = (prop, db.SortOrder.Descending)
-            elif "orderdir" in rawFilter and rawFilter["orderdir"] == "2":
-                order = (prop, db.SortOrder.InvertedAscending)
-            elif "orderdir" in rawFilter and rawFilter["orderdir"] == "3":
-                order = (prop, db.SortOrder.InvertedDescending)
-            else:
-                order = (prop, db.SortOrder.Ascending)
-            inEqFilter = [x for x in dbFilter.queries.filters.keys() if  # FIXME: This will break on multi queries
-                          (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
+                prop = name
+            if self.natural_sorting:
+                prop += ".sort_idx"
+            elif not self.caseSensitive:
+                prop += ".idx"
+
+            # fixme: VIUR4 replace theses stupid numbers defining a sort-order by a meaningful keys
+            sorting = {
+                "1": db.SortOrder.Descending,
+                "2": db.SortOrder.InvertedAscending,
+                "3": db.SortOrder.InvertedDescending,
+            }.get(rawFilter.get("orderdir"), db.SortOrder.Ascending)
+            order = (prop, sorting)
+            inEqFilter = [x for x in dbFilter.queries.filters.keys()  # FIXME: This will break on multi queries
+                          if (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
             if inEqFilter:
                 inEqFilter = inEqFilter[0][: inEqFilter[0].find(" ")]
                 if inEqFilter != order[0]:
@@ -228,6 +240,29 @@ class StringBone(BaseBone):
             else:
                 dbFilter.order(order)
         return dbFilter
+
+    def natural_sorting(self, value: str | None) -> str | None:
+        """Implements a default natural sorting transformer.
+
+        The sorting is according to DIN 5007 Variant 2
+        and sets ö and oe, etc. equal.
+        """
+        if value is None:
+            return None
+        assert isinstance(value, str)
+        if not self.caseSensitive:
+            value = value.lower()
+
+        # DIN 5007 Variant 2
+        return value.translate(str.maketrans({
+            "ö": "oe",
+            "Ö": "Oe",
+            "ü": "ue",
+            "Ü": "Ue",
+            "ä": "ae",
+            "Ä": "Ae",
+            "ẞ": "SS",
+        }))
 
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
         """
