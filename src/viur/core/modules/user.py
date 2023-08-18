@@ -661,7 +661,7 @@ class TimeBasedOTP:
         or None when there is no appropriate configuration of this second factor handler available.
         """
         user = db.Get(user_key)
-        if user and all(bool(user.get(k)) for k in ("otp_serial", "otp_secret")):
+        if user and user.get("otp_secret"):
             return self.OtpConfig(secret=user["otp_secret"], timedrift=user.get("otp_timedrift") or 0)
 
         return None
