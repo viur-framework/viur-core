@@ -2,8 +2,99 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.4.0-beta3]
+## [3.5.0.beta3]
 
+- refactor: Changed package folder layout
+- fix: pillow replaces `Image.ANTIALIAS` by `Image.LANCZOS`
+- fix: guessTimeZone() fails with Python 3.11 (#789)
+- feat: Make recipients for `sendEMailToAdmins` configurable (#798)
+- test: Update test-suite Pipfile and add tests for `DateBone` (#797)
+- refactor: Improving `DateBone.singleValueFromClient()` (#733)
+- refactor: `singleValueFromClient` with type hints and docstrings (#685)
+- docs: fixed all Auto-API build Errors (#783)
+- feat: Compute `creationdate` and `changedate` using the new `compute`-feature (#785)
+- fix: Add `Count` to db.__all__ (#792)
+- feat: Improve `BaseBone._compute` function (#786)
+- docs(build): set sphinx to an older version (as in the Pipfile) to get the build working again (#784)
+- feat: Add `compute`-feature to `BaseBone` (#639)
+- docs: Improve type hints in sphinx (#746)
+- docs: fixed toctree problems (#781)
+- docs: Tutorials for preliminaries and initial setup (#765)
+- feat: Extend User module to built-in role system (#736)
+- feat: Rewrite of session-based securitykeys (#764)
+- chore: Support for Python 3.11 (#767)
+- perf: Avoid structure rendering in JSON render list (#774)
+- feat: Delete old pending `FileSkeletons` (#739)
+- feat: Add search for error template in `html/error` (#658)
+- fix: `File.getUploadURL` with HttpExceptions (#743)
+- feat: Set `cls` to `CustomJsonEncoder` in Jinja's `json.dumps_kwargs` (#744)
+- fix: __undefined to _undefined (#737)
+- fix: Remove leading `Subject: ` from task notify emails (#740)
+- fix: readd StringBone type (#738)
+- chore: Rename `__systemIsIntitialized_` into `__system_initialized` (#730)
+- chore: Rename `__undefindedC__` into `__undefined` (#731)
+- chore: Rename all `rawValue`-parameters to just `value` (#732)
+- docs: Documentation for entire `bones`-module (#723)
+- docs: Add more selectors to theme.css to list styling from latest rdt theme (#729)
+- docs: Watch the normal python code path in the doc build watcher too (#728)
+- docs: Set language in readthedocs config and add jQuery (#721)
+- docs: removed hierarchyBone, changed to Python 3.10+ and removed wiki and community landing page (#707)
+- fix: `CredentialBone` without escaping (#702)
+- chore: Improve `StringBone` (#714)
+
+## [3.4.8]
+
+- chore: Update viur-datastore to 1.3.11 (#814)
+
+## [3.4.7]
+
+- chore: Update viur-datastore to 1.3.10 (#805)
+
+## [3.4.6]
+
+- fix(seo): Incoming url is compared wrong (#801)
+
+## [3.4.5]
+
+- fix: Add missing fallback for `NumericBone.refresh()` destroying valid data (#793)
+- fix: `getCurrentUser()` should clone `current.user` for use with Jinja (#791)
+- fix: Extend MetaBaseSkel reserved keywords to "structure" (#788)
+- chore: Reject pointless `BooleanBone(multiple=True)` (#773)
+
+## [3.4.4]
+
+- chore: Update dependencies (#762)
+- fix: Missing german translation for "password too short" message (#763)
+- fix: ensure the correct default defaultValue of a multiple/multi-lang `BooleanBone` (#759)
+- fix: Move super-call in `JsonBone.__init__()` to the begin (#758)
+
+## [3.4.3]
+
+- fix: #747 broke vi-renderer
+
+## [3.4.2]
+
+- fix: Fixes TypeError when password is unset (#748)
+- fix: `DateBone.fromClient()` should regard tzinfo (#749)
+- feat/fix: Allow `duration` argument for skey (#751)
+- fix: `CredentialBone` without escaping (#702) (#750)
+- fix: Add path_list to the __init__ of BrowseHandler (#747)
+
+## [3.4.1]
+
+- fix: enable to serialize complex custom config structures (#735)
+
+## [3.4.0]
+
+- fix: SelectBone `defaultValue` type annotation (#719)
+- fix: comparison in `SelectBone.singleValueFromClient` (#726)
+- fix: Jinja rendering for SelectBones using Enums (#720)
+- fix: Use static handler "tree.simple.file" in File (#717)
+- fix: Check for "status" in `User.onEdited` (#722)
+- chore: Conventional commits and clarifications (#692)
+- fix: Improvements and clarifications on version string (#706)
+- security: Ensure active status in authenticateUser (#710)
+- fix: bump viur-datastore to 1.3.9 (#708)
 - fix: Run render_structure recursively on "using" and "relskel" (#705)
 - feat: Implement naive mode for `DateBone` (#667)
 - fix: SkelList.get_orders must be in the `__slots__` (#703)
@@ -271,7 +362,7 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
 - Added validations to catch invalid recipient addresses early in sendEmail
 - 'connect-src': self and 'upgrade-insecure-requests' CSP directives by default
-- versionHash and appVersion variables to utils and jinja2 render 
+- versionHash and appVersion variables to utils and jinja2 render
 - The ability to import blobs that have been copied client-side from the old (non cloud-storage) blobstore
 - Support for custom colorprofiles in thumbnails
 - [Breaking] srcSetFor function in jinja2 now needs a list with or height instead of deriving from groups
@@ -300,6 +391,6 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 - Support for translation-dictionaries shipped with the application has been removed. Use the viur-translation datastore kind instead
 - The cache (viur.core.cache) is now automatically evicted in most cases based on entities accessed / queries run.
 - Memcache support. Caching for the datastore is not supported anymore
-- Full support for the dev_appserver. Now a gcp project is required for datastore/cloud store access 
+- Full support for the dev_appserver. Now a gcp project is required for datastore/cloud store access
 
 [develop]: https://github.com/viur-framework/viur-core/compare/main...develop
