@@ -48,7 +48,7 @@ class Method:
         Wrapper to call the Method directly.
         """
         if self.skey:
-            self.skey(*args, **kwargs)
+            self.skey(args, kwargs)
 
         # call with instance when provided
         if self._instance:

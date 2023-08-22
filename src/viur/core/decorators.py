@@ -124,29 +124,24 @@ def skey(
     *,
     allow_empty: bool = False,
     forward_payload: str | None = None,
-    message: str = "Missing or invalid skey",
+    message: str = None,
+    name: str = "skey",
+    validate: Callable | None = None,
     **extra_kwargs: dict,
 ) -> Method:
     """
-    Decorator, which marks the function requires a skey.
+    Decorator, which configures a method for requiring a CSRF-security-key.
     """
 
     def decorator(func: Callable) -> Callable:
-        def check(*args, **kwargs):
-            # Check skey always before processing the request, because it cannot be empty.
-            check = True
-
-            # If the skey data can allow empty kwargs
-            if allow_empty:
-                # Only check the skey, if the kwargs is not empty
-                check = bool(kwargs)
-
-            if check:
+        def check(args, kwargs):
+            # validation is necessary?
+            if not allow_empty or args or kwargs:
                 from viur.core import securitykey
-                payload = securitykey.validate(kwargs.get("skey", ""), **extra_kwargs)
+                payload = securitykey.validate(kwargs.pop(name, ""), **extra_kwargs)
 
-                if not payload:
-                    raise errors.PreconditionFailed(message) if message else errors.PreconditionFailed()
+                if not payload or (validate and not validate(payload)):
+                    raise errors.PreconditionFailed(message or f"Missing or invalid parameter {name!r}")
 
                 if forward_payload:
                     kwargs |= {forward_payload: payload}
