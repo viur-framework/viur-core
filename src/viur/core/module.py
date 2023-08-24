@@ -1,6 +1,7 @@
 import copy
 import inspect
 import typing
+import logging
 from viur.core.config import conf
 
 
@@ -47,6 +48,9 @@ class Method:
         """
         Wrapper to call the Method directly.
         """
+        if conf["viur.debug.trace"]:
+            logging.debug(f"call {self._func=} with {args=}, {kwargs=}")
+
         if self.skey:
             self.skey(args, kwargs)
 

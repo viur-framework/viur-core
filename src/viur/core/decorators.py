@@ -2,6 +2,7 @@ import functools
 import logging
 from typing import Callable
 from viur.core import errors, current
+from viur.core.config import conf
 from viur.core.module import Method
 
 
@@ -62,8 +63,10 @@ def access(
     offer_login: bool | str = False,
     message: str | None = None,
 ) -> Callable:
-    """Decorator, which performs an authentication and authorization check primarily based on the current user's access,
-    which is defined via `UserSkel.access`.
+    """
+    Decorator, which performs an authentication and authorization check primarily based on the current user's access,
+    which is defined via the `UserSkel.access`-bone. Additionally, a callable for individual access checking can be
+    provided.
 
     :params access: Access configuration, either names of access rights or a callable for verification.
     :params offer_login: Offers a way to login; Either set it to True, to automatically redirect to /user/login,
@@ -87,6 +90,10 @@ def access(
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             user = current.user.get()
+
+            if trace := conf["viur.debug.trace"]:
+                logging.debug(f"@access checking for {user=}")
+
             if not user:
                 if offer_login:
                     raise errors.Redirect(offer_login if isinstance(offer_login, str) else "/user/login")
@@ -94,6 +101,9 @@ def access(
                 raise errors.Unauthorized(message) if message else errors.Unauthorized()
 
             for acc in access:
+                if trace:
+                    logging.debug(f"@access check {acc=}")
+
                 # Callable directly tests access
                 if callable(acc):
                     if acc():
@@ -135,10 +145,16 @@ def skey(
 
     def decorator(func: Callable) -> Callable:
         def check(args, kwargs):
+            if trace := conf["viur.debug.trace"]:
+                logging.debug(f"@skey {allow_empty=}")
+
             # validation is necessary?
             if not allow_empty or args or kwargs:
                 from viur.core import securitykey
                 payload = securitykey.validate(kwargs.pop(name, ""), **extra_kwargs)
+
+                if trace:
+                    logging.debug(f"@skey {payload=}, {validate=}")
 
                 if not payload or (validate and not validate(payload)):
                     raise errors.PreconditionFailed(message or f"Missing or invalid parameter {name!r}")
