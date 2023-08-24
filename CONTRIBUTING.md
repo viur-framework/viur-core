@@ -48,12 +48,24 @@ Please document your changes and provide info in any form you can. We have estab
 `viur-core` uses the semantic versioning scheme.<br>
 Any `major.minor.bugfix` release is being published to [PyPI](https://pypi.org/project/viur-core).
 
-Furthermore, the following rules apply to pre-releases which are also made available to PyPI for open tests.
+Furthermore, the following rules provided in [PEP-440](https://peps.python.org/pep-0440/#pre-releases) apply to pre-releases which are also made available to PyPI for open tests.
 
-- Release candidates which are almost feature-complete is given a suffix named `.rcN`.
-- Beta versions with incomplete features is given a suffix named `.betaN`.
+- `devN` for development and test releases (including release tests, may be broken)
+- `alphaN` for feature-incomplete alpha releases
+- `betaN` for feature-completed beta releases
+- `rcN` for release-candidates, where bugs may be fixed
 
-In both cases, `N` is a number counted upwards for every pre-release.
+In all cases, `N` is a number counted upwards for every pre-release kind.
+
+## Dependency management
+
+`viur-core` has several dependencies, which are maintained by the [`Pipfile`](/Pipfile).
+
+- For local development and dependency management, run `pipenv install --dev`
+- Update dependencies with `pipenv update`
+- Regenerate requirements.txt from locked pipenv using `pipenv requirements --hash >requirements.txt`
+
+Try to keep external dependencies low.
 
 ## Releasing
 
@@ -61,17 +73,16 @@ In case you have appropriate permissions, a release can be done this way:
 
 - Make sure all hotfixes from `main` are in `develop` as well (`git merge main`)
 - Bump version number in `core/version.py`
-- Update `CHANGELOG.md` and also check version number there
+- Update [`CHANGELOG.md`](/CHANGELOG.md) and also check version number there
   - To quickly generate a changelog, run `git log --pretty="- %s" main..develop`
   - todo: Changelog shall be generated automatically later.
-- Build and publish the package
-  - Run `pipenv install` once
+- Build and publish the package (ensure `pipenv install --dev` was run before and is up-to-date)
   - Ensure any old files are deleted by running `pipenv run clean`
   - Build the wheel using `pipenv run build`
   - Release the package
     - PyPI: `pipenv run release`
     - TestPyPI: `pipenv run develop`
-- When all went well, finally create a tag equally to the version number in `core/version.py`
+- When all went well, finally commit and create a tag equally to the version number in `core/version.py`
 
 ## Branches
 

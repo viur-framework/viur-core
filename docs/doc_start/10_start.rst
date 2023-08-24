@@ -23,7 +23,7 @@ installed on your system.
     Getting ViUR to run properly on Microsoft Windows is a nightmare for several reasons. The only well-working
     solution to use a Windows system for ViUR development is when
     `Windows Subsystem for Linux <https://en.wikipedia.org/wiki/Windows_Subsystem_for_Linux>`_ is used - otherwise,
-    forget about it.
+    forget about it. A tutorial to set it up is available at :doc:`VIUR3 on Windows </doc_tutorial/basic/viur_on_windows>`
 
 
 ------------
@@ -31,7 +31,7 @@ Python & pip
 ------------
 
 Since ViUR is a framework written in pure Python, it requires a Python interpreter to be installed.
-ViUR currently only runs with Python 3.7 and upwards, so this must be installed on your system.
+ViUR currently only runs with Python 3.10+ and upwards, so this must be installed on your system.
 
 
 `Pip <https://pypi.org/project/pip/>`_, the Python package installer, is also a necessary feature
@@ -49,7 +49,7 @@ are supported. In case that Linux is used, your favorite package manager should 
 already supports packages for the gcloud SDK.
 
 .. note::
-    For now, Google offers its "Python Standard Environment" that ViUR is using only for Python 3.7.
+    For now, Google offers its "Python Standard Environment" that ViUR is using only for Python 3.10+.
 
 
 After you successfully installed the gcloud SDK, make sure that you install the following components:
