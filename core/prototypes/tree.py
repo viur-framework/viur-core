@@ -157,21 +157,23 @@ class Tree(SkelModule):
         """
         return []
 
-    def getRootNode(self, entryKey: str) -> SkeletonInstance:
+    def getRootNode(self, key: db.Key | str) -> SkeletonInstance | None:
         """
         Returns the root-node for a given child.
 
-        :param entryKey: URL-Safe key of the child entry
+        :param key: Key of the child node entry.
 
-        :returns: The entity of the root-node.
+        :returns: The skeleton of the root-node.
         """
-        rootNodeSkel = self.nodeSkelCls()
-        entryKey = db.keyHelper(entryKey, rootNodeSkel.kindName)
-        repo = db.Get(entryKey)
-        while repo and "parententry" in repo:
-            repo = db.Get(repo["parententry"])
-        rootNodeSkel.fromDB(repo.key)
-        return rootNodeSkel
+        skel = self.nodeSkelCls()
+
+        while key:
+            if not skel.fromDB(key):
+                return None
+
+            key = skel["parententry"]
+
+        return skel
 
     @CallDeferred
     def updateParentRepo(self, parentNode: str, newRepoKey: str, depth: int = 0):
