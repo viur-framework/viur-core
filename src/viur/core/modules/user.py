@@ -364,7 +364,10 @@ class UserPassword:
 
             recovery_key = utils.generateRandomString(conf["viur.security.password_recovery_key_length"])
             user_agent = user_agents.parse(current_request.request.headers["User-Agent"])
-            self.sendUserPasswordRecoveryCode(skel["name"], recovery_key, user_agent)  # Send the code in the background
+            # Send the code in  background
+            self.sendUserPasswordRecoveryCode(skel["name"], recovery_key, {"device": user_agent.get_device(),
+                                                                           "os": user_agent.get_os(),
+                                                                           "browser": user_agent.get_browser()})
             recovery_entity = db.Entity(db.Key("viur-recovery", recovery_key))
             recovery_entity["user_name"] = skel["name"].lower()
             recovery_entity["valid_until"] = utils.utcNow() + datetime.timedelta(minutes=15)
@@ -374,13 +377,14 @@ class UserPassword:
         # in step 2
         skel = self.LostPasswordStep2Skel()
         recovery_key = kwargs.get("recovery_key")
+        if not securitykey.validate(kwargs.get("skey")):
+            raise errors.PreconditionFailed()
+
         if not skel.fromClient(kwargs) or not current_request.isPostRequest:
             return self.userModule.render.edit(skel=skel,
                                                tpl=self.passwordRecoveryStep2Template,
                                                recovery_key=recovery_key)
 
-        if not securitykey.validate(kwargs.get("skey"), useSessionKey=True):
-            raise errors.PreconditionFailed()
         if not (recovery_entity := db.Get(db.Key("viur-recovery", recovery_key))):
             return self.userModule.render.view(
                 skel=None,
@@ -399,16 +403,16 @@ class UserPassword:
         user_skel = self.userModule.viewSkel().all().filter(
             "name.idx =", recovery_entity["user_name"]).getSkel()
 
+        db.Delete(recovery_entity)  # Get rid of this entry
+
         if not user_skel:
             # This *should* never happen - if we don't have a matching account we'll not send the key.
-            db.Delete(recovery_entity)
             return self.userModule.render.view(
                 skel=None,
                 tpl=self.passwordRecoveryFailedTemplate,
                 reason=self.passwordRecoveryUserNotFound)
 
         if user_skel["status"] != Status.ACTIVE:  # The account is locked or not yet validated. Abort the process.
-            db.Delete(recovery_entity)
             return self.userModule.render.view(
                 skel=None,
                 tpl=self.passwordRecoveryFailedTemplate,
