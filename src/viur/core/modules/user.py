@@ -7,10 +7,10 @@ import json
 import logging
 import secrets
 import warnings
-from typing import Optional
 import pyotp
-
-import time
+import base64
+import dataclasses
+import typing
 from google.auth.transport import requests
 from google.oauth2 import id_token
 
@@ -145,18 +145,16 @@ class UserSkel(skeleton.Skeleton):
     )
 
     # One-Time Password Verification
-    otpid = StringBone(
+    otp_serial = StringBone(
         descr="OTP serial",
-        required=False,
         searchable=True,
     )
 
-    otpkey = CredentialBone(
-        descr="OTP hex key",
-        required=False,
+    otp_secret = CredentialBone(
+        descr="OTP secret",
     )
 
-    otptimedrift = NumericBone(
+    otp_timedrift = NumericBone(
         descr="OTP time drift",
         readOnly=True,
         defaultValue=0,
@@ -307,7 +305,8 @@ class UserPassword:
         stored_password_hash = password_data.get("pwhash", b"-invalid-")
         is_okay &= secrets.compare_digest(stored_password_hash, passwd)
 
-        status: Optional[int] = None
+        status = None
+
         # Verify that this account isn't blocked
         if (user_entry.get("status") or 0) < Status.ACTIVE.value:
             if is_okay:
@@ -624,8 +623,32 @@ class GoogleAccount:
 
 
 class TimeBasedOTP:
-    windowSize = 5
+    WINDOW_SIZE = 5
+    MAX_RETRY = 3
     otpTemplate = "user_login_timebasedotp"
+
+    @dataclasses.dataclass
+    class OtpConfig:
+        """
+        This dataclass is used to provide an interface for a OTP token
+        algorithm description that is passed within the TimeBasedOTP
+        class for configuration.
+        """
+        secret: str
+        timedrift: float = 0.0
+        algorithm: typing.Literal["sha1", "sha256"] = "sha1"
+        interval: int = 60
+
+    class OtpSkel(skeleton.RelSkel):
+        """
+        This is the Skeleton used to ask for the OTP token.
+        """
+        otptoken = NumericBone(
+            descr="Token",
+            required=True,
+            max=999999,
+            min=0,
+        )
 
     def __init__(self, userModule, modulePath):
         super().__init__()
@@ -633,124 +656,178 @@ class TimeBasedOTP:
         self.modulePath = modulePath
 
     @classmethod
-    def get2FactorMethodName(*args, **kwargs):
+    def get2FactorMethodName(*args, **kwargs):  # fixme: What is the purpose of this function? Why not just a member?
         return "X-VIUR-2FACTOR-TimeBasedOTP"
 
-    def canHandle(self, userKey) -> bool:
-        user = db.Get(userKey)
-        return all(
-            [(x in user and (x == "otptimedrift" or bool(user[x]))) for x in ["otpid", "otpkey", "otptimedrift"]])
-
-    def startProcessing(self, userKey):
-        user = db.Get(userKey)
-        if all([(x in user and user[x]) for x in ["otpid", "otpkey"]]):
-            logging.info("OTP wanted for user")
-            session = current.session.get()
-            session["_otp_user"] = {
-                "uid": str(userKey),
-                "otpid": user["otpid"],
-                "otpkey": user["otpkey"],
-                "otptimedrift": user["otptimedrift"],
-                "timestamp": time.time(),
-                "failures": 0
-            }
-            session.markChanged()
-            return self.userModule.render.loginSucceeded(msg="X-VIUR-2FACTOR-TimeBasedOTP")
+    def get_config(self, user_key) -> OtpConfig | None:
+        """
+        Returns an instance of self.OtpConfig with a provided token configuration,
+        or None when there is no appropriate configuration of this second factor handler available.
+        """
+        user = db.Get(user_key)
+        if user and user.get("otp_secret"):
+            return self.OtpConfig(secret=user["otp_secret"], timedrift=user.get("otp_timedrift") or 0)
 
         return None
 
-    class OtpSkel(skeleton.RelSkel):
-        otptoken = StringBone(descr="Token", required=True, caseSensitive=False, indexed=True)
-
-    def generateOtps(self, secret, timeDrift):
+    def canHandle(self, user_key) -> bool:
         """
-            Generates all valid tokens for the given secret
+        Specified whether the second factor authentication can be handled by the given user or not.
         """
+        return bool(self.get_config(user_key))
 
-        def asBytes(valIn):
-            """
-                Returns the integer in binary representation
-            """
-            hexStr = hex(valIn)[2:]
-            # Maybe uneven length
-            if len(hexStr) % 2 == 1:
-                hexStr = "0" + hexStr
-            return bytes.fromhex("00" * int(8 - (len(hexStr) / 2)) + hexStr)
+    def startProcessing(self, user_key):
+        """
+        Configures OTP login for the current session.
 
-        idx = int(time.time() / 60.0)  # Current time index
-        idx += int(timeDrift)
-        res = []
-        for slot in range(idx - self.windowSize, idx + self.windowSize):
-            currHash = hmac.new(bytes.fromhex(secret), asBytes(slot), hashlib.sha1).digest()
-            # Magic code from https://tools.ietf.org/html/rfc4226 :)
-            offset = currHash[19] & 0xf
-            code = ((currHash[offset] & 0x7f) << 24 |
-                    (currHash[offset + 1] & 0xff) << 16 |
-                    (currHash[offset + 2] & 0xff) << 8 |
-                    (currHash[offset + 3] & 0xff))
-            res.append(int(str(code)[-6:]))  # We use only the last 6 digits
-        return res
+        A special otp_user_conf has to be specified as a dict, which is stored into the session.
+        """
+        if not (otp_user_conf := self.get_config(user_key)):
+            return None
+
+        otp_user_conf = {
+            "key": str(user_key),
+        } | dataclasses.asdict(otp_user_conf)
+
+        session = current.session.get()
+        session["_otp_user"] = otp_user_conf
+        session.markChanged()
+
+        return self.userModule.render.edit(self.OtpSkel(), action="otp", tpl=self.otpTemplate)
 
     @exposed
     @forceSSL
-    def otp(self, otptoken=None, skey=None, *args, **kwargs):
-        session = current.session.get()
-        token = session.get("_otp_user")
-        if not token:
-            raise errors.Forbidden()
-        if otptoken is None:
-            self.userModule.render.edit(self.OtpSkel())
+    def otp(self, skey: str = None, *args, **kwargs):
+        """
+        Performs the second factor validation and interaction with the client.
+        """
         if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
-        if token["failures"] > 3:
+
+        session = current.session.get()
+        if not (otp_user_conf := session.get("_otp_user")):
+            raise errors.PreconditionFailed("No OTP process started in this session")
+
+        # Check if maximum second factor verification attempts
+        if (attempts := otp_user_conf.get("attempts") or 0) > self.MAX_RETRY:
             raise errors.Forbidden("Maximum amount of authentication retries exceeded")
-        if len(token["otpkey"]) % 2 == 1:
-            raise errors.PreconditionFailed("The otp secret stored for this user is invalid (uneven length)")
-        validTokens = self.generateOtps(token["otpkey"], token["otptimedrift"])
-        try:
-            otptoken = int(otptoken)
-        except:
-            # We got a non-numeric token - this can't be correct
-            self.userModule.render.edit(self.OtpSkel(), tpl=self.otpTemplate)
 
-        if otptoken in validTokens:
-            userKey = session["_otp_user"]["uid"]
-
-            del session["_otp_user"]
-            session.markChanged()
-
-            idx = validTokens.index(int(otptoken))
-
-            if abs(idx - self.windowSize) > 2:
-                # The time-drift accumulates to more than 2 minutes, update our
-                # clock-drift value accordingly
-                self.updateTimeDrift(userKey, idx - self.windowSize)
-
-            return self.userModule.secondFactorSucceeded(self, userKey)
+        # Read the OTP token via the skeleton, to obtain a valid value
+        skel = self.OtpSkel()
+        if skel.fromClient(kwargs):
+            # Verify the otptoken. If valid, this returns the current timedrift index for this hardware OTP.
+            res = self.verify(
+                otp=skel["otptoken"],
+                secret=otp_user_conf["secret"],
+                algorithm=otp_user_conf.get("algorithm") or "sha1",
+                interval=otp_user_conf.get("interval") or 60,
+                timedrift=otp_user_conf.get("timedrift") or 0.0,
+                valid_window=self.WINDOW_SIZE
+            )
         else:
-            token["failures"] += 1
-            session["_otp_user"] = token
-            session.markChanged()
-            return self.userModule.render.edit(self.OtpSkel(), loginFailed=True, tpl=self.otpTemplate)
+            res = None
 
-    def updateTimeDrift(self, userKey, idx):
+        # Check if Token is invalid. Caution: 'if not verifyIndex' gets false positive for verifyIndex === 0!
+        if res is None:
+            otp_user_conf["attempts"] = attempts + 1
+            session.markChanged()
+
+            return self.userModule.render.edit(
+                self.OtpSkel(), action="otp", tpl=self.otpTemplate, secondFactorFailed=True
+            )
+
+        # Remove otp user config from session
+        user_key = db.keyHelper(otp_user_conf["key"], self.userModule._resolveSkelCls().kindName)
+        del session["_otp_user"]
+        session.markChanged()
+
+        # Check if the OTP device has a time drift
+
+        timedriftchange = float(res) - otp_user_conf["timedrift"]
+        if abs(timedriftchange) > 2:
+            # The time-drift change accumulates to more than 2 minutes (for interval==60):
+            # update clock-drift value accordingly
+            self.updateTimeDrift(user_key, timedriftchange)
+
+        # Continue with authentication
+        return self.userModule.secondFactorSucceeded(self, user_key)
+
+    @staticmethod
+    def verify(
+        otp: str | int,
+        secret: str,
+        algorithm: str = "sha1",
+        interval: int = 60,
+        timedrift: float = 0.0,
+        for_time: datetime.datetime | None = None,
+        valid_window: int = 0,
+    ) -> int | None:
+        """
+        Verifies the OTP passed in against the current time OTP.
+
+        This is a fork of pyotp.verify. Rather than true/false, if valid_window > 0, it returns the index for which
+        the OTP value obtained by pyotp.at(for_time=time.time(), counter_offset=index) equals the current value shown
+        on the hardware token generator. This can be used to store the time drift of a given token generator.
+
+        :param otp: the OTP token to check against
+        :param secret: The OTP secret
+        :param algorithm: digest function to use in the HMAC (expected to be sha1 or sha256)
+        :param interval: the time interval in seconds for OTP. This defaults to 60 (old OTP c200 Generators). In
+        pyotp, default is 30!
+        :param timedrift: The known timedrift (old index) of the hardware OTP generator
+        :param for_time: Time to check OTP at (defaults to now)
+        :param valid_window: extends the validity to this many counter ticks before and after the current one
+        :returns: The index where verification succeeded, None otherwise
+        """
+        # get the hashing digest
+        digest = {
+            "sha1": hashlib.sha1,
+            "sha256": hashlib.sha256,
+        }.get(algorithm)
+
+        if not digest:
+            raise errors.NotImplemented(f"{algorithm=} is not implemented")
+
+        if for_time is None:
+            for_time = datetime.datetime.now()
+
+        # Timedrift is updated only in fractions in order to prevent problems, but we need an integer index
+        timedrift = round(timedrift)
+        secret = bytes.decode(base64.b32encode(bytes.fromhex(secret)))  # decode secret
+        otp = str(otp).zfill(6)  # fill with zeros in front
+
+        # logging.debug(f"TimeBasedOTP:verify: {digest=}, {interval=}, {valid_window=}")
+        totp = pyotp.TOTP(secret, digest=digest, interval=interval)
+
+        if valid_window:
+            for offset in range(timedrift - valid_window, timedrift + valid_window + 1):
+                token = str(totp.at(for_time, offset))
+                # logging.debug(f"TimeBasedOTP:verify: {offset=}, {otp=}, {token=}")
+                if hmac.compare_digest(otp, token):
+                    return offset
+
+            return None
+
+        return 0 if hmac.compare_digest(otp, str(totp.at(for_time, timedrift))) else None
+
+    def updateTimeDrift(self, user_key: db.Key, idx: float) -> None:
         """
             Updates the clock-drift value.
             The value is only changed in 1/10 steps, so that a late submit by an user doesn't skew
             it out of bounds. Maximum change per call is 0.3 minutes.
-            :param userKey: For which user should the update occour
+            :param user_key: For which user should the update occour
             :param idx: How many steps before/behind was that token
             :return:
         """
 
-        def updateTransaction(userKey, idx):
-            user = db.Get(userKey)
-            if not "otptimedrift" in user or not isinstance(user["otptimedrift"], float):
-                user["otptimedrift"] = 0.0
-            user["otptimedrift"] += min(max(0.1 * idx, -0.3), 0.3)
+        def transaction(user_key, idx):
+            user = db.Get(user_key)
+            if not isinstance(user.get("otp_timedrift"), float):
+                user["otp_timedrift"] = 0.0
+            user["otp_timedrift"] += min(max(0.1 * idx, -0.3), 0.3)
             db.Put(user)
 
-        db.RunInTransaction(updateTransaction, userKey, idx)
+        db.RunInTransaction(transaction, user_key, idx)
 
 
 class AuthenticatorOTP:
@@ -893,7 +970,53 @@ class User(List):
     secondFactorTimeWindow = datetime.timedelta(minutes=10)
 
     adminInfo = {
-        "icon": "icon-users"
+        "icon": "icon-users",
+        "actions": [
+            "trigger_kick",
+            "trigger_takeover",
+        ],
+        "customActions": {
+            "trigger_kick": {
+                "name": i18n.translate(
+                    key="viur.modules.user.customActions.kick",
+                    defaultText="Kick user",
+                    hint="Title of the kick user function"
+                ),
+                "icon": "icon-delete",
+                "access": ["root"],
+                "action": "fetch",
+                "url": "/vi/{{module}}/trigger/kick/{{key}}",
+                "confirm": i18n.translate(
+                    key="viur.modules.user.customActions.kick.confirm",
+                    defaultText="Do you really want to drop all sessions of the selected user from the system?",
+                ),
+                "success": i18n.translate(
+                    key="viur.modules.user.customActions.kick.success",
+                    defaultText="Sessions of the user are being invalidated.",
+                ),
+            },
+            "trigger_takeover": {
+                "name": i18n.translate(
+                    key="viur.modules.user.customActions.takeover",
+                    defaultText="Take-over user",
+                    hint="Title of the take user over function"
+                ),
+                "icon": "icon-interface",
+                "access": ["root"],
+                "action": "fetch",
+                "url": "/vi/{{module}}/trigger/takeover/{{key}}",
+                "confirm": i18n.translate(
+                    key="viur.modules.user.customActions.takeover.confirm",
+                    defaultText="Do you really want to replace your current user session by a "
+                                "user session of the selected user?",
+                ),
+                "success": i18n.translate(
+                    key="viur.modules.user.customActions.takeover.success",
+                    defaultText="You're now know as the selected user!",
+                ),
+                "then": "reload-vi",
+            },
+        },
     }
 
     roles = {
@@ -1012,7 +1135,6 @@ class User(List):
 
     def secondFactorSucceeded(self, secondFactor, userKey):
         session = current.session.get()
-        logging.debug("Got SecondFactorSucceeded call from %s." % secondFactor)
         if session["_mayBeUserKey"] != userKey.id_or_name:
             raise errors.Forbidden()
         # Assert that the second factor verification finished in time
@@ -1145,6 +1267,34 @@ class User(List):
             res.append([auth.getAuthMethodName(), secondFactor.get2FactorMethodName() if secondFactor else None])
 
         return json.dumps(res)
+
+    @exposed
+    def trigger(self, action: str, key: str, skey: str):
+        current.request.get().response.headers["Content-Type"] = "application/json"
+
+        # Check for provided access right definition (equivalent to client-side check), fallback to root!
+        access = self.adminInfo.get("customActions", {}).get(f"trigger_{action}", {}).get("access") or ("root", )
+        if not ((cuser := current.user.get()) and any(role in cuser["access"] for role in access)):
+            raise errors.Unauthorized()
+
+        if not securitykey.validate(skey, session_bound=True):
+            raise errors.PreconditionFailed()
+
+        skel = self.baseSkel()
+        if not skel.fromDB(key):
+            raise errors.NotFound()
+
+        match action:
+            case "takeover":
+                self.authenticateUser(skel["key"])
+
+            case "kick":
+                session.killSessionByUser(skel["key"])
+
+            case _:
+                raise errors.NotImplemented(f"Action {action!r} not implemented")
+
+        return json.dumps("OKAY")
 
     def onEdited(self, skel):
         super().onEdited(skel)
