@@ -378,7 +378,6 @@ class UserPassword:
         skel = self.LostPasswordStep2Skel()
         recovery_key = kwargs.get("recovery_key")
 
-
         if not skel.fromClient(kwargs) or not current_request.isPostRequest:
             return self.userModule.render.edit(skel=skel,
                                                tpl=self.passwordRecoveryStep2Template,
