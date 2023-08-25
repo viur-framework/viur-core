@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+    <title>{{status}} - {{reason}}</title>
+
+    <style>
+        html, body, div, span, applet, object, iframe,
+        h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+        a, abbr, acronym, address, big, cite, code,
+        del, dfn, em, font, img, ins, kbd, q, s, samp,
+        small, strike, strong, sub, sup, tt, var,
+        dl, dt, dd, ol, ul, li,
+        fieldset, form, label, legend,
+        table, caption, tbody, tfoot, thead, tr, th, td {
+            margin: 0;
+            padding: 0;
+            border: 0;
+            outline: 0;
+            font-weight: inherit;
+            font-style: inherit;
+            font-size: 100%;
+            font-family: inherit;
+            vertical-align: baseline;
+        }
+        /* remember to define focus styles! */
+        :focus {
+            outline: 0;
+        }
+        body {
+            line-height: 1;
+            color: black;
+            background: white;
+        }
+        ol, ul {
+            list-style: none;
+        }
+        /* tables still need 'cellspacing="0"' in the markup */
+        table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        caption, th, td {
+            text-align: left;
+            font-weight: normal;
+        }
+        blockquote:before, blockquote:after,
+        q:before, q:after {
+            content: "";
+        }
+        blockquote, q {
+            quotes: "\00BB" "\00AB";
+        }
+
+        strong {
+           font-weight:bold;
+        }
+
+        html, body { height: 100% }
+        body {background-color: #cccccc;
+              font-family: 'Open Sans', Helvetica, Arial, sans-serif;
+              -webkit-font-smoothing: antialiased;
+              overflow: hidden;}
+
+
+        @-webkit-keyframes popin {
+            0% {
+            -webkit-transform: scale3d(0.1, 0.1, 1);
+            opacity: 0;
+        }
+        45% {
+            -webkit-transform: scale3d(1.07, 1.07, 1);
+            opacity: 1;
+        }
+        70% { -webkit-transform: scale3d(0.95, 0.95, 1) }
+        100% { -webkit-transform: scale3d(1, 1, 1) }
+        }
+        @-moz-keyframes popin {
+            0% {
+            -moz-transform: scale(0.1, 0.1);
+            opacity: 0;
+        }
+        45% {
+            -moz-transform: scale(1.07, 1.07);
+            opacity: 1;
+        }
+        70% { -moz-transform: scale(0.95, 0.95) }
+        100% { -moz-transform: scale(1, 1) }
+        }
+
+
+        a:link {color: #666666; text-decoration: none;}
+        a:visited {text-decoration: none; color: #666666;}
+        a:hover {text-decoration: none; color: #cc0000;}
+        a:active {text-decoration: none; color: #cc0000;}
+
+        #wrapper {
+            height: 100%;
+            background: #ccc;
+            background: -moz-linear-gradient(top, #ccc 0%, #f7f7f7 100%);
+            background: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #ccc), color-stop(100%, #f7f7f7));
+            background: -webkit-linear-gradient(top, ccc 0%, #f7f7f7 100%);
+            background: -o-linear-gradient(top, #ccc 0%, #f7f7f7 100%);
+            background: -ms-linear-gradient(top, #ccc 0%, #f7f7f7 100%);
+            background: linear-gradient(to bottom, #ccc 0%, #f7f7f7 100%);
+            filter: progid:DXImageTransform.Microsoft.Gradient(StartColorStr='#ccc', EndColorStr='#f7f7f7', GradientType=0);
+        }
+
+        .clear {clear: both;display: block;overflow: hidden;visibility: hidden;width: 0;height: 0;}
+
+        .logo {position: relative;
+               background: url(/static/meta/viur-logo-error.png);
+               width: 140px;
+               height: 150px;
+               top: -3px;
+               float: right;
+               margin-top: -40px;
+               z-index: 99;
+        }
+
+        #error {
+            position: relative;
+            padding-top: 50px;
+            -webkit-animation-name: popin;
+            -moz-animation-name: popin;
+            -webkit-animation-duration: .8s;
+            -moz-animation-duration: 800ms;
+
+        }
+
+
+        #content h1 {
+            font: 72px 'Open Sans', Arial, sans-serif;
+            line-height: 60px;
+            color: #d00f1c;
+            text-shadow: 0 1px #f7f7f7;
+            text-align: left;
+            float: left;
+            width: 370px;
+        }
+
+
+        #content {
+            position: relative;
+            left: 50%;
+            margin-left: -400px;
+            width: 800px;
+            height: 560px;
+            background: #ffffff;
+            border: solid 3px #f2f2f2;
+            -moz-box-shadow: 0 0 0 1px #bfbfbf, 0 0 10px rgba(0,0,0,.10);
+            -webkit-box-shadow: 0 0 0 1px #bfbfbf, 0 0 10px rgba(0,0,0,.10);
+            box-shadow: 0 0 0 1px #bfbfbf, 0 0 10px rgba(0,0,0,.10);
+            padding: 30px;
+        }
+
+        #content h2 {
+            padding: 10px 0px;
+            font: 20px 'Open Sans', Arial, sans-serif;
+            color: #8e8e8e;
+            text-align: center;
+            border-top: 1px solid #ccc;
+            border-bottom: 1px solid #ccc;
+            margin-top: 30px;
+            margin-bottom: 20px;
+        }
+
+        #content p {
+            position: relative;
+            font-size: 13px;
+            line-height: 1.5em;
+            color: #8e8e8e;
+            overflow: auto;
+            height: 300px;
+            padding: 10px 0px;
+        }
+
+        .wrapper-buttons {padding: 10px 0px; z-index: 999;}
+
+
+        .button-red, .button-red:visited {
+            background-color:#08527f;
+            text-decoration:none;
+            float: right;
+            margin-left: 10px;
+            text-align: center;
+            font-size: 16px !important;
+            padding: 7px 10px !important;
+            -moz-box-orient: vertical;
+            background: #660000;
+            background: -moz-linear-gradient(#d00f1c, #660000) repeat scroll 0 0 #660000;
+            background: -webkit-linear-gradient(#d00f1c, #660000) repeat scroll 0 0 #660000;
+            background: -o-linear-gradient(#d00f1c, #660000) repeat scroll 0 0 #660000;
+            background: linear-gradient(#d00f1c, #660000) repeat scroll 0 0 #660000;
+            border: 1px solid #330000;
+            box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) inset, 0 1px 2px rgba(0, 0, 0, 0.05);
+            color: #FFFFFF !important;
+            display: inline-block;
+            line-height: 1 !important;
+            text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.3);
+            vertical-align: middle;
+            white-space: nowrap;
+            line-height: 32px;}
+
+        .button-red:hover {background-color:#d00f1c; color: #ffffff; text-decoration: none;
+                           background: -moz-linear-gradient(#d00f1c, #990000) repeat scroll 0 0 #990000;
+                           background: -webkit-linear-gradient(#d00f1c, #990000) repeat scroll 0 0 #990000;
+                           background: -o-linear-gradient(#d00f1c, #990000) repeat scroll 0 0 #990000;
+                           background: linear-gradient(#d00f1c, #990000) repeat scroll 0 0 #990000;}
+
+    </style>
+</head>
+
+<body>
+    <div id="wrapper">
+        <div id="error">
+            <div id="content">
+
+                <h1>{{ status }}</h1>
+
+                <a class="logo" href="https://www.viur.dev">&nbsp;</a>
+
+                <div class="clear">&nbsp;</div>
+
+                <h2>{{ title }}</h2>
+
+                <p>{{ descr }}</p>
+
+				<div class="wrapper-buttons">
+                    <a href="/" class="button-red shadow">Home</a>
+                    <div class="clear">&nbsp;</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
