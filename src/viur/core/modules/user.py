@@ -222,7 +222,7 @@ class UserPassword:
     passwordRecoveryAlreadySendTemplate = "user_passwordrecover_already_sent"
     passwordRecoverySuccessTemplate = "user_passwordrecover_success"
     passwordRecoveryInvalidTokenTemplate = "user_passwordrecover_invalid_token"
-    passwordRecoveryInstuctionsSendTemplate = "user_passwordrecover_mail_sent"
+    passwordRecoveryInstructionsSendTemplate = "user_passwordrecover_mail_sent"
     passwordRecoveryStep1Template = "user_passwordrecover_step1"
     passwordRecoveryStep2Template = "user_passwordrecover_step2"
     passwordRecoveryFailedTemplate = "user_passwordrecover_failed"
@@ -373,17 +373,18 @@ class UserPassword:
             recovery_entity["valid_until"] = utils.utcNow() + datetime.timedelta(minutes=15)
             db.Put(recovery_entity)
 
-            return self.userModule.render.view(None, tpl=self.passwordRecoveryInstuctionsSendTemplate)
+            return self.userModule.render.view(None, tpl=self.passwordRecoveryInstructionsSendTemplate)
         # in step 2
         skel = self.LostPasswordStep2Skel()
         recovery_key = kwargs.get("recovery_key")
-        if not securitykey.validate(kwargs.get("skey")):
-            raise errors.PreconditionFailed()
+
 
         if not skel.fromClient(kwargs) or not current_request.isPostRequest:
             return self.userModule.render.edit(skel=skel,
                                                tpl=self.passwordRecoveryStep2Template,
                                                recovery_key=recovery_key)
+        if not securitykey.validate(kwargs.get("skey")):
+            raise errors.PreconditionFailed()
 
         if not (recovery_entity := db.Get(db.Key("viur-recovery", recovery_key))):
             return self.userModule.render.view(
