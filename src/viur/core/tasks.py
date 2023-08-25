@@ -398,7 +398,6 @@ def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
     :param tpl: Instead of the standard text, a custom template can be used.
         The name of an email template must be specified.
     """
-
     # language=Jinja2
     string_template = \
         """Task {{func_name}} failed {{retries}} times
