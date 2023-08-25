@@ -387,39 +387,58 @@ TaskHandler.html = True
 
 ## Decorators ##
 
-def retry_n_times(retries: int, email_recipients: None | str | list[str] = None):
-    """Wrapper for deferred tasks to limit the amount of retries"""
+def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
+                  tpl: None | str = None) -> Callable:
+    """
+    Wrapper for deferred tasks to limit the amount of retries
+
+    :param retries: Number of maximum allowed retries
+    :param email_recipients: Email addresses to which a info should be sent
+        when the retry limit is reached.
+    :param tpl: Instead of the standard text, a custom template can be used.
+        The name of an email template must be specified.
+    """
+
+    # language=Jinja2
+    string_template = \
+        """Task {{func_name}} failed {{retries}} times
+        This was the last attempt.<br>
+        <pre>{{func_module|escape}}.{{func_name|escape}}({{signature}})</pre>
+        <pre>{{traceback|escape}}</pre>"""
 
     def outer_wrapper(func):
         @wraps(func)
         def inner_wrapper(*args, **kwargs):
             retry_count = int(current.request.get().request.headers.get("X-Appengine-Taskretrycount", -1))
             try:
-                func(*args, **kwargs)
+                return func(*args, **kwargs)
             except Exception as exc:
-                logging.exception(f"Task {func.__qualname__} failed.")
+                logging.exception(f"Task {func.__qualname__} failed: {exc}")
                 logging.info("This was retry #%d. %d retries remaining. (total = %d)",
                              retry_count, retries - retry_count, retries)
                 if retry_count < retries:
-                    # Raise the exception to mark this task as failed, so the Task Queue can retry it.
+                    # Raise the exception to mark this task as failed, so the task queue can retry it.
                     raise exc
                 else:
                     if email_recipients:
+                        args_repr = [repr(arg) for arg in args]
+                        kwargs_repr = [f"{k!s}={v!r}" for k, v in kwargs.items()]
+                        signature = ", ".join(args_repr + kwargs_repr)
                         try:
                             from viur.core import email
                             email.sendEMail(
                                 dests=email_recipients,
-                                # language=Jinja2
-                                stringTemplate="""Subject: Task {{func_name}} failed {{retries}} times\n
-                                This was the last attempt.<br>\n
-                                <pre>{{func_module|escape}}.{{func_name|escape}}({{args|map("escape")|join(", ")}}, {{kwargs.items()|map("join", "=")|join(", ")|escape}})</pre>
-                                <pre>{{traceback|escape}}</pre>""",
+                                tpl=tpl,
+                                stringTemplate=string_template if tpl is None else string_template,
+                                # The following params provide information for the emails templates
                                 func_name=func.__name__,
+                                func_qualname=func.__qualname__,
                                 func_module=func.__module__,
                                 retries=retries,
                                 args=args,
                                 kwargs=kwargs,
-                                traceback=traceback.format_exc()
+                                signature=signature,
+                                traceback=traceback.format_exc(),
                             )
                         except Exception:
                             logging.exception("Failed to send email to %r", email_recipients)
