@@ -402,7 +402,7 @@ def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
     string_template = \
         """Task {{func_name}} failed {{retries}} times
         This was the last attempt.<br>
-        <pre>{{func_module|escape}}.{{func_name|escape}}({{signature}})</pre>
+        <pre>{{func_module|escape}}.{{func_name|escape}}({{signature|escape}})</pre>
         <pre>{{traceback|escape}}</pre>"""
 
     def outer_wrapper(func):
