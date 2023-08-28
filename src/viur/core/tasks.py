@@ -450,6 +450,7 @@ def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
 
 def noRetry(f):
     """Prevents a deferred Function from being called a second time"""
+    logging.warning(f"Use of `@noRetry` is deprecated; Use `@retry_n_times(0)` instead!", stacklevel=2)
     return retry_n_times(0)(f)
 
 
