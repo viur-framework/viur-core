@@ -413,7 +413,10 @@ def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
                 return func(*args, **kwargs)
             except Exception as exc:
                 logging.exception(f"Task {func.__qualname__} failed: {exc}")
-                logging.info(f"This was retry {retry_count}. {retries - retry_count} retries remaining. (total = {retries})",
+                logging.info(
+                    f"This was the {retry_count}. retry."
+                    f"{retries - retry_count} retries remaining. (total = {retries})"
+                )
                 if retry_count < retries:
                     # Raise the exception to mark this task as failed, so the task queue can retry it.
                     raise exc
