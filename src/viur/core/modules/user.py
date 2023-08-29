@@ -859,19 +859,19 @@ class AuthenticatorOTP:
             current_session.markChanged()
 
         if otp is None or skey is None:
-            return self.userModule.render.secound_factor_add(
+            return self.userModule.render.second_factor_add(
                 otp_uri=AuthenticatorOTP.generate_otp_secret_key_uri(otp_secret_key))
         else:
             if not securitykey.validate(skey):
                 raise errors.PreconditionFailed()
             if not AuthenticatorOTP.verify_otp(otp, otp_secret_key):
-                return self.userModule.render.secound_factor_add(
+                return self.userModule.render.second_factor_add(
                     tpl=self.otp_template,
                     otp_uri=AuthenticatorOTP.generate_otp_secret_key_uri(otp_secret_key))  # to add errors
 
             # Now we can set the otp_secret_key to the current User and render der Success-template
             AuthenticatorOTP.set_otp_secret_key(otp_secret_key)
-            return self.userModule.render.secound_factor_add_success()
+            return self.userModule.render.second_factor_add_success()
 
     def canHandle(self, user_key) -> bool:
         """

@@ -85,14 +85,14 @@ class Render(DefaultRender):  # Render user-data to xml
     def passwdRecover(self, *args, **kwargs):
         return self.edit(*args, **kwargs)
 
-    def secound_factor_add(self, tpl=None, otp_uri=None):
+    def second_factor_add(self, tpl=None, otp_uri=None):
         if tpl is None:
             tpl = self.otp_add_template
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))
 
         return template.render(otp_uri=otp_uri)
 
-    def secound_factor_add_success(self, tpl=None):
+    def second_factor_add_success(self, tpl=None):
         if tpl is None:
             tpl = self.otp_add_success_template
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))
