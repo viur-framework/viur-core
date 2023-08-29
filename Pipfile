@@ -25,6 +25,7 @@ requests = "2"
 tzlocal = "5"
 viur-datastore = "1"
 webob = "1"
+qrcode = "7"
 
 [dev-packages]
 build="*"
