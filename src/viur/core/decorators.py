@@ -22,6 +22,7 @@ def exposed(func: Callable) -> Method:
         return expose_with_translations
 
     func = Method.ensure(func)
+    func.exposed = True
     return func
 
 
@@ -30,7 +31,7 @@ def internal_exposed(func: Callable) -> Method:
     Decorator, which marks a function as internal exposed.
     """
     func = Method.ensure(func)
-    func.internal = True
+    func.exposed = False
     return func
 
 

@@ -578,7 +578,7 @@ class BrowseHandler():  # webapp.RequestHandler
                 raise errors.MethodNotAllowed()
 
         # Check for internal exposed
-        if caller.internal and not self.internalRequest:
+        if caller.exposed is False and not self.internalRequest:
             raise errors.NotFound()
 
         # Check for @force_ssl flag

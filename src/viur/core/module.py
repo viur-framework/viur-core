@@ -2,7 +2,6 @@ import copy
 import inspect
 import typing
 import logging
-from dataclasses import dataclass
 from viur.core import errors, current
 from viur.core.config import conf
 
@@ -26,7 +25,7 @@ class Method:
 
     def __init__(self, func: typing.Callable):
         # Attributes
-        self.internal = False
+        self.exposed = None  # None = unexposed, True = exposed, False = internal exposed
         self.ssl = False
         self.methods = ("GET", "POST", "HEAD")
         self.seo_language_map = None
@@ -66,12 +65,17 @@ class Method:
                 logging.debug(f"@skey {self.skey=}")
 
             # validation is necessary?
-            if not self.skey["allow_empty"] or args or kwargs:
+            if not self.skey["allow_empty"] or kwargs:
+                security_key = kwargs.pop(self.skey["name"], "")
+                logging.debug(f"@skey wanted, validating {security_key!r}")
+
                 from viur.core import securitykey
-                payload = securitykey.validate(kwargs.pop(self.skey["name"], ""), **self.skey["extra_kwargs"])
+                payload = securitykey.validate(security_key, **self.skey["extra_kwargs"])
 
                 if not payload or (self.skey["validate"] and not self.skey["validate"](payload)):
-                    raise errors.PreconditionFailed(message or f"Missing or invalid parameter {name!r}")
+                    raise errors.PreconditionFailed(
+                        self.skey["message"] or f"Missing or invalid parameter {self.skey['name']!r}"
+                    )
 
                 if self.skey["forward_payload"]:
                     kwargs |= {self.skey["forward_payload"]: payload}
@@ -156,6 +160,9 @@ class Method:
         """
         Registers the Method under `name` and eventually some customized SEO-name for the provided language
         """
+        if self.exposed is None:
+            return
+
         target[name] = self
 
         # reassign for SEO mapping as well
@@ -251,7 +258,8 @@ class Module:
 
             filter: ``Dict[str, str]``
                 (Optional) Dictionary of additional parameters that will be send along when
-                fetching entities from the server. Can be used to filter the entities being displayed  on the client-side.
+                fetching entities from the server. Can be used to filter the entities being displayed on the
+                client-side.
 
             display: ``str`` ("default", "hidden" or "group")
                 (Optional) "hidden" will hide the module in the main bar
@@ -292,8 +300,9 @@ class Module:
             indexedBones: ``List[str]``
                 (Optional) List of bones, for which an (composite?) index exists in this
                 view. This allows the fronted to signal the user that a given list can be sorted or filtered by this
-                bone. If no additional filters are enforced by the :meth:`listFilter<viur.core.prototypes.list.listFilter>`
-                and ``filter`` is not set, this should be all bones which are marked as indexed.
+                bone. If no additional filters are enforced by the
+                :meth:`listFilter<viur.core.prototypes.list.listFilter>` and ``filter`` is not set, this should be
+                all bones which are marked as indexed.
 
             changeInvalidates: ``List[str]``
                 (Optional) A list of module-names which depend on the entities handled
