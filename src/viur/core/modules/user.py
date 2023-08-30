@@ -860,6 +860,7 @@ class AuthenticatorOTP:
 
         if otp is None or skey is None:
             return self.userModule.render.second_factor_add(
+                tpl=self.otp_template,
                 otp_uri=AuthenticatorOTP.generate_otp_secret_key_uri(otp_secret_key))
         else:
             if not securitykey.validate(skey):
@@ -880,7 +881,7 @@ class AuthenticatorOTP:
         if not (user := db.Get(user_key)):
             return False
 
-        return len(str(user.get("otp_secret_key", ""))) > 0
+        return bool(user.get("otp_secret_key", ""))
 
     @classmethod
     def get2FactorMethodName(*args, **kwargs):
