@@ -832,12 +832,16 @@ class TimeBasedOTP:
 
 class AuthenticatorOTP:
     """
-        This class handles the second factor for apps like authy and so on
+    This class handles the second factor for apps like authy and so on
     """
-    otp_template = "user_login_authenticatorotp"
+    add_template = "user_login_authenticatorotp"
+    """Template to configure (add) a new TOPT"""
+    otp_template = "user_login_secondfactor"
+    """Template to enter the TOPT on login"""
     ACTION_NAME = "authenticatorOTP"
+    """Action name provided for *otp_template* on login"""
 
-    def __init__(self, userModule, modulePath):
+    def __init__(self, userModule: "User", modulePath: str):
         self.userModule = userModule
         self.modulePath = modulePath
 
@@ -845,11 +849,11 @@ class AuthenticatorOTP:
     @forceSSL
     def add(self, otp=None, skey=None):
         """
-            We try to read the otp_secret_key form the current session. When this fails we generate a new one and store
-            it in the session.
+        We try to read the otp_secret_key form the current session. When this fails we generate a new one and store
+        it in the session.
 
-            If an otp and a skey are provided we are validate the skey and the otp. If both is successfully we store
-            the otp_secret_key from the session in the user entry.
+        If an otp and a skey are provided we are validate the skey and the otp. If both is successfully we store
+        the otp_secret_key from the session in the user entry.
         """
         current_session = current.session.get()
 
@@ -860,23 +864,23 @@ class AuthenticatorOTP:
 
         if otp is None or skey is None:
             return self.userModule.render.second_factor_add(
-                tpl=self.otp_template,
+                tpl=self.add_template,
                 otp_uri=AuthenticatorOTP.generate_otp_secret_key_uri(otp_secret_key))
         else:
             if not securitykey.validate(skey):
                 raise errors.PreconditionFailed()
             if not AuthenticatorOTP.verify_otp(otp, otp_secret_key):
                 return self.userModule.render.second_factor_add(
-                    tpl=self.otp_template,
+                    tpl=self.add_template,
                     otp_uri=AuthenticatorOTP.generate_otp_secret_key_uri(otp_secret_key))  # to add errors
 
             # Now we can set the otp_secret_key to the current User and render der Success-template
             AuthenticatorOTP.set_otp_secret_key(otp_secret_key)
             return self.userModule.render.second_factor_add_success()
 
-    def canHandle(self, user_key) -> bool:
+    def canHandle(self, user_key: str | db.Key) -> bool:
         """
-            We can only handle the second factor if we have stored an otp_secret_key before.
+        We can only handle the second factor if we have stored an otp_secret_key before.
         """
         if not (user := db.Get(user_key)):
             return False
@@ -884,7 +888,7 @@ class AuthenticatorOTP:
         return bool(user.get("otp_secret_key", ""))
 
     @classmethod
-    def get2FactorMethodName(*args, **kwargs):
+    def get2FactorMethodName(*args, **kwargs) -> str:
         return "X-VIUR-2FACTOR-AuthenticatorOTP"
 
     @classmethod
@@ -899,7 +903,6 @@ class AuthenticatorOTP:
             raise errors.Unauthorized()
 
         def transaction(user_key):
-
             if not (user := db.Get(user_key)):
                 raise errors.NotFound()
             user["otp_secret_key"] = otp_secret_key
@@ -908,11 +911,10 @@ class AuthenticatorOTP:
         db.RunInTransaction(transaction, cuser["key"])
 
     @classmethod
-    def generate_otp_secret_key_uri(cls, otp_secret_key):
+    def generate_otp_secret_key_uri(cls, otp_secret_key) -> str:
         """
-            :return an otp uri like otpauth://totp/Example:alice@google.com?secret=ABCDEFGH1234&issuer=Example
+        :return an otp uri like otpauth://totp/Example:alice@google.com?secret=ABCDEFGH1234&issuer=Example
         """
-
         if not (cuser := current.user.get()):
             raise errors.Unauthorized()
         if not (issuer := conf["viur.otp.issuer"]):
@@ -923,27 +925,26 @@ class AuthenticatorOTP:
         return pyotp.TOTP(otp_secret_key).provisioning_uri(name=cuser["name"], issuer_name=issuer)
 
     @classmethod
-    def generate_otp_secret_key(cls):
+    def generate_otp_secret_key(cls) -> str:
         """
-            Generate a new OTP Secret
-            :return an otp
+        Generate a new OTP Secret
+        :return an otp
         """
         return pyotp.random_base32()
 
     @classmethod
-    def verify_otp(cls, otp, secret):
+    def verify_otp(cls, otp: str | int, secret: str) -> bool:
         return pyotp.TOTP(secret).verify(otp)
 
-    def startProcessing(self, user_key):
+    def startProcessing(self, user_key: str | db.Key):
         return self.userModule.render.edit(TimeBasedOTP.OtpSkel(), action=self.ACTION_NAME, tpl=self.otp_template)
 
     @exposed
     @forceSSL
     def otp(self, skey=None, **kwargs):
         """
-            We verify the otp here with the secret we stored before.
+        We verify the otp here with the secret we stored before.
         """
-
         if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
         user_key = db.Key("user", current.session.get()["_mayBeUserKey"])
