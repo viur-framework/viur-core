@@ -1,12 +1,7 @@
-import functools
-import logging
 from typing import Callable
-from viur.core import errors, current
-from viur.core.config import conf
 from viur.core.module import Method
 
 
-# def exposed(internal: bool = False) -> Callable:
 def exposed(func: Callable) -> Method:
     """
     Decorator, which marks a function as exposed.
@@ -53,9 +48,9 @@ def force_post(func: Callable) -> Method:
     """
     Decorator, which enforces usage of a http post request.
     """
-    exposed = Method.ensure(func)
-    exposed.methods = ("POST", )
-    return exposed
+    func = Method.ensure(func)
+    func.methods = ("POST", )
+    return func
 
 
 def access(
@@ -67,6 +62,10 @@ def access(
     Decorator, which performs an authentication and authorization check primarily based on the current user's access,
     which is defined via the `UserSkel.access`-bone. Additionally, a callable for individual access checking can be
     provided.
+
+    In case no user is logged in, the decorator enforces to raise an HTTP error 401 - Unauthorized in case no user is
+    logged in, otherwise it returns an HTTP error 403 - Forbidden when the specified access parameters prohibit to call
+    the decorated method.
 
     :params access: Access configuration, either names of access rights or a callable for verification.
     :params offer_login: Offers a way to login; Either set it to True, to automatically redirect to /user/login,
@@ -85,47 +84,13 @@ def access(
     Furthermore, instead of a list/tuple/set/str, a callable can be provided which performs custom access checking,
     and directly is checked on True for access grant.
     """
+    access_config = locals()
 
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            user = current.user.get()
+    def decorator(func):
+        meth = Method.ensure(func)
+        meth.access = access_config
+        return meth
 
-            if trace := conf["viur.debug.trace"]:
-                logging.debug(f"@access checking for {user=}")
-
-            if not user:
-                if offer_login:
-                    raise errors.Redirect(offer_login if isinstance(offer_login, str) else "/user/login")
-
-                raise errors.Unauthorized(message) if message else errors.Unauthorized()
-
-            for acc in access:
-                if trace:
-                    logging.debug(f"@access check {acc=}")
-
-                # Callable directly tests access
-                if callable(acc):
-                    if acc():
-                        return func(*args, **kwargs)
-
-                    continue
-
-                # Otherwise, check for access rights
-                if isinstance(acc, str):
-                    acc = (acc, )
-
-                assert isinstance(acc, (tuple, list, set))
-
-                if not set(acc).difference(user["access"]):
-                    return func(*args, **kwargs)
-
-            # logging.error("%s requires access %s", func.__name__, " OR ".join(map(repr, access)))
-            raise errors.Forbidden(message) if message else errors.Forbidden()
-
-        return wrapper
-
-    assert access, "No rules set"
     return decorator
 
 
@@ -140,31 +105,25 @@ def skey(
     **extra_kwargs: dict,
 ) -> Method:
     """
-    Decorator, which configures a method for requiring a CSRF-security-key.
+    Decorator, which configures an exposed method for requiring a CSRF-security-key.
+    The decorator enforces a raise of HTTP error 406 - Precondition failed in case the security-key is not provided
+    or became invalid.
+
+    :param allow_empty: Allows to call the method without a security-key when no other parameters where provided.
+    :param forward_payload: Forwards the extracted payload of the security-key to the method under the key specified
+        here as a value in kwargs.
+    :param message: Allows to specify a custom error message in case a HTTP 406 is raised.
+    :param name: Defaults to "skey", but allows also for another name passed to the method.
+    :param validate: Allows to specify a Callable used to further evaluate the payload of the security-key.
+        Security-keys can be equipped with further data, see the securitykey-module for details.
+    :param extra_kwargs: Any provided extra_kwargs are being passed to securitykey.validate as kwargs.
     """
+    skey_config = locals()
 
-    def decorator(func: Callable) -> Callable:
-        def check(args, kwargs):
-            if trace := conf["viur.debug.trace"]:
-                logging.debug(f"@skey {allow_empty=}")
-
-            # validation is necessary?
-            if not allow_empty or args or kwargs:
-                from viur.core import securitykey
-                payload = securitykey.validate(kwargs.pop(name, ""), **extra_kwargs)
-
-                if trace:
-                    logging.debug(f"@skey {payload=}, {validate=}")
-
-                if not payload or (validate and not validate(payload)):
-                    raise errors.PreconditionFailed(message or f"Missing or invalid parameter {name!r}")
-
-                if forward_payload:
-                    kwargs |= {forward_payload: payload}
-
-        func = Method.ensure(func)
-        func.skey = check
-        return func
+    def decorator(func):
+        meth = Method.ensure(func)
+        meth.skey = skey_config
+        return meth
 
     if func is None:
         return decorator

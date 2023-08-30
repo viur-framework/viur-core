@@ -2,6 +2,8 @@ import copy
 import inspect
 import typing
 import logging
+from dataclasses import dataclass
+from viur.core import errors, current
 from viur.core.config import conf
 
 
@@ -13,8 +15,9 @@ class Method:
     @classmethod
     def ensure(cls, func):
         """
-        Ensures the provided func is either a Method already, or turns it into a Method.
-        This is done to avoid stacking Method objects, which may create unwanted results.
+        Ensures the provided `func` parameter is either a Method already, or turns it
+        into a Method. This is done to avoid stacking Method objects, which may create
+        unwanted results.
         """
         if isinstance(func, Method):
             return func
@@ -22,12 +25,17 @@ class Method:
         return cls(func)
 
     def __init__(self, func: typing.Callable):
+        # Attributes
         self.internal = False
         self.ssl = False
-        self.skey = None
         self.methods = ("GET", "POST", "HEAD")
         self.seo_language_map = None
 
+        # Guards
+        self.skey = None
+        self.access = None
+
+        # Content
         self._func = func
         self._instance = None
 
@@ -48,11 +56,67 @@ class Method:
         """
         Wrapper to call the Method directly.
         """
-        if conf["viur.debug.trace"]:
-            logging.debug(f"call {self._func=} with {args=}, {kwargs=}")
 
+        if trace := conf["viur.debug.trace"]:
+            logging.debug(f"calling {self._func=} with {args=}, {kwargs=}")
+
+        # evaluate skey guard setting?
         if self.skey:
-            self.skey(args, kwargs)
+            if trace:
+                logging.debug(f"@skey {self.skey=}")
+
+            # validation is necessary?
+            if not self.skey["allow_empty"] or args or kwargs:
+                from viur.core import securitykey
+                payload = securitykey.validate(kwargs.pop(self.skey["name"], ""), **self.skey["extra_kwargs"])
+
+                if not payload or (self.skey["validate"] and not self.skey["validate"](payload)):
+                    raise errors.PreconditionFailed(message or f"Missing or invalid parameter {name!r}")
+
+                if self.skey["forward_payload"]:
+                    kwargs |= {self.skey["forward_payload"]: payload}
+
+        # evaluate access guard setting?
+        if self.access:
+            user = current.user.get()
+
+            if trace := conf["viur.debug.trace"]:
+                logging.debug(f"@access {user=} {self.access=}")
+
+            if not user:
+                if offer_login := self.access["offer_login"]:
+                    raise errors.Redirect(offer_login if isinstance(offer_login, str) else "/user/login")
+
+                raise errors.Unauthorized(self.access["message"]) if self.access["message"] else errors.Unauthorized()
+
+            ok = False
+            for acc in self.access["access"]:
+                if trace:
+                    logging.debug(f"@access checking {acc=}")
+
+                # Callable directly tests access
+                if callable(acc):
+                    if acc():
+                        ok = True
+                        break
+
+                    continue
+
+                # Otherwise, check for access rights
+                if isinstance(acc, str):
+                    acc = (acc, )
+
+                assert isinstance(acc, (tuple, list, set))
+
+                if not set(acc).difference(user["access"]):
+                    ok = True
+                    break
+
+            if trace:
+                logging.debug(f"@access {ok=}")
+
+            if not ok:
+                raise errors.Forbidden(self.access["message"]) if self.access["message"] else errors.Forbidden()
 
         # call with instance when provided
         if self._instance:
@@ -64,8 +128,9 @@ class Method:
         """
         Describes the Method with a
         """
-        ret = typing.get_type_hints(self._func).get("return")
-        return {
+        return_doc = typing.get_type_hints(self._func).get("return")
+
+        ret = {
             "args": {
                 param.name: {
                     "type": str(param.annotation) if param.annotation is not inspect.Parameter.empty else None,
@@ -73,12 +138,19 @@ class Method:
                 }
                 for param in inspect.signature(self._func).parameters.values()
             },
-            "return": str(ret) if ret else None,
-            "methods": self.methods,
-            "skey": bool(self.skey),
+            "returns": str(return_doc) if return_doc else None,
+            "accepts": self.methods,
             "docs": self._func.__doc__,
             "aliases": tuple(self.seo_language_map.keys()) if self.seo_language_map else None,
         }
+
+        if self.skey:
+            ret["skey"] = self.skey["name"]
+
+        if self.access:
+            ret["access"] = (str(access) for access in self.access["access"])
+
+        return ret
 
     def register(self, target: dict, name: str, language: str | None = None):
         """

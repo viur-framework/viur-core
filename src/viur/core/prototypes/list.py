@@ -6,7 +6,6 @@ from viur.core.skeleton import SkeletonInstance
 from .skelmodule import SkelModule
 
 
-
 class List(SkelModule):
     """
         List module prototype.
