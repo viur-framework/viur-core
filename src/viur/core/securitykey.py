@@ -28,7 +28,11 @@ SECURITYKEY_DURATION = 24 * 60 * 60  # one day
 SECURITYKEY_STATIC = "Sec-X-ViUR-StaticSessionKey"
 
 
-def create(duration: typing.Union[None, int] = None, session_bound: bool = True, **custom_data) -> str:
+def create(
+        duration: typing.Union[None, int] = None,
+        session_bound: bool = True,
+        key_length: int = 13,
+        **custom_data) -> str:
     """
         Creates a new one-time CSRF-security-key.
 
@@ -47,7 +51,7 @@ def create(duration: typing.Union[None, int] = None, session_bound: bool = True,
     if not duration:
         duration = conf["viur.session.lifeTime"] if session_bound else SECURITYKEY_DURATION
 
-    key = utils.generateRandomString()
+    key = utils.generateRandomString(key_length)
 
     entity = db.Entity(db.Key(SECURITYKEY_KINDNAME, key))
     entity |= custom_data
@@ -75,6 +79,7 @@ def validate(key: str, session_bound: bool = True) -> typing.Union[bool, db.Enti
         return False
 
     if not key or not (entity := db.Get(db.Key(SECURITYKEY_KINDNAME, key))):
+        print("here out1")
         return False
 
     # First of all, delete the entity, validation is done afterward.
@@ -82,6 +87,7 @@ def validate(key: str, session_bound: bool = True) -> typing.Union[bool, db.Enti
 
     # Key has expired?
     if entity["viur_until"] < utils.utcNow():
+        print("here out2")
         return False
 
     del entity["viur_until"]
@@ -89,8 +95,10 @@ def validate(key: str, session_bound: bool = True) -> typing.Union[bool, db.Enti
     # Key is session bound?
     if session_bound:
         if entity["viur_session"] != current.session.get().cookie_key:
+            print("here out3")
             return False
     elif entity["viur_session"]:
+        print("here out4")
         return False
 
     del entity["viur_session"]
