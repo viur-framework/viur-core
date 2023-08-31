@@ -36,5 +36,5 @@ class UserRender(DefaultRender):  # Render user-data to json
     def second_factor_add(self, otp_uri=None, *args, **kwargs):
         return json.dumps({"otp_uri": otp_uri})
 
-    def secund_factor_add_success(self, *args, **kwargs):
+    def second_factor_add_success(self, *args, **kwargs):
         return json.dumps("OKAY")
