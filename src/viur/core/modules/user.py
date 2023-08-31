@@ -336,7 +336,7 @@ class UserPassword:
         return self.userModule.continueAuthenticationFlow(self, user_entry.key)
 
     @exposed
-    def pwrecover(self, skey: str, recovery_key: str | None = None, *args, **kwargs):
+    def pwrecover(self, skey: str | None = None, recovery_key: str | None = None, *args, **kwargs):
         """
             This implements the password recovery process which let them set a new password for their account
             after validating a code send to them by email. The process is as following:
@@ -353,14 +353,14 @@ class UserPassword:
         self.passwordRecoveryRateLimit.assertQuotaIsAvailable()
         current_request = current.request.get()
 
-        if not securitykey.validate(kwargs.get("skey")):
-            raise errors.PreconditionFailed()
-
         if recovery_key is None:
             # This is the first step, where we ask for the username of the account we'll going to reset the password on
             skel = self.LostPasswordStep1Skel()
             if not current_request.isPostRequest or not skel.fromClient(kwargs):
                 return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
+
+            if not securitykey.validate(skey):
+                raise errors.PreconditionFailed()
 
             self.passwordRecoveryRateLimit.decrementQuota()
 
@@ -381,6 +381,7 @@ class UserPassword:
         # in step 2
         skel = self.LostPasswordStep2Skel()
 
+        skel["recovery_key"] = recovery_key
         if not skel.fromClient(kwargs) or not current_request.isPostRequest:
             return self.userModule.render.edit(
                 skel=skel,
@@ -388,7 +389,7 @@ class UserPassword:
                 recovery_key=recovery_key
             )
 
-        if not (recovery_request := securitykey.validate(recovery_key)):
+        if not (recovery_request := securitykey.validate(recovery_key, session_bound=False)):
             return self.userModule.render.view(
                 skel=None,
                 tpl=self.passwordRecoveryFailedTemplate,
