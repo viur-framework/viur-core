@@ -222,7 +222,7 @@ class UserPassword:
     passwordRecoveryAlreadySendTemplate = "user_passwordrecover_already_sent"
     passwordRecoverySuccessTemplate = "user_passwordrecover_success"
     passwordRecoveryInvalidTokenTemplate = "user_passwordrecover_invalid_token"
-    passwordRecoveryInstructionsSendTemplate = "user_passwordrecover_mail_sent"
+    passwordRecoveryInstructionsSentTemplate = "user_passwordrecover_mail_sent"
     passwordRecoveryStep1Template = "user_passwordrecover_step1"
     passwordRecoveryStep2Template = "user_passwordrecover_step2"
     passwordRecoveryFailedTemplate = "user_passwordrecover_failed"
@@ -336,10 +336,12 @@ class UserPassword:
         return self.userModule.continueAuthenticationFlow(self, user_entry.key)
 
     @exposed
-    def pwrecover(self, skey: str, recovery_key: str | None = None, *args, **kwargs):
+    def pwrecover(self, recovery_key: str | None = None, skey: str | None = None, *args, **kwargs):
         """
-            This implements the password recovery process which let them set a new password for their account
-            after validating a code send to them by email. The process is as following:
+            This implements a password recovery process which lets users set a new password for their account,
+            after validating a recovery key sent by email.
+
+            The process is as following:
 
             - The user enters his email adress
             - We'll generate a random code, store it in his session and call sendUserPasswordRecoveryCode
@@ -353,21 +355,22 @@ class UserPassword:
         self.passwordRecoveryRateLimit.assertQuotaIsAvailable()
         current_request = current.request.get()
 
-        if not securitykey.validate(kwargs.get("skey")):
-            raise errors.PreconditionFailed()
-
         if recovery_key is None:
             # This is the first step, where we ask for the username of the account we'll going to reset the password on
             skel = self.LostPasswordStep1Skel()
+
             if not current_request.isPostRequest or not skel.fromClient(kwargs):
                 return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
+
+            # validate security key
+            if not securitykey.validate(skey):
+                raise errors.PreconditionFailed()
 
             self.passwordRecoveryRateLimit.decrementQuota()
 
             recovery_key = securitykey.create(
                 duration=15 * 60,
                 key_length=conf["viur.security.password_recovery_key_length"],
-                session_bound=False,
                 user_name=skel["name"].lower(),
             )
 
@@ -376,17 +379,22 @@ class UserPassword:
                 skel["name"], recovery_key, current_request.request.headers["User-Agent"]
             )
 
-            return self.userModule.render.view(None, tpl=self.passwordRecoveryInstructionsSendTemplate)
+            return self.userModule.render.view(None, tpl=self.passwordRecoveryInstructionsSentTemplate)
 
         # in step 2
         skel = self.LostPasswordStep2Skel()
 
+        # check for any input; Render input-form when incomplete.
         if not skel.fromClient(kwargs) or not current_request.isPostRequest:
             return self.userModule.render.edit(
                 skel=skel,
                 tpl=self.passwordRecoveryStep2Template,
                 recovery_key=recovery_key
             )
+
+        # validate security key
+        if not securitykey.validate(skey):
+            raise errors.PreconditionFailed()
 
         if not (recovery_request := securitykey.validate(recovery_key)):
             return self.userModule.render.view(
@@ -410,7 +418,8 @@ class UserPassword:
             return self.userModule.render.view(
                 skel=None,
                 tpl=self.passwordRecoveryFailedTemplate,
-                reason=self.passwordRecoveryAccountLocked)
+                reason=self.passwordRecoveryAccountLocked
+            )
 
         # Update the password, save the user, reset his session and show the success-template
         user_skel["password"] = skel["password"]
