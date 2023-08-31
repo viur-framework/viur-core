@@ -344,10 +344,11 @@ class UserPassword:
             The process is as following:
 
             - The user enters his email adress
-            - We'll generate a random code, store it in his session and call sendUserPasswordRecoveryCode
+            - We'll generate a random code and store it as a security-key and call sendUserPasswordRecoveryCode
             - sendUserPasswordRecoveryCode will run in the background, check if we have a user with that name
-              and send the code. It runs as a deferredTask so we don't leak the information if a user account exists.
-            - If the user received his code, he can paste the code and set a new password for his account.
+              and send a link with the code . It runs as a deferredTask so we don't leak the information if a user
+              account exists.
+            - If the user received his email, he can click on the link and set a new password for his account.
 
             To prevent automated attacks, the fist step is guarded by a captcha and we limited calls to this function
             to 10 actions per 15 minutes. (One complete recovery process consists of two calls).
@@ -372,6 +373,7 @@ class UserPassword:
                 duration=15 * 60,
                 key_length=conf["viur.security.password_recovery_key_length"],
                 user_name=skel["name"].lower(),
+                session_bound=False,
             )
 
             # Send the code in background
@@ -397,7 +399,7 @@ class UserPassword:
         if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
 
-        if not (recovery_request := securitykey.validate(recovery_key)):
+        if not (recovery_request := securitykey.validate(recovery_key, session_bound=False)):
             return self.userModule.render.view(
                 skel=None,
                 tpl=self.passwordRecoveryFailedTemplate,
