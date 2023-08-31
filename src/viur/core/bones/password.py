@@ -63,7 +63,7 @@ class PasswordBone(StringBone):
     def __init__(
         self,
         *,
-        test_threshold: int = 3,
+        test_threshold: int = 4,
         tests: List[Tuple] = tests,
         **kwargs
     ):
@@ -186,4 +186,7 @@ class PasswordBone(StringBone):
         return False
 
     def structure(self) -> dict:
-        return super().structure() | {"tests": self.tests}
+        return super().structure() | {
+            "tests": self.tests,
+            "test_threshold": self.test_threshold,
+        }
