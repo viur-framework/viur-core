@@ -385,6 +385,7 @@ class UserPassword:
         skel = self.LostPasswordStep2Skel()
 
         # check for any input; Render input-form when incomplete.
+        skel["recovery_key"] = recovery_key
         if not skel.fromClient(kwargs) or not current_request.isPostRequest:
             return self.userModule.render.edit(
                 skel=skel,
