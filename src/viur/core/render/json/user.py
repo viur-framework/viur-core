@@ -33,8 +33,8 @@ class UserRender(DefaultRender):  # Render user-data to json
     def passwdRecover(self, *args, **kwargs):
         return self.edit(*args, **kwargs)
 
-    def second_factor_add(self, otp_uri=None):
+    def second_factor_add(self, otp_uri=None, *args, **kwargs):
         return json.dumps({"otp_uri": otp_uri})
 
-    def secund_factor_add_success(self,):
+    def secund_factor_add_success(self, *args, **kwargs):
         return json.dumps("OKAY")
