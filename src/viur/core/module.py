@@ -153,9 +153,9 @@ class Method:
                 }
                 for param in inspect.signature(self._func).parameters.values()
             },
-            "returns": str(return_doc) if return_doc else None,
+            "returns": str(return_doc).strip() if return_doc else None,
             "accepts": self.methods,
-            "docs": self._func.__doc__,
+            "docs": self._func.__doc__.strip() if self._func.__doc__ else None,
             "aliases": tuple(self.seo_language_map.keys()) if self.seo_language_map else None,
         }
 
