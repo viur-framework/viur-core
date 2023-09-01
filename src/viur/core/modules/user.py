@@ -643,11 +643,6 @@ class TimeBasedOTP(UserAuthentication):
             min=0,
         )
 
-    def __init__(self, userModule, modulePath):
-        super().__init__()
-        self.userModule = userModule
-        self.modulePath = modulePath
-
     @classmethod
     def get2FactorMethodName(*args, **kwargs):  # fixme: What is the purpose of this function? Why not just a member?
         return "X-VIUR-2FACTOR-TimeBasedOTP"
