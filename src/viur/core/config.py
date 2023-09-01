@@ -289,6 +289,9 @@ conf = Conf({
     # The default sitekey and secret to use for the captcha-bone. If set, must be a dictionary of "sitekey" and "secret"
     "viur.security.captcha.defaultCredentials": None,
 
+    # Length of the Password recovery key
+    "viur.security.password_recovery_key_length": 42,
+
     # Default is 60 minutes lifetime for ViUR sessions
     "viur.session.lifeTime": 60 * 60,
 

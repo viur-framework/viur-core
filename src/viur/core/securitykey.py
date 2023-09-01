@@ -27,8 +27,11 @@ SECURITYKEY_DURATION = 24 * 60 * 60  # one day
 SECURITYKEY_STATIC = "Sec-X-ViUR-StaticSessionKey"
 
 
-
-def create(duration: typing.Union[None, int] = None, session_bound: bool = True, **custom_data) -> str:
+def create(
+        duration: typing.Union[None, int] = None,
+        session_bound: bool = True,
+        key_length: int = 13,
+        **custom_data) -> str:
     """
         Creates a new one-time CSRF-security-key.
 
@@ -47,7 +50,7 @@ def create(duration: typing.Union[None, int] = None, session_bound: bool = True,
     if not duration:
         duration = conf["viur.session.lifeTime"] if session_bound else SECURITYKEY_DURATION
 
-    key = utils.generateRandomString()
+    key = utils.generateRandomString(key_length)
 
     entity = db.Entity(db.Key(SECURITYKEY_KINDNAME, key))
     entity |= custom_data

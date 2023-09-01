@@ -3,14 +3,14 @@ import json
 import logging
 import os
 import sys
+import traceback
+import grpc
+import pytz
+import requests
 from datetime import datetime, timedelta
 from functools import wraps
 from time import sleep
 from typing import Any, Callable, Dict, Optional, Tuple
-
-import grpc
-import pytz
-import requests
 from google.cloud import tasks_v2
 from google.cloud.tasks_v2.services.cloud_tasks.transports import CloudTasksGrpcTransport
 from google.protobuf import timestamp_pb2
@@ -377,18 +377,74 @@ TaskHandler.html = True
 
 ## Decorators ##
 
+def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
+                  tpl: None | str = None) -> Callable:
+    """
+    Wrapper for deferred tasks to limit the amount of retries
+
+    :param retries: Number of maximum allowed retries
+    :param email_recipients: Email addresses to which a info should be sent
+        when the retry limit is reached.
+    :param tpl: Instead of the standard text, a custom template can be used.
+        The name of an email template must be specified.
+    """
+    # language=Jinja2
+    string_template = \
+        """Task {{func_name}} failed {{retries}} times
+        This was the last attempt.<br>
+        <pre>{{func_module|escape}}.{{func_name|escape}}({{signature|escape}})</pre>
+        <pre>{{traceback|escape}}</pre>"""
+
+    def outer_wrapper(func):
+        @wraps(func)
+        def inner_wrapper(*args, **kwargs):
+            retry_count = int(current.request.get().request.headers.get("X-Appengine-Taskretrycount", -1))
+            try:
+                return func(*args, **kwargs)
+            except Exception as exc:
+                logging.exception(f"Task {func.__qualname__} failed: {exc}")
+                logging.info(
+                    f"This was the {retry_count}. retry."
+                    f"{retries - retry_count} retries remaining. (total = {retries})"
+                )
+                if retry_count < retries:
+                    # Raise the exception to mark this task as failed, so the task queue can retry it.
+                    raise exc
+                else:
+                    if email_recipients:
+                        args_repr = [repr(arg) for arg in args]
+                        kwargs_repr = [f"{k!s}={v!r}" for k, v in kwargs.items()]
+                        signature = ", ".join(args_repr + kwargs_repr)
+                        try:
+                            from viur.core import email
+                            email.sendEMail(
+                                dests=email_recipients,
+                                tpl=tpl,
+                                stringTemplate=string_template if tpl is None else string_template,
+                                # The following params provide information for the emails templates
+                                func_name=func.__name__,
+                                func_qualname=func.__qualname__,
+                                func_module=func.__module__,
+                                retries=retries,
+                                args=args,
+                                kwargs=kwargs,
+                                signature=signature,
+                                traceback=traceback.format_exc(),
+                            )
+                        except Exception:
+                            logging.exception("Failed to send email to %r", email_recipients)
+                    # Mark as permanently failed (could return nothing too)
+                    raise PermanentTaskFailure()
+
+        return inner_wrapper
+
+    return outer_wrapper
+
+
 def noRetry(f):
     """Prevents a deferred Function from being called a second time"""
-
-    @wraps(f)
-    def wrappedFunc(*args, **kwargs):
-        try:
-            f(*args, **kwargs)
-        except Exception as e:
-            logging.exception(e)
-            raise PermanentTaskFailure()
-
-    return wrappedFunc
+    logging.warning(f"Use of `@noRetry` is deprecated; Use `@retry_n_times(0)` instead!", stacklevel=2)
+    return retry_n_times(0)(f)
 
 
 def CallDeferred(func: Callable) -> Callable:
