@@ -12,7 +12,7 @@ class Method:
     """
 
     @classmethod
-    def ensure(cls, func):
+    def ensure(cls, func: typing.Callable | "Method") -> "Method":
         """
         Ensures the provided `func` parameter is either a Method already, or turns it
         into a Method. This is done to avoid stacking Method objects, which may create
@@ -38,7 +38,7 @@ class Method:
         self._func = func
         self._instance = None
 
-    def __get__(self, obj, objtype):
+    def __get__(self, obj, objtype=None):
         """
         This binds the Method to an object.
 

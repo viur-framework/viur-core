@@ -134,7 +134,7 @@ def skey(
     return decorator(func)
 
 
-def SKEY_ALLOW_EMPTY_FOR_KEY(args, kwargs):
+def SKEY_ALLOW_EMPTY_FOR_KEY(args: tuple, kwargs: dict) -> bool:
     """
     Standard allow_empty-check for several prototype functions
     """

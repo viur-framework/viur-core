@@ -643,7 +643,7 @@ class BrowseHandler():  # webapp.RequestHandler
 
             res = caller(*caller_args, **caller_kwargs)
 
-            if not isinstance(res, bytes):  # Convert result into str if not bytes!
+            if not isinstance(res, bytes):  # Convert the result to bytes if it is not already!
                 res = str(res).encode("UTF-8")
 
             self.response.write(res)
