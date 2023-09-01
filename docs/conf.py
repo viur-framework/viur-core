@@ -16,7 +16,7 @@ import os
 import sys
 import importlib.util
 
-sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath('../src'))
 
 # -- General configuration ------------------------------------------------
 
@@ -37,7 +37,9 @@ autodoc_default_options = {
     'special-members': True
 }
 
-autoapi_dirs = ['../core']
+autoapi_type = 'python'
+autoapi_dirs = ['../src']
+autoapi_root = 'viur'
 # Debug flag for keeping the index.rst Documents of each python file
 # autoapi_keep_files = True
 autoapi_python_class_content = 'both'
@@ -64,7 +66,7 @@ author = 'Mausbrand Informationssysteme GmbH'
 # built documents.
 #
 _version_spec = importlib.util.spec_from_file_location(
-    "version", f"../core/version.py")
+    "version", f"../src/viur/core/version.py")
 _version_module = importlib.util.module_from_spec(_version_spec)
 _version_spec.loader.exec_module(_version_module)
 # The short X.Y version.

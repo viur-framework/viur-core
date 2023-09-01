@@ -547,9 +547,11 @@ def renderEditBone(render: Render, skel, boneName, boneErrors=None, prefix=None)
 @jinjaGlobalFunction
 def renderEditForm(render: Render,
                    skel: Dict,
-                   ignore:List[str]=None,
-                   hide:List[str]=None,
-                   prefix=None) -> str:
+                   ignore: List[str] = None,
+                   hide: List[str] = None,
+                   prefix=None,
+                   bones: List[str] = None,
+                   ) -> str:
     """Render an edit-form based on a skeleton.
 
     Render an HTML-form with lables and inputs from the skeleton structure
@@ -560,6 +562,7 @@ def renderEditForm(render: Render,
     :param ignore: Don't render fields for these bones (name of the bone).
     :param hide: Render these fields as hidden fields (name of the bone).
     :param prefix: Prefix added to the bone names.
+    :param bones: If set only the bone with a name in the list would be rendered.
 
     :return: A string containing the HTML-form.
     """
@@ -571,6 +574,9 @@ def renderEditForm(render: Render,
     sectionTpl = render.getEnv().get_template(render.getTemplateFileName("editform_category"))
     rowTpl = render.getEnv().get_template(render.getTemplateFileName("editform_row"))
     sections = OrderedDict()
+
+    if ignore and bones and (both := set(ignore).intersection(bones)):
+        raise ValueError(f"You have specified the same bones {', '.join(both)} in *ignore* AND *bones*!")
     for boneName, boneParams in skel["structure"].items():
         category = str("server.render.html.default_category")
         if "params" in boneParams and isinstance(boneParams["params"], dict):
@@ -588,7 +594,8 @@ def renderEditForm(render: Render,
         for boneName, boneParams in boneList:
             if ignore and boneName in ignore:
                 continue
-
+            if bones and boneName not in bones:
+                continue
             # print("--- skel[\"errors\"] ---")
             # print(skel["errors"])
 
