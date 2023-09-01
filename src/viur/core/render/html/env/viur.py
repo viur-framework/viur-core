@@ -87,11 +87,7 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
             request.internalRequest = lastRequestState
             return u"Path not found %s (failed Part was %s)" % (path, currpath)
 
-    viur_flags = getattr(caller, "viur_flags", {})
-    if not (hasattr(caller, '__call__') and (
-        ("exposed" in viur_flags and viur_flags["exposed"]) or
-        ("internal_exposed" in viur_flags and viur_flags["internal_exposed"])
-    )):
+    if not (isinstance(caller, Method) and caller.exposed is not None):
         request.kwargs = tmp_params  # Reset RequestParams
         request.internalRequest = lastRequestState
         return u"%s not callable or not exposed" % str(caller)

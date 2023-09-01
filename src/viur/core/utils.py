@@ -248,9 +248,8 @@ def seoUrlToFunction(module: str, function: str, render: Optional[str] = None) -
         targetObject = targetObject[render]
     if function in targetObject:
         func = targetObject[function]
-        viur_flags = getattr(func, "viur_flags", {})
-        if seoLanguageMap := viur_flags.get("seoLanguageMap", {}) and lang in seoLanguageMap:
-            pathComponents.append(seoLanguageMap[lang])
+        if func.seo_language_map and lang in func.seo_language_map:
+            pathComponents.append(func.seo_language_map[lang])
         else:
             pathComponents.append(function)
     return "/".join(pathComponents)

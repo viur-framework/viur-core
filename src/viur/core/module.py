@@ -423,17 +423,17 @@ class Module:
                 if translated_module_name := self.seo_language_map.get(lang):
                     translated_module = target.setdefault(translated_module_name, {})
 
-                    # Map module functions to the previously determined target
-                    for name, func in functions.items():
-                        func.register(translated_module, name, lang)
+                    # Map module methods to the previously determined target
+                    for name, method in self._methods.items():
+                        method.register(translated_module, name, lang)
 
-            conf["viur.languageModuleMap"][module_name] = self.seo_language_map
+            conf["viur.languageModuleMap"][self.moduleName] = self.seo_language_map
 
         # Map the module also under it's original name
         if self.moduleName != "index":
             target = target.setdefault(self.moduleName, {})
 
-        # Map module functions to the previously determined target
+        # Map module methods to the previously determined target
         for name, method in self._methods.items():
             method.register(target, name)
 

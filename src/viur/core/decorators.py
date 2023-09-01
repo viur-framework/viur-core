@@ -16,6 +16,7 @@ def exposed(func: Callable) -> Method:
         # We received said dictionary:
         def expose_with_translations(func: Callable) -> Method:
             func = Method.ensure(func)
+            func.exposed = True
             func.seo_language_map = seo_language_map
             return func
 
