@@ -1,8 +1,7 @@
 import logging
-
 from typing import Any, Dict, List, Literal, Optional, Type
-from viur.core import utils, errors, securitykey, db, current
-from viur.core import force_post, force_ssl, exposed, internal_exposed, skey
+from viur.core import utils, errors, db, current
+from viur.core.decorators import *
 from viur.core.bones import KeyBone, SortIndexBone
 from viur.core.cache import flushCache
 from viur.core.skeleton import Skeleton, SkeletonInstance
@@ -327,7 +326,7 @@ class Tree(SkelModule):
 
     @exposed
     @force_ssl
-    @skey(allow_empty=True)
+    @skey(allow_empty=SKEY_ALLOW_EMPTY_FOR_KEY)
     def add(self, skelType: SkelType, node: str, *args, **kwargs) -> Any:
         """
         Add a new entry with the given parent *node*, and render the entry, eventually with error notes
@@ -375,7 +374,7 @@ class Tree(SkelModule):
 
     @exposed
     @force_ssl
-    @skey(allow_empty=True)
+    @skey(allow_empty=SKEY_ALLOW_EMPTY_FOR_KEY)
     def edit(self, skelType: SkelType, key: str, *args, **kwargs) -> Any:
         """
         Modify an existing entry, and render the entry, eventually with error notes on incorrect data.

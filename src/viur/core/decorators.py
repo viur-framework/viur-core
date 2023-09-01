@@ -98,7 +98,7 @@ def access(
 def skey(
     func: Callable = None,
     *,
-    allow_empty: bool = False,
+    allow_empty: bool | list[str] | tuple[str] | Callable = False,
     forward_payload: str | None = None,
     message: str = None,
     name: str = "skey",
@@ -111,6 +111,8 @@ def skey(
     or became invalid.
 
     :param allow_empty: Allows to call the method without a security-key when no other parameters where provided.
+        This can also be a tuple or list of keys which are being ignored, or a callable taking args and kwargs, and
+        programmatically decide whether security-key is required or not.
     :param forward_payload: Forwards the extracted payload of the security-key to the method under the key specified
         here as a value in kwargs.
     :param message: Allows to specify a custom error message in case a HTTP 406 is raised.
@@ -130,3 +132,10 @@ def skey(
         return decorator
 
     return decorator(func)
+
+
+def SKEY_ALLOW_EMPTY_FOR_KEY(args, kwargs):
+    """
+    Standard allow_empty-check for several prototype functions
+    """
+    return (len(args) == 1 and not kwargs) or (len(kwargs) == 1 and kwargs.get("key"))

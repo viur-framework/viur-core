@@ -1,6 +1,7 @@
 import logging
 from typing import Any, Optional
-from viur.core import db, current, errors, exposed, force_ssl, securitykey, skey
+from viur.core import db, current, errors
+from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
 from .skelmodule import SkelModule
@@ -117,7 +118,7 @@ class Singleton(SkelModule):
 
     @exposed
     @force_ssl
-    @skey(allow_empty=True)
+    @skey(allow_empty=SKEY_ALLOW_EMPTY_FOR_KEY)
     def edit(self, *args, **kwargs) -> Any:
         """
         Modify the existing entry, and render the entry, eventually with error notes on incorrect data.

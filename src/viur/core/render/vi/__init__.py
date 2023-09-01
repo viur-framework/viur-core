@@ -3,7 +3,8 @@ from viur.core.render.vi.user import UserRender as user  # this import must exis
 from viur.core.render.json import skey as json_render_skey
 from viur.core.render.json.default import DefaultRender, CustomJsonEncoder
 from viur.core.render.vi.user import UserRender as user
-from viur.core import Module, conf, current, exposed, securitykey, errors, skey
+from viur.core import Module, conf, current, errors
+from viur.core.decorators import *
 from viur.core.skeleton import SkeletonInstance
 import datetime
 import json

@@ -14,9 +14,10 @@ from google.auth.transport import requests
 from google.oauth2 import id_token
 
 from viur.core import (
-    conf, current, db, email, errors, exposed, force_ssl, i18n, skey,
+    conf, current, db, email, errors, i18n,
     securitykey, session, skeleton, tasks, utils, Module
 )
+from viur.core.decorators import *
 from viur.core.bones import *
 from viur.core.bones.password import PBKDF2_DEFAULT_ITERATIONS, encode_password
 from viur.core.prototypes.list import List
@@ -276,7 +277,7 @@ class UserPassword(UserAuthentication):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def login(self, name=None, password=None, *args, **kwargs):
+    def login(self, *, name=None, password=None, **kwargs):
         if current.user.get():  # User is already logged in, nothing to do.
             return self._user_module.render.loginSucceeded()
 
@@ -535,7 +536,7 @@ class GoogleAccount(UserAuthentication):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def login(self, token="", *args, **kwargs):
+    def login(self, token, *args, **kwargs):
         # FIXME: Check if already logged in
         if not conf.get("viur.user.google.clientID"):
             raise errors.PreconditionFailed("Please configure 'viur.user.google.clientID' in your conf!")

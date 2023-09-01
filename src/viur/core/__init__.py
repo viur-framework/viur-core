@@ -37,7 +37,7 @@ from viur.core.tasks import TaskHandler, runStartupTasks
 from viur.core.module import Module, Method
 # noinspection PyUnresolvedReferences
 from viur.core import logging as viurLogging  # unused import, must exist, initializes request logging
-from viur.core.decorators import force_post, force_ssl, exposed, internal_exposed, skey
+from viur.core.decorators import force_post, force_ssl, internal_exposed, exposed as _exposed  # backward-compatibility
 
 import logging  # this import has to stay here, see #571
 
@@ -189,10 +189,10 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     elif "html" in renderers:
         conf["viur.emailRenderer"] = renderers["html"]["default"]().renderEmail
 
-    print("---")
-    import pprint
-    pprint.pprint(resolver)
-    print("---")
+    # This might be useful for debugging, please keep it for now.
+    if conf["viur.debug.trace"]:
+        import pprint
+        logging.debug(pprint.pformat(resolver))
 
     return root
 
@@ -285,7 +285,7 @@ def app(environ: dict, start_response: Callable):
 
 # DEPRECATED ATTRIBUTES HANDLING
 
-__deprecated_decorators = {
+__DEPRECATED_DECORATORS = {
     # stuff prior viur-core < 3.5
     "forcePost": ("force_post", force_post),
     "forceSSL": ("force_ssl", force_ssl),
@@ -293,19 +293,18 @@ __deprecated_decorators = {
 }
 
 
-def __get_deprecated_decorator(attr: str) -> object:
-    if entry := __deprecated_decorators.get(attr):
+def __getattr__(attr: str) -> object:
+    if entry := __DEPRECATED_DECORATORS.get(attr):
         func = entry[1]
-        msg = f"@{attr} was replaced by @{entry[0]}"
-        warnings.warn(msg, DeprecationWarning, stacklevel=4)
-        logging.warning(msg, stacklevel=4)
+        msg = f"@{attr} was replaced by @{entry[0]} and should be imported from viur.core.decorators"
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+        logging.warning(msg, stacklevel=2)
         return func
 
-    return None
-
-
-def __getattr__(attr: str) -> object:
-    if attribute := __get_deprecated_decorator(attr):
-        return attribute
+    if attr == "exposed":
+        msg = "@exposed should be imported from viur.core.decorators"
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+        logging.warning(msg, stacklevel=2)
+        return _exposed
 
     return super(__import__(__name__).__class__).__getattr__(attr)
