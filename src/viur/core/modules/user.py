@@ -164,8 +164,7 @@ class UserSkel(skeleton.Skeleton):
     )
     # Authenticator OTP Apps (like Authy)
     otp_secret_key = CredentialBone(
-        descr=u"OTP Secret key",
-        readOnly=False
+        descr="OTP Secret key",
 
     )
 
@@ -375,7 +374,6 @@ class UserPassword(UserAuthentication):
                 raise errors.PreconditionFailed()
 
             self.passwordRecoveryRateLimit.decrementQuota()
-
 
             recovery_key = securitykey.create(
                 duration=15 * 60,
@@ -826,7 +824,7 @@ class TimeBasedOTP(UserAuthentication):
         db.RunInTransaction(transaction, user_key, idx)
 
 
-class AuthenticatorOTP:
+class AuthenticatorOTP(UserAuthentication):
     """
     This class handles the second factor for apps like authy and so on
     """
@@ -836,10 +834,6 @@ class AuthenticatorOTP:
     """Template to enter the TOPT on login"""
     ACTION_NAME = "authenticatorOTP"
     """Action name provided for *otp_template* on login"""
-
-    def __init__(self, userModule: "User", modulePath: str):
-        self.userModule = userModule
-        self.modulePath = modulePath
 
     @exposed
     @forceSSL
