@@ -134,9 +134,6 @@ class Singleton(SkelModule):
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
-
-        skey = kwargs.get("skey", "")
-
         skel = self.editSkel()
 
         if not self.canEdit():
