@@ -1,5 +1,5 @@
 from viur.core.skeleton import RelSkel
-from viur.core import errors, utils, securitykey, email, skey
+from viur.core import errors, utils, securitykey, email
 from viur.core.decorators import *
 from viur.core.bones import BaseBone
 from viur.core.module import Module
