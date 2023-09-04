@@ -10,6 +10,7 @@ from hashlib import sha512
 from typing import Any, Dict, List, NoReturn, Optional, Union
 
 import viur.core.render.html.default
+from viur.core import Method
 from viur.core import db, current, errors, prototypes, securitykey, utils
 from viur.core.config import conf
 from viur.core.i18n import translate as translationClass
