@@ -17,9 +17,10 @@ from google.auth.transport import requests
 from google.oauth2 import id_token
 
 from viur.core import (
-    conf, current, db, email, errors, exposed, forceSSL, i18n,
+    conf, current, db, email, errors, i18n,
     securitykey, session, skeleton, tasks, utils, Module
 )
+from viur.core.decorators import *
 from viur.core.bones import *
 from viur.core.bones.password import PBKDF2_DEFAULT_ITERATIONS, encode_password
 from viur.core.prototypes.list import List
@@ -213,7 +214,13 @@ class UserSkel(skeleton.Skeleton):
         return super().toDB(skel, *args, **kwargs)
 
 
-class UserPassword:
+class UserAuthentication(Module):
+    def __init__(self, moduleName, modulePath, userModule):
+        super().__init__(moduleName, modulePath)
+        self._user_module = userModule
+
+
+class UserPassword(UserAuthentication):
     registrationEnabled = False
     registrationEmailVerificationRequired = True
     registrationAdminVerificationRequired = True
@@ -257,11 +264,6 @@ class UserPassword:
         hint="Attempted password recovery on a locked account"
     )
 
-    def __init__(self, userModule, modulePath):
-        super().__init__()
-        self.userModule = userModule
-        self.modulePath = modulePath
-
     @classmethod
     def getAuthMethodName(*args, **kwargs):
         return "X-VIUR-AUTH-User-Password"
@@ -285,18 +287,19 @@ class UserPassword:
 
 
     @exposed
-    @forceSSL
-    def login(self, name=None, password=None, skey="", *args, **kwargs):
+    @force_ssl
+    @skey(allow_empty=True)
+    def login(self, *, name=None, password=None, **kwargs):
         if current.user.get():  # User is already logged in, nothing to do.
-            return self.userModule.render.loginSucceeded()
+            return self._user_module.render.loginSucceeded()
 
-        if not name or not password or not securitykey.validate(skey):
-            return self.userModule.render.login(self.LoginSkel())
+        if not name or not password:
+            return self._user_module.render.login(self.LoginSkel())
 
         self.loginRateLimit.assertQuotaIsAvailable()
 
         name = name.lower().strip()
-        query = db.Query(self.userModule.viewSkel().kindName)
+        query = db.Query(self._user_module.viewSkel().kindName)
         user_entry = query.filter("name.idx >=", name).getEntry() or {}  # might find another user; always keep a dict
 
         password_data = user_entry.get("password") or {}
@@ -326,18 +329,18 @@ class UserPassword:
         if not is_okay:
             self.loginRateLimit.decrementQuota()  # Only failed login attempts will count to the quota
             skel = self.LoginSkel()
-            return self.userModule.render.login(skel, loginFailed=True, accountStatus=status)
+            return self._user_module.render.login(skel, loginFailed=True, accountStatus=status)
 
         if iterations < PBKDF2_DEFAULT_ITERATIONS:
             logging.info(f"Update password hash for user {name}.")
             # re-hash the password with more iterations
-            skel = self.userModule.editSkel()
+            skel = self._user_module.editSkel()
             skel.setEntity(user_entry)
             skel["key"] = user_entry.key
             skel["password"] = password  # will be hashed on serialize
             skel.toDB(update_relations=False)
 
-        return self.userModule.continueAuthenticationFlow(self, user_entry.key)
+        return self._user_module.continueAuthenticationFlow(self, user_entry.key)
 
     @exposed
     def pwrecover(self, recovery_key: str | None = None, skey: str | None = None, *args, **kwargs):
@@ -459,18 +462,19 @@ class UserPassword:
             )
 
     @exposed
-    def verify(self, skey, *args, **kwargs):
-        data = securitykey.validate(skey, session_bound=False)
-        skel = self.userModule.editSkel()
+    @skey(allow_empty=True, forward_argument="skey", session_bound=False)
+    def verify(self, *args, **kwargs):
+        data = skey
+        skel = self._user_module.editSkel()
         if not data or not isinstance(data, dict) or "userKey" not in data or not skel.fromDB(
             data["userKey"].id_or_name):
-            return self.userModule.render.view(None, tpl=self.verifyFailedTemplate)
+            return self._user_module.render.view(None, tpl=self.verifyFailedTemplate)
         if self.registrationAdminVerificationRequired:
             skel["status"] = Status.WAITING_FOR_ADMIN_VERIFICATION
         else:
             skel["status"] = Status.ACTIVE
         skel.toDB()
-        return self.userModule.render.view(skel, tpl=self.verifySuccessTemplate)
+        return self._user_module.render.view(skel, tpl=self.verifySuccessTemplate)
 
     def canAdd(self) -> bool:
         return self.registrationEnabled
@@ -478,11 +482,11 @@ class UserPassword:
     def addSkel(self):
         """
             Prepare the add-Skel for rendering.
-            Currently only calls self.userModule.addSkel() and sets skel["status"] depending on
+            Currently only calls self._user_module.addSkel() and sets skel["status"] depending on
             self.registrationEmailVerificationRequired and self.registrationAdminVerificationRequired
             :return: viur.core.skeleton.Skeleton
         """
-        skel = self.userModule.addSkel()
+        skel = self._user_module.addSkel()
 
         if self.registrationEmailVerificationRequired:
             defaultStatusValue = Status.WAITING_FOR_EMAIL_VERIFICATION
@@ -499,8 +503,9 @@ class UserPassword:
 
         return skel
 
-    @forceSSL
+    @force_ssl
     @exposed
+    @skey(allow_empty=True)
     def add(self, *args, **kwargs):
         """
             Allows guests to register a new account if self.registrationEnabled is set to true
@@ -521,9 +526,7 @@ class UserPassword:
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or ("bounce" in kwargs and kwargs["bounce"] == "1")):  # review before adding
             # render the skeleton in the version it could as far as it could be read.
-            return self.userModule.render.add(skel)
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
+            return self._user_module.render.add(skel)
         skel.toDB()
         if self.registrationEmailVerificationRequired and skel["status"] == Status.WAITING_FOR_EMAIL_VERIFICATION:
             # The user will have to verify his email-address. Create a skey and send it to his address
@@ -532,30 +535,26 @@ class UserPassword:
                                       name=skel["name"])
             skel.skey = BaseBone(descr="Skey")
             skel["skey"] = skey
-            email.sendEMail(dests=[skel["name"]], tpl=self.userModule.verifyEmailAddressMail, skel=skel)
-        self.userModule.onAdded(skel)  # Call onAdded on our parent user module
-        return self.userModule.render.addSuccess(skel)
+            email.sendEMail(dests=[skel["name"]], tpl=self._user_module.verifyEmailAddressMail, skel=skel)
+        self._user_module.onAdded(skel)  # Call onAdded on our parent user module
+        return self._user_module.render.addSuccess(skel)
 
 
-class GoogleAccount:
+class GoogleAccount(UserAuthentication):
     registrationEnabled = False
-
-    def __init__(self, userModule, modulePath):
-        super().__init__()
-        self.userModule = userModule
-        self.modulePath = modulePath
 
     @classmethod
     def getAuthMethodName(*args, **kwargs):
         return "X-VIUR-AUTH-Google-Account"
 
     @exposed
-    @forceSSL
-    def login(self, skey="", token="", *args, **kwargs):
+    @force_ssl
+    @skey(allow_empty=True)
+    def login(self, token, *args, **kwargs):
         # FIXME: Check if already logged in
         if not conf.get("viur.user.google.clientID"):
             raise errors.PreconditionFailed("Please configure 'viur.user.google.clientID' in your conf!")
-        if not skey or not token:
+        if not token:
             request = current.request.get()
             request.response.headers["Content-Type"] = "text/html"
             if request.response.headers.get("cross-origin-opener-policy") == "same-origin":
@@ -570,8 +569,6 @@ class GoogleAccount:
             extendCsp({"script-src": ["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
                        "style-src": ["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]})
             return tplStr
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
         userInfo = id_token.verify_oauth2_token(token, requests.Request(), conf["viur.user.google.clientID"])
         if userInfo['iss'] not in {'accounts.google.com', 'https://accounts.google.com'}:
             raise ValueError('Wrong issuer.')
@@ -579,8 +576,8 @@ class GoogleAccount:
         uid = userInfo['sub']
         email = userInfo['email']
 
-        # fixme: use self.userModule.baseSkel() for this later
-        addSkel = skeleton.skeletonByKind(self.userModule.addSkel().kindName)  # Ensure that we have the full skeleton
+        # fixme: use self._user_module.baseSkel() for this later
+        addSkel = skeleton.skeletonByKind(self._user_module.addSkel().kindName)  # Ensure that we have the full skeleton
 
         update = False
         if not (userSkel := addSkel().all().filter("uid =", uid).getSkel()):
@@ -625,10 +622,10 @@ class GoogleAccount:
             #    userSkel["gaeadmin"] = False
             assert userSkel.toDB()
 
-        return self.userModule.continueAuthenticationFlow(self, userSkel["key"])
+        return self._user_module.continueAuthenticationFlow(self, userSkel["key"])
 
 
-class TimeBasedOTP:
+class TimeBasedOTP(UserAuthentication):
     WINDOW_SIZE = 5
     MAX_RETRY = 3
     otpTemplate = "user_login_timebasedotp"
@@ -655,11 +652,6 @@ class TimeBasedOTP:
             max=999999,
             min=0,
         )
-
-    def __init__(self, userModule, modulePath):
-        super().__init__()
-        self.userModule = userModule
-        self.modulePath = modulePath
 
     @classmethod
     def get2FactorMethodName(*args, **kwargs):  # fixme: What is the purpose of this function? Why not just a member?
@@ -702,14 +694,12 @@ class TimeBasedOTP:
         return self.userModule.render.edit(self.OtpSkel(), action="otp", tpl=self.otpTemplate)
 
     @exposed
-    @forceSSL
-    def otp(self, skey: str = None, *args, **kwargs):
+    @force_ssl
+    @skey(allow_empty=True)
+    def otp(self, *args, **kwargs):
         """
         Performs the second factor validation and interaction with the client.
         """
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
-
         session = current.session.get()
         if not (otp_user_conf := session.get("_otp_user")):
             raise errors.PreconditionFailed("No OTP process started in this session")
@@ -1040,29 +1030,18 @@ class User(List):
         "admin": "*",
     }
 
-    def __init__(self, moduleName, modulePath, *args, **kwargs):
-        super().__init__(moduleName, modulePath, *args, **kwargs)
+    def __init__(self, moduleName, modulePath):
+        for provider in self.authenticationProviders:
+            assert issubclass(provider, UserAuthentication)
+            name = f"auth_{provider.__name__.lower()}"
+            setattr(self, name, provider(name, f"{modulePath}/{name}", self))
 
-        # Initialize the login-providers
-        self.initializedAuthenticationProviders = {}
-        self.initializedSecondFactorProviders = {}
-        self._viurMapSubmodules = []
+        for provider in self.secondFactorProviders:
+            assert issubclass(provider, UserAuthentication)
+            name = f"f2_{provider.__name__.lower()}"
+            setattr(self, name, provider(name, f"{modulePath}/{name}", self))
 
-        for p in self.authenticationProviders:
-            pInstance = p(self, modulePath + "/auth_%s" % p.__name__.lower())
-            self.initializedAuthenticationProviders[pInstance.__class__.__name__.lower()] = pInstance
-
-            # Also put it as an object into self, so that any exposed function is reachable
-            setattr(self, "auth_%s" % pInstance.__class__.__name__.lower(), pInstance)
-            self._viurMapSubmodules.append("auth_%s" % pInstance.__class__.__name__.lower())
-
-        for p in self.secondFactorProviders:
-            pInstance = p(self, modulePath + "/f2_%s" % p.__name__.lower())
-            self.initializedAuthenticationProviders[pInstance.__class__.__name__.lower()] = pInstance
-
-            # Also put it as an object into self, so that any exposed function is reachable
-            setattr(self, "f2_%s" % pInstance.__class__.__name__.lower(), pInstance)
-            self._viurMapSubmodules.append("f2_%s" % pInstance.__class__.__name__.lower())
+        super().__init__(moduleName, modulePath)
 
     def get_role_defaults(self, role: str) -> set[str]:
         """
@@ -1195,15 +1174,14 @@ class User(List):
         return self.render.loginSucceeded(**kwargs)
 
     @exposed
-    def logout(self, skey="", *args, **kwargs):
+    @skey
+    def logout(self, *args, **kwargs):
         """
             Implements the logout action. It also terminates the current session (all keys not listed
             in viur.session.persistentFieldsOnLogout will be lost).
         """
         if not (user := current.user.get()):
             raise errors.Unauthorized()
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
 
         self.onLogout(user)
 

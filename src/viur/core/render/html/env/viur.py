@@ -89,11 +89,8 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
             request.kwargs = tmp_params  # Reset RequestParams
             request.internalRequest = lastRequestState
             return u"Path not found %s (failed Part was %s)" % (path, currpath)
-    if (not hasattr(caller, '__call__')
-        or ((not "exposed" in dir(caller)
-             or not caller.exposed))
-        and (not "internalExposed" in dir(caller)
-             or not caller.internalExposed)):
+
+    if not (isinstance(caller, Method) and caller.exposed is not None):
         request.kwargs = tmp_params  # Reset RequestParams
         request.internalRequest = lastRequestState
         return u"%s not callable or not exposed" % str(caller)
