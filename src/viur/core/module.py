@@ -35,6 +35,7 @@ class Method:
         self.access = None
 
         # Content
+        self.__name__ = func.__name__
         self._func = func
         self._instance = None
 
