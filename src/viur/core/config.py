@@ -97,6 +97,8 @@ conf = Conf({
     # Database engine module
     "viur.db.engine": "viur.datastore",
 
+    # If enabled, trace any routing and decorations for debugging and insight
+    "viur.debug.trace": False,
     # If enabled, user-generated exceptions from the viur.core.errors module won't be caught and handled
     "viur.debug.traceExceptions": False,
     # If enabled, ViUR will log which (exposed) function are called from outside with what arguments
@@ -286,6 +288,9 @@ conf = Conf({
 
     # The default sitekey and secret to use for the captcha-bone. If set, must be a dictionary of "sitekey" and "secret"
     "viur.security.captcha.defaultCredentials": None,
+
+    # Length of the Password recovery key
+    "viur.security.password_recovery_key_length": 42,
 
     # Default is 60 minutes lifetime for ViUR sessions
     "viur.session.lifeTime": 60 * 60,

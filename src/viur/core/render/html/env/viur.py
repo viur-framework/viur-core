@@ -10,6 +10,7 @@ from hashlib import sha512
 from typing import Any, Dict, List, NoReturn, Optional, Union
 
 import viur.core.render.html.default
+from viur.core import Method
 from viur.core import db, current, errors, prototypes, securitykey, utils
 from viur.core.config import conf
 from viur.core.i18n import translate as translationClass
@@ -86,11 +87,8 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
             request.kwargs = tmp_params  # Reset RequestParams
             request.internalRequest = lastRequestState
             return u"Path not found %s (failed Part was %s)" % (path, currpath)
-    if (not hasattr(caller, '__call__')
-        or ((not "exposed" in dir(caller)
-             or not caller.exposed))
-        and (not "internalExposed" in dir(caller)
-             or not caller.internalExposed)):
+
+    if not (isinstance(caller, Method) and caller.exposed is not None):
         request.kwargs = tmp_params  # Reset RequestParams
         request.internalRequest = lastRequestState
         return u"%s not callable or not exposed" % str(caller)
@@ -574,7 +572,7 @@ def renderEditForm(render: Render,
     rowTpl = render.getEnv().get_template(render.getTemplateFileName("editform_row"))
     sections = OrderedDict()
 
-    if both := set(ignore).intersection(bones):
+    if ignore and bones and (both := set(ignore).intersection(bones)):
         raise ValueError(f"You have specified the same bones {', '.join(both)} in *ignore* AND *bones*!")
     for boneName, boneParams in skel["structure"].items():
         category = str("server.render.html.default_category")

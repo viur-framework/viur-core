@@ -2,21 +2,22 @@ import base64
 import json
 import logging
 import os
-from datetime import datetime, timedelta
-from functools import wraps
-from typing import Any, Callable, Dict, Optional, Tuple
-
+import sys
+import traceback
 import grpc
 import pytz
 import requests
-import sys
+from datetime import datetime, timedelta
+from functools import wraps
+from time import sleep
+from typing import Any, Callable, Dict, Optional, Tuple
 from google.cloud import tasks_v2
 from google.cloud.tasks_v2.services.cloud_tasks.transports import CloudTasksGrpcTransport
 from google.protobuf import timestamp_pb2
-from time import sleep
-
 from viur.core import current, db, errors, utils
 from viur.core.config import conf
+from viur.core.module import Module
+from viur.core.decorators import exposed, skey
 
 
 # class JsonKeyEncoder(json.JSONEncoder):
@@ -148,7 +149,7 @@ class CallableTaskBase:
         raise NotImplemented()
 
 
-class TaskHandler:
+class TaskHandler(Module):
     """
         Task Handler.
         Handles calling of Tasks (queued and periodic), and performs updatechecks
@@ -156,9 +157,6 @@ class TaskHandler:
     """
     adminInfo = None
     retryCountWarningThreshold = 25
-
-    def __init__(self, moduleName, modulePath):
-        pass
 
     def findBoundTask(self, task: Callable, obj: object = None, depth: int = 0) -> Optional[Tuple[Callable, object]]:
         """
@@ -187,6 +185,7 @@ class TaskHandler:
                     return res
         return None
 
+    @exposed
     def queryIter(self, *args, **kwargs):
         """
             This processes one chunk of a queryIter (see below).
@@ -204,8 +203,7 @@ class TaskHandler:
             logging.error("Could not continue queryIter - %s not known on this instance" % data["classID"])
         MetaQueryIter._classCache[data["classID"]]._qryStep(data)
 
-    queryIter.exposed = True
-
+    @exposed
     def deferred(self, *args, **kwargs):
         """
             This catches one deferred call and routes it to its destination
@@ -282,8 +280,7 @@ class TaskHandler:
                 logging.exception(e)
                 raise errors.RequestTimeout()  # Task-API should retry
 
-    deferred.exposed = True
-
+    @exposed
     def cron(self, cronName="default", *args, **kwargs):
         global _callableTasks, _periodicTasks, _appengineServiceIPs
         req = current.request.get()
@@ -339,8 +336,7 @@ class TaskHandler:
                     logging.exception(e)
         logging.debug("Scheduled tasks complete")
 
-    cron.exposed = True
-
+    @exposed
     def list(self, *args, **kwargs):
         """Lists all user-callable tasks which are callable by this user"""
         global _callableTasks
@@ -355,12 +351,11 @@ class TaskHandler:
 
         return self.render.list(tasks)
 
-    list.exposed = True
-
+    @exposed
+    @skey
     def execute(self, taskID, *args, **kwargs):
         """Queues a specific task for the next maintenance run"""
         global _callableTasks
-        from viur.core import securitykey
         if taskID in _callableTasks:
             task = _callableTasks[taskID]()
         else:
@@ -371,12 +366,8 @@ class TaskHandler:
         skey = kwargs.get("skey", "")
         if len(kwargs) == 0 or not skel.fromClient(kwargs) or kwargs.get("bounce") == "1":
             return self.render.add(skel)
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
         task.execute(**skel.accessedValues)
         return self.render.addSuccess(skel)
-
-    execute.exposed = True
 
 
 TaskHandler.admin = True
@@ -386,18 +377,74 @@ TaskHandler.html = True
 
 ## Decorators ##
 
+def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
+                  tpl: None | str = None) -> Callable:
+    """
+    Wrapper for deferred tasks to limit the amount of retries
+
+    :param retries: Number of maximum allowed retries
+    :param email_recipients: Email addresses to which a info should be sent
+        when the retry limit is reached.
+    :param tpl: Instead of the standard text, a custom template can be used.
+        The name of an email template must be specified.
+    """
+    # language=Jinja2
+    string_template = \
+        """Task {{func_name}} failed {{retries}} times
+        This was the last attempt.<br>
+        <pre>{{func_module|escape}}.{{func_name|escape}}({{signature|escape}})</pre>
+        <pre>{{traceback|escape}}</pre>"""
+
+    def outer_wrapper(func):
+        @wraps(func)
+        def inner_wrapper(*args, **kwargs):
+            retry_count = int(current.request.get().request.headers.get("X-Appengine-Taskretrycount", -1))
+            try:
+                return func(*args, **kwargs)
+            except Exception as exc:
+                logging.exception(f"Task {func.__qualname__} failed: {exc}")
+                logging.info(
+                    f"This was the {retry_count}. retry."
+                    f"{retries - retry_count} retries remaining. (total = {retries})"
+                )
+                if retry_count < retries:
+                    # Raise the exception to mark this task as failed, so the task queue can retry it.
+                    raise exc
+                else:
+                    if email_recipients:
+                        args_repr = [repr(arg) for arg in args]
+                        kwargs_repr = [f"{k!s}={v!r}" for k, v in kwargs.items()]
+                        signature = ", ".join(args_repr + kwargs_repr)
+                        try:
+                            from viur.core import email
+                            email.sendEMail(
+                                dests=email_recipients,
+                                tpl=tpl,
+                                stringTemplate=string_template if tpl is None else string_template,
+                                # The following params provide information for the emails templates
+                                func_name=func.__name__,
+                                func_qualname=func.__qualname__,
+                                func_module=func.__module__,
+                                retries=retries,
+                                args=args,
+                                kwargs=kwargs,
+                                signature=signature,
+                                traceback=traceback.format_exc(),
+                            )
+                        except Exception:
+                            logging.exception("Failed to send email to %r", email_recipients)
+                    # Mark as permanently failed (could return nothing too)
+                    raise PermanentTaskFailure()
+
+        return inner_wrapper
+
+    return outer_wrapper
+
+
 def noRetry(f):
     """Prevents a deferred Function from being called a second time"""
-
-    @wraps(f)
-    def wrappedFunc(*args, **kwargs):
-        try:
-            f(*args, **kwargs)
-        except Exception as e:
-            logging.exception(e)
-            raise PermanentTaskFailure()
-
-    return wrappedFunc
+    logging.warning(f"Use of `@noRetry` is deprecated; Use `@retry_n_times(0)` instead!", stacklevel=2)
+    return retry_n_times(0)(f)
 
 
 def CallDeferred(func: Callable) -> Callable:
@@ -783,7 +830,6 @@ class QueryIter(object, metaclass=MetaQueryIter):
         logging.debug("handleError called on %s with %s." % (cls, entry))
         logging.exception(exception)
         return True
-
 
 class DeleteEntitiesIter(QueryIter):
     """
