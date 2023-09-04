@@ -18,7 +18,8 @@ from google.auth.transport import requests
 from google.cloud import iam_credentials_v1, storage
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
-from viur.core import conf, current, db, errors, exposed, forcePost, forceSSL, securitykey, utils
+from viur.core import conf, current, db, errors, utils
+from viur.core.decorators import *
 from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import SkeletonInstance, skeletonByKind
@@ -523,7 +524,8 @@ class File(Tree):
         return db.encodeKey(fileSkel["key"]), uploadUrl
 
     @exposed
-    def getUploadURL(self, fileName: str, mimeType: str, size: int = None, skey: str = None, *args, **kwargs):
+    @skey
+    def getUploadURL(self, fileName: str, mimeType: str, size: int = None, *args, **kwargs):
         node = kwargs.get("node")
         authData = kwargs.get("authData")
         authSig = kwargs.get("authSig")
@@ -574,9 +576,6 @@ class File(Tree):
                 raise errors.UnprocessableEntity(f"Size {size} exceeds maximum size {maxSize}")
         else:
             size = None
-
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
 
         targetKey, uploadUrl = self.initializeUpload(fileName, mimeType, node, size)
 
@@ -671,17 +670,15 @@ class File(Tree):
             raise errors.Redirect(signedUrl)
 
     @exposed
-    @forceSSL
-    @forcePost
+    @force_ssl
+    @force_post
+    @skey(allow_empty=True)
     def add(self, skelType: SkelType, node=None, *args, **kwargs):
         ## We can't add files directly (they need to be uploaded
         # if skelType != "node":
         #    raise errors.NotAcceptable()
         if skelType == "leaf":  # We need to handle leafs separately here
-            skey = kwargs.get("skey")
             targetKey = kwargs.get("key")
-            if not skey or not securitykey.validate(skey) or not targetKey:
-                raise errors.PreconditionFailed()
             skel = self.addSkel("leaf")
             if not skel.fromDB(targetKey):
                 raise errors.NotFound()

@@ -1,12 +1,9 @@
-from viur.core import errors, exposed
+from viur.core import Module, errors
+from viur.core.decorators import exposed
 
 
-class Site(object):
+class Site(Module):
     adminInfo = None
-
-    def __init__(self, *args, **kwargs):
-        super(Site, self).__init__()
-        self.modulePath = ""
 
     @exposed
     def index(self, template="index", *arg, **kwargs):
@@ -14,7 +11,6 @@ class Site(object):
             return
 
         try:
-
             template = self.render.getEnv().get_template(self.render.getTemplateFileName("sites/" + template))
         except:
             raise errors.NotFound()

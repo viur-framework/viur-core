@@ -21,7 +21,6 @@ import typing
 import datetime
 import hmac
 from viur.core import conf, utils, current, db, tasks
-from viur.core.tasks import DeleteEntitiesIter
 
 SECURITYKEY_KINDNAME = "viur-securitykey"
 SECURITYKEY_DURATION = 24 * 60 * 60  # one day
@@ -104,18 +103,20 @@ def validate(key: str, session_bound: bool = True) -> typing.Union[bool, db.Enti
 
 @tasks.PeriodicTask(60 * 4)
 def periodic_clear_skeys():
+    from viur.core import tasks
     """
         Removes expired CSRF-security-keys periodically.
     """
     query = db.Query(SECURITYKEY_KINDNAME).filter("viur_until <", utils.utcNow() - datetime.timedelta(seconds=300))
-    DeleteEntitiesIter.startIterOnQuery(query)
+    tasks.DeleteEntitiesIter.startIterOnQuery(query)
 
 
 @tasks.CallDeferred
 def clear_session_skeys(session_key):
+    from viur.core import tasks
     """
         Removes any CSRF-security-keys bound to a specific session.
         This function is called by the Session-module based on reset-actions.
     """
     query = db.Query(SECURITYKEY_KINDNAME).filter("viur_session", session_key)
-    DeleteEntitiesIter.startIterOnQuery(query)
+    tasks.DeleteEntitiesIter.startIterOnQuery(query)

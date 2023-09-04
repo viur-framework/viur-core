@@ -1,10 +1,10 @@
 import logging
 from typing import Any, Optional
-from viur.core import current, db, errors, exposed, forcePost, forceSSL, securitykey, utils
+from viur.core import current, db, errors, utils
+from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
 from .skelmodule import SkelModule
-
 
 
 class List(SkelModule):
@@ -76,8 +76,9 @@ class List(SkelModule):
     ## External exposed functions
 
     @exposed
-    @forcePost
-    def preview(self, skey: str, *args, **kwargs) -> Any:
+    @force_post
+    @skey
+    def preview(self, *args, **kwargs) -> Any:
         """
             Renders data for an entry, without reading from the database.
             This function allows to preview an entry without writing it to the database.
@@ -90,9 +91,6 @@ class List(SkelModule):
         """
         if not self.canPreview():
             raise errors.Unauthorized()
-
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
 
         skel = self.viewSkel()
         skel.fromClient(kwargs)
@@ -172,8 +170,9 @@ class List(SkelModule):
         res = query.fetch()
         return self.render.list(res)
 
-    @forceSSL
+    @force_ssl
     @exposed
+    @skey(allow_empty=SKEY_ALLOW_EMPTY_FOR_KEY)
     def edit(self, *args, **kwargs) -> Any:
         """
             Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
@@ -192,7 +191,6 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
             :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
-        skey = kwargs.get("skey", "")
         if "key" in kwargs:
             key = kwargs["key"]
         elif len(args) == 1:
@@ -211,8 +209,6 @@ class List(SkelModule):
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self.render.edit(skel)
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
 
         self.onEdit(skel)
         skel.toDB()  # write it!
@@ -220,8 +216,9 @@ class List(SkelModule):
 
         return self.render.editSuccess(skel)
 
-    @forceSSL
+    @force_ssl
     @exposed
+    @skey(allow_empty=SKEY_ALLOW_EMPTY_FOR_KEY)
     def add(self, *args, **kwargs) -> Any:
         """
             Add a new entry, and render the entry, eventually with error notes on incorrect data.
@@ -236,7 +233,6 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
             :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
-        skey = kwargs.get("skey", "")
         if not self.canAdd():
             raise errors.Unauthorized()
         skel = self.addSkel()
@@ -247,8 +243,6 @@ class List(SkelModule):
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self.render.add(skel)
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
 
         self.onAdd(skel)
         skel.toDB()
@@ -256,10 +250,11 @@ class List(SkelModule):
 
         return self.render.addSuccess(skel)
 
-    @forceSSL
-    @forcePost
+    @force_ssl
+    @force_post
     @exposed
-    def delete(self, key: str, skey, *args, **kwargs) -> Any:
+    @skey
+    def delete(self, key: str, *args, **kwargs) -> Any:
         """
             Delete an entry.
 
@@ -280,9 +275,6 @@ class List(SkelModule):
 
         if not self.canDelete(skel):
             raise errors.Unauthorized()
-
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
 
         self.onDelete(skel)
         skel.delete()
