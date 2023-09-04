@@ -3,14 +3,14 @@ from google.cloud import secretmanager
 from viur.core.config import conf
 
 """
-This module provides utiliy functions for accessing values stored in the Google Cloud Secret Manager.
+This module provides utility functions for accessing values stored in the Google Cloud Secret Manager.
 """
 
 # Global secret manager client instance
 __client = secretmanager.SecretManagerServiceClient()
 
 
-def get(secret: str, version: str = "latest") -> str:
+def get(secret: str, version: int | str = "latest") -> str:
     """
     Retrieves a secret stored in Google Cloud Secret Manager for use within the application.
 
