@@ -689,7 +689,8 @@ class TimeBasedOTP(UserAuthentication):
         session["_otp_user"] = otp_user_conf
         session.markChanged()
 
-        return self.userModule.render.edit(self.OtpSkel(), action=f"{self.modulePath}/{self.ACTION_NAME}",
+        return self.userModule.render.edit(self.OtpSkel(),
+                                           action=f"{self.modulePath}/{self.ACTION_NAME}",
                                            tpl=self.otpTemplate)
 
     @exposed
@@ -727,7 +728,8 @@ class TimeBasedOTP(UserAuthentication):
             otp_user_conf["attempts"] = attempts + 1
             session.markChanged()
 
-            return self.userModule.render.edit(self.OtpSkel(), action=f"{self.modulePath}/{self.ACTION_NAME}",
+            return self.userModule.render.edit(self.OtpSkel(),
+                                               action=f"{self.modulePath}/{self.ACTION_NAME}",
                                                tpl=self.otpTemplate, secondFactorFailed=True)
 
         # Remove otp user config from session
@@ -927,8 +929,9 @@ class AuthenticatorOTP(UserAuthentication):
         return pyotp.TOTP(secret).verify(otp)
 
     def startProcessing(self, user_key: str | db.Key):
-        return self._user_module.render.edit(TimeBasedOTP.OtpSkel(), action=f"{self.modulePath}/{self.ACTION_NAME}",
-                                           tpl=self.otp_login_template)
+        return self._user_module.render.edit(TimeBasedOTP.OtpSkel(),
+                                             action=f"{self.modulePath}/{self.ACTION_NAME}",
+                                             tpl=self.otp_login_template)
 
     @exposed
     @force_ssl
@@ -953,8 +956,9 @@ class AuthenticatorOTP(UserAuthentication):
         else:
             skel = TimeBasedOTP.OtpSkel()
             skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token")]
-            return self._user_module.render.edit(skel, action=f"{self.modulePath}/{self.ACTION_NAME}",
-                                               tpl=self.otp_login_template)
+            return self._user_module.render.edit(skel,
+                                                 action=f"{self.modulePath}/{self.ACTION_NAME}",
+                                                 tpl=self.otp_login_template)
 
 
 class User(List):
