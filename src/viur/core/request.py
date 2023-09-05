@@ -487,7 +487,9 @@ class BrowseHandler():  # webapp.RequestHandler
             raise TypeError("Input argument must be one of these Literals: "
                             + ", ".join(map(repr, typeHint.__args__)))
 
-        raise ValueError("TypeHint %s not supported" % typeHint)
+        # TODO: Unions like `db.Key | str | int` fail; this bypasses such type annotations.
+        # logging.error(f"TypeHint {typeHint} not supported")
+        return inValue, inValue
 
     def findAndCall(self, path: str, *args, **kwargs) -> None:
         """
@@ -604,16 +606,16 @@ class BrowseHandler():  # webapp.RequestHandler
                 self.disableCache = True
 
         try:
-            # fixme: this must be refactored and integrated into Method class!!
+            # TODO: this must be refactored and integrated into Method class!!
             annotations = typing.get_type_hints(caller._func)
             if annotations and not self.internalRequest:
                 caller_kwargs = {}  # The dict of new **kwargs we'll pass to the caller
                 caller_args = []  # List of new *args we'll pass to the caller
 
-                # FIXME: Use inspect.signature() for all this stuff...
+                # TODO: Use inspect.signature() for all this stuff...
                 argsOrder = caller._func.__code__.co_varnames[:caller._func.__code__.co_argcount]
                 # In case of a method, ignore the 'self' parameter
-                if inspect.ismethod(caller._func):
+                if inspect.ismethod(caller._func) or argsOrder[0] == "self":
                     argsOrder = argsOrder[1:]
 
                 # Map args in

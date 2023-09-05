@@ -1,6 +1,5 @@
-from viur.core import Module
+from viur.core import db, conf, Module
 from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
-from viur.core import conf
 from typing import Tuple, Type
 
 
@@ -47,3 +46,35 @@ class SkelModule(Module):
         By default, baseSkel is used by :func:`~viewSkel`, :func:`~addSkel`, and :func:`~editSkel`.
         """
         return self._resolveSkelCls(*args, **kwargs)()
+
+    def skel(self, action: str | None = None, *args, **kwargs) -> SkeletonInstance:
+        """
+        Requests an instance to a skeleton that is bound to this SkelModule.
+
+        The requested skeleton can be specific to an action specified by action.
+        This can be a SkeletonInstance returned by a specific `actionSkel`-function, like `addSkel` for an
+        "add"-operation, or the skel-function is sub-classed by the module to return a customized, other skeleton.
+
+        :param action: Optional parameter to request a modified skeleton for a specific "action".
+        """
+        if action:
+            for postfix in ("Skel", "_skel"):
+                if skel_func := getattr(self, f"{action}{postfix}", None):
+                    return skel_func(*args, **kwargs)
+
+        return self._resolveSkelCls(*args, **kwargs)()
+
+    def read(self, key: db.Key | str | int, action: str = None, *args, **kwargs) -> SkeletonInstance | None:
+        """
+        Reads and returns a SkeletonInstance to a given key.
+
+        :param key: Key of the entry to be read.
+        :param action: Action parameter for :func:`~skel`
+
+        Returns None when no entry for the given key was found.
+        """
+        skel = self.skel(action)
+        if skel.fromDB(key):
+            return skel
+
+        return None

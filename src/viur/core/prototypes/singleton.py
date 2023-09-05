@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Optional
+from typing import Any
 from viur.core import db, current, errors
 from viur.core.decorators import *
 from viur.core.cache import flushCache
@@ -16,6 +16,12 @@ class Singleton(SkelModule):
     handler = "singleton"
     accessRights = ("edit", "view", "manage")
 
+    def read(self, action: str | None = None, *args, **kwargs) -> SkeletonInstance | None:
+        """
+        Returns the entity of the Singleton.
+        """
+        return super().read(db.Key(self.skel("view").kindName, self.getKey()), action, *args, **kwargs)
+
     def getKey(self) -> str:
         """
         Returns the DB-Key for the current context.
@@ -25,7 +31,7 @@ class Singleton(SkelModule):
 
         :returns: Current context DB-key
         """
-        return "%s-modulekey" % self.editSkel().kindName
+        return "%s-modulekey" % self.skel("edit").kindName
 
     def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -71,7 +77,7 @@ class Singleton(SkelModule):
         if not self.canPreview():
             raise errors.Unauthorized()
 
-        skel = self.viewSkel()
+        skel = self.skel("view")
         skel.fromClient(kwargs)
 
         return self.render.view(skel)
@@ -84,7 +90,7 @@ class Singleton(SkelModule):
 
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
-        skel = self.viewSkel()
+        skel = self.skel("view")
         if not self.canView():
             raise errors.Unauthorized()
         return self.render.view(skel)
@@ -103,14 +109,12 @@ class Singleton(SkelModule):
         :raises: :exc:`viur.core.errors.NotFound`, if there is no singleton entry existing, yet.
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
-
-        skel = self.viewSkel()
         if not self.canView():
             raise errors.Unauthorized()
 
-        key = db.Key(self.editSkel().kindName, self.getKey())
+        key = db.Key(self.skel("edit").kindName, self.getKey())
 
-        if not skel.fromDB(key):
+        if not (skel := self.read()):
             raise errors.NotFound()
 
         self.onView(skel)
@@ -137,15 +141,15 @@ class Singleton(SkelModule):
 
         skey = kwargs.get("skey", "")
 
-        skel = self.editSkel()
-
         if not self.canEdit():
             raise errors.Unauthorized()
 
-        key = db.Key(self.editSkel().kindName, self.getKey())
+        key = db.Key(self.skel("edit").kindName, self.getKey())
 
+        skel = self.skel("edit")
         if not skel.fromDB(key):  # Its not there yet; we need to set the key again
             skel["key"] = key
+
         if (len(kwargs) == 0  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or ("bounce" in kwargs and kwargs["bounce"] == "1")):  # review before changing
@@ -156,19 +160,13 @@ class Singleton(SkelModule):
         self.onEdited(skel)
         return self.render.editSuccess(skel)
 
-    def getContents(self) -> Optional[SkeletonInstance]:
+    def getContents(self) -> SkeletonInstance | None:
         """
         Returns the entity of this singleton application as :class:`viur.core.skeleton.Skeleton` object.
 
         :returns: The content as Skeleton provided by :func:`viewSkel`.
         """
-        skel = self.viewSkel()
-        key = db.Key(self.viewSkel().kindName, self.getKey())
-
-        if not skel.fromDB(key):
-            return None
-
-        return skel
+        return self.read("view")
 
     def canPreview(self) -> bool:
         """

@@ -92,7 +92,7 @@ class List(SkelModule):
         if not self.canPreview():
             raise errors.Unauthorized()
 
-        skel = self.viewSkel()
+        skel = self.skel("view")
         skel.fromClient(kwargs)
 
         return self.render.view(skel)
@@ -105,7 +105,7 @@ class List(SkelModule):
 
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
-        skel = self.viewSkel()
+        skel = self.skel("view")
         if not self.canAdd():  # We can't use canView here as it would require passing a skeletonInstance.
             # As a fallback, we'll check if the user has the permissions to view at least one entry
             qry = self.listFilter(skel.all())
@@ -114,7 +114,7 @@ class List(SkelModule):
         return self.render.view(skel)
 
     @exposed
-    def view(self, *args, **kwargs) -> Any:
+    def view(self, key: db.Key | str | int, *args, **kwargs) -> Any:
         """
             Prepares and renders a single entry for viewing.
 
@@ -130,20 +130,13 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.NotFound`, when no entry with the given *key* was found.
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
-        if "key" in kwargs:
-            key = kwargs["key"]
-        elif len(args) >= 1:
-            key = args[0]
-        else:
-            raise errors.NotAcceptable()
-        if not key:
-            raise errors.NotAcceptable()
-        # We return a single entry for viewing
-        skel = self.viewSkel()
-        if not skel.fromDB(key):
+        # Return a single entry for viewing
+        if not (skel := self.read(key, "view")):
             raise errors.NotFound()
+
         if not self.canView(skel):
             raise errors.Forbidden()
+
         self.onView(skel)
         return self.render.view(skel)
 
@@ -164,7 +157,7 @@ class List(SkelModule):
 
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
-        query = self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs))  # Access control
+        query = self.listFilter(self.skel("view").all().mergeExternalFilter(kwargs))  # Access control
         if query is None:
             raise errors.Unauthorized()
         res = query.fetch()
@@ -173,7 +166,7 @@ class List(SkelModule):
     @force_ssl
     @exposed
     @skey(allow_empty=SKEY_ALLOW_EMPTY_FOR_KEY)
-    def edit(self, *args, **kwargs) -> Any:
+    def edit(self, key: db.Key | str | int, *args, **kwargs) -> Any:
         """
             Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
             Data is taken by any other arguments in *kwargs*.
@@ -191,17 +184,12 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
             :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
-        if "key" in kwargs:
-            key = kwargs["key"]
-        elif len(args) == 1:
-            key = args[0]
-        else:
-            raise errors.NotAcceptable()
-        skel = self.editSkel()
-        if not skel.fromDB(key):
+        if not (skel := self.read(key, "edit")):
             raise errors.NotFound()
+
         if not self.canEdit(skel):
             raise errors.Unauthorized()
+
         if (len(kwargs) == 0  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
@@ -235,7 +223,9 @@ class List(SkelModule):
         """
         if not self.canAdd():
             raise errors.Unauthorized()
-        skel = self.addSkel()
+
+        skel = self.skel("add")
+
         if (len(kwargs) == 0  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
@@ -249,6 +239,35 @@ class List(SkelModule):
         self.onAdded(skel)
 
         return self.render.addSuccess(skel)
+
+    @force_ssl
+    @exposed
+    @skey(allow_empty=SKEY_ALLOW_EMPTY_FOR_KEY)
+    def clone(self, key: db.Key | str | int, **kwargs):
+        if not (skel := self.read(key, "clone")):
+            raise errors.NotFound()
+
+        if not (self.canEdit(skel) and self.canAdd()):
+            raise errors.Unauthorized()
+
+        # Remember source skel and unset the key for clone operation!
+        src_skel = skel
+        skel = skel.clone()
+        skel["key"] = None
+
+        # Check all required preconditions for clone
+        if (len(kwargs) == 0  # no data supplied
+            or not skel.fromClient(kwargs)  # failure on reading into the bones
+            or not current.request.get().isPostRequest
+            or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
+        ):
+            return self.render.edit(skel, action="clone")
+
+        self.onClone(skel, src_skel=src_skel)
+        assert skel.toDB()
+        self.onCloned(skel, src_skel=src_skel)
+
+        return self.render.editSuccess(skel, action="cloneSuccess")
 
     @force_ssl
     @force_post
@@ -268,9 +287,7 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
             :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
-
-        skel = self.editSkel()
-        if not skel.fromDB(key):
+        if not (skel := self.read(key, "delete")):
             raise errors.NotFound()
 
         if not self.canDelete(skel):
@@ -294,7 +311,7 @@ class List(SkelModule):
         if args and args[0]:
             # We probably have a Database or SEO-Key here
             seoKey = str(args[0]).lower()
-            skel = self.viewSkel().all(_excludeFromAccessLog=True).filter("viur.viurActiveSeoKeys =", seoKey).getSkel()
+            skel = self.skel("view").all(_excludeFromAccessLog=True).filter("viur.viurActiveSeoKeys =", seoKey).getSkel()
             if skel:
                 db.currentDbAccessLog.get(set()).add(skel["key"])
                 if not self.canView(skel):
@@ -345,7 +362,7 @@ class List(SkelModule):
         """
         # We log the key we're querying by hand so we don't have to lock on the entire kind in our query
         db.currentDbAccessLog.get(set()).add(skel["key"])
-        query = self.viewSkel().all(_excludeFromAccessLog=True).mergeExternalFilter({"key": skel["key"]})
+        query = self.skel("view").all(_excludeFromAccessLog=True).mergeExternalFilter({"key": skel["key"]})
         query = self.listFilter(query)  # Access control
 
         if query is None:
@@ -507,6 +524,16 @@ class List(SkelModule):
         flushCache(kind=skel.kindName)
         if user := current.user.get():
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
+
+    def onClone(self, skel: SkeletonInstance, src_skel: SkeletonInstance):
+        pass
+
+    def onCloned(self, skel: SkeletonInstance, src_skel: SkeletonInstance):
+        logging.info(f"Cloned: {skel['key']=} from {src_skel['key']=}")
+        flushCache(kind=skel.kindName)
+
+        if user := utils.getCurrentUser():
+            logging.info(f"{user['name']=} ({user['key']=})")
 
     def onEdit(self, skel: SkeletonInstance):
         """
