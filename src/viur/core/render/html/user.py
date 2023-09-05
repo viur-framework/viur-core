@@ -1,3 +1,5 @@
+from typing import List
+
 from . import default as DefaultRender
 
 
@@ -73,3 +75,8 @@ class Render(DefaultRender):  # Render user-data to xml
         tpl = self._choose_template(tpl, "otp_add_success_template")
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))
         return template.render()
+
+    def second_factor_choice(self, tpl: str | None = None, second_factors: List[object] = None):
+        tpl = self._choose_template(tpl, "second_factor_choice")
+        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
+        return template.render(second_factors=second_factors)

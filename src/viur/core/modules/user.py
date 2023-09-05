@@ -1116,6 +1116,29 @@ class User(List):
         session["_secondFactorStart"] = utils.utcNow()
         session.markChanged()
 
+        second_factor_providers = []
+        for authProvider, second_factor in self.validAuthenticationMethods:
+            if isinstance(caller, authProvider):
+                if second_factor is not None:
+                    second_factor_provider_instance = self.secondFactorProviderByClass(second_factor)
+                    if second_factor_provider_instance.canHandle(userKey):
+                        second_factor_providers.append(second_factor_provider_instance)
+                else:
+                    second_factor_providers.append(None)
+        if len(second_factor_providers) == 0:
+            raise errors.NotAcceptable("There are no authentication methods to try")
+        elif len(second_factor_providers) == 1:
+            if second_factor_providers[0] is None:
+                # We allow sign-in without a second factor
+                return self.authenticateUser(userKey)
+            else:
+                # We have only one second factor we don't need the choice template
+                return second_factor_providers[0].startProcessing(userKey)
+        else:
+            # We have more than one second factor we need the choice template
+            print("more than 1")
+            return self.render.second_factor_choice(tpl="second_factor_choice", second_factors=second_factor_providers)
+
         for authProvider, secondFactor in self.validAuthenticationMethods:
             if isinstance(caller, authProvider):
                 if secondFactor is None:
