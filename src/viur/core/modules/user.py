@@ -627,7 +627,7 @@ class TimeBasedOTP(UserAuthentication):
     WINDOW_SIZE = 5
     MAX_RETRY = 3
     otpTemplate = "user_login_timebasedotp"
-    ACTION_NAME="otp"
+    ACTION_NAME = "otp"
     @dataclasses.dataclass
     class OtpConfig:
         """
