@@ -690,7 +690,8 @@ class TimeBasedOTP(UserAuthentication):
         session.markChanged()
 
         return self.userModule.render.edit(self.OtpSkel(),
-                                           action=f"{self.modulePath}/{self.ACTION_NAME}",
+                                           action_name=self.ACTION_NAME,
+                                           action_url=f"{self.modulePath}/{self.ACTION_NAME}",
                                            tpl=self.otpTemplate)
 
     @exposed
@@ -729,7 +730,8 @@ class TimeBasedOTP(UserAuthentication):
             session.markChanged()
 
             return self.userModule.render.edit(self.OtpSkel(),
-                                               action=f"{self.modulePath}/{self.ACTION_NAME}",
+                                               action_name=self.ACTION_NAME,
+                                               action_url=f"{self.modulePath}/{self.ACTION_NAME}",
                                                tpl=self.otpTemplate, secondFactorFailed=True)
 
         # Remove otp user config from session
@@ -834,7 +836,7 @@ class AuthenticatorOTP(UserAuthentication):
     """Template to configure (add) a new TOPT"""
     otp_login_template = "user_login_secondfactor"
     """Template to enter the TOPT on login"""
-    ACTION_NAME = "otp"
+    ACTION_NAME = "authenticatorOTP"
     """Action name provided for *otp_template* on login"""
 
     @exposed
@@ -957,7 +959,8 @@ class AuthenticatorOTP(UserAuthentication):
             skel = TimeBasedOTP.OtpSkel()
             skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token")]
             return self._user_module.render.edit(skel,
-                                                 action=f"{self.modulePath}/{self.ACTION_NAME}",
+                                                 action_name=self.ACTION_NAME,
+                                                 action_url=f"{self.modulePath}/{self.ACTION_NAME}",
                                                  tpl=self.otp_login_template)
 
 
@@ -1117,7 +1120,7 @@ class User(List):
         session.markChanged()
 
         second_factor_providers = []
-        for authProvider, second_factor in self.validAuthenticationMethods:
+        for auth_provider, second_factor in self.validAuthenticationMethods:
             if isinstance(caller, authProvider):
                 if second_factor is not None:
                     second_factor_provider_instance = self.secondFactorProviderByClass(second_factor)
@@ -1136,7 +1139,6 @@ class User(List):
                 return second_factor_providers[0].startProcessing(userKey)
         else:
             # We have more than one second factor we need the choice template
-            print("more than 1")
             return self.render.second_factor_choice(tpl="second_factor_choice", second_factors=second_factor_providers)
 
         for authProvider, secondFactor in self.validAuthenticationMethods:
