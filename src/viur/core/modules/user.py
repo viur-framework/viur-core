@@ -853,20 +853,20 @@ class AuthenticatorOTP(UserAuthentication):
             current_session.markChanged()
 
         if otp is None or skey is None:
-            return self.userModule.render.second_factor_add(
+            return self._user_module.render.second_factor_add(
                 tpl=self.otp_add_template,
                 otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))
         else:
             if not securitykey.validate(skey):
                 raise errors.PreconditionFailed()
             if not AuthenticatorOTP.verify_otp(otp, otp_app_secret):
-                return self.userModule.render.second_factor_add(
+                return self._user_module.render.second_factor_add(
                     tpl=self.otp_add_template,
                     otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))  # to add errors
 
             # Now we can set the otp_app_secret to the current User and render der Success-template
             AuthenticatorOTP.set_otp_app_secret(otp_app_secret)
-            return self.userModule.render.second_factor_add_success()
+            return self._user_module.render.second_factor_add_success()
 
     def canHandle(self, user_key: str | db.Key) -> bool:
         """
@@ -927,7 +927,7 @@ class AuthenticatorOTP(UserAuthentication):
         return pyotp.TOTP(secret).verify(otp)
 
     def startProcessing(self, user_key: str | db.Key):
-        return self.userModule.render.edit(TimeBasedOTP.OtpSkel(), action=f"{self.modulePath}/{self.ACTION_NAME}",
+        return self._user_module.render.edit(TimeBasedOTP.OtpSkel(), action=f"{self.modulePath}/{self.ACTION_NAME}",
                                            tpl=self.otp_login_template)
 
     @exposed
@@ -949,11 +949,12 @@ class AuthenticatorOTP(UserAuthentication):
         otp_token = str(skel["otptoken"]).zfill(6)
 
         if AuthenticatorOTP.verify_otp(otp=otp_token, secret=user["otp_app_secret"]):
-            return self.userModule.secondFactorSucceeded(self, user_key)
+            return self._user_module.secondFactorSucceeded(self, user_key)
         else:
             skel = TimeBasedOTP.OtpSkel()
             skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token")]
-            return self.userModule.render.edit(skel, action=f"{self.modulePath}/{self.ACTION_NAME}", tpl=self.otp_login_template)
+            return self._user_module.render.edit(skel, action=f"{self.modulePath}/{self.ACTION_NAME}",
+                                               tpl=self.otp_login_template)
 
 
 class User(List):
