@@ -163,7 +163,7 @@ class UserSkel(skeleton.Skeleton):
         defaultValue=0,
     )
     # Authenticator OTP Apps (like Authy)
-    otp_secret_key = CredentialBone(
+    otp_app_secret = CredentialBone(
         descr="OTP Secret key",
 
     )
@@ -839,69 +839,69 @@ class AuthenticatorOTP(UserAuthentication):
     @forceSSL
     def add(self, otp=None, skey=None):
         """
-        We try to read the otp_secret_key form the current session. When this fails we generate a new one and store
+        We try to read the otp_app_secret form the current session. When this fails we generate a new one and store
         it in the session.
 
         If an otp and a skey are provided we are validate the skey and the otp. If both is successfully we store
-        the otp_secret_key from the session in the user entry.
+        the otp_app_secret from the session in the user entry.
         """
         current_session = current.session.get()
 
-        if not (otp_secret_key := current_session.get("_maybe_otp_secret_key")):
-            otp_secret_key = AuthenticatorOTP.generate_otp_secret_key()
-            current_session["_maybe_otp_secret_key"] = otp_secret_key
+        if not (otp_app_secret := current_session.get("_maybe_otp_app_secret")):
+            otp_app_secret = AuthenticatorOTP.generate_otp_app_secret()
+            current_session["_maybe_otp_app_secret"] = otp_app_secret
             current_session.markChanged()
 
         if otp is None or skey is None:
             return self.userModule.render.second_factor_add(
                 tpl=self.otp_add_template,
-                otp_uri=AuthenticatorOTP.generate_otp_secret_key_uri(otp_secret_key))
+                otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))
         else:
             if not securitykey.validate(skey):
                 raise errors.PreconditionFailed()
-            if not AuthenticatorOTP.verify_otp(otp, otp_secret_key):
+            if not AuthenticatorOTP.verify_otp(otp, otp_app_secret):
                 return self.userModule.render.second_factor_add(
                     tpl=self.otp_add_template,
-                    otp_uri=AuthenticatorOTP.generate_otp_secret_key_uri(otp_secret_key))  # to add errors
+                    otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))  # to add errors
 
-            # Now we can set the otp_secret_key to the current User and render der Success-template
-            AuthenticatorOTP.set_otp_secret_key(otp_secret_key)
+            # Now we can set the otp_app_secret to the current User and render der Success-template
+            AuthenticatorOTP.set_otp_app_secret(otp_app_secret)
             return self.userModule.render.second_factor_add_success()
 
     def canHandle(self, user_key: str | db.Key) -> bool:
         """
-        We can only handle the second factor if we have stored an otp_secret_key before.
+        We can only handle the second factor if we have stored an otp_app_secret before.
         """
         if not (user := db.Get(user_key)):
             return False
 
-        return bool(user.get("otp_secret_key", ""))
+        return bool(user.get("otp_app_secret", ""))
 
     @classmethod
     def get2FactorMethodName(*args, **kwargs) -> str:
         return "X-VIUR-2FACTOR-AuthenticatorOTP"
 
     @classmethod
-    def set_otp_secret_key(cls, otp_secret_key=None):
+    def set_otp_app_secret(cls, otp_app_secret=None):
         """
         Write a new OTP Token in the current user entry.
         """
-        if otp_secret_key is None:
-            logging.error("No 'otp_secret_key' is provided")
-            raise errors.PreconditionFailed("No 'otp_secret_key' is provided")
+        if otp_app_secret is None:
+            logging.error("No 'otp_app_secret' is provided")
+            raise errors.PreconditionFailed("No 'otp_app_secret' is provided")
         if not (cuser := current.user.get()):
             raise errors.Unauthorized()
 
         def transaction(user_key):
             if not (user := db.Get(user_key)):
                 raise errors.NotFound()
-            user["otp_secret_key"] = otp_secret_key
+            user["otp_app_secret"] = otp_app_secret
             db.Put(user)
 
         db.RunInTransaction(transaction, cuser["key"])
 
     @classmethod
-    def generate_otp_secret_key_uri(cls, otp_secret_key) -> str:
+    def generate_otp_app_secret_uri(cls, otp_app_secret) -> str:
         """
         :return an otp uri like otpauth://totp/Example:alice@google.com?secret=ABCDEFGH1234&issuer=Example
         """
@@ -912,10 +912,10 @@ class AuthenticatorOTP(UserAuthentication):
                 f"""conf["viur.otp.issuer"] is None we replace the issuer by conf["viur.instance.project_id"]""")
             issuer = conf["viur.instance.project_id"]
 
-        return pyotp.TOTP(otp_secret_key).provisioning_uri(name=cuser["name"], issuer_name=issuer)
+        return pyotp.TOTP(otp_app_secret).provisioning_uri(name=cuser["name"], issuer_name=issuer)
 
     @classmethod
-    def generate_otp_secret_key(cls) -> str:
+    def generate_otp_app_secret(cls) -> str:
         """
         Generate a new OTP Secret
         :return an otp
@@ -947,7 +947,7 @@ class AuthenticatorOTP(UserAuthentication):
             raise errors.PreconditionFailed()
         otp_token = str(skel["otptoken"]).zfill(6)
 
-        if AuthenticatorOTP.verify_otp(otp=otp_token, secret=user["otp_secret_key"]):
+        if AuthenticatorOTP.verify_otp(otp=otp_token, secret=user["otp_app_secret"]):
             return self.userModule.secondFactorSucceeded(self, user_key)
         else:
             skel = TimeBasedOTP.OtpSkel()

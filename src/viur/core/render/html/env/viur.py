@@ -731,5 +731,13 @@ def seoUrlToFunction(render: Render, *args, **kwargs):
 
 
 @jinjaGlobalFunction
-def otp_uri_to_qrcode(render: Render, uri: str, *args, **kwargs) -> str:
-    return qrcode.make(uri, image_factory=qrcode.image.svg.SvgPathImage, box_size=30).to_string().decode("utf-8")
+def data_to_qrcode(render: Render, data: str, *args, **kwargs) -> str:
+    """
+       Generates a SVG string for a html template
+
+           :param data: Any string data that should render to a QR Code.
+
+
+       :return: The SVG string representation.
+       """
+    return qrcode.make(data, image_factory=qrcode.image.svg.SvgPathImage, box_size=30).to_string().decode("utf-8")
