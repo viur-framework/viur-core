@@ -627,7 +627,7 @@ class TimeBasedOTP(UserAuthentication):
     WINDOW_SIZE = 5
     MAX_RETRY = 3
     otpTemplate = "user_login_timebasedotp"
-
+    ACTION_NAME="otp"
     @dataclasses.dataclass
     class OtpConfig:
         """
@@ -689,7 +689,8 @@ class TimeBasedOTP(UserAuthentication):
         session["_otp_user"] = otp_user_conf
         session.markChanged()
 
-        return self.userModule.render.edit(self.OtpSkel(), action="otp", tpl=self.otpTemplate)
+        return self.userModule.render.edit(self.OtpSkel(), action=f"{self.modulePath}/{self.ACTION_NAME}",
+                                           tpl=self.otpTemplate)
 
     @exposed
     @force_ssl
@@ -726,9 +727,8 @@ class TimeBasedOTP(UserAuthentication):
             otp_user_conf["attempts"] = attempts + 1
             session.markChanged()
 
-            return self.userModule.render.edit(
-                self.OtpSkel(), action="otp", tpl=self.otpTemplate, secondFactorFailed=True
-            )
+            return self.userModule.render.edit(self.OtpSkel(), action=f"{self.modulePath}/{self.ACTION_NAME}",
+                                               tpl=self.otpTemplate, secondFactorFailed=True)
 
         # Remove otp user config from session
         user_key = db.keyHelper(otp_user_conf["key"], self.userModule._resolveSkelCls().kindName)
@@ -832,11 +832,11 @@ class AuthenticatorOTP(UserAuthentication):
     """Template to configure (add) a new TOPT"""
     otp_login_template = "user_login_secondfactor"
     """Template to enter the TOPT on login"""
-    ACTION_NAME = "authenticatorOTP"
+    ACTION_NAME = "otp"
     """Action name provided for *otp_template* on login"""
 
     @exposed
-    @forceSSL
+    @force_ssl
     def add(self, otp=None, skey=None):
         """
         We try to read the otp_app_secret form the current session. When this fails we generate a new one and store
@@ -927,10 +927,11 @@ class AuthenticatorOTP(UserAuthentication):
         return pyotp.TOTP(secret).verify(otp)
 
     def startProcessing(self, user_key: str | db.Key):
-        return self.userModule.render.edit(TimeBasedOTP.OtpSkel(), action=self.ACTION_NAME, tpl=self.otp_login_template)
+        return self.userModule.render.edit(TimeBasedOTP.OtpSkel(), action=f"{self.modulePath}/{self.ACTION_NAME}",
+                                           tpl=self.otp_login_template)
 
     @exposed
-    @forceSSL
+    @force_ssl
     def otp(self, skey=None, **kwargs):
         """
         We verify the otp here with the secret we stored before.
@@ -952,7 +953,7 @@ class AuthenticatorOTP(UserAuthentication):
         else:
             skel = TimeBasedOTP.OtpSkel()
             skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token")]
-            return self.userModule.render.edit(skel, action=self.ACTION_NAME, tpl=self.otp_login_template)
+            return self.userModule.render.edit(skel, action=f"{self.modulePath}/{self.ACTION_NAME}", tpl=self.otp_login_template)
 
 
 class User(List):
