@@ -314,8 +314,8 @@ class List(SkelModule):
         if args and args[0]:
             # We probably have a Database or SEO-Key here
             seoKey = str(args[0]).lower()
-            skel = self.skel("view").all(_excludeFromAccessLog=True).filter("viur.viurActiveSeoKeys =", seoKey).getSkel()
-            if skel:
+            q = self.skel("view").all(_excludeFromAccessLog=True).filter("viur.viurActiveSeoKeys =", seoKey)
+            if skel := q.getSkel():
                 db.currentDbAccessLog.get(set()).add(skel["key"])
                 if not self.canView(skel):
                     raise errors.Forbidden()
