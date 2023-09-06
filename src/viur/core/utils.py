@@ -273,7 +273,7 @@ def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
     return db.Key(key.kind, key.id_or_name, parent=parent)
 
 
-def parse_bool(value: Any, truthy_values: typing.Iterable = ("true", "yes", "1")):
+def parse_bool(value: Any, truthy_values: typing.Iterable = ("true", "yes", "1")) -> bool:
     """
     Parse a value into a boolean based on accepted truthy values.
 
