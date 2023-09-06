@@ -18,6 +18,7 @@ from viur.core.config import conf
 from viur.core.logging import client as loggingClient, requestLogger, requestLoggingRessource
 from viur.core.securityheaders import extendCsp
 from viur.core.tasks import _appengineServiceIPs
+from .utils import parse_bool
 
 """
     This module implements the WSGI (Web Server Gateway Interface) layer for ViUR. This is the main entry
@@ -474,7 +475,7 @@ class BrowseHandler():  # webapp.RequestHandler
             if not isinstance(inValue, str):
                 raise TypeError(f"Input argument to boolean typehint is not a str, but f{type(inValue)}")
 
-            if inValue.strip().lower() in conf["viur.bone.boolean.str2true"]:
+            if parse_bool(inValue, conf["viur.bone.boolean.str2true"]):
                 return "True", True
 
             return "False", False
