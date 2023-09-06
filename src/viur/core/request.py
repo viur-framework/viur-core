@@ -13,6 +13,7 @@ from urllib.parse import unquote, urljoin, urlparse
 import webob
 
 from viur.core import current, db, errors, utils
+from viur.core.module import Method
 from viur.core.config import conf
 from viur.core.logging import client as loggingClient, requestLogger, requestLoggingRessource
 from viur.core.securityheaders import extendCsp
@@ -25,7 +26,6 @@ from viur.core.tasks import _appengineServiceIPs
     Additionally, this module defines the RequestValidator interface which provides a very early hook into the
     request processing (useful for global ratelimiting, DDoS prevention or access control).
 """
-
 
 class RequestValidator(ABC):
     """
@@ -493,8 +493,8 @@ class BrowseHandler():  # webapp.RequestHandler
 
     def findAndCall(self, path: str, *args, **kwargs) -> None:
         """
-            Does the actual work of sanitizing the parameter, determine which @exposed (or @internalExposed) function
-            to call (and with witch parameters)
+            Does the actual work of sanitizing the parameter, determine which exposed-function to call
+            (and with which parameters)
         """
 
         # Parse the URL
@@ -537,23 +537,25 @@ class BrowseHandler():  # webapp.RequestHandler
         caller = conf.viur.mainResolver
         idx = 0  # Count how may items from *args we'd have consumed (so the rest can go into *args of the called func
         path_found = True
+
         for part in self.path_list:
             if "canAccess" in caller and not caller["canAccess"]():
                 # We have a canAccess function guarding that object,
                 # and it returns False...
                 raise errors.Unauthorized()
+
             idx += 1
             part = part.replace("-", "_").replace(".", "_")
             if part not in caller:
                 part = "index"
 
-            if part in caller:
-                caller = caller[part]
-                if (("exposed" in dir(caller) and caller.exposed) or
-                        ("internalExposed" in dir(caller) and caller.internalExposed and self.internalRequest)) and \
-                        hasattr(caller, '__call__'):
+            # print(part, caller.get(part))
+
+            if caller := caller.get(part):
+                if isinstance(caller, Method):
                     if part == "index":
                         idx -= 1
+
                     args = self.path_list[idx:] + args  # Prepend the rest of Path to args
                     break
 
@@ -570,28 +572,30 @@ class BrowseHandler():  # webapp.RequestHandler
             raise errors.NotFound(
                 f"""The path {utils.escapeString("/".join(self.path_list[:idx]))} could not be found""")
 
-        if (not callable(caller) or ((not "exposed" in dir(caller) or not caller.exposed)) and (
-            not "internalExposed" in dir(caller) or not caller.internalExposed or not self.internalRequest)):
-            if "index" in caller \
-                and (callable(caller["index"]) \
-                     and ("exposed" in dir(caller["index"]) and caller["index"].exposed) \
-                     or ("internalExposed" in dir(
-                    caller["index"]) and caller["index"].internalExposed and self.internalRequest)):
-                caller = caller["index"]
+        if not isinstance(caller, Method):
+            # try to find "index" function
+            if (index := caller.get("index")) and isinstance(index, Method):
+                caller = index
             else:
                 raise errors.MethodNotAllowed()
-        # Check for forceSSL flag
+
+        # Check for internal exposed
+        if caller.exposed is False and not self.internalRequest:
+            raise errors.NotFound()
+
+        # Check for @force_ssl flag
         if not self.internalRequest \
-                and "forceSSL" in dir(caller) \
-                and caller.forceSSL \
+                and caller.ssl \
                 and not self.request.host_url.lower().startswith("https://") \
                 and not conf.viur.instance_is_dev_server:
-            raise (errors.PreconditionFailed("You must use SSL to access this ressource!"))
-        # Check for forcePost flag
-        if "forcePost" in dir(caller) and caller.forcePost and not self.isPostRequest:
-            raise (errors.MethodNotAllowed("You must use POST to access this ressource!"))
+            raise errors.PreconditionFailed("You must use SSL to access this resource!")
+
+        # Check for @force_post flag
+        if not self.isPostRequest and caller.methods == ("POST", ):
+            raise errors.MethodNotAllowed("You must use POST to access this resource!")
         self.args = args
         self.kwargs = kwargs
+
         # Check if this request should bypass the caches
         if self.request.headers.get("X-Viur-Disable-Cache"):
             from viur.core import utils
@@ -599,16 +603,18 @@ class BrowseHandler():  # webapp.RequestHandler
             if (user := current.user.get()) and "root" in user["access"]:
                 logging.debug("Caching disabled by X-Viur-Disable-Cache header")
                 self.disableCache = True
+
         try:
-            annotations = typing.get_type_hints(caller)
+            # fixme: this must be refactored and integrated into Method class!!
+            annotations = typing.get_type_hints(caller._func)
             if annotations and not self.internalRequest:
-                newKwargs = {}  # The dict of new **kwargs we'll pass to the caller
-                newArgs = []  # List of new *args we'll pass to the caller
+                caller_kwargs = {}  # The dict of new **kwargs we'll pass to the caller
+                caller_args = []  # List of new *args we'll pass to the caller
 
                 # FIXME: Use inspect.signature() for all this stuff...
-                argsOrder = caller.__code__.co_varnames[:caller.__code__.co_argcount]
+                argsOrder = caller._func.__code__.co_varnames[:caller._func.__code__.co_argcount]
                 # In case of a method, ignore the 'self' parameter
-                if inspect.ismethod(caller):
+                if inspect.ismethod(caller._func):
                     argsOrder = argsOrder[1:]
 
                 # Map args in
@@ -616,27 +622,32 @@ class BrowseHandler():  # webapp.RequestHandler
                     paramKey = argsOrder[idx]
                     if paramKey in annotations:  # We have to enforce a type-annotation for this *args parameter
                         _, newTypeValue = self.processTypeHint(annotations[paramKey], self.args[idx], True)
-                        newArgs.append(newTypeValue)
+                        caller_args.append(newTypeValue)
                     else:
-                        newArgs.append(self.args[idx])
-                newArgs.extend(self.args[min(len(self.args), len(argsOrder)):])
+                        caller_args.append(self.args[idx])
+                caller_args.extend(self.args[min(len(self.args), len(argsOrder)):])
                 # Last, we map the kwargs in
                 for k, v in kwargs.items():
                     if k in annotations:
                         newStrValue, newTypeValue = self.processTypeHint(annotations[k], v, False)
                         self.kwargs[k] = newStrValue
-                        newKwargs[k] = newTypeValue
+                        caller_kwargs[k] = newTypeValue
                     else:
-                        newKwargs[k] = v
+                        caller_kwargs[k] = v
             else:
-                newArgs = self.args
-                newKwargs = self.kwargs
-            if (conf.debug.traceExternalCallRouting and not self.internalRequest) or conf[
-                "viur.debug.traceInternalCallRouting"]:
-                logging.debug("Calling %s with args=%s and kwargs=%s" % (str(caller), str(newArgs), str(newKwargs)))
-            res = caller(*newArgs, **newKwargs)
-            res = str(res).encode("UTF-8") if not isinstance(res, bytes) else res
+                caller_args = self.args
+                caller_kwargs = self.kwargs
+
+            if (conf.debug.traceExternalCallRouting and not self.internalRequest
+                    or conf["viur.debug.traceInternalCallRouting"]):
+                logging.debug(f"Calling {caller=} with {args=}, {kwargs=}")
+
+            res = caller(*caller_args, **caller_kwargs)
+
+            if not isinstance(res, bytes):  # Convert the result to bytes if it is not already!
+                res = str(res).encode("UTF-8")
             self.response.write(res)
+
         except TypeError as e:
             if self.internalRequest:  # We provide that "service" only for requests originating from outside
                 raise

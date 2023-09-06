@@ -1,6 +1,7 @@
 import logging
 from typing import Any, Optional
-from viur.core import db, current, errors, exposed, forceSSL, securitykey
+from viur.core import db, current, errors
+from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
 from .skelmodule import SkelModule
@@ -55,7 +56,8 @@ class Singleton(SkelModule):
     ## External exposed functions
 
     @exposed
-    def preview(self, skey: str, *args, **kwargs) -> Any:
+    @skey
+    def preview(self, *args, **kwargs) -> Any:
         """
         Renders data for the entry, without reading it from the database.
         This function allows to preview the entry without writing it to the database.
@@ -68,9 +70,6 @@ class Singleton(SkelModule):
         """
         if not self.canPreview():
             raise errors.Unauthorized()
-
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
 
         skel = self.viewSkel()
         skel.fromClient(kwargs)
@@ -118,7 +117,8 @@ class Singleton(SkelModule):
         return self.render.view(skel)
 
     @exposed
-    @forceSSL
+    @force_ssl
+    @skey(allow_empty=True)
     def edit(self, *args, **kwargs) -> Any:
         """
         Modify the existing entry, and render the entry, eventually with error notes on incorrect data.
@@ -134,9 +134,6 @@ class Singleton(SkelModule):
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
-
-        skey = kwargs.get("skey", "")
-
         skel = self.editSkel()
 
         if not self.canEdit():
@@ -150,9 +147,6 @@ class Singleton(SkelModule):
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or ("bounce" in kwargs and kwargs["bounce"] == "1")):  # review before changing
             return self.render.edit(skel)
-
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
 
         self.onEdit(skel)
         skel.toDB()

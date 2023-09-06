@@ -27,14 +27,18 @@
 import os
 import webob
 import yaml
+import warnings
+import inspect
 from types import ModuleType
 from typing import Callable, Dict, Union, List
 from viur.core import session, errors, i18n, request, utils, current
 from viur.core.config import conf
 from viur.core.tasks import TaskHandler, runStartupTasks
-from viur.core.module import Module
+from viur.core.module import Module, Method
 # noinspection PyUnresolvedReferences
 from viur.core import logging as viurLogging  # unused import, must exist, initializes request logging
+from viur.core.decorators import force_post, force_ssl, internal_exposed, exposed as _exposed  # backward-compatibility
+
 import logging  # this import has to stay here, see #571
 
 
@@ -81,57 +85,6 @@ def setDefaultDomainLanguage(domain: str, lang: str):
     conf.viur.domainLanguageMapping[host] = lang.lower()
 
 
-def mapModule(moduleObj: object, moduleName: str, targetResolverRender: dict):
-    """
-        Maps each function that's exposed of moduleObj into the branch of `prop:viur.core.conf.viur.mainResolver`
-        that's referenced by `prop:targetResolverRender`. Will also walk `prop:_viurMapSubmodules` if set
-        and map these sub-modules also.
-    """
-    moduleFunctions = {}
-    for key in [x for x in dir(moduleObj) if x[0] != "_"]:
-        prop = getattr(moduleObj, key)
-        if key == "canAccess" or getattr(prop, "exposed", None):
-            moduleFunctions[key] = prop
-    for lang in conf.viur.availableLanguages or [conf.viur.defaultLanguage]:
-        # Map the module under each translation
-        if "seoLanguageMap" in dir(moduleObj) and lang in moduleObj.seoLanguageMap:
-            translatedModuleName = moduleObj.seoLanguageMap[lang]
-            if translatedModuleName not in targetResolverRender:
-                targetResolverRender[translatedModuleName] = {}
-            for fname, fcall in moduleFunctions.items():
-                targetResolverRender[translatedModuleName][fname] = fcall
-                # Map translated function names
-                if getattr(fcall, "seoLanguageMap", None) and lang in fcall.seoLanguageMap:
-                    targetResolverRender[translatedModuleName][fcall.seoLanguageMap[lang]] = fcall
-            if "_viurMapSubmodules" in dir(moduleObj):
-                # Map any Functions on deeper nested function
-                subModules = moduleObj._viurMapSubmodules
-                for subModule in subModules:
-                    obj = getattr(moduleObj, subModule, None)
-                    if obj:
-                        mapModule(obj, subModule, targetResolverRender[translatedModuleName])
-    if moduleName == "index":
-        targetFunctionLevel = targetResolverRender
-    else:
-        # Map the module also under it's original name
-        if moduleName not in targetResolverRender:
-            targetResolverRender[moduleName] = {}
-        targetFunctionLevel = targetResolverRender[moduleName]
-    for fname, fcall in moduleFunctions.items():
-        targetFunctionLevel[fname] = fcall
-        # Map translated function names
-        if getattr(fcall, "seoLanguageMap", None):
-            for translatedFunctionName in fcall.seoLanguageMap.values():
-                targetFunctionLevel[translatedFunctionName] = fcall
-    if "_viurMapSubmodules" in dir(moduleObj):
-        # Map any Functions on deeper nested function
-        subModules = moduleObj._viurMapSubmodules
-        for subModule in subModules:
-            obj = getattr(moduleObj, subModule, None)
-            if obj:
-                mapModule(obj, subModule, targetFunctionLevel)
-
-
 def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Dict], default: str = None):
     """
         Creates the application-context for the current instance.
@@ -151,80 +104,95 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
             This will be the renderer, which wont get a prefix, usually html.
             (=> /user instead of /html/user)
     """
-
-    class ExtendableObject(object):
-        pass
-
     if not isinstance(renderers, dict):
         # build up the dict from viur.core.render
-        renderers, renderRootModule = {}, renderers
-        for key, renderModule in vars(renderRootModule).items():
+        renderers, renderers_root = {}, renderers
+        for key, module in vars(renderers_root).items():
             if "__" not in key:
                 renderers[key] = {}
-                for subkey, render in vars(renderModule).items():
+                for subkey, render in vars(module).items():
                     if "__" not in subkey:
                         renderers[key][subkey] = render
-        del renderRootModule
+        del renderers_root
+
+    # instanciate root module
     if hasattr(modules, "index"):
-        if issubclass(modules.index, Module):
-            root = modules.index("index", "")
-        else:
-            root = modules.index()  # old style for backward compatibility
+        root = modules.index("index", "")
     else:
-        root = ExtendableObject()
-    modules._tasks = TaskHandler
+        root = Module("index", "")
 
-    # Default modules
+    # assign ViUR system modules
     from viur.core.modules.moduleconf import ModuleConf  # noqa: E402 # import works only here because circular imports
-    modules._moduleconf = ModuleConf
-
     from viur.core.modules.script import Script  # noqa: E402 # import works only here because circular imports
+
+    modules._tasks = TaskHandler
+    modules._moduleconf = ModuleConf
     modules.script = Script
 
-    resolverDict = {}
-    indexes = load_indexes_from_file()
-    for moduleName, moduleClass in vars(modules).items():  # iterate over all modules
-        if moduleName == "index":
-            mapModule(root, "index", resolverDict)
-            if isinstance(root, Module):
-                root.render = renderers[default]["default"](parent=root)
+    # create module mappings
+    indexes = load_indexes_from_file()  # todo: datastore index retrieval should be done in SkelModule
+    resolver = {}
+
+    for module_name, module_cls in vars(modules).items():  # iterate over all modules
+        if not inspect.isclass(module_cls) or not issubclass(module_cls, Module):
             continue
-        for renderName, render in renderers.items():  # look, if a particular render should be built
-            if getattr(moduleClass, renderName, False) is True:
-                modulePath = "%s/%s" % ("/" + renderName if renderName != default else "", moduleName)
-                moduleInstance = moduleClass(moduleName, modulePath)
-                # Attach the module-specific or the default render
-                moduleInstance.render = render.get(moduleName, render["default"])(parent=moduleInstance)
-                moduleInstance.indexes = indexes.get(moduleName, [])
-                if renderName == default:  # default or render (sub)namespace?
-                    setattr(root, moduleName, moduleInstance)
-                    targetResolverRender = resolverDict
-                else:
-                    if getattr(root, renderName, True) is True:
-                        # Render is not build yet, or it is just the simple marker that a given render should be build
-                        setattr(root, renderName, ExtendableObject())
-                    # Attach the module to the given renderer node
-                    setattr(getattr(root, renderName), moduleName, moduleInstance)
-                    targetResolverRender = resolverDict.setdefault(renderName, {})
-                mapModule(moduleInstance, moduleName, targetResolverRender)
-                # Apply Renderers postProcess Filters
-                if "_postProcessAppObj" in render:
-                    render["_postProcessAppObj"](targetResolverRender)
-        if hasattr(moduleClass, "seoLanguageMap"):
-            conf.viur.languageModuleMap[moduleName] = moduleClass.seoLanguageMap
-    conf.viur.mainResolver = resolverDict
+
+        if module_name == "index":
+            root.register(resolver, renderers[default]["default"](parent=root))
+            continue
+
+        for render_name, render in renderers.items():  # look, if a particular renderer should be built
+            # Only continue when module_cls is configured for this render
+            # todo: VIUR4 this is for legacy reasons, can be done better!
+            if not getattr(module_cls, render_name, False):
+                continue
+
+            # Create a new module instance
+            module_instance = module_cls(
+                module_name, ("/" + render_name if render_name != default else "") + "/" + module_name
+            )
+            module_instance.indexes = indexes.get(module_name, [])  # todo: Fix this in SkelModule (see above!)
+
+            # Attach the module-specific or the default render
+            if render_name == default:  # default or render (sub)namespace?
+                setattr(root, module_name, module_instance)
+                target = resolver
+            else:
+                if getattr(root, render_name, True) is True:
+                    # Render is not build yet, or it is just the simple marker that a given render should be build
+                    setattr(root, render_name, Module(render_name, "/" + render_name))
+
+                # Attach the module to the given renderer node
+                setattr(getattr(root, render_name), module_name, module_instance)
+                target = resolver.setdefault(render_name, {})
+
+            module_instance.register(target, render.get(module_name, render["default"])(parent=module_instance))
+
+            # Apply Renderers postProcess Filters
+            if "_postProcessAppObj" in render:  # todo: This is ugly!
+                render["_postProcessAppObj"](target)
+
+    conf["viur.mainResolver"] = resolver
 
     if conf.debug.traceExternalCallRouting or conf.debug.traceInternalCallRouting:
         from viur.core import email
         try:
-            email.sendEMailToAdmins("Debug mode enabled",
-                                    "ViUR just started a new Instance with calltracing enabled! This will log sensitive information!")
+            email.sendEMailToAdmins(
+                "Debug mode enabled",
+                "ViUR just started a new Instance with call tracing enabled! This might log sensitive information!"
+            )
         except:  # OverQuota, whatever
             pass  # Dont render this instance unusable
+
     if default in renderers and hasattr(renderers[default]["default"], "renderEmail"):
         conf.viur.emailRenderer = renderers[default]["default"]().renderEmail
     elif "html" in renderers:
         conf.viur.emailRenderer = renderers["html"]["default"]().renderEmail
+
+    # This might be useful for debugging, please keep it for now.
+    if conf["viur.debug.trace"]:
+        import pprint
+        logging.debug(pprint.pformat(resolver))
 
     return root
 
@@ -315,52 +283,28 @@ def app(environ: dict, start_response: Callable):
     return resp(environ, start_response)
 
 
-## Decorators ##
-def forceSSL(f: Callable) -> Callable:
-    """
-        Decorator, which forces usage of an encrypted Channel for a given resource.
-        Has no effect on development-servers.
-    """
-    f.forceSSL = True
-    return f
+# DEPRECATED ATTRIBUTES HANDLING
+
+__DEPRECATED_DECORATORS = {
+    # stuff prior viur-core < 3.5
+    "forcePost": ("force_post", force_post),
+    "forceSSL": ("force_ssl", force_ssl),
+    "internalExposed": ("internal_exposed", internal_exposed)
+}
 
 
-def forcePost(f: Callable) -> Callable:
-    """
-        Decorator, which forces usage of an http post request.
-    """
-    f.forcePost = True
-    return f
+def __getattr__(attr: str) -> object:
+    if entry := __DEPRECATED_DECORATORS.get(attr):
+        func = entry[1]
+        msg = f"@{attr} was replaced by @{entry[0]} and should be imported from viur.core.decorators"
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+        logging.warning(msg, stacklevel=2)
+        return func
 
+    if attr == "exposed":
+        msg = "@exposed should be imported from viur.core.decorators"
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+        logging.warning(msg, stacklevel=2)
+        return _exposed
 
-def exposed(f: Union[Callable, dict]) -> Callable:
-    """
-        Decorator, which marks an function as exposed.
-
-        Only exposed functions are callable by http-requests.
-        Can optionally receive a dict of language->translated name to make that function
-        available under different names
-    """
-    if isinstance(f, dict):
-        # We received said dictionary:
-        def exposeWithTranslations(g):
-            g.exposed = True
-            g.seoLanguageMap = f
-            return g
-
-        return exposeWithTranslations
-    else:
-        f.exposed = True
-        f.seoLanguageMap = None
-        return f
-
-
-def internalExposed(f: Callable) -> Callable:
-    """
-        Decorator, marks an function as internal exposed.
-
-        Internal exposed functions are not callable by external http-requests,
-        but can be called by templates using ``execRequest()``.
-    """
-    f.internalExposed = True
-    return f
+    return super(__import__(__name__).__class__).__getattr__(attr)

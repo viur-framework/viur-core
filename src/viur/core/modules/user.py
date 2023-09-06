@@ -7,20 +7,22 @@ import json
 import logging
 import secrets
 import warnings
+import user_agents
+
 import pyotp
 import base64
 import collections
 import dataclasses
 import typing
-
 import time
 from google.auth.transport import requests
 from google.oauth2 import id_token
 
 from viur.core import (
-    conf, current, db, email, errors, exposed, forceSSL, i18n,
+    conf, current, db, email, errors, i18n,
     securitykey, session, skeleton, tasks, utils, Module
 )
+from viur.core.decorators import *
 from viur.core.bones import *
 from viur.core.bones.password import PBKDF2_DEFAULT_ITERATIONS, encode_password
 from viur.core.prototypes.list import List
@@ -208,7 +210,13 @@ class UserSkel(skeleton.Skeleton):
         return super().toDB(skel, *args, **kwargs)
 
 
-class UserPassword:
+class UserAuthentication(Module):
+    def __init__(self, moduleName, modulePath, userModule):
+        super().__init__(moduleName, modulePath)
+        self._user_module = userModule
+
+
+class UserPassword(UserAuthentication):
     registrationEnabled = False
     registrationEmailVerificationRequired = True
     registrationAdminVerificationRequired = True
@@ -221,11 +229,10 @@ class UserPassword:
     passwordRecoveryAlreadySendTemplate = "user_passwordrecover_already_sent"
     passwordRecoverySuccessTemplate = "user_passwordrecover_success"
     passwordRecoveryInvalidTokenTemplate = "user_passwordrecover_invalid_token"
-    passwordRecoveryInstuctionsSendTemplate = "user_passwordrecover_mail_sent"
+    passwordRecoveryInstructionsSentTemplate = "user_passwordrecover_mail_sent"
     passwordRecoveryStep1Template = "user_passwordrecover_step1"
     passwordRecoveryStep2Template = "user_passwordrecover_step2"
     passwordRecoveryFailedTemplate = "user_passwordrecover_failed"
-
     # The default rate-limit for password recovery (10 tries each 15 minutes)
     passwordRecoveryRateLimit = RateLimit("user.passwordrecovery", 10, 15, "ip")
     # Limit (invalid) login-retries to once per 5 seconds
@@ -253,11 +260,6 @@ class UserPassword:
         hint="Attempted password recovery on a locked account"
     )
 
-    def __init__(self, userModule, modulePath):
-        super().__init__()
-        self.userModule = userModule
-        self.modulePath = modulePath
-
     @classmethod
     def getAuthMethodName(*args, **kwargs):
         return "X-VIUR-AUTH-User-Password"
@@ -268,25 +270,31 @@ class UserPassword:
 
     class LostPasswordStep1Skel(skeleton.RelSkel):
         name = EmailBone(descr="Username", required=True)
-        captcha = CaptchaBone(descr="Captcha", required=True)
 
     class LostPasswordStep2Skel(skeleton.RelSkel):
-        recoveryKey = StringBone(descr="Verification Code", required=True)
-        password = PasswordBone(descr="New Password", required=True)
+        recovery_key = StringBone(
+            descr="Recovery Key",
+            visible=False,
+        )
+        password = PasswordBone(
+            descr="New Password",
+            required=True,
+        )
 
     @exposed
-    @forceSSL
-    def login(self, name=None, password=None, skey="", *args, **kwargs):
+    @force_ssl
+    @skey(allow_empty=True)
+    def login(self, *, name: str | None = None, password: str | None = None, **kwargs):
         if current.user.get():  # User is already logged in, nothing to do.
-            return self.userModule.render.loginSucceeded()
+            return self._user_module.render.loginSucceeded()
 
-        if not name or not password or not securitykey.validate(skey):
-            return self.userModule.render.login(self.LoginSkel())
+        if not name or not password:
+            return self._user_module.render.login(self.LoginSkel())
 
         self.loginRateLimit.assertQuotaIsAvailable()
 
         name = name.lower().strip()
-        query = db.Query(self.userModule.viewSkel().kindName)
+        query = db.Query(self._user_module.viewSkel().kindName)
         user_entry = query.filter("name.idx >=", name).getEntry() or {}  # might find another user; always keep a dict
 
         password_data = user_entry.get("password") or {}
@@ -316,117 +324,116 @@ class UserPassword:
         if not is_okay:
             self.loginRateLimit.decrementQuota()  # Only failed login attempts will count to the quota
             skel = self.LoginSkel()
-            return self.userModule.render.login(skel, loginFailed=True, accountStatus=status)
+            return self._user_module.render.login(skel, loginFailed=True, accountStatus=status)
 
         if iterations < PBKDF2_DEFAULT_ITERATIONS:
             logging.info(f"Update password hash for user {name}.")
             # re-hash the password with more iterations
-            skel = self.userModule.editSkel()
+            skel = self._user_module.editSkel()
             skel.setEntity(user_entry)
             skel["key"] = user_entry.key
             skel["password"] = password  # will be hashed on serialize
             skel.toDB(update_relations=False)
 
-        return self.userModule.continueAuthenticationFlow(self, user_entry.key)
+        return self._user_module.continueAuthenticationFlow(self, user_entry.key)
 
     @exposed
-    def pwrecover(self, *args, **kwargs):
+    def pwrecover(self, recovery_key: str | None = None, skey: str | None = None, *args, **kwargs):
         """
-            This implements the password recovery process which let them set a new password for their account
-            after validating a code send to them by email. The process is as following:
+            This implements a password recovery process which lets users set a new password for their account,
+            after validating a recovery key sent by email.
+
+            The process is as following:
 
             - The user enters his email adress
-            - We'll generate a random code, store it in his session and call sendUserPasswordRecoveryCode
+            - We'll generate a random code and store it as a security-key and call sendUserPasswordRecoveryCode
             - sendUserPasswordRecoveryCode will run in the background, check if we have a user with that name
-              and send the code. It runs as a deferredTask so we don't leak the information if a user account exists.
-            - If the user received his code, he can paste the code and set a new password for his account.
+              and send a link with the code . It runs as a deferredTask so we don't leak the information if a user
+              account exists.
+            - If the user received his email, he can click on the link and set a new password for his account.
 
             To prevent automated attacks, the fist step is guarded by a captcha and we limited calls to this function
             to 10 actions per 15 minutes. (One complete recovery process consists of two calls).
         """
         self.passwordRecoveryRateLimit.assertQuotaIsAvailable()
-        session = current.session.get()
-        request = current.request.get()
-        recoverStep = session.get("user.auth_userpassword.pwrecover")
-        if not recoverStep:
+        current_request = current.request.get()
+
+        if recovery_key is None:
             # This is the first step, where we ask for the username of the account we'll going to reset the password on
             skel = self.LostPasswordStep1Skel()
-            if not request.isPostRequest or not skel.fromClient(kwargs):
+
+            if not current_request.isPostRequest or not skel.fromClient(kwargs):
                 return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
-            if not securitykey.validate(kwargs.get("skey")):
+
+            # validate security key
+            if not securitykey.validate(skey):
                 raise errors.PreconditionFailed()
+
             self.passwordRecoveryRateLimit.decrementQuota()
-            recoveryKey = utils.generateRandomString(13)  # This is the key the user will have to Copy&Paste
-            self.sendUserPasswordRecoveryCode(skel["name"].lower(), recoveryKey)  # Send the code in the background
-            session["user.auth_userpassword.pwrecover"] = {
-                "name": skel["name"].lower(),
-                "recoveryKey": recoveryKey,
-                "creationdate": utils.utcNow(),
-                "errorCount": 0
-            }
-            del recoveryKey
-            return self.pwrecover()  # Fall through to the second step as that key in the session is now set
-        else:
-            if request.isPostRequest and kwargs.get("abort") == "1" and securitykey.validate(kwargs.get("skey")):
-                # Allow a user to abort the process if a wrong email has been used
-                session["user.auth_userpassword.pwrecover"] = None
-                return self.pwrecover()
-            # We're in the second step - the code has been send and is waiting for confirmation from the user
-            if utils.utcNow() - session["user.auth_userpassword.pwrecover"]["creationdate"] \
-                    > datetime.timedelta(minutes=15):
-                # This recovery-process is expired; reset the session and start over
-                session["user.auth_userpassword.pwrecover"] = None
-                return self.userModule.render.view(
-                    skel=None,
-                    tpl=self.passwordRecoveryFailedTemplate,
-                    reason=self.passwordRecoveryKeyExpired)
-            skel = self.LostPasswordStep2Skel()
-            if not skel.fromClient(kwargs) or not request.isPostRequest:
-                return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep2Template)
-            if not securitykey.validate(kwargs.get("skey")):
-                raise errors.PreconditionFailed()
-            self.passwordRecoveryRateLimit.decrementQuota()
-            if not hmac.compare_digest(session["user.auth_userpassword.pwrecover"]["recoveryKey"], skel["recoveryKey"]):
-                # The key was invalid, increase error-count or abort this recovery process altogether
-                session["user.auth_userpassword.pwrecover"]["errorCount"] += 1
-                if session["user.auth_userpassword.pwrecover"]["errorCount"] > 3:
-                    session["user.auth_userpassword.pwrecover"] = None
-                    return self.userModule.render.view(
-                        skel=None,
-                        tpl=self.passwordRecoveryFailedTemplate,
-                        reason=self.passwordRecoveryKeyInvalid)
 
-                return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep2Template)  # Let's try again
+            recovery_key = securitykey.create(
+                duration=15 * 60,
+                key_length=conf["viur.security.password_recovery_key_length"],
+                user_name=skel["name"].lower(),
+                session_bound=False,
+            )
 
-            # If we made it here, the key was correct, so we'd hopefully have a valid user for this
-            user_skel = self.userModule.viewSkel().all().filter(
-                "name.idx =", session["user.auth_userpassword.pwrecover"]["name"]).getSkel()
+            # Send the code in background
+            self.sendUserPasswordRecoveryCode(
+                skel["name"], recovery_key, current_request.request.headers["User-Agent"]
+            )
 
-            if not user_skel:
-                # This *should* never happen - if we don't have a matching account we'll not send the key.
-                session["user.auth_userpassword.pwrecover"] = None
-                return self.userModule.render.view(
-                    skel=None,
-                    tpl=self.passwordRecoveryFailedTemplate,
-                    reason=self.passwordRecoveryUserNotFound)
+            return self.userModule.render.view(None, tpl=self.passwordRecoveryInstructionsSentTemplate)
 
-            if user_skel["status"] != Status.ACTIVE:
-                # The account is locked or not yet validated. Abort the process.
-                session["user.auth_userpassword.pwrecover"] = None
-                return self.userModule.render.view(
-                    skel=None,
-                    tpl=self.passwordRecoveryFailedTemplate,
-                    reason=self.passwordRecoveryAccountLocked)
+        # in step 2
+        skel = self.LostPasswordStep2Skel()
 
-            # Update the password, save the user, reset his session and show the success-template
-            user_skel["password"] = skel["password"]
-            user_skel.toDB()
-            session["user.auth_userpassword.pwrecover"] = None
+        # check for any input; Render input-form when incomplete.
+        skel["recovery_key"] = recovery_key
+        if not skel.fromClient(kwargs) or not current_request.isPostRequest:
+            return self.userModule.render.edit(
+                skel=skel,
+                tpl=self.passwordRecoveryStep2Template,
+                recovery_key=recovery_key
+            )
 
-            return self.userModule.render.view(None, tpl=self.passwordRecoverySuccessTemplate)
+        # validate security key
+        if not securitykey.validate(skey):
+            raise errors.PreconditionFailed()
+
+        if not (recovery_request := securitykey.validate(recovery_key, session_bound=False)):
+            return self.userModule.render.view(
+                skel=None,
+                tpl=self.passwordRecoveryFailedTemplate,
+                reason=self.passwordRecoveryKeyExpired)
+
+        self.passwordRecoveryRateLimit.decrementQuota()
+
+        # If we made it here, the key was correct, so we'd hopefully have a valid user for this
+        user_skel = self.userModule.viewSkel().all().filter("name.idx =", recovery_request["user_name"]).getSkel()
+
+        if not user_skel:
+            # This *should* never happen - if we don't have a matching account we'll not send the key.
+            return self.userModule.render.view(
+                skel=None,
+                tpl=self.passwordRecoveryFailedTemplate,
+                reason=self.passwordRecoveryUserNotFound)
+
+        if user_skel["status"] != Status.ACTIVE:  # The account is locked or not yet validated. Abort the process.
+            return self.userModule.render.view(
+                skel=None,
+                tpl=self.passwordRecoveryFailedTemplate,
+                reason=self.passwordRecoveryAccountLocked
+            )
+
+        # Update the password, save the user, reset his session and show the success-template
+        user_skel["password"] = skel["password"]
+        user_skel.toDB(update_relations=False)
+
+        return self.userModule.render.view(None, tpl=self.passwordRecoverySuccessTemplate)
 
     @tasks.CallDeferred
-    def sendUserPasswordRecoveryCode(self, userName: str, recoveryKey: str) -> None:
+    def sendUserPasswordRecoveryCode(self, user_name: str, recovery_key: str, user_agent: str) -> None:
         """
             Sends the given recovery code to the user given in userName. This function runs deferred
             so there's no timing sidechannel that leaks if this user exists. Per default, we'll send the
@@ -434,34 +441,34 @@ class UserPassword:
             by SMS or other means. We'll also update the changedate for this user, so no more than one code
             can be send to any given user in four hours.
         """
-
-        def updateChangeDateTxn(key):
-            obj = db.Get(key)
-            obj["changedate"] = utils.utcNow()
-            db.Put(obj)
-
-        user = db.Query("user").filter("name.idx =", userName).getEntry()
-        if user:
-            if user.get("changedate") and user["changedate"] > utils.utcNow() - datetime.timedelta(hours=4):
-                # There is a changedate and the user has been modified in the last 4 hours - abort
-                return
-            # Update the changedate so no more than one email is send per 4 hours
-            db.RunInTransaction(updateChangeDateTxn, user.key)
-            email.sendEMail(tpl=self.passwordRecoveryMail, skel={"recoveryKey": recoveryKey}, dests=[userName])
+        if user_skel := self.userModule.viewSkel().all().filter("name.idx =", user_name).getSkel():
+            user_agent = user_agents.parse(user_agent)
+            email.sendEMail(
+                tpl=self.passwordRecoveryMail,
+                skel=user_skel,
+                dests=[user_name],
+                recovery_key=recovery_key,
+                user_agent={
+                    "device": user_agent.get_device(),
+                    "os": user_agent.get_os(),
+                    "browser": user_agent.get_browser()
+                }
+            )
 
     @exposed
-    def verify(self, skey, *args, **kwargs):
-        data = securitykey.validate(skey, session_bound=False)
-        skel = self.userModule.editSkel()
+    @skey(allow_empty=True, forward_argument="skey", session_bound=False)
+    def verify(self, *args, **kwargs):
+        data = skey
+        skel = self._user_module.editSkel()
         if not data or not isinstance(data, dict) or "userKey" not in data or not skel.fromDB(
             data["userKey"].id_or_name):
-            return self.userModule.render.view(None, tpl=self.verifyFailedTemplate)
+            return self._user_module.render.view(None, tpl=self.verifyFailedTemplate)
         if self.registrationAdminVerificationRequired:
             skel["status"] = Status.WAITING_FOR_ADMIN_VERIFICATION
         else:
             skel["status"] = Status.ACTIVE
         skel.toDB()
-        return self.userModule.render.view(skel, tpl=self.verifySuccessTemplate)
+        return self._user_module.render.view(skel, tpl=self.verifySuccessTemplate)
 
     def canAdd(self) -> bool:
         return self.registrationEnabled
@@ -469,11 +476,11 @@ class UserPassword:
     def addSkel(self):
         """
             Prepare the add-Skel for rendering.
-            Currently only calls self.userModule.addSkel() and sets skel["status"] depending on
+            Currently only calls self._user_module.addSkel() and sets skel["status"] depending on
             self.registrationEmailVerificationRequired and self.registrationAdminVerificationRequired
             :return: viur.core.skeleton.Skeleton
         """
-        skel = self.userModule.addSkel()
+        skel = self._user_module.addSkel()
 
         if self.registrationEmailVerificationRequired:
             defaultStatusValue = Status.WAITING_FOR_EMAIL_VERIFICATION
@@ -490,8 +497,9 @@ class UserPassword:
 
         return skel
 
-    @forceSSL
+    @force_ssl
     @exposed
+    @skey(allow_empty=True)
     def add(self, *args, **kwargs):
         """
             Allows guests to register a new account if self.registrationEnabled is set to true
@@ -512,9 +520,7 @@ class UserPassword:
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or ("bounce" in kwargs and kwargs["bounce"] == "1")):  # review before adding
             # render the skeleton in the version it could as far as it could be read.
-            return self.userModule.render.add(skel)
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
+            return self._user_module.render.add(skel)
         skel.toDB()
         if self.registrationEmailVerificationRequired and skel["status"] == Status.WAITING_FOR_EMAIL_VERIFICATION:
             # The user will have to verify his email-address. Create a skey and send it to his address
@@ -523,30 +529,26 @@ class UserPassword:
                                       name=skel["name"])
             skel.skey = BaseBone(descr="Skey")
             skel["skey"] = skey
-            email.sendEMail(dests=[skel["name"]], tpl=self.userModule.verifyEmailAddressMail, skel=skel)
-        self.userModule.onAdded(skel)  # Call onAdded on our parent user module
-        return self.userModule.render.addSuccess(skel)
+            email.sendEMail(dests=[skel["name"]], tpl=self._user_module.verifyEmailAddressMail, skel=skel)
+        self._user_module.onAdded(skel)  # Call onAdded on our parent user module
+        return self._user_module.render.addSuccess(skel)
 
 
-class GoogleAccount:
+class GoogleAccount(UserAuthentication):
     registrationEnabled = False
-
-    def __init__(self, userModule, modulePath):
-        super().__init__()
-        self.userModule = userModule
-        self.modulePath = modulePath
 
     @classmethod
     def getAuthMethodName(*args, **kwargs):
         return "X-VIUR-AUTH-Google-Account"
 
     @exposed
-    @forceSSL
-    def login(self, skey="", token="", *args, **kwargs):
+    @force_ssl
+    @skey(allow_empty=True)
+    def login(self, token, *args, **kwargs):
         # FIXME: Check if already logged in
         if not conf.get("viur.user.google.clientID"):
             raise errors.PreconditionFailed("Please configure 'viur.user.google.clientID' in your conf!")
-        if not skey or not token:
+        if not token:
             request = current.request.get()
             request.response.headers["Content-Type"] = "text/html"
             if request.response.headers.get("cross-origin-opener-policy") == "same-origin":
@@ -561,8 +563,6 @@ class GoogleAccount:
             extendCsp({"script-src": ["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
                        "style-src": ["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]})
             return tplStr
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
         userInfo = id_token.verify_oauth2_token(token, requests.Request(), conf.viur.user_google_clientID)
         if userInfo['iss'] not in {'accounts.google.com', 'https://accounts.google.com'}:
             raise ValueError('Wrong issuer.')
@@ -570,8 +570,8 @@ class GoogleAccount:
         uid = userInfo['sub']
         email = userInfo['email']
 
-        # fixme: use self.userModule.baseSkel() for this later
-        addSkel = skeleton.skeletonByKind(self.userModule.addSkel().kindName)  # Ensure that we have the full skeleton
+        # fixme: use self._user_module.baseSkel() for this later
+        addSkel = skeleton.skeletonByKind(self._user_module.addSkel().kindName)  # Ensure that we have the full skeleton
 
         update = False
         if not (userSkel := addSkel().all().filter("uid =", uid).getSkel()):
@@ -616,10 +616,10 @@ class GoogleAccount:
             #    userSkel["gaeadmin"] = False
             assert userSkel.toDB()
 
-        return self.userModule.continueAuthenticationFlow(self, userSkel["key"])
+        return self._user_module.continueAuthenticationFlow(self, userSkel["key"])
 
 
-class TimeBasedOTP:
+class TimeBasedOTP(UserAuthentication):
     WINDOW_SIZE = 5
     MAX_RETRY = 3
     otpTemplate = "user_login_timebasedotp"
@@ -646,11 +646,6 @@ class TimeBasedOTP:
             max=999999,
             min=0,
         )
-
-    def __init__(self, userModule, modulePath):
-        super().__init__()
-        self.userModule = userModule
-        self.modulePath = modulePath
 
     @classmethod
     def get2FactorMethodName(*args, **kwargs):  # fixme: What is the purpose of this function? Why not just a member?
@@ -693,14 +688,12 @@ class TimeBasedOTP:
         return self.userModule.render.edit(self.OtpSkel(), action="otp", tpl=self.otpTemplate)
 
     @exposed
-    @forceSSL
-    def otp(self, skey: str = None, *args, **kwargs):
+    @force_ssl
+    @skey(allow_empty=True)
+    def otp(self, *args, **kwargs):
         """
         Performs the second factor validation and interaction with the client.
         """
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
-
         session = current.session.get()
         if not (otp_user_conf := session.get("_otp_user")):
             raise errors.PreconditionFailed("No OTP process started in this session")
@@ -896,29 +889,18 @@ class User(List):
         "admin": "*",
     }
 
-    def __init__(self, moduleName, modulePath, *args, **kwargs):
-        super().__init__(moduleName, modulePath, *args, **kwargs)
+    def __init__(self, moduleName, modulePath):
+        for provider in self.authenticationProviders:
+            assert issubclass(provider, UserAuthentication)
+            name = f"auth_{provider.__name__.lower()}"
+            setattr(self, name, provider(name, f"{modulePath}/{name}", self))
 
-        # Initialize the login-providers
-        self.initializedAuthenticationProviders = {}
-        self.initializedSecondFactorProviders = {}
-        self._viurMapSubmodules = []
+        for provider in self.secondFactorProviders:
+            assert issubclass(provider, UserAuthentication)
+            name = f"f2_{provider.__name__.lower()}"
+            setattr(self, name, provider(name, f"{modulePath}/{name}", self))
 
-        for p in self.authenticationProviders:
-            pInstance = p(self, modulePath + "/auth_%s" % p.__name__.lower())
-            self.initializedAuthenticationProviders[pInstance.__class__.__name__.lower()] = pInstance
-
-            # Also put it as an object into self, so that any exposed function is reachable
-            setattr(self, "auth_%s" % pInstance.__class__.__name__.lower(), pInstance)
-            self._viurMapSubmodules.append("auth_%s" % pInstance.__class__.__name__.lower())
-
-        for p in self.secondFactorProviders:
-            pInstance = p(self, modulePath + "/f2_%s" % p.__name__.lower())
-            self.initializedAuthenticationProviders[pInstance.__class__.__name__.lower()] = pInstance
-
-            # Also put it as an object into self, so that any exposed function is reachable
-            setattr(self, "f2_%s" % pInstance.__class__.__name__.lower(), pInstance)
-            self._viurMapSubmodules.append("f2_%s" % pInstance.__class__.__name__.lower())
+        super().__init__(moduleName, modulePath)
 
     def get_role_defaults(self, role: str) -> set[str]:
         """
@@ -1051,15 +1033,14 @@ class User(List):
         return self.render.loginSucceeded(**kwargs)
 
     @exposed
-    def logout(self, skey="", *args, **kwargs):
+    @skey
+    def logout(self, *args, **kwargs):
         """
             Implements the logout action. It also terminates the current session (all keys not listed
             in viur.session_persistentFieldsOnLogout will be lost).
         """
         if not (user := current.user.get()):
             raise errors.Unauthorized()
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
 
         self.onLogout(user)
 

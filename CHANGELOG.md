@@ -2,8 +2,24 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.5.0.beta3]
+## [3.5.0.beta4]
 
+- feat: Implement a new `Module`/`Method` concept with new decorators (#800)
+- feat: Implement `retry_n_times` decorator (#655)
+- refactor: Refactor password recovery process in stock `User`-module (#682)
+- chore: Update pipenv and requirements.txt (#824)
+- fix: Update `PasswordBone`s test_threshold and its structure rendering  (#823)
+- fix: `renderEditForm` failed when `ignore` or `bone` was None (#819)
+- fix: `Tree.getRootNode` failed when parentrepo was None (#818)
+- feat: custom actions for user maintenance and debug triggers (#712)
+- feat: Add `bones` parameter for `renderEditForm` (#812)
+- refactor: User-module `TimeBasedOTP` (#802)
+- feat: Implement natural sorting in `StringBone` (#809)
+- feat: Implement a `PeriodicTask` to check the remaining SIB email quota (#808)
+- chore: Upate viur-datastore (#814)
+- fix: Add 'session_bound=False' for the skey during email verification (#810)
+- fix: docs configuration after #804 (#807)
+- refactor: Package and folder layout (#804)
 - refactor: Changed package folder layout
 - fix: pillow replaces `Image.ANTIALIAS` by `Image.LANCZOS`
 - fix: guessTimeZone() fails with Python 3.11 (#789)

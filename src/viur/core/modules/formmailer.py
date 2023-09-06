@@ -1,5 +1,6 @@
 from viur.core.skeleton import RelSkel
-from viur.core import errors, utils, securitykey, exposed, email
+from viur.core import errors, utils, securitykey, email
+from viur.core.decorators import *
 from viur.core.bones import BaseBone
 from viur.core.module import Module
 
@@ -12,6 +13,7 @@ class Formmailer(Module):
     mailTemplate = None
 
     @exposed
+    @skey(allow_empty=True)
     def index(self, *args, **kwargs):
         if not self.canUse():
             raise errors.Forbidden()  # Unauthorized
@@ -23,9 +25,6 @@ class Formmailer(Module):
 
         if not skel.fromClient(kwargs) or not "skey" in kwargs:
             return self.render.add(skel=skel, failed=True)
-
-        if not securitykey.validate(kwargs["skey"]):
-            raise errors.PreconditionFailed()
 
         # Allow bones to perform outstanding "magic" operations before sending the mail
         for key, _bone in skel.items():

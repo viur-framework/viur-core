@@ -476,12 +476,17 @@ class Security(ConfigType):
     If set, must be a dictionary of "sitekey" and "secret".
     """
 
+    password_recovery_key_length = 42
+    """Length of the Password recovery key"""
+
     _mapping = {
         "captcha.defaultCredentials": "captcha_defaultCredentials",
     }
 
 
 class Debug(ConfigType):
+    trace = False
+    """If enabled, trace any routing and decorations for debugging and insight"""
     traceExceptions = False
     """If enabled, user-generated exceptions from the viur.core.errors module won't be caught and handled"""
     traceExternalCallRouting = False

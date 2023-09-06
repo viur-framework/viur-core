@@ -1,9 +1,10 @@
 # noinspection PyUnresolvedReferences
 from viur.core.render.vi.user import UserRender as user  # this import must exist!
-from viur.core.render.json import skey
+from viur.core.render.json import skey as json_render_skey
 from viur.core.render.json.default import DefaultRender, CustomJsonEncoder
 from viur.core.render.vi.user import UserRender as user
-from viur.core import Module, conf, current, exposed, securitykey, errors
+from viur.core import Module, conf, current, errors
+from viur.core.decorators import *
 from viur.core.skeleton import SkeletonInstance
 import datetime
 import json
@@ -64,10 +65,8 @@ def getStructure(module):
 
 
 @exposed
-def setLanguage(lang, skey):
-    if not securitykey.validate(skey):
-        raise errors.PreconditionFailed()
-
+@skey
+def setLanguage(lang):
     if lang in conf.viur.availableLanguages:
         current.language.set(lang)
 
@@ -163,7 +162,7 @@ def get_settings():
 
 
 def _postProcessAppObj(obj):
-    obj["skey"] = skey
+    obj["skey"] = json_render_skey
     obj["timestamp"] = timestamp
     obj["config"] = dumpConfig
     obj["settings"] = get_settings
