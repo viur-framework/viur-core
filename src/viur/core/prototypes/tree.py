@@ -396,10 +396,11 @@ class Tree(SkelModule):
         # parentrepo may not exist in parentNodeSkel as it may be an rootNode
         skel["parentrepo"] = parentNodeSkel["parentrepo"] or parentNodeSkel["key"]
 
-        if (len(kwargs) == 0  # no data supplied
+        if (
+            not kwargs  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or not current.request.get().isPostRequest
-            or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
+            or kwargs.get("bounce") == "1"  # review before adding
         ):
             return self.render.add(skel)
 
@@ -440,10 +441,11 @@ class Tree(SkelModule):
             raise errors.NotFound()
         if not self.canEdit(skelType, skel):
             raise errors.Unauthorized()
-        if (len(kwargs) == 0  # no data supplied
+        if (
+            not kwargs  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or not current.request.get().isPostRequest
-            or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
+            or kwargs.get("bounce") == "1"  # review before adding
         ):
             return self.render.edit(skel)
         self.onEdit(skelType, skel)
@@ -623,10 +625,11 @@ class Tree(SkelModule):
             skel["parentrepo"]  # because of accessedValues... bullshit
 
         # Check all required preconditions for clone
-        if (len(kwargs) == 0  # no data supplied
+        if (
+                not kwargs  # no data supplied
                 or not skel.fromClient(kwargs)  # failure on reading into the bones
                 or not current.request.get().isPostRequest
-                or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
+                or kwargs.get("bounce") == "1"  # review before adding
         ):
             return self.render.edit(skel, action="clone")
 

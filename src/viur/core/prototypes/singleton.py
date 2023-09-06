@@ -150,9 +150,11 @@ class Singleton(SkelModule):
         if not skel.fromDB(key):  # Its not there yet; we need to set the key again
             skel["key"] = key
 
-        if (len(kwargs) == 0  # no data supplied
+        if (
+            not kwargs  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or ("bounce" in kwargs and kwargs["bounce"] == "1")):  # review before changing
+            or kwargs.get("bounce") == "1"  # review before changing
+        ):
             return self.render.edit(skel)
 
         self.onEdit(skel)
