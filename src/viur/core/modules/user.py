@@ -284,7 +284,7 @@ class UserPassword(UserAuthentication):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def login(self, *, name: str = "", password: str = "", **kwargs):
+    def login(self, *, name: str | None = None, password: str | None = None, **kwargs):
         if current.user.get():  # User is already logged in, nothing to do.
             return self._user_module.render.loginSucceeded()
 
