@@ -651,6 +651,10 @@ class TimeBasedOTP(UserAuthentication):
             min=0,
         )
 
+    def __init__(self, moduleName, modulePath, userModule):
+        super().__init__(moduleName, modulePath, userModule)
+        self.action_url = f"{self.modulePath}/{self.ACTION_NAME}"
+
     @classmethod
     def get2FactorMethodName(*args, **kwargs):  # fixme: What is the purpose of this function? Why not just a member?
         return "X-VIUR-2FACTOR-TimeBasedOTP"
@@ -836,12 +840,16 @@ class AuthenticatorOTP(UserAuthentication):
     """Template to configure (add) a new TOPT"""
     otp_login_template = "user_login_secondfactor"
     """Template to enter the TOPT on login"""
-    ACTION_NAME = "authenticatorOTP"
+    ACTION_NAME = "otp"
     """Action name provided for *otp_template* on login"""
 
+    def __init__(self, moduleName, modulePath, userModule):
+        super().__init__(moduleName, modulePath, userModule)
+        self.action_url = f"{self.modulePath}/{self.ACTION_NAME}"
     @exposed
     @force_ssl
-    def add(self, otp=None, skey=None):
+    @skey(allow_empty=True)
+    def add(self, otp=None):
         """
         We try to read the otp_app_secret form the current session. When this fails we generate a new one and store
         it in the session.
@@ -856,13 +864,11 @@ class AuthenticatorOTP(UserAuthentication):
             current_session["_maybe_otp_app_secret"] = otp_app_secret
             current_session.markChanged()
 
-        if otp is None or skey is None:
+        if otp is None:
             return self._user_module.render.second_factor_add(
                 tpl=self.otp_add_template,
                 otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))
         else:
-            if not securitykey.validate(skey):
-                raise errors.PreconditionFailed()
             if not AuthenticatorOTP.verify_otp(otp, otp_app_secret):
                 return self._user_module.render.second_factor_add(
                     tpl=self.otp_add_template,
@@ -932,7 +938,8 @@ class AuthenticatorOTP(UserAuthentication):
 
     def startProcessing(self, user_key: str | db.Key):
         return self._user_module.render.edit(TimeBasedOTP.OtpSkel(),
-                                             action=f"{self.modulePath}/{self.ACTION_NAME}",
+                                             action_name= self.ACTION_NAME,
+                                             action_url=self.action_url,
                                              tpl=self.otp_login_template)
 
     @exposed
@@ -960,7 +967,7 @@ class AuthenticatorOTP(UserAuthentication):
             skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token")]
             return self._user_module.render.edit(skel,
                                                  action_name=self.ACTION_NAME,
-                                                 action_url=f"{self.modulePath}/{self.ACTION_NAME}",
+                                                 action_url=self.action_url,
                                                  tpl=self.otp_login_template)
 
 
@@ -1121,13 +1128,17 @@ class User(List):
 
         second_factor_providers = []
         for auth_provider, second_factor in self.validAuthenticationMethods:
-            if isinstance(caller, authProvider):
+            if isinstance(caller, auth_provider):
                 if second_factor is not None:
                     second_factor_provider_instance = self.secondFactorProviderByClass(second_factor)
                     if second_factor_provider_instance.canHandle(userKey):
                         second_factor_providers.append(second_factor_provider_instance)
                 else:
                     second_factor_providers.append(None)
+        if len(second_factor_providers)>1 and None in second_factor_providers:
+            # We have a second factor so we can get rid of the None
+            second_factor_providers.pop(second_factor_providers.index(None))
+
         if len(second_factor_providers) == 0:
             raise errors.NotAcceptable("There are no authentication methods to try")
         elif len(second_factor_providers) == 1:
