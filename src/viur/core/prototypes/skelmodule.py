@@ -64,7 +64,12 @@ class SkelModule(Module):
 
         return self._resolveSkelCls(*args, **kwargs)()
 
-    def read(self, key: db.Key | str | int, action: str = None, *args, **kwargs) -> SkeletonInstance | None:
+    def read(
+        self,
+        key: db.Key | str | int,
+        action: str = None,
+        *args, **kwargs
+    ) -> SkeletonInstance | None:
         """
         Reads and returns a SkeletonInstance to a given key.
 
@@ -78,3 +83,9 @@ class SkelModule(Module):
             return skel
 
         return None
+
+    def can(self, action: str) -> bool:
+        if (user := current.user.get()) and user["access"]:
+            return "root" in user["access"] or f"{self.moduleName}-{action}" in user["access"]:
+
+        return False
