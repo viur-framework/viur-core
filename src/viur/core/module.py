@@ -57,7 +57,7 @@ class Method:
         Wrapper to call the Method directly.
         """
 
-        if trace := conf["viur.debug.trace"]:
+        if trace := conf.debug.trace:
             logging.debug(f"calling {self._func=} with {args=}, {kwargs=}")
 
         # evaluate skey guard setting?
@@ -96,7 +96,7 @@ class Method:
         if self.access:
             user = current.user.get()
 
-            if trace := conf["viur.debug.trace"]:
+            if trace := conf.debug.trace:
                 logging.debug(f"@access {user=} {self.access=}")
 
             if not user:

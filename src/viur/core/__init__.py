@@ -190,7 +190,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
         conf.viur.emailRenderer = renderers["html"]["default"]().renderEmail
 
     # This might be useful for debugging, please keep it for now.
-    if conf["viur.debug.trace"]:
+    if conf.debug.trace:
         import pprint
         logging.debug(pprint.pformat(resolver))
 

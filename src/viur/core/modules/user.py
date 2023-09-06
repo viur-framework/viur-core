@@ -373,7 +373,7 @@ class UserPassword(UserAuthentication):
 
             recovery_key = securitykey.create(
                 duration=15 * 60,
-                key_length=conf["viur.security.password_recovery_key_length"],
+                key_length=conf.security.password_recovery_key_length,
                 user_name=skel["name"].lower(),
                 session_bound=False,
             )
